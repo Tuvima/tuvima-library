@@ -1,7 +1,7 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Services;
-using MediaEngine.Web.Components.Watch;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.Playback;

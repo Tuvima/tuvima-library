@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
@@ -244,7 +245,7 @@ public sealed class PlaybackPanelTests : AsyncBunitContext
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
         var sources = new[]
         {
-            File.ReadAllText(Path.Combine(web, "Components", "Shared", "PlaybackPanel.razor")),
+            File.ReadAllText(Path.Combine(web, "Components", "Player", "PlaybackPanel.razor")),
             File.ReadAllText(Path.Combine(web, "wwwroot", "js", "playback-popover.js")),
         };
         foreach (var source in sources)
@@ -271,7 +272,7 @@ public sealed class PlaybackPanelTests : AsyncBunitContext
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components");
         Assert.False(File.Exists(Path.Combine(web, "Shared", "PlaybackPopover.razor")));
         Assert.False(File.Exists(Path.Combine(web, "Shared", "PlaybackPopoutShell.razor")));
-        var panel = File.ReadAllText(Path.Combine(web, "Shared", "PlaybackPanel.razor"));
+        var panel = File.ReadAllText(Path.Combine(web, "Player", "PlaybackPanel.razor"));
         Assert.Contains("PlaybackToolSheet", panel, StringComparison.Ordinal); // The phone sheet reuses it, inside the `_mobile` branch only.
         var desktop = panel[panel.IndexOf("else", panel.IndexOf("@if (_mobile)", StringComparison.Ordinal), StringComparison.Ordinal)..];
         Assert.DoesNotContain("<PlaybackToolSheet", desktop, StringComparison.Ordinal);

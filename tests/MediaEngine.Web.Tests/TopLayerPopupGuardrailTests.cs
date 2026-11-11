@@ -13,10 +13,10 @@ public sealed class TopLayerPopupGuardrailTests
     private static readonly IReadOnlyDictionary<string, string> LegacyOwnPanels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["Components/Details/ManageActionsMenu.razor"] = "Details actions menu.",
-        ["Components/Shared/PlaybackItemMenu.razor"] = "Item actions menu of the bar; PlaybackPanel draws it in the top layer, this file only holds the rows.",
-        ["Components/Listen/PlaybackLyricsMenu.razor"] = "Rows of the Lyrics footer's menu; PlaybackPanel draws the menu in the top layer, this file only holds the rows.",
-        ["Components/Listen/PlaybackLyricsFooter.razor"] = "Holds the Lyrics footer's \"...\" button; PlaybackPanel draws the menu it opens in the top layer.",
-        ["Components/Shared/PlaybackRowMenu.razor"] = "The \"...\" menu of a Queue or History row; PlaybackPanel draws it in the top layer, this file only holds the rows.",
+        ["Components/Player/PlaybackItemMenu.razor"] = "Item actions menu of the bar; PlaybackPanel draws it in the top layer, this file only holds the rows.",
+        ["Components/Player/PlaybackLyricsMenu.razor"] = "Rows of the Lyrics footer's menu; PlaybackPanel draws the menu in the top layer, this file only holds the rows.",
+        ["Components/Player/PlaybackLyricsFooter.razor"] = "Holds the Lyrics footer's \"...\" button; PlaybackPanel draws the menu it opens in the top layer.",
+        ["Components/Player/PlaybackRowMenu.razor"] = "The \"...\" menu of a Queue or History row; PlaybackPanel draws it in the top layer, this file only holds the rows.",
         ["Components/Shared/MediaRateControl.razor"] = "Rate control flyout.",
     };
 

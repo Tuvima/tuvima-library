@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;

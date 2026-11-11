@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Components.Watch;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;

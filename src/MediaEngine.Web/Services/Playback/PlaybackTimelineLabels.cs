@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Resources;
 using Microsoft.Extensions.Localization;

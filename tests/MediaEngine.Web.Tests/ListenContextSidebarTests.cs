@@ -4,6 +4,7 @@ using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Listen;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;

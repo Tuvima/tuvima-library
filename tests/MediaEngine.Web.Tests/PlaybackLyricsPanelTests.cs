@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Listen;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
@@ -542,7 +543,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     public void TheBarDoesNotKeyTheLyricsPanelBySong_SoTheSongChangingNeverClosesIt()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        var bar = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor"));
+        var bar = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor"));
         var tag = bar[bar.IndexOf("<PlaybackLyricsPanel", StringComparison.Ordinal)..];
         tag = tag[..tag.IndexOf("/>", StringComparison.Ordinal)];
 

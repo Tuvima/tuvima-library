@@ -1,3 +1,5 @@
+using MediaEngine.Web.Components.Player;
+
 namespace MediaEngine.Web.Components.Shared;
 
 public enum PlaybackUtilityGlyphKind

@@ -274,7 +274,7 @@ public sealed class ArchitecturalHardeningTests
     {
         var program = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Program.cs"));
         var playback = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs"));
-        var host = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
+        var host = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
 
         Assert.Contains("app.MapMethods(\"/engine-stream/{assetId:guid}\"", program, StringComparison.Ordinal);
         Assert.Contains("HttpCompletionOption.ResponseHeadersRead", program, StringComparison.Ordinal);

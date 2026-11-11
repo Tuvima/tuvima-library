@@ -1,0 +1,53 @@
+@namespace MediaEngine.Web.Components.Player
+
+@* The "..." at the end of a Queue or History row (unified player v2 D18; mockup screen 8): a menu panel of 44 px rows, each a glyph and a 16 / 500 label, as the
+   Item actions menu draws them. Choosing a row runs it and closes the menu. The panel belongs to the list panel it was opened from, so opening it never closes
+   that panel. *@
+<span class="prm-host">
+    <PlaybackPanel @ref="_panel" Kind="menu" Title="@Title" ShowHeading="false" HeaderLine="@HeaderLine" TriggerClass="prm__trigger" Surface="@Surface">
+        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
+        <ChildContent>
+            <div class="prm" role="menu" aria-label="@Title" data-playback-row-menu>
+                <PlaybackMenuRoving />
+                @foreach (var item in Items)
+                {
+                    var chosen = item;
+                    @if (chosen.DividerBefore)
+                    {
+                        <div class="prm__divider" role="separator"></div>
+                    }
+                    <AppNativeButton Type="button" Class="prm__row" role="menuitem" Disabled="@chosen.Disabled" data-playback-row-action="@chosen.Key" OnClick="@(() => ChooseAsync(chosen))">
+                        <PlaybackUtilityGlyph Glyph="@chosen.Glyph" />
+                        <span class="prm__label">@chosen.Label</span>
+                    </AppNativeButton>
+                }
+            </div>
+        </ChildContent>
+    </PlaybackPanel>
+</span>
+
+@code {
+    private PlaybackPanel? _panel;
+
+    /// <summary>The menu's accessible name and the tooltip of its "..." button ("Queue actions for Afterglow").</summary>
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The small line above the rows (the song's name).</summary>
+    [Parameter] public string? HeaderLine { get; set; }
+
+    [Parameter] public IReadOnlyList<PlaybackRowMenuItem> Items { get; set; } = [];
+    [Parameter] public string Surface { get; set; } = "panel";
+
+    /// <summary>The key of the row that was chosen. The menu has already closed.</summary>
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    /// <summary>Opens the menu (for the owner of the row and for tests).</summary>
+    public Task OpenAsync() => _panel?.OpenAsync(true) ?? Task.CompletedTask;
+
+    private async Task ChooseAsync(PlaybackRowMenuItem item)
+    {
+        if (item.Disabled) return;
+        if (_panel is not null) await _panel.CloseAsync();
+        await OnSelect.InvokeAsync(item.Key);
+    }
+}

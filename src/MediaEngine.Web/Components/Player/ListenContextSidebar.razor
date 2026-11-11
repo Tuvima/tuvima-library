@@ -1,0 +1,29 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+@inject IServiceProvider Services
+
+<PlaybackPanelCard Snapshot="@CurrentSnapshot" Commands="@CurrentCommands" PanelKey="@ActivePanelKey"
+                      ShowTabs="@ShowTabs" PanelChanged="@OnTabChanged" />
+
+@code {
+    [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
+    [Parameter] public IPlaybackCommandSink? Commands { get; set; }
+    [Parameter] public string? ActivePanelKey { get; set; }
+    [Parameter] public bool ShowTabs { get; set; }
+    [Parameter] public EventCallback<string> OnTabChanged { get; set; }
+    private PlaybackSessionController? _playback;
+    private ListenPlaybackSnapshot CurrentSnapshot => Snapshot ?? _playback?.CreateSnapshot() ?? new();
+    private IPlaybackCommandSink CurrentCommands => Commands ?? Services.GetRequiredService<IPlaybackCommandSink>();
+    protected override void OnParametersSet()
+    {
+        var playback = Snapshot is null ? Services.GetService<PlaybackSessionController>() : null;
+        if (_playback == playback) return;
+        if (_playback is not null) _playback.Changed -= Changed;
+        _playback = playback;
+        if (_playback is not null) _playback.Changed += Changed;
+    }
+    private void Changed(PlaybackChangeKind kind) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() { if (_playback is not null) _playback.Changed -= Changed; }
+}

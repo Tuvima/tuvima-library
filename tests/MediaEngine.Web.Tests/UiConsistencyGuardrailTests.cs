@@ -15,13 +15,13 @@ public sealed partial class UiConsistencyGuardrailTests
         // Dislike apart); the desktop Now playing page draws no second set of controls (D24). The old circular song-action row is gone.
         foreach (var host in new[] { "ListenNowPlayingBar", "PlaybackFullPlayer" })
         {
-            var source = Read($"src/MediaEngine.Web/Components/Listen/{host}.razor");
+            var source = Read($"src/MediaEngine.Web/Components/Player/{host}.razor");
             Assert.Contains("<PlaybackIdentityActions", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<SongActions", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<PlaybackSongActions", source, StringComparison.Ordinal);
         }
-        Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor")));
-        Assert.DoesNotContain("playback-lyrics__sync", Read("src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor"), StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Player/PlaybackSongActions.razor")));
+        Assert.DoesNotContain("playback-lyrics__sync", Read("src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor"), StringComparison.Ordinal);
     }
 
     [Fact]

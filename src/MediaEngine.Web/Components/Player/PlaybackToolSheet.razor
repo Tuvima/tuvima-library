@@ -1,0 +1,179 @@
+@namespace MediaEngine.Web.Components.Player
+@using System.Linq
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+
+<AppPopout @ref="_surface" Id="@(Modal ? _sheetId : null)" Class="@RootClass" Role="@(Modal ? "dialog" : "region")" AriaLabel="@Title" Modal="Modal" AdditionalAttributes="AdditionalAttributes">
+    <PlaybackSheetHandleButton Class="playback-tool-sheet__handle" Label="@CloseLabel" OnClick="@CloseAsync" />
+    <div class="playback-tool-sheet__header">
+        @if (OnBack.HasDelegate)
+        {
+            @HeaderButton(PlaybackUtilityGlyphKind.Back, L["Common_Back"].Value, OnBack)
+        }
+        else if (Glyph is { } glyph)
+        {
+            <span class="playback-tool-sheet__header-icon" aria-hidden="true"><PlaybackUtilityGlyph Glyph="glyph" /></span>
+        }
+        <div class="playback-tool-sheet__heading">
+            @if (TitleAdornment is not null)
+            {
+                <div class="playback-tool-sheet__title-line">
+                    <h2>@Title</h2>
+                    @TitleAdornment
+                </div>
+            }
+            else
+            {
+                <h2>@Title</h2>
+            }
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <p>@Subtitle</p>
+            }
+        </div>
+        @HeaderActions
+        @HeaderButton(PlaybackUtilityGlyphKind.Close, CloseAriaLabel, EventCallback.Factory.Create(this, CloseAsync))
+    </div>
+    <div class="playback-tool-sheet__content">
+        <CascadingValue Name="PlaybackPopoverOwner" Value="@(Modal ? _sheetId : PlaybackPopoverOwner)">@ChildContent</CascadingValue>
+    </div>
+    @if (Footer is not null)
+    {
+        <div class="playback-tool-sheet__footer">@Footer</div>
+    }
+</AppPopout>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Playback tools";
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>A stroke glyph drawn before the title when there is no Back button.</summary>
+    [Parameter]
+    public PlaybackUtilityGlyphKind? Glyph { get; set; }
+
+    [Parameter]
+    public string Surface { get; set; } = "panel";
+
+    [Parameter]
+    public string Presentation { get; set; } = "inline";
+
+    [Parameter]
+    public bool Modal { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>Shows a back arrow in place of the icon and runs this when it is used (a nested view of a panel).</summary>
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    /// <summary>Small content right after the title (the Lyrics sheet's Synced chip).</summary>
+    [Parameter]
+    public RenderFragment? TitleAdornment { get; set; }
+
+    /// <summary>Icon buttons drawn before Close in the header (the Lyrics sheet's Open Now playing).</summary>
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
+
+    /// <summary>Fixed actions under the scrolling content.</summary>
+    [Parameter]
+    public RenderFragment? Footer { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IStringLocalizer<SharedStrings> L { get; set; } = default!;
+    [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? PlaybackPopoverOwner { get; set; }
+    private readonly string _sheetId = $"playback-sheet-{Guid.NewGuid():N}";
+    private AppPopout? _surface;
+    private ElementReference _root => _surface?.Root ?? default;
+    private IJSObjectReference? _module;
+    private bool _focusAttached;
+
+    private string CloseLabel => Surface == "popup" || Presentation == "full-overlay"
+        ? "Collapse sheet"
+        : "Close sheet";
+    private string CloseAriaLabel => $"Close {Title}";
+
+    private string NormalizedSurface => Surface switch
+    {
+        "popup" => "popup",
+        "fullscreen" => "fullscreen",
+        _ => "panel",
+    };
+
+    private string NormalizedPresentation => Presentation switch
+    {
+        "full-overlay" => "full-overlay",
+        "rollup" => "full-overlay",
+        _ => "inline",
+    };
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "playback-tool-sheet",
+        $"playback-tool-sheet--{NormalizedSurface}",
+        $"playback-tool-sheet--{NormalizedPresentation}",
+        Class,
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Modal)
+        {
+            await RestoreFocusAsync();
+            return;
+        }
+        if (_focusAttached) return;
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-tool-sheet.js");
+            await _module.InvokeVoidAsync("attachModal", _root);
+            _focusAttached = true;
+        }
+        catch (InvalidOperationException) { }
+        catch (JSDisconnectedException) { }
+    }
+
+    private RenderFragment HeaderButton(PlaybackUtilityGlyphKind glyph, string label, EventCallback onClick) =>
+        @<AppTooltip Text="@label">
+            <AppNativeButton Type="button" Class="playback-tool-sheet__close" OnClick="onClick" AriaLabel="@label">
+                <PlaybackUtilityGlyph Glyph="glyph" />
+            </AppNativeButton>
+        </AppTooltip>;
+
+    private async Task CloseAsync()
+    {
+        await RestoreFocusAsync();
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task RestoreFocusAsync()
+    {
+        if (!_focusAttached || _module is null) return;
+        try { await _module.InvokeVoidAsync("restoreFocus", _root); }
+        catch (JSDisconnectedException) { }
+        _focusAttached = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await RestoreFocusAsync();
+        if (_module is not null)
+        {
+            try { await _module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

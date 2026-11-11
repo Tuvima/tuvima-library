@@ -13,8 +13,8 @@ public sealed class PlayerBookmarkGuardrailTests
     private static readonly string[] PlayerFiles =
     [
         "src/MediaEngine.Web/Components/Shared/BookmarksPanel.razor",
-        "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor",
-        "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor",
+        "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor",
+        "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor",
         "src/MediaEngine.Web/Components/Pages/BookReader.razor",
     ];
 

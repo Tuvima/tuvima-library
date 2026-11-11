@@ -138,7 +138,7 @@ public static class DisplayFormat
     /// <summary>
     /// "{rate}×" clamped to 0.5-32x with up to two decimal places (invariant
     /// culture). Originally duplicated (byte-identical) in
-    /// Components/Listen/ListenNowPlayingBar.razor and
+    /// Components/Player/ListenNowPlayingBar.razor and
     /// a transport control that no longer exists.
     /// </summary>
     public static string FormatSpeedListen(double rate)

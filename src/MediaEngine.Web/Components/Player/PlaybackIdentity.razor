@@ -1,0 +1,192 @@
+@namespace MediaEngine.Web.Components.Player
+@using System.Linq
+@using MediaEngine.Web.Services.Playback
+
+@* The left zone of the persistent bar (unified player v2 D5; mockup screen 1, markers 4): a fixed artwork slot 56 px tall, the title (16 / 600) with
+   the second line (13, muted) beside it, then the item's actions. Square for music and audiobooks, 100 x 56 for TV and movies. A poster that fills
+   a landscape slot is drawn whole on a blurred copy of itself (contain, never stretch); a missing or broken picture is a neutral placeholder of the
+   same size, so the text never moves. Names are links through the host's LinkContent. There is no "View details" button. *@
+<div class="@RootClass" data-playback-zone="identity" data-playback-identity>
+    @if (ExpandsAsOneButton)
+    {
+        @* The phone's collapsed bar: a tap anywhere on the artwork or the text expands the player (unified player v2 D26), so the names are plain text here
+           (a link inside a button is not allowed, and the person is not asking for the page). *@
+        <AppNativeButton @ref="_artworkButton" Type="button" Class="playback-identity__expand" OnClick="ArtworkClick" AriaLabel="@($"{ArtworkLabel}, {Identity.Title}")" data-playback-expand>
+            @if (ShowArtwork)
+            {
+                <span class="@ArtworkClass" data-playback-artwork="@ArtworkState">@ArtworkImage</span>
+            }
+            <span class="playback-identity__text">
+                <span class="playback-identity__title">@Identity.Title</span>
+                @if (!string.IsNullOrWhiteSpace(RemoteLine))
+                {
+                    @* While a receiver plays, "Playing on ..." takes the second line's place, so the collapsed bar keeps its 56 px height. *@
+                    <span class="playback-identity__remote" data-playback-remote-line>@RemoteLine</span>
+                }
+                else if (Identity.Secondary.Count > 0)
+                {
+                    <span class="playback-identity__secondary">@Identity.SecondaryText</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(ErrorText))
+                {
+                    <span class="playback-identity__error" role="status">@ErrorText</span>
+                }
+            </span>
+        </AppNativeButton>
+    }
+    else
+    {
+    if (ShowArtwork)
+    {
+        @if (ArtworkClick.HasDelegate)
+        {
+            <AppNativeButton @ref="_artworkButton" Type="button" Class="@ArtworkClass" OnClick="ArtworkClick" AriaLabel="@ArtworkLabel" data-playback-artwork="@ArtworkState">@ArtworkImage</AppNativeButton>
+        }
+        else
+        {
+            <div class="@ArtworkClass" data-playback-artwork="@ArtworkState">@ArtworkImage</div>
+        }
+    }
+    <div class="playback-identity__text">
+        <div class="playback-identity__title">@RenderLink(Identity.Title, Identity.TitleLinkKind, Identity.TitleLinkId)</div>
+        @if (Identity.Secondary.Count > 0)
+        {
+            <div class="playback-identity__secondary">
+                @for (var index = 0; index < Identity.Secondary.Count; index++)
+                {
+                    var part = Identity.Secondary[index];
+                    @if (index > 0) { <span class="playback-identity__separator">@part.Separator</span> }
+                    @RenderLink(part.Text, part.LinkKind, part.LinkId)
+                }
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(RemoteLine))
+        {
+            <div class="playback-identity__remote" role="status" data-playback-remote-line>@RemoteLine</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(ErrorText))
+        {
+            <div class="playback-identity__error" role="status">@ErrorText</div>
+        }
+    </div>
+    if (Actions is not null && !Compact)
+    {
+        <div class="playback-identity__actions">@Actions</div>
+    }
+    }
+</div>
+
+@code {
+    /// <summary>Which of the four media the bar is drawn for; it picks the slot shape.</summary>
+    [Parameter] public PlaybackBarMedia Media { get; set; }
+
+    /// <summary>The phone's collapsed bar: no actions, a smaller title, and the text may shrink to nothing.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    /// <summary>The title and second line (see <see cref="PlaybackBarIdentity.Build"/>).</summary>
+    [Parameter] public PlaybackBarIdentity Identity { get; set; } = new(string.Empty, null, null, []);
+
+    /// <summary>Draws a title or name that links to its page; without it every name is plain text.</summary>
+    [Parameter] public RenderFragment<PlaybackIdentityLinkRequest>? LinkContent { get; set; }
+
+    [Parameter] public string? ArtworkSrc { get; set; }
+    [Parameter] public string? ArtworkSrcSet { get; set; }
+    [Parameter] public string? ArtworkAlt { get; set; }
+    [Parameter] public string? ArtworkDisplay { get; set; }
+
+    /// <summary>True when the picture is a portrait poster in a landscape slot: it is contained on a blurred fill.</summary>
+    [Parameter] public bool ArtworkIsPoster { get; set; }
+
+    /// <summary>The artwork becomes a button (it opens Now playing) when the host listens.</summary>
+    [Parameter] public EventCallback ArtworkClick { get; set; }
+    [Parameter] public string ArtworkLabel { get; set; } = "Open Now playing";
+
+    /// <summary>Favorite, Like, Dislike and More, drawn beside the text.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    /// <summary>Shown under the second line in the accent color while a receiver plays: "Playing on Living room TV" (unified player v2 D28).</summary>
+    [Parameter] public string? RemoteLine { get; set; }
+
+    /// <summary>Shown under the second line in the error color when playback failed.</summary>
+    [Parameter] public string? ErrorText { get; set; }
+
+    private AppNativeButton? _artworkButton;
+    private string? _failedSource;
+
+    /// <summary>The artwork button, so a host can anchor a panel to it or return focus to it.</summary>
+    public ElementReference? ArtworkElement => _artworkButton?.Element;
+
+    private bool IsVideoMedia => Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie;
+    private bool ExpandsAsOneButton => Compact && ArtworkClick.HasDelegate;
+    private bool ShowArtwork => !Compact || !IsVideoMedia;
+    private bool HasImage => !string.IsNullOrWhiteSpace(ArtworkSrc) && !string.Equals(_failedSource, ArtworkSrc, StringComparison.Ordinal);
+    private string ArtworkState => !HasImage ? "placeholder" : ArtworkIsPoster && IsVideoMedia ? "poster" : "image";
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "playback-identity",
+        Compact ? "playback-identity--compact" : null,
+    }.Where(value => value is not null));
+
+    private string ArtworkClass => string.Join(" ", new[]
+    {
+        "playback-identity__art",
+        IsVideoMedia ? "playback-identity__art--wide" : "playback-identity__art--square",
+        HasImage && ArtworkIsPoster && IsVideoMedia ? "playback-identity__art--poster" : null,
+        ArtworkClick.HasDelegate ? "playback-identity__art--button" : null,
+    }.Where(value => value is not null));
+
+    private void HandleImageError() => _failedSource = ArtworkSrc;
+
+    private RenderFragment ArtworkImage => builder =>
+    {
+        if (!HasImage)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "playback-identity__art-placeholder");
+            builder.AddAttribute(2, "aria-hidden", "true");
+            builder.CloseElement();
+            return;
+        }
+
+        if (ArtworkIsPoster && IsVideoMedia)
+        {
+            // The blurred fill is a second copy of the poster behind the whole poster; it is decoration, so it has no name.
+            builder.OpenElement(3, "img");
+            builder.AddAttribute(4, "class", "playback-identity__art-fill");
+            builder.AddAttribute(5, "src", ArtworkSrc);
+            builder.AddAttribute(6, "alt", string.Empty);
+            builder.AddAttribute(7, "aria-hidden", "true");
+            builder.AddAttribute(8, "decoding", "async");
+            builder.CloseElement();
+        }
+
+        builder.OpenElement(10, "img");
+        builder.AddAttribute(11, "class", "playback-identity__art-image");
+        builder.AddAttribute(12, "src", ArtworkSrc);
+        if (!string.IsNullOrWhiteSpace(ArtworkSrcSet))
+        {
+            builder.AddAttribute(13, "srcset", ArtworkSrcSet);
+        }
+        if (!string.IsNullOrWhiteSpace(ArtworkDisplay))
+        {
+            builder.AddAttribute(14, "data-image-display", ArtworkDisplay);
+        }
+        builder.AddAttribute(15, "alt", ArtworkAlt ?? string.Empty);
+        builder.AddAttribute(16, "decoding", "async");
+        builder.AddAttribute(17, "onerror", EventCallback.Factory.Create(this, HandleImageError));
+        builder.CloseElement();
+    };
+
+    private RenderFragment RenderLink(string text, string? kind, Guid? id) => builder =>
+    {
+        if (LinkContent is not null && !string.IsNullOrEmpty(kind) && id is not null)
+        {
+            builder.AddContent(0, LinkContent(new PlaybackIdentityLinkRequest(text, kind, id.Value)));
+        }
+        else
+        {
+            builder.AddContent(1, text);
+        }
+    };
+}

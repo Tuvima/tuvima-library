@@ -1,6 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.ProfileState;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
@@ -159,7 +160,7 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
         var slot = RenderShell(media, "/cover.png").Find("[data-playback-artwork]");
 
         Assert.Contains(expectedClass, slot.ClassList);
-        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css"));
+        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css"));
         Assert.Contains("height: 56px;", css, StringComparison.Ordinal);
         Assert.Contains("width: 56px;", css, StringComparison.Ordinal);
         Assert.Contains(".playback-identity__art--wide {\n    width: 100px;", css.Replace("\r\n", "\n"), StringComparison.Ordinal);
@@ -176,7 +177,7 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
         Assert.Equal("true", fill.GetAttribute("aria-hidden"));
         Assert.Equal("/poster.png", fill.GetAttribute("src"));
         Assert.Equal("/poster.png", slot.QuerySelector("img.playback-identity__art-image")!.GetAttribute("src"));
-        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
+        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
         Assert.Contains(".playback-identity__art--poster .playback-identity__art-image {\n    object-fit: contain;", css, StringComparison.Ordinal);
         Assert.Contains("filter: blur(6px) brightness(0.6);", css, StringComparison.Ordinal);
     }
@@ -283,8 +284,8 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
     [Fact]
     public void TheActionsKeepAtLeast240PixelsForTheIdentityZoneAndNeverShrinkAt1024()
     {
-        var identityCss = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
-        var actionsCss = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentityActions.razor.css")).Replace("\r\n", "\n");
+        var identityCss = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
+        var actionsCss = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentityActions.razor.css")).Replace("\r\n", "\n");
 
         Assert.Contains(".playback-identity {\n    align-items: center;\n    display: flex;\n    gap: 12px;\n    min-width: 240px;", identityCss, StringComparison.Ordinal);
         Assert.Contains(".playback-identity__actions {\n    align-items: center;\n    display: flex;\n    flex: none;", identityCss, StringComparison.Ordinal);
@@ -301,7 +302,7 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
     [Fact]
     public void TheTitleTakesOnlyItsOwnWidthSoTheActionsSitRightAfterItAsInTheMockup()
     {
-        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
+        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
 
         Assert.Contains(".playback-identity__text {\n    flex: 0 1 auto;\n    min-width: 0;\n}", css, StringComparison.Ordinal);
         Assert.DoesNotContain(".playback-identity__text {\n    flex: 1 1 auto;", css, StringComparison.Ordinal);
