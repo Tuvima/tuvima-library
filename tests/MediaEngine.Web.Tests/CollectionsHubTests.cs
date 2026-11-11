@@ -185,7 +185,7 @@ public sealed class CollectionsHubTests
         var pagesPath = Path.GetDirectoryName(
             GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/UnifiedDetailPage.razor"))!;
         var route = LocalizedSource.ReadAllText(Path.Combine(pagesPath, "UnifiedDetailPage.razor"));
-        var detail = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Details/DetailPage.razor"));
+        var detail = LocalizedSource.ReadComponent(GetRepoFilePath(@"src/MediaEngine.Web/Components/Details/DetailPage.razor"));
         var composer = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/CollectionSurfaceTileComposer.cs"));
 
         Assert.False(File.Exists(Path.Combine(pagesPath, "CollectionDetail.razor")));

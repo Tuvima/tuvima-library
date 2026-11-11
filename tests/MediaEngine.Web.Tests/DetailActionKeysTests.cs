@@ -59,7 +59,7 @@ public sealed class DetailActionKeysTests
     [Fact]
     public void ThePageHandlerSwitchesOnTheSharedKeysRatherThanOwnLiterals()
     {
-        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(
+        var source = LocalizedSource.ReadComponent(Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
             "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor")));
         var handler = source[source.IndexOf("private async Task HandleDetailActionAsync", StringComparison.Ordinal)..];
