@@ -102,8 +102,35 @@ public static class BrowseQueryBuilder
         return IsContainerGrouping(grouping) ? "featured" : "newest";
     }
 
+    /// <summary>True for the Songs list of the Music tab (grouping "songs", or "tracks" in older saved views).</summary>
+    public static bool IsSongsList(string activeTabId, string grouping) =>
+        string.Equals(activeTabId, "music", StringComparison.OrdinalIgnoreCase) && grouping is "songs" or "tracks";
+
+    /// <summary>
+    /// What the Songs table sorts by for a header sort choice (music player and queue spec, Songs list: "a header with a sort menu"): the
+    /// table's own column key and direction. Clicking a column header still changes the sort afterwards.
+    /// </summary>
+    public static (string Column, bool Descending) SongTableSort(string? sort) => sort switch
+    {
+        "oldest" => ("dateAdded", false),
+        "title" => ("title", false),
+        "creator" => ("artist", false),
+        "album" => ("album", false),
+        "plays" => ("plays", true),
+        _ => ("dateAdded", true),
+    };
+
     public static IReadOnlyList<(string Value, string Label)> GetSortOptions(string activeTabId, string grouping) =>
-        string.Equals(activeTabId, "music", StringComparison.OrdinalIgnoreCase)
+        IsSongsList(activeTabId, grouping)
+            ? [
+                ("newest", "Recently added"),
+                ("oldest", "Oldest first"),
+                ("title", "Title A-Z"),
+                ("creator", "Artist"),
+                ("album", "Album"),
+                ("plays", "Most played"),
+            ]
+        : string.Equals(activeTabId, "music", StringComparison.OrdinalIgnoreCase)
         && grouping == "albums"
             ? [
                 ("newest", "Recently added"),

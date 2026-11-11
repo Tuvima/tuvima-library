@@ -19,6 +19,19 @@ public sealed class BrowseQueryBuilderTests
         Assert.DoesNotContain(BrowseQueryBuilder.GetSortOptions("books", "timeline"), option => option.Value == "title");
     }
     [Fact]
+    public void TheSongsList_OffersItsOwnSortMenu_AndEachChoiceMapsToATableColumn()
+    {
+        var options = BrowseQueryBuilder.GetSortOptions("music", "songs");
+        Assert.Equal(["newest", "oldest", "title", "creator", "album", "plays"], options.Select(option => option.Value));
+        Assert.Equal(("artist", false), BrowseQueryBuilder.SongTableSort("creator"));
+        Assert.Equal(("plays", true), BrowseQueryBuilder.SongTableSort("plays"));
+        Assert.Equal(("dateAdded", true), BrowseQueryBuilder.SongTableSort("newest"));
+        Assert.Equal(("dateAdded", true), BrowseQueryBuilder.SongTableSort("something-unknown"));
+        // Albums keep their own menu.
+        Assert.DoesNotContain(BrowseQueryBuilder.GetSortOptions("music", "albums"), option => option.Value == "plays");
+    }
+
+    [Fact]
     public void Read_CarriesVibeAndThemeFilters_AndDefaultsToNone()
     {
         var state = BrowseQueryBuilder.Read(CreatePreset(), "books", "http://localhost/read/books?vibe=cozy&vibe=tense&theme=friendship");
