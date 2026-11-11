@@ -2948,8 +2948,8 @@ public sealed partial class PlaybackSessionController
             candidate = candidate["/api/v1".Length..];
         }
 
-        // Current catalogue manifests use the resource route; the legacy stream
-        // route remains supported below. Both must use the authenticated proxy.
+        // Queue items the Dashboard builds use /media/assets/{id}/stream; the Engine's
+        // player queue and capability manifests use /stream/{assetId}. Both must use the authenticated proxy.
         var resourcePath = candidate.Split('?', '#')[0].Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (resourcePath is ["media", "assets", var id, "stream"] && Guid.TryParse(id, out var resourceAssetId))
         {
@@ -3424,12 +3424,6 @@ public sealed partial class PlaybackSessionController
         if (item.AudiobookWorkId is { } audiobookWorkId && audiobookWorkId != Guid.Empty)
         {
             return audiobookWorkId;
-        }
-        if (MediaKindClassifier.IsAudiobook(item.MediaType)
-            && item.AlbumWorkId is { } legacyBookId
-            && legacyBookId != Guid.Empty)
-        {
-            return legacyBookId;
         }
         return item.WorkId;
     }

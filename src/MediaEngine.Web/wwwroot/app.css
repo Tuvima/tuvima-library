@@ -44,7 +44,7 @@
     font-display: swap;
 }
 
-/* -- Legacy layout rules. Theme variables are provided by tuvima.tokens.css
+/* -- Page layout rules. Theme variables are provided by tuvima.tokens.css
    and the final token alias block later in this file. ------------------- */
 
 /* -- Cinematic background ----------------------------------------------- */
@@ -144,48 +144,9 @@ body {
     }
 }
 
-/* High-priority legacy surface alignment for provider/settings panels and playback sheets. */
-.provider-card {
-    background: var(--tl-bg-surface) !important;
-    border-color: var(--tl-border-default) !important;
-    border-radius: var(--tl-radius-lg) !important;
-    box-shadow: var(--tl-shadow-sm) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
-.provider-chip {
-    color: var(--tl-text-muted) !important;
-    font-family: var(--font-ui) !important;
-}
-
-.category-item.active {
-    color: var(--tl-accent-primary) !important;
-    background: var(--tl-accent-primary-soft) !important;
-}
-
-.category-strip,
-.save-bar,
-.provider-chip {
+.save-bar {
     border-color: var(--tl-border-default) !important;
 }
-
-.category-item {
-    color: var(--tl-text-muted) !important;
-}
-
-.category-item:hover {
-    color: var(--tl-text-primary) !important;
-}
-
-.provider-card:hover {
-    border-color: var(--tl-accent-primary) !important;
-    box-shadow: var(--tl-shadow-sm) !important;
-}
-
-.health-online { background: var(--tl-status-success) !important; box-shadow: none !important; }
-.health-degraded { background: var(--tl-status-warning) !important; box-shadow: none !important; }
-.health-offline { background: var(--tl-status-danger) !important; box-shadow: none !important; }
 
 .tl-dialog.sme-dialog {
 
@@ -196,8 +157,8 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   Legacy Hybrid Paces + Metronic dark admin migration layer.
-   Kept temporarily while remaining page-local selectors move to tl-*.
+   Base page, dialog, table and card rules shared by every page.
+   Theme variables come from tuvima.tokens.css.
    -------------------------------------------------------------------------- */
 
 html,
@@ -751,7 +712,7 @@ code{
 
 /* ---------------------------------------------------------------------------
    Tuvima token-backed application system
-   Final cascade layer: maps legacy app variables to the canonical token file
+   Final cascade layer: maps the --app-* variables to the canonical token file
    and provides shared cards, buttons, tabs, filters, forms, tables, statuses.
    -------------------------------------------------------------------------- */
 
@@ -914,8 +875,8 @@ body,
 
 /* ---------------------------------------------------------------------------
    Control and form foundation
-   Migration-safe primitives for new UI work. Legacy settings/dialog classes
-   alias into these rules until pages can be renamed incrementally.
+   Shared primitives for pages and dialogs; the settings and dialog classes
+   build on these rules.
    -------------------------------------------------------------------------- */
 
 .tl-page{
@@ -2548,7 +2509,7 @@ input.app-control.tl-input-slot,
    Keep the origin action inside the hero without consuming layout height. */
 
 /* -------------------------------------------------------------------------
-   Shared dropdown/menu system. Keep this final so legacy the shared UI layer overrides
+   Shared dropdown/menu system. Keep this final so other shared UI rules
    cannot change menu geometry or color by page/cascade order.
    ---------------------------------------------------------------------- */
 .app-menu-popover.tl-popover,
@@ -2757,7 +2718,7 @@ button.app-menu-item {
 .playback-panel__icon-button:hover { background: var(--playback-state-hover); }
 .playback-panel__icon-button:focus-visible { outline: 2px solid var(--playback-focus-ring); outline-offset: 2px; }
 .playback-panel__dismiss { position: absolute; top: 6px; right: 6px; z-index: 1; }
-.playback-panel__body--legacy { padding: 18px; }
+.playback-panel__body--padded { padding: 18px; }
 .playback-panel--settings .playback-panel__body { padding: 0; }
 .playback-panel__body .playback-sheet-list { flex: 1; min-height: 0; }
 .playback-context-tabs { display: flex; border-bottom: 1px solid var(--playback-border); gap: 20px; }

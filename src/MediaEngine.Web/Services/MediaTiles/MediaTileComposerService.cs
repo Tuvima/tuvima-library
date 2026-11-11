@@ -80,7 +80,6 @@ public sealed class MediaTileComposerService
             MediaCounts = playlist.ItemCount > 0
                 ? [new MediaTileMediaCountViewModel(MediaEngine.Web.Components.Shared.AppMaterialIcons.Outlined.MusicNote, playlist.ItemCount == 1 ? "song" : "songs", playlist.ItemCount)]
                 : [],
-            HasCustomArtwork = !string.IsNullOrWhiteSpace(playlist.CoverArtworkUrl),
         };
     }
 
@@ -328,7 +327,6 @@ public sealed class MediaTileComposerService
         // A group of titles is a poster like a single title; only Continue tiles are landscape (One tile design D2).
         var tileShape = useGroupTile ? MediaTileShape.Portrait : surface.Shape;
         var surfaceKind = useGroupTile ? MediaTileSurfaceKind.CoverPortrait : surface.SurfaceKind;
-        var hoverLayout = surface.HoverLayout;
 
         return new MediaTileViewModel
         {
@@ -375,7 +373,6 @@ public sealed class MediaTileComposerService
             HoverArtworkShape = surface.HoverArtworkShape,
             Presentation = presentation,
             SurfaceKind = surfaceKind,
-            HoverLayout = hoverLayout,
             TileTextMode = string.Equals(card.TileTextMode, "coverOnly", StringComparison.OrdinalIgnoreCase) ? MediaTileTextMode.CoverOnly : MediaTileTextMode.Caption,
             PreviewPlacement = string.Equals(card.PreviewPlacement, "bottom", StringComparison.OrdinalIgnoreCase)
                 ? MediaTilePreviewPlacement.Bottom

@@ -13,7 +13,7 @@ public interface IViewMediaEngineClient
 }
 
 /// <summary>
-/// Keeps the temporary legacy Engine media route entirely behind the Dashboard proxy.
+/// Calls the Engine's View media route (thumbnail, content and preview) so it stays entirely behind the Dashboard proxy.
 /// </summary>
 public sealed class ViewMediaEngineClient(HttpClient http) : IViewMediaEngineClient, IDisposable
 {

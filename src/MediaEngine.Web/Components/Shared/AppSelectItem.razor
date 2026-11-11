@@ -18,7 +18,7 @@
     private static string? ExtractText(RenderFragment? content)
     {
         if (content is null) return null;
-        // Legacy child-content options have no text parameter. Read text only for
+        // Options given as child content have no Text parameter. Read text only for
         // their accessible trigger label and type-ahead; option markup stays intact.
 #pragma warning disable BL0006
         var builder = new Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder(); content(builder); var frames = builder.GetFrames();

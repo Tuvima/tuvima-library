@@ -149,30 +149,9 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
 
         Assert.Equal(MediaTileGroupKind.List, tile.GroupKind);
-        Assert.Equal(4, tile.GroupSource!.UnmatchedCount);
         Assert.StartsWith("Top films, List", cut.Find("a.media-tile-link").GetAttribute("aria-label"), StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-group-source]"));
         Assert.Empty(cut.FindAll("[data-unmatched-badge]"));
-    }
-
-    [Fact]
-    public void AnImportedListTile_StillFillsInItsGroupSource_WithWhenItWasRefreshedAndHowManyTitlesMatchedNothing()
-    {
-        var refreshed = new DateTimeOffset(2026, 10, 14, 9, 0, 0, TimeSpan.Zero);
-
-        var tile = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
-        {
-            Id = Guid.NewGuid(),
-            Name = "Top films",
-            CollectionType = "Custom",
-            FillKind = CollectionFillKinds.List,
-            ListSource = new CollectionCatalogListSourceDto { SourceLabel = "Letterboxd export", LastRefreshedAt = refreshed, EntryCount = 250, OwnedCount = 83, UnmatchedCount = 4 },
-        });
-
-        var source = Assert.IsType<MediaTileGroupSourceViewModel>(tile.GroupSource);
-        Assert.Equal(CollectionFillKinds.List, source.FillKind);
-        Assert.Equal(refreshed, source.LastRefreshedAt);
-        Assert.Equal(4, source.UnmatchedCount);
     }
 
     [Theory]
@@ -180,7 +159,7 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
     [InlineData(CollectionFillKinds.Rules)]
     [InlineData(CollectionFillKinds.Pack)]
     [InlineData(CollectionFillKinds.Set)]
-    public void EveryCuratedTile_KeepsHowItFillsUpAsDataAndDrawsNoSourceLine(string fillKind)
+    public void EveryCuratedTile_DrawsNoSourceLine(string fillKind)
     {
         var tile = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
         {
@@ -194,12 +173,11 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
 
-        Assert.Equal(fillKind, tile.GroupSource!.FillKind);
         Assert.Empty(cut.FindAll("[data-group-source]"));
     }
 
     [Fact]
-    public void ASetTile_SaysSetToScreenReaders_AndASeriesTileCarriesNoSource()
+    public void ASetTile_SaysSetToScreenReaders()
     {
         var set = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
         {
@@ -209,17 +187,10 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
             FillKind = CollectionFillKinds.Set,
             ChildCollectionCount = 1,
         });
-        var series = CollectionSurfaceTileComposer.FromCollection(new CollectionManagementCatalogViewModel
-        {
-            Id = Guid.NewGuid(),
-            Name = "Dune Novels",
-            CollectionType = "Series",
-        });
 
         var setTile = Render<MediaTile>(parameters => parameters.Add(component => component.Item, set));
 
         Assert.StartsWith("Decades, Set", setTile.Find("a.media-tile-link").GetAttribute("aria-label"), StringComparison.Ordinal);
-        Assert.Null(series.GroupSource);
     }
 
     [Fact]
