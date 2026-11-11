@@ -10,51 +10,6 @@ namespace MediaEngine.Contracts.Tests;
 public sealed class EditorEngineReadsContractTests
 {
     [Fact]
-    public void FileDeletionRequests_UseSnakeCaseNames()
-    {
-        var work = Guid.NewGuid();
-        var asset = Guid.NewGuid();
-
-        var preview = JsonSerializer.Serialize(new LibraryItemFileDeletionPreviewRequest { WorkId = work, AssetId = asset });
-        var confirm = JsonSerializer.Serialize(new LibraryItemFileDeletionRequest { WorkId = work, AssetId = asset, Fingerprint = "abc" });
-
-        Assert.Equal("{\"work_id\":\"" + work.ToString("D") + "\",\"asset_id\":\"" + asset.ToString("D") + "\"}", preview);
-        Assert.Equal(
-            "{\"work_id\":\"" + work.ToString("D") + "\",\"asset_id\":\"" + asset.ToString("D") + "\",\"fingerprint\":\"abc\"}",
-            confirm);
-    }
-
-    [Fact]
-    public void DeletionPreview_CarriesTheFileScope_OnlyForAOneFileDelete()
-    {
-        var plain = JsonSerializer.Serialize(new LibraryItemDeletionPreview());
-        Assert.DoesNotContain("file_scope", plain, StringComparison.Ordinal);
-
-        var work = Guid.NewGuid();
-        var asset = Guid.NewGuid();
-        var json = JsonSerializer.Serialize(new LibraryItemDeletionPreview
-        {
-            FileScope = new LibraryItemDeletionFileScopeDto
-            {
-                WorkId = work,
-                AssetId = asset,
-                FileName = "Show.S01E01.2160p.mkv",
-                ItemRemains = true,
-                RemainingFiles = 1,
-            },
-        });
-        var back = JsonSerializer.Deserialize<LibraryItemDeletionPreview>(json)!;
-
-        Assert.Contains(
-            "\"file_scope\":{\"work_id\":\"" + work.ToString("D") + "\",\"asset_id\":\"" + asset.ToString("D")
-            + "\",\"file_name\":\"Show.S01E01.2160p.mkv\",\"item_remains\":true,\"remaining_files\":1}",
-            json,
-            StringComparison.Ordinal);
-        Assert.True(back.FileScope!.ItemRemains);
-        Assert.Equal(1, back.FileScope.RemainingFiles);
-    }
-
-    [Fact]
     public void MatchCandidates_CarryAShortReasonText()
     {
         var retail = JsonSerializer.Serialize(new ItemCanonicalRetailCandidateDto { ReasonText = "Title and year match; author differs" });

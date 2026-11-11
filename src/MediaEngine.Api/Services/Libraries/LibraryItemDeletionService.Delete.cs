@@ -130,9 +130,7 @@ public sealed partial class LibraryItemDeletionService
         LibraryItemDeletionDataResult data;
         try
         {
-            data = plan.File is { ItemRemains: true } oneFile
-                ? await repository.DeleteAssetAsync(oneFile.AssetId, plan.Preview.GoesToRecycleBin && !actor.VaultMove, ct).ConfigureAwait(false)
-                : await repository.DeleteWorksAsync(plan.WorkIds, plan.Preview.GoesToRecycleBin && !actor.VaultMove, ct).ConfigureAwait(false);
+            data = await repository.DeleteWorksAsync(plan.WorkIds, plan.Preview.GoesToRecycleBin && !actor.VaultMove, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -148,9 +146,7 @@ public sealed partial class LibraryItemDeletionService
         }
 
         // 7. Files Tuvima wrote for the titles (pictures only they used, text tracks, derived files).
-        // When only one file of an item goes, the item's own derived files stay with it.
-        var itemStays = plan.File is { ItemRemains: true };
-        RemoveTuvimaOwnedFiles(data, itemStays ? [] : plan.WorkIds);
+        RemoveTuvimaOwnedFiles(data, plan.WorkIds);
 
         // 8. Empty groups (shows, albums, series), then folders the file deletes left empty.
         try
@@ -166,7 +162,7 @@ public sealed partial class LibraryItemDeletionService
 
         var result = new LibraryItemDeletionResultDto
         {
-            DeletedWorkIds = itemStays ? [] : [.. plan.WorkIds],
+            DeletedWorkIds = [.. plan.WorkIds],
             Titles = [.. plan.Preview.Items.Select(item => item.Title)],
             FilesDeleted = files.DeletedPaths.Count,
             FilesLeftOnDisk = files.LeftOnDisk + files.Failed.Count,
@@ -201,7 +197,7 @@ public sealed partial class LibraryItemDeletionService
         // 10. Open screens drop the titles. Vault titles are not announced to everyone; the Vault screens read the list again.
         if (announce)
         {
-            await PublishRemovedAsync(itemStays ? [] : plan.WorkIds, data.AssetIds, GroupIdsToAnnounce(plan.Group)).ConfigureAwait(false);
+            await PublishRemovedAsync(plan.WorkIds, data.AssetIds, GroupIdsToAnnounce(plan.Group)).ConfigureAwait(false);
         }
 
         return result;
@@ -615,7 +611,6 @@ public sealed partial class LibraryItemDeletionService
     private async Task LogActivityAsync(LibraryItemDeletionPlan plan, LibraryItemDeletionActor actor, LibraryItemDeletionResultDto result)
     {
         var titles = plan.Group is { } group ? DescribeGroupForActivity(group, plan)
-            : plan.File is { ItemRemains: true } ? $"one file of {DescribeTitles(plan)}"
             : DescribeTitles(plan);
         var parts = new List<string>
         {

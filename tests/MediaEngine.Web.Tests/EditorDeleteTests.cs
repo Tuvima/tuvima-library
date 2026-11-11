@@ -32,12 +32,8 @@ public sealed class EditorDeleteTests : AsyncBunitContext
     private readonly DashboardSessionAccessor _session = new();
     private readonly List<IReadOnlyList<Guid>> _previewTitles = [];
     private readonly List<(IReadOnlyList<Guid> Ids, string Fingerprint)> _titleDeletes = [];
-    private readonly List<(Guid Work, Guid Asset)> _filePreviews = [];
-    private readonly List<(Guid Work, Guid Asset, string Fingerprint)> _fileDeletes = [];
     private Func<IReadOnlyList<Guid>, LibraryItemDeletionResultDto> _titleResult = ids => new() { DeletedWorkIds = [.. ids], Titles = ["Episode"], BytesFreed = 2_147_483_648 };
-    private LibraryItemDeletionResultDto _fileResult = new() { FilesDeleted = 1, BytesFreed = 400_000_000 };
     private LibraryItemDeletionOutcome<LibraryItemDeletionResultDto>? _failure;
-    private bool _itemRemainsAfterFile = true;
 
     public EditorDeleteTests()
     {
@@ -69,25 +65,6 @@ public sealed class EditorDeleteTests : AsyncBunitContext
                 var ids = (IReadOnlyList<Guid>)args![0]!;
                 _titleDeletes.Add((ids, (string)args[1]!));
                 return Task.FromResult(_failure ?? LibraryItemDeletionOutcome<LibraryItemDeletionResultDto>.Ok(_titleResult(ids)));
-            });
-            stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemFileDeletionPreviewAsync), args =>
-            {
-                var work = (Guid)args![0]!;
-                var asset = (Guid)args[1]!;
-                _filePreviews.Add((work, asset));
-                return Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionPreview>.Ok(new LibraryItemDeletionPreview
-                {
-                    Items = [new LibraryItemDeletionItemDto { WorkId = work, Title = "Dune", MediaType = "Audiobooks", FileCount = 2 }],
-                    Files = [new LibraryItemDeletionFileDto { WorkId = work, AssetId = asset, FolderLabel = "Audiobooks", FileName = "Part 1.m4b", SizeBytes = 400_000_000, Outcome = LibraryItemDeletionOutcomes.Delete }],
-                    BytesFreed = 400_000_000,
-                    Fingerprint = "fp-file",
-                    FileScope = new LibraryItemDeletionFileScopeDto { WorkId = work, AssetId = asset, FileName = "Part 1.m4b", ItemRemains = _itemRemainsAfterFile, RemainingFiles = _itemRemainsAfterFile ? 1 : 0 },
-                }));
-            });
-            stub.SetHandler(nameof(IEngineApiClient.DeleteLibraryItemFileAsync), args =>
-            {
-                _fileDeletes.Add(((Guid)args![0]!, (Guid)args[1]!, (string)args[2]!));
-                return Task.FromResult(_failure ?? LibraryItemDeletionOutcome<LibraryItemDeletionResultDto>.Ok(_fileResult));
             });
             more?.Invoke(stub);
         }));
@@ -260,8 +237,8 @@ public sealed class EditorDeleteTests : AsyncBunitContext
         Assert.Equal(ShowId, host.Session.ActiveItem!.EntityId);
         Assert.Equal(0, host.Session.Pending.CountForItem(SeasonOne));
         Assert.Equal(1, host.Session.Pending.CountForItem(ShowId));
-        Assert.Null(host.Family.NameOf(SeasonOne));
-        Assert.Null(host.Family.NameOf(EpisodeOne));
+        Assert.Null(host.Family.TrailTo(SeasonOne));
+        Assert.Null(host.Family.TrailTo(EpisodeOne));
     }
 
     [Fact]
