@@ -119,7 +119,7 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SendTest_AsksTheEngine_AndShowsItsAnswer()
+    public void SendTest_AsksTheEngine_AndShowsItsAnswerOnThatChannel()
     {
         var cut = Render<NotificationsPanel>();
         cut.WaitForAssertion(() => cut.Find("[data-channel='email']"));
@@ -127,7 +127,8 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
         cut.Find("[data-channel='email']").QuerySelectorAll("button").Single(button => button.TextContent.Contains("Send test", StringComparison.Ordinal)).Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["email"], _tested));
-        Assert.Contains(_toasts.Toasts, toast => toast.Message.Contains("me@example.com", StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("me@example.com", cut.Find("[data-channel='email'] [data-channel-test]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(_toasts.Toasts);
     }
 
     [Fact]

@@ -22,7 +22,7 @@ public sealed class AppSavedNoteTests : LocalizedBunitContext
         var cut = Render<AppSavedNote>(p => p.Add(n => n.Visible, true).Add(n => n.Delay, TimeSpan.FromSeconds(30)));
 
         var line = cut.Find(".app-saved-note__line");
-        Assert.Contains("Common_Saved", line.TextContent);
+        Assert.Contains("Saved", line.TextContent);
         Assert.NotEmpty(line.QuerySelectorAll("svg"));
     }
 

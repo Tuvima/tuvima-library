@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
@@ -96,11 +97,11 @@ public sealed class ClipboardCopyButtonTests : AsyncBunitContext
         var cut = RenderInvitation();
 
         cut.FindAll("button").Single(button => button.TextContent.Contains("Copy code", StringComparison.Ordinal)).Click();
+        Assert.Equal("Couldn't copy — select the code and copy it yourself.", cut.Find("[data-copy-failure]").TextContent);
         cut.FindAll("button").Single(button => button.TextContent.Contains("Copy link", StringComparison.Ordinal)).Click();
 
-        Assert.Equal(
-            ["Couldn't copy — select the code and copy it yourself.", "Couldn't copy — select the link and copy it yourself."],
-            Toasts);
+        Assert.Equal("Couldn't copy — select the link and copy it yourself.", cut.Find("[data-copy-failure]").TextContent);
+        Assert.Empty(Toasts);
         Assert.Contains("ABCDE-FGHIJ", cut.Markup, StringComparison.Ordinal);
     }
 
@@ -113,7 +114,9 @@ public sealed class ClipboardCopyButtonTests : AsyncBunitContext
 
         var call = Assert.Single(JSInterop.Invocations, invocation => invocation.Identifier == "navigator.clipboard.writeText");
         Assert.Equal("https://tuvima.example.com/auth/invite?code=ABCDE-FGHIJ", call.Arguments[0]);
-        Assert.Equal(["Link copied."], Toasts);
+        // The button itself says Copied; nothing is shown over the page.
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("Copied", StringComparison.Ordinal)));
+        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -137,7 +140,8 @@ public sealed class ClipboardCopyButtonTests : AsyncBunitContext
 
         cut.Find("button").Click();
 
-        Assert.Equal(["Couldn't copy — select the password and copy it yourself."], Toasts);
+        Assert.Equal("Couldn't copy — select the password and copy it yourself.", cut.Find("[data-copy-failure]").TextContent);
+        Assert.Empty(Toasts);
         Assert.Contains("correct-horse-battery", cut.Find("code").TextContent, StringComparison.Ordinal);
     }
 
@@ -148,6 +152,23 @@ public sealed class ClipboardCopyButtonTests : AsyncBunitContext
 
         cut.Find("button").Click();
 
-        Assert.Equal(["Password copied."], Toasts);
+        cut.WaitForAssertion(() => Assert.Contains("Copied", cut.Find("button").TextContent, StringComparison.Ordinal));
+        Assert.Empty(Toasts);
+    }
+
+    [Fact]
+    public void CopiedButton_GoesBackToItsLabelAfterAMoment()
+    {
+        var cut = Render<AppCopyButton>(parameters => parameters
+            .Add(button => button.Label, "Copy thing")
+            .Add(button => button.Text, "thing")
+            .Add(button => button.CopiedFor, TimeSpan.FromMilliseconds(60)));
+
+        cut.Find("button").Click();
+        cut.WaitForAssertion(() => Assert.Contains("Copied", cut.Find("button").TextContent, StringComparison.Ordinal));
+        Assert.Equal("status", cut.Find("span.sr-only").GetAttribute("role"));
+
+        cut.WaitForAssertion(() => Assert.Contains("Copy thing", cut.Find("button").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.Find("span.sr-only").TextContent);
     }
 }

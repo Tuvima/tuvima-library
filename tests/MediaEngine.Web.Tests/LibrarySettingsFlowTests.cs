@@ -1102,17 +1102,18 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void KeepGoingCallsTheEngineForThatFolder_SaysSoInAToast_AndDropsThePausedLine()
+    public void KeepGoingCallsTheEngineForThatFolder_GlowsThatFolderRow_AndDropsThePausedLine()
     {
         _configuration.Libraries[0].Sources[1].FirstCheck = FirstCheck("paused");
-        var toasts = Render<AppToastHost>();
         var cut = Open("Movies");
 
         cut.FindAll("[data-first-check=paused] button").Single(button => Text(button) == "Keep going").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["movies-plex"], _keptGoing));
-        toasts.WaitForAssertion(() => Assert.Contains("Carrying on with", toasts.Markup));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-first-check]")));
+        // The folder's own row glows once; nothing is shown over the page.
+        var glowing = Assert.Single(cut.FindAll(".folder-table__row.tl-just-changed"));
+        Assert.Contains("Plex", glowing.TextContent);
     }
 
     [Fact]

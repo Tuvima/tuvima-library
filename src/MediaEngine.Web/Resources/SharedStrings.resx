@@ -8027,15 +8027,6 @@
   <data name="ReadingSettingsPage_ReadingSettingsCouldNotBe2" xml:space="preserve">
     <value>Reading settings could not be saved.</value>
   </data>
-  <data name="SecuritySettingsPage_PasskeyAdded" xml:space="preserve">
-    <value>Passkey added.</value>
-  </data>
-  <data name="SecuritySettingsPage_PasskeyRemoved" xml:space="preserve">
-    <value>Passkey removed.</value>
-  </data>
-  <data name="SecuritySettingsPage_LinkedAccountDisconnected" xml:space="preserve">
-    <value>Linked account disconnected.</value>
-  </data>
   <data name="SecuritySettingsPage_EnterAValidEmailAddress" xml:space="preserve">
     <value>Enter a valid email address.</value>
   </data>
@@ -8060,20 +8051,11 @@
   <data name="SecurityTab_AuthenticationSettingsCouldNotBe" xml:space="preserve">
     <value>Authentication settings could not be saved.</value>
   </data>
-  <data name="SecurityTab_AuthenticationSettingsSavedRestartThe" xml:space="preserve">
-    <value>Authentication settings saved. Restart the Engine and Dashboard to apply provider changes.</value>
-  </data>
   <data name="SecurityTab_EnterAStableProviderId" xml:space="preserve">
     <value>Enter a stable provider id.</value>
   </data>
-  <data name="SecurityTab_ProviderSavedRestartTheEngine" xml:space="preserve">
-    <value>Provider saved. Restart the Engine and Dashboard before using the new provider configuration.</value>
-  </data>
   <data name="SecurityTab_ProviderCouldNotBeDeleted" xml:space="preserve">
     <value>Provider could not be deleted.</value>
-  </data>
-  <data name="SecurityTab_ProviderDeletedRestartTheEngine" xml:space="preserve">
-    <value>Provider deleted. Restart the Engine and Dashboard to apply the change.</value>
   </data>
   <data name="NotificationsEmailTest_TestEmailCouldNotBe" xml:space="preserve">
     <value>Test email could not be sent.</value>
