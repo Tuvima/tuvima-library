@@ -453,6 +453,58 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateAsync_KeepsSongTableColumnsPerProfile_AndDropsUnknownPlacesAndUnreadableText()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = new()
+        {
+            ["Songs"] = " Show=Genre;Hide=Plays;Width=Song:400 ",
+            ["playlist"] = "hide=album",
+            ["queue"] = "show=genre",
+            ["albums"] = "<script>",
+            ["albumpage"] = "   ",
+        };
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = (await _service.GetAsync(_profileId)).Listening;
+        var other = (await _service.GetAsync(_otherProfileId)).Listening;
+
+        Assert.Equal(2, saved.SongTableColumns.Count);
+        Assert.Equal("show=genre;hide=plays;width=song:400", saved.SongTableColumns["songs"]);
+        Assert.Equal("hide=album", saved.SongTableColumns["playlist"]);
+        Assert.Empty(other.SongTableColumns);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DropsSongTableColumnsTextThatIsTooLong()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = new()
+        {
+            ["songs"] = new string('a', PlaybackPreferenceValues.MaxSongTableColumnsLength + 1),
+            ["albums"] = new string('a', PlaybackPreferenceValues.MaxSongTableColumnsLength),
+        };
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = (await _service.GetAsync(_profileId)).Listening;
+
+        Assert.False(saved.SongTableColumns.ContainsKey("songs"));
+        Assert.True(saved.SongTableColumns.ContainsKey("albums"));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_KeepsAtMostOneSongTableChoicePerKnownPlace()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = Enumerable.Range(0, 200).ToDictionary(i => $"place-{i}", _ => "hide=plays");
+        settings.Listening.SongTableColumns["songs"] = "hide=plays";
+
+        await _service.UpdateAsync(_profileId, settings);
+
+        Assert.Equal(["songs"], (await _service.GetAsync(_profileId)).Listening.SongTableColumns.Keys);
+    }
+
+    [Fact]
     public async Task UpdateAsync_CapsHowManyPageReaderChoicesAProfileKeeps()
     {
         var settings = await _service.GetAsync(_profileId);

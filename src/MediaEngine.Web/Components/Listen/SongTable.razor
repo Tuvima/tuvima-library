@@ -152,6 +152,7 @@ else
     private RenderFragment<SongRow> DesktopRow => row => @<div class="@RowClass(row)"
          @key="RowKey(row)"
          role="row"
+         id="@RowDomId(row)"
          data-song-row-id="@row.Id"
          data-listen-immediate-start="@(row.IsOwned ? "music" : null)"
          data-listen-start-url="@StartUrl(row)"

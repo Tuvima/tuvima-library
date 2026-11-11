@@ -228,4 +228,23 @@ public sealed class ReadingPlaybackContractTests
         Assert.Equal(1.5m, older.LineHeight);
         Assert.Equal("standard", older.PageWidth);
     }
+
+    [Fact]
+    public void ListeningSettingsContract_CarriesSongTableColumnsByPlace_AndOlderJsonLeavesThemEmpty()
+    {
+        var listening = new ListeningSettingsDto();
+        Assert.Empty(listening.SongTableColumns);
+
+        listening.SongTableColumns["songs"] = "show=genre;width=song:400";
+        var json = JsonSerializer.Serialize(listening, MediaEngineJson.Web);
+        Assert.Contains("\"songTableColumns\":{\"songs\":\"show=genre;width=song:400\"}", json, StringComparison.Ordinal);
+
+        var older = JsonSerializer.Deserialize<ListeningSettingsDto>("{\"skipBackSeconds\":15}", MediaEngineJson.Web);
+        Assert.NotNull(older);
+        Assert.NotNull(older!.SongTableColumns);
+        Assert.Empty(older.SongTableColumns);
+
+        var roundTrip = JsonSerializer.Deserialize<ListeningSettingsDto>(json, MediaEngineJson.Web);
+        Assert.Equal("show=genre;width=song:400", Assert.Single(roundTrip!.SongTableColumns).Value);
+    }
 }
