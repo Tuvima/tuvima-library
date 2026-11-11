@@ -54,7 +54,7 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
             .GetValue(_orchestrator) as Delegate)?.GetInvocationList() ?? [];
 
     [Fact]
-    public async Task TheReaderRoute_LeavesWithAToastWhenItsFileIsDeleted()
+    public async Task TheReaderRoute_LeavesForHomeWithoutAToastWhenItsFileIsDeleted()
     {
         var cut = Render<EpubReader>(parameters => parameters.Add(page => page.AssetId, AssetId));
         var manager = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
@@ -62,8 +62,8 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => _orchestrator.RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([Guid.NewGuid()], [AssetId])));
 
-        cut.WaitForAssertion(() => Assert.Equal(["This item is no longer in your library."], Toasts));
-        Assert.Equal(manager.BaseUri, manager.Uri);
+        cut.WaitForAssertion(() => Assert.Equal(manager.BaseUri, manager.Uri));
+        Assert.Empty(Toasts);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheReaderRoute_ListensOnlyThroughTheBookReaderSoOneDeletionToastsOnce()
+    public void TheReaderRoute_ListensOnlyThroughTheBookReaderSoOneDeletionIsHandledOnce()
     {
         Render<EpubReader>(parameters => parameters.Add(page => page.AssetId, AssetId));
 

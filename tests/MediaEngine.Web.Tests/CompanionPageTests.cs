@@ -352,6 +352,8 @@ public sealed class CompanionPageTests : AsyncBunitContext
         Assert.Equal(
             "Up to here",
             cut.FindAll("[data-part='spoiler'] button").Single(button => button.GetAttribute("aria-pressed") == "true").TextContent.Trim());
+        // The failure is told in place at the top of the page, not as a pop-up.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-companion-failure]")));
     }
 
     [Fact]

@@ -3,7 +3,6 @@
 @implements IDisposable
 @inject IEngineApiClient Engine
 @inject DeviceContextService Device
-@inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 
 @* A page a plugin adds (WP16). The plugin supplies data; the Library draws it in its own page types (list, grid, guide
@@ -40,6 +39,10 @@
         {
             case "form":
                 <form class="plugin-page__form" @onsubmit="SubmitAsync" @onsubmit:preventDefault="true">
+                    @if (_saveFailure is not null)
+                    {
+                        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _saveFailure = null; })" data-plugin-save-failure>@_saveFailure</AppAlert>
+                    }
                     @foreach (var field in _page.FormFields)
                     {
                         var key = field.Key;
@@ -64,6 +67,7 @@
                                    Tone="AppUiTone.Primary"
                                    Loading="_saving" />
                     </div>
+                    <AppSavedNote @ref="_savedNote" Text="@L["PluginPage_Saved"].Value" />
                 </form>
                 break;
 
@@ -210,6 +214,8 @@
     private bool _loading = true;
     private bool _blockedOnPhone;
     private bool _saving;
+    private string? _saveFailure;
+    private AppSavedNote? _savedNote;
     private string? _loadedFor;
 
     protected override async Task OnParametersSetAsync()
@@ -274,17 +280,18 @@
         }
 
         _saving = true;
+        _saveFailure = null;
         try
         {
             var result = await Engine.SubmitPluginPageFormAsync(PluginId, PageKey, _values, _cts.Token);
             if (result is { Saved: true })
             {
                 _values.Clear();
-                Toasts.Add(L["PluginPage_Saved"].Value, AppSeverity.Success);
+                _savedNote?.Show();
             }
             else
             {
-                Toasts.Add(L["PluginPage_SaveFailed"].Value, AppSeverity.Error);
+                _saveFailure = L["PluginPage_SaveFailed"].Value;
             }
         }
         finally
