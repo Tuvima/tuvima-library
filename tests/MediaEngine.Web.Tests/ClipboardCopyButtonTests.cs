@@ -56,7 +56,8 @@ public sealed class ClipboardCopyButtonTests : AsyncBunitContext
 
         cut.Find("[data-apps-address='at-home'] button").Click();
 
-        Assert.Equal(["Couldn't copy — select the address and copy it yourself."], Toasts);
+        Assert.Equal("Couldn't copy — select the address and copy it yourself.", cut.Find("[data-name-address-failure]").TextContent.Trim());
+        Assert.Empty(Toasts);
         Assert.NotEmpty(cut.FindAll("[data-apps-address='at-home']"));
     }
 
@@ -69,17 +70,20 @@ public sealed class ClipboardCopyButtonTests : AsyncBunitContext
         cut.Find("[data-apps-address='at-home'] button").Click();
 
         Assert.Empty(Toasts);
+        Assert.Empty(cut.FindAll("[data-name-address-failure]"));
         Assert.NotEmpty(cut.FindAll("[data-apps-address='at-home']"));
     }
 
     [Fact]
-    public void CopyingTheServerAddress_ThatWorks_SaysItWasCopied()
+    public void CopyingTheServerAddress_ThatWorks_ChangesTheButtonToCopiedAndShowsNoNotice()
     {
         var cut = RenderAppsPage();
 
         cut.Find("[data-apps-address='at-home'] button").Click();
 
-        Assert.Equal(["Address copied."], Toasts);
+        Assert.Contains("Copied", cut.Find("[data-apps-address='at-home'] button").TextContent, StringComparison.Ordinal);
+        Assert.Empty(Toasts);
+        Assert.Empty(cut.FindAll("[data-name-address-failure]"));
     }
 
     // ---- Invitations ---------------------------------------------------------------------------------------------------------

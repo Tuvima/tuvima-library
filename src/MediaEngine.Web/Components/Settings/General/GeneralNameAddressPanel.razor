@@ -5,9 +5,6 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
 @inject AppStoreLinks StoreLinks
-@inject IJSRuntime JS
-@inject IAppToastService Toast
-@inject ILogger<GeneralNameAddressPanel> Logger
 @inject IStringLocalizer<SharedStrings> L
 @* Server > General > Name and address: the Library's friendly name, the .local address that follows it (until someone sets it by hand),
    the numeric address with Copy, and the QR code and app links that used to sit behind Profile's footer link. The QR code carries only
@@ -28,12 +25,17 @@
     else
     {
         <div class="general-address" data-testid="general-name-address">
+            @if (_failure is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-name-address-failure>@_failure</AppAlert>
+            }
             <div class="general-address__name">
                 <AppTextField Label="@L["GeneralNameAddress_LibraryName"].Value" Value="@_name" ValueChanged="OnNameChanged"
                               Placeholder="@L["SetupWelcomeStage_ShayaSLibrary"].Value" data-testid="general-library-name" />
                 <AppButton Label="@L["GeneralNameAddress_SaveName"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Loading="@_saving" Disabled="@(!CanSave)" OnClick="SaveAsync" data-testid="general-save-name" />
             </div>
+            <AppSavedNote @ref="_savedNote" data-testid="general-name-saved" />
             <p class="general-address__note" data-testid="general-network-name-line">
                 @L["SetupWelcomeStage_PhonesAndTVsOnYourHome"] <strong>@(string.IsNullOrWhiteSpace(_host) ? NetworkNameRules.DefaultLabel : _host).local</strong>
                 @if (!_showHostField)
@@ -56,10 +58,11 @@
                         <dd class="general-address__value">@(AtHome ?? L["GeneralNameAddress_NotDetectedYet"].Value)</dd>
                         @if (AtHome is not null)
                         {
-                            <AppButton Label="@L["Common_Copy"].Value"
-                                       Size="AppControlSize.Compact"
-                                       StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
-                                       OnClick="@(() => CopyAsync(AtHome))" />
+                            <AppCopyButton Label="@L["Common_Copy"].Value"
+                                           Text="@AtHome"
+                                           What="the address"
+                                           Size="AppControlSize.Compact"
+                                           CopyFailed="ShowCopyFailure" />
                         }
                     </div>
                     @if (AwayFromHome is not null)
@@ -67,10 +70,11 @@
                         <div class="general-address__fact" data-apps-address="away-from-home">
                             <dt>@L["GeneralNameAddress_AwayFromHome"]</dt>
                             <dd class="general-address__value">@AwayFromHome</dd>
-                            <AppButton Label="@L["Common_Copy"].Value"
-                                       Size="AppControlSize.Compact"
-                                       StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
-                                       OnClick="@(() => CopyAsync(AwayFromHome))" />
+                            <AppCopyButton Label="@L["Common_Copy"].Value"
+                                           Text="@AwayFromHome"
+                                           What="the address"
+                                           Size="AppControlSize.Compact"
+                                           CopyFailed="ShowCopyFailure" />
                         </div>
                     }
                 </dl>
@@ -128,6 +132,8 @@
     private NetworkAppAddressesDto? _addresses;
     private bool _loading = true;
     private bool _saving;
+    private string? _failure;
+    private AppSavedNote? _savedNote;
     private bool _showHostField;
     private string _name = string.Empty;
     private string _host = string.Empty;
@@ -216,28 +222,19 @@
     {
         if (!CanSave) return;
         _saving = true;
+        _failure = null;
         var saved = await Api.UpdateServerIdentityAsync(new SetupServerIdentityDto(_name.Trim(), _host, _derived));
         _saving = false;
         if (saved is null)
         {
-            Toast.Add(L["GeneralNameAddress_NameNotSaved"].Value, AppSeverity.Error);
+            _failure = L["GeneralNameAddress_NameNotSaved"].Value;
             return;
         }
 
         Apply(saved);
-        Toast.Add(L["GeneralNameAddress_NameSaved"].Value, AppSeverity.Success);
+        _savedNote?.Show();
     }
 
-    private async Task CopyAsync(string? address)
-    {
-        switch (await JS.TryCopyAsync(address ?? string.Empty, Logger))
-        {
-            case ClipboardCopyResult.Copied:
-                Toast.Add(L["GeneralNameAddress_AddressCopied"].Value, AppSeverity.Success);
-                break;
-            case ClipboardCopyResult.Failed:
-                Toast.Add(ClipboardInterop.FailedMessage("the address"), AppSeverity.Warning);
-                break;
-        }
-    }
+    // The Copy buttons say "Copied" themselves; a copy the browser refused is told here, in place.
+    private void ShowCopyFailure(string message) => _failure = message;
 }

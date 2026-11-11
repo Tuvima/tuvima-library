@@ -10,7 +10,6 @@
 @inject NavigationManager Navigation
 @inject IEngineApiClient Api
 @inject LibraryFolderAddService AddService
-@inject IAppToastService Toast
 @inject IAppDialogService DialogService
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
@@ -83,6 +82,10 @@
         @if (_addError is not null)
         {
             <AppAlert Tone="AppUiTone.Warning" Dense="true">@_addError</AppAlert>
+        }
+        @if (_scanError is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _scanError = null; })" data-scan-failure>@_scanError</AppAlert>
         }
 
         @* The attention strip (Libraries redesign D4): only when there is something to do, one sentence and one button each. *@
@@ -219,6 +222,8 @@
     private string? _highlightSourceId;
     // Why the last Add folder did not work, drawn as a warning bubble above the tabs (never a toast).
     private string? _addError;
+    // Why Scan now did not start, drawn in the same place until the next try.
+    private string? _scanError;
 
     // Add files needs somewhere to copy into: a managed folder that is this library's import destination.
     private bool HasImportDestination => Library.GetPrimaryDestination() is { ManagementMode: "managed_by_tuvima" };
@@ -281,12 +286,12 @@
     private async Task ScanNowAsync()
     {
         _scanning = true;
+        _scanError = null;
         try
         {
             var started = await Api.ScanLibraryAsync(Library.Id);
-            Toast.Add(
-                started is not null ? $"Scanning {row_name()}." : Api.LastError ?? "The scan could not start. Try again in a moment.",
-                started is not null ? AppSeverity.Success : AppSeverity.Error);
+            // A scan that started is reported by the Activity indicator; only a refusal is told here, in place.
+            _scanError = started is not null ? null : Api.LastError ?? L["LibraryShell_TheScanCouldNotStart"].Value;
         }
         finally
         {

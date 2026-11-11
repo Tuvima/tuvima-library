@@ -279,6 +279,71 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task APinProfileWithNoPinYet_GetsTheReasonBackAsAPlainNote_ToShowInPlace()
+    {
+        UseEngine();
+        _mode = "pin";
+        _hasPin = false;
+        await LoadAsync();
+
+        var outcome = await Services.GetRequiredService<NsfwModeSwitching>().TrySetAsync(true);
+
+        Assert.False(outcome.InEffect);
+        Assert.Equal(NsfwModeSwitching.SetPinFirst, outcome.Message);
+        Assert.False(outcome.IsWarning);
+    }
+
+    [Fact]
+    public async Task OnTheProfilePage_TurningVaultModeOnWithNoPin_ShowsTheReasonAtTheTopOfThePanel_AndNoToast()
+    {
+        UseEngine();
+        _mode = "pin";
+        _hasPin = false;
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-mode\"", cut.Markup));
+
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").First(input => input.GetAttribute("aria-label") == "Vault mode").Change(true));
+
+        Assert.Contains(NsfwModeSwitching.SetPinFirst, cut.Find("[data-vault-own-notice]").TextContent);
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public async Task WhenTheMenuSwitchCannotBeSaved_AnAlertSaysWhy_AndTheSwitchSavesNothingElse()
+    {
+        UseEngine();
+        _mode = "pin";
+        _stub.SetHandler(nameof(IEngineApiClient.SetNsfwNavigationAsync), _ => Task.FromResult(VaultCall<NsfwStatusDto>.Of(VaultOutcome.Rejected, "The menu choice could not be saved.")));
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Me, hasPin: true)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        cut.WaitForAssertion(() => Assert.Contains("Show Vault in the menu", cut.Markup));
+
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show Vault in the menu").Change(true));
+
+        Assert.Equal("The menu choice could not be saved.", cut.Find("[data-vault-own-notice]").TextContent.Trim());
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
+    public async Task SavingVaultAccess_ShowsTheQuietSavedLineBesideTheButton_AndNoToast()
+    {
+        UseEngine();
+        _mode = null;
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Other, hasPin: true)).Add(p => p.IsSelf, false).Add(p => p.IsAdministrator, true).Add(p => p.AdministratorHasPin, true));
+        cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-access\"", cut.Markup));
+        await cut.InvokeAsync(() => Switch(cut, "Vault mode for Sam").Change(true));
+        await cut.InvokeAsync(() => Switch(cut, "Vault mode for Sam").Change(false));
+
+        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save access").Click());
+
+        cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-vault-access-saved]").TextContent));
+        Assert.Empty(cut.FindAll("[data-vault-access-failure]"));
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+    }
+
+    [Fact]
     public async Task SwitchingOff_IsInstant_HidesTheVaultAndReturnsHome()
     {
         UseEngine();

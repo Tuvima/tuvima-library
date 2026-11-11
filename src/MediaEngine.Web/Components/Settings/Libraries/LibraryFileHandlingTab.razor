@@ -4,7 +4,6 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Navigation
 @inject IEngineApiClient Api
-@inject IAppToastService Toast
 @inject IAppDialogService DialogService
 @inject LibraryFolderAddService AddService
 @inject IStringLocalizer<SharedStrings> L
@@ -14,6 +13,11 @@
    Turning "Rename or move files automatically" on for a library that already has files shows how many will change and starts the existing
    organising job only after the person confirms it when saving; nothing is ever applied silently. A phone shows the values only. *@
 <section class="library-handling" aria-label="@L["Common_FileHandling"].Value">
+    @if (_failure is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-handling-failure>@_failure</AppAlert>
+    }
+    <AppSavedNote @ref="_savedNote" />
     @if (!CanChange)
     {
         <AppAlert Tone="AppUiTone.Info">@(IsVault ? "This library is Vault-protected, so its files are handled by the Vault's own rules and can't be changed here." : "Library never renames, moves or tags files of this kind.")</AppAlert>
@@ -154,6 +158,8 @@
     // What the tab edits, as one value so "has anything changed" is a single comparison.
     private sealed record Values(string Mode, string Template, bool Rename, bool Tags, string Duplicate, bool Recycle);
 
+    private AppSavedNote? _savedNote;
+    private string? _failure;
     private Values _saved = new(LibraryFileHandlingChoices.PreserveNames, string.Empty, false, false, LibraryFileHandlingChoices.ServerDefault, false);
     private string _mode = LibraryFileHandlingChoices.PreserveNames;
     private string _template = string.Empty;
@@ -404,6 +410,7 @@
         }
 
         _saving = true;
+        _failure = null;
         try
         {
             var edited = JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(Library))!;
@@ -435,7 +442,7 @@
             var saved = await Api.MutateLibraryAsync(new LibraryMutationRequest { Library = edited, ExpectedLibrary = Library });
             if (saved is null)
             {
-                Toast.Add(Api.LastError ?? "The file handling could not be saved. Reload the page and try again.", AppSeverity.Error);
+                _failure = Api.LastError ?? L["LibraryFileHandlingTab_TheFileHandlingCouldNot"].Value;
                 return;
             }
 
@@ -445,11 +452,11 @@
                 var followUp = await AddService.StartConversionAsync(source);
                 if (!followUp.Started)
                 {
-                    Toast.Add(followUp.Notice ?? "Library could not start organising this folder.", AppSeverity.Error);
+                    _failure = followUp.Notice ?? L["LibraryFileHandlingTab_LibraryCouldNotStartOrganising"].Value;
                 }
             }
 
-            Toast.Add("File handling saved.", AppSeverity.Success);
+            _savedNote?.Show();
             ClearCount();
             await Changed.InvokeAsync();
         }
@@ -470,7 +477,7 @@
                 quick = await Api.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
                 if (quick is null)
                 {
-                    Toast.Add(Api.LastError ?? "Library could not count the files in this folder, so nothing was changed.", AppSeverity.Error);
+                    _failure = Api.LastError ?? L["LibraryFileHandlingTab_LibraryCouldNotCountTheFiles"].Value;
                     return false;
                 }
             }

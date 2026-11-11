@@ -1127,6 +1127,60 @@
   <data name="Common_Saved" xml:space="preserve">
     <value>Saved</value>
   </data>
+  <data name="LibraryVaultLookupTab_TheSettingCouldNotBe" xml:space="preserve">
+    <value>The setting could not be saved. Try again.</value>
+  </data>
+  <data name="LibraryLookupTab_YouTubeKeyRemovedLibraryIs" xml:space="preserve">
+    <value>YouTube key removed. Library is using the shared key.</value>
+  </data>
+  <data name="LibraryUploadZone_AddingFilesIsNotReady" xml:space="preserve">
+    <value>Adding files is not ready yet. Try again in a moment.</value>
+  </data>
+  <data name="LibraryUploadZone_TheFileChooserCouldNot" xml:space="preserve">
+    <value>The file chooser could not be opened.</value>
+  </data>
+  <data name="LibraryUploadZone_ANewLibraryNeedsA" xml:space="preserve">
+    <value>A new library needs a folder first. Add one, then drop these files again.</value>
+  </data>
+  <data name="LibraryFileHandlingTab_TheFileHandlingCouldNot" xml:space="preserve">
+    <value>The file handling could not be saved. Reload the page and try again.</value>
+  </data>
+  <data name="LibraryFileHandlingTab_LibraryCouldNotStartOrganising" xml:space="preserve">
+    <value>Library could not start organising this folder.</value>
+  </data>
+  <data name="LibraryFileHandlingTab_LibraryCouldNotCountTheFiles" xml:space="preserve">
+    <value>Library could not count the files in this folder, so nothing was changed.</value>
+  </data>
+  <data name="LibraryShell_TheScanCouldNotStart" xml:space="preserve">
+    <value>The scan could not start. Try again in a moment.</value>
+  </data>
+  <data name="ActivityPage_MoreActivityCouldnTBe" xml:space="preserve">
+    <value>More activity couldn't be loaded. Try again.</value>
+  </data>
+  <data name="ActivityPage_TheSongsCouldnTBeLoaded" xml:space="preserve">
+    <value>The songs couldn't be loaded. Try again.</value>
+  </data>
+  <data name="VaultGalleryTools_TheVaultCouldNotBe" xml:space="preserve">
+    <value>The Vault could not be scanned.</value>
+  </data>
+  <data name="VaultImageViewer_AddedToTheGallery" xml:space="preserve">
+    <value>Added to the gallery.</value>
+  </data>
+  <data name="VaultImageViewer_TheFavouriteMarkCouldNot" xml:space="preserve">
+    <value>The favorite mark could not be saved.</value>
+  </data>
+  <data name="VaultImageViewer_TheTagsCouldNotBe" xml:space="preserve">
+    <value>The tags could not be saved.</value>
+  </data>
+  <data name="VaultImageViewer_ItCouldNotBeAdded" xml:space="preserve">
+    <value>It could not be added.</value>
+  </data>
+  <data name="VaultImageViewer_TheImageCouldNotBe" xml:space="preserve">
+    <value>The image could not be deleted.</value>
+  </data>
+  <data name="VaultProfileSettings_VaultModeAlwaysTurnsItself" xml:space="preserve">
+    <value>Vault mode always turns itself off while it asks for a PIN. Choose a time instead.</value>
+  </data>
   <data name="EditorPopover_EditingIsNotReady" xml:space="preserve">
     <value>Editing is not ready.</value>
   </data>
@@ -7898,18 +7952,6 @@
   <data name="ViewFileHandlingTab_FilingLayoutSavedItApplies" xml:space="preserve">
     <value>Filing layout saved. It applies to files filed from now on.</value>
   </data>
-  <data name="ViewFoldersTab_ViewRootSaved" xml:space="preserve">
-    <value>View root saved.</value>
-  </data>
-  <data name="ViewFoldersTab_FolderSavedIndexingRunsSeparately" xml:space="preserve">
-    <value>Folder saved. Indexing runs separately.</value>
-  </data>
-  <data name="ViewFoldersTab_FolderDetachedFilesKept" xml:space="preserve">
-    <value>Folder detached. Files kept.</value>
-  </data>
-  <data name="ViewImportPanel_Removed" xml:space="preserve">
-    <value>Removed.</value>
-  </data>
   <data name="LibrariesTab_TheListOfLibraryKinds" xml:space="preserve">
     <value>The list of library kinds could not be loaded, so the kinds of library are missing from this page. Try again in a moment.</value>
   </data>
@@ -8585,12 +8627,6 @@
   <data name="Accounts_SignOutFailed" xml:space="preserve">
     <value>You could not be signed out just now. Try again in a moment.</value>
   </data>
-  <data name="Accounts_SignedInToast" xml:space="preserve">
-    <value>Signed in to {0}.</value>
-  </data>
-  <data name="Accounts_SignedOutToast" xml:space="preserve">
-    <value>Signed out of {0}.</value>
-  </data>
   <data name="ListSection_SignInAgain" xml:space="preserve">
     <value>This list was read with your {0} sign-in, which is no longer active, so it cannot refresh until you sign in again. It keeps what it has.</value>
   </data>
@@ -8648,17 +8684,11 @@
   <data name="GeneralNameAddress_SaveName" xml:space="preserve">
     <value>Save name</value>
   </data>
-  <data name="GeneralNameAddress_NameSaved" xml:space="preserve">
-    <value>The Library name was saved.</value>
-  </data>
   <data name="GeneralNameAddress_NameNotSaved" xml:space="preserve">
     <value>The Library name could not be saved.</value>
   </data>
   <data name="GeneralNameAddress_NotDetectedYet" xml:space="preserve">
     <value>Not detected yet</value>
-  </data>
-  <data name="GeneralNameAddress_AddressCopied" xml:space="preserve">
-    <value>Address copied.</value>
   </data>
   <data name="GeneralNameAddress_ScanOutside" xml:space="preserve">
     <value>Scan to use the outside address</value>
@@ -12784,12 +12814,6 @@
   </data>
   <data name="ViewFoldersTab_DetachFolderKeepFiles" xml:space="preserve">
     <value>Detach folder; keep files</value>
-  </data>
-  <data name="ViewFoldersTab_TimelineAdded" xml:space="preserve">
-    <value>Folder added to Photos timeline.</value>
-  </data>
-  <data name="ViewFoldersTab_TimelineKeptOut" xml:space="preserve">
-    <value>Folder kept out of the Photos timeline.</value>
   </data>
   <data name="ViewFoldersTab_FolderNameOptional" xml:space="preserve">
     <value>Folder name (optional)</value>

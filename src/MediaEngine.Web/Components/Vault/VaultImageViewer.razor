@@ -5,7 +5,6 @@
 @implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject NsfwModeState Nsfw
-@inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Vault image viewer (Videos spec D44): one picture at a time with next and previous (the arrow keys too), the favourite mark, tags,
@@ -33,6 +32,10 @@
                 <span class="vault-viewer__title @(TitlesHidden ? "vault-viewer__title--hidden" : null)">@current.Title</span>
                 <span class="vault-viewer__count">@(Index + 1) of @Images.Count</span>
             </header>
+            @if (_failure is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-vault-viewer-failure>@_failure</AppAlert>
+            }
             <div class="vault-viewer__nav">
                 <AppButton Label="@L["Home_CarouselPrevious"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                            Disabled="@(Index <= 0)" OnClick="PreviousAsync" />
@@ -85,6 +88,9 @@
                                    Disabled="@_busy" OnClick="DeleteAsync" />
                     }
                 </div>
+                @* Tags saved and Added to the gallery have no row to glow here, so each says so in a quiet line under the buttons. *@
+                <AppSavedNote @ref="_tagsSaved" data-vault-tags-saved />
+                <AppSavedNote @ref="_galleryAdded" Text="@L["VaultImageViewer_AddedToTheGallery"].Value" data-vault-gallery-added />
             }
         </aside>
     </AppViewer>
@@ -100,6 +106,9 @@
     private string _galleryChoice = string.Empty;
     private bool _favorite;
     private bool _busy;
+    private string? _failure;
+    private AppSavedNote? _tagsSaved;
+    private AppSavedNote? _galleryAdded;
     private bool _focusPending = true;
     private int _version;
 
@@ -135,6 +144,7 @@
         }
 
         _loadedFor = id;
+        _failure = null;
         _favorite = Current.Favorite;
         var version = ++_version;
         var call = await ApiClient.GetVaultImageAsync(id);
@@ -205,11 +215,12 @@
             return;
         }
 
+        _failure = null;
         var next = !_favorite;
         var call = await ApiClient.SetVaultImageFavoriteAsync(id, next);
         if (!call.Succeeded)
         {
-            Toasts.Add("The favourite mark could not be saved.", AppSeverity.Error);
+            _failure = L["VaultImageViewer_TheFavouriteMarkCouldNot"].Value;
             return;
         }
 
@@ -224,19 +235,20 @@
         }
 
         _busy = true;
+        _failure = null;
         try
         {
             var names = _tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var call = await ApiClient.SetVaultImageTagsAsync(id, names);
             if (!call.Succeeded || call.Value is not { } saved)
             {
-                Toasts.Add(call.Message ?? "The tags could not be saved.", AppSeverity.Error);
+                _failure = call.Message ?? L["VaultImageViewer_TheTagsCouldNotBe"].Value;
                 return;
             }
 
             _detail = saved;
             _tags = string.Join(", ", saved.Tags.Select(tag => tag.Name));
-            Toasts.Add("Tags saved.", AppSeverity.Success);
+            _tagsSaved?.Show();
         }
         finally
         {
@@ -252,10 +264,12 @@
         }
 
         _busy = true;
+        _failure = null;
         try
         {
             var call = await ApiClient.AddVaultImagesToGalleryAsync(gallery, [id]);
-            Toasts.Add(call.Succeeded ? "Added to the gallery." : call.Message ?? "It could not be added.", call.Succeeded ? AppSeverity.Success : AppSeverity.Error);
+            if (call.Succeeded) _galleryAdded?.Show();
+            else _failure = call.Message ?? L["VaultImageViewer_ItCouldNotBeAdded"].Value;
         }
         finally
         {
@@ -271,16 +285,17 @@
         }
 
         _busy = true;
+        _failure = null;
         try
         {
             var call = await ApiClient.DeleteVaultImageAsync(id);
             if (!call.Succeeded)
             {
-                Toasts.Add(call.Message ?? "The image could not be deleted.", AppSeverity.Error);
+                _failure = call.Message ?? L["VaultImageViewer_TheImageCouldNotBe"].Value;
                 return;
             }
 
-            Toasts.Add("Moved to the recycle bin.", AppSeverity.Success);
+            // The viewer closes and the picture leaves the list; that is the confirmation.
         }
         finally
         {

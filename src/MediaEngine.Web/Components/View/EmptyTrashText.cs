@@ -96,7 +96,7 @@ public static class EmptyTrashText
     public static IReadOnlyList<ViewTrashPreviewGalleryDto> SortedGalleries(ViewTrashEmptyPreviewDto preview) =>
         preview.Galleries.OrderBy(gallery => gallery.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
 
-    /// <summary>The toast after Empty Trash: what went, how much space came back, and what could not be deleted.</summary>
+    /// <summary>The line after Empty Trash: what went, how much space came back, and what could not be deleted.</summary>
     public static (string Message, bool IsWarning) Outcome(ViewTrashEmptyResultDto result)
     {
         var failed = result.Failed.Count;

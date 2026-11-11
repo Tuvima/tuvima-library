@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient Api
-@inject IAppToastService Toast
 @inject IStringLocalizer<SharedStrings> L
 
 @* A library's Lookup tab (Library pages D15), for a kind with lookup settings: today the YouTube kind. YouTube lookup works without a key
@@ -164,7 +163,6 @@
                 // The key is never shown again; the field only says one is saved.
                 _key = null;
                 _configured = true;
-                Toast.Add("YouTube key saved.", AppSeverity.Success);
             }
         }
         finally
@@ -183,8 +181,9 @@
             {
                 _configured = false;
                 _key = null;
-                _message = null;
-                Toast.Add("YouTube key removed. Library is using the shared key.", AppSeverity.Success);
+                // The key line says what changed, in place.
+                _messageOk = true;
+                _message = L["LibraryLookupTab_YouTubeKeyRemovedLibraryIs"].Value;
             }
             else
             {

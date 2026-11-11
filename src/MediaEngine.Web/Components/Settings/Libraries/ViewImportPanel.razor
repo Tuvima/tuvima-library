@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.LocalAssets
 @using Microsoft.AspNetCore.Components.Forms
 @inject IEngineApiClient ApiClient
-@inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Import area of a View kind (Photo and video filing spec D1, D6, D9, D10, D11): the one place photos and videos are copied into, how
@@ -81,6 +80,9 @@
             }
         }
         @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
+        @if (_warning is not null) { <AppAlert Tone="AppUiTone.Warning" data-import-warning>@_warning</AppAlert> }
+        @if (_scanNote is not null) { <AppAlert Tone="AppUiTone.Info" data-import-scan-note>@_scanNote</AppAlert> }
+        <AppSavedNote @ref="_addedNote" Text="@_addedSummary" data-import-added />
     </ChildContent>
 </SettingsSectionPanel>
 
@@ -94,6 +96,10 @@
     private ViewIntakeSummaryDto? _summary;
     private string? _loadedFor;
     private string? _error;
+    private string? _warning;
+    private string? _scanNote;
+    private string? _addedSummary;
+    private AppSavedNote? _addedNote;
     private bool _busy, _failed;
 
     private bool IsVideos => Kind == "personal_videos";
@@ -124,13 +130,16 @@
         if (_busy) return;
         _busy = true;
         _error = null;
+        _warning = null;
+        _scanNote = null;
         try
         {
             var result = await ApiClient.ScanViewImportAreaAsync();
             if (result is null) _error = ApiClient.LastError ?? "The Import area could not be scanned.";
             else
             {
-                Snackbar.Add(result.Message, AppSeverity.Info);
+                // What the scan found is told in place (the waiting count below follows it).
+                _scanNote = result.Message;
                 await LoadAsync();
                 await Changed.InvokeAsync();
             }
@@ -143,6 +152,8 @@
         if (_busy) return;
         _busy = true;
         _error = null;
+        _warning = null;
+        _scanNote = null;
         int added = 0, already = 0, failed = 0;
         string? firstProblem = null;
         try
@@ -168,7 +179,13 @@
             if (added > 0) parts.Add($"{added:N0} added");
             if (already > 0) parts.Add($"{already:N0} already in your library");
             if (failed > 0) parts.Add($"{failed:N0} not added");
-            Snackbar.Add(parts.Count == 0 ? "No files were chosen." : string.Join(", ", parts) + ".", failed > 0 ? AppSeverity.Warning : AppSeverity.Success);
+            // Files that did not go in are a warning that stays; a clean add is the quiet line.
+            if (parts.Count > 0)
+            {
+                var summary = string.Join(", ", parts) + ".";
+                if (failed > 0) _warning = summary;
+                else { _addedSummary = summary; _addedNote?.Show(); }
+            }
             if (firstProblem is not null) _error = firstProblem;
             await LoadAsync();
             await Changed.InvokeAsync();
@@ -182,7 +199,7 @@
         _busy = true;
         try
         {
-            if (await ApiClient.RemoveViewRejectedFileAsync(file.Id)) { await LoadAsync(); Snackbar.Add(L["ViewImportPanel_Removed"].Value, AppSeverity.Success); }
+            if (await ApiClient.RemoveViewRejectedFileAsync(file.Id)) { await LoadAsync(); }
             else _error = ApiClient.LastError ?? "The file could not be removed.";
         }
         finally { _busy = false; }
