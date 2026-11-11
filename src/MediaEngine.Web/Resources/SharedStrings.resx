@@ -8447,17 +8447,11 @@
   <data name="PeopleCatalogList_LabelListenOne" xml:space="preserve">
     <value>title to listen to</value>
   </data>
-  <data name="ListStep_DropPrompt" xml:space="preserve">
-    <value>Drop your list here, or click to choose a file</value>
-  </data>
   <data name="ListStep_YouOwn" xml:space="preserve">
     <value>You own {0} of {1}</value>
   </data>
   <data name="ListStep_NoneOwned" xml:space="preserve">
     <value>None of these are in your library yet, so there is nothing to put in a collection.</value>
-  </data>
-  <data name="ListStep_OwnedCovers" xml:space="preserve">
-    <value>Some of the titles you own from this list</value>
   </data>
   <data name="ListStep_Shelves" xml:space="preserve">
     <value>Shelves</value>
@@ -8469,7 +8463,7 @@
     <value>How the list is followed</value>
   </data>
   <data name="ListStep_HowFollowedHeading" xml:space="preserve">
-    <value>How it is followed</value>
+    <value>Keep it in step</value>
   </data>
   <data name="ListStep_UnmatchedLabel" xml:space="preserve">
     <value>Titles that could not be matched</value>
@@ -8509,15 +8503,6 @@
   </data>
   <data name="ImportPanel_ChooseAFile" xml:space="preserve">
     <value>Choose a file to import</value>
-  </data>
-  <data name="ImportPanel_PasteLabel" xml:space="preserve">
-    <value>Or paste a link or a list</value>
-  </data>
-  <data name="ImportPanel_PastePlaceholder" xml:space="preserve">
-    <value>A TMDb, MDBList, Open Library, MusicBrainz or Trakt list address, or one title per line with the year in brackets: Heat (1995)</value>
-  </data>
-  <data name="ImportPanel_ReadText" xml:space="preserve">
-    <value>Read this text</value>
   </data>
   <data name="ImportPanel_OpenSettings" xml:space="preserve">
     <value>Open Settings</value>
@@ -12874,5 +12859,401 @@
   </data>
   <data name="SetupReadinessStage_HereIsHowSetupWent" xml:space="preserve">
     <value>Here is how setup went.</value>
+  </data>
+  <data name="CollectionFlow_StepHowItFills" xml:space="preserve">
+    <value>How it fills up</value>
+  </data>
+  <data name="CollectionFlow_WayPickTitles" xml:space="preserve">
+    <value>Pick titles</value>
+  </data>
+  <data name="CollectionFlow_WaySetRules" xml:space="preserve">
+    <value>Set rules</value>
+  </data>
+  <data name="CollectionFlow_WayFromList" xml:space="preserve">
+    <value>From a list</value>
+  </data>
+  <data name="CollectionFlow_StepPickPack" xml:space="preserve">
+    <value>Pick a pack</value>
+  </data>
+  <data name="CollectionFlow_StepNameAndShow" xml:space="preserve">
+    <value>Name and show it</value>
+  </data>
+  <data name="CollectionFlow_WayPickTitlesText" xml:space="preserve">
+    <value>Search your library and add titles yourself. Drag to order.</value>
+  </data>
+  <data name="CollectionFlow_WaySetRulesText" xml:space="preserve">
+    <value>Library keeps it up to date from rules you set, like “directed by” or “unwatched”.</value>
+  </data>
+  <data name="CollectionFlow_WayFromListText" xml:space="preserve">
+    <value>Paste a link or drop a file from IMDb, Letterboxd, Goodreads, Trakt or MDBList. Keep it in sync.</value>
+  </data>
+  <data name="CollectionFlow_WayPack" xml:space="preserve">
+    <value>Start from a pack</value>
+  </data>
+  <data name="CollectionFlow_WayPackText" xml:space="preserve">
+    <value>Ready-made sets built from your own library: Decades, Award winners, Based on a book you own.</value>
+  </data>
+  <data name="CollectionFlow_HowShouldItFill" xml:space="preserve">
+    <value>How should it fill up?</value>
+  </data>
+  <data name="CollectionFlow_ComingSoon" xml:space="preserve">
+    <value>Coming soon</value>
+  </data>
+  <data name="CollectionFlow_NewCollectionsOnly" xml:space="preserve">
+    <value>New collections only</value>
+  </data>
+  <data name="CollectionFlow_WhatGoesIn" xml:space="preserve">
+    <value>What goes in</value>
+  </data>
+  <data name="CollectionFlow_Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="CollectionFlow_NoPreviewYet" xml:space="preserve">
+    <value>No preview yet</value>
+  </data>
+  <data name="CollectionFlow_NoPreviewHelp" xml:space="preserve">
+    <value>Add a rule or tick a media type to see what matches in your library.</value>
+  </data>
+  <data name="CollectionFlow_NothingMatchesYet" xml:space="preserve">
+    <value>Nothing matches yet</value>
+  </data>
+  <data name="CollectionFlow_LoosenARule" xml:space="preserve">
+    <value>Loosen a rule to bring titles in.</value>
+  </data>
+  <data name="CollectionFlow_LoosenTheStrictest" xml:space="preserve">
+    <value>“{0}” leaves the fewest titles on its own. Loosen it to bring some in.</value>
+  </data>
+  <data name="CollectionFlow_YouCanStillSave" xml:space="preserve">
+    <value>You can still save. The collection fills up as matching titles arrive.</value>
+  </data>
+  <data name="CollectionFlow_OneTitle" xml:space="preserve">
+    <value>1 title</value>
+  </data>
+  <data name="CollectionFlow_ManyTitles" xml:space="preserve">
+    <value>{0} titles</value>
+  </data>
+  <data name="CollectionFlow_MatchNow" xml:space="preserve">
+    <value>match now. Updates as you type.</value>
+  </data>
+  <data name="CollectionFlow_MatchNowCountedFor" xml:space="preserve">
+    <value>match now, counted for {0}. Updates as you type.</value>
+  </data>
+  <data name="CollectionFlow_ShowingFirst" xml:space="preserve">
+    <value>Showing the first {0} of {1}.</value>
+  </data>
+  <data name="CollectionFlow_EachProfileOwnSet" xml:space="preserve">
+    <value>Each profile sees its own set in this collection.</value>
+  </data>
+  <data name="CollectionFlow_ManyShelvesNote" xml:space="preserve">
+    <value>{0} collections will be made, one for each shelf you ticked. Each is named after this name and its shelf, for example “{1}: {2}”.</value>
+  </data>
+  <data name="CollectionFlow_ShelfExampleName" xml:space="preserve">
+    <value>Reading</value>
+  </data>
+  <data name="CollectionFlow_WhatWillBeCreated" xml:space="preserve">
+    <value>What will be created</value>
+  </data>
+  <data name="CollectionFlow_WhatWillBeCreatedHelp" xml:space="preserve">
+    <value>Each pack keeps its own names. A pack with several collections is created as a set you can remove in one go.</value>
+  </data>
+  <data name="CollectionFlow_OneCollection" xml:space="preserve">
+    <value>1 collection</value>
+  </data>
+  <data name="CollectionFlow_ManyCollections" xml:space="preserve">
+    <value>{0} collections</value>
+  </data>
+  <data name="CollectionFlow_ShowOn" xml:space="preserve">
+    <value>Show on</value>
+  </data>
+  <data name="CollectionFlow_ShowOnPackHelp" xml:space="preserve">
+    <value>Show these collections as rows on these pages. They are always on the Collections page.</value>
+  </data>
+  <data name="CollectionFlow_ShowOnHelp" xml:space="preserve">
+    <value>Show this collection as a row on these pages. It is always on the Collections page.</value>
+  </data>
+  <data name="CollectionFlow_Artwork" xml:space="preserve">
+    <value>Artwork</value>
+  </data>
+  <data name="CollectionFlow_ArtworkHelp" xml:space="preserve">
+    <value>An automatic stack of covers by default. Upload your own here, or change it from the collection later.</value>
+  </data>
+  <data name="CollectionFlow_SelectedArtwork" xml:space="preserve">
+    <value>Selected artwork</value>
+  </data>
+  <data name="CollectionFlow_AutomaticStack" xml:space="preserve">
+    <value>Automatic stacked collection artwork</value>
+  </data>
+  <data name="CollectionFlow_CoversStackUp" xml:space="preserve">
+    <value>Covers of the titles inside stack up here once there are some.</value>
+  </data>
+  <data name="CollectionFlow_UploadYourOwn" xml:space="preserve">
+    <value>Upload your own</value>
+  </data>
+  <data name="CollectionFlow_ArtworkLimits" xml:space="preserve">
+    <value>JPG or PNG, up to 5 MB.</value>
+  </data>
+  <data name="CollectionFlow_BasicInformation" xml:space="preserve">
+    <value>Basic information</value>
+  </data>
+  <data name="CollectionFlow_BasicInformationHelp" xml:space="preserve">
+    <value>The name and description shown throughout Library.</value>
+  </data>
+  <data name="CollectionFlow_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="CollectionFlow_NamePlaceholder" xml:space="preserve">
+    <value>Name this collection</value>
+  </data>
+  <data name="CollectionFlow_Description" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="CollectionFlow_DescriptionPlaceholder" xml:space="preserve">
+    <value>Describe what belongs here</value>
+  </data>
+  <data name="CollectionFlow_WhoCanSee" xml:space="preserve">
+    <value>Who can see it</value>
+  </data>
+  <data name="CollectionFlow_StaysYours" xml:space="preserve">
+    <value>What you make stays yours.</value>
+  </data>
+  <data name="CollectionFlow_OnlyYou" xml:space="preserve">
+    <value>Only you can see this collection.</value>
+  </data>
+  <data name="CollectionFlow_OwnershipHelp" xml:space="preserve">
+    <value>Keep this personal or publish it for the library.</value>
+  </data>
+  <data name="CollectionFlow_Owner" xml:space="preserve">
+    <value>Owner</value>
+  </data>
+  <data name="CollectionFlow_OwnerProfile" xml:space="preserve">
+    <value>My profile</value>
+  </data>
+  <data name="CollectionFlow_OwnerLibrary" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="CollectionFlow_WhoCanSeeThis" xml:space="preserve">
+    <value>Who can see this?</value>
+  </data>
+  <data name="CollectionFlow_OnlyMe" xml:space="preserve">
+    <value>Only me</value>
+  </data>
+  <data name="CollectionFlow_SelectedProfiles" xml:space="preserve">
+    <value>Selected profiles</value>
+  </data>
+  <data name="CollectionFlow_ProfilesWhoCanSee" xml:space="preserve">
+    <value>Profiles who can see this collection</value>
+  </data>
+  <data name="CollectionFlow_NoOtherProfiles" xml:space="preserve">
+    <value>No other enabled profiles are available.</value>
+  </data>
+  <data name="CollectionFlow_LibraryOwnedForEveryone" xml:space="preserve">
+    <value>Library-owned collections are available to everyone.</value>
+  </data>
+  <data name="CollectionFlow_More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="CollectionFlow_MoreHelp" xml:space="preserve">
+    <value>How many items show, in what order, and when this collection is shown.</value>
+  </data>
+  <data name="CollectionFlow_MinimumItems" xml:space="preserve">
+    <value>Minimum items</value>
+  </data>
+  <data name="CollectionFlow_MinimumItemsHelp" xml:space="preserve">
+    <value>Skipped on lanes and the Collections page until it has this many items. 0 uses the default (3 on a lane).</value>
+  </data>
+  <data name="CollectionFlow_AtMostHelp" xml:space="preserve">
+    <value>Show no more than this many items. 0 shows them all.</value>
+  </data>
+  <data name="CollectionFlow_OrderRandom" xml:space="preserve">
+    <value>Random (a new pick each day)</value>
+  </data>
+  <data name="CollectionFlow_OrderSet" xml:space="preserve">
+    <value>In the order set by this collection</value>
+  </data>
+  <data name="CollectionFlow_Seasonal" xml:space="preserve">
+    <value>Show only between two dates each year</value>
+  </data>
+  <data name="CollectionFlow_FromDay" xml:space="preserve">
+    <value>From day</value>
+  </data>
+  <data name="CollectionFlow_ToDay" xml:space="preserve">
+    <value>To day</value>
+  </data>
+  <data name="CollectionFlow_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="CollectionFlow_Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="CollectionFlow_ShowAll" xml:space="preserve">
+    <value>Show all {0}</value>
+  </data>
+  <data name="CollectionFlow_ShowFewer" xml:space="preserve">
+    <value>Show fewer</value>
+  </data>
+  <data name="CollectionFlow_CompleteCompanion" xml:space="preserve">
+    <value>Complete the companion source before saving.</value>
+  </data>
+  <data name="CollectionFlow_SaveFailed" xml:space="preserve">
+    <value>Failed to save collection.</value>
+  </data>
+  <data name="CollectionFlow_SaveFailedWithReason" xml:space="preserve">
+    <value>Failed to save collection: {0}</value>
+  </data>
+  <data name="CollectionFlow_PersonalMediaNotSaved" xml:space="preserve">
+    <value>The Collection was saved, but its personal-media sources could not be saved. Try again.</value>
+  </data>
+  <data name="CollectionFlow_ArtworkNotUploaded" xml:space="preserve">
+    <value>The collection was saved, but its {0} artwork could not be uploaded. Save changes tries again.</value>
+  </data>
+  <data name="CollectionFlow_ListReadAgainFailed" xml:space="preserve">
+    <value>The list could not be read again. Try again.</value>
+  </data>
+  <data name="CollectionFlow_ListNotAttached" xml:space="preserve">
+    <value>The list could not be attached, so the collection was not created.</value>
+  </data>
+  <data name="CollectionFlow_NothingOwnedOnShelves" xml:space="preserve">
+    <value>Nothing from {0} is in your library, so no collection was made for it.</value>
+  </data>
+  <data name="CollectionFlow_PacksNotCreated" xml:space="preserve">
+    <value>The packs could not be created.</value>
+  </data>
+  <data name="CollectionFlow_NothingNewCreated" xml:space="preserve">
+    <value>Nothing new was created.</value>
+  </data>
+  <data name="ListStep_Entries" xml:space="preserve">
+    <value>{0} entries</value>
+  </data>
+  <data name="ListStep_FigureOwn" xml:space="preserve">
+    <value>you own</value>
+  </data>
+  <data name="ListStep_FigureNotInLibrary" xml:space="preserve">
+    <value>not in your library</value>
+  </data>
+  <data name="ListStep_FigureCouldntMatch" xml:space="preserve">
+    <value>couldn't match</value>
+  </data>
+  <data name="ListStep_ShelfOneTitle" xml:space="preserve">
+    <value>1 title, you own {0}</value>
+  </data>
+  <data name="ListStep_ShelfManyTitles" xml:space="preserve">
+    <value>{0} titles, you own {1}</value>
+  </data>
+  <data name="ListStep_CouldntMatchHeading" xml:space="preserve">
+    <value>Couldn't match · pick the right title or ignore</value>
+  </data>
+  <data name="ListStep_PreviewLabel" xml:space="preserve">
+    <value>Preview of the list</value>
+  </data>
+  <data name="ListStep_OwnedOfTotal" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="ListStep_InLibraryInOrder" xml:space="preserve">
+    <value>in your library, in list order</value>
+  </data>
+  <data name="ListStep_InLibrary" xml:space="preserve">
+    <value>in your library</value>
+  </data>
+  <data name="ListStep_NotOwnedTile" xml:space="preserve">
+    <value>{0}, not in your library</value>
+  </data>
+  <data name="ListStep_GreyedTiles" xml:space="preserve">
+    <value>Greyed tiles stand for titles you don't own.</value>
+  </data>
+  <data name="ImportPanel_FieldPrompt" xml:space="preserve">
+    <value>Drop a file or paste a link</value>
+  </data>
+  <data name="ImportPanel_DropPrompt" xml:space="preserve">
+    <value>Drop a file here, or click to choose one</value>
+  </data>
+  <data name="ImportPanel_ListFieldHelp" xml:space="preserve">
+    <value>Drop a file or paste a link. Files: IMDb, Letterboxd, Trakt, Goodreads and StoryGraph exports, any CSV, or one title per line. Links: TMDb lists, MDBList, Open Library lists, MusicBrainz collections.</value>
+  </data>
+  <data name="ImportPanel_TakesList" xml:space="preserve">
+    <value>a list from IMDb, Letterboxd, Trakt, Goodreads or StoryGraph, a text file with one title per line, or a list address from TMDb, MDBList, Open Library, MusicBrainz or Trakt</value>
+  </data>
+  <data name="ImportPanel_TakesPack" xml:space="preserve">
+    <value>a collection pack</value>
+  </data>
+  <data name="ImportPanel_TakesBookmarkPack" xml:space="preserve">
+    <value>a bookmark pack</value>
+  </data>
+  <data name="ImportPanel_TakesPluginSettings" xml:space="preserve">
+    <value>a plugin settings file</value>
+  </data>
+  <data name="ImportPanel_Takes" xml:space="preserve">
+    <value>Takes {0}.</value>
+  </data>
+  <data name="ImportPanel_FileTooLarge" xml:space="preserve">
+    <value>That file is larger than {0} MB, so it cannot be a list or a pack.</value>
+  </data>
+  <data name="ImportPanel_CouldNotRead" xml:space="preserve">
+    <value>Library could not read this file. Check the Engine is running and try again.</value>
+  </data>
+  <data name="ImportPanel_NotRecognized" xml:space="preserve">
+    <value>Library could not tell what this file is.</value>
+  </data>
+  <data name="ImportPanel_CouldNotAdd" xml:space="preserve">
+    <value>That could not be added.</value>
+  </data>
+  <data name="CollectionRuleBuilder_HowMany" xml:space="preserve">
+    <value>How many</value>
+  </data>
+  <data name="CollectionRuleBuilder_ShowAll" xml:space="preserve">
+    <value>Show all</value>
+  </data>
+  <data name="CollectionRuleBuilder_ShowFirst" xml:space="preserve">
+    <value>Show first {0}</value>
+  </data>
+  <data name="CollectionRuleBuilder_StaysAdvanced" xml:space="preserve">
+    <value>This collection uses several rule groups. Remove the extra groups to go back to the plain layout.</value>
+  </data>
+  <data name="ListSection_SettingsNotSaved" xml:space="preserve">
+    <value>The list settings could not be saved.</value>
+  </data>
+  <data name="ListSection_NotChecked" xml:space="preserve">
+    <value>The list could not be checked.</value>
+  </data>
+  <data name="ListSection_Checked" xml:space="preserve">
+    <value>Checked the list: you own {0}, {1} still unmatched.</value>
+  </data>
+  <data name="ListSection_NewerFileNotUsed" xml:space="preserve">
+    <value>The newer file could not be used.</value>
+  </data>
+  <data name="ListSection_Updated" xml:space="preserve">
+    <value>Updated from the newer file: {0} added, {1} left the list.</value>
+  </data>
+  <data name="ListSection_FixNotSaved" xml:space="preserve">
+    <value>That could not be saved.</value>
+  </data>
+  <data name="ListSection_LastChecked" xml:space="preserve">
+    <value>Last checked {0}.</value>
+  </data>
+  <data name="ListSection_NotCheckedYet" xml:space="preserve">
+    <value>Not checked yet.</value>
+  </data>
+  <data name="CollectionFlow_EmptyCuratedNew" xml:space="preserve">
+    <value>A collection needs at least one item. Add something to save it.</value>
+  </data>
+  <data name="CollectionFlow_EmptyCuratedExisting" xml:space="preserve">
+    <value>A collection needs at least one item. Delete the collection instead.</value>
+  </data>
+  <data name="CollectionFlow_PackTickedOne" xml:space="preserve">
+    <value>1 pack ticked</value>
+  </data>
+  <data name="CollectionFlow_PackTickedMany" xml:space="preserve">
+    <value>{0} packs ticked</value>
+  </data>
+  <data name="CollectionFlow_UpToOneCollection" xml:space="preserve">
+    <value>up to 1 collection</value>
+  </data>
+  <data name="CollectionFlow_UpToManyCollections" xml:space="preserve">
+    <value>up to {0} collections</value>
+  </data>
+  <data name="CollectionFlow_TickPackToContinue" xml:space="preserve">
+    <value>Tick a pack to continue.</value>
+  </data>
+  <data name="CollectionFlow_ItemsStaged" xml:space="preserve">
+    <value>{0} item(s) staged for this collection.</value>
   </data>
 </root>

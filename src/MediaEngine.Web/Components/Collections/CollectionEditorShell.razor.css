@@ -1,4 +1,4 @@
-.collection-editor-draft-role-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}.collection-editor-draft-role-overview ::deep button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.7rem;padding:.8rem;border:1px solid rgba(255,255,255,.1);border-radius:.7rem;background:rgba(8,13,23,.7);color:#fff;text-align:left}.collection-editor-draft-role-overview ::deep button.is-active{border-color:#ad62ff;box-shadow:0 0 0 2px rgba(155,77,237,.2)}.collection-editor-draft-role-overview span{display:grid;gap:.2rem}.collection-editor-draft-role-overview small{color:rgba(255,255,255,.55)}@media(max-width:800px){.collection-editor-draft-role-overview{grid-template-columns:1fr;}}
+.collection-editor-draft-role-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}.collection-editor-draft-role-overview ::deep button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.7rem;padding:.8rem;border:1px solid rgba(255,255,255,.1);border-radius:.7rem;background:rgba(8,13,23,.7);color:#fff;text-align:left}.collection-editor-draft-role-overview ::deep button.is-active{border-color:var(--tl-accent-primary-hover);box-shadow:0 0 0 2px rgba(155,77,237,.2)}.collection-editor-draft-role-overview span{display:grid;gap:.2rem}.collection-editor-draft-role-overview small{color:rgba(255,255,255,.55)}@media(max-width:800px){.collection-editor-draft-role-overview{grid-template-columns:1fr;}}
 .collection-editor-workspace {
     display: flex;
     flex-direction: column;
@@ -60,7 +60,7 @@
     height: 54px;
     border: 1px solid rgba(136, 82, 252, 0.32);
     border-radius: 14px;
-    color: #a78bfa;
+    color: var(--tl-accent-primary-hover);
     background: linear-gradient(145deg, rgba(136, 82, 252, 0.22), rgba(76, 29, 149, 0.08));
 }
 
@@ -268,7 +268,7 @@
 .collection-editor-system-list > div { grid-template-columns: minmax(90px, 0.65fr) minmax(0, 1fr); }
 .collection-editor-identity-list > div:last-child,
 .collection-editor-system-list > div:last-child { border-bottom: 0; }
-.collection-editor-identity-list ::deep .tl-icon-root { color: #a78bfa; font-size: var(--tl-icon-size-xs); }
+.collection-editor-identity-list ::deep .tl-icon-root { color: var(--tl-accent-primary-hover); font-size: var(--tl-icon-size-xs); }
 
 .collection-editor-identity-list span,
 .collection-editor-system-list span { color: rgba(203, 213, 225, 0.72); font-size: var(--tl-font-size-sm); }
@@ -367,13 +367,13 @@
     pointer-events: none;
 }
 .collection-editor-artwork-choice { display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px;border:1px solid rgba(167,139,250,.48);border-radius:10px;background:rgba(136, 82, 252,.08); }
-.collection-editor-artwork-choice > div { display:flex;flex-direction:column;gap:3px; }.collection-editor-artwork-choice span{color:rgba(203,213,225,.64);font-size:.8rem}.collection-editor-artwork-choice ::deep .tl-icon-root{color:#a78bfa}
+.collection-editor-artwork-choice > div { display:flex;flex-direction:column;gap:3px; }.collection-editor-artwork-choice span{color:rgba(203,213,225,.64);font-size:.8rem}.collection-editor-artwork-choice ::deep .tl-icon-root{color:var(--tl-accent-primary-hover)}
 
 .collection-editor-artwork-fallback {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #a78bfa;
+    color: var(--tl-accent-primary-hover);
     background: linear-gradient(145deg, rgba(136, 82, 252, 0.22), rgba(15, 23, 42, 0.8));
 }
 .collection-editor-artwork-fallback ::deep .tl-icon-root { font-size: var(--tl-icon-size-2xl); }
@@ -411,7 +411,7 @@
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 .collection-editor-history-entry > div { display: flex; flex-direction: column; gap: 3px; }
-.collection-editor-history-entry ::deep .tl-icon-root { color: #a78bfa; }
+.collection-editor-history-entry ::deep .tl-icon-root { color: var(--tl-accent-primary-hover); }
 .collection-editor-history-note { margin-top: 12px; padding: 14px; border-radius: 10px; color: rgba(203, 213, 225, 0.68); background: rgba(99, 102, 241, 0.08); }
 
 .collection-editor-section {
@@ -431,7 +431,7 @@
 .collection-editor-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 180px; padding: 24px; border: 1px dashed rgba(148, 163, 184, 0.24); border-radius: 12px; color: rgba(203, 213, 225, 0.7); text-align: center; background: rgba(2, 8, 23, 0.22); }
 .collection-editor-empty--compact { min-height: 120px; }
 .collection-editor-empty--artwork { min-height: 420px; }
-.collection-editor-empty--artwork ::deep .tl-icon-root { color: #a78bfa; font-size: var(--tl-icon-size-xl); }
+.collection-editor-empty--artwork ::deep .tl-icon-root { color: var(--tl-accent-primary-hover); font-size: var(--tl-icon-size-xl); }
 
 .collection-editor-item-row,
 .collection-editor-preview-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 10px; background: rgba(255, 255, 255, 0.025); }
@@ -560,3 +560,9 @@
 }
 .collection-flow__pack-summary { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: var(--tl-font-size-sm); }
 .collection-flow__pack-summary li { display: flex; justify-content: space-between; gap: 10px; }
+
+/* The flow's footer (mock): Cancel or Back at the far left, Next or Create collection at the right, no summary line. */
+.collection-editor-footer--flow .collection-editor-footer-actions { flex: 1 1 auto; justify-content: space-between; }
+
+/* The last step (mock): the option boxes sit side by side under Name and Description; Artwork is the column on the right. */
+.collection-flow__options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: start; }

@@ -43,6 +43,7 @@
         </Actions>
     </LibrarySectionHeader>
 
+    <CascadingValue Name="JustSavedCollectionIds" Value="_justSavedIds" IsFixed="false">
     <CollectionsSectionLayout>
         @if (_loading || !ActiveSectionReady)
         {
@@ -327,6 +328,7 @@
             </div>
         }
     </CollectionsSectionLayout>
+    </CascadingValue>
 </MediaSectionShell>
 
 @code {
@@ -1135,15 +1137,23 @@
             return;
         }
 
-        var changed = await CollectionEditorLauncher.OpenAsync(
-            CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Collections, _activeProfile.Id));
+        var request = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Collections, _activeProfile.Id);
+        var changed = await CollectionEditorLauncher.OpenAsync(request);
 
-        if (changed)
+        // What was saved glows on the page (the confirmation; there is no toast). A collection saved before the editor was
+        // closed by hand counts too, so the page reloads whenever the editor saved something.
+        if (request.SavedCollectionIds.Count > 0)
+            _justSavedIds = request.SavedCollectionIds.ToHashSet();
+
+        if (changed || request.SavedCollectionIds.Count > 0)
         {
             _loaded = false;
             await LoadAsync();
         }
     }
+
+    // Collections the editor just saved; their tiles glow once the page has loaded again.
+    private IReadOnlySet<Guid> _justSavedIds = new HashSet<Guid>();
 
     private bool PersonHasLane(Guid personId, string lane) =>
         _peoplePresence.TryGetValue(personId.ToString(), out var presence)

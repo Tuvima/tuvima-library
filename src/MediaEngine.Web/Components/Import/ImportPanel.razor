@@ -13,23 +13,31 @@
    Settings > Profile > Import, each with the kinds that place can use (AllowedKinds); a file of another kind still gets its own
    preview and a line on where it goes. Files stay on this machine: nothing here opens a connection other than to the Engine. *@
 <section class="import-panel" data-import-panel aria-label="@L["ImportPanel_Import"].Value">
-    <div class="import-panel__drop @(_busy ? "is-busy" : null)" data-import-drop>
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.UploadFile" />
-        <strong>@DropTitle</strong>
-        <span class="import-panel__accepts">@AcceptText</span>
-        <InputFile class="tl-file-drop__input" OnChange="OnFileChosenAsync" accept="@AcceptAttribute" disabled="@_busy" aria-label="@L["ImportPanel_ChooseAFile"].Value" />
-    </div>
-
     @if (ShowPaste)
     {
-        <div class="import-panel__paste">
-            <AppTextarea Label="@L["ImportPanel_PasteLabel"].Value"
-                         Value="@_pasted"
-                         ValueChanged="@(value => _pasted = value ?? string.Empty)"
-                         Placeholder="@L["ImportPanel_PastePlaceholder"].Value"
-                         Lines="3" />
-            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_pasted))"
-                       OnClick="ReadPastedAsync">@L["ImportPanel_ReadText"]</AppButton>
+        @* One field (mock): drop a file, paste a link, or paste the titles. The file chooser sits under the field, so a click or a
+           drop on the box around the field takes a file; a paste or Enter in the field reads the text. *@
+        <div class="import-panel__drop import-panel__drop--field @(_busy ? "is-busy" : null)" data-import-drop data-import-field>
+            <InputFile class="tl-file-drop__input" OnChange="OnFileChosenAsync" accept="@AcceptAttribute" disabled="@_busy" aria-label="@L["ImportPanel_ChooseAFile"].Value" />
+            <div class="import-panel__field" @ondragover="KeepDropOnPage" @ondragover:preventDefault @ondrop="KeepDropOnPage" @ondrop:preventDefault>
+                <AppTextarea Value="@(_fileName ?? _pasted)"
+                             ValueChanged="OnFieldChangedAsync"
+                             OnKeyDown="OnFieldKeyDownAsync"
+                             Placeholder="@DropTitle"
+                             Lines="2"
+                             Disabled="@_busy"
+                             aria-label="@DropTitle" />
+            </div>
+            <span class="import-panel__accepts">@AcceptText</span>
+        </div>
+    }
+    else
+    {
+        <div class="import-panel__drop @(_busy ? "is-busy" : null)" data-import-drop>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.UploadFile" />
+            <strong>@DropTitle</strong>
+            <span class="import-panel__accepts">@AcceptText</span>
+            <InputFile class="tl-file-drop__input" OnChange="OnFileChosenAsync" accept="@AcceptAttribute" disabled="@_busy" aria-label="@L["ImportPanel_ChooseAFile"].Value" />
         </div>
     }
 
@@ -84,6 +92,7 @@
 
 @code {
     private string _pasted = string.Empty;
+    private string? _fileName;
     private bool _busy;
     private string? _error;
     private string? _errorLinkHref;
@@ -119,7 +128,7 @@
     /// <summary>Buttons the host adds under the preview of an allowed kind (for example "Make a collection").</summary>
     [Parameter] public RenderFragment<ImportRecognition>? Actions { get; set; }
 
-    private string DropTitle => Prompt ?? "Drop a file here, or click to choose one";
+    private string DropTitle => Prompt ?? (ShowPaste ? L["ImportPanel_FieldPrompt"].Value : L["ImportPanel_DropPrompt"].Value);
 
     private bool Accepts(string kind) => AllowedKinds is null || AllowedKinds.Contains(kind, StringComparer.Ordinal);
 
@@ -130,16 +139,19 @@
     {
         get
         {
+            if (ShowPaste && Accepts(ImportKinds.CollectionList))
+                return L["ImportPanel_ListFieldHelp"].Value;
+
             var parts = new List<string>();
             if (Accepts(ImportKinds.CollectionList))
-                parts.Add("a list from IMDb, Letterboxd, Trakt, Goodreads or StoryGraph, a text file with one title per line, or a list address from TMDb, MDBList, Open Library, MusicBrainz or Trakt");
+                parts.Add(L["ImportPanel_TakesList"].Value);
             if (Accepts(ImportKinds.PackFile))
-                parts.Add("a collection pack");
+                parts.Add(L["ImportPanel_TakesPack"].Value);
             if (Accepts(ImportKinds.BookmarkPack))
-                parts.Add("a bookmark pack");
+                parts.Add(L["ImportPanel_TakesBookmarkPack"].Value);
             if (Accepts(ImportKinds.PluginSettings))
-                parts.Add("a plugin settings file");
-            return parts.Count == 0 ? string.Empty : "Takes " + string.Join("; ", parts) + ".";
+                parts.Add(L["ImportPanel_TakesPluginSettings"].Value);
+            return parts.Count == 0 ? string.Empty : L["ImportPanel_Takes", string.Join("; ", parts)].Value;
         }
     }
 
@@ -153,10 +165,12 @@
         await ResetAsync();
         if (file.Size > ImportLimits.MaximumFileBytes)
         {
-            _error = $"That file is larger than {ImportLimits.MaximumFileBytes / (1024 * 1024)} MB, so it cannot be a list or a pack.";
+            _error = L["ImportPanel_FileTooLarge", ImportLimits.MaximumFileBytes / (1024 * 1024)].Value;
             return;
         }
 
+        _fileName = file.Name;
+        _pasted = string.Empty;
         _busy = true;
         try
         {
@@ -174,6 +188,28 @@
         {
             _busy = false;
         }
+    }
+
+    private void KeepDropOnPage()
+    {
+        // A file dropped on the text itself is not read; the box around the field takes files. Cancelling the drop keeps the browser on this page.
+    }
+
+    // A paste (more than one character arriving at once) reads straight away; typing waits for Enter.
+    private async Task OnFieldChangedAsync(string? value)
+    {
+        var text = value ?? string.Empty;
+        var arrived = text.Length - (_fileName ?? _pasted).Length;
+        _fileName = null;
+        _pasted = text;
+        if (!_busy && arrived > 1 && !string.IsNullOrWhiteSpace(text))
+            await ReadPastedAsync();
+    }
+
+    private async Task OnFieldKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && !args.ShiftKey && !_busy && _fileName is null && !string.IsNullOrWhiteSpace(_pasted))
+            await ReadPastedAsync();
     }
 
     private async Task ReadPastedAsync()
@@ -200,13 +236,13 @@
         });
         if (preview is null)
         {
-            _error = Api.LastError ?? "Library could not read this file. Check the Engine is running and try again.";
+            _error = Api.LastError ?? L["ImportPanel_CouldNotRead"].Value;
             return;
         }
 
         if (!preview.Recognised)
         {
-            _error = preview.Message ?? "Library did not recognise this file.";
+            _error = preview.Message ?? L["ImportPanel_NotRecognized"].Value;
             // Only an address inside this app is followed (the Plugins page for a source that is off).
             if (preview.MessageLinkHref is { } href && href.StartsWith('/') && !href.StartsWith("//", StringComparison.Ordinal))
             {
@@ -235,7 +271,7 @@
                 Text = recognition.Text,
             });
             _appliedOk = result?.Applied == true;
-            _applied = result?.Message ?? Api.LastError ?? "That could not be added.";
+            _applied = result?.Message ?? Api.LastError ?? L["ImportPanel_CouldNotAdd"].Value;
             if (result is not null)
                 await OnApplied.InvokeAsync(result);
         }

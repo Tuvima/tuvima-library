@@ -41,11 +41,24 @@
     opacity: .6;
 }
 
-.import-panel__paste {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--tl-space-2, 8px);
+.import-panel__drop--field {
+    min-height: 0;
+    align-items: stretch;
+    border-style: dashed;
+    border-width: 1px;
+    border-color: var(--tl-accent-primary-border);
+    background: var(--tl-accent-primary-soft);
+    padding: var(--tl-space-4, 16px);
+    text-align: start;
+}
+
+/* The field is drawn after the file chooser, so it sits above it without a layer number. */
+.import-panel__field {
+    position: relative;
+}
+
+.import-panel__drop--field .import-panel__accepts {
+    max-width: none;
 }
 
 .import-panel__privacy {

@@ -31,19 +31,29 @@
                        Density="@Density"
                        PreviewLoader="PreviewRulesAsync" />
 
-    <section class="collection-rule-sentence__order" aria-label="@L["CollectionRuleBuilder_OrderAndLimits"].Value">
+    <section class="collection-rule-sentence__order" aria-label="@L["CollectionRuleBuilder_OrderAndLimits"].Value" data-order-and-limits>
         <span class="collection-rule-sentence__label">@L["CollectionRuleBuilder_OrderAndLimits"]</span>
+        @* One row (mock): the order, how many to show, and the Advanced switch. "Then by" is part of Advanced. *@
         <div class="collection-rule-sentence__order-row">
             <div class="collection-rule-sentence__order-select">
                 <AppSelect T="string" Value="@OrderValue" ValueChanged="OnOrderChangedAsync" Options="@OrderOptions"
                            Label="@L["Common_Order"].Value" Variant="AppVariant.Outlined" Dense="true" />
             </div>
             <div class="collection-rule-sentence__max">
-                <AppNumericField Label="@L["CollectionRuleBuilder_AtMost"].Value" Value="@MaxItems" ValueChanged="OnMaxItemsChangedAsync" Min="0"
-                                 HelpText="0 shows them all." />
+                <AppSelect T="string" Value="@MaxItems.ToString()" ValueChanged="OnLimitChosenAsync" Options="@LimitOptions"
+                           Label="@L["CollectionRuleBuilder_HowMany"].Value" Variant="AppVariant.Outlined" Dense="true" />
+            </div>
+            <div class="collection-rule-sentence__advanced">
+                <AppSwitchRow Label="@L["CollectionRuleBuilder_AdvancedRuleGroups"].Value"
+                              Value="@Advanced" ValueChanged="OnAdvancedChangedAsync" Disabled="@(Advanced && !CanLeaveAdvanced)"
+                              Size="AppSize.Small" />
             </div>
         </div>
-        @if (!RandomOrder)
+        @if (Advanced && !CanLeaveAdvanced)
+        {
+            <small class="collection-rule-sentence__hint">@L["CollectionRuleBuilder_StaysAdvanced"]</small>
+        }
+        @if (Advanced && !RandomOrder)
         {
             @if (string.IsNullOrWhiteSpace(SecondarySortField))
             {
@@ -65,13 +75,6 @@
             }
         }
     </section>
-
-    <div class="collection-rule-sentence__advanced">
-        <AppSwitchRow Label="@L["CollectionRuleBuilder_AdvancedRuleGroups"].Value"
-                      Description="@(CanLeaveAdvanced ? "Several rule groups, each matching all or any of its rules, combined with AND or OR." : "This collection uses several rule groups. Remove the extra groups to go back to the plain layout.")"
-                      Value="@Advanced" ValueChanged="OnAdvancedChangedAsync" Disabled="@(Advanced && !CanLeaveAdvanced)"
-                      Size="AppSize.Small" />
-    </div>
 </div>
 
 @code {
@@ -170,9 +173,23 @@
         await RefreshAsync();
     }
 
-    private async Task OnMaxItemsChangedAsync(int value)
+    // "Show all", or the first few: the usual limits, plus whatever limit an older collection already holds.
+    private static readonly int[] LimitSteps = [10, 25, 50, 100];
+
+    private IReadOnlyList<AppSelectOption> LimitOptions
     {
-        MaxItems = Math.Max(0, value);
+        get
+        {
+            var steps = LimitSteps.Contains(MaxItems) || MaxItems <= 0 ? LimitSteps : LimitSteps.Append(MaxItems).Order().ToArray();
+            var options = new List<AppSelectOption> { new("0", L["CollectionRuleBuilder_ShowAll"].Value) };
+            options.AddRange(steps.Select(step => new AppSelectOption(step.ToString(), L["CollectionRuleBuilder_ShowFirst", step].Value)));
+            return options;
+        }
+    }
+
+    private async Task OnLimitChosenAsync(string? value)
+    {
+        MaxItems = int.TryParse(value, out var limit) ? Math.Max(0, limit) : 0;
         await MaxItemsChanged.InvokeAsync(MaxItems);
         await Changed.InvokeAsync();
     }
