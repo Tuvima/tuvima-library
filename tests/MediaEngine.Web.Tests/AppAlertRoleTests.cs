@@ -38,7 +38,11 @@ public sealed class AppAlertRoleTests : LocalizedBunitContext
     public void TheWarningsThatSayAnActionFailed_AreMarkedUrgentWhereTheyAreRaised(string key, string file)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
         var source = File.ReadAllLines(Path.Combine(directory!.FullName, "src", "MediaEngine.Web", file));
 
         var raised = source.Where(line => line.Contains($"\"{key}\"", StringComparison.Ordinal) && line.Contains("ShowNotice", StringComparison.Ordinal)).ToList();

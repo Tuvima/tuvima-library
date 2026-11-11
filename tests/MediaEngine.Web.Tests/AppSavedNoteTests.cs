@@ -156,7 +156,11 @@ public sealed class AppSavedNoteTests : LocalizedBunitContext
     public void TheGlowStyle_WithReducedMotion_IsABriefHighlightThatEndsAndNeverAPermanentOutline()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
         var css = File.ReadAllText(Path.Combine(directory!.FullName, "src", "MediaEngine.Web", "wwwroot", "app.css"));
 
         var reduced = css[css.IndexOf("@media (prefers-reduced-motion:reduce){.tl-just-changed", StringComparison.Ordinal)..];
