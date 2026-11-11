@@ -281,11 +281,11 @@
     }
 </div>
 
-<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+<AdministratorUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @if (_deleteOpen)
 {
-    <AppDialog Visible="true"
+    <AppDialogShell Framed="true" Visible="true"
                VisibleChanged="@(_ => CloseDelete())"
                OnClose="CloseDeleteAsync"
                Title="@L["ActivityPage_DeleteHistory2"].Value"
@@ -347,7 +347,7 @@
                            data-activity-delete-confirm-button="true" />
             </div>
         </FooterContent>
-    </AppDialog>
+    </AppDialogShell>
 }
 
 @code {

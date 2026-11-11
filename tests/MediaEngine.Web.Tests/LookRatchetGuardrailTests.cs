@@ -10,14 +10,14 @@ namespace MediaEngine.Web.Tests;
 public sealed class LookRatchetGuardrailTests
 {
     private const int RoundedEndCeiling = 0;
-    private const int NativeControlCeiling = 354;
-    private const int AdHocFontSizeCeiling = 131;
-    private const int HandTypedHexCeiling = 600;
-    private const int ForcedOverrideCeiling = 1293;
-    private const int HandTypedLayerCeiling = 307;
+    private const int NativeControlCeiling = 276;
+    private const int AdHocFontSizeCeiling = 69;
+    private const int HandTypedHexCeiling = 512;
+    private const int ForcedOverrideCeiling = 1082;
+    private const int HandTypedLayerCeiling = 271;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
     private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
-    private const int OldAppVariableCeiling = 159;
+    private const int OldAppVariableCeiling = 151;
     private const int DeadStyleClassCeiling = 0;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
@@ -60,6 +60,17 @@ public sealed class LookRatchetGuardrailTests
 
     // Any renamed copy of the toast part (a service or a host, with or without the interface prefix) counts too.
     private static readonly Regex ToastServiceOrHost = new(@"\bI?\w*Toast(Service|Host)\b", RegexOptions.CultureInvariant);
+
+    [Fact]
+    public void TheOldAppDialogPartHasNotReturned()
+    {
+        // One window part: AppDialogShell (hosted with Framed when a page opens it inline). AppDialogFrame and AppDialogHost are its frame and host.
+        var offenders = WebFiles(".razor")
+            .Where(f => Regex.IsMatch(f.Text, @"<AppDialog[\s>]") || f.Relative.EndsWith("Shared/AppDialog.razor", StringComparison.Ordinal))
+            .Select(f => f.Relative)
+            .ToList();
+        Assert.True(offenders.Count == 0, $"The old AppDialog window part was retired. Use AppDialogShell (Framed=\"true\" for an inline window), but these files use or define AppDialog: {string.Join(", ", offenders)}.");
+    }
 
     [Fact]
     public void ThereAreNoToasts()

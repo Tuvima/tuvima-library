@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Settings
 @inject IStringLocalizer<SharedStrings> L
 
-<AppDialog Visible="@Visible" VisibleChanged="@VisibleChanged"
+<AppDialogShell Framed="true" Visible="@Visible" VisibleChanged="@VisibleChanged"
            Title="@L["ManualPortForwardingDialog_YourRouterNeedsOneSetting"].Value"
            Subtitle="@L["ManualPortForwardingDialog_CreateThisPortForwardingRule"].Value"
            Icon="@AppMaterialIcons.Outlined.Router" Size="Medium">
@@ -35,7 +35,7 @@
         <AppButton Label="@L["Common_Close"].Value" OnClick="CloseAsync" />
         <AppButton Label="@L["ManualPortForwardingDialog_IVeConfiguredThisTest"].Value" ButtonStyle="AppButtonStyle.Filled" OnClick="TestAgainAsync" />
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
 @code {
     [Parameter] public bool Visible { get; set; }

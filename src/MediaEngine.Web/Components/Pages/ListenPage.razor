@@ -105,15 +105,7 @@ else
                                 <AppNativeButton Type="button" Class="listen-rail__drag" draggable="true" AriaLabel="@($"Drag to reorder {playlist.Name}")" @ondragstart="@(() => BeginPlaylistReorder(playlist.Id))" @ondragend="EndPlaylistReorder">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="tl-u-font-size-18px" />
                                 </AppNativeButton>
-                                @if (_deletingPlaylistId == playlist.Id)
-                                {
-                                    <div class="listen-rail__delete-confirm" role="group" aria-label="@($"Confirm deletion of {playlist.Name}")">
-                                        <span>@L["Common_Delete2", playlist.Name]</span>
-                                        <AppNativeButton Type="button" Class="is-confirm" AriaLabel="@($"Confirm deletion of {playlist.Name}")" OnClick="@(_ => DeletePlaylistAsync(playlist))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
-                                        <AppNativeButton Type="button" Class="is-cancel" AriaLabel="@($"Cancel deletion of {playlist.Name}")" OnClick="@(_ => _deletingPlaylistId = null)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
-                                    </div>
-                                }
-                                else if (_renamingPlaylistId == playlist.Id)
+                                @if (_renamingPlaylistId == playlist.Id)
                                 {
                                     <AppNativeInput Class="listen-rail__rename-input"
                                                     Value="@_renamePlaylistName"
@@ -152,7 +144,7 @@ else
                                                  Icon="@AppMaterialIcons.Outlined.DeleteOutline"
                                                  Tone="AppUiTone.Error"
                                                  DividerBefore="true"
-                                                 OnClick="@(() => BeginPlaylistDelete(playlist))" />
+                                                 OnClick="@(() => BeginPlaylistDeleteAsync(playlist))" />
                                 </AppOverflowMenu>
                             </div>
                         }
@@ -780,7 +772,7 @@ else
                     {
                         <div class="audiobooks-active-filter">
                             <span>@L["ListenPage_Showing", _audiobookSeriesFocus]</span>
-                            <AppNativeButton Type="button" OnClick="ClearAudiobookSeriesFocus">@L["Activity_Clear"]</AppNativeButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Label="@L["Activity_Clear"].Value" OnClick="ClearAudiobookSeriesFocus" />
                         </div>
                     }
 
@@ -869,7 +861,7 @@ else
                                                 <h3>@series.DisplayName</h3>
                                                 <span>@AudiobookSeriesMeta(series)</span>
                                                 <p>@AudiobookSeriesDescription(series)</p>
-                                                <AppNativeButton Type="button" Class="audiobooks-series-card__action" OnClick="@(() => ViewAudiobookSeries(series))">@L["ListenPage_ViewSeries"]</AppNativeButton>
+                                                <AppButton Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Label="@L["ListenPage_ViewSeries"].Value" OnClick="@(() => ViewAudiobookSeries(series))" />
                                             </div>
                                         </article>
                                     }
@@ -985,7 +977,7 @@ else
                                             <h3>@series.DisplayName</h3>
                                             <span>@AudiobookSeriesMeta(series)</span>
                                             <p>@AudiobookSeriesDescription(series)</p>
-                                            <AppNativeButton Type="button" Class="audiobooks-series-card__action" OnClick="@(() => ViewAudiobookSeries(series))">@L["ListenPage_ViewSeries"]</AppNativeButton>
+                                            <AppButton Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Label="@L["ListenPage_ViewSeries"].Value" OnClick="@(() => ViewAudiobookSeries(series))" />
                                         </div>
                                     </article>
                                 }

@@ -264,12 +264,11 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".media-section-shell__inline-create"));
     }
 
-    [Fact]
-    public async Task MediaSectionShell_UsesInlineDeleteConfirmationForManagedContainers()
+    private (IRenderedComponent<AppDialogHost> Host, IRenderedComponent<MediaSectionShell> Shell, Func<MediaSectionNavigationManageEvent?> Received) RenderManagedPlaylist(Guid playlistId)
     {
-        var popovers = Render<AppPopoverHost>();
-        var playlistId = Guid.NewGuid();
         MediaSectionNavigationManageEvent? received = null;
+        var host = Render<AppDialogHost>();
+        var popovers = Render<AppPopoverHost>();
         var navigation = new[]
         {
             new MediaSectionNavigationGroup("Playlists",
@@ -288,18 +287,44 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
                 return Task.FromResult(true);
             })
             .AddChildContent("<section>Listen content</section>"));
+        GC.KeepAlive(popovers);
+        return (host, cut, () => received);
+    }
+
+    [Fact]
+    public void MediaSectionShell_AsksInTheSharedConfirmBeforeDeletingAManagedContainer()
+    {
+        var playlistId = Guid.NewGuid();
+        var (host, cut, received) = RenderManagedPlaylist(playlistId);
 
         cut.Find(".media-section-shell__manage-menu .app-overflow-menu__trigger").Click();
-        await cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("Delete", StringComparison.Ordinal)).ClickAsync(new());
+        // The click finishes only when the question is answered, so it is not awaited here.
+        _ = cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("Delete", StringComparison.Ordinal)).ClickAsync(new());
 
-        var confirmation = cut.Find(".media-section-shell__delete-confirm");
-        Assert.Contains("Delete “Road Trip”?", confirmation.TextContent, StringComparison.Ordinal);
-        confirmation.QuerySelector("button.is-confirm")!.Click();
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal(playlistId, received?.Management.ContainerId);
-            Assert.Empty(cut.FindAll(".media-section-shell__delete-confirm"));
-        });
+        host.WaitForElement(".app-confirm");
+        Assert.Equal("Delete “Road Trip”?", host.Find(".app-dialog-shell__title").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".media-section-shell__delete-confirm"));
+        Assert.Empty(host.FindAll(".app-confirm__preview")); // the question is all in its title, so no empty body
+        Assert.Null(received());
+        var buttons = host.FindAll(".app-dialog-shell__footer button");
+        Assert.Contains("app-tone--error", buttons.Single(button => button.TextContent.Trim() == "Delete").ClassList);
+        buttons.Single(button => button.TextContent.Trim() == "Delete").Click();
+        cut.WaitForAssertion(() => Assert.Equal(playlistId, received()?.Management.ContainerId));
+    }
+
+    [Fact]
+    public void MediaSectionShell_DeletesNothingWhenTheConfirmIsCancelled()
+    {
+        var (host, cut, received) = RenderManagedPlaylist(Guid.NewGuid());
+
+        cut.Find(".media-section-shell__manage-menu .app-overflow-menu__trigger").Click();
+        // The click finishes only when the question is answered, so it is not awaited here.
+        _ = cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("Delete", StringComparison.Ordinal)).ClickAsync(new());
+
+        host.WaitForElement(".app-confirm");
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+        host.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
+        Assert.Null(received());
     }
 
     private static IReadOnlyList<MediaSectionNavigationGroup> BuildNestedNavigation() =>

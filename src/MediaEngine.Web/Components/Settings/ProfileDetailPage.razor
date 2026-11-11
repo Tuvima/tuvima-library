@@ -51,23 +51,23 @@
                 <ul class="profile-detail__badges" aria-label="@L["ProfileDetailPage_ProfileBadges"].Value">
                     @if (IsSelf)
                     {
-                        <li class="profile-detail__badge profile-detail__badge--you">@L["Common_You"]</li>
+                        <li><AppChip Text="@L["Common_You"].Value" Tone="AppUiTone.Primary" /></li>
                     }
                     @if (_managedPerson?.IsHouseholdAdmin == true)
                     {
-                        <li class="profile-detail__badge" data-role="household-administrator">@L["Common_HouseholdAdministrator"]</li>
+                        <li><AppChip Text="@L["Common_HouseholdAdministrator"].Value" data-role="household-administrator" /></li>
                     }
                     @if (_managedPerson?.IsServerAdmin == true)
                     {
-                        <li class="profile-detail__badge" data-role="server-administrator">@L["Common_ServerAdministrator"]</li>
+                        <li><AppChip Text="@L["Common_ServerAdministrator"].Value" data-role="server-administrator" /></li>
                     }
                     @if (_person.IsRestricted)
                     {
-                        <li class="profile-detail__badge">@L["Common_Kids"]</li>
+                        <li><AppChip Text="@L["Common_Kids"].Value" /></li>
                     }
                     @if (_person.HasPin)
                     {
-                        <li class="profile-detail__badge">@L["Common_PIN"]</li>
+                        <li><AppChip Text="@L["Common_PIN"].Value" /></li>
                     }
                 </ul>
             </div>
@@ -307,7 +307,7 @@
                     OnDelete="DeleteAsync"
                     OnClose="CloseEditor" />
 
-<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+<AdministratorUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @code {
     private const string SettingsProfilesRoute = "/settings/profiles";

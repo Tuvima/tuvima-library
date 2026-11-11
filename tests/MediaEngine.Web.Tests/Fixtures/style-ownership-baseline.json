@@ -1513,10 +1513,6 @@
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Shared/AppDialog.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Shared/AppDialogFrame.razor.css": {
       "important": 0,
       "deep": 0

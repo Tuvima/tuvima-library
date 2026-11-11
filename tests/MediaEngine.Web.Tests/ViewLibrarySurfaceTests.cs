@@ -254,7 +254,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("UpdateViewGalleryAsync", editor, StringComparison.Ordinal);
         Assert.Contains("DeleteViewGalleryAsync", popover, StringComparison.Ordinal);
         Assert.Contains("DeleteViewGalleryAsync", Read("src/MediaEngine.Web/Components/Pages/ViewSectionShell.razor"), StringComparison.Ordinal);
-        Assert.Contains("<AppDialog", detail, StringComparison.Ordinal);
+        Assert.Contains("<AppDialogShell", detail, StringComparison.Ordinal);
         Assert.Contains("<ViewRuleBuilder", editorPanel, StringComparison.Ordinal);
         Assert.Contains("_gallery.Kind == ViewGalleryKind.Manual", detail, StringComparison.Ordinal);
         Assert.Contains("Add photos from any photo", editorPanel, StringComparison.Ordinal);

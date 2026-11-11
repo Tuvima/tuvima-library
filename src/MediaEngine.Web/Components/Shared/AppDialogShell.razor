@@ -2,65 +2,15 @@
 @using MediaEngine.Web.Services.Ui
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="@RootClass"
-     role="@(Modal && Context is null ? "dialog" : "region")"
-     aria-modal="@(Modal && Context is null ? "true" : null)"
-     aria-labelledby="@TitleId">
-    <header class="@HeaderClass">
-        @if (OnBack.HasDelegate)
-        {
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack"
-                           Size="AppControlSize.Normal"
-                           Tone="AppUiTone.Neutral"
-                           Class="app-dialog-shell__back"
-                           aria-label="@L["Common_GoBack"].Value"
-                           OnClick="OnBack" />
-        }
-        @if (HeaderArt is not null)
-        {
-            <div class="app-dialog-shell__art">@HeaderArt</div>
-        }
-        else if (!string.IsNullOrWhiteSpace(ResolvedIcon))
-        {
-            <div class="@IconClass">
-                <AppMaterialIcon Icon="@ResolvedIcon" />
-            </div>
-        }
-
-        <div class="app-dialog-shell__copy">
-            @if (!string.IsNullOrWhiteSpace(Eyebrow))
-            {
-                <div class="app-dialog-shell__eyebrow">@Eyebrow</div>
-            }
-            <h2 id="@TitleId" class="app-dialog-shell__title">@Title</h2>
-            @if (!string.IsNullOrWhiteSpace(Subtitle))
-            {
-                <div class="app-dialog-shell__subtitle">@Subtitle</div>
-            }
-        </div>
-
-        @if (OnClose.HasDelegate)
-        {
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
-                           Size="AppControlSize.Normal"
-                           Tone="AppUiTone.Neutral"
-                           Class="app-dialog-shell__close"
-                           aria-label="@L["Common_CloseDialog"].Value"
-                           OnClick="OnClose" />
-        }
-    </header>
-
-    <div class="app-dialog-shell__body">
-        @ChildContent
-    </div>
-
-    @if (FooterContent is not null)
-    {
-        <footer class="app-dialog-shell__footer">
-            @FooterContent
-        </footer>
-    }
-</div>
+@if (Framed)
+{
+    @* Hosted in the shared native Window frame (backdrop, focus trap, Escape) for a window the page opens inline instead of through the dialog service. *@
+    <AppDialogFrame Title="@ResolvedTitle" Open="@Visible" DialogOptions="@FrameOptionsResolved" Class="@FrameClass" OnCancel="CloseAsync">@Card</AppDialogFrame>
+}
+else
+{
+    @Card
+}
 
 @code {
     [CascadingParameter] public IAppDialogContext? Context { get; set; }
@@ -85,18 +35,135 @@
 
     /// <summary>Extra presentation class for the hosting dialog frame (for example a wider picker).</summary>
     [Parameter] public string? HostClass { get; set; }
+
+    /// <summary>
+    /// Opens the card in its own native Window frame (scrim, focus trap, Escape) for a page that shows the window inline, driven by
+    /// <see cref="Visible"/>, instead of through the dialog service. Leave off inside a service-opened dialog or a frame the caller draws.
+    /// </summary>
+    [Parameter] public bool Framed { get; set; }
+
+    /// <summary>Whether a <see cref="Framed"/> window is open. A close (the X, Escape, a scrim press) calls <see cref="OnClose"/>, or else sets this to false through <see cref="VisibleChanged"/>.</summary>
+    [Parameter] public bool Visible { get; set; } = true;
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+
+    /// <summary>Frame behaviour for a <see cref="Framed"/> window (Escape, scrim press, phone sheet); the window width comes from <see cref="Size"/> unless these name one.</summary>
+    [Parameter] public AppDialogOptions? FrameOptions { get; set; }
+
+    /// <summary>The caller draws its own header and footer (the collection editor): the dialog keeps only its hosting class and the body.</summary>
+    [Parameter] public bool Bare { get; set; }
+
     private string TitleId { get; } = $"dialog-title-{Guid.NewGuid():N}";
     private string HeaderClass => $"app-dialog-shell__header{(CenterTitle ? " app-dialog-shell__header--centered" : string.Empty)}";
+
+    // A window opened through the dialog service may be titled by its opener instead of the card.
+    private string ResolvedTitle => !string.IsNullOrWhiteSpace(Title) ? Title : Context?.Title ?? string.Empty;
+    private bool IsFramed => Framed || Context is not null || !Modal;
+    // A service-opened window with no OnClose of its own keeps the close button its opener asked for (CloseButton), now drawn here because the frame's header is off.
+    private bool CanClose => OnClose.HasDelegate || Framed || Context?.Options.CloseButton == true;
+    private string FrameClass => string.IsNullOrWhiteSpace(HostClass) ? "app-dialog-host" : $"app-dialog-host {HostClass}";
+    private AppDialogOptions FrameOptionsResolved
+    {
+        get
+        {
+            var options = FrameOptions ?? new() { MaxWidth = AppMaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+            return options with { Size = AppWindowSizing.Resolve(options, Size) };
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
         if (Context is null) return;
         if (Context.PresentationClass is null || !string.IsNullOrWhiteSpace(HostClass))
             await Context.SetPresentationClassAsync(string.IsNullOrWhiteSpace(HostClass) ? "app-dialog-host" : $"app-dialog-host {HostClass}");
-        // The hosting frame owns the width (Look v3 D14: S 480, M 640, L 900), so the card tells it which step its own size name asks for.
-        if (Context.Options.Size is null)
-            await Context.SetOptionsAsync(Context.Options with { Size = AppWindowSizing.Resolve(Context.Options, Size) });
+        if (Bare) return;
+        // The card draws its own title, so the frame's plain header would repeat it; and the hosting frame owns the width
+        // (Look v3 D14: S 480, M 640, L 900), so the card tells it which step its own size name asks for.
+        var options = Context.Options;
+        if (options.NoHeader != true)
+            options = options with { NoHeader = true };
+        if (options.Size is null)
+            options = options with { Size = AppWindowSizing.Resolve(options, Size) };
+        if (options != Context.Options)
+            await Context.SetOptionsAsync(options);
     }
+
+    private async Task CloseAsync()
+    {
+        if (OnClose.HasDelegate) { await OnClose.InvokeAsync(); return; }
+        if (Context is not null) { await Context.CancelAsync(); return; }
+        if (!Framed) return;
+        Visible = false;
+        await VisibleChanged.InvokeAsync(false);
+    }
+
+    private RenderFragment Card => @<text>
+        @if (Bare)
+        {
+            <div class="@FrameClass"><div class="tl-dialog-content">@ChildContent</div></div>
+        }
+        else
+        {
+            <div class="@RootClass"
+                 role="@(Modal && !IsFramed ? "dialog" : "region")"
+                 aria-modal="@(Modal && !IsFramed ? "true" : null)"
+                 aria-labelledby="@TitleId">
+                <header class="@HeaderClass">
+                    @if (OnBack.HasDelegate)
+                    {
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack"
+                                       Size="AppControlSize.Normal"
+                                       Tone="AppUiTone.Neutral"
+                                       Class="app-dialog-shell__back"
+                                       aria-label="@L["Common_GoBack"].Value"
+                                       OnClick="OnBack" />
+                    }
+                    @if (HeaderArt is not null)
+                    {
+                        <div class="app-dialog-shell__art">@HeaderArt</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(ResolvedIcon))
+                    {
+                        <div class="@IconClass">
+                            <AppMaterialIcon Icon="@ResolvedIcon" />
+                        </div>
+                    }
+
+                    <div class="app-dialog-shell__copy">
+                        @if (!string.IsNullOrWhiteSpace(Eyebrow))
+                        {
+                            <div class="app-dialog-shell__eyebrow">@Eyebrow</div>
+                        }
+                        <h2 id="@TitleId" class="app-dialog-shell__title">@ResolvedTitle</h2>
+                        @if (!string.IsNullOrWhiteSpace(Subtitle))
+                        {
+                            <div class="app-dialog-shell__subtitle">@Subtitle</div>
+                        }
+                    </div>
+
+                    @if (CanClose)
+                    {
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                                       Size="AppControlSize.Normal"
+                                       Tone="AppUiTone.Neutral"
+                                       Class="app-dialog-shell__close"
+                                       aria-label="@L["Common_CloseDialog"].Value"
+                                       OnClick="CloseAsync" />
+                    }
+                </header>
+
+                <div class="app-dialog-shell__body">
+                    @ChildContent
+                </div>
+
+                @if (FooterContent is not null)
+                {
+                    <footer class="app-dialog-shell__footer">
+                        @FooterContent
+                    </footer>
+                }
+            </div>
+        }
+    </text>;
 
     private string? ResolvedIcon => !string.IsNullOrWhiteSpace(Icon)
         ? Icon
@@ -112,7 +179,7 @@
         ? "app-dialog-shell__icon"
         : $"app-dialog-shell__icon app-dialog-shell__icon--{Tone.ToString()!.ToLowerInvariant()}";
 
-    private string RootClass => $"app-dialog-shell app-dialog-shell--{SizeClass}{(Context is not null || !Modal ? " app-dialog-shell--framed" : string.Empty)}";
+    private string RootClass => $"app-dialog-shell app-dialog-shell--{SizeClass}{(IsFramed ? " app-dialog-shell--framed" : string.Empty)}";
 
     private string SizeClass => Size.Trim().ToLowerInvariant() switch
     {

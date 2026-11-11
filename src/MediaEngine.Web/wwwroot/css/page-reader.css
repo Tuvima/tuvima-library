@@ -168,6 +168,11 @@
     pointer-events: none;
 }
 
+/* The bar's icon buttons are the shared AppIconButton (Plain): round through the shared radius hook, reader text colour through
+   the text token the Plain button reads. .pr-ib now only dresses the phone "..." menu trigger, which is not an AppIconButton. */
+.pr-shell { --app-icon-button-radius: 50%; }
+.pr-bar { --tl-text-primary: var(--pr-text); }
+
 .pr-ib {
     flex: none;
     width: 44px;
@@ -181,9 +186,13 @@
     cursor: pointer;
 }
 
+/* The "..." trigger draws the same 24 px glyph as the AppIconButtons beside it. */
+.pr-ib .tl-icon-root { width: var(--tl-icon-button-icon-lg); height: var(--tl-icon-button-icon-lg); font-size: var(--tl-icon-button-icon-lg); }
+
 .pr-ib:hover { background: var(--pr-hover); }
 .pr-ib:focus-visible { outline: 2px solid var(--pr-accent-hover); outline-offset: 2px; }
-.pr-ib--on { background: var(--pr-hover); color: var(--pr-accent-hover); }
+.app-icon-button.pr-ib--on,
+.app-icon-button.pr-ib--on:hover { background: var(--pr-hover); color: var(--pr-accent-hover); }
 
 .pr-title { flex: 1; min-width: 0; padding-left: 4px; }
 

@@ -122,7 +122,7 @@
                          OnAddToGallery="AddToGalleryAsync" />
 }
 
-<AppDialog @bind-Visible="_shareOpen"
+<AppDialogShell Framed="true" @bind-Visible="_shareOpen"
            Title="@L["ViewGalleryDetailPage_ShareGallery"].Value"
            Subtitle="@L["ViewGalleryDetailPage_ChooseEnabledProfilesThisShares"].Value"
            Icon="@AppMaterialIcons.Outlined.People"
@@ -176,7 +176,7 @@
                        OnClick="SaveSharesAsync" />
         </AppActionBar>
     </FooterContent>
-</AppDialog>
+</AppDialogShell>
 
 @code {
     [Parameter] public Guid GalleryId { get; set; }

@@ -76,6 +76,15 @@ Pages that need identified media (Home, Read, Watch, Listen, an item's page) sta
 - Left open: a delete that closes the editor when it was opened from a Listen row, a tile menu, the lyrics footer or a bulk edit has no place to show a "files left on disk" line (it is logged). `LibraryActivityMatchesMockupTests.ACoverOnTheDashboardsOwnOrigin...` failed once in a full-solution run and passes alone (timing; not caused by this work).
 - Local checks: `engineering/validation/batch.md`, section "thread 2".
 
+## Thread 5 result: one set of shared parts (built 2026-11-11)
+
+- One window part: all 19 uses of the old `AppDialog` are on `AppDialogShell` and the old part is deleted (guard `TheOldAppDialogPartHasNotReturned`).
+- One administrator unlock window (`AdministratorUnlockDialog`, PIN mode and Gate mode). An independent security review found the checks, Engine calls and PIN handling unchanged. Behavior change to know about: the PIN window is now a true modal above every other window (it used to draw behind the profile editor sheet and the sign-out window).
+- Default R13 (Shy may overturn): on a phone the PIN window is a bottom sheet like every window (Look v3 D14); its grip does not dismiss it. Alternatives: let the swipe cancel, or make an exception to D14.
+- Reader icon buttons use the shared icon button; plain delete confirms use the shared confirm; about 37 hand-drawn buttons, one tab set and three chip groups moved to shared parts. Look ratchet ceilings lowered to the real counts.
+- Left on purpose: `AppDrawer` (2 uses, no side-sheet position in the shared window), `AppIcon` (a different icon family), player menus and tabs (player chrome has its own panel), `EmptyTrashDialog` and `SignInDeletionConfirmation` (not plain confirms).
+- Follow-ups: a third copy of the PIN window in the profile picker; wrong `tablist` role on the browse mode switch, the discovery filter bar and the artwork role pickers; folder chips need an area tone (design decision); a count-bubble and a link-pill shape are missing from the shared parts.
+
 ## Local checks
 
 Appended to `engineering/validation/batch.md` as each thread merges.

@@ -18,7 +18,7 @@ const TYPES = {
 const PAGE = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="/css/book-reader.css"><title>book reader check</title><style>html,body{margin:0}</style></head>
 <body class="check-body"><div class="br-shell br-theme-light" id="shell" data-state="ready"><div class="br-stage" id="host"></div>
-<header class="br-bar br-bar--top"><span class="br-icon-btn">&#8592;</span><div class="br-title"><div class="br-title-book" id="bar-title">Book</div><div class="br-title-author" id="bar-author"></div></div></header>
+<header class="br-bar br-bar--top"><span class="tl-icon-button app-icon-button app-icon-button--plain app-control--normal">&#8592;</span><div class="br-title"><div class="br-title-book" id="bar-title">Book</div><div class="br-title-author" id="bar-author"></div></div></header>
 <footer class="br-bar br-bar--bottom"><span class="br-section" id="bar-section"></span><span class="br-percent" id="bar-percent"></span></footer></div></body></html>`;
 
 /**

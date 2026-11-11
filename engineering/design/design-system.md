@@ -217,7 +217,7 @@ Everything that floats over the page is one of four kinds, each one shared part.
 | Pop-out row | `--tl-popout-row` | `44px` | Row height in a pop-out |
 | Viewer close | `--tl-viewer-close` | `44px` | Close button target in a Viewer |
 
-- **Window** (`AppDialog`): centered, with a scrim. S for a confirmation or short form, M for a form or picker, L for a workspace. One anatomy: 20 / 600 title, an optional one-line description, a close X at 44 px top right, the body, and a footer.
+- **Window** (`AppDialogShell`; `Framed` when a page opens it inline): centered, with a scrim. S for a confirmation or short form, M for a form or picker, L for a workspace. One anatomy: 20 / 600 title, an optional one-line description, a close X at 44 px top right, the body, and a footer.
 - **Sheet:** the Window on phones. Every Window becomes a Sheet under 600 px: it slides from the bottom, has 16 px top corners and a handle, and keeps the same anatomy.
 - **Pop-out** (`AppPopover`): anchored to its control, no scrim, closes on an outside press or Escape. Menu (44 px rows) or Panel (tools such as the player's speed, audio, subtitles and queue, and the library folders pop-over), on the elevated surface. On phones a Pop-out becomes a Sheet.
 - **Viewer** (`AppViewer`): full screen, for the reader, photo and document viewers, search and the details overlay. It has its own close X at 44 px.
@@ -228,6 +228,7 @@ Everything that floats over the page is one of four kinds, each one shared part.
 
 - **Three levels:** primary (filled purple, one per region), secondary (outlined with `--tl-border-strong`), quiet (text only), plus outlined red for a destructive entry and filled red for a confirmed destructive action. Heights 36 / 44 / 48.
 - **Icon button (`AppIconButton`), one part, five looks:** Outlined (default, on surfaces), Text (no border, no fill), Filled (primary and the Like state), OverArtwork (a soft dark scrim for use on covers and heroes) and Soft. Sizes 36 / 44 / 48 with icons 20 / 24 / 24. An icon-only button needs a tooltip and an accessible name.
+- **Round icon buttons:** `AppIconButton` reads the `--app-icon-button-radius` hook for its corner radius. Only the book and page readers set it (to `50%`, on their shell) for round buttons; nothing else should.
 - **Hero button:** one wide solid light (white, dark text) Play, Watch, Resume, Read or Listen button, tall, with a large label and icon, and a thin progress bar under Resume. Companions (My List, Like, Edit, More, and Open for a folder of videos) are the Text icon button at 48 px with a short label under it where there is room. It is light on purpose so it reads over any artwork.
 
 | Part | Token | Value | Used for |
