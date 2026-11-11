@@ -245,6 +245,7 @@
 [method] ConfirmSetupRestoreAsync
   input operationId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  input keysPin | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   response | shape=803bc15a883f188d02e0959bdb29b99dd2028faeacfdc43398234d0cbdfdce0a
 
 [method] ControlFolderJobAsync

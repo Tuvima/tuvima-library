@@ -65,6 +65,11 @@
                         <div>@Backup.Warning</div><div>@L["SetupWelcomeStage_TheApplicationWillRestartAfter"]</div>
                     }
                 </AppAlert>
+                @if (Backup.Contents?.IncludesKeys == true)
+                {
+                    <AppTextField Label="@L["BackupRecoveryPanel_KeysPin"].Value" Value="@RestorePin" ValueChanged="RestorePinChanged" InputType="AppInputType.Password" MaxLength="4"
+                                  HelpText="@L["BackupRecoveryPanel_RestorePinHelp"].Value" autocomplete="off" data-testid="setup-restore-keys-pin" />
+                }
                 <div class="setup-actions"><AppButton Label="@L["SetupWelcomeStage_CancelRestore"].Value" OnClick="CancelRestore" /><AppButton Label="@L["SetupWelcomeStage_RestoreAndRestart"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
             }
             else
@@ -95,6 +100,9 @@
     [Parameter] public EventCallback CancelRestore { get; set; }
     [Parameter] public EventCallback<InputFileChangeEventArgs> UploadBackup { get; set; }
     [Parameter] public EventCallback ConfirmRestore { get; set; }
+    /// <summary>The 4-digit PIN that unlocks the keys inside a backup; asked for only when the chosen backup holds keys.</summary>
+    [Parameter] public string RestorePin { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> RestorePinChanged { get; set; }
 
     /// <summary>True while the network name just follows the friendly name; a hand-set name sets this to false.</summary>
     [Parameter] public bool HostNameDerived { get; set; } = true;

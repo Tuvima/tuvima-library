@@ -34,7 +34,7 @@ public partial interface IEngineApiClient
     Task<ProviderCredentialOperationResultDto?> SaveSetupProviderCredentialsAsync(string name, ProviderCredentialWriteRequest request, string? setupSession, CancellationToken ct = default);
     Task<SetupStatusDto?> DecideSetupStepAsync(string stepKey, string status, string? detail, string? setupSession, CancellationToken ct = default);
     Task<SetupBackupInspectionDto?> UploadSetupBackupAsync(Stream stream, string fileName, string setupSession, CancellationToken ct = default);
-    Task<SetupRestoreConfirmationDto?> ConfirmSetupRestoreAsync(Guid operationId, string setupSession, CancellationToken ct = default);
+    Task<SetupRestoreConfirmationDto?> ConfirmSetupRestoreAsync(Guid operationId, string setupSession, string? keysPin = null, CancellationToken ct = default);
     Task<SetupReadinessDto?> GetSetupReadinessAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupStatusDto?> CompleteSetupAsync(string? setupSession, CancellationToken ct = default);
 }
