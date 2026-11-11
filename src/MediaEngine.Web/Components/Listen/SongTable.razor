@@ -253,6 +253,11 @@ else
                     {
                         <span class="song-table__chip">@L["EditorDetailsPanel_Explicit"]</span>
                     }
+                    @if (row.IsUnnumbered)
+                    {
+                        @* A track added anyway (details overlay D13): quiet tag, in the Unnumbered group at the end. *@
+                        <NotMatchedTag />
+                    }
                     @if (!row.IsOwned)
                     {
                         <span class="song-table__chip song-table__chip--missing">@L["SongTable_Missing"]</span>
@@ -493,6 +498,10 @@ else
                 @if (row.IsExplicit)
                 {
                     <span class="song-table__chip">@L["EditorDetailsPanel_Explicit"]</span>
+                }
+                @if (row.IsUnnumbered)
+                {
+                    <NotMatchedTag />
                 }
             </span>
             @if (IsCurrent(row) || PhoneSubtitle(row) is not null)
