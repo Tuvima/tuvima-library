@@ -22,6 +22,10 @@ The rule used: the newest Locked spec and its mock win over older ones.
 | R6 | View page Folders tab default | Read-only | View folders D4a |
 | R7 | Phone audiobook tools when a book has no chapters | Chapters slot is left out; History does not stand in | Player v2 D26, screen 15 |
 | R8 | Feedback after an action (replaces toasts) | A change you made that worked: the changed row or card glows, or the quiet "Saved" line where there is no row. A failure: an alert in place (in the window, or the page notice). A background result: the Activity indicator. No pop-up notices | The "no toasts" lines in the Libraries, Global bookmarks, Language and Collections specs |
+| R9 | Editor header title size | Stays 24 px: the Look v3 type ladder has no 28 px step (the Editor v5 mock drew 28) | Look v3 type ladder |
+| R10 | Icons in the detail hero row | Stay as built: the round buttons use the player glyph family, the main button and the folder button use Material | `.claude/rules/dashboard-surfaces-home-player.md` |
+| R11 | First-run setup, provider sub-lines | Stay as the provider's own summary sentence; the mock's short area names would need new wording per provider | Setup mock, provider config |
+| R12 | "..." on a Universe tile | No menu: a Universe takes overrides only and its Edit needs an administrator unlock on its own page, so a tile cannot open it | Never rule 1 |
 
 ## Threads, in order
 
@@ -47,6 +51,16 @@ Each thread is one or more proposed changes that merge when CI is green and the 
 - **M6 View folders (Standard).** "Add a Managed folder" opens Add folder with Managed chosen; mock headings from the strings file; medium Edit window; Folders button with a menu; notice wording and amber edge; safety lines in the footer; R6.
 - **M7 Collections (Complex).** Save glows a row, no toasts; From a list in two columns with greyed tiles and three figures; one drop-or-paste field; one Order row; Name step and footer per the mock; wording to the strings file; token colors.
 - **M8 Small ones (Standard).** Editor header title 28 px, item drop-down border at rest, footer wording from the strings file; R7; Sleep timer panel 380 px; hero Open tooltip not repeated; one icon family in the hero row; rules files' older hero sizes struck.
+
+## Thread 1 result (built 2026-11-11)
+
+All eight packets built, reviewed and verified (CI-strength build, 0 warnings; filtered tests pass). Left for later threads or for Shy:
+
+- Collections: about 13 toasts for other outcomes remain (thread 2). "Not in your library" shows 0 and there are no per-type pills, because the Engine does not yet tell an unmatched title from one that is not owned (needs Shy: an Engine addition). "Keep it in step" is still a segmented control (thread 5).
+- Tiles: unused model leftovers (`GroupSource` is still read by tests, `HasCustomArtwork`, `HoverLayout`) go in thread 6.
+- Libraries: the library page's Add folder button still types its window wording in code (thread 5).
+- Library Activity: "Review N" opens Needs Review unfiltered; the library page's Activity card is still whole-library.
+- A mixed curated collection still opens the editor as "Books" (no neutral kind exists; thread 7 with the collections editor).
 
 ## Local checks
 
