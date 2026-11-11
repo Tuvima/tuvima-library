@@ -438,3 +438,26 @@
     display: inline-flex;
     flex: 0 0 auto;
 }
+
+/* Letter headings and the A to Z strip on the phone Songs list (sorted by Song or Artist) */
+
+.song-table__letter {
+    padding: 14px 4px 4px;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-lg);
+    font-weight: 600;
+}
+
+.song-table__strip {
+    position: sticky;
+    top: 72px;
+    z-index: 2;
+    height: 0;
+    overflow: visible;
+}
+
+.song-table__strip-letters {
+    position: absolute;
+    top: 0;
+    right: -4px;
+}

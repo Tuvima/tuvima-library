@@ -17,20 +17,20 @@ public sealed class SongTableSortTests
         int? addedDay = null,
         bool owned = true,
         bool unnumbered = false) => new()
-    {
-        Id = id,
-        Source = SongRowSource.Work,
-        Title = title,
-        Artist = artist,
-        Album = album,
-        Genre = genre,
-        Number = number,
-        Plays = plays,
-        DurationSeconds = seconds,
-        DateAdded = addedDay is { } day ? new DateTimeOffset(2026, 1, day, 0, 0, 0, TimeSpan.Zero) : null,
-        IsOwned = owned,
-        IsUnnumbered = unnumbered,
-    };
+        {
+            Id = id,
+            Source = SongRowSource.Work,
+            Title = title,
+            Artist = artist,
+            Album = album,
+            Genre = genre,
+            Number = number,
+            Plays = plays,
+            DurationSeconds = seconds,
+            DateAdded = addedDay is { } day ? new DateTimeOffset(2026, 1, day, 0, 0, 0, TimeSpan.Zero) : null,
+            IsOwned = owned,
+            IsUnnumbered = unnumbered,
+        };
 
     private static string[] Ids(IEnumerable<SongRow> rows) => rows.Select(row => row.Id).ToArray();
 
@@ -241,5 +241,33 @@ public sealed class SongTableSortTests
         var sorted = SongTableSort.Sort(AlbumTracks, SongTablePlace.Songs, new SongSortState(SongColumn.Song, false));
 
         Assert.Equal(["u1", "t1", "t3", "t2", "u2"], Ids(sorted));
+    }
+
+    [Theory]
+    [InlineData("Africa", "A")]
+    [InlineData("  zebra", "Z")]
+    [InlineData("Émilie", "E")]
+    [InlineData("Ångström", "A")]
+    [InlineData("99 Luftballons", "#")]
+    [InlineData("(Don't Fear) The Reaper", "#")]
+    [InlineData("日本語", "#")]
+    [InlineData("", "#")]
+    [InlineData(null, "#")]
+    public void AHeadingLetter_IsTheFirstLetterWithAccentsDropped_OrHashForAnythingElse(string? text, string expected)
+    {
+        Assert.Equal(expected, SongTableSort.LetterFor(text));
+    }
+
+    [Theory]
+    [InlineData(SongTablePlace.Songs, SongColumn.Song, true)]
+    [InlineData(SongTablePlace.Albums, SongColumn.Artist, true)]
+    [InlineData(SongTablePlace.Songs, SongColumn.DateAdded, false)]
+    [InlineData(SongTablePlace.Songs, SongColumn.Album, false)]
+    [InlineData(SongTablePlace.AlbumPage, SongColumn.Song, false)]
+    [InlineData(SongTablePlace.Playlist, SongColumn.Song, false)]
+    public void LettersShowOnlyOnTheSongListsSortedBySongOrArtist(SongTablePlace place, SongColumn column, bool shown)
+    {
+        Assert.Equal(shown, SongTableSort.ShowsLetters(place, new SongSortState(column, false)));
+        Assert.Equal(shown, SongTableSort.ShowsLetters(place, new SongSortState(column, true)));
     }
 }

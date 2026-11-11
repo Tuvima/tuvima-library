@@ -157,9 +157,9 @@ else
          data-listen-start-url="@StartUrl(row)"
          tabindex="@(row.IsOwned ? "0" : null)"
          aria-disabled="@(row.IsOwned ? null : "true")"
-         draggable="@(CanDrag ? "true" : null)"
-         @ondragstart="@(() => DragStart(row))"
-         @ondragend="DragEnd"
+         draggable="@(CanDrag || CanDragOut ? "true" : null)"
+         @ondragstart="@(() => DragStartAsync(row))"
+         @ondragend="DragEndAsync"
          @ondragover="@(() => DragOver(row))"
          @ondragover:preventDefault="CanDrag"
          @ondrop="@(() => DropAsync(row))"
@@ -401,7 +401,12 @@ else
         }
         else
         {
-            <div class="song-table song-table--phone" role="list" aria-label="@AriaLabelText">
+            <div class="song-table song-table--phone" role="list" aria-label="@AriaLabelText" @ref="_phoneList">
+                @if (LettersShown && !IsLoading)
+                {
+                    @* First in the list so it can stick beside the rows while they scroll. *@
+                    @LetterStrip
+                }
                 @if (IsLoading && Rows.Count == 0)
                 {
                     @for (var index = 0; index < SkeletonRowCount; index++)
@@ -432,13 +437,31 @@ else
                 }
                 else
                 {
-                    <Virtualize Items="@_shown" Context="row" TItem="SongRow" ItemSize="64" OverscanCount="8">
-                        @PhoneRow(row)
+                    <Virtualize Items="@PhoneItems" Context="item" TItem="PhoneListItem" ItemSize="64" OverscanCount="8">
+                        @if (item.Row is { } row)
+                        {
+                            @PhoneRow(row)
+                        }
+                        else
+                        {
+                            <div class="song-table__letter" role="presentation" data-song-letter="@item.Letter">@item.Letter</div>
+                        }
                     </Virtualize>
                 }
             </div>
         }
     </text>;
+
+    // The A to Z strip: sticks beside the list while it scrolls. Each letter jumps to its heading.
+    private RenderFragment LetterStrip => @<nav class="song-table__strip">
+        <div class="song-table__strip-letters">
+            <AppLetterStrip Letters="StripLetters"
+                            Present="PresentLetters"
+                            AriaLabel="@L["SongsHeader_LetterIndex"].Value"
+                            LetterLabel="@(letter => L["SongsHeader_JumpToLetter", letter].Value)"
+                            OnSelect="JumpToLetterAsync" />
+        </div>
+    </nav>;
 
     private RenderFragment PhoneRow(SongRow row) => @<div class="@PhoneRowClass(row)"
          @key="RowKey(row)"

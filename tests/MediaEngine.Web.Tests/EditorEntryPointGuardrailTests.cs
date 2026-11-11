@@ -68,7 +68,7 @@ public sealed class EditorEntryPointGuardrailTests
     public void ListsThatTickRowsUseTheOneBulkEntry_NotAHostOfTheirOwn()
     {
         Assert.Contains("<BulkListEntry", Read("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"), StringComparison.Ordinal);
-        Assert.Contains("<BulkListEntry", Read("src/MediaEngine.Web/Components/Listen/ListenSongTable.razor"), StringComparison.Ordinal);
+        Assert.Contains("<BulkListEntry", Read("src/MediaEngine.Web/Components/Listen/SongList.razor"), StringComparison.Ordinal);
         var entry = Read("src/MediaEngine.Web/Components/Details/BulkListEntry.razor");
         Assert.DoesNotContain("PendingEditList", entry, StringComparison.Ordinal);
         Assert.DoesNotContain("ReviewChangesDialog", entry, StringComparison.Ordinal);

@@ -34,6 +34,8 @@ public partial class ListenPage
             .OrderBy(work => ParseTrackNumber(work.TrackNumber))
             .ThenBy(DisplayTrackTitle, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    // An album's songs open in track order (the # column), as they always did.
+    private static readonly MediaEngine.Web.Components.Listen.SongSortState AlbumTrackOrder = new(MediaEngine.Web.Components.Listen.SongColumn.Number, false);
     private IReadOnlyList<CollectionGroupSeasonDto> ArtistAlbums => _artistDetail?.Seasons ?? [];
     private IReadOnlyList<WorkViewModel> ArtistTracks => ResolveArtistTracks();
     private IReadOnlyList<WorkViewModel> ActivePlaylistTracks => ResolveActivePlaylistTracks();

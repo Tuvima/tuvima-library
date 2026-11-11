@@ -131,4 +131,7 @@
   <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
     <value>Remove from Favourites</value>
   </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favourites</value>
+  </data>
 </root>

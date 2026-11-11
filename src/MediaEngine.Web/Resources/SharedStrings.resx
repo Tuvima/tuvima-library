@@ -1514,17 +1514,11 @@
   <data name="Common_Time" xml:space="preserve">
     <value>Time</value>
   </data>
-  <data name="ListenSongTable_ShowMoreSongsLeft" xml:space="preserve">
-    <value>Show more songs ({0} left)</value>
-  </data>
   <data name="Common_ToggleFavorite" xml:space="preserve">
     <value>Toggle favorite</value>
   </data>
   <data name="Common_PlaySong" xml:space="preserve">
     <value>Play song</value>
-  </data>
-  <data name="ListenSongTable_OpenAlbum" xml:space="preserve">
-    <value>Open album</value>
   </data>
   <data name="ListenSongTable_DeleteFromLibrary" xml:space="preserve">
     <value>Delete from library…</value>
@@ -13477,5 +13471,32 @@
   </data>
   <data name="SongTable_MovedTo" xml:space="preserve">
     <value>Moved {0} to position {1} of {2}.</value>
+  </data>
+  <data name="SongsHeader_Search" xml:space="preserve">
+    <value>Search Songs</value>
+  </data>
+  <data name="SongsHeader_SortAndFilter" xml:space="preserve">
+    <value>Sort and filter</value>
+  </data>
+  <data name="SongsHeader_SortAndFilterActive" xml:space="preserve">
+    <value>Sort and filter, {0} filters on</value>
+  </data>
+  <data name="SongsHeader_SortBy" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="SongsHeader_Ascending" xml:space="preserve">
+    <value>Ascending</value>
+  </data>
+  <data name="SongsHeader_Descending" xml:space="preserve">
+    <value>Descending</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="SongsHeader_JumpToLetter" xml:space="preserve">
+    <value>Jump to {0}</value>
+  </data>
+  <data name="SongsHeader_LetterIndex" xml:space="preserve">
+    <value>Letter index</value>
   </data>
 </root>

@@ -31,6 +31,19 @@ public sealed class BrowseQueryBuilderTests
         Assert.DoesNotContain(BrowseQueryBuilder.GetSortOptions("music", "albums"), option => option.Value == "plays");
     }
 
+    [Theory]
+    [InlineData("newest", MediaEngine.Web.Components.Listen.SongColumn.DateAdded, true)]
+    [InlineData("oldest", MediaEngine.Web.Components.Listen.SongColumn.DateAdded, false)]
+    [InlineData("title", MediaEngine.Web.Components.Listen.SongColumn.Song, false)]
+    [InlineData("creator", MediaEngine.Web.Components.Listen.SongColumn.Artist, false)]
+    [InlineData("album", MediaEngine.Web.Components.Listen.SongColumn.Album, false)]
+    [InlineData("plays", MediaEngine.Web.Components.Listen.SongColumn.Plays, true)]
+    [InlineData("something-unknown", MediaEngine.Web.Components.Listen.SongColumn.DateAdded, true)]
+    public void TheSongsBrowseSort_IsTheSameChoiceAsTheSharedSongTablesSortState(string sort, MediaEngine.Web.Components.Listen.SongColumn column, bool descending)
+    {
+        Assert.Equal(new MediaEngine.Web.Components.Listen.SongSortState(column, descending), BrowseQueryBuilder.SongListSort(sort));
+    }
+
     [Fact]
     public void Read_CarriesVibeAndThemeFilters_AndDefaultsToNone()
     {

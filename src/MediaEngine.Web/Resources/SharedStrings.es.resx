@@ -913,4 +913,31 @@
   <data name="SongTable_MovedTo" xml:space="preserve">
     <value>{0} se movió a la posición {1} de {2}.</value>
   </data>
+  <data name="SongsHeader_Search" xml:space="preserve">
+    <value>Buscar canciones</value>
+  </data>
+  <data name="SongsHeader_SortAndFilter" xml:space="preserve">
+    <value>Ordenar y filtrar</value>
+  </data>
+  <data name="SongsHeader_SortAndFilterActive" xml:space="preserve">
+    <value>Ordenar y filtrar, {0} filtros activos</value>
+  </data>
+  <data name="SongsHeader_SortBy" xml:space="preserve">
+    <value>Ordenar por</value>
+  </data>
+  <data name="SongsHeader_Ascending" xml:space="preserve">
+    <value>Ascendente</value>
+  </data>
+  <data name="SongsHeader_Descending" xml:space="preserve">
+    <value>Descendente</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favoritos</value>
+  </data>
+  <data name="SongsHeader_JumpToLetter" xml:space="preserve">
+    <value>Ir a {0}</value>
+  </data>
+  <data name="SongsHeader_LetterIndex" xml:space="preserve">
+    <value>Índice de letras</value>
+  </data>
 </root>

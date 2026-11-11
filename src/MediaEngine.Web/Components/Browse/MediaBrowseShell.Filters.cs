@@ -137,6 +137,7 @@ public partial class MediaBrowseShell
     {
         _openFacetMenuKey = null;
         _sortBy = value;
+        _phoneSongSort = null;
         await NavigateAndReloadAsync();
     }
 

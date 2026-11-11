@@ -21,6 +21,8 @@ public partial class SongTable
     private const int ActionsColumnWidth = 100;
     private const int ColumnGap = 8;
     private const int KeyboardResizeStep = 8;
+    private const int PhoneRowHeight = 64;
+    private const int PhoneJumpOffset = 8;
 
     private SongTableChoice _choice = SongTableChoice.Default;
     private (Guid Profile, SongTablePlace Place)? _choiceKey;
@@ -36,6 +38,11 @@ public partial class SongTable
     private string? _firstUnnumberedKey;
     private (IReadOnlyList<SongRow>? Rows, int Count, SongTablePlace Place, SongSortState Sort, IReadOnlySet<string>? Favorites, int FavoriteCount)? _shownKey;
 
+    private List<PhoneListItem> _phoneItems = [];
+    private (List<SongRow> Shown, bool Letters, SongColumn? Column)? _phoneItemsKey;
+    private HashSet<string> _presentLetters = [];
+    private ElementReference _phoneList;
+
     private readonly HashSet<string> _selected = [];
     private IReadOnlySet<string>? _hostSelection;
 
@@ -49,6 +56,7 @@ public partial class SongTable
     private double _resizeStartX;
     private int _resizeStartWidth;
 
+    private SongRow? _draggingOut;
     private string? _dragKey;
     private string? _dropBeforeKey;
     private bool _dropAtEnd;
@@ -151,6 +159,20 @@ public partial class SongTable
     /// <summary>A playlist row moved; the host saves the order and hands back the reordered rows.</summary>
     [Parameter] public EventCallback<SongReorderRequest> OnReorder { get; set; }
 
+    /// <summary>
+    /// A song row is being dragged out of the table (for example onto a playlist in the side rail). Outside a playlist, setting this makes
+    /// owned rows draggable on a pointer device; a playlist's rows drag to reorder instead.
+    /// </summary>
+    [Parameter] public EventCallback<SongRow> OnDragOutStarted { get; set; }
+
+    [Parameter] public EventCallback<SongRow> OnDragOutEnded { get; set; }
+
+    /// <summary>
+    /// On a phone, group the list under letter headings and show the A to Z jump strip while it is sorted by Song or Artist (the phone
+    /// Songs page, spec music-table-and-reader-frame D21). Ignored everywhere else.
+    /// </summary>
+    [Parameter] public bool PhoneLetterIndex { get; set; }
+
     private bool IsPhoneList => DeviceContext.IsPhone;
 
     private string AriaLabelText => string.IsNullOrWhiteSpace(AriaLabel) ? L["Common_Songs"].Value : AriaLabel;
@@ -164,6 +186,11 @@ public partial class SongTable
 
     // Drag is a mouse affordance; touch screens and phones move rows from the "..." menu or the keyboard.
     private bool CanDrag => ReorderEnabled && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
+
+    // Dragging a song out to somewhere else (a playlist in the rail) is also a mouse affordance.
+    private bool CanDragOut => Place != SongTablePlace.Playlist && OnDragOutStarted.HasDelegate && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
+
+    private bool LettersShown => PhoneLetterIndex && IsPhoneList && SongTableSort.ShowsLetters(Place, _sort);
 
     // Add to queue on hover or focus needs a pointer; a touch screen finds it in the "..." menu.
     private bool ShowHoverQueue => OnQueue.HasDelegate && !DeviceContext.IsTouch;
@@ -272,6 +299,80 @@ public partial class SongTable
             ? _shown.Where(row => row.IsUnnumbered).Select(RowKey).FirstOrDefault()
             : null;
         _multipleArtists = Place == SongTablePlace.AlbumPage && SongTableColumns.HasMultipleArtists(Rows);
+    }
+
+    /// <summary>One entry of the phone list: a song, or the letter heading above a run of songs.</summary>
+    private sealed record PhoneListItem(SongRow? Row, string? Letter);
+
+    private List<PhoneListItem> PhoneItems
+    {
+        get
+        {
+            var letters = LettersShown;
+            var key = (_shown, letters, _sort.Column);
+            if (_phoneItemsKey is { } known && ReferenceEquals(known.Shown, _shown) && known.Letters == letters && known.Column == _sort.Column)
+            {
+                return _phoneItems;
+            }
+
+            var items = new List<PhoneListItem>(_shown.Count + (letters ? 27 : 0));
+            string? previous = null;
+            foreach (var row in _shown)
+            {
+                if (letters)
+                {
+                    var letter = SongTableSort.LetterFor(_sort.Column == SongColumn.Artist ? row.Artist : row.Title);
+                    if (!string.Equals(letter, previous, StringComparison.Ordinal))
+                    {
+                        items.Add(new PhoneListItem(null, letter));
+                        previous = letter;
+                    }
+                }
+
+                items.Add(new PhoneListItem(row, null));
+            }
+
+            _phoneItems = items;
+            _presentLetters = [.. items.Where(item => item.Letter is not null).Select(item => item.Letter!)];
+            _phoneItemsKey = key;
+            return items;
+        }
+    }
+
+    // The letters that have songs under them. Reading the items first makes sure they are worked out for the current rows and sort.
+    private HashSet<string> PresentLetters
+    {
+        get
+        {
+            _ = PhoneItems;
+            return _presentLetters;
+        }
+    }
+
+    // The strip's letters: A to Z then #. A letter with no songs under it is shown dimmed and does nothing.
+    private static readonly string[] StripLetters = [.. Enumerable.Range('A', 26).Select(code => ((char)code).ToString()), "#"];
+
+    private async Task JumpToLetterAsync(string letter)
+    {
+        var index = PhoneItems.ToList().FindIndex(item => item.Letter == letter);
+        if (index < 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/song-table.js");
+            await module.InvokeVoidAsync("scrollToIndex", _phoneList, index, PhoneRowHeight, PhoneJumpOffset);
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException)
+        {
+            Logger.LogWarning(exception, "Could not jump to a letter in the song list.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away before the song list could jump to a letter.");
+        }
     }
 
     private int RowIndex(SongRow row) => _shown.FindIndex(candidate => RowKey(candidate) == RowKey(row));
@@ -724,16 +825,19 @@ public partial class SongTable
 
     // ---- Playlist order ----------------------------------------------------------------------------------------------
 
-    private void DragStart(SongRow row)
+    private async Task DragStartAsync(SongRow row)
     {
-        if (!CanDrag)
+        if (CanDrag)
         {
-            return;
+            _dragKey = RowKey(row);
+            _dropBeforeKey = null;
+            _dropAtEnd = false;
         }
-
-        _dragKey = RowKey(row);
-        _dropBeforeKey = null;
-        _dropAtEnd = false;
+        else if (CanDragOut && row.IsOwned)
+        {
+            _draggingOut = row;
+            await OnDragOutStarted.InvokeAsync(row);
+        }
     }
 
     private void DragOver(SongRow row)
@@ -764,6 +868,16 @@ public partial class SongTable
         _dragKey = null;
         _dropBeforeKey = null;
         _dropAtEnd = false;
+    }
+
+    private async Task DragEndAsync()
+    {
+        DragEnd();
+        if (_draggingOut is { } row)
+        {
+            _draggingOut = null;
+            await OnDragOutEnded.InvokeAsync(row);
+        }
     }
 
     private async Task DropAsync(SongRow target)

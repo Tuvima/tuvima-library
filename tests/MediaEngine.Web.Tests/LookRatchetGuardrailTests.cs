@@ -138,7 +138,6 @@ public sealed class LookRatchetGuardrailTests
     private static readonly Dictionary<string, string> NeverRenderedAllowlist = new(StringComparer.Ordinal)
     {
         ["DesignSystemPreview"] = "The proof page for the Look rules: a page with its own address that nothing links to by design (it is a page, so it is skipped below).",
-        ["SongTable"] = "The shared song table is built in WP2 of the music table spec and wired into the Songs, Albums, album page and playlist pages in WP3 to WP5; remove this entry when WP3 lands.",
     };
 
     [Fact]
