@@ -124,7 +124,7 @@ public sealed class OneTileDesignTests : AsyncBunitContext
             Id = Guid.NewGuid(),
             Title = "The Expanse",
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             NavigationUrl = "/details/collection/expanse",
             MediaCounts = [new MediaTileMediaCountViewModel(MediaEngine.Web.Components.Shared.AppMaterialIcons.Filled.MenuBook, "Books", 9)],
         };
@@ -153,6 +153,35 @@ public sealed class OneTileDesignTests : AsyncBunitContext
 
         Assert.Equal("3 videos", MediaTileLabels.VideoDetail(folder));
         Assert.Equal("3 videos", MediaTileLabels.Bottom(folder, "Kept"));
+    }
+
+    [Fact]
+    public void ASeriesWithNoPerKindCounts_ReadsItsCountWithTheSeriesNoun_AndOneWithCountsReadsThem()
+    {
+        var bare = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Dune Saga", IsCollection = true, UseGroupTile = true, Presentation = MediaTilePresentation.BookSeries, PreviewTotalCount = 6 };
+        var counted = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Dune Saga",
+            IsCollection = true,
+            UseGroupTile = true,
+            Presentation = MediaTilePresentation.BookSeries,
+            PreviewTotalCount = 6,
+            MediaCounts = [new MediaTileMediaCountViewModel(MediaEngine.Web.Components.Shared.AppMaterialIcons.Filled.MenuBook, "Books", 5)],
+        };
+
+        Assert.Equal("6 books", MediaTileLabels.Bottom(bare, "Kept"));
+        Assert.Equal("5 books", MediaTileLabels.Bottom(counted, "Kept"));
+    }
+
+    [Fact]
+    public void ANewGroup_ShowsNewInTheTopLeftSlot_UnderTheSameRuleAsASingleTitle()
+    {
+        var group = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Dune Saga", IsCollection = true, UseGroupTile = true, NewLabel = "New", TileImageUrl = "/art/dune.jpg", NavigationUrl = "/details/bookseries/dune" };
+
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, group));
+
+        Assert.Equal("New", cut.Find(".media-tile-label--status").TextContent.Trim());
     }
 
     [Fact]

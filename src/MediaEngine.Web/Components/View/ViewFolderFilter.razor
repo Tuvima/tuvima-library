@@ -9,16 +9,21 @@
    once the kind has two or more folders, and the choice is remembered for this profile in the browser. *@
 @if (Folders.Count >= 2)
 {
-    <label class="view-folder-filter" data-folder-filter>
-        <span>@L["ViewFolderFilter_Folders"]</span>
-        <AppSelect Native="true" Value="@(Selected?.ToString("D") ?? string.Empty)" ValueChanged="ChangedAsync" aria-label="@L["ViewFolderFilter_Folders"].Value">
-            <option value="">@L["ViewFolderFilter_AllFolders"]</option>
+    <div class="view-folder-filter" data-folder-filter>
+        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.FolderOpen" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Label="@ButtonLabel" AriaLabel="@L["ViewFolderFilter_Folders"].Value"
+                         Size="AppControlSize.Compact">
+            <AppMenuItem Label="@L["ViewFolderFilter_AllFolders"].Value" Checked="@(Chosen is null)" OnClick="@(() => ChangedAsync(null))" />
             @foreach (var folder in Folders)
             {
-                <option value="@folder.Id.ToString("D")">@folder.Name · @FolderHandlingWords.LabelFor(ViewFolderRules.IsManaged(folder))</option>
+                var id = folder.Id.ToString("D");
+                var managed = ViewFolderRules.IsManaged(folder);
+                <AppMenuItem Checked="@(Chosen?.Id == folder.Id)" OnClick="@(() => ChangedAsync(id))">
+                    <span class="view-folder-filter__name">@folder.Name</span>
+                    <AppChip Class="view-folder-filter__tag" Text="@FolderHandlingWords.LabelFor(managed)" data-handling="@(managed ? "managed" : "read-only")" />
+                </AppMenuItem>
             }
-        </AppSelect>
-    </label>
+        </AppOverflowMenu>
+    </div>
 }
 
 @code {
@@ -32,6 +37,12 @@
     [Parameter] public EventCallback<Guid?> SelectedChanged { get; set; }
 
     private bool _restored;
+
+    // The folder the filter is on, if it is still one of the kind's folders.
+    private ViewSourceAdminDto? Chosen => Selected is { } id ? Folders.FirstOrDefault(folder => folder.Id == id) : null;
+
+    // "Folders" while on All folders, "Folders: Holidays" once one is picked.
+    private string ButtonLabel => Chosen is { } folder ? L["ViewFolderFilter_Button", folder.Name].Value : L["ViewFolderFilter_Folders"].Value;
 
     private string StorageKey => $"tuvima.view.folder.{Kind}.{ProfileId?.ToString("N") ?? "device"}";
 

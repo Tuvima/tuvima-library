@@ -270,16 +270,16 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         Assert.Empty(_dialogs.FindAll(".create-library input"));
         Assert.DoesNotContain(_dialogs.FindAll(".create-library button"), x => Text(x) == "Browse");
 
-        // A kind that already has a library stays pickable: the folder joins it, so the tile says so rather than going grey.
-        Assert.False(IsOff(KindRow("Movies")));
+        // A kind that already has a library is greyed and says where its next folder goes (D23).
+        Assert.True(IsOff(KindRow("Movies")));
         KindRow("TV Shows").Click();
         Next();
 
         _dialogs.WaitForAssertion(() => Assert.Equal("Step 3 of 3 · Watch", Text(_dialogs.Find(".app-dialog-shell__eyebrow"))));
-        Assert.Equal("Where are your TV Shows?", Text(_dialogs.Find(".app-dialog-shell__title")));
+        Assert.Equal("Where is it? · TV Shows", Text(_dialogs.Find(".app-dialog-shell__title")));
         _dialogs.WaitForElement(".create-library .server-folder-picker");
         Assert.Empty(_dialogs.FindAll("[data-folder-path]"));
-        Assert.Contains("Library scans this folder and its subfolders. Your files are never changed.", _dialogs.Markup, StringComparison.Ordinal);
+        Assert.Equal("Library scans this folder and its subfolders.", Text(_dialogs.Find("[data-scan-line]")));
         Assert.DoesNotContain("You can rename it later.", _dialogs.Markup, StringComparison.Ordinal);
     }
 
@@ -353,15 +353,62 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AKindThatAlreadyHasALibraryStaysPickableAndSaysTheFolderJoinsIt()
+    public async Task AKindThatAlreadyHasALibraryIsGreyedWithAddAFolderToItInstead()
     {
         await OpenAsync(chooseFolder: false);
 
         var movies = KindRow("Movies");
-        Assert.False(IsOff(movies));
-        Assert.Contains("Added", Text(movies), StringComparison.Ordinal);
+        Assert.True(IsOff(movies));
+        Assert.Contains("is-disabled", movies.ClassList);
+        Assert.Equal("Add a folder to it instead", Text(movies.QuerySelector("[data-add-folder-instead]")!));
+        Assert.DoesNotContain("Added", Text(movies), StringComparison.Ordinal);
+        Assert.False(movies.ClassList.Contains("is-selected"));
         Assert.Contains("You already have a Movies library. Add a folder to Movies instead.", HoverWords("Movies"), StringComparison.Ordinal);
-        Assert.True(movies.ClassList.Contains("is-selected"));
+
+        // Clicking it chooses nothing; the first kind that can still take a library is the one chosen.
+        movies.Click();
+        Assert.False(KindRow("Movies").ClassList.Contains("is-selected"));
+        Assert.True(KindRow("TV Shows").ClassList.Contains("is-selected"));
+        Assert.False(IsOff(KindRow("TV Shows")));
+        Assert.Null(KindRow("TV Shows").QuerySelector("[data-add-folder-instead]"));
+    }
+
+    [Fact]
+    public async Task TheAreaTilesCarryTheSecondLineUnderTheirName()
+    {
+        await OpenAsync(noArea: true, chooseFolder: false);
+
+        var lines = AreaTiles.Select(tile => Text(tile.QuerySelector(".app-choice-tile__description")!)).ToArray();
+        Assert.Equal(["Movies, TV, videos", "Music, audiobooks", "Books, comics", "Photos, videos, documents"], lines);
+    }
+
+    [Fact]
+    public async Task TheFolderStepSaysYourFilesAreNeverChangedOnceAndNamesTheFolderInOneSentence()
+    {
+        await OpenAsync(kind: "tv", chooseFolder: false);
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
+
+        Assert.Single(_dialogs.FindAll("[data-picker-safety]"));
+        Assert.Equal("Your files are never changed.", Text(_dialogs.Find("[data-picker-safety]")));
+        // Outside the Read-only choice's own explanation, the step says it exactly once: the footer line.
+        var outsideTheChoice = Text(_dialogs.Find(".create-library")).Replace(Text(_dialogs.Find("[data-folder-handling]")), string.Empty, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(outsideTheChoice, "Your files are never changed"));
+        Assert.DoesNotContain("never changed", Text(_dialogs.Find("[data-scan-line]")), StringComparison.Ordinal);
+        Assert.Equal("Names this folder, not the library.", Text(_dialogs.Find(".server-folder-picker__name-hint")));
+        Assert.Equal("Where is it? · TV Shows", Text(_dialogs.Find(".app-dialog-shell__title")));
+        Assert.Equal(["Watch", "TV Shows"], _dialogs.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
+    }
+
+    [Fact]
+    public async Task ManagedFoldersAreSaidToBeKeptOrganizedInUsSpelling()
+    {
+        await OpenAsync(kind: "tv", chooseFolder: false);
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
+
+        _dialogs.Find("[data-folder-handling]").QuerySelectorAll("button").Single(x => Text(x).StartsWith("Managed", StringComparison.Ordinal)).Click();
+
+        _dialogs.WaitForAssertion(() => Assert.Equal("Library scans this folder and its subfolders, and keeps it organized.", Text(_dialogs.Find("[data-scan-line]"))));
+        Assert.DoesNotContain("organised", _dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

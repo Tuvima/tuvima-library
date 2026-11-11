@@ -221,7 +221,7 @@ player, with every "Shown when" condition on:
 | --- | --- |
 | Music | shuffle: Shuffle, lyrics: Lyrics, queue: Queue, repeat: Repeat |
 | Audiobook | chapters: Chapters, speed: Playback speed, sleep-timer: Sleep timer, bookmarks: Bookmarks |
-| Audiobook without chapters | history: History, speed: Playback speed, sleep-timer: Sleep timer, bookmarks: Bookmarks |
+| Audiobook without chapters | speed: Playback speed, sleep-timer: Sleep timer, bookmarks: Bookmarks |
 | TV episode | audio-subtitles: Audio & subtitles, episodes: Episodes, bookmarks: Bookmarks, fullscreen: Fullscreen |
 | Film | audio-subtitles: Audio & subtitles, bookmarks: Bookmarks, fullscreen: Fullscreen |
 | Folder video or lesson | audio-subtitles: Audio & subtitles, episodes: Lessons, bookmarks: Bookmarks, fullscreen: Fullscreen |

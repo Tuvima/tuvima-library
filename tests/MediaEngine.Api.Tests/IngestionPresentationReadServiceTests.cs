@@ -546,6 +546,75 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LiveSnapshot_SplitsReadyReviewActiveAndQueuedByMediaType_AndTheTypesAddUpToTheTotals()
+    {
+        var book = AddStandalone("Books", "Done Book");
+        AddReadyIdentityJob(book);
+        var movie = AddStandalone("Movies", "Doubtful Movie");
+        var song = AddStandalone("Music", "Busy Song");
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status, review_ready_at, created_at)
+                VALUES (@id, @work, 'Work', 'LowConfidence', 'Pending', @now, @now);
+                """, new { id = Guid.NewGuid(), work = movie, now });
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.people','enrichment',@work,'running',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), work = song, now, key = Guid.NewGuid().ToString() });
+        }
+
+        AddIdentityJob(movie, "Queued", "Movies");
+
+        var snapshot = await new IngestionPresentationReadService(_db, new FixedQueueProgress(
+            new IngestionQueueProgressDto { State = "working", StartedAt = DateTimeOffset.UtcNow.AddHours(-1) })).GetSnapshotAsync();
+
+        var books = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Books");
+        var movies = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Movies");
+        var music = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Music");
+        Assert.Equal(1, books.ReadyGroups);
+        Assert.Equal(0, books.ReviewGroups);
+        Assert.Equal(1, movies.ReviewGroups);
+        Assert.Equal(1, movies.QueuedOperations);
+        Assert.Equal(1, music.ActiveOperations);
+        Assert.Equal(snapshot.ReadyGroups, snapshot.ByType.Sum(entry => entry.ReadyGroups));
+        Assert.Equal(snapshot.ReviewGroups, snapshot.ByType.Sum(entry => entry.ReviewGroups));
+        Assert.Equal(snapshot.ActiveOperations, snapshot.ByType.Sum(entry => entry.ActiveOperations));
+        Assert.Equal(snapshot.QueuedOperations, snapshot.ByType.Sum(entry => entry.QueuedOperations));
+    }
+
+    [Fact]
+    public async Task LiveSnapshot_DoesNotCountFinishedOperationsOrIdentityJobsInTheTypeTally()
+    {
+        var book = AddStandalone("Books", "Finished Book");
+        var song = AddStandalone("Music", "Busy Song");
+        var movie = AddStandalone("Movies", "Finished Movie");
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        using (var conn = _db.CreateConnection())
+        {
+            foreach (var (work, status) in new[] { (book, "completed"), (book, "failed"), (song, "completed"), (song, "running") })
+            {
+                conn.Execute("""
+                    INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,status,position_key,created_at,updated_at,idempotency_key)
+                    VALUES (@id,'enrichment.people','enrichment',@work,@status,1,@now,@now,@key);
+                    """, new { id = Guid.NewGuid(), work, status, now, key = Guid.NewGuid().ToString() });
+            }
+        }
+
+        AddIdentityJob(movie, "Ready", "Movies");
+
+        var snapshot = await new IngestionPresentationReadService(_db, new FixedQueueProgress(
+            new IngestionQueueProgressDto { State = "working", StartedAt = DateTimeOffset.UtcNow.AddHours(-1) })).GetSnapshotAsync();
+
+        Assert.DoesNotContain(snapshot.ByType, entry => entry.MediaType == "Books" && (entry.ActiveOperations > 0 || entry.QueuedOperations > 0));
+        Assert.DoesNotContain(snapshot.ByType, entry => entry.MediaType == "Movies" && (entry.ActiveOperations > 0 || entry.QueuedOperations > 0));
+        var music = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Music");
+        Assert.Equal(1, music.ActiveOperations);
+        Assert.Equal(0, music.QueuedOperations);
+    }
+
+    [Fact]
     public async Task LiveSnapshot_TakesFilesAndTimesFromTheQueueProgress()
     {
         var started = DateTimeOffset.UtcNow.AddMinutes(-10);

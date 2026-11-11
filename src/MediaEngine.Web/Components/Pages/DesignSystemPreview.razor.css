@@ -160,10 +160,6 @@
     align-content: start;
 }
 
-.design-system-preview__group-card-scenario.is-narrow ::deep .media-group-tile {
-    --media-group-tile-width: 298px;
-}
-
 @media (max-width: 980px) {
     .design-system-preview__grid,
     .design-system-preview__form-grid {

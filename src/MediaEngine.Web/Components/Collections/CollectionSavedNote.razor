@@ -1,0 +1,16 @@
+@namespace MediaEngine.Web.Components.Collections
+@inject IStringLocalizer<SharedStrings> L
+@* The quiet confirmation for a page that does not show the saved collection as a tile (Watch, Read, Listen, Profile > Import):
+   the collection editor records what it saved in CollectionEditorLaunchRequest.SavedCollectionIds, the host passes the count
+   here, and one small status line says so. Pages that do show the tile glow it instead (CollectionsPage). There is no toast. *@
+@if (Count > 0)
+{
+    <AppAlert Tone="AppUiTone.Success" Dense="true" data-collection-saved>
+        @(Count == 1 ? L["CollectionSaved_One"].Value : L["CollectionSaved_Many", Count].Value)
+    </AppAlert>
+}
+
+@code {
+    /// <summary>How many collections the editor saved; nothing is drawn at zero.</summary>
+    [Parameter] public int Count { get; set; }
+}

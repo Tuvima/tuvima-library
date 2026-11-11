@@ -4,96 +4,142 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
 @inject IEngineApiClient Api
 @inject IStringLocalizer<SharedStrings> L
 
 @* New collection > From a list (Collections and lists spec 4b, 4d, 4h): drop an export or paste titles, see how much of it the Library
    owns, tick the shelves to make a collection for each, fix the titles Library could not match, and choose how the list is followed.
-   Nothing is saved here; the last step of the flow creates the collection(s) from this draft. *@
+   Two columns (mock): the input and the results on the left, a preview on the right with the covers of what you own and greyed
+   tiles for what you do not. Nothing is saved here; the last step of the flow creates the collection(s) from this draft. *@
 <div class="list-step" data-list-step>
-    <ImportPanel AllowedKinds="@AllowedKinds"
-                 ShowPaste="true"
-                 ShowPreview="false"
-                 Prompt="@L["ListStep_DropPrompt"].Value"
-                 OnRecognised="OnRecognisedAsync"
-                 OnCleared="OnClearedAsync" />
+    <div class="list-step__main">
+        <ImportPanel AllowedKinds="@AllowedKinds"
+                     ShowPaste="true"
+                     ShowPreview="false"
+                     OnRecognised="OnRecognisedAsync"
+                     OnCleared="OnClearedAsync" />
 
-    @if (Draft.HasList && Draft.Current is { } current)
-    {
-        <section class="list-step__summary" data-list-summary aria-live="polite">
-            <div class="list-step__source">
-                <AppChip Text="@current.SourceLabel" Tone="AppUiTone.Primary" />
-                <span>@current.SourceName</span>
-            </div>
-            <div class="list-step__owned">
-                <span class="list-step__owned-big" data-list-owned>@L["ListStep_YouOwn", Draft.OwnedCount, Draft.EntryCount]</span>
+        @if (Draft.HasList && Draft.Current is { } current)
+        {
+            <section class="list-step__summary" data-list-summary aria-live="polite">
+                <div class="list-step__source">
+                    <AppChip Text="@current.SourceLabel" Tone="AppUiTone.Primary" />
+                    <span>@current.SourceName</span>
+                    <span class="list-step__entries">@L["ListStep_Entries", Draft.EntryCount]</span>
+                </div>
+                @if (current.WillTryAgain)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Dense="true" data-list-will-try-again>@L["ListStep_WillTryAgain", current.SourceLabel]</AppAlert>
+                }
                 @if (Draft.OwnedCount == 0)
                 {
                     <p class="list-step__hint">@L["ListStep_NoneOwned"]</p>
                 }
+            </section>
+
+            @* The three figures (mock). Every title the Engine could not find in the library is a title to match by hand, so they count as
+               "couldn't match" until the Engine tells a title it knows of from one it could not read. *@
+            <div class="list-step__figures" data-list-figures>
+                <div class="list-step__figure list-step__figure--owned">
+                    <span class="list-step__figure-n" data-list-owned>@Draft.OwnedCount</span>
+                    <span class="list-step__figure-l">@L["ListStep_FigureOwn"]</span>
+                </div>
+                <div class="list-step__figure" data-list-not-owned>
+                    <span class="list-step__figure-n">@NotInLibraryCount</span>
+                    <span class="list-step__figure-l">@L["ListStep_FigureNotInLibrary"]</span>
+                </div>
+                <div class="list-step__figure list-step__figure--warn" data-list-couldnt-match>
+                    <span class="list-step__figure-n">@CouldntMatchCount</span>
+                    <span class="list-step__figure-l">@L["ListStep_FigureCouldntMatch"]</span>
+                </div>
             </div>
-            @if (current.WillTryAgain)
+
+            @if (Draft.Whole is { Shelves.Count: > 0 } whole)
             {
-                <AppAlert Tone="AppUiTone.Warning" Dense="true" data-list-will-try-again>@L["ListStep_WillTryAgain", current.SourceLabel]</AppAlert>
-            }
-            @if (current.Owned.Count > 0 && Draft.CollectionCount == 1)
-            {
-                <ul class="list-step__covers" aria-label="@L["ListStep_OwnedCovers"].Value">
-                    @foreach (var owned in current.Owned.Take(8))
+                <section class="list-step__shelves" data-list-shelves aria-label="@L["ListStep_Shelves"].Value">
+                    <h4 class="list-step__heading">@L["ListStep_Shelves"]</h4>
+                    <p class="list-step__hint">@L["ListStep_ShelvesHelp"]</p>
+                    @foreach (var shelf in whole.Shelves)
                     {
-                        <li data-overflow-tooltip="@owned.Title">@owned.Title</li>
+                        var name = shelf.Name;
+                        <AppCheckboxRow Label="@name"
+                                        Description="@(shelf.EntryCount == 1 ? L["ListStep_ShelfOneTitle", shelf.OwnedCount].Value : L["ListStep_ShelfManyTitles", shelf.EntryCount, shelf.OwnedCount].Value)"
+                                        Value="@Draft.Shelves.Contains(name)"
+                                        ValueChanged="@(on => OnShelfChangedAsync(name, on))" />
+                    }
+                </section>
+            }
+
+            @if (Unresolved.Count > 0)
+            {
+                <section class="list-step__unmatched" data-list-unmatched aria-label="@L["ListStep_UnmatchedLabel"].Value">
+                    <h4 class="list-step__heading">@L["ListStep_CouldntMatchHeading"]</h4>
+                    <p class="list-step__hint">@L["ListStep_FixHelp"]</p>
+                    @foreach (var entry in Unresolved.Take(MaximumShown))
+                    {
+                        <ListEntryFixRow @key="entry.Position"
+                                         Entry="entry"
+                                         Disabled="@_busy"
+                                         OnPick="PickAsync"
+                                         OnIgnore="IgnoreAsync"
+                                         OnRestore="RestoreAsync" />
+                    }
+                    @if (Unresolved.Count > MaximumShown)
+                    {
+                        <p class="list-step__hint">@L["ListStep_AndMore", Unresolved.Count - MaximumShown]</p>
+                    }
+                </section>
+            }
+
+            <section class="list-step__choices" data-list-keep-in-step aria-label="@L["ListStep_HowFollowed"].Value">
+                <h4 class="list-step__heading">@L["ListStep_HowFollowedHeading"]</h4>
+                <ListChoicesPanel Order="@Draft.Order"
+                                  OrderChanged="@(value => ChangeAsync(() => Draft.Order = value))"
+                                  SyncMode="@Draft.SyncMode"
+                                  SyncModeChanged="@(value => ChangeAsync(() => Draft.SyncMode = value))"
+                                  Refresh="@Draft.Refresh"
+                                  RefreshChanged="@(value => ChangeAsync(() => Draft.Refresh = value))"
+                                  ShowRefresh="@Draft.IsWeb" />
+            </section>
+        }
+    </div>
+
+    @if (Draft.HasList && Draft.Current is { } shown)
+    {
+        <aside class="list-step__preview" data-list-preview aria-label="@L["ListStep_PreviewLabel"].Value" aria-live="polite">
+            <div>
+                <div class="list-step__preview-big">@L["ListStep_OwnedOfTotal", Draft.OwnedCount, Draft.EntryCount]</div>
+                <div class="list-step__preview-sub">@(Draft.Order == ListImportChoices.OrderList ? L["ListStep_InLibraryInOrder"].Value : L["ListStep_InLibrary"].Value)</div>
+            </div>
+            @if (OwnedTiles(shown).Count > 0 || GhostTitles.Count > 0)
+            {
+                <ul class="list-step__tiles" data-list-tiles>
+                    @foreach (var owned in OwnedTiles(shown))
+                    {
+                        <li class="list-step__tile" data-list-owned-tile>
+                            @if (!string.IsNullOrWhiteSpace(owned.CoverUrl))
+                            {
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(owned.CoverUrl, 120)"
+                                     srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(owned.CoverUrl, 120)"
+                                     alt="@owned.Title" loading="lazy" decoding="async" />
+                            }
+                            else
+                            {
+                                <small>@owned.Title</small>
+                            }
+                        </li>
+                    }
+                    @foreach (var title in GhostTitles)
+                    {
+                        <li class="list-step__tile list-step__tile--ghost" data-list-ghost-tile aria-label="@L["ListStep_NotOwnedTile", title].Value">
+                            <small aria-hidden="true">@title</small>
+                        </li>
                     }
                 </ul>
             }
-        </section>
-
-        @if (Draft.Whole is { Shelves.Count: > 0 } whole)
-        {
-            <section class="list-step__shelves" data-list-shelves aria-label="@L["ListStep_Shelves"].Value">
-                <h4 class="list-step__heading">@L["ListStep_Shelves"]</h4>
-                <p class="list-step__hint">@L["ListStep_ShelvesHelp"]</p>
-                @foreach (var shelf in whole.Shelves)
-                {
-                    var name = shelf.Name;
-                    <AppCheckboxRow Label="@name"
-                                    Description="@($"{shelf.EntryCount} title{(shelf.EntryCount == 1 ? "" : "s")}, you own {shelf.OwnedCount}")"
-                                    Value="@Draft.Shelves.Contains(name)"
-                                    ValueChanged="@(on => OnShelfChangedAsync(name, on))" />
-                }
-            </section>
-        }
-
-        <section class="list-step__choices" aria-label="@L["ListStep_HowFollowed"].Value">
-            <h4 class="list-step__heading">@L["ListStep_HowFollowedHeading"]</h4>
-            <ListChoicesPanel Order="@Draft.Order"
-                              OrderChanged="@(value => ChangeAsync(() => Draft.Order = value))"
-                              SyncMode="@Draft.SyncMode"
-                              SyncModeChanged="@(value => ChangeAsync(() => Draft.SyncMode = value))"
-                              Refresh="@Draft.Refresh"
-                              RefreshChanged="@(value => ChangeAsync(() => Draft.Refresh = value))"
-                              ShowRefresh="@Draft.IsWeb" />
-        </section>
-
-        @if (Unresolved.Count > 0)
-        {
-            <section class="list-step__unmatched" data-list-unmatched aria-label="@L["ListStep_UnmatchedLabel"].Value">
-                <h4 class="list-step__heading">@L["ListStep_CouldntMatch", Unresolved.Count(entry => entry.Status == ListImportChoices.StatusUnmatched)]</h4>
-                <p class="list-step__hint">@L["ListStep_FixHelp"]</p>
-                @foreach (var entry in Unresolved.Take(MaximumShown))
-                {
-                    <ListEntryFixRow @key="entry.Position"
-                                     Entry="entry"
-                                     Disabled="@_busy"
-                                     OnPick="PickAsync"
-                                     OnIgnore="IgnoreAsync"
-                                     OnRestore="RestoreAsync" />
-                }
-                @if (Unresolved.Count > MaximumShown)
-                {
-                    <p class="list-step__hint">@L["ListStep_AndMore", Unresolved.Count - MaximumShown]</p>
-                }
-            </section>
-        }
+            <p class="list-step__preview-note">@L["ListStep_GreyedTiles"]</p>
+        </aside>
     }
 </div>
 
@@ -109,6 +155,35 @@
 
     private IReadOnlyList<CollectionListEntryDto> Unresolved =>
         Draft.Current?.Entries.Where(entry => entry.Status != ListImportChoices.StatusMatched).ToList() ?? [];
+
+    private int CouldntMatchCount => Unresolved.Count(entry => entry.Status == ListImportChoices.StatusUnmatched);
+
+    // What the list holds that the library does not have and that is not waiting for a hand fix. The Engine does not yet tell a title
+    // it knows of from one it could not read, so this stays 0 until it does and every missing title is listed under "couldn't match".
+    private int NotInLibraryCount => Math.Max(0, Draft.EntryCount - Draft.OwnedCount - CouldntMatchCount);
+
+    // The preview shows up to this many tiles: the covers of what is owned first, then a greyed tile for each title that is not.
+    private const int PreviewTileCount = 12;
+    private const int PreviewGhostShare = 6;
+
+    private int GhostCount => Math.Min(CouldntMatchCount, PreviewTileCount);
+
+    private IReadOnlyList<ListImportOwnedItemDto> OwnedTiles(ListImportPreviewDto preview) =>
+        preview.Owned.Take(PreviewTileCount - Math.Min(GhostCount, PreviewGhostShare)).ToList();
+
+    private IReadOnlyList<string> GhostTitles
+    {
+        get
+        {
+            var shownOwned = Draft.Current is { } preview ? OwnedTiles(preview).Count : 0;
+            var room = Math.Max(0, PreviewTileCount - shownOwned);
+            return Unresolved
+                .Where(entry => entry.Status == ListImportChoices.StatusUnmatched)
+                .Select(entry => entry.Title)
+                .Take(room)
+                .ToList();
+        }
+    }
 
     private async Task OnRecognisedAsync(ImportRecognition recognition)
     {

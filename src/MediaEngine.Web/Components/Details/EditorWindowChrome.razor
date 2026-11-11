@@ -117,7 +117,7 @@
                            Class="tl-editor-window__save"
                            Disabled="@(ChangeCount == 0 || Saving)"
                            OnClick="OnSave">
-                    @(Saving ? "Saving..." : "Save changes")
+                    @(Saving ? L["EditorFooter_Saving"] : L["EditorFooter_SaveChanges"])
                 </AppButton>
             </div>
         </footer>

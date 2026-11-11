@@ -40,6 +40,30 @@ public static class IngestionQueueProgressText
         return IsWorking(snapshot) ? Math.Min(value, 99) : value;
     }
 
+    /// <summary>
+    /// The percent for some media types only (the Activity page with library area chips chosen), added up from the Engine's own per-type
+    /// step counts with the same rules as <see cref="Percent(IngestionQueueProgressDto)"/>: rounded down, and never 100 while a file of
+    /// those types is unfinished. Null when the snapshot holds no file of those types. With no types it is the whole-library percent.
+    /// </summary>
+    public static int? Percent(IngestionQueueProgressDto snapshot, IReadOnlySet<string>? mediaTypes)
+    {
+        if (mediaTypes is not { Count: > 0 })
+        {
+            return snapshot.FilesFound > 0 ? Percent(snapshot) : null;
+        }
+
+        var tally = snapshot.Tally.Where(entry => mediaTypes.Contains(entry.MediaType) && entry.Files > 0).ToList();
+        var stepsTotal = tally.Sum(entry => entry.StepsTotal);
+        if (stepsTotal <= 0)
+        {
+            return null;
+        }
+
+        var value = (int)Math.Floor(Math.Clamp((double)tally.Sum(entry => entry.StepsCompleted) / stepsTotal, 0d, 1d) * 100);
+        var unfinished = tally.Sum(entry => entry.Files) - tally.Sum(entry => entry.FilesDone) > 0;
+        return unfinished ? Math.Min(value, 99) : value;
+    }
+
     /// <summary>The headline for the snapshot's state.</summary>
     public static string Headline(IngestionQueueProgressDto snapshot)
     {

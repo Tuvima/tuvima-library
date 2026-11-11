@@ -545,7 +545,7 @@
             {
                 <figure class="@($"design-system-preview__group-card-scenario{(scenario.Narrow ? " is-narrow" : string.Empty)}")" @key="scenario.Name">
                     <figcaption>@scenario.Name</figcaption>
-                    <MediaGroupTile Item="@scenario.Item" />
+                    <MediaTile Item="@scenario.Item" />
                 </figure>
             }
         </div>
@@ -762,7 +762,7 @@
             NavigationUrl = "/design-system/components#group-card-preview-title",
             DetailsNavigationUrl = "/design-system/components#group-card-preview-title",
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             PreviewTotalCount = totalCount,
             ArtworkStackItems = items,
             MediaCounts = mediaCounts,

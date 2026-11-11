@@ -34,10 +34,10 @@
                 <AppIconButton Class="hero-icon-circle" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Tooltip="@TooltipFor(action)" Label="@(ShowLabels ? PhoneLabelFor(action) : null)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" Filled="@(action.Key == "my-list" && action.IsSelected)" /></AppIconButton>
             }
         }
-        @* A folder of videos gets an Open companion with a folder icon, never a text link (Look v3 D12). *@
+        @* A folder of videos gets an Open companion with a folder icon, never a text link (Look v3 D12). Named underneath it has no tooltip (the label says it); icon-only it keeps one. *@
         @if (!string.IsNullOrWhiteSpace(FolderHref))
         {
-            <AppIconButton Class="hero-icon-circle hero-open-folder cinematic-hero-carousel__folder-link" Href="@FolderHref" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Icon="@AppMaterialIcons.Outlined.Folder" Tooltip="@VideoFolderWording.OpenLabel" AriaLabel="@VideoFolderWording.OpenLabel" Label="@(ShowLabels ? L["HeroActionRow_Open"].Value : null)" />
+            <AppIconButton Class="hero-icon-circle hero-open-folder cinematic-hero-carousel__folder-link" Href="@FolderHref" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Icon="@AppMaterialIcons.Outlined.Folder" Tooltip="@(ShowLabels ? null : VideoFolderWording.OpenLabel)" AriaLabel="@VideoFolderWording.OpenLabel" Label="@(ShowLabels ? L["HeroActionRow_Open"].Value : null)" />
         }
         <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle app-icon-button app-icon-button--plain app-icon-button--over-artwork app-control--large" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
     </div>

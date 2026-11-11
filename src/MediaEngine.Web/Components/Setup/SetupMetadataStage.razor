@@ -17,71 +17,50 @@
 
     <SetupLocaleStage Value="@Locale" ValueChanged="LocaleChanged" ShowDisplay="false" ShowMetadata="true" />
 
-    @if (Catalogue.Count == 0)
+    @if (Catalogue.Count > 0)
     {
-        <div class="setup-preparing" role="status">
-            <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
-            <span>@L["SetupMetadataStage_FindingMetadataSourcesForYour"]</span>
+        <div data-testid="setup-sources-cards">
+            @foreach (var group in TileGroups)
+            {
+                <section class="setup-provider-group" data-group="@group.Key">
+                    <h3>@group.Title</h3>
+                    <div class="setup-provider-grid">
+                        @foreach (var provider in group.Providers)
+                        {
+                            <AppListCard Title="@provider.DisplayName" Description="@Purpose(provider)">
+                                <Logo><AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" /></Logo>
+                                <Status>@StatusBadge(provider)</Status>
+                                <Footer>@ConnectButton(provider)</Footer>
+                            </AppListCard>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+    }
+    else if (Loading)
+    {
+        @* Tile skeletons while the sources load (first-run setup rework, states table): the same three-to-a-row grid the tiles use. *@
+        <div class="setup-provider-grid" role="status" aria-label="@L["SetupMetadataStage_FindingMetadataSourcesForYour"].Value" data-testid="setup-sources-skeleton">
+            @for (var index = 0; index < 6; index++)
+            {
+                <AppSkeleton Width="100%" Height="5.5rem" />
+            }
         </div>
     }
     else
     {
-        <div class="setup-sources-bar">
-            <p class="setup-sources-bar__note">
-                @if (Filtering)
-                {
-                    <span>@L["SetupMetadataStage_ShowingTheSourcesThatFit"]</span>
-                    <AppButton Label="@L["SetupMetadataStage_ShowAllSources"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = true)" />
-                }
-                else if (_showAll && HasLibraryFilter)
-                {
-                    <span>@L["SetupMetadataStage_ShowingEverySource"]</span>
-                    <AppButton Label="@L["SetupMetadataStage_OnlyTheOnesThatFit"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = false)" />
-                }
-            </p>
-            <AppLayoutSwitch StorageKey="tuvima.setup.metadata.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["SetupMetadataStage_SourcesLayout"].Value" />
+        <div data-testid="setup-sources-error">
+            <AppErrorState Title="@L["SetupMetadataStage_CouldNotLoadTitle"].Value" Message="@L["SetupMetadataStage_CouldNotLoadMessage"].Value" />
+            <AppButton Label="@L["Common_TryAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="TryAgainAsync" data-testid="setup-sources-try-again" />
         </div>
-
-        @if (_layout == AppLayoutSwitch.List)
-        {
-            <div class="setup-builtins setup-sources-list" data-testid="setup-sources-list">
-                @foreach (var provider in Visible)
-                {
-                    <div class="setup-source-row">
-                        <AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" />
-                        <div><strong>@provider.DisplayName</strong><small>@Purpose(provider)</small></div>
-                        <span class="setup-source-row__status">@StatusBadge(provider)</span>
-                        <span class="setup-source-row__action">@ConnectButton(provider)</span>
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <div data-testid="setup-sources-cards">
-                @foreach (var group in TileGroups)
-                {
-                    <section class="setup-provider-group" data-group="@group.Key">
-                        <h3>@group.Title</h3>
-                        <div class="setup-provider-grid">
-                            @foreach (var provider in group.Providers)
-                            {
-                                <AppListCard Title="@provider.DisplayName" Description="@Purpose(provider)">
-                                    <Logo><AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" /></Logo>
-                                    <Status>@StatusBadge(provider)</Status>
-                                    <Footer>@ConnectButton(provider)</Footer>
-                                </AppListCard>
-                            }
-                        </div>
-                    </section>
-                }
-            </div>
-        }
-
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="@(AnythingConfigured ? "Continue" : "Skip for now")" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Catalogue.Count == 0)" OnClick="@(AnythingConfigured ? Continue : Defer)" />
-        </SetupStageFooter>
     }
+
+    @* Skip for now (quiet) and Continue (primary) are both always there, as in the design. Continue waits for a saved key; Skip is how a person carries on without one. *@
+    <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <AppButton Label="@L["SetupLibrariesStage_SkipForNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(Busy || Loading)" OnClick="Defer" />
+        <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Loading || !AnythingConfigured)" OnClick="Continue" />
+    </SetupStageFooter>
 </div>
 
 @code {
@@ -90,8 +69,8 @@
     /// <summary>The metadata language is one pre-filled line above the sources; it is saved with the step.</summary>
     [Parameter] public SetupLocaleDto? Locale { get; set; }
     [Parameter] public EventCallback<SetupLocaleDto> LocaleChanged { get; set; }
-    /// <summary>The media types of the libraries added so far; sources that do not fit any of them are tucked away behind "Show all sources". Empty means no library was added, so everything shows.</summary>
-    [Parameter] public IReadOnlyCollection<string>? LibraryMediaTypes { get; set; }
+    /// <summary>True once the page has asked the Engine for the sources. Before that the tiles are skeletons; after it, an empty list means the sources could not be loaded.</summary>
+    [Parameter] public bool Loaded { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback RefreshRequested { get; set; }
     [Parameter] public EventCallback Continue { get; set; }
@@ -100,23 +79,23 @@
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
 
-    private string _layout = AppLayoutSwitch.Cards;
-    private bool _showAll;
+    private bool _retrying;
 
-    private bool HasLibraryFilter => LibraryMediaTypes is { Count: > 0 };
+    // Skeleton tiles until the first answer arrives, and again while Try again waits for the next one.
+    private bool Loading => Catalogue.Count == 0 && (!Loaded || _retrying);
 
-    private bool Fits(ProviderCatalogueDto provider) => !HasLibraryFilter
-        || provider.MediaTypes.Count == 0
-        || provider.MediaTypes.Any(type => LibraryMediaTypes!.Contains(type, StringComparer.OrdinalIgnoreCase));
+    private async Task TryAgainAsync()
+    {
+        _retrying = true;
+        try { await RefreshRequested.InvokeAsync(); }
+        finally { _retrying = false; }
+    }
 
     // Sources that still need a key come first, then saved keys, then the ones that need nothing.
     private IReadOnlyList<ProviderCatalogueDto> Visible => Catalogue
-        .Where(provider => _showAll || Fits(provider))
         .OrderBy(provider => SourceState(provider))
         .ThenBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToList();
-
-    private bool Filtering => HasLibraryFilter && !_showAll && Catalogue.Any(provider => !Fits(provider));
 
     // Tiles that need a key come first, then the ones that work as they are; every tile is the same size, at most three to a row, left-aligned.
     private IEnumerable<(string Key, string Title, IReadOnlyList<ProviderCatalogueDto> Providers)> TileGroups
@@ -141,9 +120,9 @@
 
     private RenderFragment StatusBadge(ProviderCatalogueDto provider) => SourceState(provider) switch
     {
-        SourceStates.KeySaved => @<AppStatusBadge Text="Key saved" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
-        SourceStates.NeedsKey => @<AppStatusBadge Text="Needs a key" Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.Key" />,
-        _ => @<AppStatusBadge Text="No key needed" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
+        SourceStates.KeySaved => @<AppStatusBadge Text="@L["SetupMetadata_KeySaved"].Value" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
+        SourceStates.NeedsKey => @<AppStatusBadge Text="@L["SetupMetadata_NeedsKey"].Value" Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.Key" />,
+        _ => @<AppStatusBadge Text="@L["SetupMetadata_NoKeyNeeded"].Value" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />,
     };
 
     // No switch and no menu here: a source is either connected or it is not, and the rest is Settings.
@@ -182,11 +161,11 @@
 
     private bool AnythingConfigured => HasConfiguredKey(Catalogue);
 
-    private static string ProviderAction(ProviderCatalogueDto provider) => SourceState(provider) == SourceStates.KeySaved ? "Review key" : "Connect";
-    private static string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary
+    private string ProviderAction(ProviderCatalogueDto provider) => SourceState(provider) == SourceStates.KeySaved ? L["SetupMetadata_ReviewKey"].Value : L["SetupMetadata_Connect"].Value;
+    private string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary
         ?? (provider.Onboarding?.SupportedLanes.Count > 0
-            ? $"Improves {string.Join(", ", provider.Onboarding.SupportedLanes.Select(Friendly))}."
-            : "Optional metadata enrichment.");
+            ? string.Format(L["SetupMetadata_Improves"].Value, string.Join(", ", provider.Onboarding.SupportedLanes.Select(Friendly)))
+            : L["SetupMetadata_OptionalEnrichment"].Value);
 
     private static string Initials(string name) => string.Concat(name
         .Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries)

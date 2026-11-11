@@ -16,7 +16,7 @@
    collected (Defer) and saved with Save changes. *@
 <AppDialogShell Eyebrow="@L["Nav_View"].Value"
                 Title="@Heading"
-                Subtitle="@($"Pick the folder on the Library server that holds your {Noun}. Give it a friendly name if you like.")"
+                Subtitle="@L["AddViewFolderDialog_Subtitle", Noun].Value"
                 Size="Large"
                 HostClass="@ServerFolderPicker.HostClass"
                 OnClose="@(() => Dialog.Cancel())">
@@ -35,6 +35,7 @@
                                     FolderName="@_name"
                                     FolderNameChanged="NameChanged"
                                     OfferHandling="true"
+                                    InitialManaged="@InitialManaged"
                                     ManagedAllowed="true"
                                     ShowManagedWarning="false"
                                     OnHandlingChanged="HandlingChanged"
@@ -45,10 +46,9 @@
                 }
                 else
                 {
-                    <p class="add-view-folder__line">@L["AddViewFolderDialog_LibraryScansThisFolderAnd"]</p>
                     @if (NeedsManagedNote)
                     {
-                        <p class="add-view-folder__line add-view-folder__line--note" data-uploads-note>@ViewFolderRules.UploadsNeedManagedLine(Noun)</p>
+                        <p class="add-view-folder__line add-view-folder__line--note" data-uploads-note>@ViewFolderRules.UploadsNeedManagedLine(L, Noun)</p>
                     }
                 }
             </div>
@@ -83,6 +83,7 @@
     </ChildContent>
     <FooterContent>
         <AppActionBar Align="AppHorizontalAlignment.End">
+            <span class="add-view-folder__footer-line app-footer-start" data-footer-line>@L["AddViewFolderDialog_ReadOnlySafety"]</span>
             <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
             <AppButton Label="@L["Common_AddFolder"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanAdd)" OnClick="AddAsync" />
         </AppActionBar>
@@ -109,6 +110,8 @@
     [Parameter] public IReadOnlyList<string> PendingNames { get; set; } = [];
     /// <summary>True when the Edit window already holds a Managed folder to add, so the uploads note is not needed.</summary>
     [Parameter] public bool PendingManaged { get; set; }
+    /// <summary>True when the window opens with Managed already chosen (the page notice's "Add a Managed folder").</summary>
+    [Parameter] public bool InitialManaged { get; set; }
 
     // The folder path the window has selected so far (a plain choice; View checks it when the folder is added).
     private string _chosenPath = string.Empty;
@@ -120,7 +123,7 @@
     private string? _storageLocationId;
     private string _storageRelative = "View";
 
-    private string Heading => "Where is it?";
+    private string Heading => L["AddViewFolderDialog_Heading"].Value;
 
     // "Photos" reads "photos" in the middle of a sentence; "Personal videos" and "Documents" follow the same rule.
     private string Noun => ViewFolderRules.Noun(Kind.Key, Kind.PluralLabel);
@@ -161,6 +164,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _managed = InitialManaged;
         _storageWritable = [.. Configuration.StorageLocations.Where(location => location.AllowWrite)];
         _storageLocationId = StorageReady ? null : _storageWritable.FirstOrDefault()?.Id;
         if (ExistingFolders is not null)

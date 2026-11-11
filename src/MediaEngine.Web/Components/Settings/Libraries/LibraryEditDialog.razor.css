@@ -1,15 +1,16 @@
 .lib-edit { display: grid; gap: 16px; min-width: 0; padding-top: 16px; }
-.lib-edit__folders { display: grid; gap: 4px; }
-.lib-edit__folder { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); }
-.lib-edit__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lib-edit__state { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
-.lib-edit__state[data-state="online"] { color: var(--tl-status-success); }
-.lib-edit__state[data-state="online"]::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: currentColor; }
+/* The folders are a table: Folder name (two or more folders), Path, How Library uses it, and the row menu. */
+.lib-edit__actions { width: 1%; white-space: nowrap; text-align: end; }
+.lib-edit__pathcell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lib-edit__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lib-edit__state { flex: none; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+/* An offline folder is marked beside its path: a warning dot and the word. */
 .lib-edit__state[data-state="offline"] { color: var(--tl-status-warning); }
+.lib-edit__state[data-state="offline"]::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: currentColor; }
 .lib-edit__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
-.lib-edit__more { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px solid var(--tl-border-subtle); }
+/* Scan now and Remove library, together at the far left of the footer. */
+.lib-edit__footer-start { display: inline-flex; flex-wrap: wrap; gap: var(--tl-space-2); }
 .lib-edit__review { margin: 0; padding-inline-start: 20px; display: grid; gap: 8px; }
-.lib-edit__body { display: grid; gap: 4px; min-width: 0; }
 .lib-edit__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Every folder says how Library uses it (Libraries v3 D19). */
 .lib-edit__tag { padding: 2px 10px; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); font-weight: 600; }

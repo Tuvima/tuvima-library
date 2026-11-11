@@ -34,6 +34,12 @@ public sealed class CollectionEditorLaunchRequest
 
     /// <summary>The media type chips ticked when the flow opens (for example Movies and TV from Watch). Empty means Everything.</summary>
     public IReadOnlyList<string> InitialMediaTypes { get; init; } = [];
+
+    /// <summary>
+    /// The collections the editor created or saved, filled in by the editor before it closes. The page that opened it uses them to
+    /// make the saved collection's tile glow (the confirmation, in place of a toast).
+    /// </summary>
+    public List<Guid> SavedCollectionIds { get; } = [];
 }
 
 /// <summary>A title a New collection starts with: its work id, the name shown in the staged list and its media type.</summary>

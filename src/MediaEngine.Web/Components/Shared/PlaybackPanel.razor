@@ -143,7 +143,7 @@
     private string PanelId => $"{_instanceId}-panel";
     private string EffectiveToolId => ToolId ?? _instanceId;
     private string EffectiveSize => Size is "menu" or "panel" or "wide" ? Size : Kind == "menu" ? "menu" : "panel";
-    private string PanelClass => $"playback-panel playback-panel--{EffectiveSize} playback-panel--{(Kind is "lyrics" or "video" or "menu" or "speed" or "settings" or "queue" or "episodes" or "chapters" or "bookmarks" ? Kind : "ordinary")}{(_mobile ? " playback-panel--sheet" : "")}";
+    private string PanelClass => $"playback-panel playback-panel--{EffectiveSize} playback-panel--{(Kind is "lyrics" or "video" or "menu" or "speed" or "sleep" or "settings" or "queue" or "episodes" or "chapters" or "bookmarks" ? Kind : "ordinary")}{(_mobile ? " playback-panel--sheet" : "")}";
     private string BodyClass => string.Join(" ", new[] { EffectiveSize == "menu" ? "playback-panel__body--menu" : null, !ShowHeading && EffectiveSize != "menu" && Kind != "settings" ? "playback-panel__body--legacy" : null, Navigator.Depth > 0 ? "playback-panel__body--nested" : null }.Where(value => value is not null));
     private string SheetClass => Kind == "lyrics" ? "playback-tool-sheet--framed playback-tool-sheet--lyrics" : "playback-tool-sheet--framed";
     private bool ShowHeader => ShowHeading && EffectiveSize != "menu";

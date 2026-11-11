@@ -18,7 +18,10 @@ namespace MediaEngine.Web.Services.MediaTiles;
 /// <param name="EntityType">What the item's page is, which the Engine's edit check reads.</param>
 /// <param name="MediaType">The editor media type.</param>
 /// <param name="GroupKind">The Delete group kind for a show or an album; null for a single title.</param>
-public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityKind SavedKind, DetailEntityType EntityType, string MediaType, string? GroupKind)
+/// <param name="CanSave">False when the Engine has no My List entry for this kind of group (a Series).</param>
+/// <param name="CanEdit">False when the item has no editor of its own (a playlist, an audiobook Series).</param>
+/// <param name="CanDelete">False for a Series, curated collection, Universe or playlist: its Delete is not on the cover.</param>
+public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityKind SavedKind, DetailEntityType EntityType, string MediaType, string? GroupKind, bool CanSave = true, bool CanEdit = true, bool CanDelete = true)
 {
     public bool IsGroup => GroupKind is not null;
 
@@ -26,12 +29,25 @@ public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityK
     public static MediaTileActionTarget? For(MediaTileViewModel item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        // A show or an album is drawn as a group tile, so IsCollection alone must not hide its menu (item 30b); a Series, curated
-        // collection or playlist still has none.
+        // A show or an album is a title with its own menu (item 30b). A playlist and a group of titles (Series, curated collection,
+        // Universe) have a smaller one: only what the Engine already does for them (One tile design D3).
         var isShowOrAlbumGroup = item.Presentation is MediaTilePresentation.TvSeries or MediaTilePresentation.Album;
-        if (item.IsPlaylist || (item.IsCollection && !isShowOrAlbumGroup) || item.Person is not null)
+        if (item.Person is not null)
         {
             return null;
+        }
+
+        if (item.IsPlaylist)
+        {
+            var playlistId = item.CollectionId ?? item.Id;
+            return playlistId == Guid.Empty
+                ? null
+                : new(playlistId, item.Title, ProfileEntityKind.Playlist, DetailEntityType.Collection, "Music", null, CanEdit: false, CanDelete: false);
+        }
+
+        if (item.IsCollection && !isShowOrAlbumGroup)
+        {
+            return ForGroup(item);
         }
 
         var id = item.EpisodeContext?.ShowWorkId ?? item.WorkId ?? item.Id;
@@ -54,6 +70,37 @@ public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityK
             "book" or "books" => new(id, title, ProfileEntityKind.Book, DetailEntityType.Book, "Books", null),
             _ => null,
         };
+    }
+
+    // A Series, curated collection or Universe: My List for the curated kinds, Edit through the editor's own answer, never Delete (a Universe tile gets neither My List nor Edit).
+    private static MediaTileActionTarget? ForGroup(MediaTileViewModel item)
+    {
+        var id = item.CollectionId ?? item.Id;
+        if (id == Guid.Empty)
+        {
+            return null;
+        }
+
+        // A Universe is not a Collection: it has no My List entry, and its Edit is the Universe page's own (an administrator unlock and the
+        // Universe's Wikidata id, not a collection id), which a tile cannot open. So its tile offers neither rather than a wrong one.
+        if (item.GroupKind == MediaTileGroupKind.Universe)
+        {
+            return new(id, item.Title, ProfileEntityKind.Collection, DetailEntityType.Universe, "Books", null, CanSave: false, CanEdit: false, CanDelete: false);
+        }
+
+        var isSeries = item.GroupKind == MediaTileGroupKind.Series
+            || item.Presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries
+                or MediaTilePresentation.ComicSeries or MediaTilePresentation.AudiobookSeries;
+        var (kind, mediaType, canEdit) = item.Presentation switch
+        {
+            MediaTilePresentation.MovieSeries => (DetailEntityType.MovieSeries, "Movies", true),
+            MediaTilePresentation.BookSeries => (DetailEntityType.BookSeries, "Books", true),
+            MediaTilePresentation.ComicSeries => (DetailEntityType.ComicSeries, "Comics", true),
+            // No editor kind exists for an audiobook Series yet: no Edit row rather than a guess.
+            MediaTilePresentation.AudiobookSeries => (DetailEntityType.Collection, "Audiobooks", false),
+            _ => (DetailEntityType.Collection, "Books", true),
+        };
+        return new(id, item.Title, ProfileEntityKind.Collection, kind, mediaType, null, CanSave: !isSeries, CanEdit: canEdit, CanDelete: false);
     }
 
     /// <summary>Restart only shows once the title has been started.</summary>

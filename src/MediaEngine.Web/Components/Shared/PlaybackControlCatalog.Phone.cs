@@ -53,10 +53,12 @@ public static partial class PlaybackControlCatalog
                 tools.Add(BuildBarTransport(media, state).Single(control => control.Key == PlaybackControlKey.Repeat));
                 break;
             case PlaybackBarMedia.Audiobook:
-                // A book with no chapters has History in the slot Chapters would take, as the audiobook dock tool always did.
-                tools.Add(state.HasChapters
-                    ? BarTool(PlaybackControlKey.Chapters, "Chapters", "chapters", state)
-                    : BarTool(PlaybackControlKey.History, "History", "history", state));
+                // A book with no chapters has no Chapters slot, and History does not stand in for it (unified player v2 D26, screen 15).
+                if (state.HasChapters)
+                {
+                    tools.Add(BarTool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
+                }
+
                 tools.Add(BarTool(PlaybackControlKey.Speed, "Playback speed", "speed", state,
                     valueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate),
                     isActive: Math.Abs(state.PlaybackRate - 1d) > 0.001));

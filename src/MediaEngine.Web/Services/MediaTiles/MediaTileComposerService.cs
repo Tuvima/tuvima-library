@@ -323,10 +323,11 @@ public sealed class MediaTileComposerService
             ], preferLandscapeTile: context == MediaTileContext.ContinueWatching && (card.Subject == DisplaySubjectKind.TvEpisode || bucket is MediaTileBucket.Movie or MediaTileBucket.Tv) && !card.Flags.IsCollection);
         var artworkStackItems = BuildArtworkStackItems(card);
         var useOrderedSeriesStack = UsesOrderedSeriesStack(presentation, artworkStackItems);
-        var useLandscapeGroupTile = card.Flags.IsCollection
+        var useGroupTile = card.Flags.IsCollection
             && presentation is not (MediaTilePresentation.Artist or MediaTilePresentation.TvSeries or MediaTilePresentation.Album);
-        var tileShape = useLandscapeGroupTile ? MediaTileShape.Landscape : surface.Shape;
-        var surfaceKind = useLandscapeGroupTile ? MediaTileSurfaceKind.BannerLandscape : surface.SurfaceKind;
+        // A group of titles is a poster like a single title; only Continue tiles are landscape (One tile design D2).
+        var tileShape = useGroupTile ? MediaTileShape.Portrait : surface.Shape;
+        var surfaceKind = useGroupTile ? MediaTileSurfaceKind.CoverPortrait : surface.SurfaceKind;
         var hoverLayout = surface.HoverLayout;
 
         return new MediaTileViewModel
@@ -399,7 +400,7 @@ public sealed class MediaTileComposerService
             SortYear = card.SortYear,
             SortTimestamp = card.SortTimestamp,
             IsCollection = card.Flags.IsCollection,
-            UseLandscapeGroupTile = useLandscapeGroupTile,
+            UseGroupTile = useGroupTile,
             IsPlaylist = string.Equals(card.GroupingType, "playlist", StringComparison.OrdinalIgnoreCase),
             GroupKind = presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries
                 or MediaTilePresentation.ComicSeries or MediaTilePresentation.AudiobookSeries

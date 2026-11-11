@@ -25,7 +25,7 @@
 .lact-scroll { max-height: calc(2 * 321px + var(--tl-space-4)); overflow: auto; }
 .lact-tiles { display: flex; flex-wrap: wrap; gap: var(--tl-space-4); }
 .lact-sentinel { display: flex; justify-content: center; padding: var(--tl-space-2) 0; }
-@media (max-width: 640px) {
+@media (max-width: 600px) {
     .lact-entry__row { gap: var(--tl-space-2); }
     .lact-bubble { width: 52px; }
     .lact-open { margin-left: 0; }

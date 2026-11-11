@@ -262,7 +262,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AShowTile_SavesTheShow_AndAPersonOrPlaylistTileGetsNoButtons()
+    public async Task AShowTile_SavesTheShow_AndAPersonTileGetsNoButtons_WhileAPlaylistSavesAsAPlaylist()
     {
         await UseDevice("desktop");
         var show = new MediaTileViewModel { Id = Guid.NewGuid(), WorkId = Guid.NewGuid(), Title = "Severance", MediaKind = "TV" };
@@ -272,7 +272,11 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
         Assert.Equal(ProfileEntityKind.TvShow, target.SavedKind);
         Assert.Equal(DetailEntityType.TvShow, target.EntityType);
         Assert.True(target.IsGroup);
-        Assert.Null(MediaTileActionTarget.For(new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Mix", MediaKind = "Music", IsPlaylist = true }));
+        var playlist = MediaTileActionTarget.For(new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Mix", MediaKind = "Music", IsPlaylist = true });
+        Assert.NotNull(playlist);
+        Assert.Equal(ProfileEntityKind.Playlist, playlist.SavedKind);
+        Assert.False(playlist.CanEdit);
+        Assert.False(playlist.CanDelete);
         Assert.Null(MediaTileActionTarget.For(new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Frank", MediaKind = "Shelf" }));
     }
 
@@ -289,13 +293,77 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
         => Assert.NotNull(MediaTileActionTarget.For(new MediaTileViewModel { Id = Guid.NewGuid(), WorkId = Guid.NewGuid(), Title = "Anything", MediaKind = mediaKind }));
 
     [Fact]
-    public void AShowOrAlbumDrawnAsAGroupTile_StillGetsAMenu_ButASeriesGroupDoesNot()
+    public void AShowOrAlbumDrawnAsAGroupTile_KeepsItsFullMenu_WhileASeriesGroupGetsOnlyWhatApplies()
     {
         var showGroup = new MediaTileViewModel { Id = Guid.NewGuid(), WorkId = Guid.NewGuid(), Title = "Severance", MediaKind = "TV", IsCollection = true, Presentation = MediaTilePresentation.TvSeries };
-        var movieSeries = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Dune", MediaKind = "Movie", IsCollection = true, Presentation = MediaTilePresentation.MovieSeries };
+        var movieSeries = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Dune", MediaKind = "Movie", IsCollection = true, Presentation = MediaTilePresentation.MovieSeries };
+        var audiobookSeries = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Dune", MediaKind = "Audiobook", IsCollection = true, Presentation = MediaTilePresentation.AudiobookSeries };
 
-        Assert.NotNull(MediaTileActionTarget.For(showGroup));
-        Assert.Null(MediaTileActionTarget.For(movieSeries));
+        var show = MediaTileActionTarget.For(showGroup);
+        var series = MediaTileActionTarget.For(movieSeries);
+        Assert.NotNull(show);
+        Assert.True(show.CanDelete);
+        Assert.NotNull(series);
+        Assert.Equal(DetailEntityType.MovieSeries, series.EntityType);
+        Assert.False(series.CanSave);
+        Assert.True(series.CanEdit);
+        Assert.False(series.CanDelete);
+        Assert.False(MediaTileActionTarget.For(audiobookSeries)!.CanEdit);
+    }
+
+    [Fact]
+    public async Task ACuratedCollection_HoldsMyListAndEdit_ButNeverDelete_AndAUniverseTileHoldsNeitherMyListNorEdit()
+    {
+        await UseDevice("desktop");
+        SetAdministrator(true);
+        var collection = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Halloween", MediaKind = "Collection", IsCollection = true, UseGroupTile = true, GroupKind = MediaTileGroupKind.Collection, TileImageUrl = "/art/h.jpg", NavigationUrl = "/details/collection/h" };
+        var universe = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Dune", MediaKind = "Collection", IsCollection = true, UseGroupTile = true, GroupKind = MediaTileGroupKind.Universe, TileImageUrl = "/art/d.jpg", NavigationUrl = "/universe/Q1" };
+
+        Assert.Equal(["Add to My List", "Edit"], MenuLabels(RenderTile(collection)));
+        Assert.Empty(RenderTile(universe).FindAll("button[aria-label='More actions']"));
+
+        var target = MediaTileActionTarget.For(universe)!;
+        Assert.Equal(DetailEntityType.Universe, target.EntityType);
+        Assert.False(target.CanSave);
+        Assert.False(target.CanEdit);
+        Assert.False(target.CanDelete);
+    }
+
+    [Fact]
+    public async Task ASeriesTile_HoldsOnlyEdit_OnADesktop_AndDrawsNoMenuWhereNothingApplies()
+    {
+        var series = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Dune Novels", MediaKind = "Book", IsCollection = true, UseGroupTile = true, GroupKind = MediaTileGroupKind.Series, Presentation = MediaTilePresentation.BookSeries, TileImageUrl = "/art/d.jpg", NavigationUrl = "/details/bookseries/dune" };
+
+        await UseDevice("desktop");
+        SetAdministrator(true);
+        Assert.Equal(["Edit"], MenuLabels(RenderTile(series)));
+
+        await UseDevice("phone");
+        Assert.Empty(RenderTile(series).FindAll("button[aria-label='More actions']"));
+    }
+
+    [Fact]
+    public async Task APlaylistTile_HasTheMenu_WithAddToMyListAndNothingElse()
+    {
+        await UseDevice("desktop");
+        SetAdministrator(true);
+        var playlist = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Road trip", MediaKind = "Music", IsPlaylist = true, NavigationUrl = "/listen/music/playlists/1" };
+
+        var cut = RenderTile(playlist);
+
+        Assert.Equal(["Add to My List"], MenuLabels(cut));
+        Assert.Single(cut.FindAll("[data-media-tile-actions]"));
+    }
+
+    [Fact]
+    public async Task APlaylistTile_LeavesTheTopLeftSlotForNew_AndNeverNamesItsKindThere()
+    {
+        await UseDevice("desktop");
+        var fresh = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Road trip", MediaKind = "Music", IsPlaylist = true, NewLabel = "New", NavigationUrl = "/listen/music/playlists/1" };
+        var quiet = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Road trip", MediaKind = "Music", IsPlaylist = true, NavigationUrl = "/listen/music/playlists/1" };
+
+        Assert.Equal("New", RenderTile(fresh).Find(".media-tile-label--status").TextContent.Trim());
+        Assert.Empty(RenderTile(quiet).FindAll(".media-tile-label--status"));
     }
 
     [Fact]

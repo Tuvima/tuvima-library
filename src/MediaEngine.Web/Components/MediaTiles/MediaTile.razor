@@ -10,7 +10,8 @@
 @* One tile for every cover (One tile design spec). The cover fills the tile and carries its own title on the art; nothing sits under it.
    "..." is top right and always visible, a status label touches the top-left corner and a bottom label (the group count) touches the
    bottom-left corner. Hover and keyboard focus draw one thin purple outline around the cover; the tile never grows or moves.
-   A video with no cover art is the two-part tile (a still on top, its title and one detail line below, D7). *@
+   A video with no cover art is the two-part tile (a still on top, its title and one detail line below, D7). A group of titles (Series,
+   curated collection, Universe) is the same poster: its cover and the count as the bottom label, nothing else drawn over the art (D2, D11). *@
 @if (Item.RenderAsPersonTile)
 {
     <PersonTile Item="@Item" />
@@ -19,26 +20,20 @@ else if (Item.IsPlaylist)
 {
     <MediaSquareTile Item="@Item" />
 }
-else if (Item.RenderAsLandscapeGroupTile)
-{
-    <MediaGroupTile Item="@Item" />
-}
 else if (!_removed)
 {
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)}")'
+<article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(IsGroup ? "is-group" : string.Empty)} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)} {(IsJustSaved ? "tl-just-changed" : string.Empty)}")'
+         data-new="@(IsJustSaved ? "true" : null)"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
     <div class="media-tile-frame">
         <div class="media-tile-media @(HasArtworkSurface ? "has-artwork-surface" : null)">
-            @if (ShowGroupCollage)
+            @if (ShowBrandLogo)
             {
-                <div class="media-tile-static-group-preview" aria-hidden="true">
-                    <MediaArtworkGroupPreview Items="@GroupCollageItems"
-                                              TotalCount="@Item.PreviewTotalCount"
-                                              AriaLabel="@($"Artwork from {Item.Title}")" />
-                </div>
+                @* A network group (HBO, Netflix) shows its logo in place of a cover. *@
+                <img class="media-tile-brand" src="@Item.LogoUrl" alt="" loading="lazy" decoding="async" />
             }
             else if (ShowCollectionBanner)
             {
@@ -178,6 +173,15 @@ else if (!_removed)
 @code {
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
     [Parameter] public bool EagerArtwork { get; set; }
+
+    /// <summary>
+    /// The collections the person just saved, cascaded by the Collections page. A tile for one of them glows (the same glow as a
+    /// changed row) as the confirmation, in place of a toast. Null everywhere else.
+    /// </summary>
+    [CascadingParameter(Name = "JustSavedCollectionIds")] public IReadOnlySet<Guid>? JustSavedCollectionIds { get; set; }
+
+    private bool IsJustSaved => JustSavedCollectionIds is { Count: > 0 } saved
+        && (Item.CollectionId is { } collectionId && saved.Contains(collectionId));
     /// <summary>Draws the cover's "..." menu; off for places where a cover is only a picture.</summary>
     [Parameter] public bool ShowActions { get; set; } = true;
     /// <summary>The episode lists of a show or season keep the episode number and title under each still; no other tile has text under it.</summary>
@@ -186,14 +190,13 @@ else if (!_removed)
 
     private string CardImageLoading => EagerArtwork ? "eager" : "lazy";
 
-    private IReadOnlyList<ArtworkStackItem> _groupCollageItems = [];
     private IReadOnlyList<string> _previewImages = [];
 
     private string TileStyle => $"{Item.ArtworkPalette?.CssVariableStyle} --media-tile-accent: {Item.AccentColor}; --media-tile-secondary-accent: {Item.SecondaryAccentColor};";
 
     private string PaletteScopeStyle => $"display: contents; {TileStyle}";
 
-    private string ShapeClass => Item.Shape switch
+    private string ShapeClass => IsGroup ? "is-portrait" : Item.Shape switch
     {
         MediaTileShape.Landscape => "is-landscape",
         MediaTileShape.Square => "is-square",
@@ -230,21 +233,19 @@ else if (!_removed)
         _ => "is-cover-portrait",
     };
 
-    private bool IsVideoStill => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner && !ShowGroupCollage;
+    private bool IsVideoStill => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner;
     private string? VideoDetail => MediaTileLabels.VideoDetail(Item);
     private string? StatusLabel => MediaTileLabels.Status(Item, L["MediaTile_GettingDetails"].Value);
     private string? BottomLabel => MediaTileLabels.Bottom(Item, L["MediaTile_Kept"].Value);
 
-    private bool ShowCollectionBanner => Item.IsCollection && Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
+    // A group of titles is always a poster (Series, curated collection, Universe); a person has its own tile before this one.
+    private bool IsGroup => Item.RenderAsGroupTile;
 
-    private IReadOnlyList<ArtworkStackItem> GroupCollageItems => _groupCollageItems;
+    private bool ShowBrandLogo => IsGroup && Item.ShowLogoAsBrand && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 
-    private bool ShowGroupCollage =>
-        Item.IsCollection
-        && Item.Presentation is not (MediaTilePresentation.TvSeries or MediaTilePresentation.Album)
-        && GroupCollageItems.Count >= 2;
+    private bool ShowCollectionBanner => !IsGroup && Item.IsCollection && Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
 
-    private bool ShowPreviewStack => !ShowCollectionBanner && string.IsNullOrWhiteSpace(CardImageUrl) && PreviewImages.Count > 0 && !IsVideoStillWithoutStack;
+    private bool ShowPreviewStack => !IsGroup && !ShowBrandLogo && !ShowCollectionBanner && string.IsNullOrWhiteSpace(CardImageUrl) && PreviewImages.Count > 0 && !IsVideoStillWithoutStack;
 
     // A video with no frame shows the plain panel, never a fan of other pictures.
     private bool IsVideoStillWithoutStack => MediaTileLabels.IsVideoStillTile(Item);
@@ -259,37 +260,26 @@ else if (!_removed)
         ? L["MediaTile_StandIn_Tooltip"].Value
         : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
 
-    private string CardImageUrl => Item.TileImageUrl ?? string.Empty;
+    // A group shows its own cover; with none, the first cover of what it holds (as the Series tile always did). Nothing at all is the plain fallback.
+    private string CardImageUrl => IsGroup
+        ? StringHelpers.FirstNonBlank(Item.TileImageUrl, Item.CoverUrl, Item.ArtworkStackItems.Select(stack => stack.ImageUrl).Concat(Item.PreviewImages).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url))) ?? string.Empty
+        : Item.TileImageUrl ?? string.Empty;
 
-    private bool HasArtworkSurface => ShowCollectionBanner || !string.IsNullOrWhiteSpace(CardImageUrl) || ShowPreviewStack;
+    private bool HasArtworkSurface => ShowBrandLogo || ShowCollectionBanner || !string.IsNullOrWhiteSpace(CardImageUrl) || ShowPreviewStack;
 
     private bool ShowTileLogo => Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape && !ShowPreviewStack && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 
     private IReadOnlyList<string> PreviewImages => _previewImages;
 
-    private bool IsCollectionStackImage(string image)
-    {
-        var backdropImages = new[]
-        {
-            CardImageUrl,
-            Item.HoverImageUrl,
-            Item.BackgroundUrl,
-            Item.BannerUrl,
-            Item.HeroBackgroundImageUrl,
-        };
-
-        return backdropImages.All(candidate => !string.Equals(candidate, image, StringComparison.OrdinalIgnoreCase));
-    }
-
     private string TileImageFitClass => Item.TileImageFitMode == MediaTileImageFitMode.Contain ? "is-contained" : "is-fill";
 
-    private bool SupportsCompletion => Item.Subject != DisplaySubjectKind.TvShow && Item.Presentation != MediaTilePresentation.Album && Item.MediaKind is "Movie" or "TV" or "Book" or "Comic" or "Audiobook";
+    private bool SupportsCompletion => !IsGroup && Item.Subject != DisplaySubjectKind.TvShow && Item.Presentation != MediaTilePresentation.Album && Item.MediaKind is "Movie" or "TV" or "Book" or "Comic" or "Audiobook";
 
     private bool ShowsEpisodeCaption => ShowEpisodeText && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
 
     private string? EpisodeShowCaption => Item.EpisodeContext?.ShowTitle ?? Item.Subtitle;
 
-    private string FallbackIcon => Item.Presentation switch
+    private string FallbackIcon => IsGroup ? AppMaterialIcons.Outlined.CollectionsBookmark : Item.Presentation switch
     {
         MediaTilePresentation.Album => AppMaterialIcons.Filled.Album,
         MediaTilePresentation.Artist => AppMaterialIcons.Filled.Person,
@@ -325,33 +315,40 @@ else if (!_removed)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(5)
             .ToList();
-
-        var collectionStackPreviewImages = _previewImages
-            .Where(IsCollectionStackImage)
-            .Take(4)
-            .ToList();
-        var collectionArtworkStackItems = Item.ArtworkStackItems.Count > 0
-            ? Item.ArtworkStackItems
-            : collectionStackPreviewImages.Select((image, index) => new ArtworkStackItem
-            {
-                Id = $"{Item.Id:D}:{index}",
-                Title = Item.Title,
-                ImageUrl = image,
-                MediaType = Item.MediaKind,
-                Shape = ArtworkShape.Portrait,
-                Position = null,
-            }).ToList();
-        _groupCollageItems = collectionArtworkStackItems
-            .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
-            .DistinctBy(item => item.Id)
-            .DistinctBy(item => item.ImageUrl, StringComparer.OrdinalIgnoreCase)
-            .Take(4)
-            .ToList();
     }
 
-    private string DetailsNavigationUrl => Item.DetailsNavigationUrl ?? Item.NavigationUrl;
+    private string DetailsNavigationUrl => IsGroup
+        ? StringHelpers.FirstNonBlank(Item.DetailsNavigationUrl, Item.NavigationUrl, Item.PrimaryNavigationUrl) ?? "/"
+        : Item.DetailsNavigationUrl ?? Item.NavigationUrl;
 
-    private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
+    // A group's name and kind are not on the art, so the link says both ("Dune Saga, Series") and what it holds.
+    private string DetailsActionAriaLabel => IsGroup
+        ? GroupAccessibleLabel
+        : $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
+
+    private string GroupAccessibleLabel
+    {
+        get
+        {
+            var counts = string.Join(", ", Item.MediaCounts.Where(count => count.Count > 0).Select(count => $"{count.Count} {count.Label.ToLowerInvariant()}"));
+            var label = L["MediaGroupTile_Label", Item.Title, GroupKindWord].Value;
+            return counts.Length == 0 ? label : $"{label}, {counts}";
+        }
+    }
+
+    // A series presentation reads as a Series whichever composer built the tile.
+    private string GroupKindWord => (Item.GroupKind == MediaTileGroupKind.Collection
+        && Item.Presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries
+            or MediaTilePresentation.ComicSeries or MediaTilePresentation.AudiobookSeries
+            ? MediaTileGroupKind.Series
+            : Item.GroupKind) switch
+    {
+        MediaTileGroupKind.Series => L["MediaGroupTile_KindSeries"],
+        MediaTileGroupKind.Universe => L["MediaGroupTile_KindUniverse"],
+        MediaTileGroupKind.List => L["MediaGroupTile_KindList"],
+        MediaTileGroupKind.Set => L["MediaGroupTile_KindSet"],
+        _ => L["MediaGroupTile_KindCollection"],
+    };
 
     private void OpenDetails()
     {
@@ -362,7 +359,7 @@ else if (!_removed)
             Item.PreviewImageUrl ?? Item.TileImageUrl,
             Item.LogoUrl,
             Item.HeroBackgroundImageUrl));
-        Nav.NavigateTo(Item.DetailsNavigationUrl ?? Item.NavigationUrl);
+        Nav.NavigateTo(DetailsNavigationUrl);
     }
 
     private static string GetStackImageClass(int index) => $"media-tile-stack-image media-tile-stack-image-{Math.Min(index, 2)}";

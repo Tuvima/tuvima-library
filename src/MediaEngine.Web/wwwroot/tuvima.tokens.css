@@ -247,6 +247,7 @@
     --playback-panel-width: 400px;
     --playback-panel-wide-width: 560px;
     --playback-panel-speed-width: 420px;
+    --playback-panel-sleep-width: 380px;
     --playback-panel-lyrics-width: 460px;
     --playback-panel-lyrics-height: calc(100dvh - 140px);
     --playback-panel-queue-width: 440px;
@@ -302,6 +303,8 @@
     --tl-tile-landscape-w: 320px;
     --tl-tile-text-floor: 13px;
     --tl-tile-menu-button: 44px;
+    /* A mark drawn straight on cover art (the "..." glyph, the Continue play triangle): no box, a soft shadow so it reads on any picture. */
+    --tl-tile-mark-shadow: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
     --tl-layer-menu: var(--tl-z-dropdown);
     --tl-layer-dialog: var(--tl-z-modal);
     --tl-layer-toast: var(--tl-z-toast);
@@ -450,7 +453,6 @@
     --tl-shadow-raised: 0 18px 44px rgba(0, 0, 0, 0.28);
     --tl-shadow-hover-quiet: 0 10px 24px rgba(0, 0, 0, 0.24);
     --tl-shadow-hover-standard: 0 18px 42px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--tl-hover-glow-color);
-    --tl-shadow-hover-media: 0 0 0 3px #fff, 0 0 0 6px rgba(136, 82, 252, 0.9);
 
     --tl-gradient-primary: linear-gradient(135deg, var(--tl-accent-primary) 0%, var(--tl-accent-primary-active) 100%);
     --tl-gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);

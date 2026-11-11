@@ -119,7 +119,7 @@ public sealed class CollectionAuthoringWebTests : AsyncBunitContext
 
         await GoToNameAndShowItAsync(editor);
 
-        editor.WaitForAssertion(() => Assert.Contains("Ownership and visibility", editor.Markup));
+        editor.WaitForAssertion(() => Assert.Contains("Who can see it", editor.Markup));
         Assert.DoesNotContain("Only you can see this collection.", editor.Markup);
         Assert.Contains("Library", editor.Markup);
     }

@@ -1,2 +1,2 @@
-.view-folder-filter { display: inline-flex; align-items: center; gap: 8px; }
-.view-folder-filter > span { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.view-folder-filter { display: inline-flex; align-items: center; }
+.view-folder-filter__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }

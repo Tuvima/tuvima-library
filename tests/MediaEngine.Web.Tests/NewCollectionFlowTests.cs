@@ -95,7 +95,7 @@ public sealed class NewCollectionFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ThePreviewPanelShowsTheCountPerTypeAndTwelveCoversWithShowAll()
+    public async Task ThePreviewPanelShowsTheCountPerTypeAndOneRowOfCoversWithShowAll()
     {
         var items = Enumerable.Range(1, 14)
             .Select(number => new CollectionResolvedItemViewModel { EntityId = Guid.NewGuid(), Title = $"Film {number}", MediaType = number <= 10 ? "Movies" : "TV", Year = "2020" })
@@ -112,7 +112,7 @@ public sealed class NewCollectionFlowTests : AsyncBunitContext
         await editor.InvokeAsync(() => editor.FindAll(".collection-editor-footer-actions button").Last().Click());
 
         editor.WaitForAssertion(() => Assert.Contains("14 titles", editor.Find(".collection-flow__preview-big").TextContent), TimeSpan.FromSeconds(5));
-        Assert.Equal(12, editor.FindAll(".collection-flow__cover").Count);
+        Assert.Equal(6, editor.FindAll(".collection-flow__cover").Count);
         Assert.Equal(2, editor.FindAll(".collection-flow__pill").Count);
         Assert.Contains("Show all 14", editor.Markup);
     }

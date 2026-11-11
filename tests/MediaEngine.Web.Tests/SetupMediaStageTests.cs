@@ -32,6 +32,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     private readonly List<string?> _setupSessions = [];
     private readonly List<UpdateLibrariesRequest> _setupSaves = [];
     private bool _failLoads;
+    private TaskCompletionSource<LibrariesConfigurationDto?>? _loadGate;
     private bool _failKinds;
     private int _deferred;
     private int _validated;
@@ -51,6 +52,11 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), args =>
             {
                 _setupSessions.Add((string?)args![0]);
+                if (_loadGate is not null)
+                {
+                    return _loadGate.Task;
+                }
+
                 return Task.FromResult<LibrariesConfigurationDto?>(_failLoads ? null : _configuration);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibraryKindsAsync), _ =>
@@ -143,6 +149,36 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll("button[aria-label='Edit Movies']"));
         Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Private movies", cut.Markup, StringComparison.Ordinal);
+    }
+
+    // The setup table has no area chips above it, as in the design (the Area column already names each area).
+    [Fact]
+    public void TheSetupTableHasNoAreaChipsAboveIt()
+    {
+        AddMoviesLibrary();
+        var cut = RenderStage(hasLibraries: true);
+
+        Assert.Empty(cut.FindAll("[data-lib-chips], .lib-chips"));
+        Assert.Single(cut.FindAll("tr[data-library]"));
+    }
+
+    // Skeleton rows stand in while the folders load (states table); the table replaces them once they arrive.
+    [Fact]
+    public async Task WhileTheLibrariesLoadTheStageDrawsSkeletonRowsAndNoTable()
+    {
+        var release = _loadGate = new TaskCompletionSource<LibrariesConfigurationDto?>();
+
+        var cut = Render<SetupLibrariesStage>(parameters => parameters.Add(x => x.SetupSession, Session));
+
+        var skeleton = cut.Find("[data-testid='setup-libraries-skeleton']");
+        Assert.Equal(4, skeleton.QuerySelectorAll(".app-skeleton").Length);
+        Assert.Empty(cut.FindAll("[data-setup-libraries-table]"));
+        Assert.Empty(cut.FindAll("[role=alert]"));
+
+        await cut.InvokeAsync(() => release.SetResult(_configuration));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-setup-libraries-table]")));
+        Assert.Empty(cut.FindAll("[data-testid='setup-libraries-skeleton']"));
     }
 
     // Nothing a person clicks in the table changes the browser address (first-run setup D14).
@@ -375,8 +411,18 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         }
 
         var create = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "CreateLibraryDialog.razor"));
-        Assert.Contains("ShowFolderName=\"true\"", create, StringComparison.Ordinal);
+        Assert.Contains("ShowFolderName=\"LibraryFolderStep.ShowFolderName\"", create, StringComparison.Ordinal);
         Assert.Contains("OfferHandling=", create, StringComparison.Ordinal);
+
+        // Add library's folder step and Edit's Add folder read their heading, lead, chips and friendly-name choice from the one LibraryFolderStep, so they cannot drift.
+        var edit = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibraryEditDialog.razor"));
+        foreach (var source in new[] { create, edit })
+        {
+            Assert.Contains("LibraryFolderStep.Heading(", source, StringComparison.Ordinal);
+            Assert.Contains("LibraryFolderStep.Lead(", source, StringComparison.Ordinal);
+            Assert.Contains("LibraryFolderStep.Chips(", source, StringComparison.Ordinal);
+            Assert.Contains("LibraryFolderStep.ShowFolderName", source, StringComparison.Ordinal);
+        }
         Assert.Contains("DialogOptions => ServerFolderPicker.DialogOptions", create, StringComparison.Ordinal);
     }
 

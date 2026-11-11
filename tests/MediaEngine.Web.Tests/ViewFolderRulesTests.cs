@@ -1,6 +1,9 @@
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Resources;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Tests;
 
@@ -71,9 +74,11 @@ public sealed class ViewFolderRulesTests
     [Fact]
     public void TheUploadsLineNamesTheKind()
     {
-        Assert.Equal("You can't upload photos and videos until you add a Managed folder.", ViewFolderRules.UploadsNeedManagedLine(ViewFolderRules.Noun("photos", "Photos")));
-        Assert.Equal("You can't upload personal videos until you add a Managed folder.", ViewFolderRules.UploadsNeedManagedLine(ViewFolderRules.Noun("personal_videos", "Personal videos")));
-        Assert.Equal("You can't upload documents until you add a Managed folder.", ViewFolderRules.UploadsNeedManagedLine(ViewFolderRules.Noun("documents", "Documents")));
+        using var context = new LocalizedBunitContext();
+        var strings = context.Services.GetRequiredService<IStringLocalizer<SharedStrings>>();
+        Assert.Equal("You can't upload photos and videos until you add a Managed folder.", ViewFolderRules.UploadsNeedManagedLine(strings, ViewFolderRules.Noun("photos", "Photos")));
+        Assert.Equal("You can't upload personal videos until you add a Managed folder.", ViewFolderRules.UploadsNeedManagedLine(strings, ViewFolderRules.Noun("personal_videos", "Personal videos")));
+        Assert.Equal("You can't upload documents until you add a Managed folder.", ViewFolderRules.UploadsNeedManagedLine(strings, ViewFolderRules.Noun("documents", "Documents")));
     }
 
     [Fact]

@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.Theming
 
 @inject IEngineApiClient Api
 @inject UIOrchestratorService Orchestrator
@@ -13,6 +14,7 @@
 @inject ILogger<PageReader> Logger
 @inject IStringLocalizer<SharedStrings> L
 @inject IAppDialogService Dialogs
+@inject DeviceContextService DeviceContext
 
 @implements IAsyncDisposable
 
@@ -44,32 +46,43 @@
         @if (_state == "ready")
         {
             <div class="pr-tools" role="toolbar" aria-label="@L["PageReader_ReaderTools"].Value">
-                @if (_kind == "pdf")
+                @if (!OnPhone)
                 {
-                    <AppNativeButton Class="@($"pr-ib {(_panel == "search" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
-                    </AppNativeButton>
-                    @if (_outline.Count > 0)
+                    @if (_kind == "pdf")
                     {
-                        <AppNativeButton Class="@($"pr-ib {(_panel == "contents" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["PageReader_Contents"].Value" AriaLabel="@L["PageReader_Contents"].Value">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppIconSize.Control20" />
+                        <AppNativeButton Class="@($"pr-ib {(_panel == "search" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Tooltip="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
                         </AppNativeButton>
+                        @if (_outline.Count > 0)
+                        {
+                            <AppNativeButton Class="@($"pr-ib {(_panel == "contents" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("contents"))" Tooltip="@L["PageReader_Contents"].Value" AriaLabel="@L["PageReader_Contents"].Value">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppIconSize.Control20" />
+                            </AppNativeButton>
+                        }
                     }
+                    <AppNativeButton Class="@($"pr-ib {(_panel == "pages" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("pages"))" Tooltip="@L["PageReader_Pages"].Value" AriaLabel="@L["PageReader_Pages"].Value">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" Size="AppIconSize.Control20" />
+                    </AppNativeButton>
                 }
                 <AppNativeButton Class="@($"pr-ib {(MyBookmarkOnPage is not null ? "pr-ib--on" : "")}")" OnClick="ToggleBookmarkAsync"
                                  Tooltip="@(MyBookmarkOnPage is null ? L["PageReader_BookmarkThisPage"].Value : L["PageReader_RemoveBookmark"].Value)"
                                  AriaLabel="@(MyBookmarkOnPage is null ? L["PageReader_BookmarkThisPage"].Value : L["PageReader_RemoveBookmark"].Value)" aria-pressed="@(MyBookmarkOnPage is not null ? "true" : "false")">
                     <AppMaterialIcon Icon="@(MyBookmarkOnPage is null ? AppMaterialIcons.Outlined.BookmarkBorder : AppMaterialIcons.Filled.Bookmark)" Size="AppIconSize.Control20" />
                 </AppNativeButton>
-                <AppNativeButton Class="@($"pr-ib {(_panel == "bookmarks" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("bookmarks"))" Tooltip="@L["PageReader_Bookmarks"].Value" AriaLabel="@L["PageReader_Bookmarks"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bookmarks" Size="AppIconSize.Control20" />
-                </AppNativeButton>
-                <AppNativeButton Class="@($"pr-ib {(_panel == "pages" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("pages"))" Tooltip="@L["PageReader_Pages"].Value" AriaLabel="@L["PageReader_Pages"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" Size="AppIconSize.Control20" />
-                </AppNativeButton>
-                <AppNativeButton Class="@($"pr-ib {(_panel == "settings" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["PageReader_ReadingSettings"].Value" AriaLabel="@L["PageReader_ReadingSettings"].Value">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppIconSize.Control20" />
-                </AppNativeButton>
+                @if (!OnPhone)
+                {
+                    <AppNativeButton Class="@($"pr-ib {(_panel == "bookmarks" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("bookmarks"))" Tooltip="@L["PageReader_Bookmarks"].Value" AriaLabel="@L["PageReader_Bookmarks"].Value">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bookmarks" Size="AppIconSize.Control20" />
+                    </AppNativeButton>
+                    <AppNativeButton Class="@($"pr-ib {(_panel == "settings" ? "pr-ib--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Tooltip="@L["PageReader_ReadingSettings"].Value" AriaLabel="@L["PageReader_ReadingSettings"].Value">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppIconSize.Control20" />
+                    </AppNativeButton>
+                }
+                else
+                {
+                    @* On a phone the tools do not fit: one "..." holds them in a bottom sheet (spec, Phone [screen 7]). Bookmark this page stays on the line. *@
+                    <AppRowMenu Class="pr-ib pr-more" Plain="true" Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Items="ToolMenuItems" />
+                }
             </div>
         }
     </header>
@@ -77,7 +90,6 @@
     <footer class="pr-bar pr-bar--bottom">
         @if (_state == "ready" && _pageCount > 0)
         {
-            <span class="pr-count">@CountText</span>
             <div class="pr-track">
                 <AppRangeSlider Class="@($"pr-slider{(_rtl ? " pr-slider--rtl" : "")}")" Min="1" Max="@_pageCount" Step="1" Value="@_page" ShowTicks="false"
                                 AriaLabel="@L["PageReader_Page"].Value" CommitOnChange="true" ValueChanged="OnSliderChanged" />
@@ -91,6 +103,7 @@
                     </div>
                 }
             </div>
+            <span class="pr-count">@CountText</span>
         }
     </footer>
 
@@ -99,7 +112,7 @@
     @if (_state == "ready" && _panel is not null)
     {
         <div class="br-scrim" role="presentation" @onclick="ClosePanelAsync"></div>
-        <AppPopout Class="br-panel" Role="dialog" AriaLabel="@PanelTitle">
+        <AppPopout Class="br-panel pr-panel" Role="dialog" AriaLabel="@PanelTitle">
             <div class="br-panel-head">
                 <h2 class="br-panel-title">@PanelTitle</h2>
                 <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Tooltip="@L["PageReader_Close"].Value" AriaLabel="@L["PageReader_ClosePanel", PanelTitle].Value">
@@ -165,12 +178,10 @@
                 }
                 else if (_panel == "search")
                 {
-                    <div class="br-search">
+                    <div class="br-search pr-search">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
                         <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value"
                                         Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
-                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Tooltip="@L["PageReader_Search"].Value" AriaLabel="@L["PageReader_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
-                        </AppNativeButton>
                     </div>
                     @if (_searching && _searchHits.Count == 0)
                     {
@@ -196,8 +207,8 @@
                             {
                                 <li>
                                     <AppNativeButton Class="br-row" OnClick="@(() => OpenPageFromPanelAsync(hit.Page))">
-                                        <span class="br-row-sub">@L["PageReader_OnPage", hit.Page]</span>
                                         <span class="br-row-main">@hit.Before<mark class="br-search-match">@hit.Match</mark>@hit.After</span>
+                                        <span class="br-row-sub">@L["PageReader_OnPage", hit.Page]</span>
                                     </AppNativeButton>
                                 </li>
                             }
@@ -208,7 +219,7 @@
                 {
                 <div class="br-field">
                     <div class="br-field-label">@L["PageReader_Layout"]</div>
-                    <AppSegmentedControl Options="LayoutOptions" Value="@_layout" ValueChanged="SetLayoutAsync" AriaLabel="@L["PageReader_Layout"].Value" />
+                    <AppSegmentedControl Options="LayoutOptions" Value="@LayoutValue" ValueChanged="SetLayoutAsync" AriaLabel="@L["PageReader_Layout"].Value" />
                 </div>
                 <div class="br-field">
                     <div class="br-field-label">@L["PageReader_Fit"]</div>
@@ -218,7 +229,7 @@
                 {
                     <div class="br-field">
                         <div class="br-field-label">@L["PageReader_Direction"]</div>
-                        <AppSegmentedControl Options="DirectionOptions" Value="@_direction" ValueChanged="SetDirectionAsync" AriaLabel="@L["PageReader_Direction"].Value" />
+                        <AppSegmentedControl Options="DirectionOptions" Value="@(_rtl ? "rtl" : "ltr")" ValueChanged="SetDirectionAsync" AriaLabel="@L["PageReader_Direction"].Value" />
                     </div>
                 }
                 <div class="br-field">
@@ -226,7 +237,6 @@
                     <AppSegmentedControl Options="BackgroundOptions" Value="@_background" ValueChanged="SetBackgroundAsync" AriaLabel="@L["PageReader_Background"].Value" />
                 </div>
                 <AppSwitchRow Label="@L["PageReader_ShowBookmarksOnBar"].Value" Value="@_showBookmarksOnBar" ValueChanged="SetShowBookmarksOnBarAsync" />
-                <p class="br-hint">@L["PageReader_RememberedOnProfile"]</p>
                 }
             </div>
         </AppPopout>
@@ -275,15 +285,22 @@
 </AppViewer>
 
 @code {
-    private IReadOnlyList<AppSelectOption> LayoutOptions => [
-        new("auto", L["PageReader_LayoutAuto"].Value),
-        new("one", L["PageReader_LayoutOne"].Value),
-        new("two", L["PageReader_LayoutTwo"].Value),
-        new("scroll", L["PageReader_LayoutScroll"].Value),
-    ];
+    // A phone has no Two pages choice; a saved "two" reads as one page there and the saved choice is left alone.
+    private IReadOnlyList<AppSelectOption> LayoutOptions => OnPhone
+        ? [
+            new("auto", L["PageReader_LayoutAuto"].Value),
+            new("one", L["PageReader_LayoutOne"].Value),
+            new("scroll", L["PageReader_LayoutScroll"].Value),
+        ]
+        : [
+            new("auto", L["PageReader_LayoutAuto"].Value),
+            new("one", L["PageReader_LayoutOne"].Value),
+            new("two", L["PageReader_LayoutTwo"].Value),
+            new("scroll", L["PageReader_LayoutScroll"].Value),
+        ];
     private IReadOnlyList<AppSelectOption> FitOptions => [new("page", L["PageReader_FitPage"].Value), new("width", L["PageReader_FitWidth"].Value)];
+    // Two choices only. Until the profile chooses, the file sets the starting direction (spec D7) and the effective one is shown selected.
     private IReadOnlyList<AppSelectOption> DirectionOptions => [
-        new("auto", L["PageReader_DirectionAuto"].Value),
         new("ltr", L["PageReader_DirectionLtr"].Value),
         new("rtl", L["PageReader_DirectionRtl"].Value),
     ];
@@ -323,6 +340,7 @@
     private bool _disposed;
 
     private string _layout = "auto";
+    private string? _sentLayout;
     private string _fit = "page";
     private string _direction = "auto";
     private string _background = "black";
@@ -399,16 +417,70 @@
     private int _savedLast;
     private int _startPage = 1;
 
+    // The short "12 of 28" fits a phone's slider line; everywhere else reads "Page 12 of 28" (or "Pages 12-13 of 28" with two pages up).
     private string CountText => _pageCount == 0
         ? string.Empty
+        : OnPhone ? L["PageReader_PageOfShort", _page, _pageCount].Value
         : _lastPage > _page ? L["PageReader_PagesOf", _page, _lastPage, _pageCount].Value : L["PageReader_PageOf", _page, _pageCount].Value;
+
+    // The form factor the Dashboard already tracks decides what fits; this adds no breakpoint of its own.
+    private bool OnPhone => DeviceContext.IsPhone;
+
+    // What the page uses and what the layout choice shows selected: on a phone a saved "two" reads as one page (the saved choice is not changed).
+    private string LayoutValue => OnPhone && _layout == "two" ? "one" : _layout;
 
     protected override void OnInitialized()
     {
         _kind = Kind;
         _title = Title ?? string.Empty;
         _subtitle = Subtitle;
+        DeviceContext.OnChanged += OnDeviceChanged;
     }
+
+    private void OnDeviceChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_disposed || _disposing)
+        {
+            return;
+        }
+
+        if (_state == "ready" && _sentLayout is not null && _sentLayout != LayoutValue)
+        {
+            _sentLayout = LayoutValue;
+            await CallScriptAsync("setLayout", LayoutValue);
+        }
+
+        StateHasChanged();
+    });
+
+    // The tools the phone's "..." sheet holds, in the top line's order; the rows use the same words as the buttons' tooltips.
+    private IReadOnlyList<AppRowMenuItem> ToolMenuItems
+    {
+        get
+        {
+            var items = new List<AppRowMenuItem>();
+            if (_kind == "pdf")
+            {
+                items.Add(ToolItem(L["PageReader_SearchInFile"].Value, AppMaterialIcons.Filled.Search, "search"));
+                if (_outline.Count > 0)
+                {
+                    items.Add(ToolItem(L["PageReader_Contents"].Value, AppMaterialIcons.Filled.Toc, "contents"));
+                }
+            }
+
+            items.Add(ToolItem(L["PageReader_Pages"].Value, AppMaterialIcons.Outlined.GridView, "pages"));
+            items.Add(ToolItem(L["PageReader_Bookmarks"].Value, AppMaterialIcons.Outlined.Bookmarks, "bookmarks"));
+            items.Add(ToolItem(L["PageReader_ReadingSettings"].Value, AppMaterialIcons.Outlined.Tune, "settings"));
+            return items;
+        }
+    }
+
+    private AppRowMenuItem ToolItem(string label, string icon, string panel) => new()
+    {
+        Label = label,
+        Icon = icon,
+        OnClick = EventCallback.Factory.Create(this, () => TogglePanel(panel)),
+    };
 
     private async Task OpenAsync()
     {
@@ -425,7 +497,7 @@
                 "open",
                 _host,
                 EngineBookProxyPath.ToBookBase(AssetId),
-                new { kind = _kind, startPage = _startPage, layout = _layout, fit = _fit, direction = _direction, background = _background },
+                new { kind = _kind, startPage = _startPage, layout = LayoutValue, fit = _fit, direction = _direction, background = _background },
                 _dotNetRef);
 
             if (_disposing || _disposed)
@@ -442,6 +514,7 @@
             _pageCount = result.PageCount;
             _page = Math.Clamp(_startPage, 1, Math.Max(1, _pageCount));
             _lastPage = _page;
+            _sentLayout = LayoutValue;
             _rtl = _direction == "rtl" || (_direction == "auto" && result.RightToLeft);
             _state = "ready";
             _bookmarks = await Api.GetPageBookmarksAsync(AssetId);
@@ -581,7 +654,8 @@
     private async Task SetLayoutAsync(string value)
     {
         _layout = value;
-        await CallScriptAsync("setLayout", value);
+        _sentLayout = LayoutValue;
+        await CallScriptAsync("setLayout", LayoutValue);
         await SaveChoiceAsync(reading => PageReaderProfileSettings.SetLayout(reading, AssetId, value));
     }
 
@@ -597,7 +671,7 @@
         _direction = value;
         await CallScriptAsync("setDirection", value);
         await SaveChoiceAsync(reading => PageReaderProfileSettings.SetDirection(reading, Series, value));
-        _rtl = value == "rtl" || (value == "auto" && _rtl);
+        _rtl = value == "rtl";
     }
 
     private async Task SetBackgroundAsync(string value)
@@ -1008,6 +1082,7 @@
         }
 
         _disposing = true;
+        DeviceContext.OnChanged -= OnDeviceChanged;
         if (_saveTimer is { } timer)
         {
             await timer.DisposeAsync();
@@ -1036,7 +1111,7 @@
         _disposed = true;
     }
 
-    private sealed class PageReaderOpenResult
+    internal sealed class PageReaderOpenResult
     {
         public bool Ok { get; set; }
         public string? Code { get; set; }
@@ -1045,7 +1120,7 @@
         public bool RightToLeft { get; set; }
     }
 
-    private sealed class PdfOutlineItem
+    internal sealed class PdfOutlineItem
     {
         public string Title { get; set; } = string.Empty;
         public int Level { get; set; }
@@ -1060,7 +1135,7 @@
         public string After { get; set; } = string.Empty;
     }
 
-    private sealed class PdfSearchOutcome
+    internal sealed class PdfSearchOutcome
     {
         public bool HasText { get; set; }
     }

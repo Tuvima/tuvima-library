@@ -926,7 +926,9 @@ public partial class ListenPage
 
         var isSmart = string.Equals(kind, "Smart", StringComparison.OrdinalIgnoreCase);
         var entry = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId);
-        var changed = await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
+        // What the editor saved is told by one quiet line; there is no toast.
+        _savedCollectionCount = 0;
+        var request = new CollectionEditorLaunchRequest
         {
             ActiveProfileId = entry.ActiveProfileId,
             Kind = entry.Kind,
@@ -934,13 +936,17 @@ public partial class ListenPage
             InitialMediaTypes = entry.InitialMediaTypes,
             InitialMembershipMode = isSmart ? "Smart" : "Manual",
             InitialTitle = string.Empty,
-        });
+        };
+        var changed = await CollectionEditorLauncher.OpenAsync(request);
+        _savedCollectionCount = request.SavedCollectionIds.Count;
 
-        if (changed)
+        if (changed || _savedCollectionCount > 0)
         {
             await LoadAsync();
         }
     }
+
+    private int _savedCollectionCount;
     private async Task SavePlaylistOrderAsync()
     {
         if (_activeProfile is null)

@@ -211,7 +211,8 @@ public sealed class ImportPanelTests : AsyncBunitContext
 
         cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("content", "goodreads.csv"));
 
-        cut.WaitForAssertion(() => Assert.Contains("You own 3 of 4", cut.Find("[data-list-owned]").TextContent));
+        cut.WaitForAssertion(() => Assert.Equal("3", cut.Find("[data-list-owned]").TextContent.Trim()));
+        Assert.Contains("3 of 4", cut.Find("[data-list-preview]").TextContent);
         Assert.Contains("to-read", cut.Find("[data-list-shelves]").TextContent);
         Assert.Contains("read", cut.Find("[data-list-shelves]").TextContent);
         Assert.Contains("Snow Crash", cut.Find("[data-list-unmatched]").TextContent);
@@ -287,9 +288,10 @@ public sealed class ImportPanelTests : AsyncBunitContext
         var cut = Render<CollectionListImportStep>(parameters => parameters.Add(step => step.Draft, draft));
 
         cut.Find("textarea").Input("https://www.themoviedb.org/list/8136");
-        await cut.FindAll("button").First(button => button.TextContent.Trim() == "Read this text").ClickAsync();
+        // A paste reads at once: the one field has no separate button.
 
-        cut.WaitForAssertion(() => Assert.Contains("You own 2 of 3", cut.Find("[data-list-owned]").TextContent));
+        cut.WaitForAssertion(() => Assert.Equal("2", cut.Find("[data-list-owned]").TextContent.Trim()));
+        Assert.Contains("2 of 3", cut.Find("[data-list-preview]").TextContent);
         Assert.Contains("https://www.themoviedb.org/list/8136", cut.Markup);
         Assert.Equal(ListImportChoices.RefreshWeekly, draft.Refresh);
         Assert.True(draft.IsWeb);
@@ -328,7 +330,7 @@ public sealed class ImportPanelTests : AsyncBunitContext
         var cut = Render<ImportPanel>(parameters => parameters.Add(panel => panel.ShowPaste, true));
 
         cut.Find("textarea").Input("https://www.themoviedb.org/list/8136");
-        await cut.FindAll("button").First(button => button.TextContent.Trim() == "Read this text").ClickAsync();
+        // A paste reads at once: the one field has no separate button.
 
         cut.WaitForAssertion(() => Assert.Contains("TMDb lists are switched off.", cut.Find("[data-import-error]").TextContent));
         var link = cut.Find("[data-import-error-link]");
@@ -354,7 +356,7 @@ public sealed class ImportPanelTests : AsyncBunitContext
         var cut = Render<ImportPanel>(parameters => parameters.Add(panel => panel.ShowPaste, true));
 
         cut.Find("textarea").Input("https://www.themoviedb.org/list/8136");
-        await cut.FindAll("button").First(button => button.TextContent.Trim() == "Read this text").ClickAsync();
+        // A paste reads at once: the one field has no separate button.
 
         cut.WaitForAssertion(() => Assert.Contains("Not usable.", cut.Find("[data-import-error]").TextContent));
         Assert.Empty(cut.FindAll("[data-import-error-link]"));

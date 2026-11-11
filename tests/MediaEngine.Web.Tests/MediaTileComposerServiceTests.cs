@@ -334,9 +334,9 @@ public sealed class MediaTileComposerServiceTests
         var mapped = MediaTileComposerService.FromDisplayCard(card);
 
         Assert.True(mapped.IsCollection);
-        Assert.True(mapped.UseLandscapeGroupTile);
-        Assert.Equal(MediaTileShape.Landscape, mapped.Shape);
-        Assert.Equal(MediaTileSurfaceKind.BannerLandscape, mapped.SurfaceKind);
+        Assert.True(mapped.UseGroupTile);
+        Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
+        Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
         Assert.Equal("/cover-s.jpg", mapped.TileImageUrl);
         Assert.Contains("/cover-s.jpg", mapped.PreviewImages);
         Assert.Contains("/background-s.jpg", mapped.PreviewImages);
@@ -384,7 +384,7 @@ public sealed class MediaTileComposerServiceTests
 
         var mapped = MediaTileComposerService.FromDisplayCard(card);
 
-        Assert.False(mapped.UseLandscapeGroupTile);
+        Assert.False(mapped.UseGroupTile);
         Assert.Equal(collectionId, mapped.WorkId);
         Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
         Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
@@ -474,11 +474,11 @@ public sealed class MediaTileComposerServiceTests
         Assert.True(mapped.IsCollection);
         Assert.Equal(MediaTilePresentation.BookSeries, mapped.Presentation);
         Assert.Equal("Open Series", mapped.PrimaryActionLabel);
-        Assert.True(mapped.UseLandscapeGroupTile);
+        Assert.True(mapped.UseGroupTile);
     }
 
     [Fact]
-    public void FromDisplayCard_MapsOrderedSeriesPreviewItemsToLandscapeGroupTile()
+    public void FromDisplayCard_MapsOrderedSeriesPreviewItemsToPosterGroupTile()
     {
         var collectionId = Guid.Parse("66666666-3333-3333-3333-666666666666");
         var workId = Guid.Parse("77777777-3333-3333-3333-777777777777");
@@ -549,9 +549,9 @@ public sealed class MediaTileComposerServiceTests
         var mapped = MediaTileComposerService.FromDisplayCard(card);
 
         Assert.True(mapped.IsCollection);
-        Assert.True(mapped.UseLandscapeGroupTile);
-        Assert.Equal(MediaTileShape.Landscape, mapped.Shape);
-        Assert.Equal(MediaTileSurfaceKind.BannerLandscape, mapped.SurfaceKind);
+        Assert.True(mapped.UseGroupTile);
+        Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
+        Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
         Assert.Equal(MediaTileHoverLayout.BannerPopover, mapped.HoverLayout);
         Assert.Null(mapped.TileImageUrl);
         Assert.Equal(6, mapped.PreviewTotalCount);

@@ -4304,9 +4304,6 @@
   <data name="AddFilesDialog_CopyFiles" xml:space="preserve">
     <value>Copy files</value>
   </data>
-  <data name="AddViewFolderDialog_LibraryScansThisFolderAnd" xml:space="preserve">
-    <value>Library scans this folder and its subfolders. Your files are never changed.</value>
-  </data>
   <data name="Common_FolderName" xml:space="preserve">
     <value>Folder name</value>
   </data>
@@ -4343,8 +4340,8 @@
   <data name="Common_UseADesktopOrTablet" xml:space="preserve">
     <value>Use a desktop or tablet to change folders.</value>
   </data>
-  <data name="LibrariesOverview_FoldersAndTitles" xml:space="preserve">
-    <value>Folders and titles</value>
+  <data name="LibrariesOverview_Contents" xml:space="preserve">
+    <value>Contents</value>
   </data>
   <data name="LibrariesOverview_NoLibrariesMatch" xml:space="preserve">
     <value>No {0} libraries match.</value>
@@ -4935,7 +4932,7 @@
     <value>Not a place for new media</value>
   </data>
   <data name="LibraryFolderTable_OrganiseFilesNow" xml:space="preserve">
-    <value>Organise files now</value>
+    <value>Organize files now</value>
   </data>
   <data name="LibraryFolderTable_MergeInto" xml:space="preserve">
     <value>Merge into…</value>
@@ -6639,28 +6636,13 @@
     <value>Metadata language</value>
   </data>
   <data name="SetupMetadataStage_ConnectYourMetadataSources" xml:space="preserve">
-    <value>Connect your metadata sources</value>
+    <value>Where should Library look things up?</value>
   </data>
   <data name="SetupMetadataStage_ChooseWhereInformationAboutYour" xml:space="preserve">
     <value>Choose where information about your media comes from. Each source below says what it can supply.</value>
   </data>
   <data name="SetupMetadataStage_FindingMetadataSourcesForYour" xml:space="preserve">
     <value>Finding metadata sources for your library…</value>
-  </data>
-  <data name="SetupMetadataStage_ShowingTheSourcesThatFit" xml:space="preserve">
-    <value>Showing the sources that fit the libraries you added.</value>
-  </data>
-  <data name="SetupMetadataStage_ShowingEverySource" xml:space="preserve">
-    <value>Showing every source.</value>
-  </data>
-  <data name="SetupMetadataStage_ShowAllSources" xml:space="preserve">
-    <value>Show all sources</value>
-  </data>
-  <data name="SetupMetadataStage_OnlyTheOnesThatFit" xml:space="preserve">
-    <value>Only the ones that fit</value>
-  </data>
-  <data name="SetupMetadataStage_SourcesLayout" xml:space="preserve">
-    <value>Sources layout</value>
   </data>
   <data name="SetupProfileStage_WhoAreYouAndHow" xml:space="preserve">
     <value>Who are you, and how do you want to sign in?</value>
@@ -6740,9 +6722,6 @@
   <data name="SetupToolsStage_LibraryUsesAFewOutside" xml:space="preserve">
     <value>Library uses a few outside programs to read and prepare your media. Optional ones can be downloaded now or later.</value>
   </data>
-  <data name="SetupToolsStage_TheLocalAIEngineIs" xml:space="preserve">
-    <value>The local AI engine is set up in Settings, Local AI, after setup.</value>
-  </data>
   <data name="SetupToolsStage_CheckingYourTools" xml:space="preserve">
     <value>Checking your tools</value>
   </data>
@@ -6756,7 +6735,7 @@
     <value>Turn on the Vault?</value>
   </data>
   <data name="SetupVaultOffer_TheVaultIsAPrivate" xml:space="preserve">
-    <value>The Vault is a private place for libraries that only people you choose can open. It stays hidden until you turn it on.</value>
+    <value>A private, PIN-locked space for anything you want to hide, including adult content.</value>
   </data>
   <data name="SetupVaultOffer_EnterYourPIN" xml:space="preserve">
     <value>Enter your PIN</value>
@@ -6782,9 +6761,6 @@
   <data name="SetupVaultOffer_AddAFirstPrivateLibrary" xml:space="preserve">
     <value>Add a first private library now, or carry on. The Vault locks when setup finishes and stays out of the menu until you turn on Show Vault in the menu in Settings.</value>
   </data>
-  <data name="SetupVaultOffer_SetUpTheVault" xml:space="preserve">
-    <value>Set up the Vault</value>
-  </data>
   <data name="SetupVaultOffer_YourPIN" xml:space="preserve">
     <value>Your PIN</value>
   </data>
@@ -6804,7 +6780,7 @@
     <value>Skip anyway</value>
   </data>
   <data name="SetupWelcomeStage_WelcomeToYourLibrary" xml:space="preserve">
-    <value>Welcome to your library</value>
+    <value>Name your Library</value>
   </data>
   <data name="SetupWelcomeStage_ChooseYourLanguageThenGive" xml:space="preserve">
     <value>Choose your language, then give this server a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</value>
@@ -6844,9 +6820,6 @@
   </data>
   <data name="SetupWelcomeStage_RestoreAndRestart" xml:space="preserve">
     <value>Restore and restart</value>
-  </data>
-  <data name="SetupWelcomeStage_RestoreABackupInstead" xml:space="preserve">
-    <value>Restore a backup</value>
   </data>
   <data name="Common_DismissNotification" xml:space="preserve">
     <value>Dismiss notification</value>
@@ -8393,33 +8366,6 @@
   <data name="MediaGroupTile_Label" xml:space="preserve">
     <value>{0}, {1}</value>
   </data>
-  <data name="MediaGroupTile_NoArtwork" xml:space="preserve">
-    <value>No artwork available for {0}</value>
-  </data>
-  <data name="MediaGroupTile_SourceHandPicked" xml:space="preserve">
-    <value>Hand-picked</value>
-  </data>
-  <data name="MediaGroupTile_SourceRules" xml:space="preserve">
-    <value>Rules</value>
-  </data>
-  <data name="MediaGroupTile_SourceList" xml:space="preserve">
-    <value>From a list</value>
-  </data>
-  <data name="MediaGroupTile_SourceListRefreshed" xml:space="preserve">
-    <value>From a list, refreshed {0}</value>
-  </data>
-  <data name="MediaGroupTile_SourcePack" xml:space="preserve">
-    <value>Pack: {0}</value>
-  </data>
-  <data name="MediaGroupTile_SourceSetOne" xml:space="preserve">
-    <value>Set of 1 collection</value>
-  </data>
-  <data name="MediaGroupTile_SourceSetMany" xml:space="preserve">
-    <value>Set of {0} collections</value>
-  </data>
-  <data name="MediaGroupTile_UnmatchedBadge" xml:space="preserve">
-    <value>Couldn't match {0}</value>
-  </data>
   <data name="CollectionNotInLibrary_Heading" xml:space="preserve">
     <value>Not in your library ({0})</value>
   </data>
@@ -8498,17 +8444,11 @@
   <data name="PeopleCatalogList_LabelListenOne" xml:space="preserve">
     <value>title to listen to</value>
   </data>
-  <data name="ListStep_DropPrompt" xml:space="preserve">
-    <value>Drop your list here, or click to choose a file</value>
-  </data>
   <data name="ListStep_YouOwn" xml:space="preserve">
     <value>You own {0} of {1}</value>
   </data>
   <data name="ListStep_NoneOwned" xml:space="preserve">
     <value>None of these are in your library yet, so there is nothing to put in a collection.</value>
-  </data>
-  <data name="ListStep_OwnedCovers" xml:space="preserve">
-    <value>Some of the titles you own from this list</value>
   </data>
   <data name="ListStep_Shelves" xml:space="preserve">
     <value>Shelves</value>
@@ -8520,7 +8460,7 @@
     <value>How the list is followed</value>
   </data>
   <data name="ListStep_HowFollowedHeading" xml:space="preserve">
-    <value>How it is followed</value>
+    <value>Keep it in step</value>
   </data>
   <data name="ListStep_UnmatchedLabel" xml:space="preserve">
     <value>Titles that could not be matched</value>
@@ -8560,15 +8500,6 @@
   </data>
   <data name="ImportPanel_ChooseAFile" xml:space="preserve">
     <value>Choose a file to import</value>
-  </data>
-  <data name="ImportPanel_PasteLabel" xml:space="preserve">
-    <value>Or paste a link or a list</value>
-  </data>
-  <data name="ImportPanel_PastePlaceholder" xml:space="preserve">
-    <value>A TMDb, MDBList, Open Library, MusicBrainz or Trakt list address, or one title per line with the year in brackets: Heat (1995)</value>
-  </data>
-  <data name="ImportPanel_ReadText" xml:space="preserve">
-    <value>Read this text</value>
   </data>
   <data name="ImportPanel_OpenSettings" xml:space="preserve">
     <value>Open Settings</value>
@@ -8940,10 +8871,31 @@
     <value>Looks right</value>
   </data>
   <data name="SetupMetadata_NeedKeyGroup" xml:space="preserve">
-    <value>Needs a key to connect</value>
+    <value>Needs a key</value>
   </data>
   <data name="SetupMetadata_NoKeyGroup" xml:space="preserve">
-    <value>Works without a key</value>
+    <value>Ready, no key needed</value>
+  </data>
+  <data name="SetupMetadata_KeySaved" xml:space="preserve">
+    <value>Key saved</value>
+  </data>
+  <data name="SetupMetadata_NeedsKey" xml:space="preserve">
+    <value>Needs a key</value>
+  </data>
+  <data name="SetupMetadata_NoKeyNeeded" xml:space="preserve">
+    <value>No key needed</value>
+  </data>
+  <data name="SetupMetadata_ReviewKey" xml:space="preserve">
+    <value>Review key</value>
+  </data>
+  <data name="SetupMetadata_Connect" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="SetupMetadata_Improves" xml:space="preserve">
+    <value>Improves {0}.</value>
+  </data>
+  <data name="SetupMetadata_OptionalEnrichment" xml:space="preserve">
+    <value>Optional metadata enrichment.</value>
   </data>
   <data name="SetupReadinessStage_NoSourceWarning" xml:space="preserve">
     <value>Your {0} will wait to be identified until you connect a metadata source. You can do that any time in Settings, Plugins.</value>
@@ -9341,6 +9293,9 @@
   <data name="MediaTile_GoToSeries" xml:space="preserve">
     <value>Go to series</value>
   </data>
+  <data name="MediaTile_GoToFolder" xml:space="preserve">
+    <value>Go to folder</value>
+  </data>
   <data name="MediaTile_GoToTitle" xml:space="preserve">
     <value>Go to title</value>
   </data>
@@ -9358,6 +9313,9 @@
   </data>
   <data name="MediaTile_DeleteShow" xml:space="preserve">
     <value>Delete show…</value>
+  </data>
+  <data name="MediaTile_DeleteFolder" xml:space="preserve">
+    <value>Delete folder…</value>
   </data>
   <data name="MediaTile_AddedToMyList" xml:space="preserve">
     <value>Added to My List.</value>
@@ -9547,6 +9505,15 @@
   </data>
   <data name="EditorFooter_Discard" xml:space="preserve">
     <value>Discard</value>
+  </data>
+  <data name="EditorFooter_SaveChanges" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="EditorFooter_Saving" xml:space="preserve">
+    <value>Saving…</value>
+  </data>
+  <data name="EditorFooter_Delete" xml:space="preserve">
+    <value>Delete</value>
   </data>
   <data name="EditorQuickFacts_Title" xml:space="preserve">
     <value>Quick Facts</value>
@@ -10050,7 +10017,7 @@
     <value>The landing place for new files of any kind. Files are never changed until Library files them.</value>
   </data>
   <data name="LibraryEditDialog_Lead" xml:space="preserve">
-    <value>Rename it and choose which folders it uses. Nothing changes until you press Save changes.</value>
+    <value>The library's name is fixed. Folders below can have optional names so you can tell them apart.</value>
   </data>
   <data name="LibraryEditDialog_NameTooLong" xml:space="preserve">
     <value>Use {0} characters or fewer.</value>
@@ -10088,14 +10055,8 @@
   <data name="LibraryEditDialog_ChooseImport" xml:space="preserve">
     <value>Choose the Import folder</value>
   </data>
-  <data name="LibraryEditDialog_ChooseYourFolder" xml:space="preserve">
-    <value>Choose your {0} folder</value>
-  </data>
   <data name="LibraryEditDialog_HelpImport" xml:space="preserve">
     <value>Choose a folder on the Library server where new media will be dropped. It must be separate from your library folders.</value>
-  </data>
-  <data name="LibraryEditDialog_HelpMore" xml:space="preserve">
-    <value>Choose the folder on the Library server that holds more of {0}.</value>
   </data>
   <data name="LibraryEditDialog_ChooseFolder" xml:space="preserve">
     <value>Choose folder</value>
@@ -10145,8 +10106,47 @@
   <data name="Common_Change" xml:space="preserve">
     <value>Change</value>
   </data>
-  <data name="CreateLibrary_Added" xml:space="preserve">
-    <value>Added</value>
+  <data name="CreateLibrary_AddFolderInstead" xml:space="preserve">
+    <value>Add a folder to it instead</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_watch" xml:space="preserve">
+    <value>Movies, TV, videos</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_listen" xml:space="preserve">
+    <value>Music, audiobooks</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_read" xml:space="preserve">
+    <value>Books, comics</value>
+  </data>
+  <data name="CreateLibrary_AreaLine_view" xml:space="preserve">
+    <value>Photos, videos, documents</value>
+  </data>
+  <data name="FolderStep_Where" xml:space="preserve">
+    <value>Where is it?</value>
+  </data>
+  <data name="FolderStep_WhereKind" xml:space="preserve">
+    <value>Where is it? · {0}</value>
+  </data>
+  <data name="FolderStep_ScanLine" xml:space="preserve">
+    <value>Library scans this folder and its subfolders.</value>
+  </data>
+  <data name="FolderStep_ScanLineManaged" xml:space="preserve">
+    <value>Library scans this folder and its subfolders, and keeps it organized.</value>
+  </data>
+  <data name="FolderStep_Lead" xml:space="preserve">
+    <value>Pick the folder on the Library server that holds your {0}. Give it a friendly name if you like.</value>
+  </data>
+  <data name="ServerFolderPicker_FriendlyNameHint" xml:space="preserve">
+    <value>Names this folder, not the library.</value>
+  </data>
+  <data name="LibraryEditDialog_ColFolderName" xml:space="preserve">
+    <value>Folder name</value>
+  </data>
+  <data name="LibraryEditDialog_ColPath" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="LibraryEditDialog_ColHandling" xml:space="preserve">
+    <value>How Library uses it</value>
   </data>
   <data name="LibraryEditDialog_FriendlyName" xml:space="preserve">
     <value>Friendly name</value>
@@ -10294,6 +10294,21 @@
   </data>
   <data name="LibraryActivity_Updating" xml:space="preserve">
     <value>Updating your library</value>
+  </data>
+  <data name="LibraryActivity_AllTypes" xml:space="preserve">
+    <value>All types</value>
+  </data>
+  <data name="LibraryActivity_Custom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="LibraryActivity_FilesWaiting" xml:space="preserve">
+    <value>{0} files are waiting</value>
+  </data>
+  <data name="LibraryActivity_OneFileWaiting" xml:space="preserve">
+    <value>1 file is waiting</value>
+  </data>
+  <data name="LibraryActivity_SomeFilesWaiting" xml:space="preserve">
+    <value>Some files are waiting</value>
   </data>
   <data name="LibraryActivity_WhenAdded" xml:space="preserve">
     <value>When {0} was added</value>
@@ -12573,7 +12588,7 @@
     <value>Reader tools</value>
   </data>
   <data name="PageReader_ReadingSettings" xml:space="preserve">
-    <value>Reading settings</value>
+    <value>Settings</value>
   </data>
   <data name="PageReader_Close" xml:space="preserve">
     <value>Close</value>
@@ -12598,9 +12613,6 @@
   </data>
   <data name="PageReader_Background" xml:space="preserve">
     <value>Background</value>
-  </data>
-  <data name="PageReader_RememberedOnProfile" xml:space="preserve">
-    <value>These choices are saved to your profile.</value>
   </data>
   <data name="PageReader_Search" xml:space="preserve">
     <value>Search</value>
@@ -12698,6 +12710,9 @@
   <data name="PageReader_PageOf" xml:space="preserve">
     <value>Page {0} of {1}</value>
   </data>
+  <data name="PageReader_PageOfShort" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
   <data name="PageReader_PagesOf" xml:space="preserve">
     <value>Pages {0}–{1} of {2}</value>
   </data>
@@ -12724,9 +12739,6 @@
   </data>
   <data name="PageReader_FitWidth" xml:space="preserve">
     <value>Width</value>
-  </data>
-  <data name="PageReader_DirectionAuto" xml:space="preserve">
-    <value>Automatic</value>
   </data>
   <data name="PageReader_DirectionLtr" xml:space="preserve">
     <value>Left to right</value>
@@ -12794,6 +12806,42 @@
   <data name="ViewUploadsNotice_AddManaged" xml:space="preserve">
     <value>Add a Managed folder</value>
   </data>
+  <data name="AddViewFolderDialog_Heading" xml:space="preserve">
+    <value>Add a folder</value>
+  </data>
+  <data name="AddViewFolderDialog_Subtitle" xml:space="preserve">
+    <value>Choose the folder that holds your {0}</value>
+  </data>
+  <data name="AddViewFolderDialog_ReadOnlySafety" xml:space="preserve">
+    <value>Your files are never deleted or changed in a read-only folder.</value>
+  </data>
+  <data name="ViewFolderRules_UploadsNeedManagedLine" xml:space="preserve">
+    <value>You can't upload {0} until you add a Managed folder.</value>
+  </data>
+  <data name="ViewFolderRules_UploadsNeedManagedTooltip" xml:space="preserve">
+    <value>Uploads need a Managed folder</value>
+  </data>
+  <data name="ViewUploadsNotice_Line" xml:space="preserve">
+    <value>Uploads and phone backups need a Managed folder. Your Read-only folders are never changed.</value>
+  </data>
+  <data name="ViewUploadsNotice_DropZoneOff" xml:space="preserve">
+    <value>Drop {0} here</value>
+  </data>
+  <data name="ViewUploadsNotice_CouldNotOpen" xml:space="preserve">
+    <value>Library couldn't open Add folder. Try again.</value>
+  </data>
+  <data name="ViewFolderFilter_Button" xml:space="preserve">
+    <value>Folders: {0}</value>
+  </data>
+  <data name="ViewFoldersTab_DetachFolderKeepFiles" xml:space="preserve">
+    <value>Detach folder; keep files</value>
+  </data>
+  <data name="ViewFoldersTab_TimelineAdded" xml:space="preserve">
+    <value>Folder added to Photos timeline.</value>
+  </data>
+  <data name="ViewFoldersTab_TimelineKeptOut" xml:space="preserve">
+    <value>Folder kept out of the Photos timeline.</value>
+  </data>
   <data name="ViewFoldersTab_FolderNameOptional" xml:space="preserve">
     <value>Folder name (optional)</value>
   </data>
@@ -12823,5 +12871,470 @@
   </data>
   <data name="LibraryScanCard_ViewActivity" xml:space="preserve">
     <value>View activity</value>
+  </data>
+  <data name="SetupVaultOffer_ForTitle" xml:space="preserve">
+    <value>What the Vault is for</value>
+  </data>
+  <data name="SetupVaultOffer_ForText" xml:space="preserve">
+    <value>Put anything in the Vault that you want to keep hidden: private videos, pictures and more. Adult content is enabled here and only here. Nothing adult appears anywhere else in Library, and it is off until you turn it on.</value>
+  </data>
+  <data name="SetupVaultOffer_UnlocksTitle" xml:space="preserve">
+    <value>What turning it on unlocks</value>
+  </data>
+  <data name="SetupVaultOffer_Unlocks1" xml:space="preserve">
+    <value>Vault becomes a choice when you add a library, for videos and pictures you want hidden, adult content included.</value>
+  </data>
+  <data name="SetupVaultOffer_Unlocks2" xml:space="preserve">
+    <value>Everything in the Vault is locked behind its own PIN.</value>
+  </data>
+  <data name="SetupVaultOffer_Unlocks3" xml:space="preserve">
+    <value>It stays hidden from kids profiles, and from other profiles unless they have the PIN.</value>
+  </data>
+  <data name="SetupVaultOffer_LaterInSettings" xml:space="preserve">
+    <value>You can turn it on later in Settings.</value>
+  </data>
+  <data name="SetupStepper_Optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <data name="SetupToolsStage_LocalAIName" xml:space="preserve">
+    <value>Local AI</value>
+  </data>
+  <data name="SetupToolsStage_LocalAIDetail" xml:space="preserve">
+    <value>Set up later in Settings, Local AI</value>
+  </data>
+  <data name="SetupToolsStage_LocalAILater" xml:space="preserve">
+    <value>Later</value>
+  </data>
+  <data name="SetupMetadataStage_CouldNotLoadTitle" xml:space="preserve">
+    <value>Could not load the sources</value>
+  </data>
+  <data name="SetupMetadataStage_CouldNotLoadMessage" xml:space="preserve">
+    <value>Library could not get the list of metadata sources. Check that the Engine is running, then try again.</value>
+  </data>
+  <data name="SetupLibrariesStage_LoadingLibraries" xml:space="preserve">
+    <value>Loading your libraries</value>
+  </data>
+  <data name="SetupReadinessStage_AllSet" xml:space="preserve">
+    <value>All set</value>
+  </data>
+  <data name="SetupReadinessStage_HereIsHowSetupWent" xml:space="preserve">
+    <value>Here is how setup went.</value>
+  </data>
+  <data name="CollectionFlow_StepHowItFills" xml:space="preserve">
+    <value>How it fills up</value>
+  </data>
+  <data name="CollectionFlow_WayPickTitles" xml:space="preserve">
+    <value>Pick titles</value>
+  </data>
+  <data name="CollectionFlow_WaySetRules" xml:space="preserve">
+    <value>Set rules</value>
+  </data>
+  <data name="CollectionFlow_WayFromList" xml:space="preserve">
+    <value>From a list</value>
+  </data>
+  <data name="CollectionFlow_StepPickPack" xml:space="preserve">
+    <value>Pick a pack</value>
+  </data>
+  <data name="CollectionFlow_StepNameAndShow" xml:space="preserve">
+    <value>Name and show it</value>
+  </data>
+  <data name="CollectionFlow_WayPickTitlesText" xml:space="preserve">
+    <value>Search your library and add titles yourself. Drag to order.</value>
+  </data>
+  <data name="CollectionFlow_WaySetRulesText" xml:space="preserve">
+    <value>Library keeps it up to date from rules you set, like “directed by” or “unwatched”.</value>
+  </data>
+  <data name="CollectionFlow_WayFromListText" xml:space="preserve">
+    <value>Paste a link or drop a file from IMDb, Letterboxd, Goodreads, Trakt or MDBList. Keep it in sync.</value>
+  </data>
+  <data name="CollectionFlow_WayPack" xml:space="preserve">
+    <value>Start from a pack</value>
+  </data>
+  <data name="CollectionFlow_WayPackText" xml:space="preserve">
+    <value>Ready-made sets built from your own library: Decades, Award winners, Based on a book you own.</value>
+  </data>
+  <data name="CollectionFlow_HowShouldItFill" xml:space="preserve">
+    <value>How should it fill up?</value>
+  </data>
+  <data name="CollectionFlow_ComingSoon" xml:space="preserve">
+    <value>Coming soon</value>
+  </data>
+  <data name="CollectionFlow_NewCollectionsOnly" xml:space="preserve">
+    <value>New collections only</value>
+  </data>
+  <data name="CollectionFlow_WhatGoesIn" xml:space="preserve">
+    <value>What goes in</value>
+  </data>
+  <data name="CollectionFlow_Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="CollectionFlow_NoPreviewYet" xml:space="preserve">
+    <value>No preview yet</value>
+  </data>
+  <data name="CollectionFlow_NoPreviewHelp" xml:space="preserve">
+    <value>Add a rule or tick a media type to see what matches in your library.</value>
+  </data>
+  <data name="CollectionFlow_NothingMatchesYet" xml:space="preserve">
+    <value>Nothing matches yet</value>
+  </data>
+  <data name="CollectionFlow_LoosenARule" xml:space="preserve">
+    <value>Loosen a rule to bring titles in.</value>
+  </data>
+  <data name="CollectionFlow_LoosenTheStrictest" xml:space="preserve">
+    <value>“{0}” leaves the fewest titles on its own. Loosen it to bring some in.</value>
+  </data>
+  <data name="CollectionFlow_YouCanStillSave" xml:space="preserve">
+    <value>You can still save. The collection fills up as matching titles arrive.</value>
+  </data>
+  <data name="CollectionFlow_OneTitle" xml:space="preserve">
+    <value>1 title</value>
+  </data>
+  <data name="CollectionFlow_ManyTitles" xml:space="preserve">
+    <value>{0} titles</value>
+  </data>
+  <data name="CollectionFlow_MatchNow" xml:space="preserve">
+    <value>match now. Updates as you type.</value>
+  </data>
+  <data name="CollectionFlow_MatchNowCountedFor" xml:space="preserve">
+    <value>match now, counted for {0}. Updates as you type.</value>
+  </data>
+  <data name="CollectionFlow_ShowingFirst" xml:space="preserve">
+    <value>Showing the first {0} of {1}.</value>
+  </data>
+  <data name="CollectionFlow_EachProfileOwnSet" xml:space="preserve">
+    <value>Each profile sees its own set in this collection.</value>
+  </data>
+  <data name="CollectionFlow_ManyShelvesNote" xml:space="preserve">
+    <value>{0} collections will be made, one for each shelf you ticked. Each is named after this name and its shelf, for example “{1}: {2}”.</value>
+  </data>
+  <data name="CollectionFlow_ShelfExampleName" xml:space="preserve">
+    <value>Reading</value>
+  </data>
+  <data name="CollectionFlow_WhatWillBeCreated" xml:space="preserve">
+    <value>What will be created</value>
+  </data>
+  <data name="CollectionFlow_WhatWillBeCreatedHelp" xml:space="preserve">
+    <value>Each pack keeps its own names. A pack with several collections is created as a set you can remove in one go.</value>
+  </data>
+  <data name="CollectionFlow_OneCollection" xml:space="preserve">
+    <value>1 collection</value>
+  </data>
+  <data name="CollectionFlow_ManyCollections" xml:space="preserve">
+    <value>{0} collections</value>
+  </data>
+  <data name="CollectionFlow_ShowOn" xml:space="preserve">
+    <value>Show on</value>
+  </data>
+  <data name="CollectionFlow_ShowOnPackHelp" xml:space="preserve">
+    <value>Show these collections as rows on these pages. They are always on the Collections page.</value>
+  </data>
+  <data name="CollectionFlow_ShowOnHelp" xml:space="preserve">
+    <value>Show this collection as a row on these pages. It is always on the Collections page.</value>
+  </data>
+  <data name="CollectionFlow_Artwork" xml:space="preserve">
+    <value>Artwork</value>
+  </data>
+  <data name="CollectionFlow_ArtworkHelp" xml:space="preserve">
+    <value>An automatic stack of covers by default. Upload your own here, or change it from the collection later.</value>
+  </data>
+  <data name="CollectionFlow_SelectedArtwork" xml:space="preserve">
+    <value>Selected artwork</value>
+  </data>
+  <data name="CollectionFlow_AutomaticStack" xml:space="preserve">
+    <value>Automatic stacked collection artwork</value>
+  </data>
+  <data name="CollectionFlow_CoversStackUp" xml:space="preserve">
+    <value>Covers of the titles inside stack up here once there are some.</value>
+  </data>
+  <data name="CollectionFlow_UploadYourOwn" xml:space="preserve">
+    <value>Upload your own</value>
+  </data>
+  <data name="CollectionFlow_ArtworkLimits" xml:space="preserve">
+    <value>JPG or PNG, up to 5 MB.</value>
+  </data>
+  <data name="CollectionFlow_BasicInformation" xml:space="preserve">
+    <value>Basic information</value>
+  </data>
+  <data name="CollectionFlow_BasicInformationHelp" xml:space="preserve">
+    <value>The name and description shown throughout Library.</value>
+  </data>
+  <data name="CollectionFlow_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="CollectionFlow_NamePlaceholder" xml:space="preserve">
+    <value>Name this collection</value>
+  </data>
+  <data name="CollectionFlow_Description" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="CollectionFlow_DescriptionPlaceholder" xml:space="preserve">
+    <value>Describe what belongs here</value>
+  </data>
+  <data name="CollectionFlow_WhoCanSee" xml:space="preserve">
+    <value>Who can see it</value>
+  </data>
+  <data name="CollectionFlow_StaysYours" xml:space="preserve">
+    <value>What you make stays yours.</value>
+  </data>
+  <data name="CollectionFlow_OnlyYou" xml:space="preserve">
+    <value>Only you can see this collection.</value>
+  </data>
+  <data name="CollectionFlow_OwnershipHelp" xml:space="preserve">
+    <value>Keep this personal or publish it for the library.</value>
+  </data>
+  <data name="CollectionFlow_Owner" xml:space="preserve">
+    <value>Owner</value>
+  </data>
+  <data name="CollectionFlow_OwnerProfile" xml:space="preserve">
+    <value>My profile</value>
+  </data>
+  <data name="CollectionFlow_OwnerLibrary" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="CollectionFlow_WhoCanSeeThis" xml:space="preserve">
+    <value>Who can see this?</value>
+  </data>
+  <data name="CollectionFlow_OnlyMe" xml:space="preserve">
+    <value>Only me</value>
+  </data>
+  <data name="CollectionFlow_SelectedProfiles" xml:space="preserve">
+    <value>Selected profiles</value>
+  </data>
+  <data name="CollectionFlow_ProfilesWhoCanSee" xml:space="preserve">
+    <value>Profiles who can see this collection</value>
+  </data>
+  <data name="CollectionFlow_NoOtherProfiles" xml:space="preserve">
+    <value>No other enabled profiles are available.</value>
+  </data>
+  <data name="CollectionFlow_LibraryOwnedForEveryone" xml:space="preserve">
+    <value>Library-owned collections are available to everyone.</value>
+  </data>
+  <data name="CollectionFlow_More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="CollectionFlow_MoreHelp" xml:space="preserve">
+    <value>How many items show, in what order, and when this collection is shown.</value>
+  </data>
+  <data name="CollectionFlow_MinimumItems" xml:space="preserve">
+    <value>Minimum items</value>
+  </data>
+  <data name="CollectionFlow_MinimumItemsHelp" xml:space="preserve">
+    <value>Skipped on lanes and the Collections page until it has this many items. 0 uses the default (3 on a lane).</value>
+  </data>
+  <data name="CollectionFlow_AtMostHelp" xml:space="preserve">
+    <value>Show no more than this many items. 0 shows them all.</value>
+  </data>
+  <data name="CollectionFlow_OrderRandom" xml:space="preserve">
+    <value>Random (a new pick each day)</value>
+  </data>
+  <data name="CollectionFlow_OrderSet" xml:space="preserve">
+    <value>In the order set by this collection</value>
+  </data>
+  <data name="CollectionFlow_Seasonal" xml:space="preserve">
+    <value>Show only between two dates each year</value>
+  </data>
+  <data name="CollectionFlow_FromDay" xml:space="preserve">
+    <value>From day</value>
+  </data>
+  <data name="CollectionFlow_ToDay" xml:space="preserve">
+    <value>To day</value>
+  </data>
+  <data name="CollectionFlow_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="CollectionFlow_Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="CollectionFlow_ShowAll" xml:space="preserve">
+    <value>Show all {0}</value>
+  </data>
+  <data name="CollectionFlow_ShowFewer" xml:space="preserve">
+    <value>Show fewer</value>
+  </data>
+  <data name="CollectionFlow_CompleteCompanion" xml:space="preserve">
+    <value>Complete the companion source before saving.</value>
+  </data>
+  <data name="CollectionFlow_SaveFailed" xml:space="preserve">
+    <value>Failed to save collection.</value>
+  </data>
+  <data name="CollectionFlow_SaveFailedWithReason" xml:space="preserve">
+    <value>Failed to save collection: {0}</value>
+  </data>
+  <data name="CollectionFlow_PersonalMediaNotSaved" xml:space="preserve">
+    <value>The Collection was saved, but its personal-media sources could not be saved. Try again.</value>
+  </data>
+  <data name="CollectionFlow_ArtworkNotUploaded" xml:space="preserve">
+    <value>The collection was saved, but its {0} artwork could not be uploaded. Save changes tries again.</value>
+  </data>
+  <data name="CollectionFlow_ListReadAgainFailed" xml:space="preserve">
+    <value>The list could not be read again. Try again.</value>
+  </data>
+  <data name="CollectionFlow_ListNotAttached" xml:space="preserve">
+    <value>The list could not be attached, so the collection was not created.</value>
+  </data>
+  <data name="CollectionFlow_NothingOwnedOnShelves" xml:space="preserve">
+    <value>Nothing from {0} is in your library, so no collection was made for it.</value>
+  </data>
+  <data name="CollectionFlow_SaveSummaryHeadline" xml:space="preserve">
+    <value>{0} made; {1} not:</value>
+  </data>
+  <data name="CollectionFlow_SaveSummaryHeadlineArtwork" xml:space="preserve">
+    <value>{0} made, but something needs a look:</value>
+  </data>
+  <data name="CollectionFlow_SaveSummaryArtwork" xml:space="preserve">
+    <value>{0}: the {1} artwork could not be uploaded.</value>
+  </data>
+  <data name="CollectionSaved_One" xml:space="preserve">
+    <value>Collection saved.</value>
+  </data>
+  <data name="ViewFoldersTab_ModeManaged" xml:space="preserve">
+    <value>New Managed folder</value>
+  </data>
+  <data name="ViewFoldersTab_ModeLinked" xml:space="preserve">
+    <value>Existing folder (Read-only)</value>
+  </data>
+  <data name="CollectionSaved_Many" xml:space="preserve">
+    <value>{0} collections saved.</value>
+  </data>
+  <data name="CollectionFlow_PacksNotCreated" xml:space="preserve">
+    <value>The packs could not be created.</value>
+  </data>
+  <data name="CollectionFlow_NothingNewCreated" xml:space="preserve">
+    <value>Nothing new was created.</value>
+  </data>
+  <data name="ListStep_Entries" xml:space="preserve">
+    <value>{0} entries</value>
+  </data>
+  <data name="ListStep_FigureOwn" xml:space="preserve">
+    <value>you own</value>
+  </data>
+  <data name="ListStep_FigureNotInLibrary" xml:space="preserve">
+    <value>not in your library</value>
+  </data>
+  <data name="ListStep_FigureCouldntMatch" xml:space="preserve">
+    <value>couldn't match</value>
+  </data>
+  <data name="ListStep_ShelfOneTitle" xml:space="preserve">
+    <value>1 title, you own {0}</value>
+  </data>
+  <data name="ListStep_ShelfManyTitles" xml:space="preserve">
+    <value>{0} titles, you own {1}</value>
+  </data>
+  <data name="ListStep_CouldntMatchHeading" xml:space="preserve">
+    <value>Couldn't match · pick the right title or ignore</value>
+  </data>
+  <data name="ListStep_PreviewLabel" xml:space="preserve">
+    <value>Preview of the list</value>
+  </data>
+  <data name="ListStep_OwnedOfTotal" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="ListStep_InLibraryInOrder" xml:space="preserve">
+    <value>in your library, in list order</value>
+  </data>
+  <data name="ListStep_InLibrary" xml:space="preserve">
+    <value>in your library</value>
+  </data>
+  <data name="ListStep_NotOwnedTile" xml:space="preserve">
+    <value>{0}, not in your library</value>
+  </data>
+  <data name="ListStep_GreyedTiles" xml:space="preserve">
+    <value>Greyed tiles stand for titles you don't own.</value>
+  </data>
+  <data name="ImportPanel_FieldPrompt" xml:space="preserve">
+    <value>Drop a file or paste a link</value>
+  </data>
+  <data name="ImportPanel_DropPrompt" xml:space="preserve">
+    <value>Drop a file here, or click to choose one</value>
+  </data>
+  <data name="ImportPanel_ListFieldHelp" xml:space="preserve">
+    <value>Drop a file or paste a link. Files: IMDb, Letterboxd, Trakt, Goodreads and StoryGraph exports, any CSV, or one title per line. Links: TMDb lists, MDBList, Open Library lists, MusicBrainz collections.</value>
+  </data>
+  <data name="ImportPanel_TakesList" xml:space="preserve">
+    <value>a list from IMDb, Letterboxd, Trakt, Goodreads or StoryGraph, a text file with one title per line, or a list address from TMDb, MDBList, Open Library, MusicBrainz or Trakt</value>
+  </data>
+  <data name="ImportPanel_TakesPack" xml:space="preserve">
+    <value>a collection pack</value>
+  </data>
+  <data name="ImportPanel_TakesBookmarkPack" xml:space="preserve">
+    <value>a bookmark pack</value>
+  </data>
+  <data name="ImportPanel_TakesPluginSettings" xml:space="preserve">
+    <value>a plugin settings file</value>
+  </data>
+  <data name="ImportPanel_Takes" xml:space="preserve">
+    <value>Takes {0}.</value>
+  </data>
+  <data name="ImportPanel_FileTooLarge" xml:space="preserve">
+    <value>That file is larger than {0} MB, so it cannot be a list or a pack.</value>
+  </data>
+  <data name="ImportPanel_CouldNotRead" xml:space="preserve">
+    <value>Library could not read this file. Check the Engine is running and try again.</value>
+  </data>
+  <data name="ImportPanel_NotRecognized" xml:space="preserve">
+    <value>Library could not tell what this file is.</value>
+  </data>
+  <data name="ImportPanel_CouldNotAdd" xml:space="preserve">
+    <value>That could not be added.</value>
+  </data>
+  <data name="CollectionRuleBuilder_HowMany" xml:space="preserve">
+    <value>How many</value>
+  </data>
+  <data name="CollectionRuleBuilder_ShowAll" xml:space="preserve">
+    <value>Show all</value>
+  </data>
+  <data name="CollectionRuleBuilder_ShowFirst" xml:space="preserve">
+    <value>Show first {0}</value>
+  </data>
+  <data name="CollectionRuleBuilder_StaysAdvanced" xml:space="preserve">
+    <value>This collection uses several rule groups. Remove the extra groups to go back to the plain layout.</value>
+  </data>
+  <data name="ListSection_SettingsNotSaved" xml:space="preserve">
+    <value>The list settings could not be saved.</value>
+  </data>
+  <data name="ListSection_NotChecked" xml:space="preserve">
+    <value>The list could not be checked.</value>
+  </data>
+  <data name="ListSection_Checked" xml:space="preserve">
+    <value>Checked the list: you own {0}, {1} still unmatched.</value>
+  </data>
+  <data name="ListSection_NewerFileNotUsed" xml:space="preserve">
+    <value>The newer file could not be used.</value>
+  </data>
+  <data name="ListSection_Updated" xml:space="preserve">
+    <value>Updated from the newer file: {0} added, {1} left the list.</value>
+  </data>
+  <data name="ListSection_FixNotSaved" xml:space="preserve">
+    <value>That could not be saved.</value>
+  </data>
+  <data name="ListSection_LastChecked" xml:space="preserve">
+    <value>Last checked {0}.</value>
+  </data>
+  <data name="ListSection_NotCheckedYet" xml:space="preserve">
+    <value>Not checked yet.</value>
+  </data>
+  <data name="CollectionFlow_EmptyCuratedNew" xml:space="preserve">
+    <value>A collection needs at least one item. Add something to save it.</value>
+  </data>
+  <data name="CollectionFlow_EmptyCuratedExisting" xml:space="preserve">
+    <value>A collection needs at least one item. Delete the collection instead.</value>
+  </data>
+  <data name="CollectionFlow_PackTickedOne" xml:space="preserve">
+    <value>1 pack ticked</value>
+  </data>
+  <data name="CollectionFlow_PackTickedMany" xml:space="preserve">
+    <value>{0} packs ticked</value>
+  </data>
+  <data name="CollectionFlow_UpToOneCollection" xml:space="preserve">
+    <value>up to 1 collection</value>
+  </data>
+  <data name="CollectionFlow_UpToManyCollections" xml:space="preserve">
+    <value>up to {0} collections</value>
+  </data>
+  <data name="CollectionFlow_TickPackToContinue" xml:space="preserve">
+    <value>Tick a pack to continue.</value>
+  </data>
+  <data name="CollectionFlow_ItemsStaged" xml:space="preserve">
+    <value>{0} item(s) staged for this collection.</value>
   </data>
 </root>

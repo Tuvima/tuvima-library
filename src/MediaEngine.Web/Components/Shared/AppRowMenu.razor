@@ -14,7 +14,7 @@
             aria-haspopup="dialog"
             aria-expanded="@(_open ? "true" : "false")"
             @onclick="OpenAsync">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreVert" />
+        <AppMaterialIcon Icon="@(Icon ?? AppMaterialIcons.Outlined.MoreVert)" Size="@(Plain ? AppIconSize.Control20 : AppIconSize.Row24)" />
     </button>
     @if (_open)
     {
@@ -68,13 +68,19 @@ else
     /// <summary>Extra <see cref="AppMenuItem"/> content rendered after <see cref="Items"/>.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    /// <summary>The phone button's icon; the vertical "more" dots when not set.</summary>
+    [Parameter] public string? Icon { get; set; }
+    /// <summary>True draws the phone button with no box of its own, so the caller's Class gives it the look of its own icon buttons (the page reader's bar). Phone only.</summary>
+    [Parameter] public bool Plain { get; set; }
 
     // Only rendered inside the DeviceContext.IsPhone branch, so Sheet = Phone always matches the frame's own check.
     private static readonly AppDialogOptions NoTitleSheet = new() { Sheet = AppDialogSheetMode.Phone, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
     private static readonly AppDialogOptions TitledSheet = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
     private AppDialogOptions SheetOptions => string.IsNullOrWhiteSpace(Title) ? NoTitleSheet : TitledSheet;
     private string TriggerClass => "app-row-menu__trigger";
-    private string PhoneTriggerClass => $"app-overflow-menu__trigger app-overflow-menu__trigger--icon app-row-menu__trigger {Class}".Trim();
+    private string PhoneTriggerClass => Plain
+        ? $"app-row-menu__trigger {Class}".Trim()
+        : $"app-overflow-menu__trigger app-overflow-menu__trigger--icon app-row-menu__trigger {Class}".Trim();
 
     protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
     public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;

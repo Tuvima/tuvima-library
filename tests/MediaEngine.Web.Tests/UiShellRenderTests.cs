@@ -1103,8 +1103,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.NotEmpty(cut.FindAll(".collections-overview"));
             Assert.Empty(cut.FindAll(".cinematic-hero-carousel"));
             Assert.NotEmpty(cut.FindAll(".surface-tab-bar"));
-            Assert.NotEmpty(cut.FindAll(".media-group-tile"));
-            Assert.Empty(cut.FindAll(".media-tile"));
+            Assert.NotEmpty(cut.FindAll(".media-tile.is-group"));
             Assert.Empty(cut.FindAll(".collections-hub__tabs"));
             Assert.Empty(cut.FindAll(".collections-hub-tab"));
             Assert.Empty(cut.FindAll(".collection-hub-section"));
@@ -1186,7 +1185,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains(">Role<", cut.Markup);
             Assert.Contains(">Lane<", cut.Markup);
             Assert.Empty(cut.FindAll(".media-tile"));
-            Assert.Empty(cut.FindAll(".media-group-tile"));
         });
     }
 

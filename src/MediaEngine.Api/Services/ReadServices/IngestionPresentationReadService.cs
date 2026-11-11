@@ -52,9 +52,17 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var currentPage = await LoadCurrentGroupPageAsync(PagedRequest.From(0, currentLimit, currentLimit, 20), ct, eligibleOnly: true).ConfigureAwait(false);
         var current = currentPage.Items;
         var queue = _queue?.Current;
-        var currentFacts = await ReadCurrentGroupFactsAsync(queue?.StartedAt, ct).ConfigureAwait(false);
+        var currentFactsByType = await ReadCurrentGroupFactsAsync(queue?.StartedAt, ct).ConfigureAwait(false);
+        var currentFacts = new CurrentGroupFacts
+        {
+            TotalGroups = currentFactsByType.Sum(row => row.TotalGroups),
+            ReadyGroups = currentFactsByType.Sum(row => row.ReadyGroups),
+            FinishingGroups = currentFactsByType.Sum(row => row.FinishingGroups),
+            ReviewGroups = currentFactsByType.Sum(row => row.ReviewGroups),
+        };
         var recentDays = await LoadRecentDaysAsync(recentDayLimit, recentItemsPerDay, ct).ConfigureAwait(false);
         var operationFacts = await ReadCurrentOperationFactsAsync(ct).ConfigureAwait(false);
+        var operationFactsByType = await ReadCurrentOperationFactsByTypeAsync(ct).ConfigureAwait(false);
         var reviewCount = await ReadPendingReviewCountAsync(ct).ConfigureAwait(false);
 
         var attention = new List<IngestionAttentionItemDto>();
@@ -122,6 +130,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ActiveOperations = operationFacts.Active,
             QueuedOperations = operationFacts.Queued,
             RetryWaitingOperations = operationFacts.RetryWaiting,
+            ByType = BuildByType(currentFactsByType, operationFactsByType),
             StartedAt = queue?.StartedAt,
             LastActivityAt = queue?.LastActivityAt ?? recentDays.FirstOrDefault()?.Items.FirstOrDefault()?.AddedAt,
             CurrentMedia = current.ToList(),
@@ -131,6 +140,45 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             PersonalMediaInProgress = ReadPersonalMediaInProgress(),
             GeneratedAt = DateTimeOffset.UtcNow,
         };
+    }
+
+    // The same numbers split by media type (named as the queue names them), so the Activity page can add up only the areas chosen.
+    private static List<IngestionPresentationTypeDto> BuildByType(
+        IReadOnlyList<CurrentGroupFacts> groups,
+        IReadOnlyList<CurrentOperationTypeFacts> operations)
+    {
+        var byType = new Dictionary<string, IngestionPresentationTypeDto>(StringComparer.Ordinal);
+        IngestionPresentationTypeDto Of(string? rawType)
+        {
+            var type = NormalizeMediaType(rawType);
+            if (!byType.TryGetValue(type, out var entry))
+            {
+                entry = new IngestionPresentationTypeDto { MediaType = type };
+                byType[type] = entry;
+            }
+
+            return entry;
+        }
+
+        foreach (var row in groups)
+        {
+            var entry = Of(row.MediaType);
+            entry.ReadyGroups += row.ReadyGroups;
+            entry.ReviewGroups += row.ReviewGroups;
+        }
+
+        foreach (var row in operations)
+        {
+            var entry = Of(row.MediaType);
+            entry.ActiveOperations += row.Active;
+            entry.QueuedOperations += row.Queued;
+        }
+
+        return byType.Values
+            .Where(entry => entry.MediaType != "Unknown")
+            .Where(entry => entry.ReadyGroups + entry.ReviewGroups + entry.ActiveOperations + entry.QueuedOperations > 0)
+            .OrderBy(entry => entry.MediaType, StringComparer.Ordinal)
+            .ToList();
     }
 
     private IngestionPersonalMediaProgressDto ReadPersonalMediaInProgress()
@@ -1162,20 +1210,23 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     // Counts the groups of the live set: those still in flight, plus (while the Engine has an active period) those that
     // became Ready since it began, so the numbers say how the current run is going without any run record.
-    private async Task<CurrentGroupFacts> ReadCurrentGroupFactsAsync(DateTimeOffset? periodStart, CancellationToken ct)
+    // One row per media type; the snapshot's totals are their sums.
+    private async Task<IReadOnlyList<CurrentGroupFacts>> ReadCurrentGroupFactsAsync(DateTimeOffset? periodStart, CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
-        return await conn.QuerySingleAsync<CurrentGroupFacts>(new CommandDefinition($"""
+        return (await conn.QueryAsync<CurrentGroupFacts>(new CommandDefinition($"""
             WITH {LiveScopeCtes(withRanking: false)}
-            SELECT COUNT(*) AS TotalGroups,
+            SELECT MediaType,
+                   COUNT(*) AS TotalGroups,
                    COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 0 THEN 1 END) AS ReadyGroups,
                    COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 1 THEN 1 END) AS FinishingGroups,
                    COUNT(CASE WHEN AnyReview = 1 THEN 1 END) AS ReviewGroups
-            FROM grouped;
+            FROM grouped
+            GROUP BY MediaType;
             """, new
         {
             periodStart = periodStart?.ToUniversalTime().ToString("O"),
-        }, cancellationToken: ct)).ConfigureAwait(false);
+        }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
     }
 
     private async Task<HistoryAggregateFacts> ReadHistoryAggregateFactsAsync(
@@ -1235,6 +1286,41 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             FROM media_operations
             WHERE {VaultSql.NotVaultEntity("media_operations.entity_id")};
             """, new { staleBefore = DateTimeOffset.UtcNow.Subtract(StaleQueuedAfter).ToString("O") }, cancellationToken: ct)).ConfigureAwait(false);
+    }
+
+    // Active and queued work per media type: an operation takes the type of the Work (or of the file's Work) it points at, an identity
+    // job its own type. An operation that points at nothing yet has no type and belongs to no area.
+    // Finished rows are filtered inside each inner SELECT so they never reach the type lookup or the union.
+    private async Task<IReadOnlyList<CurrentOperationTypeFacts>> ReadCurrentOperationFactsByTypeAsync(CancellationToken ct)
+    {
+        using var conn = _db.CreateConnection();
+        return (await conn.QueryAsync<CurrentOperationTypeFacts>(new CommandDefinition($"""
+            SELECT MediaType,
+                   COUNT(CASE WHEN IsActive = 1 THEN 1 END) AS Active,
+                   COUNT(CASE WHEN IsQueued = 1 THEN 1 END) AS Queued
+            FROM (
+                SELECT COALESCE((SELECT w.media_type FROM works w WHERE w.id = media_operations.entity_id),
+                                (SELECT w.media_type FROM media_assets ma
+                                   JOIN editions e ON e.id = ma.edition_id
+                                   JOIN works w ON w.id = e.work_id
+                                  WHERE ma.id = media_operations.entity_id)) AS MediaType,
+                       CASE WHEN status IN ('leased','running','processing','active') THEN 1 ELSE 0 END AS IsActive,
+                       CASE WHEN status IN ('pending','queued') AND updated_at >= @staleBefore THEN 1 ELSE 0 END AS IsQueued
+                FROM media_operations
+                WHERE {VaultSql.NotVaultEntity("media_operations.entity_id")}
+                  AND (status IN ('leased','running','processing','active')
+                       OR (status IN ('pending','queued') AND updated_at >= @staleBefore))
+                UNION ALL
+                SELECT identity_jobs.media_type AS MediaType,
+                       CASE WHEN state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') THEN 1 ELSE 0 END AS IsActive,
+                       CASE WHEN state IN ('Queued','RetailMatched','QidResolved') THEN 1 ELSE 0 END AS IsQueued
+                FROM identity_jobs
+                WHERE {VaultSql.NotVaultEntity("identity_jobs.entity_id")}
+                  AND state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching','Queued','RetailMatched','QidResolved')
+            )
+            WHERE MediaType IS NOT NULL
+            GROUP BY MediaType;
+            """, new { staleBefore = DateTimeOffset.UtcNow.Subtract(StaleQueuedAfter).ToString("O") }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
     }
 
     /// <summary>A queued file nobody has touched for this long no longer holds the whole queue "working"; it is shown as waiting.</summary>
@@ -1549,6 +1635,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ),
             scoped AS (
                 SELECT {PresentationGroupSql} AS GroupId,
+                       w.media_type AS MediaType,
                        CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} THEN 1 ELSE 0 END AS RowReady,
                        CASE WHEN lfo.status IN ('failed_terminal','dead_lettered') THEN 1 ELSE 0 END AS OwnIntakeFailed,
                        MAX(COALESCE((SELECT MAX(julianday(fo.updated_at)) FROM media_operations fo
@@ -1594,6 +1681,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ),
             grouped AS (
                 SELECT GroupId,
+                       MAX(MediaType) AS MediaType,
                        MIN(RowReady) AS AllReady,
                        -- Same rule as BuildGroup: an own intake failure, or a failure no older than the group's newest file.
                        CASE WHEN MAX(OwnIntakeFailed) = 1 OR (MAX(FailedAtDay) > 0 AND MAX(FailedAtDay) >= MAX(ArrivedAtDay))
@@ -1719,6 +1807,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     private sealed class CurrentGroupFacts
     {
+        public string? MediaType { get; set; }
         public int TotalGroups { get; set; }
         public int ReadyGroups { get; set; }
         public int FinishingGroups { get; set; }
@@ -1734,6 +1823,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public string? Stage { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
     }
+
+    private sealed class CurrentOperationTypeFacts { public string? MediaType { get; set; } public int Active { get; set; } public int Queued { get; set; } }
 
     private sealed class CurrentOperationFacts { public int Active { get; set; } public int Queued { get; set; } public int Stalled { get; set; } public int RetryWaiting { get; set; } public int TextTrackWaiting { get; set; } }
 }

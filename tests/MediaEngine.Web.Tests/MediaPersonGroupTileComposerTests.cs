@@ -33,7 +33,7 @@ public sealed class MediaPersonGroupTileComposerTests
             MediaPersonGroupTileComposer.NavigationUrl(personId, "George R. R. Martin"),
             "var(--tl-media-audio)");
 
-        Assert.True(tile.RenderAsLandscapeGroupTile);
+        Assert.True(tile.RenderAsGroupTile);
         Assert.Equal($"/details/person/{personId:D}", tile.NavigationUrl);
         Assert.Equal(personId, tile.Person?.Id);
         Assert.Equal(["Author", "Screenwriter"], tile.Person?.Roles);

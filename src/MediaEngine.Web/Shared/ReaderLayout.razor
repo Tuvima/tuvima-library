@@ -1,10 +1,18 @@
 @inherits LayoutComponentBase
+@implements IAsyncDisposable
 
 @namespace MediaEngine.Web.Shared
+@inject IJSRuntime JS
+@inject DeviceContextService DeviceContext
+@inject DashboardSessionAccessor Session
+@inject ILogger<ReaderLayout> Logger
 
 @* Minimal layout for the immersive EPUB reader — no TopBar, no LeftDock.
    Only first-party UI providers + the reader body.
-   Shared theme variables support first-party controls used in reader panels. *@
+   Shared theme variables support first-party controls used in reader panels.
+   The device context is started here the way MainLayout starts it, so a reload straight into the reader on a phone
+   shows the phone's tools instead of the desktop ones. It also registers the browser's device observer the way MainLayout does, so a
+   rotation or a resize to another form factor keeps the reader's tools and the editing rule following the live device. *@
 
 <AppThemeProvider Reader="true" />
 <MediaEngine.Web.Components.Navigation.SessionEndedRedirect />
@@ -13,3 +21,103 @@
 <AppToastHost />
 
 @Body
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly string _deviceObserverOwner = Guid.NewGuid().ToString("N");
+    private DotNetObjectReference<ReaderLayout>? _dotNetRef;
+    private bool _observerRegistered;
+    private bool _disposed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            // The service lives for the whole circuit: when the reader is opened from another page it is already started.
+            if (!DeviceContext.IsInitialised)
+            {
+                var detected = await JS.InvokeAsync<DeviceContextSnapshot>("detectDeviceSnapshot", _lifetime.Token);
+                if (_lifetime.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                await DeviceContext.InitialiseAsync(detected);
+            }
+
+            if (_lifetime.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _dotNetRef = DotNetObjectReference.Create(this);
+            // Marked before the call returns, so a reader closed while it is in flight still unregisters (unregistering is harmless if it never landed).
+            _observerRegistered = true;
+            await JS.InvokeVoidAsync("tuvimaResponsive.registerDeviceClassObserver", _lifetime.Token, _dotNetRef, _deviceObserverOwner, true);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The reader was closed while the device was being read: nothing is waiting for the answer.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The browser went away; the circuit is ending.
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException)
+        {
+            Logger.LogWarning(ex, "The reader could not read the device it is on; it keeps the desktop tools");
+        }
+    }
+
+    /// <summary>Called by the browser observer (which registers with the full snapshot) when the form factor or the primary pointer changes.</summary>
+    [JSInvokable]
+    public async Task HandleViewportChanged(DeviceContextSnapshot snapshot)
+    {
+        if (_disposed || DeviceContext.IsTelevision)
+        {
+            return;
+        }
+
+        await DeviceContext.SwitchDeviceAsync(snapshot, Session.ActiveProfileId?.ToString());
+    }
+
+    [JSInvokable]
+    public async Task HandleViewportDeviceClassChanged(string deviceClass)
+    {
+        if (_disposed || DeviceContext.IsTelevision)
+        {
+            return;
+        }
+
+        await DeviceContext.SwitchDeviceAsync(deviceClass, Session.ActiveProfileId?.ToString());
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _lifetime.Cancel();
+        if (_observerRegistered)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver", _deviceObserverOwner);
+            }
+            catch (JSDisconnectedException)
+            {
+                // The browser went away; its observer went with it.
+            }
+            catch (InvalidOperationException ex)
+            {
+                Logger.LogDebug(ex, "The reader's device observer could not be unregistered while the circuit was ending");
+            }
+        }
+
+        _dotNetRef?.Dispose();
+        _lifetime.Dispose();
+    }
+}

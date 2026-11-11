@@ -1,0 +1,17 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* The area and kind of the folder step, read only (Libraries v3 D21): Add library's third step and Edit's Add folder both draw these. *@
+<div class="folder-chips" data-picker-chips>
+    @if (!string.IsNullOrWhiteSpace(AreaLabel))
+    {
+        <span class="folder-chips__chip lib-area--@AreaKey" data-area-chip>@AreaLabel</span>
+    }
+    <span class="folder-chips__chip" data-kind-chip>@KindLabel</span>
+</div>
+
+@code {
+    [Parameter] public string AreaKey { get; set; } = string.Empty;
+    /// <summary>Null or empty leaves the area chip out.</summary>
+    [Parameter] public string? AreaLabel { get; set; }
+    [Parameter] public string KindLabel { get; set; } = string.Empty;
+}

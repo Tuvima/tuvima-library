@@ -50,7 +50,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
         var next = SaveButton(editor);
 
         Assert.True(next.HasAttribute("disabled"));
-        Assert.Contains(EmptyMessage, editor.Find(".collection-editor-footer-copy").TextContent);
+        Assert.Contains(EmptyMessage, editor.Find("[data-step-hint]").TextContent);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
         await AddItemAsync(editor, FirstWork);
 
         editor.WaitForAssertion(() => Assert.False(SaveButton(editor).HasAttribute("disabled")));
-        Assert.DoesNotContain(EmptyMessage, editor.Find(".collection-editor-footer-copy").TextContent);
+        Assert.DoesNotContain(EmptyMessage, editor.Find("[data-step-hint]").TextContent);
     }
 
     [Fact]

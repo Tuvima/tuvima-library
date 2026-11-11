@@ -31,8 +31,7 @@ public sealed class CollectionsHubTests
         var browseShellSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"));
         var browseShellStylesSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css"));
         var tileGridSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor"));
-        var groupTileSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor"));
-        var groupTileStylesSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css"));
+        var tileSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor"));
         var styles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsSectionLayout.razor.css"));
         var sectionShellStyles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css"));
 
@@ -85,19 +84,16 @@ public sealed class CollectionsHubTests
         Assert.DoesNotContain("<CinematicHeroCarousel", source, StringComparison.Ordinal);
         Assert.Contains("<MediaTileGrid", source, StringComparison.Ordinal);
         Assert.Contains("MediaTileArtworkResolver.Resolve(", composerSource, StringComparison.Ordinal);
-        Assert.Contains("preferLandscapeTile: true", composerSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("preferLandscapeTile: true", composerSource, StringComparison.Ordinal);
         Assert.Contains("Shape = surface.Shape", composerSource, StringComparison.Ordinal);
         Assert.Contains("SurfaceKind = surface.SurfaceKind", composerSource, StringComparison.Ordinal);
-        Assert.Contains("UseLandscapeGroupTile = true", composerSource, StringComparison.Ordinal);
+        Assert.Contains("UseGroupTile = true", composerSource, StringComparison.Ordinal);
         Assert.Contains("<MediaTile", tileGridSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<MediaGroupTile", tileGridSource, StringComparison.Ordinal);
-        Assert.Contains("media-group-tile__picture", groupTileSource, StringComparison.Ordinal);
-        Assert.Contains("media-group-tile__stack", groupTileSource, StringComparison.Ordinal);
-        Assert.Contains("media-group-tile__kind", groupTileSource, StringComparison.Ordinal);
-        Assert.Contains("MediaTileLabels.GroupCount", groupTileSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("media-group-tile__identity", groupTileSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("media-group-tile__person", groupTileSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("MediaArtworkCarousel", groupTileSource, StringComparison.Ordinal);
+        // A group of titles is drawn by the one poster tile; the old landscape group tile is gone.
+        Assert.DoesNotContain("<MediaGroupTile", tileSource, StringComparison.Ordinal);
+        Assert.False(File.Exists(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor")));
+        Assert.DoesNotContain("MediaArtworkCarousel", tileSource, StringComparison.Ordinal);
         Assert.Contains("PreviewTotalCount = collection.ItemCount", composerSource, StringComparison.Ordinal);
         Assert.Contains("TileTextMode = MediaTileTextMode.CoverOnly", composerSource, StringComparison.Ordinal);
         Assert.Contains("Take(4)", composerSource, StringComparison.Ordinal);
