@@ -199,6 +199,7 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         Assert.DoesNotContain(pages, path => File.ReadAllText(path).Contains("@page \"/listen/player-popup\"", StringComparison.Ordinal));
         Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor")));
         Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor")));
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Player/PlaybackDesktopScene.razor")));
         Assert.Contains(pages, path => File.ReadAllText(path).Contains("@page \"/listen/now-playing\"", StringComparison.Ordinal));
     }
 

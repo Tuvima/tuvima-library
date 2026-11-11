@@ -26,7 +26,7 @@ public sealed class ChronicleExplorerEditingGuardrailTests
         var root = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
 
         Assert.False(File.Exists(Path.Combine(root, "Services", "Editing", "MediaEditorLauncherService.cs")));
-        Assert.False(File.Exists(Path.Combine(root, "Components", "MediaEditor", "SharedEntityEditorWorkspace.razor")));
+        Assert.Empty(Directory.GetFiles(Path.Combine(root, "Components"), "SharedEntityEditorWorkspace.razor", SearchOption.AllDirectories));
         Assert.DoesNotContain("MediaEditorLauncherService", Read("src/MediaEngine.Web/Program.cs"), StringComparison.Ordinal);
         Assert.DoesNotContain("SharedEntityTarget", Read("src/MediaEngine.Web/Services/Editing/MediaEditorModels.cs"), StringComparison.Ordinal);
     }

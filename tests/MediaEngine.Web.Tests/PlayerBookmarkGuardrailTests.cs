@@ -137,7 +137,10 @@ public sealed class PlayerBookmarkGuardrailTests
     public void TheEditorBookmarkFiles_NeverSayGlobalLibraryBookmarksOrShare()
     {
         var root = FindRepoRoot();
-        var files = Directory.GetFiles(Path.Combine(root, "src/MediaEngine.Web/Components/Details"), "EditorBookmark*")
+        var editorFiles = Directory.GetFiles(Path.Combine(root, "src/MediaEngine.Web/Components/Editor"), "EditorBookmark*");
+        Assert.NotEmpty(editorFiles);
+        var files = editorFiles
+            .Concat(Directory.GetFiles(Path.Combine(root, "src/MediaEngine.Web/Components/Details"), "EditorBookmark*"))
             .Concat(Directory.GetFiles(Path.Combine(root, "src/MediaEngine.Web/Services/Editing"), "EditorBookmark*.cs"))
             .ToList();
         Assert.NotEmpty(files);

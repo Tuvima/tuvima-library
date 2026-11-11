@@ -114,7 +114,7 @@ Current UI entry points:
 7. `src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor` for the exception queue (its Needs Review section; `/settings/review` redirects there).
 8. `src/MediaEngine.Web/Components/Editor/EditorPanelHost.razor` (the Editor window: the item header with its navigation row `EditorHeaderNav` (home, Season or Section, item dropdown with supporting files and a folder button), tabs and a fixed footer with Delete, the write-back status, Discard and Save changes), with its tools `EditorDetailsPanel`, `EditorArtworkTool`, `EditorMatchPanel`, `EditorSupportingFilePanel`, `EditorHistoryTool` and `BulkEditPanel`, the supporting-files browser `EditorFileBrowserDialog`, and `ReviewChangesView` for Review changes.
 9. `src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor` for the Ingestion dashboard at `/settings/ingestion`; it uses the Engine `GET /ingestion/presentation` and `GET /ingestion/queue-progress` views plus SignalR ingestion progress.
-10. `src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs`, `src/MediaEngine.Web/Components/Player/PlaybackShell.razor` and `src/MediaEngine.Web/Services/Playback/PlaybackControlCatalog.cs` for Listen playback state, typed commands, and the shared bar and its controls.
+10. `src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs`, `src/MediaEngine.Web/Components/Player/PlaybackShell.razor` and `src/MediaEngine.Web/Components/Player/PlaybackControlCatalog.cs` for Listen playback state, typed commands, and the shared bar and its controls.
 
 Treat stale references to old all-in-one workspace components, retired CSS prefixes, broad management workbenches, or removed-workspace docs as cleanup candidates.
 
