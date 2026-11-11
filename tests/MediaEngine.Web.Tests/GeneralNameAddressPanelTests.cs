@@ -38,7 +38,10 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetServerIdentityAsync), _ => Task.FromResult(_identity));
             stub.SetHandler(nameof(IEngineApiClient.UpdateServerIdentityAsync), args =>
             {
-                if (_refuseSave) return Task.FromResult<SetupServerIdentityDto?>(null);
+                if (_refuseSave)
+                {
+                    return Task.FromResult<SetupServerIdentityDto?>(null);
+                }
                 var requested = (SetupServerIdentityDto)args![0]!;
                 // What the Engine does: derive the network name while it follows the friendly name.
                 var host = requested.HostNameDerived ? NetworkNameRules.ToLabel(requested.ServerName) : NetworkNameRules.ToLabel(requested.HostName);

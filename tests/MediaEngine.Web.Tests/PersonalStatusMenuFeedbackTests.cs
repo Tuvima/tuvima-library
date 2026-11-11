@@ -1,10 +1,9 @@
 using Bunit;
-using Microsoft.AspNetCore.Components;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Services.Integration;
-using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;

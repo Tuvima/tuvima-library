@@ -1,8 +1,8 @@
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Settings;
-using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;

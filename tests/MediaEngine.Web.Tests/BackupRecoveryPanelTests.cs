@@ -5,7 +5,6 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
-using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
