@@ -6,8 +6,8 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// Unified player v2 acceptance A14 (decision D6 and D8): the player keeps one look and one pair of media elements. Player files are found by rule, not by a
-/// hand list, so a new panel (for example the Bookmarks panel) is covered the day it is added: everything under <c>Components/Listen</c> and
-/// <c>Components/Watch</c>, the shared <c>Components/Shared/Playback*</c> parts (the shell, panels, menus, buttons, glyphs) and the Now playing page.
+/// hand list, so a new panel (for example the Bookmarks panel) is covered the day it is added: everything under <c>Components/Player</c> and
+/// <c>Components/Listen</c>, the shared <c>Components/Shared/Playback*</c> parts (the shell, panels, menus, buttons, glyphs) and the Now playing page.
 /// Older violations that existed before this guardrail are listed in <c>Fixtures/player-guardrail-baseline.json</c>: fix them when the file is next edited and
 /// delete the entry; nothing new may be added.
 /// </summary>
@@ -155,7 +155,7 @@ public sealed class PlayerGuardrailTests
         var sites = MediaElementSites(@"<audio\b|createElement\(\s*['""`]audio['""`]|new\s+Audio\(");
 
         var session = sites.Where(site => !NonSessionAudioSites.ContainsKey(site)).ToList();
-        Assert.True(session.SequenceEqual(["src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"]),
+        Assert.True(session.SequenceEqual(["src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"]),
             "Exactly one place renders the session's <audio>: ListenNowPlayingBar. The Now playing page, the bar and every panel share it (spec D24, A14). Reuse it instead of adding another; a genuinely separate viewer needs a reasoned entry in NonSessionAudioSites. Found:" + Lines(session));
         Assert.True(NonSessionAudioSites.Keys.All(sites.Contains),
             "These non-session audio entries no longer render <audio>; delete them from NonSessionAudioSites:" + Lines(NonSessionAudioSites.Keys.Where(k => !sites.Contains(k))));
@@ -167,7 +167,7 @@ public sealed class PlayerGuardrailTests
         var sites = MediaElementSites(@"<video\b|createElement\(\s*['""`]video['""`]");
 
         var session = sites.Where(site => !NonSessionVideoSites.ContainsKey(site)).ToList();
-        Assert.True(session.SequenceEqual(["src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"]),
+        Assert.True(session.SequenceEqual(["src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"]),
             "Exactly one place renders the session's <video>: VideoPlaybackHost (spec A14). Reuse it instead of adding another; a genuinely separate viewer needs a reasoned entry in NonSessionVideoSites. Found:" + Lines(session));
         Assert.True(NonSessionVideoSites.Keys.All(sites.Contains),
             "These non-session video entries no longer render <video>; delete them from NonSessionVideoSites:" + Lines(NonSessionVideoSites.Keys.Where(k => !sites.Contains(k))));
@@ -176,8 +176,8 @@ public sealed class PlayerGuardrailTests
     [Fact]
     public void EachSessionMediaElementIsRenderedOnceInItsOwnFile()
     {
-        var bar = File.ReadAllText(Path.Combine(Web, "Components", "Listen", "ListenNowPlayingBar.razor"));
-        var host = File.ReadAllText(Path.Combine(Web, "Components", "Watch", "VideoPlaybackHost.razor"));
+        var bar = File.ReadAllText(Path.Combine(Web, "Components", "Player", "ListenNowPlayingBar.razor"));
+        var host = File.ReadAllText(Path.Combine(Web, "Components", "Player", "VideoPlaybackHost.razor"));
 
         Assert.True(Regex.Matches(bar, @"<audio\b").Count == 1 && !Regex.IsMatch(bar, @"<video\b"), "ListenNowPlayingBar renders exactly one <audio> and no <video>; do not add a second media element to the bar.");
         Assert.True(Regex.Matches(host, @"<video\b").Count == 1 && !Regex.IsMatch(host, @"<audio\b"), "VideoPlaybackHost renders exactly one <video> and no <audio>; do not add a second media element to the host.");
@@ -193,10 +193,10 @@ public sealed class PlayerGuardrailTests
         Assert.True(files.Count > 100, "The player file rules matched too few files; check the folder rules in PlayerFiles.");
         foreach (var expected in new[]
         {
-            "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor",
-            "src/MediaEngine.Web/Components/Shared/PlaybackPanel.razor.css",
-            "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor",
-            "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor",
+            "src/MediaEngine.Web/Components/Player/PlaybackShell.razor",
+            "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css",
+            "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor",
+            "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor",
             "src/MediaEngine.Web/Components/Pages/NowPlayingPage.razor",
         })
         {
@@ -218,7 +218,7 @@ public sealed class PlayerGuardrailTests
         var components = Path.Combine(Web, "Components");
         var files = new List<string>();
         files.AddRange(Directory.EnumerateFiles(Path.Combine(components, "Listen"), "*", SearchOption.AllDirectories));
-        files.AddRange(Directory.EnumerateFiles(Path.Combine(components, "Watch"), "*", SearchOption.AllDirectories));
+        files.AddRange(Directory.EnumerateFiles(Path.Combine(components, "Player"), "*", SearchOption.AllDirectories));
         files.AddRange(Directory.EnumerateFiles(Path.Combine(components, "Shared"), "Playback*", SearchOption.TopDirectoryOnly));
         files.AddRange(Directory.EnumerateFiles(Path.Combine(components, "Pages"), "NowPlayingPage.*", SearchOption.TopDirectoryOnly));
         return files

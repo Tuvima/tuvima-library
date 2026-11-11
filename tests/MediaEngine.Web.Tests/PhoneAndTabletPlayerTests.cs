@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
@@ -118,8 +119,8 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
     [Fact]
     public void TheCollapsedBarIs56PixelsTallWithA44PixelPictureAndA15PixelTitle()
     {
-        var shell = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css");
-        var identity = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css");
+        var shell = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css");
+        var identity = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css");
 
         var row = shell.Split(".playback-shell--compact .playback-shell__row {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("min-height: 56px;", row);
@@ -163,7 +164,7 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         Assert.DoesNotContain("Playback settings", labels);
         Assert.DoesNotContain("Close", labels);
         Assert.Empty(cut.FindAll("[data-playback-zone='tools'] input,[data-playback-zone='tools'] [aria-label='Volume']"));
-        var host = RepoFile("src", "MediaEngine.Web", "Components", "Watch", "VideoPlaybackHost.razor");
+        var host = RepoFile("src", "MediaEngine.Web", "Components", "Player", "VideoPlaybackHost.razor");
         Assert.Contains("HeaderContent=\"@(IsPhoneVideo ? PhoneHeader : null)\"", host);
         Assert.Contains("@SettingsTool", host);
     }
@@ -195,7 +196,7 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         Assert.DoesNotContain("position: fixed", dock);
         Assert.DoesNotContain("position: absolute", dock);
         // The bar itself is in the flow (never fixed over the page) and clears the home indicator by its own padding.
-        var shell = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css");
+        var shell = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css");
         var shellRule = shell.Split(".playback-shell {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("position: relative;", shellRule);
         var compact = shell.Split(".playback-shell--compact {", StringSplitOptions.None)[1].Split('}')[0];
@@ -266,8 +267,8 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
     public void EveryPlayerTouchTargetIsAtLeast44PixelsAndTheReactionButtonsStillDrawTheirFillFortyPixelsWide()
     {
         var tokens = RepoFile("src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css");
-        var row = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackToolRow.razor.css");
-        var full = RepoFile("src", "MediaEngine.Web", "Components", "Listen", "PlaybackFullPlayer.razor.css");
+        var row = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackToolRow.razor.css");
+        var full = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackFullPlayer.razor.css");
 
         Assert.Contains("--playback-control-target: 44px;", tokens);
         Assert.Contains("--playback-control-glyph: 24px;", tokens);
@@ -284,7 +285,7 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         // The fill is drawn 2 px inside the 44 px button, so it still looks 40 px wide as the mockup shows.
         Assert.Contains("--playback-icon-button-fill-clip:content-box;", actions);
         Assert.Contains("--playback-icon-button-fill-inset:2px;", actions);
-        var button = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIconButton.razor.css");
+        var button = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackIconButton.razor.css");
         Assert.Contains("background-clip: var(--playback-icon-button-fill-clip, border-box);", button);
         Assert.Contains("padding: var(--playback-icon-button-fill-inset, 0);", button);
         Assert.Contains("width:44px; height:44px;", full); // The collapse chevron.

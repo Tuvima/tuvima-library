@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Navigation;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
@@ -800,7 +801,7 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
     public void TheBarsOpenAndCloseNowPlayingLabelsLiveInTheSharedStrings()
     {
         var resx = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Resources/SharedStrings.resx"));
-        var bar = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
+        var bar = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
 
         Assert.Contains("name=\"ListenNowPlayingBar_OpenNowPlaying\"", resx, StringComparison.Ordinal);
         Assert.Contains("name=\"ListenNowPlayingBar_CloseNowPlaying\"", resx, StringComparison.Ordinal);

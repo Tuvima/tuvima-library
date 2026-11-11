@@ -217,13 +217,13 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
         // shared button with the Player v2 build, and this list only goes down.
         string[] shared =
         [
-            "Components/Shared/PlaybackIconButton.razor.css",
+            "Components/Player/PlaybackIconButton.razor.css",
             "Components/Details/HeroActionRow.razor.css",
         ];
         string[] pending =
         [
-            "Components/Watch/VideoPlaybackHost.razor.css",
-            "Components/Listen/ListenNowPlayingBar.razor.css",
+            "Components/Player/VideoPlaybackHost.razor.css",
+            "Components/Player/ListenNowPlayingBar.razor.css",
         ];
         var pattern = new Regex(@"(?:icon-button|hero-icon-circle|hero-action|hero-open-folder|tl-detail-action--primary|folder-link)", RegexOptions.Compiled);
         var offenders = new List<string>();

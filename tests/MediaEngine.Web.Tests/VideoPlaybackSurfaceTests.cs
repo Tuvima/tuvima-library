@@ -6,11 +6,11 @@ public sealed class VideoPlaybackSurfaceTests
     public void ExpandedVideoKeepsMountedMediaAndUsesAnchoredChromeWithinContainerFullscreen()
     {
         var root = FindRepoRoot();
-        var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
-        var css = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
+        var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
+        var css = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor.css"));
         Assert.True(razor.IndexOf("<video", StringComparison.Ordinal) < razor.IndexOf("@if (Playback.IsVideoMode && Playback.IsVideoExpanded", StringComparison.Ordinal));
         Assert.Contains("<PlaybackVideoChrome", razor);
-        Assert.Contains("data-playback-chrome-bottom", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
+        Assert.Contains("data-playback-chrome-bottom", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackVideoChrome.razor")));
         Assert.Contains("\"close\" => ClosePlayerAsync()", razor);
         Assert.DoesNotContain("Back to details", razor);
         // Unified player v2 D12: one Audio & subtitles panel; the old Settings menu and the separate subtitle style button are gone from the video player.
@@ -22,17 +22,17 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
         Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);
         Assert.Contains("object-fit:contain", css);
-        Assert.Contains("playback-video-controls", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
-        Assert.Contains("width: min(360px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoEndCard.razor.css")));
+        Assert.Contains("playback-video-controls", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackVideoChrome.razor.css")));
+        Assert.Contains("width: min(360px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoEndCard.razor.css")));
         Assert.Contains("<PlaybackSeekRail", razor);
-        Assert.Contains("<PlaybackVolumeControl", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor")));
-        Assert.Contains("flex-wrap:wrap", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
+        Assert.Contains("<PlaybackVolumeControl", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackShell.razor")));
+        Assert.Contains("flex-wrap:wrap", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackVideoChrome.razor.css")));
     }
     [Fact]
     public void CaptionSheetUsesObservedNativeAndHlsTrackInventory()
     {
         var root = FindRepoRoot();
-        var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
+        var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
         var script = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-core.js"));
 
         Assert.Contains(".Select(track => new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected))", razor, StringComparison.Ordinal);

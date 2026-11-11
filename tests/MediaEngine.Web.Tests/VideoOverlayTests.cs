@@ -1,7 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Components.Watch;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Integration;

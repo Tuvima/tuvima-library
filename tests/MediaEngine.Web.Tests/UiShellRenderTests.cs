@@ -1596,8 +1596,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     public void ListenPlayer_RemainsInPersistentBottomHostOnListenRoutes()
     {
         var listenPageSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
-        var hostSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor"));
-        var hostCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor.css"));
+        var hostSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor"));
+        var hostCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor.css"));
 
         Assert.DoesNotContain("<ListenNowPlayingPanel", listenPageSource, StringComparison.Ordinal);
         Assert.Contains("TransportCommandRequested", hostSource, StringComparison.Ordinal);
@@ -1605,7 +1605,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("listen-player-shell--listen-route", hostSource, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-player-shell--listen-route {", hostCss, StringComparison.Ordinal);
         Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
-        var shellCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css"));
+        var shellCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css"));
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellCss, StringComparison.Ordinal);
         Assert.Contains("min-height: 60px;", shellCss, StringComparison.Ordinal);
     }

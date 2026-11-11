@@ -1,0 +1,244 @@
+@namespace MediaEngine.Web.Components.Player
+@using System.Globalization
+@using System.Linq
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+@inject IServiceProvider Services
+@implements IDisposable
+
+@* Playback settings (unified player v2 D14; mockup screen 5, right panel): the gear of TV and movies, and the row the "..." menu opens for music and
+   audiobooks. A 400 px panel with the fixed header "Playback settings" and rows for Playback speed (the Speed view opens inside this panel), Skip back,
+   Skip forward, Picture-in-picture (video, when the browser allows) and Playback information (a nested view of the file's video, audio and connection
+   facts). The footer is "Reset playback preferences". Audio and subtitles are not here; they have their own panel (D12). Skip lengths are the same
+   per-profile preferences Settings, Playback used to hold. A row shows only when the media and the app support it. *@
+<PlaybackPanel @ref="_panel" Title="@L["PlaybackSettings_Title"].Value" ToolId="@EffectiveToolId" Kind="settings" Surface="@Surface" ItemKey="@ItemKey"
+               Trigger="@Trigger" TriggerClass="@TriggerClass" Open="@Open" OpenChanged="HandlePanelOpenChangedAsync" Footer="@(ShowsReset ? MainFooter : null)"
+               TriggerContent="@(ShowTrigger ? GearGlyph : null)">
+    <ChildContent>
+        <div class="psp" data-playback-settings>
+            @if (ShowsSpeed)
+            {
+                <AppNativeButton Type="button" Class="psp__row" data-psp-row="speed" OnClick="OpenSpeed">
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" />
+                    <span class="psp__label">@L["PlaybackSettings_Speed"]</span>
+                    <span class="psp__value" data-psp-value="speed">@SpeedValue<span class="psp__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronRight" /></span></span>
+                </AppNativeButton>
+            }
+            @if (ShowsSkips)
+            {
+                @SkipRow(PlaybackSkipDirection.Back)
+                @SkipRow(PlaybackSkipDirection.Forward)
+            }
+            @if (ShowsPictureInPicture)
+            {
+                <AppNativeButton Type="button" Class="psp__row" data-psp-row="picture-in-picture" OnClick="EnterPictureInPictureAsync">
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PictureInPicture" />
+                    <span class="psp__label">@L["PlaybackSettings_PictureInPicture"]</span>
+                    <span class="psp__value"><span class="psp__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.OpenExternal" /></span></span>
+                </AppNativeButton>
+            }
+            <AppNativeButton Type="button" Class="psp__row" data-psp-row="information" OnClick="OpenInformation">
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Info" />
+                <span class="psp__label">@L["PlaybackSettings_Information"]</span>
+                <span class="psp__value"><span class="psp__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronRight" /></span></span>
+                <span class="psp__sub">@L["PlaybackSettings_InformationHelper"]</span>
+            </AppNativeButton>
+            @if (ShowsRemoteRow)
+            {
+                @* Play on another device... (unified player v2 D28; mockup screen 16): TV and movies have it here, music and audiobooks in the "..." menu. It is
+                   never a bar tool. A disabled row says why under its label. *@
+                <AppNativeButton Type="button" Class="psp__row" data-psp-row="play-on-device" data-remote-state="@RemoteState.ToString().ToLowerInvariant()"
+                                 Disabled="@(!PlaybackRemoteRules.IsEnabled(RemoteState))" OnClick="ActivateRemoteAsync">
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PlayOnDevice" />
+                    <span class="psp__label">@RemoteLabel</span>
+                    @if (RemoteHelper is { } reason)
+                    {
+                        <span class="psp__sub" data-psp-remote-helper>@reason</span>
+                    }
+                </AppNativeButton>
+            }
+            @ExtraRows
+        </div>
+    </ChildContent>
+</PlaybackPanel>
+
+@code {
+    private readonly string _generatedId = $"playback-settings-{Guid.NewGuid():N}";
+    private PlaybackPanel? _panel;
+
+    /// <summary>Which media is playing; it decides the rows (music has neither speed nor skips; video adds Picture-in-picture).</summary>
+    [Parameter, EditorRequired] public PlaybackBarMedia Media { get; set; }
+
+    /// <summary>The speed now playing, and the way to change it. The Playback speed row shows only when the host listens.</summary>
+    [Parameter] public double Rate { get; set; } = PlaybackSpeedChoices.Normal;
+    [Parameter] public EventCallback<double> RateChanged { get; set; }
+
+    /// <summary>The skip lengths now in use, and the way to change them. The Skip rows show only when the host listens.</summary>
+    [Parameter] public int SkipBackSeconds { get; set; }
+    [Parameter] public int SkipForwardSeconds { get; set; }
+    [Parameter] public EventCallback<PlaybackSkipChange> SkipChanged { get; set; }
+
+    /// <summary>Whether the browser can put this video in a floating window, and the way to do it.</summary>
+    [Parameter] public bool CanPictureInPicture { get; set; }
+    [Parameter] public EventCallback OnPictureInPicture { get; set; }
+
+    /// <summary>The playback manifest of the file that is playing; Playback information is drawn from it.</summary>
+    [Parameter] public PlaybackManifestDto? Manifest { get; set; }
+
+    /// <summary>"Reset playback preferences": the host puts the skip lengths and the speed back to the defaults.</summary>
+    [Parameter] public EventCallback OnReset { get; set; }
+
+    /// <summary>Rows the host adds after Playback information.</summary>
+    [Parameter] public RenderFragment? ExtraRows { get; set; }
+
+    /// <summary>True draws the gear that opens the panel (the bar's Playback settings tool); false leaves opening to the host (the "..." menu's row).</summary>
+    [Parameter] public bool ShowTrigger { get; set; } = true;
+
+    /// <summary>The button the panel opens from when there is no gear of its own (the "..." button).</summary>
+    [Parameter] public ElementReference? Trigger { get; set; }
+
+    [Parameter] public string Surface { get; set; } = "video";
+    [Parameter] public string? ToolId { get; set; }
+    [Parameter] public string? TriggerClass { get; set; }
+    [Parameter] public string? ItemKey { get; set; }
+    [Parameter] public bool? Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    private PlaybackRemoteController? _remote;
+
+    protected override void OnInitialized()
+    {
+        // Optional: a page without a remote controller simply has no Play on another device row.
+        _remote = Services.GetService<PlaybackRemoteController>();
+        if (_remote is not null)
+        {
+            _remote.Changed += OnRemoteChanged;
+        }
+    }
+
+    private void OnRemoteChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // The browser is asked once, after the first draw, whether it has the Remote Playback API, so the row is right the first time it is opened.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && ShowsRemoteRow && _remote is not null) await _remote.ProbeAsync(PlaybackRemoteController.VideoElementId);
+    }
+
+    public void Dispose()
+    {
+        if (_remote is not null) _remote.Changed -= OnRemoteChanged;
+    }
+
+    private bool ShowsRemoteRow => _remote is not null && IsVideo;
+    private Guid? RemoteAssetId => Manifest?.AssetId is { } asset && asset != Guid.Empty ? asset : null;
+    private bool RemoteIsVault => Manifest?.IsVault == true;
+
+    private PlaybackRemoteRowState RemoteState => _remote is null ? PlaybackRemoteRowState.NotInBrowser
+        : PlaybackRemoteRules.Evaluate(_remote.Support, _remote.Mode, RemoteAssetId is not null, RemoteIsVault, _remote.LastAttemptFailed);
+
+    private string RemoteLabel => RemoteState == PlaybackRemoteRowState.Stop
+        ? L["PlaybackRemote_Stop", _remote?.DeviceName ?? L["PlaybackRemote_AnotherDevice"].Value].Value
+        : L["PlaybackRemote_Row"].Value;
+
+    private string? RemoteHelper => RemoteState switch
+    {
+        PlaybackRemoteRowState.NotInBrowser => L["PlaybackRemote_NotInBrowser"].Value,
+        PlaybackRemoteRowState.NothingPlaying => L["PlaybackRemote_NothingPlaying"].Value,
+        PlaybackRemoteRowState.Vault => L["PlaybackRemote_Vault"].Value,
+        PlaybackRemoteRowState.CannotYet => L["PlaybackRemote_NotYet"].Value,
+        _ => null,
+    };
+
+    // The cast link is fetched while the panel is open, so choosing the row can open the browser's picker inside the click (Safari).
+    private async Task HandlePanelOpenChangedAsync(bool open)
+    {
+        if (open && ShowsRemoteRow && _remote is not null) _ = _remote.PrefetchAsync(PlaybackRemoteController.VideoElementId, RemoteAssetId, RemoteIsVault);
+        await OpenChanged.InvokeAsync(open);
+    }
+
+    private async Task ActivateRemoteAsync()
+    {
+        if (_remote is null) return;
+        // The picker is asked for first (with a link fetched ahead of time that is at once), then the panel closes.
+        var activation = _remote.ActivateAsync(PlaybackRemoteController.VideoElementId, RemoteAssetId, RemoteIsVault);
+        if (_panel is not null) await _panel.CloseAsync();
+        await activation;
+    }
+
+    private string EffectiveToolId => ToolId ?? _generatedId;
+    private bool IsVideo => Media is PlaybackBarMedia.Tv or PlaybackBarMedia.Movie;
+    private bool ShowsSpeed => Media != PlaybackBarMedia.Music && RateChanged.HasDelegate && PlaybackRateOptions.IsValid(Rate);
+    private bool ShowsSkips => Media != PlaybackBarMedia.Music && SkipChanged.HasDelegate;
+    // "Reset playback preferences" resets speed and the skip lengths; with neither row on offer (music) there is nothing to reset.
+    private bool ShowsReset => ShowsSpeed || ShowsSkips;
+    private bool ShowsPictureInPicture => IsVideo && CanPictureInPicture && OnPictureInPicture.HasDelegate;
+
+    private string SpeedValue => PlaybackSpeedChoices.IsNormal(Rate) ? L["PlaybackSettings_SpeedNormal"].Value : PlaybackSpeedChoices.Format(Rate);
+
+    private RenderFragment GearGlyph => @<PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Settings" />;
+
+    // The footer (mockup screen 5): "Reset playback preferences" with the reset glyph, 14 px, under a hairline.
+    private RenderFragment MainFooter =>
+        @<div class="psp__footer">
+            <AppNativeButton Type="button" Class="psp__reset" data-psp-reset OnClick="ResetAsync">
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Reset" />
+                <span>@L["PlaybackSettings_Reset"]</span>
+            </AppNativeButton>
+        </div>;
+
+    private RenderFragment SpeedBody => @<PlaybackSpeedView Rate="@Rate" RateChanged="RateChanged" />;
+
+    private RenderFragment SpeedFooter => @<PlaybackSpeedFooter RateChanged="RateChanged" />;
+
+    private RenderFragment InformationBody => @<PlaybackInformationView Rows="@InformationRows" />;
+
+    private IReadOnlyList<PlaybackInformationRow> InformationRows => PlaybackInformationRows.Build(L, Manifest, IsVideo);
+
+    // A skip row is a label with the current length at the right and a chevron; the real control is the native list laid over the whole row, so a
+    // click anywhere opens the browser's own choice list (keyboard, screen readers and the phone picker all work as they do for any list).
+    private RenderFragment SkipRow(PlaybackSkipDirection direction) =>
+        @<div class="psp__row psp__row--select" data-psp-row="@(direction == PlaybackSkipDirection.Back ? "skip-back" : "skip-forward")">
+            <PlaybackUtilityGlyph Glyph="@(direction == PlaybackSkipDirection.Back ? PlaybackUtilityGlyphKind.SkipBack : PlaybackUtilityGlyphKind.SkipForward)" />
+            <span class="psp__label">@(direction == PlaybackSkipDirection.Back ? L["PlaybackSettings_SkipBack"] : L["PlaybackSettings_SkipForward"])</span>
+            <span class="psp__value" aria-hidden="true">@L["PlaybackSettings_Seconds", CurrentSkip(direction)]<span class="psp__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronDown" /></span></span>
+            <AppNativeSelect Class="psp__select" Value="@CurrentSkip(direction)" OnChange="@(args => ChooseSkipAsync(direction, args))"
+                             aria-label="@(direction == PlaybackSkipDirection.Back ? L["PlaybackSettings_SkipBack"].Value : L["PlaybackSettings_SkipForward"].Value)">
+                @foreach (var seconds in SkipOptions(direction))
+                {
+                    <option value="@seconds.ToString(CultureInfo.InvariantCulture)">@L["PlaybackSettings_Seconds", seconds]</option>
+                }
+            </AppNativeSelect>
+        </div>;
+
+    private int CurrentSkip(PlaybackSkipDirection direction) => direction == PlaybackSkipDirection.Back ? SkipBackSeconds : SkipForwardSeconds;
+
+    // The current length is always on the list, even when the profile saved one this list does not offer.
+    private IEnumerable<int> SkipOptions(PlaybackSkipDirection direction) =>
+        PlaybackSkipChoices.Options(IsVideo, direction).Append(CurrentSkip(direction)).Where(seconds => seconds > 0).Distinct().Order();
+
+    private Task OpenSpeed()
+    {
+        _panel?.Navigator.Push(L["PlaybackSpeed_Title"].Value, SpeedBody, SpeedFooter);
+        return Task.CompletedTask;
+    }
+
+    private Task OpenInformation()
+    {
+        _panel?.Navigator.Push(L["PlaybackSettings_Information"].Value, InformationBody);
+        return Task.CompletedTask;
+    }
+
+    private Task ChooseSkipAsync(PlaybackSkipDirection direction, ChangeEventArgs args) =>
+        int.TryParse(args.Value?.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) && seconds != CurrentSkip(direction)
+            ? SkipChanged.InvokeAsync(new PlaybackSkipChange(direction, seconds))
+            : Task.CompletedTask;
+
+    private async Task EnterPictureInPictureAsync()
+    {
+        if (_panel is not null) await _panel.CloseAsync();
+        await OnPictureInPicture.InvokeAsync();
+    }
+
+    private Task ResetAsync() => OnReset.InvokeAsync();
+}

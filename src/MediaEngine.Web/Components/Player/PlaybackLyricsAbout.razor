@@ -1,0 +1,9 @@
+@namespace MediaEngine.Web.Components.Player
+@inject IStringLocalizer<SharedStrings> L
+
+@* "About lyrics sources" (unified player v2 D17): the explanation of where lyrics come from, kept out of the lyrics themselves and shown from the footer's "..." menu. *@
+<div class="playback-lyrics-about" data-lyrics-about>
+    <p>@L["PlaybackLyrics_AboutOrigin"]</p>
+    <p>@L["PlaybackLyrics_AboutSynced"]</p>
+    <p>@L["PlaybackLyrics_AboutYours"]</p>
+</div>

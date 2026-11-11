@@ -1,0 +1,28 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Services.Playback
+
+@* One row of choices on the Settings menu's Styling page (player-controls-v3 D4): a title and a few buttons, one of them pressed.
+   With Swatches on (unified player D12) each choice is a round colour swatch instead of a labelled button; the label is still its accessible name. *@
+<div class="player-settings-menu__group" role="group" aria-label="@Title">
+    <h4>@Title</h4>
+    <div class="@(Swatches ? "player-settings-menu__swatches" : "player-settings-menu__choices")">
+        @foreach (var option in Options)
+        {
+            var selected = string.Equals(Current, option.Value, StringComparison.OrdinalIgnoreCase);
+            var rgb = SubtitleStyleCss.Rgb(option.Value);
+            <AppNativeButton Type="button"
+                             Class="@(Swatches ? (selected ? "player-settings-menu__swatch is-selected" : "player-settings-menu__swatch") : (selected ? "player-settings-menu__choice is-selected" : "player-settings-menu__choice"))"
+                             Css="@(Swatches ? $"--swatch:rgb({rgb.R} {rgb.G} {rgb.B})" : null)"
+                             AriaLabel="@($"{Title}: {option.Label}")" aria-pressed="@(selected ? "true" : "false")"
+                             OnClick="@(() => ValueSelected.InvokeAsync(option.Value))">@(Swatches ? null : option.Label)</AppNativeButton>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public IReadOnlyList<(string Label, string Value)> Options { get; set; } = [];
+    [Parameter] public string? Current { get; set; }
+    [Parameter] public bool Swatches { get; set; }
+    [Parameter] public EventCallback<string> ValueSelected { get; set; }
+}

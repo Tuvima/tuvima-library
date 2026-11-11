@@ -60,7 +60,7 @@ public sealed partial class BoundaryContractGuardrailTests
     {
         var source = File.ReadAllText(Path.Combine(
             RepoRoot,
-            "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
+            "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor"));
         var scrubbed = ScrubCommentsAndLiterals(MaskRazorMarkup(source));
 
         Assert.Contains("listenPlayback.hasState", source, StringComparison.Ordinal);

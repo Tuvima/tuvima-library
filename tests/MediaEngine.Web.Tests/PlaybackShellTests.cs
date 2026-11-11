@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Playback;
@@ -79,11 +80,11 @@ public sealed class PlaybackShellTests : AsyncBunitContext
         Assert.Empty(row.Children[2].QuerySelectorAll("button[aria-label='Play']"));
 
         // There is no layout engine here, so the grid itself is checked: equal outer columns keep Play at the exact centre.
-        var css = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css");
+        var css = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css");
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css, StringComparison.Ordinal);
         Assert.Contains("flex-wrap: nowrap;", css, StringComparison.Ordinal);
         // The identity zone (PlaybackIdentity) keeps 240 px and ends a long title in an ellipsis.
-        var identityCss = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css");
+        var identityCss = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css");
         Assert.Contains("min-width: 240px;", identityCss, StringComparison.Ordinal);
         Assert.Contains("overflow: hidden;", identityCss, StringComparison.Ordinal);
         Assert.Contains("text-overflow: ellipsis;", identityCss, StringComparison.Ordinal);
@@ -191,7 +192,7 @@ public sealed class PlaybackShellTests : AsyncBunitContext
             Assert.All(cut.FindAll("button"), button => Assert.False(string.IsNullOrWhiteSpace(button.GetAttribute("aria-label"))));
         }
 
-        Assert.DoesNotContain("title=", LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor")), StringComparison.Ordinal);
+        Assert.DoesNotContain("title=", LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor")), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -369,8 +370,8 @@ public sealed class PlaybackShellTests : AsyncBunitContext
     [Fact]
     public void TheSessionHasExactlyOneAudioAndOneVideoElementAndNeitherLivesInsideATogglingBranch()
     {
-        var listen = LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor"));
-        var video = LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Watch", "VideoPlaybackHost.razor"));
+        var listen = LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "ListenNowPlayingBar.razor"));
+        var video = LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "VideoPlaybackHost.razor"));
 
         Assert.Single(Regex.Matches(listen, @"<audio\b"));
         Assert.Single(Regex.Matches(video, @"<video\b"));
@@ -382,8 +383,8 @@ public sealed class PlaybackShellTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("Listen", "ListenNowPlayingBar.razor")]
-    [InlineData("Watch", "VideoPlaybackHost.razor")]
+    [InlineData("Player", "ListenNowPlayingBar.razor")]
+    [InlineData("Player", "VideoPlaybackHost.razor")]
     public void TheBigComponentsKeepTheirWiringButNoBarMarkup(string folder, string file)
     {
         var source = LocalizedSource.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", folder, file));

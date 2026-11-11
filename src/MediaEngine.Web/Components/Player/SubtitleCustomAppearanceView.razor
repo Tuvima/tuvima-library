@@ -1,0 +1,44 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* Custom appearance, one level deeper than Subtitle appearance (unified player v2 D13): the full set of choices the player has always had, font,
+   shadow, text color and opacity, background color and opacity. Each change applies to the playing video at once and is saved on the profile. *@
+<div class="player-settings-menu" data-subtitle-custom-appearance>
+    <PlayerSettingsChoiceGroup Title="@L["PlayerSettings_Font"].Value" Options="@FontOptions" Current="@(Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault)"
+                               ValueSelected="@(value => ChangeAsync(look => look.SubtitleFont = value))" />
+    <PlayerSettingsChoiceGroup Title="@L["PlayerSettings_Shadow"].Value" Options="@OnOffOptions" Current="@(Look?.SubtitleShadow == true ? "on" : "off")"
+                               ValueSelected="@(value => ChangeAsync(look => look.SubtitleShadow = value == "on"))" />
+    <PlayerSettingsChoiceGroup Swatches="true" Title="@L["PlayerSettings_Colour"].Value" Options="@ColourOptions" Current="@(Look?.SubtitleColor ?? PlaybackPreferenceValues.ColorWhite)"
+                               ValueSelected="@(value => ChangeAsync(look => look.SubtitleColor = value))" />
+    <PlayerSettingsSliderGroup Title="@L["PlayerSettings_TextOpacity"].Value" Stops="@PlaybackPreferenceValues.TextOpacityStops" Value="@((int)Math.Round(SubtitleStyleCss.TextOpacity(Look) * 100))"
+                               ValueSelected="@(value => ChangeAsync(look => look.SubtitleTextOpacity = value))" />
+    <PlayerSettingsChoiceGroup Swatches="true" Title="@L["PlayerSettings_BackgroundColour"].Value" Options="@ColourOptions" Current="@(Look?.SubtitleBackgroundColor ?? PlaybackPreferenceValues.ColorBlack)"
+                               ValueSelected="@(value => ChangeAsync(look => look.SubtitleBackgroundColor = value))" />
+    <PlayerSettingsSliderGroup Title="@L["PlayerSettings_BackgroundOpacity"].Value" Stops="@PlaybackPreferenceValues.BackgroundOpacityStops" Value="@((int)Math.Round(SubtitleStyleCss.BackgroundOpacity(Look) * 100))"
+                               ValueSelected="@ChangeBackgroundOpacityAsync" />
+</div>
+
+@code {
+    [Parameter] public SubtitleLanguageSettingsDto? Look { get; set; }
+    [Parameter] public Func<Action<SubtitleLanguageSettingsDto>, Task>? StyleChanged { get; set; }
+
+    private Task ChangeAsync(Action<SubtitleLanguageSettingsDto> change) => StyleChanged is null ? Task.CompletedTask : StyleChanged(change);
+
+    // The background slider's first stop (0) is "no background": it turns the backing off but remembers the last opacity, so sliding back up restores a visible backing.
+    private Task ChangeBackgroundOpacityAsync(int percent) => ChangeAsync(look =>
+    {
+        look.SubtitleBackground = percent > 0;
+        if (percent > 0) look.SubtitleBackgroundOpacity = percent;
+    });
+
+    private IReadOnlyList<(string Label, string Value)> FontOptions => [(L["PlayerSettings_Default"].Value, PlaybackPreferenceValues.FontDefault), (L["PlayerSettings_Serif"].Value, PlaybackPreferenceValues.FontSerif), (L["PlayerSettings_Mono"].Value, PlaybackPreferenceValues.FontMono)];
+    private IReadOnlyList<(string Label, string Value)> OnOffOptions => [(L["Common_Off"].Value, "off"), (L["PlayerSettings_On"].Value, "on")];
+    private IReadOnlyList<(string Label, string Value)> ColourOptions => [
+        (L["PlayerSettings_White"].Value, PlaybackPreferenceValues.ColorWhite), (L["PlayerSettings_Black"].Value, PlaybackPreferenceValues.ColorBlack),
+        (L["PlayerSettings_Blue"].Value, PlaybackPreferenceValues.ColorBlue), (L["PlayerSettings_Teal"].Value, PlaybackPreferenceValues.ColorTeal),
+        (L["PlayerSettings_Green"].Value, PlaybackPreferenceValues.ColorGreen), (L["PlayerSettings_Yellow"].Value, PlaybackPreferenceValues.ColorYellow),
+        (L["PlayerSettings_Red"].Value, PlaybackPreferenceValues.ColorRed), (L["PlayerSettings_Magenta"].Value, PlaybackPreferenceValues.ColorMagenta)];
+}

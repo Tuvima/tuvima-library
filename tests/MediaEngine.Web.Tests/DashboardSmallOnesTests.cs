@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Reading;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
@@ -115,8 +116,8 @@ public sealed class DashboardSmallOnesTests : AsyncBunitContext
     public void TheSleepTimerPanel_IsItsOwnPanelKindAt380Pixels()
     {
         Assert.Contains("--playback-panel-sleep-width: 380px;", Read("wwwroot", "tuvima.tokens.css"), StringComparison.Ordinal);
-        Assert.Matches(@"\.playback-panel--sleep \{\s*width: var\(--playback-panel-sleep-width\);", Read("Components", "Shared", "PlaybackPanel.razor.css"));
-        Assert.Contains("Kind=\"sleep\"", Read("Components", "Shared", "SleepTimerPanel.razor"), StringComparison.Ordinal);
+        Assert.Matches(@"\.playback-panel--sleep \{\s*width: var\(--playback-panel-sleep-width\);", Read("Components", "Player", "PlaybackPanel.razor.css"));
+        Assert.Contains("Kind=\"sleep\"", Read("Components", "Player", "SleepTimerPanel.razor"), StringComparison.Ordinal);
     }
 
     [Fact]

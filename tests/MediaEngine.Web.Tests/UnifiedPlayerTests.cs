@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;

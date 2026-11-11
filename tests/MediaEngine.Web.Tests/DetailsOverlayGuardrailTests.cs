@@ -20,11 +20,11 @@ public sealed partial class DetailsOverlayGuardrailTests
             "Asks RoutedPageAddress.Accept, which ignores the overlay opening, swapping and closing, so the lane neither re-reads its filters nor reloads.",
         ["Components/MediaHub/MediaSectionShell.razor"] =
             "Asks RoutedPageAddress.Accept, so the overlay does not scroll the section to the top or change its active entry.",
-        ["Components/Listen/ListenNowPlayingBar.razor"] =
+        ["Components/Player/ListenNowPlayingBar.razor"] =
             "Only re-renders; whether it is on a Listen page comes from RoutedPageAddress.AbsoluteFor (the page under the overlay).",
         ["Components/Settings/Frame/SettingsAttentionBanner.razor"] =
             "Only re-renders; whether it is on the Tools page comes from RoutedPageAddress.AbsoluteFor (the page under the overlay).",
-        ["Components/Watch/VideoPlaybackHost.razor"] =
+        ["Components/Player/VideoPlaybackHost.razor"] =
             "Moving away from the player (including opening a title over it) continues the video in picture-in-picture or the mini player, as opening a title always did.",
         ["Shared/MainLayout.razor"] =
             "The shell tracks the page under the overlay as its current page and keeps that page's scroll while the overlay opens, swaps and closes.",

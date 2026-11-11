@@ -1,0 +1,18 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Components.Shared
+
+@* One extra row of the phone player's "..." menu (the music Bookmarks row). It wears the menu's own row class, so the menu's rules reach it. *@
+<AppNativeButton @ref="_button" Type="button" Class="playback-item-menu__row" role="menuitem" data-playback-item-action="bookmarks" OnClick="ActivateAsync">
+    <PlaybackUtilityGlyph Glyph="@Glyph" />
+    <span class="playback-item-menu__label">@Label</span>
+</AppNativeButton>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public PlaybackUtilityGlyphKind Glyph { get; set; }
+    [Parameter] public EventCallback<ElementReference> Activated { get; set; }
+
+    private AppNativeButton? _button;
+
+    private Task ActivateAsync() => Activated.InvokeAsync(_button?.Element ?? default);
+}

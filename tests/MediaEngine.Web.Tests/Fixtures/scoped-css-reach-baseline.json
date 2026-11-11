@@ -190,6 +190,9 @@
     "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor": [
       "watch-player-state"
     ],
+    "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor": [
+      "video-playback-restore__button"
+    ],
     "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor": [
       "collection-rule-builder__add-condition",
       "collection-rule-builder__add-secondary",
@@ -305,9 +308,6 @@
     ],
     "src/MediaEngine.Web/Components/Vault/VaultImageViewer.razor": [
       "vault-viewer"
-    ],
-    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor": [
-      "video-playback-restore__button"
     ],
     "src/MediaEngine.Web/Shared/MainLayout.razor": [
       "layout-shell__actions",

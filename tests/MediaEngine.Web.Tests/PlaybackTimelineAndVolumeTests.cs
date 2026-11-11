@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Playback;
@@ -137,7 +138,7 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     [Fact]
     public void Timeline_ShellNoLongerOffsetsTheRailWithInterimOverrides()
     {
-        var shell = SourceText("Components/Shared/PlaybackShell.razor.css");
+        var shell = SourceText("Components/Player/PlaybackShell.razor.css");
 
         Assert.DoesNotContain(".playback-seek-rail--dock", shell, StringComparison.Ordinal);
         Assert.Contains("height: 28px;", shell, StringComparison.Ordinal);
@@ -304,7 +305,7 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
         Assert.NotNull(slot.QuerySelector("input[type=range]"));
         Assert.Equal(root, slot.ParentElement);
 
-        var css = SourceText("Components/Shared/PlaybackVolumeControl.razor.css");
+        var css = SourceText("Components/Player/PlaybackVolumeControl.razor.css");
         // The slot keeps no width, open or closed, and never clips; only the slider inside it is drawn over the bar.
         Assert.Contains("flex:none; width:0; height:0; visibility:hidden;", css, StringComparison.Ordinal);
         Assert.DoesNotContain("overflow:hidden", css, StringComparison.Ordinal);
@@ -322,7 +323,7 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     [Fact]
     public void Tools_WhenTheyOverflowAreRightAlignedButScrollableFromTheirFirstTool()
     {
-        var css = SourceText("Components/Shared/PlaybackShell.razor.css");
+        var css = SourceText("Components/Player/PlaybackShell.razor.css");
         var narrow = css[css.IndexOf("@media (max-width: 1180px)", StringComparison.Ordinal)..];
         narrow = narrow[..narrow.IndexOf("\n}", StringComparison.Ordinal)];
         Assert.Contains("overflow-x: auto", narrow, StringComparison.Ordinal);
@@ -382,7 +383,7 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     public void Volume_TheOldVerticalVolumeBoxIsGone()
     {
         var app = SourceText("wwwroot/app.css");
-        var razor = SourceText("Components/Shared/PlaybackVolumeControl.razor");
+        var razor = SourceText("Components/Player/PlaybackVolumeControl.razor");
 
         Assert.DoesNotContain("Vertical=\"true\"", razor, StringComparison.Ordinal);
         Assert.DoesNotContain("height: 168px", app, StringComparison.Ordinal);

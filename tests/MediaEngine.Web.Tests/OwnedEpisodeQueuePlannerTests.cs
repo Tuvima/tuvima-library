@@ -1,5 +1,5 @@
 using MediaEngine.Contracts.Details;
-using MediaEngine.Web.Components.Watch;
+using MediaEngine.Web.Components.Player;
 
 namespace MediaEngine.Web.Tests;
 

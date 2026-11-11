@@ -1,7 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Components.Watch;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
@@ -442,7 +442,7 @@ public sealed class VideoSubtitleDefaultsHostTests : AsyncBunitContext
     {
         var root = RepoRoot();
         var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
-        var scoped = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
+        var scoped = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor.css"));
         var script = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-core.js"));
 
         Assert.Contains(".video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size);", css, StringComparison.Ordinal);
