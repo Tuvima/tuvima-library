@@ -47,7 +47,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Listen/` | Now-playing bar, song table, transport controls, navigation items |
 | `MediaEditor/` | Shared pieces for the Collections editors (`MediaEditorPanel`, `MediaEditorSurface`) and the Details tag editor and move picker; the old all-in-one editor shell is gone |
 | `MediaHub/` | Shared section scaffolding for Read, Watch, Listen, Collections |
-| `MediaTiles/` | `MediaTile`, `MediaGroupTile`, `MediaTileGrid`, `MediaTileShelf` |
+| `MediaTiles/` | `MediaTile` (single titles and group posters), `MediaSquareTile`, `MediaTileGrid`, `MediaTileShelf` |
 | `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu` (incl. Needs Review link), `LibrarySwitcherSheet`, and the phone shell (`PhoneNavigationMenu`, `PhoneSectionChips`, `PhoneDownloadsAction`) — see *Phone navigation* in `docs/product/presentation-rules.md` |
 | `Pages/` | All routed pages — see the table below |
 | `Profiles/` | Profile editor/avatar/sign-in sheets with their `ProfileEditingWorkflow` / `ProfileSignInWorkflow`, `AdminUnlockDialog`, `ProfileManageRules` |
