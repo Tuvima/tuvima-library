@@ -190,6 +190,7 @@ else if (Model is not null)
             ItemSwitched = AfterEditItemSwitchedAsync,
             Saved = RefreshAfterEditSavedAsync,
             SectionCommitted = RefreshAfterSectionCommitAsync,
+            DeletedWithNotice = notice => InvokeAsync(() => _disposed ? Task.CompletedTask : LeaveOrShowRemovedAsync(notice)),
             MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
             Trail = EditTrail,
             EditRowAsync = row => RowEditEntry.StartAsync(Editor, _binding, row),

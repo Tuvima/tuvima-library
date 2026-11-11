@@ -87,6 +87,12 @@ public sealed class EditorBinding
     /// <summary>A tool committed a change on its own (a match): the page refreshes what it shows.</summary>
     public Func<Task>? SectionCommitted { get; set; }
 
+    /// <summary>
+    /// A delete from the editor closed the editor (the item had no parent to move to) and has something to say, such as files left on disk:
+    /// the window is gone, so the page shows the line where the person lands.
+    /// </summary>
+    public Func<string, Task>? DeletedWithNotice { get; set; }
+
     /// <summary>The editor media types of the page's items, which say which library's file setting applies.</summary>
     public Func<IReadOnlyList<string>>? MediaTypes { get; set; }
 
@@ -342,6 +348,21 @@ public sealed class EditorHost : IDisposable
 
     /// <summary>The pop-over found the field (or gave up): the request is spent.</summary>
     public void ClearFocusRequest() => FocusField = null;
+
+    /// <summary>
+    /// Hands a line about a delete to the page behind, for when the delete closed the editor and the window can no longer show it.
+    /// False when no page is bound or the page has no place for it.
+    /// </summary>
+    public async Task<bool> HandNoticeToPageAsync(string notice)
+    {
+        if (_binding?.DeletedWithNotice is not { } show)
+        {
+            return false;
+        }
+
+        await show(notice);
+        return true;
+    }
 
     /// <summary>A tool committed a change on its own (a match went through): the page behind refreshes and the closing event says something changed.</summary>
     public async Task NotifyCommittedAsync()
