@@ -1,6 +1,6 @@
 # Spec: One song table and one reader frame
 
-> **Status:** Locked · **Version:** 8 · **Last updated:** 2026-11-11 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Look pass v3](look-pass-v3.md) · [Music player and queue](music-player-and-queue.md) · [PDF and comic reader](archive/pdf-and-comic-reader.md) · [Book reader images](book-reader-images.md) · Mockups: [design/mockups/music-table-and-reader-frame.html](../design/mockups/music-table-and-reader-frame.html)
+> **Status:** Built, awaiting your Local checks · **Version:** 8 · **Last updated:** 2026-11-11 (locked by Shy; built the same day) · **Related docs:** [Product overview](../../product/overview.md) · [Look pass v3](../look-pass-v3.md) · [Music player and queue](../music-player-and-queue.md) · [PDF and comic reader](pdf-and-comic-reader.md) · [Book reader images](../book-reader-images.md) · Mockups: [design/mockups/music-table-and-reader-frame.html](../../design/mockups/music-table-and-reader-frame.html)
 
 Source: thread 7 of the Dashboard remediation run (`engineering/handoffs/2026-11-11-dashboard-remediation.md`, "Thread 7 result"). Shy approved planning both on 2026-11-11 ("Agree with all"). Leaving the photo editor and the media editor as two separate editors was settled in the same answer and is out of scope.
 
