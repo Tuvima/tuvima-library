@@ -64,6 +64,24 @@ public sealed class MediaTypeResolver : IMediaTypeResolver
             ref adjustedPrior,
             out var rootWatchFolderDetail);
 
+        // A document that no title claimed as an Extra, in a library for videos, music or other non-document media, is never guessed
+        // into a type: it goes to Needs Review so a person decides (Shy, 2026-11-11).
+        if (IsStrayDocument(filePath))
+        {
+            var held = Math.Max(0.0, options.MediaTypeReviewThreshold - 0.01);
+            candidateList =
+            [
+                new MediaTypeCandidate
+                {
+                    Type = processorResult.DetectedType != MediaType.Unknown ? processorResult.DetectedType : MediaType.Books,
+                    Confidence = held,
+                    Reason = "A document with no matching title beside it, so it was not placed automatically",
+                },
+            ];
+            adjustedPrior = 0.0;
+            resolvedMediaType = MediaType.Unknown;
+        }
+
         bool mediaTypeIsConflicted = false;
         bool mediaTypeNeedsReview = false;
 
@@ -259,6 +277,18 @@ public sealed class MediaTypeResolver : IMediaTypeResolver
         return extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase)
             || _extensionCatalog.IsVideoExtension(extension)
             || processorType == MediaType.Unknown;
+    }
+
+    /// <summary>True for a PDF in a library that holds one non-document type (video, music and so on), where nothing claimed it as an Extra.</summary>
+    private bool IsStrayDocument(string filePath)
+    {
+        if (!Path.GetExtension(filePath).Equals(".pdf", StringComparison.OrdinalIgnoreCase)
+            || ResolveFolderForPrior(filePath) is not { MediaTypes.Count: 1 } folder)
+        {
+            return false;
+        }
+
+        return folder.MediaTypes[0] is not (MediaType.Books or MediaType.Comics or MediaType.Unknown);
     }
 
     private bool ApplyRootWatchFolderCap(
