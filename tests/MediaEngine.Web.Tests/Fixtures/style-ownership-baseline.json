@@ -327,10 +327,6 @@
       "important": 0,
       "deep": 14
     },
-    "src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css": {
-      "important": 0,
-      "deep": 1
-    },
     "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor.css": {
       "important": 0,
       "deep": 4
@@ -1224,10 +1220,6 @@
     "src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css": {
       "important": 0,
       "deep": 14
-    },
-    "src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css": {
-      "important": 0,
-      "deep": 1
     },
     "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor.css": {
       "important": 0,

@@ -214,7 +214,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaTileGrid_RoutesOnlyGroupsToTheGroupTileAndSinglesToTheItemTile()
+    public void MediaTileGrid_DrawsAGroupAsAPosterBesideASingleTitle()
     {
         var group = CreateGroupTile();
         var ordinary = CreateShelfItem("Ordinary title");
@@ -223,13 +223,15 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             component => component.Items,
             [group, ordinary]));
 
-        Assert.Same(group, cut.FindComponent<MediaGroupTile>().Instance.Item);
-        Assert.Single(cut.FindAll(".media-group-tile"));
-        Assert.Single(cut.FindAll("article.media-tile"));
+        var tiles = cut.FindAll("article.media-tile");
+        Assert.Equal(2, tiles.Count);
+        Assert.Single(cut.FindAll("article.media-tile.is-group"));
+        Assert.All(tiles, tile => Assert.Contains("is-portrait", tile.ClassList));
+        Assert.Empty(cut.FindAll("article.media-tile.is-landscape"));
     }
 
     [Fact]
-    public void MediaTileGrid_RoutesEveryNonTvCollectionToTheGroupTile()
+    public void MediaTileGrid_DrawsEveryNonTvCollectionAsAGroupPoster()
     {
         var collection = new MediaTileViewModel
         {
@@ -253,9 +255,8 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             component => component.Items,
             [collection, tvShow]));
 
-        Assert.Equal("Cross-media universe", cut.FindComponent<MediaGroupTile>().Instance.Item.Title);
-        Assert.Single(cut.FindAll(".media-group-tile"));
-        Assert.Single(cut.FindAll("article.media-tile"));
+        Assert.Equal(2, cut.FindAll("article.media-tile").Count);
+        Assert.Single(cut.FindAll("article.media-tile.is-group"));
     }
 
     [Theory]
@@ -264,42 +265,72 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [InlineData(MediaTileGroupKind.Universe, "Universe")]
     [InlineData(MediaTileGroupKind.List, "List")]
     [InlineData(MediaTileGroupKind.Set, "Set")]
-    public void MediaGroupTile_CornerWordNamesTheKindOfGroup(MediaTileGroupKind kind, string word)
+    public void AGroupTile_NamesItsKindToScreenReadersAndDrawsNoKindWordOnTheArt(MediaTileGroupKind kind, string word)
     {
         var group = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),
             Title = "Group",
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             GroupKind = kind,
+            TileImageUrl = "/art/group.jpg",
             NavigationUrl = "/details/collection/x",
         };
 
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, group));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, group));
 
-        Assert.Equal(word, cut.Find(".media-group-tile__kind").TextContent.Trim());
+        Assert.Equal($"Group, {word}", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
+        Assert.Empty(cut.FindAll(".media-tile-label--status"));
     }
 
     [Fact]
-    public void MediaGroupTile_CustomArtworkReplacesTheCoverStack()
+    public void AGroupTile_ShowsItsOwnCoverInsteadOfAFannedStack()
     {
         var group = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),
             Title = "Halloween",
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             HasCustomArtwork = true,
             CoverUrl = "/art/halloween.jpg",
             NavigationUrl = "/details/collection/halloween",
             ArtworkStackItems = [new ArtworkStackItem { Id = "1", Title = "Film", ImageUrl = "/covers/film.jpg", MediaType = "Movie", Shape = ArtworkShape.Portrait }],
         };
 
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, group));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, group));
 
-        Assert.Single(cut.FindAll(".media-group-tile__custom"));
-        Assert.Empty(cut.FindAll(".media-group-tile__stack"));
+        Assert.Contains("halloween.jpg", cut.Find("img.media-tile-image").GetAttribute("src"), StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("img.media-tile-image"));
+        Assert.Empty(cut.FindAll(".media-tile-stack"));
+    }
+
+    [Fact]
+    public void AGroupTileWithNoCover_UsesTheFirstCoverOfWhatItHolds_AndThePlainCoverWhenItHoldsNone()
+    {
+        var withMembers = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Cross-Media Archive",
+            IsCollection = true,
+            UseGroupTile = true,
+            NavigationUrl = "/details/collection/cross-media",
+            ArtworkStackItems =
+            [
+                new ArtworkStackItem { Id = "book-1", Title = "Book 1", ImageUrl = "/covers/book-1.jpg", MediaType = "Book", Shape = ArtworkShape.Portrait },
+                new ArtworkStackItem { Id = "movie", Title = "Movie", ImageUrl = "/covers/movie.jpg", MediaType = "Movie", Shape = ArtworkShape.Portrait },
+            ],
+        };
+        var empty = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Nothing yet", IsCollection = true, UseGroupTile = true, NavigationUrl = "/details/collection/none" };
+
+        var filled = Render<MediaTile>(parameters => parameters.Add(component => component.Item, withMembers));
+        var plain = Render<MediaTile>(parameters => parameters.Add(component => component.Item, empty));
+
+        Assert.Contains("book-1.jpg", filled.Find("img.media-tile-image").GetAttribute("src"), StringComparison.Ordinal);
+        Assert.Single(filled.FindAll("img.media-tile-image"));
+        Assert.Empty(plain.FindAll("img.media-tile-image"));
+        Assert.Single(plain.FindAll(".media-tile-fallback"));
     }
 
     [Fact]
@@ -312,7 +343,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Title = "Ava DuVernay",
             NavigationUrl = $"/details/person/{personId:D}",
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
             MediaCounts = [new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Movie, "Movies", 2)],
             Person = new MediaTilePersonViewModel { Id = personId, Name = "Ava DuVernay", ImageUrl = $"/persons/{personId:D}/headshot", Roles = ["Director"] },
         };
@@ -321,7 +352,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         Assert.Single(cut.FindAll("a.person-tile"));
         Assert.Equal($"/details/person/{personId:D}", cut.Find("a.person-tile").GetAttribute("href"));
-        Assert.Empty(cut.FindAll(".media-group-tile"));
+        Assert.Empty(cut.FindAll("article.media-tile"));
         Assert.Equal("2 movies", cut.Find(".media-count-line__item").ParentElement!.GetAttribute("data-playback-tooltip"));
     }
 
@@ -343,7 +374,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaGroupTile_NetworkGroupShowsItsResolvedLogoWithoutChangingTheGroupRoute()
+    public void AGroupTile_NetworkGroupShowsItsResolvedLogoWithoutChangingTheGroupRoute()
     {
         var group = new MediaTileViewModel
         {
@@ -355,25 +386,27 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             NavigationUrl = "/watch/tv?browse=networks&network=HBO",
             DetailsNavigationUrl = "/watch/tv?browse=networks&network=HBO",
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
         };
 
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, group));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, group));
 
-        Assert.Equal("/images/brands/hbo.svg", cut.Find(".media-group-tile__brand").GetAttribute("src"));
-        Assert.Equal("/watch/tv?browse=networks&network=HBO", cut.Find("a.media-group-tile__link").GetAttribute("href"));
-        Assert.Empty(cut.FindAll(".media-group-tile__stack"));
+        Assert.Equal("/images/brands/hbo.svg", cut.Find(".media-tile-brand").GetAttribute("src"));
+        Assert.Equal("/watch/tv?browse=networks&network=HBO", cut.Find("a.media-tile-link").GetAttribute("href"));
+        Assert.Empty(cut.FindAll(".media-tile-stack"));
     }
 
     [Fact]
-    public void MediaGroupTile_FansTheFirstThreeCoversInTheOrderTheEngineSent()
+    public void AGroupTile_DrawsOnlyTheCoverTheCountAndTheMenu_NoNameKindSourceOrBadgeOnTheArt()
     {
         var collection = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),
+            CollectionId = Guid.NewGuid(),
             Title = "Cross-Media Archive",
             IsCollection = true,
-            UseLandscapeGroupTile = true,
+            UseGroupTile = true,
+            TileImageUrl = "/covers/book-1.jpg",
             NavigationUrl = "/details/collection/cross-media",
             MediaCounts =
             [
@@ -381,23 +414,17 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
                 new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Headphones, "Audiobooks", 1),
                 new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Movie, "Movies", 1),
             ],
-            ArtworkStackItems =
-            [
-                new ArtworkStackItem { Id = "book-1", Title = "Book 1", ImageUrl = "/covers/book-1.jpg", MediaType = "Book", Shape = ArtworkShape.Portrait },
-                new ArtworkStackItem { Id = "album", Title = "Album", ImageUrl = "/covers/album.jpg", MediaType = "Music", Shape = ArtworkShape.Square },
-                new ArtworkStackItem { Id = "movie", Title = "Movie", ImageUrl = "/covers/movie.jpg", MediaType = "Movie", Shape = ArtworkShape.Portrait },
-                new ArtworkStackItem { Id = "book-2", Title = "Book 2", ImageUrl = "/covers/book-2.jpg", MediaType = "Book", Shape = ArtworkShape.Portrait },
-            ],
+            GroupSource = new MediaTileGroupSourceViewModel("list", UnmatchedCount: 3),
         };
 
-        var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, collection));
-        var sources = cut.FindAll(".media-group-tile__cover").Select(image => image.GetAttribute("src")).ToList();
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, collection));
 
-        Assert.Equal(3, sources.Count);
-        Assert.Contains("book-1.jpg", sources[0], StringComparison.Ordinal);
-        Assert.Contains("album.jpg", sources[1], StringComparison.Ordinal);
-        Assert.Contains("movie.jpg", sources[2], StringComparison.Ordinal);
         Assert.Equal("6 titles", cut.Find(".media-tile-label--bottom").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".media-tile-label--status"));
+        Assert.Empty(cut.FindAll("[data-group-source], [data-unmatched-badge]"));
+        Assert.Empty(cut.FindAll(".media-tile-fallback__title"));
+        Assert.Equal("Cross-Media Archive, Collection, 4 books, 1 audiobooks, 1 movies", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
+        Assert.Single(cut.FindAll("[data-media-tile-actions]"));
     }
 
     [Fact]
@@ -440,16 +467,16 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         CollectionId = Guid.NewGuid(),
         Title = "Foundation Series",
         MediaKind = "Book",
-        Shape = MediaTileShape.Landscape,
+        Shape = MediaTileShape.Portrait,
         Presentation = MediaTilePresentation.BookSeries,
         GroupKind = MediaTileGroupKind.Series,
-        SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
+        SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
         NavigationUrl = "/details/bookseries/foundation",
         PrimaryNavigationUrl = "/details/bookseries/foundation",
         PrimaryActionLabel = "Open Series",
         Description = "A classic science-fiction sequence about civilization and change.",
         IsCollection = true,
-        UseLandscapeGroupTile = true,
+        UseGroupTile = true,
         PreviewTotalCount = 2,
         HoverFacts = ["2 owned titles"],
         GroupSummary = new MediaTileGroupSummaryViewModel
@@ -496,7 +523,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     };
 
     [Fact]
-    public void MediaTile_PortraitSeriesUsesStaticShapeAwarePreview()
+    public void MediaTile_SeriesIsAPosterWithItsCoverAndCount()
     {
         var item = new MediaTileViewModel
         {
@@ -508,12 +535,13 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Presentation = MediaTilePresentation.BookSeries,
             SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
             HoverLayout = MediaTileHoverLayout.BannerPopover,
-            TileImageUrl = "/art/foundation-bg.jpg",
-            HoverImageUrl = "/art/foundation-bg.jpg",
+            TileImageUrl = "/art/foundation-cover.jpg",
             NavigationUrl = "/details/bookseries/foundation",
             PrimaryNavigationUrl = "/details/bookseries/foundation",
             PrimaryActionLabel = "Open Series",
             IsCollection = true,
+            GroupKind = MediaTileGroupKind.Series,
+            PreviewTotalCount = 6,
             ArtworkStackItems =
             [
                 new ArtworkStackItem { Id = "1", Title = "Foundation", ImageUrl = "/covers/1.jpg", MediaType = "Book", Shape = ArtworkShape.Portrait, Position = "1" },
@@ -523,11 +551,13 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        // A series is a group of titles: it draws as the one group tile, not as an item tile with a series look.
-        Assert.Single(cut.FindAll(".media-group-tile"));
-        Assert.Equal(2, cut.FindAll(".media-group-tile__cover").Count);
-        Assert.Equal("Series", cut.Find(".media-group-tile__kind").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".media-tile"));
+        // A Series is a group of titles: the same poster as a single title, its cover and the count at bottom left.
+        var tile = cut.Find("article.media-tile");
+        Assert.Contains("is-group", tile.ClassList);
+        Assert.Contains("is-portrait", tile.ClassList);
+        Assert.Contains("foundation-cover.jpg", cut.Find("img.media-tile-image").GetAttribute("src"), StringComparison.Ordinal);
+        Assert.Equal("6 books", cut.Find(".media-tile-label--bottom").TextContent.Trim());
+        Assert.Equal("Foundation Series, Series", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
     }
 

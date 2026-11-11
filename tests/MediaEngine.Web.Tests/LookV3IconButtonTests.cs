@@ -100,16 +100,44 @@ public sealed class LookV3IconButtonTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheTileMenuUsesThePlainIconButtonWithAScrimAndNoBorder()
+    public void TheTileMenuIsABareThreeDotMarkWithNoBoxScrimOrCompactSize()
     {
         var tileActions = Read("Components", "MediaTiles", "MediaTileActions.razor");
-        Assert.Contains("ButtonClass=\"media-tile-action app-icon-button app-icon-button--plain app-icon-button--over-artwork", tileActions);
+        Assert.Contains("ButtonClass=\"media-tile-action app-icon-button app-icon-button--plain\"", tileActions);
+        Assert.DoesNotContain("app-icon-button--over-artwork", tileActions);
+        Assert.DoesNotContain("app-control--compact", tileActions);
+
+        // D3 and D17: no box, a soft shadow on the glyph, and the 44 px tile-menu token as the target on every device.
+        var appCss = Read("wwwroot", "app.css");
+        Assert.Matches(@"\.media-tile-actions \.media-tile-action\.app-icon-button \{[^}]*--app-control-height:var\(--tl-tile-menu-button\)[^}]*background:transparent", appCss);
+        Assert.Contains("filter:var(--tl-tile-mark-shadow)", appCss);
 
         // The old local tile-menu button rules are gone; only the corner placement stays.
-        var appCss = Read("wwwroot", "app.css");
         Assert.DoesNotContain(".media-tile-actions .media-tile-action {", appCss);
         Assert.DoesNotContain(".media-tile-actions .app-overflow-menu__trigger", appCss);
         Assert.Matches(@"\.media-tile-actions \{[^}]*top:[^}]*right:", appCss);
+    }
+
+    [Fact]
+    public void TheTileMenuFolderWording_ComesFromTheStringsFile()
+    {
+        var tileActions = Read("Components", "MediaTiles", "MediaTileActions.razor");
+
+        Assert.DoesNotContain("\"Go to folder\"", tileActions);
+        Assert.DoesNotContain("\"Delete folder…\"", tileActions);
+        Assert.Contains("MediaTile_GoToFolder", tileActions);
+        Assert.Contains("MediaTile_DeleteFolder", tileActions);
+    }
+
+    [Fact]
+    public void TheContinuePlayMarkIsABareWhiteTriangleWithAShadowAndNoCircle()
+    {
+        var css = Read("Components", "MediaTiles", "ContinueLandscapeTile.razor.css");
+        var line = css.Split('\n').Single(l => l.StartsWith(".continue-tile__play {", StringComparison.Ordinal));
+
+        Assert.Contains("filter: var(--tl-tile-mark-shadow)", line);
+        Assert.DoesNotContain("background", line);
+        Assert.DoesNotContain("border-radius", line);
     }
 
     [Fact]

@@ -59,7 +59,6 @@ src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css:900p
 src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css:841px
 src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css:1279px
 src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css:641px
-src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css:720px
 src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css:841px
 src/MediaEngine.Web/Components/Pages/DesignSystemPreview.razor.css:980px
 src/MediaEngine.Web/Components/Pages/ForMe.razor.css:760px

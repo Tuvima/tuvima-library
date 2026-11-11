@@ -61,9 +61,7 @@ public static class MediaTileArtworkResolver
     {
         var tileVariant = SelectTileVariant(bucket, presentation, variants, preferLandscapeTile);
         var hoverVariant = SelectHoverVariant(variants) ?? tileVariant;
-        var shape = presentation is MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries or MediaTilePresentation.MovieSeries or MediaTilePresentation.AudiobookSeries
-            ? MediaTileShape.Landscape
-            : preferLandscapeTile ? MediaTileShape.Landscape
+        var shape = preferLandscapeTile ? MediaTileShape.Landscape
             : bucket == MediaTileBucket.Audiobook || presentation == MediaTilePresentation.Album
                 || (bucket == MediaTileBucket.Music && variants.Any(variant => variant.HasUrl && variant.Shape == MediaTileShape.Square))
             ? MediaTileShape.Square

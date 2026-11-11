@@ -695,8 +695,7 @@ code{
 .app-media-card { --app-media-card-width: 180px; display: flex; flex: 0 0 auto; flex-direction: column; gap: 8px; width: var(--app-media-card-width); min-width: 0; padding: 0; color: var(--tl-text-primary); background: transparent; border: 0; text-align: left; cursor: pointer; scroll-snap-align: start; }
 
 .tl-card-hover--quiet,
-.tl-card-hover--standard,
-.tl-card-hover--media {
+.tl-card-hover--standard {
     position: relative;
     isolation: isolate;
     transition:
@@ -721,30 +720,6 @@ code{
     box-shadow: var(--tl-shadow-hover-standard) !important;
 }
 
-.tl-card-hover--media:is(:hover, :focus-visible, :focus-within) {
-    transform: translateY(var(--tl-hover-media-y)) scale(var(--tl-hover-media-scale));
-    border-color: var(--tl-hover-border-color) !important;
-    box-shadow: var(--tl-shadow-hover-media) !important;
-    z-index: 2;
-}
-
-.tl-card-hover--media:is(:hover, :focus-visible, :focus-within) .app-media-artwork,
-.tl-card-hover--media:is(:hover, :focus-visible, :focus-within) .media-tile-media {
-    border-color: var(--tl-hover-border-color) !important;
-    box-shadow: var(--tl-shadow-hover-media) !important;
-}
-
-.tl-card-hover--media:is(:hover, :focus-visible, :focus-within) .app-media-artwork::after{
-    opacity: var(--tl-hover-overlay-opacity);
-}
-
-.tl-card-hover--media:is(:hover, :focus-visible, :focus-within) .app-media-artwork__image,
-.tl-card-hover--media:is(:hover, :focus-visible, :focus-within) .media-tile-image,
-.tl-card-hover--media:is(:hover, :focus-visible, :focus-within) .media-tile-stack-image{
-    transform: scale(var(--tl-hover-artwork-scale)) translateY(var(--tl-hover-artwork-pan-y));
-    filter: saturate(1.08) contrast(1.04);
-}
-
 /* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
    touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
 .media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-xs)); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
@@ -753,15 +728,15 @@ code{
 
 /* The cover's "..." (D3, D17): always visible, top right, a vertical three-dot mark with no box and a soft shadow so it reads on any art.
    The mark is small; the tappable area is the full 44 px on every device. */
-.media-tile-actions { position:absolute; top:6px; right:6px; z-index:8; display:flex; pointer-events:none; }
+.media-tile-actions { position:absolute; top:0; right:0; z-index:8; display:flex; pointer-events:none; }
 .media-tile-actions > * { pointer-events:auto; }
+.media-tile-actions .media-tile-action.app-icon-button { --app-control-height:var(--tl-tile-menu-button); min-height:var(--tl-tile-menu-button); background:transparent; color:var(--tl-on-scrim); }
+.media-tile-actions .media-tile-action.app-icon-button .tl-icon-root { filter:var(--tl-tile-mark-shadow); }
+.media-tile-actions .media-tile-action.app-icon-button.app-icon-button--plain:hover:not(:disabled):not([aria-disabled="true"]),
+.media-tile-actions .media-tile-action.app-icon-button.app-icon-button--plain[aria-expanded="true"] { background:transparent; }
 @media (prefers-reduced-motion: reduce){
     .tl-card-hover--quiet,
-    .tl-card-hover--standard,
-    .tl-card-hover--media,
-    .tl-card-hover--media .app-media-artwork__image,
-    .tl-card-hover--media .media-tile-image,
-    .tl-card-hover--media .media-tile-stack-image{
+    .tl-card-hover--standard {
         transition-duration: 1ms !important;
         transform: none !important;
         animation: none !important;
@@ -769,8 +744,7 @@ code{
     }
 
     .tl-card-hover--quiet:is(:hover, :focus-visible, :focus-within),
-    .tl-card-hover--standard:is(:hover, :focus-visible, :focus-within),
-    .tl-card-hover--media:is(:hover, :focus-visible, :focus-within) {
+    .tl-card-hover--standard:is(:hover, :focus-visible, :focus-within) {
         transform: none !important;
     }
 }
@@ -3666,7 +3640,6 @@ input[type="reset"],
     }
 
     .media-tile,
-    .media-group-tile,
     .layout-shell__intent-dock-link {
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;

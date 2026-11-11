@@ -8393,33 +8393,6 @@
   <data name="MediaGroupTile_Label" xml:space="preserve">
     <value>{0}, {1}</value>
   </data>
-  <data name="MediaGroupTile_NoArtwork" xml:space="preserve">
-    <value>No artwork available for {0}</value>
-  </data>
-  <data name="MediaGroupTile_SourceHandPicked" xml:space="preserve">
-    <value>Hand-picked</value>
-  </data>
-  <data name="MediaGroupTile_SourceRules" xml:space="preserve">
-    <value>Rules</value>
-  </data>
-  <data name="MediaGroupTile_SourceList" xml:space="preserve">
-    <value>From a list</value>
-  </data>
-  <data name="MediaGroupTile_SourceListRefreshed" xml:space="preserve">
-    <value>From a list, refreshed {0}</value>
-  </data>
-  <data name="MediaGroupTile_SourcePack" xml:space="preserve">
-    <value>Pack: {0}</value>
-  </data>
-  <data name="MediaGroupTile_SourceSetOne" xml:space="preserve">
-    <value>Set of 1 collection</value>
-  </data>
-  <data name="MediaGroupTile_SourceSetMany" xml:space="preserve">
-    <value>Set of {0} collections</value>
-  </data>
-  <data name="MediaGroupTile_UnmatchedBadge" xml:space="preserve">
-    <value>Couldn't match {0}</value>
-  </data>
   <data name="CollectionNotInLibrary_Heading" xml:space="preserve">
     <value>Not in your library ({0})</value>
   </data>
@@ -9341,6 +9314,9 @@
   <data name="MediaTile_GoToSeries" xml:space="preserve">
     <value>Go to series</value>
   </data>
+  <data name="MediaTile_GoToFolder" xml:space="preserve">
+    <value>Go to folder</value>
+  </data>
   <data name="MediaTile_GoToTitle" xml:space="preserve">
     <value>Go to title</value>
   </data>
@@ -9358,6 +9334,9 @@
   </data>
   <data name="MediaTile_DeleteShow" xml:space="preserve">
     <value>Delete show…</value>
+  </data>
+  <data name="MediaTile_DeleteFolder" xml:space="preserve">
+    <value>Delete folder…</value>
   </data>
   <data name="MediaTile_AddedToMyList" xml:space="preserve">
     <value>Added to My List.</value>

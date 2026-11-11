@@ -27,7 +27,8 @@
 .media-tile-image.is-contained { position:relative; padding:0; background:transparent; object-fit:contain; }
 .media-tile.is-portrait .media-tile-image { object-fit:contain; background:color-mix(in srgb,var(--media-tile-secondary-accent) 82%,var(--tl-bg-root)); }
 .media-tile.is-square .media-tile-image:not(.is-contained) { object-fit:cover; background:transparent; }
-.media-tile-static-group-preview { position:absolute; inset:0; overflow:hidden; border-radius:inherit; }
+/* A network group (HBO, Netflix) shows its logo, contained, on the plain cover surface. */
+.media-tile-brand { position:absolute; inset:24% 16%; width:68%; height:52%; object-fit:contain; }
 
 /* Fanned cover stack for a title with no single cover but several pictures. */
 .media-tile-stack { position:absolute; inset:0; }

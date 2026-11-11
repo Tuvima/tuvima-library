@@ -39,6 +39,15 @@ public static class MediaTileLabels
     public static string? Bottom(MediaTileViewModel item, string kept)
     {
         ArgumentNullException.ThrowIfNull(item);
+
+        // A group of titles counts what it holds ("6 books"); with no per-kind counts the Series noun reads better than "titles".
+        if (item.RenderAsGroupTile && item.Person is null)
+        {
+            return item.MediaCounts.Any(mediaCount => mediaCount.Count > 0)
+                ? GroupCount(item)
+                : CountText(item) ?? GroupCount(item);
+        }
+
         if (CountText(item) is { } count)
         {
             return count;
