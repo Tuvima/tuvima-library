@@ -27,7 +27,6 @@
 
 <PageTitle>@(string.IsNullOrWhiteSpace(_title) ? L["PageReader_Library"].Value : L["PageReader_TitleInLibrary", _title].Value)</PageTitle>
 
-<link href="css/book-reader.css" rel="stylesheet" />
 <link href="css/page-reader.css" rel="stylesheet" />
 
 <ReaderFrame State="FrameState" Class="pr-reader" data-background="@_background" Title="@_title" Subtitle="@_subtitle" Tools="Tools"
@@ -67,29 +66,29 @@
         }
         else if (openTool == ReaderTool.Bookmarks)
         {
-            <AppSegmentedControl Options="BookmarkTabOptions" Value="@_bookmarkTab" ValueChanged="SetBookmarkTabAsync" AriaLabel="@L["PageReader_Bookmarks"].Value" />
+            <AppSegmentedControl Options="BookmarkTabOptions" Value="@_bookmarkTab" ValueChanged="SetBookmarkTabAsync" AriaLabel="@L["ReaderFrame_Bookmarks"].Value" />
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="AddBookmarkAsync" StartIcon="@AppMaterialIcons.Filled.BookmarkAdd" Disabled="@(MyBookmarkOnPage is not null)">
-                @L["PageReader_BookmarkThisPage"]
+                @L["ReaderFrame_BookmarkThisPage"]
             </AppButton>
             @if (!string.IsNullOrEmpty(_bookmarkProblem))
             {
-                <p class="br-empty" role="alert">@_bookmarkProblem</p>
+                <p class="rf-empty" role="alert">@_bookmarkProblem</p>
             }
             @if (ShownBookmarks.Count == 0)
             {
-                <p class="br-empty">@(_bookmarkTab == "everyone" ? L["PageReader_NoBookmarksEveryone"].Value : L["PageReader_NoBookmarksMine"].Value)</p>
+                <p class="rf-empty">@(_bookmarkTab == "everyone" ? L["ReaderFrame_NoBookmarksEveryone"].Value : L["ReaderFrame_NoBookmarksMine"].Value)</p>
             }
             else
             {
-                <ul class="br-list">
+                <ul class="rf-list">
                     @foreach (var mark in ShownBookmarks)
                     {
-                        <li class="br-item" @key="mark.Id">
-                            <AppNativeButton Class="br-row br-row--grow pr-bm-row" OnClick="@(() => OpenPageFromPanelAsync(mark.Page))">
+                        <li class="rf-item" @key="mark.Id">
+                            <AppNativeButton Class="rf-row rf-row--grow pr-bm-row" OnClick="@(() => OpenPageFromPanelAsync(mark.Page))">
                                 <span class="pr-bm-pic pr-page--loading" data-page="@mark.Page" aria-hidden="true"></span>
                                 <span class="pr-bm-text">
-                                    <span class="br-row-main">@L["PageReader_OnPage", mark.Page]</span>
-                                    <span class="br-row-sub">@BookmarkSub(mark)</span>
+                                    <span class="rf-row-main">@L["PageReader_OnPage", mark.Page]</span>
+                                    <span class="rf-row-sub">@BookmarkSub(mark)</span>
                                 </span>
                             </AppNativeButton>
                             @if (mark.IsYours && !mark.IsGlobal)
@@ -103,11 +102,11 @@
         }
         else if (openTool == ReaderTool.Contents)
         {
-            <ul class="br-list">
+            <ul class="rf-list">
                 @foreach (var item in _outline)
                 {
                     <li>
-                        <AppNativeButton Class="@($"br-row br-row--level{Math.Min(item.Level, 3)} {(IsCurrentOutline(item) ? "br-row--current" : "")}")"
+                        <AppNativeButton Class="@($"rf-row rf-row--level{Math.Min(item.Level, 3)} {(IsCurrentOutline(item) ? "rf-row--current" : "")}")"
                                          OnClick="@(() => OpenPageFromPanelAsync(item.Page))" AriaLabel="@item.Title">
                             @item.Title
                         </AppNativeButton>
@@ -117,37 +116,37 @@
         }
         else if (openTool == ReaderTool.Search)
         {
-            <div class="br-search pr-search">
+            <div class="rf-search pr-search">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppIconSize.Control20" />
-                <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value"
+                <AppNativeInput @ref="_searchInput" Type="search" Class="rf-search-input" Placeholder="@L["PageReader_SearchInFile"].Value" AriaLabel="@L["PageReader_SearchInFile"].Value"
                                 Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
             </div>
             @if (_searching && _searchHits.Count == 0)
             {
-                <p class="br-hint" role="status">@L["PageReader_Searching"]</p>
+                <p class="rf-hint" role="status">@L["PageReader_Searching"]</p>
             }
             else if (!_searchStarted)
             {
-                <p class="br-hint">@L["PageReader_SearchHint"]</p>
+                <p class="rf-hint">@L["PageReader_SearchHint"]</p>
             }
             else if (_searchNoText)
             {
-                <p class="br-empty" role="status">@L["PageReader_NoText"]</p>
+                <p class="rf-empty" role="status">@L["PageReader_NoText"]</p>
             }
             else if (_searchHits.Count == 0)
             {
-                <p class="br-empty" role="status">@L["PageReader_NothingMatches", _searchedFor]</p>
+                <p class="rf-empty" role="status">@L["PageReader_NothingMatches", _searchedFor]</p>
             }
             else
             {
-                <p class="br-hint" role="status">@(_searchHits.Count >= SearchHitLimit ? L["PageReader_PlacesTruncated", _searchHits.Count].Value : L["PageReader_PlacesFound", _searchHits.Count].Value)</p>
-                <ul class="br-list">
+                <p class="rf-hint" role="status">@(_searchHits.Count >= SearchHitLimit ? L["PageReader_PlacesTruncated", _searchHits.Count].Value : L["PageReader_PlacesFound", _searchHits.Count].Value)</p>
+                <ul class="rf-list">
                     @foreach (var hit in _searchHits)
                     {
                         <li>
-                            <AppNativeButton Class="br-row" OnClick="@(() => OpenPageFromPanelAsync(hit.Page))">
-                                <span class="br-row-main">@hit.Before<mark class="br-search-match">@hit.Match</mark>@hit.After</span>
-                                <span class="br-row-sub">@L["PageReader_OnPage", hit.Page]</span>
+                            <AppNativeButton Class="rf-row" OnClick="@(() => OpenPageFromPanelAsync(hit.Page))">
+                                <span class="rf-row-main">@hit.Before<mark class="rf-search-match">@hit.Match</mark>@hit.After</span>
+                                <span class="rf-row-sub">@L["PageReader_OnPage", hit.Page]</span>
                             </AppNativeButton>
                         </li>
                     }
@@ -156,23 +155,23 @@
         }
         else
         {
-        <div class="br-field">
-            <div class="br-field-label">@L["PageReader_Layout"]</div>
+        <div class="rf-field">
+            <div class="rf-field-label">@L["PageReader_Layout"]</div>
             <AppSegmentedControl Options="LayoutOptions" Value="@LayoutValue" ValueChanged="SetLayoutAsync" AriaLabel="@L["PageReader_Layout"].Value" />
         </div>
-        <div class="br-field">
-            <div class="br-field-label">@L["PageReader_Fit"]</div>
+        <div class="rf-field">
+            <div class="rf-field-label">@L["PageReader_Fit"]</div>
             <AppSegmentedControl Options="FitOptions" Value="@_fit" ValueChanged="SetFitAsync" AriaLabel="@L["PageReader_Fit"].Value" />
         </div>
         @if (_kind == "comic")
         {
-            <div class="br-field">
-                <div class="br-field-label">@L["PageReader_Direction"]</div>
+            <div class="rf-field">
+                <div class="rf-field-label">@L["PageReader_Direction"]</div>
                 <AppSegmentedControl Options="DirectionOptions" Value="@(_rtl ? "rtl" : "ltr")" ValueChanged="SetDirectionAsync" AriaLabel="@L["PageReader_Direction"].Value" />
             </div>
         }
-        <div class="br-field">
-            <div class="br-field-label">@L["PageReader_Background"]</div>
+        <div class="rf-field">
+            <div class="rf-field-label">@L["PageReader_Background"]</div>
             <AppSegmentedControl Options="BackgroundOptions" Value="@_background" ValueChanged="SetBackgroundAsync" AriaLabel="@L["PageReader_Background"].Value" />
         </div>
         <AppSwitchRow Label="@L["PageReader_ShowBookmarksOnBar"].Value" Value="@_showBookmarksOnBar" ValueChanged="SetShowBookmarksOnBarAsync" />
@@ -271,8 +270,8 @@
     private bool _drawBookmarkPictures;
 
     private IReadOnlyList<AppSelectOption> BookmarkTabOptions => [
-        new("everyone", L["PageReader_BookmarksEveryone"].Value),
-        new("mine", L["PageReader_BookmarksMine"].Value),
+        new("mine", L["ReaderFrame_BookmarksMine"].Value),
+        new("everyone", L["ReaderFrame_BookmarksEveryone"].Value),
     ];
 
     private MediaEngine.Contracts.Reading.PageBookmarkDto? MyBookmarkOnPage => _bookmarks.FirstOrDefault(mark => mark.IsYours && !mark.IsGlobal && mark.Page == _page);

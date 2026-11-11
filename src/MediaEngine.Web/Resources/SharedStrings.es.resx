@@ -889,6 +889,18 @@
   <data name="ReaderFrame_Bookmarks" xml:space="preserve">
     <value>Marcadores</value>
   </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Mis marcadores</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Todos</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>Aún no tienes marcadores. Usa «Marcar esta página» para añadir uno.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Todavía no se ha compartido nada con todos.</value>
+  </data>
   <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
     <value>Ajustes de lectura</value>
   </data>

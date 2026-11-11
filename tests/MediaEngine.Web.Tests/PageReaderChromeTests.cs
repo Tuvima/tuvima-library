@@ -277,7 +277,7 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         OpenSettings(cut);
 
         Assert.Equal("Reading settings", cut.Find(".rf-panel-title").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".rf-panel-body .br-hint"));
+        Assert.Empty(cut.FindAll(".rf-panel-body .rf-hint"));
         Assert.DoesNotContain("saved to your profile", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -289,17 +289,17 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         var cut = Open("pdf");
         cut.Find(".rf-tools button[aria-label='Search in this file']").Click();
 
-        Assert.Empty(cut.FindAll(".br-search button"));
+        Assert.Empty(cut.FindAll(".rf-search button"));
 
-        var input = cut.Find(".br-search-input");
+        var input = cut.Find(".rf-search-input");
         input.Input("spring tide");
         input.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
         cut.WaitForAssertion(() => Assert.Single(_module.Invocations["searchText"]));
         await cut.InvokeAsync(() => cut.Instance.OnSearchResults(0, [new PageReader.PdfSearchHit { Page = 74, Before = "the ", Match = "spring tide", After = " can lift" }], true));
         search.SetResult(new PageReader.PdfSearchOutcome { HasText = true });
 
-        var row = cut.Find(".br-list .br-row");
-        Assert.Equal(["br-row-main", "br-row-sub"], row.Children.Select(child => child.ClassList.First()).ToArray());
+        var row = cut.Find(".rf-list .rf-row");
+        Assert.Equal(["rf-row-main", "rf-row-sub"], row.Children.Select(child => child.ClassList.First()).ToArray());
         Assert.Equal("Page 74", row.Children[1].TextContent.Trim());
     }
 
@@ -323,6 +323,42 @@ public sealed class PageReaderChromeTests : AsyncBunitContext
         foreach (var retired in new[] { ".pr-shell", ".pr-bar", ".pr-title", ".pr-tools", ".pr-ib", ".pr-live", ".pr-overlay", ".pr-spinner", ".pr-state", ".br-panel", ".br-scrim" })
         {
             Assert.DoesNotContain(retired, css, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void TheBookmarksSwitch_ListsMineBeforeEveryone_AsInTheBookReader()
+    {
+        var cut = Open("pdf");
+
+        cut.Find(".rf-tools button[aria-label='Bookmarks']").Click();
+
+        Assert.Equal(["Mine", "Everyone"], SegmentLabels(cut, "Bookmarks"));
+        Assert.Equal("Mine", SelectedSegment(cut, "Bookmarks"));
+    }
+
+    [Fact]
+    public void ThePageReader_LoadsOnlyTheFramesAndItsOwnStylesheet_AndTheSharedPanelRulesLiveInTheFrame()
+    {
+        var page = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/Components/Pages/PageReader.razor"));
+        var frameCss = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/reader-frame.css"));
+        var pageCss = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/page-reader.css"));
+        var bookCss = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/book-reader.css"));
+
+        Assert.DoesNotContain("book-reader.css", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("br-", page, StringComparison.Ordinal);
+
+        foreach (var shared in new[] { ".rf-list", ".rf-item", ".rf-row", ".rf-row-main", ".rf-row-sub", ".rf-search", ".rf-search-input", ".rf-search-match", ".rf-empty", ".rf-hint", ".rf-field", ".rf-field-label", ".rf-subhead" })
+        {
+            var definition = new Regex($@"^{Regex.Escape(shared)}\s*[,{{]", RegexOptions.Multiline);
+            Assert.NotEmpty(definition.Matches(frameCss));
+            Assert.Empty(definition.Matches(pageCss));
+            Assert.Empty(definition.Matches(bookCss));
+        }
+
+        foreach (var retired in new[] { ".br-list", ".br-item", ".br-row {", ".br-row-sub", ".br-search", ".br-empty", ".br-hint", ".br-field", ".br-subhead" })
+        {
+            Assert.DoesNotContain(retired, bookCss, StringComparison.Ordinal);
         }
     }
 

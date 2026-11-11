@@ -2,7 +2,7 @@
    Page reader (PDF and comic reader spec) - Tuvima Library
    The page stage and what the page reader puts into the reader frame's slots (the slider and count, the Pages grid, the bookmark
    rows, the end-of-issue card). The frame itself (shell, top line, tools, Close, panel, scrim, opening and "can't open") is
-   css/reader-frame.css. The panel's list, row, field and search-box rules borrow css/book-reader.css (br-*). Prefixed pr-.
+   css/reader-frame.css. The panel's list, row, field and search-box rules are the frame's (rf-*). Prefixed pr-.
    ============================================================================ */
 
 /* The reader's colours. The background choice sets the frame's page and text variables (spec music-table-and-reader-frame D17);
@@ -167,7 +167,7 @@
 }
 
 .pr-search:focus-within { outline: 2px solid var(--pr-accent-hover); outline-offset: 2px; }
-.pr-search .br-search-input { padding: 0; border: 0; outline: 0; background: transparent; }
+.pr-search .rf-search-input { padding: 0; border: 0; outline: 0; background: transparent; }
 
 @media (prefers-reduced-motion: reduce) {
     .pr-page--loading::after { animation-duration: 3s; }

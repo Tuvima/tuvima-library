@@ -1,10 +1,10 @@
 /* ============================================================================
    Book reader - Tuvima Library
-   What is specific to a book: the stage the foliate-js view is drawn in, the four reading themes, the highlight tools, and the
-   panel contents (rows, search, fields) that the page reader draws too. The shell, the top line, the bottom line, the panel and the
-   opening and "can't open" states are the one reader frame (reader-frame.css, spec music-table-and-reader-frame D12-D19).
+   What is specific to a book: the stage the foliate-js view is drawn in, the four reading themes and the highlight tools. The shell,
+   the top line, the bottom line, the panel and its contents (rows, search, fields) and the opening and "can't open" states are the
+   one reader frame (reader-frame.css, spec music-table-and-reader-frame D12-D19).
    The book view itself is drawn by the library inside sandboxed frames. Everything is prefixed br- so it can never touch the
-   current reader (reader-*). Loaded by BookReader.razor and PageReader.razor, so it ships only when a book or file is open.
+   current reader (reader-*). Loaded by BookReader.razor, so it ships only when a book is open.
    ============================================================================ */
 
 /* ── Themes: the book's colours become the frame's three variables ──────── */
@@ -66,76 +66,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* ── Panel contents (shared with the page reader) ───────────────────────── */
-
-.br-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.br-item {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.br-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.125rem;
-    inline-size: 100%;
-    min-block-size: 2.75rem;
-    padding: 0.5rem 0.75rem;
-    border: 0;
-    border-radius: var(--tl-radius-md, 0.5rem);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: start;
-    cursor: pointer;
-}
-
-.br-row--grow {
-    flex: 1 1 auto;
-    min-inline-size: 0;
-}
-
-.br-row:hover {
-    background: var(--tl-bg-surface-hover, rgba(255, 255, 255, 0.08));
-}
-
-.br-row:focus-visible,
-.br-swatch:focus-visible {
-    outline: 2px solid var(--rf-accent);
-    outline-offset: 2px;
-}
-
-.br-row--current {
-    color: var(--rf-accent);
-    font-weight: 600;
-}
-
-.br-row--level1 { padding-inline-start: 1.5rem; }
-.br-row--level2 { padding-inline-start: 2.25rem; }
-.br-row--level3 { padding-inline-start: 3rem; }
-
-.br-row-main,
-.br-row-sub {
-    max-inline-size: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.br-row-main {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-}
+/* ── Highlight rows in the Bookmarks panel (the shared rows are rf-* in reader-frame.css) ── */
 
 .br-row-main--quote {
     border-inline-start: 3px solid #eab308;
@@ -148,60 +79,9 @@
 .br-row-main--quote[data-color="#A78BFA" i] { border-color: #a78bfa; }
 .br-row-main--quote[data-color="#EAB308" i] { border-color: #eab308; }
 
-.br-row-sub {
-    font-size: var(--tl-font-size-xs, 0.75rem);
-    color: var(--tl-text-muted, #9aa0aa);
-    white-space: nowrap;
-}
-
-.br-search {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.br-search-input {
-    flex: 1 1 auto;
-    min-inline-size: 0;
-    min-block-size: 2.75rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.18));
-    border-radius: var(--tl-radius-md, 0.5rem);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-}
-
-.br-search-input:focus-visible {
+.br-swatch:focus-visible {
     outline: 2px solid var(--rf-accent);
     outline-offset: 2px;
-}
-
-.br-search-match {
-    padding: 0 0.125rem;
-    border-radius: 0.125rem;
-    background: rgba(234, 179, 8, 0.35);
-    color: inherit;
-}
-
-.br-empty,
-.br-hint {
-    margin: 0;
-    font-size: var(--tl-font-size-sm, 0.875rem);
-    color: var(--tl-text-muted, #9aa0aa);
-}
-
-.br-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.br-field-label,
-.br-subhead {
-    margin: 0;
-    font-size: var(--tl-font-size-sm, 0.875rem);
-    font-weight: 600;
 }
 
 /* ── Highlight tools floating over the page ─────────────────────────────── */

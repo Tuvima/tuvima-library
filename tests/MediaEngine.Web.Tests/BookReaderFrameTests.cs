@@ -288,7 +288,27 @@ public sealed class BookReaderFrameTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheBookStylesheet_HoldsOnlyTheStageThemesHighlightsAndPanelContents()
+    public void TheBookmarksPanelWording_LivesInTheFramesKeysInAllFourLanguages_AndThePageReaderKeysAreGone()
+    {
+        string[] shared = ["ReaderFrame_BookmarksMine", "ReaderFrame_BookmarksEveryone", "ReaderFrame_NoBookmarksMine", "ReaderFrame_NoBookmarksEveryone"];
+        foreach (var language in new[] { "", ".de", ".es", ".fr" })
+        {
+            var table = File.ReadAllText(Path.Combine(Root, $"src/MediaEngine.Web/Resources/SharedStrings{language}.resx"));
+            foreach (var key in shared)
+            {
+                Assert.Contains($"name=\"{key}\"", table, StringComparison.Ordinal);
+            }
+        }
+
+        var english = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/Resources/SharedStrings.resx"));
+        foreach (var key in new[] { "PageReader_Bookmarks", "PageReader_BookmarkThisPage", "PageReader_BookmarksMine", "PageReader_BookmarksEveryone", "PageReader_NoBookmarksMine", "PageReader_NoBookmarksEveryone" })
+        {
+            Assert.DoesNotContain($"name=\"{key}\"", english, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void TheBookStylesheet_HoldsOnlyTheStageThemesAndHighlights()
     {
         var css = File.ReadAllText(Path.Combine(Root, "src/MediaEngine.Web/wwwroot/css/book-reader.css"));
 

@@ -12536,29 +12536,11 @@
   <data name="PageReader_OnPage" xml:space="preserve">
     <value>Page {0}</value>
   </data>
-  <data name="PageReader_Bookmarks" xml:space="preserve">
-    <value>Bookmarks</value>
-  </data>
-  <data name="PageReader_BookmarkThisPage" xml:space="preserve">
-    <value>Bookmark this page</value>
-  </data>
   <data name="PageReader_BookmarkAdded" xml:space="preserve">
     <value>Bookmarked page {0}.</value>
   </data>
   <data name="PageReader_BookmarkRemoved" xml:space="preserve">
     <value>Removed the bookmark on page {0}.</value>
-  </data>
-  <data name="PageReader_BookmarksEveryone" xml:space="preserve">
-    <value>Everyone</value>
-  </data>
-  <data name="PageReader_BookmarksMine" xml:space="preserve">
-    <value>Mine</value>
-  </data>
-  <data name="PageReader_NoBookmarksMine" xml:space="preserve">
-    <value>No bookmarks of yours yet. Use Bookmark this page to add one.</value>
-  </data>
-  <data name="PageReader_NoBookmarksEveryone" xml:space="preserve">
-    <value>Nothing has been shared with everyone yet.</value>
   </data>
   <data name="PageReader_DeleteBookmark" xml:space="preserve">
     <value>Delete bookmark</value>
@@ -13393,6 +13375,18 @@
   </data>
   <data name="ReaderFrame_Bookmarks" xml:space="preserve">
     <value>Bookmarks</value>
+  </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Mine</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Everyone</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>No bookmarks of yours yet. Use Bookmark this page to add one.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Nothing has been shared with everyone yet.</value>
   </data>
   <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
     <value>Reading settings</value>

@@ -889,6 +889,18 @@
   <data name="ReaderFrame_Bookmarks" xml:space="preserve">
     <value>Lesezeichen</value>
   </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Meine</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Alle</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>Sie haben noch keine Lesezeichen. Mit „Lesezeichen für diese Seite setzen“ legen Sie eines an.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Mit allen wurde noch nichts geteilt.</value>
+  </data>
   <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
     <value>Leseeinstellungen</value>
   </data>
