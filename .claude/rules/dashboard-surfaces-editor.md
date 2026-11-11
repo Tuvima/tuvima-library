@@ -1,6 +1,6 @@
 ---
 paths:
-  - "src/MediaEngine.Web/Components/MediaEditor/**"
+  - "src/MediaEngine.Web/Components/Editor/**"
   - "src/MediaEngine.Web/Components/Artwork/**"
   - "src/MediaEngine.Web/Services/Editing/**"
   - "src/MediaEngine.Web/Components/Collections/**"
