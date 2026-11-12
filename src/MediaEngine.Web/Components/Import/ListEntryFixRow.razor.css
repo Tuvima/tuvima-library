@@ -23,7 +23,7 @@
 .list-fix-row__creator,
 .list-fix-row__state {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .list-fix-row__state {

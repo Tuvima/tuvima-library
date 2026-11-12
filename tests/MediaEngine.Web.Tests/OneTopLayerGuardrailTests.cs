@@ -47,6 +47,44 @@ public sealed class OneTopLayerGuardrailTests
     }
 
     [Fact]
+    public void NothingShownOnlyOnHoverIsLayeredByNumber()
+    {
+        // The same rule for a hover surface that goes by another name: a part a style reveals under :hover or :focus-within, placed
+        // outside the thing it belongs to and given a layer number, is a hover card whatever its class is called. A caption or a
+        // button shown over its own tile stays inside the tile and is not one.
+        var web = Path.Combine(RepoRoot(), "src", "MediaEngine.Web");
+        var offenders = new List<string>();
+        foreach (var path in Directory.EnumerateFiles(Path.Combine(web, "Components"), "*.razor.css", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(web, path).Replace('\\', '/');
+            if (Allowed.ContainsKey(relative))
+            {
+                continue;
+            }
+
+            var rules = Regex.Matches(File.ReadAllText(path), @"(?<selector>[^{}]+)\{(?<body>[^{}]*)\}");
+            var revealed = rules
+                .Where(rule => Regex.IsMatch(rule.Groups["body"].Value, @"display\s*:\s*(?!none)|visibility\s*:\s*visible|opacity\s*:\s*1"))
+                .SelectMany(rule => Regex.Matches(rule.Groups["selector"].Value, @":(?:hover|focus-within)[^,]*\s\.(?<part>[\w-]+)\s*(?:,|$)"))
+                .Select(match => match.Groups["part"].Value)
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (Match rule in rules)
+            {
+                var body = rule.Groups["body"].Value;
+                var part = Regex.Match(rule.Groups["selector"].Value.Trim(), @"^\.(?<part>[\w-]+)$").Groups["part"].Value;
+                if (revealed.Contains(part) && Regex.IsMatch(body, @"position\s*:\s*absolute") && Regex.IsMatch(body, @"z-index\s*:")
+                    && Regex.IsMatch(body, @"(?:top|bottom|left|right)\s*:\s*(?:calc\(\s*)?100%"))
+                {
+                    offenders.Add($"{relative}: .{part}");
+                }
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            "A part shown only on hover is layered by number, so an open window can cover it (Look v3.1 D6). Use AppTooltip, which draws in the top layer:\n" + string.Join("\n", offenders));
+    }
+
+    [Fact]
     public void EveryAllowedHoverSurfaceStillExists()
     {
         var web = Path.Combine(RepoRoot(), "src", "MediaEngine.Web");

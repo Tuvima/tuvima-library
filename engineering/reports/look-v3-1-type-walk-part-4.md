@@ -78,3 +78,22 @@ None left unchanged. Judgement calls to check on the visual review: `Setup/Intro
 ## After the My List build merged
 
 The My List page, the hero action row's progress label and the reconnect window title now name their type jobs (body, secondary and heading). Every move keeps the same size. The hero action button label stays at its own 20 px hero size (the hero is an allowed exception in D8). The top navigation and the dock have no sizes of their own left to move.
+
+## After the wave 3 review
+
+Changes made:
+
+- Page titles are 28 px on screens 1180 px and wider, 24 px below (D8). This applies to every page title moved in parts 1 to 4, and to the few large numbers that use the page-title job.
+- The import screens (the list import step, the list section, the import panel, the preview frame, the choices panel, the fix row) and the setup page name their type jobs. Every move keeps the same size. The two large figures on the list import step stay on the 24 px step.
+- The profile picker's name under each picture is the subheading job (16 px, was a fluid 13 to 16 px).
+- The map toolbar's filter icon is back on an icon size (16 px); part 3 had moved it with the button's text.
+- The text size check is now zero outside a written list in the check itself (hero titles, the players, the editor's screens, the map, subtitle cues, icons and artwork stand-ins), each with a count and a reason.
+
+For the visual review, moves that parts 1 to 3 did not list:
+
+- Artwork workspace header title: 32 px to heading (20 px).
+- Details hero brand badge text: weight 700 to 500. Details hero brand line: weight 700 to 600.
+- Control and label text across the app: 73 rules went from weight 600 to 500 (part 2 said about 40). This is D8's weight for controls and labels.
+- Credit group headings on the details page are label (13 px at weight 500); they may want subheading.
+
+Still to do in later waves: the global sheet's old size names (owned by the color sweep's last part, which already edits that file).

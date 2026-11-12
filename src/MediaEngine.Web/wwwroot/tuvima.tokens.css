@@ -534,6 +534,13 @@
     }
 }
 
+/* The page title job is 28 px on wide screens (look-pass v3.1 D8). */
+@media (min-width: 1180px) {
+    :root {
+        --tl-type-page-title-size: 28px;
+    }
+}
+
 @media (max-width: 840px) {
     :root {
         --tl-bottom-dock-height: calc(3.65rem + var(--tl-safe-area-bottom));

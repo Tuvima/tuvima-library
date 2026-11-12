@@ -19,7 +19,7 @@
 .import-frame__title {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg);
+    font-size: var(--tl-type-heading-size);
     font-weight: var(--tl-font-weight-semibold);
     overflow-wrap: anywhere;
 }
@@ -28,7 +28,7 @@
     flex-basis: 100%;
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .import-frame__facts {
@@ -46,7 +46,7 @@
 
 .import-frame__fact dt {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     letter-spacing: .04em;
 }
 
@@ -71,7 +71,7 @@
     border: 1px solid var(--tl-divider);
     border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .import-frame__more {
@@ -81,5 +81,5 @@
 .import-frame__note {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
