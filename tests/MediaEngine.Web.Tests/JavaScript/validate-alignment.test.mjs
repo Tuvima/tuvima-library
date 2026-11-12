@@ -282,6 +282,43 @@ test('an icon button inside a display: contents tooltip wrapper is measured by t
     assert.equal(wrong.counts.formRow, 1);
 });
 
+// A wrapped form row (AppFormRow Wrap) is several visual lines: each line is judged by itself, so the second line sits lower than the first.
+const wrappedRow = ({ secondLineButtonTop = 144, secondLineFieldTop = 144, helpOnFirstLine = true } = {}) => {
+    const root = new El('div', { classes: ['app-form-row'], attrs: { 'data-alignment-row': '', 'data-form-row': '' }, rect: rect(0, 0, 600, 220), style: { display: 'flex', flexDirection: 'column' } });
+    const grid = root.add(new El('div', { classes: ['app-form-row__fields'], rect: rect(0, 0, 600, 220), style: { display: 'flex', flexWrap: 'wrap' } }));
+    const field = (left, top, height, withHelp) => {
+        const f = grid.add(new El('div', { classes: ['app-field'], rect: rect(left, top - 22, 280, withHelp ? 90 : 66), style: { display: 'flex', flexDirection: 'column' } }));
+        f.add(new El('label', { classes: ['app-field__label'], rect: rect(left, top - 22, 100, 16), text: 'Label' }));
+        f.add(new El('input', { rect: rect(left, top, 280, height) }));
+        if (withHelp) f.add(new El('div', { classes: ['app-field__help'], rect: rect(left, top + height + 4, 200, 18), text: 'Used only for ordering' }));
+        return f;
+    };
+    field(0, 22, 44, helpOnFirstLine);
+    field(300, 22, 44, false);
+    // The button is a wrapper with a blank label line, so its control top is the same as the fields' on its line.
+    const wrapper = grid.add(new El('div', { attrs: { 'data-form-row-field': 'fit' }, rect: rect(0, 100, 80, 66), style: { display: 'flex', flexDirection: 'column' } }));
+    wrapper.add(new El('button', { rect: rect(0, secondLineButtonTop, 80, 44) }));
+    field(300, secondLineFieldTop, 44, false);
+    return root;
+};
+
+test('a wrapped form row passes when the controls of each visual line share a top, even with help text under a field on the first line', () => {
+    const report = audit(wrappedRow());
+    assert.equal(report.passed, true, JSON.stringify(report.failures));
+});
+
+test('a wrapped form row fails when the button sits above or below the controls of its own line', () => {
+    const report = audit(wrappedRow({ secondLineButtonTop: 134 }));
+    assert.equal(report.passed, false);
+    assert.equal(report.counts.formRow, 1);
+});
+
+test('a wrapped form row fails when a field on the second line sits lower than the first control of that line', () => {
+    const report = audit(wrappedRow({ secondLineFieldTop: 154 }));
+    assert.equal(report.passed, false);
+    assert.equal(report.counts.formRow, 1);
+});
+
 test('help text inside a flex row nested in a form row column is still reported as text on a control', () => {
     const root = new El('div', { classes: ['app-form-row'], rect: rect(0, 0, 600, 90), style: { display: 'flex', flexDirection: 'column' } });
     const grid = root.add(new El('div', { classes: ['app-form-row__fields'], rect: rect(0, 0, 600, 90), style: { display: 'grid' } }));

@@ -52,6 +52,18 @@ public interface IVideoSeriesRepository
     /// <summary>Every place the video can join in its own library, series name first, then by name.</summary>
     Task<IReadOnlyList<VideoSeriesTarget>> ListTargetsAsync(Guid workId, CancellationToken ct = default);
 
+    /// <summary>
+    /// The file paths of the videos that sit directly in a series (or one of its sections), as stored. Used to find the folder a series
+    /// lives in; empty for a series with no videos yet.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListMemberFilePathsAsync(Guid parentWorkId, CancellationToken ct = default);
+
+    /// <summary>
+    /// True when a person put the video in its series (or took it out of one): a locked series claim of the user sits on its file. False
+    /// when the series is only what the video's folder says.
+    /// </summary>
+    Task<bool> IsSeriesChosenByUserAsync(Guid workId, CancellationToken ct = default);
+
     /// <summary>Puts a standalone video last in the chosen series (or section).</summary>
     Task<VideoSeriesChange> PromoteAsync(Guid workId, Guid parentWorkId, CancellationToken ct = default);
 

@@ -126,6 +126,65 @@
     gap: var(--tl-space-2);
 }
 
+/* The one-line header on the Match tab (v6 D2): a small cover, "Match book", the state, and the navigation at the right. Room is kept at the right for
+   the window's close button. */
+.tl-editor-header--compact {
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-height: 4.75rem;
+    padding: var(--tl-space-3) 4.5rem var(--tl-space-3) var(--tl-space-6);
+}
+
+.tl-editor-header__minicover {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 2.25rem;
+    height: 3.375rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-muted);
+    box-shadow: var(--tl-shadow-sm);
+}
+
+.tl-editor-header__title--compact {
+    flex: 0 1 auto;
+    margin: 0;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
+}
+
+.tl-editor-header__state {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: var(--tl-type-control-weight);
+    white-space: nowrap;
+}
+
+.tl-editor-header__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-status-warning);
+}
+
+.tl-editor-header__dot--ok {
+    background: var(--tl-status-success);
+}
+
+.tl-editor-header__compactnav {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
 /* A Universe's kinds sit under the title, at the foot of the header. */
 .tl-editor-header__selects {
     display: flex;

@@ -7,28 +7,30 @@
 @inject ILogger<EditorVideoSeriesPanel> Logger
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Match tool's video series and order (universal editor v3.1, WP2 and WP3). A video chooses its series (or starts a new one, or stands
-   alone); the videos of a series are put in the order the person wants, by drag and drop or the arrows, and a series with sections lets a
-   video be dragged from one section to another. Everything here only stages a change: Save changes shows it in Review first, and none of it
-   moves a file. The one exception is the "Rename the files to match this order" switch, off by default and offered only when every video is
-   in a Managed folder. *@
+@* "Move this video to another series" (universal editor v6, D17 and D24; it started as the Match tool's series choice in v3.1). A folder of videos
+   is already a series, so this is for the exceptions: a video on its own, or one that belongs with a different series. A choice only stages a
+   change: Save changes shows it in Review first. In a Managed folder the file follows its series, so the choice also stages the file move the
+   editor's footer and Review already show for a match; in a Read-only folder nothing on disk changes and the line under the choice says so. Cancel
+   (and Escape while this panel holds a change made on this visit) puts back what was staged when the panel opened and keeps the editor open. *@
 @if (Subject is not null && IsVideo)
 {
     @if (ShowSeriesChooser && _series is { Supported: true })
     {
-        <section class="tl-vseries" data-testid="video-series">
+        @* While this visit holds a change, Escape belongs to this panel (it cancels the change) and does not close the editor window. *@
+        <section class="tl-vseries" data-testid="video-series" data-app-escape-owner="@(HasVisitChanges ? "field" : null)" @onkeydown="OnKeyDown">
             <h3 class="tl-vseries__heading">
-                @L["EditorVideoSeries_Series"]
+                @L["EditorVideoSeries_Heading"]
                 @if (_series is { InSeries: false } && ChoiceValue == None)
                 {
                     @* The same amber "not matched" mark the tree gives a video that is in no series (universal editor v3.1, D8). *@
                     <span class="tl-vseries__tag" data-testid="video-not-matched">@L["EditorVideoSeries_NotMatched"]</span>
                 }
             </h3>
+            <p class="tl-vseries__intro" data-testid="video-series-intro">@L["EditorVideoSeries_Intro"]</p>
             <AppSelect T="string"
                        Label="@L["EditorVideoSeries_ChooseSeries"].Value"
                        Value="@ChoiceValue"
-                       ValueChanged="OnChoiceChanged"
+                       ValueChanged="OnChoiceChangedAsync"
                        Options="@ChoiceOptions"
                        Disabled="@(!CanChange)"
                        AriaLabel="@L["EditorVideoSeries_ChooseSeries"].Value" />
@@ -38,13 +40,39 @@
                     <AppTextField Label="@L["EditorVideoSeries_NewSeriesName"].Value" Value="@_newName" ValueChanged="@(value => _newName = value ?? string.Empty)"
                                   Immediate="true" MaxLength="@EditSessionVideo.MaxSeriesNameLength" />
                     <AppButton Label="@L["EditorVideoSeries_Add"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                               Disabled="@string.IsNullOrWhiteSpace(_newName)" OnClick="StageNewSeries" />
+                               Disabled="@string.IsNullOrWhiteSpace(_newName)" OnClick="StageNewSeriesAsync" />
                 </div>
             }
 
             @if (SeriesSentence is { } sentence)
             {
-                <p class="tl-vseries__happen" data-testid="video-series-happen"><strong>@L["EditorVideoSeries_WhatWillHappen"]</strong> @sentence</p>
+                <p class="tl-vseries__happen" data-testid="video-series-happen">@sentence</p>
+            }
+
+            @if (FileLine is { } file)
+            {
+                <p class="@(file.Problem ? "tl-vseries__file tl-vseries__file--problem" : "tl-vseries__file")" data-testid="video-series-file">@file.Text</p>
+            }
+
+            @if (_problem is { } problem)
+            {
+                @* Nothing was staged: a series change without the file move it needs would break "the file follows its series" in a Managed folder. *@
+                <p class="tl-vseries__file tl-vseries__file--problem" role="alert" data-testid="video-series-problem">@problem</p>
+                @if (_retry is not null)
+                {
+                    <div class="tl-vseries__actions">
+                        <AppButton Label="@L["EditorVideoSeries_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   OnClick="TryAgainAsync" data-testid="video-series-try-again" />
+                    </div>
+                }
+            }
+
+            @if (CanChange && HasVisitChanges)
+            {
+                <div class="tl-vseries__actions">
+                    <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               OnClick="CancelAsync" data-testid="video-series-cancel" />
+                </div>
             }
         </section>
     }
@@ -56,10 +84,26 @@
 }
 
 @code {
+    private sealed record Staged(string? TargetId, string? Token, string? Label, string? Before, string? MoveFrom, string? MoveTo);
+
     private VideoSeriesStateResponse? _series;
     private Guid _loadedFor;
     private bool _naming;
     private string _newName = string.Empty;
+
+    // What the Engine said about the file for the choice made on this visit (its reason, when the file will stay or cannot move).
+    private EditorVideoSeriesPlacementDto? _placement;
+
+    // Why the last choice was not staged (the Engine could not say where the file goes, it refused the choice, or a match is waiting to be
+    // saved), and the choice to ask again with when asking again can help.
+    private string? _problem;
+    private ChoiceToStage? _retry;
+    private int _asking;
+
+    private sealed record ChoiceToStage(string? TargetId, string? Token, string? Label, string? Before);
+
+    // What was staged for this video when the panel opened, so Cancel can put it back.
+    private Staged? _entry;
 
     /// <summary>The item being edited; null until its fields have loaded.</summary>
     [Parameter] public EditorMatchSubject? Subject { get; set; }
@@ -71,7 +115,7 @@
 
     [Parameter] public bool CanEdit { get; set; }
 
-    /// <summary>Shows the series chooser (Match). The browser's order view turns it off and shows only the order.</summary>
+    /// <summary>Shows the series chooser. The browser's order view turns it off and shows only the order.</summary>
     [Parameter] public bool ShowSeriesChooser { get; set; } = true;
 
     /// <summary>Shows the order list (the browser). Match keeps it until its own packet narrows the panel to the series chooser.</summary>
@@ -101,6 +145,10 @@
         _loadedFor = id;
         _naming = false;
         _newName = string.Empty;
+        _placement = null;
+        _problem = null;
+        _retry = null;
+        _entry = Capture(id);
         try
         {
             var series = await Api.GetVideoSeriesAsync(id);
@@ -145,51 +193,55 @@
         }
     }
 
+    private string FromFolderSuffix => $" · {L["EditorVideoSeries_FromFolder"].Value}";
+
+    // The series it is in now (marked when the folder put it there), the other series, a new one, and on its own.
     private IReadOnlyList<AppSelectOption> ChoiceOptions
     {
         get
         {
             var options = new List<AppSelectOption>();
-            if (_series is { InSeries: true })
+            var inSeries = _series is { InSeries: true };
+            if (inSeries)
             {
-                options.Add(new AppSelectOption(Current, _series.SeriesTitle ?? L["EditorVideoSeries_Series"].Value));
-                options.Add(new AppSelectOption(None, L["EditorVideoSeries_NotInASeries"].Value));
-                return options;
+                var title = _series!.SeriesTitle ?? L["EditorVideoSeries_Series"].Value;
+                options.Add(new AppSelectOption(Current, _series.FromFolder ? title + FromFolderSuffix : title));
             }
 
-            options.Add(new AppSelectOption(None, $"{L["EditorVideoSeries_NotInASeries"].Value} · {L["EditorVideoSeries_StandsOnItsOwn"].Value}"));
             foreach (var target in _series?.Targets ?? [])
             {
                 options.Add(new AppSelectOption(target.Id.ToString(), $"{target.Title} · {CountText(target.VideoCount)}"));
             }
 
             options.Add(new AppSelectOption(Start, L["EditorVideoSeries_StartANewSeries"].Value));
+            var onItsOwn = L["EditorVideoSeries_OnItsOwn"].Value;
+            options.Add(new AppSelectOption(None, inSeries ? onItsOwn : onItsOwn + FromFolderSuffix));
             return options;
         }
     }
 
     private string CountText(int count) => count == 1 ? L["EditorVideoSeries_VideoOne"].Value : L["EditorVideoSeries_VideoMany", count].Value;
 
-    private void OnChoiceChanged(string? value)
+    private async Task OnChoiceChangedAsync(string? value)
     {
         if (!CanChange || Subject is null || Pending is not { } pending)
         {
             return;
         }
 
-        if (pending.FindVideoSeries(Subject.EntityId) is { } staged)
-        {
-            pending.Remove(staged.Id);
-        }
-
+        _asking++;
+        EditorVideoSeriesStaging.Unstage(pending, Subject.EntityId);
         _naming = false;
+        _placement = null;
+        _problem = null;
+        _retry = null;
         switch (value)
         {
             case Start:
                 _naming = true;
                 break;
             case None when _series is { InSeries: true }:
-                pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, null, EditSessionVideo.NoSeriesToken, null, null, _series.SeriesTitle);
+                await StageAsync(new ChoiceToStage(null, EditSessionVideo.NoSeriesToken, null, _series.SeriesTitle));
                 break;
             case Current or None or null:
                 break;
@@ -197,23 +249,157 @@
                 if (Guid.TryParse(value, out var target))
                 {
                     var place = _series?.Targets.FirstOrDefault(candidate => candidate.Id == target);
-                    pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, target.ToString(), null, place?.Title, null, EditReviewRows.NotInASeries);
+                    await StageAsync(new ChoiceToStage(target.ToString(), null, place?.Title, _series?.SeriesTitle ?? EditReviewRows.NotInASeries));
                 }
 
                 break;
         }
     }
 
-    private void StageNewSeries()
+    private async Task StageNewSeriesAsync()
     {
         if (!CanChange || Subject is null || Pending is not { } pending || string.IsNullOrWhiteSpace(_newName))
         {
             return;
         }
 
-        pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, null, EditSessionVideo.NewSeriesToken(_newName), _newName.Trim(), null, EditReviewRows.NotInASeries);
+        _asking++;
+        EditorVideoSeriesStaging.Unstage(pending, Subject.EntityId);
         _naming = false;
+        await StageAsync(new ChoiceToStage(null, EditSessionVideo.NewSeriesToken(_newName), _newName.Trim(), _series?.SeriesTitle ?? EditReviewRows.NotInASeries));
     }
+
+    private Task TryAgainAsync() => _retry is { } choice ? StageAsync(choice) : Task.CompletedTask;
+
+    // Asks the Engine where the file would go for the choice, then stages the series change and (in a Managed folder) the file move beside it,
+    // or stages nothing and says why. The Engine asks again at Save, so an answer that has gone stale cannot move a file anywhere unexpected.
+    private async Task StageAsync(ChoiceToStage choice)
+    {
+        if (Subject is null || Pending is not { } pending)
+        {
+            return;
+        }
+
+        var id = Subject.EntityId;
+        var sequence = ++_asking;
+        _problem = null;
+        _retry = null;
+        EditorVideoSeriesPlacementDto? placement = null;
+        try
+        {
+            placement = await Api.GetVideoSeriesPlacementAsync(id, choice.TargetId, choice.Token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "Where the file of video {EntityId} goes with its series could not be read for the editor", id);
+        }
+
+        // Another choice may have been made while the Engine was answering.
+        if (sequence != _asking || _loadedFor != id)
+        {
+            return;
+        }
+
+        var outcome = EditorVideoSeriesStaging.Stage(pending, id, choice.TargetId, choice.Token, choice.Label, choice.Before, placement);
+        _placement = outcome == VideoSeriesStageOutcome.Staged ? placement : null;
+        switch (outcome)
+        {
+            case VideoSeriesStageOutcome.PreviewFailed:
+                _problem = L["EditorVideoSeries_PreviewFailed"].Value;
+                _retry = choice;
+                break;
+            case VideoSeriesStageOutcome.Blocked:
+                _problem = placement?.Reason ?? L["EditorVideoSeries_PreviewFailed"].Value;
+                break;
+            case VideoSeriesStageOutcome.MatchMoveInTheWay:
+                _problem = L["EditorVideoSeries_MatchFirst"].Value;
+                break;
+        }
+    }
+
+    // ----- Cancel -----
+
+    private Staged? Capture(Guid id)
+    {
+        if (Pending?.FindVideoSeries(id) is not { } series)
+        {
+            return null;
+        }
+
+        var move = MoveOf(id);
+        return new Staged(
+            series.TargetId, series.Token, Pending.Label(series.Id), Pending.Before(series.Id),
+            move is null ? null : Pending.Before(move.Id), move is null ? null : Pending.Label(move.Id));
+    }
+
+    private EditSessionChange? MoveOf(Guid id) => Pending?.FindVideoSeriesMove(id);
+
+    // True when this visit changed the choice (or is part-way through naming a new series), so there is something to cancel.
+    private bool HasVisitChanges
+    {
+        get
+        {
+            if (Subject is null)
+            {
+                return false;
+            }
+
+            var now = Pending?.FindVideoSeries(Subject.EntityId);
+            if (_naming || _problem is not null)
+            {
+                return true;
+            }
+
+            if (now is null || _entry is null)
+            {
+                return now is not null || _entry is not null;
+            }
+
+            return now.TargetId != _entry.TargetId || now.Token != _entry.Token;
+        }
+    }
+
+    // Cancel and Escape: back to what was staged when the panel opened, with nothing of this visit left staged. The editor stays open.
+    private Task CancelAsync()
+    {
+        if (Subject is null || Pending is not { } pending)
+        {
+            return Task.CompletedTask;
+        }
+
+        var id = Subject.EntityId;
+        _asking++;
+        EditorVideoSeriesStaging.Unstage(pending, id);
+        string? notRestored = null;
+        if (_entry is { } entry)
+        {
+            pending.SetTarget(EditSessionChangeKinds.VideoSeries, id, entry.TargetId, entry.Token, entry.Label, null, entry.Before);
+            if (!string.IsNullOrWhiteSpace(entry.MoveFrom) && !string.IsNullOrWhiteSpace(entry.MoveTo)
+                && !pending.SetVideoSeriesMove(id, entry.MoveFrom, entry.MoveTo))
+            {
+                // The earlier choice and its file move come back together or not at all: a match was staged for this video in the
+                // meantime and its file would move for both, so the series change is not put back without its move.
+                if (pending.FindVideoSeries(id) is { } half)
+                {
+                    pending.Remove(half.Id);
+                }
+
+                notRestored = L["EditorVideoSeries_MatchFirst"].Value;
+            }
+        }
+
+        _naming = false;
+        _newName = string.Empty;
+        _placement = null;
+        _problem = notRestored;
+        _retry = null;
+        return Task.CompletedTask;
+    }
+
+    private Task OnKeyDown(KeyboardEventArgs args) =>
+        args.Key == "Escape" && CanChange && HasVisitChanges ? CancelAsync() : Task.CompletedTask;
+
+    // ----- What the choice does -----
 
     private string? SeriesSentence
     {
@@ -227,15 +413,57 @@
             var title = Subject.Title;
             if (EditSessionVideo.IsNoSeries(staged.Token))
             {
-                return $"\"{title}\" leaves its series and stands on its own. Your file is not moved or renamed.";
+                return L["EditorVideoSeries_LeavesSentence", title].Value;
             }
 
-            var name = EditSessionVideo.TryParseNewSeries(staged.Token, out var started)
-                ? started
-                : _series?.Targets.FirstOrDefault(candidate => candidate.Id.ToString() == staged.TargetId)?.Title ?? "the chosen series";
-            return EditSessionVideo.TryParseNewSeries(staged.Token, out _)
-                ? $"A new series, {name}, is started and \"{title}\" is its first video. Your file is not moved or renamed."
-                : $"\"{title}\" joins {name}, at the end of the list. Your file is not moved or renamed.";
+            if (EditSessionVideo.TryParseNewSeries(staged.Token, out var started))
+            {
+                return L["EditorVideoSeries_StartsSentence", started, title].Value;
+            }
+
+            var name = _series?.Targets.FirstOrDefault(candidate => candidate.Id.ToString() == staged.TargetId)?.Title ?? Pending.Label(staged.Id) ?? L["EditorVideoSeries_ChosenSeries"].Value;
+            return L["EditorVideoSeries_JoinsSentence", title, name].Value;
         }
+    }
+
+    private sealed record FileText(string Text, bool Problem);
+
+    // The second line under the choice: where the file goes in a Managed folder (the footer and Review carry the full from and to), or that it
+    // stays where it is. A name taken at the destination is a problem the person is told about now; Save changes stops on it too.
+    private FileText? FileLine
+    {
+        get
+        {
+            if (Subject is null || Pending?.FindVideoSeries(Subject.EntityId) is not { } staged)
+            {
+                return null;
+            }
+
+            var move = MoveOf(Subject.EntityId);
+            if (move is not null)
+            {
+                if (_placement?.Reason is { Length: > 0 } clash)
+                {
+                    return new FileText(clash, true);
+                }
+
+                var folder = FolderName(Pending.Label(move.Id));
+                return EditSessionVideo.TryParseNewSeries(staged.Token, out _)
+                    ? new FileText(L["EditorVideoSeries_NewFolderLine", folder].Value, false)
+                    : new FileText(L["EditorVideoSeries_MovesToLine", folder].Value, false);
+            }
+
+            var setByYou = L["EditorSupportingFile_ScopeSetByYouReadOnly"].Value;
+            return _placement?.Reason is { Length: > 0 } reason
+                ? new FileText($"{L["EditorSupportingFile_ScopeSetByYou"].Value} {reason}", false)
+                : new FileText(setByYou, false);
+        }
+    }
+
+    // The folder a path ends up in, named by its last part ("Videos/Course/a.mp4" is "Course"), whichever way the Engine's machine writes paths.
+    private static string FolderName(string? path)
+    {
+        var parts = (path ?? string.Empty).Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? parts[^2] : parts.Length == 1 ? parts[0] : string.Empty;
     }
 }

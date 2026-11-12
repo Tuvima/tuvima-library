@@ -87,6 +87,31 @@ public sealed class AppFormRowTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WrapAddsTheWrapModifierClass_AndTheWrapRulesLiveInTheRowsOwnSheetsForAContainerNarrowerThan1280()
+    {
+        var plain = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children));
+        var wrapping = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children).Add(x => x.Wrap, true).Add(x => x.Columns, "220px 1fr auto"));
+
+        Assert.DoesNotContain("app-form-row--wrap", plain.Find(".app-form-row").ClassList);
+        Assert.Contains("app-form-row--wrap", wrapping.Find(".app-form-row").ClassList);
+        // Wide, it is still the grid of Columns; the wrapping only starts below the breakpoint.
+        Assert.Contains("--tl-form-row-columns: 220px 1fr auto", wrapping.Find(".app-form-row__fields").GetAttribute("style"));
+        var web = WebRoot();
+        var scoped = File.ReadAllText(Path.Combine(web, "Components", "Shared", "AppFormRow.razor.css"));
+        // The wrap follows the size of the container the row sits in (the editor window), not the screen, and names no editor part.
+        Assert.Contains("@container (max-width: 1279px)", scoped, StringComparison.Ordinal);
+        Assert.DoesNotContain("@media", scoped, StringComparison.Ordinal);
+        Assert.DoesNotContain("tl-editor", scoped, StringComparison.Ordinal);
+        Assert.Contains(".app-form-row--wrap .app-form-row__fields", scoped, StringComparison.Ordinal);
+        var global = StripComments(File.ReadAllText(Path.Combine(web, "wwwroot", "app.css")));
+        Assert.Contains("@container (max-width: 1279px)", global, StringComparison.Ordinal);
+        Assert.Contains(".app-form-row--wrap > .app-form-row__fields > *", global, StringComparison.Ordinal);
+        // Each child of a wrapping row is a start-aligned column of label, control and help, so a button with a blank label line shares the controls' top.
+        Assert.Matches(@"\.app-form-row--wrap\s*>\s*\.app-form-row__fields\s*>\s*\*\s*\{[^}]*align-self:\s*flex-start", global);
+        Assert.Matches(@"\.app-form-row--wrap\s*>\s*\.app-form-row__fields\s*>\s*:is\(\.app-field,\s*\[data-form-row-field\]\)\s*\{[^}]*flex-direction:\s*column", global);
+    }
+
+    [Fact]
     public void TheRowRootIsMarkedAsAnAlignmentRowAndKeepsCallerClassStyleAndAttributes()
     {
         var cut = Render<AppFormRow>(p => p

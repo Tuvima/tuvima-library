@@ -30,10 +30,7 @@ public sealed class EditorCurrentMatchService(
     ItemQuickFactsService quickFacts,
     ILogger<EditorCurrentMatchService> logger)
 {
-    private const string TvdbProvider = "tvdb";
-
-    private sealed record Source(
-        string ProviderId, string ProviderName, string ItemId, string Kind, string? Url, bool CanLookUp);
+    private const string TvdbProvider = EditorMatchRule.TvdbProvider;
 
     /// <summary>The current match of the item with this id; null when no such item is in the Library.</summary>
     public async Task<EditorCurrentMatchDto?> ReadAsync(Guid entityId, CancellationToken ct = default)
@@ -55,7 +52,7 @@ public sealed class EditorCurrentMatchService(
 
         var qid = Value(own, BridgeIdKeys.WikidataQid) ?? Value(root, BridgeIdKeys.WikidataQid);
         var isEpisode = string.Equals(launch.WorkKind, "child", StringComparison.OrdinalIgnoreCase);
-        var source = FindSource(launch.MediaType, isTv, isEpisode, own, root);
+        var source = EditorMatchRule.FindProviderSource(launch.MediaType, isTv, isEpisode, own, root);
         if (source is null)
         {
             return new EditorCurrentMatchDto
@@ -173,21 +170,13 @@ public sealed class EditorCurrentMatchService(
     // file of its own: the asset the launch carries there is some child's, and its ids are never the container's.
     private async Task<IReadOnlyDictionary<string, string>> ReadOwnAsync(MetadataEditorLaunchContext launch, CancellationToken ct)
     {
-        var own = Latest(await canonicals.GetByEntityAsync(launch.WorkId, ct).ConfigureAwait(false));
-        if (launch.RepresentativeAssetId is not { } assetId
-            || assetId == Guid.Empty
-            || string.Equals(launch.WorkKind, "parent", StringComparison.OrdinalIgnoreCase))
+        var work = Latest(await canonicals.GetByEntityAsync(launch.WorkId, ct).ConfigureAwait(false));
+        if (launch.RepresentativeAssetId is not { } assetId || assetId == Guid.Empty || EditorMatchRule.IsContainer(launch.WorkKind))
         {
-            return own;
+            return work;
         }
 
-        var merged = new Dictionary<string, string>(own, StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in Latest(await canonicals.GetByEntityAsync(assetId, ct).ConfigureAwait(false)))
-        {
-            merged.TryAdd(key, value);
-        }
-
-        return merged;
+        return EditorMatchRule.OwnValues(work, Latest(await canonicals.GetByEntityAsync(assetId, ct).ConfigureAwait(false)), launch.WorkKind);
     }
 
     private static bool IsTvdbAddress(string? url) =>
@@ -198,79 +187,8 @@ public sealed class EditorCurrentMatchService(
     private sealed record RecordFacts(
         string? Title, string? Year, string? Creator, string? Season, string? Episode, string? ImageUrl, string? Description);
 
-    // The provider id the Engine stored for this item at its own level: an episode by its episode id, a season by its season id, a show by
-    // its show id. Anything else is read from what the Engine stored.
-    private static Source? FindSource(
-        string mediaType, bool isTv, bool isEpisode, IReadOnlyDictionary<string, string> own, IReadOnlyDictionary<string, string> root)
-    {
-        if (isTv)
-        {
-            if (Value(own, BridgeIdKeys.TvdbEpisodeId) is { } episode)
-            {
-                return new Source(TvdbProvider, "TheTVDB", episode, "Episode", OutsideLinks.TvdbEpisode(episode), true);
-            }
-
-            if (Value(own, BridgeIdKeys.TvdbSeasonId) is { } season)
-            {
-                return new Source(TvdbProvider, "TheTVDB", season, "Season", OutsideLinks.TvdbSeason(season), true);
-            }
-
-            // An episode that has lost its own match (Remove match) is not matched to its show: the show's id is the show's, so the episode
-            // reads "Not matched yet" instead of borrowing it. A season keeps showing the show it belongs to.
-            if (!isEpisode && (Value(own, BridgeIdKeys.TvdbId) ?? Value(root, BridgeIdKeys.TvdbId)) is { } show)
-            {
-                return new Source(TvdbProvider, "TheTVDB", show, "Show", OutsideLinks.TvdbSeries(show), true);
-            }
-
-            if ((Value(own, BridgeIdKeys.TmdbId) ?? (isEpisode ? null : Value(root, BridgeIdKeys.TmdbId))) is { } tmdbShow)
-            {
-                return new Source("tmdb", "TMDB", tmdbShow, "Show", OutsideLinks.Tmdb(tmdbShow, "TV"), false);
-            }
-
-            return null;
-        }
-
-        if (Value(own, BridgeIdKeys.TmdbId) is { } tmdb)
-        {
-            return new Source("tmdb", "TMDB", tmdb, "Film", OutsideLinks.Tmdb(tmdb, mediaType), false);
-        }
-
-        if (Value(own, BridgeIdKeys.MusicBrainzReleaseGroupId) is { } group)
-        {
-            return new Source("musicbrainz", "MusicBrainz", group, "Album", OutsideLinks.MusicBrainz("release-group", group), false);
-        }
-
-        if (Value(own, BridgeIdKeys.MusicBrainzRecordingId) is { } recording)
-        {
-            return new Source("musicbrainz", "MusicBrainz", recording, "Song", OutsideLinks.MusicBrainz("recording", recording), false);
-        }
-
-        if (Value(own, BridgeIdKeys.MusicBrainzReleaseId) is { } release)
-        {
-            return new Source("musicbrainz", "MusicBrainz", release, "Album", OutsideLinks.MusicBrainz("release", release), false);
-        }
-
-        if (Value(own, BridgeIdKeys.ComicVineId) is { } issue)
-        {
-            return new Source("comicvine", "Comic Vine", issue, "Issue", OutsideLinks.ComicVineIssue(issue), false);
-        }
-
-        if (Value(own, BridgeIdKeys.OpenLibraryId) is { } openLibrary)
-        {
-            return new Source("openlibrary", "Open Library", openLibrary, "Book", OutsideLinks.OpenLibraryWork(openLibrary), false);
-        }
-
-        if (Value(own, BridgeIdKeys.AppleBooksId) is { } apple)
-        {
-            return new Source("apple_books", "Apple Books", apple, "Book", OutsideLinks.AppleBooks(apple), false);
-        }
-
-        var isbn = Value(own, BridgeIdKeys.Isbn13) ?? Value(own, BridgeIdKeys.Isbn10) ?? Value(own, BridgeIdKeys.Isbn);
-        return isbn is null ? null : new Source("isbn", "ISBN", isbn, "Book", null, false);
-    }
-
     // One call by id: series_extended / season_extended / episode_extended. Never a search.
-    private async Task<RecordFacts?> ReadTvdbAsync(Source source, CancellationToken ct)
+    private async Task<RecordFacts?> ReadTvdbAsync(EditorMatchRule.ProviderSource source, CancellationToken ct)
     {
         var endpoint = source.Kind switch
         {
@@ -404,8 +322,7 @@ public sealed class EditorCurrentMatchService(
             .GroupBy(field => field.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(item => item.LastScoredAt).First().Value, StringComparer.OrdinalIgnoreCase);
 
-    private static string? Value(IReadOnlyDictionary<string, string> map, string key) =>
-        map.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
+    private static string? Value(IReadOnlyDictionary<string, string> map, string key) => EditorMatchRule.Value(map, key);
 
     private static string? Text(JsonNode? node, string key) =>
         string.IsNullOrWhiteSpace(node?[key]?.ToString()) ? null : node![key]!.ToString().Trim();

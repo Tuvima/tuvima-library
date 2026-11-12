@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.EditSession;
 
@@ -17,7 +18,8 @@ namespace MediaEngine.Api.Services.EditSession;
 public sealed class EditSessionService(
     IEnumerable<IEditSessionChangeHandler> handlers,
     ILogger<EditSessionService> logger,
-    IEditSessionFileWrites? fileWrites = null) : IEditSessionService
+    IEditSessionFileWrites? fileWrites = null,
+    IItemCanonicalRepository? items = null) : IEditSessionService
 {
     private readonly Dictionary<string, IEditSessionChangeHandler> _handlers =
         handlers.ToDictionary(handler => handler.Kind, StringComparer.Ordinal);
@@ -30,7 +32,9 @@ public sealed class EditSessionService(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(refusals);
 
-        var checks = await CheckAllAsync(request.Changes, refusals, ct).ConfigureAwait(false);
+        var pairs = await ReadPairsAsync(request.Changes, ct).ConfigureAwait(false);
+        var follows = pairs.FollowingSeriesChanges;
+        var checks = await CheckAllAsync(request.Changes, refusals, pairs, ct).ConfigureAwait(false);
         var valid = checks.All(check => check.Reason is null);
         if (request.PreviewOnly || !valid)
         {
@@ -48,9 +52,30 @@ public sealed class EditSessionService(
             };
         }
 
-        var applied = await ApplyAsync(request.Changes, ct).ConfigureAwait(false);
+        var applied = await ApplyAsync(request.Changes, follows, ct).ConfigureAwait(false);
         await QueueFilesAsync(request, applied).ConfigureAwait(false);
         return applied;
+    }
+
+    // A video can be held by its file's id or by its own, and the handlers accept either, so a series change on one and a match move on the
+    // other are still about one video. Both ids are turned into the video's own before they are compared.
+    private async Task<VideoSeriesMovePairs> ReadPairsAsync(IReadOnlyList<EditSessionChange> changes, CancellationToken ct)
+    {
+        if (items is null)
+        {
+            return VideoSeriesMovePairs.Read(changes);
+        }
+
+        var videoOf = new Dictionary<Guid, Guid>();
+        foreach (var id in changes
+                     .Where(change => change.Kind is EditSessionChangeKinds.VideoSeries or EditSessionChangeKinds.FileMove)
+                     .Select(change => change.EntityId)
+                     .Distinct())
+        {
+            videoOf[id] = await items.ResolveWorkIdForAssetAsync(id, ct).ConfigureAwait(false) ?? id;
+        }
+
+        return VideoSeriesMovePairs.Read(changes, id => videoOf.GetValueOrDefault(id, id));
     }
 
     // The library setting "Save changes into the files" (spec D15) decides in the write list whether a file is really written. This is the
@@ -77,13 +102,14 @@ public sealed class EditSessionService(
     private async Task<List<(EditSessionChange Change, string? Reason)>> CheckAllAsync(
         IReadOnlyList<EditSessionChange> changes,
         IReadOnlyDictionary<Guid, string> refusals,
+        VideoSeriesMovePairs pairs,
         CancellationToken ct)
     {
         var results = new List<(EditSessionChange, string?)>(changes.Count);
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var change in changes)
         {
-            results.Add((change, await CheckOneAsync(change, ids, refusals, ct).ConfigureAwait(false)));
+            results.Add((change, await CheckOneAsync(change, ids, refusals, pairs, ct).ConfigureAwait(false)));
         }
 
         return results;
@@ -93,6 +119,7 @@ public sealed class EditSessionService(
         EditSessionChange change,
         HashSet<string> ids,
         IReadOnlyDictionary<Guid, string> refusals,
+        VideoSeriesMovePairs pairs,
         CancellationToken ct)
     {
         if (!ids.Add(change.Id))
@@ -115,6 +142,12 @@ public sealed class EditSessionService(
             return refusal;
         }
 
+        // A file move that belongs to a series change must still agree with it (same video, same choice), or nothing is saved.
+        if (pairs.Refusals.TryGetValue(change.Id, out var pairRefusal))
+        {
+            return pairRefusal;
+        }
+
         if (!_handlers.TryGetValue(change.Kind, out var handler))
         {
             return EditSessionReasons.NotAvailableYet;
@@ -122,7 +155,9 @@ public sealed class EditSessionService(
 
         try
         {
-            return await handler.CheckAsync(change, ct).ConfigureAwait(false);
+            return handler is IFileFollowingEditSessionChangeHandler following
+                ? await following.CheckAsync(change, pairs.FollowingSeriesChanges.Contains(change.Id), ct).ConfigureAwait(false)
+                : await handler.CheckAsync(change, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -131,7 +166,7 @@ public sealed class EditSessionService(
         }
     }
 
-    private async Task<EditSessionResult> ApplyAsync(IReadOnlyList<EditSessionChange> changes, CancellationToken ct)
+    private async Task<EditSessionResult> ApplyAsync(IReadOnlyList<EditSessionChange> changes, IReadOnlySet<string> follows, CancellationToken ct)
     {
         // Changes that can be put back go first and an identity change goes last: it cannot be undone (see the identity handler), so by
         // the time it runs everything before it is already saved, and if it fails those are undone. OrderBy is stable, so the
@@ -162,7 +197,10 @@ public sealed class EditSessionService(
         {
             try
             {
-                var undo = await _handlers[change.Kind].ApplyAsync(change, CancellationToken.None).ConfigureAwait(false);
+                var handler = _handlers[change.Kind];
+                var undo = handler is IFileFollowingEditSessionChangeHandler following
+                    ? await following.ApplyAsync(change, follows.Contains(change.Id), CancellationToken.None).ConfigureAwait(false)
+                    : await handler.ApplyAsync(change, CancellationToken.None).ConfigureAwait(false);
                 outcomes[change.Id] = Result(change, EditSessionChangeStatuses.Ok, null);
                 if (undo is not null)
                 {
@@ -238,7 +276,7 @@ public sealed class EditSessionService(
             {
                 // The undo itself failed, so this change stays saved. Say so rather than claim it was put back.
                 logger.LogError(ex, "Edit session could not undo a change on item {EntityId}.", entry.Change.EntityId);
-                outcomes[entry.Change.Id] = Result(entry.Change, EditSessionChangeStatuses.Failed, EditSessionReasons.SaveFailed);
+                outcomes[entry.Change.Id] = Result(entry.Change, EditSessionChangeStatuses.Failed, ReasonFor(ex));
             }
         }
     }

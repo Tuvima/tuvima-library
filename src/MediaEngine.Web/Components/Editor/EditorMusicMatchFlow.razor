@@ -11,7 +11,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Match tab's music flow (universal editor v5, 3c, mockup G4). Its Artist, Album and Song boxes and the icon-only Search sit in the Match tab's
-   first row, between the provider dropdown and the source switch (the tab hands those two in as RowStart and RowEnd). Below, two columns: the
+   first row, after the provider dropdown (the tab hands that in as RowStart; the source selector is on the tab, above the row). Below, two columns: the
    "Albums and releases" list on the left, each release with its cover, "year · format · N tracks · label", and a muted "current" or "suggested";
    and the chosen release's discs and tracks on the right as a table, with the track that fits the file pre-selected. A pick that would move the
    song to another album says so in an amber card; the verdict and Apply match follow. Nothing runs on opening: the boxes are filled and the person
@@ -30,7 +30,6 @@
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Disabled="@(_releasesLoading || !HasWords)" OnClick="SearchAsync" data-testid="music-flow-search" />
         </Start>
-        <End>@RowEnd</End>
     </EditorMatchRow>
 
     @Lead
@@ -113,9 +112,6 @@
 
     /// <summary>What the Match tab puts first in the row: the provider dropdown.</summary>
     [Parameter] public RenderFragment? RowStart { get; set; }
-
-    /// <summary>What the Match tab puts last in the row: the source switch.</summary>
-    [Parameter] public RenderFragment? RowEnd { get; set; }
 
     /// <summary>What the Match tab shows under the row: a staged note, the "Not matched yet" tag, the file the Engine read.</summary>
     [Parameter] public RenderFragment? Lead { get; set; }
