@@ -7,14 +7,16 @@ namespace MediaEngine.Api.Tests;
 /// <summary>Videos appear in Watch as one card per series and one per standalone video, and play like episodes.</summary>
 public sealed class VideoDisplayTests
 {
-    private static DisplayWorkRow Video(Guid? root, string title, string? season = null, string? episode = null, string? show = null, string mediaType = "Videos") =>
+    private static DisplayWorkRow Video(Guid? root, string title, string? season = null, string? episode = null, string? show = null, string mediaType = "Videos", string? cover = null, string? rootCover = null, DateTimeOffset? createdAt = null) =>
         new()
         {
             WorkId = Guid.NewGuid(),
             AssetId = Guid.NewGuid(),
             RootWorkId = root ?? Guid.Empty,
             MediaType = mediaType,
-            CreatedAt = DateTimeOffset.Parse("2026-10-01T12:00:00Z"),
+            CreatedAt = createdAt ?? DateTimeOffset.Parse("2026-10-01T12:00:00Z"),
+            CoverUrl = cover,
+            RootCoverUrl = rootCover,
             Title = title,
             ShowName = show,
             SeasonNumber = season,
@@ -74,6 +76,33 @@ public sealed class VideoDisplayTests
         Assert.All(card.PreviewItems, item => Assert.Null(item.Position));
         var said = card.Facts.Append(card.Subtitle).Append(card.Actions[0].Label).Append(card.GroupSummary.RelationshipLabel);
         Assert.All(said, text => Assert.False(VideoFolderWording.UsesTvWording(text), $"The card says \"{text}\"."));
+    }
+
+    [Fact]
+    public void AVideoFolderWithNoCoverOfItsOwn_BorrowsTheFirstVideosFrame()
+    {
+        var root = Guid.NewGuid();
+        var first = Video(root, "Welcome", "1", "1", "Python Course", cover: "/stream/artwork/first-frame");
+        var later = Video(root, "Variables", "1", "2", "Python Course", cover: "/stream/artwork/later-frame", createdAt: first.CreatedAt.AddDays(1));
+
+        var card = Assert.Single(new DisplayCardBuilder().BuildVideoCards([later, first]));
+
+        Assert.Equal("/stream/artwork/first-frame", card.Artwork.CoverUrl);
+    }
+
+    [Fact]
+    public void AVideoFolderWithItsOwnCover_KeepsIt()
+    {
+        var root = Guid.NewGuid();
+        var works = new[]
+        {
+            Video(root, "Welcome", "1", "1", "Python Course", cover: "/stream/artwork/frame", rootCover: "/stream/artwork/chosen"),
+            Video(root, "Variables", "1", "2", "Python Course", rootCover: "/stream/artwork/chosen"),
+        };
+
+        var card = Assert.Single(new DisplayCardBuilder().BuildVideoCards(works));
+
+        Assert.Equal("/stream/artwork/chosen", card.Artwork.CoverUrl);
     }
 
     [Fact]
