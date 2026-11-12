@@ -592,8 +592,8 @@ public sealed class PlaybackGeneralSettingsDto
     /// </summary>
     public bool? ShowChapterMarks { get; set; }
 
-    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark bubbles on the video progress bar. Off by default.</summary>
-    public bool ShowBookmarksOnBar { get; set; }
+    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark beads on the video progress bar. On by default (video player follow-ups D4, D16); a profile that saved an explicit off keeps it.</summary>
+    public bool ShowBookmarksOnBar { get; set; } = true;
 
     /// <summary>The bookmark list filter the profile last chose in the player: <c>All</c>, <c>Mine</c>, <c>Global</c> or <c>Everyones</c> (administrators).</summary>
     public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.All;

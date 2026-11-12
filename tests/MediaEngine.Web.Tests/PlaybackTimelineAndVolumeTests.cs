@@ -4,6 +4,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 
@@ -93,7 +94,7 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Timeline_BookmarksAreTwoByTenPixelTicksUnderTheRailInTheMarkerColors()
+    public void Timeline_BookmarksAreTenPixelRoundBeadsCenteredOnTheRailInTheMarkerColors()
     {
         var own = new PlaybackRailBookmark(Guid.NewGuid(), 60, false, "Mine", null);
         var shared = new PlaybackRailBookmark(Guid.NewGuid(), 120, true, "Everyone's", null);
@@ -107,15 +108,67 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
         Assert.Contains("left:50%", cut.FindAll(".playback-seek-rail__bookmark-wrap")[1].GetAttribute("style"), StringComparison.Ordinal);
 
         var css = SourceText("Components/Shared/PlaybackSeekRail.razor.css");
-        Assert.Contains("width:2px; height:10px;", css, StringComparison.Ordinal);
-        Assert.Contains("background:var(--playback-marker)", css, StringComparison.Ordinal);
+        // A 10 px round bead (video player follow-ups D4), centred on the rail's middle line with a margin, not hanging 4 px under it.
+        var bead = CssRule(css, ".playback-seek-rail__bookmark");
+        Assert.Contains("width:10px; height:10px;", bead, StringComparison.Ordinal);
+        Assert.Contains("border-radius:50%", bead, StringComparison.Ordinal);
+        Assert.Contains("margin:-5px 0 0 -5px", bead, StringComparison.Ordinal);
+        Assert.Contains("background:var(--playback-marker)", bead, StringComparison.Ordinal);
+        Assert.Contains("box-shadow:0 0 0 2px var(--playback-marker-ring)", bead, StringComparison.Ordinal);
+        Assert.Contains("top:50%", CssRule(css, ".playback-seek-rail__bookmark-wrap"), StringComparison.Ordinal);
+        Assert.DoesNotContain("calc(50% + 4px)", css, StringComparison.Ordinal);
         Assert.Contains(".playback-seek-rail__bookmark.is-global { background:var(--playback-marker-shared); }", css, StringComparison.Ordinal);
+        Assert.Contains("--playback-marker-ring:", SourceText("wwwroot/tuvima.tokens.css"), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Timeline_BookmarkTicksHideWhileTheHandleIsDragged()
+    public void Timeline_ABeadGrowsToFourteenPixelsOnHoverAndFocus_AndKeepsItsLargeHitArea_AndDoesNotAnimateUnderReducedMotion()
     {
-        // playback-seek-rail.js puts data-dragging on the rail while the handle is held (see the JavaScript test); the stylesheet hides the ticks then.
+        var css = SourceText("Components/Shared/PlaybackSeekRail.razor.css");
+
+        var grown = CssRule(css, ".playback-seek-rail__bookmark:hover, .playback-seek-rail__bookmark:focus-visible, .playback-seek-rail__bookmark[aria-expanded=\"true\"]");
+        Assert.Contains("width:14px; height:14px;", grown, StringComparison.Ordinal);
+        Assert.Contains("inset:-8px -4px", CssRule(css, ".playback-seek-rail__bookmark::before"), StringComparison.Ordinal); // 18 x 26 px around the 10 px bead
+        var reduced = css[css.IndexOf("@media (prefers-reduced-motion: reduce)", StringComparison.Ordinal)..];
+        Assert.Contains(".playback-seek-rail__bookmark { transition:none; }", reduced, StringComparison.Ordinal);
+        Assert.Contains(".playback-seek-rail__bookmark.is-new::after { animation:none; }", reduced, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Timeline_ThePulseOfAJustAddedBeadRunsOnceForAboutNineHundredMilliseconds()
+    {
+        var css = SourceText("Components/Shared/PlaybackSeekRail.razor.css");
+
+        Assert.Contains("animation:playback-seek-rail-bead-pulse .9s ease-out 1;", css, StringComparison.Ordinal);
+        Assert.Contains("@keyframes playback-seek-rail-bead-pulse", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Timeline_TheNewestBookmarksBeadCarriesIsNew_AndTheOthersDoNot()
+    {
+        var older = new PlaybackRailBookmark(Guid.NewGuid(), 60, false, "Older", null);
+        var newest = new PlaybackRailBookmark(Guid.NewGuid(), 120, false, "Newest", null);
+        var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 240).Add(c => c.Bookmarks, [older, newest]).Add(c => c.NewBookmarkId, newest.Id));
+
+        var beads = cut.FindAll(".playback-seek-rail__bookmark");
+        Assert.DoesNotContain("is-new", beads[0].ClassName, StringComparison.Ordinal);
+        Assert.Contains("is-new", beads[1].ClassName, StringComparison.Ordinal);
+
+        cut.Render(p => p.Add(c => c.Duration, 240).Add(c => c.Bookmarks, [older, newest]).Add(c => c.NewBookmarkId, (Guid?)null));
+        Assert.DoesNotContain(cut.FindAll(".playback-seek-rail__bookmark"), bead => bead.ClassName!.Contains("is-new", StringComparison.Ordinal));
+    }
+
+    private static string CssRule(string css, string selector)
+    {
+        var start = css.IndexOf(selector + " {", StringComparison.Ordinal);
+        Assert.True(start >= 0, $"No rule for {selector}.");
+        return css[start..css.IndexOf('}', start)];
+    }
+
+    [Fact]
+    public void Timeline_BookmarkBeadsHideWhileTheHandleIsDragged()
+    {
+        // playback-seek-rail.js puts data-dragging on the rail while the handle is held (see the JavaScript test); the stylesheet hides the beads then.
         var css = SourceText("Components/Shared/PlaybackSeekRail.razor.css");
 
         Assert.Contains(".playback-seek-rail[data-dragging=\"true\"] .playback-seek-rail__bookmarks { visibility:hidden; }", css, StringComparison.Ordinal);
@@ -280,20 +333,43 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Volume_SliderIsHorizontalNinetySixPixelsAndSharesThePlayerSliderStyle()
+    public void Volume_SliderIsVerticalNinetySixPixelsTallAndSharesThePlayerSliderStyle()
     {
         var cut = Render<PlaybackVolumeControl>(p => p.Add(c => c.Volume, 0.6).Add(c => c.Surface, "dock").Add(c => c.Touch, false));
 
         var input = cut.Find(".playback-volume__panel input[type=range]");
-        Assert.Equal("horizontal", input.GetAttribute("aria-orientation"));
+        Assert.Equal("vertical", input.GetAttribute("aria-orientation"));
+        Assert.Equal("Volume", input.GetAttribute("aria-label"));
         Assert.Equal("60%", input.GetAttribute("aria-valuetext"));
-        Assert.Contains("playback-range-slider--player", cut.Find(".playback-volume__panel .playback-range-slider").ClassName, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("[aria-orientation='vertical']"));
-        Assert.Contains("--playback-volume-slider-width: 96px;", SourceText("wwwroot/tuvima.tokens.css"), StringComparison.Ordinal);
+        var slider = cut.Find(".playback-volume__panel .playback-range-slider");
+        Assert.Contains("playback-range-slider--player", slider.ClassName, StringComparison.Ordinal);
+        Assert.Contains("playback-range-slider--vertical", slider.ClassName, StringComparison.Ordinal);
+        Assert.Contains("--playback-volume-slider-height: 96px;", SourceText("wwwroot/tuvima.tokens.css"), StringComparison.Ordinal);
+        Assert.DoesNotContain("--playback-volume-slider-width", SourceText("wwwroot/tuvima.tokens.css"), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Volume_SliderOverlaysAZeroWidthSlotSoNothingElseInTheBarMoves()
+    public void Volume_TheOpenSliderHasNoBackgroundBoxBorderOrRadiusBehindIt()
+    {
+        var css = SourceText("Components/Player/PlaybackVolumeControl.razor.css");
+        var panelRule = css[css.IndexOf(".playback-volume__panel {", StringComparison.Ordinal)..];
+        panelRule = panelRule[..panelRule.IndexOf('}', StringComparison.Ordinal)];
+
+        Assert.DoesNotContain("background", panelRule, StringComparison.Ordinal);
+        Assert.DoesNotContain("border:", panelRule, StringComparison.Ordinal);
+        Assert.DoesNotContain("border-radius", panelRule, StringComparison.Ordinal);
+        Assert.DoesNotContain("box-shadow", panelRule, StringComparison.Ordinal);
+        Assert.DoesNotContain(".playback-volume--video .playback-volume__panel", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("--tl-bg-shell", css, StringComparison.Ordinal);
+
+        // On a bright picture the bare rail and handle read through a faint dark outline and a small dark shadow.
+        var slider = SourceText("Components/Shared/AppRangeSlider.razor.css");
+        var vertical = slider[slider.IndexOf("playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__track {", StringComparison.Ordinal)..];
+        Assert.Contains("box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45)", vertical[..vertical.IndexOf('}', StringComparison.Ordinal)], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Volume_SliderOpensAboveTheSpeakerOverAZeroSizeSlotSoNothingElseInTheBarMoves()
     {
         var cut = Render<PlaybackVolumeControl>(p => p.Add(c => c.Volume, 0.6).Add(c => c.Surface, "dock").Add(c => c.Touch, false));
 
@@ -306,18 +382,72 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
         Assert.Equal(root, slot.ParentElement);
 
         var css = SourceText("Components/Player/PlaybackVolumeControl.razor.css");
-        // The slot keeps no width, open or closed, and never clips; only the slider inside it is drawn over the bar.
+        // The slot keeps no size, open or closed, and never clips; only the slider inside it is drawn, over the picture or page above the speaker.
         Assert.Contains("flex:none; width:0; height:0; visibility:hidden;", css, StringComparison.Ordinal);
         Assert.DoesNotContain("overflow:hidden", css, StringComparison.Ordinal);
-        Assert.DoesNotContain("width:calc(var(--playback-volume-slider-width) + 20px)", css, StringComparison.Ordinal);
         var openSlot = css[css.IndexOf(".playback-volume[data-open=\"true\"] .playback-volume__slot", StringComparison.Ordinal)..];
         Assert.DoesNotContain("width:", openSlot[..openSlot.IndexOf('}', StringComparison.Ordinal)], StringComparison.Ordinal);
+        var slotRule = css[css.IndexOf(".playback-volume__slot {", StringComparison.Ordinal)..];
+        Assert.DoesNotContain("position:relative", slotRule[..slotRule.IndexOf('}', StringComparison.Ordinal)], StringComparison.Ordinal); // so the panel is anchored to the speaker's control
         var panelRule = css[css.IndexOf(".playback-volume__panel {", StringComparison.Ordinal)..];
         panelRule = panelRule[..panelRule.IndexOf('}', StringComparison.Ordinal)];
-        Assert.Contains("position:absolute; left:0; top:50%", panelRule, StringComparison.Ordinal);
+        // Out of the flow (so no tool moves) and not cut off by the scrolling tools zone of a narrow window; lifted to sit centred on the speaker, bottom on its top edge.
+        Assert.Contains("position:fixed;", panelRule, StringComparison.Ordinal);
+        Assert.DoesNotContain("top:", panelRule.Replace("padding", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.Contains("transform:translate(calc(var(--playback-control-target) * -1), calc(-100% - var(--playback-control-target) / 2))", panelRule, StringComparison.Ordinal);
         Assert.Contains("z-index:", panelRule, StringComparison.Ordinal);
-        Assert.Contains("background:var(--tl-bg-shell)", panelRule, StringComparison.Ordinal);
+        Assert.Contains("--playback-volume-slider-height", panelRule, StringComparison.Ordinal);
         Assert.DoesNotContain(":hover", css, StringComparison.Ordinal); // the reveal is the script's, so the 400 ms linger is real
+        Assert.Contains("@media (prefers-reduced-motion: reduce)", css, StringComparison.Ordinal);
+        Assert.Contains("'Escape'", SourceText("wwwroot/js/playback-volume.js"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Volume_ArrowUpOnTheSpeakerRaisesTheLevelByFivePercentAndArrowDownLowersIt()
+    {
+        var levels = new List<double>();
+        var cut = Render<PlaybackVolumeControl>(p => p.Add(c => c.Volume, 0.6).Add(c => c.Surface, "dock").Add(c => c.Touch, false)
+            .Add(c => c.OnVolumeChanged, EventCallback.Factory.Create<double>(this, level => levels.Add(level))));
+
+        await cut.Find(".playback-volume__button").KeyDownAsync(new KeyboardEventArgs { Key = "ArrowUp" });
+        await cut.Find(".playback-volume__button").KeyDownAsync(new KeyboardEventArgs { Key = "ArrowDown" });
+
+        Assert.Equal(new[] { 0.65d, 0.55d }, levels);
+        // The slider's own range input steps the same 5 percent (and takes Home and End natively).
+        Assert.Equal("0.05", cut.Find(".playback-volume__panel input[type=range]").GetAttribute("step"));
+    }
+
+    [Fact]
+    public async Task Volume_OnTouchTheVolumePanelStaysHorizontal()
+    {
+        var cut = Render<PlaybackVolumeControl>(p => p.Add(c => c.Volume, 0.4).Add(c => c.Surface, "dock").Add(c => c.Touch, true));
+        var panel = cut.FindComponent<PlaybackPanel>();
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-volume-panel")));
+
+        var input = cut.Find(".playback-volume-panel input[type=range]");
+        Assert.Equal("horizontal", input.GetAttribute("aria-orientation"));
+        Assert.DoesNotContain("playback-range-slider--vertical", cut.Find(".playback-volume-panel .playback-range-slider").ClassName, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".playback-volume__panel"));
+        var css = SourceText("Components/Player/PlaybackVolumeControl.razor.css");
+        Assert.Contains(".playback-volume-panel { display:flex; align-items:center;", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Sliders_OtherThanTheVolumeSliderStayHorizontal()
+    {
+        var timeline = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 180).Add(c => c.Position, 30));
+        Assert.All(timeline.FindAll("input[type=range]"), input => Assert.Equal("horizontal", input.GetAttribute("aria-orientation")));
+        Assert.Empty(timeline.FindAll(".playback-range-slider--vertical"));
+
+        var plain = Render<AppRangeSlider>(p => p.Add(c => c.Value, 0.5));
+        Assert.Equal("horizontal", plain.Find("input[type=range]").GetAttribute("aria-orientation"));
+        Assert.DoesNotContain("playback-range-slider--vertical", plain.Find(".playback-range-slider").ClassName, StringComparison.Ordinal);
+
+        // Only the volume control asks for the vertical form.
+        var others = SourceText("Components/Player/PlaybackShell.razor") + SourceText("Components/Player/PlaybackSpeedPanel.razor");
+        Assert.DoesNotContain("Vertical=", others, StringComparison.Ordinal);
+        Assert.Contains("Vertical=\"true\"", SourceText("Components/Player/PlaybackVolumeControl.razor"), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -380,12 +510,10 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Volume_TheOldVerticalVolumeBoxIsGone()
+    public void Volume_TheOldFilledVolumeBoxOfTheGlobalStylesheetIsGone()
     {
         var app = SourceText("wwwroot/app.css");
-        var razor = SourceText("Components/Player/PlaybackVolumeControl.razor");
 
-        Assert.DoesNotContain("Vertical=\"true\"", razor, StringComparison.Ordinal);
         Assert.DoesNotContain("height: 168px", app, StringComparison.Ordinal);
         Assert.DoesNotContain(".playback-volume__panel .playback-range-slider", app, StringComparison.Ordinal);
     }

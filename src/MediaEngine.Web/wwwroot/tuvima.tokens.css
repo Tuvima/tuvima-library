@@ -213,9 +213,10 @@
     --playback-slider-rail-height: 4px;
     --playback-slider-handle: 12px;
     --playback-slider-hit: 24px;
-    --playback-volume-slider-width: 96px;
+    --playback-volume-slider-height: 96px;
     --playback-marker: var(--tl-accent-primary-hover);
     --playback-marker-shared: #FFFFFF;
+    --playback-marker-ring: #0C0B10;
     --playback-focus-ring-width: 2px;
     --playback-focus-ring-offset: 2px;
     --playback-bg: var(--player-bg);

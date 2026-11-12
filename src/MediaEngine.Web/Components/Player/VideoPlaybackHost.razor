@@ -94,7 +94,7 @@
                 </IdentityActions>
                 <TimelineContent>
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
-                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice"
+                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" NewBookmarkId="@_newBookmarkId"
                                PreviewIndexUrl="@PlaybackSeekRail.PreviewIndexAddress(Playback.CurrentManifest?.ScrubPreviewIndexUrl)" />
                 </TimelineContent>
                 <ToolContent Context="tool">
@@ -233,7 +233,8 @@
     private IReadOnlyList<AudiobookBookmarkDto> _railSaved = [];
     private IReadOnlyList<PlaybackRailBookmark> _savedRail = [];
     private Task? _railBookmarksLoad;
-    private bool ShowBookmarksOnBar => _profileSettings?.General.ShowBookmarksOnBar == true;
+    // Bookmark dots are on by default (video player follow-ups D4, D16); a profile that turned them off keeps its explicit choice.
+    private bool ShowBookmarksOnBar => _profileSettings?.General.ShowBookmarksOnBar == true; // On by default once the profile has loaded (video player follow-ups D16); nothing is drawn before that, so a profile that turned the dots off never sees them flash.
     private string BookmarkFilter => _profileSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
     private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
@@ -270,7 +271,7 @@
         ? $"Chapter {chapter.Index + 1:00} · {chapter.Title} · {FormatTimestamp(chapter.StartSeconds)}" : FormatTimestamp(seconds);
     /// <summary>Chapter ticks follow the profile's setting: off by default for video (player-controls-v3 D8).</summary>
     private IReadOnlyList<double> ShownChapterTicks => PlayerPreferenceService.ShowChapterMarks(_profileSettings, audiobook: false) ? ChapterTicks : [];
-    /// <summary>The bookmark markers on the bar: off by default, and following the list the Bookmarks panel shows, Everyone or Mine (unified player v2 D21).</summary>
+    /// <summary>The bookmark beads on the bar: on by default (video player follow-ups D4, D16) unless the profile turned them off, and following the list the Bookmarks panel shows, Everyone or Mine (unified player v2 D21).</summary>
     private IReadOnlyList<PlaybackRailBookmark> ShownRailBookmarks => !ShowBookmarksOnBar ? [] : PlaybackRailBookmark.ForChoice(_savedRail, BookmarkFilter);
     private IReadOnlyList<double> ChapterTicks => Playback.DurationSeconds > 0 ? VideoChapters.Select(chapter => chapter.StartSeconds).Where(time => time >= 0 && time < Playback.DurationSeconds).Distinct().Order().ToList() : [];
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
@@ -492,6 +493,7 @@
         _profileAudioAppliedFor = null;
         _savedRail = [];
         _railSaved = [];
+        ClearNewBookmark();
         if (identity?.ProfileId != _profileSubtitlesProfile) { _profileSubtitles = null; _profileSettings = null; _profileSubtitlesProfile = identity?.ProfileId; }
         Tools.Close();
         if (identity is null) return;
@@ -562,8 +564,39 @@
         }, profileId);
         if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
         await ReloadSavedBookmarksAsync(workId, profileId);
+        if (result.Value is { } created) MarkNewBookmark(created.Id);
         await ShowBookmarkNoticeAsync($"Bookmark added {PlaybackSeekRail.Time(seconds)}");
         return true;
+    }
+
+    // The bead of the bookmark just added pulses once (video player follow-ups D4); the flag is cleared a few seconds later and when the item changes.
+    private Guid? _newBookmarkId;
+    private CancellationTokenSource? _newBookmarkCancellation;
+
+    private void MarkNewBookmark(Guid id)
+    {
+        ClearNewBookmark();
+        var cancellation = _newBookmarkCancellation = new CancellationTokenSource();
+        _newBookmarkId = id;
+        _ = InvokeAsync(StateHasChanged);
+        _ = ClearNewBookmarkLaterAsync(id, cancellation.Token);
+    }
+
+    private async Task ClearNewBookmarkLaterAsync(Guid id, CancellationToken ct)
+    {
+        try { await Task.Delay(TimeSpan.FromSeconds(4), ct); }
+        catch (OperationCanceledException) { return; }
+        if (_disposed || _newBookmarkId != id) return;
+        _newBookmarkId = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ClearNewBookmark()
+    {
+        _newBookmarkCancellation?.Cancel();
+        _newBookmarkCancellation?.Dispose();
+        _newBookmarkCancellation = null;
+        _newBookmarkId = null;
     }
 
     /// <summary>Renames the person's own bookmark and changes its note. True when saved.</summary>
@@ -1569,6 +1602,7 @@
     {
         _disposed = true;
         _lifetimeCancellation.Cancel();
+        _newBookmarkCancellation?.Cancel();
         _metadataCancellation?.Cancel(); _metadataCancellation?.Dispose();
         Tools.Changed -= HandleToolsChanged;
         if (_deviceContext is not null) _deviceContext.OnChanged -= HandleDeviceContextChanged;
