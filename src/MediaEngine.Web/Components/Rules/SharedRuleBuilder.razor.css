@@ -41,7 +41,7 @@
 .collection-rule-builder__join ::deep button:last-of-type { border-radius: 0 var(--tl-radius-pill) var(--tl-radius-pill) 0; }
 
 .collection-rule-builder__rows { display: flex; flex-direction: column; gap: 8px; }
-/* A rule is a card holding one shared form row (AppFormRow). The card is its own size container, so the row wraps its fields by the card's width,
+/* A rule is a card holding one shared form row (AppFormRow). The card is its own size container, so the row stacks its fields by the card's width,
    not the window's: the editor puts the rules beside a preview, so the window is much wider than the rules. */
 .collection-rule-builder__row {
     container-type: inline-size;
@@ -51,11 +51,11 @@
     border-radius: var(--tl-control-radius);
     background: color-mix(in srgb, var(--tl-bg-surface) 70%, transparent);
 }
-/* The grip is decoration on the control line of the first line of the row; a phone-width card has no room for it. */
+/* The grip is decoration on the control line; a card narrower than 380 px (the row part stacks it there) has no room for it. */
 .collection-rule-builder__condition-drag { display: flex; align-items: center; justify-content: center; min-height: var(--tl-control-height-md); color: var(--tl-text-muted); font-size: var(--tl-font-size-lg); }
 .collection-rule-builder__no-value { display: flex; align-items: center; min-height: var(--tl-control-height-md); padding: 0 12px; border: 1px dashed var(--tl-divider); border-radius: var(--tl-control-radius); color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 
-@container (max-width: 599px) {
+@container (max-width: 379px) {
     .collection-rule-builder__row .collection-rule-builder__drag-cell[data-form-row-field] { display: none; }
     /* On its own line the remove button needs no blank label line above it. */
     .collection-rule-builder__remove > .app-field__label { display: none; }

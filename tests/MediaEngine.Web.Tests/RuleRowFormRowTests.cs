@@ -42,6 +42,22 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
     [Theory]
     [InlineData(RuleBuilderLayout.Groups)]
     [InlineData(RuleBuilderLayout.Sentence)]
+    public void ARuleRow_StaysOnOneLineByColumnsAndStacksOnlyWhenNarrow_NotByTheTwelveRemWrap(RuleBuilderLayout layout)
+    {
+        var cut = RenderRules(layout, new CollectionRulePredicateViewModel { Field = "runtime", Op = "between", Values = ["90", "180"] });
+
+        var row = cut.Find("[data-rule-row]");
+        Assert.Contains("app-form-row--stack-narrow", row.ClassList);
+        Assert.DoesNotContain("app-form-row--wrap", row.ClassList);
+        // Field, Condition, From and To each get a column of the row's grid (narrower for From and To), then the remove button's own.
+        var columns = row.QuerySelector(".app-form-row__fields")!.GetAttribute("style")!;
+        Assert.Contains("minmax(0, 1fr) minmax(0, 1fr) minmax(0, .9fr) minmax(0, .9fr) auto", columns);
+        Assert.Equal(layout == RuleBuilderLayout.Groups, columns.Contains("--tl-form-row-columns: auto ", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(RuleBuilderLayout.Groups)]
+    [InlineData(RuleBuilderLayout.Sentence)]
     public void ARuleRow_RendersOnTheSharedFormRow_WithEveryChildAFormRowField(RuleBuilderLayout layout)
     {
         var cut = RenderRules(layout, new CollectionRulePredicateViewModel { Field = "year", Op = "eq", Value = "2020" });
@@ -149,5 +165,24 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
         Assert.DoesNotContain(help, control.QuerySelectorAll("*"));
         // The neighbour is a field with no help of its own, so its control line is not pushed.
         Assert.Empty(fields[1].QuerySelectorAll(".app-field__help"));
+    }
+
+    [Fact]
+    public void TheOrderAndLimitsRow_PutsTheTwoSelectsAsFieldsAndTheAdvancedSwitchOnTheControlLine()
+    {
+        Render<AppPopoverHost>();
+        var cut = Render<CollectionRuleBuilder>(parameters => parameters
+            .Add(component => component.Definition, new CollectionRuleDefinitionViewModel { Groups = [new CollectionRuleGroupViewModel()] }));
+
+        var row = cut.Find("[data-order-and-limits] .app-form-row.collection-rule-sentence__order-row");
+        Assert.Contains("app-form-row--stack-narrow", row.ClassList);
+        var children = row.QuerySelector(".app-form-row__fields")!.Children;
+        Assert.Equal(3, children.Length);
+        Assert.Equal("Order", children[0].QuerySelector(".app-field__label")!.TextContent.Trim());
+        Assert.True(children[0].Matches(FieldSelector));
+        Assert.True(children[1].Matches(FieldSelector));
+        // The switch is a direct child that is not a field: the row centres it on the control line shared with the selects.
+        Assert.False(children[2].Matches(FieldSelector));
+        Assert.NotNull(children[2].QuerySelector("input[role='switch']"));
     }
 }

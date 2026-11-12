@@ -87,6 +87,25 @@ public sealed class AppFormRowTests : AsyncBunitContext
     }
 
     [Fact]
+    public void StackNarrowAddsItsModifierClass_AndStacksOnlyBelow380InTheRowsOwnSheets()
+    {
+        var plain = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children));
+        var narrow = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children).Add(x => x.StackNarrow, true).Add(x => x.Columns, "1fr 1fr auto"));
+
+        Assert.DoesNotContain("app-form-row--stack-narrow", plain.Find(".app-form-row").ClassList);
+        Assert.Contains("app-form-row--stack-narrow", narrow.Find(".app-form-row").ClassList);
+        Assert.DoesNotContain("app-form-row--wrap", narrow.Find(".app-form-row").ClassList);
+        Assert.Contains("--tl-form-row-columns: 1fr 1fr auto", narrow.Find(".app-form-row__fields").GetAttribute("style"));
+        var web = WebRoot();
+        var scoped = File.ReadAllText(Path.Combine(web, "Components", "Shared", "AppFormRow.razor.css"));
+        Assert.Contains("@container (max-width: 379px)", scoped, StringComparison.Ordinal);
+        Assert.Contains(".app-form-row--stack-narrow .app-form-row__fields", scoped, StringComparison.Ordinal);
+        var global = StripComments(File.ReadAllText(Path.Combine(web, "wwwroot", "app.css")));
+        Assert.Contains(".app-form-row--stack-narrow > .app-form-row__fields > *", global, StringComparison.Ordinal);
+        Assert.Matches(@"\.app-form-row--stack-narrow\s*>\s*\.app-form-row__fields\s*>\s*:is\(\.app-field,\s*\[data-form-row-field\]\)\s*\{[^}]*flex-direction:\s*column", global);
+    }
+
+    [Fact]
     public void WrapAddsTheWrapModifierClass_AndTheWrapRulesLiveInTheRowsOwnSheetsForAContainerNarrowerThan1280()
     {
         var plain = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children));

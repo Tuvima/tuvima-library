@@ -528,21 +528,20 @@
         return options;
     }
 
-    /// <summary>The columns of a rule row when the row is wide enough to keep them on one line (the row part wraps whole fields below that): the grip, the field, the condition, the value (two for a range) and the remove button.</summary>
+    /// <summary>The columns of a rule row: the grip (Groups layout), the field, the condition, the value (From and To for a range) and the remove button. A rule stays on one line down to a narrow card; the row part stacks it only below 380 px.</summary>
     private static string RuleColumns(CollectionRulePredicateViewModel condition, RuleFieldDefinition field, bool showDrag)
     {
-        var value = IsValueFreeOperator(condition.Op) ? "minmax(0, 1.6fr)"
-            : RuleOperators.TakesRange(condition.Op) && field.ValueProvider.Kind is not (RuleValueProviderKind.Boolean or RuleValueProviderKind.StaticOptions or RuleValueProviderKind.CollectionLibrary)
-                ? "minmax(0, .8fr) minmax(0, .8fr)"
-                : "minmax(0, 1.6fr)";
-        return $"{(showDrag ? "auto " : string.Empty)}minmax(0, 1.2fr) minmax(0, .9fr) {value} auto";
+        var isRange = !IsValueFreeOperator(condition.Op) && RuleOperators.TakesRange(condition.Op)
+            && field.ValueProvider.Kind is not (RuleValueProviderKind.Boolean or RuleValueProviderKind.StaticOptions or RuleValueProviderKind.CollectionLibrary);
+        var middle = isRange ? "minmax(0, 1fr) minmax(0, 1fr) minmax(0, .9fr) minmax(0, .9fr)" : "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr)";
+        return $"{(showDrag ? "auto " : string.Empty)}{middle} auto";
     }
 
     /// <summary>
     /// One rule on the shared form row (Editor v6 D12): every field shares one label line, one control line and one help line, so a label or a
     /// helper line under one field can never push its neighbours down. The grip and the remove button sit on the control line.
     /// </summary>
-    private RenderFragment RenderRule(CollectionRulePredicateViewModel condition, bool negated, bool showDrag, string removeIcon, string removeLabel, Func<Task> remove) => @<AppFormRow Columns="@RuleColumns(condition, FieldFor(condition.Field), showDrag)" Wrap="true" data-rule-row>
+    private RenderFragment RenderRule(CollectionRulePredicateViewModel condition, bool negated, bool showDrag, string removeIcon, string removeLabel, Func<Task> remove) => @<AppFormRow Columns="@RuleColumns(condition, FieldFor(condition.Field), showDrag)" StackNarrow="true" data-rule-row>
         @if (showDrag)
         {
             <div data-form-row-field="fit" class="collection-rule-builder__drag-cell">
