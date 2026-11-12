@@ -25,6 +25,8 @@
     padding: 10px 16px 4px;
 }
 
+/* Follow-ups D6: a row stays on one line. The label and the detail line shorten with an ellipsis (the full text is in the app tooltip,
+   data-overflow-tooltip) and the check stays at the right; a row with a detail line is a little taller, but no line wraps. */
 .asv__row {
     align-items: center;
     background: transparent;
@@ -33,10 +35,10 @@
     box-sizing: border-box;
     color: var(--playback-text);
     cursor: pointer;
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
     font: 500 16px/1.45 var(--font-ui);
-    gap: 2px 12px;
+    gap: 0 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
     min-height: var(--playback-panel-row-height);
     padding: 4px 10px;
     text-align: left;
@@ -70,14 +72,19 @@
 }
 
 .asv__label {
+    grid-column: 1;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .asv__check {
     color: var(--playback-accent);
     display: inline-flex;
-    margin-left: auto;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
 }
 
 .asv__check ::deep .playback-utility-glyph {
@@ -89,9 +96,12 @@
 
 .asv__sub {
     color: var(--playback-text-secondary);
-    flex-basis: 100%;
     font: 400 13px/1.45 var(--font-ui);
-    order: 10;
+    grid-column: 1 / -1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .asv__empty {

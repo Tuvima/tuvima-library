@@ -2,7 +2,7 @@
 .vault-area__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .vault-area__title { margin: 0; }
 .vault-area__tools, .vault-area__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.vault-area__views { overflow-x: auto; }
+.vault-area__views { min-width: 0; }
 .vault-area__tile-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
 .vault-area__back { color: inherit; display: inline-flex; align-items: center; min-height: 44px; }
 .vault-area__heading { margin: 0; }

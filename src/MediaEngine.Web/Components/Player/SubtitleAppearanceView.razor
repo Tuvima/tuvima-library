@@ -8,8 +8,9 @@
 @inject IJSRuntime JS
 
 @* Subtitle appearance, the nested view of Audio & subtitles (unified player v2 D13; mockup screen 4). From the top: a live preview strip, three style
-   presets (Default, Large text, High contrast; a tile is ticked only while the look matches it exactly), Text size and Background as segmented
-   controls, and a row that opens the full choices one level deeper. Every choice applies to the playing video at once and is saved on the profile. *@
+   presets (Default, Large text, High contrast; a tile is ticked while the text of the look matches it, whatever the Background is), the Background
+   choice as a segmented control, and a row that opens the full choices (including Text size) one level deeper. Style and Background are independent
+   (follow-ups D8). Every choice applies to the playing video at once and is saved on the profile. *@
 <div class="sav" data-subtitle-appearance>
     <div class="sav__preview">
         <AppCssElement Tag="span" Class="sav__preview-line" Css="@PreviewStyle" aria-live="polite">@L["SubtitleAppearance_PreviewLine"]</AppCssElement>
@@ -29,11 +30,6 @@
         }
     </div>
     <div class="sav__row sav__row--first">
-        <span>@L["Common_TextSize"]</span>
-        <AppSegmentedControl Class="sav__segmented" Options="@SizeOptions" Value="@SubtitleAppearance.SizeChoice(Look)" AriaLabel="@L["Common_TextSize"].Value"
-                             ValueChanged="@(value => ChangeAsync(look => look.SubtitleSize = value))" />
-    </div>
-    <div class="sav__row">
         <span>@L["SubtitleAppearance_Background"]</span>
         <AppSegmentedControl Class="sav__segmented" Options="@BackdropOptions" Value="@SubtitleAppearance.BackdropChoice(Look).ToString()" AriaLabel="@L["SubtitleAppearance_Background"].Value"
                              ValueChanged="@(value => ChangeAsync(look => SubtitleAppearance.ApplyBackdrop(look, Enum.Parse<SubtitleBackdrop>(value))))" />
@@ -108,13 +104,6 @@
         new("contrast", SubtitlePreset.HighContrast, L["SubtitleAppearance_HighContrast"].Value),
     ];
 
-    private IReadOnlyList<AppSelectOption> SizeOptions =>
-    [
-        new(PlaybackPreferenceValues.Small, L["PlayerSettings_Small"].Value),
-        new(PlaybackPreferenceValues.Medium, L["PlayerSettings_Medium"].Value),
-        new(PlaybackPreferenceValues.Large, L["PlayerSettings_Large"].Value),
-    ];
-
     private IReadOnlyList<AppSelectOption> BackdropOptions =>
     [
         new(nameof(SubtitleBackdrop.None), L["SubtitleAppearance_BackgroundNone"].Value),
@@ -143,8 +132,13 @@
                 var font when string.Equals(font, PlaybackPreferenceValues.FontMono, StringComparison.OrdinalIgnoreCase) => "monospace",
                 _ => "inherit",
             };
-            var shadow = Look?.SubtitleShadow == true ? "0 1px 3px black, 0 0 6px black" : "none";
-            return $"font-size:{size};font-family:{family};color:{SubtitleStyleCss.TextColor(Look)};text-shadow:{shadow};background:{SubtitleStyleCss.BackgroundColor(Look)}";
+            // High contrast is bold; with no box it gets a heavy black outline instead (the same value the real cues use). Otherwise the soft shadow is the Shadow choice.
+            var contrast = SubtitleStyleCss.IsHighContrast(Look);
+            var shadow = SubtitleStyleCss.UsesHighContrastOutline(Look)
+                ? SubtitleStyleCss.HighContrastOutline
+                : Look?.SubtitleShadow == true ? "0 1px 3px black, 0 0 6px black" : "none";
+            var weight = contrast ? "700" : "400";
+            return $"font-size:{size};font-family:{family};font-weight:{weight};color:{SubtitleStyleCss.TextColor(Look)};text-shadow:{shadow};background:{SubtitleStyleCss.BackgroundColor(Look)}";
         }
     }
 }

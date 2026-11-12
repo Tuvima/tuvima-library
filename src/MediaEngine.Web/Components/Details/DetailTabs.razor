@@ -14,6 +14,17 @@
     [Parameter] public EventCallback<string> ActiveTabChanged { get; set; }
 
     private IReadOnlyList<SurfaceTabItem> SurfaceTabs => Tabs
-        .Select(tab => new SurfaceTabItem(tab.Key, tab.Label))
+        .Select(tab => new SurfaceTabItem(tab.Key, tab.Label, IconFor(tab.Key)))
         .ToList();
+
+    // Every tab has an outline icon (Look v3.1 D1); the keys are the Engine's per-type tab keys.
+    private static string IconFor(string key) => key switch
+    {
+        "overview" => AppMaterialIcons.Outlined.SpaceDashboard,
+        "cast" or "people" => AppMaterialIcons.Outlined.People,
+        "credits" => AppMaterialIcons.Outlined.Badge,
+        "tracks" => AppMaterialIcons.Outlined.FormatListNumbered,
+        "details" => AppMaterialIcons.Outlined.Info,
+        _ => AppMaterialIcons.Outlined.ViewList,
+    };
 }

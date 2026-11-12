@@ -6,7 +6,7 @@ namespace MediaEngine.Web.Components.Editor;
 
 /// <summary>
 /// The "Save or discard?" question the editor asks (details overlay spec D9) when Done, Esc, Back or a close finds unsaved
-/// input: the shared confirmation dialog with two buttons, Save and Discard. Closing it (Esc or the close button) cancels, so
+/// input: the shared confirmation dialog with two buttons, Save and Discard. Closing it (Esc or the backdrop) cancels, so
 /// the person stays in the editor with their input intact.
 /// </summary>
 public static class EditingSaveOrDiscardDialog

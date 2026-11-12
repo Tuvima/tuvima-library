@@ -2,8 +2,9 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<nav class="@RootClass" aria-label="@AriaLabel" role="tablist">
-    <div class="surface-tab-bar__items" @ref="_strip">
+@* The cinematic section bar is the shared tab row (Look v3.1 D1): the shared tab classes plus the names the scroll hint and the page find it by. *@
+<nav class="@RootClass" aria-label="@AriaLabel">
+    <div class="tl-tabs-toolbar surface-tab-bar__items" role="tablist" aria-label="@AriaLabel" @ref="_strip">
         @foreach (var item in Items)
         {
             <AppNativeButton Type="button"
@@ -11,14 +12,11 @@
                              Class="@ItemClassFor(item)"
                              aria-selected="@(string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase) ? "true" : "false")"
                              OnClick="@(() => ActiveKeyChanged.InvokeAsync(item.Key))">
-                @if (!string.IsNullOrWhiteSpace(item.Icon))
-                {
-                    <AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Control20" />
-                }
+                <AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Control20" />
                 <span>@item.Label</span>
                 @if (item.Count is not null)
                 {
-                    <span class="surface-tab-bar__count">@item.Count</span>
+                    <span class="tl-tab__count">@item.Count</span>
                 }
             </AppNativeButton>
         }
@@ -92,5 +90,5 @@
     }
 
     private string ItemClassFor(SurfaceTabItem item) =>
-        $"{ItemClass} {(string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase) ? "is-active" : null)}";
+        $"tl-tab {ItemClass} {(string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase) ? "tl-tab-active is-active" : null)}";
 }

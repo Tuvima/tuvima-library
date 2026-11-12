@@ -2834,6 +2834,33 @@ public sealed partial class PlaybackSessionController
     }
 
 
+    /// <summary>
+    /// Asks the Engine for the playing file's manifest when the session holds none (a music track or audiobook queued with a direct stream address never
+    /// asks for one, and a video asks only after its picture has opened). Playback information uses it so the view is never blank for something that is playing.
+    /// The answer is returned and not stored: how the file is actually being delivered stays what the player already started.
+    /// </summary>
+    public async Task<PlaybackManifestDto?> LoadCurrentManifestAsync(CancellationToken ct = default)
+    {
+        if (CurrentItem is not { AssetId: { } assetId } item || _apiClient is null)
+        {
+            return null;
+        }
+
+        if (item.Manifest is not null)
+        {
+            return item.Manifest;
+        }
+
+        var settings = _preferences is null ? null : await _preferences.GetAsync(ct);
+        ct.ThrowIfCancellationRequested();
+        return await _apiClient.GetPlaybackManifestAsync(
+            assetId,
+            _clientContext.Client,
+            settings?.ProfileId == Guid.Empty ? null : settings?.ProfileId,
+            ct,
+            ToConnectionContext());
+    }
+
     private PlaybackConnectionContextDto ToConnectionContext() => new()
     {
         ConnectionPath = _clientContext.ConnectionPath,

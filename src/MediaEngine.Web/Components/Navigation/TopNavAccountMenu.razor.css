@@ -107,7 +107,7 @@
     align-items: center;
     gap: 0;
     margin: 0;
-    padding: 0.55rem 0.65rem !important;
+    padding: var(--tl-menu-row-padding-y) 16px !important;
     border: 0 !important;
     border-radius: var(--tl-radius-md, 8px) !important;
     color: var(--tl-text-primary, #dbe4ed) !important;
@@ -128,10 +128,10 @@
 }
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__item-icon {
-    width: 1.5rem;
-    min-width: 1.5rem;
-    height: 1.5rem;
-    margin-right: 0.75rem;
+    width: var(--tl-menu-icon-size);
+    min-width: var(--tl-menu-icon-size);
+    height: var(--tl-menu-icon-size);
+    margin-right: var(--tl-menu-icon-gap);
     color: var(--tl-text-muted, #aab0bc) !important;
 }
 
@@ -156,7 +156,7 @@
 }
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__divider {
-    margin: 0.45rem 0 !important;
+    margin: var(--tl-menu-padding) 0 !important;
     border-color: var(--tl-border-default, rgba(255, 255, 255, 0.09)) !important;
 }
 

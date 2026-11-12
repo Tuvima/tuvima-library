@@ -21,14 +21,14 @@
             {
                 @foreach (var option in PickerScopes)
                 {
-                    <AppNativeButton Type="button" role="tab" aria-selected="@(option.Value == _scope)" Class="@ScopeClass(option.Value)" OnClick="@(_ => SetScopeAsync(option.Value))">@option.Label</AppNativeButton>
+                    <AppNativeButton Type="button" role="tab" aria-selected="@(option.Value == _scope)" Class="@ScopeClass(option.Value)" OnClick="@(_ => SetScopeAsync(option.Value))"><AppMaterialIcon Icon="@ScopeIcon(option.Value)" Size="AppIconSize.Control20" /><span>@option.Label</span></AppNativeButton>
                 }
             }
             else
             {
                 @foreach (var option in UsageQuickFilters)
                 {
-                    <AppNativeButton Type="button" role="tab" aria-selected="@(option.Value == _usage)" Class="@UsageClass(option.Value)" OnClick="@(_ => SetUsageAsync(option.Value))">@option.Label</AppNativeButton>
+                    <AppNativeButton Type="button" role="tab" aria-selected="@(option.Value == _usage)" Class="@UsageClass(option.Value)" OnClick="@(_ => SetUsageAsync(option.Value))"><AppMaterialIcon Icon="@UsageIcon(option.Value)" Size="AppIconSize.Control20" /><span>@option.Label</span></AppNativeButton>
                 }
             }
         </QuickFilters>
@@ -263,8 +263,22 @@
     private bool HasActiveAdvancedFilters => !string.IsNullOrWhiteSpace(_role) || !string.IsNullOrWhiteSpace(_aspect) || !string.IsNullOrWhiteSpace(_mediaType) || !string.IsNullOrWhiteSpace(_entityType) || !string.IsNullOrWhiteSpace(_source) || !string.IsNullOrWhiteSpace(_year);
     private async Task ClearFiltersAsync() { _role = string.Empty; _aspect = string.Empty; _mediaType = string.Empty; _entityType = string.Empty; _source = string.Empty; _year = string.Empty; _usage = ArtworkUsageFilter.All; await LoadAsync(); }
     private async Task DebouncedSearchAsync(CancellationToken ct) { try { await Task.Delay(250, ct); await InvokeAsync(LoadAsync); } catch (OperationCanceledException) { } }
-    private string ScopeClass(ArtworkPickerScope value) => $"app-discovery-filter__tab{(_scope == value ? " is-active" : string.Empty)}";
-    private string UsageClass(ArtworkUsageFilter value) => $"app-discovery-filter__tab{(_usage == value ? " is-active" : string.Empty)}";
+    // The quick filters are the shared tab row (Look v3.1 D1): the shared tab classes plus the bar's own names.
+    private string ScopeClass(ArtworkPickerScope value) => $"tl-tab app-discovery-filter__tab{(_scope == value ? " tl-tab-active is-active" : string.Empty)}";
+    private string UsageClass(ArtworkUsageFilter value) => $"tl-tab app-discovery-filter__tab{(_usage == value ? " tl-tab-active is-active" : string.Empty)}";
+    private static string ScopeIcon(ArtworkPickerScope value) => value switch
+    {
+        ArtworkPickerScope.Recommended => AppMaterialIcons.Outlined.AutoAwesome,
+        ArtworkPickerScope.Related => AppMaterialIcons.Outlined.Link,
+        _ => AppMaterialIcons.Outlined.PhotoLibrary,
+    };
+    private static string UsageIcon(ArtworkUsageFilter value) => value switch
+    {
+        ArtworkUsageFilter.Linked => AppMaterialIcons.Outlined.Link,
+        ArtworkUsageFilter.Selected => AppMaterialIcons.Outlined.StarBorder,
+        ArtworkUsageFilter.Unlinked => AppMaterialIcons.Outlined.RemoveCircleOutline,
+        _ => AppMaterialIcons.Outlined.PhotoLibrary,
+    };
     private static string Shape(ArtworkAssetDto asset) => asset.Aspect.ToLowerInvariant() switch { "portrait" => "portrait", "square" => "square", "banner" => "banner", "unsupportedrect" => "other", _ => "landscape" };
     private IReadOnlyList<ArtworkMonthGroup> TimelineMonths
     {

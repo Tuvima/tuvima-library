@@ -86,6 +86,12 @@
     /// <summary>The playback manifest of the file that is playing; Playback information is drawn from it.</summary>
     [Parameter] public PlaybackManifestDto? Manifest { get; set; }
 
+    /// <summary>The audio track in use (its manifest index) for Playback information; the default track when not set.</summary>
+    [Parameter] public int? AudioTrackIndex { get; set; }
+
+    /// <summary>The subtitle track showing and where it came from, for Playback information; the Subtitles section is left out when not set.</summary>
+    [Parameter] public PlaybackInformationSubtitle? Subtitle { get; set; }
+
     /// <summary>"Reset playback preferences": the host puts the skip lengths and the speed back to the defaults.</summary>
     [Parameter] public EventCallback OnReset { get; set; }
 
@@ -191,9 +197,18 @@
 
     private RenderFragment SpeedFooter => @<PlaybackSpeedFooter RateChanged="RateChanged" />;
 
-    private RenderFragment InformationBody => @<PlaybackInformationView Rows="@InformationRows" />;
+    // The Playback information view (video-player follow-ups D13 to D15) and its footer share one state, so Copy details copies the lines on screen. The view asks
+    // the session for the manifest when the player holds none, and reads the buffer from the playing element while it is open.
+    private PlaybackInformationState _informationState = new();
 
-    private IReadOnlyList<PlaybackInformationRow> InformationRows => PlaybackInformationRows.Build(L, Manifest, IsVideo);
+    private RenderFragment InformationBody => @<PlaybackInformationView Manifest="@Manifest" Video="@IsVideo" AudioTrackIndex="@AudioTrackIndex" Subtitle="@Subtitle"
+                                                                       ElementId="@(IsVideo ? PlaybackRemoteController.VideoElementId : PlaybackRemoteController.AudioElementId)"
+                                                                       LoadManifest="LoadInformationManifestAsync" State="@_informationState" />;
+
+    private RenderFragment InformationFooter => @<PlaybackInformationFooter State="@_informationState" />;
+
+    private Task<PlaybackManifestDto?> LoadInformationManifestAsync(CancellationToken ct) =>
+        Services.GetService<PlaybackSessionController>() is { } session ? session.LoadCurrentManifestAsync(ct) : Task.FromResult<PlaybackManifestDto?>(null);
 
     // A skip row is a label with the current length at the right and a chevron; the real control is the native list laid over the whole row, so a
     // click anywhere opens the browser's own choice list (keyboard, screen readers and the phone picker all work as they do for any list).
@@ -225,7 +240,8 @@
 
     private Task OpenInformation()
     {
-        _panel?.Navigator.Push(L["PlaybackSettings_Information"].Value, InformationBody);
+        _informationState = new();
+        _panel?.Navigator.Push(L["PlaybackSettings_Information"].Value, InformationBody, InformationFooter);
         return Task.CompletedTask;
     }
 
