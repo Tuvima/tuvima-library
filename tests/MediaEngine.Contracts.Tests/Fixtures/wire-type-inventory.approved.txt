@@ -4831,7 +4831,8 @@
   FromPath: System.String | json=from_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ToPath: System.String | json=to_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
-  sample={"managed":true,"from_path":"sample","to_path":"sample","reason":"sample"}
+  Blocked: System.Boolean | json=blocked | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=WhenWritingDefault | converter=default | number-handling=default | extension-data=no
+  sample={"managed":true,"from_path":"sample","to_path":"sample","reason":"sample","blocked":true}
 
 [contracts] MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default

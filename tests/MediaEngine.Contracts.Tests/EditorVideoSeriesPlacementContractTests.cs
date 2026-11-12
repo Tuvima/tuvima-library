@@ -32,7 +32,31 @@ public sealed class EditorVideoSeriesPlacementContractTests
         var json = JsonSerializer.Serialize(new EditorVideoSeriesPlacementRequestDto { Token = EditSessionVideo.NewSeriesToken("Garden talks") });
 
         Assert.Equal("{\"token\":\"new:Garden talks\"}", json);
-        Assert.Equal("with_series", EditSessionVideo.MovesWithSeriesToken);
+    }
+
+    [Fact]
+    public void ASeriesMove_NamesItsSeriesChoice_AndReadsItBack()
+    {
+        var id = Guid.NewGuid().ToString("D");
+
+        Assert.Equal("with_series:" + id, EditSessionVideo.MovesWithSeries(id, null));
+        Assert.Equal("with_series:none", EditSessionVideo.MovesWithSeries(null, EditSessionVideo.NoSeriesToken));
+        Assert.Equal("with_series:new:Garden talks", EditSessionVideo.MovesWithSeries(null, EditSessionVideo.NewSeriesToken("Garden talks")));
+        Assert.True(EditSessionVideo.IsMovesWithSeries("with_series:none"));
+        Assert.False(EditSessionVideo.IsMovesWithSeries("with_series"));
+        Assert.False(EditSessionVideo.IsMovesWithSeries(null));
+        Assert.True(EditSessionVideo.TryReadMovesWithSeries("with_series:" + id, out var choice));
+        Assert.Equal(id, choice);
+    }
+
+    [Fact]
+    public void Placement_SaysWhenTheChoiceCannotBeSaved_AndLeavesTheFlagOutWhenItIsNot()
+    {
+        var blocked = JsonSerializer.Serialize(new EditorVideoSeriesPlacementDto { Reason = "x", Blocked = true });
+        var fine = JsonSerializer.Serialize(new EditorVideoSeriesPlacementDto { Managed = true });
+
+        Assert.Contains("\"blocked\":true", blocked, StringComparison.Ordinal);
+        Assert.DoesNotContain("blocked", fine, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -4076,6 +4076,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorVideoSeriesPla
   FromPath: System.String | nullability=nullable | accessors=get,init
   ToPath: System.String | nullability=nullable | accessors=get,init
   Reason: System.String | nullability=nullable | accessors=get,init
+  Blocked: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementRequestDto
   TargetId: System.String | nullability=nullable | accessors=get,init

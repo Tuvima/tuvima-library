@@ -28,7 +28,9 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
     private readonly EditSessionState _session = new(new PendingEditList());
     private VideoSeriesStateResponse _state = new() { Supported = true };
     private VideoOrderResponse _order = new();
-    private EditorVideoSeriesPlacementDto? _placement;
+    // By default the Engine says the file stays (a Read-only folder); a missing answer stages nothing, which has its own test.
+    private EditorVideoSeriesPlacementDto? _placement = new() { Managed = false };
+    private bool _placementFails;
 
     public EditorVideoSeriesPanelTests()
     {
@@ -39,7 +41,8 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetVideoSeriesAsync), _ => Task.FromResult<VideoSeriesStateResponse?>(_state));
             stub.SetHandler(nameof(IEngineApiClient.GetVideoOrderAsync), _ => Task.FromResult<VideoOrderResponse?>(_order));
-            stub.SetHandler(nameof(IEngineApiClient.GetVideoSeriesPlacementAsync), _ => Task.FromResult(_placement));
+            stub.SetHandler(nameof(IEngineApiClient.GetVideoSeriesPlacementAsync), _ =>
+                _placementFails ? Task.FromException<EditorVideoSeriesPlacementDto?>(new HttpRequestException("down")) : Task.FromResult<EditorVideoSeriesPlacementDto?>(_placement));
         }));
     }
 
@@ -135,7 +138,9 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
         Assert.Equal(2, _session.Pending.Count);
         var move = Assert.Single(_session.Pending.Changes, change => change.Kind == EditSessionChangeKinds.FileMove);
         Assert.Equal(VideoId, move.EntityId);
-        Assert.Equal(EditSessionVideo.MovesWithSeriesToken, move.Token);
+        var series = _session.Pending.FindVideoSeries(VideoId)!;
+        Assert.Equal(series.Id, move.TargetId);
+        Assert.Equal(EditSessionVideo.MovesWithSeries(CourseId.ToString(), null), move.Token);
         Assert.Equal("/videos/chef.mp4", _session.Pending.Before(move.Id));
         Assert.Equal("/videos/Cooking with Sam/chef.mp4", _session.Pending.Label(move.Id));
         var footer = EditorFooterRules.For(new FileWriteSetting(FileWriteState.Off), _session.Pending);
@@ -244,6 +249,92 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
         Assert.Contains(_session.Pending.Changes, change => change.Kind == EditSessionChangeKinds.FileMove);
     }
 
+    // ----- The preview decides whether anything is staged -----
+
+    private void OneSeriesToJoin() => _state = new VideoSeriesStateResponse
+    {
+        Supported = true,
+        Targets =
+        [
+            new VideoSeriesTargetDto { Id = CourseId, Title = "Cooking with Sam", VideoCount = 6 },
+            new VideoSeriesTargetDto { Id = OtherId, Title = "Garden talks", VideoCount = 3 },
+        ],
+    };
+
+    [Fact]
+    public async Task WhenTheEngineCannotSayWhereTheFileGoes_NothingIsStaged_AndThePersonCanTryAgain()
+    {
+        OneSeriesToJoin();
+        _placementFails = true;
+        var cut = RenderPanel();
+
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(CourseId.ToString()));
+        cut.Render();
+
+        Assert.True(_session.Pending.IsEmpty);
+        Assert.Equal("Library could not check where the file would go, so nothing was changed.", cut.Find("[data-testid=video-series-problem]").TextContent);
+        Assert.DoesNotContain("stays where it is", cut.Markup);
+
+        _placementFails = false;
+        _placement = new EditorVideoSeriesPlacementDto { Managed = true, FromPath = "/videos/chef.mp4", ToPath = "/videos/Cooking with Sam/chef.mp4" };
+        cut.Find("[data-testid=video-series-try-again]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, _session.Pending.Count));
+        Assert.Empty(cut.FindAll("[data-testid=video-series-problem]"));
+    }
+
+    [Fact]
+    public async Task WhenTheEngineRefusesTheChoice_NothingIsStaged_AndTheReasonIsShown()
+    {
+        OneSeriesToJoin();
+        _placement = new EditorVideoSeriesPlacementDto { Managed = true, Blocked = true, Reason = "A folder cannot be named CON." };
+        var cut = RenderPanel();
+
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(CourseId.ToString()));
+        cut.Render();
+
+        Assert.True(_session.Pending.IsEmpty);
+        Assert.Equal("A folder cannot be named CON.", cut.Find("[data-testid=video-series-problem]").TextContent);
+    }
+
+    [Fact]
+    public async Task AMatchWaitingToBeSaved_StopsTheSeriesChoice_WithAPlainLine_AndStagesNothingMore()
+    {
+        OneSeriesToJoin();
+        _session.Pending.SetTarget(EditSessionChangeKinds.FileMove, VideoId, null, null, "/videos/Chef Interview.mp4", null, "/videos/chef.mp4");
+        _placement = new EditorVideoSeriesPlacementDto { Managed = true, FromPath = "/videos/chef.mp4", ToPath = "/videos/Cooking with Sam/chef.mp4" };
+        var cut = RenderPanel();
+
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(CourseId.ToString()));
+        cut.Render();
+
+        var only = Assert.Single(_session.Pending.Changes);
+        Assert.Equal(EditSessionChangeKinds.FileMove, only.Kind);
+        Assert.Contains("Save the match first, then change the series.", cut.Find("[data-testid=video-series-problem]").TextContent);
+    }
+
+    [Fact]
+    public async Task ChoosingAnotherSeries_ReplacesTheMove_SoItNamesTheNewChoice_AndTheOldMoveIsGone()
+    {
+        OneSeriesToJoin();
+        _placement = new EditorVideoSeriesPlacementDto { Managed = true, FromPath = "/videos/chef.mp4", ToPath = "/videos/Cooking with Sam/chef.mp4" };
+        var cut = RenderPanel();
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(CourseId.ToString()));
+
+        _placement = new EditorVideoSeriesPlacementDto { Managed = true, FromPath = "/videos/chef.mp4", ToPath = "/videos/Garden talks/chef.mp4" };
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(OtherId.ToString()));
+        cut.Render();
+
+        Assert.Equal(2, _session.Pending.Count);
+        var series = _session.Pending.FindVideoSeries(VideoId)!;
+        var move = Assert.Single(_session.Pending.Changes, change => change.Kind == EditSessionChangeKinds.FileMove);
+        Assert.Equal(OtherId.ToString(), series.TargetId);
+        Assert.Equal(series.Id, move.TargetId);
+        Assert.Equal(EditSessionVideo.MovesWithSeries(OtherId.ToString(), null), move.Token);
+        Assert.NotEqual(EditSessionVideo.MovesWithSeries(CourseId.ToString(), null), move.Token);
+        Assert.Equal("/videos/Garden talks/chef.mp4", _session.Pending.Label(move.Id));
+    }
+
     // ----- Cancel and Escape -----
 
     [Fact]
@@ -302,7 +393,7 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
             ],
         };
         _session.Pending.SetTarget(EditSessionChangeKinds.VideoSeries, VideoId, CourseId.ToString(), null, "Cooking with Sam", null, EditReviewRows.NotInASeries);
-        _session.Pending.SetTarget(EditSessionChangeKinds.FileMove, VideoId, null, EditSessionVideo.MovesWithSeriesToken, "/videos/Cooking with Sam/chef.mp4", null, "/videos/chef.mp4");
+        _session.Pending.SetVideoSeriesMove(VideoId, "/videos/chef.mp4", "/videos/Cooking with Sam/chef.mp4");
         var cut = RenderPanel();
 
         await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(OtherId.ToString()));
