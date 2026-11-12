@@ -102,6 +102,50 @@ public sealed class NeedsReviewCssTests
     }
 
     [Fact]
+    public void OnAPhone_TheBarClearsTheDock_TheAudioDockWhenSomethingPlays_AndTheBottomSafeArea()
+    {
+        var phone = Block(Read(PartsFolder + "/NeedsReviewActionBar.razor.css"), "@media (max-width: 600px)");
+
+        var offset = Rule(phone, ".nr-bar");
+        Assert.Contains("var(--tl-bottom-dock-height, 0px)", offset, StringComparison.Ordinal);
+        Assert.Contains("var(--tl-audio-dock-height, 0px)", offset, StringComparison.Ordinal);
+        Assert.Contains("env(safe-area-inset-bottom, 0px)", offset, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnAPhone_ThePageKeepsRoomForABarThatWrapsToThreeLines_AndForTheDocksItClears()
+    {
+        var phone = Block(Read(PageCss), "@media (max-width: 600px)");
+
+        var selecting = Rule(phone, ".needs-review-page--selecting");
+        Assert.DoesNotContain("padding-block-end: 160px;", selecting, StringComparison.Ordinal);
+        Assert.Contains("calc(240px", selecting, StringComparison.Ordinal);
+        Assert.Contains("var(--tl-audio-dock-height, 0px)", selecting, StringComparison.Ordinal);
+        Assert.Contains("env(safe-area-inset-bottom, 0px)", selecting, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnAPhone_TheTickBoxIsAtLeastTheSharedTapTargetSize_FromTheGlobalSheet_BeforeTheTvMarker()
+    {
+        var app = Read(AppCss);
+        var marker = app.IndexOf(TvMarker, StringComparison.Ordinal);
+        var before = app[..marker];
+
+        var phone = Block(before[before.IndexOf("/* Needs Review: the tick box", StringComparison.Ordinal)..], "@media (max-width: 600px)");
+
+        var control = Rule(phone, ".nr-tick .app-checkbox__control");
+        Assert.Contains("min-width: var(--tl-tap-target-min, 44px);", control, StringComparison.Ordinal);
+        Assert.Contains("min-height: var(--tl-tap-target-min, 44px);", control, StringComparison.Ordinal);
+        Assert.Contains("min-height: var(--tl-tap-target-min, 44px);", Rule(phone, ".nr-tick .app-checkbox"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheRowMenuWrapper_DrawsNoBoxOfItsOwn()
+    {
+        Assert.Contains("display: contents;", Rule(Read(RowCss), ".nr-row__menu"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheFolderTooltipRoot_IsStyledFromTheGlobalSheet_BeforeTheTvMarker()
     {
         var app = Read(AppCss);

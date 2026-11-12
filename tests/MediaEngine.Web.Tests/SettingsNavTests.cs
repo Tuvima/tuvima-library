@@ -653,6 +653,20 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
+    public void NeedsReview_IsAvailableOnAPhone_ForTheSamePeopleWhoSeeItOnAComputer()
+    {
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Review));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Review));
+
+        Assert.True(SettingsNav.IsVisible(SettingsSection.Review, administrationAllowed: true));
+        Assert.False(SettingsNav.IsVisible(SettingsSection.Review, administrationAllowed: false));
+
+        // Only Needs Review changed: its neighbours keep the availability they had.
+        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.LibraryRules));
+        Assert.Equal(SettingsMobileAvailability.SummaryOnly, SettingsNav.GetMobileAvailability(SettingsSection.Providers));
+    }
+
+    [Fact]
     public void ProviderTesterAndDevelopmentData_KeepTheirDesktopOnlyAvailability()
     {
         Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.ProviderTester));

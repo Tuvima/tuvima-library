@@ -38,6 +38,8 @@
 .nr-row__note { grid-area: suggestion; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
 
 .nr-row__actions { grid-area: actions; display: flex; align-items: center; justify-content: flex-end; gap: var(--tl-space-1); }
+/* Only stops a key at the menu (see the row); it draws no box, so the menu button sits in the actions line as before. */
+.nr-row__menu { display: contents; }
 .nr-row__choices { grid-area: choices; margin-block-start: 10px; }
 .nr-row__fixfull { grid-area: fixfull; }
 .nr-row__failure { grid-area: failure; display: flex; align-items: center; gap: 6px; margin: var(--tl-space-2) 0 0; color: var(--tl-status-error); font-size: var(--tl-font-size-secondary); }

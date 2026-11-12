@@ -836,7 +836,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         // A no-match file is Unmatched: a finished state of its own, labelled so, not a review and not stuck "adding".
         var item = Assert.Single((await presentation.GetCurrentMediaAsync(0, 50)).Items);
         Assert.Equal("unmatched", item.Availability);
-        Assert.Equal("Unmatched", item.StatusLabel);
+        Assert.Equal("Needs review", item.StatusLabel);
         Assert.Empty(item.WaitingFor);
         Assert.Empty((await presentation.GetSnapshotAsync()).RecentDays);
 
