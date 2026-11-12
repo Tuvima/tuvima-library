@@ -1,12 +1,15 @@
 /* The persistent bar (unified player v2 D1 to D6; mockup screens 1 and 2). One component tree for music, audiobooks, TV and movies.
-   Three zones in a grid whose outer columns are equal, so Play is at the exact centre whatever the title or the tools take. */
+   Three zones in a grid whose outer columns are equal, so Play is at the exact centre whatever the title or the tools take.
+   One bar height (music-player-and-listen-fixes D6): the music and audiobook bar is as tall as the video bar, a 28 px timeline plus a 60 px row (88 px), with no padding
+   above or below beyond the safe area. The hairline is an inset shadow, not a border, so it adds no height. */
 .playback-shell {
     background: var(--tl-bg-shell);
-    border-top: 1px solid var(--playback-hairline);
+    border-top: 0;
+    box-shadow: inset 0 1px 0 var(--playback-hairline);
     box-sizing: border-box;
     color: var(--playback-text);
     font-family: var(--font-ui);
-    padding: 0 16px calc(10px + var(--tl-safe-area-bottom, 0px));
+    padding: 0 16px var(--tl-safe-area-bottom, 0px);
     pointer-events: auto;
     position: relative;
     width: 100%;
@@ -17,6 +20,7 @@
     --playback-state-hover: var(--playback-state-hover-video);
     background: transparent;
     border-top: 0;
+    box-shadow: none;
     padding: 0;
 }
 
@@ -33,6 +37,11 @@
     gap: 12px;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     min-height: 60px;
+}
+
+/* The music and audiobook row is exactly the video row's 60 px: a third identity line (a receiver playing) or a wrapped tool cannot make the bar taller. */
+.playback-shell--surface-dock:not(.playback-shell--compact) .playback-shell__row {
+    height: 60px;
 }
 
 /* Transport: always centred in the bar. Buttons sit 2 px apart; Play is 48 px, the rest 44 px. */
@@ -131,6 +140,8 @@
 
 /* The phone's collapsed bar (D26, finished by the phone packet): art, text, then Play and Next, no Favorite. */
 .playback-shell--compact {
+    border-top: 1px solid var(--playback-hairline);
+    box-shadow: none;
     padding-bottom: calc(6px + var(--tl-safe-area-bottom, 0px));
 }
 
