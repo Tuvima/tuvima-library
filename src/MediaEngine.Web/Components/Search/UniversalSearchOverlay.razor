@@ -12,7 +12,8 @@
 
 @if (_open)
 {
-    <AppViewer Class="@OverlayClass" Surface="AppViewerSurface.Page" LabelledBy="universal-search-title" OnKeyDown="HandleOverlayKeyDown">
+    @* data-overlay-live: drawn above an open details window, so that window's inert sweep leaves it usable and its Escape closes search first (app-overlay-live.js). *@
+    <AppViewer Class="@OverlayClass" Surface="AppViewerSurface.Page" LabelledBy="universal-search-title" OnKeyDown="HandleOverlayKeyDown" data-overlay-live="search">
         <AppNativeButton Type="button"
                          Class="universal-search-overlay__backdrop"
                          AriaLabel="@L["UniversalSearchOverlay_CloseSearch"].Value"

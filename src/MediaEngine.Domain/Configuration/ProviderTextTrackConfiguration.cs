@@ -344,7 +344,14 @@ public sealed class TextTrackLyricsConfiguration
 
     /// <summary>How a search hit's title and artist are compared with the song's. Absent means the plain rule (ignore capitals only).</summary>
     [JsonPropertyName("match")]
-    public TextTrackLyricsMatchConfiguration Match { get; set; } = new();
+    public TextTrackLyricsMatchConfiguration Match
+    {
+        get => _match;
+        // "match": null in a provider file means the same as leaving it out.
+        set => _match = value ?? new();
+    }
+
+    private TextTrackLyricsMatchConfiguration _match = new();
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }

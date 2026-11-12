@@ -130,6 +130,8 @@ public sealed partial class TextTrackProviderAdapter
         {
             tally.Outcome = tally.Requests == 0 ? LyricsOutcome.MissingDetails
                 : tally.Failures == tally.Requests ? LyricsOutcome.SourceUnreachable
+                // A request failed in transport and nothing that did answer matched the title: the miss may be the failure's, so it is not reported as "no match".
+                : tally.Failures > 0 && tally.TitleMatches == 0 ? LyricsOutcome.SourceUnreachable
                 : tally.TitleMatches > 0 && tally.LengthRejected >= tally.TitleMatches ? LyricsOutcome.LengthTooDifferent
                 : LyricsOutcome.NoMatch;
             return [];

@@ -89,6 +89,8 @@ export function trackBar(dialog) {
 export function escapeOwnedAbove(dialog) {
     if (document.querySelector('.tl-popover-open:not([hidden])')) return true;
     if (document.documentElement?.hasAttribute('data-playback-panel-open')) return true;
+    // The universal search overlay (Ctrl+K) is drawn above the window and closes with its own Escape.
+    if (document.querySelector('[data-overlay-live="search"]')) return true;
     for (const other of document.querySelectorAll('dialog[open]')) if (other !== dialog) return true;
     return false;
 }

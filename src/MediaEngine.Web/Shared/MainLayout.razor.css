@@ -545,6 +545,12 @@ html[data-form-factor="phone"] .layout-shell__engine-banner {
     transform: none;
 }
 
+/* While a details window is open the page behind it is dimmed, the phone navigation with it: it drops under the window's backdrop.
+   The player bar (the audio dock, 1350) stays above the backdrop and usable. */
+html[data-form-factor="phone"] .playback-app-frame:has(dialog[data-details-overlay][open]) .layout-shell__intent-dock {
+    z-index: calc(var(--tl-z-details-backdrop, 1340) - 1);
+}
+
 /* The dock is a floating pill: inset from the screen edges, rounded, lifted by a shadow, clear of the bottom safe area.
    It keeps its own grid row, so it never covers the last row of the page above it. */
 html[data-form-factor="phone"] .layout-shell__intent-dock {

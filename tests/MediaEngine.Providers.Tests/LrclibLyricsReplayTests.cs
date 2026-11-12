@@ -119,6 +119,22 @@ public sealed class LrclibLyricsReplayTests
     }
 
     [Fact]
+    public async Task AnExactLookupThatMissedFollowedByASearchThatFailedInTransport_IsLoggedAsSourceUnreachable_NotNoMatch()
+    {
+        var handler = new RecordingHandler(request => request.Uri.AbsolutePath == "/api/get"
+            ? RecordingHandler.Json(NotFound, HttpStatusCode.NotFound)
+            : throw new HttpRequestException("connection reset"));
+        var (provider, log) = Build(handler);
+
+        Assert.Empty(await provider.SearchAsync(Song("Song")));
+
+        Assert.Equal(2, handler.Lines.Count);
+        var line = Assert.Single(log.Information);
+        Assert.Contains("SourceUnreachable", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("NoMatch", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ASongTheSourceHasNothingFor_IsLoggedAsNoMatch_NotAsUnreachable()
     {
         var (provider, log) = Build(new RecordingHandler(_ => RecordingHandler.Json(NotFound, HttpStatusCode.NotFound)));
@@ -208,6 +224,19 @@ public sealed class LrclibLyricsReplayTests
         Assert.False(matcher.Matches("(Intro)", "(Outro)"));
         Assert.False(matcher.Matches("...", "!!!"));
         Assert.True(matcher.Matches("  Wake   Up! ", "wake up"));
+    }
+
+    [Fact]
+    public void ATitleTheRulesReduceToNothing_IsComparedAsWrittenIgnoringCapitals()
+    {
+        var matcher = new LyricsTitleMatcher(
+            new TextTrackLyricsMatchConfiguration { IgnorePunctuation = true, IgnoreBracketed = true },
+            NullLogger.Instance, "test");
+
+        Assert.True(matcher.Matches("(Untitled)", "(untitled)"));
+        Assert.True(matcher.Matches(" [Intro] ", "[INTRO]"));
+        Assert.False(matcher.Matches("(Untitled)", "Untitled Song"));
+        Assert.False(matcher.Matches("", ""));
     }
 
     private sealed class CapturingLogger : ILogger<TextTrackProviderAdapter>

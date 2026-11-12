@@ -13,8 +13,10 @@
    app-dialog.js sets inert on the page behind (not on the player bar or the pop-over and dialog hosts), locks the page scroll, returns focus to
    the element that opened it, tells the window how tall the bar is so it ends above it, and routes Esc, the backdrop and the sheet's grip to
    RequestCancel, which asks the guards. *@
+@* The window's own box rules (fixed position, layer, size) are in app.css, not the .razor.css: AppViewer renders the dialog, so it carries no isolation attribute
+   of this component and a scoped rule would never reach it. *@
 <div class="tl-details-overlay__backdrop" data-app-dialog-backdrop aria-hidden="true"></div>
-<AppViewer @ref="_viewer" Native="true" Surface="AppViewerSurface.Page" Class="@RootClass" LabelledBy="@TitleId" data-details-overlay="">
+<AppViewer @ref="_viewer" Native="true" Modal="false" Surface="AppViewerSurface.Page" Class="@RootClass" LabelledBy="@TitleId" data-details-overlay="">
     @if (IsSheet)
     {
         <div class="tl-details-overlay__grip" data-app-dialog-grip aria-hidden="true"><span></span></div>
