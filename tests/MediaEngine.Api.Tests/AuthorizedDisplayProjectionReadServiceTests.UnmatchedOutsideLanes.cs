@@ -354,7 +354,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var response = await CreateSearch(world.Context).SearchAsync("film", 20, default);
 
         var group = Assert.Single(response.Sections, section => section.Key == "unmatched");
-        Assert.Equal("Unmatched", group.Title);
+        Assert.Equal("Needs review", group.Title);
         var found = Assert.Single(group.Results);
         Assert.Equal(world.Unmatched.WorkId, found.Id);
         Assert.Equal(UnmatchedFilm, found.Title);

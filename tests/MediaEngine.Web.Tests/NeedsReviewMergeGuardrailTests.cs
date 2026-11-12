@@ -21,10 +21,10 @@ public sealed class NeedsReviewMergeGuardrailTests
     }
 
     [Theory]
-    [InlineData("movies", "/settings/review?library=movies&show=not-matched")]
-    [InlineData("a b", "/settings/review?library=a%20b&show=not-matched")]
-    public void ALibrarysNotIdentifiedLink_OpensNeedsReviewFilteredToThatLibrarysUnmatchedFiles(string library, string expected) =>
-        Assert.Equal(expected, LibraryListing.NotIdentifiedAddress(library));
+    [InlineData("movies", "/settings/review?library=movies")]
+    [InlineData("a b", "/settings/review?library=a%20b")]
+    public void ALibrarysNeedsReviewLink_OpensNeedsReviewFilteredToThatLibrary(string library, string expected) =>
+        Assert.Equal(expected, LibraryListing.NeedsReviewAddress(library));
 
     [Fact]
     public void NeedsReviewReadsTheOneMergedList_NotTwoLists()

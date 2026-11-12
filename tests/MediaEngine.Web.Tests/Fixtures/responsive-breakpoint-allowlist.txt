@@ -27,7 +27,6 @@ src/MediaEngine.Web/Components/Collections/GalleryEditorShell.razor.css:1080px
 src/MediaEngine.Web/Components/Collections/PeopleCatalogList.razor.css:920px
 src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor.css:1024px
 src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor.css:480px
-src/MediaEngine.Web/Components/Library/MovieAsTvSuggestionCard.razor.css:900px
 src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css:1100px
 src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css:380px
 src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css:700px

@@ -73,6 +73,8 @@ public sealed class VaultEventPublisherInventoryTests : IDisposable
         ["src/MediaEngine.Api/Services/ProviderHealthMonitorService.cs"] = "Provider health; no media.",
         ["src/MediaEngine.Api/Services/RetagSweepWorker.cs"] = "Retag sweep counts; the sweep candidates leave Vault files out.",
         ["src/MediaEngine.Api/Services/Review/ReviewMoveToTvService.cs"] = "Review move; Vault items answer not found before it.",
+        ["src/MediaEngine.Api/Services/Review/ReviewChooseService.cs"] = "Review choice; the route answers not found for a Vault item before this runs.",
+        ["src/MediaEngine.Api/Services/Metadata/MediaTypeReclassifyService.cs"] = "The media type change behind the reclassify action and the review choice; its events carry ids that the audience and the outbox classify.",
         ["src/MediaEngine.Api/Services/SignalREventPublisher.cs"] = "The funnel.",
         ["src/MediaEngine.Api/Services/UniverseEnrichmentService.cs"] = "Universe enrichment; works through shared records that never include Vault works.",
         ["src/MediaEngine.Api/Services/WorkReadinessService.cs"] = "Readiness events carry work ids that the audience and the outbox classify.",

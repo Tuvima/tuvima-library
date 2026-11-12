@@ -39,8 +39,8 @@ public partial interface IEngineApiClient
     /// <summary>GET /review/pending?library= — the pending items whose file belongs to one library.</summary>
     Task<ReviewListAttempt> GetPendingReviewsForLibraryAttemptAsync(string libraryId, int limit = 50, CancellationToken ct = default);
 
-    /// <summary>GET /review/queue — Needs Review as one list: review items and unmatched files, filtered by kind (all, not_matched, not_sure) and library.</summary>
-    Task<NeedsReviewListAttempt> GetNeedsReviewListAsync(string? kind, string? libraryId, int skip, int take, CancellationToken ct = default);
+    /// <summary>GET /review/queue — Needs Review as one list: review items and unmatched files, grouped by what the person must do, narrowed to a library; <paramref name="kept"/> returns only the items a person kept.</summary>
+    Task<NeedsReviewListAttempt> GetNeedsReviewListAsync(string? libraryId, int skip, int take, bool kept = false, CancellationToken ct = default);
 
     /// <summary>GET /review/{id} — single review item with full detail.</summary>
     Task<ReviewItemViewModel?> GetReviewItemAsync(Guid id, CancellationToken ct = default);
@@ -53,6 +53,9 @@ public partial interface IEngineApiClient
 
     /// <summary>POST /review/{id}/dismiss — dismiss a review item.</summary>
     Task<bool> DismissReviewItemAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>POST /review/{id}/reopen — put back an item a person kept with Keep as it is, so it waits in Needs Review again.</summary>
+    Task<bool> ReopenReviewItemAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>POST /review/{id}/skip-universe — skip Universe matching and dismiss the item.</summary>
     Task<bool> SkipUniverseAsync(Guid id, CancellationToken ct = default);

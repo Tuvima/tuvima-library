@@ -6,7 +6,8 @@ namespace MediaEngine.Api.Services.ReadServices;
 /// <summary>
 /// The one rule that puts a Needs Review row in a group (Needs Review redesign D1): what the person must do with it. File problems are the
 /// reasons the file itself could not be read, written to, named or changed; Choose is a question only a person can answer; Ready is any
-/// other item that has exactly one suggestion; everything else (including every unmatched file and any reason not listed here) is
+/// other item that has exactly one suggestion (an ambiguous retail match with only one candidate worth offering counts: it has its one
+/// answer to confirm instead of choices); everything else (including every unmatched file and any reason not listed here) is
 /// No match found.
 /// </summary>
 public static class NeedsReviewGrouping
@@ -49,6 +50,11 @@ public static class NeedsReviewGrouping
         if (trigger is not null && FileProblemTriggers.Contains(trigger))
         {
             return NeedsReviewGroups.FileProblem;
+        }
+
+        if (hasBestGuess && string.Equals(trigger, ReviewTrigger.RetailMatchAmbiguous, StringComparison.Ordinal))
+        {
+            return NeedsReviewGroups.Ready;
         }
 
         if (trigger is not null && ChooseTriggers.Contains(trigger))

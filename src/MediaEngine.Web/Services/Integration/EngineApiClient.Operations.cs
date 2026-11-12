@@ -1029,4 +1029,12 @@ public sealed partial class EngineApiClient
         Guid id, CancellationToken ct = default)
         => PostAsync<object, MediaEngine.Contracts.Review.ReviewMoveToTvResponse>(
             "POST /review/{id}/move-to-tv", $"/review/{id}/move-to-tv", new { }, ct: ct);
+
+    // -- POST /review/{id}/choose ---------------------------------------------
+
+    public Task<MediaEngine.Contracts.Review.ReviewChooseResponse?> ChooseReviewAsync(
+        Guid reviewId, string choiceId, CancellationToken ct = default)
+        => PostAsync<MediaEngine.Contracts.Review.ReviewChooseRequestDto, MediaEngine.Contracts.Review.ReviewChooseResponse>(
+            "POST /review/{id}/choose", $"/review/{reviewId}/choose",
+            new MediaEngine.Contracts.Review.ReviewChooseRequestDto { ChoiceId = choiceId }, ct: ct);
 }

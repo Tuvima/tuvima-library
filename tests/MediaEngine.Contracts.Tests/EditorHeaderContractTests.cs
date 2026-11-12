@@ -278,6 +278,19 @@ public sealed class EditorHeaderContractTests
     }
 
     [Fact]
+    public void FileFacts_CarryTheLibraryFolderNameAsLibraryFolderName_AndLeaveItOutWhenNoFolderHoldsTheFile()
+    {
+        var named = new EditorFileFactsDto { FileCount = 1, Folder = "/media/Books/Dune", FileName = "Dune.epub", LibraryFolderName = "Books" };
+        var unnamed = new EditorFileFactsDto { FileCount = 1, FileName = "Dune.epub" };
+
+        using var namedJson = JsonDocument.Parse(JsonSerializer.Serialize(named));
+        using var unnamedJson = JsonDocument.Parse(JsonSerializer.Serialize(unnamed));
+
+        Assert.Equal("Books", namedJson.RootElement.GetProperty("library_folder_name").GetString());
+        Assert.False(unnamedJson.RootElement.TryGetProperty("library_folder_name", out _));
+    }
+
+    [Fact]
     public void FolderTree_UsesSnakeCaseNames_AndLeavesOutTheStateOfAFolder()
     {
         var item = Guid.NewGuid();

@@ -1,0 +1,69 @@
+@namespace MediaEngine.Web.Components.Settings.NeedsReview
+@using MediaEngine.Contracts.Review
+
+@* Two or more files of one show, album or Series share one row (spec D6): the family's cover and name, "12 episodes", one sentence, and Fix
+   that opens the show itself in the editor so one correction sorts every file. The arrow lists the files (collapsed until pressed). The
+   family's "..." menu applies Try again and Keep as they are to every file in it. *@
+@{
+    // Worked out each time the family is drawn from the files' live states, never kept from an earlier draw.
+    var view = ViewOf();
+}
+@if (view.Waiting.Count == 0)
+{
+    @* Every file finished: one quiet line for the family. *@
+    <NeedsReviewRow Row="@Entry.First" Family="@Entry" State="@view.Finished" Actions="@Actions" />
+}
+else
+{
+    <div class="nr-family" data-testid="needs-review-family" data-key="@Entry.Key">
+        <NeedsReviewRow Row="@view.Waiting[0]"
+                        Family="@view.FamilyOfWaiting"
+                        State="@view.Aggregate"
+                        Actions="@Actions"
+                        Expanded="@_expanded"
+                        OnToggle="Toggle" />
+        @if (_expanded)
+        {
+            <div class="nr-family__files" data-testid="needs-review-family-files">
+                @foreach (var child in Entry.Rows)
+                {
+                    <NeedsReviewRow @key="child.Key" Row="@child" State="@Model.StateOf(child.Key)" Actions="@Actions" Child="true" />
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public NeedsReviewEntry Entry { get; set; } = default!;
+
+    [Parameter, EditorRequired] public NeedsReviewListModel Model { get; set; } = default!;
+
+    [Parameter, EditorRequired] public NeedsReviewActions Actions { get; set; } = default!;
+
+    private bool _expanded;
+
+    private void Toggle() => _expanded = !_expanded;
+
+    private sealed record FamilyView(
+        List<NeedsReviewRowDto> Waiting,
+        NeedsReviewEntry FamilyOfWaiting,
+        NeedsReviewRowState Aggregate,
+        NeedsReviewRowState Finished);
+
+    private FamilyView ViewOf()
+    {
+        var waiting = Entry.Rows.Where(Model.IsWaiting).ToList();
+        var states = Entry.Rows.Select(row => Model.StateOf(row.Key)).ToList();
+
+        // The header is busy while any of its files is, and says the first reason a file failed, until the files are listed (each then
+        // says its own).
+        var aggregate = new NeedsReviewRowState
+        {
+            Busy = states.Any(state => state.Busy),
+            Failure = _expanded ? null : states.Select(state => state.Failure).FirstOrDefault(failure => !string.IsNullOrEmpty(failure)),
+        };
+        var finished = new NeedsReviewRowState { Done = states.Select(state => state.Done).FirstOrDefault(line => !string.IsNullOrEmpty(line)) };
+        return new FamilyView(waiting, new NeedsReviewEntry(Entry.Key, waiting, family: true), aggregate, finished);
+    }
+}

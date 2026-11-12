@@ -1,0 +1,468 @@
+@namespace MediaEngine.Web.Components.Settings.NeedsReview
+@using MediaEngine.Contracts.Review
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* One row of Needs Review (Needs Review redesign, mock screen 1): the cover, the name with its meta line, ONE plain sentence for why it is
+   here, the Engine's suggestion beside it (or its choices under it), then Fix and the "..." menu. The same part draws a family's header
+   row (two or more files of one show, album or Series; Family is set), a file inside an expanded family (Child) and a row of the kept
+   view (KeptView: only Put back). A finished row is one quiet line with a green tick; a failed action shows its reason under the row.
+   Everything it can do is asked of Actions, so it holds no services. A leading tick box fits before the cover when rows become tickable. *@
+@if (State.Done is { } done)
+{
+    <div class="@DoneClass" data-testid="needs-review-done" data-key="@Row.Key">
+        @if (ShowTick)
+        {
+            @* A finished row cannot be ticked; the empty cell keeps its picture in line with the rows above and below. *@
+            <span class="nr-row__tick"></span>
+        }
+        <span class="nr-row__cover"><NeedsReviewCover Src="@CoverUrl" Shape="@CoverShape" /></span>
+        <p class="nr-done">
+            <span class="nr-done__tick"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" /></span>
+            <span>@done</span>
+        </p>
+    </div>
+}
+else
+{
+    <div class="@RowClass" data-testid="@(IsFamily ? "needs-review-family-row" : "needs-review-row")" data-key="@Row.Key" data-group="@Row.Group">
+        @if (ShowTick)
+        {
+            <span class="nr-row__tick">
+                <NeedsReviewTick State="@TickState"
+                                 Label="@L["NeedsReviewSelect_Row", Title].Value"
+                                 Disabled="@State.Busy"
+                                 OnChanged="@(on => SetSelected(on))" />
+            </span>
+        }
+        <span class="nr-row__cover"><NeedsReviewCover Src="@CoverUrl" Shape="@CoverShape" /></span>
+        <div class="nr-row__item">
+            <strong class="nr-row__title" data-testid="needs-review-title">@Title</strong>
+            @if (!Child && MetaText is { Length: > 0 } meta)
+            {
+                @if (string.IsNullOrWhiteSpace(FolderTip))
+                {
+                    <small class="nr-row__meta" data-testid="needs-review-meta">@meta</small>
+                }
+                else
+                {
+                    <AppTooltip Text="@FolderTip" Class="nr-row__tip">
+                        <small class="nr-row__meta" data-testid="needs-review-meta">@meta</small>
+                    </AppTooltip>
+                }
+            }
+            @if (!Child)
+            {
+                <p class="@WhyClass" data-testid="needs-review-reason">
+                    <span class="nr-row__why-icon"><AppMaterialIcon Icon="@(IsProblem ? AppMaterialIcons.Outlined.Warning : AppMaterialIcons.Outlined.HelpOutline)" Size="AppIconSize.Inline16" /></span>
+                    <span>@Reason</span>
+                </p>
+            }
+        </div>
+        @if (!KeptView && !Child && HasSuggestion)
+        {
+            <div class="nr-row__suggestion" data-testid="needs-review-suggestion">
+                <NeedsReviewCover Src="@Guess!.ImageUrl" Shape="@CoverShape" Small="true" />
+                <span class="nr-row__guess">
+                    <b>@GuessName</b>
+                    @if (GuessDetail is { Length: > 0 } detail)
+                    {
+                        <small>@detail</small>
+                    }
+                </span>
+                <AppButton Label="@L["NeedsReviewList_UseThis"].Value"
+                           ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           Size="AppControlSize.Compact"
+                           Disabled="@State.Busy"
+                           aria-label="@L["NeedsReviewRow_UseThisFor", Title].Value"
+                           OnClick="@(() => Actions.UseThis(Row))" />
+            </div>
+        }
+        else if (!KeptView && !Child && RetryNote is { Length: > 0 } note)
+        {
+            <span class="nr-row__note" data-testid="needs-review-retry">@note</span>
+        }
+        <div class="nr-row__actions">
+            @if (KeptView)
+            {
+                <AppButton Label="@L["NeedsReviewKept_PutBack"].Value"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Size="AppControlSize.Compact"
+                           Disabled="@State.Busy"
+                           aria-label="@L["NeedsReviewKept_PutBackFor", Title].Value"
+                           OnClick="@(() => Actions.PutBack(Row))" />
+            }
+            else
+            {
+                @* On a phone the one main button takes its own full-width line under the item instead (below). *@
+                @if (!PrimaryOnOwnLine && RetryIsMain)
+                {
+                    <AppButton Label="@L["Common_TryAgain"].Value"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Size="AppControlSize.Compact"
+                               Disabled="@State.Busy"
+                               aria-label="@L["NeedsReviewRow_TryAgainFor", Title].Value"
+                               OnClick="@(() => Actions.TryAgain(RetryTargets))" />
+                }
+                else if (CanFix && !Actions.IsPhone())
+                {
+                    <AppButton Label="@L["NeedsReviewList_Fix"].Value"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Size="AppControlSize.Compact"
+                               Disabled="@State.Busy"
+                               aria-label="@L["NeedsReviewRow_FixFor", Title].Value"
+                               OnClick="@(() => Actions.Fix(FixEntry))" />
+                }
+
+                @if (IsFamily)
+                {
+                    <AppIconButton Icon="@(Expanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                                   ButtonStyle="AppButtonStyle.Text"
+                                   Size="AppControlSize.Compact"
+                                   Tooltip="@ToggleLabel"
+                                   AriaLabel="@ToggleLabel"
+                                   aria-expanded="@(Expanded ? "true" : "false")"
+                                   data-testid="needs-review-family-toggle"
+                                   OnClick="OnToggle" />
+                }
+
+                @* Keys pressed inside the menu or its phone sheet stop here, so the Escape that closes a menu does not also reach the page and clear the ticks. *@
+                <span class="nr-row__menu" @onkeydown:stopPropagation="true">
+                    <AppRowMenu AriaLabel="@L["NeedsReviewRow_MoreActions", Title].Value" Title="@Title" Items="@MenuItems" />
+                </span>
+            }
+        </div>
+        @if (!KeptView && !Child && HasChoices)
+        {
+            <div class="nr-row__choices">
+                <NeedsReviewChoicesStrip Choices="@ShownChoices" Disabled="@State.Busy" />
+            </div>
+        }
+        @if (PrimaryOnOwnLine)
+        {
+            <div class="nr-row__fixfull">
+                @if (RetryIsMain)
+                {
+                    <AppButton Label="@L["Common_TryAgain"].Value"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               FullWidth="true"
+                               Disabled="@State.Busy"
+                               aria-label="@L["NeedsReviewRow_TryAgainFor", Title].Value"
+                               OnClick="@(() => Actions.TryAgain(RetryTargets))" />
+                }
+                else
+                {
+                    <AppButton Label="@L["NeedsReviewList_Fix"].Value"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               FullWidth="true"
+                               Disabled="@State.Busy"
+                               aria-label="@L["NeedsReviewRow_FixFor", Title].Value"
+                               OnClick="@(() => Actions.Fix(FixEntry))" />
+                }
+            </div>
+        }
+        @if (State.Failure is { Length: > 0 } failure)
+        {
+            <p class="nr-row__failure" role="alert" data-review-failure>
+                <span class="nr-row__failure-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppIconSize.Inline16" /></span>
+                <span>@failure</span>
+            </p>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The row (for a family header: its first row).</summary>
+    [Parameter, EditorRequired] public NeedsReviewRowDto Row { get; set; } = new();
+
+    /// <summary>What the row is doing or has done.</summary>
+    [Parameter, EditorRequired] public NeedsReviewRowState State { get; set; } = new();
+
+    [Parameter, EditorRequired] public NeedsReviewActions Actions { get; set; } = default!;
+
+    /// <summary>Set to draw a family's header row instead of a single row: the rows still waiting in the family.</summary>
+    [Parameter] public NeedsReviewEntry? Family { get; set; }
+
+    /// <summary>For a family header: whether its files are listed under it.</summary>
+    [Parameter] public bool Expanded { get; set; }
+
+    [Parameter] public EventCallback OnToggle { get; set; }
+
+    /// <summary>A file inside an expanded family: its name, Fix and the menu only.</summary>
+    [Parameter] public bool Child { get; set; }
+
+    /// <summary>A row of the kept view: its Put back button replaces everything else.</summary>
+    [Parameter] public bool KeptView { get; set; }
+
+    private MovieTvSuggestionDto? _tv;
+    private IReadOnlyList<NeedsReviewChoice> _tvChoices = [];
+    private IReadOnlyList<NeedsReviewChoice> _engineChoices = [];
+
+    private bool IsFamily => Family is not null;
+
+    private IReadOnlyList<NeedsReviewRowDto> Targets => Family?.Rows ?? [Row];
+
+    private NeedsReviewEntry FixEntry => Family ?? new NeedsReviewEntry(Row.Key, [Row]);
+
+    private bool CanFix => Actions.CanFix(FixEntry);
+
+    // Phone card with a single main button (Fix or Try again) and no suggestion or choices: the button goes on its own full-width line under the
+    // item text instead of squeezing the reason into a narrow column beside it (mock screen 4, marker 5).
+    private bool PrimaryOnOwnLine => !KeptView && Actions.IsPhone() && !HasSuggestion && !HasChoices && (RetryIsMain || CanFix);
+
+    // The tick box: drawn on every waiting and finished row except the kept view, and on a phone only once something is ticked.
+    private bool ShowTick => !KeptView && Actions.TickBoxesShown;
+
+    private NeedsReviewTickState TickState => Actions.Selection.StateOf(Targets.Select(row => row.Key));
+
+    // A family header ticks every file still waiting in it; a file or a single row ticks itself.
+    private void SetSelected(bool on) => Actions.SetSelected(Targets, on);
+
+    private string ToggleLabel => Expanded ? L["NeedsReviewFamily_Hide", Title].Value : L["NeedsReviewFamily_Show", Title].Value;
+
+    private bool IsProblem => Row.Group == NeedsReviewGroups.FileProblem;
+
+    private string? MediaTypeOf(NeedsReviewRowDto row) => NeedsReviewRowInfo.MediaTypeOf(row, Actions.LibraryMediaTypeOf(row));
+
+    private NeedsReviewKindWord Kind => NeedsReviewRowInfo.KindOf(MediaTypeOf(Row));
+
+    private NeedsReviewCoverShape CoverShape =>
+        Child ? NeedsReviewCoverShape.Wide
+        : NeedsReviewRowInfo.IsSquare(Kind) ? NeedsReviewCoverShape.Square
+        : NeedsReviewCoverShape.Poster;
+
+    private string? CoverUrl => IsFamily ? Row.FamilyCoverUrl : Row.CoverUrl;
+
+    private string Title =>
+        IsFamily ? (string.IsNullOrWhiteSpace(Row.FamilyTitle) ? L["NeedsReviewRow_UnknownTitle"].Value : Row.FamilyTitle)
+        : Child ? NeedsReviewRowInfo.FileNameOf(Row, L["NeedsReviewRow_UnknownTitle"].Value)
+        : NeedsReviewRowInfo.TitleOf(Row, L["NeedsReviewRow_UnknownTitle"].Value);
+
+    // "{Media kind} · {Library} · {last two folder names}", or for a family "{N} episodes · {Library} · {common folder}".
+    private string MetaText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (IsFamily)
+            {
+                parts.Add(FamilyCountText);
+            }
+            else if (KindLabel(Kind) is { } kind)
+            {
+                parts.Add(kind);
+            }
+
+            if (!string.IsNullOrWhiteSpace(Row.LibraryName))
+            {
+                parts.Add(Row.LibraryName!);
+            }
+
+            if (FolderFull is { Length: > 0 } folder)
+            {
+                parts.Add(NeedsReviewRowInfo.ShortFolder(folder));
+            }
+
+            return string.Join(" · ", parts);
+        }
+    }
+
+    private string? FolderFull => IsFamily
+        ? NeedsReviewRowInfo.CommonFolder(Targets.Select(row => row.Unmatched?.Folder))
+        : Row.Unmatched?.Folder;
+
+    // The full path stays in the shared tooltip; a name with nothing above it needs none.
+    private string? FolderTip => FolderFull;
+
+    private string FamilyCountText
+    {
+        get
+        {
+            var count = Targets.Count;
+            return Kind switch
+            {
+                NeedsReviewKindWord.Episode => L["NeedsReviewFamily_Episodes", count].Value,
+                NeedsReviewKindWord.Song => L["NeedsReviewFamily_Songs", count].Value,
+                NeedsReviewKindWord.Book => L["NeedsReviewFamily_Books", count].Value,
+                NeedsReviewKindWord.Comic => L["NeedsReviewFamily_Issues", count].Value,
+                _ => L["NeedsReviewFamily_Items", count].Value,
+            };
+        }
+    }
+
+    private string? KindLabel(NeedsReviewKindWord kind) => kind switch
+    {
+        NeedsReviewKindWord.Movie => L["NeedsReviewKind_Movie"].Value,
+        NeedsReviewKindWord.Episode => L["NeedsReviewKind_Episode"].Value,
+        NeedsReviewKindWord.Book => L["NeedsReviewKind_Book"].Value,
+        NeedsReviewKindWord.Audiobook => L["NeedsReviewKind_Audiobook"].Value,
+        NeedsReviewKindWord.Song => L["NeedsReviewKind_Song"].Value,
+        NeedsReviewKindWord.Comic => L["NeedsReviewKind_Comic"].Value,
+        _ => null,
+    };
+
+    private string ReasonOf(NeedsReviewRowDto row) => row.Review is { } review
+        ? NeedsReviewReasonText.ForTrigger(L, review.Trigger, MediaTypeOf(row), review.Detail)
+        : NeedsReviewReasonText.ForUnmatchedReason(L, row.Unmatched?.Reason);
+
+    // A family says its files' sentence when they all share one, else how many files need review.
+    private string Reason
+    {
+        get
+        {
+            if (!IsFamily)
+            {
+                return ReasonOf(Row);
+            }
+
+            var sentences = Targets.Select(ReasonOf).Distinct(StringComparer.Ordinal).ToList();
+            return sentences.Count == 1 ? sentences[0] : L["NeedsReviewFamily_FilesNeedReview", Targets.Count].Value;
+        }
+    }
+
+    // A best guess whose action the page cannot run is not shown as a suggestion at all (Fix stays).
+    private NeedsReviewBestGuessDto? Guess => !IsFamily && Row.BestGuess is { } guess && NeedsReviewRowInfo.IsKnownAction(guess) ? guess : null;
+
+    private bool HasSuggestion => Guess is not null && !HasTvChoices;
+
+    private string GuessName => string.IsNullOrWhiteSpace(Guess!.Year) ? Guess.Name : $"{Guess.Name} ({Guess.Year})";
+
+    // confirm_match: how sure the Engine is; keep_provider_match: where the answer comes from; anything else: nothing.
+    private string? GuessDetail => Guess!.Action switch
+    {
+        "confirm_match" when Row.Review?.ConfidenceScore is > 0 and var score =>
+            L["NeedsReviewRow_PercentSure", (int)Math.Round(Math.Min(score, 1d) * 100)].Value,
+        "keep_provider_match" or "use_retail_match" => Guess.Source,
+        _ => null,
+    };
+
+    private bool HasTvChoices => !IsFamily && !Child && _tv is not null;
+
+    // The strip holds the film-or-TV question, or else the Engine's own choices (matches that fit, Series that claim a book, library types).
+    // A row with one suggestion shows Use this instead, never both.
+    private bool HasChoices => HasTvChoices || (!IsFamily && !Child && Guess is null && _engineChoices.Count > 0);
+
+    private IReadOnlyList<NeedsReviewChoice> ShownChoices => HasTvChoices ? _tvChoices : _engineChoices;
+
+    // When a file will be looked up again; a family shows its earliest time. Only files the Engine could not match have one.
+    private string? RetryNote
+    {
+        get
+        {
+            var files = Targets.Where(row => row.Unmatched is not null).ToList();
+            if (files.Count == 0)
+            {
+                return null;
+            }
+
+            var next = files.Where(row => row.NextRetryAt is not null).Select(row => row.NextRetryAt).Min();
+            return NeedsReviewReasonText.RetryText(L, next, DateTimeOffset.Now);
+        }
+    }
+
+    private bool RetryIsMain => !KeptView && Targets.All(NeedsReviewRowInfo.RetryIsMainAction);
+
+    private IReadOnlyList<NeedsReviewRowDto> RetryTargets => Targets.Where(NeedsReviewRowInfo.CanTryAgain).ToList();
+
+    private string RowClass => string.Join(' ', new[]
+    {
+        "nr-row",
+        ShowTick ? "nr-row--ticks" : null,
+        Child ? "nr-row--child" : null,
+        IsFamily ? "nr-row--family" : null,
+        KeptView ? "nr-row--kept" : null,
+        HasSuggestion ? "nr-row--has-suggestion" : null,
+        HasChoices ? "nr-row--has-choices" : null,
+    }.Where(part => part is not null));
+
+    private string DoneClass => string.Join(' ', new[]
+    {
+        "nr-row nr-row--done",
+        Child ? "nr-row--child" : null,
+        ShowTick ? "nr-row--ticks" : null,
+    }.Where(part => part is not null));
+
+    private string WhyClass => IsProblem ? "nr-row__why nr-row__why--problem" : "nr-row__why";
+
+    protected override void OnParametersSet()
+    {
+        _tv = Row.Review is { } review && review.Trigger == MovieTvSuggestionReader.Trigger
+            ? MovieTvSuggestionReader.Read(review.CandidatesJson)
+            : null;
+        _tvChoices = _tv is null ? [] : BuildTvChoices(_tv);
+        _engineChoices = _tv is null && !KeptView
+            ? [.. Row.Choices.Select(choice => new NeedsReviewChoice(
+                choice.ImageUrl, choice.Title, choice.Subtitle, L["NeedsReviewList_UseThis"].Value, () => Actions.Choose(Row, choice)))]
+            : [];
+    }
+
+    // Film or TV show? Choice 1 is the TV show the Engine found; choice 2 keeps the file as a film. The same strip will hold the Engine's
+    // own candidates later.
+    private IReadOnlyList<NeedsReviewChoice> BuildTvChoices(MovieTvSuggestionDto tv)
+    {
+        var title = tv.FirstAirYear is { } year
+            ? L["NeedsReviewChoice_TvTitle", tv.Name, year].Value
+            : L["NeedsReviewChoice_TvTitleNoYear", tv.Name].Value;
+        var facts = new List<string>();
+        if (tv.Seasons > 0)
+        {
+            facts.Add(tv.Seasons == 1 ? L["NeedsReviewChoice_OneSeason"].Value : L["NeedsReviewChoice_Seasons", tv.Seasons].Value);
+        }
+
+        if (tv.Episodes > 0)
+        {
+            facts.Add(tv.Episodes == 1 ? L["NeedsReviewChoice_OneEpisode"].Value : L["NeedsReviewChoice_Episodes", tv.Episodes].Value);
+        }
+
+        return
+        [
+            new NeedsReviewChoice(tv.PosterUrl, title, string.Join(" · ", facts), L["NeedsReviewChoice_MoveToTv"].Value, () => Actions.MoveToTv(Row)),
+            new NeedsReviewChoice(null, L["NeedsReviewChoice_KeepAsFilm"].Value, L["NeedsReviewChoice_KeepAsFilmDetail"].Value, L["NeedsReviewChoice_Keep"].Value, () => Actions.KeepAsFilm(Row)),
+        ];
+    }
+
+    // A press while this row is working does nothing (the items are also drawn disabled), so one action cannot be sent twice.
+    private EventCallback Callback(Func<Task> action) =>
+        EventCallback.Factory.Create(this, () => State.Busy ? Task.CompletedTask : action());
+
+    // Items that cannot apply are left out, never greyed. Fix leads the sheet on a phone, and sits here on a desktop when Try again is the
+    // row's button.
+    private IReadOnlyList<AppRowMenuItem> MenuItems
+    {
+        get
+        {
+            var items = new List<AppRowMenuItem>();
+            if (CanFix && (Actions.IsPhone() || RetryIsMain))
+            {
+                items.Add(new AppRowMenuItem { Label = L["NeedsReviewList_Fix"].Value, Icon = AppMaterialIcons.Outlined.Edit, OnClick = Callback(() => Actions.Fix(FixEntry)) });
+            }
+
+            if (!RetryIsMain && RetryTargets.Count > 0)
+            {
+                items.Add(new AppRowMenuItem { Label = L["Common_TryAgain"].Value, Icon = AppMaterialIcons.Outlined.Sync, OnClick = Callback(() => Actions.TryAgain(RetryTargets)) });
+            }
+
+            items.Add(new AppRowMenuItem
+            {
+                Label = IsFamily ? L["NeedsReviewRow_KeepAsTheyAre"].Value : L["NeedsReviewList_KeepAsItIs"].Value,
+                Icon = AppMaterialIcons.Outlined.Check,
+                OnClick = Callback(() => Actions.Keep(Targets)),
+            });
+            items.Add(new AppRowMenuItem { Label = L["NeedsReviewRow_ShowInActivity"].Value, Icon = AppMaterialIcons.Outlined.ReceiptLong, OnClick = Callback(() => Actions.ShowInActivity(Title)) });
+            if (Actions.IsPhone() && !KeptView)
+            {
+                // On a phone the tick boxes are hidden until Select ticks this row and turns selection mode on.
+                items.Add(new AppRowMenuItem { Label = L["NeedsReviewRow_Select"].Value, Icon = AppMaterialIcons.Outlined.CheckBoxOutlineBlank, OnClick = Callback(() => { SetSelected(true); return Task.CompletedTask; }) });
+            }
+
+            if (!IsFamily && !Child && Actions.CanDelete(Row))
+            {
+                items.Add(new AppRowMenuItem { Label = L["NeedsReviewRow_Delete"].Value, Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = Callback(() => Actions.Delete(Row)) });
+            }
+
+            // While this row works on an action none of its menu items can start another.
+            return State.Busy ? [.. items.Select(item => item with { Disabled = true })] : items;
+        }
+    }
+}

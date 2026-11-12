@@ -1,0 +1,39 @@
+@namespace MediaEngine.Web.Components.Settings.NeedsReview
+@inject IStringLocalizer<SharedStrings> L
+
+@* The choices of one row (Needs Review redesign, mock marker 9): each with its picture, name, one line and its own button. The strip is
+   generic on purpose: today it holds the "film or TV show?" question; later the Engine's candidates for an ambiguous match fill it. *@
+<div class="nr-choices" role="group" data-testid="needs-review-choices">
+    @foreach (var choice in Choices)
+    {
+        <div class="nr-choice">
+            @if (!string.IsNullOrWhiteSpace(choice.ImageUrl))
+            {
+                <span class="nr-choice__cover" aria-hidden="true">
+                    <AppImage Src="@choice.ImageUrl" Alt="" Width="32" Height="46" ObjectFit="AppObjectFit.Cover" />
+                </span>
+            }
+            <span class="nr-choice__text">
+                <b>@choice.Title</b>
+                @if (!string.IsNullOrWhiteSpace(choice.Subtitle))
+                {
+                    <small>@choice.Subtitle</small>
+                }
+            </span>
+            <AppButton Label="@choice.ButtonLabel"
+                       ButtonStyle="AppButtonStyle.Outlined"
+                       Size="AppControlSize.Compact"
+                       Disabled="@Disabled"
+                       aria-label="@L["NeedsReviewRow_ChoiceAria", choice.ButtonLabel, choice.Title].Value"
+                       OnClick="@(() => choice.Choose())" />
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The choices, in the order they are drawn.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<NeedsReviewChoice> Choices { get; set; } = [];
+
+    /// <summary>True while an action on the row runs; every button is disabled.</summary>
+    [Parameter] public bool Disabled { get; set; }
+}

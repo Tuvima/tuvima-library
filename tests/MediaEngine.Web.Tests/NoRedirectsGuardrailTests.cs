@@ -29,7 +29,7 @@ public sealed class NoRedirectsGuardrailTests
         ["Components/Pages/SearchPage.razor"] = "Own filter: the search page rewriting its own query in its own address.",
         ["Components/Pages/MyListPage.razor.cs"] = "Own filter: My List rewriting its own kind and sort address (and dropping a choice the Engine refuses).",
         ["Components/Pages/ShelfGridPage.razor.cs"] = "Own filter: the View all grid rewriting its own sort and filter address (and dropping a choice the Engine refuses).",
-        ["Components/Settings/NeedsReviewPageContent.razor"] = "Own filter: the Needs Review list rewriting its own filter address.",
+        ["Components/Settings/NeedsReviewPageContent.razor"] = "Own filter: the Needs Review list rewriting its own library filter address.",
         ["Components/Settings/Libraries/LibrariesOverview.razor"] = "Own filter: the Libraries overview rewriting its own area chip address.",
         ["Program.cs"] = "Culture cookie: the language change returns to the page the person was on.",
         ["Services/Integration/DashboardAuthenticationEndpoints.cs"] = "Sign-in, sign-out, setup and change-password gates (security, not navigation).",

@@ -553,18 +553,17 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public void NotIdentifiedFilesAndNeedsReviewItemsAreTwoCountsBothLinkingToNeedsReviewForTheLibrary()
+    public void FilesNotMatchedAndItemsToConfirmAreOneNeedsReviewCountLinkingToNeedsReviewForTheLibrary()
     {
         _configuration!.Libraries[0].UnmatchedCount = 12;
         _configuration.Libraries[0].ReviewCount = 3;
         var cut = OpenAndSettle();
 
-        var unidentified = Row(cut, MoviesId).QuerySelector("a[data-status=not-identified]")!;
-        Assert.Equal("12 files not identified", Text(unidentified));
-        Assert.Equal($"/settings/review?library={MoviesId}&show=not-matched", unidentified.GetAttribute("href"));
         var review = Row(cut, MoviesId).QuerySelector("a[data-status=needs-review]")!;
-        Assert.Equal("3 need review", Text(review));
+        Assert.Equal("15 need review", Text(review));
         Assert.Equal($"/settings/review?library={MoviesId}", review.GetAttribute("href"));
+        Assert.Single(Row(cut, MoviesId).QuerySelectorAll("a[data-status]"));
+        Assert.DoesNotContain("not identified", Row(cut, MoviesId).TextContent, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1139,7 +1138,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var offline = new LibraryHealth(false, "1 folder unavailable");
 
         Assert.Equal(LibraryStatusKind.FolderOffline, LibraryListing.StatusOf(library, 10, offline).Status);
-        Assert.Equal(LibraryStatusKind.NotIdentified, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
+        Assert.Equal(LibraryStatusKind.NeedsReview, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
         library.UnmatchedCount = 0;
         library.ReviewCount = 1;
         Assert.Equal(LibraryStatusKind.NeedsReview, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);

@@ -801,7 +801,7 @@ public sealed partial class RetailMatchWorker
             await _jobRepo.SetSelectedCandidateAsync(job.Id, bestCandidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatchedNeedsReview, ct: ct);
             await _outcomeFactory.CreateRetailAmbiguousAsync(
-                job.EntityId, job.MediaType, bestScore, ct);
+                job.EntityId, job.MediaType, bestScore, ct, allCandidates, bestCandidate);
             await _timeline.RecordRetailMatchedAsync(
                 job.EntityId, bestCandidate.ProviderName,
                 allCandidates.Count, ct);
