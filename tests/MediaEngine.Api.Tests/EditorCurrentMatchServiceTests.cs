@@ -303,9 +303,9 @@ public sealed class EditorCurrentMatchServiceTests : IDisposable
 
         var match = await Service(new TvdbSpy(), connected: false).ReadAsync(movie);
 
-        Assert.Equal(EditorMatchVerdicts.Check, match!.Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, match!.Verdict);
         Assert.True(match.Pinned);
-        Assert.Equal(EditorMatchVerdicts.Check, match.Why.Single(row => row.Field == "title").Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, match.Why.Single(row => row.Field == "title").Verdict);
     }
 
     private EditorCurrentMatchService Service(TvdbSpy handler, bool connected)

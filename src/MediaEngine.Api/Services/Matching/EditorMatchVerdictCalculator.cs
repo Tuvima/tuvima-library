@@ -30,13 +30,16 @@ public sealed record MatchFactCheck(string Fact, string State, string? Yours, st
 
 /// <summary>
 /// The Match tab's verdict (universal editor v5, 3c "Verdict"): each fact the file can speak to is set beside the record; a fact the file
-/// says nothing about is "not checked" and never counts against the match. Strong means nothing differs and enough agrees; Check means a
+/// says nothing about is "not checked" and never counts against the match. Strong means nothing differs and enough agrees; Weak means a
 /// fact that says which record this is differs; anything between is Possible. The bands and tolerances come from
 /// <c>match_verdict</c> in <c>config/scoring.json</c>. The verdict is advice: Apply match is always available.
 /// </summary>
 public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
 {
     private static readonly string[] LeadingArticles = ["the", "a", "an"];
+
+    // The identifiers a record can carry, the one a person recognises first listed first.
+    private static readonly string[] IdentifierKeys = ["isbn", "imdb_id", "tmdb_id", "isrc", "musicbrainz_id", "youtube_id"];
 
     /// <summary>The verdict for a set of compared facts.</summary>
     public string Verdict(IReadOnlyCollection<MatchFactCheck> facts)
@@ -45,14 +48,14 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
         var identity = new HashSet<string>(settings.IdentityFacts, StringComparer.OrdinalIgnoreCase);
 
         // An identifier that agrees (IMDb, TMDB, ISBN, ISRC, YouTube ID) says which record this is more surely than a title does: files carry
-        // alternate and translated titles. So a title that differs on its own then reads as Possible, never Check. Any other identity fact
-        // that differs (a number, a second identifier) still reads as Check.
+        // alternate and translated titles. So a title that differs on its own then reads as Possible, never Weak. Any other identity fact
+        // that differs (a number, a second identifier) still reads as Weak.
         var identifierAgrees = facts.Any(fact => fact.Fact == MatchFactNames.Identifier && fact.State == EditorMatchEvidenceStates.Agrees);
         if (facts.Any(fact => fact.State == EditorMatchEvidenceStates.Differs
                               && identity.Contains(fact.Fact)
                               && !(identifierAgrees && fact.Fact == MatchFactNames.Title)))
         {
-            return EditorMatchVerdicts.Check;
+            return EditorMatchVerdicts.Weak;
         }
 
         if (identifierAgrees && facts.Any(fact => fact.Fact == MatchFactNames.Title && fact.State == EditorMatchEvidenceStates.Differs))
@@ -69,7 +72,7 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
     }
 
     /// <summary>
-    /// A "Why this match" row's verdict label. A fact that differs reads as Check; one that agrees reads as Strong, or as Possible when the
+    /// A "Why this match" row's verdict label. A fact that differs reads as Weak; one that agrees reads as Strong, or as Possible when the
     /// Engine's stored confidence in it is below the Strong band. A fact not checked has no label.
     /// </summary>
     public string? RowVerdict(string state, double? storedScore)
@@ -81,12 +84,44 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
 
         if (state == EditorMatchEvidenceStates.Differs)
         {
-            return storedScore is { } low && low >= settings.PossibleMinScore ? EditorMatchVerdicts.Possible : EditorMatchVerdicts.Check;
+            return storedScore is { } low && low >= settings.PossibleMinScore ? EditorMatchVerdicts.Possible : EditorMatchVerdicts.Weak;
         }
 
         return storedScore is { } score && score < settings.StrongMinScore
-            ? score >= settings.PossibleMinScore ? EditorMatchVerdicts.Possible : EditorMatchVerdicts.Check
+            ? score >= settings.PossibleMinScore ? EditorMatchVerdicts.Possible : EditorMatchVerdicts.Weak
             : EditorMatchVerdicts.Strong;
+    }
+
+    /// <summary>
+    /// True when a result is a collection, box set or omnibus rather than one title (universal editor v6, D6): the provider says so itself
+    /// (<c>is_collection</c>), or the title carries one of <c>collection_title_markers</c> as whole words.
+    /// </summary>
+    public bool IsCollection(string? title, IReadOnlyDictionary<string, string>? providerFields)
+    {
+        if (providerFields is not null
+            && providerFields.TryGetValue("is_collection", out var flag)
+            && (flag.Equals("true", StringComparison.OrdinalIgnoreCase) || flag == "1"))
+        {
+            return true;
+        }
+
+        var words = Words(title ?? string.Empty);
+        return settings.CollectionTitleMarkers
+            .Select(marker => Words(marker))
+            .Any(marker => marker.Count > 0 && ContainsRun(words, marker));
+    }
+
+    private static bool ContainsRun(List<string> words, List<string> run)
+    {
+        for (var start = 0; start + run.Count <= words.Count; start++)
+        {
+            if (words.Skip(start).Take(run.Count).SequenceEqual(run))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The facts the kind compares, from the configuration.</summary>
@@ -207,7 +242,10 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
                 MatchFactNames.Identifier, EditorMatchEvidenceStates.Differs, miss.Value, recordIds[KeyFor(miss.Kind)], $"{KindWord(miss.Kind)} differs");
         }
 
-        return new MatchFactCheck(MatchFactNames.Identifier, EditorMatchEvidenceStates.NotChecked, null, null, "Identifier not checked");
+        // Nothing to compare: still show what each side does carry (an ISBN the file names, an ISBN the record has) so the compare table can say which side is missing.
+        var fileValue = found.FirstOrDefault(item => item.Kind != EditorMatchIdentifierKinds.EmbeddedTitle)?.Value;
+        var recordValue = IdentifierKeys.Select(key => recordIds.GetValueOrDefault(key)).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        return new MatchFactCheck(MatchFactNames.Identifier, EditorMatchEvidenceStates.NotChecked, fileValue, recordValue, "Identifier not checked");
     }
 
     /// <summary>The bridge-id key a kind of found identifier is stored under on a record.</summary>

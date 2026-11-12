@@ -3,17 +3,18 @@
 @using MediaEngine.Web.Services.Editing
 @inject IStringLocalizer<SharedStrings> L
 
-@* The results half of the Match tab's compact search (universal editor v5, 3c "Change match"): a list of results with a picture, title, year,
-   creator and length, a preview card for the selected one (picture, kind, year, creator, description, Open source), a book's, comic's or
-   audiobook's editions under it, and the verdict (Strong, Possible or Check) with its reasons and the local evidence beside it. Apply match
-   is always available once a result is chosen, even for a Check match: the verdict is advice. Nothing is searched and nothing is saved here;
-   the panel owns both. The results and the "Looking up" line sit on a full-width row of their own. *@
+@* The results half of the Match tab's search (universal editor v6, WP3; mock screen A). On the left a list: a small cover, the title, then
+   creator · year · series and number (a collection says "Collection"); a tick marks the chosen row; no verdict pill and no description. Six rows,
+   then "Show N more results". On the right the card for the chosen result (EditorMatchCard): the large cover, the facts, the verdict in words, the
+   compare table the Engine supplied, and Apply match with one line saying what it does. A book's, comic's or audiobook's editions sit under both.
+   Apply match is always available once a result is chosen, even for a Weak match: the verdict is advice. Nothing is searched and nothing is
+   saved here; the panel owns both. The results and the "Looking up" line sit on a full-width row of their own. *@
 <div class="tl-matchres" data-testid="match-results">
     @if (Loading)
     {
         <div class="tl-matchres__wide" role="status" aria-busy="true" data-testid="match-looking-up">
             <AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" />
-            <span class="tl-match__meta">@L["EditorMatchResults_LookingUp"]</span>
+            <span class="tl-matchres__meta">@L["EditorMatchResults_LookingUp"]</span>
         </div>
     }
     else if (!string.IsNullOrWhiteSpace(Message))
@@ -30,96 +31,100 @@
     @if (!Loading && Results.Count > 0)
     {
         <div class="tl-matchres__body">
-            <div class="tl-match__results tl-matchres__list" role="list" aria-label="@L["EditorMatchResults_SearchResults"].Value">
-                @foreach (var result in Results)
+            <div class="tl-matchres__listwrap">
+                <div class="tl-matchres__heading">
+                    <h4 class="tl-matchres__title">@L["EditorMatchResults_SearchResults"]</h4>
+                    <span class="tl-matchres__meta" data-testid="match-count">@(Results.Count == 1 ? L["EditorMatchResults_CountOne"].Value : L["EditorMatchResults_Count", Results.Count].Value)</span>
+                </div>
+                <div class="tl-matchres__list" role="list" aria-label="@L["EditorMatchResults_SearchResults"].Value">
+                    @foreach (var result in Visible)
+                    {
+                        var active = ReferenceEquals(result, Selected);
+                        @* The whole row is the button; the tick marks the chosen one. *@
+                        <div class="@(active ? "tl-matchres__row is-active" : "tl-matchres__row")" role="listitem">
+                            <AppRowButton aria-pressed="@(active ? "true" : "false")" data-testid="match-result" OnClick="@(() => SelectedChanged.InvokeAsync(result))">
+                                <span class="tl-matchres__inner">
+                                    @Art(result)
+                                    <span class="tl-matchres__text">
+                                        <span class="tl-matchres__name">@result.Title</span>
+                                        <span class="tl-matchres__meta" data-testid="match-result-meta">@Line(result)</span>
+                                    </span>
+                                    @Tick(active)
+                                </span>
+                            </AppRowButton>
+                        </div>
+                    }
+                </div>
+                @if (Hidden > 0)
                 {
-                    var active = ReferenceEquals(result, Selected);
-                    @* The whole row is the button; the tick marks the chosen one. *@
-                    <AppRowButton Class="@(active ? "tl-match__row is-active tl-matchres__row" : "tl-match__row tl-matchres__row")" role="listitem" aria-pressed="@(active ? "true" : "false")"
-                                  data-testid="match-result" OnClick="@(() => SelectedChanged.InvokeAsync(result))">
-                        @Art(result.ImageUrl)
-                        <span class="tl-match__text">
-                            <span class="tl-match__title"><span>@result.Title</span></span>
-                            <span class="tl-match__meta">@Line(result)</span>
-                        </span>
-                        <AppChip Text="@VerdictText(result.Verdict)" Tone="@VerdictTone(result.Verdict)" />
-                        @Tick(active)
-                    </AppRowButton>
+                    <div>
+                        <AppButton Label="@(Hidden == 1 ? L["EditorMatchResults_ShowOneMore"].Value : L["EditorMatchResults_ShowMore", Hidden].Value)" EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+                                   ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="ShowAll" data-testid="match-show-more" />
+                    </div>
                 }
             </div>
 
             @if (Selected is { } selected)
             {
                 var shown = Edition ?? selected;
-                <aside class="tl-matchres__preview" aria-label="@L["EditorMatchResults_SelectedResult"].Value" data-testid="match-preview">
-                    <div class="tl-matchres__previewart">@Art(shown.ImageUrl ?? selected.ImageUrl)</div>
-                    <div class="tl-matchres__previewtext">
-                        <div class="tl-match__title"><span>@shown.Title</span></div>
-                        <div class="tl-match__meta">@string.Join(" · ", new[] { shown.KindText, shown.Year, shown.Creator }.Where(part => !string.IsNullOrWhiteSpace(part)))</div>
-                        @if (!string.IsNullOrWhiteSpace(shown.Description ?? selected.Description))
-                        {
-                            <p class="tl-matchres__description">@(shown.Description ?? selected.Description)</p>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(shown.SourceUrl ?? selected.SourceUrl))
-                        {
-                            <AppButton Label="@L["EditorMatchResults_OpenSource"].Value" Href="@(shown.SourceUrl ?? selected.SourceUrl)" Target="_blank" ButtonStyle="AppButtonStyle.Text"
-                                       Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" />
-                        }
-                    </div>
-                </aside>
+                <div class="tl-matchres__cardwrap">
+                    <EditorMatchCard Model="@EditorMatchCardModels.ForResult(shown, selected, Kind, L)" ResultLabel="@L["EditorMatchResults_SelectedResult"].Value" data-testid="match-preview">
+                        <Foot>
+                            <div class="tl-matchres__buttons">
+                                @if (ShowCancel)
+                                {
+                                    <AppButton Label="@L["EditorMatchResults_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnCancel" data-testid="match-cancel" />
+                                }
+                                <AppButton Label="@L["EditorMatchResults_ApplyMatch"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApply)" OnClick="OnApply" data-testid="match-apply" />
+                            </div>
+                            <span class="tl-matchres__meta" data-testid="match-apply-line">@EditorMatchCardModels.ApplyLine(Kind, shown.ProviderName, L)</span>
+                        </Foot>
+                    </EditorMatchCard>
+                </div>
             }
         </div>
 
         @if (Selected is { Editions.Count: > 0 } work)
         {
             <div class="tl-matchres__wide" role="list" aria-label="@L["EditorMatchResults_Editions"].Value" data-testid="match-editions">
-                <h3 class="tl-match__section-heading">@L["EditorMatchResults_EditionsAndReleases"]</h3>
+                <h3 class="tl-matchres__title">@L["EditorMatchResults_EditionsAndReleases"]</h3>
                 @foreach (var edition in work.Editions)
                 {
                     var picked = ReferenceEquals(edition, Edition);
-                    <AppRowButton Class="@(picked ? "tl-match__row is-active" : "tl-match__row")" role="listitem" aria-pressed="@(picked ? "true" : "false")"
-                                  OnClick="@(() => EditionChanged.InvokeAsync(edition))">
-                        <span class="tl-match__text">
-                            <span class="tl-match__title"><span>@EditionLine(edition)</span> @if (edition.IsSuggested) { <AppChip Text="@L["EditorMatchResults_ClosestToYourFile"].Value" Tone="AppUiTone.Success" /> }</span>
-                        </span>
-                        @Tick(picked)
-                    </AppRowButton>
-                }
-            </div>
-        }
-
-        @if (Selected is { } judged)
-        {
-            var verdictOf = Edition ?? judged;
-            <div class="tl-matchres__verdict" data-testid="match-verdict">
-                <AppChip Text="@($"{VerdictText(verdictOf.Verdict)} match")" Tone="@VerdictTone(verdictOf.Verdict)" />
-                @foreach (var reason in verdictOf.Reasons)
-                {
-                    <span class="tl-matchres__reason" data-state="@reason.State">@Mark(reason.State) @reason.Text@(string.IsNullOrWhiteSpace(reason.Note) ? null : $" ({reason.Note})")</span>
-                }
-                @if (EvidenceParts().Count > 0)
-                {
-                    <span class="tl-match__meta tl-matchres__evidence" data-testid="match-evidence">@L["EditorMatchResults_YourFileEvidence", string.Join(" · ", EvidenceParts())]</span>
+                    <div class="@(picked ? "tl-matchres__row is-active" : "tl-matchres__row")" role="listitem">
+                        <AppRowButton aria-pressed="@(picked ? "true" : "false")" OnClick="@(() => EditionChanged.InvokeAsync(edition))">
+                            <span class="tl-matchres__inner">
+                                <span class="tl-matchres__text">
+                                    <span class="tl-matchres__name"><span>@EditionLine(edition)</span> @if (edition.IsSuggested) { <AppChip Text="@L["EditorMatchResults_ClosestToYourFile"].Value" Tone="AppUiTone.Success" /> }</span>
+                                </span>
+                                @Tick(picked)
+                            </span>
+                        </AppRowButton>
+                    </div>
                 }
             </div>
         }
     }
-
-    <div class="tl-matchres__actions">
-        @if (ShowCancel)
-        {
-            <AppButton Label="@L["EditorMatchResults_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnCancel" />
-        }
-        <AppButton Label="@L["EditorMatchResults_ApplyMatch"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApply)" OnClick="OnApply" />
-    </div>
+    else if (!Loading && ShowCancel)
+    {
+        <div class="tl-matchres__buttons">
+            <AppButton Label="@L["EditorMatchResults_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnCancel" data-testid="match-cancel" />
+        </div>
+    }
 </div>
 
 @code {
+    /// <summary>How many rows show before "Show N more results".</summary>
+    internal const int FirstRows = 6;
+
+    private IReadOnlyList<EditorMatchResultDto>? _listed;
+    private bool _all;
+
     /// <summary>The results, best first. For a book, comic or audiobook, each is a work with its editions.</summary>
     [Parameter] public IReadOnlyList<EditorMatchResultDto> Results { get; set; } = [];
 
-    /// <summary>The local evidence the verdicts were judged against.</summary>
-    [Parameter] public EditorMatchLocalEvidenceDto? Evidence { get; set; }
+    /// <summary>The editor's kind of the item (book, movie, episode, song ...): it words the series position, the picture shape and "Links this book to ...".</summary>
+    [Parameter] public string? Kind { get; set; }
 
     [Parameter] public EditorMatchResultDto? Selected { get; set; }
 
@@ -141,7 +146,7 @@
     /// <summary>Raised by Try again, shown beside a message about a provider that did not answer; nothing is shown when this has no handler.</summary>
     [Parameter] public EventCallback OnRetry { get; set; }
 
-    /// <summary>True once a result is chosen and the person may stage it. A Check match can be applied too.</summary>
+    /// <summary>True once a result is chosen and the person may stage it. A Weak match can be applied too.</summary>
     [Parameter] public bool CanApply { get; set; }
 
     [Parameter] public EventCallback OnApply { get; set; }
@@ -151,17 +156,38 @@
 
     [Parameter] public EventCallback OnCancel { get; set; }
 
-    private RenderFragment Art(string? url) => __builder =>
+    private IEnumerable<EditorMatchResultDto> Visible => _all ? Results : Results.Take(FirstRows);
+
+    private int Hidden => _all ? 0 : Math.Max(0, Results.Count - FirstRows);
+
+    protected override void OnParametersSet()
     {
-        if (!string.IsNullOrWhiteSpace(url))
+        // A new answer starts folded again at six rows.
+        if (!ReferenceEquals(_listed, Results))
         {
-            <AppImage Src="@url" Alt="" Width="48" Height="72" ObjectFit="AppObjectFit.Cover" Class="tl-match__art" />
+            _listed = Results;
+            _all = false;
+        }
+    }
+
+    private void ShowAll() => _all = true;
+
+    private RenderFragment Art(EditorMatchResultDto result) => __builder =>
+    {
+        var shape = EditorMatchCardModels.ArtFor(result.KindText, Kind).ToString().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(result.ImageUrl))
+        {
+            <span class="tl-matchres__art" data-art="@shape"><AppImage Src="@result.ImageUrl" Alt="" Width="@ArtWidth(shape)" Height="@ArtHeight(shape)" ObjectFit="AppObjectFit.Cover" /></span>
         }
         else
         {
-            <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
+            <span class="tl-matchres__art tl-matchres__art--empty" data-art="@shape" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
         }
     };
+
+    private static int ArtWidth(string shape) => shape switch { "wide" => 64, "square" => 44, _ => 32 };
+
+    private static int ArtHeight(string shape) => shape switch { "wide" => 36, "square" => 44, _ => 48 };
 
     private RenderFragment Tick(bool shown) => __builder =>
     {
@@ -173,53 +199,12 @@
         </span>
     };
 
-    // What the Engine read from the file, shown beside the verdict: the title and number its name says, the measured length, and any
-    // identifier found in the name, the tags or the folders (YouTube ID, ISBN, ISRC, an embedded title).
-    private List<string> EvidenceParts()
-    {
-        var parts = new List<string>();
-        if (Evidence is null)
-        {
-            return parts;
-        }
-
-        if (!string.IsNullOrWhiteSpace(Evidence.FileTitle))
-        {
-            parts.Add(Evidence.FileTitle);
-        }
-
-        if (Evidence.Number is { } number)
-        {
-            parts.Add(L["EditorMatchResults_EvidenceNumber", number].Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(Evidence.MeasuredText))
-        {
-            parts.Add(L["EditorMatchResults_EvidenceMeasured", Evidence.MeasuredText].Value);
-        }
-
-        foreach (var identifier in Evidence.Identifiers.Where(item => !string.IsNullOrWhiteSpace(item.Value)))
-        {
-            parts.Add(L["EditorMatchResults_EvidenceIdentifier", IdentifierName(identifier.Kind), identifier.Value].Value);
-        }
-
-        return parts;
-    }
-
-    private string IdentifierName(string kind) => kind switch
-    {
-        EditorMatchIdentifierKinds.YouTube => L["EditorMatchResults_IdYouTube"].Value,
-        EditorMatchIdentifierKinds.Isbn => L["EditorMatchResults_IdIsbn"].Value,
-        EditorMatchIdentifierKinds.Isrc => L["EditorMatchResults_IdIsrc"].Value,
-        EditorMatchIdentifierKinds.Imdb => L["EditorMatchResults_IdImdb"].Value,
-        EditorMatchIdentifierKinds.Tmdb => L["EditorMatchResults_IdTmdb"].Value,
-        EditorMatchIdentifierKinds.MusicBrainz => L["EditorMatchResults_IdMusicBrainz"].Value,
-        EditorMatchIdentifierKinds.EmbeddedTitle => L["EditorMatchResults_IdEmbeddedTitle"].Value,
-        _ => kind,
-    };
-
-    private static string Line(EditorMatchResultDto result) =>
-        string.Join(" · ", new[] { result.Year, result.LengthText, result.Creator }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    // Creator · year · series and number; a collection or box set says "Collection" in the series place.
+    private string Line(EditorMatchResultDto result) =>
+        EditorMatchCardModels.Join(
+            result.Creator,
+            result.Year,
+            result.IsCollection ? L["EditorMatchResults_Collection"].Value : EditorMatchCardModels.SeriesLine(result.SeriesName, result.SeriesNumber, Kind, ", ", L)) ?? string.Empty;
 
     private static string EditionLine(EditorMatchResultDto edition) =>
         edition.Edition is { } info
@@ -229,21 +214,14 @@
     internal static string VerdictText(string verdict) => verdict switch
     {
         EditorMatchVerdicts.Strong => "Strong",
-        EditorMatchVerdicts.Check => "Check",
+        EditorMatchVerdicts.Weak => "Weak",
         _ => "Possible",
     };
 
     internal static AppUiTone VerdictTone(string verdict) => verdict switch
     {
         EditorMatchVerdicts.Strong => AppUiTone.Success,
-        EditorMatchVerdicts.Check => AppUiTone.Warning,
+        EditorMatchVerdicts.Weak => AppUiTone.Warning,
         _ => AppUiTone.Neutral,
-    };
-
-    private static string Mark(string state) => state switch
-    {
-        EditorMatchEvidenceStates.Agrees => "✓",
-        EditorMatchEvidenceStates.Differs => "✕",
-        _ => "–",
     };
 }

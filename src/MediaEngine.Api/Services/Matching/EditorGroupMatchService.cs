@@ -12,7 +12,7 @@ namespace MediaEngine.Api.Services.Matching;
 /// <summary>
 /// Match on several ticked episodes or songs (universal editor v5, D36): one show and season, or one release, is picked once, and every
 /// ticked item is lined up by its own number. Each line carries the record the item would take, the same verdict a single pick gets, and
-/// where applying it would put the item and its file. An item that does not line up, or whose verdict is Check match, comes back with
+/// where applying it would put the item and its file. An item that does not line up, or whose verdict is Weak match, comes back with
 /// <see cref="EditorGroupMatchLineDto.Fits"/> false so the Dashboard leaves it unticked. A read: nothing is written until Save changes.
 /// </summary>
 public sealed class EditorGroupMatchService(
@@ -290,7 +290,7 @@ public sealed class EditorGroupMatchService(
             TargetTitle = candidate.Title,
             Verdict = judged.Verdict,
             Reasons = judged.Reasons,
-            Fits = judged.Verdict != EditorMatchVerdicts.Check,
+            Fits = judged.Verdict != EditorMatchVerdicts.Weak,
             Candidate = candidate,
             Placement = where,
         };

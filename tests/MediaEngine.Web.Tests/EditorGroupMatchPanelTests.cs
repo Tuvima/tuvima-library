@@ -14,7 +14,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// The group Match (universal editor v5, D36): with several episodes ticked, one show and season is picked once; each episode is lined up
-/// by its own number; the ones that do not fit are listed as "Check match" and left out until ticked; there is no table of every file.
+/// by its own number; the ones that do not fit are listed as "Weak match" and left out until ticked; there is no table of every file.
 /// </summary>
 public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
 {
@@ -62,7 +62,7 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
                         Line(1, fits: true),
                         new EditorGroupMatchLineDto
                         {
-                            EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "9", Fits = false, NoteCode = EditorMatchMessageCodes.NoNumber, Verdict = EditorMatchVerdicts.Check,
+                            EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "9", Fits = false, NoteCode = EditorMatchMessageCodes.NoNumber, Verdict = EditorMatchVerdicts.Weak,
                         },
                     ],
                 });

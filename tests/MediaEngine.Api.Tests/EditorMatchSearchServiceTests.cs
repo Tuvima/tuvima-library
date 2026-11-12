@@ -158,7 +158,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Assert.Equal("Lana Wachowski", strong.Creator);
         Assert.Equal("https://www.themoviedb.org/movie/603", strong.SourceUrl);
         Assert.Contains(strong.Reasons, reason => reason.Fact == "runtime" && reason.State == EditorMatchEvidenceStates.Agrees && reason.Text == "Runtime consistent");
-        Assert.Equal(EditorMatchVerdicts.Check, found.Results[1].Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, found.Results[1].Verdict);
         Assert.Null(found.Message);
         Assert.False(found.RetriedWithoutPunctuation);
     }
@@ -177,7 +177,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ACheckMatch_StillHasItsCandidateIntactToApply()
+    public async Task AWeakMatch_StillHasItsCandidateIntactToApply()
     {
         var movie = Movie("The.Matrix.1999.mkv");
         var wrong = Candidate("999", "Something Else Entirely", "2012", score: 0.3);
@@ -186,7 +186,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         var found = await Service().SearchForKindAsync(movie, EditorKinds.Movie, Request("The Matrix", "1999"));
 
         var result = Assert.Single(found!.Results);
-        Assert.Equal(EditorMatchVerdicts.Check, result.Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, result.Verdict);
         Assert.Same(wrong, result.Candidate);
         Assert.True(result.Candidate.IsApplicable);
         Assert.Equal("999", result.Candidate.ProviderItemId);
@@ -272,6 +272,144 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Assert.Equal("1965", suggested.Edition!.Year);
         Assert.Equal("Chilton", suggested.Edition.Publisher);
         Assert.Empty(found.Results[1].Editions);
+    }
+
+    // ── The compare table (universal editor v6, D9) ───────────────────────────
+
+    private async Task<EditorMatchResultDto> SearchBook(
+        ItemCanonicalRetailCandidateDto candidate, string author = "Rick Riordan", string? isbn = null, string? year = null)
+    {
+        var book = _world.Work("Books", "standalone", "The Sea of Monsters");
+        _world.File(book, "Rick Riordan - The Sea of Monsters.epub");
+        _catalog.Providers = [new RetailProviderInfo("openlibrary", "Open Library", true, false, [EditorKinds.Book], 1)];
+        candidate.ProviderName = "openlibrary";
+        _search.Candidates = [candidate];
+        var fields = new Dictionary<string, string> { ["title"] = "The Sea of Monsters", ["author"] = author };
+        if (isbn is not null)
+        {
+            fields["isbn"] = isbn;
+        }
+
+        if (year is not null)
+        {
+            fields["year"] = year;
+        }
+
+        var found = await Service().SearchForKindAsync(book, EditorKinds.Book, new EditorMatchSearchRequestDto { Fields = fields });
+        return Assert.Single(found!.Results);
+    }
+
+    [Fact]
+    public async Task ABookResult_CarriesOneCompareRowPerFact_InTheOrderTitleAuthorIsbnYear()
+    {
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"));
+
+        Assert.Equal(["title", "creator", "identifier", "year"], result.Reasons.Select(reason => reason.Fact).ToArray());
+    }
+
+    [Fact]
+    public async Task ACompareRow_ShowsWhatEachSideSays_WithATickWhereTheyAgreeAndACrossWhereTheyDiffer()
+    {
+        var result = await SearchBook(
+            Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"), author: "Someone Else", year: "2010");
+
+        var title = result.Reasons.Single(reason => reason.Fact == "title");
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, title.State);
+        Assert.Equal("The Sea of Monsters", title.YourFile);
+        Assert.Equal("The Sea of Monsters", title.Result);
+        var creator = result.Reasons.Single(reason => reason.Fact == "creator");
+        Assert.Equal(EditorMatchEvidenceStates.Differs, creator.State);
+        Assert.Equal("Someone Else", creator.YourFile);
+        Assert.Equal("Rick Riordan", creator.Result);
+        var year = result.Reasons.Single(reason => reason.Fact == "year");
+        Assert.Equal(EditorMatchEvidenceStates.Differs, year.State);
+        Assert.Equal("2010", year.YourFile);
+        Assert.Equal("2009", year.Result);
+    }
+
+    [Fact]
+    public async Task ACompareRow_WhereOneSideSaysNothing_IsUnknownAndShowsTheSideThatDoes_AndNeverCountsAgainstTheMatch()
+    {
+        // The file names an ISBN the record does not carry; the record gives no year but the item says 1999.
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", string.Empty, author: "Rick Riordan"), isbn: "1423103343");
+
+        var isbn = result.Reasons.Single(reason => reason.Fact == "identifier");
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, isbn.State);
+        Assert.Equal("1423103343", isbn.YourFile);
+        Assert.Null(isbn.Result);
+        var year = result.Reasons.Single(reason => reason.Fact == "year");
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, year.State);
+        Assert.Equal("1999", year.YourFile);
+        Assert.Null(year.Result);
+        Assert.Equal(EditorMatchVerdicts.Strong, result.Verdict);
+    }
+
+    [Fact]
+    public async Task ACompareRow_ForAnIsbnOnlyTheRecordCarries_ShowsItOnTheResultSide()
+    {
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan", extra: new() { ["isbn"] = "9781423103349" }));
+
+        var isbn = result.Reasons.Single(reason => reason.Fact == "identifier");
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, isbn.State);
+        Assert.Null(isbn.YourFile);
+        Assert.Equal("9781423103349", isbn.Result);
+    }
+
+    [Fact]
+    public async Task AMovieResult_ComparesTitleYearAndRuntime_WithTheMeasuredAndTheRoundedLength()
+    {
+        var movie = Movie("Arrival.2016.mkv", durationSeconds: 6981);
+        _search.Candidates = [Candidate("329865", "Arrival", "2016", director: "Denis Villeneuve", runtimeMinutes: "116")];
+
+        var found = await Service().SearchForKindAsync(movie, EditorKinds.Movie, Request("Arrival", "2016"));
+
+        var result = Assert.Single(found!.Results);
+        Assert.Equal(["title", "year", "runtime", "identifier"], result.Reasons.Select(reason => reason.Fact).ToArray());
+        var runtime = result.Reasons.Single(reason => reason.Fact == "runtime");
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, runtime.State);
+        Assert.Equal("1:56:21", runtime.YourFile);
+        Assert.Equal("116 min", runtime.Result);
+    }
+
+    [Fact]
+    public async Task AResultWhoseTitleCarriesABoxSetWord_IsMarkedACollection()
+    {
+        var box = await SearchBook(Candidate("OL2W", "Percy Jackson: The Complete Series", "2026", author: "Rick Riordan"));
+        Assert.True(box.IsCollection);
+    }
+
+    [Fact]
+    public async Task ASingleBook_IsNotMarkedACollection()
+    {
+        var single = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"));
+        Assert.False(single.IsCollection);
+    }
+
+    [Fact]
+    public async Task AResultTheProviderCallsACollection_IsMarkedACollection_WhateverItsTitle()
+    {
+        var flagged = await SearchBook(Candidate("OL3W", "Books I to III", "2014", author: "Rick Riordan", extra: new() { ["is_collection"] = "true" }));
+        Assert.True(flagged.IsCollection);
+    }
+
+    [Fact]
+    public async Task AResultTheProviderPlacesInASeries_CarriesTheSeriesNameAndNumber()
+    {
+        var result = await SearchBook(Candidate(
+            "OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan",
+            extra: new() { ["series"] = "Percy Jackson and the Olympians", ["series_position"] = "2.0" }));
+
+        Assert.Equal("Percy Jackson and the Olympians", result.SeriesName);
+        Assert.Equal("2", result.SeriesNumber);
+    }
+
+    [Fact]
+    public async Task AResultWithNoSeriesFromTheProvider_CarriesNoSeriesFacts()
+    {
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"));
+
+        Assert.Null(result.SeriesName);
+        Assert.Null(result.SeriesNumber);
     }
 
     // ── Videos and typed identifiers ──────────────────────────────────────────
@@ -548,7 +686,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         var runtime = Assert.Single(good.Reasons, reason => reason.Fact == "runtime");
         Assert.Equal(EditorMatchEvidenceStates.Agrees, runtime.State);
         Assert.Equal("45:52 measured · 46 min (rounded)", runtime.Note);
-        Assert.Equal(EditorMatchVerdicts.Check, bad.Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, bad.Verdict);
         Assert.Equal(right, good.Candidate);
     }
 

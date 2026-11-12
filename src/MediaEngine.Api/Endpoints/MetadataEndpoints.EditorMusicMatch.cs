@@ -22,7 +22,7 @@ public static partial class MetadataEndpoints
             var judged = await match.JudgeCandidateAsync(entityId, request.Candidate, ct);
             return judged is null ? ApiErrors.NotFound("Match verdict was not found.") : Results.Ok(judged);
         }).WithName("GetEditorMatchVerdict")
-          .WithSummary("Judges a record the person picked in the TV or music flow against the item's file (Strong, Possible or Check) with its reasons. Writes nothing.")
+          .WithSummary("Judges a record the person picked in the TV or music flow against the item's file (Strong, Possible or Weak) with its reasons. Writes nothing.")
           .Produces<EditorMatchResultDto>(StatusCodes.Status200OK)
           .ProducesProblem(StatusCodes.Status404NotFound)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)

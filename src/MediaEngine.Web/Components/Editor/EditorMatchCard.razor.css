@@ -1,0 +1,197 @@
+/* The Match card (universal editor v6, WP3): cover and facts, the verdict line, the compare table, then the foot. Type comes from the named scale. */
+.tl-mcard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+    min-width: 0;
+    padding: var(--tl-space-5);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+}
+
+.tl-mcard__top {
+    display: flex;
+    gap: var(--tl-space-5);
+    min-width: 0;
+}
+
+/* The cover keeps its drawn shape: portrait for books and films, 16:9 for episodes, square for music. */
+.tl-mcard__cover {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    height: 210px;
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-muted);
+}
+
+.tl-mcard[data-art="wide"] .tl-mcard__cover {
+    width: 240px;
+    height: 135px;
+}
+
+.tl-mcard[data-art="square"] .tl-mcard__cover {
+    width: 160px;
+    height: 160px;
+}
+
+.tl-mcard__cover-empty {
+    display: inline-flex;
+}
+
+.tl-mcard__head {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.tl-mcard__title {
+    margin: 0;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
+    overflow-wrap: anywhere;
+}
+
+.tl-mcard__meta {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: var(--tl-type-secondary-weight);
+}
+
+.tl-mcard__provider {
+    display: flex;
+    align-items: center;
+}
+
+/* Two lines, folded; Read more opens the rest. */
+.tl-mcard__desc {
+    display: -webkit-box;
+    margin: var(--tl-space-2) 0 0;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.tl-mcard__desc[data-expanded="true"] {
+    display: block;
+}
+
+.tl-mcard__verdict {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    padding-top: var(--tl-space-3);
+    border-top: 1px solid var(--tl-divider);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
+}
+
+.tl-mcard__verdict[data-verdict="strong"] {
+    color: var(--tl-status-success);
+}
+
+.tl-mcard__verdict[data-verdict="possible"] {
+    color: var(--tl-status-warning);
+}
+
+.tl-mcard__verdict[data-verdict="weak"] {
+    color: var(--tl-status-danger);
+}
+
+.tl-mcard__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
+}
+
+.tl-mcard__table th[scope="col"] {
+    padding: var(--tl-space-2);
+    border-bottom: 1px solid var(--tl-divider);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
+    font-weight: var(--tl-type-caption-weight);
+    text-align: start;
+}
+
+.tl-mcard__table th[scope="row"] {
+    color: var(--tl-text-secondary);
+    font-weight: var(--tl-type-body-weight);
+    text-align: start;
+}
+
+.tl-mcard__table th[scope="row"],
+.tl-mcard__table td {
+    padding: var(--tl-space-2);
+    border-bottom: 1px solid var(--tl-border-subtle);
+    overflow-wrap: anywhere;
+}
+
+.tl-mcard__none {
+    color: var(--tl-text-muted);
+}
+
+/* The last column is the mark: a tick, a cross or a dash, in a fixed slot so the rows line up. */
+.tl-mcard__table th:last-child,
+.tl-mcard__mark {
+    width: 2rem;
+    text-align: end;
+}
+
+.tl-mcard__tick,
+.tl-mcard__cross,
+.tl-mcard__dash {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.tl-mcard__tick {
+    color: var(--tl-status-success);
+}
+
+.tl-mcard__cross {
+    color: var(--tl-status-danger);
+}
+
+.tl-mcard__dash {
+    color: var(--tl-text-muted);
+}
+
+.tl-mcard__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--tl-space-4);
+}
+
+.tl-mcard__basis {
+    display: flex;
+    flex: 1 1 14rem;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: var(--tl-type-secondary-weight);
+}
+
+.tl-mcard__actions {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--tl-space-2);
+    margin-inline-start: auto;
+}
