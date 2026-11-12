@@ -66,6 +66,12 @@ public partial interface IEngineApiClient
 
     Task<RefreshTextTracksResponse?> RefreshTextTracksAsync(Guid assetId, string kind, CancellationToken ct = default);
 
+    /// <summary>Queues a lyrics or subtitle lookup and answers at once with the queued operation (it does not wait for the lookup). Null when the Engine refused or could not be reached.</summary>
+    Task<RefreshTextTracksResponse?> QueueTextTrackRefreshAsync(Guid assetId, string kind, CancellationToken ct = default);
+
+    /// <summary>How one queued lookup of this asset is going (open to any profile that may queue it). Null when it could not be read right now.</summary>
+    Task<RefreshTextTracksResponse?> GetTextTrackRefreshStatusAsync(Guid assetId, Guid operationId, CancellationToken ct = default);
+
     Task<RefreshTextTracksResponse?> ImportTextTrackAsync(
         Guid assetId, string kind, string language, string fileName, string contentType, Stream content, CancellationToken ct = default);
 
