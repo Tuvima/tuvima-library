@@ -80,6 +80,29 @@ public sealed class DisplayVisibleWorkReaderTests : IDisposable
         Assert.Equal("NC-17", light.Single(row => row.WorkId == seeded.TwoAssets).ContentRating);
     }
 
+    [Fact]
+    public async Task LoadAsync_ReturnsTheSameFileAndPresentedTimeAsTheFullProjection()
+    {
+        // The People section builds the viewer's file list from the light rows, so the file chosen for each work and when it was
+        // presented (which decides a viewer's primary file) must agree with the full read.
+        Seed();
+
+        var full = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None);
+        var light = await new DisplayVisibleWorkReader(_db).LoadAsync(CancellationToken.None);
+
+        var lightByKey = light.ToDictionary(row => (row.WorkId, row.LibraryId));
+        foreach (var row in full)
+        {
+            var match = lightByKey[(row.WorkId, row.LibraryId)];
+            Assert.Equal(row.AssetId, match.AssetId);
+            // A work with no metadata claim is stamped with "now" by each read separately, so only claimed files compare exactly.
+            if (row.CreatedAt < DateTimeOffset.UtcNow.AddMinutes(-1))
+            {
+                Assert.Equal(row.CreatedAt, match.CreatedAt);
+            }
+        }
+    }
+
     public void Dispose()
     {
         _db.Dispose();

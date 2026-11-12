@@ -7,6 +7,8 @@
 @inject IEngineApiClient ApiClient
 @inject ILogger<ContinueLandscapeTile> Logger
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 @* One landscape Continue tile (One tile design D8): the picture with a play mark bottom-left and a progress bar along its bottom edge, and under
    it the title (or "S3 E8 · Episode title") and then the rating and year. This is the one tile that keeps text underneath. Tapping it plays;
    its "..." menu starts with "Go to ..." (the title's own page), then Add to My List, Restart, Remove from Continue, Open Universe, Edit and
@@ -37,6 +39,11 @@
                 else if (!string.IsNullOrWhiteSpace(BackdropUrl))
                 {
                     <img class="continue-tile__backdrop" src="@MediaTileArtworkUrl.ForDrawnSize(BackdropUrl, 640)" alt="" loading="lazy" decoding="async" />
+                    @if (WantsSavedFrame)
+                    {
+                        @* The frame at the saved position (issue 891): drawn over the hero picture once the preview index has loaded. *@
+                        <div class="continue-tile__frame-at-position" @ref="_frameElement" data-asset="@Item.AssetId" data-position="@Item.PositionSeconds?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)" aria-hidden="true"></div>
+                    }
                 }
                 else if (!string.IsNullOrWhiteSpace(CoverUrl))
                 {
@@ -65,6 +72,48 @@
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
 
     private bool _hidden;
+    private ElementReference _frameElement;
+    private IJSObjectReference? _frameModule;
+
+    // Movies and TV show the frame at the saved position when the Engine made previews; the hero picture stays underneath as the fallback.
+    private bool WantsSavedFrame => IsWatch && Item.AssetId is not null && Item.PositionSeconds is > 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !WantsSavedFrame || _hidden)
+        {
+            return;
+        }
+
+        try
+        {
+            _frameModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/continue-frame.js");
+            await _frameModule.InvokeVoidAsync("attach", _frameElement);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // The circuit is gone or prerendering: the hero picture simply stays.
+            Logger.LogDebug(ex, "Saved frame not attached for {Title}.", Item.Title);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_frameModule is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _frameModule.InvokeVoidAsync("detach", _frameElement);
+            await _frameModule.DisposeAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "Saved frame module already gone.");
+        }
+    }
 
     private string Title => Item.EpisodeContext?.ShowTitle ?? Item.Title;
     private string ResumeUrl => Item.PrimaryNavigationUrl ?? Item.NavigationUrl;

@@ -156,4 +156,32 @@ public partial class MediaBrowseShell
         AudioDrag.Clear();
         return Task.CompletedTask;
     }
+
+    // ---- The phone Songs header (music table spec D21) -------------------------------------------------------------
+
+    // A sort chosen in the phone header (or remembered for the profile). The browse sort menu still works; choosing there takes over again.
+    private SongSortState? _phoneSongSort;
+
+    private bool UsePhoneSongsHeader => DeviceContext.IsPhone && IsMusicSongsGrouping && UseListLayout;
+
+    private SongSortState SongListSort => _phoneSongSort ?? BrowseQueryBuilder.SongListSort(_sortBy);
+
+    private Task OnPhoneSongsSortAsync(SongSortState sort)
+    {
+        _phoneSongSort = sort;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnPhoneSongsSearchAsync(string text)
+    {
+        _searchText = text;
+        await OnSearchChanged(text);
+    }
+
+    // Play and Shuffle play the list as sorted and filtered on screen: the page's own filters decide the songs, the table's sort rules the order.
+    private async Task PlayPhoneSongsAsync(bool shuffle)
+    {
+        var ordered = SongList.Ordered(SongTracks, SongTablePlace.Songs, SongListSort, SongFavoriteIds);
+        await PlaySongTracksAsync(ordered, null, "All Songs", shuffle);
+    }
 }

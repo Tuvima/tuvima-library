@@ -932,6 +932,9 @@
   <data name="AudioItemTable_ShowMissingTracks" xml:space="preserve">
     <value>Show missing tracks</value>
   </data>
+  <data name="MusicTrackList_TracksOwned" xml:space="preserve">
+    <value>{0} of {1} tracks owned</value>
+  </data>
   <data name="Common_Title" xml:space="preserve">
     <value>Title</value>
   </data>
@@ -944,9 +947,6 @@
   <data name="AudioItemTable_NoMatchTheCurrentView" xml:space="preserve">
     <value>No {0} match the current view.</value>
   </data>
-  <data name="AudioItemTable_NoOwnedTracksMatchThe" xml:space="preserve">
-    <value>No owned tracks match the current view.</value>
-  </data>
   <data name="Common_Play" xml:space="preserve">
     <value>Play</value>
   </data>
@@ -955,9 +955,6 @@
   </data>
   <data name="Common_AddToQueue" xml:space="preserve">
     <value>Add to queue</value>
-  </data>
-  <data name="AudioItemTable_DragToQueueOrPlaylist" xml:space="preserve">
-    <value>Drag to queue or playlist</value>
   </data>
   <data name="AudiobookTracksContent_Audiobook" xml:space="preserve">
     <value>Audiobook</value>
@@ -1508,23 +1505,11 @@
   <data name="Common_Song" xml:space="preserve">
     <value>Song</value>
   </data>
-  <data name="Common_ArtistAndAlbum" xml:space="preserve">
-    <value>Artist and album</value>
-  </data>
   <data name="Common_Time" xml:space="preserve">
     <value>Time</value>
   </data>
-  <data name="ListenSongTable_ShowMoreSongsLeft" xml:space="preserve">
-    <value>Show more songs ({0} left)</value>
-  </data>
-  <data name="Common_ToggleFavorite" xml:space="preserve">
-    <value>Toggle favorite</value>
-  </data>
   <data name="Common_PlaySong" xml:space="preserve">
     <value>Play song</value>
-  </data>
-  <data name="ListenSongTable_OpenAlbum" xml:space="preserve">
-    <value>Open album</value>
   </data>
   <data name="ListenSongTable_DeleteFromLibrary" xml:space="preserve">
     <value>Delete from library…</value>
@@ -1751,12 +1736,6 @@
   <data name="BookReader_NothingInThisBookMatches" xml:space="preserve">
     <value>Nothing in this book matches “{0}”.</value>
   </data>
-  <data name="BookReader_BookmarkThisPage" xml:space="preserve">
-    <value>Bookmark this page</value>
-  </data>
-  <data name="BookReader_NoBookmarksYet" xml:space="preserve">
-    <value>No bookmarks yet.</value>
-  </data>
   <data name="BookReader_NoHighlightsYetSelectSome" xml:space="preserve">
     <value>No highlights yet. Select some text in the book to make one.</value>
   </data>
@@ -1784,26 +1763,8 @@
   <data name="Common_TryAgain" xml:space="preserve">
     <value>Try again</value>
   </data>
-  <data name="BookReader_ReturnToLibrary" xml:space="preserve">
-    <value>Return to Library</value>
-  </data>
-  <data name="BookReader_BackToLibrary" xml:space="preserve">
-    <value>Back to library</value>
-  </data>
-  <data name="BookReader_ReaderTools" xml:space="preserve">
-    <value>Reader tools</value>
-  </data>
   <data name="BookReader_SearchInThisBook" xml:space="preserve">
     <value>Search in this book</value>
-  </data>
-  <data name="BookReader_Contents" xml:space="preserve">
-    <value>Contents</value>
-  </data>
-  <data name="BookReader_BookmarksAndHighlights" xml:space="preserve">
-    <value>Bookmarks and highlights</value>
-  </data>
-  <data name="BookReader_ReadingSettings" xml:space="preserve">
-    <value>Reading settings</value>
   </data>
   <data name="BookReader_HighlightTheSelectedText" xml:space="preserve">
     <value>Highlight the selected text</value>
@@ -1823,9 +1784,6 @@
   <data name="BookReader_AddANote" xml:space="preserve">
     <value>Add a note</value>
   </data>
-  <data name="BookReader_SavedPlaces" xml:space="preserve">
-    <value>Saved places</value>
-  </data>
   <data name="Common_DeleteBookmark" xml:space="preserve">
     <value>Delete bookmark</value>
   </data>
@@ -1834,6 +1792,12 @@
   </data>
   <data name="BookReader_OpeningBook" xml:space="preserve">
     <value>Opening book</value>
+  </data>
+  <data name="BookReader_Highlights" xml:space="preserve">
+    <value>Highlights</value>
+  </data>
+  <data name="BookReader_BookmarkRemoved" xml:space="preserve">
+    <value>Bookmark removed.</value>
   </data>
   <data name="ChronicleExplorer_ChronicleExplorer" xml:space="preserve">
     <value>Chronicle Explorer - {0}</value>
@@ -2171,9 +2135,6 @@
   <data name="ListenPage_ThisPlaylistIsEmpty" xml:space="preserve">
     <value>This playlist is empty.</value>
   </data>
-  <data name="ListenPage_QueueEditRemove" xml:space="preserve">
-    <value>Queue / Edit / Remove</value>
-  </data>
   <data name="Common_Length" xml:space="preserve">
     <value>Length</value>
   </data>
@@ -2260,12 +2221,6 @@
   </data>
   <data name="ListenPage_SearchSongsArtistsOrAlbums" xml:space="preserve">
     <value>Search songs, artists, or albums</value>
-  </data>
-  <data name="ListenPage_PlaylistDisplayOptions" xml:space="preserve">
-    <value>Playlist display options</value>
-  </data>
-  <data name="ListenPage_EditSong" xml:space="preserve">
-    <value>Edit song</value>
   </data>
   <data name="ListenPage_RemoveFromPlaylist" xml:space="preserve">
     <value>Remove from playlist</value>
@@ -6932,9 +6887,6 @@
   <data name="AppTimelineNavigator_JumpToPeriod" xml:space="preserve">
     <value>Jump to period</value>
   </data>
-  <data name="Common_Everyone" xml:space="preserve">
-    <value>· Everyone</value>
-  </data>
   <data name="Glossary_Bookmarks" xml:space="preserve">
     <value>Bookmarks</value>
   </data>
@@ -9220,6 +9172,9 @@
   </data>
   <data name="MediaTile_RemoveFromMyList" xml:space="preserve">
     <value>Remove from My List</value>
+  </data>
+  <data name="MediaTile_VideoCollection" xml:space="preserve">
+    <value>Video collection</value>
   </data>
   <data name="MediaTile_GettingDetails" xml:space="preserve">
     <value>Getting details</value>
@@ -12521,29 +12476,8 @@
   <data name="PlaybackIdentity_ItemActions" xml:space="preserve">
     <value>Item actions</value>
   </data>
-  <data name="PageReader_Reader" xml:space="preserve">
-    <value>Reader</value>
-  </data>
-  <data name="PageReader_BackToLibrary" xml:space="preserve">
-    <value>Back to Library</value>
-  </data>
-  <data name="PageReader_ReaderTools" xml:space="preserve">
-    <value>Reader tools</value>
-  </data>
-  <data name="PageReader_ReadingSettings" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-  <data name="PageReader_Close" xml:space="preserve">
-    <value>Close</value>
-  </data>
   <data name="PageReader_Page" xml:space="preserve">
     <value>Page</value>
-  </data>
-  <data name="PageReader_Opening" xml:space="preserve">
-    <value>Opening</value>
-  </data>
-  <data name="PageReader_TryAgain" xml:space="preserve">
-    <value>Try again</value>
   </data>
   <data name="PageReader_Layout" xml:space="preserve">
     <value>Layout</value>
@@ -12557,14 +12491,8 @@
   <data name="PageReader_Background" xml:space="preserve">
     <value>Background</value>
   </data>
-  <data name="PageReader_Search" xml:space="preserve">
-    <value>Search</value>
-  </data>
   <data name="PageReader_SearchInFile" xml:space="preserve">
     <value>Search in this file</value>
-  </data>
-  <data name="PageReader_Contents" xml:space="preserve">
-    <value>Contents</value>
   </data>
   <data name="PageReader_SearchHint" xml:space="preserve">
     <value>Type at least two letters, then press Enter.</value>
@@ -12587,35 +12515,11 @@
   <data name="PageReader_OnPage" xml:space="preserve">
     <value>Page {0}</value>
   </data>
-  <data name="PageReader_ClosePanel" xml:space="preserve">
-    <value>Close {0}</value>
-  </data>
-  <data name="PageReader_Bookmarks" xml:space="preserve">
-    <value>Bookmarks</value>
-  </data>
-  <data name="PageReader_BookmarkThisPage" xml:space="preserve">
-    <value>Bookmark this page</value>
-  </data>
-  <data name="PageReader_RemoveBookmark" xml:space="preserve">
-    <value>Remove the bookmark on this page</value>
-  </data>
   <data name="PageReader_BookmarkAdded" xml:space="preserve">
     <value>Bookmarked page {0}.</value>
   </data>
   <data name="PageReader_BookmarkRemoved" xml:space="preserve">
     <value>Removed the bookmark on page {0}.</value>
-  </data>
-  <data name="PageReader_BookmarksEveryone" xml:space="preserve">
-    <value>Everyone</value>
-  </data>
-  <data name="PageReader_BookmarksMine" xml:space="preserve">
-    <value>Mine</value>
-  </data>
-  <data name="PageReader_NoBookmarksMine" xml:space="preserve">
-    <value>No bookmarks of yours yet. Use Bookmark this page to add one.</value>
-  </data>
-  <data name="PageReader_NoBookmarksEveryone" xml:space="preserve">
-    <value>Nothing has been shared with everyone yet.</value>
   </data>
   <data name="PageReader_DeleteBookmark" xml:space="preserve">
     <value>Delete bookmark</value>
@@ -12637,9 +12541,6 @@
   </data>
   <data name="PageReader_KeepBookmark" xml:space="preserve">
     <value>Keep it</value>
-  </data>
-  <data name="PageReader_Pages" xml:space="preserve">
-    <value>Pages</value>
   </data>
   <data name="PageReader_NextIn" xml:space="preserve">
     <value>Next in {0}</value>
@@ -13429,5 +13330,131 @@
   </data>
   <data name="ViewFoldersTab_TidyingNow" xml:space="preserve">
     <value>Tidying {0}. New files for this library wait until it finishes.</value>
+  </data>
+  <data name="SongTable_DateAdded" xml:space="preserve">
+    <value>Date added</value>
+  </data>
+  <data name="SongTable_Plays" xml:space="preserve">
+    <value>Plays</value>
+  </data>
+  <data name="SongTable_Genre" xml:space="preserve">
+    <value>Genre</value>
+  </data>
+  <data name="SongTable_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="SongTable_Owned" xml:space="preserve">
+    <value>Owned</value>
+  </data>
+  <data name="SongTable_Missing" xml:space="preserve">
+    <value>Missing</value>
+  </data>
+  <data name="SongTable_ResetColumns" xml:space="preserve">
+    <value>Reset columns</value>
+  </data>
+  <data name="SongTable_ResizeColumn" xml:space="preserve">
+    <value>Resize {0} column</value>
+  </data>
+  <data name="SongTable_SelectRow" xml:space="preserve">
+    <value>Select {0}</value>
+  </data>
+  <data name="SongTable_ActionsFor" xml:space="preserve">
+    <value>Actions for {0}</value>
+  </data>
+  <data name="SongTable_AddToFavorites" xml:space="preserve">
+    <value>Add to Favorites</value>
+  </data>
+  <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favorites</value>
+  </data>
+  <data name="SongTable_PlayTitle" xml:space="preserve">
+    <value>Play {0}</value>
+  </data>
+  <data name="SongTable_AddTitleToQueue" xml:space="preserve">
+    <value>Add {0} to queue</value>
+  </data>
+  <data name="SongTable_UpdatingDetails" xml:space="preserve">
+    <value>Updating details</value>
+  </data>
+  <data name="SongTable_MovedTo" xml:space="preserve">
+    <value>Moved {0} to position {1} of {2}.</value>
+  </data>
+  <data name="SongsHeader_Search" xml:space="preserve">
+    <value>Search Songs</value>
+  </data>
+  <data name="SongsHeader_SortAndFilter" xml:space="preserve">
+    <value>Sort and filter</value>
+  </data>
+  <data name="SongsHeader_SortAndFilterActive" xml:space="preserve">
+    <value>Sort and filter, {0} filters on</value>
+  </data>
+  <data name="SongsHeader_SortBy" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="SongsHeader_Ascending" xml:space="preserve">
+    <value>Ascending</value>
+  </data>
+  <data name="SongsHeader_Descending" xml:space="preserve">
+    <value>Descending</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="SongsHeader_JumpToLetter" xml:space="preserve">
+    <value>Jump to {0}</value>
+  </data>
+  <data name="SongsHeader_LetterIndex" xml:space="preserve">
+    <value>Letter index</value>
+  </data>
+  <data name="ReaderFrame_Reader" xml:space="preserve">
+    <value>Reader</value>
+  </data>
+  <data name="ReaderFrame_ReaderTools" xml:space="preserve">
+    <value>Reader tools</value>
+  </data>
+  <data name="ReaderFrame_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="ReaderFrame_Contents" xml:space="preserve">
+    <value>Contents</value>
+  </data>
+  <data name="ReaderFrame_Pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="ReaderFrame_BookmarkThisPage" xml:space="preserve">
+    <value>Bookmark this page</value>
+  </data>
+  <data name="ReaderFrame_RemoveBookmark" xml:space="preserve">
+    <value>Remove bookmark</value>
+  </data>
+  <data name="ReaderFrame_Bookmarks" xml:space="preserve">
+    <value>Bookmarks</value>
+  </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Mine</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Everyone</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>No bookmarks of yours yet. Use Bookmark this page to add one.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Nothing has been shared with everyone yet.</value>
+  </data>
+  <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
+    <value>Reading settings</value>
+  </data>
+  <data name="ReaderFrame_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="ReaderFrame_ClosePanel" xml:space="preserve">
+    <value>Close {0}</value>
+  </data>
+  <data name="ReaderFrame_Opening" xml:space="preserve">
+    <value>Opening</value>
+  </data>
+  <data name="ReaderFrame_TryAgain" xml:space="preserve">
+    <value>Try again</value>
   </data>
 </root>

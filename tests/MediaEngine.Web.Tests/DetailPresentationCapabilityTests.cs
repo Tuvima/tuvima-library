@@ -159,7 +159,7 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
         Assert.NotNull(progress);
         Assert.Equal("98", progress!.GetAttribute("aria-valuenow"));
         Assert.Equal("Continue listening - 98% listened", progress.GetAttribute("aria-label"));
-        Assert.Contains("98% listened", primary.TextContent);
+        Assert.Contains("98%", primary.TextContent);
         Assert.Contains("width:98%", primary.InnerHtml);
     }
 

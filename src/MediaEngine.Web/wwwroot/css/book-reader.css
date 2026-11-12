@@ -1,62 +1,47 @@
 /* ============================================================================
-   Book reader (BR2) — Tuvima Library
-   Chrome around the foliate-js book view. The book itself is drawn by the library
-   inside sandboxed frames; this file only styles the shell, bars and overlays.
-   Everything is prefixed br- so it can never touch the current reader (reader-*).
-   Loaded by BookReader.razor, so it ships only when a book is open.
+   Book reader - Tuvima Library
+   What is specific to a book: the stage the foliate-js view is drawn in, the four reading themes and the highlight tools. The shell,
+   the top line, the bottom line, the panel and its contents (rows, search, fields) and the opening and "can't open" states are the
+   one reader frame (reader-frame.css, spec music-table-and-reader-frame D12-D19).
+   The book view itself is drawn by the library inside sandboxed frames. Everything is prefixed br- so it can never touch the
+   current reader (reader-*). Loaded by BookReader.razor, so it ships only when a book is open.
    ============================================================================ */
 
-.br-shell {
-    --br-page: #faf8f2;
-    --br-bg: #ddd8cf;
-    --br-chrome-bg: rgba(246, 242, 235, 0.96);
-    --br-chrome-border: rgba(25, 25, 25, 0.14);
-    --br-chrome-text: #25282e;
-    --br-chrome-dim: #60656b;
-    --br-focus: #8852fc;
+/* ── Themes: the book's colours become the frame's three variables ──────── */
 
-    position: fixed;
-    inset: 0;
-    overflow: hidden;
-    background: var(--br-page);
-    color: var(--br-chrome-text);
+.rf-shell.br-reader {
+    --rf-page: #faf8f2;
+    --rf-text: #25282e;
+    --rf-accent: #8852fc;
 }
 
-.br-theme-dark {
-    --br-page: #101319;
-    --br-bg: #060a16;
-    --br-chrome-bg: rgba(6, 10, 22, 0.92);
-    --br-chrome-border: rgba(255, 255, 255, 0.08);
-    --br-chrome-text: rgba(248, 248, 248, 0.88);
-    --br-chrome-dim: rgba(248, 248, 248, 0.55);
+.rf-shell.br-reader.br-theme-dark {
+    --rf-page: #101319;
+    --rf-text: rgba(248, 248, 248, 0.88);
+    --rf-accent: #a46fff;
 }
 
-.br-theme-sepia {
-    --br-page: #eee0bd;
-    --br-bg: #bfae90;
-    --br-chrome-bg: rgba(226, 211, 180, 0.96);
-    --br-chrome-border: rgba(66, 45, 27, 0.16);
-    --br-chrome-text: #493726;
-    --br-chrome-dim: #715d49;
+.rf-shell.br-reader.br-theme-sepia {
+    --rf-page: #eee0bd;
+    --rf-text: #493726;
+    --rf-accent: #8852fc;
 }
 
 @media (prefers-color-scheme: dark) {
-    .br-theme-system {
-        --br-page: #101319;
-        --br-bg: #060a16;
-        --br-chrome-bg: rgba(6, 10, 22, 0.92);
-        --br-chrome-border: rgba(255, 255, 255, 0.08);
-        --br-chrome-text: rgba(248, 248, 248, 0.88);
-        --br-chrome-dim: rgba(248, 248, 248, 0.55);
+    .rf-shell.br-reader.br-theme-system {
+        --rf-page: #101319;
+        --rf-text: rgba(248, 248, 248, 0.88);
+        --rf-accent: #a46fff;
     }
 }
 
 /* ── Book stage ─────────────────────────────────────────────────────────── */
 
+/* The book fills the screen; the frame's bars float over it and give the page its own safe area (the script measures them). */
 .br-stage {
     position: absolute;
     inset: 0;
-    background: var(--br-page);
+    background: var(--rf-page);
     touch-action: pan-y pinch-zoom;
 }
 
@@ -66,109 +51,14 @@
     height: 100%;
 }
 
-/* The book fills the screen; the bars float over it and give the page its own safe area. */
-.br-shell[data-state="loading"] .br-stage,
-.br-shell[data-state="error"] .br-stage {
-    visibility: hidden;
-}
+/* ── Bottom line contents (chapter and percent) ─────────────────────────── */
 
-/* ── Bars ───────────────────────────────────────────────────────────────── */
-
-.br-bar {
-    position: absolute;
-    left: 0;
-    right: 0;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding-left: max(0.75rem, env(safe-area-inset-left));
-    padding-right: max(0.75rem, env(safe-area-inset-right));
-    background: var(--br-chrome-bg);
-    border-color: var(--br-chrome-border);
-    border-style: solid;
-    border-width: 0;
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0s;
-}
-
-.br-bar--top {
-    top: 0;
-    min-height: 3.5rem;
-    padding-top: env(safe-area-inset-top);
-    border-bottom-width: 1px;
-}
-
-.br-bar--bottom {
-    bottom: 0;
-    min-height: 2.5rem;
-    padding-bottom: env(safe-area-inset-bottom);
-    border-top-width: 1px;
-    justify-content: space-between;
-    font-size: var(--tl-font-size-sm, 0.875rem);
-    color: var(--br-chrome-dim);
-}
-
-.br-bar--top.br-bar--hidden {
-    transform: translateY(-100%);
-    opacity: 0;
-    visibility: hidden;
-    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0.2s;
-}
-
-.br-bar--bottom.br-bar--hidden {
-    transform: translateY(100%);
-    opacity: 0;
-    visibility: hidden;
-    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0.2s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .br-bar,
-    .br-bar--top.br-bar--hidden,
-    .br-bar--bottom.br-bar--hidden {
-        transition: none;
-    }
-}
-
-/* The reader's icon buttons are the shared AppIconButton (Plain). The reader only gives them its round shape (the shared
-   --app-icon-button-radius hook) and, on its two bars, its chrome text colour through the text token the Plain button reads.
-   The highlight float is not a bar: it sits on the app's own elevated surface, so its buttons keep the app text colour. */
-.br-shell {
-    --app-icon-button-radius: 50%;
-}
-
-.br-bar {
-    --tl-text-primary: var(--br-chrome-text);
-}
-
-.br-title {
+.br-section {
     min-width: 0;
     flex: 1 1 auto;
-}
-
-.br-title-book,
-.br-title-author,
-.br-section {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.br-title-book {
-    font-size: var(--tl-font-size-md, 1rem);
-    font-weight: 600;
-}
-
-.br-title-author {
-    font-size: var(--tl-font-size-xs, 0.75rem);
-    color: var(--br-chrome-dim);
-}
-
-.br-section {
-    min-width: 0;
-    flex: 1 1 auto;
 }
 
 .br-percent {
@@ -176,165 +66,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* ── Loading and error ──────────────────────────────────────────────────── */
-
-.br-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    display: grid;
-    place-items: center;
-    padding: 1.5rem;
-    background: var(--br-page);
-    color: var(--br-chrome-text);
-}
-
-/* ── Narrow screens: tighter bar, bigger type stays readable ─────────────── */
-
-@media (max-width: 480px) {
-    .br-title-author {
-        display: none;
-    }
-}
-
-/* ── Tools in the top bar (BR3) ─────────────────────────────────────────── */
-
-.br-actions {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 0.125rem;
-}
-
-.app-icon-button.br-icon-btn--on,
-.app-icon-button.br-icon-btn--on:hover {
-    background: var(--br-chrome-border);
-}
-
-/* ── Side panel (a bottom sheet on phones) ──────────────────────────────── */
-
-.br-scrim {
-    position: absolute;
-    inset: 0;
-    z-index: 4;
-    background: rgba(0, 0, 0, 0.35);
-}
-
-.br-scrim--clear {
-    z-index: 5;
-    background: transparent;
-}
-
-.br-panel {
-    position: absolute;
-    z-index: 6;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    inline-size: min(26rem, 100%);
-    display: flex;
-    flex-direction: column;
-    padding-right: env(safe-area-inset-right);
-    background: var(--tl-bg-surface-elevated, #1b1f2a);
-    color: var(--tl-text-primary, #f2f2f2);
-    border-left: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.12));
-    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.3);
-}
-
-.br-panel-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.5rem 1rem;
-    border-bottom: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.12));
-}
-
-.br-panel-title {
-    margin: 0;
-    font-size: var(--tl-font-size-md, 1rem);
-    font-weight: 600;
-}
-
-.br-panel-body {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    flex: 1 1 auto;
-    min-block-size: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
-}
-
-.br-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.br-item {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.br-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.125rem;
-    inline-size: 100%;
-    min-block-size: 2.75rem;
-    padding: 0.5rem 0.75rem;
-    border: 0;
-    border-radius: var(--tl-radius-md, 0.5rem);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: start;
-    cursor: pointer;
-}
-
-.br-row--grow {
-    flex: 1 1 auto;
-    min-inline-size: 0;
-}
-
-.br-row:hover {
-    background: var(--tl-bg-surface-hover, rgba(255, 255, 255, 0.08));
-}
-
-.br-row:focus-visible,
-.br-swatch:focus-visible {
-    outline: 2px solid var(--br-focus);
-    outline-offset: 2px;
-}
-
-.br-row--current {
-    color: var(--br-focus);
-    font-weight: 600;
-}
-
-.br-row--level1 { padding-inline-start: 1.5rem; }
-.br-row--level2 { padding-inline-start: 2.25rem; }
-.br-row--level3 { padding-inline-start: 3rem; }
-
-.br-row-main,
-.br-row-sub {
-    max-inline-size: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.br-row-main {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-}
+/* ── Highlight rows in the Bookmarks panel (the shared rows are rf-* in reader-frame.css) ── */
 
 .br-row-main--quote {
     border-inline-start: 3px solid #eab308;
@@ -347,67 +79,24 @@
 .br-row-main--quote[data-color="#A78BFA" i] { border-color: #a78bfa; }
 .br-row-main--quote[data-color="#EAB308" i] { border-color: #eab308; }
 
-.br-row-sub {
-    font-size: var(--tl-font-size-xs, 0.75rem);
-    color: var(--tl-text-muted, #9aa0aa);
-    white-space: nowrap;
-}
-
-.br-search {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.br-search-input {
-    flex: 1 1 auto;
-    min-inline-size: 0;
-    min-block-size: 2.75rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.18));
-    border-radius: var(--tl-radius-md, 0.5rem);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-}
-
-.br-search-input:focus-visible {
-    outline: 2px solid var(--br-focus);
+.br-swatch:focus-visible {
+    outline: 2px solid var(--rf-accent);
     outline-offset: 2px;
 }
 
-.br-search-match {
-    padding: 0 0.125rem;
-    border-radius: 0.125rem;
-    background: rgba(234, 179, 8, 0.35);
-    color: inherit;
-}
-
-.br-empty,
-.br-hint {
-    margin: 0;
-    font-size: var(--tl-font-size-sm, 0.875rem);
-    color: var(--tl-text-muted, #9aa0aa);
-}
-
-.br-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.br-field-label {
-    font-size: var(--tl-font-size-sm, 0.875rem);
-    font-weight: 600;
-}
-
 /* ── Highlight tools floating over the page ─────────────────────────────── */
+
+/* The highlight card's dim: it catches the tap that closes the card and draws nothing. */
+.br-scrim {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+}
 
 .br-float {
     --br-half: 9rem;
     box-sizing: border-box;
     position: absolute;
-    z-index: 6;
     left: clamp(var(--br-half), var(--br-fx, 50%), calc(100% - var(--br-half)));
     top: min(var(--br-fy, 50%), calc(100% - 3.5rem));
     transform: translateX(-50%);
@@ -473,9 +162,8 @@
 
 .br-notice {
     position: absolute;
-    z-index: 7;
     left: 50%;
-    top: calc(4rem + env(safe-area-inset-top));
+    top: calc(var(--rf-bar-top) + env(safe-area-inset-top) + 0.5rem);
     transform: translateX(-50%);
     max-inline-size: calc(100% - 2rem);
     padding: 0.625rem 1rem;
@@ -486,51 +174,9 @@
     text-align: center;
 }
 
-/* ── Phones: the panel becomes a sheet from the bottom ──────────────────── */
-
-@media (max-width: 600px) {
-    .br-panel {
-        top: auto;
-        inline-size: 100%;
-        max-block-size: 78dvh;
-        padding-right: 0;
-        border-left: 0;
-        border-top: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.12));
-        border-radius: var(--tl-radius-xl, 1rem) var(--tl-radius-xl, 1rem) 0 0;
-        box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.3);
-    }
-
-    .br-panel-head {
-        padding-top: 0.5rem;
-    }
-}
-
-/* ── Big screens and TVs: larger controls, clearly visible focus ────────── */
-
-@media (min-width: 1600px) {
-    .br-shell .app-icon-button.app-control--normal,
-    .pr-shell .app-icon-button.app-control--normal {
-        --app-control-height: 3.5rem;
-    }
-
-    .br-panel {
-        inline-size: min(34rem, 100%);
-        font-size: var(--tl-font-size-dialog-title);
-    }
-
-    .br-title-book { font-size: var(--tl-font-size-dialog-title); }
-    .br-bar--bottom { font-size: var(--tl-font-size-lg); }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .br-float,
     .br-notice {
         transition: none;
     }
-}
-
-/* Keyboard focus on the readers' icon buttons is the thicker 3 px ring. */
-.br-shell .app-icon-button:focus-visible,
-.pr-shell .app-icon-button:focus-visible {
-    outline-width: 3px;
 }

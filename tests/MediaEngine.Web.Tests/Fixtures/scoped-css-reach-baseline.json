@@ -38,9 +38,6 @@
       "companion__row",
       "companion__spoiler-control"
     ],
-    "src/MediaEngine.Web/Components/Details/AudioItemTable.razor": [
-      "tl-detail-track-row__play"
-    ],
     "src/MediaEngine.Web/Components/Details/DetailHeroSkeleton.razor": [
       "tl-detail-skeleton__artwork",
       "tl-detail-skeleton__button",
@@ -101,11 +98,6 @@
     "src/MediaEngine.Web/Components/Library/StatusPill.razor": [
       "media-status-badge--muted"
     ],
-    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor": [
-      "listen-song-table__art-play",
-      "listen-song-table__head",
-      "listen-song-table__play-only"
-    ],
     "src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor": [
       "library-section-header__navigation"
     ],
@@ -140,10 +132,8 @@
       "home-discovery-seed-button"
     ],
     "src/MediaEngine.Web/Components/Pages/ListenPage.razor": [
-      "listen-detail__more-menu",
       "listen-filter-input",
       "listen-filter-select",
-      "listen-playlist-track-list__head",
       "listen-rail__add",
       "listen-rail__drag",
       "listen-rail__more",

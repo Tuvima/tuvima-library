@@ -279,9 +279,9 @@ public sealed class MediaTileComposerService
     private static string EyebrowForCard(DisplayCardDto card) =>
         card.MediaType switch
         {
-            "Book" or "Comic" => card.Progress is not null ? "Continue Reading" : "Read",
-            "Audiobook" or "Music" => card.Progress is not null ? "Continue Listening" : "Listen",
-            "Movie" or "TV" => card.Progress is not null ? "Continue Watching" : "Watch",
+            "Book" or "Comic" => card.Progress is not null ? "Resume" : "Read",
+            "Audiobook" or "Music" => card.Progress is not null ? "Resume" : "Listen",
+            "Movie" or "TV" => card.Progress is not null ? "Resume" : "Watch",
             _ => "From your library",
         };
 

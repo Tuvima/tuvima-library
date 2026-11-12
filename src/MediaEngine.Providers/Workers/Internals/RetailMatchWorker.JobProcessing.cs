@@ -29,6 +29,25 @@ public sealed partial class RetailMatchWorker
         bool AllowAcceptedTransition,
         string HintSource);
 
+    private const string IsbnRejectedHintSource = "isbn-rejected-retry";
+
+    /// <summary>
+    /// True when a book lookup that used the file's ISBN was rejected, so the same provider
+    /// should be asked again without the ISBN. Never retries a retry.
+    /// </summary>
+    internal static bool ShouldRetryWithoutIsbn(MediaType mediaType, string hintSource, bool hasIsbn, string outcome) =>
+        mediaType is MediaType.Books or MediaType.Audiobooks
+        && hasIsbn
+        && !string.Equals(hintSource, IsbnRejectedHintSource, StringComparison.Ordinal)
+        && outcome is "Rejected";
+
+    private static bool ShouldRetryWithoutIsbn(MediaType mediaType, ProviderAttempt attempt, string outcome) =>
+        ShouldRetryWithoutIsbn(
+            mediaType,
+            attempt.HintSource,
+            attempt.Hints.TryGetValue(BridgeIdKeys.Isbn, out var isbn) && !string.IsNullOrWhiteSpace(isbn),
+            outcome);
+
     private static bool TransitionMatches(string configuredOutcome, bool fallbackIdentityAccepted) =>
         configuredOutcome.ToLowerInvariant() switch
         {
@@ -597,6 +616,29 @@ public sealed partial class RetailMatchWorker
                             transitionAttempts,
                             transition.Provider);
                     }
+                }
+
+                // A store can answer an ISBN lookup with the wrong book (Apple does this for
+                // some series). When that answer is rejected, search the same provider again
+                // by title, author and series instead of giving up on the file.
+                if (ShouldRetryWithoutIsbn(mediaType, attempt, decision.Outcome)
+                    && providerRank < attemptBudget)
+                {
+                    var retryHints = new Dictionary<string, string>(attemptHints, StringComparer.OrdinalIgnoreCase);
+                    retryHints.Remove(BridgeIdKeys.Isbn);
+                    providerAttempts.Insert(
+                        attemptIndex + 1,
+                        new ProviderAttempt(
+                            pipelineEntry,
+                            retryHints,
+                            attempt.AllowAcceptedTransition,
+                            IsbnRejectedHintSource));
+
+                    _logger.LogInformation(
+                        "Provider {Provider} returned a rejected book for the file's ISBN on entity {EntityId} (title score {Score:F2}); retrying by title and author",
+                        providerName,
+                        job.EntityId,
+                        retailScore.TitleScore);
                 }
 
                 // Waterfall: stop after first accepted candidate

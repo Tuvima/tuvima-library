@@ -2,46 +2,27 @@
 @using System.Globalization
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Playback
-@using MediaEngine.Domain.Enums
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Editing
-@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
 @using Microsoft.AspNetCore.Components.Web
-@using MediaEngine.Web.Services.Ui
 @using MediaEngine.Web.Services.Theming
-@inject SavedItemService SavedItems
-@inject ListenAudioDragService AudioDrag
 @inject PlaybackSessionController Playback
-@inject UIOrchestratorService Orchestrator
 @inject DeviceContextService DeviceContext
-@inject NavigationManager Navigation
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
+@* The audiobook chapter list (spec music-table-and-reader-frame keeps it out of the shared song table). An album's tracks are drawn by
+   MusicTrackList on the one SongTable. *@
 @if (Items.Count > 0)
 {
-    @if (_favoriteNotice is not null)
-    {
-        <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _favoriteNotice = null)" data-audio-favorite-notice="true">@_favoriteNotice</AppAlert>
-    }
     @if (DeviceContext.IsPhone)
     {
-        <section class="@(IsAudiobook ? "tl-audio-item-cards tl-audio-item-cards--audiobook" : "tl-audio-item-cards")" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
-            @if (CompactToolbarLeadingContent is not null || SupportsMissingItems)
+        <section class="tl-audio-item-cards tl-audio-item-cards--audiobook" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
+            @if (CompactToolbarLeadingContent is not null)
             {
                 <header class="tl-audio-item-cards__toolbar">
-                    @if (CompactToolbarLeadingContent is not null)
-                    {
-                        <div class="tl-audio-item-cards__leading">@CompactToolbarLeadingContent</div>
-                    }
-                    @if (SupportsMissingItems)
-                    {
-                        <label class="tl-embedded-audio__missing">
-                            <AppNativeInput Type="checkbox" Checked="@_showMissingItems" OnChange="ToggleMissingItems" />
-                            <span>@L["AudioItemTable_ShowMissingTracks"]</span>
-                        </label>
-                    }
+                    <div class="tl-audio-item-cards__leading">@CompactToolbarLeadingContent</div>
                 </header>
             }
 
@@ -50,7 +31,7 @@
                 <thead>
                     <tr>
                         <th data-card-role="title">@L["Common_Title"]</th>
-                        <th data-card-role="subtitle">@(IsAudiobook ? "Progress" : "Artist")</th>
+                        <th data-card-role="subtitle">@L["Common_Progress"]</th>
                         <th data-card-role="value">@L["AudioItemTable_Duration"]</th>
                         <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
                     </tr>
@@ -81,22 +62,9 @@
                             <td data-card-role="subtitle">@CardSubtitle(item)</td>
                             <td data-card-role="value">@DisplayDuration(item)</td>
                             <td data-card-role="actions" class="tl-audio-item-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
-                                @if (!IsAudiobook && CanFavorite(item))
-                                {
-                                    <span @onclick:stopPropagation="true">
-                                        <AppIconButton Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" ButtonStyle="@(_favoriteIds.Contains(ItemId(item)) ? AppButtonStyle.Filled : AppButtonStyle.Text)" Soft="true" AriaLabel="@FavoriteLabel(item)" Tooltip="@FavoriteLabel(item)" OnClick="@(() => ToggleFavoriteAsync(item))" />
-                                    </span>
-                                }
-                                @if (IsAudiobook)
-                                {
-                                    <span @onclick:stopPropagation="true">
-                                        <AppIconButton Icon="@AppMaterialIcons.Filled.PlayArrow" ButtonStyle="AppButtonStyle.Text" AriaLabel="@($"Play {item.Title}")" Tooltip="@L["Common_Play"].Value" OnClick="@(() => PlayItemAsync(item))" />
-                                    </span>
-                                }
-                                else if (item.IsOwned)
-                                {
-                                    <AppRowMenu AriaLabel="@($"Actions for {item.Title}")" Title="@item.Title" Items="@CardMenuItems(item)" />
-                                }
+                                <span @onclick:stopPropagation="true">
+                                    <AppIconButton Icon="@AppMaterialIcons.Filled.PlayArrow" ButtonStyle="AppButtonStyle.Text" AriaLabel="@($"Play {item.Title}")" Tooltip="@L["Common_Play"].Value" OnClick="@(() => PlayItemAsync(item))" />
+                                </span>
                             </td>
                         </tr>
                     }
@@ -109,49 +77,33 @@
             }
         </section>
     }
-    else if (Compact)
+    else
     {
-        <section class="@CompactSectionClass" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
+        <section class="tl-embedded-audio tl-embedded-audio--audiobook" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
             <BulkSelectionBar />
-            @if (CompactToolbarLeadingContent is not null || SupportsMissingItems)
+            @if (CompactToolbarLeadingContent is not null)
             {
-            <header class="tl-embedded-audio__toolbar">
-                @if (CompactToolbarLeadingContent is not null)
-                {
+                <header class="tl-embedded-audio__toolbar">
                     <div class="tl-embedded-audio__toolbar-leading">
                         @CompactToolbarLeadingContent
                     </div>
-                }
-                @if (SupportsMissingItems)
-                {
-                    <div class="tl-embedded-audio__tools">
-                        <label class="tl-embedded-audio__missing">
-                            <AppNativeInput Type="checkbox" Checked="@_showMissingItems" OnChange="ToggleMissingItems" />
-                            <span>@L["AudioItemTable_ShowMissingTracks"]</span>
-                        </label>
-                    </div>
-                }
-            </header>
+                </header>
             }
 
             <div class="tl-embedded-audio__scroller">
                 <div class="tl-embedded-audio__table" role="table" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
-                    @for (var index = 0; index < CompactVisibleItems.Count; index++)
+                    @for (var index = 0; index < VisibleItems.Count; index++)
                     {
-                        var item = CompactVisibleItems[index];
+                        var item = VisibleItems[index];
                         var isPlaying = IsCurrentItem(item);
-                        @if (StartsUnnumberedGroup(CompactVisibleItems, index))
+                        @if (StartsUnnumberedGroup(VisibleItems, index))
                         {
                             <div class="tl-audio-item-table__group-heading" role="row"><span role="columnheader">@L["AudioItemTable_Unnumbered"]</span></div>
                         }
                         <div class="@CompactRowClass(item, isPlaying)"
                              role="row"
-                             draggable="@CanQueue(item)"
                              data-work-id="@item.Id"
-                             data-asset-id="@item.AssetId"
-                             @ondragstart="@(() => StartDrag(item))"
-                             @ondragend="EndDrag"
-                             @ondblclick="@(() => PlayItemAsync(item))">
+                             data-asset-id="@item.AssetId">
                             <div class="tl-embedded-audio__play-cell" role="cell">
                                 @if (isPlaying)
                                 {
@@ -172,216 +124,24 @@
                             </div>
                             <div class="tl-embedded-audio__ordinal" role="cell">@DisplayOrdinal(item, index)</div>
                             <div class="tl-embedded-audio__title" role="cell">
-                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" ParentId="@RowParentId" MediaType="@RowMediaType" />
+                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" ParentId="@RowParentId" MediaType="Audiobooks" />
                                 <strong>@item.Title</strong>
-                                @if (item.IsExplicit)
-                                {
-                                    <span>E</span>
-                                }
                                 @if (item.IsUnmatched)
                                 {
                                     <NotMatchedTag />
                                 }
                             </div>
                             <div class="tl-embedded-audio__duration" role="cell">@DisplayDuration(item)</div>
-                            @if (SupportsMissingItems)
-                            {
-                                <div class="tl-embedded-audio__status" role="cell">
-                                    <span class="@(item.IsOwned ? "is-owned" : "is-missing")">
-                                        <AppMaterialIcon Icon="@(item.IsOwned ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.CloudOff)" Size="AppIconSize.Control20" />
-                                        <span>@(item.IsOwned ? "Owned" : "Missing")</span>
-                                    </span>
-                                </div>
-                                <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreHoriz"
-                                               Size="AppControlSize.Compact"
-                                               Class="tl-embedded-audio__more"
-                                               AriaLabel="@($"Add {item.Title} to queue")"
-                                               Tooltip="@L["Common_AddToQueue"].Value"
-                                               Disabled="@(!CanQueue(item))"
-                                               OnClick="@(() => QueueItemAsync(item))" />
-                            }
                         </div>
                     }
                 </div>
             </div>
 
-            @if (CompactVisibleItems.Count == 0)
+            @if (VisibleItems.Count == 0)
             {
                 <div class="tl-detail-track-empty">@L["AudioItemTable_NoMatchTheCurrentView", ItemNounPlural]</div>
             }
         </section>
-    }
-    else
-    {
-    <section class="tl-detail-track-section" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
-        <BulkSelectionBar />
-        <div class="tl-detail-track-toolbar">
-            <span>@TrackCountSummary</span>
-            @if (SupportsMissingItems)
-            {
-                <label class="tl-detail-track-toggle">
-                    <AppNativeInput Type="checkbox" Checked="@_showMissingItems" OnChange="ToggleMissingItems" />
-                    <span>@L["AudioItemTable_ShowMissingTracks"]</span>
-                </label>
-            }
-        </div>
-
-        <div class="tl-audio-item-table"
-             @onmousemove="@(args => ResizeColumn(args.ClientX))"
-             @onmouseup="EndColumnResize"
-             @onmouseleave="EndColumnResize">
-            <div class="tl-detail-track-table-shell">
-                <table class="tl-detail-track-table tl-audio-item-table__table" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
-                    <colgroup>
-                        @foreach (var column in VisibleColumns)
-                        {
-                            <AppCssElement Tag="col" Css="@ColumnStyle(column)" />
-                        }
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            @foreach (var column in VisibleColumns)
-                            {
-                                <th scope="col" class="@ColumnHeaderClass(column)">
-                                    @if (column.Sortable)
-                                    {
-                                        <AppNativeButton Type="button"
-                                                         Class="tl-detail-track-sort"
-                                                         OnClick="@(() => ToggleSort(column.Key))"
-                                                         aria-sort="@AriaSort(column.Key)">
-                                            <span>@column.Label</span>
-                                            <AppMaterialIcon Icon="@SortIcon(column.Key)" Size="AppIconSize.Control20" />
-                                        </AppNativeButton>
-                                    }
-                                    else
-                                    {
-                                        <span>@column.Label</span>
-                                    }
-                                    <span class="tl-audio-item-table__resizer"
-                                          @onclick:stopPropagation="true"
-                                          @onmousedown:stopPropagation="true"
-                                          @onmousedown="@((args) => BeginColumnResize(column.Key, args.ClientX))"></span>
-                                </th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (var index = 0; index < VisibleItems.Count; index++)
-                        {
-                            var item = VisibleItems[index];
-                            var isPlaying = IsCurrentItem(item);
-                            @if (StartsUnnumberedGroup(VisibleItems, index))
-                            {
-                                <tr class="tl-audio-item-table__group-row"><th colspan="@VisibleColumns.Count" scope="colgroup">@L["AudioItemTable_Unnumbered"]</th></tr>
-                            }
-                            <tr class="@RowClass(item, isPlaying)"
-                                draggable="@CanQueue(item)"
-                                data-audio-row="true"
-                                data-work-id="@item.Id"
-                                data-asset-id="@item.AssetId"
-                                data-start-seconds="@item.StartSeconds"
-                                @ondragstart="@(() => StartDrag(item))"
-                                @ondragend="EndDrag"
-                                @ondblclick="@(() => PlayItemAsync(item))">
-                                @foreach (var column in VisibleColumns)
-                                {
-                                    @switch (column.Key)
-                                    {
-                                        case "track":
-                                            <td class="tl-detail-track-row__number">
-                                                <span class="tl-audio-item-table__index">
-                                                    <AppTooltip Text="@L["AudioItemTable_DragToQueueOrPlaylist"].Value">
-                                                        <span class="tl-audio-item-table__drag" aria-hidden="true">
-                                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppIconSize.Control20" />
-                                                        </span>
-                                                    </AppTooltip>
-                                                    <span class="tl-audio-item-table__play-slot">
-                                                        @if (isPlaying)
-                                                        {
-                                                            <span class="tl-detail-track-row__playing" aria-label="@L["AudioItemTable_CurrentlyPlaying"].Value"></span>
-                                                        }
-                                                        else if (item.IsOwned)
-                                                        {
-                                                            <AppNativeButton Type="button" Class="tl-detail-track-row__play" AriaLabel="@($"Play {item.Title}")" StopPropagation="true" OnClick="@(() => PlayItemAsync(item))">
-                                                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppIconSize.Control20" />
-                                                            </AppNativeButton>
-                                                        }
-                                                    </span>
-                                                    <span class="tl-detail-track-row__ordinal">@DisplayOrdinal(item, index)</span>
-                                                </span>
-                                            </td>
-                                            break;
-                                        case "title":
-                                            <td class="tl-detail-track-row__title">
-                                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" ParentId="@RowParentId" MediaType="@RowMediaType" />
-                                                <span class="tl-detail-track-row__name">@item.Title</span>
-                                                @if (item.IsExplicit)
-                                                {
-                                                    <span class="tl-detail-track-row__badge">E</span>
-                                                }
-                                                @if (item.IsUnmatched)
-                                                {
-                                                    <NotMatchedTag />
-                                                }
-                                            </td>
-                                            break;
-                                        case "artist":
-                                            <td class="tl-detail-track-row__artist">@DisplayOrDash(item.Artist)</td>
-                                            break;
-                                        case "progress":
-                                            <td class="tl-detail-chapter-row__progress">
-                                                @if (item.ProgressPercent.HasValue)
-                                                {
-                                                    <AppCssElement Tag="span" Class="tl-detail-chapter-progress" Css="@ProgressStyle(item.ProgressPercent.Value)">
-                                                        <span></span>
-                                                    </AppCssElement>
-                                                    <span>@(Math.Round(item.ProgressPercent.Value))%</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
-                                            </td>
-                                            break;
-                                        case "duration":
-                                            <td class="tl-detail-track-row__duration">@DisplayDuration(item)</td>
-                                            break;
-                                        case "status":
-                                            <td class="tl-detail-track-row__status">
-                                                <span class="@($"tl-detail-track-status {(item.IsOwned ? "is-owned" : "is-missing")}")">
-                                                    <AppMaterialIcon Icon="@(item.IsOwned ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.CloudOff)" Size="AppIconSize.Control20" />
-                                                    <span>@(item.IsOwned ? "Owned" : "Missing")</span>
-                                                </span>
-                                            </td>
-                                            break;
-                                        case "favorite":
-                                            <td class="tl-audio-item-table__favorite">
-                                                <span @onclick:stopPropagation="true">
-                                                    <AppIconButton Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" ButtonStyle="@(_favoriteIds.Contains(ItemId(item)) ? AppButtonStyle.Filled : AppButtonStyle.Text)" Soft="true" AriaLabel="@FavoriteLabel(item)" Tooltip="@FavoriteLabel(item)" Disabled="@(!CanFavorite(item))" OnClick="@(() => ToggleFavoriteAsync(item))" />
-                                                </span>
-                                            </td>
-                                            break;
-                                        case "queue":
-                                            <td class="tl-audio-item-table__queue">
-                                                <span @onclick:stopPropagation="true">
-                                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.PlaylistAdd" ButtonStyle="AppButtonStyle.Text" AriaLabel="@($"Add {item.Title} to queue")" Tooltip="@L["Common_AddToQueue"].Value" Disabled="@(!item.IsOwned)" OnClick="@(() => QueueItemAsync(item))" />
-                                                </span>
-                                            </td>
-                                            break;
-                                    }
-                                }
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        @if (VisibleItems.Count == 0)
-        {
-            <div class="tl-detail-track-empty">@L["AudioItemTable_NoOwnedTracksMatchThe"]</div>
-        }
-    </section>
     }
 }
 
@@ -394,68 +154,25 @@
     [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Authors { get; set; } = [];
     [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Narrators { get; set; } = [];
     [Parameter] public string? AudiobookId { get; set; }
-    [Parameter] public string? AlbumId { get; set; }
-    [Parameter] public string? ArtistId { get; set; }
-    [Parameter] public string? ArtistName { get; set; }
     [Parameter] public string? ArtworkUrl { get; set; }
-    [Parameter] public bool IsAudiobook { get; set; }
-    [Parameter] public bool Compact { get; set; }
     [Parameter] public RenderFragment? CompactToolbarLeadingContent { get; set; }
 
-    private readonly HashSet<Guid> _favoriteIds = [];
-    private Guid? _favoritesProfileId;
-    private readonly List<AudioTableColumn> _columns = [];
-    private string _modeKey = string.Empty;
-    private string _sortColumn = "track";
-    private bool _sortDescending;
-    private bool _showMissingItems;
-    private string? _resizingColumnKey;
-    private double _resizeStartX;
-    private int _resizeStartWidth;
-
-    private string ItemNounPlural => IsAudiobook ? "audiobook tracks" : "tracks";
-    private bool SupportsMissingItems => !IsAudiobook;
-    private string CompactSectionClass => $"tl-embedded-audio{(IsAudiobook ? " tl-embedded-audio--audiobook" : string.Empty)}";
+    private const string ItemNounPlural = "audiobook tracks";
 
     private IReadOnlyList<MediaGroupingItemViewModel> Items =>
         Groups.SelectMany(group => group.Items)
-            .Where(item => IsAudiobook
-                ? item.EntityType == DetailEntityType.Audiobook
-                : item.EntityType == DetailEntityType.Work)
+            .Where(item => item.EntityType == DetailEntityType.Audiobook)
             .ToList();
 
-    private IReadOnlyList<MediaGroupingItemViewModel> VisibleItems =>
-        SortItems(!SupportsMissingItems || _showMissingItems ? Items : Items.Where(item => item.IsOwned));
+    private IReadOnlyList<MediaGroupingItemViewModel> VisibleItems => SortItems(Items);
 
-    private IReadOnlyList<MediaGroupingItemViewModel> CompactVisibleItems => VisibleItems;
-
-    // What a ticked row knows about where it sits: its album (or audiobook) and its kind, so Renumber, Match and the move step work from it.
-    private Guid? RowParentId => Guid.TryParse(IsAudiobook ? AudiobookId : AlbumId, out var parent) ? parent : null;
-
-    private string RowMediaType => IsAudiobook ? "Audiobooks" : "Music";
-
-    private int OwnedCount => Items.Count(item => item.IsOwned);
-    private string TrackCountSummary => IsAudiobook
-        ? $"{Items.Count} {(Items.Count == 1 ? "local track" : "local tracks")}"
-        : $"{OwnedCount} of {Items.Count} tracks owned";
-
-    private bool ShowArtistColumn =>
-        Items.Select(item => item.Artist)
-            .Where(artist => !string.IsNullOrWhiteSpace(artist))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(2)
-            .Count() > 1;
-
-    private IReadOnlyList<AudioTableColumn> VisibleColumns =>
-        _columns
-            .Where(column => !Compact || column.Key is "track" or "title" or "duration" or "status")
-            .Where(column => column.Key != "artist" || ShowArtistColumn)
-            .ToList();
+    // What a ticked row knows about where it sits: its audiobook, so Renumber, Match and the move step work from it.
+    private Guid? RowParentId => Guid.TryParse(AudiobookId, out var parent) ? parent : null;
 
     // Each row of a page the person may edit gets a tick box and a ticked row is highlighted. Null outside a detail page.
     [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
-    /// <summary>The page this list sits on, for a row's own Edit (opens the pop-over editor over the page). Null outside a detail page.</summary>
+    /// <summary>The page this list sits on (its Engine edit permission). Null outside a detail page.</summary>
     [CascadingParameter] public EditorBinding? Editor { get; set; }
 
     private BulkEditSelection? _hookedSelection;
@@ -474,7 +191,7 @@
             if (_hookedSelection is not null)
             {
                 _hookedSelection.Changed += OnBatchStateChanged;
-                // "Renumber sequentially" follows the order this list shows now, whatever it is sorted by.
+                // "Renumber sequentially" follows the order this list shows now.
                 _hookedSelection.ListOrder = () => VisibleItems.Select(ItemId).ToList();
             }
         }
@@ -494,60 +211,7 @@
         }
     }
 
-    protected override async Task OnParametersSetAsync()
-    {
-        HookBatchState();
-        var nextMode = IsAudiobook ? "audiobook" : "music";
-        if (!string.Equals(_modeKey, nextMode, StringComparison.Ordinal))
-        {
-            _modeKey = nextMode;
-            _sortColumn = "track";
-            _sortDescending = false;
-            _columns.Clear();
-            _columns.AddRange(IsAudiobook ? AudiobookColumns() : MusicColumns());
-        }
-
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        if (IsAudiobook)
-        {
-            _favoriteIds.Clear();
-            _favoritesProfileId = null;
-            return;
-        }
-
-        // Favorites are the profile's saved songs: one profile-wide read, so fetch it once
-        // per profile for this table; toggles keep _favoriteIds current locally.
-        if (_favoritesProfileId is { } loadedFor && loadedFor == profile?.Id)
-            return;
-
-        _favoriteIds.Clear();
-        if (profile is not null)
-        {
-            _favoriteIds.UnionWith((await SavedItems.GetListAsync())
-                .Where(saved => saved.EntityKind == ProfileEntityKind.Song)
-                .Select(saved => saved.EntityId));
-        }
-        _favoritesProfileId = profile?.Id;
-    }
-
-    private static IReadOnlyList<AudioTableColumn> MusicColumns() =>
-    [
-        new("track", "#", 88, 72, true),
-        new("title", "Title", 420, 220, true),
-        new("artist", "Artist", 220, 160, true),
-        new("duration", "Duration", 132, 104, true, "right"),
-        new("status", "Status", 158, 128, true),
-        new("favorite", "Favorite", 92, 76, true, "center"),
-        new("queue", "Queue", 86, 72, false, "center"),
-    ];
-
-    private static IReadOnlyList<AudioTableColumn> AudiobookColumns() =>
-    [
-        new("track", "#", 88, 72, true),
-        new("title", "Title", 520, 240, true),
-        new("progress", "Progress", 180, 140, true, "right"),
-        new("duration", "Duration", 132, 104, true, "right"),
-    ];
+    protected override void OnParametersSet() => HookBatchState();
 
     private async Task PlayItemAsync(MediaGroupingItemViewModel item)
     {
@@ -562,146 +226,35 @@
             return;
         }
 
-        var index = Math.Max(0, playable.FindIndex(row => SamePlayableItem(row, item)));
-        if (IsAudiobook)
-        {
-            await Playback.PlayAudiobookAsync(ToQueueItem(item), SourceTitle);
-            return;
-        }
-
-        await Playback.ReplaceQueueItemsAsync(playable.Select(ToQueueItem), index, SourceTitle, shuffle: false);
+        await Playback.PlayAudiobookAsync(ToQueueItem(item), SourceTitle);
     }
 
-    private string CardSubtitle(MediaGroupingItemViewModel item)
-    {
-        if (IsAudiobook)
-        {
-            return item.ProgressPercent.HasValue ? $"{Math.Round(item.ProgressPercent.Value)}% played" : string.Empty;
-        }
-
-        return item.IsOwned ? DisplayArtistOrEmpty(item) : "Missing";
-    }
-
-    private static string DisplayArtistOrEmpty(MediaGroupingItemViewModel item)
-        => string.IsNullOrWhiteSpace(item.Artist) ? string.Empty : item.Artist;
+    private static string CardSubtitle(MediaGroupingItemViewModel item)
+        => item.ProgressPercent.HasValue ? $"{Math.Round(item.ProgressPercent.Value)}% played" : string.Empty;
 
     private Task HandleCardKeyDownAsync(KeyboardEventArgs args, MediaGroupingItemViewModel item)
         => args.Key is "Enter" or " " ? PlayItemAsync(item) : Task.CompletedTask;
-
-    private IReadOnlyList<AppRowMenuItem> CardMenuItems(MediaGroupingItemViewModel item)
-    {
-        var items = new List<AppRowMenuItem>
-        {
-            new() { Label = L["Common_PlayNext"].Value, Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayItemNextAsync(item)) },
-            new() { Label = L["Common_AddToQueue"].Value, Icon = AppMaterialIcons.Outlined.PlaylistAdd, Disabled = !CanQueue(item), OnClick = EventCallback.Factory.Create(this, () => QueueItemAsync(item)) },
-        };
-        if (Editor is { CanEdit: true, EditRowAsync: not null } && BulkEditRules.IsSelectableKind(item.EntityType))
-        {
-            // Edit opens the pop-over over this page with this track ticked and the Edit panel open (universal editor spec D19).
-            items.Add(new()
-            {
-                Label = "Edit",
-                Icon = AppMaterialIcons.Outlined.Edit,
-                OnClick = EventCallback.Factory.Create(this, () => EditTrackAsync(item)),
-            });
-        }
-
-        if (Guid.TryParse(ArtistId, out var artistGuid) && artistGuid != Guid.Empty)
-        {
-            items.Add(new() { Label = L["SongActions_GoToArtist"].Value, Icon = AppMaterialIcons.Outlined.Person, OnClick = EventCallback.Factory.Create(this, () => Navigation.NavigateTo($"/details/person/{artistGuid:D}")) });
-        }
-
-        return items;
-    }
-
-    private Task EditTrackAsync(MediaGroupingItemViewModel item) =>
-        Editor?.EditRowAsync?.Invoke(new BulkEditRow(ItemId(item), item.Title, item.EntityType, RowParentId, RowMediaType)) ?? Task.FromResult(false);
-
-    private async Task PlayItemNextAsync(MediaGroupingItemViewModel item)
-    {
-        if (!item.IsOwned)
-        {
-            return;
-        }
-
-        await Playback.AddQueueItemAsync(ToQueueItem(item), next: true);
-    }
-
-    private async Task QueueItemAsync(MediaGroupingItemViewModel item)
-    {
-        if (!item.IsOwned)
-        {
-            return;
-        }
-
-        if (IsAudiobook)
-        {
-            await Playback.PlayAudiobookAsync(ToQueueItem(item), SourceTitle);
-            return;
-        }
-
-        await Playback.AddQueueItemAsync(ToQueueItem(item));
-    }
-
-    // Why a heart could not be saved; it stays above the table until the next try or the close button.
-    private string? _favoriteNotice;
-
-    private async Task ToggleFavoriteAsync(MediaGroupingItemViewModel item)
-    {
-        if (!CanFavorite(item))
-        {
-            return;
-        }
-
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        if (profile is null)
-        {
-            _favoriteNotice = L["Common_FavoritesRequireAnActiveProfile"].Value;
-            return;
-        }
-        _favoriteNotice = null;
-        var id = ItemId(item);
-        // Favorite is saved-item membership; it never sets or clears Like or Dislike.
-        var membership = await SavedItems.ToggleAsync(ProfileEntityKind.Song, id);
-        if (membership is null)
-        {
-            return;
-        }
-
-        if (membership.IsSaved)
-        {
-            _favoriteIds.Add(id);
-        }
-        else
-        {
-            _favoriteIds.Remove(id);
-        }
-    }
 
     private ListenQueueItem ToQueueItem(MediaGroupingItemViewModel item)
         => new()
         {
             WorkId = ItemId(item),
-            AlbumWorkId = !IsAudiobook && Guid.TryParse(AlbumId, out var albumId) ? albumId : null,
-            AudiobookWorkId = IsAudiobook && Guid.TryParse(AudiobookId, out var audiobookId) ? audiobookId : null,
-            ArtistPersonId = !IsAudiobook && Guid.TryParse(ArtistId, out var artistId) ? artistId : null,
+            AudiobookWorkId = Guid.TryParse(AudiobookId, out var audiobookId) ? audiobookId : null,
             AssetId = Guid.TryParse(item.AssetId, out var assetId) ? assetId : null,
-            MediaType = IsAudiobook ? "Audiobooks" : "Music",
-            Title = IsAudiobook ? SourceTitle : item.Title,
-            Subtitle = IsAudiobook ? item.Title : string.IsNullOrWhiteSpace(ArtistName) ? item.Artist : ArtistName,
+            MediaType = "Audiobooks",
+            Title = SourceTitle,
+            Subtitle = item.Title,
             Album = SourceTitle,
-            AuthorName = IsAudiobook ? AuthorName : null,
-            NarratorName = IsAudiobook ? NarratorName : null,
-            Synopsis = IsAudiobook ? Synopsis : null,
-            Authors = IsAudiobook ? Authors : [],
-            Narrators = IsAudiobook ? Narrators : [],
-            CoverUrl = IsAudiobook
-                ? PlaybackArtworkUrl.AudiobookCover(Guid.TryParse(AudiobookId, out var coverBookId) ? coverBookId : null, ArtworkUrl ?? item.ArtworkUrl)
-                : item.ArtworkUrl ?? ArtworkUrl,
+            AuthorName = AuthorName,
+            NarratorName = NarratorName,
+            Synopsis = Synopsis,
+            Authors = Authors,
+            Narrators = Narrators,
+            CoverUrl = PlaybackArtworkUrl.AudiobookCover(Guid.TryParse(AudiobookId, out var coverBookId) ? coverBookId : null, ArtworkUrl ?? item.ArtworkUrl),
             Duration = DisplayDuration(item),
             InitialPositionSeconds = ResumePositionFor(item),
-            Chapters = IsAudiobook ? VisibleItems.Select(ToPlaybackChapter).ToList() : [],
-            ChapterIndex = IsAudiobook ? item.ChapterIndex : null,
+            Chapters = VisibleItems.Select(ToPlaybackChapter).ToList(),
+            ChapterIndex = item.ChapterIndex,
         };
 
     private static PlaybackChapterDto ToPlaybackChapter(MediaGroupingItemViewModel item)
@@ -716,7 +269,8 @@
             EndSeconds = item.EndSeconds,
         };
 
-    private static double? ResumePositionFor(MediaGroupingItemViewModel item)
+    // Shared with the album track list: both start a track from where it was left.
+    internal static double? ResumePositionFor(MediaGroupingItemViewModel item)
     {
         if (item.ResumePositionSeconds is > 0)
         {
@@ -742,11 +296,6 @@
         if (!Playback.IsPlaying || itemId == Guid.Empty || currentItem?.WorkId != itemId)
         {
             return false;
-        }
-
-        if (!IsAudiobook)
-        {
-            return true;
         }
 
         if (Guid.TryParse(item.AssetId, out var assetId)
@@ -777,31 +326,13 @@
         return !item.EndSeconds.HasValue || current < item.EndSeconds.Value - 0.5d;
     }
 
-    private void ToggleSort(string column)
-    {
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
-        {
-            _sortDescending = !_sortDescending;
-            return;
-        }
-
-        _sortColumn = column;
-        _sortDescending = column is "duration" or "status";
-    }
-
-    private void ToggleMissingItems(ChangeEventArgs args)
-    {
-        _showMissingItems = args.Value is true
-            || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // Items added anyway have no number: they always sit in an Unnumbered group at the end, whatever the sort (details overlay D13).
-    private IReadOnlyList<MediaGroupingItemViewModel> SortItems(IEnumerable<MediaGroupingItemViewModel> items)
+    // Items added anyway have no number: they always sit in an Unnumbered group at the end (details overlay D13).
+    private static IReadOnlyList<MediaGroupingItemViewModel> SortItems(IEnumerable<MediaGroupingItemViewModel> items)
     {
         var all = items.ToList();
         return
         [
-            .. SortNumbered(all.Where(item => !item.IsUnmatched)),
+            .. all.Where(item => !item.IsUnmatched).OrderBy(ItemSortKey).ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase),
             .. all.Where(item => item.IsUnmatched).OrderBy(item => item.Title, StringComparer.OrdinalIgnoreCase),
         ];
     }
@@ -809,165 +340,41 @@
     private static bool StartsUnnumberedGroup(IReadOnlyList<MediaGroupingItemViewModel> list, int index) =>
         list[index].IsUnmatched && (index == 0 || !list[index - 1].IsUnmatched);
 
-    private IReadOnlyList<MediaGroupingItemViewModel> SortNumbered(IEnumerable<MediaGroupingItemViewModel> items)
-    {
-        var ordered = _sortColumn switch
-        {
-            "title" => _sortDescending
-                ? items.OrderByDescending(item => item.Title, StringComparer.OrdinalIgnoreCase)
-                : items.OrderBy(item => item.Title, StringComparer.OrdinalIgnoreCase),
-            "artist" => _sortDescending
-                ? items.OrderByDescending(item => item.Artist ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                : items.OrderBy(item => item.Artist ?? string.Empty, StringComparer.OrdinalIgnoreCase),
-            "progress" => _sortDescending
-                ? items.OrderByDescending(item => item.ProgressPercent ?? -1)
-                : items.OrderBy(item => item.ProgressPercent ?? -1),
-            "duration" => _sortDescending
-                ? items.OrderByDescending(DurationSortKey)
-                : items.OrderBy(DurationSortKey),
-            "status" => _sortDescending
-                ? items.OrderBy(item => item.IsOwned)
-                : items.OrderByDescending(item => item.IsOwned),
-            "favorite" => _sortDescending
-                ? items.OrderBy(item => !_favoriteIds.Contains(ItemId(item)))
-                : items.OrderByDescending(item => _favoriteIds.Contains(ItemId(item))),
-            _ => _sortDescending
-                ? items.OrderByDescending(ItemSortKey)
-                : items.OrderBy(ItemSortKey),
-        };
-
-        return ordered.ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase).ToList();
-    }
-
-    private void BeginColumnResize(string key, double clientX)
-    {
-        var column = _columns.FirstOrDefault(item => item.Key == key);
-        if (column is null)
-        {
-            return;
-        }
-
-        _resizingColumnKey = key;
-        _resizeStartX = clientX;
-        _resizeStartWidth = column.Width;
-    }
-
-    private void ResizeColumn(double clientX)
-    {
-        if (string.IsNullOrWhiteSpace(_resizingColumnKey))
-        {
-            return;
-        }
-
-        var column = _columns.FirstOrDefault(item => item.Key == _resizingColumnKey);
-        if (column is null)
-        {
-            return;
-        }
-
-        column.Width = Math.Max(column.MinWidth, _resizeStartWidth + (int)Math.Round(clientX - _resizeStartX));
-    }
-
-    private void EndColumnResize()
-    {
-        _resizingColumnKey = null;
-    }
-
-    private void StartDrag(MediaGroupingItemViewModel item)
-    {
-        if (!item.IsOwned)
-        {
-            return;
-        }
-
-        _draggingItemId = item.Id;
-        AudioDrag.BeginDrag([ToQueueItem(item)]);
-    }
-
-    private void EndDrag()
-    {
-        _draggingItemId = null;
-        AudioDrag.Clear();
-    }
-
-    private string SortIcon(string column)
-    {
-        if (!string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
-        {
-            return AppMaterialIcons.Outlined.UnfoldMore;
-        }
-
-        return _sortDescending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward;
-    }
-
-    private string AriaSort(string column)
-        => string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase)
-            ? _sortDescending ? "descending" : "ascending"
-            : "none";
-
-    private string DisplayDuration(MediaGroupingItemViewModel item)
+    private static string DisplayDuration(MediaGroupingItemViewModel item)
     {
         if (item.DurationSeconds is > 0)
         {
-            return FormatSeconds(item.DurationSeconds.Value, forceHours: false);
+            return FormatSeconds(item.DurationSeconds.Value);
         }
 
         if (TryParseDurationSeconds(item.Duration, out var seconds))
         {
-            return FormatSeconds(seconds, forceHours: false);
+            return FormatSeconds(seconds);
         }
 
         return DisplayOrDash(item.Duration);
     }
 
     private string RowClass(MediaGroupingItemViewModel item, bool isPlaying)
-        => $"tl-detail-track-row tl-audio-item-table__row{(isPlaying ? " is-playing" : string.Empty)}{(SupportsMissingItems && !item.IsOwned ? " is-missing" : string.Empty)}{(_draggingItemId == item.Id ? " is-dragging" : string.Empty)}{(IsRowSelected(item) ? " is-selected" : string.Empty)}";
+        => $"tl-detail-track-row{(isPlaying ? " is-playing" : string.Empty)}{(IsRowSelected(item) ? " is-selected" : string.Empty)}";
 
     private string CompactRowClass(MediaGroupingItemViewModel item, bool isPlaying)
-        => $"tl-embedded-audio__row{(isPlaying ? " is-playing" : string.Empty)}{(SupportsMissingItems && !item.IsOwned ? " is-missing" : string.Empty)}{(_draggingItemId == item.Id ? " is-dragging" : string.Empty)}{(IsRowSelected(item) ? " is-selected" : string.Empty)}";
-
-    private string ColumnHeaderClass(AudioTableColumn column)
-        => $"tl-audio-item-table__head-cell tl-audio-item-table__head-cell--{column.Key}{(column.Align is "right" ? " is-right" : column.Align is "center" ? " is-center" : string.Empty)}";
-
-    private static string ColumnStyle(AudioTableColumn column)
-        => $"width:{column.Width}px;min-width:{column.MinWidth}px;";
-
-    private string FavoriteLabel(MediaGroupingItemViewModel item)
-        => _favoriteIds.Contains(ItemId(item)) ? "Remove favorite" : "Add favorite";
-
-    private bool CanFavorite(MediaGroupingItemViewModel item)
-        => !IsAudiobook && item.IsOwned && ItemId(item) != Guid.Empty;
-
-    private bool CanQueue(MediaGroupingItemViewModel item)
-        => !IsAudiobook && item.IsOwned;
+        => $"tl-embedded-audio__row{(isPlaying ? " is-playing" : string.Empty)}{(IsRowSelected(item) ? " is-selected" : string.Empty)}";
 
     private static Guid ItemId(MediaGroupingItemViewModel item)
         => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty;
 
-    private static bool SamePlayableItem(MediaGroupingItemViewModel left, MediaGroupingItemViewModel right)
-        => string.Equals(left.Id, right.Id, StringComparison.OrdinalIgnoreCase)
-           && string.Equals(left.AssetId, right.AssetId, StringComparison.OrdinalIgnoreCase)
-           && Nullable.Equals(left.StartSeconds, right.StartSeconds);
-
     private static int ItemSortKey(MediaGroupingItemViewModel item)
         => int.TryParse(item.TrackNumber, out var parsed) ? parsed : item.ChapterIndex ?? int.MaxValue;
-
-    private static double DurationSortKey(MediaGroupingItemViewModel item)
-        => item.DurationSeconds ?? (TryParseDurationSeconds(item.Duration, out var parsed) ? parsed : double.MaxValue);
 
     private static string DisplayOrdinal(MediaGroupingItemViewModel item, int index)
         => item.IsUnmatched
             ? "–"
             : string.IsNullOrWhiteSpace(item.TrackNumber) ? (index + 1).ToString(CultureInfo.InvariantCulture) : item.TrackNumber;
 
-    private static string FormatSeconds(double seconds, bool forceHours)
+    private static string FormatSeconds(double seconds)
     {
         var span = TimeSpan.FromSeconds(Math.Max(0, seconds));
-        if (forceHours)
-        {
-            return $"{(int)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}";
-        }
-
         return span.TotalHours >= 1
             ? $"{(int)span.TotalHours}:{span.Minutes:00}:{span.Seconds:00}"
             : $"{span.Minutes}:{span.Seconds:00}";
@@ -1016,29 +423,4 @@
 
     private static string DisplayOrDash(string? value)
         => string.IsNullOrWhiteSpace(value) ? "-" : value;
-
-    private static string ProgressStyle(double percent) =>
-        $"--chapter-progress:{Math.Clamp(percent, 0, 100):0.###}%";
-
-    private string? _draggingItemId;
-
-    private sealed class AudioTableColumn
-    {
-        public AudioTableColumn(string key, string label, int width, int minWidth, bool sortable, string align = "left")
-        {
-            Key = key;
-            Label = label;
-            Width = width;
-            MinWidth = minWidth;
-            Sortable = sortable;
-            Align = align;
-        }
-
-        public string Key { get; }
-        public string Label { get; }
-        public int Width { get; set; }
-        public int MinWidth { get; }
-        public bool Sortable { get; }
-        public string Align { get; }
-    }
 }

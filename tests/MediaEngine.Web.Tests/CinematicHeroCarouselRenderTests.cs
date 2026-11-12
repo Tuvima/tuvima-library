@@ -68,7 +68,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
         if (expected)
         {
-            Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context").TextContent);
+            Assert.Equal("Resume", cut.Find(".cinematic-hero-carousel__context").TextContent);
         }
         else
         {
@@ -116,7 +116,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
 
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
 
-        Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context").TextContent);
+        Assert.Equal("Resume", cut.Find(".cinematic-hero-carousel__context").TextContent);
     }
 
     [Fact]
@@ -373,7 +373,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".tl-detail-hero--read"));
         if (state == DisplayContinuationState.InProgress)
         {
-            Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context").TextContent);
+            Assert.Equal("Resume", cut.Find(".cinematic-hero-carousel__context").TextContent);
         }
     }
 
@@ -397,7 +397,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.DoesNotContain("Reading", cut.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Continue Listening", cut.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(cut.FindAll(".tl-detail-hero--read"));
-        Assert.Equal("Continue", cut.Find(".cinematic-hero-carousel__context").TextContent);
+        Assert.Equal("Resume", cut.Find(".cinematic-hero-carousel__context").TextContent);
     }
 
     [Fact]

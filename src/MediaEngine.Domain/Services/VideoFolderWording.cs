@@ -108,7 +108,7 @@ public static class VideoFolderWording
     public static string? SectionsLine(int sectionCount) => sectionCount > 1 ? SectionCount(sectionCount) : null;
 
     /// <summary>The small label over a Home hero's title once something has been started (otherwise a folder says <see cref="KindLabel"/> and a video <see cref="ItemLabel"/>).</summary>
-    public const string ContinueLabel = "Continue Watching";
+    public const string ContinueLabel = "Resume";
 
     /// <summary>The lead-in of the video a folder's hero will play next ("Next up: Triple Point").</summary>
     public const string NextUpLabel = "Next up";
