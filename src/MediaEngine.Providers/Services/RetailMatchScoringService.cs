@@ -68,6 +68,8 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         if (candidate.MediaType == MediaType.Books && Present(fileTitle) && Present(candidate.Title))
         {
             titleScore = Text(fileTitle!.Split(':')[0], candidate.Title!.Split(':')[0]);
+            // A store may list "Series, Book Two: Title" for a file called "Title".
+            titleScore = Best(titleScore, Text(StripSeriesBookPrefix(fileTitle!), StripSeriesBookPrefix(candidate.Title!)));
         }
         if (candidate.MediaType == MediaType.Movies)
         {
@@ -289,6 +291,16 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
     }
 
     private double Similarity(string a, string b) => AreEquivalentComparableText(a, b) ? 1 : Math.Clamp(_fuzzy.ComputeTokenSetRatio(a, b), 0, 1);
+    private static readonly Regex SeriesBookPrefix = new(@"^[^:]*?,?\s*\b(?:book|volume|vol\.?|part)\s+(?:\d+|[a-z\-]+)\s*:\s*(?=\S)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+
+    /// <summary>Drops a leading "Series, Book Two:" style prefix so the book's own title is compared.</summary>
+    internal static string StripSeriesBookPrefix(string title)
+    {
+        var stripped = SeriesBookPrefix.Replace(title.Trim(), string.Empty, 1);
+        return string.IsNullOrWhiteSpace(stripped) ? title : stripped;
+    }
+
     private static double? Best(double? a, double? b) => a is null ? b : b is null ? a : Math.Max(a.Value, b.Value);
     private static bool Present(string? value) => !string.IsNullOrWhiteSpace(value);
     private static string? First(IReadOnlyDictionary<string, string> values, params string[] keys) => keys.Select(key => values.GetValueOrDefault(key)).FirstOrDefault(Present);
