@@ -20,7 +20,7 @@
 .video-rating-card strong {
     color: var(--playback-text);
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.2;
 }
 

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1545; api=0; web-client=56
+# scopes: contracts=1546; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9097,7 +9097,8 @@
   kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   provider: System.String | json=provider | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   source_id: System.String | json=source_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind":"sample","provider":"sample","source_id":"sample"}
+  language: System.String | json=language | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind":"sample","provider":"sample","source_id":"sample","language":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.CompanionCharacterDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9673,6 +9674,10 @@
   SampleRateHz: System.Int32? | json=sampleRateHz | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BitDepth: System.Int32? | json=bitDepth | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Channels: System.Int32? | json=channels | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=fileName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileSizeBytes: System.Int64? | json=fileSizeBytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ColorFormat: System.String | json=colorFormat | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  VideoProfile: System.String | json=videoProfile | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   QualityLabel: System.String | json=qualityLabel | nullability=nullable | accessors=get | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackTelemetryPageDto
@@ -10045,7 +10050,9 @@
   status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.TextTrackAlternativeDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"asset_id":"11111111-2222-3333-4444-555555555555","kind":"sample","status":"sample","message":"sample","items":[]}
+  source_name: System.String | json=source_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  language: System.String | json=language | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"asset_id":"11111111-2222-3333-4444-555555555555","kind":"sample","status":"sample","message":"sample","items":[],"source_name":"sample","language":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.TextTrackChoiceResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10071,6 +10078,13 @@
   IsLocallyExported: System.Boolean | json=isLocallyExported | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Url: System.String | json=url | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","language":"sample","provider":"sample","confidence":7,"sourceFormat":"sample","normalizedFormat":"sample","timingMode":"sample","isHearingImpaired":true,"isPreferred":true,"isUserOwned":true,"isLocallyExported":true,"url":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.TextTrackSourcesResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  asset_id: System.Guid | json=asset_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"asset_id":"11111111-2222-3333-4444-555555555555","kind":"sample","status":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.UpdateAudiobookBookmarkRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default

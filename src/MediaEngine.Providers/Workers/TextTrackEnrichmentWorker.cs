@@ -187,10 +187,7 @@ public sealed partial class TextTrackEnrichmentWorker
         }
 
         var lookup = await BuildLookupAsync(asset, lineage, mediaType, kind, ct).ConfigureAwait(false);
-        if (kind == TextTrackKind.Subtitles &&
-            (lookup.SubtitleContext is null ||
-             (mediaType == MediaType.TV && lookup.SubtitleContext.TmdbEpisode is null) ||
-             (mediaType == MediaType.Movies && lookup.SubtitleContext.Movie is null)))
+        if (kind == TextTrackKind.Subtitles && SubtitleIdentityMissing(lookup, mediaType))
         {
             var afterUnverified = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
             return new(importedLocal ? "Updated" : "IdentityUnverified", kind, before.Count,

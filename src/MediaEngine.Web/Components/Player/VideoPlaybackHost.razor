@@ -133,9 +133,7 @@
                                          TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)"
                                          Audio="@AudioChoices" Subtitles="@SubtitleChoices" Position="@Playback.CurrentTimeSeconds" OnSwitch="HandleTrackSwitchAsync" Notice="@_trackNotice"
                                          Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync"
-                                         NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" SearchLoading="@_textTrackLoading" SearchStatus="@_textTrackStatus"
-                                         CanSetPreferred="@(_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)"
-                                         OnSearch="RefreshSubtitlesAsync" OnSetPreferred="SetPreferredSubtitleAsync" />
+                                         NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" IsEpisode="@IsTvEpisode" Find="@Find" />
                             break;
                         case PlaybackControlKey.Settings:
                             @SettingsTool
@@ -241,10 +239,17 @@
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
     private IReadOnlyList<CaptionTrackMetric> _captionTracks = [];
     private string? _selectedCaptionKey;
-    private string? _textTrackStatus;
     // Why an audio switch did not happen, shown under the Audio & subtitles lists.
     private string? _trackNotice;
-    private bool _textTrackLoading;
+
+    // The Find subtitles view's state and calls (follow-ups D9 to D12) live in the presenter; the host only tells it what to do once the tracks changed.
+    private SubtitleFindPresenter? _find;
+    private SubtitleFindPresenter Find => _find ??= new SubtitleFindPresenter(ApiClient)
+    {
+        TracksChanged = SubtitleTracksChangedAsync,
+        CurrentTrackFor = provider => ManagedSubtitleTracks
+            .FirstOrDefault(track => track.IsPreferred && !track.IsUserOwned && string.Equals(track.Provider, provider, StringComparison.OrdinalIgnoreCase))?.Id,
+    };
 
     private string StageClass =>
         Playback.IsVideoMode && Playback.IsVideoExpanded
@@ -385,7 +390,14 @@
                                                    Rate="@Playback.PlaybackRate" RateChanged="SelectPlaybackRateAsync"
                                                    SkipBackSeconds="@Playback.SkipBackSeconds" SkipForwardSeconds="@Playback.SkipForwardSeconds" SkipChanged="ChangeSkipLengthAsync"
                                                    CanPictureInPicture="@_canPictureInPicture" OnPictureInPicture="EnterPictureInPictureAsync"
-                                                   Manifest="@Playback.CurrentManifest" OnReset="ResetPlaybackPreferencesAsync" />;
+                                                   Manifest="@Playback.CurrentManifest" AudioTrackIndex="@_selectedAudioTrackIndex" Subtitle="@InformationSubtitle" OnReset="ResetPlaybackPreferencesAsync" />;
+
+    // What Playback information says is on screen now: the shown subtitle and, for one the Engine found online, where it came from.
+    private PlaybackInformationSubtitle InformationSubtitle => _captionTracks.FirstOrDefault(track => track.Selected) is { } shown
+        ? new(CaptionChoiceLabel(shown), shown.Key.StartsWith("managed:", StringComparison.Ordinal) && Guid.TryParse(shown.Key[8..], out var id)
+            ? ManagedSubtitleTracks.FirstOrDefault(candidate => candidate.Id == id)?.Provider
+            : null)
+        : new(null);
 
     // A phone keeps the overlay with the same five transport buttons and one row of Audio & subtitles, Episodes (Lessons), Bookmarks and Fullscreen; the title,
     // Playback settings and Close sit in a header. "A phone" is the one rule the audio bar uses too (PlaybackFormFactor), so the two never disagree.
@@ -489,7 +501,8 @@
         _presentationContext = null;
         _loadedSubtitleAssetId = null;
         _managedSubtitleTracks = []; _captionTracks = []; _selectedCaptionKey = null;
-        _selectedAudioTrackIndex = null; _pendingAudioIndex = null; _switchingAudio = false; _textTrackStatus = null; _trackNotice = null; _textTrackLoading = false;
+        _selectedAudioTrackIndex = null; _pendingAudioIndex = null; _switchingAudio = false; _trackNotice = null;
+        _find?.Bind(identity?.AssetId);
         _profileAudioAppliedFor = null;
         _savedRail = [];
         _railSaved = [];
@@ -853,7 +866,6 @@
                 _selectedCaptionKey = null;
                 _captionTracks = [];
                 _selectedAudioTrackIndex = null;
-                _textTrackStatus = null;
             }
 
             StateHasChanged();
@@ -1347,34 +1359,33 @@
         }
     }
 
-    private async Task SetPreferredSubtitleAsync()
+    // "Use this" or "This one is wrong" changed the title's subtitles: reload them and show the new one at once, without restarting the picture.
+    private async Task SubtitleTracksChangedAsync(Guid? trackId)
     {
-        var identity = VideoPlaybackIdentity.Capture(Playback);
-        if (Playback.CurrentItem?.AssetId is not Guid assetId ||
-            !Guid.TryParse(_selectedCaptionKey?.Replace("managed:", "", StringComparison.Ordinal), out var trackId)) return;
-        if (await ApiClient.SetPreferredTextTrackAsync(assetId, trackId))
-        {
-            if (identity is not null && !identity.IsCurrent(Playback)) return;
-            _textTrackStatus = L["VideoPlaybackHost_PreferredSubtitlesSaved"].Value;
-            await LoadSubtitleTracksAsync(assetId);
-        }
-        else if (identity is null || identity.IsCurrent(Playback)) _textTrackStatus = L["VideoPlaybackHost_CouldNotSaveThePreferred"].Value;
+        if (Playback.CurrentItem?.AssetId is not Guid assetId) return;
+        await LoadSubtitleTracksAsync(assetId);
+        if (trackId is Guid id) await ShowManagedSubtitleAsync(id);
     }
 
-    private async Task RefreshSubtitlesAsync()
+    private async Task ShowManagedSubtitleAsync(Guid trackId)
     {
         var identity = VideoPlaybackIdentity.Capture(Playback);
-        if (_textTrackLoading || Playback.CurrentItem?.AssetId is not Guid assetId) return;
-        _textTrackLoading = true;
-        _textTrackStatus = null;
+        if (identity is null) return;
+        var key = $"managed:{trackId:D}";
         try
         {
-            var result = await ApiClient.RefreshTextTracksAsync(assetId, "subtitles");
-            if (Playback.CurrentItem?.AssetId != assetId || identity is not null && !identity.IsCurrent(Playback)) return;
-            _textTrackStatus = result?.message ?? "Subtitle search could not start.";
-            await LoadSubtitleTracksAsync(assetId);
+            // The new <track> element is drawn by the reload above; give the browser a moment to know it.
+            for (var attempt = 0; attempt < 5 && !_disposed; attempt++)
+            {
+                if (await JS.InvokeAsync<bool>("listenPlayback.selectCaptionTrack", _videoRef, key, identity.AssetId, identity.RequestVersion, identity.ProfileId))
+                {
+                    if (identity.IsCurrent(Playback)) await HandleMetricsChangedAsync();
+                    return;
+                }
+                await Task.Delay(60, _lifetimeCancellation.Token);
+            }
         }
-        finally { if (identity is null || identity.IsCurrent(Playback)) _textTrackLoading = false; }
+        catch (OperationCanceledException) { /* The player was closed while waiting; nothing to show. */ }
     }
 
     private static string ManagedSubtitleLabel(TextTrackDto track) =>
@@ -1460,8 +1471,8 @@
 
     private void CloseToolSheet() => Tools.Close();
 
-    // Settings menu (player-controls-v3 D4, D5). Whether a subtitle source is switched on is asked once per video, the first time the
-    // menu opens, so the Subtitles column can say so instead of offering a search that can never find anything.
+    // Audio & subtitles (follow-ups D12). Whether a subtitle source is switched on is asked once per video, the first time the panel opens, from the
+    // Engine's settings alone: no source is contacted and no search runs until Find subtitles opens.
     private bool _noSubtitleSource;
     private Guid? _subtitleSourceProbedFor;
 
@@ -1469,10 +1480,11 @@
     {
         if (!open || Playback.CurrentItem?.AssetId is not Guid assetId || _subtitleSourceProbedFor == assetId) return;
         _subtitleSourceProbedFor = assetId;
+        Find.Bind(assetId);
         var identity = VideoPlaybackIdentity.Capture(Playback);
         try
         {
-            var result = await ApiClient.GetTextTrackAlternativesAsync(assetId, "subtitles", _lifetimeCancellation.Token);
+            var result = await ApiClient.GetTextTrackSourcesAsync(assetId, "subtitles", _lifetimeCancellation.Token);
             if (_disposed || identity is not null && !identity.IsCurrent(Playback)) return;
             _noSubtitleSource = string.Equals(result?.status, "NoSourceOn", StringComparison.OrdinalIgnoreCase);
             await InvokeAsync(StateHasChanged);
@@ -1601,6 +1613,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        _find?.Dispose();
         _lifetimeCancellation.Cancel();
         _newBookmarkCancellation?.Cancel();
         _metadataCancellation?.Cancel(); _metadataCancellation?.Dispose();

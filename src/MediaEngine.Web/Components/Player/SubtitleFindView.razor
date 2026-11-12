@@ -1,40 +1,202 @@
 @namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Playback
+@implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-@* Find subtitles, nested in Audio & subtitles (unified player v2 D12): asks the subtitle sources that are switched on for other versions of this
-   title's subtitles. New versions appear in the Subtitles column. With no source switched on it says so (administrators also get the Plugins link). *@
-<div class="sfv" data-subtitle-find>
+@* Find subtitles, nested in Audio & subtitles (video player follow-ups D9 to D12; mockup section 3). The search runs once as the view opens, in the profile's
+   subtitle language, and lists what the source offers: language, how well the release matches, the release name on one line, and "Use this". The one
+   in use says "In use now" with "This one is wrong". Whenever there is nothing, a plain sentence says why; the sentences are written here, never taken
+   from the Engine's own message. With no source switched on (checked once without contacting a source) nothing is searched. *@
+<div class="sfv" data-subtitle-find data-sheet="@(IsSheet ? "true" : "false")">
     @if (NoSource)
     {
-        <p class="sfv__notice" role="status" data-subtitles-state="no-source">
-            <span>@L["PlayerSettings_NoSubtitleSource"]</span>
-            @if (IsAdministrator) { <a href="/settings/plugins">@L["PlayerSettings_Plugins"]</a> }
-        </p>
+        @ReasonBlock("NoSourceOn", L["SubtitleFind_NoSource"].Value, null)
     }
     else
     {
-        <p class="sfv__intro">@L["SubtitleFind_Intro"]</p>
-        <AppNativeButton Type="button" Class="sfv__search" Disabled="@Loading" data-sfv-action="search" OnClick="OnSearch">
-            @(Loading ? L["PlayerSettings_Searching"].Value : L["VideoPlaybackHost_FindBetterSubtitles"].Value)
-        </AppNativeButton>
-        @if (CanSetPreferred)
+        @if (ShowsLanguage)
         {
-            <AppNativeButton Type="button" Class="sfv__preferred" data-sfv-action="preferred" OnClick="OnSetPreferred">@L["VideoPlaybackHost_SetPreferredVersion"]</AppNativeButton>
+            <div class="sfv__head">
+                <span class="sfv__count" role="status" data-sfv-head data-subtitles-state="@(Presenter.Loading ? "searching" : null)">@HeadText</span>
+                <span class="sfv__lang" data-sfv-language>
+                    <span class="sfv__lang-value" aria-hidden="true">@Presenter.Language<span class="sfv__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronDown" /></span></span>
+                    <AppNativeSelect Class="sfv__select" Value="@Presenter.Language" OnChange="ChooseLanguageAsync" aria-label="@L["SubtitleFind_Language"].Value">
+                        @foreach (var language in Presenter.Languages)
+                        {
+                            <option value="@language">@language</option>
+                        }
+                    </AppNativeSelect>
+                </span>
+            </div>
         }
-        @if (!string.IsNullOrWhiteSpace(Status)) { <p class="sfv__status" role="status">@Status</p> }
+
+        @if (Presenter.Loading)
+        {
+            @* The head line above is the "Searching…" status; nothing else is drawn while waiting. *@
+        }
+        else if (Presenter.Failed || Presenter.Response is null)
+        {
+            @ReasonBlock("Failed", L["SubtitleFind_Failed"].Value, null, tryAgain: true)
+        }
+        else if (Presenter.Response is { status: "Found", items.Count: > 0 } found)
+        {
+            var firstFresh = found.items.FirstOrDefault(item => !item.is_current);
+            <ul class="sfv__list" data-sfv-results>
+                @foreach (var item in found.items)
+                {
+                    var result = item;
+                    var failed = Presenter.FailedSourceId == result.source_id;
+                    var busy = Presenter.ChoosingSourceId == result.source_id;
+                    <li class="@(result.is_current ? "sfv__res sfv__res--current" : "sfv__res")" data-sfv-result="@result.source_id">
+                        <div class="sfv__title">
+                            <span>@LanguageName(result)</span>
+                            @if (result.is_current) { <span class="sfv__tag sfv__tag--ok" data-sfv-tag="current">@L["SubtitleFind_InUse"]</span> }
+                            @if (result.is_hearing_impaired) { <span class="sfv__tag" data-sfv-tag="hearing-impaired">@L["SubtitleFind_HearingImpaired"]</span> }
+                            @if (result.confidence >= SameReleaseConfidence) { <span class="sfv__tag sfv__tag--ok" data-sfv-tag="same-release">@L["SubtitleFind_SameRelease"]</span> }
+                            else { <span class="sfv__tag sfv__tag--warn" data-sfv-tag="different-release">@L["SubtitleFind_DifferentRelease"]</span> }
+                        </div>
+                        @if (result.is_current)
+                        {
+                            <AppNativeButton Type="button" Class="sfv__link" Disabled="@(Presenter.ChoosingSourceId is not null)" data-sfv-action="wrong"
+                                             OnClick="@(() => Presenter.MarkWrongAsync(result))">@L["SubtitleFind_ThisOneIsWrong"]</AppNativeButton>
+                        }
+                        else
+                        {
+                            <AppNativeButton Type="button" Class="@(ReferenceEquals(result, firstFresh) ? "sfv__button sfv__button--primary" : "sfv__button")"
+                                             Disabled="@(Presenter.ChoosingSourceId is not null)" aria-busy="@(busy ? "true" : null)" data-sfv-action="use"
+                                             OnClick="@(() => Presenter.ChooseAsync(result))">@L["SubtitleFind_UseThis"]</AppNativeButton>
+                        }
+                        <div class="sfv__release" data-overflow-tooltip="@result.release_name">@result.release_name</div>
+                        @if (failed)
+                        {
+                            <p class="sfv__row-error" role="status" data-sfv-row-error>@(Presenter.FailedAction == "remove" ? L["SubtitleFind_CouldNotRemove"].Value : L["SubtitleFind_CouldNotDownload"].Value)</p>
+                        }
+                    </li>
+                }
+            </ul>
+            <p class="sfv__note" data-sfv-note>@L["SubtitleFind_Applies"]</p>
+        }
+        else
+        {
+            @Reason(Presenter.Response)
+        }
     }
 </div>
 
 @code {
-    /// <summary>True when the Engine says no subtitle source is switched on.</summary>
-    [Parameter] public bool NoSource { get; set; }
-    [Parameter] public bool IsAdministrator { get; set; }
-    [Parameter] public bool Loading { get; set; }
-    [Parameter] public string? Status { get; set; }
+    /// <summary>The search state, owned by the player host so it survives the view closing and opening.</summary>
+    [Parameter, EditorRequired] public SubtitleFindPresenter Presenter { get; set; } = default!;
 
-    /// <summary>True while a downloaded version is the chosen subtitle track, so it can be set as the title's preferred version.</summary>
-    [Parameter] public bool CanSetPreferred { get; set; }
-    [Parameter] public EventCallback OnSearch { get; set; }
-    [Parameter] public EventCallback OnSetPreferred { get; set; }
+    /// <summary>The profile's subtitle settings, for the language the search starts in.</summary>
+    [Parameter] public SubtitleLanguageSettingsDto? Profile { get; set; }
+
+    /// <summary>True when the Engine says no subtitle source is switched on (checked without contacting a source); nothing is searched.</summary>
+    [Parameter] public bool NoSource { get; set; }
+
+    [Parameter] public bool IsAdministrator { get; set; }
+
+    /// <summary>True for an episode, so the sentences say "episode" and name what an episode search needs.</summary>
+    [Parameter] public bool IsEpisode { get; set; }
+
+    [CascadingParameter(Name = "PlaybackPanelSheet")] public bool IsSheet { get; set; }
+
+    // The Engine's confidence is the source's base score plus how much of the release name matches the file's own, so a high one reads as the same release.
+    private const double SameReleaseConfidence = 0.9;
+
+    private Action? _changed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _changed = () => _ = InvokeAsync(StateHasChanged);
+        Presenter.Changed += _changed;
+        if (!NoSource)
+        {
+            await Presenter.OpenAsync(Profile);
+        }
+    }
+
+    private string Kind => IsEpisode ? L["SubtitleFind_Episode"].Value : L["SubtitleFind_Movie"].Value;
+
+    // The language choice is no use when the sentence is about a switch, a key, an item that cannot be matched or a profile that may not search.
+    private bool ShowsLanguage => Presenter.Loading || Presenter.Failed || Presenter.Response is null
+        || Presenter.Response.status is not ("NoSourceOn" or "SourceKeyRequired" or "Blocked" or "NotAllowed" or "IdentityUnverified" or "Unsupported" or "AssetMissing");
+
+    private string SearchingText => Presenter.SourceName is { Length: > 0 } source ? L["SubtitleFind_SearchingSource", source].Value : L["SubtitleFind_Searching"].Value;
+
+    private string HeadText
+    {
+        get
+        {
+            if (Presenter.Loading)
+            {
+                return Presenter.StillSearching ? L["SubtitleFind_StillSearching"].Value : SearchingText;
+            }
+            if (Presenter.Response is { status: "Found", items.Count: > 0 } found)
+            {
+                var source = found.source_name ?? Presenter.SourceName;
+                return (found.items.Count == 1, string.IsNullOrWhiteSpace(source)) switch
+                {
+                    (true, false) => L["SubtitleFind_ResultFrom", source!].Value,
+                    (false, false) => L["SubtitleFind_ResultsFrom", found.items.Count, source!].Value,
+                    (true, true) => L["SubtitleFind_ResultPlain"].Value,
+                    _ => L["SubtitleFind_ResultsPlain", found.items.Count].Value,
+                };
+            }
+            return string.Empty;
+        }
+    }
+
+    private string LanguageName(TextTrackAlternativeDto item) => DisplayFormat.FormatLanguageName(item.language) ?? Presenter.Language;
+
+    private string SourceOrFallback(TextTrackAlternativesResponse response) =>
+        string.IsNullOrWhiteSpace(response.source_name) ? (Presenter.SourceName ?? L["SubtitleFind_SourceFallback"].Value) : response.source_name;
+
+    private Task ChooseLanguageAsync(ChangeEventArgs args) => Presenter.ChangeLanguageAsync(args.Value?.ToString() ?? string.Empty);
+
+    // One sentence per outcome (follow-ups D11). The status decides; the Engine's own message is never shown.
+    private RenderFragment Reason(TextTrackAlternativesResponse response)
+    {
+        var name = Presenter.Language;
+        return response.status switch
+        {
+            "NoSourceOn" => ReasonBlock(response.status, L["SubtitleFind_NoSource"].Value, null),
+            "SourceKeyRequired" => ReasonBlock(response.status, L["SubtitleFind_KeyRefused", SourceOrFallback(response)].Value, null),
+            "IdentityUnverified" => ReasonBlock(response.status, L["SubtitleFind_Unmatched", Kind].Value,
+                IsEpisode ? L["SubtitleFind_UnmatchedEpisodeHint"].Value : L["SubtitleFind_UnmatchedMovieHint"].Value),
+            "LimitReached" => ReasonBlock(response.status, L["SubtitleFind_Limit", SourceOrFallback(response)].Value, null),
+            "Unavailable" => ReasonBlock(response.status, L["SubtitleFind_Unreachable", SourceOrFallback(response)].Value, null, tryAgain: true),
+            "Blocked" => ReasonBlock(response.status, L["SubtitleFind_Blocked"].Value, null),
+            "NotAllowed" => ReasonBlock(response.status, L["SubtitleFind_NotAllowed"].Value, null),
+            "LanguageUnknown" => ReasonBlock(response.status, L["SubtitleFind_LanguageUnknown"].Value, null),
+            "NoneFound" or "Found" => ReasonBlock("NoneFound", L["SubtitleFind_NoneFound", name, Kind].Value, L["SubtitleFind_NoneFoundHint"].Value),
+            _ => ReasonBlock(response.status, L["SubtitleFind_Failed"].Value, null, tryAgain: true),
+        };
+    }
+
+    private RenderFragment ReasonBlock(string state, string headline, string? detail, bool tryAgain = false) =>
+        @<div class="sfv__why-wrap">
+            <p class="sfv__why" role="status" data-subtitles-state="@state">
+                <b>@headline</b>
+                @if (!string.IsNullOrWhiteSpace(detail)) { <span>@detail</span> }
+            </p>
+            @if (tryAgain)
+            {
+                <AppNativeButton Type="button" Class="sfv__button" data-sfv-action="retry" OnClick="Presenter.SearchAsync">@L["SubtitleFind_TryAgain"]</AppNativeButton>
+            }
+            @if (IsAdministrator && state is "NoSourceOn" or "SourceKeyRequired")
+            {
+                <a class="sfv__plugins" href="/settings/plugins" data-sfv-plugins>@L["PlayerSettings_Plugins"]</a>
+            }
+        </div>;
+
+    public void Dispose()
+    {
+        if (_changed is not null)
+        {
+            Presenter.Changed -= _changed;
+        }
+    }
 }

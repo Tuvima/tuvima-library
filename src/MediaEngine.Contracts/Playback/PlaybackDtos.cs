@@ -54,6 +54,17 @@ public sealed record PlaybackTechnicalInfoDto
     public int? BitDepth { get; init; }
     public int? Channels { get; init; }
 
+    /// <summary>The file's name with its extension, never any folder (Playback information, video-player follow-ups D13).</summary>
+    public string? FileName { get; init; }
+
+    public long? FileSizeBytes { get; init; }
+
+    /// <summary>"SDR", "HDR10" or "HLG"; null when the file's transfer characteristic is not known.</summary>
+    public string? ColorFormat { get; init; }
+
+    /// <summary>The video stream's profile as ffprobe names it (for example "Main 10" or "High"); null when not known.</summary>
+    public string? VideoProfile { get; init; }
+
     public string? QualityLabel => Height switch
     {
         >= 2160 => "4K",

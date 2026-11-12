@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
@@ -199,9 +200,12 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
 
     private IRenderedComponent<PlaybackSettingsPanel> RenderSettings(
         PlaybackBarMedia media, double rate = 1d, int skipBack = 10, int skipForward = 30,
-        List<PlaybackSkipChange>? skips = null, List<double>? rates = null, Action? reset = null, bool pictureInPicture = false, PlaybackManifestDto? manifest = null)
+        List<PlaybackSkipChange>? skips = null, List<double>? rates = null, Action? reset = null, bool pictureInPicture = false, PlaybackManifestDto? manifest = null,
+        int? audioTrackIndex = null, PlaybackInformationSubtitle? subtitle = null)
     {
         return Render<PlaybackSettingsPanel>(parameters => parameters
+            .Add(component => component.AudioTrackIndex, audioTrackIndex)
+            .Add(component => component.Subtitle, subtitle)
             .Add(component => component.Media, media)
             .Add(component => component.Rate, rate)
             .Add(component => component.RateChanged, EventCallback.Factory.Create<double>(this, value => rates?.Add(value)))
@@ -216,10 +220,10 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
 
     private async Task<IRenderedComponent<PlaybackSettingsPanel>> OpenSettingsAsync(PlaybackBarMedia media,
         double rate = 1d, int skipBack = 10, int skipForward = 30, List<PlaybackSkipChange>? skips = null, List<double>? rates = null, Action? reset = null,
-        bool pictureInPicture = false, PlaybackManifestDto? manifest = null)
+        bool pictureInPicture = false, PlaybackManifestDto? manifest = null, int? audioTrackIndex = null, PlaybackInformationSubtitle? subtitle = null)
     {
         PrepareStandalone();
-        var cut = RenderSettings(media, rate, skipBack, skipForward, skips, rates, reset, pictureInPicture, manifest);
+        var cut = RenderSettings(media, rate, skipBack, skipForward, skips, rates, reset, pictureInPicture, manifest, audioTrackIndex, subtitle);
         await OpenAsync(cut.FindComponent<PlaybackPanel>());
         cut.WaitForElement("[data-playback-settings]");
         return cut;
@@ -325,8 +329,282 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
 
         cut.WaitForElement("[data-playback-information]");
         Assert.Equal("Playback information", cut.Find(".playback-panel__title").TextContent.Trim());
-        Assert.Contains("mkv", cut.Find("[data-playback-information]").TextContent);
-        Assert.Contains("Played as stored", cut.Find("[data-playback-information]").TextContent);
+        Assert.Contains("MKV", cut.Find("[data-playback-information]").TextContent);
+        Assert.Contains("Playing the file as it is", cut.Find("[data-playback-information]").TextContent);
+    }
+
+    // ---- Playback information (video-player follow-ups D13 to D15) ----
+
+    private static PlaybackManifestDto FourKHdrConvertingVideo() => new()
+    {
+        AssetId = Guid.NewGuid(),
+        MediaType = "Movie",
+        SourceExtension = ".mkv",
+        RecommendedDelivery = PlaybackDeliveryModes.Hls,
+        ConversionReason = "This browser cannot play HEVC.",
+        SourceBitrateKbps = 41200,
+        Connection = new() { ConnectionPath = PlaybackConnectionPaths.Local, EstimatedBandwidthMbps = 85 },
+        Technical = new()
+        {
+            Container = "mkv", FileName = "Dune Part One (2021).mkv", FileSizeBytes = 4_800_000_000, VideoCodec = "hevc", VideoProfile = "Main 10",
+            Width = 3840, Height = 2160, FrameRate = 23.976, ColorFormat = "HDR10", AudioCodec = "eac3", SampleRateHz = 48000, AudioBitrateKbps = 640, Channels = 6,
+        },
+        AudioTracks =
+        [
+            new() { Index = 0, Language = "en", Codec = "eac3", Channels = 6, IsDefault = true },
+            new() { Index = 1, Language = "fr", Codec = "ac3", Channels = 2 },
+        ],
+    };
+
+    private static List<string> InfoLines(IRenderedComponent<PlaybackSettingsPanel> cut) => cut.FindAll("[data-info-section]")
+        .SelectMany(section => new[] { section.QuerySelector("h3")!.TextContent.Trim() }.Concat(section.QuerySelectorAll("[data-info-row]")
+            .Select(row => $"{row.QuerySelector("dt")!.TextContent.Trim()}: {row.QuerySelector("dd")!.TextContent.Trim()}")))
+        .ToList();
+
+    private async Task<IRenderedComponent<PlaybackSettingsPanel>> OpenInformationAsync(PlaybackBarMedia media, PlaybackManifestDto? manifest,
+        int? audioTrackIndex = null, PlaybackInformationSubtitle? subtitle = null)
+    {
+        var cut = await OpenSettingsAsync(media, manifest: manifest, audioTrackIndex: audioTrackIndex, subtitle: subtitle);
+        await cut.Find("[data-psp-row='information']").ClickAsync();
+        cut.WaitForElement("[data-playback-information]");
+        return cut;
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_ForA4kHdrConvertingVideoListsEverySectionWithItsLines()
+    {
+        var module = JSInterop.SetupModule("./js/playback-information.js");
+        module.Setup<string?>("clientName").SetResult("Edge on Windows");
+        module.Setup<int?>("bufferAhead", PlaybackRemoteController.VideoElementId).SetResult(12);
+
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, FourKHdrConvertingVideo(), subtitle: new("English", "subdl"));
+
+        cut.WaitForAssertion(() => Assert.Equal(
+        [
+            "File", "Name: Dune Part One (2021).mkv", "Format: MKV · 4.5 GB", "Overall bitrate: 41,200 kb/s",
+            "Video", "Picture: 4K (3840 × 2160) · HEVC Main 10", "Frame rate: 23.976 fps", "Color: HDR10",
+            "Audio", "Track: English · EAC3 · 5.1", "Quality: 48 kHz · 640 kb/s",
+            "Subtitles", "Showing: English · from SubDL",
+            "How it is playing", "Delivery: Converting for this browser", "Why: This browser cannot play HEVC.", "Connection: Home network · 85 Mb/s",
+            "Buffer: 12 s ahead", "Playing on: Edge on Windows",
+        ], InfoLines(cut)));
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_TheAudioTrackInUseIsTheOneTheCallerNames()
+    {
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, FourKHdrConvertingVideo(), audioTrackIndex: 1);
+
+        Assert.Contains("Track: French · AC3 · 2.0", InfoLines(cut));
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_SubtitlesSayOffWhenNoneIsShowing()
+    {
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, FourKHdrConvertingVideo(), subtitle: new(null));
+
+        Assert.Contains("Showing: Off", InfoLines(cut));
+    }
+
+    [Theory]
+    [InlineData(null, "in the file")]
+    [InlineData("embedded", "in the file")]
+    [InlineData("sidecar", "a file beside it")]
+    [InlineData("subdl", "SubDL")]
+    [InlineData("user", "your file")]
+    public async Task PlaybackInformation_SubtitlesNameWhereTheShowingTrackCameFrom(string? provider, string expected)
+    {
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, FourKHdrConvertingVideo(), subtitle: new("Spanish", provider));
+
+        Assert.Contains($"Showing: Spanish · from {expected}", InfoLines(cut));
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_ForMusicListsFileAudioAndHowItIsPlayingOnly()
+    {
+        var manifest = new PlaybackManifestDto
+        {
+            AssetId = Guid.NewGuid(),
+            MediaType = "Music",
+            SourceExtension = ".flac",
+            SourceBitrateKbps = 1021,
+            Technical = new() { Container = "flac", FileName = "01 Opening.flac", FileSizeBytes = 31_000_000, AudioCodec = "flac", SampleRateHz = 44100, BitDepth = 16, Channels = 2,
+                VideoCodec = "mjpeg", Width = 600, Height = 600, FrameRate = 1, ColorFormat = "SDR" },
+            AudioTracks = [new() { Index = 0, Language = "en", Codec = "flac", Channels = 2, IsDefault = true }],
+            Connection = new() { ConnectionPath = PlaybackConnectionPaths.RemoteDirect },
+        };
+
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Music, manifest, subtitle: new("English", "subdl"));
+
+        Assert.Equal(["file", "audio", "playing"], cut.FindAll("[data-info-section]").Select(section => section.GetAttribute("data-info-section")));
+        Assert.Contains("Format: FLAC · 30 MB", InfoLines(cut));
+        Assert.Contains("Quality: 44.1 kHz · 16-bit", InfoLines(cut));
+        Assert.Contains("Connection: Remote", InfoLines(cut));
+        Assert.DoesNotContain("Picture", cut.Markup);
+        Assert.DoesNotContain("Subtitles", cut.Markup);
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_ALineWithNothingToSayAndASectionWithNoLinesAreLeftOut()
+    {
+        var manifest = new PlaybackManifestDto
+        {
+            AssetId = Guid.NewGuid(),
+            MediaType = "Movie",
+            Technical = new() { Container = "  ", FileName = "   ", VideoCodec = "", ColorFormat = null, AudioCodec = null },
+            Connection = new() { ConnectionPath = PlaybackConnectionPaths.Local },
+        };
+
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, manifest);
+
+        Assert.Equal(["How it is playing", "Delivery: Playing the file as it is", "Connection: Home network"], InfoLines(cut));
+        Assert.Empty(cut.FindAll("[data-info-section='file']"));
+        Assert.Empty(cut.FindAll("[data-info-section='video']"));
+        Assert.Empty(cut.FindAll("[data-info-section='audio']"));
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_TheFolderNeverAppearsEvenIfOneArrivesWithTheName()
+    {
+        var manifest = FourKHdrConvertingVideo() with { Technical = FourKHdrConvertingVideo().Technical with { FileName = @"Z:\Movies\Dune (2021)\Dune.mkv" } };
+
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, manifest);
+
+        Assert.Contains("Name: Dune.mkv", InfoLines(cut));
+        Assert.DoesNotContain("Movies", cut.Find("[data-playback-information]").TextContent);
+        Assert.DoesNotContain(@"\", cut.Find("[data-playback-information]").TextContent);
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_CopyDetailsPutsExactlyTheRenderedLinesOnTheClipboardAndSaysCopiedInPlace()
+    {
+        var module = JSInterop.SetupModule("./js/playback-information.js");
+        module.Setup<string?>("clientName").SetResult("Edge on Windows");
+        module.Setup<int?>("bufferAhead", PlaybackRemoteController.VideoElementId).SetResult(12);
+        var clipboard = JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true);
+        clipboard.SetVoidResult();
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, FourKHdrConvertingVideo(), subtitle: new("English", "subdl"));
+        cut.WaitForAssertion(() => Assert.Contains("Playing on: Edge on Windows", InfoLines(cut)));
+
+        Assert.Equal("Copy details", cut.Find("[data-pi-copy]").TextContent.Trim());
+        // The button holds "Copied" for two seconds inside its click handler, so the click is not awaited to the end.
+        cut.Find("[data-pi-copy]").Click();
+
+        var copied = Assert.IsType<string>(Assert.Single(clipboard.Invocations).Arguments[0]);
+        var shown = cut.FindAll("[data-info-section]").Select(section =>
+            string.Join("\n", new[] { section.QuerySelector("h3")!.TextContent.Trim() }.Concat(section.QuerySelectorAll("[data-info-row]")
+                .Select(row => $"{row.QuerySelector("dt")!.TextContent.Trim()}: {row.QuerySelector("dd")!.TextContent.Trim()}"))));
+        Assert.Equal(string.Join("\n\n", shown), copied);
+        Assert.StartsWith("File\nName: Dune Part One (2021).mkv\n", copied);
+        cut.WaitForAssertion(() => Assert.Equal("Copied", cut.Find("[data-pi-copy]").TextContent.Trim()));
+        Assert.Empty(cut.FindAll("[role='alert'], .app-toast"));
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_CopyDetailsSaysCouldNotCopyWhenTheBrowserRefuses()
+    {
+        JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true).SetException(new JSException("Document is not focused."));
+        var cut = await OpenInformationAsync(PlaybackBarMedia.Movie, FourKHdrConvertingVideo());
+
+        cut.Find("[data-pi-copy]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Could not copy", cut.Find("[data-pi-copy]").TextContent.Trim()));
+    }
+
+    // D15: the panel showed nothing on the real library. A music track (or audiobook) queued with a direct stream address is started without ever asking the
+    // Engine for a manifest, so the session holds none and Playback information had nothing to draw. A video asks only after its picture has opened. The view
+    // now asks for the manifest itself while it is open.
+    private PlaybackSessionController ArrangePlayingWithoutManifest(PlaybackManifestDto? engineManifest, TaskCompletionSource<PlaybackManifestDto?>? pending = null)
+    {
+        var asset = Guid.NewGuid();
+        var profile = Guid.NewGuid();
+        var preferences = new Preferences(UserPlaybackSettingsDto.CreateDefaults(profile));
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetPlaybackManifestAsync),
+            _ => pending is null ? Task.FromResult(engineManifest) : pending.Task));
+        var playback = new PlaybackSessionController(null!, api, preferences: preferences);
+        playback.RestoreState(new()
+        {
+            Queue = [new() { WorkId = Guid.NewGuid(), AssetId = asset, Title = "Opening", MediaType = "Music", StreamUrl = $"/media/assets/{asset:D}/stream" }],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Music,
+        });
+        Assert.Null(playback.CurrentManifest);
+        Services.AddSingleton(playback);
+        PrepareStandalone();
+        return playback;
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_WhenThePlayerHoldsNoManifestForWhatIsPlayingTheViewAsksForItInsteadOfStayingBlank()
+    {
+        var playback = ArrangePlayingWithoutManifest(new PlaybackManifestDto
+        {
+            AssetId = Guid.NewGuid(), MediaType = "Music", Technical = new() { Container = "mp3", FileName = "Opening.mp3", AudioCodec = "mp3" },
+        });
+        var cut = RenderSettings(PlaybackBarMedia.Music, manifest: playback.CurrentManifest);
+        await OpenAsync(cut.FindComponent<PlaybackPanel>());
+        cut.WaitForElement("[data-playback-settings]");
+
+        await cut.Find("[data-psp-row='information']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("Name: Opening.mp3", InfoLines(cut)));
+        Assert.Empty(cut.FindAll("[data-info-empty]"));
+        Assert.Null(playback.CurrentManifest);
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_SaysLoadingDetailsWhileTheEngineIsAnsweringAndThenShowsTheLines()
+    {
+        var pending = new TaskCompletionSource<PlaybackManifestDto?>();
+        var playback = ArrangePlayingWithoutManifest(null, pending);
+        var cut = RenderSettings(PlaybackBarMedia.Music, manifest: playback.CurrentManifest);
+        await OpenAsync(cut.FindComponent<PlaybackPanel>());
+        cut.WaitForElement("[data-playback-settings]");
+
+        await cut.Find("[data-psp-row='information']").ClickAsync();
+
+        Assert.Equal("Loading details…", cut.Find("[data-info-empty='loading']").TextContent.Trim());
+        pending.SetResult(new PlaybackManifestDto { AssetId = Guid.NewGuid(), MediaType = "Music", Technical = new() { Container = "mp3" } });
+        cut.WaitForAssertion(() => Assert.Contains("Format: MP3", InfoLines(cut)));
+    }
+
+    [Fact]
+    public async Task PlaybackInformation_SaysNoDetailsAreAvailableOnlyWhenTheEngineHasNone()
+    {
+        var playback = ArrangePlayingWithoutManifest(null);
+        var cut = RenderSettings(PlaybackBarMedia.Music, manifest: playback.CurrentManifest);
+        await OpenAsync(cut.FindComponent<PlaybackPanel>());
+        cut.WaitForElement("[data-playback-settings]");
+
+        await cut.Find("[data-psp-row='information']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal("No details are available for this file.", cut.Find("[data-info-empty='none']").TextContent.Trim()));
+        Assert.True(cut.Find("[data-pi-copy]").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task SessionController_LoadCurrentManifestAsksForTheManifestOfWhatIsPlayingAndKeepsTheOneItAlreadyHolds()
+    {
+        var calls = new List<Guid>();
+        var asset = Guid.NewGuid();
+        var held = new PlaybackManifestDto { AssetId = asset, MediaType = "Movie" };
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetPlaybackManifestAsync), args =>
+        {
+            calls.Add((Guid)args![0]!);
+            return Task.FromResult<PlaybackManifestDto?>(new PlaybackManifestDto { AssetId = (Guid)args[0]!, MediaType = "Music" });
+        }));
+        var playback = new PlaybackSessionController(null!, api);
+        playback.RestoreState(new() { Queue = [new() { WorkId = Guid.NewGuid(), AssetId = asset, Title = "Opening", MediaType = "Music" }], CurrentIndex = 0 });
+
+        var fetched = await playback.LoadCurrentManifestAsync();
+
+        Assert.Equal(asset, fetched?.AssetId);
+        Assert.Equal([asset], calls);
+        Assert.Null(playback.CurrentManifest);
+
+        playback.RestoreState(new() { Queue = [new() { WorkId = Guid.NewGuid(), AssetId = asset, Title = "Dune", MediaType = "Movie", Manifest = held }], CurrentIndex = 0 });
+        Assert.Same(held, await playback.LoadCurrentManifestAsync());
+        Assert.Single(calls);
     }
 
     [Fact]

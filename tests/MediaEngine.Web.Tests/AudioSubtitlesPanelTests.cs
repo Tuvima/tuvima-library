@@ -3,7 +3,9 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Resources;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
@@ -295,15 +297,17 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public async Task FindSubtitles_OpensTheSearchViewInsideThePanelAndTheBackArrowReturns()
     {
-        var searches = 0;
-        var cut = await OpenAsync(configure: p => p.Add(x => x.OnSearch, EventCallback.Factory.Create(this, () => searches++)));
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync),
+            _ => Task.FromResult<TextTrackAlternativesResponse?>(new() { status = "NoneFound", source_name = "SubDL" })));
+        var presenter = new SubtitleFindPresenter(api);
+        presenter.Bind(Guid.NewGuid());
+        var cut = await OpenAsync(configure: p => p.Add(x => x.Find, presenter));
 
         await cut.Find("[data-asa-action='find']").ClickAsync();
 
         Assert.Equal("Find subtitles", cut.Find("header h2").TextContent);
         Assert.NotNull(cut.Find("[data-subtitle-find]"));
-        await cut.Find("[data-sfv-action='search']").ClickAsync();
-        Assert.Equal(1, searches);
+        cut.WaitForElement("[data-subtitles-state='NoneFound']");
         await cut.Find("button[aria-label='Back']").ClickAsync();
         Assert.Equal("Audio & subtitles", cut.Find("header h2").TextContent);
         Assert.NotNull(cut.Find("[data-audio-subtitles]"));
@@ -312,13 +316,14 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public async Task FindSubtitles_SaysSoWhenNoSubtitleSourceIsSwitchedOn()
     {
-        var cut = await OpenAsync(configure: p => p.Add(x => x.NoSubtitleSource, true).Add(x => x.IsAdministrator, true));
+        var api = EngineApiClientStub.CreateDefault();
+        var cut = await OpenAsync(configure: p => p.Add(x => x.NoSubtitleSource, true).Add(x => x.IsAdministrator, true).Add(x => x.Find, new SubtitleFindPresenter(api)));
 
         await cut.Find("[data-asa-action='find']").ClickAsync();
 
-        Assert.Contains("No subtitle source is switched on", cut.Find("[data-subtitles-state='no-source']").TextContent);
-        Assert.NotNull(cut.Find("[data-subtitles-state='no-source'] a[href='/settings/plugins']"));
-        Assert.Empty(cut.FindAll("[data-sfv-action='search']"));
+        Assert.Contains("No subtitle source is switched on", cut.Find("[data-subtitles-state='NoSourceOn']").TextContent);
+        Assert.NotNull(cut.Find("a[href='/settings/plugins']"));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), ((EngineApiClientStub)(object)api).Calls);
     }
 
     [Fact]

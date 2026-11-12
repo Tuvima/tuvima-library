@@ -131,4 +131,7 @@
   <data name="SongsHeader_Favorites" xml:space="preserve">
     <value>Favourites</value>
   </data>
+  <data name="PlaybackInformation_Color" xml:space="preserve">
+    <value>Colour</value>
+  </data>
 </root>

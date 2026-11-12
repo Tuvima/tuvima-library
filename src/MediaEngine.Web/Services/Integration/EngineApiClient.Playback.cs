@@ -468,17 +468,34 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default)
+    public async Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null)
     {
         try
         {
+            var query = $"kind={Uri.EscapeDataString(kind)}"
+                + (string.IsNullOrWhiteSpace(language) ? string.Empty : $"&language={Uri.EscapeDataString(language)}");
             return await _http.GetFromJsonAsync<TextTrackAlternativesResponse>(
-                $"/stream/{assetId:D}/text-tracks/alternatives?kind={Uri.EscapeDataString(kind)}", ct);
+                $"/stream/{assetId:D}/text-tracks/alternatives?{query}", ct);
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET text track alternatives failed for {AssetId}", assetId);
+            return null;
+        }
+    }
+
+    public async Task<TextTrackSourcesResponse?> GetTextTrackSourcesAsync(Guid assetId, string kind, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<TextTrackSourcesResponse>(
+                $"/stream/{assetId:D}/text-tracks/sources?kind={Uri.EscapeDataString(kind)}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET text track sources failed for {AssetId}", assetId);
             return null;
         }
     }
