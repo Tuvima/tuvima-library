@@ -27,7 +27,7 @@
             <span class="tl-fbbulk__note" role="alert" data-testid="file-browser-preview-failed">@L["EditorBrowser_PreviewFailed"]</span>
         }
 
-        <span class="tl-fbbulk__slot" data-bulk="group"><AppOverflowMenu Label="@L["EditorBrowser_SetGroup"].Value" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Class="tl-fbbulk__menu" Disabled="@(!CanEdit)">
+        <span class="tl-fbbulk__slot" data-bulk="group"><AppOverflowMenu ListWidth="true" Label="@L["EditorBrowser_SetGroup"].Value" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Class="tl-fbbulk__menu" Disabled="@(!CanEdit)">
             <AppMenuItem Label="@L["EditorSupportingFile_NoGroup"].Value" OnClick="@(() => State.StageGroup(null))" />
             @foreach (var name in State.GroupNames)
             {
@@ -36,7 +36,7 @@
             <AppMenuItem Label="@L["EditorBrowser_NewGroup"].Value" Icon="@AppMaterialIcons.Outlined.Add" DividerBefore="true" OnClick="@(() => Ask(Asking.Group))" />
         </AppOverflowMenu></span>
 
-        <span class="tl-fbbulk__slot" data-bulk="role"><AppOverflowMenu Label="@L["EditorBrowser_SetRole"].Value" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Class="tl-fbbulk__menu"
+        <span class="tl-fbbulk__slot" data-bulk="role"><AppOverflowMenu ListWidth="true" Label="@L["EditorBrowser_SetRole"].Value" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Class="tl-fbbulk__menu"
                          Disabled="@(!CanEdit || State.FacetsForTicked is null)">
             @foreach (var role in State.FacetsForTicked?.Roles ?? [])
             {

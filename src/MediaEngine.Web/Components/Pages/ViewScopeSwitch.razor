@@ -8,7 +8,7 @@
 @if (Workspace.Scopes is { } scopes)
 {
     <div class="view-scope-switch">
-        <AppOverflowMenu Label="@($"{L["ViewScopeSwitch_Viewing"].Value}: {CurrentLabel}")"
+        <AppOverflowMenu ListWidth="true" Label="@($"{L["ViewScopeSwitch_Viewing"].Value}: {CurrentLabel}")"
                          ShowIcon="false"
                          EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
                          AriaLabel="@L["ViewScopeSwitch_Viewing"].Value"
