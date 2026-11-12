@@ -951,7 +951,7 @@
 
     private RenderFragment BulkToolbar => @<ViewSelectionToolbar Count="@_selected.Count" AriaLabel="Selected document actions"
                                                                   OnFavorite="FavoriteSelectionAsync" OnClear="@(() => _selected.Clear())"
-                                                                  ShowTrash="@(!_filter.TrashOnly && AnySelectedTrashable)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
+                                                                  ShowTrash="@(!_filter.TrashOnly && EditorHost.CanEdit && AnySelectedTrashable)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
                                                                   ShowRestore="_filter.TrashOnly" OnRestore="@(() => BulkAsync(ViewDocumentBulkOperations.Restore))">
         @if (!_filter.TrashOnly)
         {
@@ -977,6 +977,13 @@
     {
         if (_bulkBusy || _selected.Count == 0)
         {
+            return;
+        }
+
+        // Move to Trash is offered only where the device may edit items (never a TV); the handler asks again so hiding the button is never the only protection.
+        if (operation == ViewDocumentBulkOperations.MoveToTrash && !EditorHost.CanEdit)
+        {
+            Ribbon.Add(EditorDeviceRule.ItemMessage, AppSeverity.Warning);
             return;
         }
 

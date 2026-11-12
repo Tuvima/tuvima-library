@@ -9,6 +9,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.View;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
@@ -735,6 +736,7 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         Services.AddSingleton(new UIOrchestratorService(api, new UniverseStateContainer(), session, new ConfigurationBuilder().Build(), NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton<ViewAssetDragService>();
         Services.AddSingleton(new ViewMediaGrantService(new byte[32], TimeSpan.FromMinutes(1)));
+        Services.AddScoped<GalleryEditorLauncherService>();
         return handler;
     }
 
@@ -827,6 +829,140 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         Assert.Single(trashedReadOnly.FindAll("button[aria-label='Restore item']"));
     }
 
+    private Task UseTvAsync() =>
+        _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true));
+
+    [Fact]
+    public async Task Photos_OnATvThereIsNoTrashInTheTileMenuOrTheSelectionBar()
+    {
+        await UseTvAsync();
+        var handler = RegisterPhotosPage(Photo("one"), Photo("two"));
+        var cut = Render<ViewPage>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("article.view-tile").Count));
+
+        cut.Find("[aria-label='More for one']").Click();
+        var menu = cut.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
+        Assert.DoesNotContain("Trash", menu);
+        Assert.Contains("Archive", menu);
+
+        await SelectAsync(cut, 0);
+        var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
+        Assert.DoesNotContain("Trash", actions);
+        Assert.Contains("Archive", actions);
+        Assert.Empty(handler.Trashed);
+    }
+
+    [Fact]
+    public async Task Photos_OnATvInvokingAnyTrashHandlerNeverAsksNorCallsTheEngine()
+    {
+        await UseTvAsync();
+        var photo = Photo("one");
+        var handler = RegisterPhotosPage(photo);
+        var dialogs = Render<AppDialogHost>();
+        var cut = Render<ViewPage>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
+        await SelectAsync(cut, 0);
+
+        await cut.InvokeAsync(() => Invoke(cut.Instance, "TrashItemAsync", photo));
+        await cut.InvokeAsync(() => Invoke(cut.Instance, "TrashSelectionAsync"));
+        await cut.InvokeAsync(() => Invoke(cut.Instance, "TrashActiveAsync"));
+
+        Assert.Empty(handler.Trashed);
+        Assert.DoesNotContain("to Trash?", dialogs.Markup, StringComparison.Ordinal);
+        Assert.Equal(EditorDeviceRule.ItemMessage, Services.GetRequiredService<ViewRibbonState>().Message);
+    }
+
+    [Fact]
+    public async Task Photos_OnADesktopTheTrashHandlerStillAsksAndMovesThePhoto()
+    {
+        await UseAsync("desktop", touch: false);
+        var photo = Photo("one");
+        var handler = RegisterPhotosPage(photo);
+        var dialogs = Render<AppDialogHost>();
+        var cut = Render<ViewPage>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
+
+        var pending = cut.InvokeAsync(() => Invoke(cut.Instance, "TrashItemAsync", photo));
+        dialogs.WaitForAssertion(() => Assert.Contains("Move this item to Trash?", dialogs.Markup, StringComparison.Ordinal));
+        await dialogs.InvokeAsync(() => FooterButton(dialogs, "Move to Trash").Click());
+        await pending;
+
+        Assert.Equal([photo.Id], handler.Trashed);
+    }
+
+    [Fact]
+    public async Task Photos_OnATvTheViewerOffersNoMoveToTrash()
+    {
+        await UseTvAsync();
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor, NoPlaybackPreferences>();
+        Services.AddSingleton(provider => new PlaybackSessionController(
+            null!, null!, preferences: provider.GetRequiredService<IUserPlaybackPreferencesAccessor>()));
+
+        var viewer = Render<ViewImmersiveViewer>(parameters => parameters
+            .Add(component => component.Item, Photo("managed"))
+            .Add(component => component.CanManage, true)
+            .Add(component => component.CanEdit, true)
+            .Add(component => component.ContentUrl, "/preview")
+            .Add(component => component.OriginalUrl, "/original")
+            .Add(component => component.ThumbnailUrl, "/thumb"));
+
+        Assert.Empty(viewer.FindAll("button[aria-label='Move item to Trash']"));
+        Assert.Single(viewer.FindAll("button[aria-label='Archive item']"));
+    }
+
+    // The Trash handlers of the People page, Places page and Gallery page: on a TV they neither ask nor call the Engine; on a desktop (the control) the same setup asks and moves the photo.
+    private async Task RunTrashHandlerAsync<TPage>(bool tv, string handlerName, Action<ComponentParameterCollectionBuilder<TPage>>? parameters = null)
+        where TPage : IComponent
+    {
+        await (tv ? UseTvAsync() : UseAsync("desktop", touch: false));
+        var photo = Photo("one");
+        var handler = RegisterPhotosPage(photo);
+        var dialogs = Render<AppDialogHost>();
+        var cut = parameters is null ? Render<TPage>() : Render<TPage>(parameters);
+        // Wait for the page to finish its own loading before the photo is put in front of the handler.
+        cut.WaitForAssertion(() => Assert.All(["_initializing", "_loading"], name =>
+            Assert.NotEqual(true, typeof(TPage).GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(cut.Instance))));
+        typeof(TPage).GetField("_active", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(cut.Instance, photo);
+
+        var pending = cut.InvokeAsync(() => Invoke(cut.Instance, handlerName));
+        if (tv)
+        {
+            await pending;
+            Assert.Empty(handler.Trashed);
+            Assert.DoesNotContain("to Trash?", dialogs.Markup, StringComparison.Ordinal);
+            Assert.Equal(EditorDeviceRule.ItemMessage, Services.GetRequiredService<ViewRibbonState>().Message);
+            return;
+        }
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Move this item to Trash?", dialogs.Markup, StringComparison.Ordinal));
+        await dialogs.InvokeAsync(() => FooterButton(dialogs, "Move to Trash").Click());
+        await pending;
+        Assert.Equal([photo.Id], handler.Trashed);
+    }
+
+    [Fact]
+    public Task People_OnATvTheTrashHandlerNeverAsksNorCallsTheEngine() => RunTrashHandlerAsync<ViewPeoplePage>(tv: true, "TrashActiveAsync");
+
+    [Fact]
+    public Task People_OnADesktopTheTrashHandlerStillAsksAndMovesThePhoto() => RunTrashHandlerAsync<ViewPeoplePage>(tv: false, "TrashActiveAsync");
+
+    [Fact]
+    public Task Places_OnATvTheTrashHandlerNeverAsksNorCallsTheEngine() => RunTrashHandlerAsync<ViewPlacesPage>(tv: true, "TrashAsync");
+
+    [Fact]
+    public Task Places_OnADesktopTheTrashHandlerStillAsksAndMovesThePhoto() => RunTrashHandlerAsync<ViewPlacesPage>(tv: false, "TrashAsync");
+
+    [Fact]
+    public Task Gallery_OnATvTheTrashHandlerNeverAsksNorCallsTheEngine() =>
+        RunTrashHandlerAsync<ViewGalleryDetailPage>(tv: true, "TrashAsync", parameters => parameters.Add(page => page.GalleryId, Guid.NewGuid()));
+
+    [Fact]
+    public Task Gallery_OnADesktopTheTrashHandlerStillAsksAndMovesThePhoto() =>
+        RunTrashHandlerAsync<ViewGalleryDetailPage>(tv: false, "TrashAsync", parameters => parameters.Add(page => page.GalleryId, Guid.NewGuid()));
+
+    private static Task Invoke(object page, string method, params object[] arguments) =>
+        (Task)page.GetType().GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(page, arguments)!;
+
     [Fact]
     public async Task Photos_TheTrashFilterShowsTheHeaderAndTheNoteOnATileThatCouldNotBeDeleted()
     {
@@ -881,6 +1017,8 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
                 "/view/assets" => JsonSerializer.Serialize(new ViewAssetTimelinePageDto(photos, null, false)),
                 "/view/assets/timeline-index" => "{\"buckets\":[]}",
                 "/view/trash/summary" => JsonSerializer.Serialize(Summary(128)),
+                "/view/people" => "{\"items\":[],\"next_cursor\":null,\"has_more\":false,\"capability\":{\"state\":\"empty\",\"has_indexed_data\":false,\"automatic_processing_available\":false,\"message\":\"\",\"evidence_kinds\":[]}}",
+                "/view/places/atlas" => "{\"hotspots\":[],\"available_years\":[],\"mapped_asset_count\":0,\"unmapped_asset_count\":0,\"capability\":{\"state\":\"empty\",\"has_indexed_data\":false,\"automatic_processing_available\":false,\"message\":\"\",\"evidence_kinds\":[]}}",
                 "/view/galleries" => "{\"owned\":[],\"shared_with_you\":[]}",
                 _ => "{\"owned\":[],\"shared_with_you\":[]}",
             };

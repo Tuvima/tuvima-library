@@ -20,6 +20,7 @@
                        Layout="@(Advanced ? RuleBuilderLayout.Groups : RuleBuilderLayout.Sentence)"
                        ShowHeader="false"
                        ShowSort="false"
+                       MoveButtons="@MoveButtons"
                        Definition="@Definition"
                        DefinitionChanged="@DefinitionChanged"
                        SortField="@SortField"
@@ -96,6 +97,8 @@
 
     /// <summary>True for the Advanced layout: today's rule groups, with their own all/any and AND/OR.</summary>
     [Parameter] public bool Advanced { get; set; }
+    /// <summary>True on a touch arrangement: rule groups get Move up and Move down buttons in place of the drag grip.</summary>
+    [Parameter] public bool MoveButtons { get; set; }
     [Parameter] public EventCallback<bool> AdvancedChanged { get; set; }
 
     /// <summary>"Random, a new pick each day" in place of an ordering (the collection's own random-order choice).</summary>

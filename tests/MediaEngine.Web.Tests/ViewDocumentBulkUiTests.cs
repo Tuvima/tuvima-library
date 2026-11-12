@@ -121,6 +121,8 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     [Fact]
     public async Task SelectModeShowsACheckboxPerCardAndTheBulkBarAppearsOnceSomethingIsPicked()
     {
+        // Move to Trash is offered only where the device may edit items, so these start from a desktop.
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var cut = RenderLoaded();
         Assert.Empty(cut.FindAll(".view-selection-toolbar"));
 
@@ -164,6 +166,8 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     [Fact]
     public async Task MovingToTheTrashSendsOneBulkCallAndSaysPlainlyWhatHappened()
     {
+        // Move to Trash is offered only where the device may edit items, so these start from a desktop.
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var cut = RenderLoaded();
         await EnterSelectModeAsync(cut);
         await ChangeAsync(cut, ".view-document-card__select input", 0, true);
@@ -182,6 +186,8 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     [Fact]
     public async Task APartialResultNamesTheDocumentsThatWereLeftAloneAndWhy()
     {
+        // Move to Trash is offered only where the device may edit items, so these start from a desktop.
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         _handler.BulkResponse = "{\"operation\":\"move_to_trash\",\"requested\":3,\"done\":1,\"skipped\":2,\"failed\":0,\"items\":["
             + $"{{\"item_id\":\"{ItemIds[0]}\",\"status\":\"done\"}},"
             + $"{{\"item_id\":\"{ItemIds[1]}\",\"status\":\"skipped\",\"reason\":\"In the Shared Library: only filing rules can change it.\"}},"
@@ -444,6 +450,8 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     [Fact]
     public async Task MoveToTrashIsHiddenWhenEveryPickedDocumentIsInAReadOnlyFolder()
     {
+        // Move to Trash is offered only where the device may edit items, so these start from a desktop.
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         _handler.ReadOnlyIds.Add(ItemIds[0]);
         _handler.ReadOnlyIds.Add(ItemIds[1]);
         var cut = RenderLoaded();
@@ -462,8 +470,27 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AMoveToTrashAskedOfADeviceThatMayNotEditItemsSendsNothing()
+    {
+        // A television offers no selection at all; the handler still checks the device itself, so a device that changed under a ticked selection never reaches the Engine.
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var cut = RenderLoaded();
+        await EnterSelectModeAsync(cut);
+        await ChangeAsync(cut, ".view-document-card__select input", 0, true);
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true));
+
+        Assert.DoesNotContain(cut.FindAll(".view-selection-toolbar__action"), button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        var bulk = cut.Instance.GetType().GetMethod("BulkAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        await cut.InvokeAsync(() => (Task)bulk.Invoke(cut.Instance, ["move_to_trash", null])!);
+
+        Assert.Null(_handler.LastBulkBody);
+    }
+
+    [Fact]
     public async Task AMixedSelectionTrashesTheOthersAndSaysHowManyAreInAReadOnlyFolder()
     {
+        // Move to Trash is offered only where the device may edit items, so these start from a desktop.
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         _handler.ReadOnlyIds.Add(ItemIds[1]);
         _handler.ReadOnlyIds.Add(ItemIds[2]);
         _handler.BulkResponse = "{\"operation\":\"move_to_trash\",\"requested\":3,\"done\":1,\"skipped\":2,\"failed\":0,\"items\":["

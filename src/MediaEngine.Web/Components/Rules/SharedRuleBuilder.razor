@@ -43,12 +43,15 @@
                          @ondragover:preventDefault @ondrop="@(() => DropGroupAsync(group.Id))">
                     <header class="collection-rule-builder__group-header">
                         <div class="collection-rule-builder__group-identity">
-                            <AppTooltip Text="@L["SharedRuleBuilder_DragToReorderGroup"].Value">
-                                <span class="collection-rule-builder__drag" draggable="true"
-                                      @ondragstart="@(() => BeginGroupDrag(group.Id))">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
-                                </span>
-                            </AppTooltip>
+                            @if (!MoveButtons)
+                            {
+                                <AppTooltip Text="@L["SharedRuleBuilder_DragToReorderGroup"].Value">
+                                    <span class="collection-rule-builder__drag" draggable="true"
+                                          @ondragstart="@(() => BeginGroupDrag(group.Id))">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
+                                    </span>
+                                </AppTooltip>
+                            }
                             <strong>@L["SharedRuleBuilder_Group", groupIndex + 1]</strong>
                         </div>
                         <div class="collection-rule-builder__group-mode" role="group" aria-label="@L["SharedRuleBuilder_GroupMatchMode"].Value">
@@ -57,6 +60,18 @@
                             <AppNativeButton Type="button" Class="@(group.MatchMode == "any" ? "is-selected" : null)"
                                              OnClick="@(() => SetGroupModeAsync(group, "any"))">@L["SharedRuleBuilder_MatchANY"]</AppNativeButton>
                         </div>
+                        @if (MoveButtons && Definition.Groups.Count > 1)
+                        {
+                            @* Touch has no drag: the same reorder as a drop, one place at a time. *@
+                            <div class="collection-rule-builder__group-move" role="group" aria-label="@L["SharedRuleBuilder_MoveGroup"].Value">
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Size="AppControlSize.Large" Disabled="@(capturedGroupIndex == 0)"
+                                               Tooltip="@L["SharedRuleBuilder_MoveGroupUp"].Value" AriaLabel="@L["SharedRuleBuilder_MoveGroupUp"].Value"
+                                               OnClick="@(() => MoveGroupAsync(capturedGroupIndex, capturedGroupIndex - 1))" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Size="AppControlSize.Large" Disabled="@(capturedGroupIndex == Definition.Groups.Count - 1)"
+                                               Tooltip="@L["SharedRuleBuilder_MoveGroupDown"].Value" AriaLabel="@L["SharedRuleBuilder_MoveGroupDown"].Value"
+                                               OnClick="@(() => MoveGroupAsync(capturedGroupIndex, capturedGroupIndex + 1))" />
+                            </div>
+                        }
                         @if (Definition.Groups.Count > 1)
                         {
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
@@ -154,6 +169,9 @@
 
     /// <summary>False when the owner draws its own order and limit controls.</summary>
     [Parameter] public bool ShowSort { get; set; } = true;
+
+    /// <summary>True draws Move up and Move down buttons on each rule group instead of the drag grip, for a touch arrangement where nothing can be dragged.</summary>
+    [Parameter] public bool MoveButtons { get; set; }
 
     private const string IncludeTarget = "\u0001include";
     private const string ExceptionTarget = "\u0001exceptions";
@@ -308,12 +326,18 @@
         var targetIndex = Definition.Groups.FindIndex(group => group.Id == targetGroupId);
         if (sourceIndex < 0 || targetIndex < 0)
             return;
+        _draggedGroupId = null;
+        await MoveGroupAsync(sourceIndex, sourceIndex < targetIndex ? targetIndex - 1 : targetIndex);
+    }
+
+    /// <summary>The one reorder: the group at <paramref name="sourceIndex"/> ends up at <paramref name="finalIndex"/>. A drop and the Move up and Move down buttons both come here.</summary>
+    private async Task MoveGroupAsync(int sourceIndex, int finalIndex)
+    {
+        if (sourceIndex < 0 || sourceIndex >= Definition.Groups.Count || finalIndex < 0 || finalIndex >= Definition.Groups.Count)
+            return;
         var moved = Definition.Groups[sourceIndex];
         Definition.Groups.RemoveAt(sourceIndex);
-        if (sourceIndex < targetIndex)
-            targetIndex--;
-        Definition.Groups.Insert(targetIndex, moved);
-        _draggedGroupId = null;
+        Definition.Groups.Insert(finalIndex, moved);
         await NotifyChangedAsync();
     }
 
