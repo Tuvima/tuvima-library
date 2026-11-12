@@ -1,9 +1,3 @@
-.app-bg {
-    background: var(--tl-bg-root);
-    min-height: 100vh;
-    min-height: 100dvh;
-}
-
 /* The audio dock is a real row of the application viewport. Content scrolls
    inside the other row, so its last item can never sit underneath playback. */
 .playback-app-frame {
@@ -164,17 +158,6 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     padding-top: 0 !important;
 }
 
-.layout-shell__appbar {
-    min-height: var(--app-topbar-height, 65px);
-    height: var(--app-topbar-height, 65px);
-    padding: var(--tl-safe-area-top) var(--tl-safe-area-right) 0 var(--tl-safe-area-left) !important;
-    color: var(--tl-text-primary);
-    background: var(--tl-bg-surface) !important;
-    border-bottom: 1px solid var(--tl-border-default);
-    box-shadow: var(--tl-shadow-sm);
-    overflow: visible;
-}
-
 .layout-shell__intent-dock {
     display: none;
     position: fixed;
@@ -259,23 +242,6 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     backdrop-filter: blur(18px);
 }
 
-.layout-shell__appbar--cinematic {
-    color: var(--tl-text-primary);
-    background:
-        linear-gradient(
-            to bottom,
-            var(--tl-scrim-dark-6) 0%,
-            var(--tl-scrim-dark-2) 62%,
-            transparent 100%) !important;
-    border-bottom-color: transparent;
-    box-shadow: none;
-    backdrop-filter: blur(0.7rem) saturate(115%);
-}
-
-.app-bg--cinematic {
-    background: var(--tl-bg-root);
-}
-
 ::deep .layout-shell__appbar .tl-toolbar {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -286,18 +252,6 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     height: var(--app-topbar-height, 65px);
     padding: 0 1.25rem;
     overflow: visible;
-}
-
-.layout-shell__left-rail {
-    grid-column: 1;
-    grid-row: 1;
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    height: var(--tl-appbar-row-height, var(--app-topbar-height, 65px));
-    min-width: 0;
-    justify-content: flex-start;
-    overflow: hidden;
 }
 
 /* The logo lockup: the Tuvima icon beside the "Tuvima" wordmark, set in the Tuvima font. The whole bar uses that font. */
@@ -325,7 +279,6 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     text-transform: uppercase;
 }
 
-.layout-shell__appbar,
 .layout-shell__appbar button,
 .layout-shell__appbar input {
     font-family: var(--font-brand);
@@ -394,19 +347,6 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
 .layout-shell__nav-link--active::after {
     opacity: 1;
     transform: scaleX(1);
-}
-
-.layout-shell__actions {
-    grid-column: 3;
-    grid-row: 1;
-    position: relative;
-    z-index: 2;
-    justify-self: stretch;
-    width: 100%;
-    min-width: 0;
-    justify-content: flex-end;
-    overflow: visible;
-    gap: 0 !important;
 }
 
 .layout-shell__search-action-slot,
@@ -486,11 +426,6 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     .layout-shell__nav-link .layout-shell__nav-link-label {
         font-size: var(--tl-font-size-secondary);
         letter-spacing: 0.025em;
-    }
-
-    .layout-shell__actions {
-        width: auto;
-        justify-self: end;
     }
 
 }
@@ -610,19 +545,8 @@ html[data-form-factor="phone"] .playback-app-frame ::deep .layout-shell__appbar 
     column-gap: 4px;
 }
 
-html[data-form-factor="phone"] .layout-shell__left-rail {
-    width: 100%;
-    max-width: 100%;
-    overflow: visible;
-}
-
 html[data-form-factor="phone"] .layout-shell__desktop-nav {
     display: none;
-}
-
-html[data-form-factor="phone"] .layout-shell__actions {
-    grid-column: 3;
-    justify-self: end;
 }
 
 /* The icon-only logo: a 48 px link target in the 56 px bar. The hamburger is an AppNativeButton, so its rules are in wwwroot/app.css. */
