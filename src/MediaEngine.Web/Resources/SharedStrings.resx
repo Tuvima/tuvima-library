@@ -1076,6 +1076,21 @@
   <data name="DetailsTab_ThisIsAGroupingOpen" xml:space="preserve">
     <value>This is a grouping. Open an item inside it to see its file details.</value>
   </data>
+  <data name="DetailsTab_SeriesInLibrary" xml:space="preserve">
+    <value>In your library</value>
+  </data>
+  <data name="DetailsTab_SeriesOwnedOfTotal" xml:space="preserve">
+    <value>{0} of {1} {2}</value>
+  </data>
+  <data name="DetailsTab_SeriesFirstPublished" xml:space="preserve">
+    <value>First published</value>
+  </data>
+  <data name="DetailsTab_SeriesLatest" xml:space="preserve">
+    <value>Latest</value>
+  </data>
+  <data name="DetailsTab_SeriesAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
   <data name="DetailsTab_LoadingHistory" xml:space="preserve">
     <value>Loading history...</value>
   </data>
