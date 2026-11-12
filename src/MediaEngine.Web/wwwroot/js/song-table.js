@@ -67,7 +67,7 @@ export function dragPictureLabel(row, root) {
 }
 
 // Wires the drag for one table: `root` is the .song-table element. Returns a function that removes everything it added.
-export function wireDragOut(root) {
+export function wireDragOut(root, dotnetRef) {
     if (!root) {
         return () => { };
     }
@@ -105,9 +105,22 @@ export function wireDragOut(root) {
 
     // dragend is not delivered when the dragged row left the page during the drag (a long list recycling its rows), and no pointer events
     // arrive while a drag runs, so the first pointer move after it is also treated as its end.
+    // The component is told as well, a moment later so a drop on the page is handled first: without this a drag whose row was recycled (so
+    // the row's own dragend never reached the component) would leave its songs carried, and a later, unrelated drop would add them.
     const finish = () => {
-        stopTracking?.();
+        if (!stopTracking) {
+            return;
+        }
+
+        stopTracking();
         stopTracking = null;
+        if (dotnetRef) {
+            setTimeout(() => {
+                dotnetRef.invokeMethodAsync('DragOutFinished').catch((error) => {
+                    console.warn('song-table: the end of a drag could not be reported', error);
+                });
+            }, 50);
+        }
     };
 
     // The page's own drop handler still receives the drop; this only keeps the browser from opening the dragged text.
@@ -120,7 +133,8 @@ export function wireDragOut(root) {
     };
 
     const track = () => {
-        finish();
+        stopTracking?.();
+        stopTracking = null;
         document.addEventListener('dragenter', onDragOver, true);
         document.addEventListener('dragover', onDragOver, true);
         document.addEventListener('dragleave', onDragLeave, true);
@@ -170,7 +184,9 @@ export function wireDragOut(root) {
     root.addEventListener('dragstart', onDragStart);
     return () => {
         root.removeEventListener('dragstart', onDragStart);
-        finish();
+        // The table is going away and ends its own drag, so nothing is reported.
+        stopTracking?.();
+        stopTracking = null;
     };
 }
 
@@ -443,7 +459,7 @@ export function wireResize(root, dotnetRef) {
         }
     };
 
-    const unwireDrag = wireDragOut(root);
+    const unwireDrag = wireDragOut(root, dotnetRef);
 
     root.addEventListener('pointerdown', onPointerDown);
     root.addEventListener('pointermove', onPointerMove);

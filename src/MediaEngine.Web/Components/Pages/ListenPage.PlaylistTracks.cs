@@ -203,7 +203,7 @@ public partial class ListenPage
 
     private async Task RefreshFavoritesAfterChangeAsync()
     {
-        if (_disposed)
+        if (_disposed || !IsFavoritesPlaylist)
         {
             return;
         }

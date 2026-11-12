@@ -1122,6 +1122,10 @@ public partial class SongTable
         }
     }
 
+    /// <summary>The browser script reports that a drag has ended, for the case where the row's own dragend never arrived (a recycled row).</summary>
+    [JSInvokable]
+    public Task DragOutFinished() => InvokeAsync(DragEndAsync);
+
     private async Task DropAsync(SongRow target)
     {
         var moved = _dragKey;

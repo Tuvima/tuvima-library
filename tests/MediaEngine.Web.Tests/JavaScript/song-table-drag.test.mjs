@@ -173,3 +173,22 @@ test('a drop finishes the tracking and the first pointer move afterwards does to
     page.listeners.get('pointermove')({});
     assert.equal(page.listeners.size, 0);
 });
+
+test('the end of a drag is reported to the component, once, even when the row never sends its own dragend', async () => {
+    const page = fakePage();
+    globalThis.document = page.document;
+    const root = element();
+    root.dataset.songDragOut = 'true';
+    const handlers = {};
+    root.addEventListener = (type, handler) => { handlers[type] = handler; };
+    root.removeEventListener = () => { };
+    const row = element({ 'data-song-row-id': 'a' }, root);
+    const calls = [];
+    const component = { invokeMethodAsync: (name) => { calls.push(name); return Promise.resolve(); } };
+    wireDragOut(root, component);
+
+    handlers.dragstart({ target: row, dataTransfer: transfer() });
+    page.listeners.get('pointermove')({});
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.deepEqual(calls, ['DragOutFinished']);
+});
