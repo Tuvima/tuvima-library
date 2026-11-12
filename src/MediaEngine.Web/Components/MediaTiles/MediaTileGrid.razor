@@ -1,9 +1,32 @@
 @namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
 
 <div class="@GridClass">
     @foreach (var item in Items)
     {
-        <MediaTile Item="@item" @key="item.RenderKey" />
+        @if (SelectionMode && MediaTileActionTarget.For(item) is { CanSave: true })
+        {
+            @* Select (My List): the cover is a tick target. The tile underneath cannot be reached, so pressing it ticks it instead of opening it. *@
+            var picked = IsSelected?.Invoke(item) == true;
+            <div class="@($"media-tile-pick{(picked ? " is-picked" : string.Empty)}")" @key="item.RenderKey" data-media-tile-pick>
+                <div class="media-tile-pick__tile" inert>
+                    <MediaTile Item="@item" ShowActions="false" />
+                </div>
+                <div class="media-tile-pick__hit" role="checkbox" tabindex="0" aria-checked="@(picked ? "true" : "false")" aria-label="@item.Title"
+                     @onclick="@(() => OnToggle.InvokeAsync(item))" @onkeydown="@(e => KeyAsync(e, item))"></div>
+                <span class="media-tile-pick__box" aria-hidden="true">
+                    @if (picked)
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Inline16" />
+                    }
+                </span>
+            </div>
+        }
+        else
+        {
+            <MediaTile Item="@item" @key="item.RenderKey" />
+        }
     }
 </div>
 
@@ -16,6 +39,18 @@
     /// </summary>
     [Parameter] public bool SquaresOnly { get; set; }
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>My List's Select: covers that can be saved become tick targets with no "..." and do not open when pressed.</summary>
+    [Parameter] public bool SelectionMode { get; set; }
+
+    /// <summary>Whether a cover is ticked while <see cref="SelectionMode"/> is on.</summary>
+    [Parameter] public Func<MediaTileViewModel, bool>? IsSelected { get; set; }
+
+    /// <summary>Raised when a cover is pressed while <see cref="SelectionMode"/> is on.</summary>
+    [Parameter] public EventCallback<MediaTileViewModel> OnToggle { get; set; }
+
+    private Task KeyAsync(KeyboardEventArgs e, MediaTileViewModel item) =>
+        e.Key is " " or "Enter" ? OnToggle.InvokeAsync(item) : Task.CompletedTask;
 
     private string GridClass => $"media-tile-grid {(SquaresOnly ? "media-tile-grid--squares-only" : string.Empty)} {Class}".Trim();
 }

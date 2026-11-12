@@ -15,7 +15,6 @@ public partial class ShelfGridPage
 {
     private const int SkeletonTileCount = 12;
     private const string AnyValue = "__any";
-    private const string ObserverModule = "./js/load-more-observer.js";
 
     private static readonly string[] FilterKeys =
     [
@@ -54,8 +53,7 @@ public partial class ShelfGridPage
     private CancellationTokenSource? _cts;
 
     private ElementReference _sentinel;
-    private IJSObjectReference? _module;
-    private DotNetObjectReference<ShelfGridPage>? _self;
+    private GridLoadMoreObserver<ShelfGridPage>? _observer;
 
     private string PageTitleText => string.IsNullOrWhiteSpace(_page?.Title) ? "View all" : _page!.Title;
 
@@ -250,31 +248,8 @@ public partial class ShelfGridPage
         ShelfKey.StartsWith("continue", StringComparison.OrdinalIgnoreCase)
         || string.Equals(page.DefaultSort, DisplayGridValues.SortPlayed, StringComparison.OrdinalIgnoreCase);
 
-    private async Task SyncObserverAsync()
-    {
-        try
-        {
-            if (_hasMore && !_loading)
-            {
-                _module ??= await JS.InvokeAsync<IJSObjectReference>("import", ObserverModule);
-                _self ??= DotNetObjectReference.Create(this);
-                await _module.InvokeVoidAsync("observe", _sentinel, _self, new { rootMargin = "800px 0px" });
-            }
-            else if (_module is not null)
-            {
-                await _module.InvokeVoidAsync("disconnect", _sentinel);
-            }
-        }
-        catch (JSDisconnectedException)
-        {
-            // The circuit is gone; nothing is left to observe.
-        }
-        catch (JSException ex)
-        {
-            // Load more stays under the grid, so the list still works without the scroll trigger.
-            Logger.LogWarning(ex, "The scroll trigger for {Lane}/{ShelfKey} could not start.", Lane, ShelfKey);
-        }
-    }
+    private Task SyncObserverAsync() =>
+        (_observer ??= new GridLoadMoreObserver<ShelfGridPage>(JS, Logger, this)).SyncAsync(_sentinel, _hasMore && !_loading);
 
     private async Task OnSortChangedAsync(string? sort)
     {
@@ -349,36 +324,9 @@ public partial class ShelfGridPage
     {
         _cts?.Cancel();
         _cts?.Dispose();
-        if (_module is not null)
+        if (_observer is not null)
         {
-            // Two separate steps, so a failed disconnect still lets the module be released.
-            await ReleaseAsync(() => _module.InvokeVoidAsync("disconnect", _sentinel).AsTask());
-            await ReleaseAsync(() => _module.DisposeAsync().AsTask());
-        }
-
-        _self?.Dispose();
-    }
-
-    private async Task ReleaseAsync(Func<Task> step)
-    {
-        try
-        {
-            await step();
-        }
-        catch (JSDisconnectedException ex)
-        {
-            // The circuit closed first; the browser has already released the observer.
-            Logger.LogDebug(ex, "Grid scroll trigger disconnected during disposal.");
-        }
-        catch (JSException ex)
-        {
-            // The sentinel may already be gone from the page; there is nothing left to release.
-            Logger.LogDebug(ex, "Grid scroll trigger clean-up failed during disposal.");
-        }
-        catch (OperationCanceledException ex)
-        {
-            // The circuit is shutting down; the browser releases the observer with the page.
-            Logger.LogDebug(ex, "Grid scroll trigger clean-up was cancelled during disposal.");
+            await _observer.DisposeAsync();
         }
     }
 

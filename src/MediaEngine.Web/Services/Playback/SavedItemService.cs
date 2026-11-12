@@ -87,4 +87,56 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
         Changed?.Invoke();
         return current with { IsSaved = !current.IsSaved };
     }
+
+    /// <summary>
+    /// Takes several titles off My List at once (Select, Remove finished). Returns what was really removed, with each saved date, so
+    /// <see cref="RestoreManyAsync"/> can put them back in the same order; null when nothing could be removed. The cached list is dropped
+    /// and <see cref="Changed"/> raised, so every Add to My List button shows the right state.
+    /// </summary>
+    public async Task<IReadOnlyList<ProfileSavedItemDto>?> RemoveManyAsync(IReadOnlyList<ProfileSavedItemKeyDto> items, CancellationToken ct = default)
+    {
+        var removed = new List<ProfileSavedItemDto>();
+        foreach (var batch in items.Chunk(RemoveSavedItemsRequest.MaxItems))
+        {
+            if (await apiClient.RemoveSavedItemsAsync(batch, ct) is not { } done)
+            {
+                break;
+            }
+
+            removed.AddRange(done);
+        }
+
+        if (removed.Count == 0)
+        {
+            return null;
+        }
+
+        InvalidateList();
+        Changed?.Invoke();
+        return removed;
+    }
+
+    /// <summary>Puts titles back on My List with their original saved dates (Undo). Returns what was restored; null when nothing could be.</summary>
+    public async Task<IReadOnlyList<ProfileSavedItemDto>?> RestoreManyAsync(IReadOnlyList<ProfileSavedItemDto> items, CancellationToken ct = default)
+    {
+        var restored = new List<ProfileSavedItemDto>();
+        foreach (var batch in items.Chunk(RestoreSavedItemsRequest.MaxItems))
+        {
+            if (await apiClient.RestoreSavedItemsAsync(batch, ct) is not { } done)
+            {
+                break;
+            }
+
+            restored.AddRange(done);
+        }
+
+        if (restored.Count == 0)
+        {
+            return null;
+        }
+
+        InvalidateList();
+        Changed?.Invoke();
+        return restored;
+    }
 }
