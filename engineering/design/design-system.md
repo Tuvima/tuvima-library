@@ -364,7 +364,7 @@ New CSS may only break at **600 / 840 / 1180 px** (plus the touch query at 1023 
 | Compact | `--tl-breakpoint-compact` | `640` | Existing compact layouts |
 | Content | `--tl-breakpoint-content` | `960` | Existing content layouts |
 
-Touch targets are at least 44 by 44 px (48 on the bottom dock). Use `100dvh`, not bare `100vh`. Editing is desktop-only.
+Touch targets are at least 44 by 44 px (48 on the bottom dock). Use `100dvh`, not bare `100vh`. Item editing works on desktop, tablet and phone (`EditorDeviceRule.CanEditItems`); Settings configuration and the Vault tools stay desktop-only (`EditorDeviceRule.CanEdit`).
 
 ## Tiles
 

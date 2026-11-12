@@ -2,6 +2,8 @@
 
 > **Status:** Built, awaiting your Local checks (merged 2026-11-07 in PRs 764, 765, 767, 768, 770, 772, 776; docs PRs 97, 101; footer order settled as in the mock, Shy 2026-11-07) · **Version:** 1.3 · **Last updated:** 2026-11-07 (v1.1: cleanup audit, WP13 and WP14 added at Shy's request, 06:45Z; v1.2: D17 no redirects anywhere, Shy 06:55Z; v1.3: WP3 lists every document the font change touches, Shy 06:56Z) · **Related docs:** [Look pass v2](look-pass-v2.md) (Locked, built) · [Look v2 ownership map](look-pass-v2-ownership.md) · [Settings and setup simplified](archive/settings-and-setup-simplified.md) · [Design system](../design/design-system.md) · [Mockups](../design/mockups/look-pass-v3/look-v3-mockups.html) · [Cleanup audit](../design/look-pass-v3-cleanup-audit.md) · Planning thread: "Unify app colours, fonts and settings" (2026-11-07)
 >
+> **Version note (2026-11-12):** [universal-editor-v6](archive/universal-editor-v6-match-and-aligned-rows.md) (section 9) replaces D15.5's worked example (the Match row with a right-hand switch) with the row in its D3; the shared row part of D12 is the form-row primitive (`AppFormRow`). The Locked body below is unchanged.
+>
 > Look v2 is Locked and built, so this is a new version, not an edit. Everything here was read from the code on main at `68e2955e8` on 2026-11-07; counts come from searching the Dashboard's style and page files. "Verified" means read in the code; "likely" means a strong reading that a screenshot would confirm.
 
 ## 1. Goal

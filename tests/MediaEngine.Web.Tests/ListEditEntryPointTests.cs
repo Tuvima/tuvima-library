@@ -77,6 +77,7 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
     private Task UseDevice(string formFactor) => formFactor switch
     {
         "phone" => _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true)),
+        "tv" => _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true)),
         _ => _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true)),
     };
 
@@ -141,7 +142,7 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
     [Fact]
     public async Task OnADeviceThatMayNotEdit_NothingIsAskedAndNothingOpens()
     {
-        await UseDevice("phone");
+        await UseDevice("tv");
         var (launcher, host, _) = Parts();
 
         Assert.False(await launcher.OpenAsync(Movie(), EditTool.Match));

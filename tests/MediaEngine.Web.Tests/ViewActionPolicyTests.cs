@@ -36,13 +36,21 @@ public sealed class ViewActionPolicyTests
     }
 
     [Fact]
-    public void Phone_NeverOffersEditOrTrash()
+    public void Phone_OffersEditWhenTheDeviceMayEdit_ButNeverTrash()
     {
         var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsPhone = true });
 
-        Assert.False(actions.HasFlag(ViewActions.Edit));
+        Assert.True(actions.HasFlag(ViewActions.Edit));
         Assert.False(actions.HasFlag(ViewActions.Trash));
         Assert.True(actions.HasFlag(ViewActions.Archive));
+    }
+
+    [Fact]
+    public void Phone_NeverOffersEditWhenTheDeviceMayNotEdit()
+    {
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsPhone = true, CanEdit = false });
+
+        Assert.False(actions.HasFlag(ViewActions.Edit));
     }
 
     [Fact]

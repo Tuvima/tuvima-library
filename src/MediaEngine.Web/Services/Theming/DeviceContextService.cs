@@ -66,8 +66,14 @@ public sealed class DeviceContextService
     public bool CanHover { get; private set; }
 
     /// <summary>
-    /// Whether this device may edit library items: desktop form factor with a fine, hover-capable primary pointer.
-    /// The one rule is <see cref="MediaEngine.Web.Services.Editing.EditorDeviceRule"/>; this is a shorthand for it.
+    /// Whether this device may edit library items: a desktop, tablet or phone (never a TV or an unknown form factor).
+    /// The rule is <see cref="MediaEngine.Web.Services.Editing.EditorDeviceRule"/>; this is a shorthand for it.
+    /// </summary>
+    public bool CanEditItems => Editing.EditorDeviceRule.CanEditItems(this);
+
+    /// <summary>
+    /// Whether this device may use a desktop-only tool (Settings configuration, Vault tools): desktop form factor with a fine, hover-capable
+    /// primary pointer. Item editing does not use this; see <see cref="CanEditItems"/>.
     /// </summary>
     public bool CanEdit => Editing.EditorDeviceRule.CanEdit(this);
 

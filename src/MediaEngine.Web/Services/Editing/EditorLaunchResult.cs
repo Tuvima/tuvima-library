@@ -13,8 +13,8 @@ public enum EditorLaunchResult
     NotAvailable,
 
     /// <summary>
-    /// Editing is desktop-only: phones, tablets, TVs and anything the Dashboard cannot identify as a desktop with a
-    /// fine, hover-capable pointer never open an editor.
+    /// Item editing is not available on this device: a TV, or anything the Dashboard cannot identify as a desktop, tablet or phone, never opens
+    /// an editor. (Desktop-only tools in Settings and the Vault ask EditorDeviceRule.CanEdit themselves.)
     /// </summary>
     NotAvailableOnThisDevice,
 }

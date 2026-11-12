@@ -16,7 +16,9 @@ public sealed class ChronicleExplorerEditingGuardrailTests
         Assert.DoesNotContain("<EditorPanelHost", explorer, StringComparison.Ordinal);
         Assert.Contains("Editor.OpenAsync(_binding", explorer, StringComparison.Ordinal);
         Assert.Contains("UniverseQid = Qid", explorer, StringComparison.Ordinal);
-        Assert.Contains("EditorDeviceRule.TryRefuse", explorer, StringComparison.Ordinal);
+        // The edit handler still asks the item-editing device rule first (editor v6 D19): a hidden button is never the only protection.
+        Assert.Contains("EditorDeviceRule.TryRefuseItems", explorer, StringComparison.Ordinal);
+        Assert.DoesNotContain("EditorDeviceRule.TryRefuse(", explorer, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEditorLauncher", explorer, StringComparison.Ordinal);
     }
 

@@ -2,6 +2,8 @@
 
 > **Status:** In progress (U-WP0 to U-WP8, U-WP3b, U-WP9 part 1, U-WP9 part 2, U-WP10 to U-WP14 built, awaiting Local checks; the rest is in the [2026-10-20 Universes handoff](../handoffs/2026-10-20-universe-remaining.md)) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
+> **Version note (2026-11-12):** [universal-editor-v6](archive/universal-editor-v6-match-and-aligned-rows.md) (section 9) replaces the "editing is desktop-only" rule wherever this spec states it or hides an edit action on phones: item editing works on desktop, tablet and phone (`EditorDeviceRule.CanEditItems`), the Engine's permission check still decides who may edit, and TVs do not edit. Settings and Vault tools stay desktop-only. The Locked body below is unchanged.
+
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
 Read this first; it explains why the plan looks the way it does.

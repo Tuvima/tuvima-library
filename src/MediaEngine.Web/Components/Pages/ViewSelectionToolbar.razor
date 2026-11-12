@@ -114,7 +114,7 @@
     /// <summary>True when every selected item is already a favorite, so the action takes them out of Favorites.</summary>
     [Parameter] public bool FavoriteRemoves { get; set; }
 
-    /// <summary>Opens the editor window on the selection (spec photos-documents-editor D2). Editing is desktop-only, so the phone bar never offers it.</summary>
+    /// <summary>Opens the editor window on the selection (spec photos-documents-editor D2). The phone bar offers it in its three-dot menu; a device that may not edit items passes no handler.</summary>
     [Parameter] public EventCallback OnEdit { get; set; }
     [Parameter] public EventCallback OnSharedLibrary { get; set; }
     [Parameter] public bool ShowSharedLibrary { get; set; }
@@ -145,6 +145,7 @@
             if (ShowRestore) { items.Add(new() { Label = L["Common_Restore"].Value, Icon = AppMaterialIcons.Outlined.Restore, OnClick = OnRestore }); }
             else if (OnArchive.HasDelegate) { items.Add(new() { Label = L["ViewSelectionToolbar_Archive"].Value, Icon = AppMaterialIcons.Outlined.Inventory2, OnClick = OnArchive }); }
             if (OnHide.HasDelegate) { items.Add(new() { Label = L["ViewActions_Hide"].Value, Icon = AppMaterialIcons.Outlined.VisibilityOff, OnClick = OnHide }); }
+            if (OnEdit.HasDelegate) { items.Add(new() { Label = L["ViewEdit_Edit"].Value, Icon = AppMaterialIcons.Outlined.Edit, OnClick = OnEdit }); }
             if (ShowTrash && OnTrash.HasDelegate) { items.Add(new() { Label = L["Common_Trash"].Value, Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = OnTrash }); }
             if (OnRemoveFromGallery.HasDelegate) { items.Add(new() { Label = L["ViewSelectionToolbar_RemoveFromGallery"].Value, Icon = AppMaterialIcons.Outlined.RemoveCircleOutline, OnClick = OnRemoveFromGallery }); }
             return items;

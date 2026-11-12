@@ -17,7 +17,7 @@
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<MediaTileActions> Logger
 @* The cover's one button (One tile design D3, D4): "..." sits top right, always visible, and holds Add to My List (first, on every device),
-   Restart (only once started), Open Universe (when there is one), Edit (desktop only) and Delete (administrators on a desktop). A Continue
+   Restart (only once started), Open Universe (when there is one), Edit (a device that may edit items) and Delete (administrators on such a device). A Continue
    tile adds "Go to ..." first and "Remove from Continue" after Restart (D8). It sits beside the cover's link, never inside it. Edit opens the
    pop-over editor over the page; nothing navigates away. It is not drawn when it would be empty. *@
 @if (_target is not null || IsContinue)
@@ -108,8 +108,8 @@
                 actions.Add(new DetailAction { Key = OpenUniverseKey, Label = L["MediaTile_OpenUniverse"].Value, Icon = "open_in_new" });
             }
 
-            // Editing is desktop-only (EditorDeviceRule); the Engine's own answer for this item is read when Edit is chosen.
-            if (_target is { CanEdit: true } && EditorDeviceRule.CanEdit(DeviceContext))
+            // Item editing needs a device that may edit (EditorDeviceRule.CanEditItems); the Engine's own answer for this item is read when Edit is chosen.
+            if (_target is { CanEdit: true } && EditorDeviceRule.CanEditItems(DeviceContext))
             {
                 actions.Add(new DetailAction { Key = DetailActionKeys.Edit, Label = L["MediaTile_Edit"].Value, Icon = "edit" });
             }

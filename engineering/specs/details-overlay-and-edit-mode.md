@@ -2,6 +2,8 @@
 
 > **Status:** In progress: Waves 1–5 merged (#305, #314, #362); WP8 per-type pass and docs left, see [handoff](../handoffs/2026-10-21-details-overlay-finish.md); Local checks listed in `engineering/validation/batch.md` (started 2026-10-20) · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail (archived, D12)](archive/item-detail.md) · [Editing Mode (archived, as-built)](archive/editing-mode.md) · [Delete from library](archive/delete-from-library.md) · [Universe](universe.md) · Bug list items 16, 17, 18, 19
 
+> **Version note (2026-11-12):** [universal-editor-v6](archive/universal-editor-v6-match-and-aligned-rows.md) (section 9) replaces the "editing is desktop-only" rule wherever this spec states it or hides an edit action on phones: item editing works on desktop, tablet and phone (`EditorDeviceRule.CanEditItems`), the Engine's permission check still decides who may edit, and TVs do not edit. Settings and Vault tools stay desktop-only. The Locked body below is unchanged.
+
 ## 1. Goal
 Titles open as an overlay you can dismiss and come back from. Editing becomes a clear mode of the page itself: choose Edit in the "..." menu, a banner makes it obvious you are editing, and everything (single fields, artwork, matching, batch edits) happens on the page. No side drawer, so nothing is squished and nothing is hidden.
 

@@ -9,8 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The details "..." menu (details overlay spec D2, D5, D10): the Edit entry per device and permission, the quiet
-/// "Edit on a computer" line, the order with Delete last and red, and the reason a disabled Edit gives.
+/// The details "..." menu (details overlay spec D2, D5, D10; editor v6 D19): the Edit entry per device and permission (desktop, tablet and
+/// phone; never a TV), the order with Delete last and red, and the reason a disabled Edit gives.
 /// </summary>
 public sealed class OverflowActionMenuTests : AsyncBunitContext
 {
@@ -48,9 +48,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
     private static IReadOnlyList<string> Labels(IRenderedComponent<OverflowActionMenu> menu) =>
         menu.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
 
-    private static IReadOnlyList<string> Notes(IRenderedComponent<OverflowActionMenu> menu) =>
-        menu.FindAll(".tl-detail-menu-note").Select(note => note.TextContent.Trim()).ToList();
-
     [Fact]
     public async Task DesktopThatCanEditShowsTheEditEntryWhenTheEngineOfferedIt()
     {
@@ -60,7 +57,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Contains(EditLabel, Labels(menu));
-        Assert.Empty(Notes(menu));
     }
 
     [Fact]
@@ -72,7 +68,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Equal(["Viewing history"], Labels(menu));
-        Assert.Empty(Notes(menu));
     }
 
     [Fact]
@@ -83,43 +78,47 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         Assert.Empty(RenderMenu().FindAll("button"));
     }
 
-    [Fact]
-    public async Task TabletHasNoEditEntryAndOneQuietLineInItsPlace()
+    // Editing works on a tablet and a phone (editor v6 D19): the Edit entry is there, with no "Edit on a computer" line.
+    [Theory]
+    [InlineData("tablet")]
+    [InlineData("desktop-no-pointer")]
+    public async Task DevicesWithoutAMouseShowTheEditEntry_AndNoQuietLine(string device)
     {
-        await UseAsync("tablet");
+        await UseAsync(device);
         var menu = RenderMenu(History, Edit());
 
         menu.Find("button.hero-icon-circle").Click();
 
-        Assert.Equal(["Viewing history"], Labels(menu));
-        Assert.Equal(["Edit on a computer"], Notes(menu));
-        Assert.Empty(menu.FindAll("dialog"));
+        Assert.Equal(["Viewing history", EditLabel], Labels(menu));
+        Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task TabletDoesNotShowTheLineToAPersonWhoWasNotOfferedEdit()
+    public async Task TabletDoesNotShowEditToAPersonWhoWasNotOfferedEdit()
     {
         await UseAsync("tablet");
         var menu = RenderMenu(History);
 
         menu.Find("button.hero-icon-circle").Click();
 
-        Assert.Empty(Notes(menu));
+        Assert.Equal(["Viewing history"], Labels(menu));
     }
 
-    [Fact]
-    public async Task TabletMenuThatHeldOnlyEditIsNotDrawn()
+    [Theory]
+    [InlineData("tablet")]
+    [InlineData("phone")]
+    public async Task TabletAndPhoneMenuThatHoldsOnlyEditIsDrawn(string device)
     {
-        await UseAsync("tablet");
+        await UseAsync(device);
 
         var menu = RenderMenu(Edit());
+        menu.Find("button.hero-icon-circle").Click();
 
-        Assert.Empty(menu.FindAll("button"));
-        Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
+        Assert.Equal([EditLabel], Labels(menu));
     }
 
     [Fact]
-    public async Task PhoneSheetHasNoEditEntryAndOneQuietLineInItsPlace()
+    public async Task PhoneSheetHasTheEditEntry_AndNoQuietLine()
     {
         await UseAsync("phone");
         var menu = RenderMenu(History, Edit());
@@ -127,23 +126,24 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Contains("app-native-dialog--sheet", menu.Find("dialog").ClassName);
-        Assert.Equal(["Viewing history"], Labels(menu));
-        Assert.Equal(["Edit on a computer"], Notes(menu));
+        Assert.Equal(["Viewing history", EditLabel], Labels(menu));
     }
 
     [Fact]
-    public async Task PhoneMenuThatHeldOnlyEditIsNotDrawn()
+    public async Task TvMenuThatHeldOnlyEditIsNotDrawn()
     {
-        await UseAsync("phone");
+        await UseAsync("tv");
 
-        Assert.Empty(RenderMenu(Edit()).FindAll("button"));
+        var menu = RenderMenu(Edit());
+
+        Assert.Empty(menu.FindAll("button"));
+        Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("tv")]
-    [InlineData("desktop-no-pointer")]
     [InlineData("unknown")]
-    public async Task TvUnknownDevicesAndDesktopWithoutAFinePointerGetNeitherTheEntryNorTheLine(string device)
+    public async Task TvAndUnknownDevicesGetNeitherTheEntryNorTheLine(string device)
     {
         await UseAsync(device);
         var menu = RenderMenu(History, Edit());
@@ -151,7 +151,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Equal(["Viewing history"], Labels(menu));
-        Assert.Empty(Notes(menu));
         Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
     }
 
@@ -194,21 +193,19 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         Assert.Contains("app-tone--error", menu.FindAll("[role='menuitem']").Last().ClassName);
     }
 
-    [Fact]
-    public async Task TabletQuietLineSitsBeforeDeleteWithADividerAndIsNeverRed()
+    [Theory]
+    [InlineData("tablet")]
+    [InlineData("phone")]
+    public async Task OnATabletOrPhoneDeleteIsStillTheLastEntryInRed(string device)
     {
-        await UseAsync("tablet");
+        await UseAsync(device);
         DetailAction delete = new() { Key = "delete", Label = "Delete", Icon = "delete", IsDestructive = true };
         var menu = RenderMenu(History, Edit(), delete);
 
         menu.Find("button.hero-icon-circle").Click();
 
-        Assert.Equal(["Viewing history", "Delete"], Labels(menu));
-        var note = menu.Find(".tl-detail-menu-note");
-        Assert.Equal("hr", note.PreviousElementSibling?.TagName.ToLowerInvariant());
-        Assert.Equal("hr", menu.FindAll("[role='menuitem']").Last().PreviousElementSibling?.TagName.ToLowerInvariant());
-        // Not a menu item: inside role="menu" the note is presentational.
-        Assert.Equal("none", note.GetAttribute("role"));
+        Assert.Equal(["Viewing history", EditLabel, "Delete"], Labels(menu));
+        Assert.Contains("app-tone--error", menu.FindAll("[role='menuitem']").Last().ClassName);
     }
 
     [Fact]
@@ -262,10 +259,8 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("tablet")]
-    [InlineData("phone")]
     [InlineData("tv")]
-    [InlineData("desktop-no-pointer")]
+    [InlineData("unknown")]
     public async Task WhereTheDeviceCannotEdit_IdentifyAndChangeThumbnailDisappearWithEdit(string device)
     {
         await UseAsync(device);
@@ -275,5 +270,18 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
 
         Assert.DoesNotContain("Identify", Labels(menu));
         Assert.DoesNotContain("Change thumbnail", Labels(menu));
+    }
+
+    [Theory]
+    [InlineData("tablet")]
+    [InlineData("phone")]
+    public async Task OnATabletOrPhone_IdentifyAndChangeThumbnailStayWithEdit(string device)
+    {
+        await UseAsync(device);
+        var menu = RenderMenu(History, Edit(), IdentifyAction, ThumbnailAction);
+
+        menu.Find("button.hero-icon-circle").Click();
+
+        Assert.Equal(["Viewing history", EditLabel, "Identify", "Change thumbnail"], Labels(menu));
     }
 }

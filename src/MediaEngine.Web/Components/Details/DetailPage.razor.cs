@@ -55,7 +55,7 @@ public partial class DetailPage
         || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
     private bool ShowDetailNavigation => Model?.EntityType != DetailEntityType.Person;
     // The Engine only offers "edit" to a person who may edit; the device rule is checked here again at the handler.
-    private bool CanEditMedia => DeviceContext.CanEdit && Model?.OverflowActions.Any(action =>
+    private bool CanEditMedia => DeviceContext.CanEditItems && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
 
     // The universal editor is one pop-over for the whole Dashboard (EditorHost, drawn by the layout); this page only binds itself to it when

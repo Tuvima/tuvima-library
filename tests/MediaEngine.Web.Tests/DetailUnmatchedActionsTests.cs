@@ -206,7 +206,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
     [Fact]
     public async Task OnADeviceThatCannotEdit_TheUnmatchedEntriesStayWhileEditDisappears()
     {
-        await UseDeviceAsync("phone", fine: false, hover: false);
+        await UseDeviceAsync("tv", fine: false, hover: false);
         var cut = RenderPage(Model(NotKeptActions, [Asset(OpenAsset, kept: false)]));
 
         var labels = OpenMenu(cut);

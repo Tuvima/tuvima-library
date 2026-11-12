@@ -105,7 +105,7 @@ public partial class MusicTrackList
 
     private bool CanEditRows => Editor is { CanEdit: true, EditRowAsync: not null };
 
-    // Delete from library is for an effective administrator on a desktop, on a page the person may edit.
+    // Delete from library is for an effective administrator on a device that may edit items, on a page the person may edit.
     private bool CanDeleteRows => Editor is { CanEdit: true } && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
 
     private string? CurrentRowId
@@ -440,7 +440,7 @@ public partial class MusicTrackList
             return;
         }
 
-        // The menu item only shows to an administrator on a desktop; a handler never trusts that.
+        // The menu item only shows to an administrator on a device that may edit items; a handler never trusts that.
         if (LibraryItemDeletionFlow.Refusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
             _notice = refusal;

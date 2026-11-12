@@ -29,7 +29,7 @@ public partial class DetailPage
     // Delete from the library (a title or a whole group) and the page-removed notice when someone else deleted the title: deletion state, the delete handlers, the live removal event, and leaving the page.
 
     /// <summary>
-    /// Delete from library, in the page's "..." menu: on a desktop
+    /// Delete from library, in the page's "..." menu: on a desktop, tablet or phone
     /// for an effective administrator, and for a page that is one title (details overlay spec D18, D19). The Engine and
     /// <see cref="DeleteFromLibraryAsync"/> check again.
     /// </summary>
@@ -125,7 +125,7 @@ public partial class DetailPage
             return;
         }
 
-        // The entry only shows to an administrator on a desktop; a handler never trusts that.
+        // The entry only shows to an administrator on a device that may edit items; a handler never trusts that.
         if (LibraryItemDeletionFlow.Refusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
             ShowNotice(refusal);

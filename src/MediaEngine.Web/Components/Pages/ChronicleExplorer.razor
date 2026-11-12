@@ -48,7 +48,7 @@ else
 <AppText Typo="AppTypo.h4" Class="chronicle-explorer-title tl-sp-mb-2">
         @(_graph?.universe.label ?? "Loading...")
     </AppText>
-    @if (_canEditUniverse && DeviceContext.CanEdit)
+    @if (_canEditUniverse && DeviceContext.CanEditItems)
     {
         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Class="chronicle-explorer-more" Disabled="@(_openingEditor || _editing.IsOn)">
             <AppMenuItem Label="@L["ChronicleExplorer_EditUniverse"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => EditUniverseAsync(null))" />
@@ -385,7 +385,7 @@ else
                 @L["ChronicleExplorer_QID", _selectedEntity.id]
             </AppText>
 
-            @if (_canEditUniverse && !_selectedEntity.supplemental && DeviceContext.CanEdit)
+            @if (_canEditUniverse && !_selectedEntity.supplemental && DeviceContext.CanEditItems)
             {
                 <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Class="chronicle-explorer-more" Disabled="@(_openingEditor || _editing.IsOn)">
                     <AppMenuItem Label="@L["ChronicleExplorer_Edit", _selectedEntity.label].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => EditUniverseAsync(_selectedEntity))" />
@@ -459,7 +459,7 @@ else
     {
         if (_openingEditor || !_canEditUniverse || _editing.IsOn) return;
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
-        if (EditorDeviceRule.TryRefuse(DeviceContext)) { ShowEditNotice(EditorDeviceRule.Message, isError: false); return; }
+        if (EditorDeviceRule.TryRefuseItems(DeviceContext)) { ShowEditNotice(EditorDeviceRule.ItemMessage, isError: false); return; }
         _editNotice = null;
         _openingEditor = true;
         try

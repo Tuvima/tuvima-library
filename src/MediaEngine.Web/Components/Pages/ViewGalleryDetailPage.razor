@@ -58,7 +58,7 @@
                 @if (IsOwner)
                 {
                     <div class="view-feature-page__actions" role="group" aria-label="@L["ViewGalleryDetailPage_GalleryManagement"].Value">
-                        @if (_gallery.Kind == ViewGalleryKind.Smart && DeviceContext.CanEdit)
+                        @if (_gallery.Kind == ViewGalleryKind.Smart && DeviceContext.CanEditItems)
                         {
                             <AppButton Label="@L["ViewGalleryDetailPage_EditGallery"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenEdit" />
                         }
@@ -395,8 +395,8 @@
         var launch = await GalleryEditorLauncher.TryOpenAsync(new GalleryEditorLaunchRequest { EditingGallery = _gallery });
         if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
         {
-            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
-            _deviceNotice = EditorDeviceRule.Message;
+            // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
+            _deviceNotice = EditorDeviceRule.ItemMessage;
             return;
         }
 

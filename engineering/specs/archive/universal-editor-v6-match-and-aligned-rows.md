@@ -1,6 +1,6 @@
 # Spec: Universal editor v6: Match view and aligned rows
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-11-12 (locked by Shy, 2026-11-12 02:00Z: "build it here") · **Related docs:** [Universal editor v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) · [Look pass v3](look-pass-v3.md) · [Look v3.1](look-pass-v3-1-controls-and-type.md) · [Mockups](../design/mockups/editor-v6/editor-v6-mockups.html) · [Product overview](../product/overview.md) · Issues 870, 871, 876, 878, 879, 881 (editor part), 899 (alignment part)
+> **Status:** Built, awaiting your Local checks (built 2026-11-12 in PRs 915, 916, 919, 920, 929, 934, 935, 936, 942, 944 to 951; docs PR 136; Local checks "Editor v6 L1 to L14" in `engineering/validation/batch.md`) · **Version:** 1 · **Last updated:** 2026-11-12 (locked by Shy, 2026-11-12 02:00Z: "build it here") · **Related docs:** [Universal editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) · [Look pass v3](../look-pass-v3.md) · [Look v3.1](../look-pass-v3-1-controls-and-type.md) · [Mockups](../../design/mockups/editor-v6/editor-v6-mockups.html) · [Product overview](../../product/overview.md) · Issues 870, 871, 876, 878, 879, 881 (editor part), 899 (alignment part)
 
 ## 0. Why
 

@@ -423,7 +423,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         Assert.Empty(presenter.Lines);
     }
 
-    // ---- Who may edit the lyrics (CLAUDE.md Never 1: editing is desktop-only and the Engine still decides) ----
+    // ---- Who may edit the lyrics (CLAUDE.md Never 1: editing works on desktop, tablet and phone, never a TV, and the Engine still decides) ----
 
     private static async Task<DeviceContextService> DeviceAsync(DeviceContextSnapshot snapshot)
     {
@@ -448,7 +448,9 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     [InlineData("web", "tablet", false, false, true, true)]
     [InlineData("web", "desktop", false, false, false, true)]
     [InlineData("web", "desktop", false, true, false, true)]
-    public async Task EditLyricsIsOfferedOnlyToAnAdministratorOnADesktopWithAFineHoverPointer(
+    [InlineData("television", "tv", false, true, true, true)]
+    [InlineData("web", "mystery", false, true, true, true)]
+    public async Task EditLyricsIsOfferedOnlyToAnAdministratorOnADesktopTabletOrPhone(
         string deviceClass, string formFactor, bool touch, bool finePointer, bool hover, bool administrator)
     {
         var device = await DeviceAsync(new DeviceContextSnapshot(deviceClass, formFactor, touch, FinePointer: finePointer, Hover: hover));
@@ -459,7 +461,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
 
         await OpenFooterMenuAsync(cut);
 
-        var expected = deviceClass == "web" && formFactor == "desktop" && finePointer && hover && administrator;
+        var expected = formFactor is "desktop" or "tablet" or "phone" && administrator;
         Assert.Equal(expected, FooterMenuLabels(cut).Contains("Edit lyrics"));
         Assert.Contains("This one is wrong", FooterMenuLabels(cut));
     }

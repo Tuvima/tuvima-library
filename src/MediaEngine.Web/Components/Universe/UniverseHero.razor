@@ -57,7 +57,7 @@
 @code {
     [Parameter, EditorRequired] public UniverseClientDetailDto Detail { get; set; } = default!;
 
-    /// <summary>True only for a desktop administrator who may edit this Universe; the page decides.</summary>
+    /// <summary>True only for an administrator who may edit this Universe; the page decides.</summary>
     [Parameter] public bool CanEdit { get; set; }
 
     /// <summary>The name to show in place of the Universe's own while an edit is staged; null shows the Universe's name.</summary>

@@ -86,6 +86,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     {
         "phone" => _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true)),
         "tablet" => _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "tablet", true)),
+        "tv" => _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true)),
         _ => _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true)),
     };
 
@@ -142,7 +143,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     [Fact]
     public async Task OpenUniverse_IsOnlyOfferedWhenTheEngineNamedAUniverse_AndOpensItsPage()
     {
-        await UseDevice("phone");
+        await UseDevice("tv");
         var navigation = Services.GetRequiredService<NavigationManager>();
 
         var without = RenderTile(Movie());
@@ -199,9 +200,20 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     [Theory]
     [InlineData("phone")]
     [InlineData("tablet")]
-    public async Task OnAPhoneOrTablet_EditAndDeleteAreHidden_AndOnlyMyListAndRestartRemain(string formFactor)
+    public async Task OnAPhoneOrTablet_EditAndDeleteAreOffered_ForAnAdministrator(string formFactor)
     {
         await UseDevice(formFactor);
+        SetAdministrator(true);
+
+        var cut = RenderTile(Movie());
+
+        Assert.Equal(["Add to My List", "Restart", "Edit", "Delete from library…"], MenuLabels(cut));
+    }
+
+    [Fact]
+    public async Task OnATv_EditAndDeleteAreHidden_AndOnlyMyListAndRestartRemain()
+    {
+        await UseDevice("tv");
         SetAdministrator(true);
 
         var cut = RenderTile(Movie());
@@ -213,15 +225,26 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     [Theory]
     [InlineData("phone")]
     [InlineData("tablet")]
-    public async Task OnAPhoneOrTablet_AnUnstartedTitleHasOnlyAddToMyList(string formFactor)
+    public async Task OnAPhoneOrTablet_AnUnstartedTitleHasMyListEditAndDelete(string formFactor)
     {
         await UseDevice(formFactor);
         SetAdministrator(true);
 
         var cut = RenderTile(Movie(progress: null));
 
-        Assert.Equal(["Add to My List"], MenuLabels(cut));
+        Assert.Equal(["Add to My List", "Edit", "Delete from library…"], MenuLabels(cut));
         Assert.Empty(cut.FindAll("button.media-tile-action--list"));
+    }
+
+    [Fact]
+    public async Task OnATv_AnUnstartedTitleHasOnlyAddToMyList()
+    {
+        await UseDevice("tv");
+        SetAdministrator(true);
+
+        var cut = RenderTile(Movie(progress: null));
+
+        Assert.Equal(["Add to My List"], MenuLabels(cut));
     }
 
     [Fact]
@@ -331,7 +354,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ASeriesTile_HoldsOnlyEdit_OnADesktop_AndDrawsNoMenuWhereNothingApplies()
+    public async Task ASeriesTile_HoldsOnlyEdit_OnADesktopTabletOrPhone_AndDrawsNoMenuWhereNothingApplies()
     {
         var series = new MediaTileViewModel { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), Title = "Dune Novels", MediaKind = "Book", IsCollection = true, UseGroupTile = true, GroupKind = MediaTileGroupKind.Series, Presentation = MediaTilePresentation.BookSeries, TileImageUrl = "/art/d.jpg", NavigationUrl = "/details/bookseries/dune" };
 
@@ -340,6 +363,9 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
         Assert.Equal(["Edit"], MenuLabels(RenderTile(series)));
 
         await UseDevice("phone");
+        Assert.Equal(["Edit"], MenuLabels(RenderTile(series)));
+
+        await UseDevice("tv");
         Assert.Empty(RenderTile(series).FindAll("button[aria-label='More actions']"));
     }
 

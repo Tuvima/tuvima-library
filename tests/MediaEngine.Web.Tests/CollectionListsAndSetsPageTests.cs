@@ -290,14 +290,28 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
     [Theory]
     [InlineData("phone", true, false)]
     [InlineData("tablet", true, true)]
-    public async Task ASetsMoreMenu_OffersNeitherEntryOnAPhoneOrTablet(string formFactor, bool fine, bool hover)
+    public async Task ASetsMoreMenu_OffersBothEntriesOnAPhoneOrTablet_ToAPersonWhoMayEditIt(string formFactor, bool fine, bool hover)
     {
         await UseDeviceAsync(formFactor, fine, hover);
         SignIn();
         var cut = RenderPage(SetPage());
+        WaitForSetMenu(cut);
+
+        var items = OpenPageMoreMenu(cut);
+
+        Assert.Contains(items, item => item.TextContent.Trim() == "Export as a pack file");
+        Assert.Equal("Remove set…", items[^1].TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task ASetsMoreMenu_OffersNeitherEntryOnATv()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true));
+        SignIn();
+        var cut = RenderPage(SetPage());
         WaitForSetPage(cut);
 
-        // Nothing is left for the "..." to hold on a phone or tablet, so the page draws no menu at all.
+        // Nothing is left for the "..." to hold on a TV, so the page draws no menu at all.
         Assert.Empty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']"));
         Assert.DoesNotContain("Remove set…", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Export as a pack file", cut.Markup, StringComparison.Ordinal);
