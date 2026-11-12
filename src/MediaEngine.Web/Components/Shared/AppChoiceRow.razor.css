@@ -77,6 +77,13 @@
     padding-block: 6px;
 }
 
+/* Touch and narrow screens keep the full tap target; compact is for the desktop folder window only. */
+@media (hover: none), (pointer: coarse), (max-width: 1023px) {
+    .app-choice-row--compact {
+        min-height: var(--tl-tap-target-min);
+    }
+}
+
 .app-choice-row--compact .app-choice-row__copy {
     display: block;
     line-height: 1.3;

@@ -274,7 +274,7 @@ else
         </div>
     </text>;
 
-    // The one message line (D7): the picker's own error, then the check in progress, then its answer (a Managed folder that holds files says so instead of "Looks right"),
+    // The one message line (D7): the picker's own error, then the check in progress, then its answer (a Managed folder that holds files says files will be moved and renamed instead of "Looks right" or "Heads up"; only a blocking answer comes first),
     // then whatever the host wants said under the choice. Only one is ever drawn.
     private RenderFragment? MessageLine
     {
@@ -291,7 +291,7 @@ else
             }
 
             var managedWarning = ShowManagedWarning && _handlingManaged && _validation is { SupportedFileCount: > 0 };
-            if (_validation is { } checkedFolder && !(managedWarning && ResultKind(checkedFolder) == "looks-right"))
+            if (_validation is { } checkedFolder && !(managedWarning && (ResultKind(checkedFolder) is "looks-right" or "heads-up")))
             {
                 // The one check, run when the folder was chosen: Looks right, Heads up or Already used (D7). Already used blocks Add.
                 return @<div class="server-folder-picker__result" data-result="@ResultKind(checkedFolder)" role="status" aria-live="polite">
