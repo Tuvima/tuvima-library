@@ -20,7 +20,7 @@
     bottom: 0;
     width: 60%;
     height: 55%;
-    background: radial-gradient(ellipse at 0% 100%, rgba(0, 0, 0, .75), transparent 70%);
+    background: radial-gradient(ellipse at 0% 100%, color-mix(in srgb, var(--tl-viewer-black) 75%, transparent), transparent 70%);
 }
 
 .video-paused-details__text {

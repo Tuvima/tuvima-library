@@ -184,3 +184,96 @@ View home page:
 - Slate borders at 22% to 32% are muted-text mixes at the same strength; those at 10% to 16% are the subtle or default border.
 - The faint slate row fills (8% and 14%) are the subtle and default borders.
 - Input hint text is the muted text color (was slate at 62%); the leading search glyph is the lighter purple accent at 42%.
+
+## Settings, navigation, players, small areas and the global sheet (WP11 part c2)
+
+Settings, navigation, the players' shared parts, the small areas and the two global sheets (`app.css`, `native-fields.css`) moved onto the shared colors. Most moves are exact (a wash or scrim step, a text color, or a fallback that was dropped). This list holds only the moves that are not one to one, by screen, for the visual review.
+
+### Everywhere in this part
+
+- Translucent text is now one of the four solid text colors: 78% and up is primary, 60% to 77% is secondary, 40% to 59% is muted, below 40% is disabled. Slate tints (148, 163, 184) are the muted text color, whatever their strength. Text that was translucent is solid.
+- Fallbacks such as `var(--tl-text-primary, #e5edf5)` lost their hand-typed part; the variable already exists, so nothing changes.
+- White washes snap to the five named steps (3, 5, 8, 12, 18%); no move is more than 2 points.
+- Dark dims snap to the named black scrims; where the old strength was more than 4 points from a step, a mix of the viewer black at the same strength is used, so nothing moves.
+- Pure white text and fills on an accent are the on-accent text color (still pure white). Pure white on video is the on-scrim color (still pure white).
+
+### Navigation
+
+Account menu:
+
+- Hover background was a violet at 14%; it is now the purple accent soft (16%). The hover outline is a 22% mix of the lighter purple accent (was a lavender at 22%): a slight change of hue.
+- The header hairline was slate at 14%; it is now the default border (16%).
+- The badge text was a dark brown; it is now the dark-on-warning text color. The sign-out hover text is the primary text color (was pure white).
+
+Phone section chips: the edge fades use the viewer black; nothing changes.
+
+### Media hub and Listen
+
+- The shelf header link, the empty-shelf text and the page headings are the solid text colors (see above). The lavender link is the lighter purple accent.
+- The section header bar was a very dark navy at 88%; it is now a mix of the page background color at 88%.
+- The empty shelf panel was a dark navy at 62%; it is now the 60% black scrim.
+- The storage bar track was slate at 14%; it is now a 12% white wash. The storage hairline is the subtle border (10%, was 12%).
+- The Listen navigation: texts at 42% and 58% are the muted color, 74% is secondary, 96% is primary, and the active row is the 8% wash (was 7%).
+
+### Players' shared parts
+
+Dims over video keep their strength within 4 points (or use a mix at the same strength).
+
+- Playback panel backdrop is the 50% scrim (was 53%).
+- Primary button shadows are the 20% scrim (were 22% and 24%).
+- Tool sheet shadow is the 50% scrim (was 48%).
+- The video touch hint shadow and the host's shadow are the 40% scrim (were 38%).
+- The skip-segment border is a 35% mix of the primary text color and the segment marker border is a 48% mix (were pure white at the same strengths): a very slightly cooler white.
+- The touch ripple label shadow is the 60% scrim; the ripple is the 18% wash.
+- Subtitle Find: its primary button text is the on-accent color; nothing changes.
+- The default subtitle text color uses the white swatch from the shared set; nothing changes.
+
+### Setup
+
+- The intro glow was warm yellow-gold and amber; it is now the collection gold accents (hover gold at 24%, gold at 8%): a little less yellow.
+- The step ring mixes the purple accent with the primary text color (was pure white).
+- The intro cards border fell back to a gray at 25%; it is now the subtle border.
+
+### Universe
+
+- The empty series card: the dashed border is a 32% mix of the primary text color (was white at 32%); its text was a blue-tinted gray at 50% and is now the muted text color. The tile wash ends on a 1% mix of the primary text (was white at 1%).
+- Raised panels no longer carry a gray fallback; they use the raised surface.
+
+### Settings
+
+- Dark wells on the access, application webhook and integration key screens were black at 28%; they are the 30% scrim.
+- The metadata admin shadow is a mix of the viewer black at 8% (the shared scrims start at 20%).
+- Rows and expansions on the provider tester were white at 2% and 3%; both are the 3% wash.
+- The advanced network icon tile was white at 6%; it is the 5% wash. The network test panel was white at 3.5%; it is the 3% wash.
+- The address QR code keeps a pure white background (it needs the contrast to scan); it now uses the on-accent text color, which is pure white.
+
+### Global sheets (`app.css`, `native-fields.css`)
+
+Surfaces:
+
+- The account menu pop-over (`#0d0f14`) and the browse filter pop-over (`#0c1525`, a navy) are now the page background and the base surface.
+- Table header fill and dialog action bar were translucent gray-violet; they are mixes of the hover surface at 72% and 36%.
+- The artwork picker button, the media tile label and the cinematic top bar use mixes of the page background at the old strengths; the top bar gradient fades from the 70% scrim to the 30% scrim (was 70% to 34%).
+- The browse filter bar button and chip were navy at 56% to 64%; they are the 60% scrim. The row menu button on the artwork view was navy at 72%; it is the 70% scrim. The filter sheet footer lost its fallback.
+- Slate hairlines at 28% (the filter pop-over and trigger) are a 28% mix of the secondary text color; at 20% they are the default border (16%); at 24% they are a 24% mix of the muted text color.
+
+Text and accents:
+
+- The filter sheet "Clear" link and the artwork hierarchy labels were lavender; they are the lighter purple accent. The active hierarchy chip was a violet; it is the purple accent with a darker purple fill at 22%: a slight change of hue.
+- The profile switcher tag was a violet at 45%; it is the purple accent border (42%).
+- Menu items in the error tone had a pale pink hover text; it is a mix of the danger text and primary text colors (60/40).
+- The pending-enrichment ring was a yellow-gold (`#e6b93e`); it is the collection gold.
+- The playback select highlight fallback was a purple at 18%; it is the purple accent soft (16%).
+- The details-page focus ring fallback (`#7765e3`) falls back to the purple accent.
+- The native select fallbacks: the border is the strong border, the field fill is a page background mix at 86%, the hover border is the secondary blue accent (was a lighter periwinkle at 78%), and the focus ring is the shared focus ring (was a blue `#6d96ff`). These apply to the select, and to the documents filter and saved-search inputs.
+- The video-touch hint, overlay shadows, popover shadows and menu shadows snap to the named scrims; the biggest moves are 52% to 50%, 46% to 50%, 35% kept as a mix.
+- The phone details metadata pills: the border was white at 16%, now the 18% wash; the fill was navy at 42%, now the 40% scrim.
+
+Utility classes (`.tl-u-*`; names unchanged because markup uses them):
+
+- Orange tints (`rgba(249,115,22,…)`, `#F97316`) are now the warning color (amber): a slight change of hue.
+- The gray text utilities `#444` and `#555` are the disabled text color (a little brighter); `#888` is the muted text color; `#e0e0e0` is the primary text color; the translucent 248 whites are muted (40%), secondary (65%, 70%) and primary (80%).
+- White at 10%, 18% and 32% used as an icon color are the primary text color mixed at the same strength (so spinners and placeholder icons look the same).
+- `.tl-u-color-hex-1a1208` is the dark-on-warning text color (unused in markup today).
+
+Switch (`native-fields.css`): the thumb shadow is the 40% scrim; the checked thumb is the on-accent text color (pure white).
