@@ -4936,8 +4936,6 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 /* The View import button's file input is a framework component's root, so the page's scoped CSS never reaches it (it showed as a native Choose Files box). */
 .view-import__input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 
-
-
 /* Needs Review: the shared tooltip wrapper around a row's folder line is a component root, so the row's scoped CSS never reaches it; without this the folder line ran into the actions. */
 .nr-row__tip, .nr-row__tip[data-tooltip-wrapper-target="true"] { display: block; max-width: 100%; min-width: 0; }
 

@@ -59,7 +59,12 @@ public sealed class NeedsReviewListModel
 
     private readonly List<NeedsReviewRowDto> _rows = [];
     private readonly Dictionary<string, NeedsReviewRowState> _states = new(StringComparer.Ordinal);
-    private Dictionary<string, int> _groupTotals = [];
+    private readonly HashSet<string> _carried = new(StringComparer.Ordinal);
+    private Dictionary<string, int> _unreadByGroup = [];
+    private int _unread;
+
+    /// <summary>Raised when a row's state changes (busy, finished, failed), so the page draws every part that shows it again.</summary>
+    public event Action? Changed;
 
     /// <summary>The rows read so far (the page asks for more with Show more).</summary>
     public IReadOnlyList<NeedsReviewRowDto> Rows => _rows;
@@ -75,15 +80,72 @@ public sealed class NeedsReviewListModel
     /// <summary>Items just kept from this list are hidden at once, so the "hidden" line counts them without waiting for a reload.</summary>
     public void NoteKept(int count) => KeptTotal += count;
 
-    /// <summary>True while rows the Engine holds have not been read yet.</summary>
-    public bool HasMore => _rows.Count < EngineTotal;
+    /// <summary>True while rows the Engine holds for the filter have not been read yet (rows finished here no longer count on either side).</summary>
+    public bool HasMore => _unread > 0;
 
-    /// <summary>Starts again from one page: rows, states and totals are replaced, so a finished row's line leaves with the reload.</summary>
-    public void Replace(NeedsReviewListDto page)
+    /// <summary>How many rows to skip when asking for the next page: the rows read from the Engine that still wait (a finished row is no longer listed).</summary>
+    public int WaitingRead => _rows.Count(IsWaiting);
+
+    /// <summary>Starts again from one page: rows and states are replaced, so every finished line leaves (a first load, or a changed library).</summary>
+    public void Reset(NeedsReviewListDto page) => Replace(page, keepFinished: false);
+
+    /// <summary>
+    /// Replaces the rows with the Engine's fresh page. With <paramref name="keepFinished"/> a row finished in this view stays where it was
+    /// with its line, until the page is left (spec D8); a fresh row with the same key wins, so a row put back or reopened is waiting again.
+    /// </summary>
+    public void Replace(NeedsReviewListDto page, bool keepFinished = false)
     {
+        ArgumentNullException.ThrowIfNull(page);
+        var oldRows = _rows.ToList();
+        var oldStates = new Dictionary<string, NeedsReviewRowState>(_states, StringComparer.Ordinal);
+        var fresh = new HashSet<string>(page.Items.Select(row => row.Key), StringComparer.Ordinal);
+
         _rows.Clear();
         _states.Clear();
-        Append(page);
+        _carried.Clear();
+        foreach (var row in page.Items)
+        {
+            if (_rows.All(existing => existing.Key != row.Key))
+            {
+                _rows.Add(row);
+                // A row that is still listed keeps a running action or a failure; a finished line it had is dropped, the Engine says it waits.
+                if (keepFinished && oldStates.TryGetValue(row.Key, out var state))
+                {
+                    state.Done = null;
+                    _states[row.Key] = state;
+                }
+            }
+        }
+
+        if (keepFinished)
+        {
+            for (var index = 0; index < oldRows.Count; index++)
+            {
+                var row = oldRows[index];
+                if (fresh.Contains(row.Key) || !oldStates.TryGetValue(row.Key, out var state) || state.Done is null)
+                {
+                    continue;
+                }
+
+                // Back in its old place: right after the nearest earlier row that is still in the list, else first.
+                var at = 0;
+                for (var before = index - 1; before >= 0; before--)
+                {
+                    var found = _rows.FindIndex(existing => existing.Key == oldRows[before].Key);
+                    if (found >= 0)
+                    {
+                        at = found + 1;
+                        break;
+                    }
+                }
+
+                _rows.Insert(at, row);
+                _states[row.Key] = state;
+                _carried.Add(row.Key);
+            }
+        }
+
+        Settle(page);
     }
 
     /// <summary>Adds the next page.</summary>
@@ -97,9 +159,21 @@ public sealed class NeedsReviewListModel
             }
         }
 
+        Settle(page);
+    }
+
+    // What the Engine holds beyond the rows now waiting here: its totals less the waiting rows read, per group and overall. Counted when
+    // the page arrives, so rows finished afterwards (which leave the Engine's list) are subtracted from the waiting side only.
+    private void Settle(NeedsReviewListDto page)
+    {
         EngineTotal = page.Total;
         KeptTotal = page.KeptTotal;
-        _groupTotals = new Dictionary<string, int>(page.GroupTotals, StringComparer.Ordinal);
+        var waiting = _rows.Where(IsWaiting).ToList();
+        _unread = Math.Max(0, page.Total - waiting.Count);
+        _unreadByGroup = page.GroupTotals.ToDictionary(
+            total => total.Key,
+            total => Math.Max(0, total.Value - waiting.Count(row => GroupOf(row) == total.Key)),
+            StringComparer.Ordinal);
     }
 
     public NeedsReviewRowState StateOf(string key)
@@ -123,6 +197,7 @@ public sealed class NeedsReviewListModel
         state.Done = line;
         state.Failure = null;
         state.Busy = false;
+        Changed?.Invoke();
     }
 
     public void Fail(NeedsReviewRowDto row, string reason)
@@ -130,6 +205,7 @@ public sealed class NeedsReviewListModel
         var state = StateOf(row.Key);
         state.Failure = reason;
         state.Busy = false;
+        Changed?.Invoke();
     }
 
     public void SetBusy(NeedsReviewRowDto row, bool busy)
@@ -140,16 +216,16 @@ public sealed class NeedsReviewListModel
         {
             state.Failure = null;
         }
+
+        Changed?.Invoke();
     }
 
+    /// <summary>True while an action on this row runs; a second press on it, from a row, its menu or the bar, must do nothing.</summary>
+    public bool IsBusy(NeedsReviewRowDto row) => StateOf(row.Key).Busy;
+
     /// <summary>Items still waiting in a group: the rows read that have not finished, plus the rows of the group not read yet.</summary>
-    public int CountOf(string group)
-    {
-        var inGroup = _rows.Where(row => GroupOf(row) == group).ToList();
-        var waiting = inGroup.Count(IsWaiting);
-        var unread = Math.Max(0, _groupTotals.GetValueOrDefault(group) - inGroup.Count);
-        return waiting + unread;
-    }
+    public int CountOf(string group) =>
+        _rows.Count(row => GroupOf(row) == group && IsWaiting(row)) + _unreadByGroup.GetValueOrDefault(group);
 
     /// <summary>Every item still waiting: the number the page's summary line says.</summary>
     public int WaitingTotal => GroupOrder.Sum(CountOf);
