@@ -201,7 +201,7 @@ public sealed class LookRatchetGuardrailTests
         ["Components/View/ViewPlaceStoryPanel.razor.css"] = (1, "An icon size."),
         ["Components/Pages/ViewPlacesPage.razor.css"] = (1, "An icon size on the map toolbar."),
         ["Components/Navigation/SystemActivityIndicator.razor.css"] = (1, "The activity glyph's size, set by a variable."),
-        ["wwwroot/app.css"] = (11, "Four large icon helper classes, the Settings card sizes set by a variable, the reading sample, the TV base size, the phone hero title and the editor window's lines."),
+        ["wwwroot/app.css"] = (9, "Four large icon helper classes, the Settings card sizes set by a variable, the reading sample, the TV base size and the phone hero title."),
     };
 
     // A size written by hand: a font-size that is not a token or inherit, or a font shorthand that carries a number with a unit.

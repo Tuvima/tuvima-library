@@ -392,8 +392,8 @@ Smaller shared parts:
 The editor window's styles were the last temporary exception; they now use the shared colors and the exception is gone.
 
 - Tag editor: the label is the secondary text color and the helper line the muted text color (were blue-tinted whites at 74% and 48%); the tag box border is the default border (was a slate blue at 20%) and its fill the 20% black scrim (was a navy at 25%); the chips and the hovered suggestion are the purple accent at 10%, 22% (border) and 18% (were slightly different violets at the same strengths); the Add link is the lighter purple accent.
-- The header's floating menus cast the 50% black scrim shadow (same strength, now named).
+- The header cover and its stacked cover layers cast the 50% black scrim shadow (same strength, now named).
 - The inline editor surface behind a collection editor is the root surface with a faint purple accent glow (14%) in the top right corner (was a deep navy gradient with a darker violet glow).
 - The video series panel's divider is the 12% white wash (was a warm white at 12%).
 - The Universe rail, the selected tile outline, the changed-field dot, the batch bar, the saved ribbon and the "just changed" pulse lost their typed fallbacks; they look the same. The badge text on a selected tile is the on-accent text color (white, as before).
-- Four header labels written as 0.8125rem are now the 13 px label and secondary type jobs (same size).
+- Four header labels and the two "where" lines written as 0.8125rem are now the 13 px label and secondary type jobs (same size).
