@@ -224,10 +224,6 @@
     "src/MediaEngine.Web/Components/Settings/MergeFolderDialog.razor": [
       "merge-folder__option"
     ],
-    "src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor": [
-      "needs-review-page__search",
-      "needs-review-table"
-    ],
     "src/MediaEngine.Web/Components/Settings/NewIntegrationWizard.razor": [
       "integration-wizard__secret"
     ],

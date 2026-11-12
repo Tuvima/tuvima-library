@@ -88,35 +88,34 @@ public sealed partial class UiShellRenderTests
         // Give the page's first loads time to run before reading what was asked of the Engine.
         host.WaitForAssertion(() => Assert.NotEmpty(calls));
         Assert.Empty(host.FindAll("[data-settings-notice]"));
-        Assert.Empty(host.FindAll("tr.needs-review-table__row"));
+        Assert.Empty(host.FindAll("[data-testid='needs-review-row']"));
         Assert.DoesNotContain(nameof(IEngineApiClient.GetNeedsReviewListAsync), calls);
         Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAsync), calls);
         Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), calls);
     }
 
     [Fact]
-    public void NeedsReviewRoute_ForAServerAdministrator_ListsTheItem_AndDismissingItResolvesIt()
+    public void NeedsReviewRoute_ForAServerAdministrator_ListsTheItem_AndKeepingItAsItIsRecordsTheChoice()
     {
         var dismissed = new List<Guid>();
         UseSpiedReviewApi(dismissed);
 
         var host = RenderSettingsWithHosts("review");
 
-        host.WaitForAssertion(() => Assert.Single(host.FindAll("tr.needs-review-table__row")));
+        host.WaitForAssertion(() => Assert.Single(host.FindAll("[data-testid='needs-review-row']")));
         Assert.Contains("Unmatched Album", host.Markup, StringComparison.Ordinal);
-        Assert.Empty(host.FindAll(".review-pinned__header"));
 
-        // The row can redraw while the list settles, closing the menu again, so open it and press Dismiss as one retried step
+        // The row can redraw while the list settles, closing the menu again, so open it and press Keep as it is as one retried step
         // rather than reading the menu in between.
         host.WaitForAssertion(() =>
         {
-            host.Find("tr.needs-review-table__row .app-overflow-menu__trigger").Click();
+            host.Find("[data-testid='needs-review-row'] .app-overflow-menu__trigger").Click();
             host.FindAll("button.app-menu-item")
-                .Single(button => button.TextContent.Contains("Dismiss from review", StringComparison.Ordinal))
+                .Single(button => button.TextContent.Contains("Keep as it is", StringComparison.Ordinal))
                 .Click();
         });
 
-        host.WaitForAssertion(() => Assert.Empty(host.FindAll("tr.needs-review-table__row")));
+        host.WaitForAssertion(() => Assert.Empty(host.FindAll("[data-testid='needs-review-row']")));
         Assert.Equal([PendingReviewId], dismissed);
     }
 

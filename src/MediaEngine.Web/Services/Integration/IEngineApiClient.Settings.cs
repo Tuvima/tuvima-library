@@ -286,6 +286,9 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/unmatched/items/{assetId}/keep — Keep as is for one Unmatched file (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepUnmatchedItemAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>POST /library/unmatched/items/{assetId}/unkeep — Put back one kept Unmatched file so it counts and is retried again (administrators); the files affected (0 when it was not kept), or null when the Engine refused or could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> UnkeepUnmatchedItemAsync(Guid assetId, CancellationToken ct = default);
+
     /// <summary>POST /library/unmatched/items/{assetId}/look-up-again — Look up again for one kept Unmatched file (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> LookUpUnmatchedItemAgainAsync(Guid assetId, CancellationToken ct = default);
 

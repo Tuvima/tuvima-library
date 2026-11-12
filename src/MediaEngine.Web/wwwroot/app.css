@@ -4713,8 +4713,6 @@ button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; borde
     .lact-box__toggle { grid-template-areas: "what status chev" "covers covers covers" "count count count"; grid-template-columns: minmax(0, 1fr) auto auto; row-gap: var(--tl-space-2); }
 }
 a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 600; white-space: nowrap; }
-/* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
-.needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
 /* One colour per library kind (setup and libraries fixes D12), chosen in LibraryKindLook.ColorClass; the card cell and the row icon both read --lib-kind-color. */
 .lib-kind-color--movies { --lib-kind-color: var(--tl-media-movies); }
 .lib-kind-color--tv { --lib-kind-color: var(--tl-media-tv); }
@@ -5052,13 +5050,8 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 /* The View import button's file input is a framework component's root, so the page's scoped CSS never reaches it (it showed as a native Choose Files box). */
 .view-import__input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 
-/* Needs Review: the shared tooltip wrapper is a component root, so this page's scoped CSS never reaches it; without this the folder line ran into the next column. */
-.needs-review-table__path-tip, .needs-review-table__path-tip[data-tooltip-wrapper-target="true"] { display: flex; width: 100%; min-width: 0; max-width: 100%; }
-
-/* Needs Review: the row picture and the green "Use this" shortcut are component roots (AppImage, AppButton), so the page's scoped CSS never reaches them.
-   "Use this" is a small green chip-shaped text button in the status colours; the shared text button would otherwise force it grey. */
-.needs-review-table__thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.needs-review-table__use-this.app-button--text.app-control--compact { min-width: 0; padding-block: 2px; padding-inline: var(--tl-space-2) !important; color: var(--tl-status-success) !important; background: var(--tl-status-success-soft) !important; border-radius: var(--tl-radius-sm) !important; font-size: var(--tl-font-size-xs); }
+/* Needs Review: the shared tooltip wrapper around a row's folder line is a component root, so the row's scoped CSS never reaches it; without this the folder line ran into the actions. */
+.nr-row__tip, .nr-row__tip[data-tooltip-wrapper-target="true"] { display: block; max-width: 100%; min-width: 0; }
 
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }

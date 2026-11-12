@@ -20,7 +20,7 @@ else
             <span class="lib-status-group">
                 @if (Row.Unidentified > 0)
                 {
-                    <a class="lib-status lib-status--warning" data-status="not-identified" href="@LibraryListing.NotIdentifiedAddress(Row.Key)" @onclick:stopPropagation="true"
+                    <a class="lib-status lib-status--warning" data-status="not-identified" href="@LibraryListing.NeedsReviewAddress(Row.Key)" @onclick:stopPropagation="true"
                        aria-label="@($"{LibraryListing.UnidentifiedText(Row.Unidentified)}. Open the files that were not identified in {Row.Name} in Needs Review")">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />@LibraryListing.UnidentifiedText(Row.Unidentified)
                     </a>

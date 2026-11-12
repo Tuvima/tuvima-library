@@ -2,6 +2,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Models;
 using MediaEngine.Providers.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -61,6 +62,109 @@ public sealed class StageOutcomeFactoryTests
         Assert.Single(activityRepo.Entries);
         Assert.Single(eventPublisher.Events);
     }
+
+    [Fact]
+    public async Task RetailAmbiguous_KeepsTheTopThreeCandidates_BestFirst_WithoutRejectedOrRepeatedOnes()
+    {
+        var (factory, reviewRepo) = NewFactory();
+        var entityId = Guid.NewGuid();
+        var best = Candidate("Dune", "2021", 0.78, "tmdb", "438631", "Ambiguous");
+        var candidates = new[]
+        {
+            Candidate("Dune", "1984", 0.71, "tmdb", "841", "Ambiguous"),
+            best,
+            Candidate("Dune (repeat)", "2021", 0.77, "tmdb", "438631", "Ambiguous"),
+            Candidate("Dune: Part Two", "2024", 0.74, "tmdb", "693134", "Ambiguous"),
+            Candidate("Dune Drifter", "2020", 0.69, "tmdb", "99", "Ambiguous"),
+            Candidate("Duna", "1999", 0.90, "tmdb", "7", "Rejected"),
+        };
+
+        await factory.CreateRetailAmbiguousAsync(entityId, "Movies", 0.78, candidates: candidates, best: best);
+
+        var stored = ReadCandidates(Assert.Single(await reviewRepo.GetByEntityAsync(entityId)).CandidatesJson);
+        Assert.Equal(["438631", "693134", "841"], stored.Select(c => c.ProviderItemId));
+        Assert.Equal(["Dune", "Dune: Part Two", "Dune"], stored.Select(c => c.Title));
+        Assert.Equal(0.78, stored[0].Score);
+        Assert.Equal("tmdb", stored[0].ProviderName);
+    }
+
+    [Fact]
+    public async Task RetailAmbiguous_AlwaysKeepsTheSelectedCandidate_EvenWhenOthersScoreHigher()
+    {
+        var (factory, reviewRepo) = NewFactory();
+        var entityId = Guid.NewGuid();
+        var best = Candidate("Selected", "2001", 0.60, "tmdb", "5", "Ambiguous");
+        var candidates = new[]
+        {
+            Candidate("A", "2001", 0.80, "tmdb", "1", "Ambiguous"),
+            Candidate("B", "2002", 0.79, "tmdb", "2", "Ambiguous"),
+            Candidate("C", "2003", 0.78, "tmdb", "3", "Ambiguous"),
+            best,
+        };
+
+        await factory.CreateRetailAmbiguousAsync(entityId, "Movies", 0.60, candidates: candidates, best: best);
+
+        var stored = ReadCandidates(Assert.Single(await reviewRepo.GetByEntityAsync(entityId)).CandidatesJson);
+        Assert.Equal(3, stored.Count);
+        Assert.Contains(stored, c => c.ProviderItemId == "5");
+    }
+
+    [Fact]
+    public async Task RetailAmbiguous_WhenAPendingRowExists_RefreshesItsCandidatesInsteadOfAddingAnother()
+    {
+        var (factory, reviewRepo) = NewFactory();
+        var entityId = Guid.NewGuid();
+        var first = Candidate("Old Guess", "1999", 0.70, "tmdb", "1", "Ambiguous");
+        await factory.CreateRetailAmbiguousAsync(entityId, "Movies", 0.70, candidates: [first], best: first);
+        var newBest = Candidate("New Guess", "2010", 0.75, "tmdb", "2", "Ambiguous");
+        var second = Candidate("Other Guess", "2011", 0.72, "tmdb", "3", "Ambiguous");
+
+        var duplicate = await factory.CreateRetailAmbiguousAsync(entityId, "Movies", 0.75, candidates: [newBest, second], best: newBest);
+
+        Assert.Null(duplicate);
+        var row = Assert.Single(await reviewRepo.GetByEntityAsync(entityId));
+        Assert.Equal(["2", "3"], ReadCandidates(row.CandidatesJson).Select(c => c.ProviderItemId));
+    }
+
+    [Fact]
+    public async Task RetailAmbiguous_WithoutCandidates_LeavesTheStoredCandidatesEmpty()
+    {
+        var (factory, reviewRepo) = NewFactory();
+        var entityId = Guid.NewGuid();
+
+        await factory.CreateRetailAmbiguousAsync(entityId, "Movies", 0.70);
+
+        Assert.Null(Assert.Single(await reviewRepo.GetByEntityAsync(entityId)).CandidatesJson);
+    }
+
+    private static (StageOutcomeFactory Factory, RecordingReviewQueueRepository Reviews) NewFactory()
+    {
+        var reviews = new RecordingReviewQueueRepository();
+        var factory = new StageOutcomeFactory(
+            reviews,
+            new RecordingSystemActivityRepository(),
+            new RecordingEventPublisher(),
+            new RecordingCanonicalValueRepository(),
+            NullLogger<StageOutcomeFactory>.Instance);
+        return (factory, reviews);
+    }
+
+    private static RetailMatchCandidate Candidate(string title, string year, double score, string provider, string itemId, string outcome) => new()
+    {
+        ProviderId = Guid.NewGuid(),
+        ProviderName = provider,
+        ProviderItemId = itemId,
+        Title = title,
+        Year = year,
+        Creator = "Someone",
+        ScoreTotal = score,
+        Outcome = outcome,
+        ImageUrl = $"https://image.tmdb.org/t/p/w500/{itemId}.jpg",
+        BridgeIdsJson = $$"""{"tmdb_id":"{{itemId}}"}""",
+    };
+
+    private static List<RetailChoiceCandidate> ReadCandidates(string? json) =>
+        System.Text.Json.JsonSerializer.Deserialize<List<RetailChoiceCandidate>>(json!)!;
 
     private sealed class RecordingReviewQueueRepository : IReviewQueueRepository
     {
@@ -194,6 +298,17 @@ public sealed class StageOutcomeFactoryTests
             }
 
             return Task.FromResult(rows.Count);
+        }
+
+        public Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default)
+        {
+            var entry = _entries.FirstOrDefault(e => e.Id == id && e.Status == ReviewStatus.Pending);
+            if (entry is not null)
+            {
+                entry.CandidatesJson = candidatesJson;
+            }
+
+            return Task.CompletedTask;
         }
 
         public Task<int> PurgeOrphanedAsync(CancellationToken ct = default)

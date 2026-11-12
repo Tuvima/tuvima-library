@@ -129,6 +129,15 @@ public sealed class FieldOverrideDto
 public sealed record ReviewMoveToTvAttempt(MediaEngine.Contracts.Review.ReviewMoveToTvResponse? Response, string? Error);
 
 /// <summary>
+/// Outcome of picking a choice in Needs Review: the Engine's confirmation, or the reason it failed. Dashboard-only; the confirmation
+/// itself is the Contracts <c>ReviewChooseResponse</c>.
+/// </summary>
+public sealed record ReviewChooseAttempt(MediaEngine.Contracts.Review.ReviewChooseResponse? Response, string? Error)
+{
+    public bool Succeeded => Response is { chosen: true };
+}
+
+/// <summary>
 /// Outcome of loading the pending review list: the items, or the reason the Engine could not supply them, so a
 /// failed load is never mistaken for an empty queue. Dashboard-only.
 /// </summary>

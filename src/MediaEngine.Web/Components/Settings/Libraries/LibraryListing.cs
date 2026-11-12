@@ -250,16 +250,12 @@ public static class LibraryListing
     /// <summary>The values of the overview's status filter (the status words, and "all").</summary>
     public static string FilterValue(LibraryStatusKind status) => status.ToString();
 
-    /// <summary>Needs Review, with the library as the filter (Library pages D17).</summary>
-    /// <summary>Needs Review narrowed to this library's files that could not be matched (universal editor v3 D9); it lists exactly as many rows as the count says.</summary>
-    public static string NotIdentifiedAddress(string libraryId) =>
-        $"{SettingsNav.RouteFor(SettingsSection.Review)}?library={Uri.EscapeDataString(libraryId)}&show=not-matched";
-
     /// <summary>"12 files not identified" / "1 file not identified".</summary>
     public static string UnidentifiedText(int count) => count == 1 ? "1 file not identified" : $"{count:N0} files not identified";
 
     /// <summary>"3 need review" / "1 needs review".</summary>
     public static string NeedsReviewText(int count) => count == 1 ? "1 needs review" : $"{count:N0} need review";
 
+    /// <summary>Needs Review, with the library as the filter (Library pages D17).</summary>
     public static string NeedsReviewAddress(string libraryId) => $"{SettingsNav.RouteFor(SettingsSection.Review)}?library={Uri.EscapeDataString(libraryId)}";
 }

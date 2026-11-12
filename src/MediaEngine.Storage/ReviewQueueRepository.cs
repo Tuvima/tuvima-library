@@ -251,6 +251,20 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
+    public Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            UPDATE review_queue
+            SET    candidates_json = @candidatesJson
+            WHERE  id = @id
+              AND  status = @pending
+            """, new { id, candidatesJson, pending = ReviewStatus.Pending });
+
+        return Task.CompletedTask;
+    }
+
     /// <summary>
     /// Moves a still-pending review item to <paramref name="status"/> on a caller-owned write
     /// transaction. Returns false when the item is no longer pending (already resolved or dismissed).

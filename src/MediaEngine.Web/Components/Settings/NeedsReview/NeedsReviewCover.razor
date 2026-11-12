@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Settings.NeedsReview
+
+@* The small picture beside a Needs Review row, a suggestion or a choice. A 2:3 poster by default, a square for Music and Audiobooks, a
+   short wide tile for the file rows inside a family. Only an item with no picture at all draws the dashed outline (D13). *@
+<span class="@RootClass" aria-hidden="true">
+    @if (!string.IsNullOrWhiteSpace(Src))
+    {
+        <AppImage Src="@Src" Alt="" Width="@Width" Height="@Height" ObjectFit="AppObjectFit.Cover" />
+    }
+</span>
+
+@code {
+    /// <summary>The picture's address; null draws the dashed empty outline.</summary>
+    [Parameter] public string? Src { get; set; }
+
+    [Parameter] public NeedsReviewCoverShape Shape { get; set; } = NeedsReviewCoverShape.Poster;
+
+    /// <summary>The 32 px wide size used inside a suggestion or a choice.</summary>
+    [Parameter] public bool Small { get; set; }
+
+    private int Width => Small ? 32 : 44;
+
+    private int Height => Shape switch
+    {
+        NeedsReviewCoverShape.Square => Width,
+        NeedsReviewCoverShape.Wide => 28,
+        _ => Small ? 46 : 64,
+    };
+
+    private string RootClass => string.Join(' ', new[]
+    {
+        "nr-cover",
+        $"nr-cover--{Shape.ToString().ToLowerInvariant()}",
+        Small ? "nr-cover--small" : null,
+        string.IsNullOrWhiteSpace(Src) ? "nr-cover--none" : null,
+    }.Where(part => part is not null));
+}

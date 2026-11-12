@@ -20,7 +20,6 @@ public sealed class NeedsReviewGroupingTests
 
     [Theory]
     [InlineData(ReviewTrigger.MovieMatchedAsTv)]
-    [InlineData(ReviewTrigger.RetailMatchAmbiguous)]
     [InlineData(ReviewTrigger.AmbiguousSeriesMembership)]
     [InlineData(ReviewTrigger.AmbiguousMediaType)]
     [InlineData(ReviewTrigger.RootWatchFolder)]
@@ -29,6 +28,13 @@ public sealed class NeedsReviewGroupingTests
     {
         Assert.Equal(NeedsReviewGroups.Choose, NeedsReviewGrouping.GroupFor(trigger, hasBestGuess: false));
         Assert.Equal(NeedsReviewGroups.Choose, NeedsReviewGrouping.GroupFor(trigger, hasBestGuess: true));
+    }
+
+    [Fact]
+    public void AnAmbiguousRetailMatch_IsAChoiceWhenSeveralAnswersAreOffered_AndReadyWhenOnlyOneIs()
+    {
+        Assert.Equal(NeedsReviewGroups.Choose, NeedsReviewGrouping.GroupFor(ReviewTrigger.RetailMatchAmbiguous, hasBestGuess: false));
+        Assert.Equal(NeedsReviewGroups.Ready, NeedsReviewGrouping.GroupFor(ReviewTrigger.RetailMatchAmbiguous, hasBestGuess: true));
     }
 
     [Theory]

@@ -1,0 +1,7 @@
+.nr-cover { display: block; flex: none; inline-size: 44px; block-size: 64px; overflow: hidden; border-radius: var(--tl-radius-xs); background: var(--tl-bg-surface-raised); }
+.nr-cover--square { block-size: 44px; }
+.nr-cover--wide { block-size: 28px; }
+.nr-cover--small { inline-size: 32px; block-size: 46px; }
+.nr-cover--small.nr-cover--square { block-size: 32px; }
+/* No picture at all: the dashed outline, never a filled placeholder (a file with a cover beside it shows that cover). */
+.nr-cover--none { background: transparent; border: 1px dashed var(--tl-border-strong); }
