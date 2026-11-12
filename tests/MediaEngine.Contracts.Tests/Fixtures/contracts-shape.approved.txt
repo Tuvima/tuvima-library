@@ -3850,6 +3850,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchProviderS
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchReasonDto
   Fact: System.String | nullability=not-null | accessors=get,init
   State: System.String | nullability=not-null | accessors=get,init
+  YourFile: System.String | nullability=nullable | accessors=get,init
+  Result: System.String | nullability=nullable | accessors=get,init
   Text: System.String | nullability=not-null | accessors=get,init
   Note: System.String | nullability=nullable | accessors=get,init
 
@@ -3864,6 +3866,9 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchResultDto
   Description: System.String | nullability=nullable | accessors=get,init
   SourceUrl: System.String | nullability=nullable | accessors=get,init
   KindText: System.String | nullability=nullable | accessors=get,init
+  IsCollection: System.Boolean | nullability=not-null | accessors=get,init
+  SeriesName: System.String | nullability=nullable | accessors=get,init
+  SeriesNumber: System.String | nullability=nullable | accessors=get,init
   Verdict: System.String | nullability=not-null | accessors=get,init
   Reasons: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchReasonDto> | nullability=not-null | accessors=get,init
   Editions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchResultDto> | nullability=not-null | accessors=get,init
@@ -9458,6 +9463,10 @@ MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileSav
 MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileSavedItemKeyDto
   EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | nullability=not-null | accessors=get,init
   EntityId: System.Guid | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileSavedItemMoveRequest
+  ToIndex: System.Int32? | nullability=nullable | accessors=get,init
+  BeforeEntityId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileStateMutationDto
   EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | nullability=not-null | accessors=get,init

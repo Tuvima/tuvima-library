@@ -12,20 +12,31 @@
 @if (_notice is not null)
 {
     @* A favorite, delete or status change that did not work: it stays above the songs until the next try or the close button. *@
-    <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="DismissNoticeAsync" data-song-table-notice="true">@_notice</AppAlert>
+    <AppAlert Severity="@_noticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="DismissNoticeAsync" data-song-table-notice="true">@_notice</AppAlert>
 }
 @* A listened or unlistened change, with Undo, in place above the songs because the row's menu has closed. *@
 @if (_undo is not null)
 {
     <AppUndoNote Offer="_undo" OnCleared="ClearUndoAsync" data-song-table-undo="true" />
 }
-@if (TickShown && BulkContent is not null)
+@if (TickShown && !IsPhoneList && BulkContent is not null)
 {
     @BulkContent(SelectedRows)
 }
 @if (IsPhoneList)
 {
     @PhoneList
+    @if (SelectModeOn)
+    {
+        @* Ticked songs on a phone: the bottom bar with the count, Play, Add to queue, Add to playlist and Done (Listen music spec D12). *@
+        <SongSelectionBar WorkIds="@TickedWorkIds"
+                          Count="@TickedWorkIds.Count"
+                          CanPlay="@OnPlay.HasDelegate"
+                          CanQueue="@OnQueue.HasDelegate"
+                          OnPlay="PlayTickedAsync"
+                          OnQueue="QueueTickedAsync"
+                          OnDone="EndSelectAsync" />
+    }
 }
 else
 {
@@ -44,6 +55,8 @@ else
             <div class="song-table"
                  role="table"
                  aria-label="@AriaLabelText"
+                 data-song-drag-out="@(CanDragOut ? "true" : null)"
+                 data-song-drag-label="@DragCountLabel"
                  @ref="_tableRoot">
                 <div class="song-table__head" role="row">
                     @foreach (var layout in _layout)
@@ -120,7 +133,7 @@ else
         else
         {
             var label = ColumnLabel(column);
-            var sortable = SongTableSort.IsSortable(Place, column);
+            var sortable = SongTableSort.IsSortable(Place, column, OwnOrderSortable);
             <span class="@HeadCellClass(column)" role="columnheader" aria-sort="@(sortable ? AriaSort(column) : null)">
                 @if (sortable)
                 {
@@ -155,6 +168,7 @@ else
          role="row"
          id="@RowDomId(row)"
          data-song-row-id="@row.Id"
+         data-song-ticked="@(_selected.Contains(row.Id) ? "true" : null)"
          data-listen-immediate-start="@(row.IsOwned ? "music" : null)"
          data-listen-start-url="@StartUrl(row)"
          tabindex="@(row.IsOwned ? "0" : null)"
@@ -338,6 +352,11 @@ else
         {
             <AppMenuItem Label="@L["Common_AddToQueue"].Value" Icon="@AppMaterialIcons.Outlined.PlaylistAdd" OnClick="@(() => QueueAsync(row))" />
         }
+        @if (sheet && SelectModeAvailable && row.IsOwned && !SelectModeOn)
+        {
+            @* Several songs at once on a phone: this song is ticked and the list goes into select mode (Listen music spec D12). *@
+            <AppMenuItem Label="@L["SongTable_Select"].Value" Icon="@AppMaterialIcons.Outlined.CheckCircle" OnClick="@(() => BeginSelectAsync(row))" />
+        }
         @if (Place != SongTablePlace.AlbumPage)
         {
             <AppMenuItem Label="@L["SongActions_GoToAlbum"].Value"
@@ -360,20 +379,22 @@ else
                          Disabled="@row.IsUpdatingDetails"
                          OnClick="@(() => EditAsync(row))" />
         }
-        @if (sheet && ReorderEnabled)
+        @if (ReorderEnabled)
         {
-            @if (RowIndex(row) > 0)
+            @* In a playlist's or Favorites' own order only (ReorderEnabled is false while a column sorts the list). The phone sheet leaves the
+               impossible move out; the desktop menu keeps both rows and greys the one that cannot go anywhere. *@
+            @if (!sheet || RowIndex(row) > 0)
             {
-                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveByAsync(row, -1))" />
+                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Disabled="@(RowIndex(row) <= 0)" OnClick="@(() => MoveByAsync(row, -1))" />
             }
-            @if (RowIndex(row) < _shown.Count - 1)
+            @if (!sheet || RowIndex(row) < _shown.Count - 1)
             {
-                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveByAsync(row, 1))" />
+                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Disabled="@(RowIndex(row) >= _shown.Count - 1)" OnClick="@(() => MoveByAsync(row, 1))" />
             }
         }
         @if (RemoveAllowed(row))
         {
-            <AppMenuItem Label="@L["ListenPage_RemoveFromPlaylist"].Value"
+            <AppMenuItem Label="@(string.IsNullOrWhiteSpace(RemoveLabel) ? L["ListenPage_RemoveFromPlaylist"].Value : RemoveLabel)"
                          Icon="@AppMaterialIcons.Outlined.PlaylistRemove"
                          Tone="AppUiTone.Error"
                          DividerBefore="true"
@@ -409,7 +430,7 @@ else
         }
         else
         {
-            <div class="song-table song-table--phone" role="list" aria-label="@AriaLabelText" @ref="_phoneList">
+            <div class="@(SelectModeOn ? "song-table song-table--phone is-selecting" : "song-table song-table--phone")" role="list" aria-label="@AriaLabelText" @ref="_phoneList">
                 @if (LettersShown && !IsLoading)
                 {
                     @* First in the list so it can stick beside the rows while they scroll. *@
@@ -480,10 +501,25 @@ else
          data-listen-start-url="@StartUrl(row)"
          tabindex="@(row.IsOwned ? "0" : null)"
          aria-disabled="@(row.IsOwned ? null : "true")"
-         @onclick="@(() => PlayAsync(row))"
+         @onclick="@(() => ActivateRowAsync(row))"
          @oncontextmenu="@(() => OpenRowMenuAsync(row))"
          @oncontextmenu:preventDefault="row.IsOwned"
          @onkeydown="@((KeyboardEventArgs args) => RowKeyDownAsync(args, row))">
+        @if (SelectModeOn)
+        {
+            @* Select mode: a tap anywhere on the row ticks it; the tick box is a 44 px target of its own. *@
+            <span class="song-table__ptick">
+                @if (row.IsOwned)
+                {
+                    <span @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                        <AppCheckbox Value="@_selected.Contains(row.Id)"
+                                     ValueChanged="@(on => SetSelectedAsync(row.Id, on))"
+                                     Dense="true"
+                                     aria-label="@L["SongTable_SelectRow", row.Title].Value" />
+                    </span>
+                }
+            </span>
+        }
         @if (PhoneCovers)
         {
             <div class="@(row.IsUpdatingDetails ? "song-table__art song-table__art--phone is-updating" : "song-table__art song-table__art--phone")">
@@ -517,7 +553,7 @@ else
                 </span>
             }
         </div>
-        @if (row.IsOwned)
+        @if (row.IsOwned && !SelectModeOn)
         {
             <span class="song-table__pmenu" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                 <AppOverflowMenu Size="AppControlSize.Normal" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">

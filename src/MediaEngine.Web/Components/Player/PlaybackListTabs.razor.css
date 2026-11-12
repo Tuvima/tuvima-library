@@ -6,6 +6,8 @@
 }
 
 .plt--flush {
+    /* The strip's hairline belongs to the row that holds it, and the mockup draws the chosen tab's underline above that hairline, not over it. */
+    --plt-tab-overlap: 0px;
     border-bottom: 0;
     padding: 0;
 }
@@ -17,7 +19,7 @@
     color: var(--playback-text-secondary);
     cursor: pointer;
     font: 600 15px/1.45 var(--font-ui);
-    margin: 0 0 -1px;
+    margin: 0 0 var(--plt-tab-overlap, -1px);
     padding: 10px 0;
 }
 

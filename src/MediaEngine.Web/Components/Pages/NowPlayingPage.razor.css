@@ -1,5 +1,6 @@
 /* The Now playing page (unified player v2 D24; mockup screen 13). It fills the space between the top bar and the persistent bar, so the bar below it stays exactly as it is while
-   browsing. Colors, text sizes and states come from the player's own tokens; the cover and column sizes are the mockup's. */
+   browsing. Colors, text sizes and states come from the player's own tokens; the cover and column sizes are the mockup's (music-player-and-listen-fixes D7: measured against the
+   mockup at 1024, 1280 and 1440 wide). The mockup's text uses line-height 1.45 throughout. */
 .np {
     background: radial-gradient(90% 70% at 25% 35%, color-mix(in srgb, var(--playback-accent) 26%, var(--playback-bg)), var(--playback-bg) 70%);
     box-sizing: border-box;
@@ -13,12 +14,15 @@
 
 .np__top {
     --playback-glyph-size: 24px;
+    --playback-glyph-stroke: 1.8;
     align-items: center;
     display: flex;
     flex: none;
     font-size: var(--tl-type-control-size);
     justify-content: space-between;
-    padding: 16px 24px;
+    /* The mockup's top line is 56 px tall with its icons 24 px from the sides and 16 px from the top. The two buttons are 44 px targets, so the padding takes
+       the extra 10 px off each side (and 10 px off the top and bottom) and the icons still sit where the mockup draws them. */
+    padding: 6px 14px;
 }
 
 .np__top ::deep button {
@@ -52,7 +56,8 @@
 
 .np__top ::deep .np__back {
     --playback-glyph-size: 20px;
-    padding: 0 12px 0 8px;
+    gap: 4px;
+    padding: 0 12px 0 10px;
 }
 
 .np__body {
@@ -60,14 +65,15 @@
     flex: 1;
     gap: 40px;
     grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     min-height: 0;
+    /* On a short window the cover and facts scroll with the page; the list on the right keeps its own scrolling. The cover's shadow is not clipped by a scroll box of its own. */
+    overflow-y: auto;
     padding: 8px 48px 24px;
 }
 
 .np__facts {
-    min-height: 0;
     min-width: 0;
-    overflow-y: auto;
 }
 
 .np__cover {
@@ -92,15 +98,17 @@
 }
 
 .np__title {
+    /* Type comes from the Look type jobs; the line height follows the Now playing mockup. */
     font-size: var(--tl-type-heading-size);
     font-weight: var(--tl-type-heading-weight);
-    line-height: 1.25;
+    line-height: 1.45;
     margin: 0 0 2px;
     overflow-wrap: anywhere;
 }
 
 .np__line {
     font-size: var(--tl-type-body-size);
+    line-height: 1.45;
     margin: 0;
     overflow-wrap: anywhere;
 }
@@ -112,7 +120,13 @@
 .np__sub {
     color: var(--playback-text-secondary);
     font-size: var(--tl-type-secondary-size);
-    margin: 2px 0 0;
+    line-height: 1.45;
+    margin: 0;
+}
+
+/* An audiobook's chapter line follows its author and narrator lines with a little room. */
+.np[data-now-playing-media="audiobook"] .np__sub {
+    margin-top: 2px;
 }
 
 .np__tabs-column {
@@ -127,7 +141,8 @@
     border-bottom: 1px solid var(--tl-border-default);
     display: flex;
     flex: none;
-    gap: 8px;
+    /* The mockup's Synced chip sits one tab gap (20 px) and its own 8 px margin after the last tab. */
+    gap: 28px;
 }
 
 

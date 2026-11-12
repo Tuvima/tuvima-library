@@ -8,6 +8,13 @@ public sealed record ProfileSavedItemDto(
     DateTimeOffset SavedAt,
     int? Position);
 
+/// <summary>
+/// Move one song to a new place in the profile's Favorites. Name the neighbour: <paramref name="BeforeEntityId"/> puts the song directly
+/// before that favorite, and sending neither field puts it last, so a heart added or removed elsewhere meanwhile cannot shift the target.
+/// <paramref name="ToIndex"/> (counts the songs the profile sees, from 0 at the top) still works but cannot be sent with a neighbour.
+/// </summary>
+public sealed record ProfileSavedItemMoveRequest(int? ToIndex = null, Guid? BeforeEntityId = null);
+
 /// <summary>One saved item named by kind and id, for the My List remove-many action.</summary>
 public sealed record ProfileSavedItemKeyDto(
     ProfileEntityKind EntityKind,

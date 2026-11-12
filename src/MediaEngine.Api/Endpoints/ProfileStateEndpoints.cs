@@ -193,6 +193,70 @@ public static class ProfileStateEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
 
+        // Favorites (the profile's hearted songs) are kept in an order the person sets by hand. A move names the favorite it should sit before
+        // (none means last), so the Engine settles the place against its own list; an index counting what the profile sees still works. The
+        // order is only ever the signed-in profile's own, so there is no profile in the route to get wrong.
+        group.MapPost("/favorites/songs/{entityId:guid}/move", async (
+            Guid entityId,
+            ProfileSavedItemMoveRequest request,
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            ProfileStateAccessService access,
+            CancellationToken ct) =>
+        {
+            var profileId = RequireProfileId(user);
+            if (request.ToIndex is not null && request.BeforeEntityId is not null)
+            {
+                return ApiErrors.BadRequest("Name a song to sit before or a place, not both.");
+            }
+
+            var scope = await access.ResolveAsync(profileId, ct);
+            if (request.ToIndex is not { } toIndex)
+            {
+                // The neighbour is named, so the Engine settles the place inside the move itself. A song the profile cannot see is refused
+                // the same way as one it never hearted, so nothing about hidden songs is revealed.
+                if (!scope.Allows(ProfileEntityKind.Song, entityId))
+                {
+                    return ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites.");
+                }
+
+                const string neighbourRefused = "The song, or the song to move it before, is not one of the active profile's Favorites.";
+                if (request.BeforeEntityId is { } before && !scope.Allows(ProfileEntityKind.Song, before))
+                {
+                    return ApiErrors.NotFound(neighbourRefused);
+                }
+
+                var moved = await repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, entityId, request.BeforeEntityId, ct);
+                return moved == SavedItemMoveResult.Moved ? Results.NoContent() : ApiErrors.NotFound(neighbourRefused);
+            }
+
+            var all = await repository.GetSavedItemsAsync(profileId, ProfileEntityKind.Song, ct);
+            var visible = all.Where(item => scope.Allows(ProfileEntityKind.Song, item.EntityId)).ToList();
+            if (!visible.Any(item => item.EntityId == entityId))
+            {
+                return ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites.");
+            }
+
+            if (toIndex < 0 || toIndex >= visible.Count)
+            {
+                return ApiErrors.BadRequest("The new place is outside the Favorites list.");
+            }
+
+            // Songs the profile cannot see still hold a place; the move lands next to the song now sitting at the wanted visible place.
+            var target = visible[toIndex].EntityId;
+            var result = await repository.MoveSavedItemAsync(
+                profileId, ProfileEntityKind.Song, entityId, all.ToList().FindIndex(item => item.EntityId == target), ct);
+            return result switch
+            {
+                SavedItemMoveResult.Moved => Results.NoContent(),
+                SavedItemMoveResult.NotSaved => ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites."),
+                _ => ApiErrors.BadRequest("The new place is outside the Favorites list."),
+            };
+        })
+        .WithName("MoveFavoriteSong")
+        .Produces(StatusCodes.Status204NoContent)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
         group.MapGet("/reactions", async (
             ClaimsPrincipal user,
             IProfileStateRepository repository,

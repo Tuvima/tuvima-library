@@ -234,6 +234,28 @@ internal static partial class ProviderDeclarativeValidator
         {
             errors.Add($"{path}.duration needs 0 <= full_within_seconds <= reject_beyond_seconds and reject_beyond_seconds > 0.");
         }
+
+        var match = lyrics.Match;
+        AddUnknown(match.UnmappedProperties, $"{path}.match", errors);
+        AddRequired(errors, match.TitlePath, $"{path}.match.title_path");
+        AddRequired(errors, match.ArtistPath, $"{path}.match.artist_path");
+        foreach (var pattern in match.StripSuffixPatterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                errors.Add($"{path}.match.strip_suffix_patterns must not contain an empty pattern.");
+                continue;
+            }
+
+            try
+            {
+                _ = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+            }
+            catch (ArgumentException ex)
+            {
+                errors.Add($"{path}.match.strip_suffix_patterns has a pattern that is not a valid regular expression: {pattern} ({ex.Message}).");
+            }
+        }
     }
 
     private static void ValidateTextTrackDownload(TextTrackConfiguration text, string path, List<string> errors)

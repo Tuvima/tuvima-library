@@ -177,6 +177,8 @@ public sealed class MediaTileViewModel
 
     /// <summary>True for a playlist, which draws as the square tile beside albums.</summary>
     public bool IsPlaylist { get; init; }
+    /// <summary>True on a hand-made playlist the person may add to: dragged songs can be dropped on its tile (Listen music spec D10). A rule-based or system playlist is false.</summary>
+    public bool AcceptsSongDrops { get; init; }
 
     /// <summary>A group of titles (collection, Series, Universe, list, set) draws as a poster showing the group's cover and its count.</summary>
     public bool RenderAsGroupTile =>

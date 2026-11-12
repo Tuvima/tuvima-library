@@ -1584,7 +1584,7 @@
     <value>Open Plugins</value>
   </data>
   <data name="PlaybackLyrics_NoLyricsFoundForThis" xml:space="preserve">
-    <value>No lyrics found for this song.</value>
+    <value>No lyrics found</value>
   </data>
   <data name="PlaybackLyrics_LyricsOptions" xml:space="preserve">
     <value>Lyrics options</value>
@@ -7640,9 +7640,6 @@
   <data name="Common_TheSpoilerSettingCouldNot" xml:space="preserve">
     <value>The spoiler setting could not be saved.</value>
   </data>
-  <data name="ListenBrowsePage_ThoseSongsAreAlreadyIn" xml:space="preserve">
-    <value>Those songs are already in the playlist or could not be added.</value>
-  </data>
   <data name="ListenBrowsePage_ThePlaylistCouldNotBe" xml:space="preserve">
     <value>The Playlist could not be created.</value>
   </data>
@@ -10547,9 +10544,6 @@
   <data name="EditorMatchResults_SelectedResult" xml:space="preserve">
     <value>Selected result</value>
   </data>
-  <data name="EditorMatchResults_OpenSource" xml:space="preserve">
-    <value>Open source ↗</value>
-  </data>
   <data name="EditorMatchResults_Editions" xml:space="preserve">
     <value>Editions</value>
   </data>
@@ -10624,6 +10618,12 @@
   </data>
   <data name="PlaybackLyrics_FindLyrics" xml:space="preserve">
     <value>Find lyrics</value>
+  </data>
+  <data name="PlaybackLyrics_StillLooking" xml:space="preserve">
+    <value>Still looking. Lyrics will appear when they are found.</value>
+  </data>
+  <data name="PlaybackLyrics_CouldNotBeLookedUp" xml:space="preserve">
+    <value>Lyrics could not be looked up right now</value>
   </data>
   <data name="PlaybackLyrics_AddFile" xml:space="preserve">
     <value>Add a lyrics file</value>
@@ -11204,12 +11204,6 @@
   <data name="EditorMatchPanel_Staged" xml:space="preserve">
     <value>Staged: {0}. Nothing is saved until you press Save changes.</value>
   </data>
-  <data name="EditorMatchPanel_CurrentMatch" xml:space="preserve">
-    <value>Current match</value>
-  </data>
-  <data name="EditorMatchPanel_Matched" xml:space="preserve">
-    <value>Matched</value>
-  </data>
   <data name="EditorMatchPanel_ChosenByYou" xml:space="preserve">
     <value>Chosen by you</value>
   </data>
@@ -11222,15 +11216,6 @@
   <data name="EditorMatchPanel_ChangeMatch" xml:space="preserve">
     <value>Change match</value>
   </data>
-  <data name="EditorMatchPanel_DirectedBy" xml:space="preserve">
-    <value>Directed by {0}</value>
-  </data>
-  <data name="EditorMatchPanel_WhyThisMatch" xml:space="preserve">
-    <value>Why this match</value>
-  </data>
-  <data name="EditorMatchPanel_MatchVerdict" xml:space="preserve">
-    <value>{0} match</value>
-  </data>
   <data name="EditorMatchPanel_Field" xml:space="preserve">
     <value>Field</value>
   </data>
@@ -11242,9 +11227,6 @@
   </data>
   <data name="EditorMatchPanel_Result" xml:space="preserve">
     <value>Result</value>
-  </data>
-  <data name="EditorMatchPanel_NotCheckedNote" xml:space="preserve">
-    <value>{0}: not in your file, so it was not checked.</value>
   </data>
   <data name="EditorMatchPanel_ChangingKeepsLocked" xml:space="preserve">
     <value>Fields you changed stay yours; the rest update.</value>
@@ -11366,38 +11348,8 @@
   <data name="EditorMatchPanel_OpenUniverse" xml:space="preserve">
     <value>Open Universe</value>
   </data>
-  <data name="EditorMatchResults_YourFileEvidence" xml:space="preserve">
-    <value>Your file: {0}</value>
-  </data>
-  <data name="EditorMatchResults_EvidenceNumber" xml:space="preserve">
-    <value>number {0}</value>
-  </data>
   <data name="EditorMatchResults_EvidenceMeasured" xml:space="preserve">
     <value>{0} measured</value>
-  </data>
-  <data name="EditorMatchResults_EvidenceIdentifier" xml:space="preserve">
-    <value>{0} {1}</value>
-  </data>
-  <data name="EditorMatchResults_IdYouTube" xml:space="preserve">
-    <value>YouTube ID</value>
-  </data>
-  <data name="EditorMatchResults_IdIsbn" xml:space="preserve">
-    <value>ISBN</value>
-  </data>
-  <data name="EditorMatchResults_IdIsrc" xml:space="preserve">
-    <value>ISRC</value>
-  </data>
-  <data name="EditorMatchResults_IdImdb" xml:space="preserve">
-    <value>IMDb ID</value>
-  </data>
-  <data name="EditorMatchResults_IdTmdb" xml:space="preserve">
-    <value>TMDB ID</value>
-  </data>
-  <data name="EditorMatchResults_IdMusicBrainz" xml:space="preserve">
-    <value>MusicBrainz ID</value>
-  </data>
-  <data name="EditorMatchResults_IdEmbeddedTitle" xml:space="preserve">
-    <value>embedded title</value>
   </data>
   <data name="EditorSupportingFile_Loading" xml:space="preserve">
     <value>Loading this file's details</value>
@@ -11849,8 +11801,8 @@
   <data name="EditorGroupMatchPanel_Summary" xml:space="preserve">
     <value>{0} of {1} line up with {2} by their own numbers.</value>
   </data>
-  <data name="EditorGroupMatchPanel_CheckMatch" xml:space="preserve">
-    <value>Check match</value>
+  <data name="EditorGroupMatchPanel_WeakMatch" xml:space="preserve">
+    <value>Weak match</value>
   </data>
   <data name="EditorGroupMatchPanel_Apply" xml:space="preserve">
     <value>Apply match to {0}</value>
@@ -13493,6 +13445,9 @@
   <data name="SongTable_ResizeColumn" xml:space="preserve">
     <value>Resize {0} column</value>
   </data>
+  <data name="SongTable_DragCount" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
   <data name="SongTable_SelectRow" xml:space="preserve">
     <value>Select {0}</value>
   </data>
@@ -13831,6 +13786,198 @@
   </data>
   <data name="CollectionRuleBuilder_ChoicesCleared" xml:space="preserve">
     <value>Cleared because they do not apply to the chosen media type: {0}.</value>
+  </data>
+  <data name="PlaylistMembership_NewPlaylist" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="PlaylistMembership_ChooseExisting" xml:space="preserve">
+    <value>Choose an existing playlist</value>
+  </data>
+  <data name="PlaylistMembership_NoSongs" xml:space="preserve">
+    <value>There are no songs to add.</value>
+  </data>
+  <data name="PlaylistMembership_OneAdded" xml:space="preserve">
+    <value>1 song added to {0}</value>
+  </data>
+  <data name="PlaylistMembership_ManyAdded" xml:space="preserve">
+    <value>{0} songs added to {1}</value>
+  </data>
+  <data name="PlaylistMembership_SomeAlreadyThere" xml:space="preserve">
+    <value>{0} added, {1} already there</value>
+  </data>
+  <data name="PlaylistMembership_AllAlreadyThere" xml:space="preserve">
+    <value>Those songs are already in {0}.</value>
+  </data>
+  <data name="PlaylistMembership_SomeFailed" xml:space="preserve">
+    <value>{0} added, {1} could not be added</value>
+  </data>
+  <data name="PlaylistMembership_AddFailed" xml:space="preserve">
+    <value>The songs could not be added to {0}.</value>
+  </data>
+  <data name="PlaylistMembership_CreateFailed" xml:space="preserve">
+    <value>The playlist could not be created.</value>
+  </data>
+  <data name="SongTable_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="SongSelectionBar_Label" xml:space="preserve">
+    <value>Selected songs</value>
+  </data>
+  <data name="SongSelectionBar_Count" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="ListenPage_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favorites</value>
+  </data>
+  <data name="ListenPage_FavoritesEmpty" xml:space="preserve">
+    <value>Songs you heart appear here.</value>
+  </data>
+  <data name="ListenPage_FavoritesOneSong" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="ListenPage_FavoritesSongCount" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="EditorMatchCard_PositionIssue" xml:space="preserve">
+    <value>Issue {0}</value>
+  </data>
+  <data name="EditorMatchCard_PositionBook" xml:space="preserve">
+    <value>Book {0}</value>
+  </data>
+  <data name="EditorMatchCard_PositionNumber" xml:space="preserve">
+    <value>#{0}</value>
+  </data>
+  <data name="EditorMatchCard_LinksThis" xml:space="preserve">
+    <value>Links this {0} to {1}.</value>
+  </data>
+  <data name="EditorMatchCard_FieldLength" xml:space="preserve">
+    <value>Length</value>
+  </data>
+  <data name="EditorMatchCard_FieldDirector" xml:space="preserve">
+    <value>Director</value>
+  </data>
+  <data name="EditorMatchCard_FieldArtist" xml:space="preserve">
+    <value>Artist</value>
+  </data>
+  <data name="EditorMatchCard_FieldAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="EditorMatchCard_FieldIsbn" xml:space="preserve">
+    <value>ISBN</value>
+  </data>
+  <data name="EditorMatchCard_FieldIdentifier" xml:space="preserve">
+    <value>Identifier</value>
+  </data>
+  <data name="EditorMatchCard_FieldIssue" xml:space="preserve">
+    <value>Issue</value>
+  </data>
+  <data name="EditorMatchCard_FieldNumber" xml:space="preserve">
+    <value>Number</value>
+  </data>
+  <data name="EditorMatchCard_BasisNothing" xml:space="preserve">
+    <value>Nothing in your file could be compared.</value>
+  </data>
+  <data name="EditorMatchCard_BasedOn" xml:space="preserve">
+    <value>Based on {0}.</value>
+  </data>
+  <data name="EditorMatchCard_And" xml:space="preserve">
+    <value>and</value>
+  </data>
+  <data name="EditorMatchCard_VerdictStrong" xml:space="preserve">
+    <value>Strong match</value>
+  </data>
+  <data name="EditorMatchCard_VerdictPossible" xml:space="preserve">
+    <value>Possible match</value>
+  </data>
+  <data name="EditorMatchCard_VerdictWeak" xml:space="preserve">
+    <value>Weak match</value>
+  </data>
+  <data name="EditorMatchCard_ReadMore" xml:space="preserve">
+    <value>Read more</value>
+  </data>
+  <data name="EditorMatchCard_ReadLess" xml:space="preserve">
+    <value>Read less</value>
+  </data>
+  <data name="EditorMatchCard_NotProvided" xml:space="preserve">
+    <value>Not provided</value>
+  </data>
+  <data name="EditorMatchCard_Agrees" xml:space="preserve">
+    <value>Agrees</value>
+  </data>
+  <data name="EditorMatchCard_Differs" xml:space="preserve">
+    <value>Differs</value>
+  </data>
+  <data name="EditorMatchCard_Unknown" xml:space="preserve">
+    <value>Not compared</value>
+  </data>
+  <data name="EditorMatchResults_CountOne" xml:space="preserve">
+    <value>1 result</value>
+  </data>
+  <data name="EditorMatchResults_Count" xml:space="preserve">
+    <value>{0} results</value>
+  </data>
+  <data name="EditorMatchResults_ShowMore" xml:space="preserve">
+    <value>Show {0} more results</value>
+  </data>
+  <data name="EditorMatchResults_ShowOneMore" xml:space="preserve">
+    <value>Show 1 more result</value>
+  </data>
+  <data name="EditorMatchResults_Collection" xml:space="preserve">
+    <value>Collection</value>
+  </data>
+  <data name="EditorMatchCard_FieldOther" xml:space="preserve">
+    <value>Other detail</value>
+  </data>
+  <data name="EditorMatchCard_BasisIsbn" xml:space="preserve">
+    <value>the ISBN</value>
+  </data>
+  <data name="EditorMatchCard_BasisIdentifier" xml:space="preserve">
+    <value>the identifier</value>
+  </data>
+  <data name="EditorMatchCard_BasisTitle" xml:space="preserve">
+    <value>title</value>
+  </data>
+  <data name="EditorMatchCard_BasisAuthor" xml:space="preserve">
+    <value>author</value>
+  </data>
+  <data name="EditorMatchCard_BasisDirector" xml:space="preserve">
+    <value>director</value>
+  </data>
+  <data name="EditorMatchCard_BasisArtist" xml:space="preserve">
+    <value>artist</value>
+  </data>
+  <data name="EditorMatchCard_BasisYear" xml:space="preserve">
+    <value>year</value>
+  </data>
+  <data name="EditorMatchCard_BasisRuntime" xml:space="preserve">
+    <value>measured length</value>
+  </data>
+  <data name="EditorMatchCard_BasisLength" xml:space="preserve">
+    <value>length</value>
+  </data>
+  <data name="EditorMatchCard_BasisIssue" xml:space="preserve">
+    <value>issue number</value>
+  </data>
+  <data name="EditorMatchCard_BasisNumber" xml:space="preserve">
+    <value>number</value>
+  </data>
+  <data name="EditorMatchCard_BasisSeason" xml:space="preserve">
+    <value>season</value>
+  </data>
+  <data name="EditorMatchCard_BasisEpisode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="EditorMatchCard_BasisOther" xml:space="preserve">
+    <value>other details</value>
+  </data>
+  <data name="EditorMatchResults_VerdictWordStrong" xml:space="preserve">
+    <value>Strong</value>
+  </data>
+  <data name="EditorMatchResults_VerdictWordPossible" xml:space="preserve">
+    <value>Possible</value>
+  </data>
+  <data name="EditorMatchResults_VerdictWordWeak" xml:space="preserve">
+    <value>Weak</value>
   </data>
   <data name="NeedsReviewPage_SummaryOne" xml:space="preserve">
     <value>1 item needs review</value>

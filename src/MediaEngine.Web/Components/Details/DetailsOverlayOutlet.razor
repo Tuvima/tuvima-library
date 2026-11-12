@@ -1,0 +1,30 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Navigation
+@inject IServiceProvider Services
+@implements IDisposable
+
+@* Where the details window is drawn (spec music-player-and-listen-fixes D5): in the layout, beside the page box and the player bar, never inside the page box.
+   That box is a size container with hidden overflow, and whether a browser makes such a box the containing block of the fixed window inside it differs by
+   engine and version; drawn here the window is placed against the screen everywhere. The route view hands the content over (DetailsOverlayOutletState);
+   the window's state, focus return and dismissal stay in DetailsOverlayState. *@
+@_outlet?.Content
+
+@code {
+    private DetailsOverlayOutletState? _outlet;
+
+    protected override void OnInitialized()
+    {
+        // Optional: a host without the service (a test layout) simply has no window to draw here.
+        _outlet = Services.GetService(typeof(DetailsOverlayOutletState)) as DetailsOverlayOutletState;
+        if (_outlet is not null)
+            _outlet.Changed += OnChanged;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_outlet is not null)
+            _outlet.Changed -= OnChanged;
+    }
+}

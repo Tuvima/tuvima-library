@@ -6,4 +6,5 @@ GET https://lrclib.net/api/search?track_name=Fixture%20song&artist_name=Artist
 == results ==
 -- 404
 -- 500
+EXCEPTION ProviderUnavailable: LRCLIB could not be reached.
 availability: Available|Unsupported

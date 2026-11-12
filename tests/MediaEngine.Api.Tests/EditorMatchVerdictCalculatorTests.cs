@@ -6,7 +6,7 @@ using MediaEngine.Domain.Configuration;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// The Match tab's verdict (universal editor v5, D8 and D34): Strong, Possible or Check, with a fact the file cannot speak to "not checked".
+/// The Match tab's verdict (universal editor v5, D8 and D34): Strong, Possible or Weak, with a fact the file cannot speak to "not checked".
 /// The bands and tolerances come from <c>match_verdict</c> in <c>config/scoring.json</c>.
 /// </summary>
 public sealed class EditorMatchVerdictCalculatorTests
@@ -22,8 +22,8 @@ public sealed class EditorMatchVerdictCalculatorTests
         ]));
 
     [Fact]
-    public void WhenTheTitleDiffers_TheVerdictIsCheck_EvenIfTheYearAgrees() =>
-        Assert.Equal(EditorMatchVerdicts.Check, _calculator.Verdict([
+    public void WhenTheTitleDiffers_TheVerdictIsWeak_EvenIfTheYearAgrees() =>
+        Assert.Equal(EditorMatchVerdicts.Weak, _calculator.Verdict([
             _calculator.Title("The Matrix", "Matrix Revolutions"),
             _calculator.Year("1999", "1999"),
         ]));
@@ -109,14 +109,14 @@ public sealed class EditorMatchVerdictCalculatorTests
 
     [Fact]
     public void ADifferingIdentifier_WithAnAgreeingTitle_StillReadsCheck() =>
-        Assert.Equal(EditorMatchVerdicts.Check, _calculator.Verdict([
+        Assert.Equal(EditorMatchVerdicts.Weak, _calculator.Verdict([
             _calculator.Title("Dune", "Dune"),
             _calculator.Identifier(FoundIsbn, new Dictionary<string, string> { ["isbn"] = "9780000000000" }),
         ]));
 
     [Fact]
     public void AnAgreeingIdentifier_DoesNotHideADifferingNumber() =>
-        Assert.Equal(EditorMatchVerdicts.Check, _calculator.Verdict([
+        Assert.Equal(EditorMatchVerdicts.Weak, _calculator.Verdict([
             _calculator.Identifier(FoundIsbn, new Dictionary<string, string> { ["isbn"] = "9780441172719" }),
             new MatchFactCheck(MatchFactNames.Number, EditorMatchEvidenceStates.Differs, "3", "5", "Number differs"),
         ]));
@@ -125,7 +125,7 @@ public sealed class EditorMatchVerdictCalculatorTests
     [InlineData(EditorMatchEvidenceStates.Agrees, 0.95, EditorMatchVerdicts.Strong)]
     [InlineData(EditorMatchEvidenceStates.Agrees, 0.7, EditorMatchVerdicts.Possible)]
     [InlineData(EditorMatchEvidenceStates.Agrees, null, EditorMatchVerdicts.Strong)]
-    [InlineData(EditorMatchEvidenceStates.Differs, 0.2, EditorMatchVerdicts.Check)]
+    [InlineData(EditorMatchEvidenceStates.Differs, 0.2, EditorMatchVerdicts.Weak)]
     [InlineData(EditorMatchEvidenceStates.NotChecked, null, null)]
     public void AWhyRow_ReadsStrongPossibleOrCheck_FromItsFactAndItsStoredConfidence(string state, double? score, string? expected) =>
         Assert.Equal(expected, _calculator.RowVerdict(state, score));
@@ -144,6 +144,58 @@ public sealed class EditorMatchVerdictCalculatorTests
             Assert.NotEmpty(scoring.MatchVerdict.FactsFor(kind));
         }
     }
+
+    [Theory]
+    [InlineData("Percy Jackson: The Complete Series", true)]
+    [InlineData("The Hobbit Collection", true)]
+    [InlineData("Dune Box Set", true)]
+    [InlineData("The Sea of Monsters", false)]
+    [InlineData("Collections of Poetry", false)]
+    public void ATitleIsACollection_WhenItCarriesABoxSetWordAsWholeWords(string title, bool expected) =>
+        Assert.Equal(expected, _calculator.IsCollection(title, null));
+
+    [Fact]
+    public void AProviderThatSaysItIsACollection_IsOne_WhateverTheTitle() =>
+        Assert.True(_calculator.IsCollection("Books I to III", new Dictionary<string, string> { ["is_collection"] = "true" }));
+
+    [Fact]
+    public void AnIdentifierNobodyCanCompare_StillShowsWhatEachSideCarries_AndIsNotChecked()
+    {
+        var onlyTheFile = _calculator.Identifier(
+            [new EditorMatchIdentifierDto { Kind = EditorMatchIdentifierKinds.Isbn, Value = "1423103343" }], new Dictionary<string, string>());
+        var onlyTheRecord = _calculator.Identifier([], new Dictionary<string, string> { ["isbn"] = "9781423103349" });
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, onlyTheFile.State);
+        Assert.Equal("1423103343", onlyTheFile.Yours);
+        Assert.Null(onlyTheFile.Theirs);
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, onlyTheRecord.State);
+        Assert.Null(onlyTheRecord.Yours);
+        Assert.Equal("9781423103349", onlyTheRecord.Theirs);
+    }
+
+    [Fact]
+    public void AnIdentifierTheFileNames_IsNeverShownBesideARecordIdentifierOfAnotherKind()
+    {
+        var check = _calculator.Identifier(
+            [new EditorMatchIdentifierDto { Kind = EditorMatchIdentifierKinds.Isrc, Value = "USRC17607839" }],
+            new Dictionary<string, string> { ["musicbrainz_id"] = "b1a9c0e9-d987-4042-ae91-78d6a3267d69" });
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, check.State);
+        Assert.Equal("USRC17607839", check.Yours);
+        Assert.Null(check.Theirs);
+    }
+
+    [Theory]
+    [InlineData("The Mistborn Trilogy, Book 1", "1", false)]
+    [InlineData("The Collection", null, true)]
+    [InlineData("The Collection", "  ", true)]
+    [InlineData("The Mistborn Trilogy", null, true)]
+    public void ANumberedSeriesEntry_IsNotACollection_WhateverItsTitleSays(string title, string? seriesNumber, bool expected) =>
+        Assert.Equal(expected, _calculator.IsCollection(title, null, seriesNumber));
+
+    [Fact]
+    public void AProviderThatSaysItIsACollection_IsOne_EvenWithASeriesNumber() =>
+        Assert.True(_calculator.IsCollection("Books I to III", new Dictionary<string, string> { ["is_collection"] = "true" }, "1"));
 
     private static string FindRepoRoot()
     {

@@ -267,12 +267,11 @@ public sealed class ViewLibrarySurfaceTests
     {
         var listen = Read("src/MediaEngine.Web/Components/Pages/ListenBrowsePage.razor");
 
-        Assert.Contains("DropTarget: IsManualPlaylist(playlist) ? new PlaylistNavigationDropTarget(playlist.Id) : null", listen, StringComparison.Ordinal);
+        Assert.Contains("DropTarget: CollectionAuthoringRule.IsAddTarget(playlist, playlist: true) ? new PlaylistNavigationDropTarget(playlist.Id) : null", listen, StringComparison.Ordinal);
         Assert.Contains("MediaSectionNavigationDropEvent dropEvent", listen, StringComparison.Ordinal);
         Assert.Contains("dropEvent.Target is not PlaylistNavigationDropTarget playlistTarget", listen, StringComparison.Ordinal);
-        Assert.Contains("AudioDrag.WorkIds", listen, StringComparison.Ordinal);
-        Assert.Contains("ApiClient.AddCollectionItemAsync", listen, StringComparison.Ordinal);
-        Assert.Contains("AudioDrag.Clear()", listen, StringComparison.Ordinal);
+        Assert.Contains("SongDrop.DropOnPlaylistAsync(playlistTarget.PlaylistId", listen, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApiClient.AddCollectionItemAsync", listen, StringComparison.Ordinal);
         Assert.DoesNotContain("DropCollectionId", listen, StringComparison.Ordinal);
     }
 

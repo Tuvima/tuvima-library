@@ -503,6 +503,10 @@
     --tl-hover-glow-color: var(--tl-accent-primary-glow);
     --tl-z-dropdown: 1200;
     --tl-z-sticky: 1300;
+    /* The details overlay's dimmed backdrop: above the page and top navigation, below the player bar's dock (1350) so the bar stays in front. */
+    --tl-z-details-backdrop: 1340;
+    /* How far the player bar reaches up from the bottom of the screen while a details window is open (set on the window by app-dialog.js; 0 with no bar). */
+    --tl-overlay-bar-inset: 0px;
     --tl-z-modal: 1400;
     --tl-z-toast: 1500;
     --tl-z-popover: 1600;

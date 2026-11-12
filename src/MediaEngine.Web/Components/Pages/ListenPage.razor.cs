@@ -23,7 +23,7 @@ using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Components.Pages;
 
-public partial class ListenPage
+public partial class ListenPage : IDisposable
 {
     private const string MusicHomeRoute = ListenNavigation.MusicHomeRoute;
     private const string AlbumsRoute = ListenNavigation.AlbumsRoute;
@@ -37,6 +37,7 @@ public partial class ListenPage
     [Inject] private UIOrchestratorService Orchestrator { get; set; } = default!;
     [Inject] private PlaybackSessionController Playback { get; set; } = default!;
     [Inject] private ListenAudioDragService AudioDrag { get; set; } = default!;
+    [Inject] private SongDragDropService SongDrop { get; set; } = default!;
     [Inject] private MediaReactionService Reactions { get; set; } = default!;
     [Inject] private SavedItemService SavedItems { get; set; } = default!;
     [Inject] private IServiceProvider Services { get; set; } = default!;
@@ -88,6 +89,8 @@ public partial class ListenPage
     private ProfileViewModel? _activeProfile;
     private Guid? _activeProfileId;
     private HashSet<Guid> _favoriteWorkIds = [];
+    // The hearted songs in the order the profile keeps them (newest hearted first unless moved by hand); Favorites shows this order.
+    private List<Guid> _favoriteSongOrder = [];
     private HashSet<Guid> _dislikedWorkIds = [];
     private bool _loading = true;
     private bool _redirecting;
@@ -127,11 +130,15 @@ public partial class ListenPage
     private bool _activePlaylistSaved;
     private bool _creatingPlaylistInline;
     private string _newPlaylistName = string.Empty;
+    private CarriedSongs? _pendingPlaylistDrop;
     private Guid? _renamingPlaylistId;
     private string _renamePlaylistName = string.Empty;
     private int _listenLoadVersion;
 
     private string? _noticeSection;
+    private bool _disposed;
+
+    protected override void OnInitialized() => SavedItems.Changed += OnSavedItemsChanged;
 
     protected override async Task OnParametersSetAsync()
     {

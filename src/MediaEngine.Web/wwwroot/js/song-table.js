@@ -41,6 +41,155 @@ export function scrollToIndex(list, index, itemSize, topOffset) {
     return true;
 }
 
+// ---- Dragging songs out to a playlist ---------------------------------------------------------------------------------------
+// A song row can be dragged onto a playlist in the left rail, a playlist tile, or the rail's New playlist (spec D10). Which songs travel
+// is decided in .NET (a ticked row carries every ticked song, an unticked row just itself) and the drop is a normal Blazor drop on the
+// target; this only does what the browser needs while the pointer is down: the drag carries some data (Firefox will not start a drag
+// without it), a ticked row shows "3 songs" as its drag picture, and the target under the pointer gets the highlight class. A target is
+// any element with data-song-drop ("playlist" or "new-playlist"); the page only puts that attribute on places that accept songs, so a
+// smart or system playlist shows no highlight and the browser shows the not-allowed cursor over it.
+
+const DROP_ATTRIBUTE = 'data-song-drop';
+const DROP_OVER_CLASS = 'is-song-drop-over';
+const DRAGGING_CLASS = 'is-song-dragging';
+
+// The element that accepts dropped songs at or above `node`, or null.
+export function findDropTarget(node) {
+    const element = node && node.nodeType === 3 ? node.parentElement : node;
+    return element?.closest?.('[' + DROP_ATTRIBUTE + ']') ?? null;
+}
+
+// The words for the drag picture: the table's "N songs" label when the row being dragged is ticked, otherwise nothing (the browser's own
+// picture of the row is used).
+export function dragPictureLabel(row, root) {
+    const label = root?.dataset?.songDragLabel;
+    return row?.dataset?.songTicked === 'true' && label ? label : null;
+}
+
+// Wires the drag for one table: `root` is the .song-table element. Returns a function that removes everything it added.
+export function wireDragOut(root, dotnetRef) {
+    if (!root) {
+        return () => { };
+    }
+
+    let over = null;
+    let stopTracking = null;
+
+    const setOver = (target) => {
+        if (over === target) {
+            return;
+        }
+
+        over?.classList.remove(DROP_OVER_CLASS);
+        over = target;
+        over?.classList.add(DROP_OVER_CLASS);
+    };
+
+    const onDragOver = (event) => {
+        const target = findDropTarget(event.target);
+        setOver(target);
+        if (target) {
+            // Accepting the drop: this is what makes the cursor a copy cursor instead of not-allowed.
+            event.preventDefault();
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'copy';
+            }
+        }
+    };
+
+    const onDragLeave = (event) => {
+        if (over && !over.contains(event.relatedTarget)) {
+            setOver(null);
+        }
+    };
+
+    // dragend is not delivered when the dragged row left the page during the drag (a long list recycling its rows), and no pointer events
+    // arrive while a drag runs, so the first pointer move after it is also treated as its end.
+    // The component is told as well, a moment later so a drop on the page is handled first: without this a drag whose row was recycled (so
+    // the row's own dragend never reached the component) would leave its songs carried, and a later, unrelated drop would add them.
+    const finish = () => {
+        if (!stopTracking) {
+            return;
+        }
+
+        stopTracking();
+        stopTracking = null;
+        if (dotnetRef) {
+            setTimeout(() => {
+                dotnetRef.invokeMethodAsync('DragOutFinished').catch((error) => {
+                    console.warn('song-table: the end of a drag could not be reported', error);
+                });
+            }, 50);
+        }
+    };
+
+    // The page's own drop handler still receives the drop; this only keeps the browser from opening the dragged text.
+    const onDrop = (event) => {
+        if (findDropTarget(event.target)) {
+            event.preventDefault();
+        }
+
+        finish();
+    };
+
+    const track = () => {
+        stopTracking?.();
+        stopTracking = null;
+        document.addEventListener('dragenter', onDragOver, true);
+        document.addEventListener('dragover', onDragOver, true);
+        document.addEventListener('dragleave', onDragLeave, true);
+        document.addEventListener('drop', onDrop, true);
+        document.addEventListener('dragend', finish, true);
+        document.addEventListener('pointermove', finish, true);
+        document.body?.classList.add(DRAGGING_CLASS);
+        stopTracking = () => {
+            document.removeEventListener('dragenter', onDragOver, true);
+            document.removeEventListener('dragover', onDragOver, true);
+            document.removeEventListener('dragleave', onDragLeave, true);
+            document.removeEventListener('drop', onDrop, true);
+            document.removeEventListener('dragend', finish, true);
+            document.removeEventListener('pointermove', finish, true);
+            document.body?.classList.remove(DRAGGING_CLASS);
+            setOver(null);
+        };
+    };
+
+    const onDragStart = (event) => {
+        const row = event.target?.closest?.('[data-song-row-id]');
+        const transfer = event.dataTransfer;
+        if (!row || !root.contains(row) || !transfer) {
+            return;
+        }
+
+        const title = row.querySelector('.song-table__title')?.textContent?.trim() ?? '';
+        const label = dragPictureLabel(row, root);
+        transfer.setData('text/plain', label ?? title);
+        if (root.dataset.songDragOut !== 'true') {
+            return;
+        }
+
+        if (label) {
+            const picture = document.createElement('div');
+            picture.className = 'song-table__drag-picture';
+            picture.textContent = label;
+            picture.style.cssText = 'position:fixed;top:-1000px;left:-1000px';
+            document.body.appendChild(picture);
+            transfer.setDragImage(picture, 12, 12);
+            setTimeout(() => picture.remove(), 0);
+        }
+
+        track();
+    };
+
+    root.addEventListener('dragstart', onDragStart);
+    return () => {
+        root.removeEventListener('dragstart', onDragStart);
+        // The table is going away and ends its own drag, so nothing is reported.
+        stopTracking?.();
+        stopTracking = null;
+    };
+}
+
 // ---- Column resizing --------------------------------------------------------------------------------------------------------
 // Dragging a header edge, or pressing Left or Right on it, is handled here in the browser, so the table follows the pointer without a
 // round trip per mouse move. The component draws the grid as inline CSS variables on the wrapper around the table: --song-table-columns
@@ -138,7 +287,7 @@ export function withFillerTrack(template) {
     return tracks.join(' ');
 }
 
-// Wires resizing for one table: `root` is the .song-table element, `dotnetRef` the component. Handles are found by event delegation, so
+// Wires one table's column resizing, and with it the dragging of songs out (see wireDragOut): `root` is the .song-table element, `dotnetRef` the component. Handles are found by event delegation, so
 // showing or hiding columns needs no re-wiring. Each handle names its column and limits in data-column, data-min and data-max.
 // Returns a function that removes everything it added; wiring the same table again replaces the earlier wiring.
 export function wireResize(root, dotnetRef) {
@@ -310,6 +459,8 @@ export function wireResize(root, dotnetRef) {
         }
     };
 
+    const unwireDrag = wireDragOut(root, dotnetRef);
+
     root.addEventListener('pointerdown', onPointerDown);
     root.addEventListener('pointermove', onPointerMove);
     root.addEventListener('pointerup', onPointerUp);
@@ -318,6 +469,7 @@ export function wireResize(root, dotnetRef) {
     root.addEventListener('keydown', onKeyDown);
 
     const dispose = () => {
+        unwireDrag();
         root.removeEventListener('pointerdown', onPointerDown);
         root.removeEventListener('pointermove', onPointerMove);
         root.removeEventListener('pointerup', onPointerUp);

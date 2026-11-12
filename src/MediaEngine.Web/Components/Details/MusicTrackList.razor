@@ -58,7 +58,7 @@ else if (AllItems.Count > 0)
                    OnDragOutEnded="@DragEndedCallback"
                    EmptyContent="@EmptyContent">
             <BulkContent Context="selected">
-                <BulkSelectionBar />
+                <BulkSelectionBar OnPlay="@PlayTickedCallback(selected)" OnQueue="@QueueTickedCallback(selected)" />
             </BulkContent>
         </SongTable>
     </section>
