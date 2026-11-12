@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using Bunit;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Items;
@@ -134,6 +135,63 @@ public sealed class EditorPhoneReorderTests : AsyncBunitContext
         cut.Find("[data-reorder-cancel]").Click();
 
         Assert.Empty(_session.Pending.Changes);
+    }
+
+    [Fact]
+    public async Task OnThePhoneSheet_TheReorderBarEndsTheListsPanel_AndTheSheetCarriesTheReorderingMark_OnlyWhileReordering()
+    {
+        var cut = await EnterReorderOnAPhoneAsync();
+
+        var sheet = cut.Find("dialog.tl-hnav__surface--phone");
+        Assert.Contains("tl-hnav__surface--reordering", sheet.ClassName, StringComparison.Ordinal);
+        // The bar is drawn inside the sheet, as the last thing in the panel that holds the list, so the list always ends above it.
+        var panel = cut.Find("dialog .tl-hnav__panel");
+        Assert.Equal("app-reorder-bar", panel.LastElementChild!.ClassName);
+        Assert.NotNull(panel.QuerySelector("[data-testid=reorder-videos]"));
+
+        cut.Find("[data-reorder-cancel]").Click();
+
+        cut.WaitForAssertion(() => Assert.DoesNotContain("tl-hnav__surface--reordering", cut.Find("dialog.tl-hnav__surface--phone").ClassName, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ThePhoneSheetsReorderBar_StaysInTheSheetsFlow_AndTheListGivesUpTheHeightItNeeds_WithoutNewImportantRules()
+    {
+        var app = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
+
+        // The sheet is moved by a transform, so a fixed bar would be measured against the sheet and lie over the end of the list: it sticks in the flow instead.
+        var bar = Regex.Match(app, @"\.tl-hnav__surface--phone\.tl-hnav__surface--reordering \.app-reorder-bar\{([^}]*)\}");
+        Assert.True(bar.Success);
+        Assert.Contains("position:sticky", bar.Groups[1].Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("fixed", bar.Groups[1].Value, StringComparison.Ordinal);
+        var list = Regex.Match(app, @"\.tl-hnav__surface--phone\.tl-hnav__surface--reordering \.tl-hnav__scroll\{([^}]*)\}");
+        Assert.True(list.Success);
+        Assert.Contains("100dvh", list.Groups[1].Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("!important", bar.Groups[1].Value + list.Groups[1].Value, StringComparison.Ordinal);
+        // The desktop popover's own reserve is untouched.
+        Assert.Matches(@"\.tl-popover\.tl-hnav__surface--reordering\s*\{\s*--tl-popover-bottom-reserve:\s*var\(--tl-reorder-bar-height\);", app);
+    }
+
+    [Fact]
+    public void BothEditorsPhoneNavSheets_AreLeftOutOfTheHostsFitContentWidth_SoTheyRunEdgeToEdge()
+    {
+        var app = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
+
+        var width = Regex.Match(app, @"\.tl-dialog\.app-dialog-host:where\(:not\(([^)]*)\)\)\s*\{");
+        Assert.True(width.Success);
+        Assert.Contains(".tl-hnav__surface--phone", width.Groups[1].Value, StringComparison.Ordinal);
+        Assert.Contains(".view-hnav__surface--phone", width.Groups[1].Value, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
     }
 
     [Fact]
