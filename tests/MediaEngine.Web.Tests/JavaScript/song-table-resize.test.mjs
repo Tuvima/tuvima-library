@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { clampWidth, widthFromDelta, splitTemplate, isFlexibleTrack, withTrackWidth, wireResize, unwireResize } =
+const { clampWidth, widthFromDelta, splitTemplate, isFlexibleTrack, trackMinimum, withTrackWidth, wireResize, unwireResize } =
     await import(new URL('../../../src/MediaEngine.Web/wwwroot/js/song-table.js', import.meta.url).href);
 
 const TEMPLATE = '44px minmax(56px, 56px) minmax(360px, 1fr) minmax(64px, 180px) minmax(64px, 220px) 100px';
@@ -39,20 +39,33 @@ test('splitting a template keeps each minmax together', () => {
     assert.deepEqual(splitTemplate(TEMPLATE), ['44px', 'minmax(56px, 56px)', 'minmax(360px, 1fr)', 'minmax(64px, 180px)', 'minmax(64px, 220px)', '100px']);
 });
 
-test('setting a fixed track changes its maximum and keeps its minimum', () => {
+test('setting a range track makes it a fixed width so it keeps that width even when the table is squeezed', () => {
     assert.equal(
         withTrackWidth(TEMPLATE, 3, 240),
-        '44px minmax(56px, 56px) minmax(360px, 1fr) minmax(64px, 240px) minmax(64px, 220px) 100px');
+        '44px minmax(56px, 56px) minmax(360px, 1fr) 240px minmax(64px, 220px) 100px');
 });
 
-test('setting the flexible track changes its minimum and keeps the 1fr', () => {
+test('a track adds its minimum to the table minimum, or its width when it is fixed', () => {
+    assert.equal(trackMinimum(TEMPLATE, 2), 360);
+    assert.equal(trackMinimum(TEMPLATE, 3), 64);
+    assert.equal(trackMinimum('44px 300px 100px', 1), 300);
+    assert.equal(trackMinimum(TEMPLATE, 99), 0);
+});
+
+test('setting the flexible track makes it a fixed width that can go wider or narrower', () => {
     assert.equal(
         withTrackWidth(TEMPLATE, 2, 400),
-        '44px minmax(56px, 56px) minmax(400px, 1fr) minmax(64px, 180px) minmax(64px, 220px) 100px');
+        '44px minmax(56px, 56px) 400px minmax(64px, 180px) minmax(64px, 220px) 100px');
+    assert.equal(
+        withTrackWidth(TEMPLATE, 2, 200),
+        '44px minmax(56px, 56px) 200px minmax(64px, 180px) minmax(64px, 220px) 100px');
 });
 
-test('a track that is not a column width is left as it is', () => {
-    assert.equal(withTrackWidth(TEMPLATE, 0, 99), TEMPLATE);
+test('setting a track that is already a fixed width changes that width', () => {
+    assert.equal(withTrackWidth('44px 300px 100px', 1, 250), '44px 250px 100px');
+});
+
+test('a track past the end of the template is left as it is', () => {
     assert.equal(withTrackWidth(TEMPLATE, 99, 99), TEMPLATE);
 });
 
@@ -64,7 +77,7 @@ test('only the Song track is told apart as flexible', () => {
 
 // ---- A small stand-in for the table, to follow a whole drag -----------------------------------------------------------------
 
-function makeTable(template = TEMPLATE) {
+function makeTable(template = TEMPLATE, cellIndex = 3, column = 'artist') {
     const listeners = new Map();
     const properties = new Map([['--song-table-columns', template], ['--song-table-min-width', '900px']]);
     const classes = new Set();
@@ -76,11 +89,12 @@ function makeTable(template = TEMPLATE) {
     };
     const head = { children: [] };
     const cell = { parentElement: head, getBoundingClientRect: () => ({ width: 180 }) };
-    head.children.push({}, {}, {}, cell);
+    for (let i = 0; i < cellIndex; i++) head.children.push({});
+    head.children.push(cell);
     let captured = null;
     let released = null;
     const handle = {
-        dataset: { column: 'artist', min: '64', max: '560' },
+        dataset: { column, min: '64', max: '560' },
         closest: selector => (selector === '.song-table__head-cell' ? cell : handle),
         setPointerCapture: id => { captured = id; },
         releasePointerCapture: id => { released = id; },
@@ -114,13 +128,31 @@ test('dragging a handle updates the column live and tells .NET once when release
 
     table.fire('pointermove', { clientX: 120 });
     table.fire('pointermove', { clientX: 140 });
-    assert.equal(table.properties.get('--song-table-columns'), '44px minmax(56px, 56px) minmax(360px, 1fr) minmax(64px, 220px) minmax(64px, 220px) 100px');
+    assert.equal(table.properties.get('--song-table-columns'), '44px minmax(56px, 56px) minmax(360px, 1fr) 220px minmax(64px, 220px) 100px');
     assert.deepEqual(dotnet.calls, []);
 
     table.fire('pointerup', {});
     assert.deepEqual(dotnet.calls, [['ColumnResized', 'artist', 220]]);
     assert.equal(table.released(), 1);
     assert.equal(table.classes.has('is-resizing'), false);
+});
+
+test('dragging the Song handle fixes its width and follows the pointer narrower and wider, and the table minimum follows it', () => {
+    const table = makeTable(TEMPLATE, 2, 'song');
+    const dotnet = makeDotnet();
+    wireResize(table.root, dotnet.ref);
+
+    table.fire('pointerdown', { target: { closest: () => table.handle }, clientX: 400, preventDefault: () => { }, stopPropagation: () => { } });
+    table.fire('pointermove', { clientX: 320 });
+    assert.equal(table.properties.get('--song-table-columns'), '44px minmax(56px, 56px) 100px minmax(64px, 180px) minmax(64px, 220px) 100px');
+    assert.equal(table.properties.get('--song-table-min-width'), '640px');
+
+    table.fire('pointermove', { clientX: 460 });
+    assert.equal(table.properties.get('--song-table-columns'), '44px minmax(56px, 56px) 240px minmax(64px, 180px) minmax(64px, 220px) 100px');
+    assert.equal(table.properties.get('--song-table-min-width'), '780px');
+
+    table.fire('pointerup', {});
+    assert.deepEqual(dotnet.calls, [['ColumnResized', 'song', 240]]);
 });
 
 test('dragging past the limits stops at the column minimum', () => {

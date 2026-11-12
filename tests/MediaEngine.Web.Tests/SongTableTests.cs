@@ -350,7 +350,7 @@ public sealed class SongTableTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => cut.Instance.ColumnResized("artist", 220));
 
-        Assert.Contains("minmax(64px, 220px)", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
+        Assert.Contains(" 220px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
         var saved = Assert.Single(_store.Saves);
         Assert.Equal(220, saved.Choice.Widths[SongColumn.Artist]);
     }
@@ -363,7 +363,7 @@ public sealed class SongTableTests : AsyncBunitContext
         var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
         await cut.InvokeAsync(() => cut.Instance.ColumnResized("artist", 10));
 
-        Assert.Contains("minmax(64px, 64px)", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
+        Assert.Contains(" 64px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
         Assert.Equal(64, Assert.Single(_store.Saves).Choice.Widths[SongColumn.Artist]);
     }
 
@@ -389,16 +389,36 @@ public sealed class SongTableTests : AsyncBunitContext
         };
 
         var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
-        cut.WaitForAssertion(() => Assert.Contains("minmax(64px, 260px)", cut.Find("[style*='--song-table-columns']").GetAttribute("style")));
+        cut.WaitForAssertion(() => Assert.Contains(" 260px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style")));
 
         await cut.InvokeAsync(() => cut.Instance.ColumnResetWidth("artist"));
 
         var style = cut.Find("[style*='--song-table-columns']").GetAttribute("style");
         Assert.Contains("minmax(64px, 180px)", style);
-        Assert.Contains("minmax(64px, 300px)", style);
+        Assert.Contains(" 300px ", style);
         var saved = Assert.Single(_store.Saves);
         Assert.False(saved.Choice.Widths.ContainsKey(SongColumn.Artist));
         Assert.Equal(300, saved.Choice.Widths[SongColumn.Album]);
+    }
+
+    [Fact]
+    public async Task TheSongColumnStaysFlexibleUntilItsWidthIsSetThenKeepsThatExactWidthUntilReset()
+    {
+        await UseDeviceAsync("desktop");
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+        string Columns() => cut.Find("[style*='--song-table-columns']").GetAttribute("style")!;
+
+        Assert.Contains("minmax(360px, 1fr)", Columns());
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("song", 300));
+        Assert.DoesNotContain("1fr", Columns());
+        Assert.Contains(" 300px ", Columns());
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("song", 500));
+        Assert.Contains(" 500px ", Columns());
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResetWidth("song"));
+        Assert.Contains("minmax(360px, 1fr)", Columns());
     }
 
     [Fact]

@@ -406,7 +406,15 @@ public partial class SongTable
                     minimum += SongTableColumns.DefaultWidth(SongColumn.Tick);
                     break;
                 case SongColumn.Song:
-                    template.Add($"minmax({layout.Width}px, 1fr)");
+                    // Song soaks up the spare width until the person sets its width; then it keeps exactly that width and the spare
+                    // width falls to the right of the last column.
+                    template.Add(_choice.Widths.ContainsKey(SongColumn.Song) ? $"{layout.Width}px" : $"minmax({layout.Width}px, 1fr)");
+                    minimum += layout.Width;
+                    break;
+                case var resized when _choice.Widths.ContainsKey(resized):
+                    // A column the person resized keeps exactly that width, even when the table is too narrow for every column:
+                    // the other columns give up width first, then the table scrolls sideways.
+                    template.Add($"{layout.Width}px");
                     minimum += layout.Width;
                     break;
                 default:

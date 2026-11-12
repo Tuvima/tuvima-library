@@ -83,27 +83,32 @@ export function splitTemplate(template) {
     return tracks;
 }
 
-// True when the track is the flexible one (the Song column, minmax(Wpx, 1fr)).
+// True when the track is the flexible one (the Song column with no width of its own, minmax(Wpx, 1fr)).
 export function isFlexibleTrack(template, index) {
     return FLEXIBLE_TRACK.test(splitTemplate(template)[index] ?? '');
 }
 
-// The template with one track set to `width`: the flexible track changes its minimum, any other (minmax(MINpx, Wpx)) its maximum.
-// A track in some other shape is left as it is.
+// How much a track adds to the table's smallest width: a minmax(a, b) track its minimum a, a fixed track its width. 0 for anything else.
+export function trackMinimum(template, index) {
+    const track = splitTemplate(template)[index] ?? '';
+    const ranged = /^minmax\(\s*([\d.]+)px\s*,/.exec(track);
+    if (ranged) {
+        return Number(ranged[1]);
+    }
+
+    const fixed = /^([\d.]+)px$/.exec(track);
+    return fixed ? Number(fixed[1]) : 0;
+}
+
+// The template with one track set to a fixed `width`px. A column the person is resizing keeps exactly that width in both directions,
+// even when the table is too narrow for every column (the other columns give up width first), so a minmax(a, b) track, the Song column's
+// minmax(Wpx, 1fr) included, and an already fixed track all become `width`px. A track in some other shape, or past the end, is left
+// as it is. Only resizable columns' tracks are ever passed in.
 export function withTrackWidth(template, index, width) {
     const tracks = splitTemplate(template);
     const track = tracks[index];
-    if (track === undefined) {
-        return tracks.join(' ');
-    }
-
-    if (FLEXIBLE_TRACK.test(track)) {
-        tracks[index] = `minmax(${width}px, 1fr)`;
-    } else {
-        const fixed = /^minmax\(\s*([\d.]+)px\s*,\s*[\d.]+px\s*\)$/.exec(track);
-        if (fixed) {
-            tracks[index] = `minmax(${fixed[1]}px, ${width}px)`;
-        }
+    if (track !== undefined && (/^minmax\(/.test(track) || /^[\d.]+px$/.test(track))) {
+        tracks[index] = `${width}px`;
     }
 
     return tracks.join(' ');
@@ -122,7 +127,7 @@ export function wireResize(root, dotnetRef) {
 
     const restore = (state) => {
         state.holder.style.setProperty(COLUMNS_VARIABLE, state.template);
-        if (state.flexible && Number.isFinite(state.minTable)) {
+        if (Number.isFinite(state.minTable)) {
             state.holder.style.setProperty(MIN_WIDTH_VARIABLE, `${state.minTable}px`);
         }
     };
@@ -182,7 +187,7 @@ export function wireResize(root, dotnetRef) {
             min: Number(handle.dataset.min) || 0,
             max: Number(handle.dataset.max) || Number.MAX_SAFE_INTEGER,
             minTable: parseFloat(holder.style.getPropertyValue(MIN_WIDTH_VARIABLE)),
-            flexible: isFlexibleTrack(template, index),
+            trackMinimum: trackMinimum(template, index),
         };
 
         handle.setPointerCapture(event.pointerId);
@@ -201,8 +206,8 @@ export function wireResize(root, dotnetRef) {
 
         drag.width = width;
         drag.holder.style.setProperty(COLUMNS_VARIABLE, withTrackWidth(drag.template, drag.index, width));
-        if (drag.flexible && Number.isFinite(drag.minTable)) {
-            drag.holder.style.setProperty(MIN_WIDTH_VARIABLE, `${drag.minTable + width - drag.startWidth}px`);
+        if (Number.isFinite(drag.minTable)) {
+            drag.holder.style.setProperty(MIN_WIDTH_VARIABLE, `${drag.minTable + width - drag.trackMinimum}px`);
         }
     };
 
