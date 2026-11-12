@@ -109,8 +109,8 @@ public partial interface IEngineApiClient
     /// <summary>POST /collections/preview — evaluate rules without saving.</summary>
     Task<CollectionPreviewResult?> PreviewCollectionRulesAsync(CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string? query = null, int limit = 20, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null);
 
-    Task<IReadOnlyList<CollectionRuleValueDto>> GetCollectionEntityFieldValuesAsync(string field, string? query = null, int limit = 100, CancellationToken ct = default);
-    Task<IReadOnlyList<string>> GetCollectionFieldValuesAsync(string field, string? query = null, int limit = 100, CancellationToken ct = default);
+    Task<IReadOnlyList<CollectionRuleValueDto>> GetCollectionEntityFieldValuesAsync(string field, string? query = null, int limit = 100, CancellationToken ct = default, IReadOnlyList<string>? mediaTypes = null);
+    Task<IReadOnlyList<string>> GetCollectionFieldValuesAsync(string field, string? query = null, int limit = 100, CancellationToken ct = default, IReadOnlyList<string>? mediaTypes = null);
 
     /// <summary>POST /collections — create a new collection.</summary>
     Task<Guid?> CreateCollectionAndReturnIdAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string membershipMode = "Manual", string primaryArea = "Mixed", string ownerKind = "Profile", string audience = "Private", IReadOnlyList<Guid>? selectedProfileIds = null, IReadOnlyList<Guid>? workIds = null, int minItems = 0, int maxItems = 0, string? seasonFrom = null, string? seasonTo = null, IReadOnlyList<string>? showOn = null);

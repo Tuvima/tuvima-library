@@ -123,7 +123,7 @@
                 }
                 else
                 {
-                @foreach (var item in group.Items)
+                @foreach (var item in Ordered(group.Items))
                 {
                     if (HasChildren(item))
                     {
@@ -164,7 +164,7 @@
                             @if (expanded)
                             {
                                 <div id="@ChildrenId(item)" class="media-section-shell__rail-children" role="group" aria-label="@($"{item.Label} subsections")">
-                                    @foreach (var child in item.Children!)
+                                    @foreach (var child in Ordered(item.Children!))
                                     {
                                         var childActive = IsActive(child);
                                         @if (child.Management is { } management)
@@ -202,7 +202,7 @@
                                                     }
                                                     else
                                                     {
-                                                        @if (management.CanReorder)
+                                                        @if (management.CanReorder && InReorder(management))
                                                         {
                                                             <AppNativeButton Type="button"
                                                                              Class="media-section-shell__drag-handle"
@@ -234,7 +234,11 @@
                                                             {
                                                                 <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
                                                             }
-                                                            @if (management.CanReorder)
+                                                            @if (management.CanReorder && !InReorder(management))
+                                                            {
+                                                                <AppMenuItem Label="@L["AppReorderBar_MenuReorder"].Value" Icon="@AppMaterialIcons.Outlined.SwapVert" OnClick="@(() => BeginReorderMode(child))" />
+                                                            }
+                                                            @if (management.CanReorder && InReorder(management))
                                                             {
                                                                 <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
                                                                 <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
@@ -308,7 +312,7 @@
                                 }
                                 else
                                 {
-                                    @if (management.CanReorder)
+                                    @if (management.CanReorder && InReorder(management))
                                     {
                                         <AppNativeButton Type="button"
                                                          Class="media-section-shell__drag-handle"
@@ -340,7 +344,11 @@
                                         {
                                             <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
                                         }
-                                        @if (management.CanReorder)
+                                        @if (management.CanReorder && !InReorder(management))
+                                        {
+                                            <AppMenuItem Label="@L["AppReorderBar_MenuReorder"].Value" Icon="@AppMaterialIcons.Outlined.SwapVert" OnClick="@(() => BeginReorderMode(item))" />
+                                        }
+                                        @if (management.CanReorder && InReorder(management))
                                         {
                                             <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
                                             <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
@@ -389,6 +397,8 @@
         @ChildContent
     </main>
 </div>
+
+<AppReorderBar Active="@(_reorderKind is not null)" Dirty="@ReorderDirty" Busy="@_reorderBusy" OnSave="SaveReorderAsync" OnCancel="CancelReorder" />
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
@@ -1070,13 +1080,15 @@
 
     private async Task DropOnManagedItemAsync(MediaSectionNavigationItem item)
     {
-        if (_reorderingItem is { Management: { } sourceManagement } source
+        if (_reorderKind is not null
+            && _reorderingItem is { Management: { } sourceManagement } source
             && item.Management is { } targetManagement
             && source.Route != item.Route
-            && sourceManagement.ContainerKind == targetManagement.ContainerKind
-            && OnNavigationItemReorder is not null)
+            && sourceManagement.ContainerKind == _reorderKind
+            && targetManagement.ContainerKind == _reorderKind)
         {
-            await OnNavigationItemReorder(new(source, sourceManagement, targetManagement.ContainerId));
+            // Reorder mode only changes the staged copy; nothing is written until Save order.
+            StageMoveBefore(sourceManagement.ContainerId, targetManagement.ContainerId);
             _reorderingItem = null;
             return;
         }
@@ -1084,10 +1096,115 @@
         await DropOnNavigationItemAsync(item);
     }
 
-    private Task<bool> MoveManagedItemAsync(MediaSectionNavigationItem item, int direction) =>
-        item.Management is { } management && OnNavigationItemReorder is not null
-            ? OnNavigationItemReorder(new(item, management, Direction: direction))
-            : Task.FromResult(false);
+    // ---- Reorder mode: the staged order of one kind of container (playlists, Galleries, ...) ----
+
+    private string? _reorderKind;
+    private List<Guid> _stagedOrder = [];
+    private List<Guid> _savedOrder = [];
+    private bool _reorderBusy;
+
+    private bool InReorder(MediaSectionNavigationItemManagement management) => _reorderKind == management.ContainerKind;
+    private bool ReorderDirty => !_stagedOrder.SequenceEqual(_savedOrder);
+
+    private IEnumerable<MediaSectionNavigationItem> ManagedItems(string kind) =>
+        NavigationGroups
+            .SelectMany(group => group.Items.SelectMany(item => (item.Children ?? []).Prepend(item)))
+            .Where(item => item.Management is { } management && management.ContainerKind == kind);
+
+    private void BeginReorderMode(MediaSectionNavigationItem item)
+    {
+        if (item.Management is not { CanReorder: true } management)
+            return;
+        _reorderKind = management.ContainerKind;
+        _savedOrder = ManagedItems(_reorderKind).Select(managed => managed.Management!.ContainerId).Distinct().ToList();
+        _stagedOrder = [.. _savedOrder];
+    }
+
+    private void CancelReorder()
+    {
+        _reorderKind = null;
+        _reorderingItem = null;
+        _stagedOrder = [];
+        _savedOrder = [];
+    }
+
+    /// <summary>The rows in the staged order: rows of the reordered kind take its slots in staged order, every other row stays where it is.</summary>
+    private IReadOnlyList<MediaSectionNavigationItem> Ordered(IReadOnlyList<MediaSectionNavigationItem> items)
+    {
+        if (_reorderKind is null)
+            return items;
+        var slots = items.Select((item, index) => (item, index)).Where(pair => pair.item.Management?.ContainerKind == _reorderKind).Select(pair => pair.index).ToList();
+        if (slots.Count < 2)
+            return items;
+        var byId = slots.Select(index => items[index]).ToDictionary(item => item.Management!.ContainerId);
+        var inOrder = _stagedOrder.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+        if (inOrder.Count != slots.Count)
+            return items;
+        var result = items.ToList();
+        for (var i = 0; i < slots.Count; i++)
+            result[slots[i]] = inOrder[i];
+        return result;
+    }
+
+    private void StageMoveBefore(Guid id, Guid beforeId)
+    {
+        var from = _stagedOrder.IndexOf(id);
+        if (from < 0 || !_stagedOrder.Contains(beforeId) || id == beforeId)
+            return;
+        _stagedOrder.RemoveAt(from);
+        _stagedOrder.Insert(_stagedOrder.IndexOf(beforeId), id);
+    }
+
+    private Task<bool> MoveManagedItemAsync(MediaSectionNavigationItem item, int direction)
+    {
+        if (item.Management is not { } management || _reorderKind != management.ContainerKind)
+            return Task.FromResult(false);
+        var from = _stagedOrder.IndexOf(management.ContainerId);
+        var to = Math.Clamp(from + direction, 0, _stagedOrder.Count - 1);
+        if (from < 0 || to == from)
+            return Task.FromResult(false);
+        _stagedOrder.RemoveAt(from);
+        _stagedOrder.Insert(to, management.ContainerId);
+        return Task.FromResult(true);
+    }
+
+    /// <summary>Save order: replays the staged order to the page one move at a time, then leaves the mode. A move the page refuses stops the rest and leaves the mode too (the page shows why).</summary>
+    private async Task<bool> SaveReorderAsync()
+    {
+        if (_reorderKind is null || OnNavigationItemReorder is null)
+            return false;
+        if (!ReorderDirty)
+        {
+            CancelReorder();
+            return true;
+        }
+
+        _reorderBusy = true;
+        try
+        {
+            var kind = _reorderKind;
+            var itemsById = ManagedItems(kind).GroupBy(item => item.Management!.ContainerId).ToDictionary(group => group.Key, group => group.First());
+            var current = new List<Guid>(_savedOrder);
+            var target = new List<Guid>(_stagedOrder);
+            for (var i = 0; i < target.Count; i++)
+            {
+                if (current[i] == target[i])
+                    continue;
+                var moved = itemsById[target[i]];
+                if (!await OnNavigationItemReorder(new(moved, moved.Management!, current[i])))
+                    return false;
+                current.Remove(target[i]);
+                current.Insert(i, target[i]);
+            }
+
+            return true;
+        }
+        finally
+        {
+            _reorderBusy = false;
+            CancelReorder();
+        }
+    }
 
     private void BeginSwipe(MediaSectionNavigationItem item, PointerEventArgs args)
     {
