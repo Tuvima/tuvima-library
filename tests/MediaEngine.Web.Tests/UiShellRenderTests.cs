@@ -506,11 +506,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
-            // Activity is a tab, not a menu row: Libraries is shaded amber when items wait, with no count bubble.
-            var libraries = cut.FindAll(".media-section-shell__tree-link")
-                .First(item => item.TextContent.Trim() == "Libraries");
-            var reviewNotification = libraries.QuerySelector(".media-section-shell__rail-meta--notification");
-            Assert.Null(reviewNotification);
+            // Activity is a tab, not a menu row: Libraries is shaded amber, with the small count pill, when items wait.
+            Assert.Single(cut.FindAll(".media-section-shell__tree-link"),
+                item => item.QuerySelector(".media-section-shell__tree-label")?.TextContent.Trim() == "Libraries");
             // System opens on the resources summary.
             Assert.Single(cut.FindAll("[data-settings-system-summary]"));
             Assert.DoesNotContain("System exceptions", cut.Markup);

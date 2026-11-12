@@ -765,6 +765,12 @@
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
+    // A count pill is part of the row's name for a screen reader ("Libraries, 8 items need review"); other rows keep their text.
+    private static string? TreeRowAccessibleName(MediaSectionNavigationItem item) =>
+        item.MetaIsNotification && !string.IsNullOrWhiteSpace(item.Meta) && !string.IsNullOrWhiteSpace(item.MetaAriaLabel)
+            ? $"{item.Label}, {item.MetaAriaLabel}"
+            : null;
+
     private static string? TreeAttentionLabel(MediaSectionNavigationItem item) =>
         item.EffectiveAttention == MediaSectionAttentionLevel.Blocked && !string.IsNullOrWhiteSpace(item.AttentionLabel)
             ? item.AttentionLabel
@@ -788,6 +794,7 @@
                href="@item.Route"
                class="media-section-shell__tree-link"
                aria-current="@(IsTreeRowCurrent(item) ? "page" : null)"
+               aria-label="@TreeRowAccessibleName(item)"
                @onclick="@(() => NavigateTreeNode(item))"
                @onclick:preventDefault="@HasChildren(item)">
                 <span class="media-section-shell__tree-icon"><AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Control20" aria-hidden="true" /></span>
