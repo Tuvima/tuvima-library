@@ -18,6 +18,13 @@ internal static class VideoSeriesTargetAccess
     {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(resources);
+        // A choice that names two places at once is read one way by one part of the save and another way by the next: it is refused here
+        // like a series that cannot be used, so no part of it is acted on.
+        if (!EditSessionVideo.IsOneChoice(targetId, token))
+        {
+            return false;
+        }
+
         if (EditSessionVideo.IsNoSeries(token) || EditSessionVideo.TryParseNewSeries(token, out _) || string.IsNullOrWhiteSpace(targetId))
         {
             return true;

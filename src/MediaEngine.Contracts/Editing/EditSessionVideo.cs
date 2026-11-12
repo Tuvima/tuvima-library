@@ -69,6 +69,14 @@ public static class EditSessionVideo
         return Guid.TryParse(targetId, out var id) ? id.ToString("D") : string.Empty;
     }
 
+    /// <summary>
+    /// True when a series change names one place only: a series or section id, or a token (<c>none</c> or a new series), never both and never
+    /// a target with a token that says something else. Every reader of a series choice (the check, the apply, the access check and the
+    /// folder plan) asks this first, so they can never read different places out of one change.
+    /// </summary>
+    public static bool IsOneChoice(string? targetId, string? token) =>
+        string.IsNullOrWhiteSpace(targetId) || string.IsNullOrEmpty(token);
+
     public static bool IsNoSeries(string? token) => string.Equals(token, NoSeriesToken, StringComparison.Ordinal);
 
     /// <summary>Reads a <see cref="NewSeriesToken"/>. False when the token is anything else or the name is empty.</summary>

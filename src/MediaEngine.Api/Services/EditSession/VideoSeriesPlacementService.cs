@@ -62,6 +62,11 @@ public sealed class VideoSeriesPlacementService(
         }
 
         var assetId = membership.AssetId;
+        if (!EditSessionVideo.IsOneChoice(targetId, token))
+        {
+            return new VideoSeriesFilePlan(false, assetId, null, null, null, EditSessionReasons.SeriesChoiceUnclear, true);
+        }
+
         var asset = assetId == Guid.Empty ? null : await assets.FindByIdAsync(assetId, ct).ConfigureAwait(false);
         var current = asset?.FilePathRoot;
         if (asset is null || string.IsNullOrWhiteSpace(current) || libraries.ResolveSourceForPath(current) is not { } resolved)

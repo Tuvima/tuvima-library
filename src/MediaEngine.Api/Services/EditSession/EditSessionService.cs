@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.EditSession;
 
@@ -17,7 +18,8 @@ namespace MediaEngine.Api.Services.EditSession;
 public sealed class EditSessionService(
     IEnumerable<IEditSessionChangeHandler> handlers,
     ILogger<EditSessionService> logger,
-    IEditSessionFileWrites? fileWrites = null) : IEditSessionService
+    IEditSessionFileWrites? fileWrites = null,
+    IItemCanonicalRepository? items = null) : IEditSessionService
 {
     private readonly Dictionary<string, IEditSessionChangeHandler> _handlers =
         handlers.ToDictionary(handler => handler.Kind, StringComparer.Ordinal);
@@ -30,7 +32,7 @@ public sealed class EditSessionService(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(refusals);
 
-        var pairs = VideoSeriesMovePairs.Read(request.Changes);
+        var pairs = await ReadPairsAsync(request.Changes, ct).ConfigureAwait(false);
         var follows = pairs.FollowingSeriesChanges;
         var checks = await CheckAllAsync(request.Changes, refusals, pairs, ct).ConfigureAwait(false);
         var valid = checks.All(check => check.Reason is null);
@@ -53,6 +55,27 @@ public sealed class EditSessionService(
         var applied = await ApplyAsync(request.Changes, follows, ct).ConfigureAwait(false);
         await QueueFilesAsync(request, applied).ConfigureAwait(false);
         return applied;
+    }
+
+    // A video can be held by its file's id or by its own, and the handlers accept either, so a series change on one and a match move on the
+    // other are still about one video. Both ids are turned into the video's own before they are compared.
+    private async Task<VideoSeriesMovePairs> ReadPairsAsync(IReadOnlyList<EditSessionChange> changes, CancellationToken ct)
+    {
+        if (items is null)
+        {
+            return VideoSeriesMovePairs.Read(changes);
+        }
+
+        var videoOf = new Dictionary<Guid, Guid>();
+        foreach (var id in changes
+                     .Where(change => change.Kind is EditSessionChangeKinds.VideoSeries or EditSessionChangeKinds.FileMove)
+                     .Select(change => change.EntityId)
+                     .Distinct())
+        {
+            videoOf[id] = await items.ResolveWorkIdForAssetAsync(id, ct).ConfigureAwait(false) ?? id;
+        }
+
+        return VideoSeriesMovePairs.Read(changes, id => videoOf.GetValueOrDefault(id, id));
     }
 
     // The library setting "Save changes into the files" (spec D15) decides in the write list whether a file is really written. This is the

@@ -370,19 +370,28 @@
         var id = Subject.EntityId;
         _asking++;
         EditorVideoSeriesStaging.Unstage(pending, id);
+        string? notRestored = null;
         if (_entry is { } entry)
         {
             pending.SetTarget(EditSessionChangeKinds.VideoSeries, id, entry.TargetId, entry.Token, entry.Label, null, entry.Before);
-            if (!string.IsNullOrWhiteSpace(entry.MoveFrom) && !string.IsNullOrWhiteSpace(entry.MoveTo))
+            if (!string.IsNullOrWhiteSpace(entry.MoveFrom) && !string.IsNullOrWhiteSpace(entry.MoveTo)
+                && !pending.SetVideoSeriesMove(id, entry.MoveFrom, entry.MoveTo))
             {
-                pending.SetVideoSeriesMove(id, entry.MoveFrom, entry.MoveTo);
+                // The earlier choice and its file move come back together or not at all: a match was staged for this video in the
+                // meantime and its file would move for both, so the series change is not put back without its move.
+                if (pending.FindVideoSeries(id) is { } half)
+                {
+                    pending.Remove(half.Id);
+                }
+
+                notRestored = L["EditorVideoSeries_MatchFirst"].Value;
             }
         }
 
         _naming = false;
         _newName = string.Empty;
         _placement = null;
-        _problem = null;
+        _problem = notRestored;
         _retry = null;
         return Task.CompletedTask;
     }

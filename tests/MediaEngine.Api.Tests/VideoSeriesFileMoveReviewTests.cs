@@ -59,7 +59,10 @@ public sealed partial class VideoSeriesFileMoveTests
         var theirs = Join("c2", Guid.NewGuid(), Guid.NewGuid());
         var crossed = new EditSessionChange
         {
-            Id = "m1", Kind = EditSessionChangeKinds.FileMove, EntityId = mine.EntityId, TargetId = theirs.Id,
+            Id = "m1",
+            Kind = EditSessionChangeKinds.FileMove,
+            EntityId = mine.EntityId,
+            TargetId = theirs.Id,
             Token = EditSessionVideo.MovesWithSeries(theirs.TargetId, theirs.Token),
         };
 
@@ -148,7 +151,9 @@ public sealed partial class VideoSeriesFileMoveTests
             NullLogger<EditSessionService>.Instance, writes);
         var title = new EditSessionChange
         {
-            Id = "t1", Kind = EditSessionChangeKinds.Details, EntityId = bonus.Work,
+            Id = "t1",
+            Kind = EditSessionChangeKinds.Details,
+            EntityId = bonus.Work,
             Fields = [new EditSessionFieldChange { Key = "title", Value = "Bonus: the long cut" }],
         };
 
@@ -198,7 +203,9 @@ public sealed partial class VideoSeriesFileMoveTests
             NullLogger<EditSessionService>.Instance);
         var title = new EditSessionChange
         {
-            Id = "t1", Kind = EditSessionChangeKinds.Details, EntityId = bonus.Work,
+            Id = "t1",
+            Kind = EditSessionChangeKinds.Details,
+            EntityId = bonus.Work,
             Fields = [new EditSessionFieldChange { Key = "title", Value = "x" }],
         };
 
@@ -344,6 +351,9 @@ public sealed partial class VideoSeriesFileMoveTests
         /// <summary>Moves numbered from this one on fail (1-based).</summary>
         public int FailFromMove { get; init; } = int.MaxValue;
 
+        /// <summary>Only this move (1-based) fails; 0 for none.</summary>
+        public int FailOnlyMove { get; init; }
+
         /// <summary>Runs just before the first move reaches the real mover, with the destination path.</summary>
         public Action<string>? BeforeFirstMove { get; init; }
 
@@ -357,7 +367,7 @@ public sealed partial class VideoSeriesFileMoveTests
         public Task<string?> ExecuteMoveWithoutRenameAsync(string sourcePath, string destinationPath, CancellationToken ct = default)
         {
             _moves++;
-            if (_moves >= FailFromMove)
+            if (_moves >= FailFromMove || _moves == FailOnlyMove)
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
                 return Task.FromResult<string?>(null);

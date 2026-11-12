@@ -23,16 +23,23 @@ public sealed class VideoSeriesMovePairs
     /// <summary>The file-move changes that cannot be saved as they are, by change id, with the reason.</summary>
     public IReadOnlyDictionary<string, string> Refusals { get; }
 
-    public static VideoSeriesMovePairs Read(IReadOnlyList<EditSessionChange> changes)
+    /// <param name="changes">Every change of the save.</param>
+    /// <param name="videoOf">
+    /// Turns the id a change holds into the id of the video itself. The editor may hold a video by its file's id or by the video's own id
+    /// and the handlers accept either, so two changes are about one video when this gives the same answer for both. Without it the ids are
+    /// compared as they are.
+    /// </param>
+    public static VideoSeriesMovePairs Read(IReadOnlyList<EditSessionChange> changes, Func<Guid, Guid>? videoOf = null)
     {
         ArgumentNullException.ThrowIfNull(changes);
+        var same = videoOf ?? (id => id);
         var following = new HashSet<string>(StringComparer.Ordinal);
         var refusals = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var move in changes.Where(change => change.Kind == EditSessionChangeKinds.FileMove && EditSessionVideo.IsMovesWithSeries(change.Token)))
         {
             var series = changes.FirstOrDefault(change =>
                 change.Kind == EditSessionChangeKinds.VideoSeries
-                && change.EntityId == move.EntityId
+                && same(change.EntityId) == same(move.EntityId)
                 && string.Equals(change.Id, move.TargetId, StringComparison.Ordinal));
             if (series is null
                 || !EditSessionVideo.TryReadMovesWithSeries(move.Token, out var shownWith)
@@ -43,7 +50,7 @@ public sealed class VideoSeriesMovePairs
             }
 
             if (changes.Any(change => change.Kind == EditSessionChangeKinds.FileMove
-                                      && change.EntityId == move.EntityId
+                                      && same(change.EntityId) == same(move.EntityId)
                                       && !EditSessionVideo.IsMovesWithSeries(change.Token)))
             {
                 refusals[move.Id] = EditSessionReasons.SeriesMoveWithMatchMove;

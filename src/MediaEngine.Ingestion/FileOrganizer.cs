@@ -74,10 +74,12 @@ namespace MediaEngine.Ingestion;
 public sealed class FileOrganizer : IFileOrganizer
 {
     private const int MaxMoveAttempts = 5;
-    private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan DefaultRetryDelay = TimeSpan.FromMilliseconds(500);
 
     private readonly ILogger<FileOrganizer> _logger;
     private readonly IFileHashCacheRepository? _hashCache;
+    private readonly Action<string, string, bool> _moveFile;
+    private readonly TimeSpan _initialRetryDelay;
 
     // Characters that are illegal in file/directory names on Windows and most POSIX systems.
     private static readonly char[] InvalidPathChars =
@@ -86,10 +88,21 @@ public sealed class FileOrganizer : IFileOrganizer
             .Distinct()
             .ToArray();
 
-    public FileOrganizer(ILogger<FileOrganizer> logger, IFileHashCacheRepository? hashCache = null)
+    /// <param name="moveFile">
+    /// What puts a file in its new place (source, destination, overwrite); the real move by default. A seam so a move that fails part
+    /// way through a copy between two drives can be reproduced without a second drive.
+    /// </param>
+    /// <param name="retryDelay">The wait before the first retry of a failed move (doubled each time); half a second by default.</param>
+    public FileOrganizer(
+        ILogger<FileOrganizer> logger,
+        IFileHashCacheRepository? hashCache = null,
+        Action<string, string, bool>? moveFile = null,
+        TimeSpan? retryDelay = null)
     {
         _logger = logger;
         _hashCache = hashCache;
+        _moveFile = moveFile ?? ((source, destination, overwrite) => File.Move(source, destination, overwrite));
+        _initialRetryDelay = retryDelay ?? DefaultRetryDelay;
     }
 
     // Matches an optional leading space followed by ({Token}) — used for conditional groups.
@@ -292,14 +305,35 @@ public sealed class FileOrganizer : IFileOrganizer
         // Resolve collision: if destination exists with different content, find a free name.
         string finalDest = allowRename ? ResolveCollision(destinationPath) : destinationPath;
 
-        var delay = InitialRetryDelay;
+        // A move that may not take another name first claims the name with an empty file of its own, which fails if anyone holds it
+        // already. The claim is the only thing this operation may ever delete from the destination: a file that was there before is
+        // never touched, and a copy that stopped half way (between two drives) is cleaned up and reported as the failure it is.
+        var claimed = false;
+        if (!allowRename)
+        {
+            try
+            {
+                using (new FileStream(finalDest, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                }
+
+                claimed = true;
+            }
+            catch (IOException) when (File.Exists(finalDest))
+            {
+                _logger.LogInformation("Move skipped — {Destination} was taken just before the move and may not be renamed around.", finalDest);
+                return null;
+            }
+        }
+
+        var delay = _initialRetryDelay;
         for (int attempt = 1; attempt <= MaxMoveAttempts; attempt++)
         {
             ct.ThrowIfCancellationRequested();
             try
             {
-                // Without a rename the move itself refuses a name taken since the check above (it never overwrites).
-                File.Move(sourcePath, finalDest, overwrite: false);
+                // Without a rename the claim above stands in for "never overwrite": the move replaces only that empty claim.
+                _moveFile(sourcePath, finalDest, claimed);
                 if (_hashCache is not null)
                 {
                     await _hashCache.MoveAsync(
@@ -309,11 +343,6 @@ public sealed class FileOrganizer : IFileOrganizer
                 }
                 _logger.LogInformation("Moved {Source} → {Destination}", sourcePath, finalDest);
                 return finalDest;
-            }
-            catch (IOException) when (!allowRename && File.Exists(finalDest))
-            {
-                _logger.LogInformation("Move skipped — {Destination} was taken just before the move and may not be renamed around.", finalDest);
-                return null;
             }
             catch (IOException ex) when (attempt < MaxMoveAttempts)
             {
@@ -328,11 +357,32 @@ public sealed class FileOrganizer : IFileOrganizer
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to move {Source} → {Destination}.", sourcePath, finalDest);
+                ReleaseClaim(claimed, sourcePath, finalDest);
                 return null;
             }
         }
 
+        ReleaseClaim(claimed, sourcePath, finalDest);
         return null;
+    }
+
+    // Removes the empty claim (or the part of a copy that was written into it) when the move did not complete. Only when the source is
+    // still where it was: if it is gone, the move itself finished and the file at the destination is the video.
+    private void ReleaseClaim(bool claimed, string sourcePath, string claimedPath)
+    {
+        if (!claimed || !File.Exists(sourcePath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(claimedPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "A move that did not finish left a partial file at {Destination} that could not be removed.", claimedPath);
+        }
     }
 
     // -------------------------------------------------------------------------

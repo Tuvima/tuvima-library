@@ -127,6 +127,25 @@ public sealed class VideoSeriesTargetAccessTests : IDisposable
         Assert.Equal(refused[video], missing[video]);
     }
 
+    [Fact]
+    public async Task Save_OfAChangeNamingAnAllowedSeriesAndANewSeriesName_IsRefused_SoNoPartOfItIsActedOn()
+    {
+        var mine = AddSeries(_mine);
+        using var scope = _services.CreateScope();
+        var (http, resources) = Caller(scope);
+        var video = Guid.NewGuid();
+        List<EditSessionChange> forged =
+        [
+            new() { Id = "c1", Kind = EditSessionChangeKinds.VideoSeries, EntityId = video, TargetId = mine.ToString(), Token = EditSessionVideo.NewSeriesToken("x") },
+        ];
+
+        var refusals = await VideoSeriesTargetAccess.AddRefusalsAsync(http, resources, forged, new Dictionary<Guid, string>());
+        var preview = await Ask(http, resources, new SpyPlacement(), mine.ToString(), EditSessionVideo.NewSeriesToken("x"));
+
+        Assert.Equal(EditSessionReasons.SeriesGone, refusals[video]);
+        Assert.IsNotType<Ok<EditorVideoSeriesPlacementDto>>(preview);
+    }
+
     private static EditSessionChange Change(Guid video, Guid target) =>
         new() { Id = "c1", Kind = EditSessionChangeKinds.VideoSeries, EntityId = video, TargetId = target.ToString() };
 

@@ -408,6 +408,34 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Cancel_WhenAMatchWasStagedMeanwhile_PutsBackNeitherTheSeriesChangeNorItsMove_AndSaysWhy()
+    {
+        _state = new VideoSeriesStateResponse
+        {
+            Supported = true,
+            Targets =
+            [
+                new VideoSeriesTargetDto { Id = CourseId, Title = "Cooking with Sam", VideoCount = 6 },
+                new VideoSeriesTargetDto { Id = OtherId, Title = "Garden talks", VideoCount = 3 },
+            ],
+        };
+        _session.Pending.SetTarget(EditSessionChangeKinds.VideoSeries, VideoId, CourseId.ToString(), null, "Cooking with Sam", null, EditReviewRows.NotInASeries);
+        _session.Pending.SetVideoSeriesMove(VideoId, "/videos/chef.mp4", "/videos/Cooking with Sam/chef.mp4");
+        var cut = RenderPanel();
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(OtherId.ToString()));
+        // While the chooser is open a match for the same video is staged (its file moves for the match).
+        _session.Pending.SetTarget(EditSessionChangeKinds.FileMove, VideoId, null, null, "/videos/Chef Interview.mp4", null, "/videos/chef.mp4");
+        cut.Render();
+
+        cut.Find("[data-testid=video-series-cancel]").Click();
+
+        var only = Assert.Single(_session.Pending.Changes);
+        Assert.Equal(EditSessionChangeKinds.FileMove, only.Kind);
+        Assert.Null(_session.Pending.FindVideoSeries(VideoId));
+        Assert.Contains("Save the match first", cut.Find("[data-testid=video-series-problem]").TextContent);
+    }
+
+    [Fact]
     public async Task Cancel_WhileNamingANewSeries_LeavesNothingStaged()
     {
         var cut = RenderPanel();
