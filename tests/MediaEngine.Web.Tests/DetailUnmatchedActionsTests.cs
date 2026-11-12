@@ -145,7 +145,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         Choose(cut, "Keep as is");
 
         host.WaitForElement(".app-confirm");
-        Assert.Contains("Stop trying to match this? It stays under Unmatched, marked Kept. You can look it up again later.", host.Markup);
+        Assert.Contains("Stop trying to match this? It stays out of Needs Review until you show kept items again. You can look it up again later.", host.Markup);
         Assert.Empty(_calls);
 
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Keep as is").Click();

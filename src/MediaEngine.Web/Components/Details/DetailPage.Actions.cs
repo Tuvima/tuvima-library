@@ -282,7 +282,7 @@ public partial class DetailPage
                 && await AppConfirmDialog.ShowAsync(
                     Dialogs,
                     "Keep as is?",
-                    "Stop trying to match this? It stays under Unmatched, marked Kept. You can look it up again later.",
+                    "Stop trying to match this? It stays out of Needs Review until you show kept items again. You can look it up again later.",
                     "Keep as is",
                     "Cancel") != AppConfirmResult.Primary)
             {
