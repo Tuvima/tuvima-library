@@ -1,6 +1,6 @@
 @using System.Globalization
 @using MediaEngine.Web.Components.Details
-@implements IDisposable
+@implements IAsyncDisposable
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -44,7 +44,7 @@ else
             <div class="song-table"
                  role="table"
                  aria-label="@AriaLabelText"
-                 @attributes="ResizeAttributes">
+                 @ref="_tableRoot">
                 <div class="song-table__head" role="row">
                     @foreach (var layout in _layout)
                     {
@@ -139,9 +139,10 @@ else
                           aria-label="@L["SongTable_ResizeColumn", label].Value"
                           aria-orientation="vertical"
                           tabindex="0"
+                          data-column="@SongTableColumns.KeyOf(column)"
+                          data-min="@SongTableColumns.MinWidth(column)"
+                          data-max="@SongTableColumns.MaxWidth"
                           @onclick:stopPropagation="true"
-                          @onmousedown:stopPropagation="true"
-                          @onmousedown="@((MouseEventArgs args) => BeginResize(column, args.ClientX))"
                           @onkeydown:stopPropagation="true"
                           @onkeydown="@((KeyboardEventArgs args) => ResizeByKeyboardAsync(column, args))"></span>
                 }

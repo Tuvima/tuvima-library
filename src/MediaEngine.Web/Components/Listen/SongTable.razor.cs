@@ -52,9 +52,11 @@ public partial class SongTable
     private UndoOffer? _hostUndo;
     private string? _announcement;
 
-    private SongColumn? _resizing;
-    private double _resizeStartX;
-    private int _resizeStartWidth;
+    // Column resizing runs in the browser (wwwroot/js/song-table.js); .NET hears once when a drag ends.
+    private ElementReference _tableRoot;
+    private IJSObjectReference? _resizeModule;
+    private DotNetObjectReference<SongTable>? _self;
+    private string? _wiredRootId;
 
     private SongRow? _draggingOut;
     private string? _dragKey;
@@ -202,15 +204,6 @@ public partial class SongTable
         ? []
         : [.. _shown.Where(row => _selected.Contains(row.Id))];
 
-    private IReadOnlyDictionary<string, object> ResizeAttributes => _resizing is null
-        ? new Dictionary<string, object>()
-        : new Dictionary<string, object>
-        {
-            ["onmousemove"] = EventCallback.Factory.Create<MouseEventArgs>(this, ResizeTo),
-            ["onmouseup"] = EventCallback.Factory.Create(this, EndResizeAsync),
-            ["onmouseleave"] = EventCallback.Factory.Create(this, EndResizeAsync),
-        };
-
     protected override void OnInitialized()
     {
         DeviceContext.OnChanged += DeviceChanged;
@@ -270,9 +263,22 @@ public partial class SongTable
     {
         await LoadChoiceAsync();
         await FocusMovedRowAsync();
+        await WireResizeAsync();
     }
 
-    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+    public async ValueTask DisposeAsync()
+    {
+        DeviceContext.OnChanged -= DeviceChanged;
+        await UnwireResizeAsync();
+        if (_resizeModule is not null)
+        {
+            await ReleaseAsync(() => _resizeModule.DisposeAsync().AsTask());
+            _resizeModule = null;
+        }
+
+        _self?.Dispose();
+        _self = null;
+    }
 
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
 
@@ -400,7 +406,15 @@ public partial class SongTable
                     minimum += SongTableColumns.DefaultWidth(SongColumn.Tick);
                     break;
                 case SongColumn.Song:
-                    template.Add($"minmax({layout.Width}px, 1fr)");
+                    // Song soaks up the spare width until the person sets its width; then it keeps exactly that width and the spare
+                    // width falls to the right of the last column.
+                    template.Add(_choice.Widths.ContainsKey(SongColumn.Song) ? $"{layout.Width}px" : $"minmax({layout.Width}px, 1fr)");
+                    minimum += layout.Width;
+                    break;
+                case var resized when _choice.Widths.ContainsKey(resized):
+                    // A column the person resized keeps exactly that width, even when the table is too narrow for every column:
+                    // the other columns give up width first, then the table scrolls sideways.
+                    template.Add($"{layout.Width}px");
                     minimum += layout.Width;
                     break;
                 default:
@@ -605,38 +619,98 @@ public partial class SongTable
 
     // ---- Resize ------------------------------------------------------------------------------------------------
 
-    private void BeginResize(SongColumn column, double clientX)
+    // Hands the table to the script once it is on the page. The script listens on the table itself and finds handles as they are pressed,
+    // so showing or hiding columns needs no new wiring; a different table element (the phone list and back, an empty list and back) does.
+    private async Task WireResizeAsync()
     {
-        if (!SongTableColumns.IsResizable(column) || _layout.FirstOrDefault(layout => layout.Column == column) is not { } current)
+        var wanted = !IsPhoneList && !ShowEmpty && !DeviceContext.IsTouch && _tableRoot.Id is not null;
+        var rootId = wanted ? _tableRoot.Id : null;
+        if (rootId == _wiredRootId)
         {
             return;
         }
 
-        _resizing = column;
-        _resizeStartX = clientX;
-        _resizeStartWidth = current.Width;
+        await UnwireResizeAsync();
+        if (rootId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _resizeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/song-table.js");
+            _self ??= DotNetObjectReference.Create(this);
+            await _resizeModule.InvokeVoidAsync("wireResize", _tableRoot, _self);
+            _wiredRootId = rootId;
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException)
+        {
+            // Keyboard resizing still works without the drag, so the table stays usable.
+            Logger.LogWarning(exception, "Column drag-resize could not start for the song table.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away before the song table could start column drag-resize.");
+        }
     }
 
-    private void ResizeTo(MouseEventArgs args)
+    private async Task UnwireResizeAsync()
     {
-        if (_resizing is not { } column)
+        if (_wiredRootId is null || _resizeModule is null)
+        {
+            _wiredRootId = null;
+            return;
+        }
+
+        _wiredRootId = null;
+        await ReleaseAsync(() => _resizeModule.InvokeVoidAsync("unwireResize", _tableRoot).AsTask());
+    }
+
+    private async Task ReleaseAsync(Func<Task> step)
+    {
+        try
+        {
+            await step();
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away while the song table was letting go of column drag-resize.");
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException or ObjectDisposedException)
+        {
+            // The table element may already be gone from the page; there is nothing left to let go of.
+            Logger.LogDebug(exception, "Song table column drag-resize clean-up failed.");
+        }
+    }
+
+    /// <summary>A drag of a column's header edge ended in the browser: the final width, already kept between the column's limits there.</summary>
+    [JSInvokable]
+    public async Task ColumnResized(string column, int width)
+    {
+        if (!SongTableColumns.TryParseKey(column, out var parsed) || !SongTableColumns.IsResizable(parsed))
         {
             return;
         }
 
-        _choice = SongTablePreferences.WithWidth(_choice, column, _resizeStartWidth + (int)Math.Round(args.ClientX - _resizeStartX));
+        _choice = SongTablePreferences.WithWidth(_choice, parsed, width);
         UpdateLayout();
+        await SaveChoiceAsync();
+        StateHasChanged();
     }
 
-    private async Task EndResizeAsync()
+    /// <summary>Double-click on a handle: that one column goes back to its default width.</summary>
+    [JSInvokable]
+    public async Task ColumnResetWidth(string column)
     {
-        if (_resizing is null)
+        if (!SongTableColumns.TryParseKey(column, out var parsed) || !SongTableColumns.IsResizable(parsed))
         {
             return;
         }
 
-        _resizing = null;
+        _choice = SongTablePreferences.WithDefaultWidth(_choice, parsed);
+        UpdateLayout();
         await SaveChoiceAsync();
+        StateHasChanged();
     }
 
     private async Task ResizeByKeyboardAsync(SongColumn column, KeyboardEventArgs args)

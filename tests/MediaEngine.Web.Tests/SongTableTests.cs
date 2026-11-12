@@ -340,22 +340,121 @@ public sealed class SongTableTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task DraggingAResizeHandleChangesTheWidthAndSavesItWhenReleased()
+    public async Task WhenADragEndsTheBrowserTellsTheTableTheFinalWidthAndItChangesTheLayoutAndSavesOnce()
     {
         await UseDeviceAsync("desktop");
 
         var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
-        var handle = cut.Find("[aria-label='Resize Artist column']");
-        handle.MouseDown(new MouseEventArgs { ClientX = 100 });
-        cut.Find(".song-table").MouseMove(new MouseEventArgs { ClientX = 140 });
-
-        Assert.Contains("minmax(64px, 220px)", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
+        Assert.Contains("minmax(64px, 180px)", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
         Assert.Empty(_store.Saves);
 
-        cut.Find(".song-table").MouseUp(new MouseEventArgs { ClientX = 140 });
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("artist", 220));
 
+        Assert.Contains(" 220px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
         var saved = Assert.Single(_store.Saves);
         Assert.Equal(220, saved.Choice.Widths[SongColumn.Artist]);
+    }
+
+    [Fact]
+    public async Task AFinalWidthBelowTheMinimumIsKeptAtTheMinimum()
+    {
+        await UseDeviceAsync("desktop");
+
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("artist", 10));
+
+        Assert.Contains(" 64px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
+        Assert.Equal(64, Assert.Single(_store.Saves).Choice.Widths[SongColumn.Artist]);
+    }
+
+    [Fact]
+    public async Task AFinalWidthForAColumnThatCannotBeResizedOrDoesNotExistChangesNothing()
+    {
+        await UseDeviceAsync("desktop");
+
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("tick", 300));
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("nonsense", 300));
+
+        Assert.Empty(_store.Saves);
+    }
+
+    [Fact]
+    public async Task ADoubleClickPutsOneColumnBackToItsDefaultWidthAndSaves()
+    {
+        await UseDeviceAsync("desktop");
+        _store.Stored[(Profile, SongTablePlace.Songs)] = new SongTableChoice
+        {
+            Widths = new Dictionary<SongColumn, int> { [SongColumn.Artist] = 260, [SongColumn.Album] = 300 },
+        };
+
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+        cut.WaitForAssertion(() => Assert.Contains(" 260px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style")));
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResetWidth("artist"));
+
+        var style = cut.Find("[style*='--song-table-columns']").GetAttribute("style");
+        Assert.Contains("minmax(64px, 180px)", style);
+        Assert.Contains(" 300px ", style);
+        var saved = Assert.Single(_store.Saves);
+        Assert.False(saved.Choice.Widths.ContainsKey(SongColumn.Artist));
+        Assert.Equal(300, saved.Choice.Widths[SongColumn.Album]);
+    }
+
+    [Fact]
+    public async Task TheSongColumnStaysFlexibleUntilItsWidthIsSetThenKeepsThatExactWidthUntilReset()
+    {
+        await UseDeviceAsync("desktop");
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+        string Columns() => cut.Find("[style*='--song-table-columns']").GetAttribute("style")!;
+
+        Assert.Contains("minmax(360px, 1fr)", Columns());
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("song", 300));
+        Assert.DoesNotContain("1fr", Columns());
+        Assert.Contains(" 300px ", Columns());
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("song", 500));
+        Assert.Contains(" 500px ", Columns());
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResetWidth("song"));
+        Assert.Contains("minmax(360px, 1fr)", Columns());
+    }
+
+    [Fact]
+    public async Task EachResizableHeaderHasOneHandleNamingItsColumnAndLimitsAndTheTickColumnHasNone()
+    {
+        await UseDeviceAsync("desktop");
+
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p
+            .Add(t => t.ShowSelection, true)
+            .Add(t => t.CanEdit, true));
+
+        Assert.NotEmpty(cut.FindAll(".song-table__head-cell--tick"));
+        var handles = cut.FindAll(".song-table__resizer");
+        Assert.Equal(
+            ["number", "song", "artist", "album", "dateAdded", "plays", "favorite", "time"],
+            handles.Select(handle => handle.GetAttribute("data-column")));
+        Assert.All(handles, handle => Assert.Equal(SongTableColumns.MaxWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), handle.GetAttribute("data-max")));
+        Assert.Equal("40", handles[0].GetAttribute("data-min"));
+        Assert.Equal("64", cut.Find("[aria-label='Resize Artist column']").GetAttribute("data-min"));
+        Assert.Empty(cut.FindAll(".song-table__head-cell--tick .song-table__resizer"));
+    }
+
+    [Fact]
+    public async Task TheTableHandsItsRootAndItselfToTheBrowserScriptToWireTheDrag()
+    {
+        await UseDeviceAsync("desktop");
+        var module = JSInterop.SetupModule("./js/song-table.js");
+        module.Mode = JSRuntimeMode.Loose;
+
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs());
+
+        cut.WaitForAssertion(() =>
+        {
+            var wiring = Assert.Single(module.Invocations["wireResize"]);
+            Assert.IsType<DotNetObjectReference<SongTable>>(wiring.Arguments[1]);
+        });
     }
 
     [Fact]
