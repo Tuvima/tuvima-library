@@ -291,11 +291,29 @@ body {
     color: inherit;
 }
 
-/* On a phone the row scrolls sideways and every tab and icon stays; a soft fade at the right edge shows there is more. */
+/* On a phone the row scrolls sideways and every tab and icon stays. A soft fade at the right edge shows there is more, and only
+   then: the fade follows the row's own scroll position, so a row that fits, or one scrolled to its end, has none (the last tab is
+   never dimmed). A browser without scroll-driven animation shows no fade. */
+@property --tl-tab-fade-size {
+    syntax: "<length>";
+    inherits: false;
+    /* Written with a unit that survives the Release minifier, which shortens "0px" to a bare "0" a registered length may not accept. */
+    initial-value: 0.001px;
+}
+
+@keyframes tl-tab-edge-fade {
+    0%, 92% { --tl-tab-fade-size: var(--tl-tab-edge-fade); }
+    100% { --tl-tab-fade-size: 0px; }
+}
+
 @media (max-width: 600px) {
-    .tl-tabs-toolbar {
-        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--tl-tab-edge-fade)), transparent);
-        mask-image: linear-gradient(90deg, #000 calc(100% - var(--tl-tab-edge-fade)), transparent);
+    @supports (animation-timeline: scroll()) {
+        .tl-tabs-toolbar {
+            -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--tl-tab-fade-size)), transparent);
+            mask-image: linear-gradient(90deg, #000 calc(100% - var(--tl-tab-fade-size)), transparent);
+            animation: tl-tab-edge-fade linear both;
+            animation-timeline: scroll(self inline);
+        }
     }
 }
 
@@ -2677,6 +2695,7 @@ input.app-control.tl-input-slot,
 
 .app-overflow-menu__content {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     min-width: 0;
     padding: var(--tl-menu-padding);
 }
@@ -4878,8 +4897,7 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 
 /* Account menu surface (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
 .tl-popover.top-nav-account-menu__surface {
-    width: min(var(--tl-menu-width), calc(100vw - 1rem));
-    padding: 0.55rem;
+    padding: var(--tl-menu-padding);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;

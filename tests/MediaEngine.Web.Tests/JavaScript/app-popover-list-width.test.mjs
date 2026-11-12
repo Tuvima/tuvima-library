@@ -92,3 +92,16 @@ test('a list that did not ask for the Sheet (the autocomplete) stays anchored on
     assert.ok(!surface.classes.has('app-popout--sheet'));
     assert.equal(surface.written.width.value, '480px');
 });
+
+// A phone Sheet closes on a press in its dim area (Look v3.1 D13): the press reports the surface itself, above the Sheet's top edge.
+test('a press above a sheet on its own backdrop is an outside press', () => {
+    const surface = new Element();
+    surface.rect = { left: 0, top: 500, width: 390, height: 300 };
+    surface.classList.contains = name => surface.classes.has(name);
+    surface.classes.add('app-popout--sheet');
+    assert.equal(popovers.isSheetBackdropPress(surface, { target: surface, clientY: 120 }), true);
+    assert.equal(popovers.isSheetBackdropPress(surface, { target: surface, clientY: 620 }), false);
+    assert.equal(popovers.isSheetBackdropPress(surface, { target: new Element(), clientY: 120 }), false);
+    surface.classes.delete('app-popout--sheet');
+    assert.equal(popovers.isSheetBackdropPress(surface, { target: surface, clientY: 120 }), false);
+});

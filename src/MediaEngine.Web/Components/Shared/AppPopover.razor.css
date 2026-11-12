@@ -8,4 +8,4 @@
 .app-popover.app-popout--sheet::backdrop{background:var(--tl-scrim-soft)}
 .app-popover.app-popout--sheet::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--tl-border-strong);opacity:.6;margin:8px auto 4px}
 /* A dropdown list that opens as a Sheet on phones (Look v3.1 D13) has 52 px rows, one line each; the list scrolls inside the Sheet. */
-.app-popover[data-list-sheet="true"].app-popout--sheet{--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
+.app-popover[data-list-sheet="true"].app-popout--sheet{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}

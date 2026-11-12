@@ -12,7 +12,7 @@
                 {
                     @* Route-linked tab: a real link, so the address survives reload and Back/Forward. *@
                     <a @ref="panel.HeaderElement" href="@panel.Href" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" aria-current="@(index == ActivePanelIndex ? "page" : null)" tabindex="@(index == ActivePanelIndex ? 0 : -1)" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
-                        @if (!string.IsNullOrWhiteSpace(panel.Icon)) { <AppMaterialIcon Icon="@panel.Icon" Size="AppIconSize.Control20" /> }
+                        <AppMaterialIcon Icon="@panel.Icon" Size="AppIconSize.Control20" />
                         <span>@panel.Text</span>
                         @if (panel.Count is not null) { <span class="tl-tab__count">@panel.Count</span> }
                     </a>
@@ -20,7 +20,7 @@
                 else
                 {
                     <button @ref="panel.HeaderElement" type="button" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" tabindex="@(index == ActivePanelIndex ? 0 : -1)" disabled="@panel.Disabled" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
-                        @if (!string.IsNullOrWhiteSpace(panel.Icon)) { <AppMaterialIcon Icon="@panel.Icon" Size="AppIconSize.Control20" /> }
+                        <AppMaterialIcon Icon="@panel.Icon" Size="AppIconSize.Control20" />
                         <span>@panel.Text</span>
                         @if (panel.Count is not null) { <span class="tl-tab__count">@panel.Count</span> }
                     </button>

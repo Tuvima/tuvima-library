@@ -54,7 +54,8 @@ public sealed partial class TabRowGuardrailTests
     {
         // A tab built in code can only omit its icon if the type allows it, so the types name the icon as required (a compile error otherwise).
         var panel = Read("Components/Shared/AppTabPanel.razor");
-        Assert.Matches(@"\[Parameter, EditorRequired\] public string\? Icon", panel);
+        Assert.Matches(@"\[Parameter, EditorRequired\] public string Icon", panel);
+        Assert.DoesNotContain("IsNullOrWhiteSpace(panel.Icon)", Read("Components/Shared/AppTabs.razor"), StringComparison.Ordinal);
 
         var countTab = Read("Components/Shared/AppCountTab.cs");
         Assert.Contains("string Icon,", countTab, StringComparison.Ordinal);
@@ -129,10 +130,12 @@ public sealed partial class TabRowGuardrailTests
     public void TabRow_OnAPhone_ScrollsSidewaysAndFadesAtTheCutEdge()
     {
         var css = ReadWwwroot("app.css").Replace("\r\n", "\n", StringComparison.Ordinal);
-        var phone = css.IndexOf("@media (max-width: 600px) {\n    .tl-tabs-toolbar {", StringComparison.Ordinal);
+        var phone = css.IndexOf("@media (max-width: 600px) {\n    @supports (animation-timeline: scroll()) {\n        .tl-tabs-toolbar {", StringComparison.Ordinal);
 
         Assert.True(phone >= 0, "The tab row has no phone rule.");
-        Assert.Contains("mask-image: linear-gradient(90deg", css[phone..(phone + 400)], StringComparison.Ordinal);
+        Assert.Contains("mask-image: linear-gradient(90deg", css[phone..(phone + 600)], StringComparison.Ordinal);
+        // The fade follows the scroll position, so a row that fits or is scrolled to its end has none.
+        Assert.Contains("animation-timeline: scroll(self inline);", css[phone..(phone + 600)], StringComparison.Ordinal);
         Assert.Contains("overflow-x: auto", CssRule(css, "\n.tl-tabs-toolbar {"), StringComparison.Ordinal);
     }
 

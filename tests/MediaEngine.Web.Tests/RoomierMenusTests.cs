@@ -65,12 +65,19 @@ public sealed class RoomierMenusTests
             Assert.DoesNotContain("min-height: 44px", css, StringComparison.Ordinal);
             Assert.DoesNotContain("272px", css, StringComparison.Ordinal);
         }
+
+        // The account menu's rows, icons and gaps come from the menu tokens.
+        var account = ReadWeb("Components/Navigation/TopNavAccountMenu.razor.css");
+        foreach (var expected in new[] { "width: var(--tl-menu-icon-size);", "margin-right: var(--tl-menu-icon-gap);", "margin: var(--tl-menu-padding) 0 !important;", "min-height: var(--tl-menu-row-height);" })
+        {
+            Assert.Contains(expected, account, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
     public void APressOnASheetsDimAreaClosesTheSheet()
     {
         var script = ReadWeb("wwwroot/js/app-popover.js");
-        Assert.Contains("event.target === surface && surface.classList.contains('app-popout--sheet') && event.clientY < surface.getBoundingClientRect().top", script, StringComparison.Ordinal);
+        Assert.Contains("if (opened.at(-1) === state && isSheetBackdropPress(surface, event)) { close(state, false); return; }", script, StringComparison.Ordinal);
     }
 }
