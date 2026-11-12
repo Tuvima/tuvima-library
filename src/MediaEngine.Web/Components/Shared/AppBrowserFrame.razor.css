@@ -11,9 +11,25 @@
     padding: var(--tl-space-5) var(--tl-space-6);
 }
 
-/* Add library's folder step has no fixed window height of its own, so the frame brings one. */
+/* The folder step (Add library, Add folder, setup) sits inside a window body that is already a fixed height and scrolls, so the frame has no height of its own:
+   it takes whatever the window leaves after the fixed parts, and the list never shows fewer than five rows (D6). On a screen too short for that the window body
+   scrolls instead of squeezing the list. The supporting-files browser is not inline, so its layout is untouched. */
 .app-browser--inline {
-    height: 28rem;
+    flex: 1 1 auto;
+    gap: var(--tl-space-1);
+    height: auto;
+    min-height: 0;
+    padding-block: 0;
+}
+
+.app-browser--inline .app-browser__main {
+    gap: var(--tl-space-1);
+}
+
+/* Header row plus five folder rows. */
+.app-browser--inline .app-browser__list {
+    flex: 1 1 0;
+    min-height: 16.5rem;
 }
 
 .app-browser__top {
@@ -28,7 +44,7 @@
     position: sticky;
     top: 0;
     z-index: 2;
-    padding-block: var(--tl-space-2);
+    padding-block: 0;
     background: var(--tl-bg-surface-raised);
 }
 

@@ -111,26 +111,17 @@
                                         OfferHandling="@(!IsVaultChoice)"
                                         ManagedAllowed="@ManagedAllowed"
                                         OnHandlingChanged="HandlingChanged"
-                                        OnPathChanged="PathChosen">
+                                        OnPathChanged="PathChosen"
+                                        Message="@FolderMessage">
                         <TopContent>
                             @* Step line, then the area and kind (read only), the same chips Edit's Add folder shows. The folder's friendly name comes first inside the folder window. *@
                             @LibraryFolderStep.Chips(_vaultMode ? LibraryGroupCatalog.VaultKey : _area, _vaultMode && Simple ? null : _vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label, Kind)
                         </TopContent>
                     </ServerFolderPicker>
-                    <p class="create-library__line" data-scan-line>@ScanLine</p>
-                    @if (HeldWords is { } held)
-                    {
-                        <AppAlert Tone="AppUiTone.Warning" data-testid="create-library-held">
-                            @held
-                            <AppActionBar Align="AppHorizontalAlignment.Start">
-                                <AppButton Label="@L["CreateLibraryDialog_ConnectASource"].Value" Size="AppControlSize.Compact" OnClick="ConnectASource" />
-                            </AppActionBar>
-                        </AppAlert>
-                    }
                 </div>
             }
 
-            @if (!string.IsNullOrWhiteSpace(_error))
+            @if (_step != 3 && !string.IsNullOrWhiteSpace(_error))
             {
                 <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
             }
@@ -322,6 +313,19 @@
 
     // Library only ever reads a folder it is not told to manage, so the plain sentence says so; a managed folder is kept tidy as well.
     // "Your files are never changed" is said once, in the folder window's footer, so it is not repeated here.
+    // The folder step's one message line, under the handling choice (setup and libraries fixes D7): the error when Add was refused, else the held-kind notice, else the scan line.
+    private RenderFragment FolderMessage =>
+        !string.IsNullOrWhiteSpace(_error)
+            ? @<AppAlert Tone="AppUiTone.Error" Dense="true">@_error</AppAlert>
+            : HeldWords is { } held
+                ? @<AppAlert Tone="AppUiTone.Warning" Dense="true" data-testid="create-library-held">
+                    @held
+                    <AppActionBar Align="AppHorizontalAlignment.Start">
+                        <AppButton Label="@L["CreateLibraryDialog_ConnectASource"].Value" Size="AppControlSize.Compact" OnClick="ConnectASource" />
+                    </AppActionBar>
+                </AppAlert>
+                : @<p class="create-library__line" data-scan-line>@ScanLine</p>;
+
     private string ScanLine => Handling == AddFolderHandling.Managed
         ? L["FolderStep_ScanLineManaged"].Value
         : L["FolderStep_ScanLine"].Value;

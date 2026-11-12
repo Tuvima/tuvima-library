@@ -383,17 +383,19 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFolderStepSaysYourFilesAreNeverChangedOnceAndNamesTheFolderInOneSentence()
+    public async Task TheFolderStepSaysYourFilesAreNeverChangedOnlyInTheReadOnlyChoiceAndNamesTheFolderInOneSentence()
     {
         await OpenAsync(kind: "tv", chooseFolder: false);
         _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
 
-        Assert.Single(_dialogs.FindAll("[data-picker-safety]"));
-        Assert.Equal("Your files are never changed.", Text(_dialogs.Find("[data-picker-safety]")));
-        // Outside the Read-only choice's own explanation, the step says it exactly once: the footer line.
+        // The grey footer line is dropped while the handling choice is shown: the Read-only choice says it, and nothing else does.
+        Assert.Empty(_dialogs.FindAll("[data-picker-safety]"));
+        Assert.Contains("Your files are never changed.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
         var outsideTheChoice = Text(_dialogs.Find(".create-library")).Replace(Text(_dialogs.Find("[data-folder-handling]")), string.Empty, StringComparison.Ordinal);
-        Assert.Single(Regex.Matches(outsideTheChoice, "Your files are never changed"));
+        Assert.DoesNotContain("Your files are never changed", outsideTheChoice, StringComparison.Ordinal);
         Assert.DoesNotContain("never changed", Text(_dialogs.Find("[data-scan-line]")), StringComparison.Ordinal);
+        // The scan line is the one message line, directly under the handling choice.
+        Assert.True(_dialogs.Find("[data-folder-handling]").NextElementSibling!.HasAttribute("data-picker-message"));
         Assert.Equal("Names this folder, not the library.", Text(_dialogs.Find(".server-folder-picker__name-hint")));
         Assert.Equal("Where is it? · TV Shows", Text(_dialogs.Find(".app-dialog-shell__title")));
         Assert.Equal(["Watch", "TV Shows"], _dialogs.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());

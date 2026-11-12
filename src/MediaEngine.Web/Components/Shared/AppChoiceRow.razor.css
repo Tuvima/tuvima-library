@@ -70,3 +70,20 @@
     color: var(--tl-accent-primary);
     background: color-mix(in srgb, var(--tl-accent-primary) 14%, transparent);
 }
+
+/* Compact: the title and the line under it read as one sentence, so a pair of choices is a short row (the folder window's Read-only / Managed choice). */
+.app-choice-row--compact {
+    min-height: 0;
+    padding-block: 6px;
+}
+
+.app-choice-row--compact .app-choice-row__copy {
+    display: block;
+    line-height: 1.3;
+}
+
+.app-choice-row--compact .app-choice-row__copy strong::after {
+    content: " \00b7\00a0";
+    color: var(--tl-text-secondary);
+    font-weight: 400;
+}

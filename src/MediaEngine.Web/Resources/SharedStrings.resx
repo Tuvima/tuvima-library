@@ -8072,9 +8072,6 @@
   <data name="ProviderOnboardingDialog_TheDashboardCouldNotReach" xml:space="preserve">
     <value>The Dashboard could not reach the Engine. Check that it is running and try again.</value>
   </data>
-  <data name="ServerFolderPicker_LibraryCouldNotReachThis" xml:space="preserve">
-    <value>Library could not reach this server folder. Check that the location is online and try again.</value>
-  </data>
   <data name="ServerFolderPicker_LibraryCouldNotValidateThis" xml:space="preserve">
     <value>Library could not validate this server folder. Check that the location is online and try again.</value>
   </data>
@@ -12461,6 +12458,12 @@
   <data name="FolderPicker_OneFolderMatches" xml:space="preserve">
     <value>1 folder matches</value>
   </data>
+  <data name="FolderPicker_NoFoldersInside" xml:space="preserve">
+    <value>This folder has no folders inside. You can still choose it.</value>
+  </data>
+  <data name="FolderPicker_CantOpen" xml:space="preserve">
+    <value>Library can't open this folder.</value>
+  </data>
   <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
     <value>Add song to Favorites</value>
   </data>
@@ -12651,13 +12654,7 @@
     <value>Add a Managed folder</value>
   </data>
   <data name="AddViewFolderDialog_Heading" xml:space="preserve">
-    <value>Add a folder</value>
-  </data>
-  <data name="AddViewFolderDialog_Subtitle" xml:space="preserve">
-    <value>Choose the folder that holds your {0}</value>
-  </data>
-  <data name="AddViewFolderDialog_ReadOnlySafety" xml:space="preserve">
-    <value>Your files are never deleted or changed in a read-only folder.</value>
+    <value>Add folder</value>
   </data>
   <data name="ViewFolderRules_UploadsNeedManagedLine" xml:space="preserve">
     <value>You can't upload {0} until you add a Managed folder.</value>

@@ -385,7 +385,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal(["Watch", "Movies"], host.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
         Assert.NotNull(host.Find("[data-folder-name]"));
         Assert.NotNull(host.Find("[data-folder-handling]"));
-        Assert.Single(host.FindAll("[data-picker-safety]"));
+        Assert.Empty(host.FindAll("[data-picker-safety]"));
         var buttons = host.FindAll(".server-folder-picker__footer button").Select(Text).ToArray();
         Assert.DoesNotContain("Choose folder", buttons);
         Assert.Contains("Add folder", buttons);

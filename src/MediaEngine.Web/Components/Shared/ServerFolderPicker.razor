@@ -55,26 +55,35 @@ else
                              OnOpenRow="OpenHighlightedAsync"
                              ShowState="@ShowListState">
                 <TopContent>
-                    @if (TopContent is not null)
+                    @if (ShowFolderName || TopContent is not null || !string.IsNullOrWhiteSpace(TargetLabel))
                     {
-                        @* The host's own fields come first (Add library puts the library name here, large and focused). *@
-                        <div class="server-folder-picker__top" data-picker-top>@TopContent</div>
-                    }
-                    @if (ShowFolderName)
-                    {
-                        @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. It is the only text box. *@
-                        <div class="server-folder-picker__name" data-folder-name>
-                            <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
-                                          Value="@_folderName"
-                                          ValueChanged="FolderNameEdited"
-                                          MaxLength="@FolderHandlingWords.MaxFolderNameLength" />
-                            <span class="server-folder-picker__name-hint">@L["ServerFolderPicker_FriendlyNameHint"]</span>
+                        @* One row above the list: the friendly name with its hint beside it, and the host's own context (the area and kind chips) at the far end. *@
+                        <div class="server-folder-picker__head">
+                            @if (ShowFolderName)
+                            {
+                                @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. It is the only text box. *@
+                                <div class="server-folder-picker__name-row">
+                                    <div class="server-folder-picker__name" data-folder-name>
+                                        <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
+                                                      Size="AppControlSize.Compact"
+                                                      Value="@_folderName"
+                                                      ValueChanged="FolderNameEdited"
+                                                      MaxLength="@FolderHandlingWords.MaxFolderNameLength" />
+                                    </div>
+                                    <span class="server-folder-picker__name-hint">@L["ServerFolderPicker_FriendlyNameHint"]</span>
+                                </div>
+                            }
+                            @if (TopContent is not null)
+                            {
+                                @* The host's own context (Add library puts the area and kind here). *@
+                                <div class="server-folder-picker__top" data-picker-top>@TopContent</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(TargetLabel) && TopContent is null)
+                            {
+                                @* Says what this pick is for, so a folder meant for one library is not chosen for another by accident. *@
+                                <p class="server-folder-picker__target" data-picker-target>Choose the folder that holds your <strong>@TargetLabel</strong></p>
+                            }
                         </div>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(TargetLabel) && TopContent is null)
-                    {
-                        @* Says what this pick is for, so a folder meant for one library is not chosen for another by accident. *@
-                        <p class="server-folder-picker__target" data-picker-target>Choose the folder that holds your <strong>@TargetLabel</strong></p>
                     }
                 </TopContent>
                 <Sidebar>
@@ -192,39 +201,29 @@ else
                     {
                         <div class="server-folder-picker__state"><AppProgressBar Indeterminate="true" /></div>
                     }
+                    else if (_browseFailed)
+                    {
+                        @* A folder Library cannot open says so and offers Back (D9); the last folder that opened is still the selection. *@
+                        <div class="server-folder-picker__state server-folder-picker__state--cant-open" data-picker-cant-open role="alert">
+                            <span>@L["FolderPicker_CantOpen"]</span>
+                            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="LeaveUnreadableFolderAsync" data-picker-cant-open-back />
+                        </div>
+                    }
                     else if (_browse is null)
                     {
                         <div class="server-folder-picker__state">Pick a location to see its folders.</div>
                     }
                     else
                     {
-                        <div class="server-folder-picker__state">@(string.IsNullOrWhiteSpace(_search) ? "No accessible subfolders are available here." : "No folders match your search in this location.")</div>
+                        @* A folder with nothing inside is still a folder you can choose (D9). *@
+                        <div class="server-folder-picker__state" data-picker-empty>@(string.IsNullOrWhiteSpace(_search) ? L["FolderPicker_NoFoldersInside"].Value : "No folders match your search in this location.")</div>
                     }
                 </StateContent>
-                <AfterContent>
-                    <div class="server-folder-picker__notices">
-                    @if (!string.IsNullOrWhiteSpace(_error))
-                    {
-                        <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
-                    }
-                    @if (_validating)
-                    {
-                        <div class="server-folder-picker__validation-progress" aria-live="polite"><span>Checking…</span><AppProgressBar Indeterminate="true" /></div>
-                    }
-                    @if (_validation is { } checkedFolder && !_validating)
-                    {
-                        @* The one check, run when the folder was chosen: Looks right, Heads up or Already used (D7). Already used blocks Add. *@
-                        <div class="server-folder-picker__result" data-result="@ResultKind(checkedFolder)" role="status" aria-live="polite">
-                            <AppMaterialIcon Icon="@ResultIcon(checkedFolder)" />
-                            <div><strong>@ResultTitle(checkedFolder)</strong><p>@ResultText(checkedFolder)</p></div>
-                        </div>
-                    }
-                    </div>
-                </AfterContent>
             </AppBrowserFrame>
         </div>
     </text>;
 
+    // The footer carries, top to bottom: the handling choice, the one message line, and the buttons (D7). Messages have one home and nothing is drawn behind the buttons.
     private RenderFragment FooterContent => @<text>
         <div class="server-folder-picker__footer">
             @if (OfferManagedChoice)
@@ -237,36 +236,79 @@ else
             @if (OfferHandling)
             {
                 <div class="server-folder-picker__handling" role="group" aria-label="How Library uses this folder" data-folder-handling>
-                    <AppChoiceRow Title="@FolderHandlingWords.ReadOnly" Description="@FolderHandlingWords.ReadOnlyExplainer"
-                                  Icon="@AppMaterialIcons.Outlined.Visibility" Selected="@(!_handlingManaged)" OnClick="@(() => SetHandlingAsync(false))" />
+                    <AppChoiceRow Title="@FolderHandlingWords.ReadOnly" Description="@FolderHandlingWords.ReadOnlyExplainer" Compact="true"
+                                  Selected="@(!_handlingManaged)" OnClick="@(() => SetHandlingAsync(false))" />
                     @if (ManagedAllowed)
                     {
-                        <AppChoiceRow Title="@FolderHandlingWords.Managed" Description="@FolderHandlingWords.ManagedExplainer"
-                                      Icon="@AppMaterialIcons.Outlined.Tune" Selected="@_handlingManaged" OnClick="@(() => SetHandlingAsync(true))" />
+                        <AppChoiceRow Title="@FolderHandlingWords.Managed" Description="@FolderHandlingWords.ManagedExplainer" Compact="true"
+                                      Selected="@_handlingManaged" OnClick="@(() => SetHandlingAsync(true))" />
                     }
                 </div>
-                @if (ShowManagedWarning && _handlingManaged && _validation is { SupportedFileCount: > 0 })
-                {
-                    <AppAlert Tone="AppUiTone.Warning" Dense="true" data-managed-warning>@FolderHandlingWords.ManagedOnFilesWarning</AppAlert>
-                }
             }
-            <p class="server-folder-picker__safety" data-picker-safety>@SafetyLine</p>
-            <AppActionBar Align="AppHorizontalAlignment.End">
-                @if (!Inline)
-                {
-                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
-                }
-                @if (!HideConfirm)
-                {
-                    <AppButton Label="@ConfirmButtonLabel"
-                               ButtonStyle="AppButtonStyle.Filled"
-                               Tone="AppUiTone.Primary"
-                               Disabled="@(_validating || _loadingBrowse || string.IsNullOrWhiteSpace(_selectedPathText) || IsBlocked)"
-                               OnClick="Confirm" />
-                }
-            </AppActionBar>
+            @if (MessageLine is { } message)
+            {
+                <div class="server-folder-picker__message" data-picker-message>@message</div>
+            }
+            @if (!OfferHandling)
+            {
+                @* The Read-only choice says the same thing in its own words, so the grey line is only for a window with no handling choice. *@
+                <p class="server-folder-picker__safety" data-picker-safety>@SafetyLine</p>
+            }
+            @if (!(Inline && HideConfirm))
+            {
+                <AppActionBar Align="AppHorizontalAlignment.End">
+                    @if (!Inline)
+                    {
+                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
+                    }
+                    @if (!HideConfirm)
+                    {
+                        <AppButton Label="@ConfirmButtonLabel"
+                                   ButtonStyle="AppButtonStyle.Filled"
+                                   Tone="AppUiTone.Primary"
+                                   Disabled="@(_validating || _loadingBrowse || string.IsNullOrWhiteSpace(_selectedPathText) || IsBlocked)"
+                                   OnClick="Confirm" />
+                    }
+                </AppActionBar>
+            }
         </div>
     </text>;
+
+    // The one message line (D7): the picker's own error, then the check in progress, then its answer (a Managed folder that holds files says so instead of "Looks right"),
+    // then whatever the host wants said under the choice. Only one is ever drawn.
+    private RenderFragment? MessageLine
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_error))
+            {
+                return @<AppAlert Tone="AppUiTone.Error" Dense="true">@_error</AppAlert>;
+            }
+
+            if (_validating)
+            {
+                return @<div class="server-folder-picker__validation-progress" aria-live="polite"><span>Checking…</span><AppProgressBar Indeterminate="true" /></div>;
+            }
+
+            var managedWarning = ShowManagedWarning && _handlingManaged && _validation is { SupportedFileCount: > 0 };
+            if (_validation is { } checkedFolder && !(managedWarning && ResultKind(checkedFolder) == "looks-right"))
+            {
+                // The one check, run when the folder was chosen: Looks right, Heads up or Already used (D7). Already used blocks Add.
+                return @<div class="server-folder-picker__result" data-result="@ResultKind(checkedFolder)" role="status" aria-live="polite">
+                    <AppMaterialIcon Icon="@ResultIcon(checkedFolder)" />
+                    <div><strong>@ResultTitle(checkedFolder)</strong><p>@ResultText(checkedFolder)</p></div>
+                </div>;
+            }
+
+            if (managedWarning)
+            {
+                return @<AppAlert Tone="AppUiTone.Warning" Dense="true" data-managed-warning>@FolderHandlingWords.ManagedOnFilesWarning</AppAlert>;
+            }
+
+            return Message;
+        }
+    }
+
 
     [Parameter] public string? SetupSession { get; set; }
     /// <summary>Shows the folder's friendly name at the top (pre-filled from the last part of the path, editable); every folder window that adds a folder turns it on.</summary>
@@ -286,6 +328,8 @@ else
     [Parameter] public EventCallback<string> OnHandlingChanged { get; set; }
     /// <summary>A host's own fields drawn above the folder list (Add library puts the library name here, large and focused).</summary>
     [Parameter] public RenderFragment? TopContent { get; set; }
+    /// <summary>The host's own message, drawn on the one message line under the handling choice when the picker has nothing to say itself (the View upload line, the scan line, the host's own error). Null draws no line.</summary>
+    [Parameter] public RenderFragment? Message { get; set; }
     [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = null!;
     [Parameter] public string Title { get; set; } = "Choose a folder";
     [Parameter] public string HelpText { get; set; } = "Choose a folder on the Library server.";
@@ -387,6 +431,8 @@ else
     private bool _loadingRoots = true;
     private bool _rootsFailed;
     private bool _loadingBrowse;
+    // The folder the person tried to open could not be listed (D9): the list says so and offers Back.
+    private bool _browseFailed;
     private bool _validating;
     // A Heads up is acknowledged by pressing the button a second time, which then reads "Add anyway".
     private bool _headsUpShown;
@@ -426,7 +472,7 @@ else
     private bool ShowBrowser => !_rootsFailed && !(_locations.Count == 0 && !_loadingRoots);
 
     // Something stands in for the folder rows while the server cannot be reached, when there is nothing to browse, while a folder is read and when it is empty.
-    private bool ShowListState => !ShowBrowser || _loadingBrowse || _browse is null || _browse.Directories.Count == 0;
+    private bool ShowListState => !ShowBrowser || _loadingBrowse || _browseFailed || _browse is null || _browse.Directories.Count == 0;
 
     private string InsideText => _browse is null
         ? string.Empty
@@ -518,6 +564,7 @@ else
         _loadingBrowse = true;
         if (selectBrowsed) InvalidateValidation();
         _error = null;
+        _browseFailed = false;
         var request = new BrowseServerFoldersRequest
         {
             StorageLocationId = location.Id,
@@ -543,8 +590,8 @@ else
         if (generation != _browseGeneration) return false;
         if (browse is null)
         {
-            // The last list stays on screen; the person is told, and nothing else changes.
-            _error = L["ServerFolderPicker_LibraryCouldNotReachThis"].Value;
+            // The list says "Library can't open this folder." and offers Back; the selection stays on the last folder that opened.
+            _browseFailed = true;
             return false;
         }
 
@@ -589,6 +636,20 @@ else
             _search = string.Empty;
         }
 
+        _focusList = true;
+        await NavigateAsync(relativePath, fromHistory: true);
+    }
+
+    // Back from a folder Library could not open: the last folder that opened is listed again and is the selection.
+    private async Task LeaveUnreadableFolderAsync()
+    {
+        _browseFailed = false;
+        if (_historyIndex < 0 || _historyIndex >= _history.Count) return;
+        var (locationId, relativePath) = _history[_historyIndex];
+        var location = VisibleLocations.FirstOrDefault(item => string.Equals(item.Id, locationId, StringComparison.OrdinalIgnoreCase));
+        if (location is null) return;
+
+        _activeLocation = location;
         _focusList = true;
         await NavigateAsync(relativePath, fromHistory: true);
     }
@@ -671,9 +732,9 @@ else
         _search = string.Empty;
         if (!await TryBrowseAsync(target.Location, target.Relative, selectBrowsed: true))
         {
-            // The last list stays; the person is told beside the box.
-            RejectTypedPath(_error is null ? NotFoundMessage : CantOpenMessage);
-            _error = null;
+            // The last list stays; the person is told beside the box, not in the list.
+            RejectTypedPath(_browseFailed ? CantOpenMessage : NotFoundMessage);
+            _browseFailed = false;
             return;
         }
 

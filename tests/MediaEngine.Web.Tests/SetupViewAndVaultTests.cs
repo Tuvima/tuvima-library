@@ -207,7 +207,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         OpenViewFolderDialog(cut, "Photos");
 
-        Assert.Equal("Add a folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
+        Assert.Equal("Add folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
         Assert.Empty(_dialogs.FindAll(".add-view-folder [aria-label='More information'], .add-view-folder .app-info-tip"));
         Assert.Empty(_dialogs.FindAll("[data-view-storage]"));
         Assert.DoesNotContain("Library scans this folder and its subfolders.", _dialogs.Markup, StringComparison.Ordinal);
