@@ -62,6 +62,42 @@ public sealed class VideoSeriesRepository : IVideoSeriesRepository
         return Task.FromResult<IReadOnlyList<VideoSeriesTarget>>(targets);
     }
 
+    public Task<IReadOnlyList<string>> ListMemberFilePathsAsync(Guid parentWorkId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var paths = conn.Query<string>(
+            """
+            SELECT ma.file_path_root
+            FROM works kid
+            JOIN editions e ON e.work_id = kid.id
+            JOIN media_assets ma ON ma.edition_id = e.id
+            WHERE kid.parent_work_id = @parentWorkId AND kid.work_kind = 'child'
+              AND ma.status = 'Normal' AND ma.is_orphaned = 0;
+            """,
+            new { parentWorkId }).ToList();
+        return Task.FromResult<IReadOnlyList<string>>(paths);
+    }
+
+    public Task<bool> IsSeriesChosenByUserAsync(Guid workId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var assetId = FirstAsset(conn, null, workId);
+        if (assetId == Guid.Empty)
+        {
+            return Task.FromResult(false);
+        }
+
+        var chosen = conn.ExecuteScalar<int>(
+            """
+            SELECT COUNT(*) FROM metadata_claims
+            WHERE entity_id = @assetId AND is_user_locked = 1 AND is_current = 1 AND claim_key = @key;
+            """,
+            new { assetId, key = MetadataFieldConstants.VideoSeries }) > 0;
+        return Task.FromResult(chosen);
+    }
+
     public async Task<VideoSeriesChange> PromoteAsync(Guid workId, Guid parentWorkId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

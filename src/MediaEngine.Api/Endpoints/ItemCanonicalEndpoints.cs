@@ -424,17 +424,16 @@ public static partial class ItemCanonicalEndpoints
                 return Results.Ok(new VideoSeriesStateResponse { Supported = false });
             }
 
-            // Only series of the video's own library, and only ones this caller may change.
+            // Only series of the video's own library, and only ones this caller may change. A video already in a series is offered the
+            // others too (it can move to another series); its own is left out, since that is the "stay" choice.
             var targets = new List<VideoSeriesTarget>();
-            if (membership.ParentWorkId is null)
+            foreach (var candidate in await series.ListTargetsAsync(workId, ct))
             {
-                foreach (var candidate in await series.ListTargetsAsync(workId, ct))
+                if (candidate.ParentWorkId != membership.ParentWorkId
+                    && await resources.EvaluateAnyEntityAsync(
+                        httpContext, candidate.ParentWorkId, ApplicationPermissionIds.MetadataWrite, ct) == CatalogueResourceAccess.Allowed)
                 {
-                    if (await resources.EvaluateAnyEntityAsync(
-                            httpContext, candidate.ParentWorkId, ApplicationPermissionIds.MetadataWrite, ct) == CatalogueResourceAccess.Allowed)
-                    {
-                        targets.Add(candidate);
-                    }
+                    targets.Add(candidate);
                 }
             }
 
@@ -443,6 +442,7 @@ public static partial class ItemCanonicalEndpoints
                 Supported = true,
                 InSeries = membership.ParentWorkId is not null,
                 SeriesTitle = membership.SeriesTitle,
+                FromFolder = membership.ParentWorkId is not null && !await series.IsSeriesChosenByUserAsync(workId, ct),
                 Targets = targets.Select(target => new VideoSeriesTargetDto { Id = target.ParentWorkId, Title = target.Title, VideoCount = target.VideoCount }).ToList(),
             });
         })

@@ -256,6 +256,8 @@ public static class LibraryEndpoints
             }
 
             var refusals = await access.FindRefusalsAsync(http, request.Changes.Select(change => change.EntityId).ToList(), ct);
+            // A series a video would join is checked like any item the caller edits, so a forged id cannot move a file into its folder.
+            refusals = await VideoSeriesTargetAccess.AddRefusalsAsync(http, resources, request.Changes, refusals, ct);
             using (callers.Use(caller))
             {
                 return Results.Ok(await editSession.RunAsync(request, refusals, ct));

@@ -38,6 +38,22 @@ public interface IAutoOrganizeService
     Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default);
 
     /// <summary>
+    /// Works out, without touching anything, what moving the asset's file into <paramref name="targetFolder"/> (keeping its file name)
+    /// would do. The same folder rules as <see cref="PlanRefileAsync"/> apply (As-is and read-only folders, protected originals and a
+    /// taken name say no) and the folder must be inside the library folder the file already lives in. Used where the destination is not
+    /// a naming-policy answer: a video moved to another series' folder. Implementations that do not move files answer "unavailable".
+    /// </summary>
+    Task<AssetRefilePlan> PlanMoveToFolderAsync(Guid assetId, string targetFolder, CancellationToken ct = default) =>
+        Task.FromResult(AssetRefilePlan.Of(AssetRefileDisposition.Unavailable, string.Empty, "Files are not moved here."));
+
+    /// <summary>
+    /// Moves the asset's file into <paramref name="targetFolder"/> keeping its file name: the plan is made again, then the file, its
+    /// companion files and the stored path follow exactly as in <see cref="RefileAsync(Guid, CancellationToken)"/>. Nothing is overwritten.
+    /// </summary>
+    Task<AssetRefileOutcome> MoveToFolderAsync(Guid assetId, string targetFolder, CancellationToken ct = default) =>
+        Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.Kept, AssetRefileDisposition.Unavailable, string.Empty, "Files are not moved here."));
+
+    /// <summary>
     /// As <see cref="RefileAsync(Guid, CancellationToken)"/>, telling <paramref name="steps"/> about each step before and after it
     /// happens, so a stop part-way can be finished or undone from what is on disk. Implementations that do not move files simply
     /// re-file without recording steps.

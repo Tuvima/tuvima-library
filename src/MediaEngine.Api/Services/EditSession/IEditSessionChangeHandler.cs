@@ -23,3 +23,16 @@ public interface IEditSessionChangeHandler
     /// </summary>
     Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default);
 }
+
+/// <summary>
+/// A handler whose change also moves the item's file when the person was shown that move (universal editor v6, D24): the session passes
+/// <paramref name="moveFile"/> as true when the same save holds a file-move change for the item that says it travels with this change
+/// (<see cref="VideoSeriesMovePairs"/> checks that it names this very change and the choice it was shown with). Without one, for example a video dragged between sections in the order list,
+/// the file stays where it is. The plain <see cref="IEditSessionChangeHandler"/> calls mean "do not move the file".
+/// </summary>
+public interface IFileFollowingEditSessionChangeHandler : IEditSessionChangeHandler
+{
+    Task<string?> CheckAsync(EditSessionChange change, bool moveFile, CancellationToken ct = default);
+
+    Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, bool moveFile, CancellationToken ct = default);
+}

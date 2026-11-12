@@ -22,7 +22,7 @@ public static class LibraryFolderStep
     /// <summary>The line under the heading.</summary>
     public static string Lead(IStringLocalizer<SharedStrings> l, LibraryTypeOption? kind) => l["FolderStep_Lead", Plural(kind)].Value;
 
-    /// <summary>The name a kind goes by everywhere: the kind list's label ("Videos", "Other audio", "Photos and Videos").</summary>
+    /// <summary>The name a kind goes by everywhere: the kind list's label ("Videos", "Other audio", "Photos and videos").</summary>
     public static string KindLabel(LibraryTypeOption kind) => LibraryTypeCatalog.AddChoiceLabel(kind);
 
     // "Movies" reads "movies" in the middle of a sentence; "TV shows" and "YouTube" keep their capitals, and the "Other" kinds just say files.

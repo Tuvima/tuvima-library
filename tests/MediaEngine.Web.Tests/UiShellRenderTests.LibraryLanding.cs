@@ -82,12 +82,12 @@ public sealed partial class UiShellRenderTests
             var links = cut.FindAll(".media-section-shell__tree-link");
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Recently Added", StringComparison.Ordinal));
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Activity", StringComparison.Ordinal));
-            Assert.Single(links, link => link.TextContent.Trim() == "Libraries");
+            Assert.Single(links, link => link.QuerySelector(".media-section-shell__tree-label")?.TextContent.Trim() == "Libraries");
         });
     }
 
     [Fact]
-    public void LibrariesRow_HasNoNeedsReviewCountBubble()
+    public void LibrariesRow_ShowsTheNeedsReviewCountPill_AndSpeaksIt()
     {
         UseLandingApi();
 
@@ -96,9 +96,11 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() =>
         {
             var row = cut.FindAll(".media-section-shell__tree-link")
-                .First(link => link.TextContent.Trim() == "Libraries");
-            var badge = row.QuerySelector(".media-section-shell__rail-meta--notification");
-            Assert.Null(badge);
+                .First(link => link.QuerySelector(".media-section-shell__tree-label")?.TextContent.Trim() == "Libraries");
+            var pill = row.QuerySelector(".media-section-shell__rail-meta--notification");
+            Assert.NotNull(pill);
+            var count = pill!.TextContent.Trim();
+            Assert.Equal($"Libraries, {count} {(count == "1" ? "item needs" : "items need")} review", row.GetAttribute("aria-label"));
         });
     }
 

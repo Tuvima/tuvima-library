@@ -758,7 +758,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
     /// </summary>
     private async Task<string?> MoveFiledAssetAsync(
         Domain.Aggregates.MediaAsset asset, Guid assetId, MediaType? mediaType, string newDest, string reason, CancellationToken ct,
-        IRefileStepRecorder? steps = null)
+        IRefileStepRecorder? steps = null, bool allowRename = true)
     {
         var oldPath = asset.FilePathRoot;
         long sizeBefore = -1;
@@ -782,8 +782,9 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             }
         }
 
-        var relocatedPath = await _organizer.ExecuteMoveAsync(oldPath, newDest, ct)
-            .ConfigureAwait(false);
+        var relocatedPath = allowRename
+            ? await _organizer.ExecuteMoveAsync(oldPath, newDest, ct).ConfigureAwait(false)
+            : await _organizer.ExecuteMoveWithoutRenameAsync(oldPath, newDest, ct).ConfigureAwait(false);
 
         if (relocatedPath is null)
         {

@@ -39,7 +39,7 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Stepper_ShowsAllSevenSteps_WhenTheVaultIsOffered_AndDropsItAfterNotNow()
+    public void Stepper_ShowsAllSevenSteps_WhenTheVaultIsOffered_AndKeepsItListedAfterNotNow()
     {
         var offered = Render<SetupStepper>(parameters => parameters
             .Add(p => p.Steps, Statuses())
@@ -53,8 +53,33 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
             .Add(p => p.ShowVault, true)
             .Add(p => p.CurrentStep, "done")
             .Add(p => p.WorkflowStep, "done"));
-        Assert.Equal(SixSteps, declined.FindAll("li small").Select(item => item.TextContent.Trim()).ToList());
-        Assert.DoesNotContain("Vault", declined.Markup, StringComparison.Ordinal);
+        Assert.Equal(SevenSteps, declined.FindAll("li small").Select(item => item.TextContent.Trim()).ToList());
+    }
+
+    [Fact]
+    public void Stepper_MarksTheVaultSkippedAfterNotNow_AndOnAfterItWasTurnedOn_AndReachesItByClick()
+    {
+        var picked = new List<string>();
+        var skipped = Render<SetupStepper>(parameters => parameters
+            .Add(p => p.Steps, Statuses("vault"))
+            .Add(p => p.ShowVault, true)
+            .Add(p => p.CurrentStep, "libraries")
+            .Add(p => p.WorkflowStep, "libraries")
+            .Add(p => p.StepSelected, EventCallback.Factory.Create<string>(this, key => picked.Add(key))));
+        var skippedEntry = skipped.FindAll("li").Single(item => item.TextContent.Contains("Vault", StringComparison.Ordinal));
+        Assert.Equal("Skipped", skippedEntry.QuerySelector("em")!.TextContent.Trim());
+        Assert.DoesNotContain("Later", skipped.Markup, StringComparison.Ordinal);
+        skippedEntry.QuerySelector("button")!.Click();
+        Assert.Equal(["vault"], picked);
+
+        var on = Render<SetupStepper>(parameters => parameters
+            .Add(p => p.Steps, Statuses())
+            .Add(p => p.ShowVault, true)
+            .Add(p => p.CurrentStep, "libraries")
+            .Add(p => p.WorkflowStep, "libraries"));
+        var onEntry = on.FindAll("li").Single(item => item.TextContent.Contains("Vault", StringComparison.Ordinal));
+        Assert.Equal("On", onEntry.QuerySelector("em")!.TextContent.Trim());
+        Assert.False(onEntry.QuerySelector("button")!.HasAttribute("disabled"));
     }
 
     [Fact]
@@ -87,10 +112,12 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Stepper_ShowsOptionalOnTheVaultStep_AndNowhereElse()
+    public void Stepper_ShowsOptionalOnTheVaultStep_UntilItIsAnswered_AndNowhereElse()
     {
         var cut = Render<SetupStepper>(parameters => parameters
-            .Add(p => p.Steps, Statuses())
+            .Add(p => p.Steps, SetupWorkflow.StepKeys
+                .Select(key => new SetupStepStatusDto(key, key == "vault" ? "not_started" : "passed", null, null, null))
+                .ToList())
             .Add(p => p.ShowVault, true)
             .Add(p => p.CurrentStep, "vault")
             .Add(p => p.WorkflowStep, "vault"));
@@ -409,4 +436,20 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
             Credentials = [new ProviderCredentialFieldDto { Key = "api_key", Label = "Key", Required = true, Configured = configured }],
         },
     };
+
+    [Fact]
+    public void NetworkNameCancel_KeepsItsOwnWidth_BesideTheField()
+    {
+        // #854: the field and Cancel each sit in their own element, so the row's rules apply without reaching into the components.
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(dir);
+        var css = File.ReadAllText(Path.Combine(dir.FullName, "src", "MediaEngine.Web", "Components", "Setup", "SetupWelcomeStage.razor.css"));
+        Assert.Contains(".setup-server-form__host-field { flex: 1 1 auto; min-width: 0; }", css, StringComparison.Ordinal);
+        Assert.Contains(".setup-server-form__host-action { flex: none; }", css, StringComparison.Ordinal);
+    }
 }

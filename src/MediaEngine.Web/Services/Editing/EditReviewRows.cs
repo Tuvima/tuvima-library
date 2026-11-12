@@ -119,6 +119,11 @@ public static class EditReviewRows
 
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
+    /// <summary>What a video's file does when its series change is saved in a Managed folder (the file follows its series).</summary>
+    public const string MovedToSeriesFolder = "Moved to the series folder";
+
+    public const string MovedOutOfSeriesFolder = "Moved out of the series folder";
+
     public const string SupportingFileMoveWarning = "Moves the file on disk to the folder for its new place. This cannot be undone.";
 
     public const string CreateGroupNote = "Library only. No file is moved or renamed.";
@@ -275,6 +280,14 @@ public static class EditReviewRows
                             op.Kind == EditorBookmarkOpKinds.StartOver ? StartOverNote : null));
                     }
 
+                    break;
+                case EditSessionChangeKinds.FileMove when EditSessionVideo.IsMovesWithSeries(change.Token):
+                    // A video's file follows its series choice: its own sentence, and the two paths when they were recorded.
+                    var seriesLeaving = EditSessionVideo.TryReadMovesWithSeries(change.Token, out var seriesChoice) && EditSessionVideo.IsNoSeries(seriesChoice);
+                    var seriesPhrase = seriesLeaving ? MovedOutOfSeriesFolder : MovedToSeriesFolder;
+                    var seriesTo = pending.Label(change.Id);
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,
+                        "File moves", pending.Before(change.Id) ?? "Where it is now", string.IsNullOrWhiteSpace(seriesTo) ? seriesPhrase : $"{seriesPhrase}: {seriesTo}", FileMoveWarning));
                     break;
                 case EditSessionChangeKinds.FileMove:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,
