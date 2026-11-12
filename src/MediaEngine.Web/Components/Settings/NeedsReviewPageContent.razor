@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @implements IDisposable
 @inject UIOrchestratorService Orchestrator
+@using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Review
 @using MediaEngine.Web.Components.Settings.NeedsReview
@@ -22,8 +23,9 @@
    must do: Ready to confirm, Choose a match, No match found, File problems. This host owns loading, the filters, the states and every action;
    the parts in NeedsReview/ draw the groups, rows, families and choices and ask this page (NeedsReviewActions) to act. Fix opens the pop-over
    editor over this list on Match. A finished row becomes one quiet line, a failed one shows its reason under it (no toasts). The list is for
-   server administrators only; everyone else gets no list and no review-list request. *@
-<div class="needs-review-page" data-testid="needs-review">
+   server administrators only; everyone else gets no list and no review-list request. Ticking rows (the parts draw the tick boxes) shows the
+   action bar at the bottom; its buttons act on the ticked rows only, each through the same per-row action a single press uses. *@
+<div class="@PageClass" data-testid="needs-review" @onkeydown="OnKeyDown">
     @if (!CanViewReview)
     {
         <AppEmptyState Title="@L["NeedsReviewPageContent_NeedsReviewIsForServer"].Value"
@@ -131,6 +133,15 @@
         }
 
         @KeptBlock
+
+        <NeedsReviewActionBar Plan="@BarPlan"
+                              Busy="@_barBusy"
+                              OnUseSuggestions="UseSuggestionsAsync"
+                              OnTryAgain="BarTryAgainAsync"
+                              OnKeep="BarKeepAsync"
+                              OnEdit="BarEditAsync"
+                              OnDelete="BarDeleteAsync"
+                              OnClear="ClearSelection" />
     }
 </div>
 
@@ -145,6 +156,7 @@
 
     private readonly NeedsReviewListModel _model = new();
     private readonly NeedsReviewListModel _keptModel = new();
+    private readonly NeedsReviewSelection _selection = new();
     private readonly Dictionary<string, string> _libraryMediaTypes = new(StringComparer.OrdinalIgnoreCase);
     private NeedsReviewActions _actions = default!;
     private IReadOnlyList<AppSelectOption> _libraryOptions = [];
@@ -156,6 +168,9 @@
     private bool _initialized;
     private bool _disposed;
     private bool _awaitingFix;
+    private bool _barBusy;
+    private bool _deferCountRefresh;
+    private EditorBinding? _editBinding;
     private bool _showKept;
     private string? _loadedInitialSearch;
     private string? _loadedLibrary;
@@ -223,6 +238,12 @@
             },
             Delete = Redraw<NeedsReviewRowDto>(DeleteAsync),
             PutBack = Redraw<NeedsReviewRowDto>(PutBackAsync),
+            Selection = _selection,
+            SetSelected = (rows, on) =>
+            {
+                _selection.Set(rows.Where(_model.IsWaiting).Select(row => row.Key), on);
+                StateHasChanged();
+            },
         };
     }
 
@@ -235,7 +256,11 @@
         }
         finally
         {
-            if (!_disposed) StateHasChanged();
+            if (!_disposed)
+            {
+                PruneSelection();
+                StateHasChanged();
+            }
         }
     };
 
@@ -287,6 +312,10 @@
         Editor.Closed -= OnEditorClosed;
         State.IngestionQueueProgressReceived -= OnQueueProgress;
         Device.OnChanged -= OnDeviceChanged;
+        if (_editBinding is { } binding)
+        {
+            Editor.Unbind(binding);
+        }
     }
 
     protected override async Task OnParametersSetAsync()
@@ -330,6 +359,7 @@
             if (attempt.List is { } page)
             {
                 _model.Replace(page);
+                PruneSelection();
                 _error = null;
                 await Orchestrator.RefreshReviewCountAsync();
                 if (_showKept)
@@ -383,7 +413,13 @@
         <NeedsReviewKeptBlock Total="@_model.KeptTotal" Open="@_showKept" OnToggle="ToggleKeptAsync" Model="@_keptModel" Section="@KeptSection()" Actions="@_actions" />
     };
 
-    private Task OnSearchChanged(string? value) { _search = value; return Task.CompletedTask; }
+    // The search narrows what is on screen, and a row that is no longer shown is no longer ticked (the bar must not act on what cannot be seen).
+    private Task OnSearchChanged(string? value)
+    {
+        _search = value;
+        PruneSelection();
+        return Task.CompletedTask;
+    }
 
     private void OnLibraryChanged(string? library) =>
         Nav.NavigateTo(Nav.GetUriWithQueryParameter("library", string.IsNullOrEmpty(library) || library == AllLibrariesKey ? null : library), replace: true);
@@ -618,9 +654,241 @@
             _model.Fail(row, $"{sentence} {(string.IsNullOrWhiteSpace(reason) ? L["NeedsReviewRow_TryAgainInAMoment"].Value : reason)}");
         }
 
-        if (succeeded.Count > 0)
+        // An action bar run refreshes the count once at its end instead of after every row.
+        if (succeeded.Count > 0 && !_deferCountRefresh)
         {
             await Orchestrator.RefreshReviewCountAsync();
         }
+    }
+
+    // ---- Ticking and the action bar (spec WP5) --------------------------------------------------------------------------------------------
+
+    private string PageClass => _selection.Count > 0 ? "needs-review-page needs-review-page--selecting" : "needs-review-page";
+
+    private IReadOnlyList<NeedsReviewTicked> Ticked => _selection.Count == 0 ? [] : _model.TickedEntries(_selection, _search);
+
+    private NeedsReviewBarPlan BarPlan => _selection.Count == 0
+        ? NeedsReviewBarPlan.Empty
+        : NeedsReviewBulk.PlanFor(Ticked, Device.CanEdit, _actions.CanDelete);
+
+    // Only rows that are still waiting and still shown stay ticked: a finished row, a row the search hides and a row that left the list lose their tick.
+    private void PruneSelection()
+    {
+        if (_selection.Count > 0)
+        {
+            var allowed = _model.TickableKeys(_search);
+            _selection.Retain(allowed.Contains);
+        }
+    }
+
+    private void ClearSelection() => _selection.Clear();
+
+    // Escape clears the selection (the bar goes with it).
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _selection.Count > 0)
+        {
+            _selection.Clear();
+        }
+    }
+
+    // One bar button at a time. Each row's own done or failure line is drawn as it finishes; the review count is read once at the end.
+    private async Task RunBarAsync(Func<Task> work)
+    {
+        if (_barBusy)
+        {
+            return;
+        }
+
+        _barBusy = true;
+        _deferCountRefresh = true;
+        _actionError = null;
+        try
+        {
+            await work();
+            await Orchestrator.RefreshReviewCountAsync();
+        }
+        finally
+        {
+            _deferCountRefresh = false;
+            _barBusy = false;
+            if (!_disposed)
+            {
+                PruneSelection();
+                StateHasChanged();
+            }
+        }
+    }
+
+    // Use suggestions: says how many rows it will change, asks once, then applies each ticked row's one suggestion through the same code as its
+    // own Use this. Ticked rows without exactly one suggestion are skipped and stay ticked.
+    private async Task UseSuggestionsAsync()
+    {
+        var rows = NeedsReviewBulk.SuggestionRows(Ticked);
+        if (_barBusy || rows.Count == 0)
+        {
+            return;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            L["NeedsReviewBar_UseTitle"].Value,
+            rows.Count == 1 ? L["NeedsReviewBar_UseMessageOne"].Value : L["NeedsReviewBar_UseMessageMany", rows.Count].Value,
+            L["NeedsReviewBar_UseConfirm"].Value,
+            L["NeedsReviewBar_Cancel"].Value);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        await RunBarAsync(async () =>
+        {
+            foreach (var row in rows.Where(_model.IsWaiting))
+            {
+                await UseThisAsync(row);
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task BarTryAgainAsync()
+    {
+        var groups = NeedsReviewBulk.TryAgainGroups(Ticked);
+        if (_barBusy || groups.Count == 0)
+        {
+            return;
+        }
+
+        await RunBarAsync(async () =>
+        {
+            foreach (var group in groups)
+            {
+                await TryAgainAsync(group);
+                StateHasChanged();
+            }
+        });
+    }
+
+    // Keep as they are asks once, like the old "Keep all" did, then keeps each ticked row (a family whose files are all ticked as one line).
+    private async Task BarKeepAsync()
+    {
+        var groups = NeedsReviewBulk.KeepGroups(Ticked);
+        var count = groups.Sum(group => group.Count);
+        if (_barBusy || count == 0)
+        {
+            return;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            count == 1 ? L["NeedsReviewBar_KeepTitleOne"].Value : L["NeedsReviewBar_KeepTitleMany", count].Value,
+            count == 1 ? L["NeedsReviewBar_KeepMessageOne"].Value : L["NeedsReviewBar_KeepMessageMany"].Value,
+            L["NeedsReviewBar_KeepConfirm"].Value,
+            L["NeedsReviewBar_Cancel"].Value);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        await RunBarAsync(async () =>
+        {
+            foreach (var group in groups)
+            {
+                await KeepAsync(group);
+                StateHasChanged();
+            }
+        });
+    }
+
+    // Edit N items: the same pop-over window other lists open for ticked rows ("Edit N items"), over this page. Nothing here changes until Save
+    // changes there; the list is read again when the window closes after a save.
+    private async Task BarEditAsync()
+    {
+        var rows = NeedsReviewBulk.EditRows(Ticked, Device.CanEdit);
+        if (_barBusy || rows.Count == 0)
+        {
+            return;
+        }
+
+        _actionError = null;
+        var editRows = rows
+            .Select(row => new BulkEditRow(
+                NeedsReviewRowInfo.FixTargetOf(row)!.Value,
+                TitleOf(row),
+                DetailEntityType.Work,
+                MediaType: ListEditLauncher.NormalizeMediaType(NeedsReviewRowInfo.MediaTypeOf(row, row.LibraryId is { } id ? _libraryMediaTypes.GetValueOrDefault(id) : null)),
+                ImageUrl: row.CoverUrl))
+            .DistinctBy(row => row.Id)
+            .ToList();
+        var mediaTypes = editRows.Select(row => row.MediaType).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var binding = EditLauncher.BindRows(mediaTypes.Count == 1 ? mediaTypes[0] : null, () => editRows, () =>
+        {
+            Editor.Batch.NotifySaved();
+            return Task.CompletedTask;
+        });
+        _editBinding = binding;
+        _awaitingFix = true;
+        if (!await Editor.OpenAsync(binding, binding.EntityId, EditTool.Details) || !Editor.IsOpen)
+        {
+            _awaitingFix = false;
+            _actionError = EditorDeviceRule.TryRefuse(Device) ? EditorDeviceRule.Message : L["NeedsReviewBar_EditUnavailable"].Value;
+            return;
+        }
+
+        Editor.Batch.Replace(editRows);
+        Editor.Batch.OpenPanel(BulkPanelKind.Edit);
+    }
+
+    // Delete asks once for all ticked rows (the shared Delete from library dialog), then each row becomes a "deleted" line.
+    private async Task BarDeleteAsync()
+    {
+        var rows = NeedsReviewBulk.DeleteRows(Ticked, _actions.CanDelete);
+        if (_barBusy || rows.Count == 0)
+        {
+            return;
+        }
+
+        if (LibraryItemDeletionFlow.Refusal(Device, Session) is { } refusal)
+        {
+            _actionError = refusal;
+            return;
+        }
+
+        await RunBarAsync(async () =>
+        {
+            foreach (var row in rows)
+            {
+                _model.SetBusy(row, true);
+            }
+
+            StateHasChanged();
+            try
+            {
+                var workIds = rows.Select(row => row.Unmatched!.WorkId!.Value).Distinct().ToList();
+                var result = await LibraryItemDeletionFlow.RunAsync(Dialogs, workIds, rows.Count == 1 ? rows[0].Unmatched!.FileName : null);
+                if (result.Outcome == LibraryItemDeletionFlowOutcome.Canceled)
+                {
+                    foreach (var row in rows)
+                    {
+                        _model.SetBusy(row, false);
+                    }
+
+                    return;
+                }
+
+                for (var index = 0; index < rows.Count; index++)
+                {
+                    var line = L["NeedsReviewRow_DoneDeleted", TitleOf(rows[index])].Value;
+                    _model.Finish(rows[index], index == 0 && result.Notice is { Length: > 0 } notice ? $"{line} {notice}" : line);
+                }
+            }
+            catch (Exception ex)
+            {
+                foreach (var row in rows)
+                {
+                    _model.Fail(row, $"{L["NeedsReviewRow_FailDelete", TitleOf(row)].Value} {ex.Message}");
+                }
+            }
+        });
     }
 }

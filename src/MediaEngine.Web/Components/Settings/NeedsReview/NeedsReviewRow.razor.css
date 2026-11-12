@@ -1,5 +1,6 @@
 /* One row, mock screen 1: cover | item | suggestion | actions on one line; the suggestion drops under the item below 1180 px; a card on a phone.
-   The grid areas are named so a leading tick box column can be added in front of the cover without touching the rest. */
+   The grid areas are named; a row that shows a tick box (nr-row--ticks, every row of a computer or tablet, and on a phone only while
+   something is ticked) adds a leading tick column in front of the cover, as the mock does. */
 .nr-row {
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr) minmax(0, 400px) auto;
@@ -16,6 +17,12 @@
 .nr-row:first-child { border-block-start: 0; }
 .nr-row--child { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 400px) auto; min-block-size: 64px; padding-inline-start: 44px; background: var(--tl-bg-surface-raised); }
 .nr-row--done { grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "cover item"; min-block-size: 64px; }
+.nr-row--ticks { grid-template-columns: auto 44px minmax(0, 1fr) minmax(0, 400px) auto; grid-template-areas:
+    "tick cover item suggestion actions"
+    ". . choices choices choices"
+    ". . failure failure failure"; }
+.nr-row--done.nr-row--ticks { grid-template-columns: auto 44px minmax(0, 1fr); grid-template-areas: "tick cover item"; }
+.nr-row__tick { grid-area: tick; display: inline-flex; align-items: center; justify-content: center; }
 .nr-row__cover { grid-area: cover; display: block; }
 .nr-row__item { grid-area: item; min-inline-size: 0; }
 .nr-row__title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tl-font-size-sm); font-weight: var(--tl-font-weight-medium); }
@@ -51,10 +58,20 @@
             ". failure failure";
     }
     .nr-row--done { grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "cover item"; }
+    .nr-row--ticks, .nr-row--ticks.nr-row--child {
+        grid-template-columns: auto 44px minmax(0, 1fr) auto;
+        grid-template-areas:
+            "tick cover item actions"
+            ". . suggestion suggestion"
+            ". . choices choices"
+            ". . failure failure";
+    }
+    .nr-row--done.nr-row--ticks { grid-template-columns: auto 44px minmax(0, 1fr); grid-template-areas: "tick cover item"; }
     .nr-row__suggestion, .nr-row__note { margin-block-start: 10px; }
 }
 
-/* Phone: cards. The suggestion and the choices take the full width under the item; a card with no suggestion shows Fix as a full-width button. */
+/* Phone: cards. The suggestion and the choices take the full width under the item; a card with no suggestion shows its one main button (Fix or
+   Try again) as a full-width line under the item text. */
 @media (max-width: 600px) {
     .nr-row, .nr-row--child {
         grid-template-columns: 44px minmax(0, 1fr) auto;
@@ -66,6 +83,16 @@
             "failure failure failure";
         padding: var(--tl-space-3);
     }
+    .nr-row--ticks, .nr-row--ticks.nr-row--child {
+        grid-template-columns: auto 44px minmax(0, 1fr) auto;
+        grid-template-areas:
+            "tick cover item actions"
+            "suggestion suggestion suggestion suggestion"
+            "choices choices choices choices"
+            "fixfull fixfull fixfull fixfull"
+            "failure failure failure failure";
+    }
+    .nr-row--done.nr-row--ticks { grid-template-columns: auto 44px minmax(0, 1fr); grid-template-areas: "tick cover item"; }
     .nr-row--child { padding-inline-start: var(--tl-space-3); }
     .nr-row__title { white-space: normal; }
     .nr-row__fixfull { margin-block-start: 10px; }

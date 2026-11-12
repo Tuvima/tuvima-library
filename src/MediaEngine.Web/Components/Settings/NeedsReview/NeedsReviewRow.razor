@@ -11,6 +11,11 @@
 @if (State.Done is { } done)
 {
     <div class="@DoneClass" data-testid="needs-review-done" data-key="@Row.Key">
+        @if (ShowTick)
+        {
+            @* A finished row cannot be ticked; the empty cell keeps its picture in line with the rows above and below. *@
+            <span class="nr-row__tick"></span>
+        }
         <span class="nr-row__cover"><NeedsReviewCover Src="@CoverUrl" Shape="@CoverShape" /></span>
         <p class="nr-done">
             <span class="nr-done__tick"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" /></span>
@@ -21,6 +26,15 @@
 else
 {
     <div class="@RowClass" data-testid="@(IsFamily ? "needs-review-family-row" : "needs-review-row")" data-key="@Row.Key" data-group="@Row.Group">
+        @if (ShowTick)
+        {
+            <span class="nr-row__tick">
+                <NeedsReviewTick State="@TickState"
+                                 Label="@L["NeedsReviewSelect_Row", Title].Value"
+                                 Disabled="@State.Busy"
+                                 OnChanged="@(on => SetSelected(on))" />
+            </span>
+        }
         <span class="nr-row__cover"><NeedsReviewCover Src="@CoverUrl" Shape="@CoverShape" /></span>
         <div class="nr-row__item">
             <strong class="nr-row__title" data-testid="needs-review-title">@Title</strong>
@@ -81,7 +95,8 @@ else
             }
             else
             {
-                @if (RetryIsMain)
+                @* On a phone the one main button takes its own full-width line under the item instead (below). *@
+                @if (!PrimaryOnOwnLine && RetryIsMain)
                 {
                     <AppButton Label="@L["Common_TryAgain"].Value"
                                ButtonStyle="AppButtonStyle.Outlined"
@@ -121,15 +136,27 @@ else
                 <NeedsReviewChoicesStrip Choices="@TvChoices" Disabled="@State.Busy" />
             </div>
         }
-        @if (!KeptView && Actions.IsPhone() && CanFix && !RetryIsMain && !HasSuggestion && !HasTvChoices)
+        @if (PrimaryOnOwnLine)
         {
             <div class="nr-row__fixfull">
-                <AppButton Label="@L["NeedsReviewList_Fix"].Value"
-                           ButtonStyle="AppButtonStyle.Outlined"
-                           FullWidth="true"
-                           Disabled="@State.Busy"
-                           aria-label="@L["NeedsReviewRow_FixFor", Title].Value"
-                           OnClick="@(() => Actions.Fix(FixEntry))" />
+                @if (RetryIsMain)
+                {
+                    <AppButton Label="@L["Common_TryAgain"].Value"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               FullWidth="true"
+                               Disabled="@State.Busy"
+                               aria-label="@L["NeedsReviewRow_TryAgainFor", Title].Value"
+                               OnClick="@(() => Actions.TryAgain(RetryTargets))" />
+                }
+                else
+                {
+                    <AppButton Label="@L["NeedsReviewList_Fix"].Value"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               FullWidth="true"
+                               Disabled="@State.Busy"
+                               aria-label="@L["NeedsReviewRow_FixFor", Title].Value"
+                               OnClick="@(() => Actions.Fix(FixEntry))" />
+                }
             </div>
         }
         @if (State.Failure is { Length: > 0 } failure)
@@ -175,6 +202,18 @@ else
     private NeedsReviewEntry FixEntry => Family ?? new NeedsReviewEntry(Row.Key, [Row]);
 
     private bool CanFix => Actions.CanFix(FixEntry);
+
+    // Phone card with a single main button (Fix or Try again) and no suggestion or choices: the button goes on its own full-width line under the
+    // item text instead of squeezing the reason into a narrow column beside it (mock screen 4, marker 5).
+    private bool PrimaryOnOwnLine => !KeptView && Actions.IsPhone() && !HasSuggestion && !HasTvChoices && (RetryIsMain || CanFix);
+
+    // The tick box: drawn on every waiting and finished row except the kept view, and on a phone only once something is ticked.
+    private bool ShowTick => !KeptView && Actions.TickBoxesShown;
+
+    private NeedsReviewTickState TickState => Actions.Selection.StateOf(Targets.Select(row => row.Key));
+
+    // A family header ticks every file still waiting in it; a file or a single row ticks itself.
+    private void SetSelected(bool on) => Actions.SetSelected(Targets, on);
 
     private string ToggleLabel => Expanded ? L["NeedsReviewFamily_Hide", Title].Value : L["NeedsReviewFamily_Show", Title].Value;
 
@@ -320,6 +359,7 @@ else
     private string RowClass => string.Join(' ', new[]
     {
         "nr-row",
+        ShowTick ? "nr-row--ticks" : null,
         Child ? "nr-row--child" : null,
         IsFamily ? "nr-row--family" : null,
         KeptView ? "nr-row--kept" : null,
@@ -327,7 +367,12 @@ else
         HasTvChoices ? "nr-row--has-choices" : null,
     }.Where(part => part is not null));
 
-    private string DoneClass => Child ? "nr-row nr-row--done nr-row--child" : "nr-row nr-row--done";
+    private string DoneClass => string.Join(' ', new[]
+    {
+        "nr-row nr-row--done",
+        Child ? "nr-row--child" : null,
+        ShowTick ? "nr-row--ticks" : null,
+    }.Where(part => part is not null));
 
     private string WhyClass => IsProblem ? "nr-row__why nr-row__why--problem" : "nr-row__why";
 
@@ -390,6 +435,12 @@ else
                 OnClick = Callback(() => Actions.Keep(Targets)),
             });
             items.Add(new AppRowMenuItem { Label = L["NeedsReviewRow_ShowInActivity"].Value, Icon = AppMaterialIcons.Outlined.ReceiptLong, OnClick = Callback(() => Actions.ShowInActivity(Title)) });
+            if (Actions.IsPhone() && !KeptView)
+            {
+                // On a phone the tick boxes are hidden until Select ticks this row and turns selection mode on.
+                items.Add(new AppRowMenuItem { Label = L["NeedsReviewRow_Select"].Value, Icon = AppMaterialIcons.Outlined.CheckBoxOutlineBlank, OnClick = Callback(() => { SetSelected(true); return Task.CompletedTask; }) });
+            }
+
             if (!IsFamily && !Child && Actions.CanDelete(Row))
             {
                 items.Add(new AppRowMenuItem { Label = L["NeedsReviewRow_Delete"].Value, Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = Callback(() => Actions.Delete(Row)) });

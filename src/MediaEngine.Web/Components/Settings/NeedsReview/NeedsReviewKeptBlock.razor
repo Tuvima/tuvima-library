@@ -10,6 +10,7 @@
             <span>@(Total == 1 ? L["NeedsReviewKept_HiddenOne"].Value : L["NeedsReviewKept_Hidden", Total.ToString("N0")].Value)</span>
             <AppButton Label="@(Open ? L["NeedsReviewKept_Hide"].Value : L["NeedsReviewKept_Show"].Value)"
                        ButtonStyle="AppButtonStyle.Text"
+                       Tone="AppUiTone.Primary"
                        Size="AppControlSize.Compact"
                        aria-expanded="@(Open ? "true" : "false")"
                        OnClick="OnToggle" />

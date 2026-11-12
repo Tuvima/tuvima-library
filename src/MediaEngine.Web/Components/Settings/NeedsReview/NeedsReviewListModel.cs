@@ -172,6 +172,35 @@ public sealed class NeedsReviewListModel
         return sections;
     }
 
+    /// <summary>Every entry the groups draw, in order, narrowed by the search text.</summary>
+    public IReadOnlyList<NeedsReviewEntry> VisibleEntries(string? search = null) =>
+        [.. Sections(search).SelectMany(section => section.Entries)];
+
+    /// <summary>The keys of the rows a person can tick right now: still waiting and not hidden by the search.</summary>
+    public HashSet<string> TickableKeys(string? search = null) =>
+        [.. VisibleEntries(search).SelectMany(entry => entry.Rows).Where(IsWaiting).Select(row => row.Key)];
+
+    /// <summary>
+    /// The ticked rows that can still act, entry by entry in the order the list shows them. A finished row or a row the search hides is never
+    /// part of it, so an action bar button cannot touch what the person cannot see.
+    /// </summary>
+    public IReadOnlyList<NeedsReviewTicked> TickedEntries(NeedsReviewSelection selection, string? search = null)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        var ticked = new List<NeedsReviewTicked>();
+        foreach (var entry in VisibleEntries(search))
+        {
+            var waiting = entry.Rows.Where(IsWaiting).ToList();
+            var rows = waiting.Where(row => selection.Contains(row.Key)).ToList();
+            if (rows.Count > 0)
+            {
+                ticked.Add(new NeedsReviewTicked(entry, rows, entry.IsFamily && rows.Count > 1 && rows.Count == waiting.Count));
+            }
+        }
+
+        return ticked;
+    }
+
     /// <summary>How many rows the search leaves.</summary>
     public int MatchingRows(string? search) => _rows.Count(row => Matches(row, search));
 

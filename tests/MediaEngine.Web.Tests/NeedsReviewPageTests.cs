@@ -5,10 +5,12 @@ using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -22,7 +24,8 @@ namespace MediaEngine.Web.Tests;
 /// <summary>
 /// Settings → Needs Review (spec needs-review-redesign): four groups with counts, rows as cards, the Engine's suggestion with Use this,
 /// families, the choices strip, in-row done and failure lines, the kept items, and every state of the page. Only server administrators get
-/// the list at all.
+/// the list at all. Ticking rows (tick boxes, the group headings, families, a phone's Select) shows the action bar, whose buttons act on the
+/// ticked rows only (WP5).
 /// </summary>
 public sealed class NeedsReviewPageTests : AsyncBunitContext
 {
@@ -123,6 +126,9 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ =>
                 Task.FromResult<MediaEngine.Contracts.Metadata.MediaEditorContextDto?>(EditingModeTestData.MovieContext()));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+            // The ticked-rows editor reads each item's fields once when its Edit panel opens (Edit N items).
+            stub.SetHandler(nameof(IEngineApiClient.PreviewLibraryBatchEditAsync), _ =>
+                Task.FromResult(LibraryBatchEditOutcome<LibraryBatchEditPreview>.Ok(new LibraryBatchEditPreview { AffectedCount = 1, Fields = [] })));
             stub.SetHandler(nameof(IEngineApiClient.ResolveReviewItemAsync), args =>
             {
                 engine.Resolved.Add((Guid)args![0]!);
@@ -430,7 +436,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AFileTheEngineWillLookUpAgain_SaysWhen_AndHasNoTickBox()
+    public async Task AFileTheEngineWillLookUpAgain_SaysWhen_AndHasATickBoxOnADesktop()
     {
         var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9), nextRetryAt: DateTimeOffset.Now.AddDays(3));
         Register(() => Page([file]));
@@ -439,7 +445,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         var cut = RenderLoaded();
 
         Assert.Contains("3", cut.Find($"{RowSelector(file)} [data-testid='needs-review-retry']").TextContent, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll($"{RowSelector(file)} input[type='checkbox']"));
+        Assert.Single(cut.FindAll($"{RowSelector(file)} input[type='checkbox']"));
     }
 
     // ---- Suggestion and Use this ----------------------------------------------------------------------------------------------------
@@ -1025,6 +1031,545 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         Assert.Equal(0, count);
         Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), engine.Calls);
+    }
+
+    // ---- Tick boxes and the action bar (WP5) ----------------------------------------------------------------------------------------
+
+    private const string BarSelector = "[data-testid='needs-review-bar']";
+
+    private static string TickSelector(NeedsReviewRowDto row) => $"[data-key='{row.Key}'] input[data-testid='needs-review-tick']";
+
+    private static string HeadingTickSelector(string group) => $"section[data-group='{group}'] .nr-section__head input[data-testid='needs-review-tick']";
+
+    private static string[] BarLabels(IRenderedComponent<NeedsReviewPageContent> cut) =>
+        cut.FindAll($"{BarSelector} button").Select(button => button.GetAttribute("aria-label") ?? button.TextContent.Trim()).ToArray();
+
+    private static string BarCount(IRenderedComponent<NeedsReviewPageContent> cut) =>
+        cut.Find("[data-testid='needs-review-bar-count']").TextContent.Trim();
+
+    private static string TickState(IRenderedComponent<NeedsReviewPageContent> cut, string selector) =>
+        cut.Find(selector).GetAttribute("data-state")!;
+
+    private static void Tick(IRenderedComponent<NeedsReviewPageContent> cut, params NeedsReviewRowDto[] rows)
+    {
+        foreach (var row in rows)
+        {
+            cut.Find(TickSelector(row)).Change(true);
+        }
+    }
+
+    private static void PressBar(IRenderedComponent<NeedsReviewPageContent> cut, string testId) =>
+        cut.Find($"{BarSelector} [data-testid='{testId}']").Click();
+
+    private AppDialogEntry WaitForDialog<TComponent>(IRenderedComponent<NeedsReviewPageContent> cut)
+    {
+        var dialogs = Services.GetRequiredService<AppDialogService>();
+        cut.WaitForAssertion(() => Assert.Contains(dialogs.Dialogs, entry => entry.ComponentType == typeof(TComponent)));
+        return dialogs.Dialogs.First(entry => entry.ComponentType == typeof(TComponent));
+    }
+
+    private static NeedsReviewRowDto ReadyRow(int n, string title) =>
+        ReviewRow(Id(n), title, group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.9);
+
+    [Fact]
+    public async Task WithNothingTicked_NoActionBarIsDrawn_AndEveryWaitingRowAndGroupHasATickBox()
+    {
+        var ready = ReadyRow(1, "Cibola Burn");
+        var file = FileRow(Id(2), "Mystery.2019.mkv", workId: Id(9));
+        Register(() => Page([ready, file]));
+        await UseDesktopAsync();
+
+        var cut = RenderLoaded(2);
+
+        Assert.Empty(cut.FindAll(BarSelector));
+        Assert.Equal("Select Cibola Burn", cut.Find(TickSelector(ready)).GetAttribute("aria-label"));
+        Assert.Equal("Select Mystery.2019.mkv", cut.Find(TickSelector(file)).GetAttribute("aria-label"));
+        Assert.Equal("Select all in Ready to confirm", cut.Find(HeadingTickSelector(NeedsReviewGroups.Ready)).GetAttribute("aria-label"));
+        Assert.Equal("Select all in No match found", cut.Find(HeadingTickSelector(NeedsReviewGroups.NoMatch)).GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public async Task TickingARow_ShowsTheBarAsALabelledRegion_WithTheCountFirst_AndUntickingItHidesTheBar()
+    {
+        var ready = ReadyRow(1, "Cibola Burn");
+        var other = ReadyRow(2, "Other Film");
+        Register(() => Page([ready, other]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+
+        Tick(cut, ready);
+
+        var bar = cut.Find(BarSelector);
+        Assert.Equal("Selected items", bar.GetAttribute("aria-label"));
+        Assert.Equal("1 selected", BarCount(cut));
+        Tick(cut, other);
+        Assert.Equal("2 selected", BarCount(cut));
+
+        cut.Find(TickSelector(ready)).Change(false);
+        cut.Find(TickSelector(other)).Change(false);
+
+        Assert.Empty(cut.FindAll(BarSelector));
+    }
+
+    [Fact]
+    public async Task TickingAGroupHeading_TicksEveryRowInThatGroupOnly_AndItIsPartlyTickedWhenOnlySomeAre()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Other Film");
+        var noMatch = FileRow(Id(3), "Mystery.2019.mkv", workId: Id(9));
+        Register(() => Page([first, second, noMatch]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(3);
+
+        cut.Find(HeadingTickSelector(NeedsReviewGroups.Ready)).Change(true);
+
+        Assert.Equal("all", TickState(cut, TickSelector(first)));
+        Assert.Equal("all", TickState(cut, TickSelector(second)));
+        Assert.Equal("none", TickState(cut, TickSelector(noMatch)));
+        Assert.Equal("all", TickState(cut, HeadingTickSelector(NeedsReviewGroups.Ready)));
+        Assert.Equal("none", TickState(cut, HeadingTickSelector(NeedsReviewGroups.NoMatch)));
+        Assert.Equal("2 selected", BarCount(cut));
+
+        cut.Find(TickSelector(second)).Change(false);
+
+        Assert.Equal("some", TickState(cut, HeadingTickSelector(NeedsReviewGroups.Ready)));
+        Assert.Equal("mixed", cut.Find(HeadingTickSelector(NeedsReviewGroups.Ready)).GetAttribute("aria-checked"));
+
+        cut.Find(HeadingTickSelector(NeedsReviewGroups.Ready)).Change(true);
+        Assert.Equal("all", TickState(cut, TickSelector(second)));
+
+        cut.Find(HeadingTickSelector(NeedsReviewGroups.Ready)).Change(false);
+        Assert.Empty(cut.FindAll(BarSelector));
+    }
+
+    [Fact]
+    public async Task TickingAFamilyRow_TicksAllItsFiles_AndTickingOnlyOneFileMakesTheFamilyPartlyTicked()
+    {
+        var episodes = Episodes(3);
+        Register(() => Page(episodes));
+        await UseDesktopAsync();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+        const string familyTick = "[data-testid='needs-review-family-row'] input[data-testid='needs-review-tick']";
+        Assert.Equal("Select Severance", cut.Find(familyTick).GetAttribute("aria-label"));
+
+        cut.Find(familyTick).Change(true);
+
+        Assert.Equal("3 selected", BarCount(cut));
+        cut.Find("[data-testid='needs-review-family-toggle']").Click();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-testid='needs-review-family-files'] input[data-testid='needs-review-tick']").Count));
+        Assert.All(episodes, episode => Assert.Equal("all", TickState(cut, TickSelector(episode))));
+
+        cut.Find(TickSelector(episodes[1])).Change(false);
+
+        Assert.Equal("some", TickState(cut, familyTick));
+        Assert.Equal("mixed", cut.Find(familyTick).GetAttribute("aria-checked"));
+        Assert.Equal("2 selected", BarCount(cut));
+    }
+
+    [Fact]
+    public async Task UseSuggestions_StatesTheNumberFirst_ThenAppliesOnlyTickedRowsThatHaveOneSuggestion_AndSkippedRowsStayTicked()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Other Film");
+        var untouched = ReadyRow(3, "Never Ticked");
+        var noSuggestion = ReviewRow(Id(4), "No Idea", group: NeedsReviewGroups.NoMatch);
+        var engine = Register(() => Page([first, second, untouched, noSuggestion]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(4);
+        Tick(cut, first, second, noSuggestion);
+
+        PressBar(cut, "needs-review-bar-use");
+
+        var dialog = WaitForDialog<AppConfirmDialog>(cut);
+        Assert.Equal("Use suggestions", dialog.Parameters["Title"]);
+        Assert.Equal("Library will apply its suggestion to 2 items.", dialog.Parameters["Message"]);
+        Assert.Equal("Use suggestions", dialog.Parameters["PrimaryLabel"]);
+        Assert.Equal("Cancel", dialog.Parameters["SecondaryLabel"]);
+        Assert.Empty(engine.Resolved);
+
+        dialog.Close(AppDialogResult.Ok(AppConfirmResult.Primary));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll(DoneSelector(first)));
+            Assert.Single(cut.FindAll(DoneSelector(second)));
+        });
+        Assert.Equal([first.Review!.Id, second.Review!.Id], engine.Resolved);
+        Assert.Single(cut.FindAll(RowSelector(untouched)));
+        Assert.Single(cut.FindAll(RowSelector(noSuggestion)));
+        Assert.Equal("none", TickState(cut, TickSelector(untouched)));
+        cut.WaitForAssertion(() => Assert.Equal("1 selected", BarCount(cut)));
+        Assert.Equal("all", TickState(cut, TickSelector(noSuggestion)));
+    }
+
+    [Fact]
+    public async Task UseSuggestions_ForOneRow_SaysItemInTheSingular_AndCancelChangesNothing()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        var engine = Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, row);
+
+        PressBar(cut, "needs-review-bar-use");
+
+        var dialog = WaitForDialog<AppConfirmDialog>(cut);
+        Assert.Equal("Library will apply its suggestion to 1 item.", dialog.Parameters["Message"]);
+        dialog.Close(AppDialogResult.Ok(AppConfirmResult.Secondary));
+
+        cut.WaitForAssertion(() => Assert.False(Services.GetRequiredService<AppDialogService>().Dialogs.Any()));
+        Assert.Empty(engine.Resolved);
+        Assert.Single(cut.FindAll(RowSelector(row)));
+        Assert.Equal("1 selected", BarCount(cut));
+    }
+
+    [Fact]
+    public async Task TryAgain_OnTheBar_LooksUpOnlyTheTickedFilesAgain_AndLeavesTheOthersAlone()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        var three = FileRow(Id(3), "Three.mkv", workId: Id(93));
+        var engine = Register(() => Page([one, two, three]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(3);
+        Tick(cut, one, three);
+
+        PressBar(cut, "needs-review-bar-retry");
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll(DoneSelector(one)));
+            Assert.Single(cut.FindAll(DoneSelector(three)));
+        });
+        Assert.Equal([one.Unmatched!.AssetId, three.Unmatched!.AssetId], engine.RetriedFiles);
+        Assert.Single(cut.FindAll(RowSelector(two)));
+        Assert.Empty(cut.FindAll(DoneSelector(two)));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(BarSelector)));
+    }
+
+    [Fact]
+    public async Task KeepAsTheyAre_OnTheBar_AsksOnce_ThenKeepsOnlyTheTickedRows_AndTheyJoinTheHiddenItems()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        var three = FileRow(Id(3), "Three.mkv", workId: Id(93));
+        var engine = Register(() => Page([one, two, three]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(3);
+        Tick(cut, one, two);
+
+        PressBar(cut, "needs-review-bar-keep");
+
+        var dialog = WaitForDialog<AppConfirmDialog>(cut);
+        Assert.Equal("Keep 2 items as they are?", dialog.Parameters["Title"]);
+        Assert.Equal("They will be hidden from Needs Review. You can show them again from the bottom of the list.", dialog.Parameters["Message"]);
+        Assert.Equal("Keep", dialog.Parameters["PrimaryLabel"]);
+        Assert.Equal("Cancel", dialog.Parameters["SecondaryLabel"]);
+        Assert.Empty(engine.KeptFiles);
+        dialog.Close(AppDialogResult.Ok(AppConfirmResult.Primary));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll(DoneSelector(one)));
+            Assert.Single(cut.FindAll(DoneSelector(two)));
+        });
+        Assert.Equal([one.Unmatched!.AssetId, two.Unmatched!.AssetId], engine.KeptFiles);
+        Assert.Single(cut.FindAll(RowSelector(three)));
+        Assert.Contains("2 items are hidden", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task KeepAsTheyAre_OnTheBar_WhenCancelled_KeepsNothing()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var engine = Register(() => Page([one]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, one);
+
+        PressBar(cut, "needs-review-bar-keep");
+
+        var dialog = WaitForDialog<AppConfirmDialog>(cut);
+        Assert.Equal("Keep 1 item as it is?", dialog.Parameters["Title"]);
+        dialog.Close(AppDialogResult.Cancel());
+
+        cut.WaitForAssertion(() => Assert.False(Services.GetRequiredService<AppDialogService>().Dialogs.Any()));
+        Assert.Empty(engine.KeptFiles);
+        Assert.Empty(cut.FindAll(DoneSelector(one)));
+    }
+
+    [Fact]
+    public async Task AFamilyWhoseEveryFileIsTicked_IsKeptAsOneLineNamedForTheShow()
+    {
+        var episodes = Episodes(3);
+        var engine = Register(() => Page(episodes));
+        await UseDesktopAsync();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+        cut.Find("[data-testid='needs-review-family-row'] input[data-testid='needs-review-tick']").Change(true);
+
+        PressBar(cut, "needs-review-bar-keep");
+        WaitForDialog<AppConfirmDialog>(cut).Close(AppDialogResult.Ok(AppConfirmResult.Primary));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-done']")));
+        Assert.Contains("Severance kept as they are", cut.Find("[data-testid='needs-review-done']").TextContent, StringComparison.Ordinal);
+        Assert.Equal(3, engine.KeptFiles.Count);
+    }
+
+    [Fact]
+    public async Task AButtonThatAppliesToNoTickedRow_IsLeftOutOfTheBar_NeverGreyed()
+    {
+        var plain = ReviewRow(Id(1), "No Idea", group: NeedsReviewGroups.NoMatch);
+        Register(() => Page([plain]));
+        await UsePhoneAsync();
+        var cut = RenderLoaded();
+        cut.Find("[data-key='" + plain.Key + "'] .app-row-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
+        cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == "Select").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(BarSelector)));
+
+        // A phone may not edit or delete; the item has no suggestion and nothing an Engine action can try again.
+        Assert.Equal(["Keep as they are", "Clear selection"], BarLabels(cut));
+        Assert.DoesNotContain(cut.FindAll($"{BarSelector} button"), button => button.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task OnADesktop_TheBarOffersEditAndDelete_ForTickedFilesThatHaveAWork_InTheMockOrder()
+    {
+        var file = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var ready = ReadyRow(2, "Cibola Burn");
+        Register(() => Page([ready, file]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+
+        Tick(cut, file);
+        Assert.Equal(["Try again", "Keep as they are", "Edit 1 item", "Delete", "Clear selection"], BarLabels(cut));
+
+        Tick(cut, ready);
+        Assert.Equal(["Use suggestions", "Try again", "Keep as they are", "Edit 2 items", "Delete", "Clear selection"], BarLabels(cut));
+    }
+
+    [Fact]
+    public async Task EditNItems_OpensTheSharedEditorWindowForTheTickedRowsOnly_OnTheEditPanel()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        var three = FileRow(Id(3), "Three.mkv", workId: Id(93));
+        Register(() => Page([one, two, three]));
+        await UseDesktopAsync();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
+        var cut = RenderLoaded(3);
+        Tick(cut, one, three);
+
+        PressBar(cut, "needs-review-bar-edit");
+
+        var host = Services.GetRequiredService<EditorHost>();
+        popover.WaitForAssertion(() => Assert.True(host.IsOpen));
+        cut.WaitForAssertion(() => Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel));
+        Assert.Equal([Id(91), Id(93)], host.Batch.Ids.Order());
+        Assert.DoesNotContain(Id(92), host.Batch.Ids);
+    }
+
+    [Fact]
+    public async Task Delete_OnTheBar_AsksOnceForTheTickedDeletableRowsOnly_AndThoseRowsBecomeDeletedLines()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        var three = FileRow(Id(3), "Three.mkv", workId: Id(93));
+        var orphan = FileRow(Id(4), "Orphan.mkv", workId: null);
+        Register(() => Page([one, two, three, orphan]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(4);
+        Tick(cut, one, orphan, two);
+
+        PressBar(cut, "needs-review-bar-delete");
+
+        var dialog = WaitForDialog<DeleteFromLibraryDialog>(cut);
+        Assert.Equal([Id(91), Id(92)], ((IReadOnlyList<Guid>)dialog.Parameters["WorkIds"]).Order());
+        dialog.Close(AppDialogResult.Ok(new LibraryItemDeletionDialogResult(null, true, "item")));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll(DoneSelector(one)));
+            Assert.Single(cut.FindAll(DoneSelector(two)));
+        });
+        Assert.Contains("One.mkv deleted", cut.Find(DoneSelector(one)).TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll(RowSelector(three)));
+        Assert.Single(cut.FindAll(RowSelector(orphan)));
+        Assert.Equal("1 selected", BarCount(cut));
+    }
+
+    [Fact]
+    public async Task Escape_ClearsTheSelection_AndTheBarGoesWithIt()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, row);
+        Assert.Single(cut.FindAll(BarSelector));
+
+        cut.Find("[data-testid='needs-review']").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
+
+        Assert.Empty(cut.FindAll(BarSelector));
+        Assert.Equal("none", TickState(cut, TickSelector(row)));
+    }
+
+    [Fact]
+    public async Task TheBarsCloseButton_ClearsTheSelection()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Other Film");
+        Register(() => Page([first, second]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        cut.Find(HeadingTickSelector(NeedsReviewGroups.Ready)).Change(true);
+        Assert.Equal("2 selected", BarCount(cut));
+
+        PressBar(cut, "needs-review-bar-close");
+
+        Assert.Empty(cut.FindAll(BarSelector));
+        Assert.Equal("none", TickState(cut, HeadingTickSelector(NeedsReviewGroups.Ready)));
+    }
+
+    [Fact]
+    public async Task ARowThatFinishesLosesItsTickBox_AndLeavesTheSelection()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Other Film");
+        Register(() => Page([first, second]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        Tick(cut, first, second);
+
+        cut.Find($"{RowSelector(first)} [data-testid='needs-review-suggestion'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(first))));
+        Assert.Empty(cut.FindAll(TickSelector(first)));
+        Assert.Equal("1 selected", BarCount(cut));
+    }
+
+    [Fact]
+    public async Task ASearch_UnticksRowsItHides_SoTheBarNeverActsOnWhatCannotBeSeen()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Leviathan Wakes");
+        Register(() => Page([first, second]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        Tick(cut, first, second);
+        Assert.Equal("2 selected", BarCount(cut));
+
+        cut.Find(".needs-review-page__search input").Input("Cibola");
+
+        cut.WaitForAssertion(() => Assert.Equal("1 selected", BarCount(cut)));
+    }
+
+    [Fact]
+    public async Task TheKeptItems_HaveNoTickBoxes()
+    {
+        var kept = ReviewRow(Id(5), "Kept Film", trigger: "RetailMatchFailed");
+        Register((_, wantKept) => wantKept ? Page([kept], keptTotal: 1) : Page([ReviewRow(Id(1), "Cibola Burn")], keptTotal: 1));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-kept']")));
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-kept'] input[data-testid='needs-review-tick']"));
+    }
+
+    [Fact]
+    public async Task ShowThem_IsDrawnInTheAccentLinkColour()
+    {
+        Register(() => Page([ReviewRow(Id(1), "Cibola Burn")], keptTotal: 2));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        Assert.Contains("app-tone--primary", cut.Find("[data-testid='needs-review-kept-line'] button").ClassList);
+    }
+
+    // ---- Phone: ticking starts from Select ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task OnAPhone_NoTickBoxShowsUntilSelectIsChosenFromARowsMenu_AndTheyGoWhenNothingIsTicked()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Other Film");
+        Register(() => Page([first, second]));
+        await UsePhoneAsync();
+        var cut = RenderLoaded(2);
+
+        Assert.Empty(cut.FindAll("input[data-testid='needs-review-tick']"));
+        Assert.Empty(cut.FindAll(BarSelector));
+
+        cut.Find($"{RowSelector(first)} .app-row-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
+        cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == "Select").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(BarSelector)));
+        Assert.Equal("1 selected", BarCount(cut));
+        Assert.Equal("all", TickState(cut, TickSelector(first)));
+        Assert.Equal("none", TickState(cut, TickSelector(second)));
+        Assert.NotEmpty(cut.FindAll(HeadingTickSelector(NeedsReviewGroups.Ready)));
+
+        cut.Find(TickSelector(first)).Change(false);
+
+        Assert.Empty(cut.FindAll("input[data-testid='needs-review-tick']"));
+        Assert.Empty(cut.FindAll(BarSelector));
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheRowSheetListsTryAgainKeepShowInActivityAndSelect_InThatOrder_AndOtherSizesHaveNoSelectItem()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        Register(() => Page([file]));
+        await UsePhoneAsync();
+        var cut = RenderLoaded();
+
+        cut.Find($"{RowSelector(file)} .app-row-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
+
+        Assert.Equal(["Try again", "Keep as it is", "Show in Activity", "Select"], cut.FindAll("button.app-menu-item").Select(button => button.TextContent.Trim()).ToArray());
+    }
+
+    [Fact]
+    public async Task OnADesktop_TheRowMenuHasNoSelectItem()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        Register(() => Page([file]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        Assert.DoesNotContain("Select", MenuLabels(cut, RowSelector(file)));
+    }
+
+    [Fact]
+    public async Task OnAPhone_ACardWhoseOnlyButtonIsTryAgain_PutsItOnItsOwnFullWidthLineUnderTheText()
+    {
+        var file = FileRow(Id(1), "Unreadable.mkv", workId: Id(9), group: NeedsReviewGroups.FileProblem);
+        Register(() => Page([file]));
+        await UsePhoneAsync();
+        var cut = RenderLoaded();
+
+        var own = cut.FindAll($"{RowSelector(file)} .nr-row__fixfull button");
+        Assert.Equal("Try again", Assert.Single(own).TextContent.Trim());
+        Assert.Contains("tl-full-width", own[0].ClassList);
+        Assert.DoesNotContain(cut.FindAll($"{RowSelector(file)} .nr-row__actions button"), button => button.TextContent.Trim() == "Try again");
+    }
+
+    [Fact]
+    public async Task OnADesktop_TryAgainStaysBesideTheItem_NotOnALineOfItsOwn()
+    {
+        var file = FileRow(Id(1), "Unreadable.mkv", workId: Id(9), group: NeedsReviewGroups.FileProblem);
+        Register(() => Page([file]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        Assert.Empty(cut.FindAll($"{RowSelector(file)} .nr-row__fixfull"));
+        Assert.Contains(cut.FindAll($"{RowSelector(file)} .nr-row__actions button"), button => button.TextContent.Trim() == "Try again");
     }
 
     /// <summary>The active person comes from the Dashboard session; the cookie principal adds nothing.</summary>

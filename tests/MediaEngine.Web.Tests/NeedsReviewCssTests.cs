@@ -76,6 +76,32 @@ public sealed class NeedsReviewCssTests
     }
 
     [Fact]
+    public void ARowThatShowsATickBox_GetsALeadingTickColumnAtEverySize_AndAFinishedRowKeepsItsPictureInLine()
+    {
+        var css = Read(RowCss);
+
+        var row = Rule(css, ".nr-row--ticks");
+        Assert.Contains("\"tick cover item suggestion actions\"", row, StringComparison.Ordinal);
+        Assert.Contains("\"tick cover item\"", Rule(css, ".nr-row--done.nr-row--ticks"), StringComparison.Ordinal);
+        Assert.Contains("\"tick cover item actions\"", Block(css, "@media (max-width: 1180px)"), StringComparison.Ordinal);
+        var phone = Block(css, "@media (max-width: 600px)");
+        Assert.Contains("\"tick cover item actions\"", phone, StringComparison.Ordinal);
+        Assert.Contains("\"fixfull fixfull fixfull fixfull\"", phone, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheActionBar_SticksToTheBottomOfThePage_AndOnAPhoneSitsAtTheBottomOfTheScreen()
+    {
+        var css = Read(PartsFolder + "/NeedsReviewActionBar.razor.css");
+
+        var bar = Rule(css, ".nr-bar");
+        Assert.Contains("position: sticky;", bar, StringComparison.Ordinal);
+        Assert.Contains("inset-block-end:", bar, StringComparison.Ordinal);
+        Assert.Contains("position: fixed;", Block(css, "@media (max-width: 600px)"), StringComparison.Ordinal);
+        Assert.Contains("padding-block-end:", Block(Read(PageCss), "@media (max-width: 600px)"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheFolderTooltipRoot_IsStyledFromTheGlobalSheet_BeforeTheTvMarker()
     {
         var app = Read(AppCss);

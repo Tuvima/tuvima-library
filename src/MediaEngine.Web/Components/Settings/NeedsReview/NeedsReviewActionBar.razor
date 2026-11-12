@@ -1,0 +1,83 @@
+@namespace MediaEngine.Web.Components.Settings.NeedsReview
+@inject IStringLocalizer<SharedStrings> L
+
+@* The action bar (mock screen 2, marker 3): it appears only while at least one row is ticked, sticks to the bottom of the page content (the
+   bottom of the screen on a phone), says "{N} selected" and offers Use suggestions, Try again, Keep as they are, Edit N items and Delete. A
+   button that applies to none of the ticked rows is left out, never greyed. The close button clears the ticks. The page decides what each
+   button does to the ticked rows; this part only draws the bar and reports the press. *@
+@if (Plan.Selected > 0)
+{
+    <section class="nr-bar" aria-label="@L["NeedsReviewBar_Region"].Value" data-testid="needs-review-bar">
+        <span class="nr-bar__count" role="status" data-testid="needs-review-bar-count">@L["NeedsReviewBar_Count", Plan.Selected.ToString("N0")]</span>
+        <div class="nr-bar__actions">
+            @if (Plan.Suggestions > 0)
+            {
+                <AppButton Label="@L["NeedsReviewBar_UseSuggestions"].Value"
+                           ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           Disabled="@Busy"
+                           data-testid="needs-review-bar-use"
+                           OnClick="OnUseSuggestions" />
+            }
+            @if (Plan.TryAgain > 0)
+            {
+                <AppButton Label="@L["Common_TryAgain"].Value"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@Busy"
+                           data-testid="needs-review-bar-retry"
+                           OnClick="OnTryAgain" />
+            }
+            @if (Plan.Keep > 0)
+            {
+                <AppButton Label="@L["NeedsReviewRow_KeepAsTheyAre"].Value"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@Busy"
+                           data-testid="needs-review-bar-keep"
+                           OnClick="OnKeep" />
+            }
+            @if (Plan.Edit > 0)
+            {
+                <AppButton Label="@(Plan.Edit == 1 ? L["NeedsReviewBar_EditOne"].Value : L["NeedsReviewBar_EditMany", Plan.Edit.ToString("N0")].Value)"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@Busy"
+                           data-testid="needs-review-bar-edit"
+                           OnClick="OnEdit" />
+            }
+            @if (Plan.Delete > 0)
+            {
+                <AppButton Label="@L["NeedsReviewRow_Delete"].Value"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Error"
+                           Disabled="@Busy"
+                           data-testid="needs-review-bar-delete"
+                           OnClick="OnDelete" />
+            }
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                           ButtonStyle="AppButtonStyle.Text"
+                           Tooltip="@L["NeedsReviewBar_Clear"].Value"
+                           AriaLabel="@L["NeedsReviewBar_Clear"].Value"
+                           data-testid="needs-review-bar-close"
+                           OnClick="OnClear" />
+        </div>
+    </section>
+}
+
+@code {
+    /// <summary>What the bar offers for the ticked rows (see <see cref="NeedsReviewBulk.PlanFor"/>).</summary>
+    [Parameter, EditorRequired] public NeedsReviewBarPlan Plan { get; set; } = NeedsReviewBarPlan.Empty;
+
+    /// <summary>True while a bar action runs: the buttons are disabled so one run cannot start another.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    [Parameter] public EventCallback OnUseSuggestions { get; set; }
+
+    [Parameter] public EventCallback OnTryAgain { get; set; }
+
+    [Parameter] public EventCallback OnKeep { get; set; }
+
+    [Parameter] public EventCallback OnEdit { get; set; }
+
+    [Parameter] public EventCallback OnDelete { get; set; }
+
+    [Parameter] public EventCallback OnClear { get; set; }
+}

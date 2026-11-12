@@ -217,4 +217,131 @@ public sealed class NeedsReviewListModelTests
         Assert.Equal(work, NeedsReviewRowInfo.FixTargetOf(NeedsReviewTestRows.FileRow(Id(2), "a.mkv", workId: work)));
         Assert.Null(NeedsReviewRowInfo.FixTargetOf(NeedsReviewTestRows.FileRow(Id(3), "b.mkv")));
     }
+
+    // ---- Ticking and the action bar (WP5) -------------------------------------------------------------------------------------------
+
+    private static readonly NeedsReviewBestGuessDto Guess = new() { Action = "confirm_match", Name = "Cibola Burn", Year = "2014", Source = "Provider match" };
+
+    private static string TvCandidates() => System.Text.Json.JsonSerializer.Serialize(new[]
+    {
+        new MovieTvSuggestionDto { TmdbTvId = "5739", Name = "Dr. Horrible's Sing-Along Blog", FirstAirYear = 2008, Type = "Miniseries", Seasons = 1, Episodes = 3 },
+    });
+
+    [Fact]
+    public void TheSelectionSaysNoneSomeOrAll_ForTheRowsItIsAskedAbout()
+    {
+        var selection = new NeedsReviewSelection();
+        string[] keys = ["a", "b", "c"];
+
+        Assert.Equal(NeedsReviewTickState.None, selection.StateOf(keys));
+
+        selection.Set(["a"], true);
+        Assert.Equal(NeedsReviewTickState.Some, selection.StateOf(keys));
+
+        selection.Set(["b", "c"], true);
+        Assert.Equal(NeedsReviewTickState.All, selection.StateOf(keys));
+
+        selection.Set(["b"], false);
+        Assert.Equal(NeedsReviewTickState.Some, selection.StateOf(keys));
+        Assert.Equal(2, selection.Count);
+
+        selection.Retain(key => key == "a");
+        Assert.Equal(1, selection.Count);
+
+        selection.Clear();
+        Assert.Equal(0, selection.Count);
+        Assert.Equal(NeedsReviewTickState.None, selection.StateOf([]));
+    }
+
+    [Fact]
+    public void TickedEntries_LeaveOutFinishedRowsAndRowsTheSearchHides_AndMarkAFamilyWhoseEveryWaitingFileIsTicked()
+    {
+        var model = Loaded(
+            NeedsReviewTestRows.FileRow(Id(1), "S01E01.mkv", familyKey: "show-a", familyTitle: "Show A"),
+            NeedsReviewTestRows.FileRow(Id(2), "S01E02.mkv", familyKey: "show-a", familyTitle: "Show A"),
+            NeedsReviewTestRows.FileRow(Id(3), "Plain.mkv"),
+            NeedsReviewTestRows.FileRow(Id(4), "Hidden.mkv"));
+        var selection = new NeedsReviewSelection();
+        selection.Set(model.Rows.Select(row => row.Key), true);
+        model.Finish(model.Rows[2], "done");
+
+        var ticked = model.TickedEntries(selection, search: "S01");
+
+        var family = Assert.Single(ticked);
+        Assert.True(family.WholeFamily);
+        Assert.Equal(2, family.Rows.Count);
+        Assert.Equal(["S01E01.mkv", "S01E02.mkv"], model.TickableKeys("S01").Select(key => model.Rows.Single(row => row.Key == key).Unmatched!.FileName).Order().ToArray());
+
+        model.Finish(model.Rows[1], "done");
+        var partly = Assert.Single(model.TickedEntries(selection, search: "S01"));
+        Assert.False(partly.WholeFamily);
+        Assert.Single(partly.Rows);
+    }
+
+    [Fact]
+    public void ARowHasOneSuggestion_WhenTheEngineOfferedABestGuess_ButNotWhenItShowsFilmOrTvChoicesInstead()
+    {
+        var guessed = NeedsReviewTestRows.ReviewRow(Id(1), "Cibola Burn", guess: Guess);
+        var noGuess = NeedsReviewTestRows.ReviewRow(Id(2), "No Idea");
+        var filmOrTv = NeedsReviewTestRows.ReviewRow(Id(3), "Dr Horribles", trigger: "MovieMatchedAsTv", guess: Guess, candidatesJson: TvCandidates());
+        var file = NeedsReviewTestRows.FileRow(Id(4), "a.mkv");
+
+        Assert.True(NeedsReviewRowInfo.HasSingleSuggestion(guessed));
+        Assert.False(NeedsReviewRowInfo.HasSingleSuggestion(noGuess));
+        Assert.False(NeedsReviewRowInfo.HasSingleSuggestion(filmOrTv));
+        Assert.False(NeedsReviewRowInfo.HasSingleSuggestion(file));
+    }
+
+    [Fact]
+    public void UseSuggestions_NeverTakesAFamilysFiles_EvenWhenTheyCarryAGuess()
+    {
+        var single = NeedsReviewTestRows.ReviewRow(Id(1), "Cibola Burn", guess: Guess);
+        var first = NeedsReviewTestRows.ReviewRow(Id(2), "Ep 1", guess: Guess, familyKey: "show", familyTitle: "Show");
+        var second = NeedsReviewTestRows.ReviewRow(Id(3), "Ep 2", guess: Guess, familyKey: "show", familyTitle: "Show");
+        var model = Loaded(single, first, second);
+        var selection = new NeedsReviewSelection();
+        selection.Set(model.Rows.Select(row => row.Key), true);
+
+        var rows = NeedsReviewBulk.SuggestionRows(model.TickedEntries(selection));
+
+        Assert.Equal([single.Key], rows.Select(row => row.Key).ToArray());
+    }
+
+    [Fact]
+    public void EachBarButton_AppliesOnlyToTheTickedRowsItFits_AndItsCountIsZeroWhenItFitsNone()
+    {
+        var withGuess = NeedsReviewTestRows.ReviewRow(Id(1), "Cibola Burn", guess: Guess);
+        var file = NeedsReviewTestRows.FileRow(Id(2), "a.mkv", workId: Id(92));
+        var orphan = NeedsReviewTestRows.FileRow(Id(3), "b.mkv");
+        var unreadable = NeedsReviewTestRows.ReviewRow(Id(4), "Film", trigger: "MediaInspectionFailed", group: NeedsReviewGroups.FileProblem);
+        var untouched = NeedsReviewTestRows.FileRow(Id(5), "c.mkv", workId: Id(95));
+        var model = Loaded(withGuess, file, orphan, unreadable, untouched);
+        var selection = new NeedsReviewSelection();
+        selection.Set([withGuess.Key, file.Key, orphan.Key, unreadable.Key], true);
+        var ticked = model.TickedEntries(selection);
+
+        var plan = NeedsReviewBulk.PlanFor(ticked, deviceMayEdit: true, canDelete: row => row.Unmatched?.WorkId is not null);
+
+        Assert.Equal(new NeedsReviewBarPlan(Selected: 4, Suggestions: 1, TryAgain: 2, Keep: 4, Edit: 3, Delete: 1), plan);
+        Assert.DoesNotContain(untouched.Key, NeedsReviewBulk.EditRows(ticked, true).Select(row => row.Key));
+        Assert.DoesNotContain(untouched.Key, NeedsReviewBulk.DeleteRows(ticked, row => row.Unmatched?.WorkId is not null).Select(row => row.Key));
+
+        var offDesktop = NeedsReviewBulk.PlanFor(ticked, deviceMayEdit: false, canDelete: _ => false);
+        Assert.Equal(0, offDesktop.Edit);
+        Assert.Equal(0, offDesktop.Delete);
+        Assert.Equal(4, offDesktop.Keep);
+    }
+
+    [Fact]
+    public void Delete_IsLeftOut_WhenMoreRowsAreTickedThanTheEngineDeletesAtOnce()
+    {
+        var rows = Enumerable.Range(1, NeedsReviewBulk.MaxDeleteRows + 1)
+            .Select(n => NeedsReviewTestRows.FileRow(Guid.NewGuid(), $"f{n}.mkv", workId: Guid.NewGuid()))
+            .ToArray();
+        var model = Loaded(rows);
+        var selection = new NeedsReviewSelection();
+        selection.Set(rows.Select(row => row.Key), true);
+
+        Assert.Empty(NeedsReviewBulk.DeleteRows(model.TickedEntries(selection), _ => true));
+    }
 }

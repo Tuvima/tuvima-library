@@ -2,6 +2,7 @@ using MediaEngine.Contracts.Review;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Web.Services.Editing;
 
 namespace MediaEngine.Web.Components.Settings.NeedsReview;
 
@@ -153,6 +154,14 @@ public static class NeedsReviewRowInfo
     /// <summary>True when the row's main button is Try again instead of Fix: a file problem with an Engine action that retries the failed step.</summary>
     public static bool RetryIsMainAction(NeedsReviewRowDto row) =>
         row.Group == NeedsReviewGroups.FileProblem && CanTryAgain(row);
+
+    /// <summary>
+    /// True when the row shows exactly one suggestion with a Use this button: the Engine offered a best guess on a review item, and the row is
+    /// not a film that may be a TV show (that one shows two choices instead).
+    /// </summary>
+    public static bool HasSingleSuggestion(NeedsReviewRowDto row) =>
+        row is { Review: { } review, BestGuess: not null }
+        && !(review.Trigger == MovieTvSuggestionReader.Trigger && MovieTvSuggestionReader.Read(review.CandidatesJson) is not null);
 
     /// <summary>The thing Fix opens in the editor for one row: the review item's entity, or the file's Work.</summary>
     public static Guid? FixTargetOf(NeedsReviewRowDto row) => row.Review is { } review ? review.EntityId : row.Unmatched?.WorkId;
