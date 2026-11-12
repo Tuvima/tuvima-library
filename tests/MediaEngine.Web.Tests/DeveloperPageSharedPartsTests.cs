@@ -132,7 +132,7 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     [Fact]
     public void CountTabs_ShowCountsAndMarkTheSelectedTab()
     {
-        var tabs = new[] { new AppCountTab("all", "All", 11), new AppCountTab("metadata", "Metadata", 4) };
+        var tabs = new[] { new AppCountTab("all", "All", 11, AppMaterialIcons.Outlined.AllInclusive), new AppCountTab("metadata", "Metadata", 4, AppMaterialIcons.Outlined.Tag) };
         var cut = Render<AppCountTabs>(p => p.Add(c => c.Tabs, tabs).Add(c => c.Selected, "metadata"));
 
         var buttons = cut.FindAll("[role=tab]");
@@ -145,7 +145,7 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     [Fact]
     public void CountTabs_UseTheSameTabClassAsAppTabs()
     {
-        var counts = Render<AppCountTabs>(p => p.Add(c => c.Tabs, new[] { new AppCountTab("all", "All", 3) }).Add(c => c.Selected, "all"));
+        var counts = Render<AppCountTabs>(p => p.Add(c => c.Tabs, new[] { new AppCountTab("all", "All", 3, AppMaterialIcons.Outlined.AllInclusive) }).Add(c => c.Selected, "all"));
         var tabs = Render<AppTabs>(p => p.AddChildContent<AppTabPanel>(panel => panel.Add(x => x.Text, "All")));
 
         Assert.NotNull(counts.Find("[role=tablist].tl-tabs-toolbar"));
@@ -173,7 +173,7 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
     public void CountTabs_ClickAndArrowKeysChangeTheSelection()
     {
         string? chosen = null;
-        var tabs = new[] { new AppCountTab("all", "All", 3), new AppCountTab("a", "A", 1), new AppCountTab("b", "B", 2) };
+        var tabs = new[] { new AppCountTab("all", "All", 3, AppMaterialIcons.Outlined.AllInclusive), new AppCountTab("a", "A", 1, AppMaterialIcons.Outlined.Tag), new AppCountTab("b", "B", 2, AppMaterialIcons.Outlined.Tag) };
         var cut = Render<AppCountTabs>(p => p
             .Add(c => c.Tabs, tabs)
             .Add(c => c.Selected, "all")

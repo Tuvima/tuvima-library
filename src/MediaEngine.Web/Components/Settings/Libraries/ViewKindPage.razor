@@ -41,7 +41,7 @@
     <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="@L["Common_LibrarySections"].Value">
         @foreach (var tab in Tabs)
         {
-            <AppTabPanel Text="@tab.Label">
+            <AppTabPanel Text="@tab.Label" Icon="@tab.Icon">
                 @if (tab.Slug == LibraryShell.FoldersTab)
                 {
                     <ViewFoldersTab Kind="@Kind"
@@ -104,24 +104,24 @@
         }
     }
 
-    private sealed record TabDef(string Slug, string Label);
+    private sealed record TabDef(string Slug, string Label, string Icon);
 
     // Photos and Personal videos have an Activity tab; Documents do not (nothing is filed by day there).
     private IReadOnlyList<TabDef> Tabs => Kind == ViewContentKinds.Documents ? DocumentTabs : MediaTabs;
 
     private static readonly IReadOnlyList<TabDef> DocumentTabs =
     [
-        new(LibraryShell.FoldersTab, "Folders"),
-        new(LibraryShell.AccessTab, "Access"),
-        new(LibraryShell.FileHandlingTab, "File handling"),
+        new(LibraryShell.FoldersTab, "Folders", AppMaterialIcons.Outlined.Folder),
+        new(LibraryShell.AccessTab, "Access", AppMaterialIcons.Outlined.Lock),
+        new(LibraryShell.FileHandlingTab, "File handling", AppMaterialIcons.Outlined.DriveFileMove),
     ];
 
     private static readonly IReadOnlyList<TabDef> MediaTabs =
     [
-        new(LibraryShell.FoldersTab, "Folders"),
-        new(LibraryShell.AccessTab, "Access"),
-        new(LibraryShell.FileHandlingTab, "File handling"),
-        new(LibraryShell.ActivityTab, "Activity"),
+        new(LibraryShell.FoldersTab, "Folders", AppMaterialIcons.Outlined.Folder),
+        new(LibraryShell.AccessTab, "Access", AppMaterialIcons.Outlined.Lock),
+        new(LibraryShell.FileHandlingTab, "File handling", AppMaterialIcons.Outlined.DriveFileMove),
+        new(LibraryShell.ActivityTab, "Activity", AppMaterialIcons.Outlined.History),
     ];
 
     private int ActiveIndex => Math.Max(Tabs.ToList().FindIndex(tab => string.Equals(tab.Slug, Tab?.Trim(), StringComparison.OrdinalIgnoreCase)), 0);

@@ -91,6 +91,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<CollectionPackService>();
         services.AddScoped<IPackFileImporter>(sp => sp.GetRequiredService<CollectionPackService>());
         services.AddSingleton<IReviewQueueReadService, ReviewQueueReadService>();
+        services.AddSingleton<INeedsReviewRowContextReadService, NeedsReviewRowContextReadService>();
         services.AddSingleton<INeedsReviewListReadService, NeedsReviewListReadService>();
         services.AddSingleton<EditorSuggestionReadService>();
         services.AddSingleton<PersonEditorReadService>();

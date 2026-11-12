@@ -354,8 +354,8 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var answer = EditingUnsavedChangesDialog.AskDiscardAsync(dialogs);
 
         host.WaitForElement(".app-confirm");
-        Assert.Equal("Unsaved changes", host.Find(".app-dialog-shell__title").TextContent.Trim());
-        Assert.Equal(["Discard changes", "Keep editing"], host.FindAll(".app-dialog-shell__footer button").Select(button => button.TextContent.Trim()));
+        Assert.Equal("Discard changes?", host.Find(".app-dialog-shell__title").TextContent.Trim());
+        Assert.Equal(["Keep editing", "Discard changes"], host.FindAll(".app-dialog-shell__footer button").Select(button => button.TextContent.Trim()));
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Discard changes").Click();
         Assert.True(await answer);
     }

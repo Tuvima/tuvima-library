@@ -14,6 +14,10 @@ function factors(origin) {
 // 480 px or the window less 16 px each side. An anchor wider than 480 px gets a list exactly its own width (still inside the window).
 export const listCap = 480;
 export const listGap = 16;
+// A Sheet's dim area is the surface's own backdrop: a press there has the surface as its target and lands above the Sheet's top edge.
+export function isSheetBackdropPress(surface, event) {
+    return event.target === surface && surface.classList.contains('app-popout--sheet') && event.clientY < surface.getBoundingClientRect().top;
+}
 export function listWidth(anchorWidth, contentWidth, viewportWidth, cap = listCap, gap = listGap) {
     const room = Math.max(0, viewportWidth - gap * 2);
     if (anchorWidth > cap) return Math.min(anchorWidth, room);
@@ -96,6 +100,8 @@ export function update(marker, surface, anchor, dotnet, open, anchorOrigin, tran
         state = { marker, surface, anchor: anchor || discoverAnchor(marker), dotnet, open: false };
         state.layout = () => position(state);
         state.pointer = event => {
+            // A Sheet's dim area is the surface's own backdrop, so a press there reports the surface as its target: above the Sheet's top edge it is an outside press.
+            if (opened.at(-1) === state && isSheetBackdropPress(surface, event)) { close(state, false); return; }
             if (opened.at(-1) !== state || surface.contains(event.target) || state.anchor?.contains(event.target)) return;
             // Descendant dialogs belong to this popup's journey and must not dismiss its ancestor accidentally.
             if (event.target.closest?.('dialog[open]') && !state.anchor?.closest('dialog[open]')?.contains(event.target)) return;

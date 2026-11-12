@@ -65,7 +65,7 @@
                                      Class="browse-shell__tabs">
                                 @foreach (var tab in Preset.Tabs)
                                 {
-                                    <AppTabPanel @key="tab.Id" Text="@tab.Label" />
+                                    <AppTabPanel @key="tab.Id" Text="@tab.Label" Icon="@MediaEngine.Web.Components.Pages.MediaLaneConfigurationBuilder.ResolveTabIcon(tab)" />
                                 }
                             </AppTabs>
                         </div>

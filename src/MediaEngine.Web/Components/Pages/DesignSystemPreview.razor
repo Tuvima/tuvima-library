@@ -487,13 +487,13 @@
             </AppActionBar></div>
         </AppCard>
 
-        <AppCard Title="Windows: four kinds, one ladder" Description="Window S 480, M 640, L 900; Sheet under 600 px; Pop-out Menu 272 and Panel 400; Viewer full screen. Resize below 600px to see every Window become a Sheet." data-testid="design-system-windows">
+        <AppCard Title="Windows: four kinds, one ladder" Description="Window S 480, M 640, L 900; Sheet under 600 px; Pop-out Menu 240 to 360 and Panel 400; Viewer full screen. Resize below 600px to see every Window become a Sheet." data-testid="design-system-windows">
             <div class="design-system-preview__row">
                 <AppButton Label="Window S 480" OnClick="@(() => _windowOpen = AppWindowSize.Small)" data-testid="preview-window-s" />
                 <AppButton Label="Window M 640" OnClick="@(() => _windowOpen = AppWindowSize.Medium)" data-testid="preview-window-m" />
                 <AppButton Label="Window L 900" OnClick="@(() => _windowOpen = AppWindowSize.Large)" data-testid="preview-window-l" />
                 <span class="design-system-preview__popout-anchor">
-                    <AppButton Label="Pop-out Menu 272" OnClick="@(() => _popoutOpen = _popoutOpen == AppPopoutSize.Menu ? AppPopoutSize.None : AppPopoutSize.Menu)" data-testid="preview-popout-menu" />
+                    <AppButton Label="Pop-out Menu" OnClick="@(() => _popoutOpen = _popoutOpen == AppPopoutSize.Menu ? AppPopoutSize.None : AppPopoutSize.Menu)" data-testid="preview-popout-menu" />
                     @if (_popoutOpen == AppPopoutSize.Menu)
                     {
                         <AppPopover Open="true" OpenChanged="@(_ => _popoutOpen = AppPopoutSize.None)" Size="AppPopoutSize.Menu" Role="menu" AriaLabel="Speed">
@@ -620,7 +620,7 @@
 
     private string _seriesSet = "complete";
     private string _listTab = "all";
-    private static readonly IReadOnlyList<AppCountTab> ListTabs = [new("all", "All", 3), new("metadata", "Metadata", 1), new("services", "Services", 1)];
+    private static readonly IReadOnlyList<AppCountTab> ListTabs = [new("all", "All", 3, AppMaterialIcons.Outlined.AllInclusive), new("metadata", "Metadata", 1, AppMaterialIcons.Outlined.Tag), new("services", "Services", 1, AppMaterialIcons.Outlined.Hub)];
     private bool _sheetOpen;
     private bool _viewerOpen;
     private AppWindowSize? _windowOpen;

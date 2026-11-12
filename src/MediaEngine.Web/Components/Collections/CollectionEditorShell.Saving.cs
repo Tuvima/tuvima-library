@@ -159,6 +159,17 @@ public partial class CollectionEditorShell
             if (savedCollectionId.HasValue)
             {
                 RememberSaved(savedCollectionId.Value);
+                if (_stagedItemOrder is { } stagedOrder && EditingCollection is not null && !_storedRuleDriven)
+                {
+                    if (!await ApiClient.ReorderCollectionItemsAsync(EditingCollection.Id, stagedOrder, Request.ActiveProfileId))
+                    {
+                        ShowNotice(L["CollectionEditorShell_FailedToReorderTheCollection"].Value, AppUiTone.Error);
+                        return;
+                    }
+
+                    _stagedItemOrder = null;
+                }
+
                 if (_personalMediaSection is not null
                     && !await _personalMediaSection.SaveAsync(savedCollectionId.Value))
                 {

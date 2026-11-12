@@ -1,5 +1,7 @@
-// The volume slider's reveal (Unified player v2 D10). Hovering the speaker or moving keyboard focus onto it opens a short horizontal slider beside it;
-// it stays open while the pointer or focus is on the control (and while the handle is held down), and closes 400 ms after both have left.
+// The volume slider's reveal (Unified player v2 D10; vertical and above the speaker since video player follow-ups D5). Hovering the speaker or moving keyboard
+// focus onto it opens the slider; it stays open while the pointer or focus is on the control (and while the handle is held down), closes 400 ms after both
+// have left, and closes at once on Escape.
+// The slider itself is a native vertical range input, so dragging along the Y axis (top is the maximum) and the arrow, Home and End keys are the browser's.
 // The open state is one attribute on the control (data-open), which the stylesheet reads, so the busy player never re-renders for it.
 export const LINGER_MS = 400;
 
@@ -23,6 +25,8 @@ export function createReveal({ show, hide, lingerMs = LINGER_MS, setTimer = glob
         focusOut() { focus = false; settle(); },
         press() { held = true; reveal(); },
         release() { held = false; settle(); },
+        // Escape: close now whatever is holding it open. It opens again the next time the pointer enters or focus arrives.
+        dismiss() { cancel(); pointer = false; focus = false; held = false; if (open) { open = false; hide(); } },
         get isOpen() { return open; },
         dispose() { cancel(); },
     };
@@ -43,6 +47,8 @@ export function attach(root) {
     listen(root, 'focusout', e => { if (!root.contains?.(e.relatedTarget)) reveal.focusOut(); });
     // ArrowUp and ArrowDown on the speaker step the volume (the page handles them); the page behind must not scroll with them.
     listen(root, 'keydown', e => { if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target?.closest?.('[data-volume-keys]')) e.preventDefault(); });
+    // Escape closes an open slider and is then spent: the player's own Escape (leaving fullscreen, closing a panel) must not also act on the same press.
+    listen(root, 'keydown', e => { if (e.key === 'Escape' && reveal.isOpen) { reveal.dismiss(); e.preventDefault?.(); e.stopPropagation?.(); } });
     listen(root, 'pointerdown', e => { if (e.pointerType !== 'touch') reveal.press(); });
     listen(globalThis.window ?? globalThis, 'pointerup', () => reveal.release());
     listen(globalThis.window ?? globalThis, 'pointercancel', () => reveal.release());

@@ -55,6 +55,50 @@ public partial class ListenPage
     private bool CanReorderActivePlaylist
         => ActivePlaylistCollection is not null && string.IsNullOrWhiteSpace(PlaylistKey) && !CanSaveActivePlaylist;
 
+    // Reorder mode (spec Collections and View fixes, #877): drag, Alt+Up/Down and Move up/down change only the page's copy of the order until
+    // Save order; Cancel and Esc put the saved order back. _trackOrderBefore holds each item with the position it was saved at.
+    private List<(CollectionItemDto Item, int SortOrder)>? _trackOrderBefore;
+    private bool _trackOrderSaving;
+
+    private bool TrackReorderActive => _trackOrderBefore is not null;
+    private bool TrackReorderDirty => _trackOrderBefore is { } before && !before.OrderBy(pair => pair.SortOrder).Select(pair => pair.Item.Id)
+        .SequenceEqual(_playlistItems.OrderBy(item => item.SortOrder).Select(item => item.Id));
+
+    private void BeginTrackReorder() => _trackOrderBefore = [.. _playlistItems.Select(item => (item, item.SortOrder))];
+
+    private Task CancelTrackReorder()
+    {
+        if (_trackOrderBefore is { } before)
+        {
+            foreach (var (item, sortOrder) in before)
+            {
+                item.SortOrder = sortOrder;
+            }
+        }
+
+        _trackOrderBefore = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> SaveTrackReorderAsync()
+    {
+        _trackOrderSaving = true;
+        try
+        {
+            var saved = await SavePlaylistTrackOrderAsync([.. _playlistItems.OrderBy(item => item.SortOrder)]);
+            if (saved)
+            {
+                _trackOrderBefore = null;
+            }
+
+            return saved;
+        }
+        finally
+        {
+            _trackOrderSaving = false;
+        }
+    }
+
     private WorkViewModel? PlaylistWorkFor(SongRow row)
         => row.WorkId is { } workId
             ? _workLookup.GetValueOrDefault(workId) ?? ActivePlaylistTracks.FirstOrDefault(work => work.Id == workId)
@@ -118,6 +162,17 @@ public partial class ListenPage
             return;
         }
 
+        if (TrackReorderActive)
+        {
+            // Staged only: the order is written by Save order.
+            for (var index = 0; index < reordered.Count; index++)
+            {
+                reordered[index].SortOrder = index + 1;
+            }
+
+            return;
+        }
+
         await SavePlaylistTrackOrderAsync(reordered);
     }
 
@@ -169,11 +224,11 @@ public partial class ListenPage
             .ToList();
     }
 
-    private async Task SavePlaylistTrackOrderAsync(List<CollectionItemDto> orderedItems)
+    private async Task<bool> SavePlaylistTrackOrderAsync(List<CollectionItemDto> orderedItems)
     {
         if (ActivePlaylistCollection is null)
         {
-            return;
+            return false;
         }
 
         _notice = null;
@@ -185,7 +240,7 @@ public partial class ListenPage
         if (!saved)
         {
             ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
-            return;
+            return false;
         }
 
         _playlistItems.Clear();
@@ -194,6 +249,8 @@ public partial class ListenPage
             orderedItems[index].SortOrder = index + 1;
             _playlistItems.Add(orderedItems[index]);
         }
+
+        return true;
     }
 
     private async Task RemovePlaylistTrackAsync(Guid itemId)

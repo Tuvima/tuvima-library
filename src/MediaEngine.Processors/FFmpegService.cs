@@ -454,6 +454,7 @@ public sealed class FFmpegService : IFFmpegService
             int? sampleRate = null;
             int? channels = null;
             string? videoCodec = null;
+            string? videoProfile = null;
             string? pixelFormat = null, colorTransfer = null, colorPrimaries = null;
             int? width = null;
             int? height = null;
@@ -515,6 +516,8 @@ public sealed class FFmpegService : IFFmpegService
                         else if (videoCodec is null)
                         {
                             videoCodec = codecName;
+                            videoProfile = stream.TryGetProperty("profile", out var vp) && vp.GetString() is { Length: > 0 } profileText
+                                && !profileText.Equals("unknown", StringComparison.OrdinalIgnoreCase) ? profileText : null;
                             pixelFormat = stream.TryGetProperty("pix_fmt", out var pf) ? pf.GetString() : null;
                             colorTransfer = stream.TryGetProperty("color_transfer", out var tr) ? tr.GetString() : null;
                             colorPrimaries = stream.TryGetProperty("color_primaries", out var cp) ? cp.GetString() : null;
@@ -637,6 +640,7 @@ public sealed class FFmpegService : IFFmpegService
                 SampleRate = sampleRate,
                 Channels = channels,
                 VideoCodec = videoCodec,
+                VideoProfile = videoProfile,
                 PixelFormat = pixelFormat,
                 ColorTransfer = colorTransfer,
                 ColorPrimaries = colorPrimaries,

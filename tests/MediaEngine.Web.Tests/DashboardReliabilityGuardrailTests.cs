@@ -233,8 +233,9 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("<SurfaceNavigationBar", mediaHub, StringComparison.Ordinal);
         Assert.DoesNotContain("<SurfaceNavigationBar", home, StringComparison.Ordinal);
         Assert.DoesNotContain("<SurfaceTabBar", home, StringComparison.Ordinal);
-        Assert.Contains("min-height: 4.25rem", navigationStyles, StringComparison.Ordinal);
-        Assert.Contains("border-bottom: 2px solid transparent", navigationStyles, StringComparison.Ordinal);
+        // The section bar's tabs are the shared tab row (Look v3.1 D1): the bar styles only its own box, never a tab.
+        Assert.DoesNotContain("surface-navigation-bar__tab", navigationStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("min-height: 4.25rem", navigationStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("border-top: 1px solid", navigationStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("border-bottom: 1px solid", navigationStyles, StringComparison.Ordinal);
         Assert.Contains(".cinematic-hero-carousel ::deep .cinematic-hero__content", carouselStyles, StringComparison.Ordinal);

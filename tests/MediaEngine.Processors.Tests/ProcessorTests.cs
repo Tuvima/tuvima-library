@@ -203,6 +203,30 @@ public class FFmpegServiceParsingTests
         Assert.Equal("edge-live-photo-id", result.ContentIdentifier);
         Assert.True(result.IsLivePhoto);
     }
+
+    [Theory]
+    [InlineData("Main 10", "Main 10")]
+    [InlineData("High", "High")]
+    [InlineData("Unknown", null)]
+    [InlineData("", null)]
+    public void ParseProbeJson_ReadsTheVideoStreamsProfile(string profile, string? expected)
+    {
+        var json = """
+        {
+          "format": { "duration": "60", "size": "4096" },
+          "streams": [
+            { "codec_type": "video", "codec_name": "hevc", "profile": "__PROFILE__", "width": 3840, "height": 2160, "pix_fmt": "yuv420p10le", "color_transfer": "smpte2084", "r_frame_rate": "24000/1001" }
+          ]
+        }
+        """.Replace("__PROFILE__", profile);
+
+        var parser = typeof(FFmpegService).GetMethod("ParseProbeJson", BindingFlags.NonPublic | BindingFlags.Static);
+        var result = Assert.IsType<MediaProbeResult>(parser!.Invoke(null, [json, "movie.mkv"]));
+
+        Assert.Equal(expected, result.VideoProfile);
+        Assert.Equal("hevc", result.VideoCodec);
+        Assert.Equal("smpte2084", result.ColorTransfer);
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════

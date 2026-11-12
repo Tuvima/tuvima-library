@@ -1588,7 +1588,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("_playlistActionsCollectionId", legacySource, StringComparison.Ordinal);
         Assert.Contains("@onclick:stopPropagation=\"true\"", menuSource, StringComparison.Ordinal);
         Assert.Contains("AppControlSize.Compact", menuSource, StringComparison.Ordinal);
-        Assert.Contains("min-width: 8.75rem;", globalCss, StringComparison.Ordinal);
+        Assert.Contains("min-width: var(--tl-menu-min-width);", globalCss, StringComparison.Ordinal);
         Assert.Contains("min-height: var(--tl-menu-item-height) !important;", globalCss, StringComparison.Ordinal);
     }
 
@@ -1607,7 +1607,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
         var shellCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css"));
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellCss, StringComparison.Ordinal);
-        Assert.Contains("min-height: 60px;", shellCss, StringComparison.Ordinal);
+        Assert.Contains("min-height: 72px;", shellCss, StringComparison.Ordinal);
     }
 
     [Fact]

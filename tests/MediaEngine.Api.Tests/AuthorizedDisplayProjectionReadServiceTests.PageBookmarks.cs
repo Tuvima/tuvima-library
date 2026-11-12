@@ -28,9 +28,14 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     };
 
     [Fact]
-    public async Task PageBookmarks_ArePrivateUntilAnAdministratorPromotesThem_ThenEveryoneSeesThem()
+    public async Task PageBookmarks_ArePrivateForever_BecauseOnlyMoviesAndTvHaveAGlobalSet()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE works SET media_type = 'Comics' WHERE id = @workId;", new { workId = shape.Normal.WorkId });
+        }
+
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
         var pages = new PageBookmarkRepository(_database);
         var ben = AddOtherProfile();
@@ -48,12 +53,13 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Single(await pages.ListByAssetAsync(VaultProfile.ToString("D"), shape.Normal.AssetId));
         Assert.Empty(await pages.ListByAssetAsync(ben.ToString("D"), shape.Normal.AssetId));
 
-        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, mine.Id)));
+        // A comic has no Global set (global bookmarks v5 D3): the promotion is refused, so nobody else ever sees the page bookmark.
+        var change = ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, mine.Id));
+        Assert.Equal(EditorBookmarksService.NoGlobal, await kit.Service.CheckAsync(shape.Normal.WorkId, change));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => kit.Service.ApplyAsync(shape.Normal.WorkId, change));
 
-        var seenByBen = Assert.Single(await pages.ListByAssetAsync(ben.ToString("D"), shape.Normal.AssetId));
-        Assert.True(seenByBen.IsGlobal);
-        Assert.Equal(14, seenByBen.Page);
-        Assert.Contains((await kit.Service.ReadAsync(shape.Normal.WorkId)).Everyone, row => row.Id == mine.Id && row.PositionKind == BookmarkPooling.PageKind);
+        Assert.Empty(await pages.ListByAssetAsync(ben.ToString("D"), shape.Normal.AssetId));
+        Assert.Empty((await kit.Service.ReadAsync(shape.Normal.WorkId)).Everyone);
     }
 
     [Fact]

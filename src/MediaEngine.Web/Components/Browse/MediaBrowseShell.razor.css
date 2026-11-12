@@ -88,49 +88,15 @@
     width: 100%;
 }
 
-.browse-shell__tabs-frame ::deep .tl-tabs-toolbar,
-.browse-shell__tabs-frame ::deep .tl-tabs-tabbar {
-    min-height: auto;
-    padding: 0;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 0;
-    background: transparent !important;
-    box-shadow: none;
-}
-
 .browse-shell__tabs-frame ::deep .tl-tabs-panels {
     display: none;
 }
 
+/* The browse tabs are the shared tab row (Look v3.1 D1); only the label type is named here, the rest is the shared tab. */
 .browse-shell__tabs-frame ::deep .tl-tab {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 1 1 0;
-    width: 100% !important;
-    min-width: 0;
-    min-height: 2.8rem;
-    padding: 0 1.2rem !important;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    border-radius: 0 !important;
-    overflow: hidden;
-    background: transparent !important;
-    color: var(--tl-text-secondary) !important;
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-md);
     font-weight: var(--tl-control-font-weight);
-    line-height: var(--tl-control-line-height) !important;
     letter-spacing: var(--tl-control-letter-spacing);
-    text-transform: none;
-}
-
-.browse-shell__tabs-frame ::deep .tl-tab.tl-tab-active {
-    border-bottom-color: var(--tl-accent-primary);
-    border-radius: 0 !important;
-    background: transparent !important;
-    color: var(--tl-text-primary) !important;
-    box-shadow: 0 10px 24px -18px color-mix(in srgb, var(--tl-accent-primary) 80%, transparent);
 }
 
 .browse-shell__tabs-frame ::deep .tl-tabs-inkbar {
@@ -198,24 +164,6 @@
 
 .browse-shell__control-group--filters {
     border-left: 1px solid rgba(128, 146, 180, 0.2);
-}
-
-.browse-shell__control-group--browse ::deep .app-browse-mode {
-    width: max-content;
-    max-width: none;
-    overflow: visible;
-}
-
-.browse-shell__control-group--browse ::deep .app-browse-mode__option {
-    gap: 7px;
-    min-height: 48px;
-    padding-inline: 12px;
-    font-size: var(--tl-font-size-sm);
-}
-
-.browse-shell__control-group--browse ::deep .app-browse-mode__option .tl-icon-root {
-    display: inline-block;
-    font-size: var(--tl-icon-size-xs);
 }
 
 .browse-shell__filter-row {
@@ -700,11 +648,6 @@
         padding-right: 0;
     }
 
-    .browse-shell__control-group--browse ::deep .app-browse-mode {
-        max-width: 100%;
-        overflow-x: auto;
-    }
-
     .browse-shell__control-group--filters {
         margin-top: 14px;
         padding: 14px 0 0;
@@ -762,11 +705,6 @@
         font-size: var(--tl-font-size-secondary);
     }
 
-    .browse-shell__tabs-frame ::deep .tl-tab {
-        flex: 1 1 0 !important;
-        width: auto !important;
-        min-width: 0 !important;
-    }
 }
 
 @media (max-width: 620px) {

@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject IJSRuntime JS
+@inject ILogger<PlaybackInformationFooter> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Playback information view's fixed footer (video-player follow-ups D14): "Copy details" puts the lines on screen on the clipboard as plain text.
+   The button says "Copied" in place for two seconds, or "Could not copy" when the browser refuses; no toast. Nothing is sent anywhere. *@
+<div class="pif" data-playback-information-footer>
+    <AppButton Label="@Label" Disabled="@(State?.HasText != true)" OnClick="CopyAsync"
+               UserAttributes="@(new Dictionary<string, object> { ["data-pi-copy"] = true })" />
+    <span class="sr-only" role="status">@(_outcome == Outcome.None ? string.Empty : Label)</span>
+</div>
+
+@code {
+    private enum Outcome { None, Copied, Failed }
+
+    /// <summary>The lines the view is showing; the same object the view writes to.</summary>
+    [Parameter] public PlaybackInformationState? State { get; set; }
+
+    private CancellationTokenSource? _timer;
+    private Outcome _outcome;
+
+    private string Label => _outcome switch
+    {
+        Outcome.Copied => L["Common_Copied"].Value,
+        Outcome.Failed => L["PlaybackInformation_CouldNotCopy"].Value,
+        _ => L["PlaybackInformation_CopyDetails"].Value,
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (State is not null)
+        {
+            State.Changed -= OnStateChanged;
+            State.Changed += OnStateChanged;
+        }
+    }
+
+    private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // The clipboard call goes out from this click handler itself, as browsers only allow a copy made by a person's own press.
+    private async Task CopyAsync()
+    {
+        var result = await JS.TryCopyAsync(State?.Text ?? string.Empty, Logger);
+        if (result == ClipboardCopyResult.Disconnected)
+        {
+            return;
+        }
+
+        await ShowForAMomentAsync(result == ClipboardCopyResult.Copied ? Outcome.Copied : Outcome.Failed);
+    }
+
+    private async Task ShowForAMomentAsync(Outcome outcome)
+    {
+        _timer?.Cancel();
+        var timer = _timer = new CancellationTokenSource();
+        _outcome = outcome;
+        StateHasChanged();
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), timer.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Pressed again or removed from the page: the newer press (or the end of the page) owns the label now.
+            return;
+        }
+
+        _outcome = Outcome.None;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        if (State is not null)
+        {
+            State.Changed -= OnStateChanged;
+        }
+
+        _timer?.Cancel();
+    }
+}
