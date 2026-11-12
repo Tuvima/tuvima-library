@@ -14,7 +14,9 @@ public sealed class EditorKeyboardFit : IAsyncDisposable
     private readonly IJSRuntime _js;
     private readonly ILogger _logger;
     private IJSObjectReference? _module;
+    private readonly string _ownerId = Guid.NewGuid().ToString("N");
     private bool _watching;
+    private bool _watchSent;
     private bool _disposed;
 
     public EditorKeyboardFit(IJSRuntime js, ILogger logger)
@@ -34,18 +36,28 @@ public sealed class EditorKeyboardFit : IAsyncDisposable
         try
         {
             _module ??= await _js.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            if (_disposed)
+            {
+                // Disposed while the script was loading: nothing was started, so there is nothing to stop.
+                return;
+            }
+
             if (wanted)
             {
-                await _module.InvokeVoidAsync("watchKeyboard");
+                // The script keeps one entry per owner, so a watch sent twice (one that timed out and was tried again) counts once. Marked first, so a dispose
+                // that arrives while it is in flight still sends the stop.
+                _watchSent = true;
+                await _module.InvokeVoidAsync("watchKeyboard", _ownerId);
             }
             else
             {
-                await _module.InvokeVoidAsync("stopKeyboard");
+                await _module.InvokeVoidAsync("stopKeyboard", _ownerId);
+                _watchSent = false;
             }
 
             _watching = wanted;
         }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException or ObjectDisposedException)
         {
             _logger.LogDebug(ex, "The sheet could not reach its keyboard script; it will try again at the next draw");
         }
@@ -61,9 +73,9 @@ public sealed class EditorKeyboardFit : IAsyncDisposable
 
         try
         {
-            if (_watching)
+            if (_watching || _watchSent)
             {
-                await _module.InvokeVoidAsync("stopKeyboard");
+                await _module.InvokeVoidAsync("stopKeyboard", _ownerId);
             }
 
             await _module.DisposeAsync();
