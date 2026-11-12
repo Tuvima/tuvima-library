@@ -20,6 +20,16 @@
     }
 }
 
+/* The phone arrangement (v6 section 4a): the window's body already pads the sides, so the layout adds none, and the form is one column with Quick Facts
+   as a closed section under it. */
+.tl-editor-details-layout--phone {
+    padding: 0 0 var(--tl-space-4);
+}
+
+.tl-editor-details-layout--phone > .tl-editor-details {
+    padding: var(--tl-space-2) 0;
+}
+
 /* A Series' members in order (universal editor v5 screen H): a locked, read-only list, never inputs. */
 .tl-editor-details__members {
     display: flex;

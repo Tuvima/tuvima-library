@@ -285,6 +285,23 @@ public sealed partial class UiShellRenderTests
     [Fact]
     public async Task TheTopBarBookmarkOpensMyListIsSelectedThereAndGoesBackHomeWhenPressedAgain()
     {
+        // The layout's startup sends the browser to the language switch when the thread's language is not the configured one (the
+        // machine running the tests may have none). That late redirect could land after the press below and replace its address, so
+        // this test runs in the configured language and no redirect is due.
+        var previousCulture = System.Globalization.CultureInfo.CurrentUICulture;
+        System.Globalization.CultureInfo.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
+        try
+        {
+            await TheTopBarBookmarkOpensMyListAndGoesBackHomeAsync();
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentUICulture = previousCulture;
+        }
+    }
+
+    private async Task TheTopBarBookmarkOpensMyListAndGoesBackHomeAsync()
+    {
         var cut = await RenderLayoutAsync();
         var nav = Services.GetRequiredService<NavigationManager>();
         var button = () => cut.Find("button.layout-shell__my-list");

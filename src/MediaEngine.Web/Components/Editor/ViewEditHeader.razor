@@ -6,6 +6,39 @@
    (tl-editor-header), with a landscape picture (a photo, a video's first frame or a document's first page; a small stack of the first pictures for
    a group), the gallery it was opened from as the label, the title, one line of facts and, in the nav row, the way around the gallery. There is no
    Season or Section dropdown and no Match. Read-only. *@
+@if (Phone)
+{
+    @* The phone arrangement (v6 section 4a, D20 to D22), the same as the library editor's: always the one line (a small picture, the title, one line of facts).
+       Tapping the line opens the way around the gallery as a bottom sheet; Delete is in the "..." at the right and the window's Close sits over the corner. *@
+    <header class="tl-editor-header tl-editor-header--phone" data-kind="@KindKey" data-gradient="none" data-testid="phone-header">
+        <div class="tl-editor-header__phoneline">
+            <div class="tl-editor-header__minicover" aria-hidden="true">
+                @if (Stack.Count > 0)
+                {
+                    <AppImage Src="@Stack[0]" Alt="" DrawnPx="100" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+                }
+                else
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoAlbum" Size="AppIconSize.Control20" />
+                }
+            </div>
+            <div class="tl-editor-header__phonetext">
+                <h2 id="tl-editor-panel-title" class="tl-editor-header__title tl-editor-header__title--phone" tabindex="-1" data-testid="phone-header-title">@Title</h2>
+                @if (!string.IsNullOrWhiteSpace(Facts))
+                {
+                    <span class="tl-editor-header__state" data-testid="phone-header-state">@Facts</span>
+                }
+            </div>
+            <ViewEditHeaderNav Session="Session" Phone="true" PhoneLabel="@Title" />
+        </div>
+        @if (PhoneMenuItems is { Count: > 0 })
+        {
+            <AppRowMenu AriaLabel="@L["Common_MoreActions"].Value" Items="PhoneMenuItems" Class="tl-editor-header__more" />
+        }
+    </header>
+}
+else
+{
 <header class="tl-editor-header" data-kind="@KindKey" data-gradient="none">
     <div class="@(Stack.Count > 1 ? "tl-editor-header__cover tl-editor-header__cover--stack" : "tl-editor-header__cover")" aria-hidden="true">
         @if (Stack.Count > 1)
@@ -37,11 +70,18 @@
         <ViewEditHeaderNav Session="Session" />
     </div>
 </header>
+}
 
 @code {
     private const int StackSize = 3;
 
     [Parameter, EditorRequired] public ViewEditSession Session { get; set; } = default!;
+
+    /// <summary>The phone arrangement (v6 section 4a): the header is always the one line, and tapping it opens the way around the gallery as a sheet.</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    /// <summary>What the phone header's "..." menu holds (Delete, per D22); empty or null draws no "..." button.</summary>
+    [Parameter] public IReadOnlyList<AppRowMenuItem>? PhoneMenuItems { get; set; }
 
     private ViewEditStage Stage => Session.Active;
 

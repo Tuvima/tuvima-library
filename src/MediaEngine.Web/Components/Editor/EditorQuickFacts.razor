@@ -13,9 +13,24 @@
    said once, by the editor's footer line, not here (D15). *@
 @if (_model is { IsEmpty: false } model)
 {
-    <aside class="tl-quick-facts" aria-label="@L["EditorQuickFacts_Title"].Value" data-quick-facts-kind="@model.Kind.ToString().ToLowerInvariant()">
-        <h3 class="tl-quick-facts__title">@L["EditorQuickFacts_Title"]</h3>
-        @foreach (var fact in model.Facts)
+    <aside class="@(Phone ? "tl-quick-facts tl-quick-facts--phone tl-editor-touch" : "tl-quick-facts")" aria-label="@L["EditorQuickFacts_Title"].Value" data-quick-facts-kind="@model.Kind.ToString().ToLowerInvariant()" data-phone="@(Phone ? "true" : null)">
+        @if (Phone)
+        {
+            @* On a phone Quick Facts is a section under the form, closed until it is tapped (v6 section 4a). *@
+            <h3 class="tl-quick-facts__title tl-quick-facts__title--phone">
+                <AppRowButton Class="tl-quick-facts__toggle" aria-expanded="@(_open ? "true" : "false")" data-quick-facts-toggle="true" OnClick="@(() => _open = !_open)">
+                    <span>@L["EditorQuickFacts_Title"]</span>
+                    <AppMaterialIcon Icon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppIconSize.Control20" />
+                </AppRowButton>
+            </h3>
+        }
+        else
+        {
+            <h3 class="tl-quick-facts__title">@L["EditorQuickFacts_Title"]</h3>
+        }
+        @if (!Phone || _open)
+        {
+        foreach (var fact in model.Facts)
         {
             <div class="tl-quick-facts__row" data-fact="@fact.Key">
                 <span class="tl-quick-facts__icon" aria-hidden="true"><AppMaterialIcon Icon="@IconFor(fact.Icon)" Size="AppIconSize.Control20" /></span>
@@ -25,34 +40,38 @@
                 </div>
             </div>
         }
-        @foreach (var note in model.Notes)
+        foreach (var note in model.Notes)
         {
             <div class="tl-quick-facts__note" data-note="@note" role="note">@note</div>
         }
-        @if (model.OffersPreview && OnPreview.HasDelegate)
+        if (model.OffersPreview && OnPreview.HasDelegate)
         {
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Class="tl-quick-facts__preview"
                        StartIcon="@AppMaterialIcons.Outlined.Visibility" data-quick-facts-preview="true" OnClick="OnPreview">@model.PreviewLabel</AppButton>
         }
-        @if (model.FilePath is { } path)
+        if (model.FilePath is { } path)
         {
             var (start, end) = SplitPath(path);
             var copyText = _copied ? L["Common_Copied"].Value : L["EditorQuickFacts_CopyPath"].Value;
             <div class="tl-quick-facts__path" data-quick-facts-path="true">
                 <span class="tl-quick-facts__path-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" /></span>
-                <AppTooltip Text="@path">
-                    <span class="tl-quick-facts__path-text" tabindex="0" role="group" aria-label="@L["EditorQuickFacts_FilePath"].Value">
-                        <span class="sr-only">@path</span>
-                        @if (start.Length > 0)
-                        {
-                            <span class="tl-quick-facts__path-start" aria-hidden="true">@start</span>
-                        }
-                        @if (end.Length > 0)
-                        {
-                            <span class="tl-quick-facts__path-end" dir="rtl" aria-hidden="true"><bdi dir="ltr">@end</bdi></span>
-                        }
-                    </span>
-                </AppTooltip>
+                @if (Phone)
+                {
+                    @* A shortened path is read in full by a tap (D21), in the app's pop-out. *@
+                    <span class="sr-only">@path</span>
+                    <EditorTapReveal Text="@path" Label="@L["EditorPhone_ShowFullPath"].Value" Class="tl-quick-facts__path-reveal">
+                        @PathParts(start, end)
+                    </EditorTapReveal>
+                }
+                else
+                {
+                    <AppTooltip Text="@path">
+                        <span class="tl-quick-facts__path-text" tabindex="0" role="group" aria-label="@L["EditorQuickFacts_FilePath"].Value">
+                            <span class="sr-only">@path</span>
+                            @PathParts(start, end)
+                        </span>
+                    </AppTooltip>
+                }
                 <AppIconButton Icon="@(_copied ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.ContentCopy)"
                                Size="AppControlSize.Compact"
                                ButtonStyle="AppButtonStyle.Text"
@@ -63,15 +82,17 @@
                                OnClick="@(() => CopyPathAsync(path))" />
                 <span class="sr-only" role="status">@(_copied ? L["Common_Copied"].Value : string.Empty)</span>
             </div>
-            @if (_copyFailed)
+            if (_copyFailed)
             {
                 <div class="tl-quick-facts__path-error" role="alert">@ClipboardInterop.FailedMessage(L["EditorQuickFacts_ThePath"].Value)</div>
             }
+        }
         }
     </aside>
 }
 
 @code {
+    private bool _open;
     private QuickFactsModel _model = QuickFactsModel.Empty;
     private CancellationTokenSource? _copiedTimer;
     private bool _copied;
@@ -85,6 +106,19 @@
         var cut = path.LastIndexOfAny(['/', '\\']) + 1;
         return (path[..cut], path[cut..]);
     }
+
+    private static RenderFragment PathParts(string start, string end) => __builder =>
+    {
+        if (start.Length > 0)
+        {
+            <span class="tl-quick-facts__path-start" aria-hidden="true">@start</span>
+        }
+
+        if (end.Length > 0)
+        {
+            <span class="tl-quick-facts__path-end" dir="rtl" aria-hidden="true"><bdi dir="ltr">@end</bdi></span>
+        }
+    };
 
     private async Task CopyPathAsync(string path)
     {
@@ -127,6 +161,9 @@
 
     /// <summary>A supporting file's Preview button: opens its Preview tab. Without it the button is not drawn.</summary>
     [Parameter] public EventCallback OnPreview { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a, D21): a section under the form, closed until tapped, with the full path a tap away.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>Facts the caller already worked out (several files edited together sum their selection); with it the card reads nothing itself.</summary>
     [Parameter] public QuickFactsModel? Model { get; set; }

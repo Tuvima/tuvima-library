@@ -95,6 +95,67 @@
     font-size: var(--tl-font-size-sm);
 }
 
+/* The phone arrangement (v6 section 4a, D20 to D22): always the one line, a small picture, the title and one line of facts. The whole line is the button that
+   opens the way around the gallery (ViewEditHeaderNav); the "..." with Delete sits at its right and the window's Close over the corner. */
+.tl-editor-header--phone {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-height: var(--tl-editor-phone-header, 4rem);
+    padding: var(--tl-space-2) calc(var(--tl-tap-target-min) + var(--tl-space-4)) var(--tl-space-2) var(--tl-space-4);
+}
+
+.tl-editor-header__phoneline {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    min-height: var(--tl-tap-target-min);
+}
+
+.tl-editor-header__minicover {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 3rem;
+    height: 2.125rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-muted);
+}
+
+.tl-editor-header__phonetext {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tl-editor-header--phone .tl-editor-header__title--phone {
+    display: block;
+    margin: 0;
+    overflow: hidden;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-heading-weight);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -webkit-line-clamp: unset;
+}
+
+.tl-editor-header--phone .tl-editor-header__state {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 @media (max-width: 1180px) {
     .tl-editor-header__title {
         display: -webkit-box;

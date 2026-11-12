@@ -9236,6 +9236,30 @@
   <data name="EditorPhone_OpenNavigation" xml:space="preserve">
     <value>Move around this title: {0}</value>
   </data>
+  <data name="EditorPhone_WhyLocked" xml:space="preserve">
+    <value>Why {0} is locked</value>
+  </data>
+  <data name="EditorPhone_ShowFullPath" xml:space="preserve">
+    <value>Show the full path</value>
+  </data>
+  <data name="EditorPhone_ArtworkChoosePhoto" xml:space="preserve">
+    <value>Choose a photo</value>
+  </data>
+  <data name="EditorPhone_ArtworkTakePhoto" xml:space="preserve">
+    <value>Take a photo</value>
+  </data>
+  <data name="EditorPhone_LockReason" xml:space="preserve">
+    <value>This came from {0}. Revert puts that value back and locks the field again.</value>
+  </data>
+  <data name="EditorPhone_YoursKeptNote" xml:space="preserve">
+    <value>Your value is kept when the provider refreshes.</value>
+  </data>
+  <data name="EditorPhone_SourceFile" xml:space="preserve">
+    <value>the file</value>
+  </data>
+  <data name="EditorPhone_BookmarkCounts" xml:space="preserve">
+    <value>Global: {0} · {1} · From profiles: {2}</value>
+  </data>
   <data name="EditorFooter_WriteBackOffTitle" xml:space="preserve">
     <value>File write-back off</value>
   </data>

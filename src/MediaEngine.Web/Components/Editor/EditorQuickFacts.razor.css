@@ -119,6 +119,18 @@
     font-size: var(--tl-type-secondary-size);
 }
 
+/* On a phone Quick Facts is a section under the form, closed until it is tapped (v6 section 4a): the heading is one 44 px button, and the path line
+   at the foot gives its middle way to a tap that shows it in full. */
+.tl-quick-facts--phone {
+    width: 100%;
+    box-sizing: border-box;
+    padding-block: var(--tl-space-1);
+}
+
+.tl-quick-facts__title--phone {
+    margin: 0;
+}
+
 @media (max-width: 1180px) {
     .tl-quick-facts {
         flex: 0 0 auto;
