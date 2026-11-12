@@ -1,6 +1,6 @@
 .setup-server-form { display: grid; gap: 16px; max-width: 520px; }
 .setup-server-form__preview { margin: 0; color: var(--tl-text-muted); line-height: 1.55; }
 .setup-server-form__host { display: flex; align-items: flex-end; gap: 8px; }
-/* The field and the button are child components, so the rules reach them through ::deep. The field takes the spare width; Cancel keeps its own (#854). */
-.setup-server-form__host ::deep > :first-child { flex: 1 1 auto; min-width: 0; }
-.setup-server-form__host ::deep > :not(:first-child) { flex: none; }
+/* The field takes the spare width; Cancel keeps its own (#854). Each sits in its own element so the rules apply without reaching into the components. */
+.setup-server-form__host-field { flex: 1 1 auto; min-width: 0; }
+.setup-server-form__host-action { flex: none; }
