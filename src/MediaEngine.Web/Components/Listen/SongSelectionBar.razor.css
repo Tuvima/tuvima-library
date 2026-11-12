@@ -26,6 +26,13 @@
     min-height: var(--tl-tap-target-min, 44px);
 }
 
+/* Done, with the "..." button (when there is something in it) just before it. */
+.song-selection-bar__head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 .song-selection-bar__count {
     min-width: 0;
     padding-left: 0.25rem;

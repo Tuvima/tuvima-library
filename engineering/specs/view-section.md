@@ -3,6 +3,7 @@
 > **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-06 · **Related docs:** [Photos and documents editor](photos-documents-editor.md) · [Look pass v2](look-pass-v2.md) · mockup `engineering/design/mockups/view-section/view-section.html`
 
 > **Version note (2026-11-12):** [universal-editor-v6](archive/universal-editor-v6-match-and-aligned-rows.md) (section 9) replaces the "editing is desktop-only" rule wherever this spec states it or hides an edit action on phones: item editing works on desktop, tablet and phone (`EditorDeviceRule.CanEditItems`), the Engine's permission check still decides who may edit, and TVs do not edit. Settings and Vault tools stay desktop-only. The Locked body below is unchanged.
+> **Version note (2026-11-12, Shy):** Move to Trash is offered on phones as on a desktop; "phones also get no Trash" (section 4 and WP1) no longer applies.
 
 ## 1. Goal
 

@@ -1,17 +1,26 @@
 @namespace MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Services.Editing
 @inject IServiceProvider Services
+@inject DeviceContextService Device
 @inject IStringLocalizer<SharedStrings> L
 
 @* The phone's bar for ticked songs (Listen music spec D12). A phone ticks songs after Select in a song's "..." sheet; this bar then sits at
    the bottom of the screen above the player bar and the bottom navigation, with the count and Done on top and Play, Add to queue and Add
    to playlist in one row of 44 px buttons. Add to playlist opens the same playlist list as the desktop bar, as a bottom sheet, and says how
-   many songs went in on a line of this bar (no toast). There is no Edit here and no dragging on a phone. The Listen Albums list uses the same
-   bar for ticked albums (spec D15): it is given the album rows instead of song ids, shows only Add to playlist, and adds every song on them. *@
+   many songs went in on a line of this bar (no toast). Edit sits behind a "..." button beside Done, a bottom sheet with one item, "Edit N items",
+   drawn only when the person may edit and the device may edit items (the same rule as the desktop bulk bar); there is no dragging on a phone.
+   The Listen Albums list uses the same bar for ticked albums (spec D15): it is given the album rows instead of song ids, shows only Add to
+   playlist, and adds every song on them, with no "..." and no Edit. *@
 <section class="song-selection-bar" role="toolbar" aria-label="@L[AlbumRows is null ? "SongSelectionBar_Label" : "SongSelectionBar_AlbumsLabel"].Value" data-song-selection-bar="true">
     <div class="song-selection-bar__head">
         <strong class="song-selection-bar__count" role="status" aria-live="polite">@L["SongSelectionBar_Count", Count].Value</strong>
-        <AppNativeButton Type="button" Class="song-selection-bar__done" OnClick="@(_ => OnDone.InvokeAsync())">@L["Common_Done"].Value</AppNativeButton>
+        <div class="song-selection-bar__head-actions">
+            @if (EditShown)
+            {
+                <AppRowMenu AriaLabel="@L["Common_MoreActions"].Value" Items="@MoreItems" Class="song-selection-bar__more" />
+            }
+            <AppNativeButton Type="button" Class="song-selection-bar__done" OnClick="@(_ => OnDone.InvokeAsync())">@L["Common_Done"].Value</AppNativeButton>
+        </div>
     </div>
     @* Always in the page, empty until there is something to say, so a screen reader that is already watching it announces the text when it appears. *@
     <p class="@NoticeClass" role="status" data-song-selection-notice="true">@(_notice ?? TooManyAlbumsNotice)</p>
@@ -55,6 +64,12 @@
 
     [Parameter] public bool CanQueue { get; set; }
 
+    /// <summary>The person may edit songs here (the host's own flag, the one its desktop bulk bar uses). Edit also needs a device that may edit items; never for ticked albums.</summary>
+    [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>Open the editor on the ticked songs (the host launches the list editor with the same rows its desktop bulk bar uses).</summary>
+    [Parameter] public EventCallback OnEdit { get; set; }
+
     /// <summary>Play the ticked songs: the host replaces its queue with them and starts the first.</summary>
     [Parameter] public EventCallback OnPlay { get; set; }
 
@@ -63,6 +78,21 @@
 
     /// <summary>Leave select mode: the ticks are dropped and the bar goes away.</summary>
     [Parameter] public EventCallback OnDone { get; set; }
+
+    // The "..." button is drawn only when it would hold something: Edit for ticked songs, for a person and device that may edit items.
+    private bool EditShown => AlbumRows is null && CanEdit && OnEdit.HasDelegate && EditorDeviceRule.CanEditItems(Device);
+
+    private IReadOnlyList<AppRowMenuItem> MoreItems => EditShown
+        ?
+        [
+            new()
+            {
+                Label = Count == 1 ? L["Common_Edit"].Value : L["ViewEdit_EditItems", Count].Value,
+                Icon = AppMaterialIcons.Outlined.Edit,
+                OnClick = EventCallback.Factory.Create(this, EditAsync),
+            },
+        ]
+        : [];
 
     // More albums than one Add to playlist takes: the bar says so in its own line and the button is off.
     private bool TooManyAlbums => AlbumRows is not null && BulkEditRules.TooManyAlbums(AlbumRows);
@@ -109,6 +139,33 @@
         try
         {
             await OnQueue.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // A handler never trusts the button: the person's flag and the device are checked again before the editor opens.
+    private async Task EditAsync()
+    {
+        if (_busy || Count == 0 || AlbumRows is not null || !CanEdit)
+        {
+            return;
+        }
+
+        if (EditorDeviceRule.TryRefuseItems(Device))
+        {
+            _notice = EditorDeviceRule.ItemMessage;
+            _noticeSeverity = AppSeverity.Info;
+            return;
+        }
+
+        _busy = true;
+        _notice = null;
+        try
+        {
+            await OnEdit.InvokeAsync();
         }
         finally
         {

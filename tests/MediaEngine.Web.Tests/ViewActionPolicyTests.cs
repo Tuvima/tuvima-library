@@ -6,7 +6,7 @@ namespace MediaEngine.Web.Tests;
 public sealed class ViewActionPolicyTests
 {
     private static ViewActionContext Desktop(ViewItemOwnership ownership) =>
-        new(ownership, IsPhone: false, CanEdit: true, FileMissing: false, CanTrash: true, IsArchived: false, IsTrashed: false, IsHidden: false);
+        new(ownership, CanEdit: true, FileMissing: false, CanTrash: true, IsArchived: false, IsTrashed: false, IsHidden: false);
 
     [Fact]
     public void OwnPhoto_OnDesktop_OffersEverything()
@@ -36,21 +36,23 @@ public sealed class ViewActionPolicyTests
     }
 
     [Fact]
-    public void Phone_OffersEditWhenTheDeviceMayEdit_ButNeverTrash()
+    public void Phone_OffersEditAndMoveToTrashLikeADesktop_WhenTheDeviceMayEditAndTheFolderIsWritable()
     {
-        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsPhone = true });
+        // The phone and the desktop ask the same rule: a phone is just a context with the same flags.
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own));
 
         Assert.True(actions.HasFlag(ViewActions.Edit));
-        Assert.False(actions.HasFlag(ViewActions.Trash));
+        Assert.True(actions.HasFlag(ViewActions.Trash));
         Assert.True(actions.HasFlag(ViewActions.Archive));
     }
 
     [Fact]
-    public void Phone_NeverOffersEditWhenTheDeviceMayNotEdit()
+    public void Phone_NeverOffersEditWhenTheDeviceMayNotEdit_ButStillOffersTrash()
     {
-        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsPhone = true, CanEdit = false });
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { CanEdit = false });
 
         Assert.False(actions.HasFlag(ViewActions.Edit));
+        Assert.True(actions.HasFlag(ViewActions.Trash));
     }
 
     [Fact]

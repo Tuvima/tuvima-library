@@ -154,6 +154,9 @@ public partial class SongTable
     /// <summary>Edit this song (the host ticks it and opens its Edit panel).</summary>
     [Parameter] public EventCallback<SongRow> OnEdit { get; set; }
 
+    /// <summary>Edit the ticked songs together (the phone bar's "..." menu): the host opens the list editor on exactly these rows, in the order shown. Without it the bar has no Edit.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<SongRow>> OnEditSelected { get; set; }
+
     /// <summary>Delete this song from the library (the host runs the confirmation and the delete).</summary>
     [Parameter] public EventCallback<SongRow> OnDelete { get; set; }
 
@@ -853,6 +856,26 @@ public partial class SongTable
         if (rows.Count > 0)
         {
             await OnPlay.InvokeAsync(new SongPlayRequest(rows, rows[0]));
+        }
+    }
+
+    // The bar offers Edit only to a person and device that may edit; this handler checks both again before the host opens the editor.
+    private async Task EditTickedAsync()
+    {
+        if (!CanEdit || !DeviceContext.CanEditItems)
+        {
+            if (!DeviceContext.CanEditItems)
+            {
+                _notice = EditorDeviceRule.ItemMessage;
+            }
+
+            return;
+        }
+
+        var rows = TickedPlayable;
+        if (rows.Count > 0)
+        {
+            await OnEditSelected.InvokeAsync(rows);
         }
     }
 

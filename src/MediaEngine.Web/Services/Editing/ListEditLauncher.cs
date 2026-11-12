@@ -98,6 +98,47 @@ public sealed class ListEditLauncher
     }
 
     /// <summary>
+    /// Ticked rows of a list that has no bulk bar of its own on this device (the phone's songs list): opens the pop-over with exactly these rows
+    /// ticked and the Edit panel open, over the list. <paramref name="saved"/> runs after a save so the list reads its rows again. False when the
+    /// device or the Engine refuses (the reason is in <see cref="LastNotice"/>).
+    /// </summary>
+    public async Task<bool> OpenRowsAsync(IReadOnlyList<BulkEditRow> rows, string? mediaType, Func<Task>? saved = null)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        LastNotice = null;
+        if (rows.Count == 0)
+        {
+            return false;
+        }
+
+        if (EditorDeviceRule.TryRefuseItems(_device))
+        {
+            LastNotice = EditorDeviceRule.ItemMessage;
+            return false;
+        }
+
+        var ticked = rows.ToList();
+        var binding = BindRows(mediaType, () => ticked, async () =>
+        {
+            _host.Batch.NotifySaved();
+            if (saved is not null)
+            {
+                await saved();
+            }
+        });
+        binding.SectionCommitted = saved;
+        if (!await _host.OpenAsync(binding, binding.EntityId, EditTool.Details) || !_host.IsOpen)
+        {
+            LastNotice = "Editing is not available right now.";
+            return false;
+        }
+
+        _host.Batch.Replace(ticked);
+        _host.Batch.OpenPanel(BulkPanelKind.Edit);
+        return true;
+    }
+
+    /// <summary>
     /// The editor media type of a library row's own media type text ("Movie", "TV Show", "Music", "Audiobook"...).
     /// </summary>
     public static string NormalizeMediaType(string? mediaType)

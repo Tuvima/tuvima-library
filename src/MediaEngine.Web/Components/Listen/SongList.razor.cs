@@ -278,6 +278,29 @@ public partial class SongList
         return Task.CompletedTask;
     }
 
+    // The phone's "..." menu on ticked songs: the editor opens over the list on exactly the ticked songs, through the same launcher the other
+    // lists use (a phone has no bulk bar of its own to open it). The table and the launcher both check the device; the Engine checks every save.
+    private async Task EditTickedAsync(IReadOnlyList<SongRow> selected)
+    {
+        if (EditorDeviceRule.TryRefuseItems(DeviceContext))
+        {
+            _notice = EditorDeviceRule.ItemMessage;
+            return;
+        }
+
+        var rows = BulkRowsFor(selected);
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var launcher = Services.GetRequiredService<ListEditLauncher>();
+        if (!await launcher.OpenRowsAsync(rows, "Music", OnEditedAsync))
+        {
+            _notice = launcher.LastNotice ?? EditorDeviceRule.ItemMessage;
+        }
+    }
+
     internal Task DeleteRowAsync(SongRow row)
         => row.WorkId is { } workId ? DeleteAsync([workId], row.Title) : Task.CompletedTask;
 

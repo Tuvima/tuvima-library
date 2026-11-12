@@ -385,6 +385,47 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OnAPhoneTickedDocumentsOfferMoveToTrashAndAskBeforeMovingThem()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        var cut = RenderLoaded();
+        await cut.InvokeAsync(() => cut.FindAll("li.view-document-card")[1].TriggerEvent("onpointerdown", new PointerEventArgs()));
+        cut.WaitForAssertion(() => Assert.Contains("1 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal), TimeSpan.FromSeconds(5));
+        Assert.Contains(cut.FindAll(".view-selection-toolbar__action"), button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+
+        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+
+        // It asks first; nothing is sent until Move to Trash is chosen.
+        var host = _dialogs;
+        host.WaitForAssertion(() => Assert.Contains("Move this item to Trash?", host.Markup, StringComparison.Ordinal));
+        Assert.Null(_handler.LastBulkBody);
+        await host.InvokeAsync(() => host.FindAll("footer button").Single(button => button.TextContent.Trim() == "Move to Trash").Click());
+        cut.WaitForAssertion(() => Assert.NotNull(_handler.LastBulkBody));
+    }
+
+    [Fact]
+    public async Task OnAPhoneDocumentsInAReadOnlyFolderOfferNoMoveToTrash()
+    {
+        _handler.ReadOnlyIds.Add(ItemIds[1]);
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        var cut = RenderLoaded();
+        await cut.InvokeAsync(() => cut.FindAll("li.view-document-card")[1].TriggerEvent("onpointerdown", new PointerEventArgs()));
+        cut.WaitForAssertion(() => Assert.Contains("1 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal), TimeSpan.FromSeconds(5));
+
+        Assert.DoesNotContain(cut.FindAll(".view-selection-toolbar__action"), button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ATelevisionNeverOffersMoveToTrashBecauseItCannotTickDocuments()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false));
+        var cut = RenderLoaded();
+
+        Assert.Empty(cut.FindAll(".view-selection-toolbar"));
+        Assert.DoesNotContain(cut.FindAll("[role=radio]"), radio => radio.TextContent.Trim() == "Trash");
+    }
+
+    [Fact]
     public async Task TheTrashViewOffersRestoreInsteadOfOrganising()
     {
         var cut = RenderLoaded();

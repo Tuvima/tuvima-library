@@ -28,13 +28,16 @@
     @PhoneList
     @if (SelectModeOn)
     {
-        @* Ticked songs on a phone: the bottom bar with the count, Play, Add to queue, Add to playlist and Done (Listen music spec D12). *@
+        @* Ticked songs on a phone: the bottom bar with the count, Play, Add to queue, Add to playlist and Done (Listen music spec D12), and
+           "..." with Edit when the person and the device may edit. *@
         <SongSelectionBar WorkIds="@TickedWorkIds"
                           Count="@TickedWorkIds.Count"
                           CanPlay="@OnPlay.HasDelegate"
                           CanQueue="@OnQueue.HasDelegate"
+                          CanEdit="@CanEdit"
                           OnPlay="PlayTickedAsync"
                           OnQueue="QueueTickedAsync"
+                          OnEdit="@(OnEditSelected.HasDelegate ? EventCallback.Factory.Create(this, EditTickedAsync) : default)"
                           OnDone="EndSelectAsync" />
     }
 }

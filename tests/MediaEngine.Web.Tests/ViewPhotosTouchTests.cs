@@ -38,11 +38,11 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         _device.InitialiseAsync(new DeviceContextSnapshot(
             formFactor == "phone" ? "mobile" : "web", formFactor, touch, FinePointer: formFactor == "desktop" && !touch, Hover: formFactor == "desktop" && !touch));
 
-    private static LocalAssetDto Photo(string name)
+    private static LocalAssetDto Photo(string name, bool canTrash = true)
     {
         var json = "{\"id\":\"" + Guid.NewGuid() + "\",\"library_id\":\"" + LibraryId + "\",\"media_kind\":\"image\",\"title\":\"" + name
             + "\",\"file_name\":\"" + name + ".jpg\",\"mime_type\":\"image/jpeg\",\"created_at\":\"2026-10-01T10:00:00+00:00\",\"captured_at\":\"2026-10-01T10:00:00+00:00\","
-            + "\"width\":1600,\"height\":1200,\"source_count\":1,\"files\":[],\"tags\":[],\"thumbnail_url\":\"/t\",\"content_url\":\"/c\",\"favorite\":false,\"hidden\":false}";
+            + "\"width\":1600,\"height\":1200,\"source_count\":1,\"files\":[],\"tags\":[],\"thumbnail_url\":\"/t\",\"content_url\":\"/c\",\"favorite\":false,\"hidden\":false,\"can_trash\":" + (canTrash ? "true" : "false") + "}";
         return JsonSerializer.Deserialize<LocalAssetDto>(json)!;
     }
 
@@ -330,6 +330,44 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OnAPhoneAPhotoTileMenuOffersMoveToTrashAndAsksBeforeMovingIt()
+    {
+        await UseAsync("phone", touch: true);
+        var photo = Photo("one");
+        var handler = new PhotosHandler([photo]);
+        RegisterPageServices(handler);
+        var dialogs = Render<AppDialogHost>();
+        var cut = Render<ViewPage>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
+
+        cut.Find("[aria-label='More for one']").Click();
+        var trash = cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Trash");
+        await cut.InvokeAsync(() => trash.Click());
+
+        // It asks first and nothing has moved yet.
+        dialogs.WaitForAssertion(() => Assert.Contains("Move this item to Trash?", dialogs.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain(handler.Requests, request => request.EndsWith("/trash", StringComparison.Ordinal));
+
+        await dialogs.InvokeAsync(() => dialogs.FindAll("footer button").Single(button => button.TextContent.Trim() == "Move to Trash").Click());
+
+        cut.WaitForAssertion(() => Assert.Contains(handler.Requests, request => request == $"POST /view/items/{photo.Id:D}/trash"));
+    }
+
+    [Fact]
+    public async Task OnAPhoneAPhotoInAReadOnlyFolderOffersNoTrash()
+    {
+        await UseAsync("phone", touch: true);
+        RegisterPageServices(new PhotosHandler([Photo("one", canTrash: false)]));
+        var cut = Render<ViewPage>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
+
+        cut.Find("[aria-label='More for one']").Click();
+
+        Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Trash");
+        Assert.Contains(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Archive");
+    }
+
+    [Fact]
     public async Task SectionNavigationKeepsGalleryEditingOnDesktop()
     {
         await UseAsync("desktop", touch: false);
@@ -513,8 +551,14 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
 
     private sealed class PhotosHandler(IReadOnlyList<LocalAssetDto> photos) : HttpMessageHandler
     {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> _requests = new();
+
+        /// <summary>Every request the page made, as "METHOD /path".</summary>
+        public IReadOnlyCollection<string> Requests => _requests;
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            _requests.Enqueue($"{request.Method} {request.RequestUri!.AbsolutePath}");
             var json = request.RequestUri!.AbsolutePath switch
             {
                 "/profiles" => "[]",
