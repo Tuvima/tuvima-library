@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
 using Microsoft.Extensions.Caching.Memory;
@@ -43,7 +44,7 @@ public sealed class EditorCurrentMatchService(
             return null;
         }
 
-        var own = Latest(await canonicals.GetByEntityAsync(launch.WorkId, ct).ConfigureAwait(false));
+        var own = await ReadOwnAsync(launch, ct).ConfigureAwait(false);
         var root = launch.RootWorkId != Guid.Empty && launch.RootWorkId != launch.WorkId
             ? Latest(await canonicals.GetByEntityAsync(launch.RootWorkId, ct).ConfigureAwait(false))
             : own;
@@ -164,6 +165,29 @@ public sealed class EditorCurrentMatchService(
             FileName = fileName,
             Note = note,
         };
+    }
+
+    // What the Engine stored for the item itself. Ingestion keeps a fact about the file (a film's TMDB id, a book's ISBN or store id, an
+    // episode's or a song's own id) on the file's asset and a fact about the container on the Work (ClaimScopeCatalog), so the item's
+    // own values are the Work's with the asset's filling what the Work does not have. A container (a show, a season, an album) has no
+    // file of its own: the asset the launch carries there is some child's, and its ids are never the container's.
+    private async Task<IReadOnlyDictionary<string, string>> ReadOwnAsync(MetadataEditorLaunchContext launch, CancellationToken ct)
+    {
+        var own = Latest(await canonicals.GetByEntityAsync(launch.WorkId, ct).ConfigureAwait(false));
+        if (launch.RepresentativeAssetId is not { } assetId
+            || assetId == Guid.Empty
+            || string.Equals(launch.WorkKind, "parent", StringComparison.OrdinalIgnoreCase))
+        {
+            return own;
+        }
+
+        var merged = new Dictionary<string, string>(own, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in Latest(await canonicals.GetByEntityAsync(assetId, ct).ConfigureAwait(false)))
+        {
+            merged.TryAdd(key, value);
+        }
+
+        return merged;
     }
 
     private static bool IsTvdbAddress(string? url) =>

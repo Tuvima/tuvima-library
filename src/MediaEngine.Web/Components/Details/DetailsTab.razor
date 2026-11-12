@@ -50,7 +50,22 @@
             }
         </section>
     }
-    else if (DetailFileFacts.IsGrouping(Model.EntityType))
+    else if (ShowSeriesFacts)
+    {
+        @* A Series has no file of its own: About this lists series facts in the same quiet grid (Series details mock). *@
+        <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailPage_AboutThis"].Value">
+            <div class="tl-section-heading"><h2>@L["DetailPage_AboutThis"]</h2></div>
+            <div class="tl-file-facts__block">
+                <dl class="tl-file-facts__list">
+                    @foreach (var row in SeriesFacts)
+                    {
+                        <div class="tl-file-facts__cell"><dt>@row.Label</dt><dd>@row.Value</dd></div>
+                    }
+                </dl>
+            </div>
+        </section>
+    }
+    else if (DetailFileFacts.IsGrouping(Model.EntityType) && !DetailFileFacts.IsSeriesContainer(Model.EntityType))
     {
         <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailsTab_FileFacts"].Value">
             <div class="tl-section-heading"><h2>@L["Common_Files"]</h2></div>
@@ -94,6 +109,8 @@
         </section>
     }
 
+    @if (!DetailFileFacts.IsSeriesContainer(Model.EntityType))
+    {
     <section class="tl-detail-panel">
         <div class="tl-section-heading"><h2>@L["Common_Details"]</h2></div>
         <dl class="tl-detail-dl">
@@ -121,6 +138,7 @@
             }
         </dl>
     </section>
+    }
 
     <DetailAiResults Results="@Model.Facts?.AiResults" />
 
@@ -165,6 +183,16 @@
     /// <summary>The path, like the editor's File view, is not offered on phones (no editing there).</summary>
     private bool ShowPath => CanSeeAdminFacts && !DeviceContext.IsPhone;
 
+    private IReadOnlyList<DetailFileFactRow> SeriesFacts => DetailFileFacts.IsSeriesContainer(Model.EntityType)
+        ? DetailFileFacts.BuildSeriesFacts(
+            Model,
+            L["DetailsTab_SeriesInLibrary"].Value,
+            L["DetailsTab_SeriesFirstPublished"].Value,
+            L["DetailsTab_SeriesLatest"].Value,
+            L["DetailsTab_SeriesAuthor"].Value,
+            L["DetailsTab_SeriesOwnedOfTotal"].Value)
+        : [];
+    private bool ShowSeriesFacts => SeriesFacts.Count > 0;
     private bool ShowFileFacts => DetailFileFacts.IsFileBearing(Model.EntityType);
 
     /// <summary>History is read-only and shown on desktop-class screens only.</summary>

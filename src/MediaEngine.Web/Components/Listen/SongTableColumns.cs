@@ -63,6 +63,9 @@ public static class SongTableColumns
 
     public const int MaxWidth = 560;
 
+    /// <summary>The widest the Song column may be (it is the flexible column, so a wide screen draws it wider than the others).</summary>
+    public const int SongMaxWidth = 1200;
+
     /// <summary>The columns a place can offer in its Columns list, in on-screen order. Song is always on and is not in the list.</summary>
     public static IReadOnlyList<SongColumn> Available(SongTablePlace place) =>
         Order.Where(column => IsAvailable(place, column) && column is not (SongColumn.Tick or SongColumn.Song)).ToList();
@@ -139,7 +142,10 @@ public static class SongTableColumns
     public static bool IsResizable(SongColumn column) => column != SongColumn.Tick;
 
     public static int ClampWidth(SongColumn column, int width)
-        => IsResizable(column) ? Math.Clamp(width, MinWidth(column), MaxWidth) : DefaultWidth(column);
+        => IsResizable(column) ? Math.Clamp(width, MinWidth(column), MaxWidthFor(column)) : DefaultWidth(column);
+
+    /// <summary>The widest a column may be dragged. The Song column takes the spare width of a wide screen, so its limit is higher.</summary>
+    public static int MaxWidthFor(SongColumn column) => column == SongColumn.Song ? SongMaxWidth : MaxWidth;
 
     /// <summary>
     /// The columns to draw, in order, with their widths: the place's defaults changed by the person's choice. Song cannot be hidden and
