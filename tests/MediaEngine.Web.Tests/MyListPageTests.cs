@@ -116,7 +116,8 @@ public sealed class MyListPageTests : AsyncBunitContext
 
     private static DisplayCardDto Card(Row row) =>
         new(row.Id, row.Id, Guid.NewGuid(), null, row.Kind == ProfileEntityKind.Book ? "Book" : "Movie", "work", row.Title, null, [], Art(), "portrait", "default",
-            "caption", "bottom", null, [], new(true, false, false, false), row.SavedAt) { SortYear = row.Year };
+            "caption", "bottom", null, [], new(true, false, false, false), row.SavedAt)
+        { SortYear = row.Year };
 
     private void Seed(int movies, int books = 0)
     {
