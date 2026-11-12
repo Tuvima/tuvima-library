@@ -218,6 +218,7 @@
 
     // What the Match tab read from the Engine about the active item's match; the one-line header on the Match tab says the same thing.
     private EditorMatchReadState? _matchRead;
+    private bool _dataSavedSeen;
 
     // What the last Delete had to say (a refusal, a failure, a file that stayed on disk): shown at the top of the window until dismissed or the next try.
     private string? _actionNotice;
@@ -313,9 +314,15 @@
         CloseOnEscapeKey = true,
     };
 
-    // Match is where a failed item is fixed: the tree's own mark wins for an item it lists, else the page's answer for the item it was opened on.
+    // Whether the active item is matched, said the same way on every tab and in the header (v6 D10). The Match tab's own read of the Engine wins as
+    // soon as it exists. Before that the Engine's header says it by the same rule (a provider match, EditorMatchRule); an item with no header falls
+    // back to the family tree's mark, then to the page's answer for the item it was opened on.
     private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
-        && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
+        && (_matchRead is { } read && read.EntityId == active.EntityId
+            ? !read.Matched
+            : Editor.Mode.Fields is { Loaded: true, Header: { } header } && header.CurrentId == active.EntityId
+                ? !header.ProviderMatched
+                : Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
 
     private string? FilesBatchTitle => Editor.FileBatch.IsOpen ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count) : null;
 
@@ -442,6 +449,16 @@
         }
 
         _wasOpen = Editor.IsOpen;
+
+        // What the Match tab read belongs to one item and goes with it: another item, a closed window, or a Save (which can change the match) clears it
+        // so a stale answer is never shown; the tab reads the match afresh the next time it is open.
+        var savedNow = Editor.Flow.DataSaved;
+        if (_matchRead is { } stale && (!Editor.IsOpen || stale.EntityId != Editor.Session.ActiveItem?.EntityId || (savedNow && !_dataSavedSeen)))
+        {
+            _matchRead = null;
+        }
+
+        _dataSavedSeen = savedNow;
 
         StateHasChanged();
     });

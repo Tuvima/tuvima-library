@@ -17,7 +17,7 @@
     [Parameter] public bool ReserveMessage { get; set; }
     /// <summary>One column: each child's label, control and help stack in order, children one under another.</summary>
     [Parameter] public bool Stack { get; set; }
-    /// <summary>Below the 1180 px breakpoint the row wraps as whole fields (each keeps a usable width, a trailing button stays at the end of its line); wider, it is the grid of <see cref="Columns"/>.</summary>
+    /// <summary>When the nearest size container the row sits in is narrower than 1280 px (the editor window is one) the row wraps as whole fields, each keeping a usable width and sharing one control line with its neighbours on the same visual line; wider, it is the grid of <see cref="Columns"/>. Every child of a wrapping row is a field, or a <c>data-form-row-field</c> wrapper (<c>="fit"</c> keeps its own width) with a blank label line above a button, so a button lines up with the controls.</summary>
     [Parameter] public bool Wrap { get; set; }
     [Parameter] public string? Class { get; set; }
     /// <summary>Other attributes go on the row's root element, including a <c>style</c> (the columns are set on an inner element, so nothing is replaced).</summary>

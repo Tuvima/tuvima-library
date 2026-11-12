@@ -198,7 +198,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AMatchedItem_ShowsTheSourceSelectorOnItsOwnLine_AndNoSearchRowOrFileBarUntilChangeMatch()
+    public void AMatchedItem_ShowsTheSourceSelectorThenTheFileBarThenTheCard_AndNoSearchRowUntilChangeMatch()
     {
         var cut = RenderPanel();
 
@@ -208,12 +208,16 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Contains("Wikidata", source.TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid=match-row]"));
         Assert.Empty(cut.FindAll("[data-testid=match-search-button]"));
-        Assert.Empty(cut.FindAll("[data-testid=match-your-file]"));
+        // Mock B: the selector, then "Your file", then the card it is matched to.
+        var file = Assert.Single(cut.FindAll("[data-testid=match-your-file]"));
+        Assert.Contains("Heat (1995) 1080p.mkv", file.TextContent, StringComparison.Ordinal);
+        Assert.True(cut.Markup.IndexOf("match-source", StringComparison.Ordinal) < cut.Markup.IndexOf("match-your-file", StringComparison.Ordinal));
+        Assert.True(cut.Markup.IndexOf("match-your-file", StringComparison.Ordinal) < cut.Markup.IndexOf("match-current", StringComparison.Ordinal));
 
         ClickButton(cut, "Change match");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-row]")));
-        Assert.NotEmpty(cut.FindAll("[data-testid=match-your-file]"));
+        Assert.Single(cut.FindAll("[data-testid=match-your-file]"));
         Assert.Empty(_searches);
     }
 
@@ -602,11 +606,20 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.All(children.Take(4), child => Assert.Contains("app-field", child.ClassList));
         Assert.Equal("Provider", children[0].QuerySelector("label")!.TextContent.Trim());
         Assert.Equal(["Title", "Author", "ISBN (optional)"], children.Skip(1).Take(3).Select(child => child.QuerySelector("label")!.TextContent.Trim()).ToList());
-        var button = children[4];
-        Assert.Equal("button", button.TagName.ToLowerInvariant());
+        // The button is a form-row field with a blank label line, so it shares the controls' top on every visual line (also when the row wraps).
+        var go = children[4];
+        Assert.True(go.HasAttribute("data-form-row-field"));
+        Assert.Equal("fit", go.GetAttribute("data-form-row-field"));
+        Assert.Equal("true", go.QuerySelector(".app-field__label")!.GetAttribute("aria-hidden"));
+        var button = go.QuerySelector("button")!;
         Assert.Equal("Search", button.TextContent.Trim());
         Assert.Equal("match-search-button", button.GetAttribute("data-testid"));
-        Assert.Contains("--tl-form-row-columns: 220px", row.QuerySelector(".app-form-row__fields")!.GetAttribute("style"), StringComparison.Ordinal);
+        // The Search button carries an outlined search icon before its word (mock A, D18).
+        Assert.NotNull(button.QuerySelector("svg"));
+        // The Provider is fixed, the ISBN box is about 220 px, the button is as wide as its word.
+        var columns = row.QuerySelector(".app-form-row__fields")!.GetAttribute("style")!;
+        Assert.Contains("--tl-form-row-columns: 220px ", columns, StringComparison.Ordinal);
+        Assert.EndsWith("220px auto", columns.TrimEnd(';', ' '), StringComparison.Ordinal);
         Assert.Contains("app-form-row--wrap", row.ClassList);
         // The message line is reserved so nothing below it moves when text appears.
         Assert.NotNull(row.QuerySelector(".app-form-row__message--reserved"));
@@ -766,14 +779,14 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     [Fact]
     public void ThePanel_TellsTheHeaderWhatTheEngineRead_AndAgainWhenARemovalIsStaged()
     {
-        var states = new List<EditorMatchReadState>();
+        var states = new List<EditorMatchReadState?>();
         _matched = true;
         var cut = Render<EditorMatchPanel>(parameters => parameters
             .Add(panel => panel.Subject, Movie())
             .Add(panel => panel.Session, _session)
             .Add(panel => panel.CanEdit, true)
             .Add(panel => panel.IsUnmatched, true)
-            .Add(panel => panel.OnMatchState, EventCallback.Factory.Create<EditorMatchReadState>(this, state => states.Add(state))));
+            .Add(panel => panel.OnMatchState, EventCallback.Factory.Create<EditorMatchReadState?>(this, state => states.Add(state))));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
 
         cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, true, "TMDB"), states.Last()));
@@ -781,5 +794,65 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.Find("[data-testid=match-remove]").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, false, null), states.Last()));
+    }
+
+    [Fact]
+    public void WhenTheMatchIsReadAgain_ThePanelFirstTakesTheOldAnswerBack_SoTheHeaderNeverShowsItOverTheLoadingPlaceholder()
+    {
+        var states = new List<EditorMatchReadState?>();
+        _matched = true;
+        var cut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Movie())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.OnMatchState, EventCallback.Factory.Create<EditorMatchReadState?>(this, state => states.Add(state))));
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, true, "TMDB"), states.LastOrDefault()));
+
+        // A staged match that is then saved leaves the pending list, which makes the panel read the Engine again.
+        cut.Find("[data-testid=match-remove]").Click();
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, false, null), states.Last()));
+        _matched = false;
+        _session.Pending.Discard();
+
+        cut.WaitForAssertion(() => Assert.Contains(null, states));
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, false, null), states.Last()));
+    }
+
+    [Fact]
+    public void AfterASearch_TheRowsMessageLineSaysHowManyResultsCameBackAndFromWhom()
+    {
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("2 results from TMDB.", cut.Find("[data-testid=match-row-message]").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void AfterASearchWithOneResult_TheRowsMessageLineUsesTheSingularForm()
+    {
+        _answer = Found(Result("Heat", "1995", EditorMatchVerdicts.Strong));
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("1 result from TMDB.", cut.Find("[data-testid=match-row-message]").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void WhenTheKindHasNoBoxesToSearchWith_SearchIsOff_AndTheMessageLineSaysWhy()
+    {
+        _setup = _ =>
+        {
+            var setup = Setup("movie", noProvider: false);
+            return new EditorMatchSetupDto { EntityId = setup.EntityId, Kind = setup.Kind, FileName = setup.FileName, Providers = setup.Providers, Fields = [] };
+        };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        Assert.True(cut.Find("[data-testid=match-search-button]").HasAttribute("disabled"));
+        Assert.Equal("There is nothing to search with for this item.", cut.Find("[data-testid=match-row-message]").TextContent.Trim());
     }
 }

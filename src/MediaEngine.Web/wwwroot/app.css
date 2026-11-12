@@ -1340,22 +1340,30 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     grid-area: 3 / 1;
 }
 
-/* Wrapping (AppFormRow Wrap): on a window narrower than the 1180 breakpoint the row wraps as whole fields. Each child keeps at least a usable width, so a
-   field never shrinks mid-word; a child that is a field keeps its own label, control and help lines, and a button sits on the bottom (control) line of its line. */
-@media (max-width: 1180px) {
+/* Wrapping (AppFormRow Wrap): when the nearest size container the row sits in (the editor window is one) is narrower than 1280, the row wraps as whole
+   fields. Every child of a wrapping row is a field, or a wrapper marked data-form-row-field (data-form-row-field="fit" keeps its own width) that
+   holds a blank label line above a button or other control. Each child is a column of label, control and help, all start-aligned, so on every
+   visual line the controls share one top whatever help text a neighbour has; each keeps a usable width and never shrinks mid-word. */
+@container (max-width: 1279px) {
     .app-form-row--wrap > .app-form-row__fields > * {
         flex: 1 1 12rem;
         grid-row: auto;
+        align-self: flex-start;
     }
 
-    .app-form-row--wrap > .app-form-row__fields > :last-child:not(.app-field, [data-form-row-field]) {
+    .app-form-row--wrap > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-form-row--wrap > .app-form-row__fields > [data-form-row-field="fit"] {
         flex: 0 0 auto;
     }
 }
 
-@media (max-width: 600px) {
+@container (max-width: 599px) {
     .app-form-row--wrap > .app-form-row__fields > *,
-    .app-form-row--wrap > .app-form-row__fields > :last-child:not(.app-field, [data-form-row-field]) {
+    .app-form-row--wrap > .app-form-row__fields > [data-form-row-field="fit"] {
         flex: 1 1 100%;
     }
 }
@@ -2251,6 +2259,21 @@ input.app-control.tl-input-slot,
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* The Match tab's source selector (Editor v6 D1): the shared segmented control, drawn 44 px tall in total (a 36 px item, its padding and border) with
+   the chosen side in the soft accent as in the mock. Only the selector inside the Match tab changes; other segmented controls keep their look. */
+.tl-match__source .app-segmented-control {
+    padding: calc((var(--tl-control-height-md) - var(--tl-control-height-sm) - 2px) / 2);
+}
+
+.tl-match__source .app-segmented-control__item {
+    min-height: var(--tl-control-height-sm);
+}
+
+.tl-match__source .app-segmented-control__item.is-selected {
+    color: var(--tl-accent-primary);
+    background: var(--tl-accent-primary-soft);
 }
 
 .app-chip__remove { display: inline-flex; align-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }

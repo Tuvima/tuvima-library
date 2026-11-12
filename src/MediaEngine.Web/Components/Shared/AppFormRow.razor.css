@@ -40,12 +40,13 @@
     gap: var(--tl-space-3);
 }
 
-/* Wrap: below the 1180 breakpoint (the window fills the screen) the fields flow onto further lines as whole fields instead of sharing one grid line. */
-@media (max-width: 1180px) {
+/* Wrap: when the nearest size container (such as the editor window) is narrower than 1280, the fields flow onto further lines as whole fields
+   instead of sharing one grid line. The fields start-align; each is its own column of label, control and help (rules in wwwroot/app.css). */
+@container (max-width: 1279px) {
     .app-form-row--wrap .app-form-row__fields {
         display: flex;
         flex-wrap: wrap;
-        align-items: flex-end;
+        align-items: flex-start;
         gap: var(--tl-space-3);
     }
 }

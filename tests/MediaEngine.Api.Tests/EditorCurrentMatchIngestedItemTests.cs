@@ -227,6 +227,89 @@ public sealed class EditorCurrentMatchIngestedItemTests : IDisposable
         Assert.Equal("unmatched", Assert.Single(nodes, node => node.NodeId == show).MatchState);
     }
 
+    // The header says "matched" by the Match tab's own rule (EditorMatchRule), so it cannot disagree with the tab before the tab is opened. The family
+    // dropdown's mark keeps its wider meaning (a Wikidata id, or what an episode inherits from its show), which is why the header has its own answer.
+
+    [Fact]
+    public async Task AWikidataOnlyItem_IsNotProviderMatched_InTheHeaderOrTheMatchTab_WhileTheDropdownStillCountsItsId()
+    {
+        var movie = _world.Work("Movies", "standalone", "Arrival");
+        _world.File(movie, "Arrival (2016).mkv");
+        _world.Canonical(movie, BridgeIdKeys.WikidataQid, "Q20814705");
+
+        var header = await _world.Header().GetHeaderAsync(movie, null);
+        var match = await Service().ReadAsync(movie);
+        var node = Assert.Single((await Navigation().GetNavigatorAsync(movie, CancellationToken.None))!.Nodes, n => n.NodeId == movie);
+
+        Assert.False(header!.ProviderMatched);
+        Assert.Equal(EditorCurrentMatchStates.NotMatched, match!.State);
+        Assert.NotEqual("unmatched", node.MatchState);
+    }
+
+    [Fact]
+    public async Task AnEpisodeUnderAMatchedShow_IsNotProviderMatched_ButItsSeasonAndShowAre_AndTheDropdownStillLetsTheEpisodeInherit()
+    {
+        var show = _world.Work("TV", "parent", "Severance");
+        var season = _world.Work("TV", "parent", "Season 1", show, 1);
+        var episode = _world.Work("TV", "child", "Good News About Hell", season, 1);
+        _world.File(episode, "Severance S01E01.mkv");
+        _world.Canonical(show, BridgeIdKeys.TvdbId, "371980");
+
+        var episodeHeader = await _world.Header().GetHeaderAsync(episode, null);
+        var seasonHeader = await _world.Header().GetHeaderAsync(season, null);
+        var showHeader = await _world.Header().GetHeaderAsync(show, null);
+        var nodes = (await Navigation().GetNavigatorAsync(episode, CancellationToken.None))!.Nodes;
+
+        Assert.False(episodeHeader!.ProviderMatched);
+        Assert.Equal(EditorCurrentMatchStates.NotMatched, (await Service().ReadAsync(episode))!.State);
+        Assert.NotEqual("unmatched", Assert.Single(nodes, node => node.NodeId == episode).MatchState);
+        Assert.True(seasonHeader!.ProviderMatched);
+        Assert.Equal(EditorCurrentMatchStates.Matched, (await Service().ReadAsync(season))!.State);
+        Assert.True(showHeader!.ProviderMatched);
+    }
+
+    [Fact]
+    public async Task AnEpisodeWithItsOwnTheTvdbId_OnItsFile_IsProviderMatched_InTheHeaderAndTheMatchTab()
+    {
+        var show = _world.Work("TV", "parent", "Severance");
+        var season = _world.Work("TV", "parent", "Season 1", show, 1);
+        var episode = _world.Work("TV", "child", "Good News About Hell", season, 1);
+        var asset = _world.File(episode, "Severance S01E01.mkv");
+        _world.Canonical(asset, BridgeIdKeys.TvdbEpisodeId, "8000001");
+
+        var header = await _world.Header().GetHeaderAsync(episode, null);
+
+        Assert.True(header!.ProviderMatched);
+        Assert.Equal(EditorCurrentMatchStates.Matched, (await Service().ReadAsync(episode))!.State);
+    }
+
+    [Fact]
+    public async Task ABookWithOnlyAnIsbnOnItsFile_IsProviderMatched_InTheHeaderAsInTheMatchTab()
+    {
+        var book = _world.Work("Books", "standalone", "Dune");
+        var asset = _world.File(book, "Dune.epub");
+        _world.Canonical(asset, BridgeIdKeys.Isbn13, "9780441172719");
+
+        var header = await _world.Header().GetHeaderAsync(book, null);
+
+        Assert.True(header!.ProviderMatched);
+        Assert.Equal(EditorCurrentMatchStates.Matched, (await Service().ReadAsync(book))!.State);
+    }
+
+    [Fact]
+    public async Task AContainerIsNeverReadFromTheFileUnderIt_ByTheHeaderOrTheMatchTab()
+    {
+        var series = _world.Work("Books", "parent", "Dune Chronicles");
+        var book = _world.Work("Books", "standalone", "Dune", series, 1);
+        var asset = _world.File(book, "Dune.epub");
+        _world.Canonical(asset, BridgeIdKeys.AppleBooksId, "1234567890");
+
+        var header = await _world.Header().GetHeaderAsync(series, null);
+
+        Assert.False(header!.ProviderMatched);
+        Assert.Equal(EditorCurrentMatchStates.NotMatched, (await Service().ReadAsync(series))!.State);
+    }
+
     private MediaEditorNavigationReadService Navigation() =>
         new(_world.Database, null!, new HierarchyAlignmentService(_world.Database, null!));
 

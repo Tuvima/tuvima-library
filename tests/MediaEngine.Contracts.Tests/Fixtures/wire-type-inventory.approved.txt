@@ -4384,8 +4384,9 @@
   FolderButton: MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto | json=folder_button | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | json=colors | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | json=file_facts | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  ProviderMatched: System.Boolean | json=provider_matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | json=config | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"config":null}
+  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"provider_matched":true,"config":null}
 
 [contracts] MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
   kind=class | converter=default | number-handling=default | unmapped=default

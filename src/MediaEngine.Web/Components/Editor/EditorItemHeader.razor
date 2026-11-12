@@ -137,7 +137,7 @@ else if (Flow?.Session.ActiveItem is { } active)
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppIconSize.Control20" />
                 }
             </div>
-            <h2 id="tl-editor-panel-title" class="tl-editor-header__title tl-editor-header__title--compact" tabindex="-1" data-testid="match-header-title">@L["EditorMatchPanel_MatchKind", EditorMatchKindWords.For(header?.Kind, L)]</h2>
+            <h2 id="tl-editor-panel-title" class="tl-editor-header__title tl-editor-header__title--compact" tabindex="-1" data-testid="match-header-title"><span data-testid="match-header-heading">@L["EditorMatchPanel_MatchKind", EditorMatchKindWords.For(header?.Kind, L)]</span><span class="sr-only" data-testid="match-header-item">: @title</span></h2>
             <span class="tl-editor-header__state" data-testid="match-header-state" data-state="@(matched ? "matched" : "unmatched")">
                 <span class="@(matched ? "tl-editor-header__dot tl-editor-header__dot--ok" : "tl-editor-header__dot")" aria-hidden="true"></span>@stateText
             </span>
@@ -201,7 +201,7 @@ else if (Flow?.Session.ActiveItem is { } active)
                 else if (showState)
                 {
                     <div class="tl-editor-header__chips">
-                        @if (Unmatched)
+                        @if (MatchRead is { } reportedRead && reportedRead.EntityId == active.EntityId ? !reportedRead.Matched : Unmatched)
                         {
                             <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorFamily_NotMatched"].Value" />
                         }

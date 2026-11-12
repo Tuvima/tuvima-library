@@ -108,7 +108,7 @@
     [Parameter] public EventCallback<EditorUniverseLink> OnOpenUniverse { get; set; }
 
     /// <summary>Raised once the Engine's read of the item's match has loaded, and again whenever the answer changes (a removal staged, a save), so the one-line header can say the same thing.</summary>
-    [Parameter] public EventCallback<EditorMatchReadState> OnMatchState { get; set; }
+    [Parameter] public EventCallback<EditorMatchReadState?> OnMatchState { get; set; }
 
     // The Engine's own read decides as soon as it has loaded (v6 D10); the page's answer (IsUnmatched) is only what is expected while it loads.
     private bool IsMatched => !RemovalStaged && _current is { State: EditorCurrentMatchStates.Matched, Record: not null };
@@ -196,9 +196,15 @@
         _stagedMove = null;
         _stagedSide = null;
         _fileName = null;
-        _reported = null;
         _fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _loading = true;
+
+        // A read in progress means the old answer may be out of date: take it back so the header never shows it over the loading placeholder.
+        if (_reported is not null)
+        {
+            _reported = null;
+            await OnMatchState.InvokeAsync(null);
+        }
 
         var id = Subject.EntityId;
         var current = Api.GetEditorCurrentMatchAsync(id);
@@ -578,6 +584,7 @@
         if (!_changing && IsMatched)
         {
             @StagedNote()
+            @FileBar()
             @CurrentCard(_current!)
             @WhyTable(_current!)
         }
@@ -715,8 +722,12 @@
                                   aria-label="@FieldLabel(field)" Placeholder="@(key == "year" ? L["EditorMatchPanel_Optional"].Value : null)"
                                   Immediate="true" OnKeyDown="OnFieldKeyAsync" data-testid="@("match-field-" + key)" />
                 }
-                <AppButton Label="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(_searching || !CanSearch)" OnClick="StartSearchAsync" data-testid="match-search-button" />
+                @* The button joins the row's three lines as a field with a blank label, so it sits on the control line of every visual line when the row wraps. *@
+                <div data-form-row-field="fit">
+                    <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+                    <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Disabled="@(_searching || !CanSearch)" OnClick="StartSearchAsync" data-testid="match-search-button" />
+                </div>
             </ChildContent>
             <Message><span data-testid="match-row-message">@RowMessage</span></Message>
         </AppFormRow>
@@ -724,7 +735,7 @@
 
     // Provider fixed, the main box widest, the short ones narrower, the button as wide as its word.
     private string RowColumns => string.Join(' ', new[] { "220px" }
-        .Concat(_setup!.Fields.Select((box, index) => box.Key is "year" or "issue" ? "minmax(7rem, .5fr)" : index == 0 ? "minmax(12rem, 1.6fr)" : "minmax(9rem, 1fr)"))
+        .Concat(_setup!.Fields.Select((box, index) => box.Key is "year" or "issue" ? "minmax(7rem, .5fr)" : box.Key == "isbn" ? "220px" : index == 0 ? "minmax(12rem, 1.6fr)" : "minmax(9rem, 1fr)"))
         .Append("auto"));
 
     // An optional box says so in its label (the Year box says it in its placeholder).
@@ -738,6 +749,21 @@
             if (HasProviders && !ProviderIsReady)
             {
                 return ProviderStateSentence;
+            }
+
+            // A kind with no boxes has nothing to look up; say why Search is off.
+            if (HasProviders && _setup!.Fields.Count == 0)
+            {
+                return L["EditorMatchPanel_NothingToSearchWith"].Value;
+            }
+
+            // After a search the line says how many came back and from whom (mock A).
+            if (_found is { Results.Count: > 0 } found)
+            {
+                var from = _setup?.Providers.FirstOrDefault(p => p.Name == _provider)?.DisplayName ?? _provider;
+                return found.Results.Count == 1
+                    ? L["EditorMatchPanel_ResultOneFrom", from].Value
+                    : L["EditorMatchPanel_ResultsFrom", found.Results.Count, from].Value;
             }
 
             // An answer the Engine gave without searching (a word is missing, an ISBN the provider cannot look up): its sentence goes on the message line.

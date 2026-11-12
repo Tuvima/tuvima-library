@@ -66,7 +66,11 @@ public sealed class EditorMatchHeaderTests : AsyncBunitContext
 
         var cut = RenderHeader(flow, fields, compact: true, unmatched: true);
 
-        Assert.Equal("Match book", cut.Find("[data-testid=match-header-title]").TextContent.Trim());
+        Assert.Equal("Match book", cut.Find("[data-testid=match-header-heading]").TextContent.Trim());
+        // The window is named by this heading, so it keeps the item's name for a screen reader (hidden to the eye).
+        Assert.Equal("Match book: Dune", cut.Find("[data-testid=match-header-title]").TextContent.Trim());
+        Assert.Contains("sr-only", cut.Find("[data-testid=match-header-item]").ClassList);
+        Assert.Equal("tl-editor-panel-title", cut.Find("[data-testid=match-header-title]").Id);
         var state = cut.Find("[data-testid=match-header-state]");
         Assert.Equal("Unmatched", state.TextContent.Trim());
         Assert.Equal("unmatched", state.GetAttribute("data-state"));
@@ -125,6 +129,21 @@ public sealed class EditorMatchHeaderTests : AsyncBunitContext
         var cut = RenderHeader(flow, fields, compact: true, unmatched: false, new EditorMatchReadState(SeriesId, false, null));
 
         Assert.Equal("Matched", cut.Find("[data-testid=match-header-state]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task OnEveryOtherTab_TheFullHeadersBadgeFollowsTheEnginesRead_NotThePageFlag()
+    {
+        var (flow, fields) = await StartAsync();
+
+        var matched = RenderHeader(flow, fields, compact: false, unmatched: true, new EditorMatchReadState(BookId, true, "TMDB"));
+        var unmatched = RenderHeader(flow, fields, compact: false, unmatched: false, new EditorMatchReadState(BookId, false, null));
+        var noRead = RenderHeader(flow, fields, compact: false, unmatched: true);
+
+        Assert.Contains("matched", matched.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("not matched", matched.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not matched", unmatched.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not matched", noRead.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
     }
 
     private static EditorHeaderLevelDto Level() => new()

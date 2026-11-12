@@ -11363,6 +11363,15 @@
   <data name="EditorMatchPanel_ProviderDidNotAnswer" xml:space="preserve">
     <value>{0} did not answer.</value>
   </data>
+  <data name="EditorMatchPanel_ResultsFrom" xml:space="preserve">
+    <value>{0} results from {1}.</value>
+  </data>
+  <data name="EditorMatchPanel_ResultOneFrom" xml:space="preserve">
+    <value>1 result from {0}.</value>
+  </data>
+  <data name="EditorMatchPanel_NothingToSearchWith" xml:space="preserve">
+    <value>There is nothing to search with for this item.</value>
+  </data>
   <data name="EditorMatchPanel_FileEmbeddedTitle" xml:space="preserve">
     <value>Embedded title: {0}</value>
   </data>
