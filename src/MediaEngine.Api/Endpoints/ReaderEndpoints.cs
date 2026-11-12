@@ -121,7 +121,7 @@ public static class ReaderEndpoints
             return Results.Ok(bookmarks.Select(bookmark => MapPageBookmark(bookmark, userId)).ToList());
         })
         .WithName("ListPageBookmarks")
-        .WithSummary("Lists the person's own page bookmarks on a comic or PDF, and the ones in Everyone's. Nobody else's personal bookmarks.")
+        .WithSummary("Lists the person's own page bookmarks on a comic or PDF, and the ones in Global. Nobody else's personal bookmarks.")
         .Produces<IReadOnlyList<PageBookmarkDto>>(StatusCodes.Status200OK)
         .RequireProfileOperation(ApplicationPermissionIds.ProgressRead)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead);
@@ -173,7 +173,7 @@ public static class ReaderEndpoints
                 return ApiErrors.NotFound($"Bookmark '{id}' not found.");
             }
 
-            // A personal bookmark is changed only by its owner; one in Everyone's only by an administrator.
+            // A personal bookmark is changed only by its owner; one in Global only by an administrator.
             var allowed = existing.IsGlobal
                 ? await scope.IsServerAdministratorAsync(ct)
                 : string.Equals(existing.UserId, ProfileUserId(context), StringComparison.OrdinalIgnoreCase);

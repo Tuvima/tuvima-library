@@ -55,9 +55,10 @@ public sealed class VideoBookmarkBeadCardTests : AsyncBunitContext
         var mine = new PlaybackRailBookmark(Guid.NewGuid(), 60, false, "Mine", null, IsYours: true, InEveryone: true);
         var shared = new PlaybackRailBookmark(Guid.NewGuid(), 120, true, "Shared", null, OwnerName: "Alex", IsYours: false, InEveryone: true);
 
-        Assert.Equal([mine], PlaybackRailBookmark.ForBar([mine, shared], PlaybackPreferenceValues.All));
-        Assert.Equal([mine], PlaybackRailBookmark.ForBar([mine, shared], null));
-        Assert.Equal([mine], PlaybackRailBookmark.ForBar([mine, shared], PlaybackPreferenceValues.Mine));
+        // Mine is the stored default (global bookmarks v5 D1); the other list appears only when the profile picks it.
+        Assert.Equal([mine], PlaybackRailBookmark.ForChoice([mine, shared], new PlaybackGeneralSettingsDto().BookmarkFilter));
+        Assert.Equal([mine], PlaybackRailBookmark.ForChoice([mine, shared], null));
+        Assert.Equal([mine, shared], PlaybackRailBookmark.ForChoice([mine, shared], PlaybackPreferenceValues.All));
     }
 
     [Fact]

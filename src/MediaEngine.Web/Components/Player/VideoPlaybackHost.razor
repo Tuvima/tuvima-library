@@ -232,7 +232,7 @@
     private IReadOnlyList<PlaybackRailBookmark> _savedRail = [];
     private Task? _railBookmarksLoad;
     private bool ShowBookmarksOnBar => _profileSettings?.General.ShowBookmarksOnBar == true; // On by default once the profile has loaded (video player follow-ups D16); nothing is drawn before that, so a profile that turned the dots off never sees them flash.
-    private string BookmarkFilter => _profileSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
+    private string BookmarkFilter => _profileSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.Mine;
     private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
@@ -276,7 +276,7 @@
     /// <summary>Chapter ticks follow the profile's setting: off by default for video (player-controls-v3 D8).</summary>
     private IReadOnlyList<double> ShownChapterTicks => PlayerPreferenceService.ShowChapterMarks(_profileSettings, audiobook: false) ? ChapterTicks : [];
     /// <summary>The bookmark beads on the bar: on by default (video player follow-ups D4, D16) unless the profile turned them off, and following the list the Bookmarks panel shows, Everyone or Mine (unified player v2 D21).</summary>
-    private IReadOnlyList<PlaybackRailBookmark> ShownRailBookmarks => !ShowBookmarksOnBar ? [] : PlaybackRailBookmark.ForBar(_savedRail, BookmarkFilter);
+    private IReadOnlyList<PlaybackRailBookmark> ShownRailBookmarks => !ShowBookmarksOnBar ? [] : PlaybackRailBookmark.ForChoice(_savedRail, BookmarkFilter);
     private IReadOnlyList<double> ChapterTicks => Playback.DurationSeconds > 0 ? VideoChapters.Select(chapter => chapter.StartSeconds).Where(time => time >= 0 && time < Playback.DurationSeconds).Distinct().Order().ToList() : [];
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
         .Where(segment => segment.Kind.ToLowerInvariant() is "intro" or "recap" or "credits" && VideoEndCardState.IsVerifiedRange(segment, Playback.DurationSeconds)).ToList();

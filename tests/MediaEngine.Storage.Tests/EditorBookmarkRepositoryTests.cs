@@ -84,56 +84,51 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
     private async Task<IReadOnlyList<EditorBookmarkRow>> EveryoneAsync() => await _editor.GetEveryoneAsync(_workId, null, SameSpotFor);
 
     [Fact]
-    public async Task ATitleNobodyHasCurated_PoolsEveryProfilesBookmarks_AndListsTwoAtTheSameSpotOnce()
+    public async Task ATitleNobodyHasCurated_HasAnEmptyGlobalSet_WhateverProfilesBookmarked()
     {
         await SaveAsync(_ada, 750, "The reveal");
         await SaveAsync(_ben, 751);
         await SaveAsync(_ben, 2400, "The chase");
 
-        var everyone = await EveryoneAsync();
-
-        Assert.Equal(2, everyone.Count);
-        Assert.Equal("The reveal", everyone[0].Name);
-        Assert.Equal("The chase", everyone[1].Name);
+        Assert.Empty(await EveryoneAsync());
         Assert.Empty(await _editor.GetDefinitiveAsync([_workId]));
     }
 
     [Fact]
-    public async Task TheFirstChange_MakesTheSetDefinitive_AndABookmarkMadeLaterByAProfileIsNotInEveryones()
+    public async Task TheFirstChange_MakesTheSetDefinitive_AndABookmarkMadeLaterByAProfileIsNotInGlobal()
     {
         var opening = await SaveAsync(_ada, 724, "Opening");
-        var chase = await SaveAsync(_ben, 2400, "The chase");
+        await SaveAsync(_ben, 2400, "The chase");
 
         await CommitAsync(Op(EditorBookmarkOpKinds.Add, opening.Id));
         var later = await SaveAsync(_ben, 5000, "Made later");
 
         var everyone = await EveryoneAsync();
-        Assert.Equal([opening.Id, chase.Id], everyone.Select(row => row.Id));
+        Assert.Equal([opening.Id], everyone.Select(row => row.Id));
         Assert.DoesNotContain(everyone, row => row.Id == later.Id);
         Assert.Contains(_workId, await _editor.GetDefinitiveAsync([_workId]));
     }
 
     [Fact]
-    public async Task TheFirstChange_TurnsThePoolIntoTheSet_WithoutCopyingOrDeletingAnything()
+    public async Task TheFirstChange_StartsAnEmptySet_WithoutCopyingOrDeletingAnything()
     {
         var opening = await SaveAsync(_ada, 724, "Opening");
         var chase = await SaveAsync(_ben, 2400, "The chase");
 
-        var outcome = await CommitAsync(Op(EditorBookmarkOpKinds.Remove, chase.Id));
+        var outcome = await CommitAsync(Op(EditorBookmarkOpKinds.Add, opening.Id));
 
         Assert.Empty(outcome.DeletedIds);
         var all = await _editor.GetByWorksAsync([_workId], null);
         Assert.Equal(2, all.Count);
-        Assert.Empty(await EveryoneAsync().ContinueWith(task => task.Result.Where(row => row.Id == chase.Id)));
+        Assert.DoesNotContain(await EveryoneAsync(), row => row.Id == chase.Id);
         Assert.Contains(await EveryoneAsync(), row => row.Id == opening.Id);
     }
 
     [Fact]
-    public async Task AddingToEveryones_MergesTheSameSpot_SoABookmarkInEveryonesStepsOutAndAPersonalOneIsReplaced()
+    public async Task AddingToGlobal_MergesTheSameSpot_SoABookmarkInGlobalStepsOutAndAPersonalOneIsReplaced()
     {
         var standing = await SaveAsync(_ada, 724, "Opening");
-        var elsewhere = await SaveAsync(_ben, 2400, "The chase");
-        await CommitAsync(Op(EditorBookmarkOpKinds.Remove, elsewhere.Id));
+        await CommitAsync(Op(EditorBookmarkOpKinds.Add, standing.Id));
         var chosen = await SaveAsync(_ben, 726, "Cold open");
         var personal = await SaveAsync(_ada, 727);
         var far = await SaveAsync(_ada, 3000, "Far away");
@@ -164,17 +159,17 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task Renaming_ChangesTheNameEveryoneSees_ButOnlyForABookmarkInEveryones()
+    public async Task Renaming_ChangesTheNameEveryoneSees_ButOnlyForABookmarkInGlobal()
     {
         var opening = await SaveAsync(_ada, 724, "Opening");
         var chase = await SaveAsync(_ben, 2400, "The chase");
-        await CommitAsync(Op(EditorBookmarkOpKinds.Remove, chase.Id));
+        await CommitAsync(Op(EditorBookmarkOpKinds.Add, opening.Id));
 
         await CommitAsync(Op(EditorBookmarkOpKinds.Rename, opening.Id, name: "  Cold open  "));
         var refused = await Assert.ThrowsAsync<EditorBookmarkCommitException>(() => CommitAsync(Op(EditorBookmarkOpKinds.Rename, chase.Id, name: "Nope")));
 
         Assert.Equal("Cold open", Assert.Single(await EveryoneAsync()).Name);
-        Assert.Contains("not in Everyone's", refused.Message);
+        Assert.Contains("not in Global", refused.Message);
     }
 
     [Fact]
@@ -288,17 +283,18 @@ public sealed class EditorBookmarkRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task StartingOver_ClearsTheDefinitiveSet_SoEveryoneIsPooledFromTheProfilesAgain()
+    public async Task ClearingGlobal_EmptiesTheSet_AndLeavesEveryProfilesBookmarks()
     {
-        await SaveAsync(_ada, 724, "Opening");
-        var chase = await SaveAsync(_ben, 2400, "The chase");
-        await CommitAsync(Op(EditorBookmarkOpKinds.Remove, chase.Id));
+        var opening = await SaveAsync(_ada, 724, "Opening");
+        await SaveAsync(_ben, 2400, "The chase");
+        await CommitAsync(Op(EditorBookmarkOpKinds.Add, opening.Id));
         Assert.Single(await EveryoneAsync());
 
         await CommitAsync(Op(EditorBookmarkOpKinds.StartOver));
 
         Assert.Empty(await _editor.GetDefinitiveAsync([_workId]));
-        Assert.Equal(2, (await EveryoneAsync()).Count);
+        Assert.Empty(await EveryoneAsync());
+        Assert.Equal(2, (await _editor.GetByWorksAsync([_workId], null)).Count);
     }
 
     [Fact]

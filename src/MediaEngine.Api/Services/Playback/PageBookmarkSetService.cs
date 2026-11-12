@@ -30,7 +30,7 @@ public sealed class PageBookmarkSetService(
         return asset is not null && ReadEndpoints.ReaderFormatOf(asset.FilePathRoot) is "comic" or "pdf";
     }
 
-    /// <summary>Compares a bookmark file with the title's Everyone's page bookmarks. Changes nothing. The caller has checked for an administrator.</summary>
+    /// <summary>Compares a bookmark file with the title's Global page bookmarks. Changes nothing. The caller has checked for an administrator.</summary>
     public async Task<BookmarkSetCompareDto> CompareWithEveryoneAsync(
         Guid assetId, BookmarkSetRequestDto request, IReadOnlyList<EditorBookmarkRow> everyone, CancellationToken ct = default)
     {
@@ -119,7 +119,7 @@ public sealed class PageBookmarkSetService(
         };
     }
 
-    /// <summary>The title's Everyone's page bookmarks as one bookmark file (pages and names, never anyone's personal bookmarks).</summary>
+    /// <summary>The title's Global page bookmarks as one bookmark file (pages and names, never anyone's personal bookmarks).</summary>
     public async Task<BookmarkPackFileDto> ExportEveryoneAsync(Guid assetId, IReadOnlyList<EditorBookmarkRow> everyone, CancellationToken ct = default)
     {
         if (await vault.IsInVaultAsync(assetId, ct))
@@ -132,7 +132,7 @@ public sealed class PageBookmarkSetService(
             .Take(BookmarkPackLimits.MaximumBookmarks).ToList();
         if (chosen.Count == 0)
         {
-            throw new BookmarkPackInvalidException("This title has no Everyone's bookmarks to export yet.");
+            throw new BookmarkPackInvalidException("This title has no Global bookmarks to export yet.");
         }
 
         var local = await recognition.GetRecognitionAsync(assetId, ct);

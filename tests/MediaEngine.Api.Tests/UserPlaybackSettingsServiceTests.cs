@@ -251,7 +251,7 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
         var settings = await _service.GetAsync(_profileId);
         Assert.Null(settings.General.ShowChapterMarks); // The media default applies until the person chooses.
         Assert.True(settings.General.ShowBookmarksOnBar); // On by default (video player follow-ups D4, D16).
-        Assert.Equal("All", settings.General.BookmarkFilter);
+        Assert.Equal("Mine", settings.General.BookmarkFilter);
         Assert.Equal("Default", settings.Subtitles.SubtitleFont);
         Assert.Equal("White", settings.Subtitles.SubtitleColor);
         Assert.False(settings.Subtitles.SubtitleShadow);

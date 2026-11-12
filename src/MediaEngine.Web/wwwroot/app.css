@@ -5303,8 +5303,8 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 }
 
 .tl-editor-tab{padding-inline:var(--tl-space-5, 1.5rem)}
-.tl-editor-tab svg{color:var(--tl-editor-tab-icon,currentColor)}
-.tl-editor-tab--details{--tl-editor-tab-icon:#9a8cf0}.tl-editor-tab--artwork{--tl-editor-tab-icon:#e58fb4}.tl-editor-tab--match{--tl-editor-tab-icon:#4ec9a0}.tl-editor-tab--history{--tl-editor-tab-icon:#8aa0c8}
+/* Editor v6 D18: the tab icons are outlines in the normal icon color (the tab's own text color), not one color per tab. */
+.tl-editor-tab svg{color:currentColor}
 /* -------------------------------------------------------------------------
    Viewer (Look v3 D14): the full-screen kind, drawn by AppViewer. Zero specificity on purpose, so a viewer's own
    classes (bars, stages, panels) always win and this only supplies the kind's defaults: full screen, black or the

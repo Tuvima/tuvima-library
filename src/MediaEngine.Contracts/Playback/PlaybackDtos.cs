@@ -607,7 +607,7 @@ public sealed class PlaybackGeneralSettingsDto
     public bool ShowBookmarksOnBar { get; set; } = true;
 
     /// <summary>The bookmark list filter the profile last chose in the player: <c>All</c>, <c>Mine</c>, <c>Global</c> or <c>Everyones</c> (administrators).</summary>
-    public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.All;
+    public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.Mine;
 
     /// <summary>
     /// How much of a story characters may reveal for this profile: <c>up_to_progress</c> ("Up to where I am", the default) or
