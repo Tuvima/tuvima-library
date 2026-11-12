@@ -419,6 +419,8 @@
     --tl-popout-panel: 400px;
     --tl-popout-radius: 8px;
     --tl-popout-row: 44px;
+    /* The shared Reorder bar (AppReorderBar) at the bottom of the screen: 44 px buttons between 12 px of padding and its top border. A list open beside it keeps this much clear. */
+    --tl-reorder-bar-height: 72px;
     --tl-viewer-close: 44px;
     --tl-viewer-black: #000000;
 

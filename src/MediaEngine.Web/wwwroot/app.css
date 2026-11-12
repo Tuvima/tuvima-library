@@ -5013,6 +5013,56 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     width: min(33rem, calc(100vw - 2rem));
 }
 
+/* While the shared Reorder bar is up (editor header lists in Reorder mode) the surface keeps clear of it: app-popover.js reads the reserve from the
+   surface's --tl-popover-bottom-reserve and stops the surface above the bar, and the list region, not the surface, gives up the height. */
+.tl-popover.tl-hnav__surface--reordering {
+    --tl-popover-bottom-reserve: var(--tl-reorder-bar-height);
+}
+
+.tl-popover.tl-hnav__surface--reordering:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+}
+
+.tl-popover.tl-hnav__surface--reordering .tl-hnav__panel {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tl-popover.tl-hnav__surface--reordering .tl-hnav__panel .tl-hnav__reorder {
+    flex: 0 1 auto;
+    min-height: 0;
+}
+
+/* The rows of those lists are AppRowButtons (their root carries no scope marker of the editor's header component), so the row box is styled here:
+   a 44 px row, 64 px when it has a still (Look v3 D15), the hover and selected fills, and the quiet "plain" action rows. */
+.tl-hnav__surface .tl-hnav__option {
+    gap: var(--tl-space-3);
+    width: 100%;
+    min-height: var(--tl-popout-row);
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-primary);
+}
+
+.tl-hnav__surface .tl-hnav__option:has(.tl-hnav__still) {
+    min-height: var(--tl-row-h-media);
+}
+
+.tl-hnav__surface .tl-hnav__option:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-hnav__surface .tl-hnav__option.is-selected {
+    background: var(--tl-accent-primary-soft);
+}
+
+.tl-hnav__surface .tl-hnav__option--plain {
+    color: var(--tl-text-secondary);
+}
+
 .tl-hnav__home.is-current {
     box-shadow: 0 0 0 2px var(--tl-accent-primary-hover);
 }

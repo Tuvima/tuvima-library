@@ -157,27 +157,11 @@
     font-weight: var(--tl-font-weight-semibold);
 }
 
-.tl-hnav__option {
-    gap: 0.75rem;
-    width: 100%;
-    min-height: 2.75rem;
-    padding: 0.375rem var(--tl-space-2);
-    border-radius: var(--tl-radius-md);
-    color: var(--tl-text-primary);
-}
-
-/* A row with a still is 64 px tall (Look v3 D15); its title is a 16/500 control (D22). */
-.tl-hnav__option:has(.tl-hnav__still) {
-    min-height: 4rem;
-}
-
+/* The rows are AppRowButtons, whose root does not carry this component's scope marker, so the row box itself (size, padding, hover, selected, plain)
+   is styled in app.css under .tl-hnav__surface; what sits inside the row is this component's own markup and is styled here. A row's title is a 16/500 control (Look v3 D22). */
 .tl-hnav__option .tl-hnav__text > b {
     font-size: var(--tl-font-size-md);
     font-weight: var(--tl-font-weight-medium);
-}
-
-.tl-hnav__option:hover {
-    background: var(--tl-bg-surface-hover);
 }
 
 .tl-hnav__option .tl-hnav__still {
@@ -190,16 +174,8 @@
     width: 3.125rem;
 }
 
-.tl-hnav__option.is-selected {
-    background: var(--tl-accent-primary-soft);
-}
-
 .tl-hnav__option.is-selected .tl-hnav__text > b {
     color: var(--tl-accent-primary-hover);
-}
-
-.tl-hnav__option--plain {
-    color: var(--tl-text-secondary);
 }
 
 .tl-hnav__waiting {

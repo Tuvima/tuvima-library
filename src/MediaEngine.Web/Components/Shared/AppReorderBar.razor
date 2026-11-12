@@ -10,7 +10,10 @@
    unsaved order asks "Save or discard?". Nothing is drawn while the mode is off. *@
 @if (Active)
 {
-    <NavigationLock ConfirmExternalNavigation="@Dirty" OnBeforeInternalNavigation="ConfirmLeaveAsync" />
+    if (GuardLeaving)
+    {
+        <NavigationLock ConfirmExternalNavigation="@Dirty" OnBeforeInternalNavigation="ConfirmLeaveAsync" />
+    }
     <div class="app-reorder-bar" role="region" aria-label="@L["AppReorderBar_Region"].Value" data-reorder-bar @onkeydown="HandleKeyAsync" @ref="_bar" tabindex="-1">
         <span class="app-reorder-bar__message">@(Message ?? L["AppReorderBar_Hint"].Value)</span>
         <div class="app-reorder-bar__buttons">
@@ -33,6 +36,12 @@
 
     /// <summary>True while the order is being written: both buttons wait.</summary>
     [Parameter] public bool Busy { get; set; }
+
+    /// <summary>
+    /// Asks "Save or discard?" when the page is left with an unsaved order (the default). A host that already asks its own leave question, such as the
+    /// universal editor, turns this off so the person is asked once.
+    /// </summary>
+    [Parameter] public bool GuardLeaving { get; set; } = true;
 
     /// <summary>The line on the left; "Drag to reorder" when empty.</summary>
     [Parameter] public string? Message { get; set; }
