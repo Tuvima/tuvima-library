@@ -71,7 +71,7 @@
                                OnClick="AddToPlaylistAsync" />
                 }
 
-                @if (editable && !albums)
+                @if (editable && !albums && MayEditDetails)
                 {
                 <AppButton Label="@L["Common_Edit"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Edit"
@@ -95,7 +95,7 @@
                                OnClick="AddToCollectionAsync" />
                 }
 
-                @if (editable && BulkEditRules.CanMatch(rows, selection.MediaType))
+                @if (editable && MayEditDetails && BulkEditRules.CanMatch(rows, selection.MediaType))
                 {
                     <AppButton Label="@L["Common_Match"].Value"
                                StartIcon="@AppMaterialIcons.Outlined.TravelExplore"
@@ -108,7 +108,7 @@
                                OnClick="@(() => TogglePanel(BulkPanelKind.Match))" />
                 }
 
-                @if (editable && BulkEditRules.CanPutInSeries(rows, selection.MediaType))
+                @if (editable && MayEditDetails && BulkEditRules.CanPutInSeries(rows, selection.MediaType))
                 {
                     <AppButton Label="@BulkEditRules.PutInSeriesLabel"
                                StartIcon="@AppMaterialIcons.Outlined.VideoLibrary"
@@ -121,7 +121,7 @@
                                OnClick="@(() => TogglePanel(BulkPanelKind.Series))" />
                 }
 
-                @if (editable && BulkEditRules.CanMove(rows))
+                @if (editable && MayEditDetails && BulkEditRules.CanMove(rows))
                 {
                     <AppButton Label="@BulkEditRules.MoveLabel(rows, selection.MediaType)"
                                StartIcon="@AppMaterialIcons.Outlined.AccountTree"
@@ -200,6 +200,10 @@
 
     // On a detail page the bar needs the Engine's edit answer for that page; on a list it only needs a device that may edit.
     private bool IsAvailable => Binding is not null ? Binding.CanEdit : EditorDeviceRule.CanEditItems(Device);
+
+    // The buttons that open the editor window (Edit, Match, Move, Put in series) also need a profile the Engine says may edit item details; the rest
+    // of the bar (playlists, collections, Delete) keeps its own rules. Unknown means no. The Engine still checks every save.
+    private bool MayEditDetails => Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata == true;
 
     private bool IsBusy => Busy || _deleting || _working || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
 
@@ -373,6 +377,13 @@
         if (EditorDeviceRule.TryRefuseItems(Device))
         {
             Warn(EditorDeviceRule.ItemMessage);
+            return;
+        }
+
+        // Edit, Match, Move to album and Put in series all open the editor window, so they all need the right to edit.
+        if (!MayEditDetails)
+        {
+            Warn(EditorDeviceRule.ProfileMessage);
             return;
         }
 

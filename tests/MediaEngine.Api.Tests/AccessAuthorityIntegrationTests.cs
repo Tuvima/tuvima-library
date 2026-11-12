@@ -460,7 +460,8 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             _accounts,
             new ProfileRepository(_database),
             new ProfileAccessRepository(_database),
-            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock),
+            CreateDecisions());
 
         var projected = await projector.ProjectAsync(_accountId, Profile.SeedProfileId, Guid.NewGuid());
         Assert.True(projected.EffectiveAdministrator);

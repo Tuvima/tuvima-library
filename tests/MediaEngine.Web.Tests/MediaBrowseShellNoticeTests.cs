@@ -70,7 +70,7 @@ public sealed class MediaBrowseShellNoticeTests : AsyncBunitContext
         });
         Services.AddSingleton(api);
         Services.AddSingleton(new DeviceContextService(api));
-        Services.AddSingleton(TestSessions.For(kids: false, administrator: false));
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: false, canManageMetadata: true));
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UniverseStateContainer>();

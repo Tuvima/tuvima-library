@@ -67,11 +67,12 @@ public sealed class SongListDeleteTests : AsyncBunitContext
     private Task UseDeviceAsync(string formFactor, bool touch = false, bool fine = true, bool hover = true) =>
         _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, touch, FinePointer: fine, Hover: hover));
 
-    private void SetAdministrator(bool administrator)
+    // The profile may edit item details ("metadata.manage") unless a test says it may not; Delete follows administrator access alone.
+    private void SetAdministrator(bool administrator, bool mayEditItems = true)
     {
         var id = Guid.NewGuid();
         _session.Set("test-session-token", id, id, Guid.NewGuid(),
-            new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
+            new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], mayEditItems ? ["metadata.manage"] : []));
     }
 
     private static List<WorkViewModel> Songs(int count) =>
@@ -169,6 +170,33 @@ public sealed class SongListDeleteTests : AsyncBunitContext
         Assert.Empty(cut.FindAll($"{Bar} button[aria-label='More actions']"));
         Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
         Assert.DoesNotContain("Delete from library", cut.Markup.Replace("Delete from library…", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AProfileThatMayNotEditDetails_SeesNoEditInASongMenuAndNoEditMatchOrMoveOnTheBar_ButStillPlaysAndQueues()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(false, mayEditItems: false);
+
+        var cut = RenderTable(Songs(3));
+        Checkboxes(cut)[0].Change(true);
+
+        Assert.Equal(["Play", "Add to queue", "Add to playlist", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
+        Assert.DoesNotContain(OpenRowMenuItems(cut, 0), item => item.TextContent.Trim() == "Edit");
+    }
+
+    [Fact]
+    public async Task AnAdministratorWhoMayNotEditDetails_StillGetsDeleteOnTheBar_ButNoEdit()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true, mayEditItems: false);
+
+        var cut = RenderTable(Songs(3));
+        Checkboxes(cut)[0].Change(true);
+
+        Assert.DoesNotContain(cut.FindAll($"{Bar} button"), button => button.TextContent.Trim() is "Edit" or "Match" or "Move to album");
+        Assert.NotEmpty(cut.FindAll($"{Bar} button[aria-label='More actions']"));
+        Assert.Contains(OpenRowMenuItems(cut, 0), IsDelete);
     }
 
     [Fact]

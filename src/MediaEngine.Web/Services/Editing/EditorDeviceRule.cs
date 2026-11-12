@@ -1,3 +1,4 @@
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -22,6 +23,9 @@ public static class EditorDeviceRule
     /// <summary>The line for the item rule: only a TV or an unknown device is refused, and a phone or tablet works, so it never names a computer.</summary>
     public const string ItemMessage = "Editing is not available on this device";
 
+    /// <summary>The line when the device may edit but the signed-in profile may not (see <see cref="DashboardSessionAccessor.CanManageMetadata"/>).</summary>
+    public const string ProfileMessage = "Editing is not available for this profile";
+
     /// <summary>The pure item-editing rule: desktop, tablet and phone may edit; TV, an unknown or missing form factor and a television device class may not.</summary>
     public static bool CanEditItems(string? deviceClass, string? formFactor) =>
         !string.Equals(deviceClass, "television", StringComparison.OrdinalIgnoreCase)
@@ -35,6 +39,28 @@ public static class EditorDeviceRule
     /// </summary>
     public static bool CanEditItems(DeviceContextService? device) =>
         device is { IsInitialised: true } && CanEditItems(device.DeviceClass, device.FormFactor);
+
+    /// <summary>
+    /// The item rule for a list that offers Edit for several items or without a per-item Engine answer: the device may edit
+    /// (<see cref="CanEditItems(DeviceContextService?)"/>) and the Engine says this profile may edit item details. Unknown means no.
+    /// Read-only information; the Engine still checks every save.
+    /// </summary>
+    public static bool CanEditItems(DeviceContextService? device, DashboardSessionAccessor? session) =>
+        CanEditItems(device) && session?.CanManageMetadata == true;
+
+    /// <summary>
+    /// Says why this device or profile may not edit items, or null when it may. Handlers call it first and show the line in place
+    /// (the device line wins when both apply), so a hidden button is never the only protection.
+    /// </summary>
+    public static string? ItemRefusal(DeviceContextService? device, DashboardSessionAccessor? session)
+    {
+        if (TryRefuseItems(device))
+        {
+            return ItemMessage;
+        }
+
+        return session?.CanManageMetadata == true ? null : ProfileMessage;
+    }
 
     /// <summary>
     /// Returns true when the current device may not edit items. Launchers and edit handlers call this before any other work so no editor

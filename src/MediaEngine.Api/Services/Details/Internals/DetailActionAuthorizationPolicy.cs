@@ -30,8 +30,7 @@ internal static class DetailActionAuthorizationPolicy
     {
         if (authority.PrincipalKind == PrincipalKind.Human)
         {
-            var administrator = (await accounts.EvaluateAdministratorAsync(
-                authority, requireSurfaceUnlock: true, ct).ConfigureAwait(false)).IsAllowed;
+            var administrator = await MayManageMetadataAsHumanAsync(authority, accounts, ct).ConfigureAwait(false);
             return new(administrator, administrator);
         }
 
@@ -55,7 +54,17 @@ internal static class DetailActionAuthorizationPolicy
             return new(true);
         }
 
-        return new((await accounts.EvaluateAdministratorAsync(
-            authority, requireSurfaceUnlock: true, ct).ConfigureAwait(false)).IsAllowed);
+        return new(await MayManageMetadataAsHumanAsync(authority, accounts, ct).ConfigureAwait(false));
     }
+
+    /// <summary>
+    /// Whether a signed-in person may manage item metadata: an effective administrator whose administrator PIN (where one is set) is
+    /// unlocked. The one rule behind the detail "edit" action and the Dashboard's <c>metadata.manage</c> capability
+    /// (<c>DashboardAuthorityProjector</c>), so the two cannot drift apart.
+    /// </summary>
+    public static async Task<bool> MayManageMetadataAsHumanAsync(
+        RequestAuthority authority,
+        IAccountAccessDecisionService accounts,
+        CancellationToken ct) =>
+        (await accounts.EvaluateAdministratorAsync(authority, requireSurfaceUnlock: true, ct).ConfigureAwait(false)).IsAllowed;
 }

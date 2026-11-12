@@ -527,7 +527,7 @@ else
                                    CurrentRowId="@PlaylistCurrentRowId"
                                    IsPlaying="@Playback.IsPlaying"
                                    FavoriteIds="@PlaylistFavoriteIds"
-                                   CanEdit="true"
+                                   CanEdit="@CanEditSongs"
                                    CanReorder="@(CanReorderActivePlaylist && (IsFavoritesPlaylist || TrackReorderActive))"
                                    SortableOwnOrder="@IsFavoritesPlaylist"
                                    RemoveLabel="@(IsFavoritesPlaylist ? L["ListenPage_RemoveFromFavorites"].Value : null)"

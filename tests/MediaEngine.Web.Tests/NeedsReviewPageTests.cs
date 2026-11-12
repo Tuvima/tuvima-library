@@ -47,6 +47,11 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
     private static DashboardAuthorityResponse ServerAdministrator() => new(
         AccountId, ProfileId, true, true, 1, 1, true, true, null, 1, Grants(adminEnabled: true),
+        ["settings.administration"], ["access.manage", "metadata.manage"]);
+
+    // An administrator the Engine does not (yet) let edit item details, for instance one whose administrator PIN is locked: no "metadata.manage".
+    private static DashboardAuthorityResponse ServerAdministratorWhoMayNotEditDetails() => new(
+        AccountId, ProfileId, true, true, 1, 1, true, true, null, 1, Grants(adminEnabled: true),
         ["settings.administration"], ["access.manage"]);
 
     private static DashboardAuthorityResponse HouseholdAdministrator() => new(
@@ -2089,6 +2094,41 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         Tick(cut, one, two);
         Assert.Contains("Edit 2 items", BarLabels(cut));
         await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync(new DeviceContextSnapshot("television", "tv", false));
+        var handler = typeof(NeedsReviewPageContent).GetMethod("BarEditAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+
+        await cut.InvokeAsync(() => (Task)handler.Invoke(cut.Instance, null)!);
+
+        var host = Services.GetRequiredService<EditorHost>();
+        Assert.False(host.IsOpen);
+        Assert.Empty(host.Batch.Ids);
+        Assert.Equal(BulkPanelKind.None, host.Batch.Panel);
+    }
+
+    [Fact]
+    public async Task AProfileThatMayNotEditDetails_SeesNeitherFixNorEditNItems_ButKeepsDeleteAndTheOtherActions()
+    {
+        var file = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var other = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        Register(() => Page([file, other]), ServerAdministratorWhoMayNotEditDetails());
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+
+        Assert.DoesNotContain(cut.FindAll($"{RowSelector(file)} button"), button => button.TextContent.Trim() == "Fix");
+        Tick(cut, file, other);
+
+        Assert.Equal(["Try again", "Keep as they are", "Delete", "Clear selection"], BarLabels(cut));
+    }
+
+    [Fact]
+    public async Task EditNItems_IsRefusedByTheHandler_ForAProfileThatMayNotEditDetails_NotOnlyHiddenFromTheBar()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        Register(() => Page([one, two]), ServerAdministratorWhoMayNotEditDetails());
+        await UseDesktopAsync();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
+        var cut = RenderLoaded(2);
+        Tick(cut, one, two);
         var handler = typeof(NeedsReviewPageContent).GetMethod("BarEditAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
 
         await cut.InvokeAsync(() => (Task)handler.Invoke(cut.Instance, null)!);

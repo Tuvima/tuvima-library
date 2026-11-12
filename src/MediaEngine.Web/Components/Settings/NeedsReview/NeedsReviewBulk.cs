@@ -44,8 +44,8 @@ public static class NeedsReviewBulk
         Groups(ticked, row => row.Unmatched is not null || row.Review is not null);
 
     /// <summary>
-    /// Ticked rows the editor can open: the same target Fix opens for the row, on a device that may edit. One row per thing the editor opens, so
-    /// two rows of one Work read as one item (the first of them stands for it).
+    /// Ticked rows the editor can open: the same target Fix opens for the row, on a device and for a profile that may edit (the page passes both
+    /// as <paramref name="deviceMayEdit"/>). One row per thing the editor opens, so two rows of one Work read as one item (the first of them stands for it).
     /// </summary>
     public static IReadOnlyList<NeedsReviewRowDto> EditRows(IEnumerable<NeedsReviewTicked> ticked, bool deviceMayEdit) =>
         deviceMayEdit

@@ -19,7 +19,7 @@
            ShowSelection="true"
            SelectedIds="@_selectedIds"
            SelectedIdsChanged="@OnSelectedIdsChangedAsync"
-           CanEdit="true"
+           CanEdit="@CanEditSongs"
            CanDelete="@CanDeleteNow"
            Notice="@_notice"
            OnNoticeDismissed="@ClearNoticeAsync"
