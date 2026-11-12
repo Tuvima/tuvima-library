@@ -12,7 +12,7 @@ public sealed class LookRatchetGuardrailTests
     private const int RoundedEndCeiling = 0;
     private const int NativeControlCeiling = 276;
     private const int AdHocFontSizeCeiling = 39;
-    private const int HandTypedHexCeiling = 147;
+    private const int HandTypedHexCeiling = 107;
     private const int ForcedOverrideCeiling = 1040;
     private const int HandTypedLayerCeiling = 271;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
@@ -107,7 +107,6 @@ public sealed class LookRatchetGuardrailTests
     {
         ["Components/View/ViewMap.razor.css"] = "The map draws its own base, labels and hotspots on top of map tiles, so its colors are the map's, not the app's.",
         ["Components/Player/SubtitleAppearanceView.razor.css"] = "Shows the viewer's subtitle color choices, which are literal colors the viewer picks.",
-        ["Components/Editor/"] = "Temporary: the editor window's styles are swept last, after the Universal editor v6 build has merged (WP11).",
     };
 
     // Files that are locked except for a counted few, each with how many and why. The count may only go down.
@@ -116,7 +115,7 @@ public sealed class LookRatchetGuardrailTests
         ["wwwroot/css/book-reader.css"] = (24, "The book reader's page themes (paper, night, sepia) and the highlight colors a reader picks."),
         ["wwwroot/css/page-reader.css"] = (3, "The comic reader's page color and the bookmark mark."),
         ["wwwroot/css/reader-frame.css"] = (1, "The highlight color in the readers' search results."),
-        ["wwwroot/app.css"] = (25, "The subtitle shadow and high-contrast outline are literal black, the same value the subtitle preview uses (a subtitle color choice); and, temporarily, the editor window's block, swept after the Universal editor v6 build has merged."),
+        ["wwwroot/app.css"] = (11, "The subtitle shadow and high-contrast outline are literal black, the same value the subtitle preview uses (a subtitle color choice)."),
     };
 
     // A color built from a variable's channels, such as rgba(var(--hero-accent-rgb), .4) or hsl(var(--person-avatar-hue) 40% 30%), is
@@ -192,7 +191,6 @@ public sealed class LookRatchetGuardrailTests
         ["Components/Details/GeneratedIdentity.razor.css"] = (1, "The letter drawn on a generated cover scales with the cover; it is artwork, not text."),
         ["Components/Cinematic/"] = (4, "The hero carousel: its title scales with the screen (D8 hero)."),
         ["Components/Player/"] = (100, "The players set their own sizes over video and on TV screens; outside this walk (D12)."),
-        ["Components/Editor/"] = (4, "The editor window's screens belong to the Universal editor v6 build (D12)."),
         ["Components/MediaTiles/MediaTile.razor.css"] = (3, "A stand-in number and two icons that scale with the tile; they are artwork stand-ins."),
         ["Components/Shared/MediaViewerShell.razor.css"] = (2, "Subtitle cues scale with the video."),
         ["Components/Shared/BookmarksPanel.razor.css"] = (8, "The bookmarks panel is a player panel; it keeps the players' own sizes (D12)."),
@@ -203,7 +201,7 @@ public sealed class LookRatchetGuardrailTests
         ["Components/View/ViewPlaceStoryPanel.razor.css"] = (1, "An icon size."),
         ["Components/Pages/ViewPlacesPage.razor.css"] = (1, "An icon size on the map toolbar."),
         ["Components/Navigation/SystemActivityIndicator.razor.css"] = (1, "The activity glyph's size, set by a variable."),
-        ["wwwroot/app.css"] = (11, "Four large icon helper classes, the Settings card sizes set by a variable, the reading sample, the TV base size, the phone hero title and the editor window's lines."),
+        ["wwwroot/app.css"] = (9, "Four large icon helper classes, the Settings card sizes set by a variable, the reading sample, the TV base size and the phone hero title."),
     };
 
     // A size written by hand: a font-size that is not a token or inherit, or a font shorthand that carries a number with a unit.

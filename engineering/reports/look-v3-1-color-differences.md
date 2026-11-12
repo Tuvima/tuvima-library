@@ -386,3 +386,14 @@ Smaller shared parts:
 - The readers' menus, side panel and thumbnails use the shared colors: the side panel's dim is the 40% black scrim (was 35%), panel shadows the 20% scrim (were 30 to 35%), the thumbnail strip's shadow the 70% scrim (was 65%), picture placeholders the 5% white wash (were 6%), and the selection menu's background is 94% of the page background (was a dark navy). Page themes (paper, night, sepia), highlight colors and the bookmark mark are unchanged.
 - The step indicator's active number and the bulk selection bar lost their typed fallbacks; they look the same.
 - Recovery codes are 14 px (were 15 px).
+
+## Editor window (after Universal editor v6 merged)
+
+The editor window's styles were the last temporary exception; they now use the shared colors and the exception is gone.
+
+- Tag editor: the label is the secondary text color and the helper line the muted text color (were blue-tinted whites at 74% and 48%); the tag box border is the default border (was a slate blue at 20%) and its fill the 20% black scrim (was a navy at 25%); the chips and the hovered suggestion are the purple accent at 10%, 22% (border) and 18% (were slightly different violets at the same strengths); the Add link is the lighter purple accent.
+- The header cover and its stacked cover layers cast the 50% black scrim shadow (same strength, now named).
+- The inline editor surface behind a collection editor is the root surface with a faint purple accent glow (14%) in the top right corner (was a deep navy gradient with a darker violet glow).
+- The video series panel's divider is the 12% white wash (was a warm white at 12%).
+- The Universe rail, the selected tile outline, the changed-field dot, the batch bar, the saved ribbon and the "just changed" pulse lost their typed fallbacks; they look the same. The badge text on a selected tile is the on-accent text color (white, as before).
+- Four header labels and the two "where" lines written as 0.8125rem are now the 13 px label and secondary type jobs (same size).

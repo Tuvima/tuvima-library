@@ -182,7 +182,7 @@
     flex: 0 0 auto;
     margin-left: auto;
     color: var(--tl-accent-primary-hover);
-    font-size: 0.8125rem;
+    font-size: var(--tl-type-secondary-size);
 }
 
 .tl-hnav__mark {

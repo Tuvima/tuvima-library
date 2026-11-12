@@ -112,6 +112,20 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
     }
 
     [Fact]
+    public async Task Audiobook_WithANumberPrefixInItsTitle_TakesQidOfOwnedBookWithTheCleanTitle()
+    {
+        await SeedBookAsync("The Vital Abyss", "James S. A. Corey", BookQid);
+        var audiobook = await SeedAudiobookAsync("5.5 - The Vital Abyss", "James S. A. Corey");
+
+        await RunRetailAsync();
+
+        var job = await _jobs.GetByIdAsync(audiobook.JobId);
+        Assert.Equal(nameof(IdentityJobState.RetailMatched), job!.State);
+        Assert.Equal(BookQid, job.ResolvedQid);
+        Assert.Empty(await _reviews.GetPendingByEntityAsync(audiobook.AssetId));
+    }
+
+    [Fact]
     public async Task Audiobook_WithAHalfRetailMatch_TakesQidOfOwnedConfirmedBook_AndRaisesNoNeedsReviewItem()
     {
         await SeedBookAsync("Dune", "Frank Herbert", BookQid);

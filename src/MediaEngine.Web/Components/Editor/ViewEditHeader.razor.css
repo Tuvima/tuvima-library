@@ -23,7 +23,7 @@
     border-radius: var(--tl-radius-lg);
     background: var(--tl-bg-surface-hover);
     color: var(--tl-text-muted);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px var(--tl-scrim-dark-4);
 }
 
 .tl-editor-header__cover--stack {
@@ -39,7 +39,7 @@
     height: 7rem;
     border-radius: var(--tl-radius-lg);
     background: var(--tl-bg-surface-hover);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px var(--tl-scrim-dark-4);
 }
 
 .tl-editor-header__layer--0 { left: 0; top: 0; }
@@ -62,7 +62,7 @@
 .tl-editor-header__label {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: 0.8125rem;
+    font-size: var(--tl-type-label-size);
     font-weight: var(--tl-font-weight-semibold);
     text-overflow: ellipsis;
     white-space: nowrap;

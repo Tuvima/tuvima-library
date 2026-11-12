@@ -12,7 +12,7 @@
 }
 
 .sme-tag-editor__label-row > label {
-    color: rgba(213, 222, 239, 0.74);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-secondary);
     font-weight: 500;
 }
@@ -35,7 +35,7 @@
 
 .sme-tag-editor__suggestions button:hover,
 .sme-tag-editor__suggestions button:focus-visible {
-    background: rgba(136, 82, 252, 0.18);
+    background: color-mix(in srgb, var(--tl-accent-primary) 18%, transparent);
     outline: none;
 }
 
@@ -62,20 +62,20 @@
     gap: 0.4rem;
     min-height: 3rem;
     padding: 0.45rem 0.55rem;
-    border: 1px solid rgba(151, 170, 205, 0.2);
+    border: 1px solid var(--tl-border-default);
     border-radius: 0.5rem;
-    background: rgba(7, 16, 29, 0.25);
+    background: var(--tl-scrim-dark-1);
 }
 
 .sme-tag-editor > small {
-    color: rgba(207, 218, 236, 0.48);
+    color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
 }
 
 ::deep .sme-tag-editor__chip {
     margin: 0;
-    background: rgba(131, 86, 239, 0.1);
-    border-color: rgba(171, 139, 255, 0.22);
+    background: color-mix(in srgb, var(--tl-accent-primary) 10%, transparent);
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 22%, transparent);
 }
 
 ::deep .sme-tag-editor__input {
@@ -86,6 +86,6 @@
 ::deep .sme-tag-editor__add {
     min-height: 2rem;
     padding-inline: 0.35rem;
-    color: rgba(205, 188, 255, 0.86);
+    color: var(--tl-accent-primary-hover);
     text-transform: none;
 }
