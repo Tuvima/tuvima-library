@@ -5343,7 +5343,10 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 
 /* Window footer (Look v3 D14, D15.3; Shy 2026-11-07: as in the mock): every button sits in one right-hand group in reading order,
    destructive (outlined red), then Cancel or Discard, then the one primary last. Only a quiet extra action marked app-footer-start
-   (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. */
+   (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. The one exception is the short
+   confirmation (AppConfirmDialog and the dialogs built on it, Look v3.1 D4): the safe choice is a neutral outlined button and comes
+   first, and a destructive choice is a solid red button and comes last. A larger window's footer where Delete sits beside Save keeps
+   Delete outlined red as above. */
 .app-dialog-shell__footer > .app-footer-start:not(:last-child),
 .app-action-bar > .app-footer-start:not(:last-child) {
     margin-inline-end: auto;
