@@ -35,7 +35,7 @@ public sealed record EditorBookmarkRow
 
 /// <summary>What a committed set of bookmark operations did, and how to put everything back.</summary>
 /// <param name="Snapshot">The title's bookmarks and definitive flag before the commit, for <see cref="EditorBookmarkRepository.RestoreAsync"/>.</param>
-/// <param name="DeletedIds">Bookmarks that no longer exist (merged into a bookmark that joined Everyone's), so their pictures can go.</param>
+/// <param name="DeletedIds">Bookmarks that no longer exist (merged into a bookmark that joined Global), so their pictures can go.</param>
 /// <param name="AddedIds">New bookmarks an import made, with their time, so their pictures can be made.</param>
 /// <param name="TimeChanged">Bookmarks that moved, so their pictures are made again.</param>
 public sealed record EditorBookmarkCommitOutcome(
@@ -56,7 +56,7 @@ public sealed class EditorBookmarkCommitException(string message) : InvalidOpera
 
 /// <summary>
 /// The editor's Bookmarks tab on the data store (universal editor v5 D37): every profile's bookmarks on a title, the title's definitive-set
-/// flag, and the one transaction that writes an administrator's staged operations. A bookmark is never copied: Everyone's set is the rows of
+/// flag, and the one transaction that writes an administrator's staged operations. A bookmark is never copied: Global set is the rows of
 /// a title flagged <c>is_global</c> once the title is definitive, and a title that is not definitive pools every profile's rows (see
 /// <see cref="BookmarkPooling"/>). Who may do any of it is checked by the caller.
 /// </summary>
@@ -133,7 +133,7 @@ public sealed class EditorBookmarkRepository
     }
 
     /// <summary>
-    /// Everyone's bookmarks on a title: the rows flagged <c>is_global</c> when the title has a definitive set, else every profile's
+    /// Global bookmarks on a title: the rows flagged <c>is_global</c> when the title has a definitive set, else every profile's
     /// bookmarks pooled. The editor and the player both take Everyone from <see cref="Everyone"/>, so they cannot disagree.
     /// <paramref name="excludeAsset"/> leaves a file out of the set before it is built (the player drops Vault files, which have no
     /// pooled view); the editor passes nothing because it refuses a Vault title as a whole.
@@ -147,7 +147,7 @@ public sealed class EditorBookmarkRepository
         return Everyone(rows, definitive, sameSpotFor, excludeAsset);
     }
 
-    /// <summary>Everyone's rows out of a title's rows: the flagged ones when definitive, else one standing bookmark per spot.</summary>
+    /// <summary>Global rows out of a title's rows: the flagged ones when definitive, else one standing bookmark per spot.</summary>
     public static IReadOnlyList<EditorBookmarkRow> Everyone(
         IReadOnlyList<EditorBookmarkRow> rows, bool definitive, Func<string, double> sameSpotFor, Func<Guid, bool>? excludeAsset = null)
     {
@@ -156,13 +156,8 @@ public sealed class EditorBookmarkRepository
             rows = [.. rows.Where(row => !excludeAsset(row.AssetId))];
         }
 
-        if (definitive)
-        {
-            return OrderForList(rows.Where(row => row.IsGlobal));
-        }
-
-        var byId = rows.ToDictionary(row => row.Id);
-        return OrderForList(BookmarkPooling.Merge(rows.Select(row => row.ToCandidate()), sameSpotFor).Select(group => byId[group.Representative.Id]));
+        // Global holds only what an administrator put there (global bookmarks v5 D7): no pooling of profiles' bookmarks.
+        return OrderForList(rows.Where(row => row.IsGlobal));
     }
 
     /// <summary>Shows a list in play order: by file, then by place.</summary>
@@ -171,8 +166,8 @@ public sealed class EditorBookmarkRepository
 
     /// <summary>
     /// Writes an administrator's staged operations on one title in one transaction, in order. The first operation other than "start over" makes
-    /// the title's set definitive (the pooled list becomes the set). Adding a bookmark to Everyone's merges the bookmarks at the same spot: another
-    /// profile's personal one is replaced and deleted (Global bookmarks spec D3), one already in Everyone's leaves it. Nothing is written when an
+    /// the title's set definitive (the pooled list becomes the set). Adding a bookmark to Global merges the bookmarks at the same spot: another
+    /// profile's personal one is replaced and deleted (Global bookmarks spec D3), one already in Global leaves it. Nothing is written when an
     /// operation cannot be carried out; <see cref="EditorBookmarkCommitException"/> says why.
     /// </summary>
     public Task<EditorBookmarkCommitOutcome> CommitAsync(
@@ -231,16 +226,7 @@ public sealed class EditorBookmarkRepository
                     return;
                 }
 
-                var standing = BookmarkPooling.Merge(rows.Values.Select(row => row.ToCandidate()), sameSpotFor).Select(group => group.Representative.Id).ToHashSet();
-                foreach (var row in rows.Values.ToList())
-                {
-                    var shouldBeIn = standing.Contains(row.Id);
-                    if (row.IsGlobal != shouldBeIn)
-                    {
-                        SetFlag(row.Id, shouldBeIn);
-                    }
-                }
-
+                // Global starts empty (v5 D7): the first change marks the set as made but flags nothing.
                 conn.Execute(
                     "INSERT OR REPLACE INTO bookmark_definitive_sets (work_id, made_at, made_by) VALUES (@workId, @madeAt, @madeBy);",
                     new { workId, madeAt = DateTimeOffset.UtcNow, madeBy = actingProfileId },
@@ -263,13 +249,13 @@ public sealed class EditorBookmarkRepository
                 var found = Find(id, what);
                 if (!found.IsGlobal)
                 {
-                    throw new EditorBookmarkCommitException($"The bookmark to {what} is not in Everyone's.");
+                    throw new EditorBookmarkCommitException($"The bookmark to {what} is not in Global.");
                 }
 
                 return found;
             }
 
-            // Everything at the same spot as a bookmark that just joined Everyone's: one already in Everyone's steps out (it stays with its
+            // Everything at the same spot as a bookmark that just joined Global: one already in Global steps out (it stays with its
             // owner), another profile's personal one is replaced and deleted.
             void MergeSameSpot(EditorBookmarkRow joined)
             {

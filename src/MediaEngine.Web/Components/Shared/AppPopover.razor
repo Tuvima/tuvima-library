@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 @inject AppPopoverService Popovers
 <span @ref="_marker" class="app-popover-marker" aria-hidden="true"></span>
-<div @ref="_surface" popover="manual" class="tl-popover app-popover @SizeClass @(Open ? "tl-popover-open" : null) @Class" data-popout-size="@SizeName" style="@Style" hidden="@(!Open)" role="@Role" aria-label="@(string.IsNullOrWhiteSpace(Role) ? null : AriaLabel)">
+<div @ref="_surface" popover="manual" class="tl-popover app-popover @SizeClass @(Open ? "tl-popover-open" : null) @Class" data-popout-size="@SizeName" data-list-width="@(ListWidth ? "true" : null)" data-list-sheet="@(SheetOnPhone ? "true" : null)" style="@Style" hidden="@(!Open)" role="@Role" aria-label="@(string.IsNullOrWhiteSpace(Role) ? null : AriaLabel)">
     @ChildContent
 </div>
 @code {
@@ -21,6 +21,10 @@
     [Parameter] public AppOrigin AnchorOrigin { get; set; } = AppOrigin.BottomLeft;
     [Parameter] public AppOrigin TransformOrigin { get; set; } = AppOrigin.TopLeft;
     [Parameter] public bool MatchAnchorWidth { get; set; }
+    /// <summary>The one sizing rule for dropdown lists (Look v3.1 D3): at least as wide as the anchor, as wide as the longest option, up to 480 px or the window less 16 px each side. Wins over <see cref="MatchAnchorWidth"/> and <see cref="Size"/>.</summary>
+    [Parameter] public bool ListWidth { get; set; }
+    /// <summary>Under 600 px the list opens as the bottom Sheet with 52 px rows instead of beside its anchor (Look v3.1 D13). Left off for a list that sits under a text box with the keyboard open.</summary>
+    [Parameter] public bool SheetOnPhone { get; set; }
     [Parameter] public bool FocusOnOpen { get; set; }
     [Parameter] public ElementReference? Anchor { get; set; }
     private string? SizeName => Size == AppPopoutSize.None ? null : Size.ToString().ToLowerInvariant();

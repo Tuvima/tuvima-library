@@ -119,7 +119,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AudiobookBar_HostsTheBookmarksPanel_EveryoneFirst_WithTheMakerOnTheirRows_AndNoOldDialog()
+    public async Task AudiobookBar_HostsTheBookmarksPanel_MineFirst_AndNoOldDialog()
     {
         var profileId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
@@ -143,13 +143,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            var rows = cut.FindAll("[data-bookmark-id]");
-            var row = Assert.Single(rows);
-            Assert.Contains("The first clue", row.TextContent);
-            Assert.Contains("Morgan", row.TextContent);
+            var row = Assert.Single(cut.FindAll("[data-bookmark-id]"));
+            Assert.Contains("My own", row.TextContent);
         });
-        Assert.Empty(cut.FindAll("[data-bookmark-edit]"));
-        Assert.Contains("Everyone · 1", cut.Find("[data-bookmarks-choice]").TextContent);
+        Assert.Contains("Global · 1", cut.Find("[data-bookmarks-choice]").TextContent);
         Assert.Contains("Mine · 1", cut.Find("[data-bookmarks-choice]").TextContent);
         Assert.Empty(cut.FindAll(".audiobook-bookmark-dialog-layer"));
     }
@@ -185,50 +182,23 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MusicBar_ShowsBookmarksBetweenQueueAndVolume_AndOpensThePanelWithTheCoverAndTheTracksBookmarks()
+    public async Task MusicBar_HasNoBookmarksToolAndNoBookmarksRow_BecauseMusicHasNoBookmarks()
     {
-        var (cut, item, created, saved) = RenderMusicBarWithBookmarks();
+        var (cut, _, created, _) = RenderMusicBarWithBookmarks(showOnBar: true);
 
         var tools = cut.FindAll("[data-playback-zone='tools'] button").Select(button => button.GetAttribute("aria-label")).ToList();
-        Assert.Contains("Bookmarks", tools);
-        Assert.True(tools.IndexOf("Queue") < tools.IndexOf("Bookmarks"), string.Join(", ", tools));
-        Assert.True(tools.IndexOf("Bookmarks") < tools.IndexOf("Mute"), string.Join(", ", tools)); // the Volume tool is labelled by its mute button
+        Assert.DoesNotContain("Bookmarks", tools);
+        Assert.DoesNotContain(cut.FindComponents<PlaybackPanel>(), p => p.Instance.ToolId == "audio-bookmarks");
+        Assert.Empty(cut.FindAll(".playback-seek-rail__bookmark"));
+        Assert.Empty(created);
 
-        var panel = cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.ToolId == "audio-bookmarks");
-        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
-        cut.WaitForAssertion(() => Assert.Contains("The riff", Assert.Single(cut.FindAll("[data-bookmark-id]")).TextContent));
-        var inner = cut.FindComponent<BookmarksPanel>().Instance;
-        Assert.False(inner.UseFrames);
-        Assert.False(string.IsNullOrWhiteSpace(inner.CoverUrl));
-
-        // The press saves on the track itself: its own work and file, at the pressed moment.
-        await cut.Find("[data-bookmarks-add]").ClickAsync();
-        var (work, request) = Assert.Single(created);
-        Assert.Equal(item.WorkId, work);
-        Assert.Equal(item.AssetId, (Guid?)request.AssetId);
-        Assert.Equal(saved.WorkId, work);
-    }
-
-    [Fact]
-    public void MusicBar_DrawsTheTracksBookmarksOnItsSeekRail_WhenShowOnTimelineIsOn()
-    {
-        var (cut, _, _, _) = RenderMusicBarWithBookmarks(showOnBar: true);
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".playback-seek-rail__bookmark")));
-    }
-
-    [Fact]
-    public async Task MusicBar_OnAPhone_OffersBookmarksInTheMoreMenuOfTheExpandedPlayer()
-    {
-        var (cut, _, _, _) = RenderMusicBarWithBookmarks();
         await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync("mobile");
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
         await cut.InvokeAsync(() => Services.GetRequiredService<PlaybackSessionController>().SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
-
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".playback-full--phone")));
         var more = cut.FindComponent<PlaybackItemMenu>().FindComponent<PlaybackPanel>();
         await cut.InvokeAsync(() => more.Instance.OpenAsync(true));
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-playback-item-action='bookmarks']")));
+        Assert.Empty(cut.FindAll("[data-playback-item-action='bookmarks']"));
     }
 
     [Fact]

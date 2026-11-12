@@ -81,4 +81,11 @@ public interface IEntityAssetRepository
         string? mediumPath,
         string? largePath,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// TV episodes that have a file but neither a provider still nor a "checked, the provider has none" mark: their picture
+    /// pass was skipped or failed. Returns one media asset id per episode, at most <paramref name="limit"/>.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetTvEpisodeAssetsMissingProviderStillAsync(int limit, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Guid>>([]);
 }

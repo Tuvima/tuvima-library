@@ -37,11 +37,9 @@ public partial class ListenNowPlayingBar
     private (Guid Profile, Guid Work, Guid Asset)? _barMarkersKey;
     private int _barMarkersVersion;
     private bool ShowBookmarksOnBar => _playerSettings?.General.ShowBookmarksOnBar == true;
-    // An audiobook with a file, or a music track with a file while a profile is active (unified player v2 D3, D21, D26): music Bookmarks are the track's
-    // own, keyed by the track's work and file.
-    private bool CanBookmarkCurrent => Playback.CurrentItem?.AssetId is { } assetId && assetId != Guid.Empty
-        && (Playback.IsAudiobookMode || (Playback.IsMusicMode && PlaybackPreferences.ActiveProfileId is { } profile && profile != Guid.Empty));
-    private string BookmarkChoice => _playerSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
+    // An audiobook with a file. Music has no bookmarks at all (global bookmarks v5 D4).
+    private bool CanBookmarkCurrent => Playback.CurrentItem?.AssetId is { } assetId && assetId != Guid.Empty && Playback.IsAudiobookMode;
+    private string BookmarkChoice => _playerSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.Mine;
     private IReadOnlyList<PlaybackRailBookmark> BarRailBookmarks => PlaybackRailBookmark.From(_barBookmarks, Playback.DurationSeconds);
 
     private IReadOnlyList<PlaybackRailBookmark> BarMarkers(AudiobookChapterWindow? scope) =>

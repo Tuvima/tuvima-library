@@ -10,7 +10,7 @@
 @if (Folders.Count >= 2)
 {
     <div class="view-folder-filter" data-folder-filter>
-        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.FolderOpen" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Label="@ButtonLabel" AriaLabel="@L["ViewFolderFilter_Folders"].Value"
+        <AppOverflowMenu ListWidth="true" Icon="@AppMaterialIcons.Outlined.FolderOpen" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Label="@ButtonLabel" AriaLabel="@L["ViewFolderFilter_Folders"].Value"
                          Size="AppControlSize.Compact">
             <AppMenuItem Label="@L["ViewFolderFilter_AllFolders"].Value" Checked="@(Chosen is null)" OnClick="@(() => ChangedAsync(null))" />
             @foreach (var folder in Folders)

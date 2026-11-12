@@ -9,14 +9,14 @@ namespace MediaEngine.Api.Services.Playback;
 
 /// <summary>
 /// The editor's bookmark files (universal editor v5 D37): reads a bookmark file, compares each incoming bookmark with the nearest one in the
-/// title's Everyone's list, and builds a file of that list. This is the one place that decides how close two bookmarks are, using
+/// title's Global list, and builds a file of that list. This is the one place that decides how close two bookmarks are, using
 /// <c>config/bookmarks.json</c>. Nothing is written here: the editor stages what the administrator takes and the Engine writes it on Save
 /// changes. A Vault title never exports or imports, and a file the caller cannot see is not found.
 /// </summary>
 public sealed class BookmarkSetService
 {
     /// <summary>The name written into an exported file. A set's name is not shown anywhere once it is applied (Global bookmarks spec D10).</summary>
-    public const string ExportedSetName = "Everyone's bookmarks";
+    public const string ExportedSetName = "Global bookmarks";
 
     /// <summary>The file name offered for an exported bookmark file.</summary>
     public const string ExportedFileName = "everyone-bookmarks.zip";
@@ -45,7 +45,7 @@ public sealed class BookmarkSetService
     }
 
     /// <summary>
-    /// The editor's Import (universal editor v5 D37): a bookmark file compared with the title's Everyone's list instead of the person's own
+    /// The editor's Import (universal editor v5 D37): a bookmark file compared with the title's Global list instead of the person's own
     /// bookmarks. Changes nothing; the editor stages the rows the administrator takes and writes them on Save changes.
     /// </summary>
     public Task<BookmarkSetCompareDto> CompareWithEveryoneAsync(
@@ -53,7 +53,7 @@ public sealed class BookmarkSetService
         PrepareAsync(profileId, workId, request, everyone, ct);
 
     /// <summary>
-    /// One episode of a show file set beside the episode's Everyone's list (matched by season and episode number, so there is no title to
+    /// One episode of a show file set beside the episode's Global list (matched by season and episode number, so there is no title to
     /// recognise). The rows carry how close each bookmark is, as for a single title.
     /// </summary>
     public BookmarkSetCompareDto CompareEpisode(
@@ -82,7 +82,7 @@ public sealed class BookmarkSetService
     }
 
     /// <summary>
-    /// The editor's Export (universal editor v5 D37): the title's Everyone's list, definitive or pooled, as one bookmark file (times and names,
+    /// The editor's Export (universal editor v5 D37): the title's Global list, definitive or pooled, as one bookmark file (times and names,
     /// never anyone's personal bookmarks; the pictures are made again by the Engine that imports it, Unified player v2 D21a). The caller has
     /// already checked that the person is an administrator and that the title is not in the Vault.
     /// </summary>
@@ -96,7 +96,7 @@ public sealed class BookmarkSetService
             .ToList();
         if (chosen.Count == 0)
         {
-            throw new BookmarkPackInvalidException("This title has no Everyone's bookmarks to export yet.");
+            throw new BookmarkPackInvalidException("This title has no Global bookmarks to export yet.");
         }
 
         return BuildFileAsync(assetId, chosen, runningTimeSeconds, [], ct);
@@ -178,7 +178,7 @@ public sealed class BookmarkSetService
         var runningTime = request.RunningTimeSeconds is double reported && double.IsFinite(reported) && reported > 0 ? reported : (double?)null;
         var match = BookmarkPackMatcher.Compare(content.Title, new BookmarkPackTitle(local.Ids, runningTime, local.EditionLabel));
         var isAdmin = await _scope.IsServerAdministratorAsync(ct);
-        // The editor compares the file with the title's Everyone's list.
+        // The editor compares the file with the title's Global list.
         var existing = everyone.Where(bookmark => bookmark.AssetId == request.AssetId).ToList();
         var globalCount = existing.Count(bookmark => bookmark.IsGlobal);
         var canAlign = match.Kind == BookmarkPackMatchKind.DifferentCut

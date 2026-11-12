@@ -23,8 +23,8 @@
         {
             <div class="tl-hnav__cell">
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.Home"
-                               ButtonStyle="AppButtonStyle.Filled"
-                               Tone="AppUiTone.Primary"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Neutral"
                                Size="AppControlSize.Normal"
                                Class="@(header.HomeIsCurrent ? "tl-hnav__home is-current" : "tl-hnav__home")"
                                Tooltip="@HomeName(header)"
@@ -440,7 +440,7 @@
                                            @onfocusin="@(() => _cursor = "tl-hnav-all-files")"
                                            Class="tl-hnav__option tl-hnav__option--plain"
                                            OnClick="() => OpenAllFilesAsync(header, files)">
-                                    <span class="tl-hnav__badge tl-hnav__badge--accent" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Size="AppIconSize.Control20" /></span>
+                                    <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Size="AppIconSize.Control20" /></span>
                                     <span class="tl-hnav__text">
                                         <b>@string.Format(L["EditorNav_AllFiles"].Value, DisplayCount(files.TotalInRoot, files.Count))</b>
                                         <small>@EditorNavText.AllFilesLine(header, files)</small>

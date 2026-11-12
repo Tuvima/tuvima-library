@@ -326,7 +326,8 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
         Assert.Single(cut.FindAll("button[aria-label='Create in Galleries']"));
-        Assert.NotEmpty(cut.FindAll(".media-section-shell__drag-handle"));
+        // Dragging now happens only inside Reorder mode, entered from the row's Manage menu.
+        Assert.NotEmpty(cut.FindAll("[aria-label^='Manage ']"));
     }
 
     [Fact]
