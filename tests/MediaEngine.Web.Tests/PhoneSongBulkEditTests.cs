@@ -164,6 +164,26 @@ public sealed class PhoneSongBulkEditTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Edit");
     }
 
+    [Fact]
+    public async Task OnAPhone_AProfileThatMayNotEditDetails_GetsNoEditInASongsMenuAndNoMoreButtonWhileSelecting()
+    {
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: true, canManageMetadata: false));
+        await UsePhoneAsync();
+        var tracks = Tracks(3);
+        var cut = Render<SongList>(parameters => parameters.Add(list => list.Place, SongTablePlace.Songs).Add(list => list.Tracks, tracks));
+        var host = Services.GetRequiredService<EditorHost>();
+
+        cut.FindAll(".song-table__pmenu button[aria-haspopup='menu']")[1].Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Edit");
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Select").Click();
+        cut.WaitForElement("[data-song-selection-bar]");
+
+        Assert.Empty(cut.FindAll("button.song-selection-bar__more"));
+        Assert.NotEmpty(cut.FindAll("button.song-selection-bar__done"));
+        Assert.False(host.IsOpen);
+    }
+
     private static IReadOnlyList<WorkViewModel> Tracks(int count) =>
         Enumerable.Range(1, count).Select(index => new WorkViewModel
         {

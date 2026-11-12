@@ -419,7 +419,7 @@
                                       PosterSize="56"
                                       SelectedItems="@_selectedItems"
                                       SelectedItemsChanged="OnSelectionChanged"
-                                      OnEditClicked="OpenItemEditorAsync"
+                                      OnEditClicked="@(CanEditItems ? EventCallback.Factory.Create<Guid>(this, OpenItemEditorAsync) : default)"
                                       OnFavoriteToggled="ToggleFavoriteAsync"
                                       OnRowClicked="HandleTableRowClicked" />
         </div>

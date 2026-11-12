@@ -108,8 +108,9 @@
                 actions.Add(new DetailAction { Key = OpenUniverseKey, Label = L["MediaTile_OpenUniverse"].Value, Icon = "open_in_new" });
             }
 
-            // Item editing needs a device that may edit (EditorDeviceRule.CanEditItems); the Engine's own answer for this item is read when Edit is chosen.
-            if (_target is { CanEdit: true } && EditorDeviceRule.CanEditItems(DeviceContext))
+            // Item editing needs a device that may edit and a profile the Engine says may edit item details (EditorDeviceRule.CanEditItems);
+            // the Engine's own answer for this item is read when Edit is chosen.
+            if (_target is { CanEdit: true } && EditorDeviceRule.CanEditItems(DeviceContext, Services.GetService<DashboardSessionAccessor>()))
             {
                 actions.Add(new DetailAction { Key = DetailActionKeys.Edit, Label = L["MediaTile_Edit"].Value, Icon = "edit" });
             }
@@ -257,6 +258,12 @@
                 break;
             case DetailActionKeys.Edit:
                 _notice = null;
+                if (EditorDeviceRule.ItemRefusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+                {
+                    _notice = refusal;
+                    break;
+                }
+
                 if (Services.GetService<ListEditLauncher>() is { } launcher
                     && !await launcher.OpenAsync(_target.ToEditTarget()))
                 {

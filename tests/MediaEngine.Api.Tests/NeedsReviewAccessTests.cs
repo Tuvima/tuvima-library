@@ -262,7 +262,10 @@ public sealed class NeedsReviewAccessTests : IDisposable
         _accounts,
         new ProfileRepository(_database),
         new ProfileAccessRepository(_database),
-        new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
+        new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock),
+        new AccountAccessDecisionService(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
+            new ProfileAccessRepository(_database), new StubProfilePins(), _clock),
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database))));
 
     private async Task<Guid> AddKidsProfileAsync(Guid accountId)
     {

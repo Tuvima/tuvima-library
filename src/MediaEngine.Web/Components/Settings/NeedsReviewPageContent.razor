@@ -226,7 +226,7 @@
         Device.OnChanged += OnDeviceChanged;
         _actions = new NeedsReviewActions
         {
-            CanFix = entry => Device.CanEditItems && FixTargetOf(entry) is not null,
+            CanFix = entry => MayEdit && FixTargetOf(entry) is not null,
             CanDelete = row => row.Unmatched?.WorkId is not null && CanRemove,
             IsPhone = () => Device.IsPhone,
             LibraryMediaTypeOf = row => row.LibraryId is { } id ? _libraryMediaTypes.GetValueOrDefault(id) : null,
@@ -575,6 +575,9 @@
             : L["NeedsReviewRow_SubjectMany", rows.Count].Value;
     }
 
+    // Edit and Fix need a device that may edit items and a profile the Engine says may edit item details; the Engine still checks every save.
+    private bool MayEdit => EditorDeviceRule.CanEditItems(Device, Session);
+
     // ---- Actions ----------------------------------------------------------------------------------------------------------------------
 
     // Fix opens the pop-over editor over this list, on Match (universal editor v3 D6, D9): the same Match, Review changes and Save as
@@ -583,6 +586,13 @@
     private async Task FixAsync(NeedsReviewEntry entry)
     {
         if (FixTargetOf(entry) is not { } entityId) return;
+        // Fix is offered only on a device and to a profile that may edit; a handler never trusts that.
+        if (EditorDeviceRule.ItemRefusal(Device, Session) is { } refusal)
+        {
+            _model.Fail(entry.First, refusal);
+            return;
+        }
+
         var first = entry.First;
         var title = entry.IsFamily && !string.IsNullOrWhiteSpace(first.FamilyTitle) ? first.FamilyTitle : TitleOf(first);
         var mediaType = NeedsReviewRowInfo.MediaTypeOf(first, first.LibraryId is { } id ? _libraryMediaTypes.GetValueOrDefault(id) : null);
@@ -837,7 +847,7 @@
     // going its own rows are busy, so the buttons keep the plan they started with (they are disabled) instead of vanishing mid-run.
     private NeedsReviewBarPlan BarPlan => _selection.Count == 0
         ? NeedsReviewBarPlan.Empty
-        : NeedsReviewBulk.PlanFor(_barBusy ? Ticked : Actable, Device.CanEditItems, _actions.CanDelete) with { Selected = Ticked.Sum(item => item.Rows.Count) };
+        : NeedsReviewBulk.PlanFor(_barBusy ? Ticked : Actable, MayEdit, _actions.CanDelete) with { Selected = Ticked.Sum(item => item.Rows.Count) };
 
     // Only rows that are still waiting and still shown stay ticked: a finished row, a row the search hides and a row that left the list lose their tick.
     private void PruneSelection()
@@ -981,7 +991,7 @@
     // changes there; the list is read again when the window closes after a save.
     private async Task BarEditAsync()
     {
-        var rows = NeedsReviewBulk.EditRows(Actable, Device.CanEditItems);
+        var rows = NeedsReviewBulk.EditRows(Actable, MayEdit);
         if (_barBusy || rows.Count == 0)
         {
             return;
@@ -1008,7 +1018,7 @@
         if (!await Editor.OpenAsync(binding, binding.EntityId, EditTool.Details) || !Editor.IsOpen)
         {
             _awaitingFix = false;
-            _actionError = EditorDeviceRule.TryRefuseItems(Device) ? EditorDeviceRule.ItemMessage : L["NeedsReviewBar_EditUnavailable"].Value;
+            _actionError = EditorDeviceRule.ItemRefusal(Device, Session) ?? L["NeedsReviewBar_EditUnavailable"].Value;
             return;
         }
 

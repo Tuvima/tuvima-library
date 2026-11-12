@@ -38,6 +38,8 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
         Services.AddLogging();
         _detailAnswer = Page(withEdit: true);
         Services.AddSingleton(_device);
+        // Ticked rows are edited by a profile the Engine says may edit item details.
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: true));
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), args =>
@@ -185,6 +187,36 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
         Assert.True(host.IsOpen);
         Assert.Equal(ticked.Select(row => row.Id), host.Batch.Rows.Select(row => row.Id));
         Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
+    }
+
+    [Fact]
+    public async Task TickedRowsForAProfileThatMayNotEditDetails_OpenNothing_AndSayWhy()
+    {
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: true, canManageMetadata: false));
+        await UseDevice("desktop");
+        var (launcher, host, _) = Parts();
+
+        Assert.False(await launcher.OpenRowsAsync([new BulkEditRow(SongId, "Airbag", DetailEntityType.Work, null, "Music")], "Music"));
+
+        Assert.False(host.IsOpen);
+        Assert.Empty(host.Batch.Rows);
+        Assert.Equal(EditorDeviceRule.ProfileMessage, launcher.LastNotice);
+    }
+
+    [Fact]
+    public async Task TickedRows_WithNoSignedInProfileKnown_OpenNothing()
+    {
+        await UseDevice("desktop");
+        var (launcher, host, _) = Parts();
+        var withoutSession = new ServiceCollection().BuildServiceProvider();
+
+        // A launcher that cannot see a session treats the profile as one that may not edit.
+        var blind = new ListEditLauncher(host, Services.GetRequiredService<IEngineApiClient>(), _device, withoutSession,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ListEditLauncher>.Instance);
+
+        Assert.False(await blind.OpenRowsAsync([new BulkEditRow(SongId, "Airbag", DetailEntityType.Work, null, "Music")], "Music"));
+        Assert.False(host.IsOpen);
+        Assert.Equal(EditorDeviceRule.ProfileMessage, blind.LastNotice);
     }
 
     [Fact]

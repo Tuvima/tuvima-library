@@ -128,8 +128,19 @@ public partial class ListenPage
         => PlaylistWorkFor(row) is { } work ? ToggleFavoriteAsync(work) : Task.CompletedTask;
 
     // Edit opens the universal editor over this page with the song ticked (the table only offers it to a device that may edit items).
+    // Edit is offered only to a profile the Engine says may edit item details; the handler asks again, and the Engine answers per song.
+    private bool CanEditSongs => Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata == true;
+
     private Task EditPlaylistRowAsync(SongRow row)
-        => PlaylistWorkFor(row) is { } work ? EditTrackAsync(work) : Task.CompletedTask;
+    {
+        if (EditorDeviceRule.ItemRefusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+        {
+            ShowNotice(refusal, AppUiTone.Info);
+            return Task.CompletedTask;
+        }
+
+        return PlaylistWorkFor(row) is { } work ? EditTrackAsync(work) : Task.CompletedTask;
+    }
 
     private Task OpenPlaylistRowAlbumAsync(SongRow row)
     {

@@ -111,9 +111,10 @@ public sealed class ListEditLauncher
             return false;
         }
 
-        if (EditorDeviceRule.TryRefuseItems(_device))
+        // Ticked rows have no per-item Engine answer, so the Engine's per-profile answer is checked here as well as the device.
+        if (EditorDeviceRule.ItemRefusal(_device, Session) is { } refusal)
         {
-            LastNotice = EditorDeviceRule.ItemMessage;
+            LastNotice = refusal;
             return false;
         }
 
@@ -169,7 +170,10 @@ public sealed class ListEditLauncher
 
     /// <summary>
     /// Makes the binding a list with ticked rows opens the editor through (the bar's Edit, Match or Move on rows that have no page behind
-    /// them). The Engine checks every change when it is saved; the editor itself needs only a device that may edit.
+    /// them). The Engine checks every change when it is saved; the editor itself needs only a device that may edit. Whether the
+    /// profile may edit item details (<see cref="DashboardSessionAccessor.CanManageMetadata"/>) is asked by the callers that open it
+    /// (<see cref="OpenRowsAsync"/>, the selection bar's Edit, Needs Review): the bar also offers playlists, collections and Delete,
+    /// which follow their own rules, so this binding stays permitted for them.
     /// </summary>
     public EditorBinding BindRows(string? mediaType, Func<IReadOnlyList<BulkEditRow>> rows, Func<Task>? saved = null)
     {
@@ -283,6 +287,8 @@ public sealed class ListEditLauncher
         };
         return binding;
     }
+
+    private DashboardSessionAccessor? Session => _services.GetService(typeof(DashboardSessionAccessor)) as DashboardSessionAccessor;
 
     private async Task<Guid?> ProfileIdAsync()
     {

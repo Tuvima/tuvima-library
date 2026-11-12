@@ -53,6 +53,8 @@ public sealed class BulkEditingTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddSingleton(_device);
+        // An adult profile the Engine says may edit item details but who is not an administrator; Delete tests sign in an administrator instead.
+        Services.AddSingleton(ProfileThatMayEdit());
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.PreviewLibraryBatchEditAsync), args =>
@@ -175,12 +177,21 @@ public sealed class BulkEditingTests : AsyncBunitContext
         return selection;
     }
 
+    private static DashboardSessionAccessor ProfileThatMayEdit()
+    {
+        var profile = Guid.NewGuid();
+        var session = new DashboardSessionAccessor();
+        session.Set("token", Guid.NewGuid(), profile, Guid.NewGuid(),
+            new DashboardAuthorityResponse(profile, profile, true, true, 1, 1, false, false, null, 1, [], [], ["metadata.manage"]));
+        return session;
+    }
+
     private static DashboardSessionAccessor Administrator()
     {
         var profile = Guid.NewGuid();
         var session = new DashboardSessionAccessor();
         session.Set("token", Guid.NewGuid(), profile, Guid.NewGuid(),
-            new DashboardAuthorityResponse(profile, profile, true, true, 1, 1, true, true, null, 1, [], [], []));
+            new DashboardAuthorityResponse(profile, profile, true, true, 1, 1, true, true, null, 1, [], [], ["metadata.manage"]));
         return session;
     }
 
@@ -470,6 +481,44 @@ public sealed class BulkEditingTests : AsyncBunitContext
         var bar = await RenderBarAsync(Ticked(FourSongs()), "tv");
 
         Assert.DoesNotContain("Edit", bar.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task Bar_ForAProfileThatMayNotEditDetails_OffersNoEditMatchOrMove_ButKeepsAddToPlaylist()
+    {
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: false, canManageMetadata: false));
+        var bar = await RenderBarAsync(Ticked(FourSongs()));
+
+        var buttons = bar.FindAll(".tl-batch__bar button:not([hidden])").Select(button => button.TextContent.Trim()).ToList();
+
+        Assert.Equal(["Add to playlist", "Clear"], buttons);
+    }
+
+    [Fact]
+    public async Task Bar_ForEpisodesAndAProfileThatMayNotEditDetails_OffersNoEditMatchOrMoveToSeason()
+    {
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: false, canManageMetadata: false));
+        var bar = await RenderBarAsync(Ticked([Episode(EpisodeOne, "Pilot"), Episode(EpisodeTwo, "Second")], "TV"));
+
+        Assert.False(HasButton(bar, "Edit"));
+        Assert.False(HasButton(bar, "Match"));
+        Assert.False(HasButton(bar, "Move to season"));
+    }
+
+    [Fact]
+    public async Task RowEdit_ThroughTheBulkEntry_OpensNothing_ForAProfileThatMayNotEditDetails()
+    {
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: false, canManageMetadata: false));
+        await UseDevice("desktop");
+        var host = Services.GetRequiredService<EditorHost>();
+        var entry = Render<BulkListEntry>(parameters => parameters
+            .Add(component => component.MediaType, "Music")
+            .Add(component => component.Rows, FourSongs()));
+
+        entry.Instance.OpenEditPanel();
+
+        Assert.False(host.IsOpen);
+        Assert.Equal(BulkPanelKind.None, host.Batch.Panel);
     }
 
     [Fact]

@@ -257,12 +257,21 @@ public partial class MediaBrowseShell
 
     // Edit opens the pop-over editor over this list (universal editor v3 D6): nothing navigates away, the list keeps its filters, sort and
     // scroll, and it reloads its rows when the pop-over closes with a change (the Engine's own answer says whether this item may be edited).
+    // The row's Edit is offered only to a profile the Engine says may edit item details (on a device that may edit); the handler asks again.
+    private bool CanEditItems => EditorDeviceRule.CanEditItems(DeviceContext, Services.GetService<DashboardSessionAccessor>());
+
     private async Task OpenItemEditorAsync(Guid entityId)
     {
         var item = ActiveTableItems.FirstOrDefault(candidate => candidate.EntityId == entityId)
                    ?? _items.FirstOrDefault(candidate => candidate.EntityId == entityId);
         if (entityId == Guid.Empty)
         {
+            return;
+        }
+
+        if (EditorDeviceRule.ItemRefusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+        {
+            ShowNotice(refusal, AppUiTone.Info);
             return;
         }
 

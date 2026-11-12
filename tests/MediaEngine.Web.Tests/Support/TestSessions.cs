@@ -3,13 +3,16 @@ using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Tests.Support;
 
-/// <summary>Signed-in Dashboard sessions for tests: an adult, an unlocked administrator or a Kids profile.</summary>
+/// <summary>
+/// Signed-in Dashboard sessions for tests: an adult, an unlocked administrator or a Kids profile. An unlocked administrator may edit item
+/// details ("metadata.manage"), as the Engine says for one; <paramref name="canManageMetadata"/> overrides that either way.
+/// </summary>
 internal static class TestSessions
 {
     public static readonly Guid Account = Guid.NewGuid();
     public static readonly Guid Profile = Guid.NewGuid();
 
-    public static DashboardSessionAccessor For(bool kids, bool administrator)
+    public static DashboardSessionAccessor For(bool kids, bool administrator, bool? canManageMetadata = null)
     {
         var grants = new[]
         {
@@ -19,7 +22,7 @@ internal static class TestSessions
         };
         var authority = new DashboardAuthorityResponse(
             Account, Profile, true, true, 1, 1, administrator, administrator, null, 1, grants, [],
-            administrator ? ["access.manage"] : []);
+            [.. administrator ? new[] { "access.manage" } : [], .. canManageMetadata ?? administrator ? new[] { "metadata.manage" } : []]);
         var session = new DashboardSessionAccessor();
         session.Set("token", Account, Profile, Guid.NewGuid(), authority);
         return session;

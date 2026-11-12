@@ -4,6 +4,7 @@
 @inject EditorHost Editor
 @inject ListEditLauncher Launcher
 @inject DeviceContextService Device
+@inject IServiceProvider Services
 
 @* Ticked rows of a list that has no detail page behind it (the songs list, a library table; universal editor spec D14, v3 WP3). There is
    no editor of its own here: the list hands over the rows it has ticked, the bar below them is the shared selection bar, and its Edit,
@@ -89,7 +90,8 @@ else if (!Device.IsPhone && ((!_canEdit && BulkEditRules.IsSongSelection(_playOn
     /// <summary>A row's own Edit button: the row is ticked by the list, then this opens the pop-over's Edit panel for the ticked rows.</summary>
     public void OpenEditPanel()
     {
-        if (!_canEdit || Rows.Count == 0)
+        // The row's Edit is offered only to a profile the Engine says may edit item details; the Engine still checks every save.
+        if (!_canEdit || Rows.Count == 0 || Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata != true)
         {
             return;
         }

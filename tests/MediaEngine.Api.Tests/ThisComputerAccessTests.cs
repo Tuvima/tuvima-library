@@ -421,11 +421,17 @@ public sealed class ThisComputerAccessTests : IDisposable
             _accounts,
             new ProfileRepository(_database),
             new ProfileAccessRepository(_database),
-            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System)));
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
+            ProjectorDecisions()));
         var app = builder.Build();
         app.MapSetupEndpoints();
         return app;
     }
+
+    private AccountAccessDecisionService ProjectorDecisions() =>
+        new(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
+            new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
 
     private WebApplication BuildAuthenticationApplication()
     {
@@ -449,7 +455,8 @@ public sealed class ThisComputerAccessTests : IDisposable
             _accounts,
             new ProfileRepository(_database),
             new ProfileAccessRepository(_database),
-            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System)));
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
+            ProjectorDecisions()));
         builder.Services.AddSingleton(new ExternalIdentityTransactionService(TimeProvider.System));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();

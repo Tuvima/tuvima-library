@@ -35,6 +35,9 @@ public partial class SongList
 
     [Inject] private IServiceProvider Services { get; set; } = default!;
 
+    // Edit is offered only to a profile the Engine says may edit item details; the table and each handler below check it again.
+    private bool CanEditSongs => Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata == true;
+
     /// <summary>Songs (the Songs list) or Albums (an album's songs inside the Listen page): each remembers its own columns.</summary>
     [Parameter, EditorRequired] public SongTablePlace Place { get; set; }
 
@@ -269,7 +272,13 @@ public partial class SongList
     // just this song, the same way as for ticked songs.
     private async Task EditAsync(SongRow row)
     {
-        // The table only offers Edit to a device that may edit items; a handler never trusts that.
+        // The table only offers Edit to a device and a profile that may edit items; a handler never trusts that.
+        if (EditorDeviceRule.ItemRefusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+        {
+            _notice = refusal;
+            return;
+        }
+
         if (DeviceContext.IsPhone)
         {
             await EditTickedAsync([row]);
@@ -285,9 +294,9 @@ public partial class SongList
     // through the same launcher the other lists use. The table and the launcher both check the device; the Engine checks every save.
     private async Task EditTickedAsync(IReadOnlyList<SongRow> selected)
     {
-        if (EditorDeviceRule.TryRefuseItems(DeviceContext))
+        if (EditorDeviceRule.ItemRefusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
-            _notice = EditorDeviceRule.ItemMessage;
+            _notice = refusal;
             return;
         }
 

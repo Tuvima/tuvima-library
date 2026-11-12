@@ -90,11 +90,12 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
         _ => _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true)),
     };
 
-    private void SetAdministrator(bool administrator)
+    // The profile may edit item details ("metadata.manage") unless a test says it may not; Delete follows administrator access alone.
+    private void SetAdministrator(bool administrator, bool mayEditItems = true)
     {
         var id = Guid.NewGuid();
         _session.Set("test-session-token", id, id, Guid.NewGuid(),
-            new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
+            new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], mayEditItems ? ["metadata.manage"] : []));
     }
 
     private IRenderedComponent<MediaTile> RenderTile(MediaTileViewModel item) =>
@@ -127,6 +128,27 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
         var cut = RenderTile(Movie(progress: null));
 
         Assert.Equal(["Add to My List", "Edit", "Delete from library…"], MenuLabels(cut));
+    }
+
+    [Fact]
+    public async Task Edit_IsHiddenFromAProfileThatMayNotEditDetails_WhileDeleteStaysWithAdministrators()
+    {
+        await UseDevice("desktop");
+        SetAdministrator(true, mayEditItems: false);
+
+        var cut = RenderTile(Movie());
+
+        Assert.Equal(["Add to My List", "Restart", "Delete from library…"], MenuLabels(cut));
+    }
+
+    [Fact]
+    public async Task Edit_IsHiddenWhenNoProfileIsKnown()
+    {
+        await UseDevice("desktop");
+
+        var cut = RenderTile(Movie());
+
+        Assert.DoesNotContain("Edit", MenuLabels(cut));
     }
 
     [Fact]
@@ -182,6 +204,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     public async Task Edit_OpensThePopOverOverHome_WithoutNavigatingAway()
     {
         await UseDevice("desktop");
+        SetAdministrator(false);
         var navigation = Services.GetRequiredService<NavigationManager>();
         var before = navigation.Uri;
         var popover = Render<EditorPopover>();

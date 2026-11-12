@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
@@ -8,7 +9,8 @@ public sealed class DashboardAuthorityProjector(
     IAccountRepository accounts,
     IProfileRepository profiles,
     IProfileAccessRepository profileAccess,
-    IGrantAdminUnlockService unlocks)
+    IGrantAdminUnlockService unlocks,
+    IAccountAccessDecisionService accountDecisions)
 {
     public async Task<DashboardAuthorityResponse> ProjectAsync(
         Guid accountId,
@@ -88,6 +90,13 @@ public sealed class DashboardAuthorityProjector(
             {
                 actions.Add("administrator.unlock");
             }
+        }
+
+        // Read-only signal of the Engine's own rule for editing item details (the detail "edit" action and the metadata-write routes);
+        // the Engine still decides again on every save.
+        if (await DetailActionAuthorizationPolicy.MayManageMetadataAsHumanAsync(authority, accountDecisions, ct).ConfigureAwait(false))
+        {
+            actions.Add("metadata.manage");
         }
 
         // A household administrator (who is not also the server administrator) manages only their own household.

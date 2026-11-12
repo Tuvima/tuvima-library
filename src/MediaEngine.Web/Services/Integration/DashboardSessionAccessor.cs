@@ -166,7 +166,7 @@ public sealed class DashboardSessionAccessor
             }
 
             var actions = Authority.ActionCapabilities
-                .Where(action => action is not "access.manage" and not "applications.manage" and not "administrator.lock")
+                .Where(action => action is not "access.manage" and not "applications.manage" and not "administrator.lock" and not "metadata.manage")
                 .ToArray();
             changedHandler = SetCore(SessionToken, AccountId, ActiveProfileId, SessionId,
                 Authority with { AdministratorSurfaceUnlocked = false, AdministratorUnlockExpiresAt = null, ActionCapabilities = actions });
@@ -233,6 +233,12 @@ public sealed class DashboardSessionAccessor
 
     public bool HasAction(string capability) =>
         Authority?.ActionCapabilities.Contains(capability, StringComparer.Ordinal) == true;
+
+    /// <summary>
+    /// True when the Engine says the signed-in profile may edit item details ("metadata.manage"). Read-only information about an existing
+    /// permission: it only decides whether Edit is offered, and the Engine still checks every save. An unknown or missing authority means no.
+    /// </summary>
+    public bool CanManageMetadata => HasAction("metadata.manage");
 
     public bool ShouldLockOnLeave => Authority?.ProfileGrants
         .FirstOrDefault(grant => grant.ProfileId == ActiveProfileId)

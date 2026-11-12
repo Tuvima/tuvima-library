@@ -87,6 +87,7 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
         await handler.LockStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cut.WaitForAssertion(() => Assert.DoesNotContain("protected-settings", cut.Markup));
         Assert.False(session.HasAction("access.manage"));
+        Assert.False(session.CanManageMetadata);
         handler.LockReply.SetResult();
         await locking;
     }
@@ -149,7 +150,7 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
         public TaskCompletionSource? LockReply { get; set; }
         public DashboardAuthorityResponse Authority(bool unlocked) => new(
             Account, Profile, true, true, 1, 1, true, unlocked, null, 1, [],
-            ["settings.administration"], unlocked ? ["access.manage", "administrator.lock"] : ["administrator.unlock"]);
+            ["settings.administration"], unlocked ? ["access.manage", "administrator.lock", "metadata.manage"] : ["administrator.unlock"]);
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
