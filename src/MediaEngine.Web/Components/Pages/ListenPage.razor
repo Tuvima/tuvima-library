@@ -467,7 +467,7 @@ else
                         }
                         else if (PlaylistCoverUrls.Count == 0)
                         {
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" Class="tl-u-font-size-64px" />
+                            <AppMaterialIcon Icon="@(IsFavoritesPlaylist ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.QueueMusic)" Class="tl-u-font-size-64px" />
                         }
                         else
                         {
@@ -481,6 +481,10 @@ else
                     </div>
                     <div class="listen-detail__copy">
                         <h2>@ActivePlaylistTitle</h2>
+                        @if (IsFavoritesPlaylist)
+                        {
+                            <p class="listen-detail__meta">@(ActivePlaylistTracks.Count == 1 ? L["ListenPage_FavoritesOneSong"].Value : L["ListenPage_FavoritesSongCount", ActivePlaylistTracks.Count].Value)</p>
+                        }
                         <div class="listen-actions">
                             <AppButton ButtonStyle="AppButtonStyle.Filled" StartIcon="@AppMaterialIcons.Filled.PlayArrow" Label="@L["Common_Play"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
                             <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Filled.Shuffle" Label="@L["Common_Shuffle"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle, true))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
@@ -501,8 +505,8 @@ else
                     {
                         <div class="listen-empty">
                             <div>
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                <p>@L["ListenPage_ThisPlaylistIsEmpty"]</p>
+                                <AppMaterialIcon Icon="@(IsFavoritesPlaylist ? AppMaterialIcons.Outlined.FavoriteBorder : AppMaterialIcons.Outlined.QueueMusic)" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
+                                <p>@(IsFavoritesPlaylist ? L["ListenPage_FavoritesEmpty"].Value : L["ListenPage_ThisPlaylistIsEmpty"].Value)</p>
                             </div>
                         </div>
                     }
@@ -520,6 +524,8 @@ else
                                    FavoriteIds="@PlaylistFavoriteIds"
                                    CanEdit="true"
                                    CanReorder="@CanReorderActivePlaylist"
+                                   SortableOwnOrder="@IsFavoritesPlaylist"
+                                   RemoveLabel="@(IsFavoritesPlaylist ? L["ListenPage_RemoveFromFavorites"].Value : null)"
                                    OnPlay="@PlayPlaylistRowAsync"
                                    OnPlayNext="@PlayNextPlaylistRowAsync"
                                    OnQueue="@QueuePlaylistRowAsync"

@@ -115,6 +115,45 @@ public static class ProfileStateEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
 
+        // Favorites (the profile's hearted songs) are kept in an order the person sets by hand. The index counts what the profile sees; the
+        // order is only ever the signed-in profile's own, so there is no profile in the route to get wrong.
+        group.MapPost("/favorites/songs/{entityId:guid}/move", async (
+            Guid entityId,
+            ProfileSavedItemMoveRequest request,
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            ProfileStateAccessService access,
+            CancellationToken ct) =>
+        {
+            var profileId = RequireProfileId(user);
+            var scope = await access.ResolveAsync(profileId, ct);
+            var all = await repository.GetSavedItemsAsync(profileId, ProfileEntityKind.Song, ct);
+            var visible = all.Where(item => scope.Allows(ProfileEntityKind.Song, item.EntityId)).ToList();
+            if (!visible.Any(item => item.EntityId == entityId))
+            {
+                return ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites.");
+            }
+
+            if (request.ToIndex < 0 || request.ToIndex >= visible.Count)
+            {
+                return ApiErrors.BadRequest("The new place is outside the Favorites list.");
+            }
+
+            // Songs the profile cannot see still hold a place; the move lands next to the song now sitting at the wanted visible place.
+            var target = visible[request.ToIndex].EntityId;
+            var result = await repository.MoveSavedItemAsync(
+                profileId, ProfileEntityKind.Song, entityId, all.ToList().FindIndex(item => item.EntityId == target), ct);
+            return result switch
+            {
+                SavedItemMoveResult.Moved => Results.NoContent(),
+                SavedItemMoveResult.NotSaved => ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites."),
+                _ => ApiErrors.BadRequest("The new place is outside the Favorites list."),
+            };
+        })
+        .WithName("MoveFavoriteSong")
+        .Produces(StatusCodes.Status204NoContent)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
         group.MapGet("/reactions", async (
             ClaimsPrincipal user,
             IProfileStateRepository repository,

@@ -17,9 +17,25 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
                    saved_at AS SavedAt, position AS Position
             FROM profile_saved_items
             WHERE profile_id = @profileId
-            ORDER BY CASE WHEN position IS NULL THEN 1 ELSE 0 END, position, saved_at DESC;
+            ORDER BY CASE WHEN position IS NULL THEN 1 ELSE 0 END, position, saved_at DESC, entity_id;
             """,
             new { profileId }, cancellationToken: ct));
+        return Task.FromResult<IReadOnlyList<ProfileSavedItem>>(rows.Select(Map).ToList());
+    }
+
+    public Task<IReadOnlyList<ProfileSavedItem>> GetSavedItemsAsync(Guid profileId, ProfileEntityKind entityKind, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var rows = connection.Query<SavedRow>(new CommandDefinition(
+            """
+            SELECT profile_id AS ProfileId, entity_kind AS EntityKind, entity_id AS EntityId,
+                   saved_at AS SavedAt, position AS Position
+            FROM profile_saved_items
+            WHERE profile_id = @profileId AND entity_kind = @entityKind
+            ORDER BY CASE WHEN position IS NULL THEN 1 ELSE 0 END, position, saved_at DESC, entity_id;
+            """,
+            new { profileId, entityKind = entityKind.ToString() }, cancellationToken: ct));
         return Task.FromResult<IReadOnlyList<ProfileSavedItem>>(rows.Select(Map).ToList());
     }
 
@@ -52,6 +68,21 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
         RequireProfile(connection, transaction, profileId, token);
         RequireTarget(connection, transaction, entityKind, entityId, token);
         var now = DateTimeOffset.UtcNow;
+        var alreadySaved = connection.ExecuteScalar<long>(new CommandDefinition(
+            "SELECT COUNT(1) FROM profile_saved_items WHERE profile_id = @profileId AND entity_kind = @entityKind AND entity_id = @entityId;",
+            new { profileId, entityKind = entityKind.ToString(), entityId }, transaction, cancellationToken: token)) > 0;
+        if (position is null && !alreadySaved && entityKind == ProfileEntityKind.Song)
+        {
+            // A song hearted just now goes to the top of Favorites: one place before the first saved position. A song that is already a
+            // Favorite keeps its place (the conflict clause below leaves its position alone when none is given).
+            position = connection.ExecuteScalar<int?>(new CommandDefinition(
+                """
+                SELECT MIN(position) - 1 FROM profile_saved_items
+                WHERE profile_id = @profileId AND entity_kind = 'Song';
+                """,
+                new { profileId }, transaction, cancellationToken: token)) ?? 0;
+        }
+
         connection.Execute(new CommandDefinition(
             """
             INSERT INTO profile_saved_items(profile_id, entity_kind, entity_id, saved_at, position)
@@ -87,6 +118,47 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
         connection.Execute(new CommandDefinition(
             "DELETE FROM profile_saved_items WHERE profile_id = @profileId AND entity_kind = @entityKind AND entity_id = @entityId;",
             new { profileId, entityKind = entityKind.ToString(), entityId }, transaction, cancellationToken: token)) > 0, ct);
+
+    public Task<SavedItemMoveResult> MoveSavedItemAsync(
+        Guid profileId,
+        ProfileEntityKind entityKind,
+        Guid entityId,
+        int toIndex,
+        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+    {
+        var ordered = connection.Query<Guid>(new CommandDefinition(
+            """
+            SELECT entity_id FROM profile_saved_items
+            WHERE profile_id = @profileId AND entity_kind = @entityKind
+            ORDER BY CASE WHEN position IS NULL THEN 1 ELSE 0 END, position, saved_at DESC, entity_id;
+            """,
+            new { profileId, entityKind = entityKind.ToString() }, transaction, cancellationToken: token)).ToList();
+
+        var from = ordered.IndexOf(entityId);
+        if (from < 0)
+        {
+            return SavedItemMoveResult.NotSaved;
+        }
+
+        if (toIndex < 0 || toIndex >= ordered.Count)
+        {
+            return SavedItemMoveResult.IndexOutOfRange;
+        }
+
+        ordered.RemoveAt(from);
+        ordered.Insert(toIndex, entityId);
+        for (var index = 0; index < ordered.Count; index++)
+        {
+            connection.Execute(new CommandDefinition(
+                """
+                UPDATE profile_saved_items SET position = @index
+                WHERE profile_id = @profileId AND entity_kind = @entityKind AND entity_id = @entityId;
+                """,
+                new { index, profileId, entityKind = entityKind.ToString(), entityId = ordered[index] }, transaction, cancellationToken: token));
+        }
+
+        return SavedItemMoveResult.Moved;
+    }, ct);
 
     public Task<IReadOnlyList<ProfileReactionState>> GetReactionsAsync(Guid profileId, CancellationToken ct = default)
     {

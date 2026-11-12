@@ -13544,4 +13544,16 @@
   <data name="SongSelectionBar_Count" xml:space="preserve">
     <value>{0} selected</value>
   </data>
+  <data name="ListenPage_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favorites</value>
+  </data>
+  <data name="ListenPage_FavoritesEmpty" xml:space="preserve">
+    <value>Songs you heart appear here.</value>
+  </data>
+  <data name="ListenPage_FavoritesOneSong" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="ListenPage_FavoritesSongCount" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
 </root>
