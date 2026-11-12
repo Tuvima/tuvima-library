@@ -2,8 +2,8 @@
     display: block;
     min-height: calc(100svh - var(--app-topbar-height, 65px));
     background:
-        radial-gradient(circle at 82% 4%, rgba(93, 53, 192, 0.18), transparent 34rem),
-        linear-gradient(180deg, rgba(8, 17, 30, 0.99), rgba(6, 14, 25, 0.99));
+        radial-gradient(circle at 82% 4%, color-mix(in srgb, var(--tl-accent-primary) 14%, transparent), transparent 34rem),
+        var(--tl-bg-root);
 }
 
 .sme-inline-surface--hero {

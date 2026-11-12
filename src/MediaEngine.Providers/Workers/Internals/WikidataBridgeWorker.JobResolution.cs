@@ -254,6 +254,11 @@ public sealed partial class WikidataBridgeWorker
         if (mediaType is MediaType.Books or MediaType.Audiobooks)
         {
             authorHint ??= GetCanonical(canonicals, MetadataFieldConstants.Artist);
+            if (mediaType == MediaType.Audiobooks && titleHint is not null)
+            {
+                // The audiobook links to its book, so it is searched for by the book's title, without a leading number.
+                titleHint = LeadingNumberTitleCleaner.Strip(titleHint, out _);
+            }
             seriesHint = GetCanonical(canonicals, MetadataFieldConstants.Series)
                 ?? GetCanonical(canonicals, MetadataFieldConstants.Album);
         }
