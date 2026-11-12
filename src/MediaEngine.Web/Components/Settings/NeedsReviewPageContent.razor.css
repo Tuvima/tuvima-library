@@ -23,6 +23,8 @@
 .needs-review-page__skeleton-text { display: grid; gap: 10px; }
 
 @media (max-width: 600px) {
+    /* The action bar is fixed to the bottom of the screen on a phone, so the last rows keep room above it while rows are ticked. */
+    .needs-review-page--selecting { padding-block-end: 160px; }
     .needs-review-page__search { flex-basis: 100%; max-inline-size: none; }
     .needs-review-page__note { flex-wrap: wrap; }
     .needs-review-page__empty { padding-block: var(--tl-space-8); }

@@ -56,4 +56,16 @@ public sealed class NeedsReviewActions
 
     /// <summary>Put back a kept item so it waits in Needs Review again.</summary>
     public required Func<NeedsReviewRowDto, Task> PutBack { get; init; }
+
+    /// <summary>The rows that are ticked (the action bar acts on these only).</summary>
+    public required NeedsReviewSelection Selection { get; init; }
+
+    /// <summary>Ticks or unticks these rows (a row, a family's files or a whole group) and draws the page again; a finished row cannot be ticked.</summary>
+    public required Action<IEnumerable<NeedsReviewRowDto>, bool> SetSelected { get; init; }
+
+    /// <summary>
+    /// Whether tick boxes are drawn: always on a computer or tablet; on a phone only once something is ticked (Select in a row's menu ticks
+    /// the first row), and they go again when nothing is.
+    /// </summary>
+    public bool TickBoxesShown => !IsPhone() || Selection.Count > 0;
 }

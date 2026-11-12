@@ -13691,4 +13691,64 @@
   <data name="NeedsReviewKept_PutBackFor" xml:space="preserve">
     <value>Put back {0}</value>
   </data>
+  <data name="NeedsReviewSelect_Row" xml:space="preserve">
+    <value>Select {0}</value>
+  </data>
+  <data name="NeedsReviewSelect_Group" xml:space="preserve">
+    <value>Select all in {0}</value>
+  </data>
+  <data name="NeedsReviewRow_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="NeedsReviewBar_Region" xml:space="preserve">
+    <value>Selected items</value>
+  </data>
+  <data name="NeedsReviewBar_Count" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="NeedsReviewBar_UseSuggestions" xml:space="preserve">
+    <value>Use suggestions</value>
+  </data>
+  <data name="NeedsReviewBar_EditOne" xml:space="preserve">
+    <value>Edit 1 item</value>
+  </data>
+  <data name="NeedsReviewBar_EditMany" xml:space="preserve">
+    <value>Edit {0} items</value>
+  </data>
+  <data name="NeedsReviewBar_Clear" xml:space="preserve">
+    <value>Clear selection</value>
+  </data>
+  <data name="NeedsReviewBar_UseTitle" xml:space="preserve">
+    <value>Use suggestions</value>
+  </data>
+  <data name="NeedsReviewBar_UseMessageOne" xml:space="preserve">
+    <value>Library will apply its suggestion to 1 item.</value>
+  </data>
+  <data name="NeedsReviewBar_UseMessageMany" xml:space="preserve">
+    <value>Library will apply its suggestion to {0} items.</value>
+  </data>
+  <data name="NeedsReviewBar_UseConfirm" xml:space="preserve">
+    <value>Use suggestions</value>
+  </data>
+  <data name="NeedsReviewBar_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="NeedsReviewBar_KeepTitleOne" xml:space="preserve">
+    <value>Keep 1 item as it is?</value>
+  </data>
+  <data name="NeedsReviewBar_KeepTitleMany" xml:space="preserve">
+    <value>Keep {0} items as they are?</value>
+  </data>
+  <data name="NeedsReviewBar_KeepMessageOne" xml:space="preserve">
+    <value>It will be hidden from Needs Review. You can show it again from the bottom of the list.</value>
+  </data>
+  <data name="NeedsReviewBar_KeepMessageMany" xml:space="preserve">
+    <value>They will be hidden from Needs Review. You can show them again from the bottom of the list.</value>
+  </data>
+  <data name="NeedsReviewBar_KeepConfirm" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="NeedsReviewBar_EditUnavailable" xml:space="preserve">
+    <value>Editing is not available right now.</value>
+  </data>
 </root>

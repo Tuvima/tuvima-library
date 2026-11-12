@@ -1,0 +1,30 @@
+/* The action bar: sticks to the bottom of the page content while rows are ticked (mock screen 2, marker 3); on a phone it sits at the bottom of the
+   screen above the dock, and its buttons wrap onto their own lines. */
+.nr-bar {
+    position: sticky;
+    inset-block-end: var(--tl-space-4);
+    z-index: var(--tl-z-sticky);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-3);
+    margin-block-start: var(--tl-space-5);
+    padding: var(--tl-space-2) var(--tl-space-2) var(--tl-space-2) var(--tl-space-4);
+    border-radius: var(--tl-radius-lg);
+    background: var(--tl-bg-surface-elevated);
+    box-shadow: var(--tl-shadow-md);
+}
+.nr-bar__count { margin-inline-end: auto; font-size: var(--tl-font-size-md); font-weight: var(--tl-font-weight-semibold); }
+.nr-bar__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--tl-space-2); }
+
+@media (max-width: 600px) {
+    .nr-bar {
+        position: fixed;
+        inset-inline: var(--tl-space-2);
+        inset-block-end: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-space-2));
+        margin-block-start: 0;
+        padding-inline-start: var(--tl-space-3);
+    }
+    .nr-bar__count { flex: 1 0 100%; }
+    .nr-bar__actions { flex: 1 0 100%; justify-content: flex-start; }
+}

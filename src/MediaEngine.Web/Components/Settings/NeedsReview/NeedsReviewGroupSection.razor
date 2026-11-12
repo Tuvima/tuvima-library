@@ -6,6 +6,15 @@
    waiting in it, then its rows as cards in one list. One row that cannot be drawn shows a "couldn't be shown" row; the rest stay usable. *@
 <section class="nr-section" aria-labelledby="@HeadingId" data-testid="@(KeptView ? "needs-review-kept" : "needs-review-group")" data-group="@Section.Group">
     <div class="nr-section__head">
+        @if (!KeptView && Actions.TickBoxesShown)
+        {
+            @* Ticks or unticks every row still waiting in this group; partly ticked when only some are. *@
+            <span class="nr-section__tick">
+                <NeedsReviewTick State="@HeadingTickState"
+                                 Label="@L["NeedsReviewSelect_Group", Title].Value"
+                                 OnChanged="@(on => Actions.SetSelected(WaitingRows, on))" />
+            </span>
+        }
         <h2 id="@HeadingId" class="nr-section__title">@Title</h2>
         <span class="nr-section__count" data-testid="needs-review-group-count">@Section.Count.ToString("N0")</span>
     </div>
@@ -39,6 +48,11 @@
 
     /// <summary>Draws the kept items instead of a group: each row offers only Put back.</summary>
     [Parameter] public bool KeptView { get; set; }
+
+    // The rows of this group that can still be ticked: a finished row has no tick box.
+    private IReadOnlyList<NeedsReviewRowDto> WaitingRows => [.. Section.Entries.SelectMany(entry => entry.Rows).Where(Model.IsWaiting)];
+
+    private NeedsReviewTickState HeadingTickState => Actions.Selection.StateOf(WaitingRows.Select(row => row.Key));
 
     private string HeadingId => $"needs-review-group-{Section.Group}";
 

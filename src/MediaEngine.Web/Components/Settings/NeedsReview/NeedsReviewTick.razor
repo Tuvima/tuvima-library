@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Settings.NeedsReview
+
+@* The tick box in front of a row, a family row or a group heading (mock screens 1 and 2). It is the shared check box, with a third look: partly
+   ticked (some of the rows under a heading or a family are ticked), announced as "mixed" and drawn by a small overlay in the app's accent.
+   Pressing a partly ticked box ticks all of them. The name is always given, since the box has no visible text. *@
+<span class="@RootClass">
+    <AppCheckbox Value="@(State == NeedsReviewTickState.All)"
+                 ValueChanged="OnChanged"
+                 Disabled="@Disabled"
+                 aria-label="@Label"
+                 aria-checked="@AriaChecked"
+                 data-state="@StateName"
+                 data-testid="needs-review-tick" />
+</span>
+
+@code {
+    [Parameter] public NeedsReviewTickState State { get; set; }
+
+    /// <summary>The box's accessible name ("Select Dune.mkv", "Select all in Ready to confirm").</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Raised with true when the box is now ticked (all rows) and false when it is cleared.</summary>
+    [Parameter] public EventCallback<bool> OnChanged { get; set; }
+
+    private string RootClass => State == NeedsReviewTickState.Some ? "nr-tick nr-tick--some" : "nr-tick";
+
+    private string AriaChecked => State switch
+    {
+        NeedsReviewTickState.All => "true",
+        NeedsReviewTickState.Some => "mixed",
+        _ => "false",
+    };
+
+    private string StateName => State.ToString().ToLowerInvariant();
+}
