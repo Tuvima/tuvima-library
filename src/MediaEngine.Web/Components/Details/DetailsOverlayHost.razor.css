@@ -5,15 +5,15 @@
    screen; 0 when no bar is showing) and the window ends above it.
    Desktop and tablet: a large centred window (about 90% of the screen) with the page dimmed behind it.
    Phone: a bottom sheet about 92% tall with a grip. The detail page scrolls inside it.
-   The window's own box (the dialog AppViewer renders: position, layer, size, sheet and its animation) is in app.css: this component's
-   isolation attribute never reaches that element, so a rule here would never match it. The backdrop, title, frame and scroller below are this
-   component's own elements. */
+   The window's own box (size, corners, position, layer, phone sheet and its animation) is in wwwroot/app.css: the shared Viewer part renders the
+   <dialog> element, so these scoped styles cannot reach it (that is how the window came to fill the screen, issue 875). The backdrop, title,
+   frame and scroller below are this component's own elements. */
 
 .tl-details-overlay__backdrop {
     position: fixed;
     inset: 0;
     z-index: var(--tl-z-details-backdrop, 1340);
-    background: rgba(0, 0, 0, 0.62);
+    background: var(--tl-scrim-soft-strong);
     overscroll-behavior: contain;
     touch-action: none;
 }

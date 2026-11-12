@@ -135,8 +135,8 @@
   <data name="Nav_Downloads" xml:space="preserve">
     <value>Downloads</value>
   </data>
-  <data name="Nav_MyLibrary" xml:space="preserve">
-    <value>Meine Bibliothek</value>
+  <data name="Nav_MyList" xml:space="preserve">
+    <value>Meine Liste</value>
   </data>
   <data name="Nav_Menu" xml:space="preserve">
     <value>Menü</value>

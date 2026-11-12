@@ -51,10 +51,10 @@ public sealed class MediaTileShelfViewAllTileTests : AsyncBunitContext
     {
         await UseAsync("desktop");
 
-        var cut = RenderShelf("/all/personal/my-list");
+        var cut = RenderShelf("/my-list");
 
         var tile = cut.Find("a.media-tile-shelf-view-all");
-        Assert.Equal("/all/personal/my-list", tile.GetAttribute("href"));
+        Assert.Equal("/my-list", tile.GetAttribute("href"));
         Assert.Equal("View all My List", tile.GetAttribute("aria-label"));
         Assert.Equal("View all", cut.Find(".media-tile-shelf-view-all-text").TextContent.Trim());
         Assert.NotEmpty(tile.QuerySelectorAll("svg"));
@@ -95,11 +95,11 @@ public sealed class MediaTileShelfViewAllTileTests : AsyncBunitContext
     {
         await UseAsync(formFactor);
 
-        var cut = RenderShelf("/all/personal/liked");
+        var cut = RenderShelf("/my-list");
 
         var header = cut.Find("a.media-tile-shelf-link");
         Assert.Equal(wording, header.TextContent.Trim());
-        Assert.Equal("/all/personal/liked", header.GetAttribute("href"));
+        Assert.Equal("/my-list", header.GetAttribute("href"));
         Assert.Single(cut.FindAll("a.media-tile-shelf-view-all"));
     }
 

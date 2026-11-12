@@ -8,21 +8,30 @@
     font-family: var(--font-ui);
 }
 
-/* Embedded in the Add library window: the same full-width column, free to shrink to the window. */
-.server-folder-picker__inline { box-sizing: border-box; width: 100%; min-width: 0; }
+/* Embedded in the Add library window: the same full-width column, free to shrink to the window. It is a column of frame, then footer, that takes the height the
+   host window gives it, so the folder list gets every pixel the fixed parts do not need (D6). */
+.server-folder-picker__inline { box-sizing: border-box; display: flex; flex: 1 1 auto; flex-direction: column; width: 100%; min-width: 0; }
+.server-folder-picker__inline > .server-folder-picker { display: flex; flex: 1 1 auto; flex-direction: column; height: auto; }
 
-/* Embedded in another dialog: the host supplies the title, and the handling choice sits under the frame. */
-.server-folder-picker__inline-footer { padding: var(--tl-space-4) var(--tl-space-5); border-top: 1px solid var(--tl-border-subtle); }
+/* Embedded in another dialog: the host supplies the title, and the handling choice, the one message line and the buttons sit directly under the frame. */
+.server-folder-picker__inline-footer { flex: none; padding: var(--tl-space-1) var(--tl-space-6) 0; }
+.server-folder-picker__inline-footer .server-folder-picker__footer { gap: var(--tl-space-1) 16px; }
+.server-folder-picker__inline-footer:not(:has(.server-folder-picker__footer > *)) { display: none; }
 
 .server-folder-picker__target { margin: 0; color: var(--tl-text-secondary); }
 
+/* The row above the list: the friendly name with its hint beside it, and the host's own context (the area and kind chips) at the far end. */
+.server-folder-picker__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--tl-space-2) var(--tl-space-4); min-width: 0; }
+.server-folder-picker__name-row { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: flex-end; gap: var(--tl-space-1) var(--tl-space-4); min-width: 0; }
+.server-folder-picker__name-row > .server-folder-picker__name { flex: 0 1 22.5rem; }
+
 /* Host fields above the list: the library name is large and the first thing you type (D5). */
-.server-folder-picker__top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-3); }
+.server-folder-picker__top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-3); order: 2; margin-left: auto; }
 .server-folder-picker__top ::deep input { font-size: var(--tl-font-size-lg, 1.125rem); }
 
 /* The friendly name is the only text box (Editor v5 D32); it names the folder, never the library (Libraries v3 D18). */
 .server-folder-picker__name { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-1); max-width: 22.5rem; }
-.server-folder-picker__name-hint { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.server-folder-picker__name-hint { margin-bottom: 0.7rem; color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
 
 /* The folder you are inside, named above the list. */
 .server-folder-picker__selected { color: var(--tl-text-primary); overflow-wrap: anywhere; }
@@ -55,8 +64,8 @@
     color: var(--tl-text-muted);
 }
 
-/* Reserve room for validation notices so the folder list does not jump when one appears. */
-.server-folder-picker__notices { display: grid; align-content: start; gap: var(--tl-space-2); min-height: 4.75rem; }
+/* A folder Library cannot open: the sentence, then Back (D9). */
+.server-folder-picker__state--cant-open { align-content: center; justify-items: center; gap: var(--tl-space-2); color: var(--tl-status-warning); }
 
 /* Footer: the safety line, then Cancel and the confirm button. */
 .server-folder-picker__footer {
@@ -64,17 +73,21 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 12px 16px;
+    gap: 8px 16px;
     width: 100%;
 }
 
+/* The handling choice is one row of its own, and the one message line sits directly under it; no space is held for a message that is not shown (D6, D7). */
+.server-folder-picker__message { flex: 1 1 100%; min-width: 0; line-height: 1.3; }
+
 .server-folder-picker__safety { margin: 0; flex: 1 1 240px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 
-.server-folder-picker__handling { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--tl-space-2); }
+.server-folder-picker__handling { display: grid; flex: 1 1 100%; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--tl-space-2); min-width: 0; }
 
 /* The one check's answer, drawn when Add / Choose is pressed (D7). */
-.server-folder-picker__result { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--tl-radius-md, 10px); border: 1px solid var(--tl-border-subtle); }
-.server-folder-picker__result p { margin: 2px 0 0; color: var(--tl-text-secondary); }
+.server-folder-picker__result { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: var(--tl-radius-md, 10px); border: 1px solid var(--tl-border-subtle); }
+.server-folder-picker__result > div { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; min-width: 0; }
+.server-folder-picker__result p { margin: 0; color: var(--tl-text-secondary); }
 .server-folder-picker__result[data-result="looks-right"] { border-color: var(--tl-status-success); color: var(--tl-status-success); }
 .server-folder-picker__result[data-result="heads-up"] { border-color: var(--tl-status-warning); color: var(--tl-status-warning); }
 .server-folder-picker__result[data-result="already-used"], .server-folder-picker__result[data-result="refused"] { border-color: var(--tl-status-error, var(--tl-status-warning)); color: var(--tl-status-error, var(--tl-status-warning)); }

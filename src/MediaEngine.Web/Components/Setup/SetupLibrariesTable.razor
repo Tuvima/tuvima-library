@@ -7,7 +7,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Libraries step's one table (first-run setup rework D4): Library, Area, Folders and Status, with one Add library button. Nothing is scanned during setup,
-   so every status says Pending and the "in your collection" figure is left out. Edit sits at the end of each row; View's kinds (Photos, Personal videos, Documents) are one row each, like Movies, and open their own Edit window. Every change saves
+   so every status says Pending and the "in your collection" figure is left out. Edit sits at the end of each row; View has one "Photos and videos" row (Photos and Personal videos together) and a Documents row, each shown only once it has a folder, and each opens its own Edit window. Every change saves
    through the setup session. Phones read the table but change nothing. Settings shows the same four columns once libraries are scanning. *@
 <div class="setup-libs" data-setup-libraries-table>
     @if (ReadOnly)
@@ -53,7 +53,7 @@
                 @foreach (var row in rows)
                 {
                     <tr @key="row.Key" data-library="@row.Key">
-                        <td data-card-role="title"><span class="setup-libs__name"><span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
+                        <td data-card-role="title"><span class="setup-libs__name"><span class="lib-kind-tile lib-kind-tile--lookup @LibraryKindLook.ColorClass(row.Type)" data-kind-icon="@row.Type.Key"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
                         <td data-card-role="subtitle">@row.AreaLabel</td>
                         <td class="setup-libs__folders">
                             @if (row.ViewFolders is { Count: > 0 } viewFolders)
@@ -148,8 +148,8 @@
             {
                 if (area.Key == LibraryTypeCatalog.ViewArea)
                 {
-                    // One row per View kind that has folders: Photos, Personal videos, Documents (View folders spec D1).
-                    foreach (var kind in Kinds.ViewKinds)
+                    // One row per View row that has folders: Photos and videos (Photos and Personal videos folders together), Documents (Setup and Libraries fixes D10).
+                    foreach (var kind in Kinds.ViewRowKinds)
                     {
                         var folders = ViewFolderRules.ListItems(ViewFolders ?? [], kind.Key);
                         if (folders.Count > 0) rows.Add(new Row(kind.Key, kind.Label, area.Key, area.Label, kind, null, folders));

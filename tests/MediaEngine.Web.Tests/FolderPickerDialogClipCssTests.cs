@@ -80,6 +80,52 @@ public sealed class FolderPickerDialogClipCssTests
         Assert.DoesNotContain("overflow: hidden", rule, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void TheInlineBrowserFrame_HasNoFixedHeight_AndLetsTheListTakeTheSpareHeight()
+    {
+        var css = Read(FrameCss);
+        var inline = Rule(css, ".app-browser--inline");
+
+        Assert.DoesNotContain("28rem", css, StringComparison.Ordinal);
+        Assert.Contains("height: auto;", inline, StringComparison.Ordinal);
+        Assert.DoesNotContain("height: 28", inline, StringComparison.Ordinal);
+        Assert.Contains("flex: 1 1 auto;", inline, StringComparison.Ordinal);
+
+        // The list takes the height left over and never shows fewer than five rows (a header row and five rows is about 16.5rem).
+        var list = Rule(css, ".app-browser--inline .app-browser__list");
+        Assert.Contains("flex: 1 1 0;", list, StringComparison.Ordinal);
+        Assert.Contains("min-height: 16.5rem;", list, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheSupportingFilesBrowserKeepsItsOwnFrameHeight()
+    {
+        var frame = Rule(Read(FrameCss), ".app-browser");
+
+        Assert.Contains("height: 100%;", frame, StringComparison.Ordinal);
+        Assert.Contains("min-height: 24rem;", frame, StringComparison.Ordinal);
+        Assert.DoesNotContain("app-browser--inline", Read("src/MediaEngine.Web/Components/Editor/EditorFileBrowserDialog.razor"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheFolderPickerReservesNoSpaceForMessages()
+    {
+        var css = Read(PickerCss);
+
+        Assert.DoesNotContain("__notices", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("4.75rem", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("min-height", Rule(css, ".server-folder-picker__message"), StringComparison.Ordinal);
+        Assert.DoesNotContain("server-folder-picker__notices", Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor"), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("src/MediaEngine.Web/Components/Settings/Libraries/AddViewFolderDialog.razor.css", ".add-view-folder")]
+    [InlineData(CreateDialogCss, ".create-library[data-step=\"3\"]")]
+    public void TheFolderWindowsFillTheWindowBodySoTheListGetsTheSpareHeight(string file, string selector)
+    {
+        Assert.Contains("min-height: 100%;", Rule(Read(file), selector), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(@"C:\", "")]
     [InlineData("D:", "")]

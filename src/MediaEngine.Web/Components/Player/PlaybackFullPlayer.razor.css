@@ -27,21 +27,20 @@
 /* Favorite, Like and Dislike keep the mockup's 40 px look (4 px apart) inside 44 px hit areas (the touch rule): the buttons are 44 px side by side, PlaybackIconButton draws its
    hover, pressed and selected fills 2 px inside through the two fill variables, and the wrapper reaches 2 px past each end so the drawn fills end where the mockup's do.
    Transfer: they are PlaybackIconButtons sized by --playback-control-target, which this wrapper sets; the gap reaches into PlaybackIdentityActions. */
-.playback-full__actions { flex:none; display:flex; align-items:center; margin-inline:-2px; --playback-control-target:44px; --playback-icon-button-fill-clip:content-box; --playback-icon-button-fill-inset:2px; }
+.playback-full__actions { flex:none; display:flex; align-items:center; margin-inline:-2px; --playback-control-target:44px; --playback-control-glyph:24px; --playback-icon-button-fill-clip:content-box; --playback-icon-button-fill-inset:2px; }
 .playback-full__actions ::deep .playback-identity-actions { gap:0; }
 .playback-full__timeline { flex:none; margin-top:12px; }
 /* Transfer: the timeline is a PlaybackSeekRail whose slider is drawn by AppRangeSlider. The slider's "player" rule that sets its rail to the 24 px hit height lists Firefox-only
    pseudo-elements in one selector list, which Chromium drops whole, so the rail stays at its 52 px default and its 4 px line sits 14 px above the times. This sets the 24 px
    height here, so the line sits level with the times as the mockup draws it. */
 .playback-full__timeline ::deep .playback-range-slider__rail { height:var(--playback-slider-hit); }
-/* Transfer: the transport buttons are sized by --playback-control-target (52 px here, as the mockup's ".phone .mid .btn"). */
-.playback-full__transport { flex:none; display:flex; align-items:center; justify-content:center; gap:var(--playback-full-transport-gap); margin-top:var(--playback-full-transport-top); --playback-control-target:52px; }
-/* Transfer: the Play button is a PlaybackPrimaryButton, drawn by AppNativeButton with the class playback-phone-play, which reaches it only through ::deep from here (the mockup's
-   64 px white disc with a black glyph, the glyph at the player's 32 px play size); its shell is the 64 px the disc needs, so the row centers the disc itself. The focus ring is
+/* Transfer: the transport buttons are sized by --playback-control-target (48 px with 28 px glyphs here, video player follow-ups D1); the Play button is 56 px with the 40 px Play glyph. */
+.playback-full__transport { flex:none; display:flex; align-items:center; justify-content:center; gap:var(--playback-full-transport-gap); margin-top:var(--playback-full-transport-top); --playback-control-target:48px; --playback-control-glyph:28px; --playback-play-target:56px; --playback-play-glyph:40px; }
+/* Transfer: the Play button is a PlaybackPrimaryButton, drawn by AppNativeButton with the class playback-phone-play, which reaches it only through ::deep from here (a white disc with a black glyph, 56 px with the 40 px play glyph as video player follow-ups D1 sets); its shell is the 56 px the disc needs, so the row centers the disc itself. The focus ring is
    the app's own. */
-.playback-full__transport ::deep .playback-primary-button-shell--phone { --playback-primary-size:64px; }
-.playback-full__transport ::deep .playback-phone-play { display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; padding:0; border:0; border-radius:50%; background:var(--playback-text); color:var(--playback-surface); cursor:pointer; transition:background-color 120ms ease; --playback-glyph-size:var(--playback-play-glyph); --playback-glyph-stroke:1.8; --phone-full-pressed:color-mix(in srgb, var(--playback-text) 82%, var(--playback-surface)); }
-.playback-full-owner ::deep .playback-tool-row { margin-top:var(--playback-full-tools-gap); }
+.playback-full__transport ::deep .playback-primary-button-shell--phone { --playback-primary-size:56px; }
+.playback-full__transport ::deep .playback-phone-play { display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; padding:0; border:0; border-radius:50%; background:var(--playback-text); color:var(--playback-surface); cursor:pointer; transition:background-color 120ms ease; --playback-glyph-size:var(--playback-play-glyph); --playback-glyph-stroke:1.8; --phone-full-pressed:color-mix(in srgb, var(--playback-text) 82%, var(--playback-surface)); }
+.playback-full-owner ::deep .playback-tool-row { margin-top:var(--playback-full-tools-gap); --playback-control-target:48px; --playback-control-glyph:28px; }
 /* A window too short for the full stack tightens the spacing; below 600 px tall the mockup's 640 px phone still fits whole. */
 @media (max-height:600px) {
     .playback-full-owner { --playback-full-pad-y:8px; --playback-full-art-gap:8px; --playback-full-transport-gap:12px; --playback-full-transport-top:4px; --playback-full-tools-gap:8px; }

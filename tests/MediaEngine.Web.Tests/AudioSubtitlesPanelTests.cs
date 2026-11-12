@@ -3,7 +3,9 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Player;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Resources;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
@@ -243,6 +245,29 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ALongAudioLabel_StaysOnOneLineWithTheFullTextInTheAppTooltipAndNoTitleAttribute()
+    {
+        const string longLabel = "English (Dolby Atmos mix with extended dialogue boost for late night listening)";
+        var audio = new List<AudioChoice>
+        {
+            new(0, longLabel, "Dolby Atmos · 7.1 with a very long description of the surround layout that cannot fit", AudioTrackPurpose.Main, Selected: true, Switchable: true),
+            new(1, "Spanish", "Stereo · 2.0", AudioTrackPurpose.Main, Selected: false, Switchable: false),
+        };
+        var cut = await OpenAsync(audio);
+
+        var row = cut.Find("[data-asv-audio='0']");
+        Assert.Equal(longLabel, row.QuerySelector(".asv__label")!.GetAttribute("data-overflow-tooltip"));
+        Assert.Equal(audio[0].Detail, row.QuerySelector(".asv__sub")!.GetAttribute("data-overflow-tooltip"));
+        Assert.Equal("Not switchable in this browser", cut.Find("[data-asv-audio='1'] .asv__sub--note").GetAttribute("data-overflow-tooltip"));
+        Assert.Equal("English · SDH", cut.Find("[data-asv-subtitle='manifest:1'] .asv__label").GetAttribute("data-overflow-tooltip"));
+        Assert.Empty(cut.FindAll("[data-audio-subtitles] [title]"));
+        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/AudioSubtitlesChoicesView.razor.css"));
+        Assert.Contains("white-space: nowrap;", css, StringComparison.Ordinal);
+        Assert.Contains("text-overflow: ellipsis;", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("overflow-wrap", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task OneAudioTrackAndNoSubtitles_StillShowsThePanelWithTheTrackListedAndNotSelectable()
     {
         var single = AudioSubtitlesChoices.BuildAudio(L, [new() { Index = 0, Language = "jpn", Codec = "aac", Channels = 2, IsDefault = true }], null, canSwitch: true);
@@ -272,15 +297,17 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public async Task FindSubtitles_OpensTheSearchViewInsideThePanelAndTheBackArrowReturns()
     {
-        var searches = 0;
-        var cut = await OpenAsync(configure: p => p.Add(x => x.OnSearch, EventCallback.Factory.Create(this, () => searches++)));
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync),
+            _ => Task.FromResult<TextTrackAlternativesResponse?>(new() { status = "NoneFound", source_name = "SubDL" })));
+        var presenter = new SubtitleFindPresenter(api);
+        presenter.Bind(Guid.NewGuid());
+        var cut = await OpenAsync(configure: p => p.Add(x => x.Find, presenter));
 
         await cut.Find("[data-asa-action='find']").ClickAsync();
 
         Assert.Equal("Find subtitles", cut.Find("header h2").TextContent);
         Assert.NotNull(cut.Find("[data-subtitle-find]"));
-        await cut.Find("[data-sfv-action='search']").ClickAsync();
-        Assert.Equal(1, searches);
+        cut.WaitForElement("[data-subtitles-state='NoneFound']");
         await cut.Find("button[aria-label='Back']").ClickAsync();
         Assert.Equal("Audio & subtitles", cut.Find("header h2").TextContent);
         Assert.NotNull(cut.Find("[data-audio-subtitles]"));
@@ -289,13 +316,14 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     [Fact]
     public async Task FindSubtitles_SaysSoWhenNoSubtitleSourceIsSwitchedOn()
     {
-        var cut = await OpenAsync(configure: p => p.Add(x => x.NoSubtitleSource, true).Add(x => x.IsAdministrator, true));
+        var api = EngineApiClientStub.CreateDefault();
+        var cut = await OpenAsync(configure: p => p.Add(x => x.NoSubtitleSource, true).Add(x => x.IsAdministrator, true).Add(x => x.Find, new SubtitleFindPresenter(api)));
 
         await cut.Find("[data-asa-action='find']").ClickAsync();
 
-        Assert.Contains("No subtitle source is switched on", cut.Find("[data-subtitles-state='no-source']").TextContent);
-        Assert.NotNull(cut.Find("[data-subtitles-state='no-source'] a[href='/settings/plugins']"));
-        Assert.Empty(cut.FindAll("[data-sfv-action='search']"));
+        Assert.Contains("No subtitle source is switched on", cut.Find("[data-subtitles-state='NoSourceOn']").TextContent);
+        Assert.NotNull(cut.Find("a[href='/settings/plugins']"));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), ((EngineApiClientStub)(object)api).Calls);
     }
 
     [Fact]

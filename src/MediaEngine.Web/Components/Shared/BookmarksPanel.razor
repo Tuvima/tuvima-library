@@ -7,7 +7,7 @@
 
 @* The Bookmarks panel for every medium with bookmarks (unified player v2 D21, D21a, D22; mockup screen 11), drawn inside a PlaybackPanel (heading "Bookmarks").
    One full-width purple "Bookmark at 34:12" button that saves at the moment it is pressed, with no note unless the optional "Add a note…" field was opened and
-   filled; the Everyone | Mine choice (Everyone by default); a search box once the list has more than eight rows; one compact row per bookmark (time in purple, the
+   filled; the Mine | Global choice (Mine by default); a search box once the list has more than eight rows; one compact row per bookmark (time in purple, the
    title or note, the frame from that moment or the cover, and the maker on Everyone rows); and a footer switch "Show on timeline". Selecting a row seeks. Mine
    rows have Edit (name and note, inline) and a two-click Delete; Everyone rows have no actions here, because Everyone's set is made in the editor's Bookmarks
    tab. Which list a bookmark belongs to, who made it and which pictures exist all come from the Engine's list; this panel never compares profile ids. *@
@@ -36,9 +36,13 @@
                 </button>
             }
         </div>
-        <div class="bmk__choice" data-bookmarks-choice>
-            <AppSegmentedControl Options="@ChoiceOptions" Value="@(IsMine ? MineValue : EveryoneValue)" AriaLabel="@L["BookmarksPanel_Choice"].Value" ValueChanged="ChooseAsync" />
-        </div>
+        @if (EveryoneList.Count > 0 || !IsMine)
+        {
+            @* Global exists for movies and TV only and only once an administrator has made a set; Mine is the default (global bookmarks v5). *@
+            <div class="bmk__choice" data-bookmarks-choice>
+                <AppSegmentedControl Options="@ChoiceOptions" Value="@(IsMine ? MineValue : EveryoneValue)" AriaLabel="@L["BookmarksPanel_Choice"].Value" ValueChanged="ChooseAsync" />
+            </div>
+        }
         @if (ShowSearch)
         {
             <div class="bmk__search" data-bookmarks-search @onkeydown:stopPropagation="true">
@@ -234,8 +238,8 @@
         return $"/engine-bookmark-frame/{bookmark.Id:D}" + (query >= 0 ? bookmark.FrameUrl[query..] : string.Empty);
     }
 
-    /// <summary>A person changes only their own bookmarks here; one in Everyone's set is changed in the editor's Bookmarks tab, never in the player.</summary>
-    private bool CanChange(PlaybackRailBookmark bookmark) => IsMine && bookmark.IsYours && !bookmark.IsGlobal && (Edit is not null || Delete is not null);
+    /// <summary>A person changes their own bookmarks from either view; a Global one is changed by an administrator in the editor's Bookmarks tab, never in the player.</summary>
+    private bool CanChange(PlaybackRailBookmark bookmark) => bookmark.IsYours && !bookmark.IsGlobal && (Edit is not null || Delete is not null);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -49,7 +49,61 @@ public sealed class NeedsReviewListContractTests
     {
         var json = JsonSerializer.Serialize(new NeedsReviewListDto { Total = 3, NotMatchedTotal = 2, NotSureTotal = 1, Skip = 0, Take = 100 });
 
-        Assert.Equal("{\"items\":[],\"total\":3,\"not_matched_total\":2,\"not_sure_total\":1,\"skip\":0,\"take\":100}", json);
+        Assert.Equal(
+            "{\"items\":[],\"total\":3,\"not_matched_total\":2,\"not_sure_total\":1,\"group_totals\":{\"ready\":0,\"choose\":0,\"no_match\":0,\"file_problem\":0},\"kept_total\":0,\"skip\":0,\"take\":100}",
+            json);
+    }
+
+    [Fact]
+    public void TheGroups_AreTheFourWordsThePageSectionsUse()
+    {
+        Assert.Equal("ready", NeedsReviewGroups.Ready);
+        Assert.Equal("choose", NeedsReviewGroups.Choose);
+        Assert.Equal("no_match", NeedsReviewGroups.NoMatch);
+        Assert.Equal("file_problem", NeedsReviewGroups.FileProblem);
+    }
+
+    [Fact]
+    public void ARow_CarriesItsGroupPictureFamilyRetryTimeAndKeptFlag_UnderSnakeCaseNames()
+    {
+        var show = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        var row = new NeedsReviewRowDto
+        {
+            Key = "file:x",
+            Group = NeedsReviewGroups.NoMatch,
+            CoverUrl = "/stream/a/cover",
+            FamilyKey = show.ToString("D"),
+            FamilyTitle = "Chernobyl",
+            FamilyWorkId = show,
+            FamilyCoverUrl = $"/stream/entity/work/{show:D}/cover",
+            NextRetryAt = new DateTimeOffset(2026, 11, 10, 8, 0, 0, TimeSpan.Zero),
+            Kept = true,
+        };
+
+        var json = JsonSerializer.Serialize(row);
+
+        Assert.Contains("\"group\":\"no_match\",\"cover_url\":\"/stream/a/cover\",\"family_key\":\"11111111-2222-3333-4444-555555555555\",\"family_title\":\"Chernobyl\",\"family_work_id\":\"11111111-2222-3333-4444-555555555555\",\"family_cover_url\":\"/stream/entity/work/11111111-2222-3333-4444-555555555555/cover\",\"next_retry_at\":\"2026-11-10T08:00:00+00:00\",\"kept\":true}", json, StringComparison.Ordinal);
+        var back = JsonSerializer.Deserialize<NeedsReviewRowDto>(json)!;
+        Assert.Equal(show, back.FamilyWorkId);
+        Assert.True(back.Kept);
+    }
+
+    [Fact]
+    public void ARowWithNoFamilyOrPicture_WritesNullsAndAGroup()
+    {
+        var json = JsonSerializer.Serialize(new NeedsReviewRowDto { Key = "review:x" });
+
+        Assert.Contains("\"group\":\"no_match\",\"cover_url\":null,\"family_key\":null,\"family_title\":null,\"family_work_id\":null,\"family_cover_url\":null,\"next_retry_at\":null,\"kept\":false}", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PuttingAnItemBack_AnswersWithTheItemsId()
+    {
+        var id = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+        Assert.Equal(
+            "{\"reopened\":true,\"review_item_id\":\"11111111-2222-3333-4444-555555555555\"}",
+            JsonSerializer.Serialize(new ReviewReopenResponse(reopened: true, review_item_id: id)));
     }
 
     [Fact]

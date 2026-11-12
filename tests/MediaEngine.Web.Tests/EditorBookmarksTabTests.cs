@@ -223,9 +223,9 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
         var lists = cut.FindAll("ul.tl-bookmarks__list");
         Assert.Single(lists[0].QuerySelectorAll("li.tl-bookmarks__row"));
         Assert.Equal(2, lists[1].QuerySelectorAll("li.tl-bookmarks__row").Length);
-        Assert.Contains("Everyone's bookmarks", cut.Markup);
+        Assert.Contains("Global bookmarks", cut.Markup);
         Assert.Contains("From profiles", cut.Markup);
-        Assert.Contains("Pooled from every profile's bookmarks", cut.Markup);
+        Assert.Contains("Nothing is in Global until you add it", cut.Markup);
         Assert.Contains("12:04", lists[0].TextContent);
         Assert.Contains("from Ben", lists[1].TextContent);
     }
@@ -251,7 +251,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
         var cut = RenderPanel(editor);
         cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
 
-        cut.FindAll("ul.tl-bookmarks__list")[1].QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Add to Everyone's").Click();
+        cut.FindAll("ul.tl-bookmarks__list")[1].QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Add to Global").Click();
 
         var op = Assert.Single(editor.Session.Pending.BookmarkOps(MovieId));
         Assert.Equal(EditorBookmarkOpKinds.Add, op.Kind);
@@ -264,7 +264,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
             Assert.Equal(2, cut.FindAll("ul.tl-bookmarks__list")[0].QuerySelectorAll("li.tl-bookmarks__row").Length);
         });
         var row = EditReviewRows.Build(editor.Session.Pending, _ => "Dune", null).Single();
-        Assert.Equal("Added to Everyone's: 51:40 The twist", row.After);
+        Assert.Equal("Added to Global: 51:40 The twist", row.After);
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
     public async Task RemoveFromEveryones_ShowsTheRowStruckThrough_WithUndo_AndUndoPutsItBack()
     {
         var editor = await StartEditorAsync(Movie);
-        editor.Session.Pending.StageBookmarkOp(MovieId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Remove, BookmarkId = Opening }, "Removed from Everyone's: 12:04 Opening");
+        editor.Session.Pending.StageBookmarkOp(MovieId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Remove, BookmarkId = Opening }, "Removed from Global: 12:04 Opening");
         var cut = RenderPanel(editor);
         cut.WaitForState(() => cut.FindAll("ul.tl-bookmarks__list").Count == 2);
 
@@ -347,7 +347,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
         var pooled = RenderPanel(editor);
         pooled.WaitForState(() => pooled.FindAll("ul.tl-bookmarks__list").Count == 2);
         Assert.Empty(pooled.FindAll(".tl-bookmarks__actions .app-row-menu__trigger"));
-        Assert.DoesNotContain("Start over from profiles", pooled.Markup);
+        Assert.DoesNotContain("Clear Global", pooled.Markup);
 
         _loaded = Titled(video: true, state: EditorBookmarkStates.Definitive);
         var definitive = RenderPanel(editor);
@@ -356,13 +356,13 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
         Assert.DoesNotContain(definitive.FindAll(".tl-bookmarks__actions > button"), button => button.TextContent.Contains("Start over", StringComparison.Ordinal));
         Assert.DoesNotContain("Bookmarks at the same spot are merged when you save.", definitive.Markup);
         definitive.Find(".tl-bookmarks__actions .app-row-menu__trigger").Click();
-        FindMenuItem("Start over from profiles").Click();
+        FindMenuItem("Clear Global").Click();
 
         definitive.WaitForAssertion(() =>
         {
             Assert.Equal(EditorBookmarkOpKinds.StartOver, Assert.Single(editor.Session.Pending.BookmarkOps(MovieId)).Kind);
             Assert.Empty(definitive.FindAll(".tl-bookmarks__actions .app-row-menu__trigger"));
-            Assert.Contains("Pooled from every profile's bookmarks", definitive.Markup);
+            Assert.Contains("Nothing is in Global until you add it", definitive.Markup);
             Assert.Contains("Bookmarks at the same spot are merged when you save.", definitive.Markup);
         });
     }
@@ -398,7 +398,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
         Assert.Contains("The Beginning", cut.Markup);
         cut.FindAll("ul.tl-bookmarks__list")[0].QuerySelector(".app-row-menu__trigger")!.Click();
         Assert.Contains(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Rename");
-        Assert.Contains(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Remove from Everyone's");
+        Assert.Contains(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Remove from Global");
         Assert.DoesNotContain(MenuItems().Select(item => item.TextContent.Trim()), label => label == "Change time");
     }
 
@@ -442,7 +442,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
 
     private static BookmarkSetCompareDto Compared() => new()
     {
-        Name = "Everyone's bookmarks",
+        Name = "Global bookmarks",
         BookmarkCount = 3,
         Match = BookmarkPackMatchResults.Match,
         RowsReady = true,
@@ -605,7 +605,7 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
     public async Task AShowsOverview_GroupsEpisodesBySeason_WithStagedCountsAndExportAtTheTop()
     {
         var editor = await StartEditorAsync(new EditTrailItem(ShowId, "Le Continental", EditTrailKinds.Show));
-        editor.Session.Pending.StageBookmarkOp(PilotId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Add, BookmarkId = Twist }, "Added to Everyone's: 51:40 The twist");
+        editor.Session.Pending.StageBookmarkOp(PilotId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Add, BookmarkId = Twist }, "Added to Global: 51:40 The twist");
 
         var cut = RenderPanel(editor, hasFamily: true);
 
@@ -626,14 +626,14 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
 
         cut.WaitForState(() => cut.FindAll(".tl-bookmarks__profiles li.tl-bookmarks__row").Count == 2);
         var headings = cut.FindAll(".tl-bookmarks__cols")[0].Children.Select(cell => cell.TextContent.Trim()).Where(text => text.Length > 0).ToArray();
-        Assert.Equal(["Episode", "Title", "Everyone's", "Set", "From profiles"], headings);
+        Assert.Equal(["Episode", "Title", "Global", "Set", "From profiles"], headings);
         var definitive = cut.FindAll("li.tl-bookmarks__row")[0];
         Assert.Equal("5", definitive.QuerySelector("[data-col=everyone]")!.TextContent.Trim());
         Assert.Equal("Definitive set", definitive.QuerySelector("[data-col=set]")!.TextContent.Trim());
         Assert.Equal("6", definitive.QuerySelector("[data-col=profiles]")!.TextContent.Trim());
         var pooled = cut.FindAll("li.tl-bookmarks__row")[1];
         Assert.Equal("2", pooled.QuerySelector("[data-col=everyone]")!.TextContent.Trim());
-        Assert.Equal("Pooled from profiles", pooled.QuerySelector("[data-col=set]")!.TextContent.Trim());
+        Assert.Equal("Not set yet", pooled.QuerySelector("[data-col=set]")!.TextContent.Trim());
         Assert.Equal("2", pooled.QuerySelector("[data-col=profiles]")!.TextContent.Trim());
     }
 
@@ -641,13 +641,13 @@ public sealed class EditorBookmarksTabTests : AsyncBunitContext
     public async Task AStagedChange_ChangesTheSetStateOfThatEpisodesRow_UntilSave()
     {
         var editor = await StartEditorAsync(new EditTrailItem(ShowId, "Le Continental", EditTrailKinds.Show));
-        editor.Session.Pending.StageBookmarkOp(FinaleId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Add, BookmarkId = Twist }, "Added to Everyone's: 51:40 The twist");
+        editor.Session.Pending.StageBookmarkOp(FinaleId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.Add, BookmarkId = Twist }, "Added to Global: 51:40 The twist");
         editor.Session.Pending.StageBookmarkOp(PilotId, new EditorBookmarkOp { Kind = EditorBookmarkOpKinds.StartOver }, EditorBookmarkWording.StartOverLine);
 
         var cut = RenderPanel(editor, hasFamily: true);
 
         cut.WaitForState(() => cut.FindAll(".tl-bookmarks__profiles li.tl-bookmarks__row").Count == 2);
-        Assert.Equal("Pooled from profiles (staged)", cut.FindAll("li.tl-bookmarks__row")[0].QuerySelector("[data-col=set]")!.TextContent.Trim());
+        Assert.Equal("Not set yet (staged)", cut.FindAll("li.tl-bookmarks__row")[0].QuerySelector("[data-col=set]")!.TextContent.Trim());
         Assert.Equal("Definitive (staged)", cut.FindAll("li.tl-bookmarks__row")[1].QuerySelector("[data-col=set]")!.TextContent.Trim());
     }
 

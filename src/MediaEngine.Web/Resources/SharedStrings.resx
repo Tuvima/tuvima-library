@@ -134,8 +134,8 @@
   <data name="Nav_Downloads" xml:space="preserve">
     <value>Downloads</value>
   </data>
-  <data name="Nav_MyLibrary" xml:space="preserve">
-    <value>My Library</value>
+  <data name="Nav_MyList" xml:space="preserve">
+    <value>My List</value>
   </data>
   <data name="Nav_Menu" xml:space="preserve">
     <value>Menu</value>
@@ -2063,9 +2063,6 @@
   <data name="ForMe_SortForMeItems" xml:space="preserve">
     <value>Sort For Me items</value>
   </data>
-  <data name="ForMe_OpenFavoritesPlaylist" xml:space="preserve">
-    <value>Open Favorites playlist</value>
-  </data>
   <data name="LibraryBrowsePage_YourLibraryIsBeingPrepared" xml:space="preserve">
     <value>Your library is being prepared</value>
   </data>
@@ -2280,15 +2277,12 @@
     <value>My activity</value>
   </data>
   <data name="MyActivity_EverythingYouHaveWatchedListened" xml:space="preserve">
-    <value>Everything you have watched, listened to and read, and what you added to My list.</value>
+    <value>Everything you have watched, listened to and read, and what you added to My List.</value>
   </data>
-  <data name="Common_BackToMyLibrary" xml:space="preserve">
-    <value>Back to My Library</value>
+  <data name="Common_BackToMyList" xml:space="preserve">
+    <value>Back to My List</value>
   </data>
-  <data name="MyLibrary_MyLibraryLibrary" xml:space="preserve">
-    <value>My Library - Library</value>
-  </data>
-  <data name="MyLibrary_WatchAndListenOffline" xml:space="preserve">
+  <data name="MyList_WatchAndListenOffline" xml:space="preserve">
     <value>Watch and listen offline</value>
   </data>
   <data name="Common_RecentActivity" xml:space="preserve">
@@ -2297,23 +2291,8 @@
   <data name="Common_SeeAll" xml:space="preserve">
     <value>See all</value>
   </data>
-  <data name="MyLibrary_MyLibraryCouldNotLoad" xml:space="preserve">
-    <value>My Library could not load</value>
-  </data>
-  <data name="MyLibrary_TheDashboardCouldNotRead" xml:space="preserve">
-    <value>The Dashboard could not read this profile.</value>
-  </data>
   <data name="Common_Continue" xml:space="preserve">
     <value>Continue</value>
-  </data>
-  <data name="MyLibrary_AddTitlesWithTheMy" xml:space="preserve">
-    <value>Add titles with the My List heart</value>
-  </data>
-  <data name="MyLibrary_SomeOfMyLibraryCould" xml:space="preserve">
-    <value>Some of My Library could not load</value>
-  </data>
-  <data name="MyLibrary_TheRestIsShownTry" xml:space="preserve">
-    <value>The rest is shown. Try again to fill in the missing rows.</value>
   </data>
   <data name="Common_Activity" xml:space="preserve">
     <value>Activity</value>
@@ -7457,12 +7436,6 @@
   <data name="VideoPlaybackHost_NoAudioInformationForThis" xml:space="preserve">
     <value>No audio information for this file.</value>
   </data>
-  <data name="VideoPlaybackHost_SetPreferredVersion" xml:space="preserve">
-    <value>Set preferred version</value>
-  </data>
-  <data name="VideoPlaybackHost_FindBetterSubtitles" xml:space="preserve">
-    <value>Find better subtitles…</value>
-  </data>
   <data name="VideoPlaybackHost_TurnYourPhoneForFull" xml:space="preserve">
     <value>Turn your phone for full screen</value>
   </data>
@@ -8084,9 +8057,6 @@
   <data name="ProviderOnboardingDialog_TheDashboardCouldNotReach" xml:space="preserve">
     <value>The Dashboard could not reach the Engine. Check that it is running and try again.</value>
   </data>
-  <data name="ServerFolderPicker_LibraryCouldNotReachThis" xml:space="preserve">
-    <value>Library could not reach this server folder. Check that the location is online and try again.</value>
-  </data>
   <data name="ServerFolderPicker_LibraryCouldNotValidateThis" xml:space="preserve">
     <value>Library could not validate this server folder. Check that the location is online and try again.</value>
   </data>
@@ -8095,12 +8065,6 @@
   </data>
   <data name="VideoPlaybackHost_PlaybackPausedRestoreToContinue" xml:space="preserve">
     <value>Playback paused. Restore to continue.</value>
-  </data>
-  <data name="VideoPlaybackHost_PreferredSubtitlesSaved" xml:space="preserve">
-    <value>Preferred subtitles saved.</value>
-  </data>
-  <data name="VideoPlaybackHost_CouldNotSaveThePreferred" xml:space="preserve">
-    <value>Could not save the preferred subtitles.</value>
   </data>
   <data name="VideoPlaybackHost_AudioCanTBeSwitched" xml:space="preserve">
     <value>Audio can’t be switched right now.</value>
@@ -8772,7 +8736,7 @@
     <value>Vault</value>
   </data>
   <data name="CreateLibrary_VaultInfo" xml:space="preserve">
-    <value>Anything you want hidden, adult content included. Locked behind its own PIN and hidden from kids profiles.</value>
+    <value>Anything you want hidden. Locked behind its own PIN. Hidden from Kids profiles.</value>
   </data>
   <data name="CreateLibrary_ChooseAnother" xml:space="preserve">
     <value>Choose another folder</value>
@@ -8996,9 +8960,6 @@
   <data name="RestorePlugins_NothingChanged" xml:space="preserve">
     <value>Nothing could be restored.</value>
   </data>
-  <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
-    <value>No subtitle source is switched on</value>
-  </data>
   <data name="PlayerSettings_Plugins" xml:space="preserve">
     <value>Plugins</value>
   </data>
@@ -9064,9 +9025,6 @@
   </data>
   <data name="PlayerSettings_Green" xml:space="preserve">
     <value>Green</value>
-  </data>
-  <data name="PlayerSettings_Searching" xml:space="preserve">
-    <value>Searching…</value>
   </data>
   <data name="PlayerContext_Lessons" xml:space="preserve">
     <value>Lessons</value>
@@ -9812,6 +9770,15 @@
   <data name="LibraryFoldersPopover_Online" xml:space="preserve">
     <value>Online</value>
   </data>
+  <data name="LibraryFoldersPopover_NotFound" xml:space="preserve">
+    <value>Folder not found. Is the drive connected?</value>
+  </data>
+  <data name="LibraryFoldersPopover_Reachable" xml:space="preserve">
+    <value>Library can reach this folder</value>
+  </data>
+  <data name="LibraryFoldersPopover_Unreachable" xml:space="preserve">
+    <value>Library can't reach this folder</value>
+  </data>
   <data name="LibraryFoldersPopover_CopyPath" xml:space="preserve">
     <value>Copy path</value>
   </data>
@@ -9929,6 +9896,9 @@
   <data name="LibraryEditDialog_LibraryLower" xml:space="preserve">
     <value>library</value>
   </data>
+  <data name="LibraryEditDialog_ThisLibrary" xml:space="preserve">
+    <value>This library</value>
+  </data>
   <data name="LibraryEditDialog_LeadImport" xml:space="preserve">
     <value>The landing place for new files of any kind. Files are never changed until Library files them.</value>
   </data>
@@ -9995,6 +9965,15 @@
   <data name="LibraryEditDialog_Keep" xml:space="preserve">
     <value>Keep</value>
   </data>
+  <data name="LibraryEditDialog_LastFolderTitle" xml:space="preserve">
+    <value>Remove the last folder?</value>
+  </data>
+  <data name="LibraryEditDialog_LastFolderBody" xml:space="preserve">
+    <value>{0} will leave the Libraries list until you add a folder again. Your files stay where they are.</value>
+  </data>
+  <data name="LibraryEditDialog_LastFolderRemove" xml:space="preserve">
+    <value>Remove folder</value>
+  </data>
   <data name="LibraryEditDialog_RemoveFailed" xml:space="preserve">
     <value>The library could not be removed. Try again.</value>
   </data>
@@ -10011,7 +9990,7 @@
     <value>The folder could not be added. Check it and try again.</value>
   </data>
   <data name="SetupVaultOffer_AddFromLibraries" xml:space="preserve">
-    <value>To add a private library, go back to the Libraries step, press Add library and choose the Vault tab.</value>
+    <value>On the next step, press Add library and choose Vault to add a private library.</value>
   </data>
   <data name="MediaBrowseShell_Folders" xml:space="preserve">
     <value>Folders</value>
@@ -10023,19 +10002,22 @@
     <value>Change</value>
   </data>
   <data name="CreateLibrary_AddFolderInstead" xml:space="preserve">
-    <value>Add a folder to it instead</value>
+    <value>Add a folder to {0} instead</value>
+  </data>
+  <data name="CreateLibrary_AlreadyHave" xml:space="preserve">
+    <value>You already have a {0} library.</value>
   </data>
   <data name="CreateLibrary_AreaLine_watch" xml:space="preserve">
-    <value>Movies, TV, videos</value>
+    <value>Movies, TV shows and other videos.</value>
   </data>
   <data name="CreateLibrary_AreaLine_listen" xml:space="preserve">
-    <value>Music, audiobooks</value>
+    <value>Music, audiobooks and other audio.</value>
   </data>
   <data name="CreateLibrary_AreaLine_read" xml:space="preserve">
-    <value>Books, comics</value>
+    <value>Books, comics and other reading.</value>
   </data>
   <data name="CreateLibrary_AreaLine_view" xml:space="preserve">
-    <value>Photos, videos, documents</value>
+    <value>Your own photos, videos and documents.</value>
   </data>
   <data name="FolderStep_Where" xml:space="preserve">
     <value>Where is it?</value>
@@ -10428,7 +10410,7 @@
     <value>Custom appearance</value>
   </data>
   <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
-    <value>Font, colors and opacity</value>
+    <value>Font, size, colors and opacity</value>
   </data>
   <data name="SubtitleAppearance_Reset" xml:space="preserve">
     <value>Reset to default</value>
@@ -10436,8 +10418,107 @@
   <data name="SubtitleAppearance_Saved" xml:space="preserve">
     <value>Changes saved automatically</value>
   </data>
-  <data name="SubtitleFind_Intro" xml:space="preserve">
-    <value>Looks in the subtitle sources you have switched on for other versions of this title’s subtitles.</value>
+  <data name="SubtitleFind_ResultsFrom" xml:space="preserve">
+    <value>{0} results from {1}</value>
+  </data>
+  <data name="SubtitleFind_ResultFrom" xml:space="preserve">
+    <value>1 result from {0}</value>
+  </data>
+  <data name="SubtitleFind_ResultsPlain" xml:space="preserve">
+    <value>{0} results</value>
+  </data>
+  <data name="SubtitleFind_ResultPlain" xml:space="preserve">
+    <value>1 result</value>
+  </data>
+  <data name="SubtitleFind_SearchingSource" xml:space="preserve">
+    <value>Searching {0}…</value>
+  </data>
+  <data name="SubtitleFind_Searching" xml:space="preserve">
+    <value>Searching…</value>
+  </data>
+  <data name="SubtitleFind_StillSearching" xml:space="preserve">
+    <value>Still searching…</value>
+  </data>
+  <data name="SubtitleFind_Language" xml:space="preserve">
+    <value>Subtitle language</value>
+  </data>
+  <data name="SubtitleFind_InUse" xml:space="preserve">
+    <value>In use now</value>
+  </data>
+  <data name="SubtitleFind_HearingImpaired" xml:space="preserve">
+    <value>Hearing impaired</value>
+  </data>
+  <data name="SubtitleFind_SameRelease" xml:space="preserve">
+    <value>Same release</value>
+  </data>
+  <data name="SubtitleFind_DifferentRelease" xml:space="preserve">
+    <value>Different release</value>
+  </data>
+  <data name="SubtitleFind_UseThis" xml:space="preserve">
+    <value>Use this</value>
+  </data>
+  <data name="SubtitleFind_ThisOneIsWrong" xml:space="preserve">
+    <value>This one is wrong</value>
+  </data>
+  <data name="SubtitleFind_CouldNotDownload" xml:space="preserve">
+    <value>Could not download this one</value>
+  </data>
+  <data name="SubtitleFind_CouldNotRemove" xml:space="preserve">
+    <value>Could not remove this one</value>
+  </data>
+  <data name="SubtitleFind_Applies" xml:space="preserve">
+    <value>Your choice applies to everyone watching this title.</value>
+  </data>
+  <data name="SubtitleFind_Movie" xml:space="preserve">
+    <value>movie</value>
+  </data>
+  <data name="SubtitleFind_Episode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="SubtitleFind_NoneFound" xml:space="preserve">
+    <value>No {0} subtitles were found for this {1}.</value>
+  </data>
+  <data name="SubtitleFind_NoneFoundHint" xml:space="preserve">
+    <value>Try another language.</value>
+  </data>
+  <data name="SubtitleFind_NoSource" xml:space="preserve">
+    <value>No subtitle source is switched on.</value>
+  </data>
+  <data name="SubtitleFind_SourceFallback" xml:space="preserve">
+    <value>The subtitle source</value>
+  </data>
+  <data name="SubtitleFind_KeyRefused" xml:space="preserve">
+    <value>{0} did not accept its key.</value>
+  </data>
+  <data name="SubtitleFind_Unmatched" xml:space="preserve">
+    <value>This {0} could not be matched for an online search.</value>
+  </data>
+  <data name="SubtitleFind_UnmatchedEpisodeHint" xml:space="preserve">
+    <value>Searching needs the show to be matched and a movie database key switched on.</value>
+  </data>
+  <data name="SubtitleFind_UnmatchedMovieHint" xml:space="preserve">
+    <value>Searching needs the movie to be matched.</value>
+  </data>
+  <data name="SubtitleFind_Limit" xml:space="preserve">
+    <value>{0} has reached its limit for now. Try again later.</value>
+  </data>
+  <data name="SubtitleFind_Unreachable" xml:space="preserve">
+    <value>{0} could not be reached.</value>
+  </data>
+  <data name="SubtitleFind_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
+  <data name="SubtitleFind_Blocked" xml:space="preserve">
+    <value>This library never looks anything up online.</value>
+  </data>
+  <data name="SubtitleFind_NotAllowed" xml:space="preserve">
+    <value>Your profile cannot search for subtitles.</value>
+  </data>
+  <data name="SubtitleFind_LanguageUnknown" xml:space="preserve">
+    <value>That language is not supported for subtitle search.</value>
+  </data>
+  <data name="SubtitleFind_Failed" xml:space="preserve">
+    <value>The search could not be completed.</value>
   </data>
   <data name="PlaybackTimeline_Chapter" xml:space="preserve">
     <value>Chapter {0}</value>
@@ -10737,7 +10818,7 @@
     <value>Your playback preferences could not be saved. Try again.</value>
   </data>
   <data name="PlaybackInformation_None" xml:space="preserve">
-    <value>No technical details are available for this file yet.</value>
+    <value>No details are available for this file.</value>
   </data>
   <data name="PlaybackInformation_Video" xml:space="preserve">
     <value>Video</value>
@@ -10754,32 +10835,20 @@
   <data name="PlaybackInformation_Subtitles" xml:space="preserve">
     <value>Subtitles</value>
   </data>
-  <data name="PlaybackInformation_Quality" xml:space="preserve">
-    <value>Audio quality</value>
-  </data>
-  <data name="PlaybackInformation_Container" xml:space="preserve">
-    <value>Container</value>
-  </data>
   <data name="PlaybackInformation_Delivery" xml:space="preserve">
     <value>Delivery</value>
   </data>
   <data name="PlaybackInformation_ConversionReason" xml:space="preserve">
-    <value>Why it is converted</value>
+    <value>Why</value>
   </data>
   <data name="PlaybackInformation_Connection" xml:space="preserve">
     <value>Connection</value>
   </data>
-  <data name="PlaybackInformation_Bandwidth" xml:space="preserve">
-    <value>Bandwidth</value>
-  </data>
-  <data name="PlaybackInformation_FileBitrate" xml:space="preserve">
-    <value>File bitrate</value>
-  </data>
   <data name="PlaybackInformation_MegabitsPerSecond" xml:space="preserve">
-    <value>{0} Mbps</value>
+    <value>{0} Mb/s</value>
   </data>
   <data name="PlaybackInformation_KilobitsPerSecond" xml:space="preserve">
-    <value>{0} kbps</value>
+    <value>{0} kb/s</value>
   </data>
   <data name="PlaybackInformation_Kilohertz" xml:space="preserve">
     <value>{0} kHz</value>
@@ -10791,19 +10860,88 @@
     <value>{0} channels</value>
   </data>
   <data name="PlaybackInformation_DeliveryConverted" xml:space="preserve">
-    <value>Converted while playing</value>
+    <value>Converting for this browser</value>
   </data>
   <data name="PlaybackInformation_DeliveryDirect" xml:space="preserve">
-    <value>Played as stored</value>
+    <value>Playing the file as it is</value>
   </data>
   <data name="PlaybackInformation_DeliveryDownloaded" xml:space="preserve">
     <value>Downloaded copy</value>
   </data>
   <data name="PlaybackInformation_ConnectionLocal" xml:space="preserve">
-    <value>On your home network</value>
+    <value>Home network</value>
   </data>
   <data name="PlaybackInformation_ConnectionRemote" xml:space="preserve">
-    <value>Away from home</value>
+    <value>Remote</value>
+  </data>
+  <data name="PlaybackInformation_Loading" xml:space="preserve">
+    <value>Loading details…</value>
+  </data>
+  <data name="PlaybackInformation_SectionFile" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="PlaybackInformation_SectionPlaying" xml:space="preserve">
+    <value>How it is playing</value>
+  </data>
+  <data name="PlaybackInformation_FileName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaybackInformation_FileFormat" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="PlaybackInformation_OverallBitrate" xml:space="preserve">
+    <value>Overall bitrate</value>
+  </data>
+  <data name="PlaybackInformation_Picture" xml:space="preserve">
+    <value>Picture</value>
+  </data>
+  <data name="PlaybackInformation_Color" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="PlaybackInformation_AudioTrack" xml:space="preserve">
+    <value>Track</value>
+  </data>
+  <data name="PlaybackInformation_AudioQuality" xml:space="preserve">
+    <value>Quality</value>
+  </data>
+  <data name="PlaybackInformation_SubtitlesShowing" xml:space="preserve">
+    <value>Showing</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleFrom" xml:space="preserve">
+    <value>{0} · from {1}</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleSourceFile" xml:space="preserve">
+    <value>in the file</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleSourceBeside" xml:space="preserve">
+    <value>a file beside it</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleSourceYours" xml:space="preserve">
+    <value>your file</value>
+  </data>
+  <data name="PlaybackInformation_ConnectionWithSpeed" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PlaybackInformation_Buffer" xml:space="preserve">
+    <value>Buffer</value>
+  </data>
+  <data name="PlaybackInformation_BufferAhead" xml:space="preserve">
+    <value>{0} s ahead</value>
+  </data>
+  <data name="PlaybackInformation_PlayingOn" xml:space="preserve">
+    <value>Playing on</value>
+  </data>
+  <data name="PlaybackInformation_CopyDetails" xml:space="preserve">
+    <value>Copy details</value>
+  </data>
+  <data name="PlaybackInformation_CouldNotCopy" xml:space="preserve">
+    <value>Could not copy</value>
+  </data>
+  <data name="PlaybackInformation_Resolution" xml:space="preserve">
+    <value>{0} ({1} × {2})</value>
+  </data>
+  <data name="PlaybackInformation_Size" xml:space="preserve">
+    <value>{0} · {1}</value>
   </data>
   <data name="PlaybackSpeed_Unavailable" xml:space="preserve">
     <value>Playback speed unavailable</value>
@@ -11373,10 +11511,10 @@
     <value>Supporting file</value>
   </data>
   <data name="EditorBookmarks_Add" xml:space="preserve">
-    <value>Add to Everyone's</value>
+    <value>Add to Global</value>
   </data>
   <data name="EditorBookmarks_AddChosen" xml:space="preserve">
-    <value>Add {0} to Everyone's</value>
+    <value>Add {0} to Global</value>
   </data>
   <data name="EditorBookmarks_ChangeTime" xml:space="preserve">
     <value>Change time</value>
@@ -11391,10 +11529,10 @@
     <value>No such episode in this show</value>
   </data>
   <data name="EditorBookmarks_EveryoneEmpty" xml:space="preserve">
-    <value>Nothing in Everyone's yet.</value>
+    <value>Nothing in Global yet.</value>
   </data>
   <data name="EditorBookmarks_EveryoneHeading" xml:space="preserve">
-    <value>Everyone's bookmarks</value>
+    <value>Global bookmarks</value>
   </data>
   <data name="EditorBookmarks_Export" xml:space="preserve">
     <value>Export</value>
@@ -11424,7 +11562,7 @@
     <value>From profiles</value>
   </data>
   <data name="EditorBookmarks_FromProfilesHint" xml:space="preserve">
-    <value>Every profile's own bookmarks. Add one to Everyone's to put it in the list above.</value>
+    <value>Every profile's own bookmarks. Add one to Global to put it in the list above.</value>
   </data>
   <data name="EditorBookmarks_FromYou" xml:space="preserve">
     <value>from you</value>
@@ -11436,7 +11574,7 @@
     <value>Import for the show</value>
   </data>
   <data name="EditorBookmarks_InEveryone" xml:space="preserve">
-    <value>In Everyone's</value>
+    <value>In Global</value>
   </data>
   <data name="EditorBookmarks_LoadFailed" xml:space="preserve">
     <value>The bookmarks could not be read.</value>
@@ -11469,7 +11607,7 @@
     <value>Name</value>
   </data>
   <data name="EditorBookmarks_Nearest" xml:space="preserve">
-    <value>Nearest in Everyone's: {0} {1}</value>
+    <value>Nearest in Global: {0} {1}</value>
   </data>
   <data name="EditorBookmarks_New" xml:space="preserve">
     <value>New</value>
@@ -11487,19 +11625,19 @@
     <value>This file is not for this title.</value>
   </data>
   <data name="EditorBookmarks_NothingNear" xml:space="preserve">
-    <value>Nothing near it in Everyone's</value>
+    <value>Nothing near it in Global</value>
   </data>
   <data name="EditorBookmarks_OpenEpisode" xml:space="preserve">
     <value>Open the bookmarks of {0}</value>
   </data>
   <data name="EditorBookmarks_OverviewTotals" xml:space="preserve">
-    <value>{0} bookmarks in Everyone's across {1} titles</value>
+    <value>{0} bookmarks in Global across {1} titles</value>
   </data>
   <data name="EditorBookmarks_ProfilesEmpty" xml:space="preserve">
     <value>No profile has bookmarked this title.</value>
   </data>
   <data name="EditorBookmarks_Remove" xml:space="preserve">
-    <value>Remove from Everyone's</value>
+    <value>Remove from Global</value>
   </data>
   <data name="EditorBookmarks_Rename" xml:space="preserve">
     <value>Rename</value>
@@ -11517,13 +11655,13 @@
     <value>+{0} staged</value>
   </data>
   <data name="EditorBookmarks_StartOver" xml:space="preserve">
-    <value>Start over from profiles</value>
+    <value>Clear Global</value>
   </data>
   <data name="EditorBookmarks_StateDefinitive" xml:space="preserve">
     <value>Definitive set</value>
   </data>
   <data name="EditorBookmarks_StatePooled" xml:space="preserve">
-    <value>Pooled from every profile's bookmarks</value>
+    <value>Nothing is in Global until you add it</value>
   </data>
   <data name="EditorBookmarks_Take" xml:space="preserve">
     <value>Take this bookmark</value>
@@ -11568,7 +11706,7 @@
     <value>Episode</value>
   </data>
   <data name="EditorBookmarks_ColEveryone" xml:space="preserve">
-    <value>Everyone's</value>
+    <value>Global</value>
   </data>
   <data name="EditorBookmarks_ColSet" xml:space="preserve">
     <value>Set</value>
@@ -11580,10 +11718,10 @@
     <value>Definitive (staged)</value>
   </data>
   <data name="EditorBookmarks_SetPooled" xml:space="preserve">
-    <value>Pooled from profiles</value>
+    <value>Not set yet</value>
   </data>
   <data name="EditorBookmarks_SetPooledStaged" xml:space="preserve">
-    <value>Pooled from profiles (staged)</value>
+    <value>Not set yet (staged)</value>
   </data>
   <data name="EditorMatchVerdictBar_Verdict" xml:space="preserve">
     <value>{0} match</value>
@@ -12348,7 +12486,7 @@
     <value>Show bookmarks from</value>
   </data>
   <data name="BookmarksPanel_Everyone" xml:space="preserve">
-    <value>Everyone · {0}</value>
+    <value>Global · {0}</value>
   </data>
   <data name="BookmarksPanel_Mine" xml:space="preserve">
     <value>Mine · {0}</value>
@@ -12384,7 +12522,7 @@
     <value>Couldn’t delete · Try again</value>
   </data>
   <data name="BookmarksPanel_EmptyEveryone" xml:space="preserve">
-    <value>No bookmarks for this title yet</value>
+    <value>No Global bookmarks on this title yet</value>
   </data>
   <data name="BookmarksPanel_EmptyMine" xml:space="preserve">
     <value>No bookmarks of yours yet</value>
@@ -12478,6 +12616,12 @@
   </data>
   <data name="FolderPicker_OneFolderMatches" xml:space="preserve">
     <value>1 folder matches</value>
+  </data>
+  <data name="FolderPicker_NoFoldersInside" xml:space="preserve">
+    <value>This folder has no folders inside. You can still choose it.</value>
+  </data>
+  <data name="FolderPicker_CantOpen" xml:space="preserve">
+    <value>Library can't open this folder.</value>
   </data>
   <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
     <value>Add song to Favorites</value>
@@ -12669,13 +12813,7 @@
     <value>Add a Managed folder</value>
   </data>
   <data name="AddViewFolderDialog_Heading" xml:space="preserve">
-    <value>Add a folder</value>
-  </data>
-  <data name="AddViewFolderDialog_Subtitle" xml:space="preserve">
-    <value>Choose the folder that holds your {0}</value>
-  </data>
-  <data name="AddViewFolderDialog_ReadOnlySafety" xml:space="preserve">
-    <value>Your files are never deleted or changed in a read-only folder.</value>
+    <value>Add folder</value>
   </data>
   <data name="ViewFolderRules_UploadsNeedManagedLine" xml:space="preserve">
     <value>You can't upload {0} until you add a Managed folder.</value>
@@ -12751,6 +12889,15 @@
   </data>
   <data name="SetupStepper_Optional" xml:space="preserve">
     <value>optional</value>
+  </data>
+  <data name="SetupStepper_On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="SetupStepper_Skipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="SetupVaultOffer_TurnOffInSettings" xml:space="preserve">
+    <value>You can turn the Vault off later in Settings.</value>
   </data>
   <data name="SetupToolsStage_LocalAIName" xml:space="preserve">
     <value>Local AI</value>
@@ -13477,6 +13624,216 @@
   </data>
   <data name="ReaderFrame_TryAgain" xml:space="preserve">
     <value>Try again</value>
+  </data>
+  <data name="MyList_Title" xml:space="preserve">
+    <value>My List</value>
+  </data>
+  <data name="MyList_Liked" xml:space="preserve">
+    <value>Liked</value>
+  </data>
+  <data name="MyList_CouldNotLoad" xml:space="preserve">
+    <value>My List could not load</value>
+  </data>
+  <data name="MyList_CountTitle" xml:space="preserve">
+    <value>{0} title</value>
+  </data>
+  <data name="MyList_CountTitles" xml:space="preserve">
+    <value>{0} titles</value>
+  </data>
+  <data name="MyList_Count_movie" xml:space="preserve">
+    <value>{0} movies</value>
+  </data>
+  <data name="MyList_Count_movie_one" xml:space="preserve">
+    <value>{0} movie</value>
+  </data>
+  <data name="MyList_Count_tv" xml:space="preserve">
+    <value>{0} TV shows</value>
+  </data>
+  <data name="MyList_Count_tv_one" xml:space="preserve">
+    <value>{0} TV show</value>
+  </data>
+  <data name="MyList_Count_video" xml:space="preserve">
+    <value>{0} videos</value>
+  </data>
+  <data name="MyList_Count_video_one" xml:space="preserve">
+    <value>{0} video</value>
+  </data>
+  <data name="MyList_Count_book" xml:space="preserve">
+    <value>{0} books</value>
+  </data>
+  <data name="MyList_Count_book_one" xml:space="preserve">
+    <value>{0} book</value>
+  </data>
+  <data name="MyList_Count_comic" xml:space="preserve">
+    <value>{0} comics</value>
+  </data>
+  <data name="MyList_Count_comic_one" xml:space="preserve">
+    <value>{0} comic</value>
+  </data>
+  <data name="MyList_Count_audiobook" xml:space="preserve">
+    <value>{0} audiobooks</value>
+  </data>
+  <data name="MyList_Count_audiobook_one" xml:space="preserve">
+    <value>{0} audiobook</value>
+  </data>
+  <data name="MyList_Count_music" xml:space="preserve">
+    <value>{0} albums</value>
+  </data>
+  <data name="MyList_Count_music_one" xml:space="preserve">
+    <value>{0} album</value>
+  </data>
+  <data name="MyList_Count_playlist" xml:space="preserve">
+    <value>{0} playlists</value>
+  </data>
+  <data name="MyList_Count_playlist_one" xml:space="preserve">
+    <value>{0} playlist</value>
+  </data>
+  <data name="MyList_Count_collection" xml:space="preserve">
+    <value>{0} collections</value>
+  </data>
+  <data name="MyList_Count_collection_one" xml:space="preserve">
+    <value>{0} collection</value>
+  </data>
+  <data name="MyList_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="MyList_KindsLabel" xml:space="preserve">
+    <value>Filter by kind</value>
+  </data>
+  <data name="MyList_SortAdded" xml:space="preserve">
+    <value>Date added</value>
+  </data>
+  <data name="MyList_SortTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="MyList_SortYear" xml:space="preserve">
+    <value>Release year</value>
+  </data>
+  <data name="MyList_SelectedCount" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="MyList_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="MyList_PageMenu" xml:space="preserve">
+    <value>More actions for My List</value>
+  </data>
+  <data name="MyList_RemoveFinished" xml:space="preserve">
+    <value>Remove finished</value>
+  </data>
+  <data name="MyList_NothingFinished" xml:space="preserve">
+    <value>Nothing finished yet</value>
+  </data>
+  <data name="MyList_RemovedOne" xml:space="preserve">
+    <value>Removed from My List.</value>
+  </data>
+  <data name="MyList_RemovedMany" xml:space="preserve">
+    <value>{0} titles removed from My List.</value>
+  </data>
+  <data name="MyList_CouldNotChange" xml:space="preserve">
+    <value>My List could not be changed. Try again.</value>
+  </data>
+  <data name="MyList_EmptyTitle" xml:space="preserve">
+    <value>Your list is empty</value>
+  </data>
+  <data name="MyList_EmptyMessage" xml:space="preserve">
+    <value>Press + on any title to save it for later.</value>
+  </data>
+  <data name="MyList_BrowseHome" xml:space="preserve">
+    <value>Browse Home</value>
+  </data>
+  <data name="MyList_ChooseProfile" xml:space="preserve">
+    <value>Choose a profile to see its My List.</value>
+  </data>
+  <data name="MyList_ChooseProfileLink" xml:space="preserve">
+    <value>Choose a profile</value>
+  </data>
+  <data name="MyList_SelectTitle" xml:space="preserve">
+    <value>Select {0}</value>
+  </data>
+  <data name="NeedsReviewReason_LowConfidence" xml:space="preserve">
+    <value>Close match, but Library is not sure.</value>
+  </data>
+  <data name="NeedsReviewReason_RetailMatchFailed" xml:space="preserve">
+    <value>Library searched and found nothing close enough.</value>
+  </data>
+  <data name="NeedsReviewReason_RetailMatchAmbiguous" xml:space="preserve">
+    <value>More than one {0} fits this file. Which one is it?</value>
+  </data>
+  <data name="NeedsReviewReason_MovieMatchedAsTv" xml:space="preserve">
+    <value>No film matched, but a TV show has this name and year.</value>
+  </data>
+  <data name="NeedsReviewReason_FromMerge" xml:space="preserve">
+    <value>This came from a folder merge and has no name yet.</value>
+  </data>
+  <data name="NeedsReviewReason_NameCollision" xml:space="preserve">
+    <value>Another file already has this name, so this one kept a numbered name.</value>
+  </data>
+  <data name="NeedsReviewReason_PlaceholderTitle" xml:space="preserve">
+    <value>The file has no title or other details to search with.</value>
+  </data>
+  <data name="NeedsReviewReason_StagedUnidentifiable" xml:space="preserve">
+    <value>There is not enough in this file to tell what it is.</value>
+  </data>
+  <data name="NeedsReviewReason_MultipleQidMatches" xml:space="preserve">
+    <value>Matched, but several Wikidata records fit. You can keep the match as it is.</value>
+  </data>
+  <data name="NeedsReviewReason_MissingQid" xml:space="preserve">
+    <value>Matched, but no Wikidata record was found.</value>
+  </data>
+  <data name="NeedsReviewReason_WikidataBridgeFailed" xml:space="preserve">
+    <value>Matched, but no Wikidata record was found.</value>
+  </data>
+  <data name="NeedsReviewReason_MetadataConflict" xml:space="preserve">
+    <value>Two sources disagree about the details of this {0}.</value>
+  </data>
+  <data name="NeedsReviewReason_AmbiguousMediaType" xml:space="preserve">
+    <value>Library is not sure what kind of file this is.</value>
+  </data>
+  <data name="NeedsReviewReason_RootWatchFolder" xml:space="preserve">
+    <value>Library is not sure what kind of file this is.</value>
+  </data>
+  <data name="NeedsReviewReason_WritebackFailed" xml:space="preserve">
+    <value>Library could not save the new details into the file. The file may be open or read-only.</value>
+  </data>
+  <data name="NeedsReviewReason_MediaInspectionFailed" xml:space="preserve">
+    <value>This file could not be read. It may be damaged or incomplete.</value>
+  </data>
+  <data name="NeedsReviewReason_AmbiguousSeriesMembership" xml:space="preserve">
+    <value>Two Series list this {0}. It is in neither for now.</value>
+  </data>
+  <data name="NeedsReviewReason_BatchEditFailed" xml:space="preserve">
+    <value>A change to several items did not apply to this one. Nothing was changed on it.</value>
+  </data>
+  <data name="NeedsReviewReason_LanguageMismatch" xml:space="preserve">
+    <value>The language in the file is different from the language of this library.</value>
+  </data>
+  <data name="NeedsReviewReason_UserFixMatch" xml:space="preserve">
+    <value>A new match was asked for and is not settled yet.</value>
+  </data>
+  <data name="NeedsReviewReason_Unknown" xml:space="preserve">
+    <value>Library could not work this out by itself.</value>
+  </data>
+  <data name="NeedsReviewReason_File_no_match" xml:space="preserve">
+    <value>Library searched and found nothing close enough.</value>
+  </data>
+  <data name="NeedsReviewReason_File_no_youtube_id" xml:space="preserve">
+    <value>This video has no YouTube ID in its name, so Library cannot look it up.</value>
+  </data>
+  <data name="NeedsReviewReason_File_Unknown" xml:space="preserve">
+    <value>Library could not work this out by itself.</value>
+  </data>
+  <data name="NeedsReviewReason_RetryToday" xml:space="preserve">
+    <value>Tries again today</value>
+  </data>
+  <data name="NeedsReviewReason_RetryTomorrow" xml:space="preserve">
+    <value>Tries again tomorrow</value>
+  </data>
+  <data name="NeedsReviewReason_RetryDays" xml:space="preserve">
+    <value>Tries again in {0} days</value>
+  </data>
+  <data name="NeedsReviewReason_RetryNever" xml:space="preserve">
+    <value>Will not try again by itself</value>
   </data>
   <data name="AppReorderBar_Region" xml:space="preserve">
     <value>Reorder</value>

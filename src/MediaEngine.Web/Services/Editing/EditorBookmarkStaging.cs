@@ -200,13 +200,13 @@ public static class EditorBookmarkProjection
             switch (op.Kind)
             {
                 case EditorBookmarkOpKinds.StartOver:
-                    // Preview only: every profile's bookmark shows, unmerged, until the Engine pools them on Save.
+                    // Preview only: Global is emptied; every profile's own bookmarks stay where they are.
                     state = EditorBookmarkStates.Pooled;
                     stateStaged = true;
-                    everyone = [.. order.Select(id => new EditorBookmarkViewRow(profiles[id] with { InEveryone = true }, EditorBookmarkRowMark.None))];
+                    everyone = [];
                     foreach (var id in order)
                     {
-                        profiles[id] = profiles[id] with { InEveryone = true };
+                        profiles[id] = profiles[id] with { InEveryone = false };
                     }
 
                     break;

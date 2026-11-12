@@ -3,6 +3,7 @@ using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Cinematic;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -200,10 +201,10 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         await UseAsync("phone");
         IReadOnlyList<SurfaceTabItem> items =
         [
-            new("overview", "Overview"),
-            new("cast", "Cast"),
-            new("credits", "Credits"),
-            new("details", "Details"),
+            new("overview", "Overview", AppMaterialIcons.Outlined.SpaceDashboard),
+            new("cast", "Cast", AppMaterialIcons.Outlined.People),
+            new("credits", "Credits", AppMaterialIcons.Outlined.Badge),
+            new("details", "Details", AppMaterialIcons.Outlined.Info),
         ];
 
         var bar = Render<SurfaceTabBar>(parameters => parameters

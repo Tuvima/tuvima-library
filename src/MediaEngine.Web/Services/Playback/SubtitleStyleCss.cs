@@ -36,6 +36,21 @@ public static class SubtitleStyleCss
             ? 0d
             : Math.Clamp(look?.SubtitleBackgroundOpacity ?? PlaybackPreferenceValues.DefaultBackgroundOpacity, 0, 100) / 100d;
 
+    /// <summary>
+    /// True for the High contrast look: the stored background opacity is solid. This is the marker that survives Background None and Shadow,
+    /// because those only switch the box off and leave the stored opacity alone (<see cref="BackgroundOpacity"/> still reads 0 for drawing then).
+    /// </summary>
+    public static bool IsHighContrast(SubtitleLanguageSettingsDto? look) =>
+        (look?.SubtitleBackgroundOpacity ?? PlaybackPreferenceValues.DefaultBackgroundOpacity) >= SubtitleAppearance.HighContrastOpacity;
+
+    /// <summary>The heavy black outline High contrast draws round the letters when there is no box (the preview and the real cues use this one value).</summary>
+    public const string HighContrastOutline =
+        "-2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black, 2px 2px 0 black, 0 -2px 0 black, 0 2px 0 black, -2px 0 0 black, 2px 0 0 black, 0 0 4px black";
+
+    /// <summary>Whether the High contrast outline applies: a high-contrast look with no box behind the text.</summary>
+    public static bool UsesHighContrastOutline(SubtitleLanguageSettingsDto? look) =>
+        IsHighContrast(look) && BackgroundOpacity(look) <= 0;
+
     /// <summary>The text colour with its opacity, as a CSS <c>rgb()</c> value.</summary>
     public static string TextColor(SubtitleLanguageSettingsDto? look) =>
         Rgba(Rgb(look?.SubtitleColor), TextOpacity(look));

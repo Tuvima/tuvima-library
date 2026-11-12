@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
 using Microsoft.AspNetCore.Components;
@@ -18,6 +19,10 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
     }
 
     private IAppDialogService Dialogs => Services.GetRequiredService<IAppDialogService>();
+
+    // The short confirmation has no close X: Escape, the backdrop and a phone sheet's swipe all reach the frame's cancel.
+    private static Task CancelAsync(IRenderedComponent<AppDialogHost> host) =>
+        host.InvokeAsync(() => host.FindComponent<AppDialogFrame>().Instance.RequestCancel());
 
     private Task<AppConfirmResult> Show(bool destructive = false, RenderFragment? preview = null) =>
         AppConfirmDialog.ShowAsync(Dialogs, "Save or discard?", "You have changes that are not saved yet.", "Save", "Discard", destructive, preview);
@@ -53,7 +58,7 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         var answer = Show();
         host.WaitForElement(".app-confirm");
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
 
         Assert.Equal(AppConfirmResult.Cancelled, await answer);
         Assert.Empty(host.FindAll(".app-confirm"));
@@ -87,7 +92,7 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         Assert.Empty(host.FindAll(".app-confirm__preview"));
         Assert.Contains("app-dialog-shell--small", host.Find(".app-dialog-shell").ClassList);
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
     }
 
@@ -108,24 +113,30 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         Assert.Contains("02 - Paranoid Android.flac", host.Find(".app-confirm__preview .move-preview").TextContent);
         Assert.Contains("app-dialog-shell--medium", host.Find(".app-dialog-shell").ClassList);
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
     }
 
     [Fact]
-    public async Task ADestructivePrimaryIsRedAndTheSaferButtonHasTheFocus()
+    public async Task ADestructivePrimaryIsSolidRedAndLastAndTheSaferNeutralButtonIsFirstWithTheFocus()
     {
         var host = Render<AppDialogHost>();
         _ = Show(destructive: true);
         host.WaitForElement(".app-confirm");
 
-        var primary = host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Save");
-        var secondary = host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Discard");
-        Assert.Contains("app-tone--error", primary.ClassList);
+        var buttons = host.FindAll(".app-dialog-shell__footer button").ToList();
+        var secondary = buttons[0];
+        var primary = buttons[1];
+        Assert.Equal("Discard", secondary.TextContent.Trim());
+        Assert.Contains("app-button--outlined", secondary.ClassList);
+        Assert.DoesNotContain("app-tone--error", secondary.ClassList);
         Assert.True(secondary.HasAttribute("autofocus"));
+        Assert.Equal("Save", primary.TextContent.Trim());
+        Assert.Contains("app-button--filled", primary.ClassList);
+        Assert.Contains("app-tone--error", primary.ClassList);
         Assert.False(primary.HasAttribute("autofocus"));
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
     }
 
@@ -140,12 +151,12 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         Assert.DoesNotContain("app-tone--error", primary.ClassList);
         Assert.True(primary.HasAttribute("autofocus"));
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
     }
 
     [Fact]
-    public async Task TheCancelButtonIsOutlinedAndComesBeforeTheMainButton()
+    public async Task WhenNothingIsDestroyed_TheNeutralOutlinedButtonComesFirstAndTheFilledPrimaryLast()
     {
         var host = Render<AppDialogHost>();
         _ = Show();
@@ -156,26 +167,50 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         Assert.Contains("app-button--outlined", buttons[0].ClassList);
         Assert.Equal("Save", buttons[1].TextContent.Trim());
         Assert.Contains("app-button--filled", buttons[1].ClassList);
+        Assert.Contains("app-tone--primary", buttons[1].ClassList);
+        Assert.DoesNotContain("app-tone--error", buttons[1].ClassList);
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
     }
 
     [Theory]
-    [InlineData(false, null, "warning")]
-    [InlineData(true, null, "error")]
-    [InlineData(false, AppUiTone.Info, "info")]
-    public async Task TheIconFollowsTheTone(bool destructive, AppUiTone? tone, string expected)
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(false, AppUiTone.Info)]
+    public async Task AShortConfirmationShowsNoIconTileAndNoCloseButton(bool destructive, AppUiTone? tone)
     {
         var host = Render<AppDialogHost>();
         _ = AppConfirmDialog.ShowAsync(Dialogs, "Title", "Message", "OK", "Cancel", destructive, tone: tone);
         host.WaitForElement(".app-confirm");
 
-        Assert.Contains($"app-dialog-shell__icon--{expected}", host.Find(".app-dialog-shell__icon").ClassList);
-        Assert.NotNull(host.Find(".app-dialog-shell__header .app-dialog-shell__close"));
+        Assert.Contains("app-dialog-shell--compact", host.Find(".app-dialog-shell").ClassList);
+        Assert.Empty(host.FindAll(".app-dialog-shell__icon"));
+        Assert.Empty(host.FindAll(".app-dialog-shell__close"));
+        Assert.Empty(host.FindAll("button[aria-label='Close dialog']"));
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
+    }
+
+    [Fact]
+    public async Task DiscardChanges_ShowsANeutralOutlinedKeepEditingFirstWithTheFocusAndASolidRedDiscardLast()
+    {
+        var host = Render<AppDialogHost>();
+        var answer = EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
+        host.WaitForElement(".app-confirm");
+
+        var buttons = host.FindAll(".app-dialog-shell__footer button").ToList();
+        Assert.Equal([EditingUnsavedChangesDialog.KeepLabel, EditingUnsavedChangesDialog.DiscardLabel], buttons.Select(button => button.TextContent.Trim()));
+        Assert.Contains("app-button--outlined", buttons[0].ClassList);
+        Assert.DoesNotContain("app-tone--error", buttons[0].ClassList);
+        Assert.True(buttons[0].HasAttribute("autofocus"));
+        Assert.Contains("app-button--filled", buttons[1].ClassList);
+        Assert.Contains("app-tone--error", buttons[1].ClassList);
+        Assert.False(buttons[1].HasAttribute("autofocus"));
+
+        buttons[1].Click();
+        Assert.True(await answer);
     }
 
     [Fact]
@@ -193,25 +228,26 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
         Assert.Contains("app-button--outlined", buttons[0].ClassList);
         Assert.Contains("app-button--filled", buttons[1].ClassList);
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
     }
 
     [Fact]
-    public async Task AMessageBoxThatRemovesSomething_PutsTheSafeButtonLastFilledAndFocused()
+    public async Task AMessageBoxThatRemovesSomething_PutsTheSafeButtonFirstOutlinedAndFocusedAndTheRedButtonLast()
     {
         var host = Render<AppDialogHost>();
         _ = Dialogs.ShowMessageBoxAsync("Remove Smith?", "This cannot be undone.", yesText: "Remove", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm);
         host.WaitForElement(".app-dialog-shell");
 
         var buttons = host.FindAll(".app-dialog-shell__footer button").ToList();
-        Assert.Equal(["Remove", "Cancel"], buttons.Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Cancel", "Remove"], buttons.Select(button => button.TextContent.Trim()));
         Assert.Contains("app-button--outlined", buttons[0].ClassList);
-        Assert.Contains("app-tone--error", buttons[0].ClassList);
+        Assert.DoesNotContain("app-tone--error", buttons[0].ClassList);
+        Assert.True(buttons[0].HasAttribute("autofocus"));
         Assert.Contains("app-button--filled", buttons[1].ClassList);
-        Assert.True(buttons[1].HasAttribute("autofocus"));
+        Assert.Contains("app-tone--error", buttons[1].ClassList);
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        await CancelAsync(host);
         await Task.Yield();
     }
 }

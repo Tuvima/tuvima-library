@@ -175,3 +175,42 @@ test('arrow up and down on the speaker are kept from scrolling the page, other k
     assert.equal(press('ArrowUp', slider).defaultPrevented, false);
     volume.detach(root);
 });
+
+test('Escape closes the slider at once even while the pointer and focus are on it, and hovering again reopens it (video player follow-ups D5)', () => {
+    const time = clock();
+    const { control, log } = reveal(time);
+
+    control.pointerEnter();
+    control.focusIn();
+    control.dismiss();
+    assert.ok(!control.isOpen);
+    assert.deepEqual(log, ['show', 'hide']);
+    assert.equal(time.pending, 0);
+
+    control.pointerLeave();
+    control.focusOut();
+    time.advance(1000);
+    assert.deepEqual(log, ['show', 'hide']);
+
+    control.pointerEnter();
+    assert.ok(control.isOpen);
+});
+
+test('Escape on the control closes an open slider and is kept from the player behind it; with the slider closed it is left alone', () => {
+    globalThis.window = globalThis;
+    globalThis.addEventListener = () => { };
+    globalThis.removeEventListener = () => { };
+    const root = fakeRoot();
+    volume.attach(root);
+    const press = key => { const event = { key, target: {}, defaultPrevented: false, stopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; } }; root.fire('keydown', event); return event; };
+
+    assert.equal(press('Escape').stopped, false);
+
+    root.fire('pointerenter', { pointerType: 'mouse' });
+    assert.equal(root.dataset.open, 'true');
+    const escape = press('Escape');
+    assert.equal(root.dataset.open, undefined);
+    assert.equal(escape.stopped, true);
+    assert.equal(escape.defaultPrevented, true);
+    volume.detach(root);
+});

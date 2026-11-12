@@ -69,9 +69,9 @@ public partial class ListenPage
 
     private static readonly IReadOnlyList<MediaHubModeViewModel> ListenHubModes =
     [
-        new("all", "Discover", "/listen"),
-        new("music", "Music", MusicHomeRoute),
-        new("audiobooks", "Audiobooks", AudiobooksRoute),
+        new("all", "Discover", "/listen", AppMaterialIcons.Outlined.Explore),
+        new("music", "Music", MusicHomeRoute, AppMaterialIcons.Outlined.MusicNote),
+        new("audiobooks", "Audiobooks", AudiobooksRoute, AppMaterialIcons.Outlined.Headphones),
     ];
 
     private static readonly IReadOnlyList<BrowseGroupingOption> MusicBrowseOptions =

@@ -33,6 +33,12 @@ else
     [Parameter] public bool CenterTitle { get; set; }
     [Parameter] public bool Modal { get; set; } = true;
 
+    /// <summary>
+    /// The short dialog (Look v3.1 D4): a confirmation, message box or delete question. One roomy box with its own padding and no icon tile or close X;
+    /// Escape, the backdrop and (on a phone) swiping the sheet down still cancel through the hosting frame.
+    /// </summary>
+    [Parameter] public bool Compact { get; set; }
+
     /// <summary>Extra presentation class for the hosting dialog frame (for example a wider picker).</summary>
     [Parameter] public string? HostClass { get; set; }
 
@@ -121,7 +127,7 @@ else
                     {
                         <div class="app-dialog-shell__art">@HeaderArt</div>
                     }
-                    else if (!string.IsNullOrWhiteSpace(ResolvedIcon))
+                    else if (!Compact && !string.IsNullOrWhiteSpace(ResolvedIcon))
                     {
                         <div class="@IconClass">
                             <AppMaterialIcon Icon="@ResolvedIcon" />
@@ -140,7 +146,7 @@ else
                         }
                     </div>
 
-                    @if (CanClose)
+                    @if (CanClose && !Compact)
                     {
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                                        Size="AppControlSize.Normal"
@@ -179,7 +185,7 @@ else
         ? "app-dialog-shell__icon"
         : $"app-dialog-shell__icon app-dialog-shell__icon--{Tone.ToString()!.ToLowerInvariant()}";
 
-    private string RootClass => $"app-dialog-shell app-dialog-shell--{SizeClass}{(IsFramed ? " app-dialog-shell--framed" : string.Empty)}";
+    private string RootClass => $"app-dialog-shell app-dialog-shell--{SizeClass}{(IsFramed ? " app-dialog-shell--framed" : string.Empty)}{(Compact ? " app-dialog-shell--compact" : string.Empty)}";
 
     private string SizeClass => Size.Trim().ToLowerInvariant() switch
     {

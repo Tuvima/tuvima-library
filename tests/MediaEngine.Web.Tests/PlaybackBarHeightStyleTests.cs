@@ -4,7 +4,8 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// Source-level checks for music-player-and-listen-fixes D6 (WP5): the music and audiobook bar is exactly as tall as the video bar, a 28 px
-/// timeline plus a 60 px row with the same 56 px cover slot, and no block padding beyond the safe area.
+/// timeline plus the video row's 72 px (video player follow-ups D1) with the same 64 px cover slot, and no block padding beyond the safe area. The sizes are main's
+/// literals (72 px row, 64 px cover); what these tests pin is that music, audiobook and video share them.
 /// </summary>
 public sealed class PlaybackBarHeightStyleTests
 {
@@ -45,19 +46,19 @@ public sealed class PlaybackBarHeightStyleTests
     {
         var css = Read(ShellCss);
 
-        Assert.Contains("min-height: 60px;", Rule(css, ".playback-shell__row"), StringComparison.Ordinal);
-        // The audio row is pinned to the same 60 px so a third identity line cannot make the bar taller than the video bar.
-        Assert.Contains("height: 60px;", Rule(css, ".playback-shell--surface-dock:not(.playback-shell--compact) .playback-shell__row"), StringComparison.Ordinal);
+        Assert.Contains("min-height: 72px;", Rule(css, ".playback-shell__row"), StringComparison.Ordinal);
+        // The audio row is pinned to the same 72 px so a third identity line cannot make the bar taller than the video bar.
+        Assert.Contains("height: 72px;", Rule(css, ".playback-shell--surface-dock:not(.playback-shell--compact) .playback-shell__row"), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TheAudioBarsIdentityBlock_IsKeptInsideTheSixtyPixelRow_AndDropsTheSecondaryLineBeforeItOverflows()
+    public void TheAudioBarsIdentityBlock_IsKeptInsideTheSeventyTwoPixelRow_AndDropsTheSecondaryLineBeforeItOverflows()
     {
         var css = Read(IdentityCss);
         const string Dock = ".playback-shell--surface-dock:not(.playback-shell--compact) ";
 
         Assert.Matches(
-            Regex.Escape(Dock + ".playback-identity,\n" + Dock + ".playback-identity__text") + @"\s*\{[^}]*max-height: 60px;",
+            Regex.Escape(Dock + ".playback-identity,\n" + Dock + ".playback-identity__text") + @"\s*\{[^}]*max-height: 72px;",
             css.Replace("\r\n", "\n"));
         // A receiver line or an error line outranks the artist and album line, which is the one dropped.
         Assert.Contains("display: none;", Rule(css, Dock + ".playback-identity__text:has(.playback-identity__remote, .playback-identity__error) .playback-identity__secondary"), StringComparison.Ordinal);
@@ -82,12 +83,12 @@ public sealed class PlaybackBarHeightStyleTests
     }
 
     [Fact]
-    public void AudioAndVideoBars_ShareOneCoverSlot_OfFiftySixPixels()
+    public void AudioAndVideoBars_ShareOneCoverSlot_OfSixtyFourPixels()
     {
         var art = Rule(Read(IdentityCss), ".playback-identity__art");
 
-        Assert.Contains("height: 56px;", art, StringComparison.Ordinal);
-        Assert.Contains("width: 56px;", art, StringComparison.Ordinal);
+        Assert.Contains("height: 64px;", art, StringComparison.Ordinal);
+        Assert.Contains("width: 64px;", art, StringComparison.Ordinal);
         Assert.DoesNotMatch(@"(?m)^\.playback-shell--(surface-dock|music|audiobook)[^{]*\.playback-identity__art\b", Read(ShellCss));
     }
 

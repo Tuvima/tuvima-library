@@ -81,7 +81,10 @@ public partial interface IEngineApiClient
     Task<bool> SetPreferredTextTrackAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
 
     /// <summary>Asks the sources live for other lyrics or subtitles for the item ("Not right? Find another"). Null when the Engine could not be reached.</summary>
-    Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default);
+    Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null);
+
+    /// <summary>Whether a lyrics or subtitle source is switched on for the item, from settings alone (no source is contacted). Null when the Engine could not be reached.</summary>
+    Task<TextTrackSourcesResponse?> GetTextTrackSourcesAsync(Guid assetId, string kind, CancellationToken ct = default);
 
     Task<TextTrackChoiceResponse?> ChooseTextTrackAlternativeAsync(Guid assetId, ChooseTextTrackAlternativeRequest request, CancellationToken ct = default);
 

@@ -101,20 +101,20 @@ public static class EditReviewRows
 
     public const string NotInASeries = "Not in a series";
 
-    public const string EveryoneAsItIsNow = "Everyone's bookmarks as they are now";
+    public const string EveryoneAsItIsNow = "Global bookmarks as they are now";
 
-    public const string StartOverNote = "Everyone's list goes back to every profile's bookmarks, pooled. The definitive set you made is thrown away.";
+    public const string StartOverNote = "Global is emptied. People's own bookmarks are not touched.";
 
     /// <summary>What a bookmark operation changes, in the words of the Bookmarks tab.</summary>
     public static string BookmarkWhat(EditorBookmarkOp op) => op.Kind switch
     {
-        EditorBookmarkOpKinds.Add => "Add to Everyone's",
-        EditorBookmarkOpKinds.Remove => "Remove from Everyone's",
+        EditorBookmarkOpKinds.Add => "Add to Global",
+        EditorBookmarkOpKinds.Remove => "Remove from Global",
         EditorBookmarkOpKinds.Rename => "Rename",
         EditorBookmarkOpKinds.ChangeTime => "Change time",
         EditorBookmarkOpKinds.Import => "Import",
-        EditorBookmarkOpKinds.StartOver => "Start over from profiles",
-        _ => "Everyone's bookmarks",
+        EditorBookmarkOpKinds.StartOver => "Clear Global",
+        _ => "Global bookmarks",
     };
 
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";

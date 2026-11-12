@@ -160,6 +160,82 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
         return SavedItemMoveResult.Moved;
     }, ct);
 
+    public Task<IReadOnlyList<ProfileSavedItem>> RemoveSavedItemsAsync(
+        Guid profileId,
+        IReadOnlyList<ProfileSavedKey> items,
+        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+    {
+        var removed = new List<ProfileSavedItem>();
+        foreach (var key in items.Distinct())
+        {
+            var parameters = new { profileId, entityKind = key.EntityKind.ToString(), entityId = key.EntityId };
+            var row = connection.QuerySingleOrDefault<SavedRow>(new CommandDefinition(
+                """
+                SELECT profile_id AS ProfileId, entity_kind AS EntityKind, entity_id AS EntityId,
+                       saved_at AS SavedAt, position AS Position
+                FROM profile_saved_items
+                WHERE profile_id = @profileId AND entity_kind = @entityKind AND entity_id = @entityId;
+                """,
+                parameters, transaction, cancellationToken: token));
+            if (row is null)
+            {
+                continue;
+            }
+
+            connection.Execute(new CommandDefinition(
+                "DELETE FROM profile_saved_items WHERE profile_id = @profileId AND entity_kind = @entityKind AND entity_id = @entityId;",
+                parameters, transaction, cancellationToken: token));
+            removed.Add(Map(row));
+        }
+
+        return (IReadOnlyList<ProfileSavedItem>)removed;
+    }, ct);
+
+    public Task<IReadOnlyList<ProfileSavedItem>> RestoreSavedItemsAsync(
+        Guid profileId,
+        IReadOnlyList<ProfileSavedRestore> items,
+        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+    {
+        RequireProfile(connection, transaction, profileId, token);
+        var restored = new List<ProfileSavedItem>();
+        foreach (var item in items)
+        {
+            if (!TargetExists(connection, transaction, item.EntityKind, item.EntityId, token))
+            {
+                continue;
+            }
+
+            var parameters = new
+            {
+                profileId,
+                entityKind = item.EntityKind.ToString(),
+                entityId = item.EntityId,
+                savedAt = item.SavedAt.ToUniversalTime().ToString("O"),
+                position = item.Position,
+            };
+            connection.Execute(new CommandDefinition(
+                """
+                INSERT INTO profile_saved_items(profile_id, entity_kind, entity_id, saved_at, position)
+                VALUES (@profileId, @entityKind, @entityId, @savedAt, @position)
+                ON CONFLICT(profile_id, entity_kind, entity_id) DO UPDATE SET
+                    saved_at = excluded.saved_at,
+                    position = COALESCE(excluded.position, profile_saved_items.position);
+                """,
+                parameters, transaction, cancellationToken: token));
+            var row = connection.QuerySingle<SavedRow>(new CommandDefinition(
+                """
+                SELECT profile_id AS ProfileId, entity_kind AS EntityKind, entity_id AS EntityId,
+                       saved_at AS SavedAt, position AS Position
+                FROM profile_saved_items
+                WHERE profile_id = @profileId AND entity_kind = @entityKind AND entity_id = @entityId;
+                """,
+                parameters, transaction, cancellationToken: token));
+            restored.Add(Map(row));
+        }
+
+        return (IReadOnlyList<ProfileSavedItem>)restored;
+    }, ct);
+
     public Task<IReadOnlyList<ProfileReactionState>> GetReactionsAsync(Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -250,18 +326,24 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
         Guid entityId,
         CancellationToken ct)
     {
-        var exists = entityKind == ProfileEntityKind.Album
+        if (!TargetExists(connection, transaction, entityKind, entityId, ct))
+        {
+            throw new KeyNotFoundException($"{entityKind} '{entityId:D}' was not found.");
+        }
+    }
+
+    private static bool TargetExists(
+        System.Data.IDbConnection connection,
+        System.Data.IDbTransaction transaction,
+        ProfileEntityKind entityKind,
+        Guid entityId,
+        CancellationToken ct) => entityKind == ProfileEntityKind.Album
             ? connection.ExecuteScalar<long>(new CommandDefinition(
                 "SELECT (SELECT COUNT(1) FROM works WHERE id = @entityId) + (SELECT COUNT(1) FROM collections WHERE id = @entityId);",
                 new { entityId }, transaction, cancellationToken: ct)) > 0
             : connection.ExecuteScalar<long>(new CommandDefinition(
                 $"SELECT COUNT(1) FROM {(entityKind is ProfileEntityKind.Collection or ProfileEntityKind.Playlist ? "collections" : "works")} WHERE id = @entityId;",
                 new { entityId }, transaction, cancellationToken: ct)) > 0;
-        if (!exists)
-        {
-            throw new KeyNotFoundException($"{entityKind} '{entityId:D}' was not found.");
-        }
-    }
 
     private static ProfileSavedItem Map(SavedRow row) => new(
         row.ProfileId,

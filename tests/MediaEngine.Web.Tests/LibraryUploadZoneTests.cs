@@ -169,17 +169,17 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
         _dialogs.WaitForElement(".upload-dialog");
         Assert.Single(_dialogs.FindAll(".upload-dialog__section"));
         Assert.Contains("These look like videos, not music", Text(_dialogs.Find(".upload-dialog__section h3")));
-        var cards = _dialogs.FindAll(".lib-choice__kind-option").Select(Text).ToList();
+        var cards = _dialogs.FindAll(".lib-row__name").Select(Text).ToList();
         Assert.Contains("Movies", cards);
         Assert.Contains("TV Shows", cards);
         Assert.DoesNotContain("Music", cards);
-        // The usual kind card: tile and Metadata icons, with a hover card instead of an (i) (Libraries v3 D24).
-        Assert.NotEmpty(_dialogs.FindAll(".lib-choice__kind .lib-meta"));
+        // The usual kind card: tile and Metadata icons, as full-width rows with no hover card and no (i) (setup and libraries fixes D5).
+        Assert.NotEmpty(_dialogs.FindAll(".lib-row .lib-meta"));
         Assert.Empty(_dialogs.FindAll(".lib-choice__info"));
-        Assert.NotEmpty(_dialogs.FindAll(".lib-choice__kind .lib-peek"));
+        Assert.Empty(_dialogs.FindAll(".lib-peek, [data-hover-card]"));
         Assert.Contains("a.mkv", Text(_dialogs.Find(".upload-dialog__section .lib-choice__lead")));
 
-        _dialogs.Find(".lib-choice__kind-option[data-type=movies]").Click();
+        _dialogs.Find(".lib-row__pick[data-type=movies]").Click();
         _dialogs.FindAll("button").Single(button => Text(button) == "Add files").Click();
         await drop;
 
@@ -211,7 +211,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
 
         _dialogs.WaitForElement(".upload-dialog");
         Assert.Contains("Which kind of videos are these?", Text(_dialogs.Find(".upload-dialog__section h3")));
-        Assert.Contains("is-selected", _dialogs.Find(".lib-choice__kind-option[data-type=movies]").ClassName);
+        Assert.Equal("true", _dialogs.Find(".lib-row__pick[data-type=movies]").GetAttribute("aria-pressed"));
         _dialogs.FindAll("button").Single(button => Text(button) == "Add files").Click();
         await drop;
         Assert.Equal("movies", Begins().Single().Kind);
@@ -229,7 +229,7 @@ public sealed class LibraryUploadZoneTests : AsyncBunitContext
 
         var drop = Choose(cut, File("f1", "episode.mp3"));
         _dialogs.WaitForElement(".upload-dialog");
-        _dialogs.Find(".lib-choice__kind-option[data-type=podcasts]").Click();
+        _dialogs.Find(".lib-row__pick[data-type=podcasts]").Click();
 
         _dialogs.WaitForElement("[data-library=new]");
         Assert.NotNull(_dialogs.Find("#upload-dialog-0-library"));

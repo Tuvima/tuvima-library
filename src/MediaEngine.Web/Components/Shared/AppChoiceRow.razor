@@ -32,12 +32,14 @@
     [Parameter] public string? Icon { get; set; }
     /// <summary>Extra classes for the icon's tile, for a host that colours it.</summary>
     [Parameter] public string? IconClass { get; set; }
+    /// <summary>One compact row: the title and its second line run together as one sentence ("Read-only · Library only reads this folder.") instead of stacking.</summary>
+    [Parameter] public bool Compact { get; set; }
 
     // Screen readers need the text "true" or "false" on a toggle button.
     private string PressedText => Selected ? "true" : "false";
 
     private string IconTileClass => string.Join(" ", new[] { "app-choice-row__icon", string.IsNullOrWhiteSpace(IconClass) ? "app-choice-row__icon--plain" : null, IconClass }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private string RootClass => string.Join(" ", new[] { "app-choice-row", Selected ? "is-selected" : null, string.IsNullOrWhiteSpace(Icon) ? null : "app-choice-row--icon", Class }
+    private string RootClass => string.Join(" ", new[] { "app-choice-row", Selected ? "is-selected" : null, string.IsNullOrWhiteSpace(Icon) ? null : "app-choice-row--icon", Compact ? "app-choice-row--compact" : null, Class }
         .Where(value => !string.IsNullOrWhiteSpace(value)));
 }

@@ -14,7 +14,7 @@
             @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /> }
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.KeyboardArrowDown" Size="AppIconSize.Row24" Class="tl-select-arrow" />
         </button>
-        <AppPopover Open="@_open" OpenChanged="SetOpenAsync" Class="@PopoverClass" MatchAnchorWidth="true" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
+        <AppPopover Open="@_open" OpenChanged="SetOpenAsync" Class="@PopoverClass" ListWidth="true" SheetOnPhone="true" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
             <div id="@_listId" role="listbox" class="tl-list tl-select-options" aria-multiselectable="@(MultiSelection ? "true" : null)">@ChildContent</div>
         </AppPopover>
     </div>

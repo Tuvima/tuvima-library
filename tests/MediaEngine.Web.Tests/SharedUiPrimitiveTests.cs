@@ -44,7 +44,7 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
         var cut = Render<SurfaceTabBar>(parameters => parameters
             .Add(component => component.Items, new List<SurfaceTabItem>
             {
-                new("users", "Users"), new("authentication", "Authentication")
+                new("users", "Users", AppMaterialIcons.Outlined.People), new("authentication", "Authentication", AppMaterialIcons.Outlined.Key)
             })
             .Add(component => component.ActiveKey, "authentication"));
         Assert.Equal("Authentication", Assert.Single(cut.FindAll("[role=tab][aria-selected=true]")).TextContent.Trim());

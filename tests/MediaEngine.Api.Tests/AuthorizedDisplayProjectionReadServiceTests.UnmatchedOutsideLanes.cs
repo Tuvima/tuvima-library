@@ -530,12 +530,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         if (jsonBody is not null)
         {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(jsonBody);
             context.Request.ContentType = "application/json";
-            context.Request.ContentLength = bytes.Length;
+            var bytes = System.Text.Encoding.UTF8.GetBytes(jsonBody);
             context.Request.Body = new MemoryStream(bytes);
-            // Without a server there is no body-detection feature, and the route table then treats the request as having no body.
-            context.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>(new JsonBodyDetection());
+            context.Request.ContentLength = bytes.Length;
+            // A server sets this when a request has a body; a bare DefaultHttpContext does not, and body binding relies on it.
+            context.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>(new RequestWithBody());
         }
 
         context.Response.Body = new MemoryStream();
@@ -544,7 +544,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         return (context.Response.StatusCode, await new StreamReader(context.Response.Body).ReadToEndAsync());
     }
 
-    private sealed class JsonBodyDetection : Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature
+    private sealed class RequestWithBody : Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature
     {
         public bool CanHaveBody => true;
     }

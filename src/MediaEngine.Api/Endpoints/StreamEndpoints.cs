@@ -417,6 +417,7 @@ public static class StreamEndpoints
         group.MapGet("/{assetId:guid}/text-tracks/alternatives", async (
             Guid assetId,
             string? kind,
+            string? language,
             HttpContext http,
             [FromServices] TextTrackEnrichmentWorker textTrackWorker,
             IRequestAuthorityResolver authorityResolver,
@@ -427,14 +428,21 @@ public static class StreamEndpoints
                 return ApiErrors.BadRequest("kind must be either 'lyrics' or 'subtitles'.");
             }
 
+            if (!IsValidSearchLanguage(language))
+            {
+                return ApiErrors.BadRequest("language must be a language name or code (letters, spaces, hyphens and brackets, at most 40 characters).");
+            }
+
             var requester = PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct));
-            var result = await textTrackWorker.FindAlternativesAsync(assetId, textTrackKind, requester, ct);
+            var result = await textTrackWorker.FindAlternativesAsync(assetId, textTrackKind, requester, ct, language);
             return Results.Ok(new TextTrackAlternativesResponse
             {
                 asset_id = assetId,
                 kind = textTrackKind.ToString(),
                 status = result.Status,
                 message = result.Message,
+                source_name = result.SourceName,
+                language = result.Language,
                 items = result.Items.Select(item => new TextTrackAlternativeDto
                 {
                     provider = item.Provider,
@@ -452,8 +460,32 @@ public static class StreamEndpoints
             });
         })
         .WithName("GetTextTrackAlternatives")
-        .WithSummary("Ask the switched-on lyrics or subtitle sources for other results for one item. Fetched live and never stored.")
+        .WithSummary("Ask the switched-on lyrics or subtitle sources for other results for one item. Fetched live and never stored. Subtitles accept a language to search in and download nothing.")
         .Produces<TextTrackAlternativesResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
+        group.MapGet("/{assetId:guid}/text-tracks/sources", async (
+            Guid assetId,
+            string? kind,
+            HttpContext http,
+            [FromServices] TextTrackEnrichmentWorker textTrackWorker,
+            IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            if (!TryParseTextTrackKind(kind, out var textTrackKind))
+            {
+                return ApiErrors.BadRequest("kind must be either 'lyrics' or 'subtitles'.");
+            }
+
+            var requester = PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct));
+            var status = await textTrackWorker.GetSourceStatusAsync(assetId, textTrackKind, requester, ct);
+            return Results.Ok(new TextTrackSourcesResponse { asset_id = assetId, kind = textTrackKind.ToString(), status = status });
+        })
+        .WithName("GetTextTrackSources")
+        .WithSummary("Whether a lyrics or subtitle source is switched on for one item, answered from settings alone. No source is contacted.")
+        .Produces<TextTrackSourcesResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireClientScope(ClientApiScopes.PlaybackWrite)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
@@ -474,9 +506,14 @@ public static class StreamEndpoints
                 return ApiErrors.BadRequest("kind, provider and source_id are required.");
             }
 
+            if (!IsValidSearchLanguage(request.language))
+            {
+                return ApiErrors.BadRequest("language must be a language name or code (letters, spaces, hyphens and brackets, at most 40 characters).");
+            }
+
             var authority = await authorityResolver.ResolveAsync(http, ct);
             var result = await textTrackWorker.ChooseAlternativeAsync(
-                assetId, textTrackKind, request.provider, request.source_id, PluginAccessGate.RequesterOf(authority), ct);
+                assetId, textTrackKind, request.provider, request.source_id, PluginAccessGate.RequesterOf(authority), ct, request.language);
             if (result.Status == "Updated")
             {
                 await peopleActions.RecordAsync(new PluginPeopleAction(
@@ -946,6 +983,11 @@ public static class StreamEndpoints
             _ => lineage.TargetForParentScope,
         };
     }
+
+    /// <summary>A language to search in is optional; when given it is a name or a code: letters, spaces and hyphens, at most 40 characters.</summary>
+    private static bool IsValidSearchLanguage(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+        || (value.Length <= 40 && value.All(character => char.IsLetter(character) || character is ' ' or '-' or '(' or ')'));
 
     private static bool TryParseTextTrackKind(string? value, out TextTrackKind kind)
     {

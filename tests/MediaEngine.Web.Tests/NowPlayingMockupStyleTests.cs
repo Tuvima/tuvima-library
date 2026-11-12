@@ -149,7 +149,7 @@ public sealed class NowPlayingMockupStyleTests
     }
 
     [Fact]
-    public void PhoneTransport_HasFiftyTwoPixelButtonsTwentyApart_AndASixtyFourPixelWhitePlayDisc()
+    public void PhoneTransport_HasFortyEightPixelButtonsTwentyApart_AndAFiftySixPixelWhitePlayDisc_AsTheVideoFollowUpsSizeThem()
     {
         var css = Read(PhoneCss);
         var transport = Rule(css, ".playback-full__transport");
@@ -157,10 +157,11 @@ public sealed class NowPlayingMockupStyleTests
 
         Assert.Contains("gap:var(--playback-full-transport-gap);", transport);
         Assert.Contains("margin-top:var(--playback-full-transport-top);", transport);
-        Assert.Contains("--playback-control-target:52px;", transport);
-        Assert.Contains("--playback-primary-size:64px;", Rule(css, ".playback-full__transport ::deep .playback-primary-button-shell--phone"));
-        Assert.Contains("width:64px;", play);
-        Assert.Contains("height:64px;", play);
+        Assert.Contains("--playback-control-target:48px;", transport);
+        Assert.Contains("--playback-control-glyph:28px;--playback-play-target:56px;--playback-play-glyph:40px;", transport);
+        Assert.Contains("--playback-primary-size:56px;", Rule(css, ".playback-full__transport ::deep .playback-primary-button-shell--phone"));
+        Assert.Contains("width:56px;", play);
+        Assert.Contains("height:56px;", play);
         Assert.Contains("border-radius:50%;", play);
         Assert.Contains("background:var(--playback-text);", play);
         Assert.Contains("--playback-glyph-size:var(--playback-play-glyph);", play);

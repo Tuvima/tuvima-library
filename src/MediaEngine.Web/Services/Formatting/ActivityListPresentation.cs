@@ -27,17 +27,17 @@ public static class ActivityListPresentation
         (PersonalActivityKindValues.Watch, "Watched"),
         (PersonalActivityKindValues.Listen, "Listened"),
         (PersonalActivityKindValues.Read, "Read"),
-        (PersonalActivityKindValues.MyList, "Added to My list"),
+        (PersonalActivityKindValues.MyList, "Added to My List"),
     ];
 
-    /// <summary>"Watched", "Listened", "Read", "Played" (a music session) or "Added to My list".</summary>
+    /// <summary>"Watched", "Listened", "Read", "Played" (a music session) or "Added to My List".</summary>
     public static string Verb(string kind) => kind switch
     {
         PersonalActivityKindValues.Watch => "Watched",
         PersonalActivityKindValues.Listen => "Listened",
         PersonalActivityKindValues.Read => "Read",
         PersonalActivityKindValues.MusicSession => "Played",
-        PersonalActivityKindValues.MyList => "Added to My list",
+        PersonalActivityKindValues.MyList => "Added to My List",
         _ => "Opened",
     };
 

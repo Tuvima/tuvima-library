@@ -627,11 +627,6 @@
     min-height: 3.25rem;
 }
 
-.tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tabs,
-.tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tab {
-    min-height: 3.25rem;
-}
-
 /* Portrait covers remain restrained inside the larger identity-only hero.
    The added viewport height belongs to the cinematic field, not oversized art. */
 
@@ -671,11 +666,6 @@
 .tl-detail-stage__navigation ::deep .detail-surface-navigation {
         min-height: var(--detail-navigation-height);
 
-    }
-
-.tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tabs,
-.tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tab {
-        min-height: var(--detail-navigation-height);
     }
 
 }
@@ -810,17 +800,6 @@
 
     }
 
-.tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tabs,
-.tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tab {
-        min-height: 3.65rem;
-    }
-
-.tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tab {
-        padding-inline: 0.25rem;
-        margin-right: clamp(1.6rem, 2.5vw, 3rem);
-        font-size: var(--tl-font-size-sm);
-    }
-
 .tl-detail-page__primary-content {
         width: 100%;
         padding: clamp(1rem, 1.5vw, 1.5rem) 0 clamp(1.25rem, 2vw, 2rem);
@@ -883,11 +862,6 @@
 /* FOLLOWUP_CONTRACT_EOF: final overrides for the 95svh composition. */
 
 @media (min-width: 840px) {
-
-.tl-detail-stage__navigation
-        ::deep .detail-surface-navigation .surface-navigation-bar__tab {
-        font-size: var(--tl-font-size-md);
-    }
 
 .tl-detail-page__primary-content
         ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-item,

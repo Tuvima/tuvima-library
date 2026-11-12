@@ -178,8 +178,8 @@
     // Shown when a contribution holds items this profile cannot view (documents without the Documents permission).
     private const string HiddenItemsNote = "Includes items you cannot view";
     private IReadOnlyList<AppCountTab> ModeTabs => _page is { CanReview: true }
-        ? [new("mine", L["ViewContributionsPage_MySubmissions"].Value, null), new("review", L["Nav_ReviewQueue"].Value, null)]
-        : [new("mine", L["ViewContributionsPage_MySubmissions"].Value, null)];
+        ? [new("mine", L["ViewContributionsPage_MySubmissions"].Value, null, AppMaterialIcons.Outlined.UploadFile), new("review", L["Nav_ReviewQueue"].Value, null, AppMaterialIcons.Outlined.RateReview)]
+        : [new("mine", L["ViewContributionsPage_MySubmissions"].Value, null, AppMaterialIcons.Outlined.UploadFile)];
     private static string Destination(ViewSharedContributionDto value) => value.DestinationKind == "folder" ? $"Shared folder · {value.DestinationLabel}" : "Shared Timeline";
     private static string StatusLabel(string value) => char.ToUpperInvariant(value[0]) + value[1..];
     private static AppUiTone StatusTone(string value) => value switch { "accepted" => AppUiTone.Success, "declined" or "cancelled" => AppUiTone.Neutral, _ => AppUiTone.Warning };

@@ -329,7 +329,8 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         Assert.Equal("#112233", header!.Colors!.PrimaryHex);
         Assert.Equal("#445566", header.Colors.SecondaryHex);
         Assert.Equal("#778899", header.Colors.AccentHex);
-        Assert.Equal($"/stream/artwork/{artwork:D}", header.Root.CoverUrl);
+        // Only the shared artwork record exists (no stored picture row), and /stream/artwork serves picture rows, so the display route carries it.
+        Assert.Equal($"/api/v1/display/artwork/assets/{artwork:D}/content", header.Root.CoverUrl);
     }
 
     [Fact]

@@ -10,24 +10,59 @@ function factors(origin) {
     const text = String(origin).toLowerCase();
     return [text.includes('right') ? 1 : text.includes('left') ? 0 : .5, text.includes('bottom') ? 1 : text.includes('top') ? 0 : .5];
 }
+// Dropdown lists (Look v3.1 D3): a list is at least as wide as the control it opens from, grows to fit its longest option, and stops at
+// 480 px or the window less 16 px each side. An anchor wider than 480 px gets a list exactly its own width (still inside the window).
+export const listCap = 480;
+export const listGap = 16;
+// A Sheet's dim area is the surface's own backdrop: a press there has the surface as its target and lands above the Sheet's top edge.
+export function isSheetBackdropPress(surface, event) {
+    return event.target === surface && surface.classList.contains('app-popout--sheet') && event.clientY < surface.getBoundingClientRect().top;
+}
+export function listWidth(anchorWidth, contentWidth, viewportWidth, cap = listCap, gap = listGap) {
+    const room = Math.max(0, viewportWidth - gap * 2);
+    if (anchorWidth > cap) return Math.min(anchorWidth, room);
+    return Math.min(Math.max(anchorWidth, Math.min(contentWidth, cap)), room);
+}
+// The stylesheet states some of these with !important, so the list's own size is written the same way.
+function pin(style, name, value) {
+    if (typeof style.setProperty === 'function') style.setProperty(name, value, 'important'); else style[name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
+}
+function sizeList(surface, anchorWidth) {
+    pin(surface.style, 'min-width', '0'); pin(surface.style, 'max-width', 'none'); pin(surface.style, 'width', 'max-content');
+    const width = `${listWidth(anchorWidth, surface.getBoundingClientRect().width, innerWidth)}px`;
+    pin(surface.style, 'min-width', width); pin(surface.style, 'max-width', width); pin(surface.style, 'width', width);
+}
+const sheetStyle = { width: '100%', 'min-width': '0', 'max-width': 'none', 'border-radius': 'var(--tl-sheet-radius,16px) var(--tl-sheet-radius,16px) 0 0', 'padding-bottom': 'env(safe-area-inset-bottom,0px)' };
 function position(state) {
     if (!state.open || !state.anchor?.isConnected) return;
     const surface = state.surface;
     if (!surface.matches(':popover-open')) surface.showPopover();
     // Playback owns positioning in its explicit parent panel and fullscreen controls.
     if (surface.hasAttribute('data-playback-owned-menu')) return;
+    const listMode = surface.dataset?.listWidth === 'true';
+    const listSheet = surface.dataset?.listSheet === 'true';
     // A sized Pop-out (Menu or Panel) is a Sheet on phones: the stylesheet pins it to the bottom, so no anchoring.
-    if (surface.dataset?.popoutSize) {
+    // A dropdown list that asks for it (data-list-sheet) is the same Sheet, with 52 px rows.
+    if (surface.dataset?.popoutSize || listSheet) {
         const sheet = typeof matchMedia === 'function' && matchMedia('(max-width: 600px)').matches;
         surface.classList.toggle('app-popout--sheet', sheet);
         if (sheet) {
-            for (const name of ['position', 'left', 'top', 'width', 'max-width', 'max-height', 'transform']) surface.style.removeProperty(name);
+            for (const name of ['position', 'left', 'top', 'width', 'min-width', 'max-width', 'max-height', 'transform']) surface.style.removeProperty(name);
+            // The shared menu rules fix a menu's width and corners with !important, which a Sheet must outrank.
+            if (listSheet) for (const [name, value] of Object.entries(sheetStyle)) pin(surface.style, name, value);
             return;
         }
+        if (listSheet) for (const name of ['border-radius', 'padding-bottom']) surface.style.removeProperty?.(name);
     }
     const box = state.anchor.getBoundingClientRect();
-    surface.style.maxWidth = `${Math.max(0, state.matchWidth ? Math.min(box.width, innerWidth - edge * 2) : innerWidth - edge * 2)}px`;
-    if (state.matchWidth) surface.style.width = `${Math.min(box.width, innerWidth - edge * 2)}px`;
+    if (listMode) {
+        // The height limit goes first so a list that scrolls is measured with its scrollbar.
+        surface.style.maxHeight = `${Math.max(44, innerHeight - edge * 2)}px`;
+        sizeList(surface, box.width);
+    } else {
+        surface.style.maxWidth = `${Math.max(0, state.matchWidth ? Math.min(box.width, innerWidth - edge * 2) : innerWidth - edge * 2)}px`;
+        if (state.matchWidth) surface.style.width = `${Math.min(box.width, innerWidth - edge * 2)}px`;
+    }
     const af = factors(state.anchorOrigin), tf = factors(state.transformOrigin);
     surface.style.maxHeight = `${Math.max(44, innerHeight - edge * 2)}px`;
     const width = surface.getBoundingClientRect().width;
@@ -65,6 +100,8 @@ export function update(marker, surface, anchor, dotnet, open, anchorOrigin, tran
         state = { marker, surface, anchor: anchor || discoverAnchor(marker), dotnet, open: false };
         state.layout = () => position(state);
         state.pointer = event => {
+            // A Sheet's dim area is the surface's own backdrop, so a press there reports the surface as its target: above the Sheet's top edge it is an outside press.
+            if (opened.at(-1) === state && isSheetBackdropPress(surface, event)) { close(state, false); return; }
             if (opened.at(-1) !== state || surface.contains(event.target) || state.anchor?.contains(event.target)) return;
             // Descendant dialogs belong to this popup's journey and must not dismiss its ancestor accidentally.
             // The one exception is a live (non-modal) window such as the details overlay: it is not a dialog this popup opened, so a click

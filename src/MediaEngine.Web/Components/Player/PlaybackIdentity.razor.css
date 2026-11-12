@@ -1,4 +1,4 @@
-/* The identity zone of the persistent bar (unified player v2 D5; mockup screen 1 marker 4): a 56 px tall artwork slot, the title and second line, then
+/* The identity zone of the persistent bar (unified player v2 D5; mockup screen 1 marker 4): a 64 px tall artwork slot (video player follow-ups D2), the title and second line, then
    the item's actions. The zone keeps at least 240 px (the phone's collapsed form lets it shrink) and the title takes only the room it needs, so the actions sit right after it as in the mockup, and ends in an
    ellipsis when it must shrink; the actions never shrink, so Favorite, Like, Dislike and More stay visible beside a song title at 1024 wide. */
 .playback-identity {
@@ -18,15 +18,20 @@
     border-radius: 6px;
     color: inherit;
     flex: none;
-    height: 56px;
+    height: 64px;
     overflow: hidden;
     padding: 0;
     position: relative;
-    width: 56px;
+    width: 64px;
 }
 
 .playback-identity__art--wide {
-    width: 100px;
+    width: 114px;
+}
+
+/* A movie's poster, or an episode that has only the show's poster: a 43 x 64 portrait slot, no landscape box. */
+.playback-identity__art--poster {
+    width: 43px;
 }
 
 .playback-identity__art--button {
@@ -39,14 +44,13 @@
 }
 
 .playback-identity__art-image,
-.playback-identity__art-fill,
 .playback-identity__art-placeholder {
     display: block;
     height: 100%;
     width: 100%;
 }
 
-/* A cover is drawn whole (never cropped or stretched). An episode still fills the 16:9 slot; a poster is contained inside it, over its blurred fill. */
+/* A square cover is drawn whole. An episode still fills the 16:9 slot; a poster fills its portrait slot (cover-fitted, no blurred fill). */
 .playback-identity__art-image {
     object-fit: contain;
 }
@@ -56,17 +60,7 @@
 }
 
 .playback-identity__art--poster .playback-identity__art-image {
-    object-fit: contain;
-    position: relative;
-}
-
-/* The blurred fill behind a contained poster: the poster again, scaled past the edges, blurred and dimmed (mockup: blur 6 px, 60% brightness). */
-.playback-identity__art-fill {
-    filter: blur(6px) brightness(0.6);
-    inset: 0;
     object-fit: cover;
-    position: absolute;
-    transform: scale(1.15);
 }
 
 .playback-identity__text {
@@ -113,13 +107,13 @@
     white-space: nowrap;
 }
 
-/* In the music and audiobook bar (the dock, not the phone's compact bar and not the video bar) the identity sits in a row pinned to 60 px (PlaybackShell), so it is kept
+/* In the music and audiobook bar (the dock, not the phone's compact bar and not the video bar) the identity sits in a row pinned to 72 px (PlaybackShell), so it is kept
    inside it and never spills into the timeline above or the screen edge below. The title (16 px, 1.45) and one secondary line (13 px, 1.45) take 42 px. A receiver line
    ("Playing on ...") or an error line is more important than the secondary line (artist, album), so when either is present the secondary line is dropped instead of the block
    overflowing: the title, the receiver line and the error line (13 px at 1.35) take 58 px. Nothing is clipped, so a focus ring is never cut off. */
 .playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity,
 .playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity__text {
-    max-height: 60px;
+    max-height: 72px;
 }
 
 .playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity__text:has(.playback-identity__remote, .playback-identity__error) .playback-identity__secondary {
@@ -173,6 +167,10 @@
 
 .playback-identity--compact .playback-identity__art--wide {
     width: 78px;
+}
+
+.playback-identity--compact .playback-identity__art--poster {
+    width: 29px;
 }
 
 .playback-identity--compact .playback-identity__title {

@@ -1,8 +1,9 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IStringLocalizer<SharedStrings> L
 @* The Viewer (Look v3 D14): a full-screen surface, black or the page surface, with its own 44 px close X at the top right. The reader, the
-   photo and document viewers, search and the details overlay are Viewers. Native draws a <dialog> (the details overlay, the only Native user, which app-dialog.js shows non-modal
-   and keeps modal itself so the player bar stays usable; its open, close and Escape are routed there); otherwise it is an in-page surface with role="dialog". The viewer's own chrome
+   photo and document viewers and search are Viewers. Native draws a <dialog>; the details window uses it for the element only (the only Native user): app-dialog.js shows it
+   non-modal and keeps it modal itself so the player bar stays usable, and it sizes itself as a floating window in app.css (Look v3.1 D5), with open, close and Escape routed there;
+   otherwise it is an in-page surface with role="dialog". The viewer's own chrome
    (bars, stages, side panels) is its content and keeps its own styles; this part owns the kind, the role and the close X. *@
 @if (Native)
 {
