@@ -138,6 +138,8 @@
     --tl-type-caption-weight: 400;
     --tl-type-overline-size: 12px;
     --tl-type-overline-weight: 600;
+    /* The content rating shown over a paused video, read from across the room (video player follow-ups D3). */
+    --tl-type-player-rating-size: 28px;
     --tl-line-height-tight: 1.25;
     --tl-line-height-body: 1.5;
     --tl-line-height-relaxed: 1.625;

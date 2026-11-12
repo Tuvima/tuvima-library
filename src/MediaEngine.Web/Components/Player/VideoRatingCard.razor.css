@@ -19,7 +19,7 @@
 
 .video-rating-card strong {
     color: var(--playback-text);
-    font-size: 28px;
+    font-size: var(--tl-type-player-rating-size);
     font-weight: 600;
     line-height: 1.2;
 }
@@ -36,7 +36,7 @@
 /* A phone keeps the rating readable without crowding the header (video player follow-ups D3). */
 @media (max-width: 600px) {
     .video-rating-card strong {
-        font-size: 20px;
+        font-size: var(--tl-type-heading-size);
     }
 
     .video-rating-card i {

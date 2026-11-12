@@ -142,11 +142,12 @@ public sealed class VideoOverlayTests : AsyncBunitContext
         // Video player follow-ups D3: 28 px semibold beside a 5 x 40 px mark; 20 px on a phone.
         var css = LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/VideoRatingCard.razor.css"));
 
-        Assert.Contains("font-size: 28px;", css, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-type-player-rating-size);", css, StringComparison.Ordinal);
+        Assert.Contains("--tl-type-player-rating-size: 28px;", LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/wwwroot/tuvima.tokens.css")), StringComparison.Ordinal);
         Assert.Contains("font-weight: 600;", css, StringComparison.Ordinal); // 700 is kept for page and hero titles (Look pass v3 D7).
         Assert.Contains("height: 40px;", css, StringComparison.Ordinal);
         var phone = css[css.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
-        Assert.Contains("font-size: 20px;", phone, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-type-heading-size);", phone, StringComparison.Ordinal); // 20 px
     }
 
     private static string FindRepoRoot()
