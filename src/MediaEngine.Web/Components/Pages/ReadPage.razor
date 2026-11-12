@@ -61,7 +61,7 @@
 
     public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
 
-    // Any adult profile makes its own collections on a desktop (Collections and lists D19); the "+" opens the New collection flow with
+    // Any adult profile makes its own collections on a desktop, tablet or phone (Collections and lists D19); the "+" opens the New collection flow with
     // this area's chips ticked.
     private bool CanCreateCollections => CollectionAuthoringRule.CanCreate(Session) && DeviceContext.CanEditItems;
 
@@ -84,7 +84,7 @@
         if (await CollectionEditorLauncher.TryOpenAsync(request) == EditorLaunchResult.NotAvailableOnThisDevice)
         {
             // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
-            _notice = EditorDeviceRule.Message;
+            _notice = EditorDeviceRule.ItemMessage;
             return;
         }
 

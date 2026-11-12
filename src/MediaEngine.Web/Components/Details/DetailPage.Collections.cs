@@ -31,7 +31,7 @@ public partial class DetailPage
     // Collection and set actions in the "..." menu: Add to collection, and Export as a pack file and Remove set for a set.
 
     /// <summary>
-    /// "Add to collection…" in a single title's "..." menu: any adult profile on a desktop (Collections and lists spec 4a, D19). The list
+    /// "Add to collection…" in a single title's "..." menu: any adult profile on a desktop, tablet or phone (Collections and lists spec 4a, D19). The list
     /// it opens holds only the collections the Engine says this person may edit, and the Engine checks every add again.
     /// </summary>
     private bool CanAddToCollection =>

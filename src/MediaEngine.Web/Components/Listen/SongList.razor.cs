@@ -268,7 +268,7 @@ public partial class SongList
     // scroll stay where they are, and nothing opens in a pop-up.
     private Task EditAsync(SongRow row)
     {
-        // The table only offers Edit to a desktop that may edit; a handler never trusts that.
+        // The table only offers Edit to a device that may edit items; a handler never trusts that.
         if (!DeviceContext.IsPhone && WorkFor(row) is not null)
         {
             _selectedIds = new HashSet<string>(_selectedIds, StringComparer.Ordinal) { row.Id };
@@ -288,7 +288,7 @@ public partial class SongList
             return;
         }
 
-        // The menu item only shows to an administrator on a desktop; a handler never trusts that.
+        // The menu item only shows to an administrator on a device that may edit items; a handler never trusts that.
         if (LibraryItemDeletionFlow.Refusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
             _notice = refusal;

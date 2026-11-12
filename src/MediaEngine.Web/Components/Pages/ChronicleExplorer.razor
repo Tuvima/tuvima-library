@@ -459,7 +459,7 @@ else
     {
         if (_openingEditor || !_canEditUniverse || _editing.IsOn) return;
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
-        if (EditorDeviceRule.TryRefuseItems(DeviceContext)) { ShowEditNotice(EditorDeviceRule.Message, isError: false); return; }
+        if (EditorDeviceRule.TryRefuseItems(DeviceContext)) { ShowEditNotice(EditorDeviceRule.ItemMessage, isError: false); return; }
         _editNotice = null;
         _openingEditor = true;
         try

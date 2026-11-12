@@ -48,9 +48,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
     private static IReadOnlyList<string> Labels(IRenderedComponent<OverflowActionMenu> menu) =>
         menu.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
 
-    private static IReadOnlyList<string> Notes(IRenderedComponent<OverflowActionMenu> menu) =>
-        menu.FindAll(".tl-detail-menu-note").Select(note => note.TextContent.Trim()).ToList();
-
     [Fact]
     public async Task DesktopThatCanEditShowsTheEditEntryWhenTheEngineOfferedIt()
     {
@@ -60,7 +57,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Contains(EditLabel, Labels(menu));
-        Assert.Empty(Notes(menu));
     }
 
     [Fact]
@@ -72,7 +68,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Equal(["Viewing history"], Labels(menu));
-        Assert.Empty(Notes(menu));
     }
 
     [Fact]
@@ -95,7 +90,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Equal(["Viewing history", EditLabel], Labels(menu));
-        Assert.Empty(Notes(menu));
         Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
     }
 
@@ -108,7 +102,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Equal(["Viewing history"], Labels(menu));
-        Assert.Empty(Notes(menu));
     }
 
     [Theory]
@@ -134,7 +127,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
 
         Assert.Contains("app-native-dialog--sheet", menu.Find("dialog").ClassName);
         Assert.Equal(["Viewing history", EditLabel], Labels(menu));
-        Assert.Empty(Notes(menu));
     }
 
     [Fact]
@@ -159,7 +151,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         Assert.Equal(["Viewing history"], Labels(menu));
-        Assert.Empty(Notes(menu));
         Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
     }
 
@@ -215,7 +206,6 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
 
         Assert.Equal(["Viewing history", EditLabel, "Delete"], Labels(menu));
         Assert.Contains("app-tone--error", menu.FindAll("[role='menuitem']").Last().ClassName);
-        Assert.Empty(Notes(menu));
     }
 
     [Fact]

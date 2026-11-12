@@ -222,7 +222,7 @@
             return;
         }
 
-        // Administrators on a desktop may edit; the Engine decides again when the editor loads and for every save.
+        // Administrators on a desktop, tablet or phone may edit (EditorDeviceRule.CanEditItems); the Engine decides again when the editor loads and for every save.
         _canEditUniverse = DeviceContext.CanEditItems;
         _binding.HasPermission = _canEditUniverse;
 
@@ -249,7 +249,7 @@
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
         if (EditorDeviceRule.TryRefuseItems(DeviceContext))
         {
-            _editNotice = EditorDeviceRule.Message;
+            _editNotice = EditorDeviceRule.ItemMessage;
             _editNoticeIsError = false;
             return;
         }

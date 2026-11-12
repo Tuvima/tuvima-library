@@ -471,7 +471,7 @@ public sealed class SongListDeleteTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(SongRowMapper.FromWork(songs[0])));
 
-        Assert.Equal(EditorDeviceRule.Message, Notice(cut));
+        Assert.Equal(EditorDeviceRule.ItemMessage, Notice(cut));
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Empty(_previewRequests);
     }

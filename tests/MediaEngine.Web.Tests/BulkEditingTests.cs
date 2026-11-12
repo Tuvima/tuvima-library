@@ -465,7 +465,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Bar_ForSongsOnATv_IsNotDrawnWithoutSongActions()
+    public async Task Bar_ForSongsOnATv_NeverOffersEdit()
     {
         var bar = await RenderBarAsync(Ticked(FourSongs()), "tv");
 

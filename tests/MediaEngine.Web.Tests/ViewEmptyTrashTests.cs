@@ -214,7 +214,7 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
         Assert.Empty(cut.FindAll(".view-trash-header button"));
-        Assert.Contains("Empty Trash on a computer.", Text(cut), StringComparison.Ordinal);
+        Assert.Contains("Emptying Trash is not available on this device.", Text(cut), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -279,8 +279,8 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
 
         Assert.DoesNotContain("preview", _calls);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
-        // The header itself already says Trash is emptied on a computer; nothing pops up or lands in the ribbon.
-        Assert.Contains("Empty Trash on a computer.", cut.Find(".view-trash-header__computer").TextContent, StringComparison.Ordinal);
+        // The header itself already says emptying Trash is not available on this device; nothing pops up or lands in the ribbon.
+        Assert.Contains("Emptying Trash is not available on this device.", cut.Find(".view-trash-header__computer").TextContent, StringComparison.Ordinal);
         Assert.Null(Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message);
         Assert.Empty(host.FindAll(".empty-trash"));
     }

@@ -54,7 +54,7 @@ public partial class DetailPage
             return false;
         }
 
-        ShowNotice(EditorDeviceRule.Message, AppUiTone.Info);
+        ShowNotice(EditorDeviceRule.ItemMessage, AppUiTone.Info);
         return true;
     }
 

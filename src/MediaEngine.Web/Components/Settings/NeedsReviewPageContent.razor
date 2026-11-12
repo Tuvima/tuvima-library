@@ -181,7 +181,7 @@
     // Same rule as the account menu's Needs Review entry and the shell badge (MainLayout.CanViewReview).
     private bool CanViewReview => Session.HasNavigation("settings.administration");
 
-    // Deleting is for an administrator on a desktop; the Engine checks again on every call.
+    // Deleting is for an administrator on a desktop, tablet or phone; the Engine checks again on every call.
     private bool CanRemove => LibraryItemDeletionFlow.CanDelete(Device, Session);
 
     private bool HasFilter => !string.IsNullOrWhiteSpace(Library) || !string.IsNullOrWhiteSpace(_search);
@@ -1008,7 +1008,7 @@
         if (!await Editor.OpenAsync(binding, binding.EntityId, EditTool.Details) || !Editor.IsOpen)
         {
             _awaitingFix = false;
-            _actionError = EditorDeviceRule.TryRefuseItems(Device) ? EditorDeviceRule.Message : L["NeedsReviewBar_EditUnavailable"].Value;
+            _actionError = EditorDeviceRule.TryRefuseItems(Device) ? EditorDeviceRule.ItemMessage : L["NeedsReviewBar_EditUnavailable"].Value;
             return;
         }
 

@@ -298,7 +298,7 @@ public partial class ListenPage
         if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
         {
             // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
-            ShowNotice(EditorDeviceRule.Message, AppUiTone.Info);
+            ShowNotice(EditorDeviceRule.ItemMessage, AppUiTone.Info);
             return;
         }
 

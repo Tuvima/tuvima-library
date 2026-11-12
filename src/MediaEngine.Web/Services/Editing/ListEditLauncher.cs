@@ -179,7 +179,7 @@ public sealed class ListEditLauncher
 
         if (EditorDeviceRule.TryRefuseItems(_device))
         {
-            LastNotice = EditorDeviceRule.Message;
+            LastNotice = EditorDeviceRule.ItemMessage;
             return null;
         }
 

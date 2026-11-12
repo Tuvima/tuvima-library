@@ -12,7 +12,7 @@ public static class EmptyTrashText
     // The Trash header.
     public const string HeaderLead = "Items in Trash stay on your disk until you empty Trash.";
     public const string TrashIsEmpty = "Trash is empty.";
-    public const string EmptyOnAComputer = "Empty Trash on a computer.";
+    public const string EmptyUnavailable = "Emptying Trash is not available on this device.";
     public const string EmptyButton = "Empty Trash…";
 
     // The dialog.

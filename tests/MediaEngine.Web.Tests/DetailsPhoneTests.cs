@@ -133,7 +133,6 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         var labels = menu.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
         Assert.Contains("Edit this show", labels);
         Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
-        Assert.Empty(menu.FindAll(".tl-detail-menu-note"));
     }
 
     [Fact]
@@ -175,7 +174,6 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
 
         var labels = mixed.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
         Assert.Contains("Edit this show", labels);
-        Assert.Empty(mixed.FindAll(".tl-detail-menu-note"));
     }
 
     [Fact]

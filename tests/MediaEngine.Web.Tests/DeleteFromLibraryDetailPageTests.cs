@@ -87,7 +87,8 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
             new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
     }
 
-    private static DetailPageViewModel Model(DetailEntityType type = DetailEntityType.Movie) => new()
+    // The Engine offers "edit" only to a person it allows to edit; engineOffersEdit false is such a profile.
+    private static DetailPageViewModel Model(DetailEntityType type = DetailEntityType.Movie, bool engineOffersEdit = true) => new()
     {
         Id = MovieId.ToString("D"),
         EntityType = type,
@@ -95,13 +96,14 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
         OverflowActions =
         [
-            new DetailAction { Key = "edit", Label = "Edit", Icon = "edit" },
+            .. (engineOffersEdit ? new[] { new DetailAction { Key = "edit", Label = "Edit", Icon = "edit" } } : Array.Empty<DetailAction>()),
             new DetailAction { Key = "status-history", Label = "Viewing history", Icon = "history" },
+            .. (engineOffersEdit ? Array.Empty<DetailAction>() : [new DetailAction { Key = "add-queue", Label = "Add to queue", Icon = "queue" }]),
         ],
     };
 
-    private IRenderedComponent<DetailPage> RenderPage(DetailEntityType type = DetailEntityType.Movie) =>
-        Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model(type)));
+    private IRenderedComponent<DetailPage> RenderPage(DetailEntityType type = DetailEntityType.Movie, bool engineOffersEdit = true) =>
+        Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model(type, engineOffersEdit)));
 
     private void StartEditing(IRenderedComponent<DetailPage> cut)
     {
@@ -293,7 +295,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         await InvokeActionAsync(cut);
 
         // The refusal is an alert on the page itself, never a toast.
-        Assert.Equal(EditorDeviceRule.Message, cut.Find("[data-detail-notice]").TextContent.Trim());
+        Assert.Equal(EditorDeviceRule.ItemMessage, cut.Find("[data-detail-notice]").TextContent.Trim());
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Equal(0, _previewCalls);
     }
@@ -437,6 +439,22 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         StartEditing(cut);
 
         Assert.Single(_editor.FindAll(".tl-editor-window"));
+    }
+
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("tablet")]
+    public async Task Edit_OnAPhoneOrTablet_IsAbsentAndRefusedForAProfileTheEngineDoesNotAllowToEdit(string formFactor)
+    {
+        await UseDeviceAsync(formFactor, false, false);
+        SetAdministrator(false);
+        var cut = RenderPage(engineOffersEdit: false);
+
+        var items = OpenPageMoreMenu(cut);
+        await InvokeActionAsync(cut, DetailActionKeys.Edit);
+
+        Assert.DoesNotContain(items, item => item.TextContent.Trim() == "Edit");
+        Assert.Empty(_editor.FindAll(".tl-editor-window"));
     }
 
     [Fact]

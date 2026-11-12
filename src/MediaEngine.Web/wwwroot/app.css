@@ -4130,18 +4130,6 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     white-space: normal;
 }
 
-/* The quiet "Edit on a computer" line: not a control, lined up with the labels above it. */
-.tl-detail-menu-note {
-    margin: 0;
-    padding: 0.5rem 16px 0.5rem calc(16px + var(--tl-menu-icon-size) + 0.6rem);
-    font-family: var(--font-ui);
-    font-size: var(--tl-menu-helper-font-size);
-    line-height: 1.3;
-    color: var(--tl-text-muted);
-    cursor: default;
-    user-select: none;
-}
-
 /* Temporary drawers are rendered outside component CSS isolation. */
 
 /* Every browser window (the folder picker and the supporting-files browser, Editor v5 D32) is Look v3's Window at size L; the width comes from the Window ladder.

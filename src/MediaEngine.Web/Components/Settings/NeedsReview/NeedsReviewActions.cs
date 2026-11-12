@@ -19,10 +19,10 @@ public sealed record NeedsReviewChoice(string? ImageUrl, string Title, string? S
 /// </summary>
 public sealed class NeedsReviewActions
 {
-    /// <summary>The page's rule for showing Fix: a desktop that may edit, and a row whose Work the editor can open.</summary>
+    /// <summary>The page's rule for showing Fix: a device that may edit items, and a row whose Work the editor can open.</summary>
     public required Func<NeedsReviewEntry, bool> CanFix { get; init; }
 
-    /// <summary>The page's rule for showing Delete: an administrator on a desktop, and a file that already has a Work.</summary>
+    /// <summary>The page's rule for showing Delete: an administrator on a device that may edit items, and a file that already has a Work.</summary>
     public required Func<NeedsReviewRowDto, bool> CanDelete { get; init; }
 
     /// <summary>True on a phone: Fix leads the "..." sheet there.</summary>

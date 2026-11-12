@@ -187,7 +187,7 @@
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
         if (EditorDeviceRule.TryRefuseItems(DeviceContext))
         {
-            _editNotice = EditorDeviceRule.Message;
+            _editNotice = EditorDeviceRule.ItemMessage;
             _editNoticeIsError = false;
             return;
         }

@@ -90,7 +90,7 @@
 
     [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
 
-    /// <summary>False outside a desktop editing session: every action is disabled and a line says why.</summary>
+    /// <summary>False outside an editing session: every action is disabled and a line says why.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
     /// <summary>The phone arrangement: the bar sits at the bottom of the list with the count and Clear on one line and the actions two to a line, each a full 44 px button.</summary>

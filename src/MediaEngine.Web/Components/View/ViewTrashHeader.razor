@@ -35,7 +35,7 @@
             }
             else
             {
-                <p class="view-trash-header__computer">@EmptyTrashText.EmptyOnAComputer</p>
+                <p class="view-trash-header__computer">@EmptyTrashText.EmptyUnavailable</p>
             }
         }
     </section>
@@ -106,7 +106,7 @@
 
         if (!EditorDeviceRule.CanEditItems(Device))
         {
-            // The header already says Trash is emptied on a computer.
+            // The header already says emptying Trash is not available on this device.
             return;
         }
 

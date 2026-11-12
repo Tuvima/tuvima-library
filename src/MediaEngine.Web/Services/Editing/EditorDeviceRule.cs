@@ -16,7 +16,11 @@ namespace MediaEngine.Web.Services.Editing;
 /// </summary>
 public static class EditorDeviceRule
 {
+    /// <summary>The line for the desktop-only tools (Settings, the Vault tools).</summary>
     public const string Message = "Edit on a computer";
+
+    /// <summary>The line for the item rule: only a TV or an unknown device is refused, and a phone or tablet works, so it never names a computer.</summary>
+    public const string ItemMessage = "Editing is not available on this device";
 
     /// <summary>The pure item-editing rule: desktop, tablet and phone may edit; TV, an unknown or missing form factor and a television device class may not.</summary>
     public static bool CanEditItems(string? deviceClass, string? formFactor) =>
@@ -34,7 +38,7 @@ public static class EditorDeviceRule
 
     /// <summary>
     /// Returns true when the current device may not edit items. Launchers and edit handlers call this before any other work so no editor
-    /// surface ever opens; a handler that has room for a line shows <see cref="Message"/> in place (an alert), nothing is drawn over the page.
+    /// surface ever opens; a handler that has room for a line shows <see cref="ItemMessage"/> in place (an alert), nothing is drawn over the page.
     /// </summary>
     public static bool TryRefuseItems(DeviceContextService? device) => !CanEditItems(device);
 

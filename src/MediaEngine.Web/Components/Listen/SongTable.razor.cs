@@ -103,7 +103,7 @@ public partial class SongTable
     /// <summary>The album's own artist, for the phone album page's rule that an artist shows only when it differs. Left empty, the most common artist is used.</summary>
     [Parameter] public string? AlbumArtist { get; set; }
 
-    /// <summary>Draws the tick column and the host's bulk bar. Only a desktop that may edit shows it; a phone never does.</summary>
+    /// <summary>Draws the tick column and the host's bulk bar. Only a desktop or tablet that may edit shows it; a phone never does (it has its own bottom bar).</summary>
     [Parameter] public bool ShowSelection { get; set; }
 
     /// <summary>The ticked <see cref="SongRow.Id"/> values. Optional: when the host passes it, a new set replaces the table's own.</summary>
@@ -970,7 +970,7 @@ public partial class SongTable
         {
             if (!DeviceContext.CanEditItems)
             {
-                _notice = EditorDeviceRule.Message;
+                _notice = EditorDeviceRule.ItemMessage;
             }
 
             return;

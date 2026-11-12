@@ -236,7 +236,7 @@ public sealed class EditorDeviceRuleTests
 
         var notice = await CollectionMembershipFlow.RunAsync(services, [new CollectionEditorSeedItem(Guid.NewGuid(), "Dune", "Movies")], "Add to collection", "Dune");
 
-        Assert.Equal(EditorDeviceRule.Message, notice);
+        Assert.Equal(EditorDeviceRule.ItemMessage, notice);
         Assert.Equal(0, spy.ShowCount);
     }
 
@@ -271,6 +271,14 @@ public sealed class EditorDeviceRuleTests
             .ToArray();
 
         Assert.Equal(desktopOnly.Order(StringComparer.Ordinal), found);
+    }
+
+    [Fact]
+    public void TheItemRuleSaysEditingIsNotAvailableHere_AndNeverNamesAComputer()
+    {
+        Assert.Equal("Editing is not available on this device", EditorDeviceRule.ItemMessage);
+        Assert.DoesNotContain("computer", EditorDeviceRule.ItemMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEqual(EditorDeviceRule.Message, EditorDeviceRule.ItemMessage);
     }
 
     [Fact]

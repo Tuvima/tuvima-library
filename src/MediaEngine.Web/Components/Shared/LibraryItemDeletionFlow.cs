@@ -48,7 +48,7 @@ public static class LibraryItemDeletionFlow
     {
         if (EditorDeviceRule.TryRefuseItems(device))
         {
-            return EditorDeviceRule.Message;
+            return EditorDeviceRule.ItemMessage;
         }
 
         return session?.Authority?.EffectiveAdministrator == true ? null : LibraryItemDeletionText.Forbidden;

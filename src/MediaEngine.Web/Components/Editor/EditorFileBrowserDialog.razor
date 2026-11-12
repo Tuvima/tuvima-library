@@ -252,7 +252,7 @@
     /// <summary>Reading only (the details page's Extras "See all"): no ticks, no bulk bar, no Edit selected, no Folders and files view, and each row has an Open button.</summary>
     [Parameter] public bool ReadOnly { get; set; }
 
-    /// <summary>False outside a desktop editing session (EditorDeviceRule.CanEdit): the browser only shows, opens and previews.</summary>
+    /// <summary>False outside an editing session (a device that may not edit items, EditorDeviceRule.CanEditItems): the browser only shows, opens and previews.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
     private IReadOnlyList<AppSelectOption> WhereChoices =>
