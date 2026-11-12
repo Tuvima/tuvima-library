@@ -12080,9 +12080,6 @@
   <data name="EditorFilesBatch_WillMove" xml:space="preserve">
     <value>{0} files will move to their new place when you save.</value>
   </data>
-  <data name="EditorReorder_Done" xml:space="preserve">
-    <value>Done</value>
-  </data>
   <data name="EditorReorder_Heading" xml:space="preserve">
     <value>Reorder videos</value>
   </data>
@@ -12092,8 +12089,8 @@
   <data name="EditorReorder_Row" xml:space="preserve">
     <value>Reorder videos</value>
   </data>
-  <data name="EditorReorder_RowHint" xml:space="preserve">
-    <value>Drag them, or use Move up and Move down. Nothing changes until you save.</value>
+  <data name="EditorReorder_SaveFailed" xml:space="preserve">
+    <value>The new order was not saved because this edit is no longer open. Close the list and open the editor again.</value>
   </data>
   <data name="EditorReorder_SectionsHeading" xml:space="preserve">
     <value>Reorder sections</value>

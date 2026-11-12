@@ -1,7 +1,7 @@
 .media-hub {
     min-height: calc(100dvh - var(--app-topbar-height, 65px));
     padding: 0 0 clamp(48px, 5vw, 76px);
-    color: rgba(248, 250, 252, 0.96);
+    color: var(--tl-text-primary);
     background: var(--tl-bg-root);
 }
 
@@ -19,7 +19,7 @@
 }
 
 .media-hub__header span {
-    color: color-mix(in srgb, var(--tl-accent-primary) 68%, white);
+    color: color-mix(in srgb, var(--tl-accent-primary) 68%, var(--tl-text-primary));
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.13em;
@@ -27,7 +27,7 @@
 
 .media-hub__header h1 {
     margin: 5px 0 0;
-    color: rgba(248, 250, 252, 0.98);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-page-title-size);
     line-height: 1;
@@ -35,7 +35,7 @@
 
 .media-hub__header p {
     margin: 9px 0 0;
-    color: rgba(203, 213, 225, 0.62);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-body-size);
 }
 

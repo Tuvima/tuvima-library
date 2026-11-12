@@ -12,18 +12,18 @@
 }
 
 .compact-continue__heading :deep(.tl-icon-root) {
-    color: rgba(226, 232, 240, 0.9);
+    color: var(--tl-text-primary);
     font-size: var(--tl-font-size-dialog-title);
 }
 
 .compact-continue__heading strong {
-    color: rgba(248, 250, 252, 0.96);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-subheading-size);
     white-space: nowrap;
 }
 
 .compact-continue__heading span {
-    color: rgba(203, 213, 225, 0.58);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-caption-size);
 }
 
@@ -45,15 +45,15 @@
     gap: 8px;
     min-width: 0;
     padding: 10px 12px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
+    border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-md);
-    background: rgba(8, 14, 28, 0.58);
+    background: color-mix(in srgb, var(--tl-bg-root) 58%, transparent);
     scroll-snap-align: start;
 }
 
 .compact-continue__card--skeleton {
     min-height: 104px;
-    background: rgba(30, 41, 59, 0.5);
+    background: color-mix(in srgb, var(--tl-bg-surface-raised) 50%, transparent);
 }
 
 .compact-continue__item {
@@ -68,7 +68,7 @@
 
 .compact-continue__card:hover,
 .compact-continue__card:focus-within {
-    background: rgba(136, 82, 252, 0.13);
+    background: color-mix(in srgb, var(--tl-accent-primary) 13%, transparent);
 }
 
 .compact-continue__item:focus-visible {
@@ -84,7 +84,7 @@
     overflow: hidden;
     place-items: center;
     border-radius: 4px;
-    background: rgba(30, 41, 59, 0.72);
+    background: color-mix(in srgb, var(--tl-bg-surface-raised) 72%, transparent);
 }
 
 .compact-continue__art img {
@@ -108,12 +108,12 @@
 }
 
 .compact-continue__copy strong {
-    color: rgba(248, 250, 252, 0.96);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-caption-size);
 }
 
 .compact-continue__copy span {
-    color: rgba(203, 213, 225, 0.58);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-caption-size);
 }
 
@@ -128,7 +128,7 @@
 }
 
 .compact-continue__percent {
-    color: rgba(203, 213, 225, 0.7);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-caption-size);
     font-variant-numeric: tabular-nums;
 }

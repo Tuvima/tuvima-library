@@ -92,7 +92,7 @@
 }
 
 .sfv__tag {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--tl-wash-light-3);
     border-radius: 4px;
     color: var(--playback-text-secondary);
     font: 500 11px/1.45 var(--font-ui);
@@ -146,7 +146,7 @@
     --sfv-fill: var(--playback-accent);
     --sfv-fill-hover: var(--playback-accent-hover);
     --sfv-edge: var(--playback-accent);
-    --sfv-text: white;
+    --sfv-text: var(--tl-text-on-accent);
 }
 
 .sfv ::deep .sfv__link {

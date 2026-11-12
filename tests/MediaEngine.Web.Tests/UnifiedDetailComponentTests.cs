@@ -85,7 +85,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("width: auto", styles);
         Assert.Contains("max-width: 100%", styles);
         Assert.Contains("transform: translateY(-50%)", styles);
-        Assert.Contains("rgba(0, 0, 0, 0) 0%", styles);
+        Assert.Contains("transparent 0%", styles);
         Assert.Contains("background-size: cover", styles);
         Assert.DoesNotContain("tl-detail-hero--watch .tl-detail-hero__artwork,", styles);
         Assert.DoesNotContain("tl-detail-hero--watch .tl-detail-hero__artwork::after", styles);
@@ -93,11 +93,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("min-height: 95svh", styles);
         Assert.Contains("CINEMATIC_CONTRACT_EOF", styles);
         Assert.DoesNotContain("min-height: 1000px", styles);
-        Assert.Contains("rgba(0, 0, 0, 0.60) 14%", styles);
-        Assert.Contains("rgba(0, 0, 0, 0.86) 23%", styles);
-        Assert.Contains("#000 32%", styles);
+        Assert.Contains("color-mix(in srgb, var(--tl-viewer-black) 60%, transparent) 14%", styles);
+        Assert.Contains("color-mix(in srgb, var(--tl-viewer-black) 86%, transparent) 23%", styles);
+        Assert.Contains("var(--tl-viewer-black) 32%", styles);
         Assert.Contains("<SurfaceNavigationBar", ReadSource("src/MediaEngine.Web/Components/Details/DetailTabs.razor"));
-        Assert.Contains("background: #090c12", styles);
+        Assert.Contains("background: var(--tl-bg-root)", styles);
         Assert.Contains("font-family: var(--font-reader)", styles);
         Assert.Contains("font-weight: 500", styles);
         Assert.Contains("max-width: 22ch", styles);
@@ -157,7 +157,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("rgba(var(--hero-bg-rgb), 0) 78%", styles);
         Assert.DoesNotContain("rgba(0, 0, 0, 0.10) 36%", styles);
         Assert.Contains(".tl-detail-hero-genre", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
-        Assert.Contains("background: rgba(20, 23, 28, 0.78)", styles);
+        Assert.Contains("background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent)", styles);
         Assert.Contains("background:var(--tl-accent-primary)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("IsDetailShell", layout);
         Assert.Contains("MainContainerClass", layout);

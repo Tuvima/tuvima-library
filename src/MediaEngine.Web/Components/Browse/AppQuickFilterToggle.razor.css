@@ -11,7 +11,7 @@
     border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
-    color: rgba(234, 239, 248, 0.88);
+    color: var(--tl-text-primary);
     font: inherit;
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
@@ -20,18 +20,18 @@
 
 .app-quick-filter-host ::deep .app-quick-filter:hover,
 .app-quick-filter-host ::deep .app-quick-filter:focus-visible {
-    border-color: rgba(167, 139, 250, 0.58);
+    border-color: color-mix(in srgb, var(--tl-accent-primary-hover) 58%, transparent);
     color: var(--tl-text-on-accent);
     outline: none;
 }
 
 .app-quick-filter-host ::deep .app-quick-filter:focus-visible {
-    box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.18);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 18%, transparent);
 }
 
 .app-quick-filter-host ::deep .app-quick-filter.is-selected {
-    border-color: rgba(167, 139, 250, 0.22);
-    background: rgba(91, 33, 182, 0.12);
+    border-color: color-mix(in srgb, var(--tl-accent-primary-hover) 22%, transparent);
+    background: color-mix(in srgb, var(--tl-accent-primary) 12%, transparent);
     color: var(--tl-text-primary);
 }
 
@@ -40,9 +40,9 @@
     width: 30px;
     height: 17px;
     flex: 0 0 30px;
-    border: 1px solid rgba(148, 163, 184, 0.5);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 50%, transparent);
     border-radius: var(--tl-radius-round);
-    background: rgba(71, 85, 105, 0.5);
+    background: color-mix(in srgb, var(--tl-text-muted) 50%, transparent);
     transition: border-color 140ms ease, background-color 140ms ease;
 }
 
@@ -54,7 +54,7 @@
     height: 11px;
     border-radius: 50%;
     background: var(--tl-text-primary);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.34);
+    box-shadow: 0 1px 4px var(--tl-scrim-dark-2);
     content: "";
     transition: transform 140ms ease;
 }
@@ -62,7 +62,7 @@
 .app-quick-filter-host ::deep .app-quick-filter.is-selected .app-quick-filter__indicator {
     border-color: var(--tl-accent-primary-hover);
     background: var(--tl-accent-primary);
-    box-shadow: 0 0 8px rgba(136, 82, 252, 0.58);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--tl-accent-primary) 58%, transparent);
 }
 
 .app-quick-filter-host ::deep .app-quick-filter.is-selected .app-quick-filter__indicator::after {

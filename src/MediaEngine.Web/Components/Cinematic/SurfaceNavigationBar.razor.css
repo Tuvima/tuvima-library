@@ -5,8 +5,8 @@
     background:
         linear-gradient(
             to bottom,
-            rgba(5, 7, 12, 0.34),
-            rgba(5, 7, 12, 0.58));
+            color-mix(in srgb, var(--tl-bg-root) 34%, transparent),
+            color-mix(in srgb, var(--tl-bg-root) 58%, transparent));
     backdrop-filter: blur(1.1rem) saturate(120%);
 }
 

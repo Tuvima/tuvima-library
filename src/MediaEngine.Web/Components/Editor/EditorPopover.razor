@@ -26,7 +26,7 @@
     var binding = Editor.Binding;
     @* Reload and tab close ask the browser's own question; in-app navigation is asked here only for a page outside the details overlay
        (inside it the overlay's leave guard asks, so nothing asks twice). *@
-    <NavigationLock ConfirmExternalNavigation="@flow.Session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+    <NavigationLock ConfirmExternalNavigation="@flow.Session.HasUnsavedWork" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
     <AppDialogFrame Open="true"
                     Title="@DialogLabel"
                     DialogOptions="_options"
@@ -507,7 +507,7 @@
 
     private async Task ConfirmNavigationAsync(LocationChangingContext context)
     {
-        if (Editor.OverlayGuardsNavigation || Editor.Flow is not { Session.HasPendingChanges: true } flow)
+        if (Editor.OverlayGuardsNavigation || Editor.Flow is not { Session.HasUnsavedWork: true } flow)
         {
             return;
         }

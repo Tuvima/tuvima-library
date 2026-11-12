@@ -98,8 +98,3 @@
     margin: 0;
     font-size: var(--tl-font-size-sm);
 }
-
-.tl-vorder__done {
-    display: flex;
-    justify-content: flex-end;
-}

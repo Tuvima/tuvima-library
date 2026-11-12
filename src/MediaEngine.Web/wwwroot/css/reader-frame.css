@@ -198,7 +198,7 @@
 .rf-scrim {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--tl-scrim-dark-3);
 }
 
 .rf-panel {
@@ -213,7 +213,7 @@
     background: var(--tl-bg-surface-elevated);
     color: var(--tl-text-primary);
     border-left: 1px solid var(--tl-border-subtle);
-    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.3);
+    box-shadow: -8px 0 28px var(--tl-scrim-dark-2);
 }
 
 .rf-panel-head {
@@ -286,7 +286,7 @@
 }
 
 .rf-row:hover {
-    background: var(--tl-bg-surface-hover, rgba(255, 255, 255, 0.08));
+    background: var(--tl-bg-surface-hover);
 }
 
 .rf-row:focus-visible {
@@ -318,7 +318,7 @@
 
 .rf-row-sub {
     font-size: var(--tl-font-size-xs, 0.75rem);
-    color: var(--tl-text-muted, #9aa0aa);
+    color: var(--tl-text-muted);
     white-space: nowrap;
 }
 
@@ -333,7 +333,7 @@
     min-inline-size: 0;
     min-block-size: 2.75rem;
     padding: 0.5rem 0.75rem;
-    border: 1px solid var(--tl-border-subtle, rgba(255, 255, 255, 0.18));
+    border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-md, 0.5rem);
     background: transparent;
     color: inherit;
@@ -356,7 +356,7 @@
 .rf-hint {
     margin: 0;
     font-size: var(--tl-font-size-sm, 0.875rem);
-    color: var(--tl-text-muted, #9aa0aa);
+    color: var(--tl-text-muted);
 }
 
 .rf-field {
@@ -399,7 +399,7 @@
         border-left: 0;
         border-top: 1px solid var(--tl-border-subtle);
         border-radius: var(--tl-radius-xl) var(--tl-radius-xl) 0 0;
-        box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 -8px 28px var(--tl-scrim-dark-2);
     }
 
     .rf-panel-head {

@@ -8,7 +8,7 @@
 .continue-tile__picture { position: absolute; inset: 0; z-index: 0; }
 .continue-tile__backdrop, .continue-tile__soft { display: block; width: 100%; height: 100%; object-fit: cover; }
 .continue-tile__soft { transform: scale(1.2); filter: blur(18px) brightness(.55); }
-.continue-tile__cover { position: absolute; left: 12px; top: 12px; bottom: 12px; height: calc(100% - 24px); width: auto; aspect-ratio: 2 / 3; object-fit: cover; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px rgba(0, 0, 0, .5); }
+.continue-tile__cover { position: absolute; left: 12px; top: 12px; bottom: 12px; height: calc(100% - 24px); width: auto; aspect-ratio: 2 / 3; object-fit: cover; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px var(--tl-scrim-dark-4); }
 .continue-tile__cover.is-centred { left: 50%; transform: translateX(-50%); }
 .continue-tile--collage .continue-tile__picture { display: grid; }
 .continue-tile__collage { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); width: 100%; height: 100%; }
@@ -19,6 +19,6 @@
 .continue-tile__progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none; }
 .continue-tile__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .continue-tile__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: var(--tl-type-subheading-size); font-weight: var(--tl-type-subheading-weight); line-height: 1.25; color: var(--tl-text-primary); }
-.continue-tile__line { overflow: hidden; color: rgba(226, 232, 240, .72); font-size: var(--tl-type-secondary-size); text-overflow: ellipsis; white-space: nowrap; }
+.continue-tile__line { overflow: hidden; color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); text-overflow: ellipsis; white-space: nowrap; }
 .continue-tile__frame-at-position { position: absolute; inset: 0; opacity: 0; background-repeat: no-repeat; transition: opacity .2s ease; }
 .continue-tile__frame-at-position.is-ready { opacity: 1; }

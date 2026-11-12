@@ -11,7 +11,7 @@
 
 .access-cards { margin-bottom: 1rem; }
 .access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
-.access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--tl-status-danger, #ef4444); font-size: var(--tl-type-secondary-size); }
+.access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--tl-status-danger); font-size: var(--tl-type-secondary-size); }
 .access-page { display: grid; min-width: 0; gap: 18px; }
 
 .access-rows__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }

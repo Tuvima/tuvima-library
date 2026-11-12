@@ -12,7 +12,7 @@ public sealed class LookRatchetGuardrailTests
     private const int RoundedEndCeiling = 0;
     private const int NativeControlCeiling = 276;
     private const int AdHocFontSizeCeiling = 39;
-    private const int HandTypedHexCeiling = 498;
+    private const int HandTypedHexCeiling = 147;
     private const int ForcedOverrideCeiling = 1040;
     private const int HandTypedLayerCeiling = 271;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
@@ -92,13 +92,14 @@ public sealed class LookRatchetGuardrailTests
         Assert.True(count <= HandTypedHexCeiling, $"Hand-typed hex colors rose to {count} (ceiling {HandTypedHexCeiling}). Colors live in tuvima.tokens.css; ask for a token or an icon tone.");
     }
 
-    // Look v3.1 D7: folders whose component styles hold no hand-typed color at all (hex, rgb(), rgba(), hsl(), hsla(), or a named color,
-    // including a var() fallback). Folders are relative to src/MediaEngine.Web; add a folder here once its styles are on the shared colors.
-    private static readonly string[] ColorLockedFolders =
-    [
-        "Components/Collections",
-        "Components/Rules",
-    ];
+    // Look v3.1 D7: no component style and no shared sheet (the token file, which is where colors live, and vendored sheets aside) holds a hand-typed color in any form (hex, rgb(), rgba(), hsl(), hsla()
+    // with typed numbers, or a named color, including a var() fallback), outside the written lists below. The readers' stylesheets
+    // under wwwroot/css/ are locked too, apart from their page themes and highlight colors, which are counted below.
+    private static bool IsColorLocked(string relative) =>
+        relative.EndsWith(".razor.css", StringComparison.Ordinal)
+        || (relative.StartsWith("wwwroot/", StringComparison.Ordinal) && relative.EndsWith(".css", StringComparison.Ordinal)
+            && !relative.StartsWith("wwwroot/vendor/", StringComparison.Ordinal) && !relative.StartsWith("wwwroot/lib/", StringComparison.Ordinal)
+            && relative != "wwwroot/tuvima.tokens.css");
 
     // The written list of real exceptions to the zero lock above (D7): colors taken from a cover's artwork, charts, subtitle color choices,
     // the map, avatars and the readers' page themes. Keyed by a file path or a path prefix under src/MediaEngine.Web, each with its reason.
@@ -106,11 +107,24 @@ public sealed class LookRatchetGuardrailTests
     {
         ["Components/View/ViewMap.razor.css"] = "The map draws its own base, labels and hotspots on top of map tiles, so its colors are the map's, not the app's.",
         ["Components/Player/SubtitleAppearanceView.razor.css"] = "Shows the viewer's subtitle color choices, which are literal colors the viewer picks.",
+        ["Components/Editor/"] = "Temporary: the editor window's styles are swept last, after the Universal editor v6 build has merged (WP11).",
     };
 
+    // Files that are locked except for a counted few, each with how many and why. The count may only go down.
+    private static readonly Dictionary<string, (int Max, string Reason)> ColorLockAllowances = new(StringComparer.Ordinal)
+    {
+        ["wwwroot/css/book-reader.css"] = (24, "The book reader's page themes (paper, night, sepia) and the highlight colors a reader picks."),
+        ["wwwroot/css/page-reader.css"] = (3, "The comic reader's page color and the bookmark mark."),
+        ["wwwroot/css/reader-frame.css"] = (1, "The highlight color in the readers' search results."),
+        ["wwwroot/app.css"] = (25, "The subtitle shadow and high-contrast outline are literal black, the same value the subtitle preview uses (a subtitle color choice); and, temporarily, the editor window's block, swept after the Universal editor v6 build has merged."),
+    };
+
+    // A color built from a variable's channels, such as rgba(var(--hero-accent-rgb), .4) or hsl(var(--person-avatar-hue) 40% 30%), is
+    // not hand-typed: the channels come from the item's artwork or the person's name (D7 exceptions), set in code. The hero's
+    // channel variables carry a typed default (a near-black, an off-white) for the moment before the artwork's colors arrive.
     private static readonly Regex AnyHandTypedColor = new(
         @"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])"
-        + @"|(?<![\w-])(?:rgb|rgba|hsl|hsla)\("
+        + @"|(?<![\w-])(?:rgb|rgba|hsl|hsla)\((?!\s*(?:calc\(\s*)?var\(--)"
         + @"|(?<![\w.#-])(?:white|black|red|green|blue|gray|grey|silver|purple|orange|yellow|pink|navy|teal|gold|maroon|lime|aqua|cyan|magenta|brown)(?![\w-])",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
@@ -118,32 +132,42 @@ public sealed class LookRatchetGuardrailTests
         AnyHandTypedColor.Matches(Regex.Replace(css, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline)).Select(m => m.Value).ToList();
 
     [Fact]
-    public void LockedFoldersHoldNoHandTypedColorInAnyForm()
+    public void NoStyleHoldsAHandTypedColorOutsideTheWrittenLists()
     {
-        var offenders = WebFiles(".css")
-            .Where(f => f.Relative.EndsWith(".razor.css", StringComparison.Ordinal))
-            .Where(f => ColorLockedFolders.Any(folder => f.Relative.StartsWith(folder + "/", StringComparison.Ordinal)))
+        var counted = WebFiles(".css")
+            .Where(f => IsColorLocked(f.Relative))
             .Where(f => !ColorLockExceptions.Keys.Any(path => f.Relative.StartsWith(path, StringComparison.Ordinal)))
             .Select(f => (f.Relative, Colors: HandTypedColors(f.Text)))
             .Where(f => f.Colors.Count > 0)
+            .ToList();
+        var offenders = counted
+            .Where(f => !ColorLockAllowances.ContainsKey(f.Relative))
             .Select(f => $"{f.Relative} ({f.Colors.Count}, first {f.Colors[0]})")
             .ToList();
-        Assert.True(offenders.Count == 0, "Hand-typed colors in a locked folder; use a --tl-* color, or a wash/scrim step (--tl-wash-light-*, --tl-scrim-dark-*): " + string.Join("; ", offenders));
+        Assert.True(offenders.Count == 0, "Hand-typed colors; use a --tl-* color, or a wash/scrim step (--tl-wash-light-*, --tl-scrim-dark-*): " + string.Join("; ", offenders));
+        Assert.All(ColorLockAllowances, pair =>
+        {
+            var count = counted.Where(f => f.Relative == pair.Key).Sum(f => f.Colors.Count);
+            Assert.True(count <= pair.Value.Max, $"{pair.Key} has {count} hand-typed colors, the list allows {pair.Value.Max} ({pair.Value.Reason}).");
+            Assert.True(count > 0, $"{pair.Key} holds no hand-typed color any more; remove it from the list.");
+        });
     }
 
     [Fact]
-    public void TheColorLockCoversTheFoldersItNamesAndTheExceptionsAreReal()
+    public void TheColorLockExceptionsAreReal()
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
-        Assert.All(ColorLockedFolders, folder => Assert.True(
-            Directory.EnumerateFiles(Path.Combine(web, folder), "*.razor.css").Any(), $"Locked folder {folder} has no component styles."));
-        Assert.Contains("Components/Collections", ColorLockedFolders);
-        Assert.Contains("Components/Rules", ColorLockedFolders);
+        Assert.True(IsColorLocked("Components/Collections/CollectionEditorShell.razor.css"));
+        Assert.True(IsColorLocked("wwwroot/app.css"));
+        Assert.True(IsColorLocked("Shared/MainLayout.razor.css"));
+        Assert.False(IsColorLocked("wwwroot/tuvima.tokens.css"));
+        Assert.True(IsColorLocked("wwwroot/css/reader-frame.css"));
         Assert.All(ColorLockExceptions, pair =>
         {
             Assert.False(string.IsNullOrWhiteSpace(pair.Value));
             Assert.True(File.Exists(Path.Combine(web, pair.Key)) || Directory.Exists(Path.Combine(web, pair.Key)), $"Exception {pair.Key} names a path that does not exist.");
         });
+        Assert.All(ColorLockAllowances, pair => Assert.False(string.IsNullOrWhiteSpace(pair.Value.Reason)));
     }
 
     [Theory]
@@ -151,6 +175,7 @@ public sealed class LookRatchetGuardrailTests
     [InlineData("a{color:var(--tl-text-primary, #A78BFA)}", 1)]
     [InlineData("a{border:1px solid rgba(255,255,255,.1)}", 1)]
     [InlineData("a{background:hsl(10 20% 30%)}", 1)]
+    [InlineData("a{background:rgba(var(--hero-accent-rgb), .4);color:hsl(var(--person-avatar-hue) 40% 30%)}", 0)]
     [InlineData("a{background:color-mix(in srgb, white 3%, transparent)}", 1)]
     [InlineData("a{white-space:nowrap;color:var(--tl-text-primary);background:var(--tl-wash-light-1)}", 0)]
     [InlineData("/* was #fff */ .red-flag{color:currentColor;background:transparent}", 0)]
@@ -166,27 +191,32 @@ public sealed class LookRatchetGuardrailTests
         ["Components/Details/SequencePlacementPanel.razor.css"] = (3, "The series hero title and position number scale with the screen (D8 hero)."),
         ["Components/Details/GeneratedIdentity.razor.css"] = (1, "The letter drawn on a generated cover scales with the cover; it is artwork, not text."),
         ["Components/Cinematic/"] = (4, "The hero carousel: its title scales with the screen (D8 hero)."),
-        ["Components/Player/"] = (19, "The players set their own sizes over video and on TV screens; outside this walk (D12)."),
+        ["Components/Player/"] = (100, "The players set their own sizes over video and on TV screens; outside this walk (D12)."),
         ["Components/Editor/"] = (4, "The editor window's screens belong to the Universal editor v6 build (D12)."),
         ["Components/MediaTiles/MediaTile.razor.css"] = (3, "A stand-in number and two icons that scale with the tile; they are artwork stand-ins."),
         ["Components/Shared/MediaViewerShell.razor.css"] = (2, "Subtitle cues scale with the video."),
+        ["Components/Shared/BookmarksPanel.razor.css"] = (8, "The bookmarks panel is a player panel; it keeps the players' own sizes (D12)."),
+        ["Components/Shared/PlaybackListRow.razor.css"] = (5, "The players' list row; it keeps the players' own sizes (D12)."),
         ["Components/Shared/MediaArtworkGroupPreview.razor.css"] = (1, "A fallback icon that scales with its picture."),
         ["Components/Shared/AppRangeSlider.razor.css"] = (1, "A size of zero hides a label that screen readers still read."),
-        ["Components/View/ViewMap.razor.css"] = (1, "Map labels scale with the map."),
+        ["Components/View/ViewMap.razor.css"] = (3, "Map labels and hotspots scale with the map."),
         ["Components/View/ViewPlaceStoryPanel.razor.css"] = (1, "An icon size."),
         ["Components/Pages/ViewPlacesPage.razor.css"] = (1, "An icon size on the map toolbar."),
         ["Components/Navigation/SystemActivityIndicator.razor.css"] = (1, "The activity glyph's size, set by a variable."),
         ["wwwroot/app.css"] = (11, "Four large icon helper classes, the Settings card sizes set by a variable, the reading sample, the TV base size, the phone hero title and the editor window's lines."),
     };
 
-    private static readonly Regex OffScaleFontSize = new(@"(?<![\w-])font-size:\s*(?!var\(--tl-|inherit)[^;}\s][^;}]*", RegexOptions.Compiled);
+    // A size written by hand: a font-size that is not a token or inherit, or a font shorthand that carries a number with a unit.
+    private static readonly Regex OffScaleFontSize = new(
+        @"(?<![\w-])font-size:\s*(?!var\(--tl-|inherit)[^;}\s][^;}]*|(?<![\w-])font:\s*[^;}]*?\d(?:px|rem|em)\b[^;}]*", RegexOptions.Compiled);
 
     [Fact]
     public void NoTextSizeIsWrittenByHandOutsideTheWrittenList()
     {
         // Look pass v3.1 D8 and D11: a style names a job or a step (a --tl-* token) or inherits, never a number, a fraction of the
         // base size or a fluid size. Checked over the component styles and the shared sheets; the readers' stylesheets under
-        // wwwroot/css/ are left out (book text is theirs). Anything else is zero unless the list above names it.
+        // wwwroot/css/ are left out (book text is theirs). A font shorthand that carries a number counts too. Anything else is zero
+        // unless the list above names it.
         var counts = WebFiles(".css")
             .Where(f => f.Relative.StartsWith("Components/", StringComparison.Ordinal)
                 || (f.Relative.StartsWith("wwwroot/", StringComparison.Ordinal) && f.Relative.IndexOf('/', "wwwroot/".Length) < 0))

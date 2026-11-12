@@ -31,7 +31,7 @@
         font-size: var(--tl-type-heading-size);
         font-weight: var(--tl-type-heading-weight);
         line-height: 1;
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--tl-text-primary);
     }
 
     .media-tile-shelf-subtitle {
@@ -39,7 +39,7 @@
         font-family: var(--font-ui);
         font-size: var(--tl-type-body-size);
         line-height: 1.5;
-        color: rgba(148, 163, 184, 0.88);
+        color: var(--tl-text-muted);
     }
 
     .media-tile-shelf-empty {
@@ -51,7 +51,7 @@
     }
 
     .media-tile-shelf-link {
-        color: rgba(248, 250, 252, 0.8);
+        color: var(--tl-text-primary);
         text-decoration: none;
         font-family: var(--font-ui);
         font-size: var(--tl-type-overline-size);
@@ -61,7 +61,7 @@
     }
 
     .media-tile-shelf-link:hover {
-        color: white;
+        color: var(--tl-text-primary);
     }
 
     /* Home and non-Listen discovery shelves use smaller cards while keeping
@@ -121,21 +121,21 @@
     min-width: 48px;
     min-height: 48px;
     scroll-snap-align: start;
-    color: rgba(248, 250, 252, 0.88);
+    color: var(--tl-text-primary);
     text-decoration: none;
     font-family: var(--font-ui);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.14em;
     border-radius: var(--tl-radius-md);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--tl-wash-light-4);
+    background: var(--tl-wash-light-1);
 }
 
 .media-tile-shelf-view-all:hover {
-    color: white;
-    border-color: rgba(136, 82, 252, 0.58);
-    background: rgba(136, 82, 252, 0.1);
+    color: var(--tl-text-primary);
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 58%, transparent);
+    background: color-mix(in srgb, var(--tl-accent-primary) 10%, transparent);
 }
 
 .media-tile-shelf-view-all:focus-visible {

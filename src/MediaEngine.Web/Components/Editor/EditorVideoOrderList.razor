@@ -13,7 +13,8 @@
    person wants, by drag and drop or Move up and Move down, and a series with sections lets a video be dragged from one section to another. One
    list serves both places that show it: the Reorder videos mode of the item dropdown, and the Videos view of the supporting-files browser. Everything
    here only stages a change: Save changes shows it in Review first, and none of it moves a file. The one exception is the "Rename the files to match
-   this order" switch, off by default and offered only when every video is in a Managed folder. *@
+   this order" switch, off by default and offered only when every video is in a Managed folder. In Reorder mode (HoldChanges, the header lists) the
+   arrangement is held here until the shared Reorder bar's Save order calls CommitAsync, so Cancel leaves nothing staged (v6 D23). *@
 @if (_editor.HasSomethingToOrder)
 {
     <section class="tl-vorder" data-testid="video-order-section" @ref="_root">
@@ -83,32 +84,23 @@
                 {
                     <AppSwitchRow Label="@L["EditorVideoSeries_RenameFiles"].Value"
                                   Description="@L["EditorVideoSeries_RenameDescription"].Value"
-                                  Value="@(Pending?.FindVideoRename(list.ParentId) is not null)"
-                                  ValueChanged="@(value => SetRename(list, value))"
+                                  Value="@RenameOn(list)"
+                                  ValueChanged="@(value => SetRenameAsync(list, value))"
                                   Disabled="@(!CanChange)" />
                 }
             </div>
         }
 
-        @if (_editor.WhatWillHappen(_editor.Lists.Any(list => Pending?.FindVideoRename(list.ParentId) is not null)) is { Length: > 0 } happen)
+        @if (_editor.WhatWillHappen(_editor.Lists.Any(RenameOn)) is { Length: > 0 } happen)
         {
             <p class="tl-vorder__happen" data-testid="video-order-happen"><strong>@L["EditorVideoSeries_WhatWillHappen"]</strong> @happen</p>
         }
-
-        @if (OnDone.HasDelegate)
-        {
-            <div class="tl-vorder__done">
-                <AppButton Label="@L["EditorReorder_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                           OnClick="OnDone" data-reorder-done="true" />
-            </div>
-        }
     </section>
 }
-else if (_loaded && OnDone.HasDelegate)
+else if (_loaded && HoldChanges)
 {
     <div class="tl-vorder__empty" data-testid="video-order-empty">
         <p>@L["EditorReorder_NothingToOrder"]</p>
-        <AppButton Label="@L["EditorReorder_Done"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="OnDone" />
     </div>
 }
 
@@ -121,6 +113,9 @@ else if (_loaded && OnDone.HasDelegate)
     private string? _attachedTo;
     private IJSObjectReference? _module;
     private DotNetObjectReference<EditorVideoOrderList>? _self;
+    // Reorder mode: the "Rename the files" choices made but not yet staged, by list.
+    private readonly Dictionary<Guid, bool> _renameHeld = [];
+    private bool _lastDirty;
 
     /// <summary>An item of the series (the series itself, a section or one video); the Engine reads the series' lists from it.</summary>
     [Parameter, EditorRequired] public Guid EntityId { get; set; }
@@ -163,11 +158,20 @@ else if (_loaded && OnDone.HasDelegate)
     /// <summary>Shows the one-time Sort by file name and Sort by date added buttons.</summary>
     [Parameter] public bool ShowSort { get; set; } = true;
 
-    /// <summary>Done: returns to the normal list. Set by the dropdown's Reorder videos mode; unset elsewhere.</summary>
-    [Parameter] public EventCallback OnDone { get; set; }
+    /// <summary>Reorder mode (the header lists, v6 D23): the arrangement is only held here, and staged by <see cref="CommitAsync"/> (the Reorder bar's Save order). Left off, every change is staged as it is made.</summary>
+    [Parameter] public bool HoldChanges { get; set; }
+
+    /// <summary>Raised in Reorder mode when the held arrangement starts or stops differing from the one the mode began with; Save order waits for it.</summary>
+    [Parameter] public EventCallback<bool> OnDirtyChanged { get; set; }
 
     /// <summary>Raised after the arrangement changed and was staged, so a list that shows the same videos can follow the new order.</summary>
     [Parameter] public EventCallback<IReadOnlyList<Guid>> OnOrderChanged { get; set; }
+
+    /// <summary>True in Reorder mode once the held arrangement (or a held "Rename the files" choice) differs from the one the mode began with.</summary>
+    public bool IsDirty => HoldChanges && (_editor.DiffersFromBaseline || _renameHeld.Any(held => held.Value != (Pending?.FindVideoRename(held.Key) is not null)));
+
+    private bool RenameOn(VideoOrderList list) =>
+        HoldChanges && _renameHeld.TryGetValue(list.ParentId, out var held) ? held : Pending?.FindVideoRename(list.ParentId) is not null;
 
     private PendingEditList? Pending => Session?.Pending;
 
@@ -205,6 +209,8 @@ else if (_loaded && OnDone.HasDelegate)
                 _editor.Restore(pending);
             }
 
+            _editor.MarkBaseline();
+            _renameHeld.Clear();
             _loaded = true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -282,11 +288,63 @@ else if (_loaded && OnDone.HasDelegate)
 
     private async Task ChangedAsync(bool changed)
     {
-        if (!changed || Pending is not { } pending)
+        if (!changed)
         {
             return;
         }
 
+        if (HoldChanges)
+        {
+            StateHasChanged();
+            await NotifyDirtyAsync();
+            return;
+        }
+
+        if (Pending is { } pending)
+        {
+            await StageAsync(pending);
+        }
+    }
+
+    /// <summary>
+    /// Save order (Reorder mode): stages the held arrangement as the one order change (and any held rename choice) the editor's Save changes
+    /// will write and Review changes will list. False when there is no active edit session to stage into.
+    /// </summary>
+    public async Task<bool> CommitAsync()
+    {
+        if (!CanChange || Pending is not { } pending)
+        {
+            return false;
+        }
+
+        foreach (var (parentId, on) in _renameHeld)
+        {
+            var at = _editor.IndexOfList(parentId);
+            if (at >= 0)
+            {
+                ApplyRename(pending, _editor.Lists[at], on);
+            }
+        }
+
+        _renameHeld.Clear();
+        await StageAsync(pending);
+        _editor.MarkBaseline();
+        await NotifyDirtyAsync();
+        return true;
+    }
+
+    private async Task NotifyDirtyAsync()
+    {
+        var dirty = IsDirty;
+        if (dirty != _lastDirty)
+        {
+            _lastDirty = dirty;
+            await OnDirtyChanged.InvokeAsync(dirty);
+        }
+    }
+
+    private async Task StageAsync(PendingEditList pending)
+    {
         _editor.Stage(pending);
         if (!SectionsMode)
         {
@@ -301,13 +359,25 @@ else if (_loaded && OnDone.HasDelegate)
         }
     }
 
-    private void SetRename(VideoOrderList list, bool on)
+    private async Task SetRenameAsync(VideoOrderList list, bool on)
     {
         if (!CanChange || Pending is not { } pending)
         {
             return;
         }
 
+        if (HoldChanges)
+        {
+            _renameHeld[list.ParentId] = on;
+            await NotifyDirtyAsync();
+            return;
+        }
+
+        ApplyRename(pending, list, on);
+    }
+
+    private static void ApplyRename(PendingEditList pending, VideoOrderList list, bool on)
+    {
         if (pending.FindVideoRename(list.ParentId) is { } staged)
         {
             pending.Remove(staged.Id);

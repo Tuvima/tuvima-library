@@ -213,4 +213,29 @@ public sealed class VideoOrderEditorTests
         Assert.Contains("cannot be undone", rows[2].Warning);
         Assert.Equal("2 videos in a new order", rows[1].After);
     }
+
+    [Fact]
+    public void DiffersFromBaseline_IsFalseUntilAVideoMoves_AndFalseAgainWhenItIsPutBack()
+    {
+        var editor = Plain();
+        editor.MarkBaseline();
+        Assert.False(editor.DiffersFromBaseline);
+
+        editor.Nudge(0, 0, 1);
+        Assert.True(editor.DiffersFromBaseline);
+
+        editor.Nudge(0, 1, -1);
+        Assert.False(editor.DiffersFromBaseline);
+    }
+
+    [Fact]
+    public void DiffersFromBaseline_MeasuresFromTheOrderMarked_NotFromTheSavedOne()
+    {
+        var editor = Plain();
+        editor.Nudge(0, 0, 1);
+        editor.MarkBaseline();
+
+        Assert.False(editor.DiffersFromBaseline);
+        Assert.True(editor.Lists[0].IsChanged);
+    }
 }
