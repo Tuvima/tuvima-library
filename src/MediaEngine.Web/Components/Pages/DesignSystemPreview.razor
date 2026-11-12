@@ -183,13 +183,13 @@
             }
         </AppCard>
 
-        <AppCard Title="Type ladder" Description="Inter for every interface step; a page picks a step and never writes its own size." data-testid="design-system-type">
+        <AppCard Title="Type jobs" Description="Look v3.1: every piece of text has a job, and the job sets its size and weight. A page names a job and never writes its own size. The page title is 28 px on screens 1180 px and wider; text typed into a field is 16 px on a phone." data-testid="design-system-type">
             <div class="design-system-preview__type-stack">
                 @foreach (var step in TypeSteps)
                 {
                     <div class="design-system-preview__type-step" data-token="@step.Token">
                         <span>@step.Name · @step.Token</span>
-                        <AppCssElement Tag="p" Css="@TypeCss(step.Token, step.Weight)">The quick brown fox presents your library</AppCssElement>
+                        <AppCssElement Tag="p" Css="@TypeCss(step.Token)">The quick brown fox presents your library</AppCssElement>
                     </div>
                 }
                 <div class="design-system-preview__type-step">
@@ -487,7 +487,39 @@
             </AppActionBar></div>
         </AppCard>
 
-        <AppCard Title="Windows: four kinds, one ladder" Description="Window S 480, M 640, L 900; Sheet under 600 px; Pop-out Menu 240 to 360 and Panel 400; Viewer full screen. Resize below 600px to see every Window become a Sheet." data-testid="design-system-windows">
+        <AppCard Title="Dialogs, dropdowns, menus and tab rows" Description="Look v3.1: one short dialog with no lines inside, a neutral safe button and a solid red destructive button last; a dropdown list at least as wide as its dropdown with options on one line; roomier pop-up menus (48 px rows, 16 px labels). The tab row is under List page parts and Navigation. On a phone each of these is a bottom sheet with nothing missing." data-testid="design-system-look-v3-1">
+            <div class="design-system-preview__row">
+                <AppButton Label="Discard dialog" OnClick="@(() => _discardOpen = true)" data-testid="preview-discard-dialog" />
+                <AppButton Label="Plain confirmation" OnClick="@(() => _confirmOpen = true)" data-testid="preview-plain-confirm" />
+                <AppRowMenu AriaLabel="Actions for the sample item" Title="Sample item" Items="@RowMenuItems" />
+            </div>
+            <div class="design-system-preview__form-grid">
+                <AppSelect T="string" Label="Short dropdown, long options" Value="s01" Options="@LongOptions" />
+                <AppSelect T="string" Label="Language" Value="localized" Options="@LanguageOptions" />
+            </div>
+            @if (_discardOpen)
+            {
+                <AppDialogShell Framed="true" Compact="true" Title="Discard changes?" Size="Small" FrameOptions="@ShortDialogOptions" OnClose="@(() => _discardOpen = false)">
+                    <ChildContent><p class="design-system-preview__window-body">Your changes to this item have not been saved.</p></ChildContent>
+                    <FooterContent>
+                        <AppButton Label="Keep editing" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => _discardOpen = false)" />
+                        <AppButton Label="Discard changes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="@(() => _discardOpen = false)" />
+                    </FooterContent>
+                </AppDialogShell>
+            }
+            @if (_confirmOpen)
+            {
+                <AppDialogShell Framed="true" Compact="true" Title="Move this file?" Size="Small" FrameOptions="@ShortDialogOptions" OnClose="@(() => _confirmOpen = false)">
+                    <ChildContent><p class="design-system-preview__window-body">Nothing is destroyed, so the safe button stays neutral and the primary is purple.</p></ChildContent>
+                    <FooterContent>
+                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => _confirmOpen = false)" />
+                        <AppButton Label="Move" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _confirmOpen = false)" />
+                    </FooterContent>
+                </AppDialogShell>
+            }
+        </AppCard>
+
+        <AppCard Title="Windows: four kinds, one ladder" Description="Window S 480, M 640, L 900; Sheet under 600 px; Pop-out Menu 240 to 360 and Panel 400; Viewer full screen. The details window floats at 90% of the screen with the page visible around it (Look v3.1 D5). Resize below 600px to see every Window become a Sheet." data-testid="design-system-windows">
             <div class="design-system-preview__row">
                 <AppButton Label="Window S 480" OnClick="@(() => _windowOpen = AppWindowSize.Small)" data-testid="preview-window-s" />
                 <AppButton Label="Window M 640" OnClick="@(() => _windowOpen = AppWindowSize.Medium)" data-testid="preview-window-m" />
@@ -573,7 +605,7 @@
 
 @code {
     private sealed record ColourGroup(string Name, string[] Tokens);
-    private sealed record TypeStep(string Name, string Token, int Weight);
+    private sealed record TypeStep(string Name, string Token);
     private sealed record RowToken(string Name, string Token);
 
     // Every colour token the design-system document lists; DesignSystemDocDriftTests keeps this page and the document in step.
@@ -590,13 +622,17 @@
 
     private static readonly IReadOnlyList<TypeStep> TypeSteps =
     [
-        new("12 caption", "--tl-font-size-xs", 400),
-        new("13 secondary", "--tl-font-size-secondary", 400),
-        new("14 body", "--tl-font-size-body", 400),
-        new("16 controls, menus, rows", "--tl-font-size-md", 500),
-        new("20 section and window titles", "--tl-font-size-dialog-title", 600),
-        new("24 page title", "--tl-font-size-title", 700),
-        new("32 hero", "--tl-font-size-hero", 700),
+        new("Hero 32 / 700: the title over a hero", "--tl-type-hero"),
+        new("Page title 24 / 700 (28 on wide screens): the one title of a page", "--tl-type-page-title"),
+        new("Heading 20 / 600: section and window titles", "--tl-type-heading"),
+        new("Subheading 16 / 600: a group inside a section", "--tl-type-subheading"),
+        new("Menu 16 / 500: rows in a pop-up menu", "--tl-type-menu"),
+        new("Control 14 / 500: buttons, tabs, dropdown options", "--tl-type-control"),
+        new("Body 14 / 400: reading text and text typed into a field", "--tl-type-body"),
+        new("Label 13 / 500: a field's label", "--tl-type-label"),
+        new("Secondary 13 / 400: supporting lines", "--tl-type-secondary"),
+        new("Overline 12 / 600: a small heading above a group", "--tl-type-overline"),
+        new("Caption 12 / 400: the smallest text", "--tl-type-caption"),
     ];
 
     private static readonly string[] WeightTokens = ["--tl-font-weight-regular", "--tl-font-weight-medium", "--tl-font-weight-semibold", "--tl-font-weight-bold"];
@@ -616,12 +652,21 @@
 
     private static string SwatchCss(string token) => $"background: var({token});";
 
-    private static string TypeCss(string token, int weight) => $"font-size: var({token}); font-weight: {weight}; line-height: var(--tl-line-height-heading); margin: 0;";
+    private static string TypeCss(string token) => $"font-size: var({token}-size); font-weight: var({token}-weight); line-height: var(--tl-line-height-heading); margin: 0;";
 
     private string _seriesSet = "complete";
     private string _listTab = "all";
     private static readonly IReadOnlyList<AppCountTab> ListTabs = [new("all", "All", 3, AppMaterialIcons.Outlined.AllInclusive), new("metadata", "Metadata", 1, AppMaterialIcons.Outlined.Tag), new("services", "Services", 1, AppMaterialIcons.Outlined.Hub)];
     private bool _sheetOpen;
+    private bool _discardOpen;
+    private bool _confirmOpen;
+    private static readonly AppDialogOptions ShortDialogOptions = new() { NoHeader = true, MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, BackdropClick = true, Sheet = AppDialogSheetMode.Phone };
+    private static readonly IReadOnlyList<AppSelectOption> LongOptions =
+    [
+        new("s01", "S01"),
+        new("s02", "Season 2: a long name that stays on one line"),
+        new("specials", "Specials and behind the scenes"),
+    ];
     private bool _viewerOpen;
     private AppWindowSize? _windowOpen;
     private AppPopoutSize _popoutOpen;
