@@ -74,3 +74,7 @@ Each line: the file, then what moved to which type job (`--tl-type-<job>-size`, 
 ## Unclear cases
 
 None left unchanged. Judgement calls to check on the visual review: `Setup/IntroAnimation.razor.css:7` (overline vs label), `Collections/CollectionEditorShell.razor.css:107` rail items (control vs menu), `Settings/Libraries/AddViewFolderDialog.razor.css:21` and `CreateLibraryDialog.razor.css:22` letter-spaced captions (overline vs label).
+
+## After the My List build merged
+
+The My List page, the hero action row's progress label and the reconnect window title now name their type jobs (body, secondary and heading). Every move keeps the same size. The hero action button label stays at its own 20 px hero size (the hero is an allowed exception in D8). The top navigation and the dock have no sizes of their own left to move.
