@@ -487,8 +487,8 @@ else
                             @if (CanSaveActivePlaylist)
                             {
                                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                                           StartIcon="@(_activePlaylistSaved ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)"
-                                           Label="@(_activePlaylistSaved ? "In My List" : "Add to My List")"
+                                           StartIcon="@(_activePlaylistSaved ? AppMaterialIcons.Filled.Check : AppMaterialIcons.Filled.Add)"
+                                           Label="@ActivePlaylistSavedLabel"
                                            aria-pressed="@(_activePlaylistSaved ? "true" : "false")"
                                            OnClick="ToggleActivePlaylistSavedAsync" />
                             }

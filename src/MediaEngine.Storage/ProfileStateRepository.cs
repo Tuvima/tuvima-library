@@ -138,7 +138,7 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
                 profileId,
                 entityKind = item.EntityKind.ToString(),
                 entityId = item.EntityId,
-                savedAt = item.SavedAt.ToString("O"),
+                savedAt = item.SavedAt.ToUniversalTime().ToString("O"),
                 position = item.Position,
             };
             connection.Execute(new CommandDefinition(

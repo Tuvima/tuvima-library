@@ -104,6 +104,8 @@ public sealed partial class DisplayComposerService
         var journey = (await journeyTask).ToList();
         var collectionLanes = await lanesTask;
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
+        // Started here so the profile's own list is read while the rest of Home is put together.
+        var myListTask = BuildHomeMyListCardsAsync(profileId, progressByWork, shelfLimit, ct);
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
         var videoCards = _cards.BuildVideoCards(works, progressByWork);
 
@@ -156,7 +158,7 @@ public sealed partial class DisplayComposerService
             .Take(Math.Max(1, shelfLimit))
             .ToList();
 
-        var myListCards = await BuildHomeMyListCardsAsync(profileId, progressByWork, shelfLimit, ct);
+        var myListCards = await myListTask;
 
         var shelves = new List<DisplayShelfDto>();
         DisplayShelfBuilder.AddShelf(shelves, "continue", "Continue Across Media", "Pick up where you left off", continueCards, DisplayGridCatalog.RouteFor("home", "continue"));

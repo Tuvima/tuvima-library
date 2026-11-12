@@ -59,16 +59,20 @@ public static class ProfileStateEndpoints
             RemoveSavedItemsRequest request,
             ClaimsPrincipal user,
             IProfileStateRepository repository,
+            ProfileStateAccessService access,
             CancellationToken ct) =>
         {
-            if (request.Items is null || request.Items.Count > RemoveSavedItemsRequest.MaxItems)
+            if (request.Items is null || request.Items.Any(item => item is null) || request.Items.Count > RemoveSavedItemsRequest.MaxItems)
             {
                 return ApiErrors.BadRequest($"Send between 0 and {RemoveSavedItemsRequest.MaxItems} items to remove.");
             }
             var profileId = RequireProfileId(user);
             // My List holds no songs (those are Favorites), so a song is never removed through this action.
+            // An entry the profile cannot see right now stays stored (it returns if access returns), so it is skipped here too.
+            var scope = await access.ResolveAsync(profileId, ct, includeUnmatched: true);
             var keys = request.Items
                 .Where(item => Enum.IsDefined(item.EntityKind) && item.EntityKind != ProfileEntityKind.Song)
+                .Where(item => scope.Allows(item.EntityKind, item.EntityId))
                 .Select(item => new ProfileSavedKey(item.EntityKind, item.EntityId))
                 .Distinct()
                 .ToList();
@@ -87,7 +91,7 @@ public static class ProfileStateEndpoints
             ProfileStateAccessService access,
             CancellationToken ct) =>
         {
-            if (request.Items is null || request.Items.Count > RestoreSavedItemsRequest.MaxItems)
+            if (request.Items is null || request.Items.Any(item => item is null) || request.Items.Count > RestoreSavedItemsRequest.MaxItems)
             {
                 return ApiErrors.BadRequest($"Send between 0 and {RestoreSavedItemsRequest.MaxItems} items to restore.");
             }
