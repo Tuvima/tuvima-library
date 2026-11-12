@@ -14,6 +14,7 @@ public sealed class AlignmentGuardrailTests
     private static readonly string[] SharedPartStyles =
     [
         "Components/Shared/AppSettingRow.razor.css",
+        "Components/Shared/AppFormRow.razor.css",
         "Components/Shared/AppSettingsGroup.razor.css",
         "Components/Shared/AppSwitchRow.razor.css",
         "Components/Shared/AppChoiceRow.razor.css",

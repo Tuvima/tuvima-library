@@ -5,6 +5,33 @@ namespace MediaEngine.Web.Components.Rules;
 
 public static class CollectionRuleCatalog
 {
+    private static readonly string[] Watchable = ["Movies", "TV", "Videos"];
+
+    /// <summary>The media types a field makes sense for; a field not listed here applies to every type.</summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<string>> AppliesTo { get; } = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["runtime"] = ["Movies", "TV", "Videos", "Music", "Audiobooks"],
+        ["page_count"] = ["Books", "Comics"],
+        ["track_count"] = ["Music"],
+        ["director"] = Watchable,
+        ["cast_member"] = Watchable,
+        ["screenwriter"] = Watchable,
+        ["production_company"] = Watchable,
+        ["filming_location"] = Watchable,
+        ["network"] = ["TV"],
+        ["award_received"] = Watchable,
+        ["award_nominated"] = Watchable,
+        ["award_family"] = Watchable,
+        ["nomination_family"] = Watchable,
+        ["author"] = ["Books", "Comics", "Audiobooks"],
+        ["illustrator"] = ["Books", "Comics"],
+        ["publisher"] = ["Books", "Comics", "Audiobooks"],
+        ["narrator"] = ["Audiobooks"],
+        ["artist"] = ["Music"],
+        ["composer"] = ["Music"],
+        ["record_label"] = ["Music"],
+    };
+
     public static RuleBuilderCatalog Instance { get; } = new()
     {
         Domain = "collection",
@@ -29,7 +56,7 @@ public static class CollectionRuleCatalog
             new("title", "Title"), new("creator", "Creator"), new("year", "Release year"),
             new("provider_rating", "Provider rating"), new("added_at", "Date added"), new("media_type", "Media type"),
         ],
-        Fields = BuildFields(),
+        Fields = BuildFields().Select(field => AppliesTo.TryGetValue(field.Key, out var types) ? field with { AppliesTo = types } : field).ToList(),
     };
 
     private static IReadOnlyList<RuleFieldDefinition> BuildFields()

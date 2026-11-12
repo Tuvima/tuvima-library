@@ -2745,11 +2745,12 @@ public static class CollectionEndpoints
             string field,
             string? q,
             int? limit,
+            string? mediaTypes,
             ICollectionBrowseReadService browseReadService,
             CancellationToken ct) =>
         {
             var page = PagedRequest.From(null, limit, defaultLimit: 50);
-            var values = await browseReadService.GetFieldValuesAsync(field, q, page.Limit, ct);
+            var values = await browseReadService.GetFieldValuesAsync(field, q, page.Limit, SplitMediaTypes(mediaTypes), ct);
             return Results.Ok(values);
         })
         .WithName("GetFieldValues")
@@ -2761,6 +2762,7 @@ public static class CollectionEndpoints
             string field,
             string? q,
             int? limit,
+            string? mediaTypes,
             ICollectionBrowseReadService browseReadService,
             IOptionsMonitor<IngestionOptions> ingestionOptions,
             CancellationToken ct) =>
@@ -2785,7 +2787,7 @@ public static class CollectionEndpoints
                     .ToList());
             }
 
-            return Results.Ok(await browseReadService.GetEntityFieldValuesAsync(field, q, page.Limit, ct));
+            return Results.Ok(await browseReadService.GetEntityFieldValuesAsync(field, q, page.Limit, SplitMediaTypes(mediaTypes), ct));
         })
         .WithName("GetEntityFieldValues")
         .WithSummary("Returns local QID-backed values and labels for the collection rule editor.")
@@ -2978,6 +2980,10 @@ public static class CollectionEndpoints
 
         return await profileRepo.GetByIdAsync(activeProfileId, ct);
     }
+
+    /// <summary>The comma-separated media types a rule editor asks about, or null for every type.</summary>
+    private static IReadOnlyList<string>? SplitMediaTypes(string? mediaTypes) =>
+        string.IsNullOrWhiteSpace(mediaTypes) ? null : mediaTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private static CollectionDto FilterCollection(
         CollectionDto collection,
