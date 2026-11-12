@@ -183,6 +183,7 @@ public partial class CollectionEditorShell
 
     protected override void OnInitialized()
     {
+        ObserveDevice();
         if (EditingCollection is null)
         {
             _name = Request.InitialTitle ?? string.Empty;
@@ -360,6 +361,7 @@ public partial class CollectionEditorShell
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await SyncPhoneAsync();
         if (!Inline && DialogContext is not null)
         {
             _dialogCloseGuard ??= DialogContext.RegisterCloseGuard(CanCloseAsync);
@@ -370,6 +372,4 @@ public partial class CollectionEditorShell
             await RunPreview();
         }
     }
-
-    public void Dispose() => _dialogCloseGuard?.Dispose();
 }

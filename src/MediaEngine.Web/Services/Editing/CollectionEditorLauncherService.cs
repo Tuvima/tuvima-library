@@ -75,6 +75,8 @@ public sealed class CollectionEditorLauncherService
                 FullWidth = true,
                 BackdropClick = false,
                 CloseOnEscapeKey = true,
+                // On a phone or a tablet in portrait the builder is a full-screen sheet from the first draw (the shell keeps it in step when the device turns).
+                FullScreen = EditorPhoneArrangement.Applies(_device) ? true : null,
             });
 
         if (dialog is null)

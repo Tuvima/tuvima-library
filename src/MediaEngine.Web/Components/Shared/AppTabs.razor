@@ -11,7 +11,7 @@
                 @if (!string.IsNullOrWhiteSpace(panel.Href) && !panel.Disabled)
                 {
                     @* Route-linked tab: a real link, so the address survives reload and Back/Forward. *@
-                    <a @ref="panel.HeaderElement" href="@panel.Href" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" aria-current="@(index == ActivePanelIndex ? "page" : null)" tabindex="@(index == ActivePanelIndex ? 0 : -1)" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
+                    <a @ref="panel.HeaderElement" href="@panel.Href" id="@panel.HeaderId" role="tab" aria-controls="@(ControlsId ?? panel.PanelId)" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" aria-current="@(index == ActivePanelIndex ? "page" : null)" tabindex="@(index == ActivePanelIndex ? 0 : -1)" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
                         <AppMaterialIcon Icon="@panel.Icon" Size="AppIconSize.Control20" />
                         <span>@panel.Text</span>
                         @if (panel.Count is not null) { <span class="tl-tab__count">@panel.Count</span> }
@@ -19,7 +19,7 @@
                 }
                 else
                 {
-                    <button @ref="panel.HeaderElement" type="button" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" tabindex="@(index == ActivePanelIndex ? 0 : -1)" disabled="@panel.Disabled" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
+                    <button @ref="panel.HeaderElement" type="button" id="@panel.HeaderId" role="tab" aria-controls="@(ControlsId ?? panel.PanelId)" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" tabindex="@(index == ActivePanelIndex ? 0 : -1)" disabled="@panel.Disabled" class="@tabClass" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
                         <AppMaterialIcon Icon="@panel.Icon" Size="AppIconSize.Control20" />
                         <span>@panel.Text</span>
                         @if (panel.Count is not null) { <span class="tl-tab__count">@panel.Count</span> }
@@ -37,6 +37,8 @@
     [Parameter] public int ActivePanelIndex { get; set; }
     [Parameter] public EventCallback<int> ActivePanelIndexChanged { get; set; }
     [Parameter] public bool KeepPanelsAlive { get; set; }
+    /// <summary>The id of the one element that is the panel of every tab, when the caller draws the content itself and the tabs' own panels are not drawn.</summary>
+    [Parameter] public string? ControlsId { get; set; }
     [Parameter] public int Elevation { get; set; }
     [Parameter] public bool Rounded { get; set; }
     [Parameter] public bool Border { get; set; }
