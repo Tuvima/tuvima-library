@@ -298,8 +298,21 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         Assert.Empty(RenderBar(off).FindAll(".tl-editor-window"));
 
         var on = await StartEditorAsync();
-        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "tablet", true));
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false));
         Assert.Empty(RenderBar(on).FindAll(".tl-editor-window"));
+    }
+
+    [Theory]
+    [InlineData("tablet", "web")]
+    [InlineData("phone", "mobile")]
+    public async Task TheWindowStaysOpenWhenTheDeviceBecomesATabletOrPhone(string formFactor, string deviceClass)
+    {
+        var editor = await StartEditorAsync();
+
+        await _device.SwitchDeviceAsync(new DeviceContextSnapshot(deviceClass, formFactor, true));
+
+        Assert.True(editor.Mode.IsOn);
+        Assert.NotEmpty(RenderBar(editor).FindAll(".tl-editor-window"));
     }
 
     // -- Cancel and "Unsaved changes" ------------------------------------------------------------

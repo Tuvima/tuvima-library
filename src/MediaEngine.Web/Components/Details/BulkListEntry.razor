@@ -54,12 +54,12 @@ else if (!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(_playOnly
         Editor.Batch.Changed += OnBatchChanged;
         Editor.Changed += OnEditorChanged;
         Device.OnChanged += OnDeviceChanged;
-        _canEdit = EditorDeviceRule.CanEdit(Device);
+        _canEdit = EditorDeviceRule.CanEditItems(Device);
     }
 
     protected override void OnParametersSet()
     {
-        _canEdit = EditorDeviceRule.CanEdit(Device);
+        _canEdit = EditorDeviceRule.CanEditItems(Device);
         // A device that may not edit still shows ticked songs: they get their own bar, with no editor behind it.
         _playOnly.MediaType = MediaType;
         _playOnly.Replace(!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(Rows, MediaType) ? Rows : []);
@@ -114,7 +114,7 @@ else if (!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(_playOnly
             return;
         }
 
-        _canEdit = EditorDeviceRule.CanEdit(Device);
+        _canEdit = EditorDeviceRule.CanEditItems(Device);
         if (!_canEdit && ReferenceEquals(Editor.Binding, _binding))
         {
             Editor.Batch.Clear();

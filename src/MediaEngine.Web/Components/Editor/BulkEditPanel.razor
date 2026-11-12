@@ -170,7 +170,7 @@
     /// <summary>False shows the fields read-only (a library or person that cannot edit); the device rule is checked as well.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
-    private bool CanChange => CanEdit && EditorDeviceRule.CanEdit(Device) && !_fields.Forbidden;
+    private bool CanChange => CanEdit && EditorDeviceRule.CanEditItems(Device) && !_fields.Forbidden;
 
     private string PanelName => Selection.Panel switch
     {

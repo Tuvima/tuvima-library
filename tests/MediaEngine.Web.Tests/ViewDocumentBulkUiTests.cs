@@ -460,7 +460,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheTrashViewOnATouchDeviceSaysToEmptyTrashOnAComputerAndOffersNoButton()
+    public async Task TheTrashViewOnATabletOffersTheEmptyTrashButton()
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "tablet", true, FinePointer: false, Hover: false));
         var cut = RenderLoaded();
@@ -468,8 +468,8 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         await ClickAsync(cut, ".view-documents-rail [role=radio]", radio => radio.TextContent.Trim() == "Trash");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
-        Assert.Empty(cut.FindAll(".view-trash-header button"));
-        Assert.Contains("Empty Trash on a computer.", cut.Find(".view-trash-header").TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll(".view-trash-header button"), button => button.TextContent.Trim() == "Empty Trash…");
+        Assert.DoesNotContain("on a computer", cut.Find(".view-trash-header").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

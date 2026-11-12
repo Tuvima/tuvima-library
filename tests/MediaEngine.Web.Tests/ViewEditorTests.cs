@@ -202,12 +202,12 @@ public sealed class ViewEditorTests
     }
 
     [Fact]
-    public async Task TheWindowDoesNotOpenOffTheDesktop()
+    public async Task TheWindowDoesNotOpenUntilTheDeviceHasReportedItself()
     {
         var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
         var host = new ViewEditorHost(EngineApiClientStub.CreateDefault(), device, new ViewWorkspaceService(EngineApiClientStub.CreateDefault()), NullLogger<ViewEditorHost>.Instance);
 
-        // No desktop signals (unknown means no): the editor refuses, whatever button asked.
+        // No device signals (unknown means no): the editor refuses, whatever button asked.
         Assert.False(host.CanEdit);
         Assert.False(await host.OpenItemsAsync([Photo()]));
         Assert.False(host.IsOpen);

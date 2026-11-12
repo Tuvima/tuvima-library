@@ -33,7 +33,7 @@ public static class CollectionMembershipFlow
             return null;
         }
 
-        if (EditorDeviceRule.TryRefuse(device))
+        if (EditorDeviceRule.TryRefuseItems(device))
         {
             return EditorDeviceRule.Message;
         }

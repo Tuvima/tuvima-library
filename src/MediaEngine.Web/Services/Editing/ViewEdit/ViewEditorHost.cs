@@ -33,8 +33,8 @@ public sealed class ViewEditorHost(IEngineApiClient api, DeviceContextService de
 
     public event Action<ViewEditClosedArgs>? Closed;
 
-    /// <summary>True when this device may edit at all (desktop form factor, fine hover-capable pointer).</summary>
-    public bool CanEdit => EditorDeviceRule.CanEdit(device);
+    /// <summary>True when this device may edit items at all (desktop, tablet or phone; never a TV).</summary>
+    public bool CanEdit => EditorDeviceRule.CanEditItems(device);
 
     /// <summary>Opens the window on photos, videos or documents. Several items open the group editor. False when the device may not edit or nothing was given.</summary>
     public async Task<bool> OpenItemsAsync(IReadOnlyList<LocalAssetDto> items, ViewEditGalleryRail? rail = null, ViewEditTool tool = ViewEditTool.Details)

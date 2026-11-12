@@ -13,9 +13,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Editing is desktop-only: it needs a desktop form factor AND a fine, hover-capable primary pointer. Phone, tablet, TV,
-/// a native shell, an unknown form factor and a browser that cannot report its pointer all mean "no", and every launcher
-/// refuses on its own rather than relying on hidden buttons.
+/// Two device rules (universal editor v6 D19). Item editing (the editor, everything that opens it, Delete and collection membership) works on a
+/// desktop, tablet and phone; a TV, an unknown form factor and a missing device context mean "no". The desktop-only tools in Settings and the
+/// Vault keep the old rule: a desktop form factor AND a fine, hover-capable primary pointer. Every launcher refuses on its own rather than
+/// relying on hidden buttons.
 /// </summary>
 public sealed class EditorDeviceRuleTests
 {
@@ -39,6 +40,24 @@ public sealed class EditorDeviceRuleTests
         { "web", "", false, false, false, false },              // nothing reported
     };
 
+    // deviceClass, formFactor, touch, finePointer, hover, expected
+    public static TheoryData<string, string, bool, bool, bool, bool> ItemMatrix => new()
+    {
+        { "web", "desktop", false, true, true, true },          // desktop with a mouse
+        { "web", "desktop", true, false, false, true },         // desktop site requested on an iPad: still allowed, any pointer
+        { "web", "desktop", false, false, false, true },        // the browser reported neither pointer signal
+        { "web", "tablet", true, false, false, true },          // tablet
+        { "web", "tablet", false, true, true, true },           // a tablet with a mouse
+        { "mobile", "phone", true, false, false, true },        // phone
+        { "mobile", "phone", false, true, true, true },         // phone with a fine pointer
+        { "television", "tv", false, true, true, false },       // TV
+        { "web", "tv", false, true, true, false },              // TV form factor reported by the browser
+        { "television", "desktop", false, true, true, false },  // a television device class is a TV whatever else it reports
+        { "native", "native", false, true, true, false },       // a native app shell naming itself
+        { "web", "native", false, true, true, false },          // unknown form factor on the web class
+        { "web", "", false, false, false, false },              // nothing reported (the pure rule never guesses)
+    };
+
     private static async Task<DeviceContextService> DeviceAsync(DeviceContextSnapshot snapshot)
     {
         var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
@@ -59,7 +78,7 @@ public sealed class EditorDeviceRuleTests
 
     [Theory]
     [MemberData(nameof(Matrix))]
-    public async Task OnlyADesktopWithAFineHoverPointerCanEdit(
+    public async Task DesktopOnlyTools_NeedADesktopWithAFineHoverPointer(
         string deviceClass, string formFactor, bool touch, bool finePointer, bool hover, bool expected)
     {
         Assert.Equal(expected, EditorDeviceRule.CanEdit(deviceClass, formFactor, finePointer, hover));
@@ -70,8 +89,49 @@ public sealed class EditorDeviceRuleTests
         Assert.Equal(expected, device.CanEdit);
     }
 
+    [Theory]
+    [MemberData(nameof(ItemMatrix))]
+    public async Task ItemEditing_IsAllowedOnDesktopTabletAndPhone_AndRefusedOnATvOrAnUnknownDevice(
+        string deviceClass, string formFactor, bool touch, bool finePointer, bool hover, bool expected)
+    {
+        Assert.Equal(expected, EditorDeviceRule.CanEditItems(deviceClass, formFactor));
+
+        // Through the device context the browser snapshot fills in. An unreported form factor on the web class is read as a desktop by the
+        // service itself, so that one row only exercises the pure rule above.
+        if (formFactor.Length > 0)
+        {
+            var device = await DeviceAsync(new DeviceContextSnapshot(deviceClass, formFactor, touch, finePointer, hover));
+
+            Assert.Equal(expected, EditorDeviceRule.CanEditItems(device));
+            Assert.Equal(expected, device.CanEditItems);
+            Assert.Equal(!expected, EditorDeviceRule.TryRefuseItems(device));
+        }
+    }
+
     [Fact]
-    public async Task ABrowserThatReportsNoPointerSignalsCanNeverEdit()
+    public void ItemEditing_IsRefusedWithoutADeviceContextOrBeforeTheBrowserHasReportedOne()
+    {
+        Assert.False(EditorDeviceRule.CanEditItems((DeviceContextService?)null));
+        Assert.True(EditorDeviceRule.TryRefuseItems(null));
+        Assert.False(EditorDeviceRule.CanEditItems(new DeviceContextService(EngineApiClientStub.CreateDefault())));
+    }
+
+    [Fact]
+    public async Task ItemEditing_SurvivesARotateOrResizeAcrossTheTabletWidth_ButNotAChangeToATv()
+    {
+        var device = await DesktopAsync();
+        Assert.True(device.CanEditItems);
+
+        await device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "tablet", true));
+        Assert.True(device.CanEditItems);
+        await device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        Assert.True(device.CanEditItems);
+        await device.SwitchDeviceAsync(new DeviceContextSnapshot("television", "tv", false));
+        Assert.False(device.CanEditItems);
+    }
+
+    [Fact]
+    public async Task ABrowserThatReportsNoPointerSignalsCanNeverUseADesktopOnlyTool()
     {
         // The older three-argument snapshot (no pointer information) is "undetectable", which means no.
         var device = await DeviceAsync(new DeviceContextSnapshot("web", "desktop", false));
@@ -82,7 +142,7 @@ public sealed class EditorDeviceRuleTests
     }
 
     [Fact]
-    public async Task APointerChangeAloneRevokesEditing()
+    public async Task APointerChangeAloneRevokesADesktopOnlyTool_ButNotItemEditing()
     {
         var device = await DesktopAsync();
         var changes = 0;
@@ -92,6 +152,7 @@ public sealed class EditorDeviceRuleTests
         await device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "desktop", true, FinePointer: false, Hover: false));
 
         Assert.False(device.CanEdit);
+        Assert.True(device.CanEditItems);
         Assert.True(changes >= 1);
     }
 
@@ -115,11 +176,28 @@ public sealed class EditorDeviceRuleTests
     [Theory]
     [InlineData("phone")]
     [InlineData("tablet")]
-    public async Task CollectionAndGalleryLaunchersRefuseOffTheDesktop(string formFactor)
+    public async Task EveryLauncherOpensOnAPhoneAndATablet(string formFactor)
     {
         var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
         var spy = (DialogSpy)(object)dialogs;
         var device = await DeviceFor(formFactor);
+
+        Assert.Equal(EditorLaunchResult.Applied,
+            await new CollectionEditorLauncherService(dialogs, null, device).TryOpenAsync(new CollectionEditorLaunchRequest()));
+        var galleryHost = new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance);
+        var opening = new GalleryEditorLauncherService(galleryHost, device).TryOpenAsync(new GalleryEditorLaunchRequest());
+        Assert.True(galleryHost.IsOpen);
+        galleryHost.Close();
+        Assert.Equal(EditorLaunchResult.Dismissed, await opening);
+        Assert.Equal(1, spy.ShowCount);
+    }
+
+    [Fact]
+    public async Task CollectionAndGalleryLaunchersRefuseOnATv()
+    {
+        var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
+        var spy = (DialogSpy)(object)dialogs;
+        var device = await DeviceFor("tv");
 
         Assert.Equal(EditorLaunchResult.NotAvailableOnThisDevice,
             await new CollectionEditorLauncherService(dialogs, null, device).TryOpenAsync(new CollectionEditorLaunchRequest()));
@@ -131,7 +209,7 @@ public sealed class EditorDeviceRuleTests
     [Theory]
     [InlineData("phone")]
     [InlineData("tablet")]
-    public async Task AddToCollectionOffTheDesktop_OpensNothingAndReturnsTheDeviceMessageForThePageToShowInPlace(string formFactor)
+    public async Task AddToCollectionOnAPhoneOrTablet_OpensTheMembershipDialog(string formFactor)
     {
         var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
         var spy = (DialogSpy)(object)dialogs;
@@ -140,10 +218,78 @@ public sealed class EditorDeviceRuleTests
             .AddSingleton(await DeviceFor(formFactor))
             .BuildServiceProvider();
 
+        // The dialog spy answers with a reference whose result is a plain "ok"; the point here is that the device rule let the flow through.
+        await CollectionMembershipFlow.RunAsync(services, [new CollectionEditorSeedItem(Guid.NewGuid(), "Dune", "Movies")], "Add to collection", "Dune");
+
+        Assert.Equal(1, spy.ShowCount);
+    }
+
+    [Fact]
+    public async Task AddToCollectionOnATv_OpensNothingAndReturnsTheDeviceMessageForThePageToShowInPlace()
+    {
+        var dialogs = DispatchProxy.Create<IAppDialogService, DialogSpy>();
+        var spy = (DialogSpy)(object)dialogs;
+        var services = new ServiceCollection()
+            .AddSingleton(dialogs)
+            .AddSingleton(await DeviceFor("tv"))
+            .BuildServiceProvider();
+
         var notice = await CollectionMembershipFlow.RunAsync(services, [new CollectionEditorSeedItem(Guid.NewGuid(), "Dune", "Movies")], "Add to collection", "Dune");
 
         Assert.Equal(EditorDeviceRule.Message, notice);
         Assert.Equal(0, spy.ShowCount);
+    }
+
+    // The desktop-only rule survives only for the owners the spec names (Settings tools, the Vault, document auto-filing rules). Every other caller
+    // asks the item-editing rule, so a new editing surface cannot quietly bring the desktop-only rule back, and the Settings and Vault tools cannot
+    // quietly lose it. A phone reaches these tools' "Edit on a computer" line because they call EditorDeviceRule.CanEdit / TryRefuse.
+    [Fact]
+    public void OnlySettingsVaultAndDocumentRulesKeepTheDesktopOnlyRule_EveryOtherCallerUsesTheItemRule()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        string[] desktopOnly =
+        [
+            "Components/Settings/PluginSettingsTab.razor",
+            "Components/Settings/Plugins/PluginSetupPage.razor",
+            "Components/Settings/Overview/OverviewImportPage.razor",
+            "Components/Settings/IngestionFlowEditor.razor",
+            "Components/Vault/VaultUnmatchedList.razor",
+            "Components/Vault/VaultIdentifyPanel.razor",
+            "Components/Vault/VaultGalleryTools.razor",
+            "Components/Pages/ViewDocumentRulesPage.razor",
+            "Services/Theming/DeviceContextService.cs",
+        ];
+        var desktopRule = new System.Text.RegularExpressions.Regex(@"EditorDeviceRule\.(CanEdit|TryRefuse)\(|\b(Device|DeviceContext|_device)\??\.CanEdit\b");
+
+        var found = Directory.EnumerateFiles(web, "*.*", SearchOption.AllDirectories)
+            .Where(path => (path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".razor", StringComparison.Ordinal))
+                && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(path => desktopRule.IsMatch(File.ReadAllText(path)))
+            .Select(path => Path.GetRelativePath(web, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(desktopOnly.Order(StringComparer.Ordinal), found);
+    }
+
+    [Fact]
+    public void TheDesktopOnlyOwnersStillSayEditOnAComputer()
+    {
+        Assert.Equal("Edit on a computer", EditorDeviceRule.Message);
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        foreach (var file in new[]
+        {
+            "Components/Settings/Plugins/PluginSetupPage.razor",
+            "Components/Settings/Overview/OverviewImportPage.razor",
+            "Components/Settings/IngestionFlowEditor.razor",
+            "Components/Vault/VaultGalleryTools.razor",
+        })
+        {
+            var text = File.ReadAllText(Path.Combine(web, file.Replace('/', Path.DirectorySeparatorChar)));
+            Assert.DoesNotContain("CanEditItems", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("TryRefuseItems", text, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

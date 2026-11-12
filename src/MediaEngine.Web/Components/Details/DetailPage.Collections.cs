@@ -42,7 +42,7 @@ public partial class DetailPage
         // A song goes into a playlist, never a collection (Listen music spec D9).
         && !(Model.EntityType == DetailEntityType.Work
             && string.Equals(ResolveEditorMediaType(Model.EntityType, Model.PresentationContext), "Music", StringComparison.OrdinalIgnoreCase))
-        && EditorDeviceRule.CanEdit(DeviceContext)
+        && EditorDeviceRule.CanEditItems(DeviceContext)
         && Services.GetService<DashboardSessionAccessor>() is { } session
         && CollectionAuthoringRule.CanCreate(session);
 
@@ -64,14 +64,14 @@ public partial class DetailPage
     }
 
     /// <summary>
-    /// "Export as a pack file" and "Remove set…" in a set's "..." menu: on a desktop, for a person the Engine says may edit this set.
+    /// "Export as a pack file" and "Remove set…" in a set's "..." menu: on a device that may edit items, for a person the Engine says may edit this set.
     /// The Engine checks again on every call.
     /// </summary>
     private IReadOnlyList<DetailAction>? SetMenuActions =>
         Model?.CollectionInfo is { IsSet: true }
         && !_removed
         && _setSummary is { CanEdit: true }
-        && EditorDeviceRule.CanEdit(DeviceContext)
+        && EditorDeviceRule.CanEditItems(DeviceContext)
             ? [DetailMenuGrouping.ExportSetPackAction, DetailMenuGrouping.RemoveSetAction]
             : null;
 

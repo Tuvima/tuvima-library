@@ -63,16 +63,45 @@ public sealed class EditorHostTests
     }
 
     [Fact]
-    public async Task Opening_WithoutPermission_OrOnAPhone_IsRefused_AndNothingOpens()
+    public async Task Opening_WithoutPermission_OrOnATv_IsRefused_AndNothingOpens()
     {
         var noPermission = await HostAsync();
         Assert.False(await noPermission.OpenAsync(Binding(permission: false), ItemOne));
         Assert.False(noPermission.IsOpen);
 
-        var phone = await HostAsync("phone");
-        Assert.False(await phone.OpenAsync(Binding(), ItemOne));
-        Assert.False(phone.IsOpen);
-        Assert.False(phone.Session.IsActive);
+        var tv = await HostAsync("tv");
+        Assert.False(await tv.OpenAsync(Binding(), ItemOne));
+        Assert.False(tv.IsOpen);
+        Assert.False(tv.Session.IsActive);
+    }
+
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("tablet")]
+    public async Task Opening_OnAPhoneOrTablet_OpensTheEditor(string formFactor)
+    {
+        var host = await HostAsync(formFactor);
+
+        Assert.True(await host.OpenAsync(Binding(), ItemOne));
+        Assert.True(host.IsOpen);
+        Assert.True(host.Session.IsActive);
+    }
+
+    [Fact]
+    public async Task AnOpenEditor_SurvivesARotateOrResizeAcrossTheTabletWidth_ButClosesOnATv()
+    {
+        var host = await HostAsync();
+        Assert.True(await host.OpenAsync(Binding(), ItemOne));
+
+        await _device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "tablet", true));
+        Assert.True(host.IsOpen);
+        await _device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        Assert.True(host.IsOpen);
+        await _device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        Assert.True(host.IsOpen);
+
+        await _device.SwitchDeviceAsync(new DeviceContextSnapshot("television", "tv", false));
+        Assert.False(host.IsOpen);
     }
 
     [Fact]

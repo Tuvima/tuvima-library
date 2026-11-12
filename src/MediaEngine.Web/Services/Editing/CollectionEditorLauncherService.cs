@@ -44,8 +44,8 @@ public sealed class CollectionEditorLauncherService
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Editing is desktop-only (fine, hover-capable pointer): the editor shell never opens anywhere else.
-        if (EditorDeviceRule.TryRefuse(_device))
+        // Item editing is for a desktop, tablet or phone (EditorDeviceRule.CanEditItems): the editor shell never opens on a TV or an unknown device.
+        if (EditorDeviceRule.TryRefuseItems(_device))
         {
             return EditorLaunchResult.NotAvailableOnThisDevice;
         }

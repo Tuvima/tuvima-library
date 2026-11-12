@@ -188,6 +188,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     {
         "tablet" => _device.InitialiseAsync(new DeviceContextSnapshot("web", "tablet", true)),
         "phone" => _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true)),
+        "tv" => _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true)),
         _ => _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true)),
     };
 
@@ -290,10 +291,24 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
     }
 
-    [Fact]
-    public async Task ARowsOwnEdit_OffTheDesktop_DoesNothing()
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("tablet")]
+    public async Task ARowsOwnEdit_OnAPhoneOrTablet_OpensThePopOverAndTheEditPanel(string formFactor)
     {
-        var (host, binding) = await EditorAsync("phone");
+        var (host, binding) = await EditorAsync(formFactor);
+        var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, Guid.NewGuid(), "Music");
+
+        Assert.True(await RowEditEntry.StartAsync(host, binding, row));
+
+        Assert.True(host.IsOpen);
+        Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
+    }
+
+    [Fact]
+    public async Task ARowsOwnEdit_OnATv_DoesNothing()
+    {
+        var (host, binding) = await EditorAsync("tv");
         var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, null, "Music");
 
         Assert.False(await RowEditEntry.StartAsync(host, binding, row));
@@ -346,16 +361,26 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.Empty(box.FindAll("input"));
     }
 
+    [Fact]
+    public async Task TickBox_OnATv_DoesNotRender()
+    {
+        var (mode, selection) = await TickingAsync("tv");
+
+        var box = RenderBox(mode, selection, EpisodeOne, "Pilot", DetailEntityType.TvEpisode);
+
+        Assert.Empty(box.FindAll("input"));
+    }
+
     [Theory]
     [InlineData("tablet")]
     [InlineData("phone")]
-    public async Task TickBox_OnADeviceThatMayNotEdit_DoesNotRender(string formFactor)
+    public async Task TickBox_OnAPhoneOrTablet_RendersLabelledWithTheRowTitle(string formFactor)
     {
         var (mode, selection) = await TickingAsync(formFactor);
 
         var box = RenderBox(mode, selection, EpisodeOne, "Pilot", DetailEntityType.TvEpisode);
 
-        Assert.Empty(box.FindAll("input"));
+        Assert.Equal("Select Pilot", box.Find("input[type=checkbox]").GetAttribute("aria-label"));
     }
 
     [Fact]
@@ -407,32 +432,44 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.Equal(0, selection.Count);
     }
 
+    [Fact]
+    public async Task Bar_OnATv_IsHiddenForEveryKindOfRowButSongs()
+    {
+        var bar = await RenderBarAsync(Ticked(
+            [new BulkEditRow(EpisodeOne, "One", DetailEntityType.TvEpisode, Season, "TV"), new BulkEditRow(EpisodeTwo, "Two", DetailEntityType.TvEpisode, Season, "TV")],
+            "TV"), "tv");
+
+        Assert.Empty(bar.FindAll(".tl-batch__bar"));
+    }
+
     [Theory]
     [InlineData("tablet")]
     [InlineData("phone")]
-    public async Task Bar_OnADeviceThatMayNotEdit_IsHiddenForEveryKindOfRowButSongs(string formFactor)
+    public async Task Bar_OnAPhoneOrTablet_OffersEditForTickedEpisodes(string formFactor)
     {
         var bar = await RenderBarAsync(Ticked(
             [new BulkEditRow(EpisodeOne, "One", DetailEntityType.TvEpisode, Season, "TV"), new BulkEditRow(EpisodeTwo, "Two", DetailEntityType.TvEpisode, Season, "TV")],
             "TV"), formFactor);
 
-        Assert.Empty(bar.FindAll(".tl-batch__bar"));
+        Assert.Contains("Edit", bar.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
     }
 
     [Fact]
-    public async Task Bar_ForSongsOnATablet_OffersThePlaylistActionButNoEditing()
+    public async Task Bar_ForSongsOnATablet_OffersThePlaylistActionAndEditing()
     {
         var bar = await RenderBarAsync(Ticked(FourSongs()), "tablet");
 
-        Assert.Equal(["Add to playlist", "Clear"], bar.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
+        var buttons = bar.FindAll(".tl-batch__bar button:not([hidden])").Select(button => button.TextContent.Trim()).ToList();
+        Assert.Contains("Add to playlist", buttons);
+        Assert.Contains("Edit", buttons);
     }
 
     [Fact]
-    public async Task Bar_ForSongsOnAPhone_IsNotDrawnBecauseThePhoneHasItsOwnBottomBar()
+    public async Task Bar_ForSongsOnATv_IsNotDrawnWithoutSongActions()
     {
-        var bar = await RenderBarAsync(Ticked(FourSongs()), "phone");
+        var bar = await RenderBarAsync(Ticked(FourSongs()), "tv");
 
-        Assert.Empty(bar.FindAll(".tl-batch__bar"));
+        Assert.DoesNotContain("Edit", bar.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
     }
 
     [Fact]
@@ -998,25 +1035,29 @@ public sealed class BulkEditingTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task List_OnAPhone_RendersNothing_AndOpensNothing()
+    public async Task List_OnATv_ShowsTheSongActionsButNoEdit_AndBindsNoEditor()
     {
-        var (list, popover, host) = await ListOverPopoverAsync(formFactor: "phone");
-
-        Assert.Empty(list.FindAll(".tl-batch"));
-        Assert.Empty(popover.FindAll(".tl-editor-panel"));
-        Assert.False(host.IsOpen);
-        Assert.Equal(0, host.Batch.Count);
-    }
-
-    [Fact]
-    public async Task List_OnATablet_ShowsTheSongActionsButNoEdit_AndBindsNoEditor()
-    {
-        var (list, popover, host) = await ListOverPopoverAsync(formFactor: "tablet");
+        var (list, popover, host) = await ListOverPopoverAsync(formFactor: "tv");
 
         Assert.Equal(["Add to playlist", "Clear"], list.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
         Assert.Empty(popover.FindAll(".tl-editor-panel"));
         Assert.False(host.IsOpen);
         Assert.Equal(0, host.Batch.Count);
+    }
+
+    [Theory]
+    [InlineData("tablet")]
+    [InlineData("phone")]
+    public async Task List_OnAPhoneOrTablet_OffersEditOnTheBar_AndEditOpensTheEditor(string formFactor)
+    {
+        var (list, _, host) = await ListOverPopoverAsync(formFactor: formFactor);
+
+        Assert.Contains("Edit", list.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
+
+        list.Find(".tl-batch__edit").Click();
+
+        list.WaitForAssertion(() => Assert.True(host.IsOpen));
+        Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
     }
 
     [Fact]

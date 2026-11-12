@@ -114,7 +114,7 @@ public partial class SongTable
     /// <summary>The host's bulk bar (Edit, Match, Move to album, Delete), drawn above the table with the ticked rows in the order shown.</summary>
     [Parameter] public RenderFragment<IReadOnlyList<SongRow>>? BulkContent { get; set; }
 
-    /// <summary>The person may edit songs here (the Engine decides who really may). Edit also needs a desktop with a fine, hover-capable pointer.</summary>
+    /// <summary>The person may edit songs here (the Engine decides who really may). Edit also needs a device that may edit items (desktop, tablet or phone; never a TV).</summary>
     [Parameter] public bool CanEdit { get; set; }
 
     /// <summary>An administrator may delete songs from the library (the host works it out). Never offered on a phone.</summary>
@@ -957,10 +957,10 @@ public partial class SongTable
         }
     }
 
-    // The menu items only show to a desktop that may edit; a handler never trusts that.
-    private bool EditAllowed(SongRow row) => CanEdit && row.IsOwned && row.WorkId.HasValue && !DeviceContext.IsPhone && DeviceContext.CanEdit;
+    // The menu items show on a desktop, tablet or phone that may edit items (never a TV); a handler never trusts that.
+    private bool EditAllowed(SongRow row) => CanEdit && row.IsOwned && row.WorkId.HasValue && DeviceContext.CanEditItems;
 
-    private bool DeleteAllowed(SongRow row) => CanDelete && row.IsOwned && row.WorkId.HasValue && !DeviceContext.IsPhone;
+    private bool DeleteAllowed(SongRow row) => CanDelete && row.IsOwned && row.WorkId.HasValue && DeviceContext.CanEditItems;
 
     private bool RemoveAllowed(SongRow row) => Place == SongTablePlace.Playlist && row.PlaylistItemId.HasValue && OnRemoveFromPlaylist.HasDelegate;
 
@@ -968,7 +968,7 @@ public partial class SongTable
     {
         if (!EditAllowed(row))
         {
-            if (!DeviceContext.CanEdit)
+            if (!DeviceContext.CanEditItems)
             {
                 _notice = EditorDeviceRule.Message;
             }

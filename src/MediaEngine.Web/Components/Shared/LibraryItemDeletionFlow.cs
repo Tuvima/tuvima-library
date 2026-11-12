@@ -36,9 +36,9 @@ public static class LibraryItemDeletionFlow
         entityType is DetailEntityType.Work or DetailEntityType.Movie or DetailEntityType.TvEpisode or DetailEntityType.Book
             or DetailEntityType.Audiobook or DetailEntityType.ComicIssue;
 
-    /// <summary>Delete is for an effective administrator on a desktop with a fine, hover-capable pointer (spec D2).</summary>
+    /// <summary>Delete is for an effective administrator on a desktop, tablet or phone (spec D2; editor v6 D19).</summary>
     public static bool CanDelete(DeviceContextService? device, DashboardSessionAccessor? session) =>
-        EditorDeviceRule.CanEdit(device) && session?.Authority?.EffectiveAdministrator == true;
+        EditorDeviceRule.CanEditItems(device) && session?.Authority?.EffectiveAdministrator == true;
 
     /// <summary>
     /// Says why this device or person may not delete, or null when they may. Handlers call it before opening the dialog, so a hidden
@@ -46,7 +46,7 @@ public static class LibraryItemDeletionFlow
     /// </summary>
     public static string? Refusal(DeviceContextService? device, DashboardSessionAccessor? session)
     {
-        if (EditorDeviceRule.TryRefuse(device))
+        if (EditorDeviceRule.TryRefuseItems(device))
         {
             return EditorDeviceRule.Message;
         }

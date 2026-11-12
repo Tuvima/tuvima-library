@@ -49,7 +49,7 @@ public partial class DetailPage
     // Every edit handler asks the device rule again (a hidden button is never the only protection); the refusal is shown in place.
     private bool RefuseEditing()
     {
-        if (!EditorDeviceRule.TryRefuse(DeviceContext))
+        if (!EditorDeviceRule.TryRefuseItems(DeviceContext))
         {
             return false;
         }

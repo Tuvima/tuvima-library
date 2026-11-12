@@ -181,7 +181,7 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Header_OnAPhoneShowsTheSizeButSaysToEmptyTrashOnAComputer()
+    public async Task Header_OnAPhoneShowsTheSizeAndTheEmptyTrashButton()
     {
         await UseAsync("phone", touch: true);
 
@@ -190,14 +190,25 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
         Assert.Equal("Items in Trash stay on your disk until you empty Trash.", cut.Find(".view-trash-header__lead").TextContent.Trim());
         Assert.Equal("128 items · 4.2 GB", cut.Find(".view-trash-header__size").TextContent.Trim());
-        Assert.Equal("Empty Trash on a computer.", cut.Find(".view-trash-header__computer").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".view-trash-header button"));
+        Assert.Single(cut.FindAll(".view-trash-header button"), button => button.TextContent.Trim() == "Empty Trash…");
+        Assert.DoesNotContain("on a computer", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Header_OnATabletOrATouchLaptopHasNoButtonEither()
+    public async Task Header_OnATabletHasTheButtonToo()
     {
         await UseAsync("tablet", touch: true);
+
+        var cut = RenderHeader();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
+        Assert.Single(cut.FindAll(".view-trash-header button"), button => button.TextContent.Trim() == "Empty Trash…");
+    }
+
+    [Fact]
+    public async Task Header_OnATvHasNoButton()
+    {
+        await UseAsync("tv", touch: false);
 
         var cut = RenderHeader();
 
@@ -257,9 +268,9 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Header_HandlerRefusesOnAPhoneEvenWhenSomethingElseCallsIt()
+    public async Task Header_HandlerRefusesOnATvEvenWhenSomethingElseCallsIt()
     {
-        await UseAsync("phone", touch: true);
+        await UseAsync("tv", touch: false);
         var host = Render<AppDialogHost>();
         var cut = RenderHeader();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));

@@ -120,7 +120,7 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task PhoneMoreSheetHasNoEditItemAndShowsOneQuietNonInteractiveLine()
+    public async Task PhoneMoreSheetHasTheEditItem_AndNoQuietLine()
     {
         await UseAsync("phone");
         DetailAction[] actions = [.. OverflowActions, Action("edit", "Edit this show", "edit")];
@@ -131,20 +131,21 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         menu.Find("button.hero-icon-circle").Click();
 
         var labels = menu.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
-        Assert.DoesNotContain("Edit this show", labels);
-        // The line is a caption, not a (disabled) menu item.
-        Assert.DoesNotContain("Edit on a computer", labels);
-        Assert.Equal("Edit on a computer", Assert.Single(menu.FindAll(".tl-detail-menu-note")).TextContent.Trim());
+        Assert.Contains("Edit this show", labels);
+        Assert.DoesNotContain("Edit on a computer", menu.Markup, StringComparison.Ordinal);
+        Assert.Empty(menu.FindAll(".tl-detail-menu-note"));
     }
 
     [Fact]
-    public async Task PhoneMoreMenuThatHeldOnlyEditDisappears()
+    public async Task PhoneMoreMenuThatHoldsOnlyEditIsDrawn()
     {
         await UseAsync("phone");
         var menu = Render<OverflowActionMenu>(parameters => parameters
             .Add(component => component.Actions, [Action("edit", "Edit this show", "edit")]));
 
-        Assert.Empty(menu.FindAll("button"));
+        menu.Find("button[aria-label='More actions']").Click();
+
+        Assert.Contains(menu.FindAll("[role='menuitem']"), item => item.TextContent.Contains("Edit this show"));
     }
 
     [Fact]
@@ -160,20 +161,21 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TabletMoreMenuHasNoEditEntryAndShowsTheQuietLineOnlyWhenThereIsSomethingElseToOffer()
+    public async Task TabletMoreMenuHasTheEditEntry_AndNoQuietLine()
     {
         await UseAsync("tablet");
         var onlyEdit = Render<OverflowActionMenu>(parameters => parameters
             .Add(component => component.Actions, [Action("edit", "Edit this show", "edit")]));
-        Assert.Empty(onlyEdit.FindAll("button"));
+        onlyEdit.Find("button[aria-label='More actions']").Click();
+        Assert.Contains(onlyEdit.FindAll("[role='menuitem']"), item => item.TextContent.Contains("Edit this show"));
 
         var mixed = Render<OverflowActionMenu>(parameters => parameters
             .Add(component => component.Actions, [.. OverflowActions, Action("edit", "Edit this show", "edit")]));
         mixed.Find("button[aria-label='More actions']").Click();
 
         var labels = mixed.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
-        Assert.Equal(OverflowActions.Select(action => action.Label), labels);
-        Assert.Equal("Edit on a computer", Assert.Single(mixed.FindAll(".tl-detail-menu-note")).TextContent.Trim());
+        Assert.Contains("Edit this show", labels);
+        Assert.Empty(mixed.FindAll(".tl-detail-menu-note"));
     }
 
     [Fact]

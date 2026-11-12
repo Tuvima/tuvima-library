@@ -50,7 +50,7 @@
 
     [CascadingParameter] public PlaybackPanelNavigator? Navigator { get; set; }
 
-    private bool CanManageLyrics => EditorDeviceRule.CanEdit(DeviceContext) && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    private bool CanManageLyrics => EditorDeviceRule.CanEditItems(DeviceContext) && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
 
     private IReadOnlyList<PlaybackLyricsMenuItem> Items
     {

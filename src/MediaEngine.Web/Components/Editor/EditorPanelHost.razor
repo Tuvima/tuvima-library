@@ -170,7 +170,7 @@
     private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode, bool showHistory, bool isAdministrator) =>
         [.. EditorTabRules.For(mode.Fields.Config, mode.Fields, showHistory, isAdministrator).Select(tab => (tab.Tool, tab.Label, IconFor(tab.Tool)))];
 
-    // The Bookmarks tab is an administrator's alone, and only on a desktop (the editor itself is desktop-only); the Engine checks again.
+    // The Bookmarks tab is an administrator's alone; the Engine checks again.
     private bool IsAdministrator => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
 
     private static string IconFor(EditTool tool) => tool switch

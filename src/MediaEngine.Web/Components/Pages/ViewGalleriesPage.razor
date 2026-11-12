@@ -13,7 +13,7 @@
 <ViewSectionShell>
     <ViewContentPage Title="@L["Common_Galleries"].Value" Subtitle="@L["ViewGalleriesPage_OrganizePersonalPhotosAndVideos"].Value">
         <HeaderActions>
-            @if (DeviceContext.CanEdit)
+            @if (DeviceContext.CanEditItems)
             {
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick='@(() => OpenEditorAsync("Smart"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" /> @L["ViewGalleriesPage_SmartGallery"]</AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick='@(() => OpenEditorAsync("Manual"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /> @L["Common_NewGallery"]</AppButton>
@@ -76,7 +76,7 @@
         var launch = await GalleryEditorLauncher.TryOpenAsync(new GalleryEditorLaunchRequest { InitialMembershipMode = membershipMode });
         if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
         {
-            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
             _deviceNotice = EditorDeviceRule.Message;
             StateHasChanged();
             return;

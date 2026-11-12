@@ -8,7 +8,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The header over the Trash in Photos and in Documents. Both show the whole Trash (one Trash per Personal Space), so the size is the
-   Engine's summary, not the length of the list below. Only the owner, on a desktop with a mouse, empties it; the Engine checks again. *@
+   Engine's summary, not the length of the list below. Only the owner, on a device that may edit items, empties it; the Engine checks again. *@
 @* When the Engine can't answer (or refuses), nothing is shown rather than a guess at the size. *@
 @if (IsMine && _loaded && _summary is not null)
 {
@@ -27,7 +27,7 @@
                 <p class="view-trash-header__lead">@EmptyTrashText.HeaderLead</p>
                 <p class="view-trash-header__size">@EmptyTrashText.SizeLine(_summary)</p>
             </div>
-            @if (EditorDeviceRule.CanEdit(Device))
+            @if (EditorDeviceRule.CanEditItems(Device))
             {
                 <div class="view-trash-header__action">
                     <AppButton Label="@EmptyTrashText.EmptyButton" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="EmptyTrashAsync" />
@@ -95,7 +95,7 @@
 
     /// <summary>
     /// Opens the Empty Trash confirmation. Public so the same checks hold when something other than the button calls it: only the
-    /// owner's own space, and only on a desktop with a mouse (<see cref="EditorDeviceRule"/>), ever gets as far as the dialog.
+    /// owner's own space, and only on a device that may edit items (<see cref="EditorDeviceRule"/>), ever gets as far as the dialog.
     /// </summary>
     public async Task EmptyTrashAsync()
     {
@@ -104,7 +104,7 @@
             return;
         }
 
-        if (!EditorDeviceRule.CanEdit(Device))
+        if (!EditorDeviceRule.CanEditItems(Device))
         {
             // The header already says Trash is emptied on a computer.
             return;

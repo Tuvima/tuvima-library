@@ -182,12 +182,10 @@ public sealed class SongListDeleteTests : AsyncBunitContext
         Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
     }
 
-    [Theory]
-    [InlineData("phone", true, true, true)]
-    [InlineData("tv", false, false, false)]
-    public async Task AnAdministratorOnAPhoneOrTvSeesNeitherTheCheckboxNorTheDeleteIcon(string formFactor, bool touch, bool fine, bool hover)
+    [Fact]
+    public async Task AnAdministratorOnATvSeesNeitherTheCheckboxNorTheDeleteIcon()
     {
-        await UseDeviceAsync(formFactor, touch, fine, hover);
+        await UseDeviceAsync("tv", false, false, false);
         SetAdministrator(true);
 
         var cut = RenderTable(Songs(3));
@@ -197,12 +195,30 @@ public sealed class SongListDeleteTests : AsyncBunitContext
         Assert.DoesNotContain("checkbox", cut.Markup, StringComparison.Ordinal);
     }
 
-    // Ticked songs play, queue and go in playlists on any desktop or tablet (spec D9); Edit and Delete still need a desktop that may edit.
+    // A phone has no tick column (it has Select mode), but its row sheet carries the same Edit and Delete entries as a desktop's row menu.
+    [Fact]
+    public async Task AnAdministratorOnAPhoneHasEditAndDeleteInTheRowSheet_AndNoCheckboxColumn()
+    {
+        await UseDeviceAsync("phone", true, true, true);
+        SetAdministrator(true);
+
+        var cut = RenderTable(Songs(3));
+        Assert.Empty(Checkboxes(cut));
+        cut.Find("button[aria-label='Actions for Song 1']").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        var labels = cut.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
+        Assert.Contains("Delete from library…", labels);
+        Assert.Equal("Delete from library…", labels[^1]);
+    }
+
+    // Ticked songs play, queue and go in playlists on any desktop or tablet (spec D9); Edit and Delete work on every device that may edit items
+    // (desktop, tablet and phone; editor v6 D19), whatever its pointer.
     [Theory]
     [InlineData("tablet", true, false, true)]
     [InlineData("tablet", true, true, false)]
     [InlineData("desktop", true, false, false)]
-    public async Task AnAdministratorOnATabletOrTouchOnlyDeviceSeesTheCheckboxesButNoEditAndNoDelete(string formFactor, bool touch, bool fine, bool hover)
+    public async Task AnAdministratorOnATabletOrTouchOnlyDeviceSeesTheSameEditAndDeleteBarAsADesktop(string formFactor, bool touch, bool fine, bool hover)
     {
         await UseDeviceAsync(formFactor, touch, fine, hover);
         SetAdministrator(true);
@@ -211,8 +227,10 @@ public sealed class SongListDeleteTests : AsyncBunitContext
         Checkboxes(cut)[0].Change(true);
 
         Assert.Equal(3, Checkboxes(cut).Count);
-        Assert.Equal(["Play", "Add to queue", "Add to playlist", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
-        Assert.DoesNotContain("Delete from library", cut.Markup, StringComparison.Ordinal);
+        var labels = cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()).ToList();
+        Assert.Equal(["Play", "Add to queue", "Add to playlist", "Edit", "Match", "Move to album"], labels.Take(6));
+        Assert.Equal("Clear", labels[^1]);
+        Assert.Single(cut.FindAll($"{Bar} button[aria-label='More actions']"));
     }
 
     // The bar's Play replaces the queue with the ticked songs in the order the list shows them and starts the first; Add to queue appends
@@ -428,9 +446,25 @@ public sealed class SongListDeleteTests : AsyncBunitContext
     [InlineData("phone", true, false, false)]
     [InlineData("tablet", true, true, false)]
     [InlineData("desktop", false, false, false)]
-    public async Task TheHandlersRefuseWhenTheDeviceCannotEditEvenIfInvoked(string formFactor, bool touch, bool fine, bool hover)
+    public async Task TheDeleteHandlerWorksOnAPhoneTabletAndDesktopForAnAdministrator(string formFactor, bool touch, bool fine, bool hover)
     {
         await UseDeviceAsync(formFactor, touch, fine, hover);
+        SetAdministrator(true);
+        var songs = Songs(2);
+        var host = Render<AppDialogHost>();
+        var cut = RenderTable(songs);
+
+        // The handler waits for the dialog to close, so it is not awaited here.
+        _ = cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(SongRowMapper.FromWork(songs[0])));
+
+        host.WaitForElement(".delete-library__section");
+        Assert.Equal([songs[0].Id], Assert.Single(_previewRequests));
+    }
+
+    [Fact]
+    public async Task TheHandlersRefuseWhenTheDeviceCannotEditEvenIfInvoked()
+    {
+        await UseDeviceAsync("tv", false, true, true);
         SetAdministrator(true);
         var songs = Songs(2);
         var cut = RenderTable(songs);

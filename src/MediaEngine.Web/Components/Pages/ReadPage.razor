@@ -54,7 +54,7 @@
     private bool _tabsLoaded;
     private bool _landingAttempted;
 
-    // The "+" in the Collections group appears once the device is known to be a desktop with a mouse.
+    // The "+" in the Collections group appears once the device is known to be one that may edit items (not a TV).
     protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
 
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
@@ -63,7 +63,7 @@
 
     // Any adult profile makes its own collections on a desktop (Collections and lists D19); the "+" opens the New collection flow with
     // this area's chips ticked.
-    private bool CanCreateCollections => CollectionAuthoringRule.CanCreate(Session) && DeviceContext.CanEdit;
+    private bool CanCreateCollections => CollectionAuthoringRule.CanCreate(Session) && DeviceContext.CanEditItems;
 
     private async Task OpenCollectionFlowAsync(MediaSectionNavigationCreateTarget target)
     {
@@ -83,7 +83,7 @@
         var request = CollectionEditorEntryPoints.For(flow.Area, profile.Id);
         if (await CollectionEditorLauncher.TryOpenAsync(request) == EditorLaunchResult.NotAvailableOnThisDevice)
         {
-            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
+            // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
             _notice = EditorDeviceRule.Message;
             return;
         }
