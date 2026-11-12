@@ -650,6 +650,23 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         return new ReviewMoveToTvAttempt(response, null);
     }
 
+    /// <summary>
+    /// Picks one of the choices a Needs Review row offers: the Engine applies it the way the editor would (a retail match, a Series, a
+    /// library type) and resolves the item.
+    /// </summary>
+    public async Task<ReviewChooseAttempt> ChooseReviewAsync(Guid reviewId, string choiceId, CancellationToken ct = default)
+    {
+        var response = await _api.ChooseReviewAsync(reviewId, choiceId, ct);
+        if (response is null)
+        {
+            return new ReviewChooseAttempt(null, _api.LastError);
+        }
+
+        await RefreshReviewCountSnapshotAsync(ct);
+        _state.Invalidate();
+        return new ReviewChooseAttempt(response, null);
+    }
+
     /// <summary>Skips Universe matching for a review item and dismisses it.</summary>
     public async Task<bool> SkipUniverseAsync(Guid id, CancellationToken ct = default)
     {

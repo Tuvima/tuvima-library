@@ -23,7 +23,7 @@ public sealed class NeedsReviewListContractTests
         var json = JsonSerializer.Serialize(row);
         var back = JsonSerializer.Deserialize<NeedsReviewRowDto>(json)!;
 
-        Assert.StartsWith("{\"key\":\"file:" + asset.ToString("D") + "\",\"library_id\":\"movies\",\"library_name\":\"Movies\",\"last_tried_at\":\"2026-11-03T09:00:00+00:00\",\"best_guess\":null,\"review\":null,\"unmatched\":{", json, StringComparison.Ordinal);
+        Assert.StartsWith("{\"key\":\"file:" + asset.ToString("D") + "\",\"library_id\":\"movies\",\"library_name\":\"Movies\",\"last_tried_at\":\"2026-11-03T09:00:00+00:00\",\"best_guess\":null,\"choices\":[],\"review\":null,\"unmatched\":{", json, StringComparison.Ordinal);
         Assert.Null(back.Review);
         Assert.Equal("a.mkv", back.Unmatched!.FileName);
     }
@@ -33,7 +33,65 @@ public sealed class NeedsReviewListContractTests
     {
         var json = JsonSerializer.Serialize(new NeedsReviewBestGuessDto { Action = "move_to_tv", Name = "Chernobyl", Year = "2019", Source = "TMDB TV series" });
 
-        Assert.Equal("{\"action\":\"move_to_tv\",\"name\":\"Chernobyl\",\"year\":\"2019\",\"source\":\"TMDB TV series\",\"image_url\":null}", json);
+        Assert.Equal("{\"action\":\"move_to_tv\",\"name\":\"Chernobyl\",\"year\":\"2019\",\"source\":\"TMDB TV series\",\"image_url\":null,\"choice_id\":null}", json);
+    }
+
+    [Fact]
+    public void ARetailBestGuess_NamesTheChoiceUseThisSends()
+    {
+        var json = JsonSerializer.Serialize(new NeedsReviewBestGuessDto
+        {
+            Action = "use_retail_match",
+            Name = "Dune",
+            Year = "2021",
+            Source = "TMDB",
+            ChoiceId = "retail:tmdb:438631",
+        });
+
+        Assert.Equal("{\"action\":\"use_retail_match\",\"name\":\"Dune\",\"year\":\"2021\",\"source\":\"TMDB\",\"image_url\":null,\"choice_id\":\"retail:tmdb:438631\"}", json);
+    }
+
+    [Fact]
+    public void AChoice_UsesSnakeCaseNames_AndTheThreeKindsAreFixedWords()
+    {
+        var json = JsonSerializer.Serialize(new NeedsReviewChoiceDto
+        {
+            Id = "retail:tmdb:438631",
+            Kind = NeedsReviewChoiceKinds.Retail,
+            Title = "Dune (2021)",
+            Subtitle = "Denis Villeneuve",
+        });
+
+        Assert.Equal("{\"id\":\"retail:tmdb:438631\",\"kind\":\"retail\",\"title\":\"Dune (2021)\",\"subtitle\":\"Denis Villeneuve\",\"image_url\":null}", json);
+        Assert.Equal("retail", NeedsReviewChoiceKinds.Retail);
+        Assert.Equal("series", NeedsReviewChoiceKinds.Series);
+        Assert.Equal("media_type", NeedsReviewChoiceKinds.MediaType);
+    }
+
+    [Fact]
+    public void ARowWithChoices_CarriesThemUnderChoices()
+    {
+        var row = new NeedsReviewRowDto
+        {
+            Key = "review:x",
+            Choices = [new NeedsReviewChoiceDto { Id = "media_type:Music", Kind = NeedsReviewChoiceKinds.MediaType, Title = "Music" }],
+        };
+
+        var back = JsonSerializer.Deserialize<NeedsReviewRowDto>(JsonSerializer.Serialize(row))!;
+
+        Assert.Equal("media_type:Music", Assert.Single(back.Choices).Id);
+        Assert.Contains("\"choices\":[{\"id\":\"media_type:Music\"", JsonSerializer.Serialize(row), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheChooseRequestAndResponse_UseSnakeCaseNames()
+    {
+        var review = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+        Assert.Equal("{\"choice_id\":\"series:abc\"}", JsonSerializer.Serialize(new ReviewChooseRequestDto { ChoiceId = "series:abc" }));
+        Assert.Equal(
+            "{\"chosen\":true,\"review_item_id\":\"11111111-2222-3333-4444-555555555555\",\"choice_id\":\"series:abc\",\"kind\":\"series\"}",
+            JsonSerializer.Serialize(new ReviewChooseResponse(true, review, "series:abc", NeedsReviewChoiceKinds.Series)));
     }
 
     [Fact]

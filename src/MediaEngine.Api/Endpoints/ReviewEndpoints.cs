@@ -438,6 +438,47 @@ public static class ReviewEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewResolve);
 
+        // ── POST /review/{id}/choose ─────────────────────────────────────────
+        // Picks one of the two or three choices a Needs Review row offers (a retail match, a Series, a library type) and applies it through
+        // the same services the editor uses; the item then leaves the list.
+        group.MapPost("/{id:guid}/choose", async (
+            Guid id,
+            ReviewChooseRequestDto request,
+            IReviewChooseService choose,
+            IReviewQueueRepository reviewRepo,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
+            CancellationToken ct) =>
+        {
+            var item = await reviewRepo.GetByIdAsync(id, ct);
+            // A Vault item answers exactly like a missing one: Vault files never reach Needs Review (the review list hides them too).
+            if (item is null || await vaults.IsInVaultAsync(item.EntityId, ct))
+            {
+                return ApiErrors.NotFound($"Review item '{id}' not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ChoiceId))
+            {
+                return ApiErrors.BadRequest("choice_id is required.");
+            }
+
+            var result = await choose.ChooseAsync(id, request.ChoiceId, "user", ct);
+            return result.Outcome switch
+            {
+                ReviewChooseOutcome.Chosen => Results.Ok(result.Response),
+                ReviewChooseOutcome.ReviewItemNotFound => ApiErrors.NotFound(result.Message ?? $"Review item '{id}' not found."),
+                ReviewChooseOutcome.NotPending => ApiErrors.Conflict(result.Message ?? "Review item is not pending."),
+                ReviewChooseOutcome.UnknownChoice => ApiErrors.BadRequest(result.Message ?? "That choice is not one this item offers."),
+                _ => ApiErrors.Problem(result.FailureStatus, "That choice could not be applied.", result.Message ?? "That choice could not be applied."),
+            };
+        })
+        .WithName("ChooseReviewItem")
+        .WithSummary("Pick one of the choices Needs Review offers for a row (a retail match, a Series or a library type): it is applied the way the editor applies it and the item is resolved.")
+        .Produces<ReviewChooseResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewResolve);
+
         // ── POST /review/{id}/skip-universe ────────────────────────────────
         group.MapPost("/{id:guid}/skip-universe", async (
             Guid id,

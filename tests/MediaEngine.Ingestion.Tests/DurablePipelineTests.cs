@@ -2168,6 +2168,8 @@ public sealed class DurablePipelineTests : IDisposable
             return Task.FromResult<IReadOnlyList<ReviewQueueEntry>>(promoted);
         }
 
+        public Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default) => Task.CompletedTask;
+
         public Task<int> PurgeOrphanedAsync(CancellationToken ct = default)
             => Task.FromResult(0);
     }
@@ -2440,6 +2442,7 @@ public sealed class DurablePipelineTests : IDisposable
         public Task<bool> ReopenKeptAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
         public Task<int> ResolveAllByEntityAsync(Guid entityId, string resolvedBy = "system:auto-organize", CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> ResolvePendingByEntityAndTriggersAsync(Guid entityId, IReadOnlyCollection<string> triggers, string resolvedBy, CancellationToken ct = default) => Task.FromResult(0);
+        public Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default) => Task.CompletedTask;
         public Task<int> PurgeOrphanedAsync(CancellationToken ct = default) => Task.FromResult(0);
     }
 
