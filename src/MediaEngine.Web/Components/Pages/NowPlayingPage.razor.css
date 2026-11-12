@@ -18,7 +18,7 @@
     align-items: center;
     display: flex;
     flex: none;
-    font-size: 15px;
+    font-size: var(--tl-type-control-size);
     justify-content: space-between;
     /* The mockup's top line is 56 px tall with its icons 24 px from the sides and 16 px from the top. The two buttons are 44 px targets, so the padding takes
        the extra 10 px off each side (and 10 px off the top and bottom) and the icons still sit where the mockup draws them. */
@@ -98,16 +98,16 @@
 }
 
 .np__title {
-    /* The mockup draws the title bold (700); the type scale keeps 700 to page and hero titles and counts them down only (TypographySystemGuardTests), so it stays 600. */
-    font-size: 22px;
-    font-weight: 600;
+    /* Type comes from the Look type jobs; the line height follows the Now playing mockup. */
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     line-height: 1.45;
     margin: 0 0 2px;
     overflow-wrap: anywhere;
 }
 
 .np__line {
-    font-size: 15px;
+    font-size: var(--tl-type-body-size);
     line-height: 1.45;
     margin: 0;
     overflow-wrap: anywhere;
@@ -119,7 +119,7 @@
 
 .np__sub {
     color: var(--playback-text-secondary);
-    font-size: 13px;
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.45;
     margin: 0;
 }
@@ -160,7 +160,7 @@
 
 .np__synopsis {
     color: var(--playback-text);
-    font-size: 16px;
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
     margin: 0 0 20px;
     max-width: 68ch;
@@ -180,11 +180,11 @@
 
 .np__fact dt {
     color: var(--playback-text-secondary);
-    font-size: 13px;
+    font-size: var(--tl-type-secondary-size);
 }
 
 .np__fact dd {
-    font-size: 15px;
+    font-size: var(--tl-type-body-size);
     margin: 2px 0 0;
     overflow-wrap: anywhere;
 }

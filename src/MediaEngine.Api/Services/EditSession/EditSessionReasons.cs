@@ -43,6 +43,10 @@ public static class EditSessionReasons
 
     public const string RenameNotAllowed = "Library can only rename files in a Managed folder. Some of these videos are in a folder it only reads, or a file is missing.";
     public const string SeriesClash = "The series changed at the same moment. Open the editor again and retry.";
+    public const string SeriesChoiceUnclear = "This series change names two places at once. Pick the series again.";
+
+    public const string SeriesMoveStale = "The file move shown for this video no longer matches its series choice. Check the changes and save again.";
+    public const string SeriesMoveWithMatchMove = "A video's file cannot move for its match and for its series in one save. Save the match first, then change the series.";
 
     public static string DuplicateField(string key) => $"'{key}' is changed twice for the same item.";
 }

@@ -42,6 +42,7 @@
                ToStringFunc="@ToStringFunc"
                Adornment="@(string.IsNullOrWhiteSpace(LeadingIcon) ? AppAdornment.None : AppAdornment.Start)"
                AdornmentIcon="@LeadingIcon"
+               Mark="@Options?.FirstOrDefault(option => option.Value == Value)?.Mark"
                PopoverClass="@EffectivePopoverClass"
                Style="@InlineStyle"
                aria-label="@(AriaLabel ?? (HideLabel ? Label : null))"
@@ -59,6 +60,10 @@
                     @if (!string.IsNullOrWhiteSpace(option.Icon))
                     {
                         <AppMaterialIcon Icon="@option.Icon" Size="AppIconSize.Control20" Class="app-select__option-icon" />
+                    }
+                    @if (!string.IsNullOrWhiteSpace(option.Mark))
+                    {
+                        <span class="app-select__mark" aria-hidden="true">@option.Mark</span>
                     }
                     <span class="tl-list-item__label" data-overflow-tooltip="@option.Label">@option.Label</span>
                     @if (NormalizedAppearance == "playback-flat")

@@ -70,7 +70,7 @@
     margin: 0;
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-body);
+    font-size: var(--tl-type-body-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -114,7 +114,7 @@
     min-height: var(--tl-touch-min);
     padding: 0 var(--tl-space-3);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-body);
+    font-size: var(--tl-type-body-size);
     font-weight: var(--tl-font-weight-semibold);
     text-decoration: none;
     white-space: nowrap;
@@ -156,7 +156,7 @@
 
 .my-list-downloads__copy span {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* Continue holds its height while it loads, so the list below does not move when it arrives. */
@@ -188,7 +188,7 @@
     min-height: 1.25rem;
     margin: 0 0 var(--tl-space-3);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .my-list-undo {
@@ -312,7 +312,7 @@
 .my-list-more__error {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 /* The scroll trigger: no height of its own, it only marks where the grid ends. */

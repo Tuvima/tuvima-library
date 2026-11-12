@@ -1,6 +1,6 @@
 .view-selection-toolbar { position:fixed; z-index:1200; bottom:max(1.25rem,env(safe-area-inset-bottom)); left:50%; display:flex; width:max-content; max-width:calc(100vw - 2rem); min-height:5.6rem; align-items:stretch; padding:.45rem .6rem; overflow:hidden; border:1px solid rgba(148,163,184,.26); border-radius:1rem; background:rgba(7,14,28,.98); box-shadow:0 1rem 3rem rgba(0,0,0,.52),0 0 1.6rem rgba(136, 82, 252,.16); backdrop-filter:blur(20px); transform:translateX(-50%); }
 .view-selection-toolbar__count{display:grid;min-width:7.2rem;place-items:center;padding:.55rem 1rem;white-space:nowrap}
-.view-selection-toolbar__count strong{font-size:var(--tl-font-size-sm)}
+.view-selection-toolbar__count strong{font-size:var(--tl-type-control-size)}
 ::deep .view-selection-toolbar__close { display:grid; width:3.5rem; min-height:4.4rem; place-items:center; padding:0; color:rgba(226,232,240,.76); border:0; border-radius:.65rem; background:transparent; cursor:pointer; }
 ::deep .view-selection-toolbar__close:hover, ::deep .view-selection-toolbar__close:focus-visible { color:white; background:rgba(148,163,184,.12); outline:0; }
 .view-selection-toolbar__actions { display:flex; flex-wrap:nowrap; align-items:stretch; gap:.15rem; min-width:0; overflow-x:auto; padding:0 .25rem; }

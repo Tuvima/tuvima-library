@@ -27,7 +27,7 @@
     display: flex;
     justify-content: center;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     line-height: 1;
 }
 
@@ -58,7 +58,7 @@
     align-items: center;
     gap: var(--gap);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .overview-heatmap__legend .overview-heatmap__cell {

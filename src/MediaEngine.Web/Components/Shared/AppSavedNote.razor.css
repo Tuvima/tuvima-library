@@ -1,4 +1,4 @@
-.app-saved-note { display: inline-flex; align-items: center; min-height: calc(var(--tl-font-size-secondary) * var(--tl-line-height-body)); color: var(--tl-status-success); font-size: var(--tl-font-size-secondary); line-height: var(--tl-line-height-body); }
+.app-saved-note { display: inline-flex; align-items: center; min-height: calc(var(--tl-font-size-secondary) * var(--tl-line-height-body)); color: var(--tl-status-success); font-size: var(--tl-type-secondary-size); line-height: var(--tl-line-height-body); }
 .app-saved-note__line { display: inline-flex; align-items: center; gap: var(--tl-space-1); }
 @media (prefers-reduced-motion: no-preference) {
     .app-saved-note__line { animation: app-saved-note-fade var(--app-saved-note-duration, 4s) ease-out 1 forwards; }

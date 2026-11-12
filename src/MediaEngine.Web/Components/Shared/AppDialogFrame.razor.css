@@ -7,7 +7,7 @@
 .app-native-dialog--position-bottomcenter,.app-native-dialog--position-bottomleft,.app-native-dialog--position-bottomright{margin-bottom:32px}
 .app-native-dialog--position-topleft,.app-native-dialog--position-bottomleft,.app-native-dialog--position-centerleft{margin-left:32px}
 .app-native-dialog--position-topright,.app-native-dialog--position-bottomright,.app-native-dialog--position-centerright{margin-right:32px}
-.app-native-dialog__header{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px 16px;gap:16px}.app-native-dialog__header h2{margin:0;font-size:var(--tl-font-size-dialog-title);line-height:1.25;font-weight:600}.app-native-dialog__close{flex:none;margin:-8px -8px 0 0}
+.app-native-dialog__header{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px 16px;gap:16px}.app-native-dialog__header h2{margin:0;font-size:var(--tl-type-heading-size);line-height:1.25;font-weight:var(--tl-type-heading-weight)}.app-native-dialog__close{flex:none;margin:-8px -8px 0 0}
 /* Sheet: the Window on phones (and any narrow window). From the bottom, 16 px top corners, a handle, the same anatomy. No page opts out. */
 .app-native-dialog.app-native-dialog--sheet{margin:auto 0 0;width:100%;max-width:none;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 24px);box-sizing:border-box;border-radius:var(--tl-sheet-radius,16px) var(--tl-sheet-radius,16px) 0 0;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);transform:translateY(var(--sheet-drag,0px))}
 @media(max-width:600px){

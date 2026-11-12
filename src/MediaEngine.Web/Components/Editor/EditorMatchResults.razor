@@ -18,8 +18,12 @@
     }
     else if (!string.IsNullOrWhiteSpace(Message))
     {
-        <div class="tl-matchres__wide" data-testid="match-message">
+        <div class="tl-matchres__wide tl-matchres__message" data-testid="match-message">
             <AppAlert Severity="@(Failed ? AppSeverity.Warning : AppSeverity.Info)" Dense="true">@Message</AppAlert>
+            @if (Failed && OnRetry.HasDelegate)
+            {
+                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="OnRetry" data-testid="match-try-again" />
+            }
         </div>
     }
 
@@ -133,6 +137,9 @@
 
     /// <summary>True when <see cref="Message"/> is a provider that did not answer rather than an empty answer.</summary>
     [Parameter] public bool Failed { get; set; }
+
+    /// <summary>Raised by Try again, shown beside a message about a provider that did not answer; nothing is shown when this has no handler.</summary>
+    [Parameter] public EventCallback OnRetry { get; set; }
 
     /// <summary>True once a result is chosen and the person may stage it. A Check match can be applied too.</summary>
     [Parameter] public bool CanApply { get; set; }

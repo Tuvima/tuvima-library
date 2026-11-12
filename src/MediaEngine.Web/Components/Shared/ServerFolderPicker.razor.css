@@ -27,11 +27,11 @@
 
 /* Host fields above the list: the library name is large and the first thing you type (D5). */
 .server-folder-picker__top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-3); order: 2; margin-left: auto; }
-.server-folder-picker__top ::deep input { font-size: var(--tl-font-size-lg, 1.125rem); }
+.server-folder-picker__top ::deep input { font-size: var(--tl-field-text-size); }
 
 /* The friendly name is the only text box (Editor v5 D32); it names the folder, never the library (Libraries v3 D18). */
 .server-folder-picker__name { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-1); max-width: 22.5rem; }
-.server-folder-picker__name-hint { margin-bottom: 0.7rem; color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.server-folder-picker__name-hint { margin-bottom: 0.7rem; color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); }
 
 /* The folder you are inside, named above the list. */
 .server-folder-picker__selected { color: var(--tl-text-primary); overflow-wrap: anywhere; }
@@ -80,7 +80,7 @@
 /* The handling choice is one row of its own, and the one message line sits directly under it; no space is held for a message that is not shown (D6, D7). */
 .server-folder-picker__message { flex: 1 1 100%; min-width: 0; line-height: 1.3; }
 
-.server-folder-picker__safety { margin: 0; flex: 1 1 240px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.server-folder-picker__safety { margin: 0; flex: 1 1 240px; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 
 .server-folder-picker__handling { display: grid; flex: 1 1 100%; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--tl-space-2); min-width: 0; }
 

@@ -128,4 +128,5 @@ public sealed record AppSelectOption(
     bool Disabled = false,
     bool SeparatorBefore = false,
     string? Title = null,
-    string? AccessibleLabel = null);
+    string? AccessibleLabel = null,
+    string? Mark = null);

@@ -238,6 +238,34 @@ public sealed class VideoSeriesRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ListMemberFilePaths_GivesTheFilesOfTheVideosDirectlyInASeries_AndNothingForAnEmptyOne()
+    {
+        var first = await AddVideoAsync("Intro", "course", 1);
+        await AddVideoAsync("Basics", "course", 2);
+        await AddVideoAsync("Other", "other", 1);
+
+        var paths = await _series.ListMemberFilePathsAsync(first.Parent!.Value);
+
+        Assert.Equal(["clips/Basics.mp4", "clips/Intro.mp4"], paths.OrderBy(path => path, StringComparer.Ordinal));
+        Assert.Empty(await _series.ListMemberFilePathsAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task IsSeriesChosenByUser_IsFalseForAFolderSeries_AndTrueOnceAPersonPutsTheVideoInOne()
+    {
+        var first = await AddVideoAsync("Intro", "course", 1);
+        Title(first.Parent!.Value, "Course");
+        var loose = await AddVideoAsync("Bonus");
+
+        Assert.False(await _series.IsSeriesChosenByUserAsync(first.Work));
+        Assert.False(await _series.IsSeriesChosenByUserAsync(loose.Work));
+        await _series.PromoteAsync(loose.Work, first.Parent.Value);
+
+        Assert.True(await _series.IsSeriesChosenByUserAsync(loose.Work));
+        Assert.False(await _series.IsSeriesChosenByUserAsync(first.Work));
+    }
+
+    [Fact]
     public async Task Remove_ClearsTheLockedFieldsAndTheScanClaims_SoNoSeriesIsLeftToResolve()
     {
         var first = await AddVideoAsync("Intro", "course", 1);

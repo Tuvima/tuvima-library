@@ -1620,7 +1620,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("font-size: clamp(3rem, 3.5vw, 4.2rem)", finalRules, StringComparison.Ordinal);
         Assert.Contains("font-size: clamp(2.4rem, 3vw, 3.6rem)", finalRules, StringComparison.Ordinal);
         Assert.Contains("font-family: var(--media-identity-font-family, var(--font-ui))", finalRules, StringComparison.Ordinal);
-        Assert.Contains("font-size: clamp(1rem, 1.3vw, 1.18rem)", finalRules, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-type-subheading-size)", finalRules, StringComparison.Ordinal);
         Assert.Contains("line-height: 1.5", finalRules, StringComparison.Ordinal);
         Assert.Contains("font: inherit", finalRules, StringComparison.Ordinal);
     }

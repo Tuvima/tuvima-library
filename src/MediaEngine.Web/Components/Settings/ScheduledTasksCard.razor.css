@@ -30,7 +30,7 @@
 
 .scheduled-tasks__what {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .scheduled-tasks__setting {
@@ -49,8 +49,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: var(--tl-font-size-sm);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
 }
 
 .scheduled-tasks__status--running {
@@ -68,7 +68,7 @@
 .scheduled-tasks__history {
     grid-column: 1 / -1;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .scheduled-tasks__history summary {
@@ -99,13 +99,13 @@
 
 .scheduled-tasks__facts dt {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-label-size);
 }
 
 .scheduled-tasks__facts dd {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
     overflow-wrap: anywhere;
 }
 

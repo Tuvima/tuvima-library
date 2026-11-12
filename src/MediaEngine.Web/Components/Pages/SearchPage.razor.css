@@ -22,8 +22,8 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-title);
-    font-weight: 500;
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
 }
 
 .search-page__title-row span {
@@ -31,11 +31,11 @@
     align-items: center;
     gap: 5px;
     color: var(--tl-accent-primary);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .search-page__input ::deep input {
-    font-size: var(--tl-font-size-lg);
+    font-size: var(--tl-type-heading-size);
 }
 
 .search-page__filters {
@@ -61,8 +61,8 @@
 .search-page__year-filter > span {
     margin-left: 2px;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .search-page__year-filter > div {

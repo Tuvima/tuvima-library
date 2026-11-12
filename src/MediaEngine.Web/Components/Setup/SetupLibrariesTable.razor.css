@@ -1,5 +1,5 @@
 .setup-libs { display: grid; gap: 12px; }
-.setup-libs__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.setup-libs__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 .setup-libs__toolbar { display: flex; justify-content: flex-end; }
 .setup-libs__empty { display: grid; justify-items: center; gap: 8px; text-align: center; padding-block: 24px; color: var(--tl-text-muted); }
 .setup-libs__empty h3 { margin: 0; color: var(--tl-text-primary); }

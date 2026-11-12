@@ -11,13 +11,13 @@
 
 .for-me-page__eyebrow {
     color: var(--tl-accent-primary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .for-me-page__header h1 {
     margin: .35rem 0;
-    font-size: clamp(2.25rem, 5vw, 4rem);
+    font-size: var(--tl-type-page-title-size);
 }
 
 .for-me-page__header p,
@@ -45,7 +45,7 @@
 
 .for-me-page__view-heading h2 {
     margin: 0 0 .35rem;
-    font-size: var(--tl-font-size-xl);
+    font-size: var(--tl-type-heading-size);
 }
 
 .for-me-page__count {

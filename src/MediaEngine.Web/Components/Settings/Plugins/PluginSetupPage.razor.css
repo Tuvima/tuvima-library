@@ -76,11 +76,11 @@
 .plugin-conn--attention { border-color: color-mix(in srgb, var(--tl-status-warning, #f59e0b) 50%, transparent); background: color-mix(in srgb, var(--tl-status-warning, #f59e0b) 7%, transparent); }
 
 .plugin-conn__copy { display: grid; flex: 1 1 12rem; min-width: 0; }
-.plugin-conn__copy small { font-size: var(--tl-font-size-sm); color: var(--tl-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* One line: a changing result never grows the row (D15.6). */
+.plugin-conn__copy small { font-size: var(--tl-type-secondary-size); color: var(--tl-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* One line: a changing result never grows the row (D15.6). */
 .plugin-conn__actions, .plugin-conn__tests { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2, 8px); }
 .plugin-conn--saved { animation: plugin-access-glow 2.4s ease-out; }
 
 /* Folded extra facts under the side column (v6 D60): four quiet facts show, the rest is one click away. */
 .plugin-more { margin: var(--tl-space-3, 12px) 0; }
-.plugin-more > summary { cursor: pointer; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); min-height: 44px; display: flex; align-items: center; }
+.plugin-more > summary { cursor: pointer; color: var(--tl-text-secondary); font-size: var(--tl-type-control-size); min-height: 44px; display: flex; align-items: center; }
 .plugin-more > dl { margin: 0; }

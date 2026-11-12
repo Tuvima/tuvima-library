@@ -26,14 +26,14 @@
 .tl-music-album-overview__heading h2 {
     margin: 0;
     color: var(--tl-accent-primary-hover, #a98cff);
-    font-size: clamp(1.15rem, 1.35vw, 1.5rem);
+    font-size: var(--tl-type-heading-size);
     line-height: 1.2;
 }
 
 .tl-music-album-overview__heading span,
 .tl-music-album-overview__empty {
     color: rgba(225, 231, 242, 0.64);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .tl-music-album-overview__credits ::deep .tl-credit-group {

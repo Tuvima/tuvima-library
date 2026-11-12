@@ -57,15 +57,15 @@
 }
 
 .browse-shell__title-eyebrow {
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     color: var(--tl-text-muted);
 }
 
 .browse-shell__title-text {
     margin: 0;
-    font-size: clamp(1.55rem, 1.2vw + 1rem, 2rem);
-    font-weight: 600;
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     letter-spacing: 0;
     line-height: 1;
     color: var(--tl-text-primary);
@@ -95,7 +95,7 @@
 /* The browse tabs are the shared tab row (Look v3.1 D1); only the label type is named here, the rest is the shared tab. */
 .browse-shell__tabs-frame ::deep .tl-tab {
     font-family: var(--font-ui);
-    font-weight: var(--tl-control-font-weight);
+    font-weight: var(--tl-type-control-weight);
     letter-spacing: var(--tl-control-letter-spacing);
 }
 
@@ -107,8 +107,8 @@
 .browse-shell__load-more-button {
     border-radius: var(--tl-radius-sm);
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-md);
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: var(--tl-control-line-height);
     letter-spacing: var(--tl-control-letter-spacing);
     text-transform: none;
@@ -196,8 +196,8 @@
     overflow: visible;
     clip-path: none;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .browse-shell__filter-selects {
@@ -212,8 +212,8 @@
 .browse-shell__filter-selects ::deep .app-field__label {
     margin: 0 0 5px 2px;
     color: rgba(215, 224, 240, 0.78);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1;
 }
 
@@ -234,7 +234,7 @@
 .browse-shell__sort ::deep .tl-input-slot {
     color: rgba(245, 247, 252, 0.95);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-field-text-size);
     font-weight: 500;
 }
 
@@ -280,7 +280,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 7px;
     padding-inline: 12px;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-control-size);
 }
 
 .browse-shell__toggle-stack {
@@ -306,7 +306,7 @@
     min-height: 48px;
     gap: 8px;
     padding-inline: 8px;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-control-size);
 }
 
 .browse-shell__toggle-row ::deep .app-quick-filter__indicator {
@@ -325,8 +325,8 @@
     background: rgba(8, 16, 31, 0.5);
     color: rgba(234, 239, 248, 0.9);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     white-space: nowrap;
     cursor: pointer;
 }
@@ -395,8 +395,8 @@
     clip-path: none;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .browse-shell__result-summary {
@@ -417,12 +417,12 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: clamp(1.35rem, 2vw, 1.8rem);
+    font-size: var(--tl-type-heading-size);
 }
 
 .browse-shell__result-summary span {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .browse-shell__sort {
@@ -438,7 +438,7 @@
 .browse-shell__sort ::deep .tl-select-input {
     padding-right: 12px !important;
     padding-left: 12px !important;
-    font-size: var(--tl-font-size-sm) !important;
+    font-size: var(--tl-field-text-size) !important;
 }
 
 .browse-shell__groupings {
@@ -460,8 +460,8 @@
     background: rgba(8, 14, 30, 0.46);
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-sm);
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: var(--tl-control-line-height);
     letter-spacing: var(--tl-control-letter-spacing);
     cursor: pointer;
@@ -514,8 +514,8 @@
     background: transparent;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-sm);
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: var(--tl-control-line-height);
     letter-spacing: var(--tl-control-letter-spacing);
     cursor: pointer;
@@ -584,7 +584,7 @@
 
 .browse-shell__empty h3 {
     margin: 0;
-    font-size: var(--tl-font-size-lg);
+    font-size: var(--tl-type-heading-size);
     color: var(--tl-text-primary);
 }
 
@@ -702,7 +702,7 @@
         min-width: 0;
         gap: 5px;
         padding: 0 0.55rem;
-        font-size: var(--tl-font-size-secondary);
+        font-size: var(--tl-type-control-size);
     }
 
 }

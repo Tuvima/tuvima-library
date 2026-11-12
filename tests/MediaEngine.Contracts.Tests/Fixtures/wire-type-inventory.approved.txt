@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1551; api=0; web-client=56
+# scopes: contracts=1553; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4384,8 +4384,9 @@
   FolderButton: MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto | json=folder_button | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | json=colors | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | json=file_facts | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  ProviderMatched: System.Boolean | json=provider_matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | json=config | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"config":null}
+  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"provider_matched":true,"config":null}
 
 [contracts] MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4824,6 +4825,21 @@
   HasMore: System.Boolean | json=has_more | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Things: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorUniverseThingDto> | json=things | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"universe_id":"11111111-2222-3333-4444-555555555555","universe_qid":"sample","universe_name":"sample","kinds":[],"kind_key":"sample","total":7,"offset":7,"has_more":true,"things":[]}
+
+[contracts] MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Managed: System.Boolean | json=managed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FromPath: System.String | json=from_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  ToPath: System.String | json=to_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Blocked: System.Boolean | json=blocked | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=WhenWritingDefault | converter=default | number-handling=default | extension-data=no
+  sample={"managed":true,"from_path":"sample","to_path":"sample","reason":"sample","blocked":true}
+
+[contracts] MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  TargetId: System.String | json=target_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Token: System.String | json=token | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  sample={"target_id":"sample","token":"sample"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorWikidataConflictDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5806,8 +5822,9 @@
   Supported: System.Boolean | json=supported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InSeries: System.Boolean | json=in_series | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SeriesTitle: System.String | json=series_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FromFolder: System.Boolean | json=from_folder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Targets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoSeriesTargetDto> | json=targets | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"supported":true,"in_series":true,"series_title":"sample","targets":[]}
+  sample={"supported":true,"in_series":true,"series_title":"sample","from_folder":true,"targets":[]}
 
 [contracts] MediaEngine.Contracts.Items.VideoSeriesTargetDto
   kind=class | converter=default | number-handling=default | unmapped=default

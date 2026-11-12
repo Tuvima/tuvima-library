@@ -3,15 +3,12 @@
     font-size: var(--tl-font-size-md);
 }
 
-.tl-fbfolders__path {
+.tl-fbfolders__crumbs {
     display: flex;
     flex-wrap: wrap;
     gap: var(--tl-space-2);
     align-items: center;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .tl-fbfolders__busy {

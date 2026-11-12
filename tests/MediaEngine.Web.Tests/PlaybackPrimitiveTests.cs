@@ -293,9 +293,9 @@ public sealed class PlaybackPrimitiveTests
 
         Assert.Contains("aria-current=\"@(IsCurrent ? \"true\" : null)\"", contextRow, StringComparison.Ordinal);
         Assert.Contains("IsPlaying", contextRow, StringComparison.Ordinal);
-        Assert.Contains("font-size:var(--tl-font-size-sm)", contextRowStyles, StringComparison.Ordinal);
-        Assert.Contains("font-weight:500", contextRowStyles, StringComparison.Ordinal);
-        Assert.Contains("font-size:var(--tl-font-size-xs)", contextRowStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size:var(--tl-type-control-size)", contextRowStyles, StringComparison.Ordinal);
+        Assert.Contains("font-weight:var(--tl-type-control-weight)", contextRowStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size:var(--tl-type-caption-size)", contextRowStyles, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"@(AriaLabel ?? (IsPlaying ? \"Now playing\" : \"Current item paused\"))\"", activityMark, StringComparison.Ordinal);
         // The tool sheet draws through the shared Pop-out surface, which owns the role, aria-modal and focus contract (Look v3 D14).
         Assert.Contains("Role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);

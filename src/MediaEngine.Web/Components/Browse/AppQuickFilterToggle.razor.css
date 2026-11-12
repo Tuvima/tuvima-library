@@ -13,8 +13,8 @@
     background: transparent;
     color: rgba(234, 239, 248, 0.88);
     font: inherit;
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     cursor: pointer;
 }
 
@@ -71,5 +71,5 @@
 
 .app-quick-filter__count {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }

@@ -13,7 +13,7 @@
 .tl-removed-notice__title {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-xl);
+    font-size: var(--tl-type-page-title-size);
 }
 
 .tl-removed-notice__input {
@@ -27,7 +27,7 @@
 
 .tl-removed-notice__input-label {
     margin: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .tl-removed-notice__input-text {
@@ -46,7 +46,7 @@
 
 .tl-removed-notice__lost {
     margin: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .tl-removed-notice__actions {

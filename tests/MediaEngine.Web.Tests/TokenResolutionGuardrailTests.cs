@@ -70,11 +70,12 @@ public sealed class TokenResolutionGuardrailTests
         Assert.Contains("--tl-font-size-shelf-title: 20px;", tokens);
         foreach (var file in new[] { "Components/MediaHub/ShelfHeader.razor.css", "Components/MediaTiles/ContinueAcrossMediaSection.razor.css" })
         {
-            Assert.Contains("var(--tl-font-size-shelf-title)", File.ReadAllText(Path.Combine(web, file)));
+            Assert.Contains("var(--tl-type-heading-size)", File.ReadAllText(Path.Combine(web, file)));
         }
-        foreach (var file in new[] { "Components/Pages/SearchPage.razor.css", "Components/Settings/Frame/SettingsPageFrame.razor.css", "Components/Shared/Shell/SidebarPageHeader.razor.css", "Components/Pages/ViewContentPage.razor.css" })
+        // Every page title is the page-title type job (Look v3.1 D8: 24 px, weight 700).
+        foreach (var file in new[] { "Components/Pages/SearchPage.razor.css", "Components/Shared/Shell/SidebarPageHeader.razor.css", "Components/Pages/ViewContentPage.razor.css", "Components/Settings/Frame/SettingsPageFrame.razor.css" })
         {
-            Assert.Contains("var(--tl-font-size-title)", File.ReadAllText(Path.Combine(web, file)));
+            Assert.Contains("var(--tl-type-page-title-size)", File.ReadAllText(Path.Combine(web, file)));
         }
     }
 

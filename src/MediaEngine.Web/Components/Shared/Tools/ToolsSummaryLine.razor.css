@@ -11,7 +11,7 @@
     padding: 2px 10px;
     border-radius: 4px;
     background: rgba(127, 127, 127, 0.12);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .tools-summary__part[data-tone="ready"] { color: var(--tl-status-success, #2e9d5b); background: color-mix(in srgb, var(--tl-status-success, #2e9d5b) 14%, transparent); }

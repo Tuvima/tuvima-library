@@ -13,8 +13,8 @@
 .backup-status__facts > div { display: grid; gap: 4px; padding: 8px 14px; }
 .backup-status__facts > div + div { border-left: 1px solid var(--tl-border-subtle); }
 .backup-status__facts small { color: var(--tl-text-muted); }
-.backup-status__facts strong { color: var(--tl-text-primary); font-size: var(--tl-font-size-dialog-title); }
-.backup-status__mobile-note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); line-height: 1.5; }
+.backup-status__facts strong { color: var(--tl-text-primary); font-size: var(--tl-type-heading-size); }
+.backup-status__mobile-note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); line-height: 1.5; }
 .backup-actions-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--tl-space-4); align-items: start; }
 .backup-action-card p { margin: 0; color: var(--tl-text-muted); line-height: 1.5; }
 .backup-action-card ::deep .app-button { align-self: flex-start; }

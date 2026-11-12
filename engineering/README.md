@@ -172,6 +172,8 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Doc | Status |
 |---|---|
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
+| [Look v3.1 font size walk: what moved, by area](reports/look-v3-1-type-walk.md) ([part 2](reports/look-v3-1-type-walk-part-2.md), [part 3](reports/look-v3-1-type-walk-part-3.md), [part 4](reports/look-v3-1-type-walk-part-4.md)) | Current — feeds the Look v3.1 visual review (L7) |
+| [Look v3.1 color sweep: places that may look different](reports/look-v3-1-color-differences.md) | Current — feeds the Look v3.1 visual review (L6, L6b); each part of the sweep appends |
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
 | [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec; follow-ups in the 2026-10-21 read speed handoff |
 | [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built; open remediation: the combined artist view's artist reader (see the report's last section) |

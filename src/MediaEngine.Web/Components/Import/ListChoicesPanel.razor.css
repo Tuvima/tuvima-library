@@ -14,11 +14,11 @@
 
 .list-choices__label {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     letter-spacing: .04em;
 }
 
 .list-choices__help {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }

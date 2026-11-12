@@ -55,16 +55,16 @@ public sealed class NowPlayingMockupStyleTests
         var css = Read(PageCss);
 
         var title = Rule(css, ".np__title");
-        Assert.Contains("font-size:22px;", title);
-        // The mockup draws the title bold (700); the type scale's ceiling on 700 keeps it at 600, which is the one known difference left on this page.
-        Assert.Contains("font-weight:600;", title);
+        Assert.Contains("font-size:var(--tl-type-heading-size);", title);
+        // Sizes and weights come from the Look type jobs; the line height and spacing follow the mockup.
+        Assert.Contains("font-weight:var(--tl-type-heading-weight);", title);
         Assert.Contains("line-height:1.45;", title);
         Assert.Contains("margin:002px;", title);
         var artist = Rule(css, ".np__line");
-        Assert.Contains("font-size:15px;", artist);
+        Assert.Contains("font-size:var(--tl-type-body-size);", artist);
         Assert.Contains("line-height:1.45;", artist);
         var album = Rule(css, ".np__sub");
-        Assert.Contains("font-size:13px;", album);
+        Assert.Contains("font-size:var(--tl-type-secondary-size);", album);
         Assert.Contains("line-height:1.45;", album);
         Assert.Contains("margin:0;", album);
         Assert.Contains("margin-top:14px;", Rule(css, ".np__meta"));

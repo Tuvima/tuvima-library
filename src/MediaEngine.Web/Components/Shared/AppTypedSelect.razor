@@ -10,6 +10,7 @@
                 disabled="@Disabled" role="combobox" aria-haspopup="listbox" aria-expanded="@_open.ToString().ToLowerInvariant()"
                 aria-controls="@_listId" aria-activedescendant="@ActiveId" @onclick="ToggleAsync" @onkeydown="KeyDownAsync" @attributes="AdditionalAttributes">
             @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /> }
+            @if (!string.IsNullOrWhiteSpace(Mark)) { <span class="app-select__mark" aria-hidden="true">@Mark</span> }
             <span class="tl-select-value">@(SelectedText ?? Placeholder)</span>
             @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" /> }
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.KeyboardArrowDown" Size="AppIconSize.Row24" Class="tl-select-arrow" />
@@ -45,6 +46,8 @@
     [Parameter] public Func<TValue?, string?>? ToStringFunc { get; set; }
     [Parameter] public AppAdornment Adornment { get; set; }
     [Parameter] public string? AdornmentIcon { get; set; }
+    /// <summary>A short text drawn in a small rounded badge before the selected value (a provider's letter); null draws nothing.</summary>
+    [Parameter] public string? Mark { get; set; }
     [Parameter] public string? PopoverClass { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter] public string? Class { get; set; }

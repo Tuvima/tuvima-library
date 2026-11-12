@@ -18,13 +18,13 @@
 
 .compact-continue__heading strong {
     color: rgba(248, 250, 252, 0.96);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
     white-space: nowrap;
 }
 
 .compact-continue__heading span {
     color: rgba(203, 213, 225, 0.58);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .compact-continue__heading :deep(.compact-continue__view-all) {
@@ -109,12 +109,12 @@
 
 .compact-continue__copy strong {
     color: rgba(248, 250, 252, 0.96);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .compact-continue__copy span {
     color: rgba(203, 213, 225, 0.58);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .compact-continue__foot {
@@ -129,7 +129,7 @@
 
 .compact-continue__percent {
     color: rgba(203, 213, 225, 0.7);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     font-variant-numeric: tabular-nums;
 }
 

@@ -34,8 +34,8 @@
     position: relative;
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .overview-timeline__heading::before {
@@ -73,7 +73,7 @@
 
 .overview-timeline__time {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     font-variant-numeric: tabular-nums;
 }
 
@@ -150,7 +150,7 @@
 .overview-timeline__detail {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -164,8 +164,8 @@
     align-items: center;
     gap: 6px;
     color: var(--tl-status-success, #22C55E);
-    font-size: var(--tl-font-size-sm);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
 }
 
 .overview-timeline__bar {
@@ -173,7 +173,7 @@
     align-items: center;
     gap: var(--tl-space-2, 8px);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     font-variant-numeric: tabular-nums;
 }
 

@@ -50,8 +50,8 @@
     border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
     background: color-mix(in srgb, var(--tl-bg-surface) 72%, transparent);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1;
     text-decoration: none;
     white-space: nowrap;

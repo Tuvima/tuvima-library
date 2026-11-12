@@ -9,8 +9,8 @@
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-secondary);
     font: inherit;
-    font-size: var(--tl-font-size-sm);
-    font-weight: var(--tl-font-weight-medium);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     cursor: pointer;
 }
 

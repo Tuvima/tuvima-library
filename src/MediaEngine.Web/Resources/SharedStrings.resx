@@ -9203,12 +9203,6 @@
   <data name="EditorVideoSeries_ChooseSeries" xml:space="preserve">
     <value>Which series is this video in?</value>
   </data>
-  <data name="EditorVideoSeries_NotInASeries" xml:space="preserve">
-    <value>Not in a series</value>
-  </data>
-  <data name="EditorVideoSeries_StandsOnItsOwn" xml:space="preserve">
-    <value>Stands on its own</value>
-  </data>
   <data name="EditorVideoSeries_VideoOne" xml:space="preserve">
     <value>1 video</value>
   </data>
@@ -9216,7 +9210,7 @@
     <value>{0} videos</value>
   </data>
   <data name="EditorVideoSeries_StartANewSeries" xml:space="preserve">
-    <value>Start a new series…</value>
+    <value>Start a new series</value>
   </data>
   <data name="EditorVideoSeries_NewSeriesName" xml:space="preserve">
     <value>Name of the new series</value>
@@ -9258,13 +9252,43 @@
     <value>Position {0}</value>
   </data>
   <data name="BulkVideoSeries_Intro" xml:space="preserve">
-    <value>Put the {0} ticked videos in one series. Nothing is moved or renamed on disk, and Review changes lists each video before anything is saved.</value>
+    <value>Put the {0} ticked videos in one series. In a Managed folder each file moves into the series' folder when you save; in a Read-only folder nothing on disk changes. Review changes lists each video and each move before anything is saved.</value>
   </data>
   <data name="BulkVideoSeries_Stage" xml:space="preserve">
     <value>Stage this series</value>
   </data>
   <data name="EditorVideoSeries_NotMatched" xml:space="preserve">
     <value>Not matched</value>
+  </data>
+  <data name="EditorVideoSeries_Heading" xml:space="preserve">
+    <value>Move this video to another series</value>
+  </data>
+  <data name="EditorVideoSeries_Intro" xml:space="preserve">
+    <value>A folder of videos is already a series. Use this only for a video that sits on its own or belongs with a different series.</value>
+  </data>
+  <data name="EditorVideoSeries_OnItsOwn" xml:space="preserve">
+    <value>On its own</value>
+  </data>
+  <data name="EditorVideoSeries_FromFolder" xml:space="preserve">
+    <value>from its folder</value>
+  </data>
+  <data name="EditorVideoSeries_ChosenSeries" xml:space="preserve">
+    <value>the chosen series</value>
+  </data>
+  <data name="EditorVideoSeries_LeavesSentence" xml:space="preserve">
+    <value>"{0}" leaves its series and stands on its own.</value>
+  </data>
+  <data name="EditorVideoSeries_StartsSentence" xml:space="preserve">
+    <value>A new series, {0}, is started and "{1}" is its first video.</value>
+  </data>
+  <data name="EditorVideoSeries_JoinsSentence" xml:space="preserve">
+    <value>"{0}" joins {1}, at the end of the list.</value>
+  </data>
+  <data name="EditorVideoSeries_MovesToLine" xml:space="preserve">
+    <value>The file moves to the folder {0} when you save.</value>
+  </data>
+  <data name="EditorVideoSeries_NewFolderLine" xml:space="preserve">
+    <value>A new folder, {0}, is made for this series.</value>
   </data>
   <data name="EditorRail_ChangesWaiting" xml:space="preserve">
     <value>Changes waiting</value>
@@ -9331,6 +9355,21 @@
   </data>
   <data name="EditorFooter_MoveDetail" xml:space="preserve">
     <value>Managed folder · {0} → {1}</value>
+  </data>
+  <data name="EditorMatchPanel_SeriesFirst" xml:space="preserve">
+    <value>This video's file already moves with a series change you made. Save the series change first, then change the match.</value>
+  </data>
+  <data name="EditorGroupMatch_SeriesFirst" xml:space="preserve">
+    <value>Left out because their files already move with a series change you made: {0}. Save the series change first, then match them.</value>
+  </data>
+  <data name="EditorVideoSeries_MatchFirst" xml:space="preserve">
+    <value>This video has a match waiting to be saved, and its file would move for the match too. Save the match first, then change the series.</value>
+  </data>
+  <data name="EditorVideoSeries_PreviewFailed" xml:space="preserve">
+    <value>Library could not check where the file would go, so nothing was changed.</value>
+  </data>
+  <data name="EditorVideoSeries_TryAgain" xml:space="preserve">
+    <value>Try again</value>
   </data>
   <data name="EditorFooter_MoveDetailGeneric" xml:space="preserve">
     <value>Managed folder · Moved and renamed to match the new details</value>
@@ -11234,9 +11273,6 @@
   <data name="EditorMatchPanel_StateOff" xml:space="preserve">
     <value>Off</value>
   </data>
-  <data name="EditorMatchPanel_StateReady" xml:space="preserve">
-    <value>Ready</value>
-  </data>
   <data name="EditorMatchPanel_Optional" xml:space="preserve">
     <value>optional</value>
   </data>
@@ -11339,9 +11375,6 @@
   <data name="EditorMatchPanel_MatchKind" xml:space="preserve">
     <value>Match {0}</value>
   </data>
-  <data name="EditorMatchPanel_YourFileLine" xml:space="preserve">
-    <value>Your file: {0}</value>
-  </data>
   <data name="EditorMatchPanel_NeedsKeySentence" xml:space="preserve">
     <value>{0} needs a key before it can be searched. Add it in Settings, or choose another provider.</value>
   </data>
@@ -11350,6 +11383,48 @@
   </data>
   <data name="EditorMatchPanel_ChooseProvider" xml:space="preserve">
     <value>Choose a provider to search.</value>
+  </data>
+  <data name="EditorMatchPanel_OptionalLabel" xml:space="preserve">
+    <value>{0} (optional)</value>
+  </data>
+  <data name="EditorMatchPanel_StateUnmatched" xml:space="preserve">
+    <value>Unmatched</value>
+  </data>
+  <data name="EditorMatchPanel_StateMatchedTo" xml:space="preserve">
+    <value>Matched to {0}</value>
+  </data>
+  <data name="EditorMatchPanel_StateMatched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
+  <data name="EditorMatchPanel_NothingFoundWithIsbn" xml:space="preserve">
+    <value>Nothing found for that. Try fewer words or the ISBN.</value>
+  </data>
+  <data name="EditorMatchPanel_NothingFound" xml:space="preserve">
+    <value>Nothing found for that. Try fewer words.</value>
+  </data>
+  <data name="EditorMatchPanel_ProviderDidNotAnswer" xml:space="preserve">
+    <value>{0} did not answer.</value>
+  </data>
+  <data name="EditorMatchPanel_ResultsFrom" xml:space="preserve">
+    <value>{0} results from {1}.</value>
+  </data>
+  <data name="EditorMatchPanel_ResultOneFrom" xml:space="preserve">
+    <value>1 result from {0}.</value>
+  </data>
+  <data name="EditorMatchPanel_NothingToSearchWith" xml:space="preserve">
+    <value>There is nothing to search with for this item.</value>
+  </data>
+  <data name="EditorMatchPanel_FileEmbeddedTitle" xml:space="preserve">
+    <value>Embedded title: {0}</value>
+  </data>
+  <data name="EditorMatchPanel_FileFromName" xml:space="preserve">
+    <value>Read from the file name: {0}</value>
+  </data>
+  <data name="EditorMatchPanel_FileSeasonEpisode" xml:space="preserve">
+    <value>Season {0}, Episode {1}</value>
+  </data>
+  <data name="EditorMatchPanel_FileNothingRead" xml:space="preserve">
+    <value>Nothing read from the file yet</value>
   </data>
   <data name="EditorMatchPanel_KindMovie" xml:space="preserve">
     <value>movie</value>

@@ -4,7 +4,7 @@
 .song-table {
     width: 100%;
     overflow-x: auto;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .song-table__head,
@@ -22,8 +22,8 @@
     min-height: 44px;
     border-bottom: 1px solid var(--tl-divider);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 /* ---- Header ---- */
@@ -235,7 +235,7 @@
     border-radius: var(--tl-radius-pill);
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .song-table__chip--missing {
@@ -376,8 +376,8 @@
     min-width: var(--song-table-min-width, 760px);
     padding: 16px 8px 6px;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 /* ---- Phone: a plain, flat list (no card boxes), 64 px rows ---- */
@@ -450,7 +450,7 @@
     min-width: 0;
     overflow: hidden;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -485,8 +485,8 @@
 .song-table__letter {
     padding: 14px 4px 4px;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
 }
 
 .song-table__strip {

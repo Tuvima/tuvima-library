@@ -18,7 +18,7 @@
 .continue-tile__play .tl-icon-root { font-size: var(--tl-icon-size-lg); }
 .continue-tile__progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none; }
 .continue-tile__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.continue-tile__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-md)); font-weight: 600; line-height: 1.25; color: var(--tl-text-primary); }
-.continue-tile__line { overflow: hidden; color: rgba(226, 232, 240, .72); font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-xs)); text-overflow: ellipsis; white-space: nowrap; }
+.continue-tile__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: var(--tl-type-subheading-size); font-weight: var(--tl-type-subheading-weight); line-height: 1.25; color: var(--tl-text-primary); }
+.continue-tile__line { overflow: hidden; color: rgba(226, 232, 240, .72); font-size: var(--tl-type-secondary-size); text-overflow: ellipsis; white-space: nowrap; }
 .continue-tile__frame-at-position { position: absolute; inset: 0; opacity: 0; background-repeat: no-repeat; transition: opacity .2s ease; }
 .continue-tile__frame-at-position.is-ready { opacity: 1; }

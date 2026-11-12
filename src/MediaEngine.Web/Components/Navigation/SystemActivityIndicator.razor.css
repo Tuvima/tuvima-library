@@ -108,8 +108,8 @@
     border-radius: var(--tl-radius-pill);
     color: var(--tl-bg-surface, #1e1f27);
     background: var(--tl-accent-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     line-height: 1;
 }
 
