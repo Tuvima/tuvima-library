@@ -347,6 +347,9 @@ public static class ReviewEndpoints
             Guid id,
             IReviewQueueRepository reviewRepo,
             [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
+            ICanonicalValueRepository canonicalRepo,
+            IEventPublisher publisher,
+            ISystemActivityRepository activityRepo,
             CancellationToken ct) =>
         {
             var item = await reviewRepo.GetByIdAsync(id, ct);
@@ -368,9 +371,32 @@ public static class ReviewEndpoints
                 return ApiErrors.Conflict("The same question is already waiting in Needs Review.");
             }
 
-            return await reviewRepo.ReopenKeptAsync(id, ct)
-                ? Results.Ok(new ReviewReopenResponse(reopened: true, review_item_id: id))
-                : ApiErrors.Conflict("Review item could not be put back.");
+            // False also covers the Engine raising the same question between the check above and this write (the repository
+            // answers the pending-question unique index with false), so a race is a 409 as well.
+            if (!await reviewRepo.ReopenKeptAsync(id, ct))
+            {
+                return ApiErrors.Conflict("Review item could not be put back.");
+            }
+
+            // The item waits in Needs Review again: tell open Dashboards (their count refreshes on this event) and the Activity log.
+            var reopenCanonicals = await canonicalRepo.GetByEntityAsync(item.EntityId, ct);
+            var reopenTitle = reopenCanonicals
+                .FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))?.Value;
+
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                ActionType = SystemActionType.ReviewItemCreated,
+                CollectionName = reopenTitle,
+                EntityId = item.EntityId,
+                Detail = "Review item put back by user.",
+            }, ct);
+
+            await publisher.PublishAsync(
+                SignalREvents.ReviewItemCreated,
+                new ReviewItemCreatedEvent(id, item.EntityId, item.Trigger, reopenTitle),
+                ct);
+
+            return Results.Ok(new ReviewReopenResponse(reopened: true, review_item_id: id));
         })
         .WithName("ReopenReviewItem")
         .WithSummary("Put back an item a person kept with Keep as it is: it becomes pending again and shows in Needs Review.")

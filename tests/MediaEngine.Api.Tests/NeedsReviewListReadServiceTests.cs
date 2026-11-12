@@ -315,6 +315,38 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AnEpisodeWhoseTopParentHasNoTitle_ShowsAsASingleRow_NotUnderTheParentKey()
+    {
+        var (show, season) = SeedShow(title: null, parentKey: "show-key-1234");
+        var episode = SeedEpisodeFile("tv", "s01e01.mkv", season, At(1));
+
+        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+
+        var row = Row(list, episode);
+        Assert.Null(row.FamilyKey);
+        Assert.Null(row.FamilyTitle);
+        Assert.Null(row.FamilyWorkId);
+        Assert.Null(row.FamilyCoverUrl);
+        Assert.NotEqual(Guid.Empty, show);
+    }
+
+    [Fact]
+    public async Task AKeptFilesLibraryId_IsComparedExactly_SoTheKeptTotalMatchesWhatTheKeptViewLists()
+    {
+        // Config knows the library as "movies"; a file stored under "Movies" is not in that library's list, so it is not in its total either.
+        var exact = SeedFile("movies", "exact.mkv", tried: At(1));
+        var otherCase = SeedFile("Movies", "other-case.mkv", tried: At(2));
+        await _unmatched.KeepAsIsAsync(exact, DateTimeOffset.UtcNow);
+        await _unmatched.KeepAsIsAsync(otherCase, DateTimeOffset.UtcNow);
+
+        var kept = await _service.ListAsync(null, "movies", includeFiles: true, 0, 100, keptOnly: true);
+        var normal = await _service.ListAsync(null, "movies", includeFiles: true, 0, 100);
+
+        Assert.Equal([$"file:{exact:D}"], kept.Items.Select(row => row.Key));
+        Assert.Equal(kept.Items.Count, normal.KeptTotal);
+    }
+
+    [Fact]
     public async Task AFamilysRowsStayTogether_EvenWhenAnotherItemWasTriedBetweenThem()
     {
         var (_, season) = SeedShow("Dark");
@@ -575,12 +607,26 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     }
 
     // A show and one of its seasons, as the hierarchy resolver builds them.
-    private (Guid Show, Guid Season) SeedShow(string title)
+    private (Guid Show, Guid Season) SeedShow(string? title, string? parentKey = null)
     {
         var (show, season) = (Guid.NewGuid(), Guid.NewGuid());
         SeedWork(show, "TV", "parent", null);
         SeedWork(season, "TV", "parent", show);
-        SeedCanonical(show, "title", title);
+        if (title is not null)
+        {
+            SeedCanonical(show, "title", title);
+        }
+
+        if (parentKey is not null)
+        {
+            using var conn = _db.CreateConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE works SET parent_key = $key WHERE id = $id;";
+            cmd.Parameters.Add("$id", SqliteType.Blob).Value = GuidSql.ToBlob(show);
+            cmd.Parameters.AddWithValue("$key", parentKey);
+            cmd.ExecuteNonQuery();
+        }
+
         return (show, season);
     }
 

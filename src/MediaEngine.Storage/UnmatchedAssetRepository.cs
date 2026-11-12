@@ -200,10 +200,17 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
     {
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
-        var counts = connection.Query<CountRow>(
-            $"SELECT {CurrentLibrary} AS LibraryId, COUNT(*) AS Total FROM unmatched_assets WHERE kept_as_is = 1 GROUP BY {CurrentLibrary};");
+        // Counted the way ListByLibraryAsync lists: a file whose media asset still exists, under the library id compared exactly (not ignoring
+        // case), so the number beside "Kept" is the number of kept files the library's list returns.
+        var counts = connection.Query<CountRow>("""
+            SELECT COALESCE(NULLIF(a.library_id, ''), u.library_id) AS LibraryId, COUNT(*) AS Total
+            FROM unmatched_assets u
+            JOIN media_assets a ON a.id = u.asset_id
+            WHERE u.kept_as_is = 1
+            GROUP BY COALESCE(NULLIF(a.library_id, ''), u.library_id);
+            """);
         return Task.FromResult<IReadOnlyDictionary<string, int>>(
-            counts.ToDictionary(count => count.LibraryId, count => count.Total, StringComparer.OrdinalIgnoreCase));
+            counts.ToDictionary(count => count.LibraryId, count => count.Total, StringComparer.Ordinal));
     }
 
     public Task<int> KeepAllAsIsAsync(string libraryId, DateTimeOffset now, CancellationToken ct = default)

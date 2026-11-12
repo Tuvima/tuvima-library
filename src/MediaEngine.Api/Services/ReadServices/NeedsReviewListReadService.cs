@@ -159,9 +159,10 @@ public sealed class NeedsReviewListReadService(
         if (includeFiles)
         {
             var counts = await unmatched.CountKeptByLibraryAsync(ct).ConfigureAwait(false);
-            total += counts
-                .Where(count => listed.ContainsKey(count.Key) && (library is null || string.Equals(count.Key, library, StringComparison.OrdinalIgnoreCase)))
-                .Sum(count => count.Value);
+            // The library ids are compared exactly, as ListByLibraryAsync does when it lists the kept files.
+            total += listed.Keys
+                .Where(id => library is null || string.Equals(id, library, StringComparison.Ordinal))
+                .Sum(id => counts.GetValueOrDefault(id));
         }
 
         return total;

@@ -14,6 +14,8 @@ namespace MediaEngine.Storage;
 /// </summary>
 public sealed class ReviewQueueRepository : IReviewQueueRepository
 {
+    private const int SqliteConstraintErrorCode = 19; // SQLITE_CONSTRAINT
+
     private readonly IDatabaseConnection _db;
 
     public ReviewQueueRepository(IDatabaseConnection db)
@@ -416,23 +418,32 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        var rows = conn.Execute("""
-            UPDATE review_queue
-            SET    status      = @pending,
-                   resolved_at = NULL,
-                   resolved_by = NULL
-            WHERE  id          = @id
-              AND  status      = @dismissed
-              AND  resolved_by = @kept
-            """, new
+        try
         {
-            id,
-            pending = ReviewStatus.Pending,
-            dismissed = ReviewStatus.Dismissed,
-            kept = ReviewStatus.KeptByUser,
-        });
+            var rows = conn.Execute("""
+                UPDATE review_queue
+                SET    status      = @pending,
+                       resolved_at = NULL,
+                       resolved_by = NULL
+                WHERE  id          = @id
+                  AND  status      = @dismissed
+                  AND  resolved_by = @kept
+                """, new
+            {
+                id,
+                pending = ReviewStatus.Pending,
+                dismissed = ReviewStatus.Dismissed,
+                kept = ReviewStatus.KeptByUser,
+            });
 
-        return Task.FromResult(rows > 0);
+            return Task.FromResult(rows > 0);
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == SqliteConstraintErrorCode)
+        {
+            // The Engine raised the same question (same entity and reason) while the person was putting this one back:
+            // ux_review_queue_pending_entity_trigger allows one open copy. The kept row stays kept and the caller answers 409.
+            return Task.FromResult(false);
+        }
     }
 
     /// <inheritdoc/>
@@ -445,7 +456,7 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
                    resolved_at = @now,
                    resolved_by = @resolvedBy
             WHERE  entity_id = @entityId
-              AND  status     = @pending
+              AND  (status = @pending OR (status = @dismissed AND resolved_by = @kept))
             """, new
         {
             resolved = ReviewStatus.Resolved,
@@ -453,6 +464,8 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
             resolvedBy,
             entityId,
             pending = ReviewStatus.Pending,
+            dismissed = ReviewStatus.Dismissed,
+            kept = ReviewStatus.KeptByUser,
         });
 
         return Task.FromResult(rows);
@@ -481,7 +494,7 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
                        resolved_at = @now,
                        resolved_by = @resolvedBy
                 WHERE  entity_id IN @entityIds
-                  AND  status = @pending
+                  AND  (status = @pending OR (status = @dismissed AND resolved_by = @kept))
                   AND  trigger IN @triggers
                 """, new
             {
@@ -490,6 +503,8 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
                 resolvedBy,
                 entityIds = chunk.Select(GuidSql.ToBlob).ToArray(),
                 pending = ReviewStatus.Pending,
+                dismissed = ReviewStatus.Dismissed,
+                kept = ReviewStatus.KeptByUser,
                 triggers = triggers.ToArray(),
             });
         }
@@ -515,7 +530,7 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
                    resolved_at = @now,
                    resolved_by = @resolvedBy
             WHERE  entity_id = @entityId
-              AND  status = @pending
+              AND  (status = @pending OR (status = @dismissed AND resolved_by = @kept))
               AND  trigger IN @triggers
             """, new
         {
@@ -524,6 +539,8 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
             resolvedBy,
             entityId,
             pending = ReviewStatus.Pending,
+            dismissed = ReviewStatus.Dismissed,
+            kept = ReviewStatus.KeptByUser,
             triggers = triggers.ToArray(),
         });
 

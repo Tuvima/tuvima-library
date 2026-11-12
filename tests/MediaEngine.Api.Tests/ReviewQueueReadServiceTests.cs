@@ -147,6 +147,64 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         Assert.Equal((await service.GetPendingForLibraryAsync(10, "library-a", CancellationToken.None)).Count, counts["Library-A"]);
     }
 
+    // The number beside a library is the number its list shows: a Wikidata-only item (matched, only its Wikidata link missing) is in neither.
+    [Fact]
+    public async Task PendingCountsByLibrary_LeaveOutWikidataOnlyItems_SoTheyEqualWhatTheListShows()
+    {
+        var (workA, editionA, assetA) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (workB, editionB, assetB) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (workC, editionC, assetC) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        SeedMediaAsset(workA, editionA, assetA);
+        SeedMediaAsset(workB, editionB, assetB);
+        SeedMediaAsset(workC, editionC, assetC);
+        SetLibrary(assetA, "library-a");
+        SetLibrary(assetB, "library-a");
+        SetLibrary(assetC, "library-c");
+
+        var repository = new ReviewQueueRepository(_db);
+        await repository.InsertAsync(Review(Guid.NewGuid(), assetA, "MediaAsset", "Shown"));
+        await repository.InsertAsync(Review(Guid.NewGuid(), assetB, "MediaAsset", "Missing link", ReviewTrigger.MissingQid));
+        await repository.InsertAsync(Review(Guid.NewGuid(), assetC, "MediaAsset", "Bridge failed", ReviewTrigger.WikidataBridgeFailed));
+
+        var service = new ReviewQueueReadService(_db);
+        var counts = await service.GetPendingCountsByLibraryAsync(CancellationToken.None);
+
+        Assert.Equal(1, counts["library-a"]);
+        Assert.False(counts.ContainsKey("library-c"));
+        Assert.Equal(1, await service.GetPendingCountAsync(CancellationToken.None));
+        Assert.Equal(1, Assert.Single(await service.GetPendingReasonCountsAsync(CancellationToken.None)).Count);
+    }
+
+    // A kept row stops being kept once the item has been fixed: the kept view and its total never list an item that is no longer a problem.
+    [Fact]
+    public async Task AKeptItem_WhoseEntityIsThenResolved_IsNoLongerInTheKeptViewOrItsTotal()
+    {
+        var (workId, editionId, assetId) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (otherWork, otherEdition, otherAsset) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        SeedMediaAsset(workId, editionId, assetId);
+        SeedMediaAsset(otherWork, otherEdition, otherAsset);
+
+        var repository = new ReviewQueueRepository(_db);
+        var fixedId = Guid.NewGuid();
+        var stillKeptId = Guid.NewGuid();
+        await repository.InsertAsync(Review(fixedId, assetId, "MediaAsset", "Will be fixed"));
+        await repository.InsertAsync(Review(stillKeptId, otherAsset, "MediaAsset", "Stays kept"));
+        await repository.UpdateStatusAsync(fixedId, ReviewStatus.Dismissed, ReviewStatus.KeptByUser);
+        await repository.UpdateStatusAsync(stillKeptId, ReviewStatus.Dismissed, ReviewStatus.KeptByUser);
+
+        var service = new ReviewQueueReadService(_db);
+        Assert.Equal(2, (await service.GetKeptAsync(10, null, CancellationToken.None)).Count);
+        Assert.Equal(2, await service.GetKeptCountAsync(null, CancellationToken.None));
+
+        // The person fixes the first item in the editor (a saved match closes the item's review rows).
+        await repository.ResolveAllByEntityAsync(assetId, "user:editor");
+
+        var kept = await service.GetKeptAsync(10, null, CancellationToken.None);
+        Assert.Equal(stillKeptId, Assert.Single(kept).Id);
+        Assert.Equal(1, await service.GetKeptCountAsync(null, CancellationToken.None));
+        Assert.False(await repository.ReopenKeptAsync(fixedId));
+    }
+
     private void SetLibrary(Guid assetId, string libraryId)
     {
         using var conn = _db.CreateConnection();
@@ -408,12 +466,12 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         public void RemoveEmptyFolders(string startFolder) => throw new NotSupportedException();
     }
 
-    private static ReviewQueueEntry Review(Guid id, Guid entityId, string entityType, string detail) => new()
+    private static ReviewQueueEntry Review(Guid id, Guid entityId, string entityType, string detail, string trigger = ReviewTrigger.MetadataConflict) => new()
     {
         Id = id,
         EntityId = entityId,
         EntityType = entityType,
-        Trigger = ReviewTrigger.MetadataConflict,
+        Trigger = trigger,
         Status = ReviewStatus.Pending,
         Detail = detail,
         CreatedAt = DateTimeOffset.UtcNow,

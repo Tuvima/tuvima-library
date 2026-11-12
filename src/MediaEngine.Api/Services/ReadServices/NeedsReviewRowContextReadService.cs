@@ -74,11 +74,9 @@ public sealed class NeedsReviewRowContextReadService(IDatabaseConnection db) : I
             : conn.Query<TitleRow>("""
                 -- readiness: lookup of the titles of the given parent Works by id
                 SELECT w.id AS Id,
-                       COALESCE(
-                           (SELECT cv.value FROM canonical_values cv
-                            WHERE cv.entity_id = w.id AND cv.key IN ('title', 'album', 'show_name', 'series') AND cv.value <> ''
-                            ORDER BY CASE cv.key WHEN 'title' THEN 0 WHEN 'album' THEN 1 WHEN 'show_name' THEN 2 ELSE 3 END LIMIT 1),
-                           NULLIF(w.parent_key, '')) AS Title
+                       (SELECT cv.value FROM canonical_values cv
+                        WHERE cv.entity_id = w.id AND cv.key IN ('title', 'album', 'show_name', 'series') AND cv.value <> ''
+                        ORDER BY CASE cv.key WHEN 'title' THEN 0 WHEN 'album' THEN 1 WHEN 'show_name' THEN 2 ELSE 3 END LIMIT 1) AS Title
                 FROM works w
                 WHERE w.id IN (SELECT unhex(value) FROM json_each(@ids));
                 """, new { ids = GuidSql.ToJsonHexArray(topIds) })
@@ -106,7 +104,12 @@ public sealed class NeedsReviewRowContextReadService(IDatabaseConnection db) : I
                 return new NeedsReviewRowContext(workId, null, null, null, coverUrl);
             }
 
-            titles.TryGetValue(top, out var title);
+            // A top parent with no title is no family a person could name: the row shows on its own, like one with no parent.
+            if (!titles.TryGetValue(top, out var title) || string.IsNullOrWhiteSpace(title))
+            {
+                return new NeedsReviewRowContext(workId, null, null, null, coverUrl);
+            }
+
             var familyCover = covers.TryGetValue(top, out var cover) && cover.HasAny != 0 ? $"/stream/entity/work/{top:D}/cover" : null;
             return new NeedsReviewRowContext(workId, top, title, familyCover, coverUrl);
         }

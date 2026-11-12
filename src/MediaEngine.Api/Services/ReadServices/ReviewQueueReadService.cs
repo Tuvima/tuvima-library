@@ -101,7 +101,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         {
             status = ReviewStatus.Dismissed,
             resolvedBy = ReviewStatus.KeptByUser,
-            hidden = new[] { ReviewTrigger.MissingQid, ReviewTrigger.WikidataBridgeFailed },
+            hidden = NeedsReviewGrouping.HiddenTriggers.ToArray(),
             libraryId = string.IsNullOrWhiteSpace(libraryId) ? null : libraryId.Trim(),
         }).ConfigureAwait(false);
     }
@@ -111,7 +111,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        // The same items GetPendingForLibraryAsync lists: pending and review-ready, a Work through its first asset, never a Vault entity.
+        // The same items the Needs Review list shows: pending and review-ready, a Work through its first asset, never a Vault entity,
+        // and never a Wikidata-only item (the list hides those).
         var rows = await conn.QueryAsync<(string LibraryId, int Count)>($$"""
             SELECT lower(ma.library_id) AS LibraryId, COUNT(*) AS Count
             FROM review_queue rq
@@ -123,10 +124,11 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                 END
             WHERE rq.status = @status
               AND rq.review_ready_at IS NOT NULL
+              AND rq.trigger NOT IN @hidden
               AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
               AND ma.library_id IS NOT NULL AND ma.library_id <> ''
             GROUP BY lower(ma.library_id)
-            """, new { status = ReviewStatus.Pending }).ConfigureAwait(false);
+            """, new { status = ReviewStatus.Pending, hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() }).ConfigureAwait(false);
         return rows.ToDictionary(row => row.LibraryId, row => row.Count, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -381,8 +383,9 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     ))
                  OR (rq.entity_type NOT IN ('MediaAsset', 'Work'))
               )
+              AND rq.trigger NOT IN @hidden
               AND {{VaultSql.NotVaultEntity("rq.entity_id")}};
-            """, new { status = ReviewStatus.Pending });
+            """, new { status = ReviewStatus.Pending, hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() });
     }
 
     public async Task<IReadOnlyList<ReviewReasonCount>> GetPendingReasonCountsAsync(CancellationToken ct = default)
@@ -404,9 +407,10 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     ))
                  OR (rq.entity_type NOT IN ('MediaAsset', 'Work'))
               )
+              AND rq.trigger NOT IN @hidden
               AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
             GROUP BY rq.trigger, rq.detail;
-            """, new { status = ReviewStatus.Pending });
+            """, new { status = ReviewStatus.Pending, hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() });
 
         return rows
             .Select(row => new ReviewReasonCount(row.Trigger, row.Detail, ToInt(row.Count)))
