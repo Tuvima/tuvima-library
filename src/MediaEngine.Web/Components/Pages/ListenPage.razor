@@ -484,6 +484,10 @@ else
                         <div class="listen-actions">
                             <AppButton ButtonStyle="AppButtonStyle.Filled" StartIcon="@AppMaterialIcons.Filled.PlayArrow" Label="@L["Common_Play"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
                             <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Filled.Shuffle" Label="@L["Common_Shuffle"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle, true))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
+                            @if (CanReorderActivePlaylist && !TrackReorderActive && ActivePlaylistTracks.Count > 1)
+                            {
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.SwapVert" Label="@L["AppReorderBar_MenuReorder"].Value" OnClick="BeginTrackReorder" />
+                            }
                             @if (CanSaveActivePlaylist)
                             {
                                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
@@ -519,7 +523,7 @@ else
                                    IsPlaying="@Playback.IsPlaying"
                                    FavoriteIds="@PlaylistFavoriteIds"
                                    CanEdit="true"
-                                   CanReorder="@CanReorderActivePlaylist"
+                                   CanReorder="@(CanReorderActivePlaylist && TrackReorderActive)"
                                    OnPlay="@PlayPlaylistRowAsync"
                                    OnPlayNext="@PlayNextPlaylistRowAsync"
                                    OnQueue="@QueuePlaylistRowAsync"
@@ -528,6 +532,7 @@ else
                                    OnEdit="@EditPlaylistRowAsync"
                                    OnRemoveFromPlaylist="@RemovePlaylistRowAsync"
                                    OnReorder="@ReorderPlaylistRowAsync" />
+                        <AppReorderBar Active="@TrackReorderActive" Dirty="@TrackReorderDirty" Busy="@_trackOrderSaving" OnSave="SaveTrackReorderAsync" OnCancel="CancelTrackReorder" />
                     }
                 </section>
             }

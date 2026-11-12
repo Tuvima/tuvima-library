@@ -90,6 +90,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Theory]
     [InlineData("ResolveReviewItem", true)]
     [InlineData("DismissReviewItem", false)]
+    [InlineData("ReopenReviewItem", false)]
     [InlineData("SkipUniverseMatch", false)]
     [InlineData("MoveReviewItemToTv", false)]
     public async Task Vault_AReviewItemOnAVaultFile_AnswersExactlyLikeAMissingOne_ForEveryReviewAction(string routeName, bool hasBody)

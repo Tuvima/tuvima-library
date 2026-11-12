@@ -192,15 +192,18 @@
                 continue;
             }
 
-            if (field.ValueProvider.Kind != RuleValueProviderKind.CollectionLibrary || field.ValueProvider.ResolvesEntities) continue;
+            if (field.ValueProvider.Kind != RuleValueProviderKind.CollectionLibrary) continue;
             var chosen = condition.Values is { Length: > 0 } ? condition.Values : string.IsNullOrWhiteSpace(condition.Value) ? [] : [condition.Value];
             if (chosen.Length == 0) continue;
             // Ask about each chosen value on its own: a long list cannot push a valid choice out of view.
             var keptValues = new List<string>();
             foreach (var value in chosen)
             {
-                var offered = await ApiClient.GetCollectionFieldValuesAsync(condition.Field, value, 50, default, scope);
-                if (offered.Contains(value, StringComparer.OrdinalIgnoreCase))
+                // People, places and other entity values are found by their id; plain values by their text.
+                var stillOffered = field.ValueProvider.ResolvesEntities
+                    ? (await ApiClient.GetCollectionEntityFieldValuesAsync(condition.Field, value, 20, default, scope)).Any(option => string.Equals(option.Value, value, StringComparison.OrdinalIgnoreCase))
+                    : (await ApiClient.GetCollectionFieldValuesAsync(condition.Field, value, 50, default, scope)).Contains(value, StringComparer.OrdinalIgnoreCase);
+                if (stillOffered)
                     keptValues.Add(value);
             }
 

@@ -101,6 +101,12 @@
     --tl-icon-size-lg: 32px;
     --tl-icon-size-xl: 48px;
     --tl-icon-size-2xl: 64px;
+    /* The one tab row (Look v3.1 D1): 48 px tall, 28 px between tabs, a 20 px icon, a 3 px underline, a soft fade at the cut edge on a phone. */
+    --tl-tab-min-height: 48px;
+    --tl-tab-gap: 28px;
+    --tl-tab-underline: 3px;
+    --tl-tab-icon-size: var(--tl-icon-size-sm);
+    --tl-tab-edge-fade: 32px;
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
     --tl-touch-min: 44px;
@@ -138,6 +144,8 @@
     --tl-type-caption-weight: 400;
     --tl-type-overline-size: 12px;
     --tl-type-overline-weight: 600;
+    /* The content rating shown over a paused video, read from across the room (video player follow-ups D3). */
+    --tl-type-player-rating-size: 28px;
     --tl-line-height-tight: 1.25;
     --tl-line-height-body: 1.5;
     --tl-line-height-relaxed: 1.625;
@@ -165,9 +173,14 @@
     --tl-menu-item-hover: rgba(255, 255, 255, 0.06);
     --tl-menu-item-selected: var(--tl-accent-primary-soft);
     --tl-menu-icon: var(--tl-text-secondary);
-    --tl-menu-min-width: 10.75rem;
+    /* Pop-up menus (Look v3.1 D2): 48 px rows, a 24 px icon then the label 12 px on, 8 px around the list and between groups; at least
+       240 px wide, growing with the longest label up to 360 px, where the label shortens and shows its full text on hover. */
+    --tl-menu-min-width: 240px;
+    --tl-menu-max-width: 360px;
+    --tl-menu-padding: 8px;
+    --tl-menu-icon-gap: 12px;
     --tl-menu-width: 272px;
-    --tl-menu-row-height: 44px;
+    --tl-menu-row-height: 48px;
     /* The page root is 14px, so menu type is in px: rem would resolve to 14px here (issue 702). */
     --tl-menu-row-font-size: 16px;
     --tl-menu-row-font-weight: 500;
@@ -192,6 +205,8 @@
     --tl-status-warning-soft: rgba(245, 158, 11, 0.14);
     --tl-status-warning-border: rgba(245, 158, 11, 0.38);
     --tl-status-danger: #EF4444;
+    /* Fill of a solid red button (Look v3.1 D4): a shade darker than the danger text color so white text on it reads at 4.8:1. */
+    --tl-status-danger-solid: #DC2626;
     --tl-text-danger: #FF8A8A;
     --tl-tooltip-surface: var(--tl-bg-surface-elevated);
     --tl-tooltip-border: var(--tl-border-default);
@@ -215,12 +230,13 @@
     --player-track: var(--tl-bg-surface-hover);
     --player-text: #F7F7FA;
     --player-text-secondary: var(--tl-text-secondary);
-    /* One size and state set for every playback button (unified player v2 D6): 24 px glyph in a 44 px target, Play 32 px in a 48 px target,
-       bar title 16 px. Hover is a translucent white (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
-    --playback-control-target: 44px;
-    --playback-control-glyph: 24px;
-    --playback-play-target: 48px;
-    --playback-play-glyph: 32px;
+    /* One size and state set for every playback button (unified player v2 D6, sizes raised by video player follow-ups D1): 28 px glyph in a 48 px target,
+       Play 40 px in a 56 px target, bar title 16 px. The phone's collapsed bar pins its own 44 / 24 (PlaybackShell). Hover is a translucent white
+       (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
+    --playback-control-target: 48px;
+    --playback-control-glyph: 28px;
+    --playback-play-target: 56px;
+    --playback-play-glyph: 40px;
     --playback-title-size: 16px;
     --playback-badge-size: 9px;
     --playback-state-hover: rgba(255, 255, 255, 0.08);
@@ -235,9 +251,10 @@
     --playback-slider-rail-height: 4px;
     --playback-slider-handle: 12px;
     --playback-slider-hit: 24px;
-    --playback-volume-slider-width: 96px;
+    --playback-volume-slider-height: 96px;
     --playback-marker: var(--tl-accent-primary-hover);
     --playback-marker-shared: #FFFFFF;
+    --playback-marker-ring: #0C0B10;
     --playback-focus-ring-width: 2px;
     --playback-focus-ring-offset: 2px;
     --playback-bg: var(--player-bg);
@@ -315,6 +332,13 @@
 
     /* Layers (Look pass 4.8): menu, popover, dialog, toast, player. */
     --tl-dialog-title-size: var(--tl-font-size-dialog-title);
+    /* The short dialog (Look v3.1 D4): one roomy box with no lines inside. 28 px all round (20 px as a phone sheet), the message 8 px under
+       the title, 28 px before the buttons, 12 px between the buttons. */
+    --tl-dialog-padding: 28px;
+    --tl-dialog-padding-phone: 20px;
+    --tl-dialog-title-gap: 8px;
+    --tl-dialog-footer-gap: 28px;
+    --tl-dialog-button-gap: 12px;
     /* Hero height on desktop (Look pass 4.5): one token; confirm the value on the real app. */
     --tl-hero-height: 70svh;
     /* One tile size everywhere (One tile design D1, D2): posters 214 x 321, squares the same height as posters in mixed rows (321 x 321)

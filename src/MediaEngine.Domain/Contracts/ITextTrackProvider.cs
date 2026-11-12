@@ -30,6 +30,16 @@ public interface ITextTrackProvider
                 ? new("Available", null)
                 : new("Disabled", $"{Name} is disabled in provider settings.");
 
+    /// <summary>
+    /// The language code this source would be asked for when given a language name or code (<c>English</c>, <c>en-US</c>, <c>pt</c>), or
+    /// <c>null</c> when the source cannot be asked for that language, so a search never goes out as "unknown".
+    /// </summary>
+    string? NormalizeSearchLanguage(string? value)
+    {
+        var code = value?.Trim().Split('-', '_')[0].ToLowerInvariant();
+        return code is { Length: 2 or 3 } && code.All(char.IsAsciiLetter) ? code : null;
+    }
+
     Task<IReadOnlyList<TextTrackCandidate>> SearchAsync(TextTrackLookup lookup, CancellationToken ct = default);
 
     Task<TextTrackDownload?> DownloadAsync(TextTrackCandidate candidate, CancellationToken ct = default);

@@ -182,6 +182,37 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
             new { assetId, now = Format(now) }) > 0);
     }
 
+    public Task<bool> UnkeepAsync(Guid assetId, DateTimeOffset nextRetryAt, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        return Task.FromResult(connection.Execute("""
+            UPDATE unmatched_assets
+            SET kept_as_is = 0,
+                kept_at = NULL,
+                next_retry_at = @nextRetryAt
+            WHERE asset_id = @assetId AND kept_as_is = 1;
+            """,
+            new { assetId, nextRetryAt = Format(nextRetryAt) }) > 0);
+    }
+
+    public Task<IReadOnlyDictionary<string, int>> CountKeptByLibraryAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        // Counted the way ListByLibraryAsync lists: a file whose media asset still exists, under the library id compared exactly (not ignoring
+        // case), so the number beside "Kept" is the number of kept files the library's list returns.
+        var counts = connection.Query<CountRow>("""
+            SELECT COALESCE(NULLIF(a.library_id, ''), u.library_id) AS LibraryId, COUNT(*) AS Total
+            FROM unmatched_assets u
+            JOIN media_assets a ON a.id = u.asset_id
+            WHERE u.kept_as_is = 1
+            GROUP BY COALESCE(NULLIF(a.library_id, ''), u.library_id);
+            """);
+        return Task.FromResult<IReadOnlyDictionary<string, int>>(
+            counts.ToDictionary(count => count.LibraryId, count => count.Total, StringComparer.Ordinal));
+    }
+
     public Task<int> KeepAllAsIsAsync(string libraryId, DateTimeOffset now, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryId);

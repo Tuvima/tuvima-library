@@ -29,7 +29,7 @@
         <VaultSearchGroup Query="@_query" />
 
         <nav class="vault-area__views" aria-label="@L["VaultArea_VaultViews"].Value">
-            <AppSegmentedControl Options="@ViewOptions" Value="@_view.Key" ValueChanged="OpenViewAsync" AriaLabel="@L["VaultArea_VaultViews"].Value" />
+            <AppCountTabs Tabs="@ViewTabs" Selected="@_view.Key" SelectedChanged="OpenViewAsync" AriaLabel="@L["VaultArea_VaultViews"].Value" />
         </nav>
 
         @if (_view.Key == VaultViews.LibrarySettings)
@@ -134,8 +134,22 @@
     // A gallery's page is headed by "All images" or its own name (the gallery tile that opened it carries the name in the list before).
     private string? ImagesHeading => Id == VaultViews.AllImages ? "All images" : null;
 
-    private IReadOnlyList<AppSelectOption> ViewOptions =>
-        [.. VaultViews.For(IsAdministrator).Select(view => new AppSelectOption(view.Key, view.Label))];
+    // The Vault's views are a tab row like every other (Look v3.1 D1): an outline icon and a label each.
+    private IReadOnlyList<AppCountTab> ViewTabs =>
+        [.. VaultViews.For(IsAdministrator).Select(view => new AppCountTab(view.Key, view.Label, null, ViewIcon(view.Key)))];
+
+    private static string ViewIcon(string key) => key switch
+    {
+        VaultViews.RecentlyAdded => AppMaterialIcons.Outlined.Schedule,
+        "scenes" => AppMaterialIcons.Outlined.Movie,
+        "folders" => AppMaterialIcons.Outlined.Folder,
+        "unmatched" => AppMaterialIcons.Outlined.HelpOutline,
+        "images" => AppMaterialIcons.Outlined.Image,
+        "performers" => AppMaterialIcons.Outlined.People,
+        "studios" => AppMaterialIcons.Outlined.Business,
+        "tags" => AppMaterialIcons.Outlined.LocalOffer,
+        _ => AppMaterialIcons.Outlined.Settings,
+    };
 
     private string EmptyMessage => _view.Key switch
     {

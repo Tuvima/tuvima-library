@@ -62,11 +62,11 @@
 
 
 .app-dialog-shell__header {
+    position: relative;
     display: flex;
     align-items: flex-start;
     gap: 16px;
     padding: 20px 24px 16px;
-    border-bottom: 1px solid var(--tl-border-subtle);
 }
 
 .app-dialog-shell__header--centered {
@@ -164,14 +164,90 @@
 }
 
 .app-dialog-shell__footer {
+    position: relative;
     display: flex;
     flex-wrap: nowrap; /* buttons never stack on desktop (Look v3 D15.3); under 600 px the footer rule in app.css stacks them full width */
     align-items: center;
     justify-content: flex-end; /* one right-hand group; only an app-footer-start action goes far left (footer rule in app.css) */
     gap: 8px;
     padding: 16px 24px;
-    border-top: 1px solid var(--tl-border-subtle);
     background: transparent;
+}
+
+/* The short dialog (Look v3.1 D4): a confirmation, message box or delete question. Padding on the card itself, no lines, no icon tile, no close X.
+   Title, then the message 8 px under it, 28 px before the buttons (bottom right, 12 px apart). The card keeps a thin border and the window corners. */
+.app-dialog-shell--compact {
+    padding: var(--tl-dialog-padding);
+    border-color: var(--tl-border-default);
+}
+
+.app-dialog-shell--compact .app-dialog-shell__header {
+    padding: 0;
+}
+
+.app-dialog-shell--compact .app-dialog-shell__title {
+    font-size: var(--tl-dialog-title-size);
+    font-weight: var(--tl-font-weight-semibold);
+    line-height: var(--tl-line-height-heading);
+}
+
+.app-dialog-shell--compact .app-dialog-shell__body:has(> :not(.app-confirm--empty)) {
+    margin-top: var(--tl-dialog-title-gap);
+}
+
+.app-dialog-shell--compact .app-dialog-shell__footer {
+    flex: 0 0 auto;
+    gap: var(--tl-dialog-button-gap);
+    padding: var(--tl-dialog-footer-gap) 0 0;
+}
+
+/* Larger windows have no lines inside either. A hairline appears under the header only while the body is scrolled away from its top, and above
+   the footer only while there is more body below, driven by the body's own scroll position (no script). A browser without scroll-driven
+   animations simply shows no line. */
+@supports (animation-timeline: scroll()) and (timeline-scope: --tl-dialog-body) {
+    .app-dialog-shell:not(.app-dialog-shell--compact) {
+        timeline-scope: --tl-dialog-body;
+    }
+
+    .app-dialog-shell:not(.app-dialog-shell--compact) .app-dialog-shell__body {
+        scroll-timeline: --tl-dialog-body block;
+    }
+
+    .app-dialog-shell:not(.app-dialog-shell--compact) .app-dialog-shell__header::after,
+    .app-dialog-shell:not(.app-dialog-shell--compact) .app-dialog-shell__footer::before {
+        content: "";
+        position: absolute;
+        inset-inline: 0;
+        height: 1px;
+        background: var(--tl-border-subtle);
+        opacity: 0;
+        pointer-events: none;
+        animation-timeline: --tl-dialog-body;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+    }
+
+    .app-dialog-shell:not(.app-dialog-shell--compact) .app-dialog-shell__header::after {
+        bottom: 0;
+        animation-name: app-dialog-line-in;
+        animation-range: 0px 16px;
+    }
+
+    .app-dialog-shell:not(.app-dialog-shell--compact) .app-dialog-shell__footer::before {
+        top: 0;
+        animation-name: app-dialog-line-out;
+        animation-range: calc(100% - 16px) 100%;
+    }
+}
+
+@keyframes app-dialog-line-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes app-dialog-line-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
 }
 
 /* In the shared Window frame the frame sets the width, the corners and (under 600 px) the Sheet; the card just fills it. */
@@ -192,6 +268,14 @@
 
     .app-dialog-shell__footer {
         padding: 12px 16px;
+    }
+
+    .app-dialog-shell--compact {
+        padding: var(--tl-dialog-padding-phone);
+    }
+
+    .app-dialog-shell--compact .app-dialog-shell__header {
+        padding: 0;
     }
 }
 

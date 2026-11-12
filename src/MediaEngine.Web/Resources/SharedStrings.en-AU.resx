@@ -183,7 +183,7 @@
     <value>Background colour</value>
   </data>
   <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
-    <value>Font, colours and opacity</value>
+    <value>Font, size, colours and opacity</value>
   </data>
   <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
     <value>Add song to Favourites</value>
@@ -211,5 +211,8 @@
   </data>
   <data name="SongsHeader_Favorites" xml:space="preserve">
     <value>Favourites</value>
+  </data>
+  <data name="PlaybackInformation_Color" xml:space="preserve">
+    <value>Colour</value>
   </data>
 </root>

@@ -54,6 +54,17 @@ public sealed record PlaybackTechnicalInfoDto
     public int? BitDepth { get; init; }
     public int? Channels { get; init; }
 
+    /// <summary>The file's name with its extension, never any folder (Playback information, video-player follow-ups D13).</summary>
+    public string? FileName { get; init; }
+
+    public long? FileSizeBytes { get; init; }
+
+    /// <summary>"SDR", "HDR10" or "HLG"; null when the file's transfer characteristic is not known.</summary>
+    public string? ColorFormat { get; init; }
+
+    /// <summary>The video stream's profile as ffprobe names it (for example "Main 10" or "High"); null when not known.</summary>
+    public string? VideoProfile { get; init; }
+
     public string? QualityLabel => Height switch
     {
         >= 2160 => "4K",
@@ -592,8 +603,8 @@ public sealed class PlaybackGeneralSettingsDto
     /// </summary>
     public bool? ShowChapterMarks { get; set; }
 
-    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark bubbles on the video progress bar. Off by default.</summary>
-    public bool ShowBookmarksOnBar { get; set; }
+    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark beads on the video progress bar. On by default (video player follow-ups D4, D16); a profile that saved an explicit off keeps it.</summary>
+    public bool ShowBookmarksOnBar { get; set; } = true;
 
     /// <summary>The bookmark list filter the profile last chose in the player: <c>All</c>, <c>Mine</c>, <c>Global</c> or <c>Everyones</c> (administrators).</summary>
     public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.Mine;

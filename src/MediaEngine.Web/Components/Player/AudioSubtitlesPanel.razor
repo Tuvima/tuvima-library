@@ -40,16 +40,16 @@
     [Parameter] public SubtitleLanguageSettingsDto? Look { get; set; }
     [Parameter] public Func<Action<SubtitleLanguageSettingsDto>, Task>? StyleChanged { get; set; }
 
-    /// <summary>Find subtitles: whether a source is switched on, whether a search is running, what it last said, and the preferred-version action.</summary>
+    /// <summary>Find subtitles: whether a source is switched on (checked without contacting one), the search state the view shows, and whether this is an episode.</summary>
     [Parameter] public bool NoSubtitleSource { get; set; }
     [Parameter] public bool IsAdministrator { get; set; }
-    [Parameter] public bool SearchLoading { get; set; }
-    [Parameter] public string? SearchStatus { get; set; }
-    [Parameter] public bool CanSetPreferred { get; set; }
-    [Parameter] public EventCallback OnSearch { get; set; }
-    [Parameter] public EventCallback OnSetPreferred { get; set; }
+    [Parameter] public bool IsEpisode { get; set; }
+    [Parameter] public SubtitleFindPresenter? Find { get; set; }
 
     private PlaybackPanel? _panel;
+
+    // Only reached through OpenFind, which does nothing without a presenter.
+    private SubtitleFindPresenter FindPresenter => Find!;
 
     private RenderFragment MainFooter => @<AudioSubtitlesActions OnAppearance="OpenAppearance" OnFind="OpenFind" />;
 
@@ -57,8 +57,7 @@
 
     private RenderFragment CustomBody => @<SubtitleCustomAppearanceView Look="@Look" StyleChanged="StyleChanged" />;
 
-    private RenderFragment FindBody => @<SubtitleFindView NoSource="@NoSubtitleSource" IsAdministrator="@IsAdministrator" Loading="@SearchLoading" Status="@SearchStatus"
-                                                          CanSetPreferred="@CanSetPreferred" OnSearch="OnSearch" OnSetPreferred="OnSetPreferred" />;
+    private RenderFragment FindBody => @<SubtitleFindView Presenter="@FindPresenter" Profile="@Look" NoSource="@NoSubtitleSource" IsAdministrator="@IsAdministrator" IsEpisode="@IsEpisode" />;
 
     // Footer of the two appearance views (mockup screen 4): Reset to default at the left, the saving note at the right.
     private RenderFragment AppearanceFooter =>
@@ -82,6 +81,11 @@
 
     private Task OpenFind()
     {
+        if (Find is null)
+        {
+            return Task.CompletedTask;
+        }
+
         _panel?.Navigator.Push(L["AudioSubtitles_FindTitle"].Value, FindBody);
         return Task.CompletedTask;
     }

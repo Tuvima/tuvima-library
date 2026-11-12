@@ -7,11 +7,12 @@
 @inject IJSRuntime JS
 @inject IServiceProvider Services
 
-@* The one volume control for the video, audiobook and music players (unified player v2 D10; mockup screen 2): one speaker glyph with three states
-   (loud, quiet, muted with a cross). Click mutes; clicking again restores the level from before. Hovering or focusing the speaker reveals a short
-   horizontal slider (96 px, the same thin rail and small handle as the timeline) to its right, which stays while the pointer or focus is on it and for
-   400 ms after (playback-volume.js; CSS reads data-open so the busy player never has to re-render for it). The slot the slider opens into is always
-   in the markup and has no width until it opens; the tools zone is right-aligned, so the bar's other zones never move.
+@* The one volume control for the video, audiobook and music players (unified player v2 D10; mockup screen 2), with its slider made vertical by video player
+   follow-ups D5: one speaker glyph with three states (loud, quiet, muted with a cross). Click mutes; clicking again restores the level from before.
+   Hovering or focusing the speaker reveals a vertical slider (96 px, the same thin rail and small handle as the timeline, purple growing from the bottom) directly
+   above the speaker and centred on it, with no box behind it. It stays while the pointer or focus is on the speaker or the slider and for 400 ms after, and
+   Escape closes it (playback-volume.js; CSS reads data-open so the busy player never has to re-render for it). The slot it opens from is always in the markup
+   and has no size, and the slider is drawn over the picture or page above the bar, so no tool in the bar moves or is covered.
    On touch the speaker opens a small Volume panel (Menu size) instead, with mute inside it. When the device cannot set the volume in software
    (Supported is false) there is no slider and the speaker only mutes. *@
 <span class="@RootClass" @ref="_root" data-chrome-hold data-playback-volume data-volume-level="@LevelName" data-volume-mode="@(UsesPanel ? "panel" : "hover")">
@@ -42,7 +43,7 @@
             @if (Supported)
             {
                 <span class="playback-volume__panel" role="group" aria-label="@L["Common_Volume"].Value">
-                    <AppRangeSlider Min="0" Max="1" Step="@Step" Value="@Volume" ShowTicks="false" CommitOnChange="@CommitOnChange"
+                    <AppRangeSlider Min="0" Max="1" Step="@Step" Value="@Volume" ShowTicks="false" CommitOnChange="@CommitOnChange" Vertical="true"
                                     Surface="player" Class="playback-volume__slider" AriaLabel="@L["Common_Volume"].Value"
                                     ValueFormatter="FormatVolume" ValueChanged="OnVolumeChanged" />
                 </span>
@@ -118,7 +119,7 @@
         if (!_disposed) _ = InvokeAsync(StateHasChanged);
     }
 
-    // Arrow keys on the speaker button itself step the volume too, so the control works before the slider has focus. The page must not scroll
+    // Arrow Up and Down on the speaker button itself step the volume too (5 percent), so the control works before the slider has focus (video player follow-ups D5). The page must not scroll
     // under them: a handler here runs after the browser has acted, so playback-volume.js cancels the keys' default for the speaker (data-volume-keys).
     // (A key pressed on the slider is handled by the slider's own range input, which sits outside this handler.)
     private async Task HandleKeyAsync(KeyboardEventArgs args)

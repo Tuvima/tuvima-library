@@ -250,14 +250,14 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     {
         var settings = await _service.GetAsync(_profileId);
         Assert.Null(settings.General.ShowChapterMarks); // The media default applies until the person chooses.
-        Assert.False(settings.General.ShowBookmarksOnBar);
+        Assert.True(settings.General.ShowBookmarksOnBar); // On by default (video player follow-ups D4, D16).
         Assert.Equal("Mine", settings.General.BookmarkFilter);
         Assert.Equal("Default", settings.Subtitles.SubtitleFont);
         Assert.Equal("White", settings.Subtitles.SubtitleColor);
         Assert.False(settings.Subtitles.SubtitleShadow);
 
         settings.General.ShowChapterMarks = true;
-        settings.General.ShowBookmarksOnBar = true;
+        settings.General.ShowBookmarksOnBar = false; // An explicit off choice is kept.
         settings.General.BookmarkFilter = "Mine";
         settings.Subtitles.SubtitleFont = "Serif";
         settings.Subtitles.SubtitleColor = "Yellow";
@@ -266,13 +266,13 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
 
         var saved = await _service.GetAsync(_profileId);
         Assert.True(saved.General.ShowChapterMarks);
-        Assert.True(saved.General.ShowBookmarksOnBar);
+        Assert.False(saved.General.ShowBookmarksOnBar);
         Assert.Equal("Mine", saved.General.BookmarkFilter);
         Assert.Equal("Serif", saved.Subtitles.SubtitleFont);
         Assert.Equal("Yellow", saved.Subtitles.SubtitleColor);
         Assert.True(saved.Subtitles.SubtitleShadow);
         var other = await _service.GetAsync(_otherProfileId);
-        Assert.False(other.General.ShowBookmarksOnBar);
+        Assert.True(other.General.ShowBookmarksOnBar);
 
         saved.General.BookmarkFilter = "Strangers";
         await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, saved));

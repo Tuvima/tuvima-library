@@ -95,6 +95,12 @@ public sealed partial class TextTrackProviderAdapter : ITextTrackProvider, IProv
         return new("Available", null);
     }
 
+    public string? NormalizeSearchLanguage(string? value)
+    {
+        var code = NormalizeLanguage(value);
+        return string.Equals(code, _text.Language.Unknown, StringComparison.OrdinalIgnoreCase) ? null : code;
+    }
+
     public Task<IReadOnlyList<TextTrackCandidate>> SearchAsync(TextTrackLookup lookup, CancellationToken ct = default) =>
         Kind == TextTrackKind.Lyrics ? SearchLyricsAsync(lookup, ct) : SearchSubtitlesAsync(lookup, ct);
 
