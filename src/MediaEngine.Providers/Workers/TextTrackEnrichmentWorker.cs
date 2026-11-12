@@ -815,7 +815,8 @@ public sealed partial class TextTrackEnrichmentWorker
         var parts = value.Trim().Split(':');
         if (parts.Length == 2
             && int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var minutes)
-            && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var secs))
+            && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var secs)
+            && secs is >= 0 and < 60)
         {
             var total = (minutes * 60) + secs;
             return total > 0 ? total : null;
