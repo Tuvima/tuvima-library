@@ -94,6 +94,16 @@ public sealed class UnmatchedAssetService
     public Task<bool> KeepAsIsAsync(Guid assetId, CancellationToken ct) =>
         _unmatched.KeepAsIsAsync(assetId, _clock.GetUtcNow(), ct);
 
+    /// <summary>
+    /// Put back: brings a kept file back into the Unmatched count and the retry schedule without looking it up now (Look up again does
+    /// that). Its next lookup is scheduled the way any failed lookup's is. False when the file is not Unmatched or is not kept.
+    /// </summary>
+    public Task<bool> UnkeepAsync(Guid assetId, CancellationToken ct) =>
+        _unmatched.UnkeepAsync(
+            assetId,
+            UnmatchedRetryLimits.NextRetryAt(_clock.GetUtcNow(), _configuration.LoadMaintenance().UnmatchedRetryDays),
+            ct);
+
     /// <summary>Keep all Unmatched as they are, for one library. Returns how many files were kept.</summary>
     public Task<int> KeepAllAsIsAsync(string libraryId, CancellationToken ct) =>
         _unmatched.KeepAllAsIsAsync(libraryId, _clock.GetUtcNow(), ct);

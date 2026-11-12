@@ -11,6 +11,9 @@ public sealed record ReviewResolveResponse(bool resolved, Guid review_item_id);
 
 public sealed record ReviewDismissResponse(bool dismissed, Guid review_item_id);
 
+/// <summary>The result of "Put back": a kept item is waiting in Needs Review again.</summary>
+public sealed record ReviewReopenResponse(bool reopened, Guid review_item_id);
+
 public sealed record ReviewSkipUniverseResponse(bool skipped, Guid review_item_id);
 
 /// <summary>
