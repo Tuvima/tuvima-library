@@ -264,22 +264,25 @@ public partial class SongList
         return Task.CompletedTask;
     }
 
-    // A song's Edit ticks the song and opens the Edit panel beside the list (universal editor spec D2, D19): the list's filters, sort and
-    // scroll stay where they are, and nothing opens in a pop-up.
-    private Task EditAsync(SongRow row)
+    // A song's Edit on a desktop or tablet ticks the song and opens the Edit panel beside the list (universal editor spec D2, D19): the list's
+    // filters, sort and scroll stay where they are. A phone has no side panel and no bulk bar, so there the editor opens over the list on
+    // just this song, the same way as for ticked songs.
+    private async Task EditAsync(SongRow row)
     {
         // The table only offers Edit to a device that may edit items; a handler never trusts that.
-        if (!DeviceContext.IsPhone && WorkFor(row) is not null)
+        if (DeviceContext.IsPhone)
+        {
+            await EditTickedAsync([row]);
+        }
+        else if (WorkFor(row) is not null)
         {
             _selectedIds = new HashSet<string>(_selectedIds, StringComparer.Ordinal) { row.Id };
             _openEditPanelAfterRender = true;
         }
-
-        return Task.CompletedTask;
     }
 
-    // The phone's "..." menu on ticked songs: the editor opens over the list on exactly the ticked songs, through the same launcher the other
-    // lists use (a phone has no bulk bar of its own to open it). The table and the launcher both check the device; the Engine checks every save.
+    // A phone opens the editor over the list on exactly these songs (one from a song's "..." menu, or the ticked ones from the bar's "..."),
+    // through the same launcher the other lists use. The table and the launcher both check the device; the Engine checks every save.
     private async Task EditTickedAsync(IReadOnlyList<SongRow> selected)
     {
         if (EditorDeviceRule.TryRefuseItems(DeviceContext))

@@ -1,5 +1,11 @@
 using Bunit;
+using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Items;
+using MediaEngine.Contracts.Library;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Components.Listen;
+using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
@@ -31,7 +37,13 @@ public sealed class PhoneSongBulkEditTests : AsyncBunitContext
         Services.AddSingleton(_device);
         Services.AddSingleton(TestSessions.For(kids: false, administrator: true));
         Services.AddSingleton<ISongTablePreferenceStore>(new NoSavedColumns());
-        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.CreateDefault());
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(EditingModeTestData.MovieContext()));
+            stub.SetHandler(nameof(IEngineApiClient.PreviewLibraryBatchEditAsync), _ =>
+                Task.FromResult(LibraryBatchEditOutcome<LibraryBatchEditPreview>.Ok(new LibraryBatchEditPreview { AffectedCount = 1, Fields = [] })));
+            stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+        }));
     }
 
     private Task UsePhoneAsync() => _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
@@ -121,6 +133,53 @@ public sealed class PhoneSongBulkEditTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll("button.song-selection-bar__more"));
     }
+
+    [Fact]
+    public async Task OnAPhone_ASongsMoreMenuEditOpensTheEditorOnExactlyThatSong()
+    {
+        await UsePhoneAsync();
+        var tracks = Tracks(3);
+        var cut = Render<SongList>(parameters => parameters.Add(list => list.Place, SongTablePlace.Songs).Add(list => list.Tracks, tracks));
+        var host = Services.GetRequiredService<EditorHost>();
+
+        cut.FindAll(".song-table__pmenu button[aria-haspopup='menu']")[1].Click();
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Edit"));
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
+
+        cut.WaitForAssertion(() => Assert.True(host.IsOpen));
+        Assert.Equal([tracks[1].Id], host.Batch.Rows.Select(row => row.Id));
+        Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
+    }
+
+    [Fact]
+    public async Task OnAPhone_ASongsMoreMenuHasNoEditForAPersonWhoMayNotEdit()
+    {
+        await UsePhoneAsync();
+        var rows = Songs();
+        var cut = RenderTable(rows, canEdit: false);
+
+        cut.Find($"[data-song-row-id='{rows[0].Id}'] button[aria-haspopup]").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Edit");
+    }
+
+    private static IReadOnlyList<WorkViewModel> Tracks(int count) =>
+        Enumerable.Range(1, count).Select(index => new WorkViewModel
+        {
+            Id = Guid.NewGuid(),
+            RootWorkId = Guid.NewGuid(),
+            CollectionId = Guid.NewGuid(),
+            ArtistPersonId = Guid.NewGuid(),
+            MediaType = "Music",
+            CanonicalValues =
+            [
+                new CanonicalValueViewModel { Key = "title", Value = $"Track {index}" },
+                new CanonicalValueViewModel { Key = "artist", Value = "The Artist" },
+                new CanonicalValueViewModel { Key = "album", Value = "The Album" },
+                new CanonicalValueViewModel { Key = "duration_sec", Value = "185" },
+            ],
+        }).ToList();
 
     private static void TickAndWait(IRenderedComponent<SongTable> cut, SongRow row, int count)
     {
