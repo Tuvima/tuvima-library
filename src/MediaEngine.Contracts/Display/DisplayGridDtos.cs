@@ -55,6 +55,7 @@ public static class DisplayGridValues
     public const string TypeAudiobook = "audiobook";
     public const string TypeMusic = "music";
     public const string TypeCollection = "collection";
+    public const string TypePlaylist = "playlist";
 
     public const string FormatEpub = "epub";
     public const string FormatPdf = "pdf";

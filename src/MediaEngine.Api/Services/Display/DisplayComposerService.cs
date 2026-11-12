@@ -69,6 +69,30 @@ public sealed partial class DisplayComposerService
             .OrderByDescending(row => row.LastAccessed)
             .ToList();
 
+    private const string HomeMyListShelfKey = "my-list";
+    private const string HomeMyListRoute = DisplayGridCatalog.MyListPageRoute;
+    private const int HomeMyListMaxCards = 20;
+
+    /// <summary>
+    /// The cards of Home's My List row: the same list, in the same order and under the same visibility rules as the My List
+    /// "View all" grid (newest saved first, songs left out), cut to the first 20. Empty without an active profile.
+    /// </summary>
+    private async Task<IReadOnlyList<DisplayCardDto>> BuildHomeMyListCardsAsync(
+        Guid? profileId,
+        IReadOnlyDictionary<Guid, DisplayJourneyRow> progressByWork,
+        int shelfLimit,
+        CancellationToken ct)
+    {
+        if (profileId is null || _personal is null)
+        {
+            return [];
+        }
+
+        // The full authorized catalogue, as the grid reads it: Home's own work list is a capped sample and could miss older saves.
+        var cards = await BuildPersonalGridCardsAsync(DisplayGridSource.MyList, () => _readService.LoadWorksAsync(ct), progressByWork, profileId, ct);
+        return [.. cards.Take(Math.Clamp(shelfLimit, 1, HomeMyListMaxCards)).Select(item => item.Card)];
+    }
+
     public async Task<DisplayPageDto> BuildHomeAsync(bool includeCatalog = true, Guid? profileId = null, CancellationToken ct = default, int shelfLimit = 20, PluginAudience? requester = null)
     {
         var worksTask = _readService.LoadHomeWorksAsync(ct);
@@ -80,6 +104,8 @@ public sealed partial class DisplayComposerService
         var journey = (await journeyTask).ToList();
         var collectionLanes = await lanesTask;
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
+        // Started here so the profile's own list is read while the rest of Home is put together.
+        var myListTask = BuildHomeMyListCardsAsync(profileId, progressByWork, shelfLimit, ct);
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
         var videoCards = _cards.BuildVideoCards(works, progressByWork);
 
@@ -132,8 +158,12 @@ public sealed partial class DisplayComposerService
             .Take(Math.Max(1, shelfLimit))
             .ToList();
 
+        var myListCards = await myListTask;
+
         var shelves = new List<DisplayShelfDto>();
         DisplayShelfBuilder.AddShelf(shelves, "continue", "Continue Across Media", "Pick up where you left off", continueCards, DisplayGridCatalog.RouteFor("home", "continue"));
+        // The profile's own saved titles sit directly under Continue (My List spec D9); no shelf when the list is empty.
+        DisplayShelfBuilder.AddShelf(shelves, HomeMyListShelfKey, "My List", "Saved for later", myListCards, HomeMyListRoute);
         DisplayShelfBuilder.AddShelf(shelves, "watch-next", "Watch", "Movies and shows ready to play", watchCards, DisplayGridCatalog.RouteFor("home", "watch-next"));
         DisplayShelfBuilder.AddShelf(shelves, "read-next", "Read", "Books and comics ready to open", readCards, DisplayGridCatalog.RouteFor("home", "read-next"));
         DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, DisplayGridCatalog.RouteFor("home", "listen-next"));

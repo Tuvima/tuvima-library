@@ -274,7 +274,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         Assert.Equal(8, rows.Count);
         Assert.Null(rows[0].QuerySelector("[data-activity-progress], [data-activity-finished]"));
         Assert.Null(rows[1].QuerySelector("[data-activity-progress], [data-activity-finished]"));
-        Assert.Equal("Added to My list", rows[1].QuerySelector(".overview-timeline__detail")!.TextContent);
+        Assert.Equal("Added to My List", rows[1].QuerySelector(".overview-timeline__detail")!.TextContent);
     }
 
     [Fact]

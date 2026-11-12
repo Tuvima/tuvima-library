@@ -88,6 +88,7 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Pages/SearchPage.razor"] = (1, "The search page rewriting its own query."),
         ["Components/Pages/Settings.razor"] = (2, "A Kids profile or a page switched off for this device goes Home (an address that is not a Settings page shows the not-found page in place, with no replace)."),
         ["Components/Pages/SetupPage.razor"] = (1, "Full reload to Home or the sign-in page when setup ends."),
+        ["Components/Pages/MyListPage.razor.cs"] = (4, "My List rewriting its own kind and sort address."),
         ["Components/Pages/ShelfGridPage.razor.cs"] = (4, "The View all grid rewriting its own sort and filter address."),
         ["Components/Settings/ProfilesTab.razor"] = (1, "A member opening Manage Profiles is taken to their own profile page."),
         ["Components/Settings/ProfileDetailPage.razor"] = (2, "Redirect to the Settings profiles list."),

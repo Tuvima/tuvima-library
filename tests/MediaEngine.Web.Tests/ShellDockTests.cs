@@ -54,14 +54,14 @@ public sealed class ShellDockTests
     }
 
     [Fact]
-    public void ThePhoneDockIsAlwaysHomeSearchAndMyLibraryForEveryProfile()
+    public void ThePhoneDockIsAlwaysHomeSearchAndMyListForEveryProfile()
     {
         foreach (var isKids in new[] { false, true })
         {
             var entries = ShellDock.ResolvePhone(isKids);
-            Assert.Equal(["Home", "Search", "MyLibrary"], Keys(entries));
-            Assert.Equal(["/", "/search", "/my-library"], entries.Select(entry => entry.Path).ToArray());
-            Assert.Equal(["Nav_Home", "Nav_Search", "Nav_MyLibrary"], entries.Select(entry => entry.LabelKey).ToArray());
+            Assert.Equal(["Home", "Search", "MyList"], Keys(entries));
+            Assert.Equal(["/", "/search", "/my-list"], entries.Select(entry => entry.Path).ToArray());
+            Assert.Equal(["Nav_Home", "Nav_Search", "Nav_MyList"], entries.Select(entry => entry.LabelKey).ToArray());
             Assert.Equal([ShellDockKind.Link, ShellDockKind.Search, ShellDockKind.Link], entries.Select(entry => entry.Kind).ToArray());
         }
     }
@@ -71,7 +71,7 @@ public sealed class ShellDockTests
     [InlineData(DownloadsTabMode.Hidden)]
     public void ThePhoneDockHasNoDownloadsOrSettingsTabWhateverTheDownloadsSwitchSays(DownloadsTabMode mode)
     {
-        Assert.Equal(["Home", "Search", "MyLibrary"], Keys(ShellDock.Resolve(ShellDock.PhoneDockItems, isKids: false, mode)));
+        Assert.Equal(["Home", "Search", "MyList"], Keys(ShellDock.Resolve(ShellDock.PhoneDockItems, isKids: false, mode)));
     }
 
     [Fact]
