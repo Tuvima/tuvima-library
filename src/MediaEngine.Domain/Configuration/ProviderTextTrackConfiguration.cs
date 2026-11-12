@@ -342,6 +342,44 @@ public sealed class TextTrackLyricsConfiguration
     [JsonPropertyName("duration")]
     public TextTrackDurationConfiguration Duration { get; set; } = new();
 
+    /// <summary>How a search hit's title and artist are compared with the song's. Absent means the plain rule (ignore capitals only).</summary>
+    [JsonPropertyName("match")]
+    public TextTrackLyricsMatchConfiguration Match { get; set; } = new();
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
+}
+
+/// <summary>Rules for deciding that a search hit is the song asked for. The defaults are the plain rule: exact, ignoring capitals.</summary>
+public sealed class TextTrackLyricsMatchConfiguration
+{
+    /// <summary>Path of the song title in a search hit.</summary>
+    [JsonPropertyName("title_path")]
+    public string TitlePath { get; set; } = "trackName";
+
+    /// <summary>Path of the artist name in a search hit.</summary>
+    [JsonPropertyName("artist_path")]
+    public string ArtistPath { get; set; } = "artistName";
+
+    [JsonPropertyName("ignore_case")]
+    public bool IgnoreCase { get; set; } = true;
+
+    /// <summary>Drops punctuation and collapses runs of spaces.</summary>
+    [JsonPropertyName("ignore_punctuation")]
+    public bool IgnorePunctuation { get; set; }
+
+    /// <summary>Removes text in round or square brackets, such as "(Remastered 2009)".</summary>
+    [JsonPropertyName("ignore_bracketed")]
+    public bool IgnoreBracketed { get; set; }
+
+    /// <summary>Treats letters with accents as the plain letter.</summary>
+    [JsonPropertyName("ignore_diacritics")]
+    public bool IgnoreDiacritics { get; set; }
+
+    /// <summary>Regular expressions (case-insensitive); the text each one matches is cut off before the titles are compared.</summary>
+    [JsonPropertyName("strip_suffix_patterns")]
+    public List<string> StripSuffixPatterns { get; set; } = [];
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
 }
