@@ -166,7 +166,7 @@ public sealed class DashboardSessionAccessor
             }
 
             var actions = Authority.ActionCapabilities
-                .Where(action => action is not "access.manage" and not "applications.manage" and not "administrator.lock")
+                .Where(action => action is not "access.manage" and not "applications.manage" and not "administrator.lock" and not "metadata.manage")
                 .ToArray();
             changedHandler = SetCore(SessionToken, AccountId, ActiveProfileId, SessionId,
                 Authority with { AdministratorSurfaceUnlocked = false, AdministratorUnlockExpiresAt = null, ActionCapabilities = actions });
