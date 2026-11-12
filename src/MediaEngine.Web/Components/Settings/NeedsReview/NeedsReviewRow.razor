@@ -130,10 +130,10 @@ else
                 <AppRowMenu AriaLabel="@L["NeedsReviewRow_MoreActions", Title].Value" Title="@Title" Items="@MenuItems" />
             }
         </div>
-        @if (!KeptView && !Child && HasTvChoices)
+        @if (!KeptView && !Child && HasChoices)
         {
             <div class="nr-row__choices">
-                <NeedsReviewChoicesStrip Choices="@TvChoices" Disabled="@State.Busy" />
+                <NeedsReviewChoicesStrip Choices="@ShownChoices" Disabled="@State.Busy" />
             </div>
         }
         @if (PrimaryOnOwnLine)
@@ -194,6 +194,7 @@ else
 
     private MovieTvSuggestionDto? _tv;
     private IReadOnlyList<NeedsReviewChoice> _tvChoices = [];
+    private IReadOnlyList<NeedsReviewChoice> _engineChoices = [];
 
     private bool IsFamily => Family is not null;
 
@@ -205,7 +206,7 @@ else
 
     // Phone card with a single main button (Fix or Try again) and no suggestion or choices: the button goes on its own full-width line under the
     // item text instead of squeezing the reason into a narrow column beside it (mock screen 4, marker 5).
-    private bool PrimaryOnOwnLine => !KeptView && Actions.IsPhone() && !HasSuggestion && !HasTvChoices && (RetryIsMain || CanFix);
+    private bool PrimaryOnOwnLine => !KeptView && Actions.IsPhone() && !HasSuggestion && !HasChoices && (RetryIsMain || CanFix);
 
     // The tick box: drawn on every waiting and finished row except the kept view, and on a phone only once something is ticked.
     private bool ShowTick => !KeptView && Actions.TickBoxesShown;
@@ -328,13 +329,17 @@ else
     {
         "confirm_match" when Row.Review?.ConfidenceScore is > 0 and var score =>
             L["NeedsReviewRow_PercentSure", (int)Math.Round(Math.Min(score, 1d) * 100)].Value,
-        "keep_provider_match" => Guess.Source,
+        "keep_provider_match" or "use_retail_match" => Guess.Source,
         _ => null,
     };
 
     private bool HasTvChoices => !IsFamily && !Child && _tv is not null;
 
-    private IReadOnlyList<NeedsReviewChoice> TvChoices => _tvChoices;
+    // The strip holds the film-or-TV question, or else the Engine's own choices (matches that fit, Series that claim a book, library types).
+    // A row with one suggestion shows Use this instead, never both.
+    private bool HasChoices => HasTvChoices || (!IsFamily && !Child && Guess is null && _engineChoices.Count > 0);
+
+    private IReadOnlyList<NeedsReviewChoice> ShownChoices => HasTvChoices ? _tvChoices : _engineChoices;
 
     // When a file will be looked up again; a family shows its earliest time. Only files the Engine could not match have one.
     private string? RetryNote
@@ -364,7 +369,7 @@ else
         IsFamily ? "nr-row--family" : null,
         KeptView ? "nr-row--kept" : null,
         HasSuggestion ? "nr-row--has-suggestion" : null,
-        HasTvChoices ? "nr-row--has-choices" : null,
+        HasChoices ? "nr-row--has-choices" : null,
     }.Where(part => part is not null));
 
     private string DoneClass => string.Join(' ', new[]
@@ -382,6 +387,10 @@ else
             ? MovieTvSuggestionReader.Read(review.CandidatesJson)
             : null;
         _tvChoices = _tv is null ? [] : BuildTvChoices(_tv);
+        _engineChoices = _tv is null && !KeptView
+            ? [.. Row.Choices.Select(choice => new NeedsReviewChoice(
+                choice.ImageUrl, choice.Title, choice.Subtitle, L["NeedsReviewList_UseThis"].Value, () => Actions.Choose(Row, choice)))]
+            : [];
     }
 
     // Film or TV show? Choice 1 is the TV show the Engine found; choice 2 keeps the file as a film. The same strip will hold the Engine's

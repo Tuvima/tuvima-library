@@ -37,6 +37,9 @@ public sealed class NeedsReviewActions
     /// <summary>Use this: runs the one action the Engine offered as the row's best guess.</summary>
     public required Func<NeedsReviewRowDto, Task> UseThis { get; init; }
 
+    /// <summary>One of the Engine's choices for a row (a match, a Series or a library type): the person picked this one.</summary>
+    public required Func<NeedsReviewRowDto, NeedsReviewChoiceDto, Task> Choose { get; init; }
+
     /// <summary>Move to TV: the film is really this TV show.</summary>
     public required Func<NeedsReviewRowDto, Task> MoveToTv { get; init; }
 

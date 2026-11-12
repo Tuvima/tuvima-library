@@ -70,6 +70,8 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         public List<Guid> Moved { get; } = [];
 
+        public List<(Guid Review, string Choice)> Chosen { get; } = [];
+
         public List<Guid> Reopened { get; } = [];
 
         public List<Guid> Retagged { get; } = [];
@@ -149,6 +151,15 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             {
                 engine.Reopened.Add((Guid)args![0]!);
                 return Task.FromResult(!engine.Failing.Contains(nameof(IEngineApiClient.ReopenReviewItemAsync)));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.ChooseReviewAsync), args =>
+            {
+                var id = (Guid)args![0]!;
+                var choice = (string)args[1]!;
+                engine.Chosen.Add((id, choice));
+                return Task.FromResult<ReviewChooseResponse?>(engine.Failing.Contains(nameof(IEngineApiClient.ChooseReviewAsync))
+                    ? null
+                    : new ReviewChooseResponse(true, id, choice, "retail"));
             });
             stub.SetHandler(nameof(IEngineApiClient.MoveReviewItemToTvAsync), args =>
             {
@@ -603,6 +614,89 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("kept as it is", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
         Assert.Equal([row.Review!.Id], engine.Dismissed);
         Assert.Contains("1 item is hidden because you kept it as it is.", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
+    }
+
+    private static NeedsReviewRowDto RowWithTwoMatches()
+    {
+        var row = ReviewRow(Id(1), "Dune", trigger: "RetailMatchAmbiguous", group: NeedsReviewGroups.Choose);
+        row.Choices.Add(new NeedsReviewChoiceDto { Id = "retail:tmdb:438631", Kind = NeedsReviewChoiceKinds.Retail, Title = "Dune (2021)", Subtitle = "Denis Villeneuve" });
+        row.Choices.Add(new NeedsReviewChoiceDto { Id = "retail:tmdb:841", Kind = NeedsReviewChoiceKinds.Retail, Title = "Dune (1984)", Subtitle = "David Lynch" });
+        return row;
+    }
+
+    [Fact]
+    public void AnItemWithSeveralMatches_ShowsEachAsAChoiceWithItsOwnUseThisButton()
+    {
+        var row = RowWithTwoMatches();
+        Register(() => Page([row]));
+
+        var cut = RenderLoaded();
+
+        var strip = cut.Find($"{RowSelector(row)} [data-testid='needs-review-choices']");
+        Assert.Equal(["Use this", "Use this"], strip.QuerySelectorAll("button").Select(button => button.TextContent.Trim()).ToArray());
+        Assert.Contains("Dune (2021)", strip.TextContent, StringComparison.Ordinal);
+        Assert.Contains("David Lynch", strip.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-suggestion']"));
+    }
+
+    [Fact]
+    public void UseThis_OnOneOfSeveralMatches_SendsThatChoice_AndTheRowBecomesAMatchedLine()
+    {
+        var row = RowWithTwoMatches();
+        var engine = Register(() => Page([row]));
+        var cut = RenderLoaded();
+
+        cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices'] button")[1].Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Dune matched to Dune (1984)", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([(row.Review!.Id, "retail:tmdb:841")], engine.Chosen);
+    }
+
+    [Fact]
+    public void WhenTheEngineRefusesAChoice_TheStripStays_AndAReasonShowsUnderTheRow()
+    {
+        var row = RowWithTwoMatches();
+        var engine = Register(() => Page([row]));
+        engine.Failing.Add(nameof(IEngineApiClient.ChooseReviewAsync));
+        var cut = RenderLoaded();
+
+        cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices'] button")[0].Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Dune could not be matched.", cut.Find($"{RowSelector(row)} [data-review-failure]").TextContent, StringComparison.Ordinal));
+        Assert.Equal(2, cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices'] button").Count);
+    }
+
+    [Fact]
+    public void ABookListedInTwoSeries_PicksOne_AndTheRowSaysWhereItWent()
+    {
+        var row = ReviewRow(Id(1), "The Hobbit", trigger: "SeriesPlacementAmbiguous", group: NeedsReviewGroups.Choose, mediaType: "Books");
+        row.Choices.Add(new NeedsReviewChoiceDto { Id = "series:aaaa", Kind = NeedsReviewChoiceKinds.Series, Title = "Middle-earth" });
+        row.Choices.Add(new NeedsReviewChoiceDto { Id = "series:bbbb", Kind = NeedsReviewChoiceKinds.Series, Title = "The Lord of the Rings" });
+        var engine = Register(() => Page([row]));
+        var cut = RenderLoaded();
+
+        cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices'] button")[0].Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("The Hobbit added to Middle-earth", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([(row.Review!.Id, "series:aaaa")], engine.Chosen);
+    }
+
+    [Fact]
+    public void UseThis_OnTheOneMatchTheEngineFound_SendsItsChoice_AndShowsWhereItCameFrom()
+    {
+        var guess = new NeedsReviewBestGuessDto { Action = "use_retail_match", Name = "Dune", Year = "2021", Source = "TMDB", ChoiceId = "retail:tmdb:438631" };
+        var row = ReviewRow(Id(1), "dune.2021", trigger: "RetailMatchAmbiguous", group: NeedsReviewGroups.Ready, guess: guess);
+        row.Choices.Add(new NeedsReviewChoiceDto { Id = "retail:tmdb:438631", Kind = NeedsReviewChoiceKinds.Retail, Title = "Dune (2021)" });
+        var engine = Register(() => Page([row]));
+        var cut = RenderLoaded();
+
+        Assert.Empty(cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices']"));
+        var suggestion = cut.Find($"{RowSelector(row)} [data-testid='needs-review-suggestion']");
+        Assert.Contains("TMDB", suggestion.TextContent, StringComparison.Ordinal);
+        suggestion.QuerySelector("button")!.Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("dune.2021 matched to Dune (2021)", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([(row.Review!.Id, "retail:tmdb:438631")], engine.Chosen);
     }
 
     [Fact]

@@ -13751,4 +13751,13 @@
   <data name="NeedsReviewBar_EditUnavailable" xml:space="preserve">
     <value>Editing is not available right now.</value>
   </data>
+  <data name="NeedsReviewRow_DoneSeries" xml:space="preserve">
+    <value>{0} added to {1}</value>
+  </data>
+  <data name="NeedsReviewRow_DoneMediaType" xml:space="preserve">
+    <value>{0} moved to {1}</value>
+  </data>
+  <data name="NeedsReviewRow_FailChoose" xml:space="preserve">
+    <value>{0} could not be changed.</value>
+  </data>
 </root>

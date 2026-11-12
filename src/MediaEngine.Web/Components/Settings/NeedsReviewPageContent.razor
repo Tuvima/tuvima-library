@@ -230,6 +230,7 @@
             LibraryMediaTypeOf = row => row.LibraryId is { } id ? _libraryMediaTypes.GetValueOrDefault(id) : null,
             Fix = Redraw<NeedsReviewEntry>(FixAsync),
             UseThis = Redraw<NeedsReviewRowDto>(UseThisAsync),
+            Choose = (row, choice) => Redraw<NeedsReviewRowDto>(chosenRow => ChooseAsync(chosenRow, choice.Id, choice.Kind, choice.Title))(row),
             MoveToTv = Redraw<NeedsReviewRowDto>(MoveToTvAsync),
             KeepAsFilm = Redraw<NeedsReviewRowDto>(KeepAsFilmAsync),
             TryAgain = Redraw<IReadOnlyList<NeedsReviewRowDto>>(TryAgainAsync),
@@ -580,6 +581,9 @@
             case "move_to_tv":
                 await MoveToTvAsync(row);
                 break;
+            case "use_retail_match" when !string.IsNullOrWhiteSpace(guess.ChoiceId):
+                await ChooseAsync(row, guess.ChoiceId, NeedsReviewChoiceKinds.Retail, name);
+                break;
             case "confirm_match":
                 // The person says yes to the match the Engine already linked: the review is resolved by them, and the match is not changed.
                 await RunOneAsync(row, async () => (await Orchestrator.ResolveReviewAsync(review.Id, new MediaEngine.Web.Models.ViewDTOs.ReviewResolveRequestDto()), null),
@@ -590,6 +594,27 @@
                     L["NeedsReviewRow_DoneMatched", TitleOf(row), name].Value, L["NeedsReviewRow_FailMatch", TitleOf(row)].Value);
                 break;
         }
+    }
+
+    // One of the Engine's own choices: the Engine applies it exactly as the editor's Match would, and the row finishes in place.
+    private async Task ChooseAsync(NeedsReviewRowDto row, string choiceId, string kind, string chosen)
+    {
+        if (row.Review is not { } review) return;
+        var done = kind switch
+        {
+            NeedsReviewChoiceKinds.Series => L["NeedsReviewRow_DoneSeries", TitleOf(row), chosen].Value,
+            NeedsReviewChoiceKinds.MediaType => L["NeedsReviewRow_DoneMediaType", TitleOf(row), chosen].Value,
+            _ => L["NeedsReviewRow_DoneMatched", TitleOf(row), chosen].Value,
+        };
+        var fail = kind == NeedsReviewChoiceKinds.Retail
+            ? L["NeedsReviewRow_FailMatch", TitleOf(row)].Value
+            : L["NeedsReviewRow_FailChoose", TitleOf(row)].Value;
+        await RunOneAsync(row, async () =>
+            {
+                var attempt = await Orchestrator.ChooseReviewAsync(review.Id, choiceId);
+                return (attempt.Succeeded, attempt.Error);
+            },
+            done, fail);
     }
 
     private async Task MoveToTvAsync(NeedsReviewRowDto row)
