@@ -1,7 +1,6 @@
 .collection-rule-value-picker { position: relative; min-width: 0; }
-.collection-rule-value-picker__label { display: block; margin: 0 0 5px 2px; color: var(--tl-text-secondary); font-size: var(--tl-type-label-size); font-weight: var(--tl-type-label-weight); }
 
-::deep .collection-rule-value-picker__trigger { display: grid; width: 100%; min-height: 42px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 0 12px; overflow: hidden; border: 1px solid var(--tl-divider); border-radius: var(--tl-control-radius); background: color-mix(in srgb, var(--tl-bg-surface) 78%, transparent); color: var(--tl-text-primary); text-align: left; }
+::deep .collection-rule-value-picker__trigger { display: grid; width: 100%; min-height: var(--tl-control-height-md); grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 0 12px; overflow: hidden; border: 1px solid var(--tl-divider); border-radius: var(--tl-control-radius); background: color-mix(in srgb, var(--tl-bg-surface) 78%, transparent); color: var(--tl-text-primary); text-align: left; }
 ::deep .collection-rule-value-picker__trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 ::deep .collection-rule-value-picker__trigger.is-active, ::deep .collection-rule-value-picker__trigger:hover { border-color: var(--tl-accent-primary-border); }
 ::deep .collection-rule-value-picker__trigger .tl-icon-root { color: var(--tl-text-secondary); font-size: var(--tl-icon-size-sm); }

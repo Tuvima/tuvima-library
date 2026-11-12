@@ -5,8 +5,9 @@
 @inject IEngineApiClient ApiClient
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="collection-rule-value-picker" @onkeydown="HandleKeyDown">
-    <span class="collection-rule-value-picker__label">@L["Common_Value"]</span>
+@* A field of the shared form row: its label is on the label line and the trigger on the control line, like the selects beside it. *@
+<div class="collection-rule-value-picker app-field" @onkeydown="HandleKeyDown">
+    <span class="app-field__label">@L["Common_Value"]</span>
     <AppNativeButton Type="button"
                      Class="@TriggerClass"
                      AriaLabel="@TriggerLabel"

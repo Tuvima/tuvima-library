@@ -1299,6 +1299,13 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     justify-self: start;
 }
 
+/* The same wrapper inside a field (a blank label line above an icon button, as the playlist rule rows have for Remove): it holds the button on the
+   field's control line instead of leaving it without a box. */
+.app-form-row__fields > [data-form-row-field] > .playback-tooltip-owner {
+    display: flex;
+    align-items: center;
+}
+
 .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
     display: grid;
     grid-template-rows: subgrid;
