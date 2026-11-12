@@ -343,6 +343,19 @@ public sealed class DisplayCardBuilder
             .ThenBy(work => work.AssetId)
             .First();
         var artwork = RootArtworkFor(representative);
+        if (videoFolder && !HasPicture(artwork))
+        {
+            // A folder of videos has no cover of its own: borrow the still frame of its first video (issue 869) until a better cover is chosen.
+            // Unlike a show, a video folder holds only videos, so a video's own frame is the right stand-in (never an episode still).
+            var firstWithPicture = works
+                .OrderBy(work => work.CreatedAt).ThenBy(work => work.WorkId).ThenBy(work => work.AssetId)
+                .FirstOrDefault(work => HasPicture(ArtworkFor(work, work.AssetId)));
+            if (firstWithPicture is not null)
+            {
+                artwork = ArtworkFor(firstWithPicture, firstWithPicture.AssetId);
+            }
+        }
+
         var title = StringHelpers.FirstNonBlank(representative.ShowName, representative.Series, representative.Title, representative.CollectionTitle) ?? "TV Show";
         // A folder of Other videos is a plain list of videos with named sections: it never says Show, Season or Episode (item 17).
         var action = videoFolder
@@ -628,6 +641,10 @@ public sealed class DisplayCardBuilder
 
         return ArtworkFor(row, representative.AssetId);
     }
+
+    private static bool HasPicture(DisplayArtworkDto artwork) =>
+        !string.IsNullOrWhiteSpace(artwork.CoverUrl) || !string.IsNullOrWhiteSpace(artwork.SquareUrl)
+        || !string.IsNullOrWhiteSpace(artwork.BannerUrl) || !string.IsNullOrWhiteSpace(artwork.BackgroundUrl);
 
     private static DisplayArtworkDto RootArtworkFor(DisplayWorkRow representative)
     {
