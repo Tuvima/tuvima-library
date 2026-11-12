@@ -8,7 +8,7 @@ using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
-using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -25,6 +25,10 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly EditSessionState _session = new(new PendingEditList());
     private VideoOrderResponse _order = new();
+    private int _discardAsked;
+    private EditSessionFlow? _flow;
+    private EditingModeContext? _mode;
+    private IRenderedComponent<AppDialogHost> _dialogs = null!;
 
     public EditorReorderStagingTests()
     {
@@ -34,6 +38,7 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
             stub.SetHandler(nameof(IEngineApiClient.GetVideoOrderAsync), _ => Task.FromResult<VideoOrderResponse?>(_order))));
         Render<AppPopoverHost>();
+        _dialogs = Render<AppDialogHost>();
         _session.Begin([new EditTrailItem(EditorHeaderTestData.EpisodeTwoId, "Graded wash", "Item")]);
     }
 
@@ -42,7 +47,8 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
         var api = Services.GetRequiredService<IEngineApiClient>();
         var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
-        return new EditSessionFlow(_session, mode, new EditSessionSaver(api), () => [], () => Task.FromResult(true));
+        _mode = mode;
+        return _flow = new EditSessionFlow(_session, mode, new EditSessionSaver(api), () => [], () => { _discardAsked++; return Task.FromResult(true); });
     }
 
     private IRenderedComponent<EditorHeaderNav> Show(EditorHeaderDto header) =>
@@ -159,37 +165,104 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Escape_InReorderMode_PutsTheListBackAndStagesNothing_WithoutAnyEditorToClose()
+    public async Task Escape_InReorderMode_PutsTheListBackAndStagesNothing_AsTheListsOwnDismiss()
     {
         var cut = EnterReorder();
         cut.Find("button[aria-label='Move Flat wash down']").Click();
 
-        cut.Find("[data-reorder-bar]").KeyDown(new KeyboardEventArgs { Key = "Escape" });
-
-        Assert.Empty(_session.Pending.Changes);
-        Assert.Empty(cut.FindAll("[data-reorder-bar]"));
-        Assert.Empty(cut.FindAll("[data-testid=reorder-videos]"));
-
-        // Escape closes the list as it does for every dropdown (the editor window itself is not involved); opening it again shows the order untouched.
-        cut.Find("#tl-hnav-item").Click();
-        Assert.Equal(["Flat wash", "Graded wash"], ItemTitlesInOrder(cut));
-    }
-
-    [Fact]
-    public async Task ClosingTheListWithAnOutsidePress_WhileReordering_DiscardsTheHeldOrder()
-    {
-        var cut = EnterReorder();
-        cut.Find("button[aria-label='Move Flat wash down']").Click();
-
-        // The browser reports an outside press or Escape to the list's surface the same way (AppPopover.Dismiss).
+        // In the browser app-popover.js hears Escape (and an outside press) before anything in the page and reports it to the list's surface as
+        // Dismiss; the editor window is not asked to close. That is the path the person takes, so it is the path tested.
         var popover = cut.FindComponents<AppPopover>().Single();
         await cut.InvokeAsync(() => popover.Instance.Dismiss());
 
         Assert.Empty(_session.Pending.Changes);
         Assert.Empty(cut.FindAll("[data-reorder-bar]"));
+        Assert.Empty(cut.FindAll("[data-testid=reorder-videos]"));
+        Assert.Equal(0, _discardAsked);
+        Assert.False(_session.HasHeldOrder);
+        Assert.True(_session.IsActive);
+
+        // Opening the list again shows the order untouched.
         cut.Find("#tl-hnav-item").Click();
+        Assert.Equal(["Flat wash", "Graded wash"], ItemTitlesInOrder(cut));
         cut.Find("#tl-hnav-reorder").Click();
         Assert.Equal(["Flat wash", "Graded wash"], TitlesInOrder(cut));
+    }
+
+    [Fact]
+    public void AnArrangedOrderNotYetSaved_CountsAsUnsavedWork_UntilSaveOrderOrCancel()
+    {
+        var cut = EnterReorder();
+        Assert.False(_session.HasUnsavedWork);
+
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+        Assert.True(_session.HasHeldOrder);
+        Assert.True(_session.HasUnsavedWork);
+        Assert.False(_session.HasPendingChanges);
+
+        cut.Find("[data-reorder-cancel]").Click();
+        Assert.False(_session.HasHeldOrder);
+        Assert.False(_session.HasUnsavedWork);
+
+        cut.Find("#tl-hnav-reorder").Click();
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+        cut.Find("[data-reorder-save]").Click();
+        Assert.False(_session.HasHeldOrder);
+        Assert.True(_session.HasPendingChanges);
+    }
+
+    [Fact]
+    public async Task LeavingTheEditor_WithAnOrderNotYetSaved_AsksTheEditorsOwnQuestionOnce()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var cut = EnterReorder();
+        Assert.True(await cut.InvokeAsync(() => _mode!.EnterAsync()));
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+
+        var left = await cut.InvokeAsync(() => _flow!.LeaveAsync());
+
+        Assert.True(left);
+        Assert.Equal(1, _discardAsked);
+    }
+
+    [Fact]
+    public async Task NavigatingAway_WithAnOrderNotYetSaved_ShowsNoSecondQuestionFromTheReorderBar()
+    {
+        var cut = EnterReorder();
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+        var navigation = Services.GetRequiredService<NavigationManager>();
+
+        await cut.InvokeAsync(() => navigation.NavigateTo("/elsewhere"));
+
+        Assert.Empty(_dialogs.FindAll(".app-confirm"));
+        Assert.EndsWith("/elsewhere", navigation.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SaveOrder_WhenTheEditSessionHasEnded_SaysSoInPlaceAndStagesNothing()
+    {
+        var cut = EnterReorder();
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+        _session.End();
+
+        cut.Find("[data-reorder-save]").Click();
+
+        Assert.Contains("no longer open", cut.Find("[role=alert]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(_session.Pending.Changes);
+        Assert.NotEmpty(cut.FindAll("[data-reorder-bar]"));
+    }
+
+    [Fact]
+    public void WhileReordering_TheListSurfaceCarriesTheClassThatReservesTheReorderBarsHeight_AndOtherwiseDoesNot()
+    {
+        var cut = EnterReorder();
+        var surface = cut.Find(".tl-hnav__surface");
+        Assert.Contains("tl-hnav__surface--reordering", surface.ClassName, StringComparison.Ordinal);
+
+        cut.Find("[data-reorder-cancel]").Click();
+
+        surface = cut.Find(".tl-hnav__surface");
+        Assert.DoesNotContain("tl-hnav__surface--reordering", surface.ClassName, StringComparison.Ordinal);
     }
 
     [Fact]

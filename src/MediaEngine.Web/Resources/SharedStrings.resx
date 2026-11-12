@@ -12131,6 +12131,9 @@
   <data name="EditorReorder_Row" xml:space="preserve">
     <value>Reorder videos</value>
   </data>
+  <data name="EditorReorder_SaveFailed" xml:space="preserve">
+    <value>The new order was not saved because this edit is no longer open. Close the list and open the editor again.</value>
+  </data>
   <data name="EditorReorder_SectionsHeading" xml:space="preserve">
     <value>Reorder sections</value>
   </data>

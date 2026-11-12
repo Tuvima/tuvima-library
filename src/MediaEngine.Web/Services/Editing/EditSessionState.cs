@@ -49,6 +49,24 @@ public sealed class EditSessionState
 
     public bool HasPendingChanges => !Pending.IsEmpty;
 
+    /// <summary>True while an order is being arranged in a header list's Reorder mode and Save order has not staged it yet (editor v6 D23).</summary>
+    public bool HasHeldOrder { get; private set; }
+
+    /// <summary>What the editor's leave question asks about: staged changes, or an arranged order not yet staged.</summary>
+    public bool HasUnsavedWork => HasPendingChanges || HasHeldOrder;
+
+    /// <summary>The header lists tell the session that a Reorder-mode arrangement is waiting for Save order (or no longer is).</summary>
+    public void SetHeldOrder(bool held)
+    {
+        if (HasHeldOrder == held)
+        {
+            return;
+        }
+
+        HasHeldOrder = held;
+        RaiseChanged();
+    }
+
     /// <summary>Starts editing at the end of <paramref name="trail"/>. Starting again while active only moves to the new item.</summary>
     public void Begin(IReadOnlyList<EditTrailItem> trail)
     {
@@ -107,6 +125,7 @@ public sealed class EditSessionState
     /// <summary>Ends the session after a successful save (the pending list was already applied).</summary>
     public void End()
     {
+        HasHeldOrder = false;
         IsActive = false;
         ActiveItem = null;
         Trail = [];

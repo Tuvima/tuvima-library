@@ -65,7 +65,7 @@
                 </AppRowButton>
                 @if (_open == Open.Second)
                 {
-                    <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Second))" Class="tl-hnav__surface tl-hnav__surface--second">
+                    <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Second))" Class="@SurfaceClass("tl-hnav__surface tl-hnav__surface--second", _reorderingSections)">
                         <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
                             @if (_reorderingSections && EditorNavText.CanReorder(header))
                             {
@@ -83,7 +83,11 @@
                                                           OnDirtyChanged="OrderDirtyChanged"
                                                           OnOrderChanged="FollowSectionOrder" />
                                 </div>
-                                <AppReorderBar Active="true" Dirty="@_orderDirty" OnSave="SaveOrderAsync" OnCancel="CancelReordering" />
+                                @if (_saveFailed)
+                                {
+                                    <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorReorder_SaveFailed"]</AppAlert>
+                                }
+                                <AppReorderBar Active="true" Dirty="@_orderDirty" GuardLeaving="false" OnSave="SaveOrderAsync" OnCancel="CancelReordering" />
                             }
                             else
                             {
@@ -218,6 +222,7 @@
     // Reorder mode: the list that holds the new order, and whether it differs yet from the order the mode began with (Save order waits for it).
     private EditorVideoOrderList? _orderList;
     private bool _orderDirty;
+    private bool _saveFailed;
     private IReadOnlyList<Guid> _sectionOrder = [];
     private IJSObjectReference? _module;
     private DotNetObjectReference<MoreCallback>? _observed;
@@ -299,7 +304,7 @@
         var files = header.Level.SupportingFiles;
         var inline = files.Files;
         var word = EditorNavText.ChooseWord(header);
-        <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Item))" Class="tl-hnav__surface tl-hnav__surface--item">
+        <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Item))" Class="@SurfaceClass("tl-hnav__surface tl-hnav__surface--item", _reordering)">
             <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
               @if (_reordering && EditorNavText.CanReorder(header))
               {
@@ -317,7 +322,11 @@
                                           OnDirtyChanged="OrderDirtyChanged"
                                           OnOrderChanged="FollowOrder" />
                 </div>
-                <AppReorderBar Active="true" Dirty="@_orderDirty" OnSave="SaveOrderAsync" OnCancel="CancelReordering" />
+                @if (_saveFailed)
+                {
+                    <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorReorder_SaveFailed"]</AppAlert>
+                }
+                <AppReorderBar Active="true" Dirty="@_orderDirty" GuardLeaving="false" OnSave="SaveOrderAsync" OnCancel="CancelReordering" />
               }
               else
               {
@@ -762,6 +771,7 @@
     private void StartReordering()
     {
         _reordering = true;
+        _saveFailed = false;
         _orderDirty = false;
         _cursor = null;
     }
@@ -770,6 +780,7 @@
     private void StartReorderingSections()
     {
         _reorderingSections = true;
+        _saveFailed = false;
         _orderDirty = false;
         _cursor = null;
     }
@@ -779,13 +790,23 @@
         _reordering = false;
         _reorderingSections = false;
         _orderDirty = false;
+        _saveFailed = false;
+        Flow?.Session.SetHeldOrder(false);
     }
 
+    // The arrangement that Save order has not staged yet counts as unsaved work for the editor's own leave question (the bar's own guard is off here),
+    // so Back, a link or closing the window asks once, and what it asks is the editor's.
     private Task OrderDirtyChanged(bool dirty)
     {
         _orderDirty = dirty;
+        _saveFailed = false;
+        Flow?.Session.SetHeldOrder(dirty);
         return Task.CompletedTask;
     }
+
+    // While the Reorder bar is up the list keeps clear of it: the class makes the surface ask the shared popover to reserve the bar's height at the
+    // bottom of the screen, and its list shrinks and scrolls instead of running under the bar (app.css, .tl-hnav__surface--reordering).
+    private static string SurfaceClass(string surface, bool reordering) => reordering ? surface + " tl-hnav__surface--reordering" : surface;
 
     // Cancel: nothing was staged while the mode was open, so leaving it puts the list back as it was; the cursor returns to the Reorder row.
     private void CancelReordering()
@@ -800,6 +821,9 @@
     {
         if (_orderList is null || !await _orderList.CommitAsync())
         {
+            // The edit session ended under the open list, so there is nothing to stage the order into; say so here instead of doing nothing.
+            _saveFailed = true;
+            StateHasChanged();
             return false;
         }
 
@@ -961,6 +985,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        Flow?.Session.SetHeldOrder(false);
         _reads?.Cancel();
         _reads?.Dispose();
         if (_flow is not null)
