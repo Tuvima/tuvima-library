@@ -620,7 +620,7 @@
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove this folder?",
             $"{source.DisplayName()} stops being part of {NameOf(library)}. Your files stay on disk."
-                + (IsVideosSelected ? " To move it to Photos and Videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
+                + (IsVideosSelected ? " To move it to Photos and videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
             yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);

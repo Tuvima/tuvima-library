@@ -455,6 +455,8 @@
     private async Task SaveAsync()
     {
         if (_saving) return;
+        // Taking away the last folder takes the library off the list (Setup and Libraries fixes D11), so it asks once; Keep goes back to the Review page with nothing changed.
+        if (!Import && Sources.Count > 0 && KeptSources.Count == 0 && _added.Count == 0 && !await ConfirmLastFolderAsync()) return;
         _saving = true;
         _error = null;
         try
@@ -473,6 +475,11 @@
             _saving = false;
         }
     }
+
+    private async Task<bool> ConfirmLastFolderAsync() =>
+        await AppConfirmDialog.ShowAsync(DialogService, L["LibraryEditDialog_LastFolderTitle"].Value,
+            L["LibraryEditDialog_LastFolderBody", string.IsNullOrWhiteSpace(Library?.Name) ? L["LibraryEditDialog_LibraryLower"].Value : Library!.Name].Value,
+            L["LibraryEditDialog_LastFolderRemove"].Value, L["LibraryEditDialog_Keep"].Value, primaryDestructive: true) == AppConfirmResult.Primary;
 
     private async Task SaveImportAsync()
     {

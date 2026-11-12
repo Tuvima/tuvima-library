@@ -52,9 +52,22 @@ public static class ViewFolderRules
     /// <summary>The path to show for a folder: where it lives, or (for a Managed folder with no outside path) its name.</summary>
     public static string PathOf(ViewSourceAdminDto source) => string.IsNullOrWhiteSpace(source.Location) ? source.Name : source.Location;
 
-    /// <summary>The folder-list items of a kind's folders.</summary>
-    public static IReadOnlyList<FolderListItem> ListItems(IEnumerable<ViewSourceAdminDto> sources, string kind) =>
-        [.. OfKind(sources, kind).Select(source => new FolderListItem(source.Id.ToString("D"), PathOf(source), source.FolderOffline ? "Offline" : null))];
+    /// <summary>
+    /// The content kinds one View row holds (Setup and Libraries fixes D10): the "Photos and videos" row (the Photos kind) holds Photos and Personal videos folders
+    /// together; every other row holds its own kind.
+    /// </summary>
+    public static IReadOnlyList<string> ContentKindsOf(string rowKey) =>
+        string.Equals(rowKey, LibraryTypeCatalog.PhotosKey, StringComparison.OrdinalIgnoreCase)
+            ? [LibraryTypeCatalog.PhotosKey, LibraryTypeCatalog.PersonalVideosKey]
+            : [rowKey];
+
+    /// <summary>The folders a person added to one View row: every content kind the row holds (see <see cref="ContentKindsOf"/>).</summary>
+    public static IReadOnlyList<ViewSourceAdminDto> OfRow(IEnumerable<ViewSourceAdminDto> sources, string rowKey) =>
+        [.. ContentKindsOf(rowKey).SelectMany(kind => OfKind(sources, kind))];
+
+    /// <summary>The folder-list items of a View row's folders.</summary>
+    public static IReadOnlyList<FolderListItem> ListItems(IEnumerable<ViewSourceAdminDto> sources, string rowKey) =>
+        [.. OfRow(sources, rowKey).Select(source => new FolderListItem(source.Id.ToString("D"), PathOf(source), source.FolderOffline ? "Offline" : null))];
 
     /// <summary>
     /// The friendly name to save: the typed one, else the folder's own name; a name already used by another folder of the same kind gets " (2)", " (3)" and so on.

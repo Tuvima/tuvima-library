@@ -265,8 +265,9 @@
         }
 
         var sources = entries.Select(entry => entry.Source).ToList();
-        _viewFolderLists = Kinds.ViewKinds.ToDictionary(kind => kind.Key, kind => ViewFolderRules.ListItems(sources, kind.Key), StringComparer.OrdinalIgnoreCase);
-        return Kinds.ViewKinds.ToDictionary(kind => kind.Key, kind => _viewFolderLists[kind.Key].Count);
+        // One list per View row: "Photos and videos" holds the folders of Photos and Personal videos together.
+        _viewFolderLists = Kinds.ViewRowKinds.ToDictionary(kind => kind.Key, kind => ViewFolderRules.ListItems(sources, kind.Key), StringComparer.OrdinalIgnoreCase);
+        return Kinds.ViewRowKinds.ToDictionary(kind => kind.Key, kind => _viewFolderLists[kind.Key].Count);
     }
 
     // The folders panel saves on its own; keep this page's copy current for the View settings and the counts.

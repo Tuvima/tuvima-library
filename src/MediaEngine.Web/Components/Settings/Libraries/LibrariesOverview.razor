@@ -58,9 +58,10 @@
     </div>
     </div>
 
-    @if (everyRow.All(row => row.IsView))
+    @if (everyRow.Count == 0 && ViewFoldersKnown)
     {
-        @* Empty (no libraries; View's kinds always exist, so they do not count): a heading, a gap, one sentence and an obvious button. The Import folder row still shows below. *@
+        @* Empty (no library has a folder; a library with no folders is not listed, D11): a heading, a gap, one sentence and an obvious button. The Import folder row still shows below.
+           Not drawn while View's folders are still being read, so a person who only has photos does not see it flash. *@
         <div class="libs__empty" data-empty="none">
             <h3>@L["LibrariesOverview_NoLibrariesYet"]</h3>
             <p>@L["LibrariesOverview_AddOneForEachKind"]</p>
@@ -335,10 +336,13 @@
     // The Import folder has no page of its own any more (D15): the row opens its Edit window.
     private Task OpenImport() => ReadOnly ? Task.CompletedTask : EditImportAsync();
 
-    // Add library is open to everyone who can edit; View's kinds always exist, so inside a View chip it offers its folder pop-up instead (Add library, View tab).
+    // Add library is open to everyone who can edit; it is how a library with no folders appears (D11), View's rows included.
     private bool CanAddLibrary => !ReadOnly;
 
-    private bool CanAddLibraryIn(LibraryGroup area) => !ReadOnly && !string.Equals(area.Key, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase);
+    private bool CanAddLibraryIn(LibraryGroup area) => !ReadOnly;
+
+    // View's folder counts arrive after the first render; until they do, View's rows (and so the empty state) are not known.
+    private bool ViewFoldersKnown => ViewFolders is not null || !Kinds.ViewRowKinds.Any();
 
     // The one place the add flow is started: the Add library dialog, on the area the person is looking at (Watch when All).
     private Task OpenAddLibraryAsync(string? areaKey) => LibraryAddFlow.OpenAsync(

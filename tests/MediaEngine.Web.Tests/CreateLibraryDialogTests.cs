@@ -379,7 +379,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     {
         await OpenAsync(area: "view", chooseFolder: false);
 
-        _dialogs.WaitForAssertion(() => Assert.Equal(["Photos and Videos", "Documents"], KindRows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent).ToArray()));
+        _dialogs.WaitForAssertion(() => Assert.Equal(["Photos and videos", "Documents"], KindRows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent).ToArray()));
         Assert.All(KindRows, row => Assert.False(IsOff(row)));
 
         KindRows.First().Click();

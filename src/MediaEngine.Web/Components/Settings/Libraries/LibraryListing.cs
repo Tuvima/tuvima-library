@@ -107,7 +107,10 @@ public static class LibraryListing
     {
         if (string.Equals(area, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
         {
-            return [.. kinds.ViewKinds.Select(kind => ViewRowFor(kind, viewFolders?.GetValueOrDefault(kind.Key)))];
+            // One "Photos and videos" row holds the folders of Photos and Personal videos; a row with no folders (or none known yet) is not listed (D10, D11).
+            return [.. kinds.ViewRowKinds
+                .Select(kind => ViewRowFor(kind, ViewFolderCount(kind, viewFolders)))
+                .Where(row => row.Folders is > 0)];
         }
 
         var inVault = string.Equals(area, LibraryGroupCatalog.VaultKey, StringComparison.OrdinalIgnoreCase);
@@ -127,6 +130,12 @@ public static class LibraryListing
             }
 
             if (!inVault && !string.Equals(AreaOf(kinds, library), area, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // A library with no folders is not listed anywhere until a folder is added (D11); its page still opens by address.
+            if (library.Sources.Count == 0)
             {
                 continue;
             }
@@ -168,6 +177,10 @@ public static class LibraryListing
             detail,
             AddressOf(library.Id));
     }
+
+    /// <summary>The folders under one View row (every content kind the row holds); null while the counts are not known.</summary>
+    private static int? ViewFolderCount(LibraryTypeOption row, IReadOnlyDictionary<string, int>? viewFolders) =>
+        viewFolders is null ? null : ViewFolderRules.ContentKindsOf(row.Key).Sum(kind => viewFolders.GetValueOrDefault(kind));
 
     /// <summary>The row of one View kind (the overview and the kind's own page read the same facts); <paramref name="folders"/> is null while it is not known.</summary>
     public static LibraryListRow ViewRowFor(LibraryTypeOption kind, int? folders)

@@ -9989,6 +9989,15 @@
   <data name="LibraryEditDialog_Keep" xml:space="preserve">
     <value>Keep</value>
   </data>
+  <data name="LibraryEditDialog_LastFolderTitle" xml:space="preserve">
+    <value>Remove the last folder?</value>
+  </data>
+  <data name="LibraryEditDialog_LastFolderBody" xml:space="preserve">
+    <value>{0} will leave the Libraries list until you add a folder again. Your files stay where they are.</value>
+  </data>
+  <data name="LibraryEditDialog_LastFolderRemove" xml:space="preserve">
+    <value>Remove folder</value>
+  </data>
   <data name="LibraryEditDialog_RemoveFailed" xml:space="preserve">
     <value>The library could not be removed. Try again.</value>
   </data>

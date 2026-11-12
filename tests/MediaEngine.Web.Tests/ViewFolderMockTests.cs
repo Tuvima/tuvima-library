@@ -149,7 +149,7 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
     {
         await OpenAddWindowAsync("photos");
 
-        Assert.Equal("View \u00b7 Photos and Videos", Text(_dialogs.FindAll(".app-dialog-shell__eyebrow").Last()));
+        Assert.Equal("View \u00b7 Photos and videos", Text(_dialogs.FindAll(".app-dialog-shell__eyebrow").Last()));
         Assert.Equal("Add folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
         Assert.Empty(_dialogs.FindAll(".app-dialog-shell__subtitle"));
     }
