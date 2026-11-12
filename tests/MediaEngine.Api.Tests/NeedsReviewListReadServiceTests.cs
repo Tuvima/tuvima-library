@@ -300,7 +300,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var (show, season) = SeedShow(title: null, parentKey: "show-key-1234");
         var episode = SeedEpisodeFile("tv", "s01e01.mkv", season, At(1));
 
-        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: true, 0, 100);
 
         var row = Row(list, episode);
         Assert.Null(row.FamilyKey);
@@ -319,8 +319,8 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         await _unmatched.KeepAsIsAsync(exact, DateTimeOffset.UtcNow);
         await _unmatched.KeepAsIsAsync(otherCase, DateTimeOffset.UtcNow);
 
-        var kept = await _service.ListAsync(null, "movies", includeFiles: true, 0, 100, keptOnly: true);
-        var normal = await _service.ListAsync(null, "movies", includeFiles: true, 0, 100);
+        var kept = await _service.ListAsync("movies", includeFiles: true, 0, 100, keptOnly: true);
+        var normal = await _service.ListAsync("movies", includeFiles: true, 0, 100);
 
         Assert.Equal([$"file:{exact:D}"], kept.Items.Select(row => row.Key));
         Assert.Equal(kept.Items.Count, normal.KeptTotal);
