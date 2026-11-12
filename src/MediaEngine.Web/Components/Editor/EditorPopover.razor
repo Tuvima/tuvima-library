@@ -5,7 +5,7 @@
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @using Microsoft.AspNetCore.Components.Routing
-@implements IDisposable
+@implements IAsyncDisposable
 @inject EditorHost Editor
 @inject IAppDialogService Dialogs
 @inject DeviceContextService Device
@@ -13,6 +13,7 @@
 @inject IStringLocalizer<SharedStrings> L
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject ILogger<EditorPopover> Logger
 
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
@@ -32,8 +33,10 @@
                     DialogOptions="_options"
                     OnCancel="@(() => Editor.RequestCloseAsync())"
                     Class="tl-editor-dialog">
+        <CascadingValue Value="Layout">
         <EditorPanelHost Mode="mode"
                          Flow="flow"
+                         Phone="Phone"
                          Picker="Editor.Picker"
                          TitleOverride="@(BulkPanelTitle ?? FilesBatchTitle)"
                          FilesBatch="@Editor.FileBatch.IsOpen"
@@ -43,7 +46,7 @@
                          ActionNoticeIsError="_actionNoticeIsError"
                          ActionNoticeDismissed="@(() => _actionNotice = null)"
                          ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
-                         FooterStart="@(Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
+                         FooterStart="@FooterStartFragment(flow, mode)">
             <HeaderContent>
                 @if (Editor.FileBatch.IsOpen)
                 {
@@ -127,6 +130,7 @@
                 }
             </ChildContent>
         </EditorPanelHost>
+        </CascadingValue>
     </AppDialogFrame>
 }
 
@@ -139,6 +143,7 @@
                           Compact="@(flow.Session.ActiveTool == EditTool.Match)" MatchRead="_matchRead"
                           UniverseName="@Editor.Universe.UniverseName"
                           HasFamily="@Editor.Universe.Visible"
+                          Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"
                           Hooks="Editor.HeaderHooks">
             <Tile>
                 @if (Editor.Universe.Visible)
@@ -159,6 +164,7 @@
     private RenderFragment FilesBatchHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family"
+                          Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"
                           GroupRows="Editor.FileBatch.Rows"
                           GroupLabel="@Editor.FileBatch.TitleName"
                           GroupTitle="@EditorFileBrowserRules.EditingTitle(L, Editor.FileBatch.Rows.Count)"
@@ -201,6 +207,44 @@
         var root = Editor.Mode.Fields.Header?.Root.Id ?? Editor.FileBatch.TitleId;
         Editor.FileBatch.Close();
         await Editor.Flow.SwitchToAsync(root);
+    }
+
+    // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). On a phone the footer holds only Discard and Save changes
+    // and Delete is in the header's "..." menu (v6 D22); the same three ways to delete, the same confirmation.
+    private RenderFragment? FooterStartFragment(EditSessionFlow flow, EditingModeContext mode) =>
+        Phone ? null
+        : Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode)
+        : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode)
+        : null;
+
+    private IReadOnlyList<AppRowMenuItem>? DeleteMenu(EditSessionFlow flow, EditingModeContext mode)
+    {
+        if (!Phone)
+        {
+            return null;
+        }
+
+        Func<Task>? delete = Editor.FileBatch.IsOpen
+            ? DeleteFilesAsync
+            : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile)
+                ? () => CanDeleteFile ? DeleteFileAsync() : CanDeleteThing ? DeleteThingAsync() : DeleteActiveAsync()
+                : null;
+        if (delete is null)
+        {
+            return null;
+        }
+
+        return
+        [
+            new AppRowMenuItem
+            {
+                Label = L["EditorFooter_Delete"].Value,
+                Icon = AppMaterialIcons.Outlined.Delete,
+                Destructive = true,
+                Disabled = flow.Saving || flow.Switching || (Editor.FileBatch.IsOpen && !mode.CanEdit),
+                OnClick = EventCallback.Factory.Create(this, delete),
+            },
+        ];
     }
 
     // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). It asks once, naming the item and what goes with
@@ -342,8 +386,19 @@
         _ => null,
     };
 
+    /// <summary>Draws the window in the phone arrangement (true) or the desktop one (false) whatever the device says; left unset, the device's form factor decides.</summary>
+    [Parameter] public bool? PhoneArrangement { get; set; }
+
+    // The phone arrangement (v6 section 4a): a phone or a tablet says so by its form factor, which the browser reports before the first draw and again
+    // whenever the window crosses a form-factor width, so a window resized or a tablet turned is drawn again in the other arrangement.
+    private bool Phone => PhoneArrangement ?? EditorPhoneArrangement.Applies(Device);
+
+    // What the parts of the window read instead of each being handed Phone.
+    private EditorWindowLayout Layout => Phone ? EditorWindowLayout.PhoneSheet : EditorWindowLayout.Desktop;
+
     protected override void OnInitialized()
     {
+        Device.OnChanged += DeviceChanged;
         Editor.AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs);
         Editor.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
         Editor.HeaderHooks.OpenSupportingFiles = request => OpenBrowserAsync(EditorBrowserView.Files);
@@ -429,13 +484,33 @@
         await OpenBrowserAsync(EditorBrowserView.Files);
     }
 
-    public void Dispose()
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        Device.OnChanged -= DeviceChanged;
         Editor.Changed -= OnChanged;
         Editor.AskSaveOrDiscard = null;
         Editor.ConfirmDiscard = null;
         Editor.HeaderHooks.OpenSupportingFiles = null;
         Editor.HeaderHooks.OpenFolders = null;
+        if (_focusModule is not null)
+        {
+            try
+            {
+                if (_watching)
+                {
+                    await _focusModule.InvokeVoidAsync("stopKeyboard");
+                }
+
+                await _focusModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended first; the browser already dropped its listeners with the page.
+            }
+        }
     }
 
     private bool _wasOpen;
@@ -476,11 +551,44 @@
 
     private int _focusTries;
     private IJSObjectReference? _focusModule;
+    private bool _watching;
+    private bool _disposed;
+
+    // While the window is open on a phone arrangement, its height is kept above the on-screen keyboard (editor-focus.js). A failure to reach the script (a test
+    // host, a closing circuit, a moment when the connection is down) leaves the state as it was, so the next draw tries again; the window works without the fit.
+    private async Task SyncKeyboardAsync()
+    {
+        var wanted = Editor.IsOpen && Phone;
+        if (_disposed || wanted == _watching)
+        {
+            return;
+        }
+
+        try
+        {
+            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            if (wanted)
+            {
+                await _focusModule.InvokeVoidAsync("watchKeyboard");
+            }
+            else
+            {
+                await _focusModule.InvokeVoidAsync("stopKeyboard");
+            }
+
+            _watching = wanted;
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            Logger.LogDebug(ex, "The editor could not reach its keyboard script; it will try again at the next draw");
+        }
+    }
 
     // The player's lyrics button asks for the Lyrics field: once the pop-over has drawn the fields, the cursor goes there. A field the
     // item does not show (or a page without scripts) is not an error; the request is dropped after a few tries.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await SyncKeyboardAsync();
         if (Editor.FocusField is not { } key || !Editor.IsOpen)
         {
             _focusTries = 0;

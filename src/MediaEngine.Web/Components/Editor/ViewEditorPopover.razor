@@ -3,12 +3,14 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
 @using Microsoft.AspNetCore.Components.Routing
 @implements IDisposable
 @inject ViewEditorHost Host
 @inject ViewRibbonState Ribbon
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
+@inject DeviceContextService Device
 @inject IStringLocalizer<SharedStrings> L
 
 @* The pop-over of the photos, videos, documents and galleries editor (spec photos-documents-editor D1), drawn once by the app layout so Edit opens
@@ -22,6 +24,7 @@
     var tool = session.Tools.Contains(session.Tool) ? session.Tool : ViewEditTool.Details;
     <NavigationLock ConfirmExternalNavigation="@session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
     <AppDialogFrame Open="true" Title="@Header(session)" DialogOptions="_options" OnCancel="@(() => session.LeaveAsync())" Class="tl-editor-dialog">
+        <CascadingValue Value="@EditorWindowLayout.For(Device)">
         <EditorWindowChrome Framed="@(!_reviewing)"
                             Title="@L["ViewEdit_ReviewChanges"].Value"
                             CloseName="@Header(session)"
@@ -98,6 +101,7 @@
                 }
             </Body>
         </EditorWindowChrome>
+        </CascadingValue>
     </AppDialogFrame>
 }
 
@@ -111,11 +115,13 @@
     {
         Host.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
         Host.Changed += OnChanged;
+        Device.OnChanged += OnChanged;
     }
 
     public void Dispose()
     {
         Host.Changed -= OnChanged;
+        Device.OnChanged -= OnChanged;
         Host.ConfirmDiscard = null;
     }
 
