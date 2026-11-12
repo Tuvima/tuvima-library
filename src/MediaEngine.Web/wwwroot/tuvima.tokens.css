@@ -454,6 +454,18 @@
     --tl-scrim-soft: rgba(16, 17, 21, 0.55);
     --tl-scrim-soft-strong: rgba(16, 17, 21, 0.72);
     --tl-on-scrim: #FFFFFF;
+    /* Washes and scrims (Look v3.1 D7): white washes for hover fills and hairlines, black scrims for dimming over artwork and wells; every hand-typed black or white alpha rounds onto one of these steps. */
+    --tl-wash-light-1: rgba(255, 255, 255, 0.03);
+    --tl-wash-light-2: rgba(255, 255, 255, 0.05);
+    --tl-wash-light-3: rgba(255, 255, 255, 0.08);
+    --tl-wash-light-4: rgba(255, 255, 255, 0.12);
+    --tl-wash-light-5: rgba(255, 255, 255, 0.18);
+    --tl-scrim-dark-1: rgba(0, 0, 0, 0.2);
+    --tl-scrim-dark-2: rgba(0, 0, 0, 0.3);
+    --tl-scrim-dark-3: rgba(0, 0, 0, 0.4);
+    --tl-scrim-dark-4: rgba(0, 0, 0, 0.5);
+    --tl-scrim-dark-5: rgba(0, 0, 0, 0.6);
+    --tl-scrim-dark-6: rgba(0, 0, 0, 0.7);
     /* The hero's one main button (Look v3 D12): light on any artwork, 56 px tall. */
     --tl-hero-action-bg: #F5F7FB;
     --tl-hero-action-bg-hover: #E3E6EC;
@@ -519,6 +531,13 @@
 @media (max-width: 600px) {
     :root {
         --tl-field-text-size: var(--tl-font-size-md);
+    }
+}
+
+/* The page title job is 28 px on wide screens (look-pass v3.1 D8). */
+@media (min-width: 1180px) {
+    :root {
+        --tl-type-page-title-size: 28px;
     }
 }
 

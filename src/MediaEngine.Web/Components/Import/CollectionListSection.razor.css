@@ -14,7 +14,7 @@
 
 .list-section__owned strong {
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg);
+    font-size: var(--tl-type-heading-size);
     font-variant-numeric: tabular-nums;
 }
 
@@ -22,7 +22,7 @@
 .list-section__hint {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .list-section__actions {
@@ -40,6 +40,6 @@
 .list-section__heading {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
     font-weight: var(--tl-font-weight-semibold);
 }

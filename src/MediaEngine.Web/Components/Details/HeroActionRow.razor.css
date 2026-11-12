@@ -8,7 +8,7 @@
 .tl-detail-action-progress__track { position:absolute; left:0; right:0; bottom:0; height:3px; border-radius:0; background:color-mix(in srgb, var(--tl-hero-action-text) 20%, transparent); }
 .tl-detail-action-progress__track ::deep .tl-detail-action-progress__fill { display:block; height:100%; background:var(--tl-accent-primary); border-radius:inherit; }
 .tl-detail-actions ::deep .tl-detail-action-label { display:flex; flex-direction:row; align-items:baseline; gap:8px; min-width:0; line-height:1.15; text-align:left; }
-.tl-detail-actions ::deep .tl-detail-action-progress__label { font-size:var(--tl-font-size-sm); font-weight:var(--tl-font-weight-regular); }
+.tl-detail-actions ::deep .tl-detail-action-progress__label { font-size:var(--tl-type-body-size); font-weight:var(--tl-type-body-weight); }
 .tl-detail-actions ::deep .tl-detail-action--primary .tl-icon-root { width:var(--tl-hero-action-icon-size); height:var(--tl-hero-action-icon-size); font-size:var(--tl-hero-action-icon-size); flex:0 0 var(--tl-hero-action-icon-size); }
 .tl-detail-secondary-actions { align-items:flex-start; gap:6px 14px; }
 @media (max-width: 600px) {

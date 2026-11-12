@@ -31,7 +31,7 @@
 
 .security-sheet__section-title {
     margin: 0;
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
 }
 
 .security-sheet__section p {
@@ -71,7 +71,7 @@
 .security-sheet__row span,
 .security-sheet__hint {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .security-sheet__actions {
@@ -89,6 +89,6 @@
 .security-settings__note {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.4;
 }

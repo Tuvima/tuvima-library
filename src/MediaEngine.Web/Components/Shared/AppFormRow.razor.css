@@ -25,7 +25,7 @@
     box-sizing: content-box;
     padding-block-start: var(--tl-space-1);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.4;
 }
 

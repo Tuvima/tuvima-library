@@ -16,7 +16,7 @@
 .settings-page-canvas {
     min-width: 0;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
     line-height: 1.5;
 }
 
@@ -29,8 +29,8 @@
     display: block;
     margin-bottom: 6px;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
 }
 
 .settings-mobile-navigation__control {
@@ -58,7 +58,7 @@
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-lg);
     background-color: var(--tl-bg-surface-raised);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-field-text-size);
     font-weight: 600;
 }
 
@@ -69,14 +69,14 @@
 
 .settings-page-canvas ::deep .tl-table-root,
 .settings-page-canvas ::deep table {
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .settings-page-canvas ::deep .app-table th,
 .settings-page-canvas ::deep .tl-table-head .tl-table-cell {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
     line-height: 1.35;
     letter-spacing: .045em;
 }
@@ -84,7 +84,7 @@
 .settings-page-canvas ::deep .app-table td,
 .settings-page-canvas ::deep .tl-table-body .tl-table-cell {
     min-height: 52px;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
     line-height: 1.45;
 }
 
@@ -109,7 +109,7 @@
 .settings-page-canvas ::deep .app-control .tl-input-slot,
 .settings-page-canvas ::deep .app-control .tl-select-input,
 .settings-page-canvas ::deep .app-native-select {
-    font-size: var(--tl-font-size-sm) !important;
+    font-size: var(--tl-field-text-size) !important;
 }
 
 .settings-page-canvas ::deep .app-select .tl-input-slot,
@@ -152,12 +152,12 @@
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__title,
 .settings-page-canvas ::deep .app-settings-group .app-page-state--empty .app-page-state__title {
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__message,
 .settings-page-canvas ::deep .app-settings-group .app-page-state--empty .app-page-state__message {
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 @media (max-width: 840px) {
@@ -167,7 +167,7 @@
 
     .settings-page-canvas ::deep small,
     .settings-page-canvas ::deep .tl-typography-caption{
-        font-size: var(--tl-font-size-sm) !important;
+        font-size: var(--tl-type-body-size) !important;
         line-height: 1.45 !important;
     }
 
@@ -175,7 +175,7 @@
     .settings-page-canvas ::deep textarea,
     .settings-page-canvas ::deep select,
     .settings-page-canvas ::deep .tl-input-slot {
-        font-size: var(--tl-font-size-md) !important;
+        font-size: var(--tl-field-text-size) !important;
     }
 
     .settings-mobile-navigation {

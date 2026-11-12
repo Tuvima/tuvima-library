@@ -11,7 +11,7 @@
 
 .merge-folder h4 {
     margin: 4px 0 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-subheading-size);
 }
 
 .merge-folder__group {
@@ -47,7 +47,7 @@
 
 .merge-folder__tag {
     justify-self: start;
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     font-style: normal;
     color: var(--tl-text-muted);
 }
@@ -70,12 +70,12 @@
 
 .merge-folder__rules {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .merge-folder__reasons {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .merge-folder__samples {
@@ -91,7 +91,7 @@
 
 .merge-folder__samples code {
     overflow-wrap: anywhere;
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .merge-folder__preview {

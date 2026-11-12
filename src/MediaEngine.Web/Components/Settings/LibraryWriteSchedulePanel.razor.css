@@ -22,7 +22,7 @@
 .write-schedule__message {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
 }
 
@@ -47,7 +47,7 @@
     padding: 8px 12px;
     border: 1px solid var(--tl-border-subtle);
     border-radius: 8px;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .write-schedule__failed-list code {

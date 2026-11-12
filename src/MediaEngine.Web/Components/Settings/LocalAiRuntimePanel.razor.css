@@ -19,7 +19,7 @@
     display: grid;
     gap: 4px;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .local-ai-runtime__diagnostics strong {

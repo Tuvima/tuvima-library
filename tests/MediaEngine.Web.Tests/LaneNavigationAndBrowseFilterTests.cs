@@ -116,7 +116,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("border-left: 1px solid rgba(128, 146, 180, 0.2)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 1680px)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 1400px)", browseShellStyles, StringComparison.Ordinal);
-        Assert.Contains("font-size: var(--tl-font-size-sm)", browseShellStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-type-control-size)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("<BrowseMultiSelect Label=\"Filters\"", browseShell, StringComparison.Ordinal);
         Assert.Contains("Search genres...", browseShell, StringComparison.Ordinal);
         Assert.Contains("Search years...", browseShell, StringComparison.Ordinal);

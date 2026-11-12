@@ -19,8 +19,8 @@
 /* Small caps caption above a field ("Folder", "Library name"). */
 .create-library__caption {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.06em;
 }
 
@@ -28,7 +28,7 @@
 .create-library__line {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* The live answer for the chosen folder: a green tick and one plain sentence. */
@@ -38,7 +38,7 @@
     gap: var(--tl-space-2);
     margin: 0;
     color: var(--tl-status-success);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* Source folder: the chosen path with Browse beside it; the browser itself opens in its own pop-up. */
@@ -70,7 +70,7 @@
 
 .create-library__hint {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .create-library__areas {
@@ -78,7 +78,7 @@
     margin-bottom: var(--tl-space-3, 12px);
 }
 
-.create-library__chip { display: inline-flex; align-items: center; padding: 2px 12px; border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-sm); font-weight: 600; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-text-muted)) 14%, transparent); }
+.create-library__chip { display: inline-flex; align-items: center; padding: 2px 12px; border-radius: var(--tl-radius-pill); font-size: var(--tl-type-control-size); font-weight: var(--tl-type-control-weight); color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-text-muted)) 14%, transparent); }
 
 /* Areas and kinds are full-width rows of one height (setup and libraries fixes D5); the window body scrolls only when the list is longer than the window, and no space is reserved under it. */
 .create-library__area-line { display: flex; align-items: center; gap: var(--tl-space-2); margin: 0; color: var(--tl-text-secondary); }

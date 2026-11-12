@@ -31,8 +31,8 @@
 }
 
 :where(.tl-detail-page) .tl-detail-metadata-item__value {
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     white-space: nowrap;
 }
 

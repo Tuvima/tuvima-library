@@ -1,7 +1,7 @@
 
 .recent-feed { min-width:0; --home-shelf-height:clamp(176px,16.1vw,240px); }
 .recent-feed-heading { min-height:48px; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
-.recent-feed-heading h2 { margin:0; font-size:clamp(1.4rem,2vw,2rem); }
+.recent-feed-heading h2 { margin:0; font-size: var(--tl-type-heading-size); }
 .recent-view-all { margin-left:auto; display:inline-flex; align-items:center; min-height:48px; color:inherit; }
 .recent-item { flex:0 0 auto; scroll-snap-align:start; }
 

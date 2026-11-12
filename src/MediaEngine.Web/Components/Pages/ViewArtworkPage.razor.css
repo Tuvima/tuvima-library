@@ -1,7 +1,7 @@
 .view-artwork-header__count {
     flex: 0 0 auto;
     color: rgba(255, 255, 255, .58);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .view-artwork-controls {
@@ -71,8 +71,8 @@
     display: grid;
     gap: .35rem;
     color: rgba(255, 255, 255, .6);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: .06em;
 }
 

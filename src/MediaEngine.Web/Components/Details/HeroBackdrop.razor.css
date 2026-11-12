@@ -215,8 +215,8 @@
     bottom: clamp(1.4rem, 4vh, 3.4rem);
     z-index: 4;
     color: rgba(255, 248, 235, 0.92);
-    font-size: var(--tl-font-size-md);
-    font-weight: 700;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     letter-spacing: 0;
     text-shadow: 0 0.3rem 1.2rem rgba(0, 0, 0, 0.62);
 }

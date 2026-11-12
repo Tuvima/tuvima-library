@@ -8,18 +8,18 @@
 
 .excluded-files__title {
     margin: 0;
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
 }
 
 .excluded-files__hint {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .excluded-files__reason {
     display: block;
-    font-size: 0.75rem;
+    font-size: var(--tl-type-caption-size);
     color: var(--tl-text-muted);
 }
 

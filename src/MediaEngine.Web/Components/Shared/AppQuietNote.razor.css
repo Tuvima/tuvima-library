@@ -4,5 +4,5 @@
     gap: var(--tl-space-2);
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }

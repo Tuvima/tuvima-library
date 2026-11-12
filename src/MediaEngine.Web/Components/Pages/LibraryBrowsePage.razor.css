@@ -85,8 +85,8 @@
 .home-discovery-empty-title {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-xl);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     color: rgba(248, 248, 248, 0.88);
 }
 
@@ -94,7 +94,7 @@
     margin: 0;
     max-width: 460px;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
     line-height: 1.6;
     color: rgba(248, 248, 248, 0.56);
 }

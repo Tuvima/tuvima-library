@@ -16,7 +16,7 @@
     align-items: center;
     display: flex;
     flex: none;
-    font-size: 15px;
+    font-size: var(--tl-type-control-size);
     justify-content: space-between;
     padding: 16px 24px;
 }
@@ -92,15 +92,15 @@
 }
 
 .np__title {
-    font-size: 22px;
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     line-height: 1.25;
     margin: 0 0 2px;
     overflow-wrap: anywhere;
 }
 
 .np__line {
-    font-size: 15px;
+    font-size: var(--tl-type-body-size);
     margin: 0;
     overflow-wrap: anywhere;
 }
@@ -111,7 +111,7 @@
 
 .np__sub {
     color: var(--playback-text-secondary);
-    font-size: 13px;
+    font-size: var(--tl-type-secondary-size);
     margin: 2px 0 0;
 }
 
@@ -145,7 +145,7 @@
 
 .np__synopsis {
     color: var(--playback-text);
-    font-size: 16px;
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
     margin: 0 0 20px;
     max-width: 68ch;
@@ -165,11 +165,11 @@
 
 .np__fact dt {
     color: var(--playback-text-secondary);
-    font-size: 13px;
+    font-size: var(--tl-type-secondary-size);
 }
 
 .np__fact dd {
-    font-size: 15px;
+    font-size: var(--tl-type-body-size);
     margin: 2px 0 0;
     overflow-wrap: anywhere;
 }

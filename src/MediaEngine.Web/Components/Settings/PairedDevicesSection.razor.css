@@ -13,5 +13,5 @@
 
 .paired-device__text small {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }

@@ -9,7 +9,7 @@
 .vault-viewer__bar { padding-inline-end: calc(var(--tl-viewer-close) + 8px); }
 .vault-viewer__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .vault-viewer__title--hidden:not(:hover) { color: transparent; user-select: none; }
-.vault-viewer__count { color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); }
+.vault-viewer__count { color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 .vault-viewer__facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
 .vault-viewer__facts dt { color: var(--tl-text-muted); }
 .vault-viewer__facts dd { margin: 0; overflow-wrap: anywhere; }

@@ -24,8 +24,8 @@
 
 .tl-extras__group-name {
     margin: 0.4rem 0 0;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.08em;
     color: rgba(246, 240, 232, 0.66);
 }
@@ -43,8 +43,8 @@
     padding-inline: 0.5rem;
     border-radius: 0.5rem;
     background: rgba(246, 240, 232, 0.1);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.04em;
 }
 
@@ -60,8 +60,8 @@
     border: 1px solid rgba(246, 240, 232, 0.14);
     border-radius: var(--tl-radius-pill);
     color: rgba(246, 240, 232, 0.72);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 /* Each group is one horizontal shelf of 200px cards at every width (mock I): it scrolls sideways, never wraps, and never widens the page. */
@@ -147,22 +147,22 @@
 }
 
 .tl-extras-card__title {
-    font-weight: 600;
-    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-type-control-weight);
+    font-size: var(--tl-type-control-size);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .tl-extras-card__badge {
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.02em;
     color: rgba(246, 240, 232, 0.86);
 }
 
 .tl-extras-card__subtitle {
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     color: rgba(246, 240, 232, 0.66);
 }
 

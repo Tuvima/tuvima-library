@@ -17,8 +17,8 @@
 .folder-table__head {
     min-height: 40px;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .folder-table__row {
@@ -76,12 +76,12 @@
 .folder-table__files,
 .folder-table__none {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .folder-table__files-hint {
     display: block;
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .folder-table__radio-group {
@@ -89,7 +89,7 @@
 }
 
 .folder-table__status {
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     color: var(--tl-text-secondary);
 }
 
@@ -137,7 +137,7 @@
 
 .folder-table__tag {
     align-self: flex-start;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
     padding: 0 0.5rem;
     border-radius: 0;
     border: 1px solid var(--tl-border-subtle);

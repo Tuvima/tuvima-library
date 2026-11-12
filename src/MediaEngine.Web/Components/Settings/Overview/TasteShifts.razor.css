@@ -46,7 +46,7 @@ rect.taste-shifts__segment--3 { fill: var(--tl-status-idle); }
 
 .taste-shifts__month {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     text-align: center;
 }
 
@@ -55,7 +55,7 @@ rect.taste-shifts__segment--3 { fill: var(--tl-status-idle); }
     flex-wrap: wrap;
     gap: var(--tl-space-2, 8px) var(--tl-space-4, 16px);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .taste-shifts__key {

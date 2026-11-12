@@ -17,8 +17,8 @@
 
 .my-activity-page__title {
     margin: 0;
-    font-size: var(--tl-font-size-xl);
-    font-weight: var(--tl-font-weight-bold);
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
 }
 
 .my-activity-page__lead {

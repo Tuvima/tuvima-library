@@ -35,6 +35,14 @@ public sealed class TypeScaleJobsTests
     }
 
     [Fact]
+    public void ThePageTitleIsTwentyEightPixelsOnWideScreens()
+    {
+        var tokens = Compact(Wwwroot("tuvima.tokens.css"));
+
+        Assert.Matches(@"@media \(min-width: 1180px\) \{ :root \{ --tl-type-page-title-size: 28px; \} \}", tokens);
+    }
+
+    [Fact]
     public void TextTypedIntoAFieldIsTheBodyJobAndSixteenPixelsOnAPhone()
     {
         var tokens = Compact(Wwwroot("tuvima.tokens.css"));

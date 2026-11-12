@@ -58,15 +58,15 @@
 
 .app-setting-row__label {
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: 500;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1.3;
     overflow-wrap: anywhere;
 }
 
 .app-setting-row__helper {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.4;
 }
 
@@ -84,7 +84,7 @@
     min-height: 1.4em;
     line-height: 1.4;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .app-setting-row--danger .app-setting-row__label {

@@ -37,12 +37,12 @@
 }
 
 .app-dialog-shell--provider .app-dialog-shell__title {
-    font-size: var(--tl-font-size-title);
+    font-size: var(--tl-type-page-title-size);
 }
 
 .app-dialog-shell--provider .app-dialog-shell__subtitle {
     max-width: none;
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-body-size);
 }
 
 .app-dialog-shell--provider .app-dialog-shell__icon {
@@ -130,8 +130,8 @@
 .app-dialog-shell__eyebrow {
     margin-bottom: 4px;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .app-dialog-shell__title {
@@ -146,7 +146,7 @@
     margin-top: 4px;
     max-width: 700px;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.4;
 }
 
@@ -288,7 +288,7 @@
     }
 
     .app-dialog-shell__title {
-        font-size: var(--tl-font-size-dialog-title);
+        font-size: var(--tl-type-heading-size);
     }
 
     .app-dialog-shell--provider .app-dialog-shell__header {

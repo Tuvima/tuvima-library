@@ -5,12 +5,12 @@
 .lib-edit__path { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-edit__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tl-status-success); }
 .lib-edit__dot[data-state="offline"] { background: var(--tl-status-warning); }
-.lib-edit__state { flex: none; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lib-edit__state { flex: none; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 .lib-edit__state[data-state="offline"] { color: var(--tl-status-warning); }
-.lib-edit__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lib-edit__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 .lib-edit__note--uploads { color: var(--tl-text-secondary); }
-.lib-edit__footer-line { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lib-edit__footer-line { color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 .lib-edit__review { margin: 0; padding-inline-start: 20px; display: grid; gap: 8px; }
 .lib-edit__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lib-edit__tag { flex: none; padding: 2px 10px; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); font-weight: 600; }
+.lib-edit__tag { flex: none; padding: 2px 10px; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); color: var(--tl-text-secondary); font-size: var(--tl-type-control-size); font-weight: var(--tl-type-control-weight); }
 .lib-edit__tag[data-handling="managed"] { color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }

@@ -11,7 +11,7 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .technical-log__line {
@@ -64,7 +64,7 @@
     margin: 4px 0 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .technical-log__more {

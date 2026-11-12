@@ -2,6 +2,6 @@
 .app-detail-frame__header { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .app-detail-frame__logo { display: grid; flex: 0 0 52px; width: 52px; height: 52px; place-items: center; }
 .app-detail-frame__title { flex: 1 1 auto; min-width: 0; }
-.app-detail-frame__title h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--tl-font-size-xl); }
+.app-detail-frame__title h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--tl-type-page-title-size); }
 .app-detail-frame__title p { margin: 2px 0 0; color: var(--tl-text-secondary); }
 .app-detail-frame__actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }

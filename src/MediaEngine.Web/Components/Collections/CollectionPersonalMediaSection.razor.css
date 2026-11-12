@@ -1,7 +1,7 @@
 .collection-personal-media { display: grid; gap: 1rem; }
-.collection-personal-media__header h3 { margin: .2rem 0 .35rem; font-size: var(--tl-font-size-dialog-title); }
+.collection-personal-media__header h3 { margin: .2rem 0 .35rem; font-size: var(--tl-type-heading-size); }
 .collection-personal-media__header p { margin: 0; color: var(--tl-text-secondary); max-width: 52rem; }
-.collection-personal-media__eyebrow { color: var(--tl-accent-primary); font-size: var(--tl-font-size-xs); font-weight: 600; }
+.collection-personal-media__eyebrow { color: var(--tl-accent-primary); font-size: var(--tl-type-overline-size); font-weight: var(--tl-type-overline-weight); }
 .collection-personal-media__gallery-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .65rem; }
 .collection-personal-media__gallery { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; width: 100%; min-height: 4.25rem; padding: .75rem; border: 1px solid var(--app-border-color); border-radius: .75rem; color: inherit; text-align: left; }
 .collection-personal-media__gallery.is-selected { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 12%, transparent); }

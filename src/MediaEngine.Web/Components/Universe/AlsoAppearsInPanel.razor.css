@@ -12,15 +12,15 @@
 
 .also-appears-in__heading {
     margin: 0;
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     color: var(--tl-text-primary);
 }
 
 .also-appears-in__group {
     margin: var(--tl-space-2) 0 0;
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
     letter-spacing: 0.04em;
     color: var(--tl-text-muted);
 }
@@ -94,14 +94,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     color: var(--tl-text-secondary);
 }
 
 .also-appears-in__empty,
 .also-appears-in__note {
     margin: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     color: var(--tl-text-secondary);
 }
 

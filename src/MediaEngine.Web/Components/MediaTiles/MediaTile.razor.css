@@ -48,7 +48,7 @@
 .media-tile-standin__image { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.45) saturate(.85); }
 .media-tile-standin__library-tile { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
 .media-tile-standin__number { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--font-ui); font-weight:600; font-size:clamp(1.4rem,18%,2.6rem); letter-spacing:.04em; color:rgba(248,250,252,.92); text-shadow:0 2px 14px rgba(0,0,0,.65); }
-.media-tile-standin__tag { position:absolute; left:8px; bottom:8px; z-index:2; padding:3px 8px; border:1px solid rgba(255,255,255,.28); border-radius:0; background:rgba(5,8,14,.78); font-family:var(--font-ui); font-size:var(--tl-font-size-xs); font-weight:600; line-height:1; color:rgba(248,250,252,.92); cursor:help; }
+.media-tile-standin__tag { position:absolute; left:8px; bottom:8px; z-index:2; padding:3px 8px; border:1px solid rgba(255,255,255,.28); border-radius:0; background:rgba(5,8,14,.78); font-family:var(--font-ui); font-size: var(--tl-type-overline-size); font-weight: var(--tl-type-overline-weight); line-height:1; color:rgba(248,250,252,.92); cursor:help; }
 
 /* Group banner (a landscape group drawn by the single-title tile). */
 .media-tile-collection-backdrop { position:absolute; inset:0; width:100%; height:100%; display:block; object-position:center center; filter:saturate(1.05) contrast(1.02); z-index:0; }
@@ -57,13 +57,13 @@
 .media-tile-collection-wash { position:absolute; inset:0; background:var(--art-bg-gradient,linear-gradient(90deg,var(--art-bg-base-dark,rgba(3,7,13,.88)) 0%,var(--art-bg-base,rgba(3,7,13,.7)) 34%,color-mix(in srgb,var(--art-bg-accent-muted,rgba(3,7,13,.08)) 36%,transparent) 64%,var(--art-bg-overlay,rgba(3,7,13,.28)) 100%)); z-index:1; }
 .media-tile-landscape-logo { max-width:60%; max-height:34px; object-fit:contain; object-position:left bottom; }
 .media-tile-landscape-logo.is-banner { position:absolute; left:14px; bottom:14px; z-index:2; max-height:44px; }
-.media-tile-landscape-title { color:var(--tl-text-on-accent); font-weight:600; font-size:var(--tl-font-size-md); line-height:1.2; text-shadow:0 1px 3px rgba(0,0,0,.7); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.media-tile-landscape-title { color:var(--tl-text-on-accent); font-weight: var(--tl-type-subheading-weight); font-size: var(--tl-type-subheading-size); line-height:1.2; text-shadow:0 1px 3px rgba(0,0,0,.7); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .media-tile-landscape-title.is-banner { position:absolute; left:14px; bottom:14px; right:14px; z-index:2; }
 
 /* A cover with no art (D7): a plain dark cover, the kind's icon, the title and the author or artist at the bottom. Text is never under the
    floor, wraps to two lines and is never clipped by the tile edge. */
 .media-tile-fallback { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:12px; text-align:center; font-family:var(--font-ui); color:rgba(248,250,252,.78); background:var(--tl-bg-surface); }
-.media-tile-fallback__title, .media-tile-fallback__detail, .media-tile-video-text__title, .media-tile-video-text__detail { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-sm)); line-height:1.3; }
+.media-tile-fallback__title, .media-tile-fallback__detail, .media-tile-video-text__title, .media-tile-video-text__detail { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size: var(--tl-type-body-size); line-height:1.3; }
 .media-tile-fallback__title { font-weight:600; color:var(--tl-text-primary); }
 .media-tile-fallback__detail { font-weight:500; color:rgba(226,232,240,.72); }
 
@@ -77,9 +77,9 @@
 .media-tile-video-text__detail { font-weight:500; color:rgba(226,232,240,.72); }
 
 /* Episode lists on a show or season page keep their number and title under the still. */
-.media-tile-episode-caption { display:grid; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--tl-font-size-caption); color:var(--tl-text-secondary); padding-top:.2rem; }
+.media-tile-episode-caption { display:grid; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size: var(--tl-type-caption-size); color:var(--tl-text-secondary); padding-top:.2rem; }
 .media-tile-episode-caption > * { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.media-tile-episode-caption strong { color:var(--tl-text-primary); font-size:var(--tl-font-size-secondary); }
+.media-tile-episode-caption strong { color:var(--tl-text-primary); font-size: var(--tl-type-secondary-size); }
 
 @media (prefers-reduced-motion: reduce) { .media-tile-media { transition:none; } }
 /* A group of videos (issue 869): the tall dark-purple card. */
@@ -90,10 +90,10 @@
 .media-tile-video-collection__soft { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scale(1.3); filter:blur(14px) brightness(.6); }
 .media-tile-video-collection__still { position:absolute; inset:8%; width:84%; height:84%; object-fit:cover; border-radius:4px; box-shadow:0 4px 14px rgba(0,0,0,.5); }
 .media-tile-video-collection__still--empty { display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.3); font-size:36px; }
-.media-tile-video-collection__kind { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:max(11px, var(--tl-font-size-xs)); letter-spacing:.16em; font-weight:600; color:rgba(226,232,240,.75); }
+.media-tile-video-collection__kind { display:flex; align-items:center; gap:8px; margin-top:8px; font-size: var(--tl-type-overline-size); letter-spacing:.16em; font-weight: var(--tl-type-overline-weight); color:rgba(226,232,240,.75); }
 .media-tile-video-collection__kind::before { content:""; width:16px; height:2px; border-radius:1px; background:var(--tl-accent-primary); }
-.media-tile-video-collection__title { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size:max(var(--tl-tile-text-floor,13px), var(--tl-font-size-lg)); font-weight:600; line-height:1.2; color:#fff; }
-.media-tile-video-collection__creator { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:max(var(--tl-tile-text-floor,13px), var(--tl-font-size-sm)); color:rgba(196,181,253,.8); }
+.media-tile-video-collection__title { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size: var(--tl-type-subheading-size); font-weight: var(--tl-type-subheading-weight); line-height:1.2; color:#fff; }
+.media-tile-video-collection__creator { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size: var(--tl-type-secondary-size); color:rgba(196,181,253,.8); }
 .media-tile-video-collection__foot { margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:10px; border-top:1px solid rgba(136, 82, 252, .5); }
-.media-tile-video-collection__count { display:inline-flex; align-items:center; gap:6px; font-size:max(var(--tl-tile-text-floor,13px), var(--tl-font-size-sm)); color:rgba(226,232,240,.85); }
+.media-tile-video-collection__count { display:inline-flex; align-items:center; gap:6px; font-size: var(--tl-type-secondary-size); color:rgba(226,232,240,.85); }
 .media-tile-video-collection__play { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; border:2px solid var(--tl-accent-primary); color:var(--tl-accent-primary); }

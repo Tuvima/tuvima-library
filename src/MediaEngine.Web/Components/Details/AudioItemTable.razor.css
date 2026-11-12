@@ -57,7 +57,7 @@
     padding: 0 0.65rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(245, 247, 252, 0.84);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .tl-embedded-audio--audiobook .tl-embedded-audio__table {
@@ -136,8 +136,8 @@
     place-items: center;
     border-radius: 0.15rem;
     background: rgba(255, 255, 255, 0.18);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .tl-embedded-audio__duration {
@@ -197,7 +197,7 @@
 :where(.tl-detail-page) .tl-detail-track-empty {
     padding: 1rem 1.2rem 1.2rem;
     color: rgba(246, 240, 232, 0.58);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 @media (width < 840px) {
@@ -259,7 +259,7 @@
     padding: 0 0.65rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(245, 247, 252, 0.84);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__row.is-playing {
@@ -318,8 +318,8 @@
     height: 1rem;
     border-radius: 0.15rem;
     background: rgba(255, 255, 255, 0.18);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__duration {
@@ -370,8 +370,8 @@
 .tl-audio-item-table__group-heading {
     padding: 0.55rem 0.65rem 0.3rem;
     color: var(--tl-text-secondary, rgba(245, 247, 252, 0.68));
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.08em;
     text-align: left;
 }
