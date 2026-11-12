@@ -1,0 +1,32 @@
+@namespace MediaEngine.Web.Components.Editor
+
+@* The list half of a Match step (universal editor v6, mock screens A to E): an optional heading with a count at its right ("Search results · 10
+   results"), then the rows (EditorMatchListRow) in one list. The caller owns the rows and anything under them ("Show 4 more results"). *@
+<div class="tl-mlist" data-testid="@TestId">
+    @if (!string.IsNullOrWhiteSpace(Heading))
+    {
+        <div class="tl-mlist__heading">
+            <h4 class="tl-mlist__title">@Heading</h4>
+            @if (!string.IsNullOrWhiteSpace(Count))
+            {
+                <span class="tl-mlist__count" data-testid="match-count">@Count</span>
+            }
+        </div>
+    }
+    <div class="tl-mlist__list" role="list" aria-label="@(AriaLabel ?? Heading)">@ChildContent</div>
+</div>
+
+@code {
+    /// <summary>The words above the rows; null draws no heading.</summary>
+    [Parameter] public string? Heading { get; set; }
+
+    /// <summary>The count at the right of the heading ("10 results").</summary>
+    [Parameter] public string? Count { get; set; }
+
+    /// <summary>The list's accessible name when it has no heading.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    [Parameter] public string? TestId { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

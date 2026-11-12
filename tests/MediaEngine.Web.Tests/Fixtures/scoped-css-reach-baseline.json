@@ -179,7 +179,6 @@
     "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor": [
       "collection-rule-builder__add-condition",
       "collection-rule-builder__add-secondary",
-      "collection-rule-builder__condition-drag",
       "collection-rule-builder__picker-search"
     ],
     "src/MediaEngine.Web/Components/Settings/ActivityLogPanel.razor": [

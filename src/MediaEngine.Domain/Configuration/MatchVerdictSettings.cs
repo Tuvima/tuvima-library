@@ -43,13 +43,23 @@ public sealed class MatchVerdictSettings
         ["movie"] = ["title", "year", "runtime", "identifier"],
         ["tv_show"] = ["title", "year"],
         ["tv_season"] = ["title", "year", "number"],
-        ["tv_episode"] = ["title", "number", "runtime"],
+        ["tv_episode"] = ["show", "number", "title", "runtime"],
         ["album"] = ["title", "creator", "year"],
-        ["song"] = ["title", "creator", "track_length", "identifier"],
+        ["song"] = ["creator", "album", "title", "track_length", "identifier"],
         ["book"] = ["title", "creator", "identifier", "year"],
         ["audiobook"] = ["title", "creator", "year", "runtime"],
         ["comic"] = ["title", "number", "year"],
         ["video"] = ["identifier"],
+    };
+
+    /// <summary>
+    /// Facts a kind judges but does not draw as a row of the compare table (universal editor v6, D9: a song's table is Artist, Album, Title and Length). They
+    /// still count toward the verdict, so an agreeing ISRC or MusicBrainz id keeps its effect. Keyed by the editor's kind.
+    /// </summary>
+    [JsonPropertyName("verdict_only_facts")]
+    public Dictionary<string, List<string>> VerdictOnlyFacts { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["song"] = ["identifier"],
     };
 
     /// <summary>
@@ -58,6 +68,10 @@ public sealed class MatchVerdictSettings
     /// </summary>
     [JsonPropertyName("collection_title_markers")]
     public List<string> CollectionTitleMarkers { get; set; } = ["box set", "boxed set", "boxset", "collection", "complete series", "omnibus", "trilogy"];
+
+    /// <summary>True when a fact is drawn as a row of the compare table for the kind (false for a fact that only counts toward the verdict).</summary>
+    public bool IsDrawn(string? kind, string fact) =>
+        string.IsNullOrWhiteSpace(kind) || !VerdictOnlyFacts.TryGetValue(kind, out var hidden) || !hidden.Contains(fact, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The facts compared for a kind; the title and year when the kind is not listed.</summary>
     public IReadOnlyList<string> FactsFor(string? kind) =>

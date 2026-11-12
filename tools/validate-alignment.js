@@ -18,7 +18,7 @@
     const TOLERANCE = 2;
     const LADDER = [44, 56, 64];
     const viewportWidth = document.documentElement.clientWidth;
-    const ROW_SELECTOR = '.app-setting-row__line, .app-action-bar, .app-filter-bar, .app-dialog-shell__footer, .tl-match__matchrow, [data-alignment-row]';
+    const ROW_SELECTOR = '.app-setting-row__line, .app-action-bar, .app-filter-bar, .app-dialog-shell__footer, [data-alignment-row]';
     const BUTTON_ROW_SELECTOR = '.app-action-bar, .app-dialog-shell__footer, [data-button-row]';
     const CONTROL_SELECTOR = 'button, input, select, textarea, [role="combobox"], [role="switch"], [role="button"]';
     const PRIMARY_SELECTOR = '.app-button--filled.app-tone--primary, [data-primary]';
@@ -191,7 +191,7 @@
         if (status && visible(status)) height -= status.getBoundingClientRect().height + (parseFloat(style(row).rowGap || style(row).gap) || 0);
         if (!LADDER.some(step => Math.abs(height - step) <= 1)) fail('rowHeight', row, `row is ${Math.round(height)} px; rows are 44, 56 or 64 px`);
     }
-    for (const bar of [...document.querySelectorAll('.app-action-bar, .app-filter-bar, .tl-match__matchrow')].filter(visible)) {
+    for (const bar of [...document.querySelectorAll('.app-action-bar, .app-filter-bar')].filter(visible)) {
         const kids = items(bar);
         if (kids.length === 0) continue;
         const tallest = Math.max(...kids.map(k => k.getBoundingClientRect().height));

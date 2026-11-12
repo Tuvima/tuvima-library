@@ -5,18 +5,6 @@
     gap: var(--tl-space-3);
 }
 
-.tl-groupmatch__search {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--tl-space-2);
-}
-
-.tl-groupmatch__field {
-    flex: 1 1 0;
-    min-width: 0;
-}
-
-.tl-groupmatch__picked,
 .tl-groupmatch__misfit {
     display: flex;
     flex-wrap: wrap;
@@ -24,15 +12,12 @@
     gap: var(--tl-space-2) var(--tl-space-3);
 }
 
+.tl-groupmatch__meta {
+    color: var(--tl-text-muted);
+}
+
 .tl-groupmatch__actions {
     display: flex;
     justify-content: flex-end;
     gap: var(--tl-space-3);
-}
-
-.tl-groupmatch__tag {
-    margin-inline-start: var(--tl-space-2);
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 400;
 }

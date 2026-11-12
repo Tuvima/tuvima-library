@@ -71,11 +71,8 @@
                             var condition = group.Conditions[conditionIndex];
                             var capturedConditionIndex = conditionIndex;
                             <div class="collection-rule-builder__row" @key="condition">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="collection-rule-builder__condition-drag" />
-                                @RenderRowControls(condition, negated: false)
-                                <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
-                                               Tooltip="@L["Common_RemoveCondition"].Value" AriaLabel="@L["Common_RemoveCondition"].Value"
-                                               OnClick="@(() => RemoveConditionAsync(group, capturedConditionIndex))" />
+                                @RenderRule(condition, negated: false, showDrag: true, AppMaterialIcons.Outlined.DeleteOutline, L["Common_RemoveCondition"].Value,
+                                            () => RemoveConditionAsync(group, capturedConditionIndex))
                             </div>
                         }
                     </div>
@@ -465,12 +462,8 @@
                     <span class="collection-rule-builder__and">@joinWord</span>
                 }
                 <div class="collection-rule-builder__row collection-rule-builder__row--sentence" @key="condition">
-                    <div class="collection-rule-builder__sentence-fields">
-                        @RenderRowControls(condition, negated: false)
-                    </div>
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" Size="AppControlSize.Compact"
-                                   Tooltip="Remove rule" AriaLabel="Remove rule"
-                                   OnClick="@(() => RemoveConditionAsync(include, capturedIndex))" />
+                    @RenderRule(condition, negated: false, showDrag: false, AppMaterialIcons.Outlined.RemoveCircleOutline, L["SharedRuleBuilder_RemoveRule"].Value,
+                                () => RemoveConditionAsync(include, capturedIndex))
                 </div>
             }
             <div class="collection-rule-builder__actions">
@@ -498,12 +491,8 @@
                     <span class="collection-rule-builder__and">or</span>
                 }
                 <div class="collection-rule-builder__row collection-rule-builder__row--sentence" @key="condition">
-                    <div class="collection-rule-builder__sentence-fields">
-                        @RenderRowControls(condition, negated: true)
-                    </div>
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" Size="AppControlSize.Compact"
-                                   Tooltip="Remove exception" AriaLabel="Remove exception"
-                                   OnClick="@(() => RemoveConditionAsync(capturedGroup, capturedIndex))" />
+                    @RenderRule(condition, negated: true, showDrag: false, AppMaterialIcons.Outlined.RemoveCircleOutline, L["SharedRuleBuilder_RemoveException"].Value,
+                                () => RemoveConditionAsync(capturedGroup, capturedIndex))
                 </div>
             }
             <div class="collection-rule-builder__actions">
@@ -539,7 +528,46 @@
         return options;
     }
 
-    /// <summary>The field, condition and value controls of one rule. An exception reads in positive words and is stored as the opposite.</summary>
+    /// <summary>A "between" rule (From and To) asks the most room; every other value is one field.</summary>
+    private static bool IsRangeRule(CollectionRulePredicateViewModel condition, RuleFieldDefinition field) =>
+        !IsValueFreeOperator(condition.Op) && RuleOperators.TakesRange(condition.Op)
+        && field.ValueProvider.Kind is not (RuleValueProviderKind.Boolean or RuleValueProviderKind.StaticOptions or RuleValueProviderKind.CollectionLibrary);
+
+    /// <summary>
+    /// The columns of a rule row: the grip (Groups layout), the field, the condition, the value (From and To for a range) and the remove button.
+    /// Field, condition and value keep a minimum width (9.5 rem for the condition, enough for "is between"; a field name longer than 8.5 rem is shortened with an ellipsis); <see cref="RuleStackBelow"/> stacks the row where the minimums stop fitting.
+    /// </summary>
+    private static string RuleColumns(CollectionRulePredicateViewModel condition, RuleFieldDefinition field, bool showDrag)
+    {
+        var middle = IsRangeRule(condition, field)
+            ? "minmax(8.5rem, 1fr) minmax(9.5rem, 1fr) minmax(8.5rem, .9fr) minmax(8.5rem, .9fr)"
+            : "minmax(8.5rem, 1fr) minmax(9.5rem, 1fr) minmax(8rem, 1.2fr)";
+        return $"{(showDrag ? "auto " : string.Empty)}{middle} auto";
+    }
+
+    /// <summary>The card width under which the row stacks one field per line. The minimums of <see cref="RuleColumns"/>, the remove button and the gaps add up to at most 506 px (653 px for a range) with the grip at the 15 px root size, so 540 px (700 px) always fits them.</summary>
+    private static int RuleStackBelow(CollectionRulePredicateViewModel condition, RuleFieldDefinition field) => IsRangeRule(condition, field) ? 700 : 540;
+
+    /// <summary>
+    /// One rule on the shared form row (Editor v6 D12): every field shares one label line, one control line and one help line, so a label or a
+    /// helper line under one field can never push its neighbors down. The grip and the remove button sit on the control line.
+    /// </summary>
+    private RenderFragment RenderRule(CollectionRulePredicateViewModel condition, bool negated, bool showDrag, string removeIcon, string removeLabel, Func<Task> remove) => @<AppFormRow Columns="@RuleColumns(condition, FieldFor(condition.Field), showDrag)" StackBelow="@RuleStackBelow(condition, FieldFor(condition.Field))" data-rule-row>
+        @if (showDrag)
+        {
+            <div data-form-row-field="fit" class="collection-rule-builder__drag-cell">
+                <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+                <div class="collection-rule-builder__condition-drag"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" /></div>
+            </div>
+        }
+        @RenderRowControls(condition, negated)
+        <div data-form-row-field="fit" class="collection-rule-builder__remove">
+            <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+            <AppIconButton Icon="@removeIcon" Tooltip="@removeLabel" AriaLabel="@removeLabel" OnClick="@(() => remove())" />
+        </div>
+    </AppFormRow>;
+
+    /// <summary>The field, condition and value fields of one rule, each a field of the shared row with its own label. An exception reads in positive words and is stored as the opposite.</summary>
     private RenderFragment RenderRowControls(CollectionRulePredicateViewModel condition, bool negated) => @<text>
         @{
             var field = FieldFor(condition.Field);
@@ -551,13 +579,13 @@
             <AppSelect T="string" Value="@condition.Field"
                        ValueChanged="@(value => OnFieldChangedAsync(condition, value ?? condition.Field, negated))"
                        Options="@FieldOptions(negated)"
-                       Label="Field" HideLabel="true" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select" />
+                       Label="@L["Common_Field"].Value" Variant="AppVariant.Outlined" />
         }
         else
         {
             <AppSelect T="string" Value="@condition.Field"
                        ValueChanged="@(value => OnFieldChangedAsync(condition, value ?? condition.Field, negated))"
-                       Label="Field" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
+                       Label="@L["Common_Field"].Value" Variant="AppVariant.Outlined">
                 @foreach (var option in Fields)
                 {
                     <AppSelectItem T="string" Value="@option.Key">@option.Label</AppSelectItem>
@@ -566,7 +594,7 @@
         }
         <AppSelect T="string" Value="@shownOp"
                    ValueChanged="@(value => OnOperatorChangedAsync(condition, value ?? shownOp, negated))"
-                   Label="Condition" HideLabel="@(Layout == RuleBuilderLayout.Sentence)" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
+                   Label="@L["Common_Condition"].Value" Variant="AppVariant.Outlined">
             @foreach (var op in conditions)
             {
                 <AppSelectItem T="string" Value="@op.Key">@op.Label</AppSelectItem>
@@ -574,22 +602,25 @@
         </AppSelect>
         @if (IsValueFreeOperator(condition.Op))
         {
-            <div class="collection-rule-builder__no-value">No value needed</div>
+            <div data-form-row-field>
+                <span class="app-field__label">@L["Common_Value"]</span>
+                <div class="collection-rule-builder__no-value">@L["SharedRuleBuilder_NoValueNeeded"]</div>
+            </div>
         }
         else if (field.ValueProvider.Kind == RuleValueProviderKind.Boolean)
         {
             <AppSelect T="string" Value="@(negated ? CollectionRuleSentence.DisplayedBoolean(condition.Value) : condition.Value)"
                        ValueChanged="@(value => OnTextValueChangedAsync(condition, value, negated))"
-                       Label="Value" HideLabel="@(Layout == RuleBuilderLayout.Sentence)" Variant="AppVariant.Outlined" Dense="true">
-                <AppSelectItem T="string" Value="@("true")">Yes</AppSelectItem>
-                <AppSelectItem T="string" Value="@("false")">No</AppSelectItem>
+                       Label="@L["Common_Value"].Value" Variant="AppVariant.Outlined">
+                <AppSelectItem T="string" Value="@("true")">@L["Common_Yes"]</AppSelectItem>
+                <AppSelectItem T="string" Value="@("false")">@L["Common_No"]</AppSelectItem>
             </AppSelect>
         }
         else if (field.ValueProvider.Kind == RuleValueProviderKind.StaticOptions)
         {
             <AppSelect T="string" Value="@condition.Value"
                        ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                       Label="Value" HideLabel="@(Layout == RuleBuilderLayout.Sentence)" Variant="AppVariant.Outlined" Dense="true">
+                       Label="@L["Common_Value"].Value" Variant="AppVariant.Outlined">
                 @foreach (var option in field.ValueProvider.Options ?? [])
                 {
                     <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
@@ -608,30 +639,30 @@
         }
         else if (RuleOperators.TakesRange(condition.Op))
         {
-            <div class="collection-rule-builder__range" data-value-provider="@field.ValueProvider.ProviderKey">
-                <AppTextField T="string" Value="@RangeValue(condition, 0)"
-                              ValueChanged="@(value => OnRangeValueChangedAsync(condition, 0, value))"
-                              Label="From" InputType="@InputTypeFor(field, condition.Op)"
-                              Variant="AppVariant.Outlined" Immediate="true"
-                              DebounceInterval="300" Class="app-dialog-field" />
-                <AppTextField T="string" Value="@RangeValue(condition, 1)"
-                              ValueChanged="@(value => OnRangeValueChangedAsync(condition, 1, value))"
-                              Label="To" InputType="@InputTypeFor(field, condition.Op)"
-                              Variant="AppVariant.Outlined" Immediate="true"
-                              DebounceInterval="300" Class="app-dialog-field" />
-            </div>
+            @* From and To are two fields of the row (not a box holding both), so each shares the row's label and control lines. *@
+            <AppTextField T="string" Value="@RangeValue(condition, 0)"
+                          ValueChanged="@(value => OnRangeValueChangedAsync(condition, 0, value))"
+                          Label="@L["Common_From"].Value" InputType="@InputTypeFor(field, condition.Op)"
+                          Variant="AppVariant.Outlined" Immediate="true"
+                          DebounceInterval="300" Class="collection-rule-builder__range"
+                          data-value-provider="@field.ValueProvider.ProviderKey" />
+            <AppTextField T="string" Value="@RangeValue(condition, 1)"
+                          ValueChanged="@(value => OnRangeValueChangedAsync(condition, 1, value))"
+                          Label="@L["Common_To"].Value" InputType="@InputTypeFor(field, condition.Op)"
+                          Variant="AppVariant.Outlined" Immediate="true"
+                          DebounceInterval="300" Class="collection-rule-builder__range"
+                          data-value-provider="@field.ValueProvider.ProviderKey" />
         }
         else
         {
-            <div data-value-provider="@field.ValueProvider.ProviderKey">
-                <AppTextField T="string" Value="@condition.Value"
-                              ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                              Label="@(RuleOperators.TakesWholeNumber(condition.Op) ? L["Common_Number"].Value : L["Common_Value"].Value)"
-                              Placeholder="@field.ValueProvider.SearchPlaceholder"
-                              InputType="@InputTypeFor(field, condition.Op)"
-                              Variant="AppVariant.Outlined" Immediate="true"
-                              DebounceInterval="300" Class="app-dialog-field" />
-            </div>
+            <AppTextField T="string" Value="@condition.Value"
+                          ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
+                          Label="@(RuleOperators.TakesWholeNumber(condition.Op) ? L["Common_Number"].Value : L["Common_Value"].Value)"
+                          Placeholder="@field.ValueProvider.SearchPlaceholder"
+                          InputType="@InputTypeFor(field, condition.Op)"
+                          Variant="AppVariant.Outlined" Immediate="true"
+                          DebounceInterval="300"
+                          data-value-provider="@field.ValueProvider.ProviderKey" />
         }
     </text>;
 

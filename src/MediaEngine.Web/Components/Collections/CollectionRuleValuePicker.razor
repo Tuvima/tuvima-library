@@ -5,11 +5,13 @@
 @inject IEngineApiClient ApiClient
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="collection-rule-value-picker" @onkeydown="HandleKeyDown">
-    <span class="collection-rule-value-picker__label">@L["Common_Value"]</span>
+@* A field of the shared form row: its label is on the label line and the trigger on the control line, like the selects beside it. *@
+<div class="collection-rule-value-picker app-field" @onkeydown="HandleKeyDown">
+    <span class="app-field__label" id="@_labelId">@L["Common_Value"]</span>
     <AppNativeButton Type="button"
                      Class="@TriggerClass"
-                     AriaLabel="@TriggerLabel"
+                     id="@TriggerId"
+                     aria-labelledby="@($"{_labelId} {TriggerId}")"
                      aria-haspopup="listbox"
                      aria-expanded="@_isOpen"
                      OnClick="ToggleAsync">
@@ -93,6 +95,8 @@
     [Parameter] public EventCallback<IReadOnlyList<CollectionRuleValueDto>> SelectedOptionsChanged { get; set; }
     [Parameter] public string SearchPlaceholder { get; set; } = "Search library values…";
 
+    private readonly string _labelId = $"rule-value-{Guid.NewGuid():N}";
+    private string TriggerId => _labelId + "-trigger";
     private readonly Dictionary<string, CollectionRuleValueDto> _selected = new(StringComparer.OrdinalIgnoreCase);
     private List<CollectionRuleValueDto> _options = [];
     private CancellationTokenSource? _searchCts;

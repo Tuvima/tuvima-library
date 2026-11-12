@@ -1,5 +1,5 @@
-/* The results (universal editor v6, WP3): the "Looking up" line and the messages take the full width; the list sits on the left and the card on the
-   right. On a narrower screen the card wraps under the list. */
+/* The results (universal editor v6, WP3): the "Looking up" line and the messages take the full width; the list and the card sit side by side in the
+   shared split (EditorMatchSplit), the rows in the shared list (EditorMatchList, EditorMatchListRow). */
 .tl-matchres {
     display: flex;
     flex-direction: column;
@@ -8,12 +8,6 @@
 
 .tl-matchres__wide {
     width: 100%;
-}
-
-.tl-matchres__meta {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-secondary-size);
-    font-weight: var(--tl-type-secondary-weight);
 }
 
 /* A line about a provider that did not answer, with its Try again button at the end. */
@@ -26,134 +20,6 @@
 .tl-matchres__message > :first-child {
     flex: 1 1 auto;
     min-width: 0;
-}
-
-.tl-matchres__body {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: var(--tl-space-6);
-}
-
-.tl-matchres__listwrap {
-    display: flex;
-    flex: 1 1 22rem;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.tl-matchres__cardwrap {
-    min-width: 0;
-    flex: 1.12 1 26rem;
-}
-
-/* On a screen of 1180 or less (where the editor window becomes full screen) the card moves under the list. The editor's style sheets answer to the
-   screen breakpoint, never to a container query: the window is never wider than 1280, so a container query could not tell. */
-@media (max-width: 1180px) {
-    .tl-matchres__listwrap,
-    .tl-matchres__cardwrap {
-        flex: 1 1 100%;
-    }
-}
-
-.tl-matchres__heading {
-    display: flex;
-    align-items: baseline;
-    gap: var(--tl-space-3);
-    margin-bottom: var(--tl-space-2);
-}
-
-.tl-matchres__title {
-    margin: 0;
-    font-size: var(--tl-type-subheading-size);
-    font-weight: var(--tl-type-subheading-weight);
-}
-
-.tl-matchres__list {
-    display: flex;
-    flex-direction: column;
-}
-
-/* One result: a wrapper that carries the border and the wash, around the row button whose face is a small cover, the title over a meta line and
-   the tick slot. The chosen row is washed with the accent. */
-.tl-matchres__row {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid transparent;
-    border-bottom-color: var(--tl-border-subtle);
-    border-inline-start: 3px solid transparent;
-    color: var(--tl-text-primary);
-}
-
-.tl-matchres__row.is-active {
-    border-color: var(--tl-accent-primary-border);
-    border-inline-start-color: var(--tl-accent-primary);
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-accent-primary-soft);
-}
-
-.tl-matchres__inner {
-    display: flex;
-    flex: 1 1 auto;
-    align-items: center;
-    gap: var(--tl-space-3);
-    min-height: 4rem;
-    min-width: 0;
-    padding: var(--tl-space-2) var(--tl-space-3);
-}
-
-.tl-matchres__art {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 48px;
-    overflow: hidden;
-    border-radius: var(--tl-radius-xs);
-    background: var(--tl-bg-surface-raised);
-    color: var(--tl-text-muted);
-}
-
-.tl-matchres__art[data-art="square"] {
-    width: 44px;
-    height: 44px;
-}
-
-.tl-matchres__art[data-art="wide"] {
-    width: 64px;
-    height: 36px;
-}
-
-.tl-matchres__text {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: var(--tl-space-1);
-    min-width: 0;
-}
-
-.tl-matchres__name {
-    overflow: hidden;
-    font-size: var(--tl-type-control-size);
-    font-weight: var(--tl-type-control-weight);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.tl-matchres__text > .tl-matchres__meta {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* The tick on the chosen row: a fixed slot, so rows do not shift when the choice moves. */
-.tl-matchres__tick {
-    display: inline-flex;
-    flex: 0 0 1.5rem;
-    align-items: center;
-    justify-content: center;
-    color: var(--tl-accent-primary);
 }
 
 .tl-matchres__buttons {

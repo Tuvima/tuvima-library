@@ -1,0 +1,16 @@
+@namespace MediaEngine.Web.Components.Editor
+@inject IStringLocalizer<SharedStrings> L
+
+@* The "Looking up…" line of a Match step (universal editor v6, section 4): a placeholder bar with the words under it, on a full-width row of its own
+   under the search row. The plain search, the TV, music and Wikidata flows and the group Match all use it, so a wait reads the same everywhere. *@
+<div class="tl-mlookup" role="status" aria-busy="true" data-testid="@TestId">
+    <AppSkeleton Shape="AppSkeletonShape.Text" Width="@Width" />
+    <span class="tl-mlookup__text">@L["EditorMatchResults_LookingUp"]</span>
+</div>
+
+@code {
+    [Parameter] public string TestId { get; set; } = "match-looking-up";
+
+    /// <summary>How wide the placeholder bar is.</summary>
+    [Parameter] public string Width { get; set; } = "40%";
+}

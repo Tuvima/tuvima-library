@@ -1299,6 +1299,13 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     justify-self: start;
 }
 
+/* The same wrapper inside a field (a blank label line above an icon button, as the playlist rule rows have for Remove): it holds the button on the
+   field's control line instead of leaving it without a box. */
+.app-form-row__fields > [data-form-row-field] > .playback-tooltip-owner {
+    display: flex;
+    align-items: center;
+}
+
 .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
     display: grid;
     grid-template-rows: subgrid;
@@ -1386,6 +1393,70 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 
 .app-form-row--stack > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
     display: none;
+}
+
+/* Stack below a width (AppFormRow StackBelow 380, 540 or 700): under it the children stack exactly as in a stacked row. */
+@container (max-width: 379px) {
+    .app-form-row--stack-below-380 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
+}
+
+@container (max-width: 539px) {
+    .app-form-row--stack-below-540 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
+}
+
+@container (max-width: 699px) {
+    .app-form-row--stack-below-700 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
 }
 
 .app-control.app-control--compact,

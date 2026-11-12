@@ -149,10 +149,14 @@
     private RenderFragment Compare() => __builder =>
     {
         <div class="tl-mcard__compare" data-beside="@(CompareBesideCover ? "true" : "false")">
+        @* The verdict is the Engine's; a result it gave none for (a Wikidata item) has only the table. *@
+        @if (!string.IsNullOrWhiteSpace(Model.Verdict))
+        {
         <div class="tl-mcard__verdict" data-verdict="@VerdictKey" role="status" data-testid="match-verdict">
             <AppMaterialIcon Icon="@VerdictIcon" />
             <span>@VerdictWords</span>
         </div>
+        }
 
         @* No rows means nothing could be compared: the basis note says so, and an empty table would only draw its headings. *@
         @if (Model.Rows.Count > 0)
