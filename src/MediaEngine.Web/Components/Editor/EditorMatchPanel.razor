@@ -36,7 +36,7 @@
         else if (_wikidata && !_loading)
         {
             <EditorWikidataMatch Subject="Subject" Kind="@_kind" Session="Session" CanEdit="CanEdit" SearchStart="@Subject.Title"
-                                 ProviderKey="@ProviderSide?.Key" ProviderName="@ProviderSide?.Name" ProviderItemId="@ProviderSide?.Id" ProviderTitle="@ProviderSide?.Title" ProviderYear="@ProviderSide?.Year">
+                                 ProviderKey="@ProviderSide?.Key" ProviderName="@ProviderSide?.Name" ProviderItemId="@ProviderSide?.Id" ProviderTitle="@ProviderSide?.Title" ProviderYear="@ProviderSide?.Year" Lead="FileBar()">
                 @UniverseSection()
             </EditorWikidataMatch>
         }
@@ -623,14 +623,12 @@
         </EditorMatchCard>
     };
 
-    // The provider dropdown by itself (label above): the TV and music flows put it first in their own row.
+    // The provider dropdown by itself (label above): the TV and music flows put it first in their own row, which is the same shared row.
     private RenderFragment ProviderPart() => __builder =>
     {
         if (HasProviders)
         {
-            <div class="tl-matchrow__provider">
-                @ProviderSelect()
-            </div>
+            @ProviderSelect()
         }
     };
 
@@ -651,25 +649,16 @@
     // The row's message line carries what is wrong with the provider or the words; the results area carries Looking up, nothing found and the like.
     private RenderFragment SearchRow() => __builder =>
     {
-        <AppFormRow Columns="@RowColumns" Wrap="true" ReserveMessage="true" data-testid="match-row">
-            <ChildContent>
-                @ProviderSelect()
-                @foreach (var field in _setup!.Fields)
-                {
-                    var key = field.Key;
-                    <AppTextField Label="@FieldLabel(field)" Value="@FieldValue(key)" ValueChanged="@(value => OnFieldChanged(key, value))"
-                                  aria-label="@FieldLabel(field)" Placeholder="@(key == "year" ? L["EditorMatchPanel_Optional"].Value : null)"
-                                  Immediate="true" OnKeyDown="OnFieldKeyAsync" data-testid="@("match-field-" + key)" />
-                }
-                @* The button joins the row's three lines as a field with a blank label, so it sits on the control line of every visual line when the row wraps. *@
-                <div data-form-row-field="fit">
-                    <span class="app-field__label" aria-hidden="true">&nbsp;</span>
-                    <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                               Disabled="@(_searching || !CanSearch)" OnClick="StartSearchAsync" data-testid="match-search-button" />
-                </div>
-            </ChildContent>
-            <Message><span data-testid="match-row-message">@RowMessage</span></Message>
-        </AppFormRow>
+        <EditorMatchSearchRow Columns="@RowColumns" Message="@RowMessage" SearchDisabled="@(_searching || !CanSearch)" OnSearch="StartSearchAsync">
+            @ProviderSelect()
+            @foreach (var field in _setup!.Fields)
+            {
+                var key = field.Key;
+                <AppTextField Label="@FieldLabel(field)" Value="@FieldValue(key)" ValueChanged="@(value => OnFieldChanged(key, value))"
+                              aria-label="@FieldLabel(field)" Placeholder="@(key == "year" ? L["EditorMatchPanel_Optional"].Value : null)"
+                              Immediate="true" OnKeyDown="OnFieldKeyAsync" data-testid="@("match-field-" + key)" />
+            }
+        </EditorMatchSearchRow>
     };
 
     // Provider fixed, the main box widest, the short ones narrower, the button as wide as its word.
@@ -817,13 +806,13 @@
             {
                 <EditorTvMatchFlow Subject="Subject" Unmatched="@(!IsMatched)" Context="_tvContext" Evidence="_setup?.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
                                    ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange"
-                                   RowStart="ProviderPart()" Lead="FlowLead()" />
+                                   Providers="_setup!.Providers" RowStart="ProviderPart()" Lead="FlowLead()" />
             }
             else
             {
                 <EditorMusicMatchFlow Subject="Subject" Fields="_setup!.Fields" Evidence="_setup.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
                                       ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange"
-                                      RowStart="ProviderPart()" Lead="FlowLead()" />
+                                      Providers="_setup.Providers" RowStart="ProviderPart()" Lead="FlowLead()" />
             }
         </section>
     };

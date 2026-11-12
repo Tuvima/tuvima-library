@@ -113,7 +113,7 @@ public sealed class EditorGroupMatchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AFileThatNamesAnotherSeason_IsACheckMatch_EvenThoughItsEpisodeNumberExists()
+    public async Task AFileThatNamesAnotherSeason_IsAWeakMatch_EvenThoughItsEpisodeNumberExists()
     {
         var seasonOne = Episode("The Last Signal S01E03.mkv");
         var seasonTwo = Episode("The Last Signal S02E03.mkv");
