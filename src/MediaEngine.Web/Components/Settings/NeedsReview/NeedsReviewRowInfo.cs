@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Review;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Web.Components.Settings.NeedsReview;
 
@@ -32,12 +33,12 @@ public static class NeedsReviewRowInfo
     {
         if (row.Unmatched is { } file)
         {
-            return FirstNonBlank(file.Title, file.FileName) ?? fallback;
+            return StringHelpers.FirstNonBlank(file.Title, file.FileName) ?? fallback;
         }
 
         string? fileName = null;
         row.Review?.DetectedFacts?.TryGetValue("file_name", out fileName);
-        return FirstNonBlank(row.Review?.EntityTitle, fileName, row.Review?.Detail) ?? fallback;
+        return StringHelpers.FirstNonBlank(row.Review?.EntityTitle, fileName, row.Review?.Detail) ?? fallback;
     }
 
     /// <summary>The file's own name (a file row inside a family is named by it); falls back to the row's title.</summary>
@@ -45,7 +46,7 @@ public static class NeedsReviewRowInfo
     {
         string? fileName = null;
         row.Review?.DetectedFacts?.TryGetValue("file_name", out fileName);
-        return FirstNonBlank(row.Unmatched?.FileName, fileName) ?? TitleOf(row, fallback);
+        return StringHelpers.FirstNonBlank(row.Unmatched?.FileName, fileName) ?? TitleOf(row, fallback);
     }
 
     /// <summary>The text the search box looks in.</summary>
@@ -55,7 +56,7 @@ public static class NeedsReviewRowInfo
     /// <summary>The media type text of a row as the Engine gave it (a review item's own; a file's comes from its library).</summary>
     public static string? MediaTypeOf(NeedsReviewRowDto row, string? libraryMediaType) =>
         row.Review is { } review
-            ? FirstNonBlank(review.MediaType) ?? libraryMediaType
+            ? StringHelpers.FirstNonBlank(review.MediaType) ?? libraryMediaType
             : libraryMediaType;
 
     public static NeedsReviewKindWord KindOf(string? mediaType)
@@ -155,7 +156,4 @@ public static class NeedsReviewRowInfo
 
     /// <summary>The thing Fix opens in the editor for one row: the review item's entity, or the file's Work.</summary>
     public static Guid? FixTargetOf(NeedsReviewRowDto row) => row.Review is { } review ? review.EntityId : row.Unmatched?.WorkId;
-
-    private static string? FirstNonBlank(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 }
