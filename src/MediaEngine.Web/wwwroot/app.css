@@ -166,7 +166,7 @@ body {
     background: var(--tl-bg-root) !important;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: 14px;
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
     letter-spacing: 0;
 }
@@ -197,7 +197,7 @@ body {
 }
 
 /* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
-   no page defines its own tab style (spec: one-shared-look). Labels sit one step up the type scale (D8). */
+   no page defines its own tab style (spec: one-shared-look). Labels use the Control job (look-pass v3.1 D8). */
 .tl-tabs-toolbar {
     display: flex;
     flex-wrap: nowrap;
@@ -230,8 +230,8 @@ body {
     background: transparent;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-lg); /* one step up the type scale (D8) */
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-control-font-weight); /* the Control job's weight (500) */
     line-height: var(--tl-control-line-height);
     letter-spacing: var(--tl-control-letter-spacing);
     text-decoration: none;
@@ -330,7 +330,7 @@ body {
 .app-dialog-field input,
 .app-dialog-field .tl-input-slot,
 .settings-admin-panel .tl-input-slot {
-    font-size: var(--tl-font-size-sm) !important;
+    font-size: var(--tl-field-text-size) !important;
 }
 
 .app-dialog-textarea textarea,
@@ -678,7 +678,7 @@ code{
 
 /* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
    touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
-.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-xs)); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
+.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:var(--tl-type-secondary-size); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
 .media-tile-label--status { top:0; left:0; border-bottom-right-radius:var(--tl-radius-md); }
 .media-tile-label--bottom { bottom:0; left:0; border-top-right-radius:var(--tl-radius-md); }
 
@@ -1235,6 +1235,85 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 
 .app-field__help {
     font-size: var(--tl-font-size-secondary);
+}
+
+/* Shared form row (Editor v6 D12): the children of an AppFormRow are other components' roots, so their placement on the row's three lines
+   (label, control, help) is global here; the row itself, its message line and its stacked form live in AppFormRow.razor.css. */
+/* Every direct child sits on the control line (line 2), centred on it: a button, an icon button (and its tooltip wrapper), a checkbox, a bare
+   select, a tag input, a segmented control. Only a field (.app-field, or a wrapper marked data-form-row-field) opts into the three lines. */
+.app-form-row__fields > * {
+    grid-row: 2;
+    align-self: center;
+    min-width: 0;
+}
+
+/* The tooltip wrapper around an icon button is display: contents everywhere else, so it has no box and the button inside would be placed on
+   its own (under the row). In the form row the wrapper takes a real box on the control line and holds the button. */
+.app-form-row__fields > .playback-tooltip-owner {
+    display: flex;
+    align-items: center;
+    justify-self: start;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 3;
+    align-self: stretch;
+    row-gap: 0;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label) {
+    grid-row: 1;
+    padding-block-end: var(--tl-field-label-gap, 6px);
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > :not(.app-field__label, label, .app-field__help) {
+    grid-row: 2;
+    min-width: 0;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > .app-field__help {
+    grid-row: 3;
+    padding-block-start: var(--tl-space-1);
+}
+
+/* A select that sizes to its label (AppSelect Sizing="intrinsic") names its own grid areas for label, field and help; inside the row those
+   areas would fight the subgrid, so the same three parts are placed on lines 1, 2 and 3 by number. */
+.app-form-row .app-form-row__fields > .app-select--intrinsic {
+    grid-template-areas: none;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > .app-field__label {
+    grid-area: 1 / 1;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > :is(.app-select__width-label, .tl-select) {
+    grid-area: 2 / 1;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > .app-field__help {
+    grid-area: 3 / 1;
+}
+
+/* Stacked: one column, each child's label, control and help in order (with the normal label gap), children one under another. */
+.app-form-row--stack > .app-form-row__fields > * {
+    align-self: flex-start;
+}
+
+.app-form-row--stack > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    row-gap: var(--tl-field-label-gap, 6px);
+}
+
+.app-form-row--stack > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+    padding-block: 0;
+}
+
+.app-form-row--stack > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+    display: none;
 }
 
 .app-control.app-control--compact,
@@ -2256,14 +2335,14 @@ input.app-control.tl-input-slot,
 
 .tl-u-font-size-32px { font-size: var(--tl-font-size-hero) !important; }
 .tl-u-font-size-36px { font-size: var(--tl-font-size-hero) !important; }
-.tl-u-font-size-3rem { font-size: 3rem !important; }
+.tl-u-font-size-3rem { font-size: var(--tl-icon-size-xl) !important; }
 
 .tl-u-font-size-42px { font-size: 42px !important; }
 .tl-u-font-size-44px { font-size: 44px !important; }
-.tl-u-font-size-48px { font-size: 48px !important; }
+.tl-u-font-size-48px { font-size: var(--tl-icon-size-xl) !important; }
 .tl-u-font-size-52px { font-size: 52px !important; }
 .tl-u-font-size-56px { font-size: 56px !important; }
-.tl-u-font-size-64px { font-size: 64px !important; }
+.tl-u-font-size-64px { font-size: var(--tl-icon-size-2xl) !important; }
 
 .tl-u-font-weight-600 { font-weight: 600 !important; }
 .tl-u-font-weight-700 { font-weight: 600 !important; }
@@ -2610,6 +2689,13 @@ input.app-control.tl-input-slot,
     box-shadow: none !important;
     transition: color var(--tl-motion-duration-fast) var(--tl-motion-ease-standard),
                 background var(--tl-motion-duration-fast) var(--tl-motion-ease-standard);
+}
+
+/* A dropdown's options are the Control job (14 px), the same as its chosen value; pop-up menu rows above stay at the Menu job
+   (look-pass v3.1 D10). Placed after the shared row rule so it wins at equal weight. */
+.tl-select-options .tl-list-item {
+    font-size: var(--tl-type-control-size) !important;
+    font-weight: var(--tl-type-control-weight) !important;
 }
 
 button.app-menu-item {
@@ -3597,6 +3683,55 @@ input[type="reset"],
     box-shadow: none !important;
 }
 
+/* The details window (Look v3.1 D5, Details overlay D1; issue 875). On a tablet or desktop a title's details float over the page
+   the person came from: 90 % of the screen's width and height, never wider than 1440 px, never closer than 32 px to an edge,
+   16 px corners, the page dimmed behind it. On a phone it is a bottom sheet about 92 % tall with a grip. Global because the shared
+   Viewer part renders the <dialog>; the selector outranks the Viewer's full-screen :where() rule on purpose: the details window
+   is a Window, not a full-screen Viewer. */
+dialog.tl-details-overlay {
+    box-sizing: border-box;
+    inset: 0;
+    width: min(90vw, var(--tl-window-details-max), calc(100vw - 2 * var(--tl-window-details-margin)));
+    max-width: none;
+    height: min(90vh, calc(100vh - 2 * var(--tl-window-details-margin)));
+    height: min(90dvh, calc(100dvh - 2 * var(--tl-window-details-margin)));
+    max-height: none;
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: var(--tl-window-details-radius);
+    overflow: hidden;
+    background: var(--tl-bg-root);
+    color: var(--tl-text-primary);
+    box-shadow: var(--tl-shadow-lg);
+    /* Makes the window the containing block for anything the page fixes in place (its loading bar), so it stays inside. */
+    contain: layout;
+}
+
+dialog.tl-details-overlay::backdrop {
+    background: var(--tl-scrim-soft-strong);
+}
+
+dialog.tl-details-overlay.tl-details-overlay--sheet {
+    width: 100%;
+    height: 92vh;
+    height: 92dvh;
+    margin: auto 0 0;
+    border-radius: var(--tl-sheet-radius) var(--tl-sheet-radius) 0 0;
+    transform: translateY(var(--sheet-drag, 0px));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    dialog.tl-details-overlay.tl-details-overlay--sheet[open] {
+        animation: tl-details-overlay-sheet-up 0.22s ease-out;
+    }
+}
+
+@keyframes tl-details-overlay-sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(var(--sheet-drag, 0px)); }
+}
+
 /* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach.
    The page's scroll bar (8-12px) runs down the window's right edge inside the frame, so the button sits 1.5rem in to keep a clear
    gap from it (B29). The phone sheet keeps 0.75rem: its scroll bars overlay the page and its grip sits further in. */
@@ -4127,7 +4262,7 @@ input[type="reset"],
 }
 
 .layout-kids .layout-shell__nav-link {
-    font-size: var(--tl-font-size-md, 1rem);
+    font-size: var(--tl-font-size-md);
     min-height: 48px;
     padding-inline: 18px;
 }
@@ -5058,7 +5193,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 /* The quiet facts in the side column of a plugin or integration page (Plugins and Integrations screens v6 D60). Global because the
    facts are drawn by the page that owns them, not by the column component. */
 .app-detail-columns__side dl { margin: 0; }
-.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs, .75rem); letter-spacing: .08em;}
+.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); letter-spacing: .08em;}
 .app-detail-columns__side dd { margin: 2px 0 6px; color: var(--tl-text-primary); overflow-wrap: anywhere; }
 /* MapLibre builds these class names itself, so no component names them: keep the controls above the phone docks. */
 html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-left,

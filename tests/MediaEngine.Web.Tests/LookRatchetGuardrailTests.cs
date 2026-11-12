@@ -13,6 +13,7 @@ public sealed class LookRatchetGuardrailTests
     private const int NativeControlCeiling = 276;
     private const int AdHocFontSizeCeiling = 69;
     private const int HandTypedHexCeiling = 512;
+    private const int OffScaleFontSizeCeiling = 174;
     private const int ForcedOverrideCeiling = 1062;
     private const int HandTypedLayerCeiling = 271;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
@@ -90,6 +91,19 @@ public sealed class LookRatchetGuardrailTests
             .Where(f => f.Relative != "wwwroot/tuvima.tokens.css")
             .Sum(f => Regex.Matches(f.Text, @"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])").Count);
         Assert.True(count <= HandTypedHexCeiling, $"Hand-typed hex colors rose to {count} (ceiling {HandTypedHexCeiling}). Colors live in tuvima.tokens.css; ask for a token or an icon tone.");
+    }
+
+    [Fact]
+    public void OffScaleFontSizesOnlyGoDown()
+    {
+        // Look pass v3.1 D8 and D11: a style names a step or a job (a --tl-* token) or inherits, never a number, a fraction of the
+        // base size or a fluid size. Counted over the component styles and the shared sheets; the readers' stylesheets under
+        // wwwroot/css/ are left out (book text and page backgrounds are theirs). Icon and hero sizes still written by hand are in the count.
+        var count = WebFiles(".css")
+            .Where(f => f.Relative.StartsWith("Components/", StringComparison.Ordinal)
+                || (f.Relative.StartsWith("wwwroot/", StringComparison.Ordinal) && f.Relative.IndexOf('/', "wwwroot/".Length) < 0))
+            .Sum(f => Regex.Matches(f.Text, @"(?<![\w-])font-size:\s*(?!var\(--tl-|inherit)[^;}\s][^;}]*").Count);
+        Assert.True(count <= OffScaleFontSizeCeiling, $"Off-scale font sizes rose to {count} (ceiling {OffScaleFontSizeCeiling}). Name a type job (--tl-type-<job>-size) or a step (--tl-font-size-*) instead of a number, rem, em or clamp().");
     }
 
     [Fact]

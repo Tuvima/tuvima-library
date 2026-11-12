@@ -342,6 +342,8 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         // TheTVDB's episode list gives a picture as a path, not a full address.
         Assert.Equal("https://artworks.thetvdb.com/banners/episodes/55/ep2.png", secondStill.ImageUrl);
         Assert.Equal("9002", await GetCanonicalAsync(second, BridgeIdKeys.TvdbEpisodeId));
+        // A still that arrived as a path is a real still, not a stand-in.
+        Assert.Null(await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
         var showPoster = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "CoverArt"));
         Assert.Equal("https://artworks.thetvdb.com/show-poster.png", showPoster.ImageUrl);
         var logo = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "Logo"));
@@ -456,6 +458,64 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         Assert.Null(await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
         var stills = await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill");
         Assert.Contains(stills, still => still.IsPreferred && still.SourceProvider != "generated");
+    }
+
+    [Fact]
+    public async Task EnrichEpisodeStillsAsync_WithNoProviderConnection_StillGivesTheEpisodeAFrameFromItsVideo()
+    {
+        // The early pass must not depend on TheTVDB (or Wikidata) being ready: the episode's own frame comes first.
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:early-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var first = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var asset = await SeedAssetForExistingWorkAsync(first, Path.Combine("TV", "Early", "Season 01", "Early - s01e01.mkv"));
+        await SeedCanonicalsAsync(show, ("media_type", "TV"));
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(_ => ImageResponse(image));
+        var service = new ImageEnrichmentService(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance, episodeFrames: new FixedFrameSource(image));
+
+        await service.EnrichEpisodeStillsAsync(asset.AssetId);
+
+        var still = Assert.Single(await _entityAssets.GetByEntityAsync(first.ToString(), "EpisodeStill"));
+        Assert.Equal("generated", still.SourceProvider);
+        Assert.True(still.IsPreferred);
+    }
+
+    [Fact]
+    public async Task EpisodesMissingAProviderStill_ListsOnlyEpisodesWhosePicturePassWasMissed()
+    {
+        // The nightly retry picks up an episode with no provider still and no "provider has none" mark,
+        // never one that was checked (marked) or already has a real still.
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:retry-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var missed = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var checkedNone = await _works.InsertChildAsync(MediaType.TV, season, 2);
+        var hasStill = await _works.InsertChildAsync(MediaType.TV, season, 3);
+        var missedAsset = await SeedAssetForExistingWorkAsync(missed, Path.Combine("TV", "Retry", "Season 01", "Retry - s01e01.mkv"));
+        await SeedAssetForExistingWorkAsync(checkedNone, Path.Combine("TV", "Retry", "Season 01", "Retry - s01e02.mkv"));
+        await SeedAssetForExistingWorkAsync(hasStill, Path.Combine("TV", "Retry", "Season 01", "Retry - s01e03.mkv"));
+        await SeedCanonicalsAsync(checkedNone, (MetadataFieldConstants.EpisodeStillStandIn, "2027-02-01"));
+        await _entityAssets.UpsertAsync(new EntityAsset
+        {
+            Id = Guid.NewGuid(),
+            EntityId = hasStill.ToString(),
+            EntityType = "Work",
+            AssetTypeValue = AssetType.EpisodeStill.ToString(),
+            ImageUrl = "https://artworks.thetvdb.com/x.png",
+            SourceProvider = "tvdb",
+            AssetClassValue = "Artwork",
+            StorageLocationValue = "Central",
+            LocalImagePath = Path.Combine(Path.GetTempPath(), "x.jpg"),
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var ids = await _entityAssets.GetTvEpisodeAssetsMissingProviderStillAsync(50);
+
+        Assert.Equal([missedAsset.AssetId], ids);
     }
 
     private sealed class FixedFrameSource(byte[] bytes) : MediaEngine.Domain.Contracts.IEpisodeFrameSource
