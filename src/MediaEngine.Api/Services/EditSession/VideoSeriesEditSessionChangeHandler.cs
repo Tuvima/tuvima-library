@@ -96,6 +96,7 @@ public sealed class VideoSeriesEditSessionChangeHandler(
         VideoSeriesFilePlan? plan = null;
         string? movedFrom = null;
         string? movedTo = null;
+        IReadOnlyList<string> travelled = [];
         if (moveFile && placement is not null && organizer is not null)
         {
             plan = await placement.PlanAsync(change.EntityId, change.TargetId, change.Token, ct).ConfigureAwait(false);
@@ -106,6 +107,10 @@ public sealed class VideoSeriesEditSessionChangeHandler(
 
             if (plan is { TargetFolder: not null, ToPath: not null })
             {
+                // The folder-wide files (cover, metadata.json) go with the last video out of a folder, exactly as in a match's move; what
+                // went along is worked out from the two folders' contents so an undo can put every one of them back.
+                var namesBefore = NamesIn(Path.GetDirectoryName(plan.FromPath));
+                var namesAtTarget = NamesIn(plan.TargetFolder);
                 var outcome = await organizer.MoveToFolderAsync(plan.AssetId, plan.TargetFolder, ct).ConfigureAwait(false);
                 if (outcome.Kind != AssetRefileOutcomeKind.Moved)
                 {
@@ -115,6 +120,10 @@ public sealed class VideoSeriesEditSessionChangeHandler(
 
                 movedFrom = Path.GetDirectoryName(plan.FromPath);
                 movedTo = Path.GetDirectoryName(outcome.Path);
+                travelled = namesBefore
+                    .Where(name => !namesAtTarget.Contains(name)
+                        && !File.Exists(Path.Combine(movedFrom!, name)) && File.Exists(Path.Combine(movedTo!, name)))
+                    .ToList();
             }
         }
 
@@ -128,6 +137,7 @@ public sealed class VideoSeriesEditSessionChangeHandler(
             await PutFileBackAsync(
                 plan!.AssetId, movedFrom,
                 where => $"The video was not changed, but its file could not be moved back to {movedFrom} and is now in {where}.").ConfigureAwait(false);
+            ThrowIfStuck(PutCompanionsBack(movedTo!, movedFrom, travelled), movedFrom);
             throw;
         }
 
@@ -138,6 +148,7 @@ public sealed class VideoSeriesEditSessionChangeHandler(
 
         var assetId = plan!.AssetId;
         var forwardFolder = movedTo;
+        var companions = travelled;
         return async undoCt =>
         {
             // The file goes back first. If it cannot, nothing else is touched: the series change stays saved and the file is where that
@@ -145,23 +156,83 @@ public sealed class VideoSeriesEditSessionChangeHandler(
             await PutFileBackAsync(
                 assetId, movedFrom,
                 where => $"The series change stays saved, because the video's file could not be moved back to {movedFrom}. It is in {where}.").ConfigureAwait(false);
-            if (seriesUndo is null)
+            var stuck = PutCompanionsBack(forwardFolder, movedFrom, companions);
+            if (seriesUndo is not null)
             {
-                return;
+                try
+                {
+                    await seriesUndo(undoCt).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The series rows could not be put back, so the file goes forward again to stay with them; the failure itself still
+                    // reaches the person (the exception is rethrown). A move that fails here is reported by the next check of the folder.
+                    await TryMoveAsync(assetId, forwardFolder).ConfigureAwait(false);
+                    throw;
+                }
+            }
+
+            ThrowIfStuck(stuck, movedFrom);
+        };
+    }
+
+    private static HashSet<string> NamesIn(string? folder)
+    {
+        try
+        {
+            return folder is not null && Directory.Exists(folder)
+                ? Directory.GetFiles(folder).Select(file => Path.GetFileName(file)).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A folder that cannot be listed has nothing to compare; the move itself reports what it cannot do.
+            _ = ex;
+            return [];
+        }
+    }
+
+    // The folder-wide files that went along with the video go back to the folder they came from. A name already taken there is never
+    // overwritten; whatever could not go back is returned so the person is told.
+    private static List<string> PutCompanionsBack(string fromFolder, string toFolder, IReadOnlyList<string> names)
+    {
+        var stuck = new List<string>();
+        foreach (var name in names)
+        {
+            var from = Path.Combine(fromFolder, name);
+            var to = Path.Combine(toFolder, name);
+            if (!File.Exists(from))
+            {
+                continue;
             }
 
             try
             {
-                await seriesUndo(undoCt).ConfigureAwait(false);
+                if (File.Exists(to))
+                {
+                    stuck.Add(name);
+                    continue;
+                }
+
+                File.Move(from, to);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // The series rows could not be put back, so the file goes forward again to stay with them; the failure itself still
-                // reaches the person (the exception is rethrown). A move that fails here is reported by the next check of the folder.
-                await TryMoveAsync(assetId, forwardFolder).ConfigureAwait(false);
-                throw;
+                _ = ex;
+                stuck.Add(name);
             }
-        };
+        }
+
+        return stuck;
+    }
+
+    private static void ThrowIfStuck(IReadOnlyList<string> stuck, string folder)
+    {
+        if (stuck.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"The video is back in {folder}, but {string.Join(", ", stuck)} could not be moved back with it and stays in the series folder.");
+        }
     }
 
     private async Task PutFileBackAsync(Guid assetId, string folder, Func<string, string> failure)

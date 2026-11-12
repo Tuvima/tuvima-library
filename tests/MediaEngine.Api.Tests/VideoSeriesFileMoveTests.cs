@@ -8,6 +8,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion;
+using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Services;
@@ -29,7 +30,7 @@ namespace MediaEngine.Api.Tests;
 /// the series rows change only after the file moved, and the file goes back if they fail. After the change a rescan of the folder says the
 /// same thing as the person's choice (Managed), or Library's own record still wins (Read-only).
 /// </summary>
-public sealed class VideoSeriesFileMoveTests : IDisposable
+public sealed partial class VideoSeriesFileMoveTests : IDisposable
 {
     private static readonly IReadOnlyDictionary<Guid, string> NoRefusals = new Dictionary<Guid, string>();
 
@@ -147,6 +148,7 @@ public sealed class VideoSeriesFileMoveTests : IDisposable
         var plan = await _placement.PlanAsync(bonus.Work, null, EditSessionVideo.NewSeriesToken(".."));
 
         Assert.Null(plan!.ToPath);
+        Assert.True(plan.Blocks);
         Assert.Equal(VideoSeriesPlacementService.NameNotUsable, plan.Reason);
     }
 
@@ -249,7 +251,7 @@ public sealed class VideoSeriesFileMoveTests : IDisposable
             Id = "m1",
             Kind = EditSessionChangeKinds.FileMove,
             EntityId = Guid.NewGuid(),
-            Token = EditSessionVideo.MovesWithSeriesToken,
+            Token = EditSessionVideo.MovesWithSeriesPrefix + "none",
         };
         var handler = new FileMoveEditSessionChangeHandler(null!, null!);
 
@@ -406,7 +408,7 @@ public sealed class VideoSeriesFileMoveTests : IDisposable
             Id = "m1",
             Kind = EditSessionChangeKinds.FileMove,
             EntityId = bonus.Work,
-            Token = EditSessionVideo.MovesWithSeriesToken,
+            Token = EditSessionVideo.MovesWithSeriesPrefix + "none",
         };
 
         var result = await _service.RunAsync(Request(false, Join("c1", bonus.Work, course.Parent)), NoRefusals);
@@ -586,14 +588,18 @@ public sealed class VideoSeriesFileMoveTests : IDisposable
         Changes =
         [
             .. changes,
-            .. changes.Where(change => change.Kind == EditSessionChangeKinds.VideoSeries).Select(change => new EditSessionChange
-            {
-                Id = change.Id + "-move",
-                Kind = EditSessionChangeKinds.FileMove,
-                EntityId = change.EntityId,
-                Token = EditSessionVideo.MovesWithSeriesToken,
-            }),
+            .. changes.Where(change => change.Kind == EditSessionChangeKinds.VideoSeries).Select(MoveShownWith),
         ],
+    };
+
+    // The file move the Dashboard stages beside a series change: it names that change by id and carries the choice it was shown with.
+    private static EditSessionChange MoveShownWith(EditSessionChange series) => new()
+    {
+        Id = series.Id + "-move",
+        Kind = EditSessionChangeKinds.FileMove,
+        EntityId = series.EntityId,
+        TargetId = series.Id,
+        Token = EditSessionVideo.MovesWithSeries(series.TargetId, series.Token),
     };
 
     private static EditSessionRequest WithoutTheMove(params EditSessionChange[] changes) => new() { Changes = [.. changes] };
