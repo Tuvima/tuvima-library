@@ -169,6 +169,37 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TickedRowsOnAPhone_OpenThePopOverWithExactlyThoseRowsTickedAndTheEditPanelOpen()
+    {
+        await UseDevice("phone");
+        var (launcher, host, _) = Parts();
+        var ticked = new[]
+        {
+            new BulkEditRow(SongId, "Airbag", DetailEntityType.Work, null, "Music"),
+            new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, null, "Music"),
+            new BulkEditRow(Guid.NewGuid(), "Karma Police", DetailEntityType.Work, null, "Music"),
+        };
+
+        Assert.True(await launcher.OpenRowsAsync(ticked, "Music"));
+
+        Assert.True(host.IsOpen);
+        Assert.Equal(ticked.Select(row => row.Id), host.Batch.Rows.Select(row => row.Id));
+        Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
+    }
+
+    [Fact]
+    public async Task TickedRowsOnATv_OpenNothing()
+    {
+        await UseDevice("tv");
+        var (launcher, host, _) = Parts();
+
+        Assert.False(await launcher.OpenRowsAsync([new BulkEditRow(SongId, "Airbag", DetailEntityType.Work, null, "Music")], "Music"));
+
+        Assert.False(host.IsOpen);
+        Assert.Equal(EditorDeviceRule.ItemMessage, launcher.LastNotice);
+    }
+
+    [Fact]
     public async Task ANoticeSink_IsWhereAClosingDeleteHandsItsLine_AndWithoutOneTheLineHasNowhereToGo()
     {
         await UseDevice("desktop");

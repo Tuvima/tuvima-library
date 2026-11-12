@@ -9,7 +9,6 @@
 @inject ViewRibbonVoice Ribbon
 @inject IAppDialogService DialogService
 @inject ViewEditorHost EditorHost
-@inject DeviceContextService DeviceContext
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
 <PageTitle>@L["ViewPeoplePage_PeopleLibrary"]</PageTitle>
@@ -66,7 +65,7 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
     private bool AllSelectedFavorite => SelectedItems.Any() && SelectedItems.All(item => item.Favorite);
     private ViewActions ActionsFor(LocalAssetDto item) => ViewActionPolicy.For(new ViewActionContext(
         ViewActionPolicy.OwnershipOf(Workspace.ScopeKind, item.AddedByProfileId, _profileId),
-        DeviceContext.IsPhone, EditorHost.CanEdit, item.FileMissing, item.CanTrash,
+        EditorHost.CanEdit, item.FileMissing, item.CanTrash,
         item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden));
     private async Task FavoriteSelectionAsync()
     {

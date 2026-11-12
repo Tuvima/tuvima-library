@@ -33,7 +33,6 @@ public enum ViewActions
 /// <summary>What the policy needs to know about one item and the screen it is on.</summary>
 public readonly record struct ViewActionContext(
     ViewItemOwnership Ownership,
-    bool IsPhone,
     bool CanEdit,
     bool FileMissing,
     bool CanTrash,
@@ -44,7 +43,7 @@ public readonly record struct ViewActionContext(
 
 /// <summary>
 /// The one rule for which actions an item offers (spec view-section D5). The selection bar, the tile menu and the viewer all ask here, so they
-/// never differ. Phones never get Trash (D11); Edit is offered wherever the device may edit items (desktop, tablet or phone); an item in a read-only folder never goes to
+/// never differ. Trash and Edit are offered on a phone as on a desktop (Edit wherever the device may edit items, which the caller passes as CanEdit); an item in a read-only folder never goes to
 /// Trash; Restore replaces Archive and Trash for an archived or trashed item.
 /// </summary>
 public static class ViewActionPolicy
@@ -91,7 +90,7 @@ public static class ViewActionPolicy
             actions |= ViewActions.Archive | (c.IsHidden ? ViewActions.None : ViewActions.Hide);
         }
 
-        if (live && !c.IsPhone && c.CanTrash)
+        if (live && c.CanTrash)
         {
             actions |= ViewActions.Trash;
         }

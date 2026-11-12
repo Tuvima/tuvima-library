@@ -443,7 +443,7 @@ else
         var (scopeKind, _) = ItemScope(item);
         var actions = ViewActionPolicy.For(new ViewActionContext(
             ViewActionPolicy.OwnershipOf(scopeKind, item.AddedByProfileId, _profileId),
-            DeviceContext.IsPhone, EditorHost.CanEdit, item.FileMissing, item.CanTrash,
+            EditorHost.CanEdit, item.FileMissing, item.CanTrash,
             item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden));
         // The Trash list only restores; Archive's own list can restore too.
         return _filter == "trash" ? actions & (ViewActions.Download | ViewActions.Restore) : actions;
