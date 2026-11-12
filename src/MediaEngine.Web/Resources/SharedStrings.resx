@@ -668,6 +668,9 @@
   <data name="Common_Unmatched" xml:space="preserve">
     <value>Unmatched</value>
   </data>
+  <data name="MediaBrowseShell_NeedsReview" xml:space="preserve">
+    <value>Needs review</value>
+  </data>
   <data name="MediaBrowseShell_ViewMode" xml:space="preserve">
     <value>View mode</value>
   </data>
@@ -4499,11 +4502,8 @@
   <data name="LibraryShell_FolderOffline" xml:space="preserve">
     <value>Folder offline: {0}</value>
   </data>
-  <data name="LibraryShell_CouldNotBeIdentified" xml:space="preserve">
-    <value>{0} could not be identified.</value>
-  </data>
   <data name="LibraryShell_ALook" xml:space="preserve">
-    <value>{0} a look.</value>
+    <value>{0}.</value>
   </data>
   <data name="LibraryShell_TheseFoldersAreWatchedAs" xml:space="preserve">
     <value>These folders are watched as they are. Library never changes their files.</value>
@@ -4513,9 +4513,6 @@
   </data>
   <data name="Common_ScanNow" xml:space="preserve">
     <value>Scan now</value>
-  </data>
-  <data name="LibraryShell_ReviewThem" xml:space="preserve">
-    <value>Review them</value>
   </data>
   <data name="LibraryShell_OpenNeedsReview" xml:space="preserve">
     <value>Open Needs Review</value>

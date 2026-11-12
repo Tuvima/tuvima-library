@@ -135,16 +135,13 @@ public static class IngestionQueueProgressText
         {
             $"{DisplayFormat.FormatCount(snapshot.FilesDone)} of {DisplayFormat.FormatCount(snapshot.FilesFound)} done",
         };
-        if (snapshot.Outcomes.NeedsReview > 0)
+        // Items to confirm and files nobody could match are one list on the Needs Review page (Needs Review redesign D2), so one count.
+        var needsReview = snapshot.Outcomes.NeedsReview + snapshot.Outcomes.Unmatched;
+        if (needsReview > 0)
         {
-            parts.Add(snapshot.Outcomes.NeedsReview == 1
+            parts.Add(needsReview == 1
                 ? "1 needs review"
-                : $"{DisplayFormat.FormatCount(snapshot.Outcomes.NeedsReview)} need review");
-        }
-
-        if (snapshot.Outcomes.Unmatched > 0)
-        {
-            parts.Add($"{DisplayFormat.FormatCount(snapshot.Outcomes.Unmatched)} unmatched");
+                : $"{DisplayFormat.FormatCount(needsReview)} need review");
         }
 
         if (snapshot.Outcomes.Failed > 0)

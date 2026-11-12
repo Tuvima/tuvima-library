@@ -168,7 +168,7 @@ public partial class MediaBrowseShell
                 ? []
                 : new[] { new ActiveFilterChip("status", StatusDisplayLabel) },
             .. _unmatched
-                ? new[] { new ActiveFilterChip("unmatched", "Unmatched") }
+                ? new[] { new ActiveFilterChip("unmatched", "Needs review") }
                 : [],
         ];
     private string StatusDisplayLabel => _status switch
@@ -181,7 +181,7 @@ public partial class MediaBrowseShell
     };
     private string EmptyStateTitle =>
         _unmatched
-            ? "Nothing unmatched here."
+            ? "Nothing needs review here."
         : HasQualifyingFilters
             ? $"No {ActiveGroupingLabel.ToLowerInvariant()} match these filters"
             : IsContainerGrouping

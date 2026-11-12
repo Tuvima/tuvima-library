@@ -43,10 +43,13 @@ public static class NeedsReviewBulk
     public static IReadOnlyList<IReadOnlyList<NeedsReviewRowDto>> KeepGroups(IEnumerable<NeedsReviewTicked> ticked) =>
         Groups(ticked, row => row.Unmatched is not null || row.Review is not null);
 
-    /// <summary>Ticked rows the editor can open: the same target Fix opens for the row, on a device that may edit.</summary>
+    /// <summary>
+    /// Ticked rows the editor can open: the same target Fix opens for the row, on a device that may edit. One row per thing the editor opens, so
+    /// two rows of one Work read as one item (the first of them stands for it).
+    /// </summary>
     public static IReadOnlyList<NeedsReviewRowDto> EditRows(IEnumerable<NeedsReviewTicked> ticked, bool deviceMayEdit) =>
         deviceMayEdit
-            ? [.. ticked.SelectMany(group => group.Rows).Where(row => NeedsReviewRowInfo.FixTargetOf(row) is not null)]
+            ? [.. ticked.SelectMany(group => group.Rows).Where(row => NeedsReviewRowInfo.FixTargetOf(row) is not null).DistinctBy(NeedsReviewRowInfo.FixTargetOf)]
             : [];
 
     /// <summary>Ticked rows that can be deleted (the page's own Delete rule); none when more than the Engine takes in one go are ticked.</summary>

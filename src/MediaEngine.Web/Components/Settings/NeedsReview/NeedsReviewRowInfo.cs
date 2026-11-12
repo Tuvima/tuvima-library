@@ -160,8 +160,20 @@ public static class NeedsReviewRowInfo
     /// not a film that may be a TV show (that one shows two choices instead).
     /// </summary>
     public static bool HasSingleSuggestion(NeedsReviewRowDto row) =>
-        row is { Review: { } review, BestGuess: not null }
+        row is { Review: { } review, BestGuess: { } guess }
+        && IsKnownAction(guess)
         && !(review.Trigger == MovieTvSuggestionReader.Trigger && MovieTvSuggestionReader.Read(review.CandidatesJson) is not null);
+
+    /// <summary>
+    /// True when the page knows how to run the Engine's best guess: move to TV, keep the provider's match, confirm the linked match, or use a
+    /// retail match that names its choice. Any other action is never offered (neither Use this nor Use suggestions), so it cannot run a wrong write.
+    /// </summary>
+    public static bool IsKnownAction(NeedsReviewBestGuessDto guess) => guess.Action switch
+    {
+        "move_to_tv" or "keep_provider_match" or "confirm_match" => true,
+        "use_retail_match" => !string.IsNullOrWhiteSpace(guess.ChoiceId),
+        _ => false,
+    };
 
     /// <summary>The thing Fix opens in the editor for one row: the review item's entity, or the file's Work.</summary>
     public static Guid? FixTargetOf(NeedsReviewRowDto row) => row.Review is { } review ? review.EntityId : row.Unmatched?.WorkId;
