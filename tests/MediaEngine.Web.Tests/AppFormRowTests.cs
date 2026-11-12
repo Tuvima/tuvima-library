@@ -149,6 +149,8 @@ public sealed class AppFormRowTests : AsyncBunitContext
         Assert.Contains("grid-template-rows: subgrid", childRules, StringComparison.Ordinal);
         // Every direct child defaults to the control line; fields opt into the three lines.
         Assert.Matches(@"\.app-form-row__fields\s*>\s*\*\s*\{[^}]*grid-row:\s*2", childRules);
+        // The tooltip wrapper of an icon button is display: contents elsewhere; in the row it must have a box so the button is not auto-placed.
+        Assert.Matches(@"\.app-form-row__fields\s*>\s*\.playback-tooltip-owner\s*\{[^}]*display:\s*flex", childRules);
         Assert.Matches(@"\.app-form-row__fields\s*>\s*:is\(\.app-field,\s*\[data-form-row-field\]\)\s*\{[^}]*grid-row:\s*1 / span 3", childRules);
         foreach (var css in new[] { scoped, childRules })
         {

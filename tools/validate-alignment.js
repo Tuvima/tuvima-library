@@ -117,7 +117,15 @@
     for (const row of formRows) {
         if (row.matches('.app-form-row--stack')) continue;
         const grid = row.querySelector('.app-form-row__fields') || row;
-        const parts = items(grid).map(kid => ({ field: kid.matches(FIELD_SELECTOR), box: kid.matches(FIELD_SELECTOR) ? controlBox(kid) : kid })).filter(p => visible(p.box));
+        // Every child counts, including a wrapper with no box of its own (display: contents, such as the tooltip wrapper around an icon
+        // button): it is measured by the visible control inside it, so a button that was placed off the control line is found.
+        const boxOf = kid => {
+            if (kid.matches(FIELD_SELECTOR)) return controlBox(kid);
+            const r = kid.getBoundingClientRect();
+            return r.width > 0 && r.height > 0 ? kid : (firstControl(kid) || kid.querySelector('*') || kid);
+        };
+        const parts = [...grid.children].filter(kid => style(kid).display !== 'none' && !kid.matches('[hidden]'))
+            .map(kid => ({ field: kid.matches(FIELD_SELECTOR), box: boxOf(kid) })).filter(p => visible(p.box));
         if (parts.length < 2) continue;
         const reference = (parts.find(p => p.field) || parts[0]).box;
         const first = reference.getBoundingClientRect();

@@ -1247,6 +1247,14 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     min-width: 0;
 }
 
+/* The tooltip wrapper around an icon button is display: contents everywhere else, so it has no box and the button inside would be placed on
+   its own (under the row). In the form row the wrapper takes a real box on the control line and holds the button. */
+.app-form-row__fields > .playback-tooltip-owner {
+    display: flex;
+    align-items: center;
+    justify-self: start;
+}
+
 .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
     display: grid;
     grid-template-rows: subgrid;

@@ -265,6 +265,23 @@ test('a button or checkbox centred on the control line passes, and one off the l
     assert.equal(audit(build(60)).counts.formRow, 1);
 });
 
+test('an icon button inside a display: contents tooltip wrapper is measured by the button, so one placed off the control line fails', () => {
+    const build = buttonTop => {
+        const root = new El('div', { classes: ['app-form-row'], rect: rect(0, 0, 600, 110), style: { display: 'flex', flexDirection: 'column' } });
+        const grid = root.add(new El('div', { classes: ['app-form-row__fields'], rect: rect(0, 0, 600, 110), style: { display: 'grid' } }));
+        const field = grid.add(new El('div', { classes: ['app-field'], rect: rect(0, 0, 280, 90), style: { display: 'grid' } }));
+        field.add(new El('label', { classes: ['app-field__label'], rect: rect(0, 0, 100, 16), text: 'Title' }));
+        field.add(new El('input', { rect: rect(0, 22, 280, 44) }));
+        const owner = grid.add(new El('span', { classes: ['playback-tooltip-owner'], rect: rect(0, 0, 0, 0), style: { display: 'contents' } }));
+        owner.add(new El('button', { classes: ['app-icon-button'], rect: rect(300, buttonTop, 44, 44), attrs: { 'aria-label': 'Search' } }));
+        return root;
+    };
+    assert.equal(audit(build(22)).passed, true);
+    const wrong = audit(build(66));
+    assert.equal(wrong.passed, false);
+    assert.equal(wrong.counts.formRow, 1);
+});
+
 test('help text inside a flex row nested in a form row column is still reported as text on a control', () => {
     const root = new El('div', { classes: ['app-form-row'], rect: rect(0, 0, 600, 90), style: { display: 'flex', flexDirection: 'column' } });
     const grid = root.add(new El('div', { classes: ['app-form-row__fields'], rect: rect(0, 0, 600, 90), style: { display: 'grid' } }));
