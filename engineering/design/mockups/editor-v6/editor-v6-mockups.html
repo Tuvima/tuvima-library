@@ -1,0 +1,458 @@
+<title>Editor v6 mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a plain review page; each screen is the app drawn at its real size inside its own scroller, with numbered notes under it. Single dark look on purpose: it is the app's own. */
+:root{
+  color-scheme:dark;
+  --page:#101115; --nav:#14151A; --card:#1A1B21; --raised:#1F2027; --hover:#272830; --menu:#2F3039;
+  --text:#F5F7FB; --text2:#B6C2D6; --muted:#94A3B8;
+  --line:rgba(148,163,184,.16); --hair:rgba(148,163,184,.10);
+  --accent:#8852FC; --accent-hi:#A46FFF; --accent-soft:rgba(136,82,252,.16); --accent-line:rgba(136,82,252,.42);
+  --ok:#22C55E; --warn:#F59E0B; --bad:#FF8A8A; --bad-line:rgba(239,68,68,.5);
+  --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+body{background:var(--page);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.45;
+  padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.intro h1{font-size:24px;font-weight:700;margin:0 0 8px}
+.intro p{color:var(--text2);max-width:68ch;margin:0 0 8px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.toc a{color:var(--text2);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px}
+.toc a:hover,.toc a:focus-visible{background:var(--hover);color:var(--text);outline:none}
+section>h2{font-size:20px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+section>.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.scroller{overflow-x:auto;padding-bottom:8px}
+.notes{margin:16px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 32px;max-width:1280px}
+.notes li{display:flex;gap:10px;color:var(--text2);font-size:13px;min-width:0}
+.notes b{color:var(--text);font-weight:600}
+.n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:#F5F7FB;color:#101115;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.mk{position:absolute;z-index:5;box-shadow:0 0 0 2px var(--page)}
+
+/* ---------- the editor window ---------- */
+.win{position:relative;width:1280px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.hd1{display:flex;align-items:center;gap:12px;height:76px;padding:0 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hd1.blue{background:linear-gradient(90deg,#1c2c44 0%,#1b2333 30%,var(--card) 75%)}
+.hd1.red{background:linear-gradient(90deg,#40201f 0%,#2b1c20 30%,var(--card) 75%)}
+.cv{flex:0 0 auto;border-radius:4px;background:linear-gradient(160deg,#5c9a3f,#1f5a3a 55%,#c9a23a);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.cv.b{background:linear-gradient(160deg,#2b6cb0,#14304f 60%,#d9822b)}
+.cv.r{background:linear-gradient(160deg,#b0413e,#3a1620 60%,#e0b05a)}
+.cv.p{background:linear-gradient(160deg,#6d4bb8,#1d1638 60%,#d05a8a)}
+.cv.t{background:linear-gradient(160deg,#1f8a8a,#102a3a 60%,#e0c060)}
+.cv.o{background:linear-gradient(160deg,#d97a2b,#4a1d12 60%,#f0d070)}
+.hd1 .cv{width:36px;height:54px}
+.hd1 h3{font-size:20px;font-weight:600;margin:0}
+.state{display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.dot.ok{background:var(--ok)}
+.grow{flex:1 1 auto}
+.ib{width:44px;height:44px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text2);border:1px solid var(--line);background:transparent}
+.ib.home{color:var(--accent-hi);border-color:var(--accent-line)}
+.ib.plain{border-color:transparent}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.dd{height:44px;min-width:0;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);font-size:14px;font-weight:500;white-space:nowrap}
+.dd .lt{color:var(--muted);font-weight:400}
+.close{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 10px;color:var(--text2);font-weight:500}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);height:48px;align-items:stretch}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:0 14px;color:var(--text2);font-weight:500;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.src{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--page)}
+.src span{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:7px;color:var(--text2);font-weight:500}
+.src span.on{background:var(--accent-soft);color:var(--text)}
+.body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px;position:relative}
+.ft{display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--line);background:var(--raised)}
+.ft .wb{color:var(--muted);font-size:13px}
+.btn{height:44px;padding:0 18px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:500;font-size:14px;border:1px solid var(--line);color:var(--text);background:transparent;white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.red{border-color:var(--bad-line);color:var(--bad)}
+.btn.txt{border-color:transparent;color:var(--text2)}
+.btn.off{opacity:.45}
+
+/* ---------- the shared row: label line, control line, message line ---------- */
+.row{display:grid;gap:6px 12px;align-items:end}
+.row .lb{font-size:13px;font-weight:500;color:var(--text2);align-self:end}
+.row .msg{grid-column:1/-1;font-size:13px;color:var(--muted);min-height:18px}
+.row .msg:empty{display:none}
+.btn,.fld,.dd,.opt{flex-shrink:0}
+.fld{height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld.hint{color:var(--muted)}
+.fld.lock{background:transparent;color:var(--text2);justify-content:space-between}
+.pm{width:20px;height:20px;border-radius:5px;background:#e9edf3;color:#101115;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:0 0 auto}
+
+.filebar{display:flex;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--raised);min-width:0}
+.filebar .cap{font-size:12px;font-weight:600;color:var(--muted);padding-left:16px;border-left:1px solid var(--line);white-space:nowrap}
+.filebar .t1{font-weight:500}
+.filebar .t2{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:24px;align-items:start}
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+.sh h4{font-size:16px;font-weight:600;margin:0}
+.sh span{font-size:13px;color:var(--muted)}
+.list{display:flex;flex-direction:column}
+.rw{display:flex;align-items:center;gap:14px;min-height:64px;padding:8px 12px;border-bottom:1px solid var(--hair);border-left:3px solid transparent;min-width:0}
+.rw.on{background:var(--accent-soft);border:1px solid var(--accent-line);border-left:3px solid var(--accent);border-radius:8px}
+.rw .cv{width:32px;height:48px}
+.rw .cv.sq{width:44px;height:44px}
+.rw .tx{flex:1 1 auto;min-width:0}
+.rw .a{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .num{flex:0 0 auto;width:44px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rw .rt{flex:0 0 auto;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.tick{color:var(--accent-hi);flex:0 0 auto;width:20px}
+.more{display:inline-flex;align-items:center;gap:6px;color:var(--accent-hi);font-weight:500;height:44px;padding:0 12px}
+.cardx{border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;background:var(--card);min-width:0}
+.top{display:flex;gap:20px;min-width:0}
+.top .cv{width:140px;height:210px}
+.top .cv.wide{width:240px;height:135px}
+.top .cv.sq{width:160px;height:160px}
+.top h4{font-size:16px;font-weight:600;margin:0 0 4px}
+.top .m{font-size:13px;color:var(--text2)}
+.lnk{color:var(--accent-hi);font-weight:500;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.desc{color:var(--text2);margin:8px 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.verdict{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ok);padding-top:12px;border-top:1px solid var(--line)}
+.verdict.poss{color:var(--warn)}
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+table.cmp th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.cmp td{padding:9px 8px;border-bottom:1px solid var(--hair);color:var(--text)}
+table.cmp td:first-child{color:var(--text2)}
+table.cmp td.none{color:var(--muted)}
+table.cmp td:last-child{width:28px;text-align:right}
+.yes{color:var(--ok)} .no{color:var(--bad)} .na{color:var(--muted)}
+.apply{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.apply small,.sm{font-size:13px;color:var(--muted)}
+.apply .rt{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted)}
+
+/* details tab */
+.hdfull{display:flex;gap:20px;padding:20px 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hdfull .cv{width:96px;height:144px}
+.hdfull .lab{font-size:13px;color:var(--text2)}
+.hdfull h3{font-size:20px;font-weight:600;margin:2px 0 4px}
+.hdfull .facts{font-size:13px;color:var(--text2);margin-bottom:14px}
+.hdfull .nav{display:flex;gap:8px;align-items:center}
+.det{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px}
+.grp{display:flex;flex-direction:column;gap:14px}
+.qf{border:1px solid var(--accent-line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;align-self:start}
+.qf h4{font-size:16px;font-weight:600;margin:0 0 2px}
+.qf .kv{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.qf .kv span:first-child{color:var(--muted)}
+.qf .path{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--text2);min-width:0}
+.qf .path span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* small panel + phones */
+.panel{position:relative;width:560px;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:16px}
+.panel h4{font-size:20px;font-weight:600;margin:0}
+.panel p{margin:0;color:var(--text2)}
+.opt{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px}
+.opt.on{border-color:var(--accent-line);background:var(--accent-soft)}
+.rad{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);flex:0 0 auto}
+.opt.on .rad{border-color:var(--accent-hi);box-shadow:inset 0 0 0 4px var(--card),inset 0 0 0 9px var(--accent-hi)}
+.phones{display:flex;gap:28px;align-items:flex-start;padding:4px}
+.ph{position:relative;flex:0 0 auto;width:360px;height:740px;background:var(--card);border:1px solid var(--line);border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
+.ph .hd1{height:60px;padding:0 12px 0 16px;gap:10px}
+.ph .hd1 .cv{width:28px;height:42px}
+.ph .hd1 h3{font-size:16px}
+.ph .tabs{padding:0 8px;overflow:hidden}
+.ph .tab{padding:0 12px;white-space:nowrap}
+.ph .body{padding:14px 16px;gap:12px;flex:1 1 auto;overflow:hidden}
+.ph .ft{padding:10px 16px;flex-direction:column;align-items:stretch;gap:8px}
+.ph .ft .two2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ph .fld{font-size:16px}
+.ph .top .cv{width:110px;height:165px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:20px 20px 0 0;padding:10px 0 16px;display:flex;flex-direction:column}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:var(--muted);align-self:center;margin-bottom:10px}
+.sheet .rw{min-height:56px;padding:6px 16px}
+.sheet .rw .cv{width:64px;height:36px}
+.sheet .hdr{font-size:12px;font-weight:600;color:var(--muted);padding:10px 16px 4px}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.stack{display:flex;flex-direction:column;gap:6px}
+</style>
+
+<div class="wrap">
+<div class="intro">
+  <h1>Editor v6 mockups</h1>
+  <p>The Match view redrawn to the target picture, the aligned rows, and the editor on a phone. Each screen shows what the app will show. The numbered dots are not part of the app; they point to the notes under each screen.</p>
+  <p>Covers are colored placeholders. Provider marks are drawn as letter badges here; the real marks go in where each provider's brand rules allow.</p>
+  <div class="toc">
+    <a href="#a">A. Match a book</a><a href="#b">B. Already matched</a><a href="#c">C. TV episode</a><a href="#d">D. Song</a><a href="#e">E. Wikidata</a><a href="#f">F. Details rows</a><a href="#g">G. Series chooser</a><a href="#h">H. Phone</a>
+  </div>
+</div>
+
+<section id="a"><h2>A. Match a book that is not matched yet</h2><p class="sub">Desktop, 1280 wide. After pressing Search.</p>
+<div class="scroller"><div class="win" id="winA"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>One-line header on Match.</b> Small cover, "Match book", and the state. Home and the item list stay at the right so you can move to the next book without leaving Match.</span></li>
+<li><span class="n">2</span><span><b>The editor's own tabs stay.</b> This row is not in the target picture; it is how you get back to Details, Artwork and History.</span></li>
+<li><span class="n">3</span><span><b>Media providers and Wikidata.</b> Drawn as a two-way selector, not a second underlined row, so two tab rows never sit on top of each other. It is on its own line, so the search row below has the full width.</span></li>
+<li><span class="n">4</span><span><b>One search row.</b> Every control is 44 px high with its label above. The provider shows its mark and name, and a state only when something is wrong.</span></li>
+<li><span class="n">5</span><span><b>Message line.</b> Help, status and errors for the row go here, under the whole row, so they cannot push a control down.</span></li>
+<li><span class="n">6</span><span><b>Your file.</b> The file name, then what the file itself says.</span></li>
+<li><span class="n">7</span><span><b>Results.</b> No pill and no description. The tick marks the chosen one; box sets say "Collection".</span></li>
+<li><span class="n">8</span><span><b>The chosen result.</b> Large cover to compare with your own, two lines of description, then Read more.</span></li>
+<li><span class="n">9</span><span><b>Verdict and table.</b> Strong, Possible or Weak match. A tick where the two agree, a dash where one side has nothing. A dash never counts against the match.</span></li>
+<li><span class="n">10</span><span><b>Apply match</b> only stages the change. Save changes in the footer writes it, after Review.</span></li>
+</ol></section>
+
+<section id="b"><h2>B. An item that is already matched</h2><p class="sub">Desktop. A movie. Nothing is searched when the tab opens.</p>
+<div class="scroller"><div class="win" id="winB"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Green dot and the provider's name.</b> This is the state that wrongly read "Not matched yet".</span></li>
+<li><span class="n">2</span><span><b>The same card as screen A,</b> filled with the current match, at full width.</span></li>
+<li><span class="n">3</span><span><b>Runtime.</b> Your file's length is measured; the provider's is rounded. Within two minutes counts as agreeing.</span></li>
+<li><span class="n">4</span><span><b>Three actions.</b> Change match shows the search row and list from screen A. Remove match is staged like any change.</span></li>
+</ol></section>
+
+<section id="c"><h2>C. Match a TV episode</h2><p class="sub">Desktop. The show is already chosen; this is the episode step.</p>
+<div class="scroller"><div class="win" id="winC"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>The show you chose,</b> with Change show. TV uses TheTVDB only, so the provider is shown, not offered as a choice.</span></li>
+<li><span class="n">2</span><span><b>Season,</b> then a plain list of that season's episodes.</span></li>
+<li><span class="n">3</span><span><b>Suggested from the file name.</b> The episode the file name points to is chosen for you.</span></li>
+<li><span class="n">4</span><span><b>The card</b> uses a wide picture for an episode. The table compares show, number, title and length.</span></li>
+</ol></section>
+
+<section id="d"><h2>D. Match a song</h2><p class="sub">Desktop. The release is chosen on the left, the track on the right.</p>
+<div class="scroller"><div class="win" id="winD"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Fields for a song:</b> Artist, Album, Song.</span></li>
+<li><span class="n">2</span><span><b>Releases.</b> The one whose track count and lengths fit your files is suggested first.</span></li>
+<li><span class="n">3</span><span><b>Tracks of the chosen release.</b> The track that fits is chosen for you.</span></li>
+<li><span class="n">4</span><span><b>Possible match.</b> The length differs by more than three seconds, so it says so in the table.</span></li>
+<li><span class="n">5</span><span><b>What will change</b> when the song belongs to a different album than it does today.</span></li>
+</ol></section>
+
+<section id="e"><h2>E. The Wikidata side</h2><p class="sub">Desktop. Same shape, text only.</p>
+<div class="scroller"><div class="win" id="winE"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Two boxes:</b> search by name, or paste a Wikidata link or ID.</span></li>
+<li><span class="n">2</span><span><b>Text results:</b> name, what it is, and one fact that tells it apart.</span></li>
+<li><span class="n">3</span><span><b>A series cannot stand in for a book.</b> It is marked as the parent and cannot be applied.</span></li>
+<li><span class="n">4</span><span><b>The table compares identifiers</b> both sides know, then title, author and year.</span></li>
+</ol></section>
+
+<section id="f"><h2>F. Details tab: rows that line up</h2><p class="sub">Desktop. The full header stays on every tab except Match.</p>
+<div class="scroller"><div class="win" id="winF"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Sort title and Rating share one line.</b> Labels above, controls on one line, whatever sits under either.</span></li>
+<li><span class="n">2</span><span><b>A note under one field</b> ("Goes back to the provider's value when you save") sits on the message line under the whole row. Rating does not move.</span></li>
+<li><span class="n">3</span><span><b>No Read-only or Write-back pills.</b> The footer line says it once.</span></li>
+<li><span class="n">4</span><span><b>The file path</b> is out of the facts list. It shows once at the foot of Quick Facts on one line, shortened in the middle, with the full path on hover and a copy button.</span></li>
+<li><span class="n">5</span><span><b>Outlined icons</b> for Home and every icon in the header and tab row.</span></li>
+</ol></section>
+
+<section id="g"><h2>G. Move this video to another series</h2><p class="sub">Desktop. The same choice in a Managed folder (left) and in a Read-only folder (right), with the editor's footer under it.</p>
+<div class="scroller"><div style="display:flex;gap:28px;align-items:flex-start;padding:4px">
+<div class="win" style="width:600px">
+  <div class="body" style="padding:24px;gap:16px">
+  <span class="n mk" style="left:2px;top:22px">1</span>
+  <h4 style="font-size:20px;font-weight:600;margin:0">Move this video to another series</h4>
+  <p style="margin:0;color:var(--text2)">A folder of videos is already a series. Use this only for a video that sits on its own or belongs with a different series.</p>
+  <span class="n mk" style="left:2px;top:150px">2</span>
+  <div class="stack">
+    <div class="opt"><span class="rad"></span><span>On its own <span style="color:var(--muted);font-size:13px">· from its folder</span></span></div>
+    <div class="opt"><span class="rad"></span>Blazor From Start to Finish</div>
+    <div class="opt on"><span class="rad"></span>Start a new series</div>
+  </div>
+  <div class="row" style="grid-template-columns:1fr">
+    <span class="lb">Name of the new series</span>
+    <div class="fld">C# Fundamentals</div>
+    <span class="msg">A new folder, C# Fundamentals, is made for this series.</span>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px"><span class="btn txt">Cancel</span><span class="btn pri">Use this series</span></div>
+  </div>
+  <span class="n mk" style="left:2px;bottom:44px">3</span>
+  <div class="ft"><span style="color:var(--warn);display:inline-flex;flex:0 0 auto"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v5M12 17.500v.3"/></svg></span><div style="min-width:0"><div style="color:var(--warn);font-weight:600">This file will move when you save</div><div class="wb" style="overflow-wrap:anywhere">Managed folder · Videos/intro-to-linq.mp4 → Videos/C# Fundamentals/intro-to-linq.mp4</div></div><span class="grow"></span><span class="btn txt">Discard</span><span class="btn pri">Save changes</span></div>
+</div>
+<div class="win" style="width:600px">
+  <div class="body" style="padding:24px;gap:16px">
+  <span class="n mk" style="left:2px;top:22px">4</span>
+  <h4 style="font-size:20px;font-weight:600;margin:0">Move this video to another series</h4>
+  <p style="margin:0;color:var(--text2)">A folder of videos is already a series. Use this only for a video that sits on its own or belongs with a different series.</p>
+  
+  <div class="stack">
+    <div class="opt"><span class="rad"></span><span>On its own <span style="color:var(--muted);font-size:13px">· from its folder</span></span></div>
+    <div class="opt"><span class="rad"></span>Blazor From Start to Finish</div>
+    <div class="opt on"><span class="rad"></span>Start a new series</div>
+  </div>
+  <div class="row" style="grid-template-columns:1fr">
+    <span class="lb">Name of the new series</span>
+    <div class="fld">C# Fundamentals</div>
+    <span class="msg">Set by you. The file stays where it is.</span>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px"><span class="btn txt">Cancel</span><span class="btn pri">Use this series</span></div>
+  </div>
+  <span class="n mk" style="left:2px;bottom:44px">5</span>
+  <div class="ft"><div style="min-width:0"><div style="font-weight:600">File write-back off</div><div class="wb">Edits save in Library. Original files stay unchanged.</div></div><span class="grow"></span><span class="btn txt">Discard</span><span class="btn pri">Save changes</span></div>
+</div>
+</div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>It says what it is for.</b> A folder of videos is already a series; this is only for the exceptions.</span></li>
+<li><span class="n">2</span><span><b>The choices.</b> Where the folder put it, your other series, or a new one. Cancel, and Esc, go back with nothing changed.</span></li>
+<li><span class="n">3</span><span><b>Managed folder.</b> The footer turns amber, exactly as it does today for a match that moves a file: "This file will move when you save", then the folder kind and the path before and after. Review lists the move. Nothing moves until Save changes.</span></li>
+<li><span class="n">4</span><span><b>Read-only folder.</b> The same screen. The line under the name says the file stays where it is.</span></li>
+<li><span class="n">5</span><span><b>Read-only folder footer.</b> No warning, because nothing on disk changes. The series exists in Library only.</span></li>
+</ol></section>
+
+<section id="h"><h2>H. The editor on a phone</h2><p class="sub">360 wide. The same editor as a full-screen sheet.</p>
+<div class="scroller"><div class="phones" id="phones"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Always the one-line header.</b> Tapping it opens the navigation sheet (screen 4).</span></li>
+<li><span class="n">2</span><span><b>Fields stack,</b> one per line, and Search is full width. Typed text is 16 px so the phone does not zoom. Author and ISBN sit under Title the same way; they are left out of this drawing so the results fit.</span></li>
+<li><span class="n">3</span><span><b>Tapping a result</b> opens its card as a full-height sheet (screen 2).</span></li>
+<li><span class="n">4</span><span><b>Apply match stays at the bottom</b> of the card, under the thumb. Back returns to the list.</span></li>
+<li><span class="n">5</span><span><b>Tap the lock</b> to unlock a field. Tap the lock again for the reason it was locked, or to go back to the provider's value.</span></li>
+<li><span class="n">6</span><span><b>Quick Facts</b> is closed under the form; tap to open.</span></li>
+<li><span class="n">7</span><span><b>Footer:</b> the write-back line, then Discard and Save changes. Delete is in the "..." menu at the top.</span></li>
+<li><span class="n">8</span><span><b>Navigation sheet:</b> Home, Season, the episodes with their pictures, then supporting files and the folder button.</span></li>
+</ol></section>
+</div>
+
+<script>
+const I={
+ search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+ home:'<path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/>',
+ x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ chev:'<path d="M6 9l6 6 6-6"/>',
+ check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+ file:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>',
+ out:'<path d="M9 7h8v8"/><path d="M17 7L7 17"/>',
+ lock:'<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 016 0v3"/>',
+ dots:'<circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/>',
+ folder:'<path d="M3 7h6l2 2h10v10H3z"/>',
+ copy:'<rect x="9" y="9" width="10" height="11" rx="2"/><path d="M6 15V5h9"/>',
+ okc:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+ warn:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2v.3"/>',
+ back:'<path d="M14 6l-6 6 6 6"/>',
+ db:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+ globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.500 0 18M12 3c-3 3.5-3 14.500 0 18"/>'
+};
+const ic=(k,s)=>`<svg class="i" viewBox="0 0 24 24" ${s?`style="${s}"`:''} aria-hidden="true">${I[k]}</svg>`;
+const mk=(n,st)=>`<span class="n mk" style="${st}">${n}</span>`;
+const hd=(o)=>`<div class="hd1 ${o.tone||''}"><span class="cv ${o.cv||''}"></span><h3>${o.title}</h3><span class="state"><span class="dot ${o.ok?'ok':''}"></span>${o.state}</span><span class="grow"></span>${o.nav||''}<span class="ib plain">${ic('dots')}</span><span class="close">${ic('x')}Close</span></div>`;
+const nav=(t)=>`<span class="ib home">${ic('home')}</span><span class="dd" style="width:260px"><span>${t}</span>${ic('chev')}</span>`;
+const tabs=(on,list)=>`<div class="tabs">${(list||['Details','Artwork','Match','Bookmarks','History']).map(t=>`<span class="tab ${t===on?'on':''}">${t}</span>`).join('')}</div>`;
+const src=(w)=>`<div><span class="src"><span class="${w?'':'on'}">${ic('db')}Media providers</span><span class="${w?'on':''}">${ic('globe')}Wikidata</span></span></div>`;
+const ft=(dirty)=>`<div class="ft"><span class="btn red">Delete</span><span class="wb">File write-back off. Edits save in Library. Original files stay unchanged.</span><span class="grow"></span><span class="btn txt">Discard</span><span class="btn pri ${dirty?'':'off'}">Save changes</span></div>`;
+const prov=(l,n)=>`<div class="dd"><span style="display:inline-flex;gap:8px;align-items:center"><span class="pm">${l}</span>${n}</span>${ic('chev')}</div>`;
+const row=(cols,cells,msg)=>`<div class="row" style="grid-template-columns:${cols}">${cells.map(c=>`<span class="lb">${c[0]}</span>`).join('')}${cells.map(c=>c[1]).join('')}<span class="msg">${msg||''}</span></div>`;
+const fld=(v,ph)=>`<div class="fld ${ph?'hint':''}">${v}</div>`;
+const sbtn=`<span class="btn pri">${ic('search')}Search</span>`;
+const filebar=(a,b)=>`<div class="filebar">${ic('file','width:26px;height:26px;color:var(--text2);flex:0 0 auto')}<span class="cap">Your file</span><div style="min-width:0"><div class="t1">${a}</div><div class="t2">${b}</div></div></div>`;
+const r=(o)=>`<div class="rw ${o.on?'on':''}">${o.num?`<span class="num">${o.num}</span>`:''}${o.cv!==undefined?`<span class="cv ${o.cv}"></span>`:''}<div class="tx"><div class="a">${o.a}</div><div class="m">${o.m}</div></div>${o.rt?`<span class="rt">${o.rt}</span>`:''}<span class="tick">${o.on?ic('check'):''}</span></div>`;
+const cmp=(h,rows)=>`<table class="cmp"><tr><th>Field</th><th>Your file</th><th>${h}</th><th></th></tr>${rows.map(x=>`<tr><td>${x[0]}</td><td class="${x[1]?'':'none'}">${x[1]||'Not provided'}</td><td class="${x[2]?'':'none'}">${x[2]||'Not provided'}</td><td>${x[3]==='y'?`<span class="yes">${ic('check')}</span>`:x[3]==='n'?`<span class="no">${ic('x')}</span>`:'<span class="na">&ndash;</span>'}</td></tr>`).join('')}</table>`;
+const verdict=(t,poss)=>`<div class="verdict ${poss?'poss':''}">${ic(poss?'warn':'okc')}${t}</div>`;
+
+document.getElementById('winA').innerHTML=
+ mk(1,'left:2px;top:8px')+hd({title:'Match book',state:'Unmatched',nav:nav('The Sea of Monsters')})+
+ mk(2,'left:2px;top:90px')+tabs('Match')+
+ `<div class="body">`+mk(3,'left:340px;top:26px')+src()+
+ mk(4,'left:2px;top:104px')+mk(5,'left:2px;top:164px')+
+ row('220px 1.3fr 1fr 220px auto',[['Provider',prov('A','Apple Books')],['Title',fld('The Sea of Monsters')],['Author',fld('Rick Riordan')],['ISBN (optional)',fld('')],['',sbtn]],'10 results from Apple Books.')+
+ mk(6,'left:2px;top:206px')+filebar('The Percy Jackson and the Olympians, Book - Rick Riordan.epub','Embedded title: The Sea of Monsters · Rick Riordan · EPUB')+
+ `<div class="two"><div>`+mk(7,'left:2px;top:296px')+`<div class="sh"><h4>Search results</h4><span>10 results</span></div><div class="list">`+
+ r({cv:'',a:'The Sea of Monsters',m:'Rick Riordan · 2009 · Percy Jackson, Book 2',on:1})+
+ r({cv:'t',a:'The Complete Series',m:'Rick Riordan · 2026 · Collection'})+
+ r({cv:'o',a:'Percy Jackson: Books I to III',m:'Rick Riordan · 2014 · Collection'})+
+ r({cv:'r',a:'The Sword of Hades',m:'Rick Riordan · 2023'})+
+ r({cv:'b',a:'The Chalice of the Gods',m:'Rick Riordan · 2023'})+
+ r({cv:'p',a:'Wrath of the Triple Goddess',m:'Rick Riordan · 2024'})+
+ `</div><span class="more">Show 4 more results ${ic('chev')}</span></div>`+
+ `<div class="cardx">`+mk(8,'left:618px;top:296px')+`<div class="top"><span class="cv"></span><div style="min-width:0"><h4>The Sea of Monsters</h4><div class="m">Percy Jackson and the Olympians · Book 2</div><div class="m">Rick Riordan · 2009</div><div style="margin-top:6px"><span class="lnk">Apple Books ${ic('out','width:14px;height:14px')}</span></div><p class="desc">The second book in Rick Riordan's best-selling saga, Percy Jackson and the Olympians. Percy's seventh-grade year has been surprisingly quiet, until a game of dodgeball turns into a death match.</p><span class="lnk">Read more</span></div></div>`+
+ mk(9,'left:618px;top:548px')+verdict('Strong match')+
+ cmp('Selected result',[['Title','The Sea of Monsters','The Sea of Monsters','y'],['Author','Rick Riordan','Rick Riordan','y'],['ISBN','1423103343','',''],['Year','','2009','']])+
+ mk(10,'right:180px;bottom:96px')+`<div class="apply"><small>Based on embedded title and author.</small><div class="rt"><span class="btn pri">Apply match</span><small>Links this book to Apple Books.</small></div></div></div></div></div>`+ft();
+
+document.getElementById('winB').innerHTML=
+ mk(1,'left:150px;top:8px')+hd({title:'Match movie',state:'Matched to TMDB',ok:1,tone:'blue',cv:'b',nav:''})+tabs('Match')+
+ `<div class="body">`+src()+filebar('Arrival.2016.2160p.UHD.BluRay.x265.mkv','Embedded title: Arrival · 1:56:21 measured · MKV')+
+ `<div class="cardx">`+mk(2,'left:2px;top:150px')+`<div class="top"><span class="cv b"></span><div style="min-width:0;flex:1"><h4>Arrival</h4><div class="m">Movie · Denis Villeneuve · 2016</div><div style="margin-top:6px"><span class="lnk">TMDB ${ic('out','width:14px;height:14px')}</span></div><p class="desc">A linguist is recruited by the military to find a way to communicate with visitors whose ships have landed around the world, before tensions lead to war.</p><span class="lnk">Read more</span>`+
+ verdict('Strong match').replace('class="verdict','style="margin-top:14px" class="verdict')+
+ mk(3,'left:170px;top:438px')+cmp('Matched record',[['Title','Arrival','Arrival','y'],['Year','2016','2016','y'],['Runtime','1:56:21 measured','116 min (rounded)','y']])+`</div></div>`+
+ mk(4,'left:2px;bottom:84px')+`<div class="apply"><small>Changing the match updates unlocked details. Locked fields stay as they are.</small><div class="acts"><span class="btn txt">Open source ${ic('out','width:16px;height:16px')}</span><span class="btn red">Remove match</span><span class="btn">Change match</span></div></div></div></div>`+ft();
+
+document.getElementById('winC').innerHTML=
+ hd({title:'Match episode',state:'Unmatched',tone:'red',cv:'r',nav:nav('S02E03 · Static')})+tabs('Match')+
+ `<div class="body">`+src()+
+ mk(1,'left:2px;top:92px')+row('minmax(0,1fr) auto',[['Show',`<div class="fld lock"><span style="display:inline-flex;gap:10px;align-items:center"><span class="pm">T</span>The Last Signal · 2019 · TheTVDB</span></div>`],['','<span class="btn">Change show</span>']],'')+
+ filebar('The.Last.Signal.S02E03.1080p.WEB-DL.mkv','Read from the file name: Season 2, Episode 3 · 47:12 measured · MKV')+
+ `<div class="two"><div>`+mk(2,'left:2px;top:266px')+row('200px 1fr',[['Season',`<div class="dd"><span>Season 2</span>${ic('chev')}</div>`],['','<span></span>']],'')+
+ `<div class="list">`+r({num:'1',a:'Dead Air',m:'Mar 4, 2021',rt:'46 min'})+r({num:'2',a:'Carrier Wave',m:'Mar 11, 2021',rt:'48 min'})+
+ mk(3,'left:2px;top:478px')+r({num:'3',a:'Static',m:'Mar 18, 2021 · Suggested from the file name',rt:'47 min',on:1})+r({num:'4',a:'Crosstalk',m:'Mar 25, 2021',rt:'45 min'})+r({num:'5',a:'Feedback Loop',m:'Apr 1, 2021',rt:'49 min'})+`</div></div>`+
+ `<div class="cardx">`+mk(4,'left:618px;top:266px')+`<div class="top"><span class="cv r wide"></span><div style="min-width:0"><h4>Static</h4><div class="m">The Last Signal · Season 2, Episode 3</div><div class="m">Mar 18, 2021</div><div style="margin-top:6px"><span class="lnk">TheTVDB ${ic('out','width:14px;height:14px')}</span></div></div></div><p class="desc" style="margin:0">Mara traces the interference to a relay station that should have been dark for years, and finds someone still on the air.</p>`+
+ verdict('Strong match')+cmp('Selected result',[['Show','The Last Signal','The Last Signal','y'],['Episode','Season 2, Episode 3','Season 2, Episode 3','y'],['Title','','Static',''],['Runtime','47:12 measured','47 min (rounded)','y']])+
+ `<div class="apply"><small>Based on the file name and measured length.</small><div class="rt"><span class="btn pri">Apply match</span><small>Links this episode to TheTVDB.</small></div></div></div></div></div>`+ft();
+
+document.getElementById('winD').innerHTML=
+ hd({title:'Match song',state:'Unmatched',tone:'',cv:'p',nav:nav('04 · Low Tide')})+tabs('Match',['Details','Artwork','Match','History'])+
+ `<div class="body">`+src()+
+ mk(1,'left:2px;top:104px')+row('220px 1fr 1fr 1fr auto',[['Provider',prov('M','MusicBrainz')],['Artist',fld('Harbor Lights')],['Album',fld('Shoreline')],['Song',fld('Low Tide')],['',sbtn]],'3 releases from MusicBrainz.')+
+ filebar('04 - Low Tide.flac','Tags: Low Tide · Harbor Lights · Shoreline · track 4 · 3:41 measured · FLAC')+
+ `<div class="two"><div>`+mk(2,'left:2px;top:296px')+`<div class="sh"><h4>Releases</h4><span>3 results</span></div><div class="list">`+
+ r({cv:'p sq',a:'Shoreline',m:'Harbor Lights · 2018 · CD · 11 tracks · Closest to your files',on:1})+
+ r({cv:'t sq',a:'Shoreline (Deluxe)',m:'Harbor Lights · 2019 · Digital · 16 tracks'})+
+ r({cv:'o sq',a:'Low Tide',m:'Harbor Lights · 2018 · Single · 2 tracks'})+`</div>`+
+ mk(3,'left:2px;top:540px')+`<div class="sh" style="margin-top:16px"><h4>Tracks</h4><span>Disc 1</span></div><div class="list">`+
+ r({num:'3',a:'Breakwater',m:'Album version',rt:'4:02'})+r({num:'4',a:'Low Tide',m:'Album version',rt:'3:47',on:1})+r({num:'5',a:'Salt',m:'Album version',rt:'2:58'})+`</div></div>`+
+ `<div class="cardx"><div class="top"><span class="cv p sq"></span><div style="min-width:0"><h4>Low Tide</h4><div class="m">Shoreline · Disc 1, Track 4</div><div class="m">Harbor Lights · 2018</div><div style="margin-top:6px"><span class="lnk">MusicBrainz ${ic('out','width:14px;height:14px')}</span></div></div></div>`+
+ mk(4,'left:618px;top:500px')+verdict('Possible match',1)+cmp('Selected result',[['Artist','Harbor Lights','Harbor Lights','y'],['Album','Shoreline','Shoreline','y'],['Title','Low Tide','Low Tide','y'],['Length','3:41 measured','3:47','n']])+
+ mk(5,'left:618px;bottom:150px')+`<div class="note">Stays on Shoreline as track 4. Nothing moves.</div>`+
+ `<div class="apply"><small>Based on tags and measured length.</small><div class="rt"><span class="btn pri">Apply match</span><small>Links this song to MusicBrainz.</small></div></div></div></div></div>`+ft();
+
+document.getElementById('winE').innerHTML=
+ hd({title:'Match book',state:'Matched to Apple Books',ok:1,nav:nav('The Sea of Monsters')})+tabs('Match')+
+ `<div class="body">`+src(1)+
+ mk(1,'left:2px;top:104px')+row('1.4fr 1fr auto',[['Search Wikidata',fld('The Sea of Monsters')],['Wikidata link or ID',fld('Paste a link or an ID such as Q42',1)],['',sbtn]],'4 results from Wikidata.')+
+ filebar('The Percy Jackson and the Olympians, Book - Rick Riordan.epub','Embedded title: The Sea of Monsters · Rick Riordan · EPUB')+
+ `<div class="two"><div>`+mk(2,'left:2px;top:296px')+`<div class="sh"><h4>Search results</h4><span>4 results</span></div><div class="list">`+
+ r({a:'The Sea of Monsters',m:'Written work · 2006 novel by Rick Riordan · Q1196532',on:1})+
+ r({a:'Percy Jackson: Sea of Monsters',m:'Film · 2013 · directed by Thor Freudenthal'})+
+ mk(3,'left:2px;top:462px')+r({a:'Percy Jackson &amp; the Olympians',m:'Book series · Parent: the series, not this book'})+
+ r({a:'The Sea of Monsters',m:'Graphic novel · 2013 adaptation'})+`</div></div>`+
+ `<div class="cardx"><div><h4 style="font-size:16px;font-weight:600;margin:0 0 4px">The Sea of Monsters</h4><div class="sm" style="color:var(--text2)">Written work · 2006 novel by Rick Riordan</div><div style="margin-top:6px"><span class="lnk">Wikidata · Q1196532 ${ic('out','width:14px;height:14px')}</span></div></div>`+
+ mk(4,'left:618px;top:400px')+verdict('Strong match')+cmp('Selected result',[['ISBN','1423103343','1423103343','y'],['Apple Books ID','395523481','',''],['Title','The Sea of Monsters','The Sea of Monsters','y'],['Author','Rick Riordan','Rick Riordan','y'],['Year','','2006','']])+
+ `<div class="apply"><small>Based on the ISBN, title and author.</small><div class="rt"><span class="btn pri">Apply match</span><small>Links this book to Wikidata.</small></div></div></div></div></div>`+ft();
+
+const lk=`<span style="color:var(--accent-hi);display:inline-flex">${ic('lock','width:16px;height:16px')}</span>`;
+const locked=(v)=>`<div class="fld lock"><span>${v}</span>${lk}</div>`;
+document.getElementById('winF').innerHTML=
+ `<div class="hdfull"><span class="cv"></span><div style="flex:1;min-width:0"><div class="lab">Percy Jackson and the Olympians</div><h3>The Sea of Monsters</h3><div class="facts">Rick Riordan · 2009 · 279 pages · Matched</div><div class="nav">`+mk(5,'left:132px;top:138px')+`<span class="ib home">${ic('home')}</span><span class="dd" style="width:300px"><span>Book 2 · The Sea of Monsters</span>${ic('chev')}</span></div></div>`+mk(3,'right:150px;top:16px')+`<span class="ib plain">${ic('dots')}</span><span class="close">${ic('x')}Close</span></div>`+
+ tabs('Details')+`<div class="body"><div class="det"><div class="grp">`+
+ row('2fr 1fr',[['Title',locked('The Sea of Monsters')],['Year',locked('2009')]],'')+
+ mk(1,'left:2px;top:112px')+mk(2,'left:2px;top:170px')+
+ row('2fr 1fr',[['Sort title',fld('Sea of Monsters, The')],['Rating',`<div class="dd"><span>PG</span>${ic('chev')}</div>`]],'Sort title goes back to the provider\'s value when you save.')+
+ row('2fr 1fr',[['Author',locked('Rick Riordan')],['Language',locked('English')]],'')+
+ row('1fr',[['Description',`<div class="fld lock" style="height:88px;align-items:flex-start;padding-top:10px;white-space:normal"><span>The second book in the saga. Percy's seventh-grade year has been surprisingly quiet, until a game of dodgeball turns into a death match.</span>${lk}</div>`]],'')+
+ `</div><div class="qf"><h4>Quick Facts</h4><div class="kv"><span>Match</span><span>Apple Books</span></div><div class="kv"><span>Format</span><span>EPUB</span></div><div class="kv"><span>Size</span><span>1.4 MB</span></div><div class="kv"><span>Folder</span><span>Books</span></div><div class="kv"><span>Supporting files</span><span>2</span></div>`+
+ mk(4,'right:300px;top:206px')+`<div class="path">${ic('folder','width:16px;height:16px;flex:0 0 auto')}<span>Books/Rick Riordan/Per…/Book - Rick Riordan.epub</span><span style="flex:0 0 auto;display:inline-flex;color:var(--text2)">${ic('copy','width:16px;height:16px')}</span></div></div></div></div>`+ft(1);
+
+const phft=`<div class="ft"><span class="wb" style="font-size:12px">File write-back off. Edits save in Library.</span><div class="two2"><span class="btn">Discard</span><span class="btn pri off">Save changes</span></div></div>`;
+const phhd=(t,s,ok)=>`<div class="hd1"><span class="cv"></span><div style="min-width:0"><h3>${t}</h3><span class="state" style="font-size:12px"><span class="dot ${ok?'ok':''}"></span>${s}</span></div><span class="grow"></span><span class="ib plain">${ic('dots')}</span><span class="ib plain">${ic('x')}</span></div>`;
+const ptabs=(on)=>`<div class="tabs">${['Details','Artwork','Match','Bookmarks'].map(t=>`<span class="tab ${t===on?'on':''}">${t}</span>`).join('')}</div>`;
+const p1=`<div class="ph">`+mk(1,'left:150px;top:6px')+phhd('Match book','Unmatched')+ptabs('Match')+`<div class="body">`+
+ `<span class="src" style="align-self:flex-start"><span class="on">Media providers</span><span>Wikidata</span></span>`+
+ mk(2,'right:6px;top:178px')+row('1fr',[['Provider',prov('A','Apple Books')]],'').replace('<span class="msg"></span>','')+
+ row('1fr',[['Title',fld('The Sea of Monsters')]],'').replace('<span class="msg"></span>','')+
+ `<span class="btn pri">${ic('search')}Search</span>`+
+ `<div class="sh" style="margin:4px 0 0"><h4>Search results</h4><span>10 results</span></div><div class="list">`+
+ mk(3,'right:6px;top:322px')+r({cv:'',a:'The Sea of Monsters',m:'Rick Riordan · 2009 · Book 2',on:1})+r({cv:'t',a:'The Complete Series',m:'Rick Riordan · 2026 · Collection'})+r({cv:'o',a:'Percy Jackson: Books I to III',m:'Rick Riordan · 2014 · Collection'})+`</div></div>`+phft+`</div>`;
+const p2=`<div class="ph"><div class="hd1" style="background:var(--card)"><span class="ib plain">${ic('back')}</span><h3>Selected result</h3></div><div class="body" style="gap:14px">`+
+ `<div class="top"><span class="cv"></span><div style="min-width:0"><h4>The Sea of Monsters</h4><div class="m">Percy Jackson and the Olympians · Book 2</div><div class="m">Rick Riordan · 2009</div><div style="margin-top:6px"><span class="lnk">Apple Books ${ic('out','width:14px;height:14px')}</span></div></div></div>`+
+ `<p class="desc" style="margin:0">The second book in Rick Riordan's best-selling saga. Percy's seventh-grade year has been surprisingly quiet.</p><span class="lnk">Read more</span>`+
+ verdict('Strong match')+cmp('Result',[['Title','The Sea of Monsters','The Sea of Monsters','y'],['Author','Rick Riordan','Rick Riordan','y'],['ISBN','1423103343','',''],['Year','','2009','']])+
+ `<small class="sm">Based on embedded title and author.</small></div>`+mk(4,'right:6px;bottom:78px')+`<div class="ft"><span class="btn pri">Apply match</span><span class="wb" style="font-size:12px;text-align:center">Links this book to Apple Books.</span></div></div>`;
+const p3=`<div class="ph">`+phhd('The Sea of Monsters','Matched to Apple Books',1)+ptabs('Details')+`<div class="body">`+
+ mk(5,'right:6px;top:30px')+row('1fr',[['Title',locked('The Sea of Monsters')]],'').replace('<span class="msg"></span>','')+
+ row('1fr',[['Sort title',fld('Sea of Monsters, The')]],'Goes back to the provider\'s value when you save.')+
+ row('1fr',[['Rating',`<div class="dd"><span>PG</span>${ic('chev')}</div>`]],'').replace('<span class="msg"></span>','')+
+ row('1fr',[['Author',locked('Rick Riordan')]],'').replace('<span class="msg"></span>','')+
+ mk(6,'right:6px;top:372px')+`<div class="opt" style="justify-content:space-between;border-color:var(--accent-line)"><span style="font-weight:600">Quick Facts</span>${ic('chev')}</div></div>`+
+ mk(7,'left:6px;bottom:96px')+phft.replace('pri off','pri')+`</div>`;
+const p4=`<div class="ph">`+phhd('Static','Matched to TheTVDB',1)+ptabs('Details')+`<div class="body"></div><div class="dim"></div><div class="sheet">`+mk(8,'left:6px;top:-10px')+`<span class="grab"></span>`+
+ `<div class="rw"><span style="color:var(--accent-hi);display:inline-flex">${ic('home')}</span><div class="tx"><div class="a">The Last Signal</div><div class="m">Show</div></div><span class="tick"></span></div>`+
+ `<div style="padding:6px 16px"><div class="dd" style="display:flex"><span>Season 2</span>${ic('chev')}</div></div>`+
+ r({cv:'r',a:'1 · Dead Air',m:'46 min'})+r({cv:'o',a:'2 · Carrier Wave',m:'48 min'})+r({cv:'t',a:'3 · Static',m:'47 min',on:1})+r({cv:'b',a:'4 · Crosstalk',m:'45 min'})+
+ `<div class="hdr">Supporting files</div>`+
+ `<div class="rw">${ic('file','color:var(--text2);flex:0 0 auto')}<div class="tx"><div class="a">Season 2 guide</div><div class="m">Guide · PDF</div></div><span class="tick"></span></div>`+
+ `<div class="rw">${ic('folder','color:var(--text2);flex:0 0 auto')}<div class="tx"><div class="a">Browse files</div></div><span class="tick"></span></div></div></div>`;
+document.getElementById('phones').innerHTML=p1+p2+p3+p4;
+</script>

@@ -624,36 +624,8 @@ else
                             <div class="audiobooks-continue-grid">
                                 @foreach (var item in AudiobookContinueCards)
                                 {
-                                    var audiobook = item.Item;
-                                    var title = AudiobookTitle(audiobook);
-                                    var route = AudiobookRoute(audiobook);
-                                    var coverUrl = AudiobookCoverUrl(audiobook);
-                                    var progress = AudiobookProgressPercent(item);
-                                    <article class="audiobooks-continue-card">
-                                        <a class="audiobooks-continue-card__cover" href="@route">
-                                            @if (!string.IsNullOrWhiteSpace(coverUrl))
-                                            {
-                                                <img src="@MediaTileArtworkUrl.ForDrawnSize(coverUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(coverUrl, 160)" alt="@title" loading="lazy" decoding="async" />
-                                            }
-                                            else
-                                            {
-                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" Class="tl-u-font-size-48px" />
-                                            }
-                                        </a>
-                                        <div class="audiobooks-continue-card__copy">
-                                            <a class="audiobooks-card-title" href="@route">@title</a>
-                                            <span>@AudiobookCreatorLine(audiobook)</span>
-                                            <span>@AudiobookSecondaryLine(audiobook)</span>
-                                            <progress class="audiobooks-progress" value="@progress" max="100" aria-label="@AudiobookProgressLabel(item)"></progress>
-                                            <div class="audiobooks-continue-card__meta">
-                                                <span>@AudiobookProgressLabel(item)</span>
-                                                <span>@AudiobookRemainingLabel(item)</span>
-                                            </div>
-                                        </div>
-                                        <AppNativeButton Type="button" Class="audiobooks-play-button" AriaLabel="@($"Play {title}")" OnClick='@(() => PlayAudiobookItemAsync(audiobook))'>
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Class="tl-u-font-size-28px" />
-                                        </AppNativeButton>
-                                    </article>
+                                    @* The same Continue tile as Home (issue 891): square cover on a soft copy of itself, Resume, one progress bar. *@
+                                    <ContinueLandscapeTile Item="@ToAudiobookTile(item.Item)" @key="item.Item" />
                                 }
                             </div>
                         }

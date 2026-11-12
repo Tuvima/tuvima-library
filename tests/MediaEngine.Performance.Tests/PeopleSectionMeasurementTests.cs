@@ -280,14 +280,13 @@ public sealed class PeopleSectionMeasurementTests : IClassFixture<LibraryListFix
 
             text.AppendLine();
             var a = result.Works;
-            var filter = result.FilterOnly;
             var hit = result.CachedWorks;
             var g = result.VisibleWorks;
             // Per Engine action, every action paying a cache-miss projection (the first open, or the cache has expired).
-            var roleCounts = Add("role-counts = a + a' + c", a, filter, result.RoleCounts);
-            var list = Add("list = d + a + a' + b", result.ListTitle, a, filter, result.PersonIds);
-            var presenceMiss = Add("presence (cache miss) = a + a' + b + e", a, filter, result.PersonIds, result.Presence);
-            var presenceHit = Add("presence (cache hit) = hit + a' + b + e", hit, filter, result.PersonIds, result.Presence);
+            var roleCounts = Add("role-counts = g + c", g, result.RoleCounts);
+            var list = Add("list = d + g + b", result.ListTitle, g, result.PersonIds);
+            var presenceMiss = Add("presence (cache miss) = g + b + e", g, result.PersonIds, result.Presence);
+            var presenceHit = Add("presence (cache hit) = hit + b + e", hit, result.PersonIds, result.Presence);
             var catalog = Add("catalog = g + f1", g, result.CatalogBody);
             var groups = Add("content groups = g + f2", g, result.ContentGroupsBody);
 
@@ -303,8 +302,8 @@ public sealed class PeopleSectionMeasurementTests : IClassFixture<LibraryListFix
             text.AppendLine($"- Time to first list, parallel (max of catalog, groups, role-counts, list) + presence after a cache hit: {first.Max(read => read.Ms) + presenceHit.Ms:N0} ms ({first.Max(read => read.Ms):N0} + {presenceHit.Ms:N0}).");
             text.AppendLine($"- Same, with presence also missing the cache: {first.Max(read => read.Ms) + presenceMiss.Ms:N0} ms.");
             text.AppendLine($"- Same, if the four requests do not overlap (sum, e.g. one busy core): {first.Sum(read => read.Ms) + presenceHit.Ms:N0} ms.");
-            text.AppendLine($"- Times the visible-works projection (a) runs on one cold page open: role-counts 1, list 1, presence 1 (0 if inside the 30 s cache); measured {result.StampedeLoads:N1} runs when two cold requests start together (the cache has no lock). The light read (g) runs once each for the catalog and the content groups.");
-            text.AppendLine($"- Total projection work on a cold page open: {2 * a.Ms:N0} ms of (a) across role-counts and list, plus {2 * g.Ms:N0} ms of (g) across catalog and groups.");
+            text.AppendLine($"- Times the full projection (a) runs for the People section: none, since the viewer's file list now comes from the light read (g), which role-counts, list and presence each run on a cold cache; measured {result.StampedeLoads:N1} runs when two cold requests start together (the cache has no lock). The light read (g) runs once each for the catalog and the content groups.");
+            text.AppendLine($"- Total light-read work on a cold page open: {5 * g.Ms:N0} ms of (g) across catalog, groups, role-counts, list and presence (it was {2 * a.Ms:N0} ms of (a) across role-counts and list before).");
             text.AppendLine();
         }
 

@@ -1,0 +1,322 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Needs Review redesign: mockups</title><style>
+:root{--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--text:#F7F7FA;--t2:#C9CCDA;--sub:#9EA4BC;--line:#2A2D3A;--accent:#8852FC;--accent2:#A46FFF;--warn:#F2B84B;--bad:#F2777A;--ok:#4CC38A}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0c0f;color:var(--text);font:14px/1.45 Inter,system-ui,"Segoe UI",Roboto,sans-serif;padding:24px 16px 80px}
+.wrap{max-width:1480px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:48px 0 6px}
+.lead{color:var(--sub);max-width:900px;margin:0 0 10px}
+.scroll{overflow-x:auto;padding:12px 0 8px}
+ol.notes{max-width:940px;color:#d5d7e2;padding-left:26px;margin:12px 0 0}ol.notes li{margin:6px 0}
+.mk{font-style:normal;flex:none;display:inline-block;width:22px;height:22px;border-radius:50%;background:#F2C14E;color:#101115;font:700 12px/22px system-ui;text-align:center;box-shadow:0 0 0 2px #101115;margin:0 4px;vertical-align:middle;position:relative;z-index:9}
+.nomk .mk{display:none}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.s{width:16px;height:16px}
+
+/* ---------- the screen (responds to its own width, like the real page) ---------- */
+.screen{container-type:inline-size;background:var(--page);border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none}
+.topnav{height:56px;background:var(--nav);display:flex;align-items:center;gap:28px;padding:0 28px;color:var(--sub)}
+.topnav .logo{color:#fff;font-weight:700;letter-spacing:.14em;margin-right:8px}
+.topnav .sp{flex:1}
+.topnav .av{width:32px;height:32px;border-radius:50%;background:#3a3350;display:grid;place-items:center;color:#fff;font-size:12px;position:relative}
+.topnav .av u{position:absolute;right:-3px;top:-3px;width:10px;height:10px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--nav)}
+.body{padding:24px 32px 32px}
+.crumb{color:var(--sub);font-size:13px}.crumb b{color:var(--t2);font-weight:500}
+.ptitle{font-size:28px;font-weight:700;margin:4px 0 14px}
+.tabs{display:flex;gap:28px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow:hidden}
+.tab{height:44px;display:flex;align-items:center;gap:8px;color:var(--sub);white-space:nowrap}
+.tab.on{color:#fff;box-shadow:inset 0 -2px 0 var(--accent)}
+.count{font-size:12px;font-weight:600;background:#3a2f12;color:var(--warn);border-radius:10px;padding:1px 8px}
+.sum{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.sum .big{font-size:17px;font-weight:600}
+.sum .hint{color:var(--sub)}
+.filters{display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.fld{height:44px;background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--sub)}
+.fld.search{flex:1;min-width:200px;max-width:420px}.fld.sel{color:var(--text);min-width:170px;justify-content:space-between}
+.btn{height:36px;border-radius:8px;padding:0 14px;display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px;border:1px solid #454a5e;color:var(--text);white-space:nowrap;flex:none}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.t{border-color:transparent;color:var(--t2);padding:0 8px}
+.ib{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--sub);flex:none}
+.cb{width:18px;height:18px;border:2px solid #6b7088;border-radius:4px;flex:none;display:grid;place-items:center}
+.cb.on{background:var(--accent);border-color:var(--accent)}.cb.on::after{content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translateY(-1px)}
+
+.sec{margin-top:22px}
+.sech{display:flex;align-items:center;gap:10px;padding:0 12px 8px}
+.sech b{font-size:15px}.sech span{color:var(--sub)}
+.list{background:var(--card);border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:18px 44px minmax(0,1fr) minmax(0,400px) auto;column-gap:14px;align-items:center;padding:12px;min-height:88px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.hov{background:var(--hover)}
+.row.child{padding-left:44px;min-height:64px;background:#17181d}
+.cv{width:44px;height:64px;border-radius:4px;background:linear-gradient(135deg,#39405a,#22263a);display:grid;place-items:center;color:#8f96b3;font-size:11px;font-weight:700}
+.cv.sq{height:44px}.cv.wide{height:28px}
+.cv.a{background:linear-gradient(135deg,#c8833c,#5b2f14);color:#fff}.cv.b{background:linear-gradient(135deg,#3c6fc8,#14275b);color:#fff}.cv.c{background:linear-gradient(135deg,#7a4bd1,#27124f);color:#fff}.cv.d{background:linear-gradient(135deg,#3ca08a,#0f3b33);color:#fff}.cv.e{background:linear-gradient(135deg,#b84a5a,#3d1119);color:#fff}
+.cv.none{background:#22242d;border:1px dashed #454a5e}
+.it{min-width:0}
+.it b{display:block;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it small{display:block;color:var(--sub);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.why{display:flex;align-items:center;gap:6px;color:var(--t2);font-size:13px;margin-top:4px}
+.why svg{color:var(--warn)}.why.bad svg{color:var(--bad)}
+.sug{display:flex;align-items:center;gap:10px;min-width:0}
+.sug .cv{width:32px;height:46px}.sug .cv.sq{height:32px}
+.sug .st{min-width:0;flex:1}.sug .st b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sug .st small{color:var(--sub);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug.none{color:var(--sub);font-size:13px}.sug.none:empty{display:none}
+.act{display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.choices{grid-column:3/-1;display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+.choice{display:flex;align-items:center;gap:10px;background:var(--page);border:1px solid var(--line);border-radius:10px;padding:8px 10px 8px 8px;min-width:0;flex:1 1 280px;max-width:420px}
+.choice .st{flex:1;min-width:0}.choice .st b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.choice .st small{color:var(--sub);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.done{display:flex;align-items:center;gap:8px;color:var(--t2);grid-column:3/-1}.done svg{color:var(--ok)}
+.more{color:var(--sub);padding:14px 12px 0;font-size:13px}.more u{color:var(--accent2);text-decoration:none}
+.note{display:flex;gap:10px;align-items:center;background:var(--card);border-radius:10px;padding:10px 14px;color:var(--t2);margin-bottom:14px}.note svg{color:var(--accent2)}.note u{color:var(--accent2);text-decoration:none;margin-left:auto;white-space:nowrap}
+.selbar{display:flex;align-items:center;gap:8px;background:var(--menu);border-radius:12px;padding:8px 8px 8px 16px;margin-top:18px;box-shadow:0 10px 30px #0008;flex-wrap:wrap}
+.selbar b{margin-right:auto}
+.menu{background:var(--menu);border-radius:12px;padding:8px 0;width:250px;box-shadow:0 10px 30px #000a}
+.mi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;font-size:16px}.mi.bad{color:var(--bad)}.mdiv{height:1px;background:#454a5e;margin:4px 0}
+.empty{display:grid;place-items:center;text-align:center;padding:70px 20px;color:var(--sub)}
+.empty svg{width:44px;height:44px;color:var(--ok);margin-bottom:10px}.empty b{color:var(--text);font-size:17px;display:block;margin-bottom:4px}
+.alert{display:flex;align-items:center;gap:10px;border:1px solid #6b2f33;background:#2a1719;border-radius:10px;padding:10px 14px}.alert svg{color:var(--bad)}.alert .btn{margin-left:auto}
+.sk{background:linear-gradient(90deg,#22242d,#2b2e39,#22242d);border-radius:6px;height:12px}
+.pair{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.cap{color:var(--sub);font-size:12px;margin:0 0 6px}
+
+/* narrower desktop / tablet: the suggestion moves under the item */
+@container (max-width:1150px){
+ .body{padding:20px 24px 28px}
+ .row{grid-template-columns:18px 44px minmax(0,1fr) auto}
+ .row>.cb{grid-column:1;grid-row:1}.row>.cv{grid-column:2;grid-row:1}.row>.it{grid-column:3;grid-row:1}.row>.act{grid-column:4;grid-row:1}
+ .row>.sug{grid-column:3/-1;grid-row:2;margin-top:10px}.row>.choices{grid-row:3}
+ .row.child{padding-left:44px}
+}
+/* phone */
+@container (max-width:600px){
+ .topnav{padding:0 16px;gap:0;height:52px}.topnav .lk{display:none}
+ .body{padding:14px 12px 24px}
+ .crumb,.tabs{display:none}
+ .pagepick{display:flex!important}
+ .ptitle{font-size:22px;margin:10px 0 10px}
+ .fld.sel{flex:1;min-width:0}.fld.search{flex:1 1 100%;max-width:none}
+ .row{grid-template-columns:44px minmax(0,1fr) auto;column-gap:12px;padding:12px}
+ .row>.cb{display:none}.row>.cv{grid-column:1}.row>.it{grid-column:2}.row>.act{grid-column:3}
+ .row>.sug{grid-column:1/-1}.row.child{padding-left:12px}
+ .row>.act .btn.fix{display:none}
+ .row>.act .ib{width:44px;height:44px}
+ .choices{grid-column:1/-1}
+ .btn{height:44px}
+ .sech .cb{display:none}
+ .it b{white-space:normal}
+}
+.pagepick{display:none;margin-bottom:14px;height:44px;background:var(--card);border:1px solid var(--line);border-radius:8px;align-items:center;justify-content:space-between;padding:0 12px}
+</style></head><body><div class="wrap">
+
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></symbol>
+<symbol id="help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 115 0c0 1.7-2.5 2-2.5 4M12 17v.5"/></symbol>
+<symbol id="ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="sync" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5l2 2M20 12a8 8 0 01-14 5l-2-2M20 4v5h-5M4 20v-5h5"/></symbol>
+<symbol id="close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="del" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+<symbol id="hist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+<symbol id="keep" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></symbol>
+<symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+</defs></svg>
+
+<h1>Needs Review redesign: mockups</h1>
+<p class="lead">Each screen shows only what the real app would show. The yellow numbers are not part of the app; they point to the notes under each screen. Titles and covers are stand-ins. The top bar, the Settings title and the tab row already exist and are drawn only for context.</p>
+
+<!-- ================= SCREEN 1 ================= -->
+<h2>Screen 1. Needs Review, 1440 wide</h2>
+<div class="scroll"><div class="screen" id="s1" style="width:1440px">
+<div class="topnav"><span class="logo">TUVIMA</span><span class="lk">Home</span><span class="lk">Watch</span><span class="lk">Listen</span><span class="lk">Read</span><span class="lk">View</span><span class="sp"></span><svg class="i"><use href="#search"/></svg><span class="av">S<u></u></span></div>
+<div class="body">
+ <div class="crumb">Settings <span>›</span> <b>Library</b></div>
+ <div class="ptitle">Library</div>
+ <div class="pagepick"><span>Needs Review</span><svg class="i"><use href="#down"/></svg></div>
+ <div class="tabs"><span class="tab">Libraries</span><span class="tab">Activity</span><span class="tab on">Needs Review <span class="count">9</span></span><i class="mk">1</i><span class="tab">Matching</span><span class="tab">Rules</span></div>
+
+ <div class="sum"><span class="big">9 items need review</span><span class="hint">Everything else in your Library is matched and filed.</span><i class="mk">2</i></div>
+ <div class="filters"><span class="fld sel">All libraries <svg class="i"><use href="#down"/></svg></span><span class="fld search"><svg class="i"><use href="#search"/></svg>Search items that need review</span><i class="mk">3</i></div>
+
+ <div class="sec"><div class="sech"><span class="cb"></span><b>Ready to confirm</b><span>2</span><i class="mk">4</i></div>
+ <div class="list">
+  <div class="row hov"><span class="cb"></span><span class="cv none wide"></span>
+   <div class="it"><b>04.mkv</b><small>Episode · TV Shows · The Continental / Season 1</small><div class="why"><svg class="i s"><use href="#help"/></svg>The file name has no episode number.</div></div>
+   <div class="sug"><span class="cv a">TC</span><span class="st"><b>The Continental · Season 1 · Episode 4</b><small>Next missing episode in this folder</small></span><span class="btn p">Use this</span><i class="mk">5</i></div>
+   <div class="act"><span class="btn fix">Fix</span><i class="mk">6</i><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+  <div class="row"><span class="cb"></span><span class="cv sq b">LW</span>
+   <div class="it"><b>Leviathan Wakes</b><small>Audiobook · Audiobooks · James S. A. Corey / Leviathan Wakes</small><div class="why"><svg class="i s"><use href="#help"/></svg>Close match, but the narrator is different.</div></div>
+   <div class="sug"><span class="cv sq b">LW</span><span class="st"><b>Leviathan Wakes (2011)</b><small>James S. A. Corey · 82% sure</small></span><span class="btn p">Use this</span></div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+ </div></div>
+
+ <div class="sec"><div class="sech"><span class="cb"></span><b>Choose a match</b><span>3</span><i class="mk">7</i></div>
+ <div class="list">
+  <div class="row"><span class="cb"></span><span class="cv none"></span>
+   <div class="it"><b>Dune.mkv</b><small>Movie · Movies · Dune</small><div class="why"><svg class="i s"><use href="#help"/></svg>Two films fit this file. Which one is it?</div></div>
+   <div class="sug none"></div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div>
+   <div class="choices"><div class="choice"><span class="cv c" style="width:32px;height:46px">D</span><span class="st"><b>Dune (2021)</b><small>Denis Villeneuve · 2 h 35 min</small></span><span class="btn">Use this</span></div><div class="choice"><span class="cv a" style="width:32px;height:46px">D</span><span class="st"><b>Dune (1984)</b><small>David Lynch · 2 h 17 min</small></span><span class="btn">Use this</span></div><i class="mk">8</i></div></div>
+  <div class="row"><span class="cb"></span><span class="cv d">CW</span>
+   <div class="it"><b>Caliban's War</b><small>Book · Books · James S. A. Corey</small><div class="why"><svg class="i s"><use href="#help"/></svg>Two Series list this book. It is in neither for now.</div></div>
+   <div class="sug none"></div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div>
+   <div class="choices"><div class="choice"><span class="st"><b>The Expanse</b><small>Book 2 of 9</small></span><span class="btn">Use this</span></div><div class="choice"><span class="st"><b>The Expanse Universe</b><small>Book 3 of 17</small></span><span class="btn">Use this</span></div></div></div>
+  <div class="row"><span class="cb"></span><span class="cv e">S</span>
+   <div class="it"><b>Shogun (1980)</b><small>Movie · Movies · Shogun (1980)</small><div class="why"><svg class="i s"><use href="#help"/></svg>No film matched, but a TV show has this name and year.</div></div>
+   <div class="sug none"></div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div>
+   <div class="choices"><div class="choice"><span class="cv e" style="width:32px;height:46px">S</span><span class="st"><b>Shogun (TV, 1980)</b><small>1 season · 5 episodes</small></span><span class="btn">Move to TV</span></div><div class="choice"><span class="st"><b>Keep as a film</b><small>Stays in Movies with its file details</small></span><span class="btn">Keep</span></div><i class="mk">9</i></div></div>
+ </div></div>
+
+ <div class="sec"><div class="sech"><span class="cb"></span><b>No match found</b><span>3</span><i class="mk">10</i></div>
+ <div class="list">
+  <div class="row"><span class="cb"></span><span class="cv d">TE</span>
+   <div class="it"><b>The Expanse</b><small>2 episodes · TV Shows · The Expanse / Season 7</small><div class="why"><svg class="i s"><use href="#help"/></svg>The show is matched, but it has no Season 7.</div></div>
+   <div class="sug none">Tries again tonight</div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#down"/></svg></span><i class="mk">11</i><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+  <div class="row child"><span class="cb"></span><span class="cv none wide"></span><div class="it"><b>The.Expanse.S07E01.mkv</b></div><div class="sug none"></div><div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+  <div class="row child"><span class="cb"></span><span class="cv none wide"></span><div class="it"><b>The.Expanse.S07E02.mkv</b></div><div class="sug none"></div><div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+  <div class="row"><span class="cb"></span><span class="cv none"></span>
+   <div class="it"><b>sample_clip.mp4</b><small>Movie · Movies · Downloads</small><div class="why"><svg class="i s"><use href="#help"/></svg>This looks like a sample clip, not a film.</div></div>
+   <div class="sug none">Will not try again by itself</div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+ </div></div>
+
+ <div class="sec"><div class="sech"><span class="cb"></span><b>File problems</b><span>1</span><i class="mk">12</i></div>
+ <div class="list">
+  <div class="row"><span class="cb"></span><span class="cv c">BR</span>
+   <div class="it"><b>Blade Runner (1982)</b><small>Movie · Movies · Blade Runner (1982)</small><div class="why bad"><svg class="i s"><use href="#warn"/></svg>Library could not save the new details into the file. The file may be open or read-only.</div></div>
+   <div class="sug none"></div>
+   <div class="act"><span class="btn">Try again</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+ </div></div>
+
+ <div class="more">4 items are hidden because you kept them as they are. <u>Show them</u><i class="mk">13</i></div>
+</div></div></div>
+<ol class="notes">
+<li><b>One number.</b> The tab shows the same number as the Activity pill, the account menu and (later) the Settings menu. It counts items, so two episodes in one row still count as two.</li>
+<li><b>One plain sentence</b> says how much is waiting. No "Not matched" or "Not sure" labels anywhere; the only name is Needs Review.</li>
+<li><b>Two controls only:</b> a library filter (shown when there is more than one library) and search. The three-way All / Not matched / Not sure switch and the "Try again for all · Keep all" text links are gone.</li>
+<li><b>Ready to confirm</b> comes first because it is the quickest: Library has one likely answer and only wants a yes. Ticking the box beside a heading ticks every row under it.</li>
+<li><b>Use this</b> accepts the suggestion in one click. The row then shows "Matched to …" (screen 2) and the number drops. The second line under the suggestion says why Library thinks so, or how sure it is.</li>
+<li><b>Fix</b> opens the editor window over this page on Match, as it does today. The "..." menu holds the rarer actions (screen 2).</li>
+<li><b>Choose a match</b>: Library found more than one answer and will not guess.</li>
+<li><b>The choices sit in the row</b> with their covers, so most decisions need no extra window. If none is right, Fix opens the full search. (This is new; today the row shows a percent and you must open the editor. See question 3.)</li>
+<li><b>Film or TV show?</b> The existing "this may be a TV show" decision uses the same choice layout instead of its own card.</li>
+<li><b>No match found</b>: Library searched and found nothing close enough. The grey text on the right says whether it will try again by itself, so you know if you can simply leave it.</li>
+<li><b>Files from one show, album or book series share one row</b> ("2 episodes"). The arrow opens the list of files; Fix on the top row opens the show so one correction can fix them all.</li>
+<li><b>File problems</b> are not about matching: a file that cannot be read, cannot be saved to, or clashes with another file's name. The button offered is the one that helps (Try again), not Fix.</li>
+<li><b>Kept items can come back.</b> "Keep as it is" hides an item from this list. This line appears only when something is hidden, and brings those items back into view.</li>
+</ol>
+
+<!-- ================= SCREEN 2 ================= -->
+<h2>Screen 2. Ticking rows, the row menu, and what a finished row looks like</h2>
+<div class="scroll"><div class="screen" style="width:1440px"><div class="body">
+ <div class="sec" style="margin-top:0"><div class="sech"><span class="cb on"></span><b>Ready to confirm</b><span>3</span></div>
+ <div class="list" style="overflow:visible">
+  <div class="row" style="border-radius:12px 12px 0 0"><span></span><span class="cv a">TC</span><div class="done"><svg class="i"><use href="#ok"/></svg><span><b style="font-weight:600">04.mkv</b> matched to The Continental · Season 1 · Episode 4</span><i class="mk">1</i></div></div>
+  <div class="row"><span class="cb on"></span><span class="cv sq b">LW</span>
+   <div class="it"><b>Leviathan Wakes</b><small>Audiobook · Audiobooks · James S. A. Corey / Leviathan Wakes</small><div class="why"><svg class="i s"><use href="#help"/></svg>Close match, but the narrator is different.</div></div>
+   <div class="sug"><span class="cv sq b">LW</span><span class="st"><b>Leviathan Wakes (2011)</b><small>James S. A. Corey · 82% sure</small></span><span class="btn p">Use this</span></div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div>
+  <div class="row hov" style="position:relative;border-radius:0 0 12px 12px"><span class="cb on"></span><span class="cv sq e">AR</span>
+   <div class="it"><b>07 - Here Comes the Sun.flac</b><small>Song · Music · The Beatles / Abbey Road</small><div class="why"><svg class="i s"><use href="#help"/></svg>The tags in the file are empty.</div></div>
+   <div class="sug"><span class="cv sq e">AR</span><span class="st"><b>Here Comes the Sun</b><small>The Beatles · Abbey Road · Track 7</small></span><span class="btn p">Use this</span></div>
+   <div class="act"><span class="btn fix">Fix</span><span class="ib" style="background:var(--menu);color:#fff"><svg class="i"><use href="#dots"/></svg></span></div>
+   <div class="menu" style="position:absolute;right:12px;top:66px;z-index:5">
+    <div class="mi"><svg class="i"><use href="#sync"/></svg>Try again</div>
+    <div class="mi"><svg class="i"><use href="#keep"/></svg>Keep as it is</div>
+    <div class="mi"><svg class="i"><use href="#hist"/></svg>Show in Activity</div>
+    <div class="mdiv"></div>
+    <div class="mi bad"><svg class="i"><use href="#del"/></svg>Delete</div>
+   </div><i class="mk" style="position:absolute;right:270px;top:74px">2</i></div>
+ </div></div>
+ <div style="height:210px"></div>
+ <div class="selbar"><b>2 selected</b><i class="mk">3</i><span class="btn p">Use suggestions</span><span class="btn">Try again</span><span class="btn">Keep as they are</span><span class="btn">Edit 2 items</span><span class="btn">Delete</span><span class="ib"><svg class="i"><use href="#close"/></svg></span></div>
+</div></div></div>
+<ol class="notes">
+<li><b>A finished row stays as one quiet line</b> until you leave the page, so you can see what just happened without a pop-up message. If the action fails, the row stays as it was with the reason in red under it.</li>
+<li><b>The "..." menu</b>: Try again (search once more now), Keep as it is (stop asking about this item), Show in Activity (what Library did with this file), and Delete (asks once, as everywhere else). Menu rows that cannot apply are left out, never greyed.</li>
+<li><b>The bar appears only when something is ticked.</b> Use suggestions accepts every ticked row that has one suggestion; Edit opens the same editor window for several items, as in other lists. It replaces the old "for all" links, which acted on everything the filters showed.</li>
+</ol>
+
+<!-- ================= SCREEN 3 ================= -->
+<h2>Screen 3. The same page at 1280 and 1024 wide</h2>
+<p class="cap">1280 wide</p><div class="scroll"><div class="screen nomk" id="c1280" style="width:1280px"></div></div>
+<p class="cap" style="margin-top:18px">1024 wide</p><div class="scroll"><div class="screen nomk" id="c1024" style="width:1024px"></div></div>
+<ol class="notes">
+<li>At 1280 the layout is the same as 1440 with a little less air.</li>
+<li>Below about 1150 the suggestion drops under the item instead of sitting beside it, so nothing is cut off and the buttons keep their place on the right.</li>
+</ol>
+
+<!-- ================= SCREEN 4 ================= -->
+<h2>Screen 4. Phone (390 wide)</h2>
+<div class="pair">
+<div><p class="cap">The list</p><div class="screen" id="ph" style="width:390px;border-radius:22px"></div></div>
+<div><p class="cap">"..." on a row</p><div class="screen" style="width:390px;border-radius:22px;position:relative;height:600px"><div style="position:absolute;inset:0;background:#0009"></div>
+ <div style="position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:18px 18px 0 0;padding:10px 0 18px">
+  <div style="width:40px;height:4px;border-radius:2px;background:#5a5f75;margin:0 auto 10px"></div>
+  <div style="padding:4px 16px 10px"><b>Dune.mkv</b><div style="color:var(--sub);font-size:13px">Movie · Movies</div></div>
+  <div class="mi"><svg class="i"><use href="#edit"/></svg>Fix<i class="mk">3</i></div>
+  <div class="mi"><svg class="i"><use href="#sync"/></svg>Try again</div>
+  <div class="mi"><svg class="i"><use href="#keep"/></svg>Keep as it is</div>
+  <div class="mi"><svg class="i"><use href="#hist"/></svg>Show in Activity</div>
+  <div class="mi"><span class="cb" style="margin:0 1px"></span>Select<i class="mk">4</i></div>
+  <div class="mdiv"></div>
+  <div class="mi bad"><svg class="i"><use href="#del"/></svg>Delete</div>
+ </div></div></div>
+</div>
+<ol class="notes">
+<li>On a phone the page is a list of cards. Tabs become the existing Settings page picker. Today the whole page is hidden on phones.</li>
+<li>Everything a computer can do, a phone can do: Use this, the choices, Move to TV, Try again, Keep as it is, Fix and Delete.</li>
+<li><b>Fix</b> is the first line of the "..." sheet on every card, and a button of its own on cards where Library has no answer to offer (marker 5). It opens the editor on Match. The phone shape of the editor is being designed in the Editor and Match plan; until that is built, Fix does not appear on phones.</li>
+<li><b>Select</b> turns on tick boxes on the cards and shows the same action bar as on a computer, at the bottom of the screen.</li>
+<li>A card with no suggestion shows Fix as its main button.</li>
+</ol>
+
+<!-- ================= SCREEN 5 ================= -->
+<h2>Screen 5. Other states</h2>
+<div class="pair">
+<div style="flex:1 1 520px;min-width:0"><p class="cap">Nothing needs review</p><div class="screen"><div class="body"><div class="empty"><div><svg class="i"><use href="#ok"/></svg><b>Nothing needs review</b>Library will list items here when it is not sure about them.<i class="mk">1</i></div></div></div></div></div>
+<div style="flex:1 1 520px;min-width:0"><p class="cap">While Library is still importing</p><div class="screen"><div class="body">
+ <div class="sum"><span class="big">3 items need review</span></div>
+ <div class="note"><svg class="i"><use href="#info"/></svg>Library is still working on 212 files, so more items may appear here.<i class="mk">2</i><u>View Activity</u></div>
+ <div class="list"><div class="row" style="grid-template-columns:18px 44px minmax(0,1fr) auto"><span class="cb"></span><span class="cv none"></span><div class="it"><b>Dune.mkv</b><small>Movie · Movies · Dune</small><div class="why"><svg class="i s"><use href="#help"/></svg>Two films fit this file. Which one is it?</div></div><div class="act"><span class="btn fix">Fix</span><span class="ib"><svg class="i"><use href="#dots"/></svg></span></div></div></div>
+</div></div></div>
+<div style="flex:1 1 520px;min-width:0"><p class="cap">Loading</p><div class="screen"><div class="body">
+ <div class="sk" style="width:180px;height:18px;margin-bottom:18px"></div>
+ <div class="list">
+  <div class="row" style="grid-template-columns:44px 1fr"><span class="cv none" style="border:0"></span><div><div class="sk" style="width:40%"></div><div class="sk" style="width:65%;margin-top:10px"></div></div></div>
+  <div class="row" style="grid-template-columns:44px 1fr"><span class="cv none" style="border:0"></span><div><div class="sk" style="width:30%"></div><div class="sk" style="width:55%;margin-top:10px"></div></div></div>
+  <div class="row" style="grid-template-columns:44px 1fr"><span class="cv none" style="border:0"></span><div><div class="sk" style="width:45%"></div><div class="sk" style="width:60%;margin-top:10px"></div></div></div>
+ </div><i class="mk" style="margin-top:10px">3</i></div></div></div>
+<div style="flex:1 1 520px;min-width:0"><p class="cap">The list could not be loaded, and a search with no results</p><div class="screen"><div class="body">
+ <div class="alert"><svg class="i"><use href="#warn"/></svg>Needs Review could not be loaded.<i class="mk">4</i><span class="btn">Try again</span></div>
+ <div class="filters" style="margin-top:22px"><span class="fld search" style="color:var(--text)"><svg class="i"><use href="#search"/></svg>solaris</span></div>
+ <div class="empty" style="padding:34px 20px"><div><b>No items match "solaris"</b>9 items still need review.<i class="mk">5</i></div></div>
+</div></div></div>
+</div>
+<ol class="notes">
+<li>Empty: one tick and one sentence. The tab number and every other count disappear at zero.</li>
+<li>While an import is running, one line says more may arrive and links to Activity. It goes away when the import ends.</li>
+<li>Loading shows grey placeholder rows in the shape of the list, not a spinner.</li>
+<li>If the list cannot load, a plain message with Try again; nothing else on the page breaks.</li>
+<li>A search or library filter with no results says so and reminds you how many items are still waiting.</li>
+</ol>
+
+</div>
+<script>
+const body=document.querySelector('#s1').innerHTML;
+for(const id of ['c1280','c1024','ph'])document.getElementById(id).innerHTML=body;
+// the phone copy keeps only three numbered markers for its own notes
+const ph=document.getElementById('ph');ph.querySelectorAll('.mk').forEach(m=>m.remove());
+// phone shows a shorter list so the card is readable
+ph.querySelectorAll('.sec').forEach((s,i)=>{if(i>2)s.remove()});ph.querySelectorAll('.row.child').forEach(r=>r.remove());
+let first=true;ph.querySelectorAll('.row').forEach(r=>{if(!r.querySelector('.choices')&&r.querySelector('.sug.none')){const f=document.createElement('span');f.className='btn';f.style.cssText='grid-column:1/-1;justify-content:center;margin-top:10px';f.textContent='Fix';r.appendChild(f);if(first){first=false;const m=document.createElement('i');m.className='mk';m.textContent='5';f.appendChild(m)}}});ph.querySelector('.more').remove();
+const add=(sel,n)=>{const e=ph.querySelector(sel);if(e){const m=document.createElement('i');m.className='mk';m.textContent=n;e.appendChild(m)}};
+add('.sum',1);add('.sug',2);
+</script>
+</body></html>

@@ -82,3 +82,18 @@
 .media-tile-episode-caption strong { color:var(--tl-text-primary); font-size:var(--tl-font-size-secondary); }
 
 @media (prefers-reduced-motion: reduce) { .media-tile-media { transition:none; } }
+/* A group of videos (issue 869): the tall dark-purple card. */
+.media-tile.is-video-still .media-tile-media:has(.media-tile-video-collection) { background:linear-gradient(165deg, #2a1650 0%, #17102c 55%, #100c1f 100%); border:1px solid rgba(136, 82, 252, .45); border-radius:inherit; }
+.media-tile-video-collection { position:relative; display:flex; flex-direction:column; gap:6px; height:100%; padding:12px; box-sizing:border-box; }
+.media-tile-video-collection__layers { position:absolute; top:12px; right:56px; color:rgba(255,255,255,.7); display:inline-flex; }
+.media-tile-video-collection__art { position:relative; margin-top:36px; aspect-ratio:16 / 9; overflow:hidden; border-radius:var(--tl-radius-sm,6px); background:rgba(0,0,0,.35); }
+.media-tile-video-collection__soft { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scale(1.3); filter:blur(14px) brightness(.6); }
+.media-tile-video-collection__still { position:absolute; inset:8%; width:84%; height:84%; object-fit:cover; border-radius:4px; box-shadow:0 4px 14px rgba(0,0,0,.5); }
+.media-tile-video-collection__still--empty { display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.3); font-size:36px; }
+.media-tile-video-collection__kind { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:max(11px, var(--tl-font-size-xs)); letter-spacing:.16em; font-weight:600; color:rgba(226,232,240,.75); }
+.media-tile-video-collection__kind::before { content:""; width:16px; height:2px; border-radius:1px; background:var(--tl-accent-primary); }
+.media-tile-video-collection__title { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size:max(var(--tl-tile-text-floor,13px), var(--tl-font-size-lg)); font-weight:600; line-height:1.2; color:#fff; }
+.media-tile-video-collection__creator { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:max(var(--tl-tile-text-floor,13px), var(--tl-font-size-sm)); color:rgba(196,181,253,.8); }
+.media-tile-video-collection__foot { margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:10px; border-top:1px solid rgba(136, 82, 252, .5); }
+.media-tile-video-collection__count { display:inline-flex; align-items:center; gap:6px; font-size:max(var(--tl-tile-text-floor,13px), var(--tl-font-size-sm)); color:rgba(226,232,240,.85); }
+.media-tile-video-collection__play { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; border:2px solid var(--tl-accent-primary); color:var(--tl-accent-primary); }

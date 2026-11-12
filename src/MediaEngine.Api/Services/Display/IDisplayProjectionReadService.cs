@@ -56,6 +56,16 @@ public interface IDisplayProjectionReadService
     /// </summary>
     Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) => LoadWorksAsync(ct);
 
+    /// <summary>
+    /// The same (work, file, library) pairs as <see cref="LoadWorkLibraryRowsAsync"/>, as the light rows a viewer's catalogue is built from.
+    /// A source that does not answer builds them from the full rows; the authorized source builds them from the light visible-works read,
+    /// which skips reading every display value of every work (the People section waited on that read three times).
+    /// </summary>
+    async Task<IReadOnlyList<ViewerCatalogueFile>> LoadViewerFilesAsync(CancellationToken ct) =>
+        (await LoadWorkLibraryRowsAsync(ct).ConfigureAwait(false))
+        .Select(row => new ViewerCatalogueFile(row.WorkId, row.AssetId, row.CreatedAt, row.LibraryId))
+        .ToList();
+
     // Unmatched files live only under the Unmatched filter (Library setup spec D64): the reads above leave out a work whose files in a
     // library are all Unmatched, kept or not. These three are the filter's own, which keep it; nothing else asks for them. A source
     // that does not answer gives the plain read, which never shows more.
@@ -104,6 +114,7 @@ internal interface IRawDisplayProjectionReadService : IDisplayProjectionReadServ
             MediaType = work.MediaType,
             AssetId = work.AssetId,
             ContentRating = work.ContentRating,
+            CreatedAt = work.CreatedAt,
         })
         .ToList();
 

@@ -192,9 +192,7 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("tl-detail-hero__synopsis", content, StringComparison.Ordinal);
         Assert.DoesNotContain("cinematic-hero__section-identity", carousel, StringComparison.Ordinal);
         Assert.DoesNotContain("\"Featured Content\"", carousel, StringComparison.Ordinal);
-        Assert.Contains("Continue Watching", carousel, StringComparison.Ordinal);
-        Assert.Contains("Continue Reading", carousel, StringComparison.Ordinal);
-        Assert.Contains("Continue Listening", carousel, StringComparison.Ordinal);
+        Assert.Contains("Resume", carousel, StringComparison.Ordinal);
         Assert.Contains("Icon = IsOpenAction ? null : PrimaryActionIcon", carousel, StringComparison.Ordinal);
         Assert.Contains("cinematic-hero-carousel__detail-link", carousel, StringComparison.Ordinal);
         Assert.Contains("OpenLandingReaderAsync", carousel, StringComparison.Ordinal);

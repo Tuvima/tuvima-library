@@ -272,10 +272,10 @@ else if (Slides.Count > 0)
         : IsContinuation
         ? ActiveEntityType switch
         {
-            DetailEntityType.Movie or DetailEntityType.TvShow => "Continue Watching",
-            DetailEntityType.Book or DetailEntityType.ComicIssue => "Continue Reading",
-            DetailEntityType.Audiobook or DetailEntityType.MusicAlbum => "Continue Listening",
-            _ => "Continue", // An unknown kind never reads as something to read or listen to.
+            DetailEntityType.Movie or DetailEntityType.TvShow => "Resume",
+            DetailEntityType.Book or DetailEntityType.ComicIssue => "Resume",
+            DetailEntityType.Audiobook or DetailEntityType.MusicAlbum => "Resume",
+            _ => "Resume", // An unknown kind never reads as something to read or listen to.
         }
         // "Featured content" label removed (Home, detail and tiles spec D4); a video still says what it is ("Video folder", "Video").
         : IsVideoHero ? PhoneHeroPresentation.VideoLabel(ActiveHero) ?? string.Empty : string.Empty;
