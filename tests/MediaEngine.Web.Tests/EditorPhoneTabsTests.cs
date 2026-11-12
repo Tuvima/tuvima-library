@@ -36,6 +36,7 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
+        Services.AddNativeUiServices();
         Services.AddSingleton(_device);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
@@ -49,6 +50,7 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
                 return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(Ok(request)));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetEditorBookmarksAsync), _ => Task.FromResult<EditorBookmarksDto?>(Bookmarks()));
+            stub.SetHandler(nameof(IEngineApiClient.DiscoverProviderArtworkAsync), _ => Task.FromResult<ProviderArtworkDiscoveryDto?>(null));
             stub.SetHandler(nameof(IEngineApiClient.GetEntityArtworkAsync), _ => Task.FromResult(_artworkFails ? null : Workspace()));
             stub.SetHandler(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _ => Task.FromResult((new List<LibraryItemHistoryDto>
             {
@@ -164,19 +166,27 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
 
     // -- Details --------------------------------------------------------------------------------------
 
-    [Fact]
-    public async Task OnAPhone_AFieldIsUnlockedChangedReviewedAndSavedByTouchAlone()
+    // The whole walk, by tapping alone (v6 section 4a, mock H step 5): tap the lock to unlock, tap it again for the reason it was locked and Revert (which
+    // locks the field again), unlock once more, change the value, tap Save changes, read the Review step, tap Save.
+    private void WalkByTouch(IRenderedComponent<IComponent> cut, Func<bool> hasPendingChanges)
     {
-        var editor = await StartAsync();
-        var cut = RenderDetails(editor, phone: true);
         var field = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
         Assert.Equal("true", field.GetAttribute("data-locked"));
-
-        // Tap the lock, change the value, tap Save changes, read the Review step, tap Save.
         field.QuerySelector("button.tl-editor-field__lock-toggle")!.Click();
         cut.WaitForAssertion(() => Assert.Equal("false", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked")));
+
+        // The open lock is still a control at the right of the field; tapping it tells where the value came from and offers Revert.
+        var lockButton = cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__lock-reveal");
+        Assert.Equal("button", lockButton.TagName.ToLowerInvariant());
+        lockButton.Click();
+        cut.WaitForAssertion(() => Assert.Contains("This came from", cut.Find("[data-testid='tap-reveal-text']").TextContent, StringComparison.Ordinal));
+        cut.Find("[data-tap-reveal-action]").Click();
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked")));
+        Assert.False(hasPendingChanges());
+
+        cut.UnlockField("title");
         cut.Find("input[aria-label='Title']").Input("Dune 2");
-        cut.WaitForAssertion(() => Assert.True(editor.Session.HasPendingChanges));
+        cut.WaitForAssertion(() => Assert.True(hasPendingChanges()));
         Assert.DoesNotContain(_sent, request => !request.PreviewOnly);
 
         cut.Find("button.tl-editor-window__save").Click();
@@ -191,6 +201,66 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
             Assert.Equal("title", Assert.Single(change.Fields).Key);
             Assert.Equal("Dune 2", change.Fields[0].Value);
         });
+    }
+
+    [Fact]
+    public async Task OnAPhone_AFieldIsUnlockedChangedReviewedAndSavedByTouchAlone()
+    {
+        var editor = await StartAsync();
+        var cut = RenderDetails(editor, phone: true);
+
+        WalkByTouch(cut, () => editor.Session.HasPendingChanges);
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheRealEditorWindowLetsAFieldBeUnlockedChangedReviewedAndSavedByTouchAlone()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var host = Services.GetRequiredService<EditorHost>();
+        var binding = new EditorBinding(_device)
+        {
+            EntityId = MovieId,
+            HasPermission = true,
+            ShowHistory = true,
+            Trail = () => [new EditTrailItem(MovieId, "Dune: Part One", "Movie")],
+            OpenItem = _ => Task.FromResult(true),
+            LoadFields = () => host.Mode.Fields.LoadAsync(MovieId, "Movies", "movie", null),
+        };
+        Assert.True(await host.OpenAsync(binding, MovieId));
+        var popover = Render<EditorPopover>(parameters => parameters.Add(window => window.PhoneArrangement, true));
+        popover.WaitForElement(".tl-editor-window--phone");
+
+        WalkByTouch(popover, () => host.Session.HasPendingChanges);
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheLockOfAChangedFieldIsStillAControl_AndItsRevertPutsTheProvidersValueBackAndLocksIt()
+    {
+        var editor = await StartAsync();
+        var cut = RenderDetails(editor, phone: true);
+        cut.UnlockField("title");
+        cut.Find("input[aria-label='Title']").Input("Dune 2");
+        cut.WaitForAssertion(() => Assert.Equal("yours", cut.LockStateOf("title")));
+
+        cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__lock-reveal").Click();
+        cut.WaitForAssertion(() => Assert.Contains("This came from", cut.Find("[data-testid='tap-reveal-text']").TextContent, StringComparison.Ordinal));
+        cut.Find("[data-tap-reveal-action]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("locked", cut.LockStateOf("title")));
+        Assert.True(editor.Session.Pending.IsEmpty || editor.Session.Pending.TryGetField(MovieId, "title", out var staged) && string.IsNullOrWhiteSpace(staged));
+    }
+
+    [Fact]
+    public async Task OnADesktop_TheOpenLockStillJustLocksTheFieldAgain()
+    {
+        var editor = await StartAsync();
+        var cut = RenderDetails(editor, phone: false);
+        cut.UnlockField("title");
+
+        cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__lock-toggle").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked")));
+        Assert.Empty(cut.FindAll(".tl-editor-field__lock-reveal"));
     }
 
     [Fact]
@@ -352,6 +422,20 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
         _artworkFails = false;
         cut.Find("[data-artwork-retry]").Click();
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-artwork-retry]")));
+    }
+
+    [Fact]
+    public async Task OnAPhone_TryAgainForTheSavedPicturesGoesAsSoonAsAnotherMessageReplacesTheirs()
+    {
+        _artworkFails = true;
+        var cut = await RenderArtworkAsync(phone: true);
+        cut.WaitForElement("[data-artwork-retry]");
+
+        // The provider cannot be reached either: its sentence replaces the one about the saved pictures, so Try again for them would be misleading.
+        cut.Find("button.tl-art-picker__refresh").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Provider artwork could not be loaded", cut.Find(".tl-art-picker__message").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-artwork-retry]"));
     }
 
     // -- History --------------------------------------------------------------------------------------

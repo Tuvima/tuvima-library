@@ -284,7 +284,9 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     // The lock beside the label (universal editor v5 D5): the shared EditorFieldLock draws it. Nothing here stages anything by itself.
     private RenderFragment LockState(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state) => __builder =>
     {
-        <EditorFieldLock FieldLabel="@field.Label" Locked="@state.Locked" Changed="@state.Changed" OnToggle="@(() => ToggleLock(fields, session, field, state))" />
+        <EditorFieldLock FieldLabel="@field.Label" Locked="@state.Locked" Changed="@state.Changed" OnToggle="@(() => ToggleLock(fields, session, field, state))"
+                         Phone="Phone" Reason="@string.Format(L["EditorPhone_LockReason"].Value, SourceName(field))"
+                         OnRevert="@(() => RevertFromLock(fields, session, field, state))" />
     };
 
     // Where one editable field stands. Changed: the value differs from the provider's (staged, or already saved as the person's own), so
@@ -343,6 +345,19 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         if (state.Locked)
         {
             fields.Unlock(StageKey(field));
+        }
+        else
+        {
+            fields.Relock(StageKey(field));
+        }
+    }
+
+    // A phone's open lock: Revert puts the provider's value back when the person changed it, and just locks the field again when they had not.
+    private void RevertFromLock(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state)
+    {
+        if (state.Changed)
+        {
+            Revert(fields, session, field, state);
         }
         else
         {

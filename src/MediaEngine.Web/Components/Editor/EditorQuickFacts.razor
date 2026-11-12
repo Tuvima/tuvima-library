@@ -58,6 +58,7 @@
                 @if (Phone)
                 {
                     @* A shortened path is read in full by a tap (D21), in the app's pop-out. *@
+                    <span class="sr-only">@path</span>
                     <EditorTapReveal Text="@path" Label="@L["EditorPhone_ShowFullPath"].Value" Class="tl-quick-facts__path-reveal">
                         @PathParts(start, end)
                     </EditorTapReveal>

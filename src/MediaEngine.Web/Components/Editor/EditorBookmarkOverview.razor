@@ -117,7 +117,7 @@
                             @if (Phone)
                             {
                                 @* No columns on a phone: the counts are one line under the title. *@
-                                <span class="tl-bookmarks__phone-counts">@L["EditorBookmarks_ColEveryone"]: @row.EveryoneCount · @SetLabel(row) · @L["EditorBookmarks_FromProfiles"]: @row.ProfileCount</span>
+                                <span class="tl-bookmarks__phone-counts">@string.Format(L["EditorPhone_BookmarkCounts"].Value, row.EveryoneCount, SetLabel(row), row.ProfileCount)</span>
                             }
                             else
                             {

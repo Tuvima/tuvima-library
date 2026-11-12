@@ -17,6 +17,13 @@
     {
         <AppPopover Open="true" OpenChanged="Changed" Anchor="_anchor" Size="AppPopoutSize.Panel" Role="dialog" AriaLabel="@Label" Class="tl-tap-reveal__surface">
             <p class="tl-tap-reveal__text" data-testid="tap-reveal-text">@Text</p>
+            @if (!string.IsNullOrWhiteSpace(ActionText))
+            {
+                <div class="tl-tap-reveal__actions">
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.Replay"
+                               data-tap-reveal-action="true" OnClick="RunActionAsync">@ActionText</AppButton>
+                </div>
+            }
         </AppPopover>
     }
 </span>
@@ -37,10 +44,22 @@
     /// <summary>Extra classes for the trigger button.</summary>
     [Parameter] public string? TriggerClass { get; set; }
 
+    /// <summary>An action offered under the text (Revert, on a field's lock). Without it the pop-out only tells.</summary>
+    [Parameter] public string? ActionText { get; set; }
+
+    /// <summary>Raised when the action is tapped; the pop-out closes first.</summary>
+    [Parameter] public EventCallback OnAction { get; set; }
+
     /// <summary>What the trigger shows.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private void Toggle() => _open = !_open;
 
     private void Changed(bool open) => _open = open;
+
+    private async Task RunActionAsync()
+    {
+        _open = false;
+        await OnAction.InvokeAsync();
+    }
 }

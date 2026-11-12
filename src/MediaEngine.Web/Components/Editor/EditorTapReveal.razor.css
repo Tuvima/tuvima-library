@@ -4,6 +4,10 @@
     min-width: 0;
 }
 
+.tl-tap-reveal__actions {
+    padding: 0 var(--tl-space-4) var(--tl-space-4);
+}
+
 .tl-tap-reveal__text {
     margin: 0;
     padding: var(--tl-space-3) var(--tl-space-4);

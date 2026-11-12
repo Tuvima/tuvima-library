@@ -229,7 +229,18 @@ public sealed class ArtworkPickerSession
     public bool Busy { get; private set; }
 
     /// <summary>A plain sentence about the last thing that could not be done; empty when all is well.</summary>
-    public string? Message { get; private set; }
+    public string? Message
+    {
+        get => _message;
+        private set
+        {
+            // Any later sentence replaces the one about the saved pictures, so Try again never sits beside an unrelated message.
+            _message = value;
+            SavedLoadFailed = false;
+        }
+    }
+
+    private string? _message;
 
     public bool SavedLoading { get; private set; }
 
@@ -410,15 +421,15 @@ public sealed class ArtworkPickerSession
             Saved = VersionsOf(workspace, slot);
             if (workspace is null)
             {
-                SavedLoadFailed = true;
                 Message = "Saved pictures could not be loaded.";
+                SavedLoadFailed = true;
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             _logger?.LogWarning(ex, "The saved pictures for {Slot} could not be loaded", slot);
-            SavedLoadFailed = true;
             Message = "Saved pictures could not be loaded.";
+            SavedLoadFailed = true;
         }
         finally
         {

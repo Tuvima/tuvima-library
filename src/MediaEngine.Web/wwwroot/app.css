@@ -5360,8 +5360,7 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .tl-editor-touch .tl-editor-field__label{flex-wrap:wrap}
 .tl-editor-touch .tl-editor-field__tools{display:contents}
 .tl-editor-touch .tl-editor-field__label>span:first-child{flex:1 1 auto;min-width:0}
-.tl-editor-touch .tl-editor-field__lockstate[data-lock-state="yours"]{flex:1 0 100%}
-.tl-editor-touch .app-chip__remove{box-sizing:border-box;justify-content:center;min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min);margin:-0.875rem -0.5rem -0.875rem -0.875rem}
+.tl-editor-touch .app-chip__remove{box-sizing:border-box;justify-content:center;min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min);margin:calc(var(--tl-space-3) * -1) calc(var(--tl-space-2) * -1) calc(var(--tl-space-3) * -1) calc(var(--tl-space-4) * -1)}
 .tl-editor-touch .tl-editor-field__lockstate{min-height:var(--tl-tap-target-min)}
 .tl-editor-touch :is(.sme-tag-editor,form.app-tag-input) input{box-sizing:border-box;min-height:var(--tl-tap-target-min);font-size:var(--tl-field-text-size,var(--tl-font-size-md))}
 .tl-editor-touch .sme-tag-editor__add{min-height:var(--tl-tap-target-min)}
@@ -5379,6 +5378,7 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .tl-history--phone .tl-history__tap .tl-history__title{min-width: 0; overflow-wrap: anywhere; text-align: left;}
 .tl-tap-reveal .tl-tap-reveal__trigger{display: inline-flex; align-items: center; gap: var(--tl-space-1); flex: 1 1 auto; min-width: 0; min-height: var(--tl-tap-target-min); padding: 0 var(--tl-space-1); overflow: hidden; border: 0; border-radius: var(--tl-radius-sm); background: transparent; color: inherit; font: inherit; text-align: left;}
 .tl-tap-reveal .tl-tap-reveal__trigger[aria-expanded="true"]{background: var(--tl-bg-surface-hover);}
+.tl-tap-reveal__actions .app-button{width: 100%;}
 /* The View editor's body on a phone: the window's body already pads the sides, the form is one column, a pair of fields (latitude and longitude, days and hours) shares a line only while each keeps a usable width, and the gallery cover tiles are two to a row. */
 .view-edit-body.view-edit-body--phone{align-items:stretch;padding:0 0 var(--tl-space-4)}
 .view-edit-body.view-edit-body--phone .tl-quick-facts--phone{width:auto;margin:0}
