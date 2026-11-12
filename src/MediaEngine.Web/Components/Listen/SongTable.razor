@@ -50,6 +50,7 @@ else
                     {
                         @HeaderCell(layout.Column)
                     }
+                    <span class="song-table__head-cell song-table__filler" aria-hidden="true"></span>
                     <div class="song-table__head-cell song-table__head-cell--actions" role="columnheader">
                         <span class="sr-only">@L["ApiKeys_Actions"]</span>
                         @ColumnsMenu
@@ -64,6 +65,7 @@ else
                             {
                                 <span class="song-table__cell"><AppSkeleton Width="@(layout.Column == SongColumn.Song ? "70%" : "50%")" Height="16px" /></span>
                             }
+                            <span class="song-table__cell song-table__filler" aria-hidden="true"></span>
                             <span class="song-table__cell"></span>
                         </div>
                     }
@@ -142,9 +144,7 @@ else
                           data-column="@SongTableColumns.KeyOf(column)"
                           data-min="@SongTableColumns.MinWidth(column)"
                           data-max="@SongTableColumns.MaxWidthFor(column)"
-                          @onclick:stopPropagation="true"
-                          @onkeydown:stopPropagation="true"
-                          @onkeydown="@((KeyboardEventArgs args) => ResizeByKeyboardAsync(column, args))"></span>
+                          @onclick:stopPropagation="true"></span>
                 }
             </span>
         }
@@ -171,6 +171,7 @@ else
         {
             @DesktopCell(row, layout.Column)
         }
+        <span class="song-table__cell song-table__filler" aria-hidden="true"></span>
         <div class="song-table__cell song-table__cell--actions" role="cell" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
             @if (row.IsOwned)
             {
