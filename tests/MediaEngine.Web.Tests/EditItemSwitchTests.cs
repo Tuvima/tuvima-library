@@ -247,7 +247,7 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     public async Task SwitchingIsRefused_OnADeviceThatCannotEdit()
     {
         var editor = await StartEditorAsync();
-        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "phone", true));
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false));
 
         var switched = await editor.Flow.SwitchToAsync(SeasonOne);
 

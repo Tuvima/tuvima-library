@@ -237,9 +237,19 @@ public sealed class ViewEditorV5FrameTests : AsyncBunitContext
     [Theory]
     [InlineData("phone", true)]
     [InlineData("tablet", true)]
-    public async Task APhoneOrTabletNeverEditsAPhoto(string formFactor, bool touch)
+    public async Task APhoneOrTabletEditsAPhoto(string formFactor, bool touch)
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", formFactor, touch, FinePointer: false, Hover: false));
+        var host = Services.GetRequiredService<ViewEditorHost>();
+
+        Assert.True(await host.OpenItemsAsync([_gallery[0]]));
+        Assert.True(host.IsOpen);
+    }
+
+    [Fact]
+    public async Task ATvNeverEditsAPhoto()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true));
         var host = Services.GetRequiredService<ViewEditorHost>();
 
         Assert.False(await host.OpenItemsAsync([_gallery[0]]));

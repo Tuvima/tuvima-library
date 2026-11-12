@@ -77,7 +77,7 @@
     /// <summary>The person chose Delete on one row; the dialog asks once and deletes.</summary>
     [Parameter] public EventCallback<SupportingFileRowDto> OnDeleteRow { get; set; }
 
-    /// <summary>False outside a desktop editing session: Edit and Delete are disabled; opening and previewing stay.</summary>
+    /// <summary>False outside an editing session: Edit and Delete are disabled; opening and previewing stay.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
     /// <summary>Reading only (the page's Extras "See all"): no tick, and an Open button instead of the row menu.</summary>

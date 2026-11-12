@@ -46,7 +46,8 @@ public interface IEditingSectionHost
 /// <remarks>
 /// <para>
 /// Every way in (opening the editor, opening a tool) re-checks <see cref="EditorDeviceRule"/>, so a hidden button is never the only
-/// protection, and a device that stops qualifying (for example a window resized to tablet width) closes the editor on its own.
+/// protection. A device that stops qualifying (it can only become a TV or an unknown device) closes the editor on its own; a rotate or resize
+/// between desktop, tablet and phone keeps it open.
 /// </para>
 /// <para>
 /// Leaving is where unsaved input is asked about: <see cref="DoneAsync"/> and its "Save or discard?" question, which the host supplies as
@@ -74,7 +75,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     public string? UnavailableReason { get; set; }
 
     /// <summary>Permission and a device that is allowed to edit. The pop-over renders only while it is open and this is true.</summary>
-    public bool CanEdit => HasPermission && EditorDeviceRule.CanEdit(_device);
+    public bool CanEdit => HasPermission && EditorDeviceRule.CanEditItems(_device);
 
     public bool IsOn { get; private set; }
 
@@ -408,7 +409,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
 
     private void OnDeviceChanged()
     {
-        if (IsOn && !EditorDeviceRule.CanEdit(_device))
+        if (IsOn && !EditorDeviceRule.CanEditItems(_device))
         {
             Leave();
             return;

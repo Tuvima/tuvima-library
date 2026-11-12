@@ -14,7 +14,7 @@ public static class EditorDeleteFlow
 {
     /// <summary>
     /// True when the header offers Delete: a library item (not a person, collection or Universe) with its fields loaded, no several-items panel
-    /// open, for an administrator on a desktop. The Engine still decides on every call.
+    /// open, for an administrator on a device that may edit items. The Engine still decides on every call.
     /// </summary>
     public static bool CanDeleteActive(EditorHost editor, DeviceContextService? device, DashboardSessionAccessor? session)
     {

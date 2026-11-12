@@ -297,8 +297,8 @@ public partial class ListenPage
         var launch = await CollectionEditorLauncher.TryOpenAsync(request);
         if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
         {
-            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
-            ShowNotice(EditorDeviceRule.Message, AppUiTone.Info);
+            // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
+            ShowNotice(EditorDeviceRule.ItemMessage, AppUiTone.Info);
             return;
         }
 

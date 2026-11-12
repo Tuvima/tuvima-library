@@ -390,21 +390,24 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_TheDesktopBarIsNotDrawn_BecauseThePhoneHasItsOwnBottomBar()
+    public async Task OnAPhone_TheBarHasNoSongPlayActions_BecauseThePhoneHasItsOwnBottomBar_ButStillOffersEdit()
     {
         var bar = await RenderBarAsync(Songs(SongA), "Music", "phone");
 
-        Assert.Empty(bar.FindAll(".tl-batch__bar"));
+        var buttons = bar.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()).ToList();
+        Assert.DoesNotContain("Play", buttons);
+        Assert.DoesNotContain("Add to queue", buttons);
+        Assert.Contains("Edit", buttons);
         Assert.Empty(_dialogs.Titles);
     }
 
     [Fact]
-    public async Task OnATablet_TickedSongsStillAddToAPlaylist_WithoutAnyRightToEdit()
+    public async Task OnATablet_TickedSongsAddToAPlaylist_AndMayAlsoBeEdited()
     {
         _dialogs.Choice = new PlaylistChoice(RoadTrip, "Road trip");
         var bar = await RenderBarAsync(Songs(SongA, SongB), "Music", "tablet");
 
-        Assert.False(HasButton(bar, "Edit"));
+        Assert.True(HasButton(bar, "Edit"));
         bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
 
         bar.WaitForAssertion(() => Assert.Contains("2 songs added to Road trip", bar.Find("[data-bulk-selection-notice]").TextContent));

@@ -179,7 +179,7 @@
 
     private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
 
-    private bool CanChange => CanEdit && EditorDeviceRule.CanEdit(Device) && !_fields.Forbidden;
+    private bool CanChange => CanEdit && EditorDeviceRule.CanEditItems(Device) && !_fields.Forbidden;
 
     private string PanelName => Selection.Panel switch
     {

@@ -6,7 +6,7 @@
 @* One thing of a Universe on its own page (spec universe-contents, section 4.2): its picture or logo, name and kind, a short
    description with where it comes from, the Works you own that it appears in, and the things it is connected to. A thing that
    cannot be placed in what you have watched or read shows only its name and picture until you reach it. Read-only on every
-   device; Edit opens the pop-over editor, on a desktop for administrators. *@
+   device; Edit opens the pop-over editor, for administrators on a desktop, tablet or phone. *@
 <article class="universe-thing" data-universe-thing>
     <a class="universe-thing__back" href="@BackHref" data-thing-back>@L["UniverseThing_Back", UniverseName]</a>
 
@@ -134,7 +134,7 @@
 @code {
     [Parameter, EditorRequired] public UniverseThingDto Thing { get; set; } = default!;
 
-    /// <summary>Whether the person may edit; the page decides (administrator on a desktop).</summary>
+    /// <summary>Whether the person may edit; the page decides (administrator on a desktop, tablet or phone).</summary>
     [Parameter] public bool CanEdit { get; set; }
 
     [Parameter] public bool EditBusy { get; set; }

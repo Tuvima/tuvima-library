@@ -16,8 +16,8 @@ public sealed class GalleryEditorLauncherService(
 
     public async Task<EditorLaunchResult> TryOpenAsync(GalleryEditorLaunchRequest request)
     {
-        // Editing is desktop-only (fine, hover-capable pointer): the editor never opens anywhere else.
-        if (EditorDeviceRule.TryRefuse(device))
+        // Item editing is for a desktop, tablet or phone (EditorDeviceRule.CanEditItems): the editor never opens on a TV or an unknown device.
+        if (EditorDeviceRule.TryRefuseItems(device))
         {
             return EditorLaunchResult.NotAvailableOnThisDevice;
         }

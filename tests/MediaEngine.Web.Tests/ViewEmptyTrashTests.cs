@@ -181,7 +181,7 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Header_OnAPhoneShowsTheSizeButSaysToEmptyTrashOnAComputer()
+    public async Task Header_OnAPhoneShowsTheSizeAndTheEmptyTrashButton()
     {
         await UseAsync("phone", touch: true);
 
@@ -190,20 +190,31 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
         Assert.Equal("Items in Trash stay on your disk until you empty Trash.", cut.Find(".view-trash-header__lead").TextContent.Trim());
         Assert.Equal("128 items · 4.2 GB", cut.Find(".view-trash-header__size").TextContent.Trim());
-        Assert.Equal("Empty Trash on a computer.", cut.Find(".view-trash-header__computer").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".view-trash-header button"));
+        Assert.Single(cut.FindAll(".view-trash-header button"), button => button.TextContent.Trim() == "Empty Trash…");
+        Assert.DoesNotContain("on a computer", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Header_OnATabletOrATouchLaptopHasNoButtonEither()
+    public async Task Header_OnATabletHasTheButtonToo()
     {
         await UseAsync("tablet", touch: true);
 
         var cut = RenderHeader();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
+        Assert.Single(cut.FindAll(".view-trash-header button"), button => button.TextContent.Trim() == "Empty Trash…");
+    }
+
+    [Fact]
+    public async Task Header_OnATvHasNoButton()
+    {
+        await UseAsync("tv", touch: false);
+
+        var cut = RenderHeader();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
         Assert.Empty(cut.FindAll(".view-trash-header button"));
-        Assert.Contains("Empty Trash on a computer.", Text(cut), StringComparison.Ordinal);
+        Assert.Contains("Emptying Trash is not available on this device.", Text(cut), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -257,9 +268,9 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Header_HandlerRefusesOnAPhoneEvenWhenSomethingElseCallsIt()
+    public async Task Header_HandlerRefusesOnATvEvenWhenSomethingElseCallsIt()
     {
-        await UseAsync("phone", touch: true);
+        await UseAsync("tv", touch: false);
         var host = Render<AppDialogHost>();
         var cut = RenderHeader();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
@@ -268,8 +279,8 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
 
         Assert.DoesNotContain("preview", _calls);
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
-        // The header itself already says Trash is emptied on a computer; nothing pops up or lands in the ribbon.
-        Assert.Contains("Empty Trash on a computer.", cut.Find(".view-trash-header__computer").TextContent, StringComparison.Ordinal);
+        // The header itself already says emptying Trash is not available on this device; nothing pops up or lands in the ribbon.
+        Assert.Contains("Emptying Trash is not available on this device.", cut.Find(".view-trash-header__computer").TextContent, StringComparison.Ordinal);
         Assert.Null(Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message);
         Assert.Empty(host.FindAll(".empty-trash"));
     }

@@ -16,7 +16,7 @@ public static class CollectionMembershipFlow
     public const string NewCollectionChoice = "new-collection";
 
     /// <summary>
-    /// Runs the flow. Returns the line the caller shows in place when the device cannot edit (<see cref="EditorDeviceRule.Message"/>), else null.
+    /// Runs the flow. Returns the line the caller shows in place when the device cannot edit (<see cref="EditorDeviceRule.ItemMessage"/>), else null.
     /// </summary>
     public static async Task<string?> RunAsync(
         IServiceProvider services,
@@ -33,9 +33,9 @@ public static class CollectionMembershipFlow
             return null;
         }
 
-        if (EditorDeviceRule.TryRefuse(device))
+        if (EditorDeviceRule.TryRefuseItems(device))
         {
-            return EditorDeviceRule.Message;
+            return EditorDeviceRule.ItemMessage;
         }
 
         var dialog = await dialogs.ShowAsync<MediaMembershipDialog>(label, new AppDialogParameters<MediaMembershipDialog>

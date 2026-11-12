@@ -258,9 +258,8 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Equal(2, cut.FindAll(".view-tile__surface[aria-pressed='true']").Count);
         Assert.Contains("Add to Gallery", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
 
-        // Phones add to an existing Gallery but are never offered New Gallery (the Gallery editor).
-        Assert.Equal(["Holidays"], OpenGalleryMenu(cut));
-        Assert.Empty(cut.FindAll("button[aria-label='Create in Galleries']"));
+        // Phones add to an existing Gallery and, since editing works on phones, may also make a New Gallery from the selection.
+        Assert.Equal(["Holidays", "New Gallery"], OpenGalleryMenu(cut));
         Assert.Contains("Download", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
         Assert.Contains("Cancel", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
 
@@ -303,7 +302,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task SectionNavigationOffersNoGalleryEditingOnPhones()
+    public async Task SectionNavigationKeepsGalleryEditingOnPhones()
     {
         await UseAsync("phone", touch: true);
         RegisterPageServices(new PhotosHandler([Photo("one")]));
@@ -311,8 +310,22 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         var cut = Render<ViewPage>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
-        Assert.Empty(cut.FindAll("button[aria-label='Create in Galleries']"));
+        Assert.Single(cut.FindAll("button[aria-label='Create in Galleries']"));
+        // Dragging happens only inside Reorder mode, entered from the row's Manage menu.
         Assert.Empty(cut.FindAll(".media-section-shell__drag-handle"));
+        Assert.NotEmpty(cut.FindAll("[aria-label^='Manage ']"));
+    }
+
+    [Fact]
+    public async Task SectionNavigationOffersNoGalleryEditingOnATv()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true));
+        RegisterPageServices(new PhotosHandler([Photo("one")]));
+
+        var cut = Render<ViewPage>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
+        Assert.Empty(cut.FindAll("button[aria-label='Create in Galleries']"));
         Assert.Empty(cut.FindAll("[aria-label^='Manage ']"));
     }
 

@@ -139,7 +139,7 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
     [Fact]
     public async Task NewGalleryOnADeviceThatCannotEdit_SaysSoInPlaceInsteadOfDoingNothing()
     {
-        // The test device never reported a desktop pointer, so the launcher refuses; the refusal is told under the buttons.
+        // The test device never reported a desktop pointer, so the Vault tool refuses; the refusal is told under the buttons.
         var cut = RenderTools();
 
         await cut.InvokeAsync(() => cut.FindAll("button").Single(button => Text(button) == "New gallery").Click());
@@ -147,6 +147,22 @@ public sealed class VaultFeedbackTests : AsyncBunitContext
         Assert.Equal(MediaEngine.Web.Services.Editing.EditorDeviceRule.Message, Text(cut.Find("[data-vault-device-notice]")));
         cut.Find("[data-vault-device-notice] .tl-alert-close").Click();
         Assert.Empty(cut.FindAll("[data-vault-device-notice]"));
+    }
+
+    [Theory]
+    [InlineData("mobile", "phone")]
+    [InlineData("web", "tablet")]
+    public async Task NewGalleryOnAPhoneOrTablet_StaysDesktopOnly_SaysEditOnAComputer_AndOpensNoEditor(string deviceClass, string formFactor)
+    {
+        // Item editing works on phones and tablets, but the Vault tools keep the desktop-only rule (EditorDeviceRule.CanEdit).
+        var device = Services.GetRequiredService<DeviceContextService>();
+        await device.InitialiseAsync(new DeviceContextSnapshot(deviceClass, formFactor, true));
+        var cut = RenderTools();
+
+        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => Text(button) == "New gallery").Click());
+
+        Assert.Equal("Edit on a computer", Text(cut.Find("[data-vault-device-notice]")));
+        Assert.Equal(0, _changed);
     }
 
     [Fact]

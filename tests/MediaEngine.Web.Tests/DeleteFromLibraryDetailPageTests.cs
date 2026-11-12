@@ -87,7 +87,8 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
             new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
     }
 
-    private static DetailPageViewModel Model(DetailEntityType type = DetailEntityType.Movie) => new()
+    // The Engine offers "edit" only to a person it allows to edit; engineOffersEdit false is such a profile.
+    private static DetailPageViewModel Model(DetailEntityType type = DetailEntityType.Movie, bool engineOffersEdit = true) => new()
     {
         Id = MovieId.ToString("D"),
         EntityType = type,
@@ -95,13 +96,14 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
         OverflowActions =
         [
-            new DetailAction { Key = "edit", Label = "Edit", Icon = "edit" },
+            .. (engineOffersEdit ? new[] { new DetailAction { Key = "edit", Label = "Edit", Icon = "edit" } } : Array.Empty<DetailAction>()),
             new DetailAction { Key = "status-history", Label = "Viewing history", Icon = "history" },
+            .. (engineOffersEdit ? Array.Empty<DetailAction>() : [new DetailAction { Key = "add-queue", Label = "Add to queue", Icon = "queue" }]),
         ],
     };
 
-    private IRenderedComponent<DetailPage> RenderPage(DetailEntityType type = DetailEntityType.Movie) =>
-        Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model(type)));
+    private IRenderedComponent<DetailPage> RenderPage(DetailEntityType type = DetailEntityType.Movie, bool engineOffersEdit = true) =>
+        Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model(type, engineOffersEdit)));
 
     private void StartEditing(IRenderedComponent<DetailPage> cut)
     {
@@ -189,20 +191,32 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     [Theory]
     [InlineData("phone", true, false)]
     [InlineData("tablet", true, true)]
-    public async Task Entry_IsNotInThePagesMoreMenuOnAPhoneOrTablet(string formFactor, bool finePointer, bool hover)
+    public async Task Entry_IsInThePagesMoreMenuOnAPhoneOrTablet_AsTheLastRedEntry(string formFactor, bool finePointer, bool hover)
     {
         await UseDeviceAsync(formFactor, finePointer, hover);
         SetAdministrator(true);
         var cut = RenderPage();
 
         // A phone lists the same actions in a bottom sheet instead of a popover; either way they render inside the page.
-        // The menu is short now (Home, detail and tiles spec D8): with nothing left to list it may not be drawn at all.
-        var items = cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']").Count > 0
-            ? OpenPageMoreMenu(cut)
-            : [];
+        AssertDeleteIsLastRedAndAfterADivider(OpenPageMoreMenu(cut));
+    }
 
-        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
-        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
+    [Theory]
+    [InlineData("phone", true, false)]
+    [InlineData("tablet", true, true)]
+    public async Task ChoosingTheEntryOnAPhoneOrTablet_OpensTheDeleteDialogOnce(string formFactor, bool finePointer, bool hover)
+    {
+        await UseDeviceAsync(formFactor, finePointer, hover);
+        SetAdministrator(true);
+        var host = Render<AppDialogHost>();
+        var cut = RenderPage();
+        OpenPageMoreMenu(cut);
+
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == Label).Click();
+
+        host.WaitForElement(".delete-library__section");
+        Assert.Single(Services.GetRequiredService<AppDialogService>().Dialogs);
+        Assert.Equal(1, _previewCalls);
     }
 
     [Fact]
@@ -240,15 +254,10 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("phone", true, false)]
-    [InlineData("tablet", true, true)]
-    [InlineData("tv", false, false)]
-    [InlineData("desktop", false, false)]
-    [InlineData("desktop", true, false)]
-    public async Task Entry_IsAbsentWhereTheDeviceCannotEdit(string formFactor, bool finePointer, bool hover)
+    [Fact]
+    public async Task Entry_IsAbsentWhereTheDeviceCannotEdit()
     {
-        await UseDeviceAsync(formFactor, finePointer, hover);
+        await UseDeviceAsync("tv", false, false);
         SetAdministrator(true);
 
         var cut = RenderPage();
@@ -276,20 +285,17 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
     // -- The handler never trusts the button ---------------------------------------------------
 
-    [Theory]
-    [InlineData("phone", true, false)]
-    [InlineData("tablet", true, true)]
-    [InlineData("desktop", false, false)]
-    public async Task Handler_RefusesWhenTheDeviceCannotEditEvenIfInvoked(string formFactor, bool finePointer, bool hover)
+    [Fact]
+    public async Task Handler_RefusesWhenTheDeviceCannotEditEvenIfInvoked()
     {
-        await UseDeviceAsync(formFactor, finePointer, hover);
+        await UseDeviceAsync("tv", true, true);
         SetAdministrator(true);
         var cut = RenderPage();
 
         await InvokeActionAsync(cut);
 
         // The refusal is an alert on the page itself, never a toast.
-        Assert.Equal(EditorDeviceRule.Message, cut.Find("[data-detail-notice]").TextContent.Trim());
+        Assert.Equal(EditorDeviceRule.ItemMessage, cut.Find("[data-detail-notice]").TextContent.Trim());
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Equal(0, _previewCalls);
     }
@@ -417,6 +423,93 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         Assert.DoesNotContain(Listeners(), listener => listener.Target is DetailPage);
         orchestrator.RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], []));
         await Task.Yield();
+    }
+
+    // -- Editing works on phones and tablets (editor v6 D19); the Engine's answer still decides who may ------------
+
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("tablet")]
+    public async Task Edit_FromThePagesMenu_OpensTheEditorOnAPhoneAndTablet(string formFactor)
+    {
+        await UseDeviceAsync(formFactor, false, false);
+        SetAdministrator(true);
+        var cut = RenderPage();
+
+        StartEditing(cut);
+
+        Assert.Single(_editor.FindAll(".tl-editor-window"));
+    }
+
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("tablet")]
+    public async Task Edit_OnAPhoneOrTablet_IsAbsentAndRefusedForAProfileTheEngineDoesNotAllowToEdit(string formFactor)
+    {
+        await UseDeviceAsync(formFactor, false, false);
+        SetAdministrator(false);
+        var cut = RenderPage(engineOffersEdit: false);
+
+        var items = OpenPageMoreMenu(cut);
+        await InvokeActionAsync(cut, DetailActionKeys.Edit);
+
+        Assert.DoesNotContain(items, item => item.TextContent.Trim() == "Edit");
+        Assert.Empty(_editor.FindAll(".tl-editor-window"));
+    }
+
+    [Fact]
+    public async Task Edit_IsNotInThePagesMenuOnATv()
+    {
+        await UseDeviceAsync("tv");
+        SetAdministrator(true);
+        var cut = RenderPage();
+
+        var items = cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']").Count > 0 ? OpenPageMoreMenu(cut) : [];
+
+        Assert.DoesNotContain(items, item => item.TextContent.Trim() == "Edit");
+        Assert.Empty(_editor.FindAll(".tl-editor-window"));
+    }
+
+    [Theory]
+    [InlineData("phone", true)]
+    [InlineData("tablet", true)]
+    [InlineData("desktop", true)]
+    [InlineData("tv", false)]
+    public async Task AddToCollection_IsOfferedByTheHeroWhereTheDeviceMayEdit(string formFactor, bool expected)
+    {
+        await UseDeviceAsync(formFactor, false, false);
+        // An adult profile (not a Kids one): everyone makes their own collections.
+        var adult = TestSessions.For(kids: false, administrator: false);
+        _session.Set("test-session-token", TestSessions.Account, TestSessions.Profile, Guid.NewGuid(), adult.Authority!);
+        var cut = RenderPage();
+
+        Assert.Equal(expected, cut.FindComponent<DetailHero>().Instance.CanAddToCollection);
+    }
+
+    [Fact]
+    public async Task AddToCollection_IsNotOfferedToAKidsProfileOnAPhone()
+    {
+        await UseDeviceAsync("phone", false, false);
+        var kids = TestSessions.For(kids: true, administrator: false);
+        _session.Set("test-session-token", TestSessions.Account, TestSessions.Profile, Guid.NewGuid(), kids.Authority!);
+        var cut = RenderPage();
+
+        Assert.False(cut.FindComponent<DetailHero>().Instance.CanAddToCollection);
+    }
+
+    [Fact]
+    public async Task Delete_OnAPhone_IsStillRefusedForSomeoneTheEngineDoesNotTreatAsAnAdministrator()
+    {
+        await UseDeviceAsync("phone", false, false);
+        SetAdministrator(false);
+        var cut = RenderPage();
+
+        var items = OpenPageMoreMenu(cut);
+        await InvokeActionAsync(cut);
+
+        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
+        Assert.Equal(0, _previewCalls);
     }
 
     // -- Navigation helper ---------------------------------------------------------------------
