@@ -3,12 +3,15 @@
 
 @* The one confirmation dialog for every short "are you sure" step (details overlay spec D17): Save or discard, Move, Add anyway,
    Remove artwork, Discard. It has a title, a message, an optional preview of what will happen, a primary and a secondary button
-   with the labels the caller chooses, and the same frame as the Delete from library dialog. Closing it (Esc, the close button or
-   the backdrop) is a third answer, Cancelled, so nothing is ever decided by accident. When the primary button is destructive
-   the safer secondary button has the focus when it opens (the autofocus attribute is honoured by the native dialog). *@
-<AppDialogShell Title="@Title" Size="@(Preview is null ? "Small" : "Medium")" Tone="@ResolvedTone" OnClose="CancelAsync">
+   with the labels the caller chooses, and the same frame as the Delete from library dialog. It is the short dialog (Look v3.1 D4): no
+   icon tile and no close X. Closing it (Esc, the backdrop, or swiping the phone sheet down) is a third answer, Cancelled, so nothing is
+   ever decided by accident. When the primary button is destructive the safe secondary button is a neutral outlined button, comes first
+   and has the focus when it opens (the autofocus attribute is honoured by the native dialog), and the destructive primary is solid
+   red and comes last. *@
+<AppDialogShell Title="@Title" Size="@(Preview is null ? "Small" : "Medium")" Tone="@ResolvedTone" Compact="true" OnClose="CancelAsync">
     <ChildContent>
-        <div class="app-confirm">
+        @* A question that is all in its title has an empty body; the shell then adds no gap under the title. *@
+        <div class="@(HasBody ? "app-confirm" : "app-confirm app-confirm--empty")">
             @if (!string.IsNullOrWhiteSpace(Message))
             {
                 <p class="app-confirm__message">@Message</p>
@@ -23,8 +26,8 @@
     <FooterContent>
         @if (PrimaryDestructive)
         {
-            <AppButton Label="@PrimaryLabel" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="PrimaryAsync" />
-            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" autofocus="autofocus" OnClick="SecondaryAsync" />
+            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Outlined" autofocus="autofocus" OnClick="SecondaryAsync" />
+            <AppButton Label="@PrimaryLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="PrimaryAsync" />
         }
         else
         {
@@ -51,11 +54,13 @@
 
     [Parameter, EditorRequired] public string SecondaryLabel { get; set; } = "Cancel";
 
-    /// <summary>True when the primary step cannot be undone (a delete, a removal): the button is outlined red, sits left of the safe filled button, and starts unfocused.</summary>
+    /// <summary>True when the primary step cannot be undone (a delete, a removal): the button is solid red, comes last, and starts unfocused; the safe button is neutral outlined, comes first and has the focus.</summary>
     [Parameter] public bool PrimaryDestructive { get; set; }
 
-    /// <summary>The popup's icon tone: Warning (amber) for unsaved or risky questions, Info for plain notices, Error for destructive ones. Left empty it follows <see cref="PrimaryDestructive"/>.</summary>
+    /// <summary>The popup's tone (Warning, Info or Error). The short dialog draws no icon tile, so it no longer changes how the dialog looks; callers keep passing it. Left empty it follows <see cref="PrimaryDestructive"/>.</summary>
     [Parameter] public AppUiTone? Tone { get; set; }
+
+    private bool HasBody => !string.IsNullOrWhiteSpace(Message) || Preview is not null;
 
     private AppUiTone ResolvedTone => Tone ?? (PrimaryDestructive ? AppUiTone.Error : AppUiTone.Warning);
 

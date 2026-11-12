@@ -41,11 +41,11 @@ public sealed class CollectionsHubTests
         Assert.Contains("<MediaSectionShell", source, StringComparison.Ordinal);
         Assert.Contains("<LibrarySectionHeader", source, StringComparison.Ordinal);
         Assert.Contains("<SurfaceNavigationBar", headerSource, StringComparison.Ordinal);
-        Assert.Contains("new(Overview, \"Discovery\", \"/collections\")", configurationSource, StringComparison.Ordinal);
-        Assert.Contains("new(Automatic, \"Automatic\", \"/collections/automatic\")", configurationSource, StringComparison.Ordinal);
-        Assert.Contains("new(Curated, \"Curated\", \"/collections/curated\")", configurationSource, StringComparison.Ordinal);
-        Assert.Contains("new(Shelves, \"Shelves\", \"/collections/shelves\")", configurationSource, StringComparison.Ordinal);
-        Assert.Contains("new(People, \"People\", \"/collections/people\")", configurationSource, StringComparison.Ordinal);
+        Assert.Contains("new(Overview, \"Discovery\", \"/collections\", AppMaterialIcons.Outlined.Explore)", configurationSource, StringComparison.Ordinal);
+        Assert.Contains("new(Automatic, \"Automatic\", \"/collections/automatic\", AppMaterialIcons.Outlined.AutoAwesome)", configurationSource, StringComparison.Ordinal);
+        Assert.Contains("new(Curated, \"Curated\", \"/collections/curated\", AppMaterialIcons.Outlined.CollectionsBookmark)", configurationSource, StringComparison.Ordinal);
+        Assert.Contains("new(Shelves, \"Shelves\", \"/collections/shelves\", AppMaterialIcons.Outlined.ViewCarousel)", configurationSource, StringComparison.Ordinal);
+        Assert.Contains("new(People, \"People\", \"/collections/people\", AppMaterialIcons.Outlined.People)", configurationSource, StringComparison.Ordinal);
         Assert.Contains("new(\"Browse library\"", configurationSource, StringComparison.Ordinal);
         Assert.Contains("new(\"Shortcuts\"", configurationSource, StringComparison.Ordinal);
         Assert.Contains("GetCollectionCatalogAsync", source, StringComparison.Ordinal);

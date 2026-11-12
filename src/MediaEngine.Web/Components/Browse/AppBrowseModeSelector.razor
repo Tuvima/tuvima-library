@@ -3,7 +3,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="app-browse-mode" @ref="_strip" role="tablist" aria-label="@AriaLabel">
+<div class="tl-tabs-toolbar app-browse-mode" @ref="_strip" role="tablist" aria-label="@AriaLabel">
     @foreach (var option in Options)
     {
         var selected = string.Equals(Value, option.Value, StringComparison.OrdinalIgnoreCase);
@@ -15,7 +15,7 @@
                          aria-selected="@(selected ? "true" : "false")"
                          AriaLabel="@option.Label"
                          OnClick="@(() => SelectAsync(option.Value))">
-            <AppMaterialIcon Icon="@option.Icon" />
+            <AppMaterialIcon Icon="@option.Icon" Size="AppIconSize.Control20" />
             <span>@option.Label</span>
         </AppNativeButton>
     }
@@ -77,5 +77,6 @@
     }
 
     private Task SelectAsync(string value) => ValueChanged.InvokeAsync(value);
-    private static string OptionClass(bool selected) => $"app-browse-mode__option {(selected ? "is-selected" : string.Empty)}";
+    // The shared tab (Look v3.1 D1) plus the names the scroll hint and the tests find the chosen mode by.
+    private static string OptionClass(bool selected) => $"tl-tab app-browse-mode__option {(selected ? "tl-tab-active is-selected" : string.Empty)}";
 }

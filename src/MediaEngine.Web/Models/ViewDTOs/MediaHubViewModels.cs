@@ -20,7 +20,8 @@ public enum MediaArtworkShape
 public sealed record MediaHubModeViewModel(
     string Id,
     string Label,
-    string Route);
+    string Route,
+    string Icon);
 
 public sealed class MediaHubShelfViewModel
 {

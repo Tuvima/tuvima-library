@@ -112,7 +112,7 @@ public sealed class TokenResolutionGuardrailTests
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
         var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
-        Assert.Contains("--tl-menu-row-height: 44px;", tokens);
+        Assert.Contains("--tl-menu-row-height: 48px;", tokens);
         Assert.Contains("--tl-menu-width: 272px;", tokens);
         var app = File.ReadAllText(Path.Combine(web, "wwwroot", "app.css"));
         Assert.DoesNotContain("min-height: 34px !important;\r\n    border-radius: var(--tl-radius-md);\r\n    color: var(--tl-text-secondary)", app);
@@ -120,11 +120,11 @@ public sealed class TokenResolutionGuardrailTests
     }
 
     [Fact]
-    public void MenuRows_Are44Px16PxAtWeight500_InPixelsBecauseThePageRootIs14Px()
+    public void MenuRows_Are48Px16PxAtWeight500_InPixelsBecauseThePageRootIs14Px()
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
         var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
-        Assert.Contains("--tl-menu-row-height: 44px;", tokens);
+        Assert.Contains("--tl-menu-row-height: 48px;", tokens);
         Assert.Contains("--tl-menu-row-font-size: 16px;", tokens);
         Assert.Contains("--tl-menu-row-font-weight: 500;", tokens);
         Assert.Contains("--tl-menu-sheet-row-height: 52px;", tokens);
