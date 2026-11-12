@@ -96,7 +96,7 @@
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "vault" when _vaultProfileId is { } vaultProfileId:
-                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" Finished="VaultFinishedAsync" Back="GoBackAsync" />
+                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" AlreadyOn="@SetupVaultStepRules.IsAlreadyOn(StepState("vault"), Nsfw.IsAvailable)" Finished="VaultFinishedAsync" Back="GoBackAsync" />
                     break;
                 case "metadata":
                     <SetupMetadataStage Catalogue="@_providerCatalogue" Loaded="@_providersLoaded" SetupSession="@_setupSession" Busy="@_busy"
@@ -213,10 +213,11 @@
 
     private string WorkflowStep => NormalizeStep(_status?.CurrentStep);
     private string CurrentStep => _selectedStep ?? WorkflowStep;
-        // The Vault is an optional step: it is walked only while it is being offered, and its entry is drawn only until the person says Not now.
-    private string[] NavigableSteps => SetupWorkflow.StepKeys.Where(key => key != "vault" || VaultOpen).ToArray();
-    private bool VaultOpen => _vaultProfileId is not null && StepState("vault") is not ("passed" or "deferred");
-    private bool ShowVault => _vaultProfileId is not null && StepState("vault") != "deferred";
+    // The Vault is an optional step: once it has been offered to this person it stays in the list and in the walk for the rest of setup,
+    // so Back reaches it again after Not now or after turning it on (setup fixes D3). Someone it is never offered to never has it.
+    private string[] NavigableSteps => SetupVaultStepRules.NavigableSteps(VaultOffered);
+    private bool VaultOffered => _vaultProfileId is not null;
+    private bool ShowVault => VaultOffered;
     private Guid? _vaultProfileId;
     private bool _vaultProfileHasPin;
     private int CurrentIndex => Math.Max(0, Array.IndexOf(NavigableSteps, CurrentStep));
@@ -348,6 +349,7 @@
             Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
             return;
         }
+        await RestoreVaultOfferAsync();
         if (_selectedStep is null && SetupWorkflow.StepKeys.Contains(RequestedStep, StringComparer.Ordinal) && CanNavigateTo(RequestedStep!))
             _selectedStep = RequestedStep;
         StateHasChanged();
@@ -622,9 +624,11 @@
     }
 
     // After Tools, the first administrator on a desktop or tablet with no Vault yet is offered it once, as its own step; everyone else sees nothing about it.
+    // Once offered, Continue from Tools (after going Back to it) lands on the Vault step again, whatever was answered.
     private async Task OfferVaultAsync()
     {
-        if (StepState("vault") is "passed" or "deferred") return;
+        if (VaultOffered) { _selectedStep = SetupVaultStepRules.Key; return; }
+        if (SetupVaultStepRules.WasAnswered(StepState("vault"))) return;
         var profile = await SetupVaultEligibility.FindProfileAsync(ApiClient, DashboardSession, Identity, Nsfw, DeviceContext, AuthenticationStateProvider);
         if (profile is null) return;
         _vaultProfileId = profile.Id;
@@ -632,7 +636,30 @@
         _selectedStep = "vault";
     }
 
-    private Task VaultFinishedAsync(bool turnedOn) => DecideStepAsync("vault", turnedOn ? "passed" : "deferred", turnedOn ? "The Vault was turned on during setup." : "The Vault was left for later.");
+    // After a reload the page no longer remembers who the Vault was offered to; the Engine remembers the answer, so find the same person again.
+    // The eligibility rules are unchanged (first administrator, desktop or tablet), so nobody new is offered it.
+    private async Task RestoreVaultOfferAsync()
+    {
+        if (_vaultProfileId is not null || !_authenticated || !SetupVaultStepRules.WasAnswered(StepState("vault"))) return;
+        var profile = await SetupVaultEligibility.FindProfileAsync(ApiClient, DashboardSession, Identity, Nsfw, DeviceContext, AuthenticationStateProvider, alreadyOffered: true);
+        if (profile is null) return;
+        _vaultProfileId = profile.Id;
+        _vaultProfileHasPin = profile.HasPin;
+    }
+
+    // Leaving the step records an answer only when it changed: Continue from a revisited step just moves on to Libraries, the step after it.
+    private async Task VaultFinishedAsync(bool turnedOn)
+    {
+        if (SetupVaultStepRules.NeedsDecision(StepState("vault"), turnedOn))
+        {
+            await DecideStepAsync("vault", turnedOn ? "passed" : "deferred", turnedOn ? "The Vault was turned on during setup." : "The Vault was left for later.");
+            if (_status is null) return;
+        }
+
+        _stageNotice = null;
+        _selectedStep = "libraries";
+        await EnsureCurrentStageDataAsync();
+    }
     // The Libraries panel saves each folder as it is added; the person moves on with Continue.
     private async Task LibraryCreatedAsync() { _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession); }
     private async Task LoadProvidersAsync() { _busy = true; _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); _busy = false; }
@@ -695,14 +722,14 @@
     }
     private async Task CompleteAsync() { _stageNotice = null; _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { await Nsfw.LockAsync(); try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else ShowStageNotice(L["SetupPage_RequiredSetupChecksAreStill"].Value, AppUiTone.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
-    private bool CanNavigateTo(string key) => (key != "vault" || VaultOpen)
+    private bool CanNavigateTo(string key) => (key != "vault" || VaultOffered)
         && (Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred");
     private async Task GoToStepAsync(string key)
     {
         if (CanNavigateTo(key)) { _stageNotice = null; _selectedStep = key; if (key == "done") _readiness = null; await EnsureCurrentStageDataAsync(); }
     }
     private async Task GoNextAsync() { var index = Math.Min(NavigableSteps.Length - 1, CurrentIndex + 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
-    private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
+    private async Task GoBackAsync() { _selectedStep = SetupVaultStepRules.Previous(CurrentStep, VaultOffered); await EnsureCurrentStageDataAsync(); }
     private void ReturnToCurrentStep() => _selectedStep = null;
     private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "welcome";
     private static string Friendly(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));

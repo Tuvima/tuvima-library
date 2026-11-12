@@ -428,6 +428,112 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.Null(await EligibleProfileAsync());
     }
 
+    // ----- Back reaches the Vault step again (setup fixes D3, #856) ----------------------------------------------------------------
+
+    private Task<ProfileViewModel?> EligibleProfileAfterReloadAsync() => SetupVaultEligibility.FindProfileAsync(
+        Services.GetRequiredService<IEngineApiClient>(),
+        Services.GetRequiredService<DashboardSessionAccessor>(),
+        Services.GetRequiredService<DashboardIdentityClient>(),
+        Services.GetRequiredService<NsfwModeState>(),
+        Services.GetRequiredService<DeviceContextService>(),
+        Services.GetRequiredService<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider>(),
+        alreadyOffered: true);
+
+    private IRenderedComponent<SetupVaultOffer> RenderRevisit(bool alreadyOn, EventCallback? back = null) => Render<SetupVaultOffer>(parameters =>
+    {
+        parameters
+            .Add(x => x.ProfileId, _me)
+            .Add(x => x.AdministratorHasPin, _hasPin)
+            .Add(x => x.SetupSession, Session)
+            .Add(x => x.AlreadyOn, alreadyOn)
+            .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn)));
+        if (back is { } goBack) parameters.Add(x => x.Back, goBack);
+    });
+
+    [Fact]
+    public void RevisitingTheVaultStepAfterNotNow_ShowsTheOfferAgain_SoThePersonCanChangeTheirMind()
+    {
+        var cut = RenderRevisit(alreadyOn: false);
+
+        Assert.Equal("Turn on the Vault?", Text(cut.Find("h2")));
+        Assert.Equal(["Not now", "Turn on the Vault"], cut.FindAll("[data-setup-vault] footer .setup-stage__footer-actions button").Select(Text).ToArray());
+    }
+
+    [Fact]
+    public async Task TurningTheVaultOnFromARevisitedSkippedStep_WorksAsOnTheFirstVisit()
+    {
+        var cut = RenderRevisit(alreadyOn: false);
+        await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
+        cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
+        cut.FindAll("input")[0].Input(RightPin);
+        cut.FindAll("input")[1].Input(RightPin);
+
+        await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
+
+        cut.WaitForAssertion(() => Assert.Equal("Your Vault is on", Text(cut.Find("h2"))));
+        Assert.Equal("pin", Assert.Single(_accessSaves).Request.Mode);
+    }
+
+    [Fact]
+    public async Task RevisitingTheVaultStepAfterItWasTurnedOn_ShowsYourVaultIsOnWithContinueOnly_AndNoPinOrTurnOn()
+    {
+        var wentBack = 0;
+        var cut = RenderRevisit(alreadyOn: true, EventCallback.Factory.Create(this, () => wentBack++));
+
+        Assert.Equal("Your Vault is on", Text(cut.Find("h2")));
+        Assert.Equal("On the next step, press Add library and choose Vault to add a private library.", Text(cut.Find("[data-vault-note]")));
+        Assert.Equal("You can turn the Vault off later in Settings.", Text(cut.Find("[data-vault-off-later]")));
+        Assert.Empty(cut.FindAll("input"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Turn on the Vault" or "Not now" or "Skip PIN");
+        var actions = cut.FindAll("[data-setup-vault] footer .setup-stage__footer-actions button");
+        Assert.Equal(["Continue"], actions.Select(Text).ToArray());
+
+        await cut.ClickAsync(page => Button(page, "Back"));
+        Assert.Equal(1, wentBack);
+        Assert.Empty(_vaultFinished);
+
+        await cut.ClickAsync(page => Button(page, "Continue"));
+        Assert.Equal([true], _vaultFinished);
+        Assert.Empty(_accessSaves);
+        Assert.Empty(_pinRequests);
+        Assert.Empty(_unlocks);
+    }
+
+    [Fact]
+    public async Task AfterAReload_ThePersonWhoTurnedTheVaultOnIsFoundAgain_WhereTheFirstOfferWouldLeaveThemOut()
+    {
+        _mode = "pin";
+        _hasPin = true;
+        SignInAsAdministrator();
+
+        Assert.Null(await EligibleProfileAsync());
+        var found = await EligibleProfileAfterReloadAsync();
+
+        Assert.NotNull(found);
+        Assert.Equal(_me, found.Id);
+    }
+
+    [Fact]
+    public async Task AfterAReload_ThePersonWhoSaidNotNowIsFoundAgain()
+    {
+        SignInAsAdministrator();
+
+        var found = await EligibleProfileAfterReloadAsync();
+
+        Assert.Equal(_me, found?.Id);
+    }
+
+    [Fact]
+    public async Task AfterAReload_AnotherPersonIsStillNeverOfferedTheVault()
+    {
+        // Not signed in as an administrator (no authority at all): the answer is the same as for the first offer.
+        Assert.Null(await EligibleProfileAfterReloadAsync());
+
+        _isKid = true;
+        SignInAsAdministrator();
+        Assert.Null(await EligibleProfileAfterReloadAsync());
+    }
+
     [Fact]
     public async Task ThePinIsTypedTwiceAMismatchShowsOneAmberLineAndSkipAsksOnceMore()
     {
@@ -474,7 +580,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         // The Vault step has no add controls of its own: private libraries are added from the one Add library list (the Vault row).
         Assert.Empty(cut.FindAll(".setup-area"));
         Assert.Equal("On the next step, press Add library and choose Vault to add a private library.", Text(cut.Find("[data-vault-note]")));
-        Assert.Equal(["Not now", "Continue"], cut.FindAll("footer button").Select(Text).ToArray());
+        Assert.Equal(["Continue"], cut.FindAll("footer button").Select(Text).ToArray());
         Assert.Contains("stays out of the menu", cut.Markup, StringComparison.Ordinal);
 
         await cut.ClickAsync(page => Button(page, "Continue"));

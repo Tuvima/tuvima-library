@@ -12,13 +12,18 @@ namespace MediaEngine.Web.Components.Setup;
 /// </summary>
 internal static class SetupVaultEligibility
 {
+    /// <param name="alreadyOffered">
+    /// True when the Vault step was already answered (turned on, or Not now) and the page is finding the person again after a reload:
+    /// the Vault being on for them is then expected, not a reason to leave the step out. Every other rule is unchanged.
+    /// </param>
     public static async Task<ProfileViewModel?> FindProfileAsync(
         IEngineApiClient apiClient,
         DashboardSessionAccessor session,
         DashboardIdentityClient identity,
         NsfwModeState nsfw,
         DeviceContextService device,
-        AuthenticationStateProvider authenticationState)
+        AuthenticationStateProvider authenticationState,
+        bool alreadyOffered = false)
     {
         if (device.IsMobile)
         {
@@ -49,6 +54,6 @@ internal static class SetupVaultEligibility
         }
 
         await nsfw.EnsureLoadedAsync(profile.Id, isKids: false);
-        return nsfw.IsAvailable ? null : profile;
+        return nsfw.IsAvailable && !alreadyOffered ? null : profile;
     }
 }

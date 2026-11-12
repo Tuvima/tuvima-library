@@ -12731,6 +12731,15 @@
   <data name="SetupStepper_Optional" xml:space="preserve">
     <value>optional</value>
   </data>
+  <data name="SetupStepper_On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="SetupStepper_Skipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="SetupVaultOffer_TurnOffInSettings" xml:space="preserve">
+    <value>You can turn the Vault off later in Settings.</value>
+  </data>
   <data name="SetupToolsStage_LocalAIName" xml:space="preserve">
     <value>Local AI</value>
   </data>
