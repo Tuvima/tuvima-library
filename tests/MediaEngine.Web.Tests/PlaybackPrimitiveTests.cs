@@ -383,7 +383,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("PlaybackUtilityGlyph Glyph=\"glyph\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("Modal=\"Modal\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px)", toolSheetCss, StringComparison.Ordinal);
-        Assert.Contains("max-height: 85svh;", toolSheetCss, StringComparison.Ordinal);
+        // The sheet surface is drawn by AppPopout, so its rules sit behind the panel's own element (issue 941).
+        Assert.Contains("max-height: 85svh;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css")), StringComparison.Ordinal);
         Assert.DoesNotContain("BottomPanelTitle", listenBar, StringComparison.Ordinal);
         Assert.Contains("State=\"@Playback.SleepTimerState\"", listenBar, StringComparison.Ordinal);
         Assert.Contains("Playback.SetAudiobookSleepTimerAsync", listenBar, StringComparison.Ordinal);
