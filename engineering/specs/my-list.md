@@ -1,6 +1,6 @@
 # Spec: My List
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-11-12 · **Related docs:** [Product overview](../product/overview.md) · [One tile design](one-tile-design.md) · [Home, detail and tiles](home-detail-and-tiles.md) · [Settings and top navigation](settings-and-top-navigation.md) · [Unified player v2](archive/unified-player-v2.md) · Mockups: [my-list.html](../design/mockups/my-list.html)
+> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-11-12 · **Related docs:** [Product overview](../product/overview.md) · [One tile design](one-tile-design.md) · [Home, detail and tiles](home-detail-and-tiles.md) · [Settings and top navigation](settings-and-top-navigation.md) · [Unified player v2](archive/unified-player-v2.md) · Mockups: [my-list.html](../design/mockups/my-list.html)
 
 ## Plain-English walkthrough
 
