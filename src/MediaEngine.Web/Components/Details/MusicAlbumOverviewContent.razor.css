@@ -25,46 +25,15 @@
 
 .tl-music-album-overview__heading h2 {
     margin: 0;
-    color: var(--tl-accent-primary-hover, #a98cff);
-    font-size: clamp(1.15rem, 1.35vw, 1.5rem);
+    color: var(--tl-accent-primary-hover);
+    font-size: var(--tl-type-heading-size);
     line-height: 1.2;
 }
 
 .tl-music-album-overview__heading span,
 .tl-music-album-overview__empty {
-    color: rgba(225, 231, 242, 0.64);
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-music-album-overview ::deep .tl-embedded-audio {
-    height: clamp(23rem, 48svh, 36rem);
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-}
-
-.tl-music-album-overview ::deep .tl-embedded-audio__toolbar {
-    min-height: 2.5rem;
-    padding: 0 0 0.55rem;
-    border: 0;
-    background: transparent;
-}
-
-.tl-music-album-overview ::deep .tl-embedded-audio__scroller {
-    border-top: 1px solid rgba(255, 255, 255, 0.09);
-}
-
-.tl-music-album-overview ::deep .tl-embedded-audio__row {
-    min-height: clamp(3rem, 4.2vw, 3.6rem);
-    padding-inline: 0.25rem 0.5rem;
-    border: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.075);
-    border-radius: 0;
-    background: transparent;
-    font-size: clamp(0.98rem, 1.05vw, 1.14rem);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-body-size);
 }
 
 .tl-music-album-overview__credits ::deep .tl-credit-group {

@@ -7,10 +7,10 @@
 .folder-grid__icon.is-converting { color: var(--tl-status-warning); background: var(--tl-status-warning-soft); }
 
 .folder-grid__text { display: grid; min-width: 0; }
-.folder-grid__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
-.folder-grid__status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--tl-font-size-secondary); color: var(--tl-text-secondary); }
+.folder-grid__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
+.folder-grid__status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--tl-type-secondary-size); color: var(--tl-text-secondary); }
 .folder-grid__status--warning, .folder-grid__warning { color: var(--tl-status-warning); }
-.folder-grid__warning { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 10px; border-radius: var(--tl-radius-sm, 6px); background: var(--tl-status-warning-soft); font-size: var(--tl-font-size-sm); }
+.folder-grid__warning { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 10px; border-radius: var(--tl-radius-sm, 6px); background: var(--tl-status-warning-soft); font-size: var(--tl-type-body-size); }
 .folder-grid__none { display: inline-flex; align-items: center; gap: 6px; color: var(--tl-text-muted); }
 .folder-grid__radio { display: inline-flex; align-items: center; gap: 6px; padding: 4px; border: 0; background: none; color: inherit; cursor: pointer; }
 .folder-grid__row.is-paused .folder-grid__path { opacity: 0.7; }

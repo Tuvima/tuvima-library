@@ -27,8 +27,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private const int MaxVariantsPerAssetType = 3;
     private readonly IEpisodeFrameSource? _episodeFrames;
 
+    /// <summary>TheTVDB's episode list gives pictures as "/banners/…" paths; its other calls give full addresses.</summary>
+    private static string? ResolveTvdbImageAddress(string? value) =>
+        value?.StartsWith("/banners/", StringComparison.Ordinal) == true ? "https://artworks.thetvdb.com" + value : value;
+
     private static bool IsTvdbImageUrl(string? value) =>
-        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        Uri.TryCreate(ResolveTvdbImageAddress(value), UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps
         && (uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
             || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase));
@@ -324,6 +328,26 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     public Task<ImageEnrichmentResult> RefreshWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>
         EnrichWorkImagesCoreAsync(assetId, workQid, forceRefresh: true, ct);
 
+    public async Task EnrichEpisodeStillsAsync(Guid assetId, CancellationToken ct = default)
+    {
+        try
+        {
+            var context = await ResolveContextAsync(assetId, ct).ConfigureAwait(false);
+            if (context.MediaType != MediaType.TV)
+            {
+                return;
+            }
+            // The episode's own frame first, so it has a picture even if the provider has none or cannot be reached.
+            await EnsureGeneratedStillAsync(context.SelfWorkId, ct).ConfigureAwait(false);
+            await EnrichWorkImagesCoreAsync(assetId, null, forceRefresh: false, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Best effort: the later enrichment pass and the next check try again.
+            _logger.LogWarning(ex, "Early episode still pass failed for {AssetId}", assetId);
+        }
+    }
+
     public async Task<ImageEnrichmentResult> RefreshTvdbScopeImagesAsync(
         Guid ownerWorkId, string scopeId, string tvdbId, CancellationToken ct = default)
     {
@@ -438,6 +462,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         {
             return await PersistDiagnosticsAsync(context, CreateResult("Skipped", checkedAt, mediaType,
                     skippedReason: "unsupported_media_type", message: "TMDB artwork enrichment supports movies and TV only."), ct);
+        }
+
+        if (context.MediaType == MediaType.TV)
+        {
+            // A frame from the episode's own video, whatever the provider does (a no-op when a still already exists).
+            await EnsureGeneratedStillAsync(context.SelfWorkId, ct).ConfigureAwait(false);
         }
 
         var canonicals = await LoadCanonicalsAsync(context, ct).ConfigureAwait(false);
@@ -618,10 +648,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         async Task<bool> AddAsync(string? value, AssetType type, Guid owner, bool makePreferred = true)
         {
             // TheTVDB's episode list gives each picture as a path ("/banners/episodes/…"); its other calls give a full address.
-            if (value?.StartsWith("/banners/", StringComparison.Ordinal) == true)
-            {
-                value = "https://artworks.thetvdb.com" + value;
-            }
+            value = ResolveTvdbImageAddress(value);
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
                 || uri.Scheme != Uri.UriSchemeHttps
                 || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)

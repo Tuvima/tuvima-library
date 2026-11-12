@@ -8,6 +8,8 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -16,7 +18,9 @@ namespace MediaEngine.Web.Tests;
 /// The Match tab's Media providers side (universal editor v5, 3c, mockups G1 and G2): a matched item opens on what it is matched to and
 /// searches nothing; Change match opens the compact search; Apply match is always available and only stages (with the move the match
 /// brings, in a Managed folder only); Remove match stages a removal; an unmatched item opens on the pre-filled search; after Save the panel
-/// reads the Engine again; there is no Change placement and no line-up table.
+/// reads the Engine again; there is no Change placement and no line-up table. Editor v6 WP2 adds the frame: the source selector on its own line,
+/// one search row on the shared form row with a labeled Search (nothing searches until Search or Enter), provider entries that show a state only
+/// when the provider is not ready, the "Your file" bar, and the Engine's read deciding matched or not.
 /// </summary>
 public sealed class EditorMatchPanelTests : AsyncBunitContext
 {
@@ -27,6 +31,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     private readonly List<string> _writes = [];
     private EditorMatchSearchResultDto? _answer;
     private EditorMatchPlacementDto? _placement;
+    private TaskCompletionSource<EditorMatchSearchResultDto?>? _hold;
     private int _currentReads;
 
     public EditorMatchPanelTests()
@@ -34,7 +39,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         _session.Begin([new EditTrailItem(MovieId, "Heat", "Item")]);
-        _answer = Found(Result("Heat", "1995", EditorMatchVerdicts.Strong), Result("Heat (1986)", "1986", EditorMatchVerdicts.Check));
+        _answer = Found(Result("Heat", "1995", EditorMatchVerdicts.Strong), Result("Heat (1986)", "1986", EditorMatchVerdicts.Weak));
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetEditorCurrentMatchAsync), _ =>
@@ -49,7 +54,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.SearchEditorMatchAsync), args =>
             {
                 _searches.Add((EditorMatchSearchRequestDto)args![1]!);
-                return Task.FromResult(_answer);
+                return _hold is null ? Task.FromResult<EditorMatchSearchResultDto?>(_answer) : _hold.Task;
             });
             stub.SetHandler(nameof(IEngineApiClient.ReplaceRetailMatchAsync), _ =>
             {
@@ -97,7 +102,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         EntityId = MovieId,
         State = EditorCurrentMatchStates.Matched,
         Verdict = EditorMatchVerdicts.Strong,
-        Record = new EditorMatchedRecordDto { ProviderId = "tmdb", ProviderName = "TMDB", ProviderItemId = itemId, Kind = "Film", Title = title, Year = "1995", Creator = "Michael Mann" },
+        Record = new EditorMatchedRecordDto { ProviderId = "tmdb", ProviderName = "TMDB", ProviderItemId = itemId, Kind = "Film", Title = title, Year = "1995", Creator = "Michael Mann", SourceUrl = "https://www.themoviedb.org/movie/" + itemId },
         Why = why ??
         [
             new EditorMatchEvidenceRowDto { Field = "title", YourFile = "Heat", MatchedRecord = "Heat", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
@@ -147,65 +152,127 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     private static void ClickButton(IRenderedComponent<EditorMatchPanel> cut, string text) =>
         cut.FindAll("button").First(button => button.TextContent.Trim() == text).Click();
 
+    // Types into the Title box and presses the labeled Search button: nothing searches until then.
+    private static void SearchFor(IRenderedComponent<EditorMatchPanel> cut, string title)
+    {
+        cut.Find("input[aria-label='Title']").Input(title);
+        cut.Find("[data-testid=match-search-button]").Click();
+    }
+
+    private static EditorMatchSetupDto BookSetup() => new()
+    {
+        EntityId = MovieId,
+        Kind = "book",
+        FileName = "The Percy Jackson and the Olympians, Book - Rick Riordan.epub",
+        Providers =
+        [
+            new EditorMatchProviderDto { Name = "apple_api", DisplayName = "Apple Books", State = EditorMatchProviderStates.Ready, IsDefault = true },
+            new EditorMatchProviderDto { Name = "openlibrary", DisplayName = "Open Library", State = EditorMatchProviderStates.NeedsKey },
+            new EditorMatchProviderDto { Name = "hardcover", DisplayName = "Hardcover", State = EditorMatchProviderStates.Off },
+        ],
+        Fields =
+        [
+            new EditorMatchFieldDto { Key = "title", Label = "Title", Value = "The Sea of Monsters", From = "tags" },
+            new EditorMatchFieldDto { Key = "author", Label = "Author", Value = "Rick Riordan", From = "tags" },
+            new EditorMatchFieldDto { Key = "isbn", Label = "ISBN", Value = string.Empty },
+        ],
+        Evidence = new EditorMatchLocalEvidenceDto
+        {
+            FileTitle = "The Sea of Monsters",
+            Creator = "Rick Riordan",
+            Identifiers = [new EditorMatchIdentifierDto { Kind = EditorMatchIdentifierKinds.EmbeddedTitle, Value = "The Sea of Monsters" }],
+        },
+    };
+
     [Fact]
-    public void AMatchedItem_OpensOnItsMatchAndWhy_AndSearchesNothing()
+    public void AMatchedItem_OpensOnItsMatchAndTheVerdict_AndSearchesNothing()
     {
         var cut = RenderPanel();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
         Assert.Contains("Heat", cut.Find("[data-testid=match-current]").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Fields you changed stay yours; the rest update.", cut.Find("[data-testid=match-why]").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Strong match", cut.Find("[data-testid=match-why]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Fields you changed stay yours; the rest update.", cut.Find("[data-testid=match-current]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Strong match", cut.Find("[data-testid=match-current] [data-testid=match-verdict]").TextContent, StringComparison.Ordinal);
         Assert.Empty(_searches);
         Assert.Empty(cut.FindAll("[data-testid=match-search]"));
     }
 
     [Fact]
-    public void TheFirstRowOfAMatchedItem_HoldsTheLabelledProviderAndTheSourceSwitch_ButNoSearch()
-    {
-        var cut = RenderPanel();
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-row]")));
-        var row = cut.Find("[data-testid=match-row]");
-        Assert.Contains("Provider", row.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Media providers", row.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Wikidata", row.TextContent, StringComparison.Ordinal);
-        Assert.Empty(row.QuerySelectorAll("[data-testid=match-search-button]"));
-    }
-
-    [Fact]
-    public void TheCurrentMatch_ShowsTheProviderIdTheCreatorLine_AndBothActions()
+    public void TheMatchedCard_PutsTheVerdictAndTheTableBesideTheCover_AndTheActionsOnTheLineBelow()
     {
         var cut = RenderPanel();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
-        Assert.Equal("TMDB · 949", cut.Find("[data-testid=match-current-id]").TextContent.Trim());
-        Assert.Equal("Directed by Michael Mann", cut.Find("[data-testid=match-current-creator]").TextContent.Trim());
-        Assert.NotEmpty(cut.FindAll("[data-testid=match-remove]"));
-        Assert.Contains("Change match", cut.Find("[data-testid=match-change]").TextContent, StringComparison.Ordinal);
+        var card = cut.Find("[data-testid=match-current]");
+        var top = card.QuerySelector(".tl-mcard__top")!;
+        Assert.NotNull(top.QuerySelector("[data-testid=match-verdict]"));
+        Assert.NotNull(top.QuerySelector("[data-testid=match-compare]"));
+        Assert.Null(card.QuerySelector(".tl-mcard__foot [data-testid=match-compare]"));
+        Assert.NotNull(card.QuerySelector(".tl-mcard__foot [data-testid=match-open-source]"));
     }
 
     [Fact]
-    public void TheWhyTable_PutsFactsTheFileCannotSpeakToInAFootnote_AndLabelsTheRuntimeValues()
+    public void AMatchedItem_ShowsTheSourceSelectorThenTheFileBarThenTheCard_AndNoSearchRowUntilChangeMatch()
+    {
+        var cut = RenderPanel();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        var source = Assert.Single(cut.FindAll("[data-testid=match-source]"));
+        Assert.Contains("Media providers", source.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Wikidata", source.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=match-row]"));
+        Assert.Empty(cut.FindAll("[data-testid=match-search-button]"));
+        // Mock B: the selector, then "Your file", then the card it is matched to.
+        var file = Assert.Single(cut.FindAll("[data-testid=match-your-file]"));
+        Assert.Contains("Heat (1995) 1080p.mkv", file.TextContent, StringComparison.Ordinal);
+        Assert.True(cut.Markup.IndexOf("match-source", StringComparison.Ordinal) < cut.Markup.IndexOf("match-your-file", StringComparison.Ordinal));
+        Assert.True(cut.Markup.IndexOf("match-your-file", StringComparison.Ordinal) < cut.Markup.IndexOf("match-current", StringComparison.Ordinal));
+
+        ClickButton(cut, "Change match");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-row]")));
+        Assert.Single(cut.FindAll("[data-testid=match-your-file]"));
+        Assert.Empty(_searches);
+    }
+
+    [Fact]
+    public void TheCurrentMatch_IsTheSameCardAsAResult_WithItsThreeActions()
+    {
+        var cut = RenderPanel();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        var card = cut.Find("[data-testid=match-current]");
+        Assert.Contains("tl-mcard", card.ClassList);
+        Assert.Equal("Heat", card.QuerySelector("[data-testid=match-card-title]")!.TextContent.Trim());
+        Assert.Equal("Michael Mann · 1995", card.QuerySelector("[data-testid=match-card-byline]")!.TextContent.Trim());
+        Assert.Contains("TMDB", card.QuerySelector("[data-testid=match-card-provider]")!.TextContent, StringComparison.Ordinal);
+        Assert.Equal("Matched record", card.QuerySelectorAll("thead th")[2].TextContent.Trim());
+        var actions = card.QuerySelectorAll(".tl-matchcard__actions button, .tl-matchcard__actions a").Select(action => action.TextContent.Trim()).ToList();
+        Assert.Equal(["Open source ↗", "Remove match", "Change match"], actions);
+    }
+
+    [Fact]
+    public void TheCurrentMatchTable_ListsEveryFact_WithADashWhereTheFileSaysNothing_AndLabelsTheRuntimeValues()
     {
         _current = Matched(why:
         [
             new EditorMatchEvidenceRowDto { Field = "title", YourFile = "Heat", MatchedRecord = "Heat", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
             new EditorMatchEvidenceRowDto { Field = "runtime", YourFile = "2:50:00", MatchedRecord = "170 min", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
-            new EditorMatchEvidenceRowDto { Field = "year", State = EditorMatchEvidenceStates.NotChecked },
+            new EditorMatchEvidenceRowDto { Field = "year", MatchedRecord = "1995", State = EditorMatchEvidenceStates.NotChecked },
         ]);
         var cut = RenderPanel();
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-why]")));
-        var rows = cut.FindAll("[data-testid=match-why] tbody tr");
-        Assert.Equal(2, rows.Count);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-compare]")));
+        var rows = cut.FindAll("[data-testid=match-compare] tbody tr");
+        Assert.Equal(3, rows.Count);
         Assert.Contains("2:50:00 measured", rows[1].TextContent, StringComparison.Ordinal);
         Assert.Contains("170 min (rounded)", rows[1].TextContent, StringComparison.Ordinal);
-        Assert.Contains("Year: not in your file, so it was not checked.", cut.Find("[data-testid=match-why-footnote]").TextContent, StringComparison.Ordinal);
+        Assert.Equal("unknown", rows[2].QuerySelector("[data-mark]")!.GetAttribute("data-mark"));
+        Assert.Contains("Not provided", rows[2].TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ChangeMatch_OpensTheSearchInPlace_AndAFieldChangeRunsTheSearch()
+    public void ChangeMatch_OpensTheSearchInPlace_AndOnlySearchRunsTheSearch()
     {
         var cut = RenderPanel();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
@@ -215,7 +282,9 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Empty(_searches);
         Assert.Equal("Heat", cut.Find("input[aria-label='Title']").GetAttribute("value"));
 
-        cut.Find("input[aria-label='Title']").Change("Heat 1995");
+        cut.Find("input[aria-label='Title']").Input("Heat 1995");
+        Assert.Empty(_searches);
+        cut.Find("[data-testid=match-search-button]").Click();
 
         cut.WaitForAssertion(() => Assert.Single(_searches));
         Assert.Equal("tmdb", _searches[0].Provider);
@@ -224,18 +293,18 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ApplyMatch_IsAvailableForACheckResult_AndOnlyStages()
+    public void ApplyMatch_IsAvailableForAWeakResult_AndOnlyStages()
     {
         var cut = RenderPanel();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
         ClickButton(cut, "Change match");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
-        cut.Find("input[aria-label='Title']").Change("Heat");
+        SearchFor(cut, "Heat");
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
 
-        // The second result is a Check match; choosing it still leaves Apply match enabled (the verdict is advice).
+        // The second result is a Weak match; choosing it still leaves Apply match enabled (the verdict is advice).
         cut.FindAll("[data-testid=match-result]").Last().Click();
-        cut.WaitForAssertion(() => Assert.Contains("Check match", cut.Find("[data-testid=match-verdict]").TextContent, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("Weak match", cut.Find("[data-testid=match-verdict]").TextContent, StringComparison.Ordinal));
         var apply = cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match");
         Assert.False(apply.HasAttribute("disabled"));
         apply.Click();
@@ -320,7 +389,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
         ClickButton(cut, "Change match");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
-        cut.Find("input[aria-label='Title']").Change("Heat");
+        SearchFor(cut, "Heat");
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
         cut.FindAll("[data-testid=match-result]").Last().Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
@@ -330,7 +399,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void RemoveMatch_StagesOneRemoval_ShowsNotMatchedYet_AndWritesNothing()
+    public void RemoveMatch_StagesOneRemoval_OpensTheSearch_AndWritesNothing()
     {
         var cut = RenderPanel();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
@@ -340,9 +409,10 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         var change = Assert.Single(_session.Pending.Changes);
         Assert.Equal(EditSessionChangeKinds.MatchRemoval, change.Kind);
         Assert.Equal("Heat · TMDB", _session.Pending.Before(change.Id));
-        cut.WaitForAssertion(() => Assert.Contains("Not matched yet", cut.Find("[data-testid=match-search]").TextContent, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
         Assert.Equal("Heat", cut.Find("input[aria-label='Title']").GetAttribute("value"));
         Assert.Empty(_writes);
+        Assert.Empty(_searches);
         var row = Assert.Single(EditReviewRows.Build(_session.Pending, _ => "Heat", null));
         Assert.Equal("Match removed", row.What);
         Assert.Equal("No match", row.After);
@@ -355,7 +425,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
         cut.Find("[data-testid=match-remove]").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
-        cut.Find("input[aria-label='Title']").Change("Heat");
+        SearchFor(cut, "Heat");
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
 
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
@@ -377,7 +447,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.True(_currentReads > readsBefore));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid=match-staged]")));
-        cut.WaitForAssertion(() => Assert.Contains("id-1986", cut.Find("[data-testid=match-current-id]").TextContent, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("Heat (1986)", cut.Find("[data-testid=match-card-title]").TextContent, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -448,12 +518,11 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnUnmatchedItem_OpensOnThePrefilledSearch_WithNotMatchedYet_AndSearchesNothing()
+    public void AnUnmatchedItem_OpensOnThePrefilledSearch_AndSearchesNothing()
     {
         var cut = RenderPanel(unmatched: true);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
-        Assert.Contains("Not matched yet", cut.Find("[data-testid=match-search]").TextContent, StringComparison.Ordinal);
         Assert.Equal("Heat", cut.Find("input[aria-label='Title']").GetAttribute("value"));
         Assert.Equal("1995", cut.Find("input[aria-label='Year']").GetAttribute("value"));
         Assert.Empty(_searches);
@@ -478,6 +547,10 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("TMDB did not answer", cut.Find("[data-testid=match-message]").TextContent, StringComparison.Ordinal));
         Assert.Single(_searches);
+        // One line naming the provider, with a Try again button that asks again.
+        Assert.DoesNotContain("search in another provider", cut.Find("[data-testid=match-message]").TextContent, StringComparison.Ordinal);
+        cut.Find("[data-testid=match-try-again]").Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
     }
 
     [Fact]
@@ -490,4 +563,535 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[data-testid=match-search-button]"));
         Assert.Empty(_searches);
     }
+
+    // -- The frame (editor v6 WP2) --------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TypingInABox_ChangingTheProvider_AndLeavingABox_SearchNothing_ButEnterAndTheSearchButtonDo()
+    {
+        _setup = _ => BookSetup();
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("input[aria-label='Title']").Input("Sea of Monsters");
+        cut.Find("input[aria-label='Title']").Change("Sea of Monsters");
+        cut.Find("input[aria-label='Author']").Input("Riordan");
+        cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("openlibrary"));
+        Assert.Empty(_searches);
+
+        // The typed words survive a provider change, and the results (none yet) are cleared without a new search.
+        Assert.Equal("Sea of Monsters", cut.Find("input[aria-label='Title']").GetAttribute("value"));
+        cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("apple_api"));
+        Assert.Empty(_searches);
+
+        cut.Find("input[aria-label='Author']").KeyDown(new KeyboardEventArgs { Key = "a" });
+        Assert.Empty(_searches);
+        cut.Find("input[aria-label='Author']").KeyDown(new KeyboardEventArgs { Key = "Enter" });
+        cut.WaitForAssertion(() => Assert.Single(_searches));
+        Assert.Equal("Sea of Monsters", _searches[0].Fields["title"]);
+        Assert.Equal("Riordan", _searches[0].Fields["author"]);
+        Assert.Equal("apple_api", _searches[0].Provider);
+
+        cut.Find("[data-testid=match-search-button]").Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
+    }
+
+    [Fact]
+    public void TheSourceSelector_IsDrawnOnce_OnItsOwnLine_AboveTheSearchRow()
+    {
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-row]")));
+
+        var source = Assert.Single(cut.FindAll("[data-testid=match-source]"));
+        Assert.Single(cut.FindAll(".app-segmented-control"));
+        Assert.Contains("Media providers", source.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Wikidata", source.TextContent, StringComparison.Ordinal);
+        Assert.Empty(source.QuerySelectorAll("input, [data-testid=match-row]"));
+        Assert.True(cut.Markup.IndexOf("match-source", StringComparison.Ordinal) < cut.Markup.IndexOf("match-row", StringComparison.Ordinal));
+        Assert.Empty(cut.Find("[data-testid=match-row]").QuerySelectorAll(".app-segmented-control"));
+    }
+
+    [Fact]
+    public void TheSearchRow_IsTheSharedFormRow_WhoseDirectChildrenAreTheProvider_TheBoxes_AndTheLabeledSearchButton()
+    {
+        _setup = _ => BookSetup();
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-row]")));
+
+        var row = cut.Find("[data-testid=match-row]");
+        Assert.Contains("app-form-row", row.ClassList);
+        var children = row.QuerySelector(".app-form-row__fields")!.Children.ToList();
+        Assert.Equal(5, children.Count);
+        Assert.All(children.Take(4), child => Assert.Contains("app-field", child.ClassList));
+        Assert.Equal("Provider", children[0].QuerySelector("label")!.TextContent.Trim());
+        Assert.Equal(["Title", "Author", "ISBN (optional)"], children.Skip(1).Take(3).Select(child => child.QuerySelector("label")!.TextContent.Trim()).ToList());
+        // The button is a form-row field with a blank label line, so it shares the controls' top on every visual line (also when the row wraps).
+        var go = children[4];
+        Assert.True(go.HasAttribute("data-form-row-field"));
+        Assert.Equal("fit", go.GetAttribute("data-form-row-field"));
+        Assert.Equal("true", go.QuerySelector(".app-field__label")!.GetAttribute("aria-hidden"));
+        var button = go.QuerySelector("button")!;
+        Assert.Equal("Search", button.TextContent.Trim());
+        Assert.Equal("match-search-button", button.GetAttribute("data-testid"));
+        // The Search button carries an outlined search icon before its word (mock A, D18).
+        Assert.NotNull(button.QuerySelector("svg"));
+        // The Provider is fixed, the ISBN box is about 220 px, the button is as wide as its word.
+        var columns = row.QuerySelector(".app-form-row__fields")!.GetAttribute("style")!;
+        Assert.Contains("--tl-form-row-columns: 220px ", columns, StringComparison.Ordinal);
+        Assert.EndsWith("220px auto", columns.TrimEnd(';', ' '), StringComparison.Ordinal);
+        Assert.Contains("app-form-row--wrap", row.ClassList);
+        // The message line is reserved so nothing below it moves when text appears.
+        Assert.NotNull(row.QuerySelector(".app-form-row__message--reserved"));
+    }
+
+    [Fact]
+    public void TheSearchRowMessageLine_SaysWhyAProviderCannotSearch_AndDisablesSearch()
+    {
+        _setup = _ => BookSetup();
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+        Assert.Equal(string.Empty, cut.Find("[data-testid=match-row-message]").TextContent.Trim());
+
+        cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("openlibrary"));
+
+        cut.WaitForAssertion(() => Assert.Contains("Open Library needs a key", cut.Find("[data-testid=match-row-message]").TextContent, StringComparison.Ordinal));
+        Assert.True(cut.Find("[data-testid=match-search-button]").HasAttribute("disabled"));
+
+        cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("hardcover"));
+
+        cut.WaitForAssertion(() => Assert.Contains("Hardcover is switched off", cut.Find("[data-testid=match-row-message]").TextContent, StringComparison.Ordinal));
+        Assert.True(cut.Find("[data-testid=match-search-button]").HasAttribute("disabled"));
+        Assert.Empty(_searches);
+    }
+
+    [Theory]
+    [InlineData("Apple Books cannot search by ISBN. Add a title.")]
+    [InlineData("That does not look like an ISBN. An ISBN has 10 or 13 digits.")]
+    [InlineData("Enter something to search for.")]
+    public void ASentenceTheEngineGivesWithoutSearching_GoesOnTheRowsMessageLine_NotInTheList(string sentence)
+    {
+        _setup = _ => BookSetup();
+        _answer = new EditorMatchSearchResultDto { EntityId = MovieId, Provider = "apple_api", Message = sentence };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(sentence, cut.Find("[data-testid=match-row-message]").TextContent.Trim()));
+        Assert.Empty(cut.FindAll("[data-testid=match-message]"));
+    }
+
+    [Fact]
+    public void WhileSearching_TheListAreaSaysLookingUp_AndTheSearchRowKeepsItsFields()
+    {
+        _hold = new TaskCompletionSource<EditorMatchSearchResultDto?>();
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Looking up", cut.Find("[data-testid=match-looking-up]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.Find("[data-testid=match-row]").QuerySelectorAll("[data-testid=match-looking-up]"));
+        Assert.Equal("Heat", cut.Find("input[aria-label='Title']").GetAttribute("value"));
+        _hold.SetResult(_answer);
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid=match-looking-up]")));
+    }
+
+    [Theory]
+    [InlineData(false, "Nothing found for that. Try fewer words.")]
+    [InlineData(true, "Nothing found for that. Try fewer words or the ISBN.")]
+    public void ASearchThatFindsNothing_SaysSoInTheListArea_AndTheISBNPartOnlyForKindsWithAnISBNBox(bool withIsbn, string expected)
+    {
+        if (withIsbn)
+        {
+            _setup = _ => BookSetup();
+        }
+
+        _answer = new EditorMatchSearchResultDto { EntityId = MovieId, Provider = "tmdb", Query = "Heat", Message = "Nothing matches that. Change the words, or search in another provider." };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(expected, cut.Find("[data-testid=match-message]").TextContent.Replace("Try again", string.Empty).Trim()));
+        Assert.NotEmpty(cut.FindAll("[data-testid=match-your-file]"));
+        Assert.NotEmpty(cut.FindAll("input[aria-label='Title']"));
+        Assert.Empty(cut.FindAll("[data-testid=match-try-again]"));
+    }
+
+    [Fact]
+    public void AProvidersEntry_ShowsItsMarkAndName_AndAStateOnlyWhenItIsNotReady_NeverTheWordReady()
+    {
+        _setup = _ => BookSetup();
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        var options = cut.FindComponent<AppSelect>().Instance.Options!;
+
+        Assert.Equal(["Apple Books", "Open Library · Needs a key", "Hardcover · Off"], options.Select(option => option.Label).ToList());
+        Assert.Equal(["A", "O", "H"], options.Select(option => option.Mark).ToList());
+        Assert.DoesNotContain(options, option => option.Label.Contains("ready", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("ready", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        // The closed control shows the mark of the chosen provider before its name.
+        Assert.Equal("A", cut.Find(".tl-select-trigger .app-select__mark").TextContent.Trim());
+        Assert.Contains("Apple Books", cut.Find(".tl-select-trigger .tl-select-value").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheYourFileBar_ShowsTheFileName_ThenWhatTheFileSays_AndItsFormat()
+    {
+        _setup = _ =>
+        {
+            var setup = BookSetup();
+            return new EditorMatchSetupDto
+            {
+                EntityId = setup.EntityId,
+                Kind = setup.Kind,
+                FileName = setup.FileName,
+                Providers = setup.Providers,
+                Fields = setup.Fields,
+                Evidence = new EditorMatchLocalEvidenceDto
+                {
+                    Creator = "Rick Riordan",
+                    MeasuredText = "1:56:21",
+                    Identifiers = setup.Evidence.Identifiers,
+                },
+            };
+        };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-your-file]")));
+
+        var bar = cut.Find("[data-testid=match-your-file]");
+        Assert.Contains("Your file", bar.TextContent, StringComparison.Ordinal);
+        Assert.Equal("The Percy Jackson and the Olympians, Book - Rick Riordan.epub", cut.Find("[data-testid=match-file-name]").TextContent.Trim());
+        Assert.Equal("Embedded title: The Sea of Monsters · Rick Riordan · 1:56:21 measured · EPUB", cut.Find("[data-testid=match-file-facts]").TextContent.Trim());
+        // The bar sits under the search row, not inside it.
+        Assert.Empty(cut.Find("[data-testid=match-row]").QuerySelectorAll("[data-testid=match-your-file]"));
+        Assert.True(cut.Markup.IndexOf("match-row", StringComparison.Ordinal) < cut.Markup.IndexOf("match-your-file", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheEnginesRead_DecidesMatchedOrNot_WhateverThePageFlagSays()
+    {
+        // The page says "unmatched", the Engine's read says matched: the tab opens on the current match.
+        var matchedCut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Movie())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.IsUnmatched, true));
+        matchedCut.WaitForAssertion(() => Assert.NotEmpty(matchedCut.FindAll("[data-testid=match-current]")));
+        Assert.Empty(matchedCut.FindAll("[data-testid=match-search-button]"));
+        Assert.Empty(_searches);
+        matchedCut.Dispose();
+
+        // The page says "matched", the Engine's read says not: the tab opens on the search.
+        _matched = false;
+        var unmatchedCut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Movie())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.IsUnmatched, false));
+        unmatchedCut.WaitForAssertion(() => Assert.NotEmpty(unmatchedCut.FindAll("[data-testid=match-search-button]")));
+        Assert.Empty(unmatchedCut.FindAll("[data-testid=match-current]"));
+    }
+
+    [Fact]
+    public void ThePanel_TellsTheHeaderWhatTheEngineRead_AndAgainWhenARemovalIsStaged()
+    {
+        var states = new List<EditorMatchReadState?>();
+        _matched = true;
+        var cut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Movie())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.IsUnmatched, true)
+            .Add(panel => panel.OnMatchState, EventCallback.Factory.Create<EditorMatchReadState?>(this, state => states.Add(state))));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, true, "TMDB"), states.Last()));
+
+        cut.Find("[data-testid=match-remove]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, false, null), states.Last()));
+    }
+
+    [Fact]
+    public void WhenTheMatchIsReadAgain_ThePanelFirstTakesTheOldAnswerBack_SoTheHeaderNeverShowsItOverTheLoadingPlaceholder()
+    {
+        var states = new List<EditorMatchReadState?>();
+        _matched = true;
+        var cut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Movie())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.CanEdit, true)
+            .Add(panel => panel.OnMatchState, EventCallback.Factory.Create<EditorMatchReadState?>(this, state => states.Add(state))));
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, true, "TMDB"), states.LastOrDefault()));
+
+        // A staged match that is then saved leaves the pending list, which makes the panel read the Engine again.
+        cut.Find("[data-testid=match-remove]").Click();
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, false, null), states.Last()));
+        _matched = false;
+        _session.Pending.Discard();
+
+        cut.WaitForAssertion(() => Assert.Contains(null, states));
+        cut.WaitForAssertion(() => Assert.Equal(new EditorMatchReadState(MovieId, false, null), states.Last()));
+    }
+
+    [Fact]
+    public void AfterASearch_TheRowsMessageLineSaysHowManyResultsCameBackAndFromWhom()
+    {
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("2 results from TMDB.", cut.Find("[data-testid=match-row-message]").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void AfterASearchWithOneResult_TheRowsMessageLineUsesTheSingularForm()
+    {
+        _answer = Found(Result("Heat", "1995", EditorMatchVerdicts.Strong));
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        cut.Find("[data-testid=match-search-button]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("1 result from TMDB.", cut.Find("[data-testid=match-row-message]").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void WhenTheKindHasNoBoxesToSearchWith_SearchIsOff_AndTheMessageLineSaysWhy()
+    {
+        _setup = _ =>
+        {
+            var setup = Setup("movie", noProvider: false);
+            return new EditorMatchSetupDto { EntityId = setup.EntityId, Kind = setup.Kind, FileName = setup.FileName, Providers = setup.Providers, Fields = [] };
+        };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+
+        Assert.True(cut.Find("[data-testid=match-search-button]").HasAttribute("disabled"));
+        Assert.Equal("There is nothing to search with for this item.", cut.Find("[data-testid=match-row-message]").TextContent.Trim());
+    }
+
+    // ── Results and the card (universal editor v6, WP3) ───────────────────────
+
+    private const string LongDescription =
+        "The second book in Rick Riordan's best-selling saga, Percy Jackson and the Olympians. Percy's seventh-grade year has been surprisingly quiet, until a game of dodgeball turns into a death match.";
+
+    private static EditorMatchResultDto BookResult(
+        string title, string verdict = EditorMatchVerdicts.Possible, bool collection = false, string? description = null, string? seriesName = null,
+        string? seriesNumber = null, IReadOnlyList<EditorMatchReasonDto>? reasons = null) => new()
+        {
+            Candidate = new ItemCanonicalRetailCandidateDto
+            {
+                CandidateId = $"apple:{title}",
+                ProviderId = "apple_api",
+                ProviderName = "apple_api",
+                ProviderItemId = $"id-{title}",
+                Title = title,
+                RequiredFields = new Dictionary<string, string> { ["title"] = title },
+            },
+            ProviderName = "Apple Books",
+            Title = title,
+            Year = "2009",
+            Creator = "Rick Riordan",
+            KindText = "Book",
+            Description = description,
+            SeriesName = seriesName,
+            SeriesNumber = seriesNumber,
+            IsCollection = collection,
+            Verdict = verdict,
+            SourceUrl = "https://books.apple.com/book/x",
+            Reasons = reasons ?? [],
+        };
+
+    private static EditorMatchReasonDto Fact(string fact, string state, string? yours, string? result) =>
+        new() { Fact = fact, State = state, YourFile = yours, Result = result, Text = fact };
+
+    private IRenderedComponent<EditorMatchPanel> SearchBooks(params EditorMatchResultDto[] results)
+    {
+        _setup = _ => BookSetup();
+        _answer = new EditorMatchSearchResultDto { EntityId = MovieId, Provider = "apple_api", Query = "The Sea of Monsters", Results = results };
+        var cut = RenderPanel(unmatched: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search-button]")));
+        cut.Find("[data-testid=match-search-button]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-result]")));
+        return cut;
+    }
+
+    [Fact]
+    public void ABookSearch_ShowsTheCompareTable_WithTicksCrossesAndDashesAsTheEngineSaidThem()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", reasons:
+        [
+            Fact("title", EditorMatchEvidenceStates.Agrees, "The Sea of Monsters", "The Sea of Monsters"),
+            Fact("creator", EditorMatchEvidenceStates.Differs, "R. Riordan", "Rick Riordan"),
+            Fact("identifier", EditorMatchEvidenceStates.NotChecked, "1423103343", null),
+            Fact("year", EditorMatchEvidenceStates.NotChecked, null, "2009"),
+        ]));
+
+        var table = cut.Find("[data-testid=match-compare]");
+        Assert.Equal(["Field", "Your file", "Selected result"], table.QuerySelectorAll("thead th").Take(3).Select(th => th.TextContent.Trim()).ToList());
+        var rows = table.QuerySelectorAll("tbody tr");
+        Assert.Equal(["Title", "Author", "ISBN", "Year"], rows.Select(row => row.QuerySelector("th")!.TextContent.Trim()).ToList());
+        Assert.Equal(["agrees", "differs", "unknown", "unknown"], rows.Select(row => row.QuerySelector("[data-mark]")!.GetAttribute("data-mark")).ToList());
+        // A side that says nothing reads "Not provided" and never counts against the match.
+        Assert.Contains("1423103343", rows[2].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Not provided", rows[2].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Not provided", rows[3].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Based on title and author.", cut.Find("[data-testid=match-card-basis]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AResultRow_HasNoVerdictPillAndNoDescription_TheVerdictIsSaidOnceInTheCard()
+    {
+        var cut = SearchBooks(
+            BookResult("The Sea of Monsters", EditorMatchVerdicts.Strong, description: LongDescription, seriesName: "Percy Jackson and the Olympians", seriesNumber: "2"),
+            BookResult("The Sword of Hades", EditorMatchVerdicts.Weak, description: "Another description."));
+
+        foreach (var row in cut.FindAll("[data-testid=match-result]"))
+        {
+            Assert.Empty(row.QuerySelectorAll(".app-chip"));
+            Assert.DoesNotContain("match", row.TextContent, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Percy's seventh-grade", row.TextContent, StringComparison.Ordinal);
+            Assert.DoesNotContain("Another description", row.TextContent, StringComparison.Ordinal);
+        }
+
+        var first = cut.FindAll("[data-testid=match-result]")[0];
+        Assert.Equal("Rick Riordan · 2009 · Percy Jackson and the Olympians, Book 2", first.QuerySelector("[data-testid=match-result-meta]")!.TextContent.Trim());
+        Assert.Single(cut.FindAll("[data-testid=match-verdict]"));
+        Assert.Contains("Strong match", cut.Find("[data-testid=match-verdict]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Percy's seventh-grade", cut.Find("[data-testid=match-card-description]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACollectionResult_SaysCollectionInTheList()
+    {
+        var cut = SearchBooks(BookResult("The Complete Series", collection: true), BookResult("The Sea of Monsters"));
+
+        Assert.Equal("Rick Riordan · 2009 · Collection", cut.FindAll("[data-testid=match-result-meta]")[0].TextContent.Trim());
+        Assert.DoesNotContain("Collection", cut.FindAll("[data-testid=match-result-meta]")[1].TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TenResults_ShowSixRows_ThenShowFourMoreResults()
+    {
+        var cut = SearchBooks([.. Enumerable.Range(1, 10).Select(number => BookResult($"Book {number}"))]);
+
+        Assert.Equal(6, cut.FindAll("[data-testid=match-result]").Count);
+        Assert.Equal("10 results", cut.Find("[data-testid=match-count]").TextContent.Trim());
+        var more = cut.Find("[data-testid=match-show-more]");
+        Assert.Equal("Show 4 more results", more.TextContent.Trim());
+
+        more.Click();
+
+        Assert.Equal(10, cut.FindAll("[data-testid=match-result]").Count);
+        Assert.Empty(cut.FindAll("[data-testid=match-show-more]"));
+    }
+
+    [Fact]
+    public void SixResultsOrFewer_HaveNoShowMoreButton()
+    {
+        var cut = SearchBooks([.. Enumerable.Range(1, 6).Select(number => BookResult($"Book {number}"))]);
+
+        Assert.Equal(6, cut.FindAll("[data-testid=match-result]").Count);
+        Assert.Empty(cut.FindAll("[data-testid=match-show-more]"));
+    }
+
+    [Fact]
+    public void TheVerdictIsSaidInWords_StrongPossibleOrWeak_AndNeverCheck()
+    {
+        var cut = SearchBooks(
+            BookResult("Strong one", EditorMatchVerdicts.Strong), BookResult("Possible one", EditorMatchVerdicts.Possible), BookResult("Weak one", EditorMatchVerdicts.Weak));
+
+        var seen = new List<string>();
+        foreach (var index in new[] { 0, 1, 2 })
+        {
+            cut.FindAll("[data-testid=match-result]")[index].Click();
+            seen.Add(cut.Find("[data-testid=match-verdict]").TextContent.Trim());
+        }
+
+        Assert.Equal(["Strong match", "Possible match", "Weak match"], seen);
+        Assert.DoesNotContain("Check", string.Concat(seen), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheCardSaysWhatApplyMatchDoes_ForTheKindAndTheProvider_AndApplyStaysAvailableForAWeakMatch()
+    {
+        var cut = SearchBooks(BookResult("Weak one", EditorMatchVerdicts.Weak));
+
+        Assert.Equal("Links this book to Apple Books.", cut.Find("[data-testid=match-apply-line]").TextContent.Trim());
+        Assert.False(cut.Find("[data-testid=match-apply]").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void AResultsLongDescription_IsFoldedToTwoLines_UntilReadMoreIsPressed()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", description: LongDescription));
+
+        Assert.Equal("false", cut.Find("[data-testid=match-card-description]").GetAttribute("data-expanded"));
+        Assert.Equal("false", cut.Find("[data-testid=match-card-read-more]").GetAttribute("aria-expanded"));
+
+        cut.Find("[data-testid=match-card-read-more]").Click();
+
+        Assert.Equal("true", cut.Find("[data-testid=match-card-description]").GetAttribute("data-expanded"));
+        Assert.Equal("Read less", cut.Find("[data-testid=match-card-read-more]").TextContent.Trim());
+        Assert.Equal("true", cut.Find("[data-testid=match-card-read-more]").GetAttribute("aria-expanded"));
+    }
+
+    [Fact]
+    public void AnythingThatCouldBeFolded_HasAReadMoreButton()
+    {
+        // Two lines in the narrowest text column (a wide episode picture) hold about 30 characters, so nothing longer is ever folded without a way to open it.
+        var cut = SearchBooks(BookResult("The Sea of Monsters", description: "A boy finds out his school is a trap."));
+
+        Assert.Single(cut.FindAll("[data-testid=match-card-read-more]"));
+    }
+
+    [Fact]
+    public void TheBasisNote_NamesTheIdentifierFirst_ThenTheOtherComparedFactsInTableOrder()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", reasons:
+        [
+            Fact("title", EditorMatchEvidenceStates.Agrees, "The Sea of Monsters", "The Sea of Monsters"),
+            Fact("creator", EditorMatchEvidenceStates.Agrees, "Rick Riordan", "Rick Riordan"),
+            Fact("identifier", EditorMatchEvidenceStates.Agrees, "1423103343", "1423103343"),
+            Fact("year", EditorMatchEvidenceStates.NotChecked, null, "2009"),
+        ]));
+
+        Assert.Equal("Based on the ISBN, title and author.", cut.Find("[data-testid=match-card-basis]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void AFactTheDashboardHasNoWordsFor_ReadsOtherDetail_NeverTheRawKey()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", reasons:
+        [
+            Fact("page_count", EditorMatchEvidenceStates.Agrees, "279", "279"),
+        ]));
+
+        var row = cut.Find("[data-testid=match-compare] tbody tr");
+        Assert.Equal("Other detail", row.QuerySelector("th")!.TextContent.Trim());
+        Assert.DoesNotContain("page", cut.Find("[data-testid=match-compare]").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Based on other details.", cut.Find("[data-testid=match-card-basis]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void AShortDescription_HasNoReadMore()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", description: "A short blurb."));
+
+        Assert.Empty(cut.FindAll("[data-testid=match-card-read-more]"));
+    }
+
+    [Theory]
+    [InlineData("book", "Book", EditorMatchCardArt.Portrait)]
+    [InlineData("movie", "Film", EditorMatchCardArt.Portrait)]
+    [InlineData("tv_episode", "Episode", EditorMatchCardArt.Wide)]
+    [InlineData("song", "Song", EditorMatchCardArt.Square)]
+    [InlineData("album", "Album", EditorMatchCardArt.Square)]
+    public void TheCardsPictureIsPortraitForBooksAndFilms_WideForEpisodes_AndSquareForMusic(string kind, string recordKind, EditorMatchCardArt expected) =>
+        Assert.Equal(expected, EditorMatchCardModels.ArtFor(recordKind, kind));
 }

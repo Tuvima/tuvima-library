@@ -27,11 +27,11 @@
 }
 
 .bmk__head .bmk__add:not(:disabled):hover {
-    background: color-mix(in srgb, var(--playback-accent) 88%, white);
+    background: color-mix(in srgb, var(--playback-accent) 88%, var(--tl-text-primary));
 }
 
 .bmk__head .bmk__add:not(:disabled):active {
-    background: color-mix(in srgb, var(--playback-accent) 80%, black);
+    background: color-mix(in srgb, var(--playback-accent) 80%, var(--tl-viewer-black));
 }
 
 .bmk__head .bmk__add:disabled {
@@ -202,7 +202,7 @@
 }
 
 .bmk__item .bmk__action--primary:hover {
-    background: color-mix(in srgb, var(--playback-accent) 88%, white);
+    background: color-mix(in srgb, var(--playback-accent) 88%, var(--tl-text-primary));
     color: var(--tl-text-on-accent);
 }
 

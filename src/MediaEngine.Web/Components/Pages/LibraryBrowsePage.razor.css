@@ -85,18 +85,18 @@
 .home-discovery-empty-title {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-xl);
-    font-weight: 600;
-    color: rgba(248, 248, 248, 0.88);
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
+    color: var(--tl-text-primary);
 }
 
 .home-discovery-empty-subtitle {
     margin: 0;
     max-width: 460px;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
     line-height: 1.6;
-    color: rgba(248, 248, 248, 0.56);
+    color: var(--tl-text-muted);
 }
 
 .home-discovery-empty-actions {
@@ -115,7 +115,7 @@
     margin-top: 10px;
     padding-top: 16px;
     width: min(100%, 460px);
-    border-top: 1px solid rgba(248, 248, 248, 0.12);
+    border-top: 1px solid var(--tl-wash-light-4);
 }
 
 .home-discovery-seed-button {

@@ -29,33 +29,33 @@
     min-height: 1.75rem;
     display: inline-grid;
     place-items: center;
-    border: 1px solid rgba(246, 240, 232, 0.14);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: var(--tl-radius-pill);
-    color: rgba(246, 240, 232, 0.72);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 :where(.tl-detail-page) .tl-credit-group--secondary {
-    background: rgba(20, 22, 28, 0.62);
+    background: var(--tl-scrim-dark-5);
 }
 
 :where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle {
     width: fit-content;
     min-height: 2.35rem;
     padding: 0 0.85rem;
-    border: 1px solid rgba(246, 240, 232, 0.14);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: var(--tl-radius-pill);
-    background: rgba(246, 240, 232, 0.06);
-    color: rgba(246, 240, 232, 0.82);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    background: var(--tl-wash-light-2);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     cursor: pointer;
 }
 
 :where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:hover,
 :where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:focus-visible {
-    border-color: rgba(246, 240, 232, 0.28);
+    border-color: color-mix(in srgb, var(--tl-text-primary) 28%, transparent);
     color: var(--tl-text-primary);
 }
 
@@ -66,7 +66,7 @@
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group:not(:first-child) {
     padding-top: clamp(0.75rem, 1.6vw, 1.2rem);
-    border-top: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid var(--tl-wash-light-3);
 }
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group--secondary {
@@ -81,9 +81,9 @@
 }
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group__heading h2 {
-    color: rgba(246, 240, 232, 0.92);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
     letter-spacing: 0.16em;
 }
 

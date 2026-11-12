@@ -7,10 +7,10 @@
 .media-artwork-group-preview__artwork {
     position: absolute;
     object-fit: contain;
-    border: 1px solid rgba(255, 255, 255, 0.24);
+    border: 1px solid color-mix(in srgb, var(--tl-text-primary) 24%, transparent);
     border-radius: 6px;
-    background: rgba(3, 7, 18, 0.86);
-    box-shadow: 0 13px 27px rgba(0, 0, 0, 0.58);
+    background: color-mix(in srgb, var(--tl-bg-root) 86%, transparent);
+    box-shadow: 0 13px 27px var(--tl-scrim-dark-5);
     transition: filter 180ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
@@ -430,11 +430,11 @@
     max-width: 100%;
     max-height: 100%;
     place-items: center;
-    color: rgba(196, 181, 253, 0.82);
-    border: 1px dashed rgba(196, 181, 253, 0.34);
+    color: color-mix(in srgb, var(--tl-accent-primary-hover) 82%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--tl-accent-primary-hover) 34%, transparent);
     border-radius: 6px;
-    background: linear-gradient(145deg, rgba(30, 41, 59, 0.92), rgba(9, 13, 25, 0.98));
-    box-shadow: 0 13px 27px rgba(0, 0, 0, 0.38);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--tl-bg-surface-hover) 92%, transparent), color-mix(in srgb, var(--tl-bg-root) 98%, transparent));
+    box-shadow: 0 13px 27px var(--tl-scrim-dark-3);
 }
 
 .media-artwork-group-preview.is-adaptive-layout .is-portrait-art .media-artwork-group-preview__artwork-fallback {
@@ -486,13 +486,13 @@
     min-height: 22px;
     padding: 4px 6px;
     place-items: center;
-    color: rgba(248, 250, 252, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: var(--tl-text-primary);
+    border: 1px solid color-mix(in srgb, var(--tl-text-primary) 30%, transparent);
     border-radius: var(--tl-radius-pill);
-    background: rgba(3, 7, 18, 0.88);
-    box-shadow: 0 6px 13px rgba(0, 0, 0, 0.42);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    background: color-mix(in srgb, var(--tl-bg-root) 88%, transparent);
+    box-shadow: 0 6px 13px var(--tl-scrim-dark-3);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 @media (prefers-reduced-motion: reduce) {

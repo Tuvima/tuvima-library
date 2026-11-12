@@ -3,7 +3,7 @@
     top: 1.25rem;
     right: 1.5rem;
     z-index: 6;
-    color: var(--tl-tone-accent, #b9a6ff);
+    color: var(--tl-tone-accent);
 }
 
 .tl-universe-icon__button {
@@ -13,7 +13,7 @@
     height: 84px;
     border-radius: 12px;
     color: inherit;
-    background: color-mix(in srgb, #05060d 62%, transparent);
+    background: color-mix(in srgb, var(--tl-bg-root) 62%, transparent);
     border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
     backdrop-filter: blur(6px);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -52,7 +52,7 @@
 }
 
 .tl-universe-icon__star {
-    fill: #fff;
+    fill: var(--tl-text-primary);
     opacity: 0.9;
     transform-box: fill-box;
     transform-origin: center;
@@ -69,10 +69,10 @@
     gap: 0.15rem;
     flex-direction: column;
     border-radius: 10px;
-    font-size: 0.82rem;
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.35;
-    color: var(--tl-text-primary, #fff);
-    background: color-mix(in srgb, #05060d 88%, transparent);
+    color: var(--tl-text-primary);
+    background: color-mix(in srgb, var(--tl-bg-root) 88%, transparent);
     border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
 }
 

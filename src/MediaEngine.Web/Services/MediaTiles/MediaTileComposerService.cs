@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.MediaTiles;
@@ -77,6 +78,7 @@ public sealed class MediaTileComposerService
             SortTimestamp = playlist.ModifiedAt ?? playlist.CreatedAt,
             IsCollection = true,
             IsPlaylist = true,
+            AcceptsSongDrops = CollectionAuthoringRule.IsAddTarget(playlist, playlist: true),
             MediaCounts = playlist.ItemCount > 0
                 ? [new MediaTileMediaCountViewModel(MediaEngine.Web.Components.Shared.AppMaterialIcons.Outlined.MusicNote, playlist.ItemCount == 1 ? "song" : "songs", playlist.ItemCount)]
                 : [],
@@ -279,9 +281,9 @@ public sealed class MediaTileComposerService
     private static string EyebrowForCard(DisplayCardDto card) =>
         card.MediaType switch
         {
-            "Book" or "Comic" => card.Progress is not null ? "Continue Reading" : "Read",
-            "Audiobook" or "Music" => card.Progress is not null ? "Continue Listening" : "Listen",
-            "Movie" or "TV" => card.Progress is not null ? "Continue Watching" : "Watch",
+            "Book" or "Comic" => card.Progress is not null ? "Resume" : "Read",
+            "Audiobook" or "Music" => card.Progress is not null ? "Resume" : "Listen",
+            "Movie" or "TV" => card.Progress is not null ? "Resume" : "Watch",
             _ => "From your library",
         };
 

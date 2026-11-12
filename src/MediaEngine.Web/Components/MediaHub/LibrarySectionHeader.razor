@@ -35,7 +35,7 @@
     [Parameter] public bool Loading { get; set; }
 
     private IReadOnlyList<SurfaceTabItem> NavigationItems => Modes
-        .Select(mode => new SurfaceTabItem(mode.Id, mode.Label))
+        .Select(mode => new SurfaceTabItem(mode.Id, mode.Label, mode.Icon))
         .ToList();
 
     private Task NavigateAsync(string mode)

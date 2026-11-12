@@ -106,11 +106,19 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
     // The same rule LoadWorksAsync applies, over the light rows: an invalid scope sees nothing, otherwise a work is visible
     // when any of its (work, library) rows passes Allows.
-    private async Task<IReadOnlySet<Guid>> AllowedWorkIdsAsync(CatalogueScope scope, bool includeUnmatched, CancellationToken ct)
+    private async Task<IReadOnlySet<Guid>> AllowedWorkIdsAsync(CatalogueScope scope, bool includeUnmatched, CancellationToken ct) =>
+        (await AllowedVisibleRowsAsync(scope, includeUnmatched, ct).ConfigureAwait(false)).Select(row => row.WorkId).ToHashSet();
+
+    public async Task<IReadOnlyList<ViewerCatalogueFile>> LoadViewerFilesAsync(CancellationToken ct) =>
+        (await AllowedVisibleRowsAsync(await ResolveScopeAsync(ct).ConfigureAwait(false), false, ct).ConfigureAwait(false))
+        .Select(row => new ViewerCatalogueFile(row.WorkId, row.AssetId, row.CreatedAt, row.LibraryId))
+        .ToList();
+
+    private async Task<List<DisplayVisibleWorkRow>> AllowedVisibleRowsAsync(CatalogueScope scope, bool includeUnmatched, CancellationToken ct)
     {
         if (!scope.IsValid)
         {
-            return new HashSet<Guid>();
+            return [];
         }
 
         var visibleRows = await inner.LoadVisibleWorkRowsAsync(ct).ConfigureAwait(false);
@@ -119,7 +127,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             .Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
             .ToList();
         allowed = await WithoutUnmatchedOnlyAsync(allowed, row => row.WorkId, row => row.LibraryId, includeUnmatched, ct).ConfigureAwait(false);
-        return allowed.Select(row => row.WorkId).ToHashSet();
+        return allowed;
     }
 
     /// <summary>

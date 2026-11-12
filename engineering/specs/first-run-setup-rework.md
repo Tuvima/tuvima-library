@@ -1,6 +1,8 @@
 # Spec: First-run setup rework (Welcome, step order, Libraries table, compact picker, metadata tiles)
 
 > **Status:** Built, awaiting Local checks · **Version:** 1 · **Last updated:** 2026-11-03 (Shy locked 01:04Z) · **Related docs:** Archived `first-run-setup-flow.md` (v3, built) · `settings-and-setup-simplified.md` (built; its D8 area cards are replaced here) · local check 2026-11-02 items 1-13, 15, 39 · Mockups: [first-run-setup-rework.html](../design/mockups/first-run-setup-rework.html) (also https://claude.ai/artifact/61sfszbLBBL8dV9rZt2qa9)
+>
+> **Amended 2026-11-12** by [Setup and Libraries fixes](setup-and-libraries-fixes.md): the Vault step now stays in the step list and Back reaches it, and its note points forward to the Libraries step (D2, D3). Where the two differ, the newer spec wins.
 
 > Source: Shy's walk of setup on 2 Nov 2026. The reference images Shy supplied exist only on SHY-DESKTOP, so this draft works from Shy's written descriptions; layouts will be matched to the images when they are committed. Small bugs (name/address mismatch, Change button, picker speed, path warnings) are in the bug build thread and are not repeated as work here, except where the new design depends on them.
 

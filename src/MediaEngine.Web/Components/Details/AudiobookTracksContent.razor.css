@@ -18,21 +18,21 @@
 }
 
 .tl-audiobook-tracks__heading div > span {
-    color: var(--tl-accent-primary-hover, #a98cff);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    color: var(--tl-accent-primary-hover);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
 }
 
 .tl-audiobook-tracks__heading h2 {
     margin: 0;
-    color: #fff;
-    font-size: clamp(1.45rem, 2vw, 2rem);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-heading-size);
 }
 
 .tl-audiobook-tracks__heading > span {
-    color: rgba(225, 231, 242, 0.64);
-    font-size: var(--tl-font-size-sm);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-body-size);
 }
 
 .tl-audiobook-tracks ::deep .tl-embedded-audio {

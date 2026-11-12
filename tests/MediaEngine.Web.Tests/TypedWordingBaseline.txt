@@ -5,7 +5,7 @@ src/MediaEngine.Web/Components/Details/DescriptionAttribution.razor|1
 src/MediaEngine.Web/Components/Details/MediaMembershipDialog.razor|1
 src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor|1
 src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor|2
-src/MediaEngine.Web/Components/Pages/ListenPage.razor|23
+src/MediaEngine.Web/Components/Pages/ListenPage.razor|16
 src/MediaEngine.Web/Components/Pages/ReadPage.razor|2
 src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor|1
 src/MediaEngine.Web/Components/Pages/WatchPage.razor|3

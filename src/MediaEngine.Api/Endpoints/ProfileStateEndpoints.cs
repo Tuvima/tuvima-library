@@ -8,6 +8,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.ProfileState;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -33,6 +34,83 @@ public static class ProfileStateEndpoints
         .WithName("GetSavedProfileItems")
         .Produces<IReadOnlyList<ProfileSavedItemDto>>()
         .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        group.MapGet("/saved/finished", async (
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            [FromServices] DisplayComposerService display,
+            CancellationToken ct) =>
+        {
+            var profileId = RequireProfileId(user);
+            // The composer reads the My List grid source, so the profile's own visibility rules decide what can be finished.
+            var finished = await display.LoadFinishedSavedAsync(profileId, ct);
+            var saved = (await repository.GetSavedItemsAsync(profileId, ct))
+                .ToDictionary(item => (item.EntityKind, item.EntityId));
+            return Results.Ok(finished
+                .Where(entry => saved.ContainsKey((entry.Kind, entry.EntityId)))
+                .Select(entry => ToDto(saved[(entry.Kind, entry.EntityId)]))
+                .ToList());
+        })
+        .WithName("GetFinishedSavedProfileItems")
+        .Produces<IReadOnlyList<ProfileSavedItemDto>>()
+        .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        group.MapPost("/saved/remove", async (
+            RemoveSavedItemsRequest request,
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            ProfileStateAccessService access,
+            CancellationToken ct) =>
+        {
+            if (request.Items is null || request.Items.Any(item => item is null) || request.Items.Count > RemoveSavedItemsRequest.MaxItems)
+            {
+                return ApiErrors.BadRequest($"Send between 0 and {RemoveSavedItemsRequest.MaxItems} items to remove.");
+            }
+            var profileId = RequireProfileId(user);
+            // My List holds no songs (those are Favorites), so a song is never removed through this action.
+            // An entry the profile cannot see right now stays stored (it returns if access returns), so it is skipped here too.
+            var scope = await access.ResolveAsync(profileId, ct, includeUnmatched: true);
+            var keys = request.Items
+                .Where(item => Enum.IsDefined(item.EntityKind) && item.EntityKind != ProfileEntityKind.Song)
+                .Where(item => scope.Allows(item.EntityKind, item.EntityId))
+                .Select(item => new ProfileSavedKey(item.EntityKind, item.EntityId))
+                .Distinct()
+                .ToList();
+            var removed = await repository.RemoveSavedItemsAsync(profileId, keys, ct);
+            return Results.Ok(removed.Select(ToDto).ToList());
+        })
+        .WithName("RemoveSavedProfileItems")
+        .Produces<IReadOnlyList<ProfileSavedItemDto>>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        group.MapPost("/saved/restore", async (
+            RestoreSavedItemsRequest request,
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            ProfileStateAccessService access,
+            CancellationToken ct) =>
+        {
+            if (request.Items is null || request.Items.Any(item => item is null) || request.Items.Count > RestoreSavedItemsRequest.MaxItems)
+            {
+                return ApiErrors.BadRequest($"Send between 0 and {RestoreSavedItemsRequest.MaxItems} items to restore.");
+            }
+            var profileId = RequireProfileId(user);
+            var scope = await access.ResolveAsync(profileId, ct, includeUnmatched: true);
+            // Same check as saving one item; what the profile may not see is skipped, as are songs (not part of My List).
+            var allowed = request.Items
+                .Where(item => Enum.IsDefined(item.EntityKind) && item.EntityKind != ProfileEntityKind.Song)
+                .Where(item => scope.Allows(item.EntityKind, item.EntityId))
+                .DistinctBy(item => (item.EntityKind, item.EntityId))
+                .Select(item => new ProfileSavedRestore(item.EntityKind, item.EntityId, item.SavedAt, item.Position))
+                .ToList();
+            var restored = await repository.RestoreSavedItemsAsync(profileId, allowed, ct);
+            return Results.Ok(restored.Select(ToDto).ToList());
+        })
+        .WithName("RestoreSavedProfileItems")
+        .Produces<IReadOnlyList<ProfileSavedItemDto>>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
 
         group.MapGet("/saved/{entityKind}/{entityId:guid}", async (
             string entityKind,
@@ -112,6 +190,70 @@ public static class ProfileStateEndpoints
             return Results.NoContent();
         })
         .WithName("RemoveSavedProfileItem")
+        .Produces(StatusCodes.Status204NoContent)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        // Favorites (the profile's hearted songs) are kept in an order the person sets by hand. A move names the favorite it should sit before
+        // (none means last), so the Engine settles the place against its own list; an index counting what the profile sees still works. The
+        // order is only ever the signed-in profile's own, so there is no profile in the route to get wrong.
+        group.MapPost("/favorites/songs/{entityId:guid}/move", async (
+            Guid entityId,
+            ProfileSavedItemMoveRequest request,
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            ProfileStateAccessService access,
+            CancellationToken ct) =>
+        {
+            var profileId = RequireProfileId(user);
+            if (request.ToIndex is not null && request.BeforeEntityId is not null)
+            {
+                return ApiErrors.BadRequest("Name a song to sit before or a place, not both.");
+            }
+
+            var scope = await access.ResolveAsync(profileId, ct);
+            if (request.ToIndex is not { } toIndex)
+            {
+                // The neighbour is named, so the Engine settles the place inside the move itself. A song the profile cannot see is refused
+                // the same way as one it never hearted, so nothing about hidden songs is revealed.
+                if (!scope.Allows(ProfileEntityKind.Song, entityId))
+                {
+                    return ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites.");
+                }
+
+                const string neighbourRefused = "The song, or the song to move it before, is not one of the active profile's Favorites.";
+                if (request.BeforeEntityId is { } before && !scope.Allows(ProfileEntityKind.Song, before))
+                {
+                    return ApiErrors.NotFound(neighbourRefused);
+                }
+
+                var moved = await repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, entityId, request.BeforeEntityId, ct);
+                return moved == SavedItemMoveResult.Moved ? Results.NoContent() : ApiErrors.NotFound(neighbourRefused);
+            }
+
+            var all = await repository.GetSavedItemsAsync(profileId, ProfileEntityKind.Song, ct);
+            var visible = all.Where(item => scope.Allows(ProfileEntityKind.Song, item.EntityId)).ToList();
+            if (!visible.Any(item => item.EntityId == entityId))
+            {
+                return ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites.");
+            }
+
+            if (toIndex < 0 || toIndex >= visible.Count)
+            {
+                return ApiErrors.BadRequest("The new place is outside the Favorites list.");
+            }
+
+            // Songs the profile cannot see still hold a place; the move lands next to the song now sitting at the wanted visible place.
+            var target = visible[toIndex].EntityId;
+            var result = await repository.MoveSavedItemAsync(
+                profileId, ProfileEntityKind.Song, entityId, all.ToList().FindIndex(item => item.EntityId == target), ct);
+            return result switch
+            {
+                SavedItemMoveResult.Moved => Results.NoContent(),
+                SavedItemMoveResult.NotSaved => ApiErrors.NotFound($"Song '{entityId:D}' is not one of the active profile's Favorites."),
+                _ => ApiErrors.BadRequest("The new place is outside the Favorites list."),
+            };
+        })
+        .WithName("MoveFavoriteSong")
         .Produces(StatusCodes.Status204NoContent)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
 

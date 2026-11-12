@@ -1,7 +1,7 @@
 /* Detail-only presentation. Native markup is scoped here; retained ::deep
    crosses an existing C# renderer or shared/third-party control boundary. */
 :where(.tl-detail-page) .tl-detail-metadata-item--lane-count .tl-detail-metadata-item__value {
-    color: #c4a7ff;
+    color: var(--tl-accent-primary-hover);
     font-weight: 600;
 }
 
@@ -19,10 +19,10 @@
     width: fit-content;
     max-width: min(100%, 52rem);
     overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.13);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: 0.62rem;
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.42);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow: inset 0 1px 0 var(--tl-wash-light-2);
     backdrop-filter: blur(12px);
 }
 
@@ -31,8 +31,8 @@
 }
 
 :where(.tl-detail-page) .tl-detail-metadata-item__value {
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     white-space: nowrap;
 }
 
@@ -65,7 +65,7 @@
 }
 
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-watch-metadata-separator {
-    color: rgba(255, 255, 255, 0.36);
+    color: var(--tl-text-disabled);
 }
 
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {

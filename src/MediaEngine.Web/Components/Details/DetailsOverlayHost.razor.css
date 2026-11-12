@@ -1,37 +1,21 @@
-/* The details overlay (spec D1): a modal window over the page the person came from.
+/* The details overlay (spec D1): a window the app keeps modal itself (not a browser-modal dialog), so the persistent player bar
+   stays usable beside it (music-player-and-listen-fixes D5). It is fixed over the page with its own dimmed backdrop element.
+   Layers: page and top navigation < backdrop (--tl-z-details-backdrop) < player bar (1350) < window (--tl-z-modal). The window
+   never overlaps the bar: app-dialog.js publishes --tl-overlay-bar-inset (how far the bar reaches up from the bottom of the
+   screen; 0 when no bar is showing) and the window ends above it.
    Desktop and tablet: a large centred window (about 90% of the screen) with the page dimmed behind it.
-   Phone: a bottom sheet about 92% tall with a grip. The detail page scrolls inside it. */
+   Phone: a bottom sheet about 92% tall with a grip. The detail page scrolls inside it.
+   The window's own box (size, corners, position, layer, phone sheet and its animation) is in wwwroot/app.css: the shared Viewer part renders the
+   <dialog> element, so these scoped styles cannot reach it (that is how the window came to fill the screen, issue 875). The backdrop, title,
+   frame and scroller below are this component's own elements. */
 
-.tl-details-overlay {
-    box-sizing: border-box;
-    width: 90vw;
-    max-width: none;
-    height: 90vh;
-    height: 90dvh;
-    max-height: none;
-    margin: auto;
-    padding: 0;
-    border: 0;
-    border-radius: 1rem;
-    overflow: hidden;
-    background: var(--tl-bg-root);
-    color: var(--tl-text-primary);
-    box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.6);
-    /* Makes the window the containing block for anything the page fixes in place (its loading bar), so it stays inside. */
-    contain: layout;
-}
-
-.tl-details-overlay::backdrop {
-    background: rgba(0, 0, 0, 0.62);
-}
-
-.tl-details-overlay--sheet {
-    width: 100%;
-    height: 92vh;
-    height: 92dvh;
-    margin: auto 0 0;
-    border-radius: 1rem 1rem 0 0;
-    transform: translateY(var(--sheet-drag, 0px));
+.tl-details-overlay__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--tl-z-details-backdrop, 1340);
+    background: var(--tl-scrim-soft-strong);
+    overscroll-behavior: contain;
+    touch-action: none;
 }
 
 .tl-details-overlay__title {
@@ -84,17 +68,5 @@
     width: 40px;
     height: 4px;
     border-radius: 2px;
-    background: rgba(255, 255, 255, 0.6);
+    background: color-mix(in srgb, var(--tl-text-primary) 60%, transparent);
 }
-
-@media (prefers-reduced-motion: no-preference) {
-    .tl-details-overlay--sheet[open] {
-        animation: tl-details-overlay-sheet-up 0.22s ease-out;
-    }
-}
-
-@keyframes tl-details-overlay-sheet-up {
-    from { transform: translateY(100%); }
-    to { transform: translateY(var(--sheet-drag, 0px)); }
-}
-

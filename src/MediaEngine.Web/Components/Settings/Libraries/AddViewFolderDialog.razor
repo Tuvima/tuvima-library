@@ -14,9 +14,8 @@
    folder is shared with everyone; choosing who sees what is a Settings job. If View has nowhere to keep its files yet, the dialog asks for that location too,
    pre-filled, and Add folder stays off until both are valid, so a View folder can never be saved with no storage behind it. In the Edit window the folder is only
    collected (Defer) and saved with Save changes. *@
-<AppDialogShell Eyebrow="@L["Nav_View"].Value"
+<AppDialogShell Eyebrow="@Eyebrow"
                 Title="@Heading"
-                Subtitle="@L["AddViewFolderDialog_Subtitle", Noun].Value"
                 Size="Large"
                 HostClass="@ServerFolderPicker.HostClass"
                 OnClose="@(() => Dialog.Cancel())">
@@ -28,7 +27,6 @@
                 <ServerFolderPicker Inline="true"
                                     HideConfirm="true"
                                     MediaType="@Kind.MediaTypes.FirstOrDefault()"
-                                    KindLabel="@LibraryTypeCatalog.AddChoiceLabel(Kind)"
                                     SelectionMode="@ServerFolderSelectionModes.PersonalSpaceExisting"
                                     SetupSession="@SetupSession"
                                     ShowFolderName="true"
@@ -39,18 +37,8 @@
                                     ManagedAllowed="true"
                                     ShowManagedWarning="false"
                                     OnHandlingChanged="HandlingChanged"
-                                    OnPathChanged="PathChosen" />
-                @if (_managed)
-                {
-                    <p class="add-view-folder__line" data-managed-note>@L["AddViewFolderDialog_ManagedNote", ManagedName]</p>
-                }
-                else
-                {
-                    @if (NeedsManagedNote)
-                    {
-                        <p class="add-view-folder__line add-view-folder__line--note" data-uploads-note>@ViewFolderRules.UploadsNeedManagedLine(L, Noun)</p>
-                    }
-                }
+                                    OnPathChanged="PathChosen"
+                                    Message="@MessageLine" />
             </div>
 
             @if (!StorageReady)
@@ -75,15 +63,10 @@
                 </section>
             }
 
-            @if (!string.IsNullOrWhiteSpace(_error))
-            {
-                <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
-            }
         </div>
     </ChildContent>
     <FooterContent>
         <AppActionBar Align="AppHorizontalAlignment.End">
-            <span class="add-view-folder__footer-line app-footer-start" data-footer-line>@L["AddViewFolderDialog_ReadOnlySafety"]</span>
             <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
             <AppButton Label="@L["Common_AddFolder"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanAdd)" OnClick="AddAsync" />
         </AppActionBar>
@@ -125,11 +108,24 @@
 
     private string Heading => L["AddViewFolderDialog_Heading"].Value;
 
+    // The header names what the folder is being added to, the area and the kind, above "Add folder" (setup and libraries fixes D8).
+    private string Eyebrow => $"{L["Nav_View"].Value} · {LibraryTypeCatalog.AddChoiceLabel(Kind)}";
+
     // "Photos" reads "photos" in the middle of a sentence; "Personal videos" and "Documents" follow the same rule.
     private string Noun => ViewFolderRules.Noun(Kind.Key, Kind.PluralLabel);
 
     private bool _managed;
     private IReadOnlyList<ViewSourceAdminDto> _existing = [];
+
+    // The one message line under the handling choice (D7): the host's own error when Add folder was refused, else the Managed note, else the upload line. Null draws no line.
+    private RenderFragment? MessageLine =>
+        !string.IsNullOrWhiteSpace(_error)
+            ? @<AppAlert Tone="AppUiTone.Error" Dense="true">@_error</AppAlert>
+            : _managed
+                ? @<p class="add-view-folder__line" data-managed-note>@L["AddViewFolderDialog_ManagedNote", ManagedName]</p>
+                : NeedsManagedNote
+                    ? @<p class="add-view-folder__line add-view-folder__line--note" data-uploads-note><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />@ViewFolderRules.UploadsNeedManagedLine(L, Noun)</p>
+                    : null;
 
     private void HandlingChanged(string handling) => _managed = handling == FolderHandlingWords.ManagedKey;
 

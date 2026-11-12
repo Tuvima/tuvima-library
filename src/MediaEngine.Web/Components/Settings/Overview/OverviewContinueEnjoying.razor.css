@@ -13,7 +13,7 @@
     min-width: 0;
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-xl, 12px);
-    background: var(--tl-bg-surface-raised, #151E2F);
+    background: var(--tl-bg-surface-raised);
     transition: border-color var(--tl-motion-duration-fast, 140ms) ease, background-color var(--tl-motion-duration-fast, 140ms) ease;
     --kind-accent: var(--tl-accent-primary);
 }
@@ -25,7 +25,7 @@
 .overview-continue__card:hover,
 .overview-continue__card:focus-within {
     border-color: var(--tl-border-strong);
-    background: var(--tl-bg-surface-hover, #1A2438);
+    background: var(--tl-bg-surface-hover);
 }
 
 .overview-continue__link {
@@ -41,7 +41,7 @@
 }
 
 .overview-continue__link:focus-visible {
-    outline: 3px solid var(--tl-focus-ring, #A78BFA);
+    outline: 3px solid var(--tl-focus-ring);
     outline-offset: 2px;
 }
 
@@ -84,8 +84,8 @@
     align-items: center;
     gap: 6px;
     color: var(--kind-accent);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .overview-continue__title {
@@ -99,7 +99,7 @@
 .overview-continue__subtitle {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -117,7 +117,7 @@
 
 .overview-continue__percent {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     font-variant-numeric: tabular-nums;
 }
 

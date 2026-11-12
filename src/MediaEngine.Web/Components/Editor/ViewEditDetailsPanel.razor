@@ -281,10 +281,25 @@
                                aria-label="@($"{L["ViewEdit_Revert"].Value}: {label}")" OnClick="@(() => revert())">@L["EditorDetailsPanel_Revert"]</AppButton>
                 }
 
-                <EditorFieldLock FieldLabel="@label" Locked="@Stage.IsLocked(key)" Changed="@Stage.IsChanged(key)" OnToggle="@(() => ToggleLock(key))" />
+                <EditorFieldLock FieldLabel="@label" Locked="@Stage.IsLocked(key)" Changed="@Stage.IsChanged(key)" OnToggle="@(() => ToggleLock(key))"
+                                 Reason="@string.Format(L["EditorPhone_LockReason"].Value, L["EditorPhone_SourceFile"].Value)"
+                                 OnRevert="@(() => RevertFromLock(key, revert))" />
             </span>
         </div>
     };
+
+    // A phone's open lock: Revert puts the file's value back when it was changed, and just locks the field again when it was not.
+    private void RevertFromLock(string key, Action revert)
+    {
+        if (Stage.IsChanged(key))
+        {
+            revert();
+        }
+        else if (!Stage.IsLocked(key))
+        {
+            ToggleLock(key);
+        }
+    }
 
     private void ToggleLock(string key)
     {

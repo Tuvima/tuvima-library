@@ -1,0 +1,84 @@
+@namespace MediaEngine.Web.Components.Editor
+
+@* One row of a Match list (universal editor v6, D6; mock screens A to E): an optional number or small cover, the title, one meta line, an optional
+   length at the right and a tick on the chosen row. No pill and no description. The search results, the TV shows and episodes, the music releases
+   and tracks, the Wikidata items and the group Match's choices all draw their rows here, so the lists look the same everywhere. The whole row is one
+   button; the chosen row is washed with the accent and carries aria-pressed. Any other attribute (a test id) goes on the button. *@
+<div class="@RootClass" role="listitem">
+    <AppRowButton aria-pressed="@(Selected ? "true" : "false")" Disabled="@Disabled" OnClick="OnClick" @attributes="AdditionalAttributes">
+        <span class="tl-mlrow__inner">
+            @if (!string.IsNullOrWhiteSpace(Number))
+            {
+                <span class="tl-mlrow__num" data-testid="match-row-number">@Number</span>
+            }
+            @if (ArtShape is not null)
+            {
+                <span class="@(string.IsNullOrWhiteSpace(ImageUrl) ? "tl-mlrow__art tl-mlrow__art--empty" : "tl-mlrow__art")" data-art="@ArtShape" aria-hidden="true">
+                    @if (!string.IsNullOrWhiteSpace(ImageUrl))
+                    {
+                        <AppImage Src="@ImageUrl" Alt="" Width="@ArtWidth" Height="@ArtHeight" ObjectFit="AppObjectFit.Cover" />
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
+                    }
+                </span>
+            }
+            <span class="tl-mlrow__text">
+                <span class="tl-mlrow__name">@Title</span>
+                @if (!string.IsNullOrWhiteSpace(Meta))
+                {
+                    <span class="tl-mlrow__meta" data-testid="@MetaTestId">@Meta</span>
+                }
+            </span>
+            @if (!string.IsNullOrWhiteSpace(Trailing))
+            {
+                <span class="tl-mlrow__trail" data-testid="match-row-trailing">@Trailing</span>
+            }
+            <span class="tl-mlrow__tick" aria-hidden="true">
+                @if (Selected)
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" />
+                }
+            </span>
+        </span>
+    </AppRowButton>
+</div>
+
+@code {
+    /// <summary>The chosen row.</summary>
+    [Parameter] public bool Selected { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
+
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The one line under the title: creator · year · series for a book, a date for an episode, a note for a Wikidata item.</summary>
+    [Parameter] public string? Meta { get; set; }
+
+    /// <summary>A leading number (an episode or a track); null for none.</summary>
+    [Parameter] public string? Number { get; set; }
+
+    /// <summary>The cover shape: "portrait", "square" or "wide"; null draws no cover at all (a number row or a text row).</summary>
+    [Parameter] public string? ArtShape { get; set; }
+
+    [Parameter] public string? ImageUrl { get; set; }
+
+    /// <summary>A length or other figure at the right edge (an episode's minutes, a track's time).</summary>
+    [Parameter] public string? Trailing { get; set; }
+
+    [Parameter] public string MetaTestId { get; set; } = "match-result-meta";
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [CascadingParameter] public MediaEngine.Web.Services.Editing.EditorWindowLayout? Layout { get; set; }
+
+    // On a phone a long title or note wraps instead of being cut short (nothing there can be read by hovering).
+    private string RootClass => string.Join(' ', new[] { "tl-mlrow", Selected ? "is-active" : null, MediaEngine.Web.Services.Editing.EditorWindowLayout.IsPhone(false, Layout) ? "tl-mlrow--phone" : null }.Where(part => part is not null));
+
+    private int ArtWidth => ArtShape switch { "wide" => 64, "square" => 44, _ => 32 };
+
+    private int ArtHeight => ArtShape switch { "wide" => 36, "square" => 44, _ => 48 };
+}

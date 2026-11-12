@@ -1,2 +1,2 @@
-.admin-unlock__hint { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
-.admin-unlock__error { margin: 0; color: var(--tl-status-danger, #ff6b6b); }
+.admin-unlock__hint { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
+.admin-unlock__error { margin: 0; color: var(--tl-status-danger); }

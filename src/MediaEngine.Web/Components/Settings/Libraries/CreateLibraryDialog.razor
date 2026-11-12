@@ -11,7 +11,7 @@
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject IStringLocalizer<SharedStrings> L
 
-@* Add library (Libraries v3 D17, D21, D23): three steps in one fixed window, one question each, drawn from square tiles. 1 "Where does it belong?" is the area
+@* Add library (Libraries v3 D17, D21, D23): three steps in one fixed window, one question each, drawn from full-width rows (setup and libraries fixes D5). 1 "Where does it belong?" is the area
    (Watch, Listen, Read, View); 2 "What is it?" is that area's kinds; 3 "Where is it?" is the folder window, with the folder's friendly name at the top and the
    Read-only / Managed choice under the list. The library itself is never named: its name is its kind (Movies is Movies). A kind that already has a library takes the
    folder as a second folder of it. Add library saves the library with that folder, starts a scan and opens the new library's page: no "go to..." question and no toast. Who can see a library is never
@@ -28,28 +28,30 @@
         <div class="create-library" data-step="@_step">
             @if (_step == 1)
             {
-                <div class="create-library__tiles" role="group" aria-label="@L["Common_Area"].Value" data-area-tiles>
+                <div class="create-library__rows" role="group" aria-label="@L["Common_Area"].Value" data-area-rows tabindex="-1" @ref="_rowsElement">
                     @foreach (var group in Areas)
                     {
-                        <LibraryTile Title="@group.Label"
-                                     Icon="@group.Icon"
-                                     AreaKey="@group.Key"
-                                     Description="@AreaLine(group.Key)"
-                                     About="@AreaDescription(group.Key)"
-                                     Examples="@AreaExamples(group)"
-                                     Selected="@(!_vaultMode && group.Key == _area)"
-                                     Disabled="@_saving"
-                                     OnClick="@(() => ChooseAreaAsync(group.Key))" />
+                        <LibraryChoiceRow Key="@group.Key"
+                                          Title="@group.Label"
+                                          Icon="@group.Icon"
+                                          AreaKey="@group.Key"
+                                          Line="@AreaLine(group.Key)"
+                                          Selected="@(_returned && !_vaultMode && group.Key == _area)"
+                                          GoesOnWhenChosen="true"
+                                          Disabled="@_saving"
+                                          OnClick="@(() => PickAreaAsync(group.Key))" />
                     }
                     @if (VaultRowShown)
                     {
-                        <LibraryTile Title="@L["CreateLibrary_VaultTitle"].Value"
-                                     Icon="@AppMaterialIcons.Outlined.Lock"
-                                     AreaKey="@LibraryGroupCatalog.VaultKey"
-                                     About="@L["CreateLibrary_VaultInfo"].Value"
-                                     Selected="@_vaultMode"
-                                     Disabled="@_saving"
-                                     OnClick="@(() => ChooseAreaAsync(LibraryGroupCatalog.VaultKey))" />
+                        <LibraryChoiceRow Key="@LibraryGroupCatalog.VaultKey"
+                                          Title="@L["CreateLibrary_VaultTitle"].Value"
+                                          Icon="@AppMaterialIcons.Outlined.Lock"
+                                          AreaKey="@LibraryGroupCatalog.VaultKey"
+                                          Line="@L["CreateLibrary_VaultInfo"].Value"
+                                          Selected="@(_returned && _vaultMode)"
+                                          GoesOnWhenChosen="true"
+                                          Disabled="@_saving"
+                                          OnClick="@(() => PickAreaAsync(LibraryGroupCatalog.VaultKey))" />
                     }
                 </div>
             }
@@ -68,21 +70,20 @@
                 }
                 else
                 {
-                    <div class="create-library__tiles" role="group" aria-label="@L["Common_ContentType"].Value" data-kind-tiles>
+                    <div class="create-library__rows" role="group" aria-label="@L["Common_ContentType"].Value" data-kind-rows tabindex="-1" @ref="_rowsElement">
                         @foreach (var kind in KindsOfArea)
                         {
-                            var availability = AvailabilityOf(kind);
-                            <LibraryTile Title="@LabelOf(kind)"
-                                         Icon="@kind.Icon"
-                                         AreaKey="@kind.Area.ToLowerInvariant()"
-                                         About="@kind.Explainer"
-                                         Examples="@kind.Examples"
-                                         LibraryDoes="@kind.LibraryDoes"
-                                         Note="@(availability.Reason ?? ExistingNote(kind))"
-                                         Badge="@(HasLibrary(kind) ? L["CreateLibrary_AddFolderInstead"].Value : null)"
-                                         Selected="@(kind.Key == _kindKey)"
-                                         Disabled="@(_saving || !CanPick(kind))"
-                                         OnClick="@(() => ChooseKindAsync(kind))" />
+                            <LibraryChoiceRow Key="@kind.Key"
+                                              Title="@LabelOf(kind)"
+                                              Icon="@kind.Icon"
+                                              AreaKey="@kind.Area.ToLowerInvariant()"
+                                              Line="@RowLine(kind)"
+                                              ActionLabel="@(HasListedLibrary(kind) ? L["CreateLibrary_AddFolderInstead", LibraryNameOf(kind)].Value : null)"
+                                              Selected="@(_returned && kind.Key == _kindKey && CanPick(kind))"
+                                              GoesOnWhenChosen="true"
+                                              Disabled="@(_saving || !CanPick(kind))"
+                                              OnClick="@(() => PickKindAsync(kind))"
+                                              OnAction="@(() => AddFolderInsteadAsync(kind))" />
                         }
                     </div>
                 }
@@ -111,26 +112,17 @@
                                         OfferHandling="@(!IsVaultChoice)"
                                         ManagedAllowed="@ManagedAllowed"
                                         OnHandlingChanged="HandlingChanged"
-                                        OnPathChanged="PathChosen">
+                                        OnPathChanged="PathChosen"
+                                        Message="@FolderMessage">
                         <TopContent>
                             @* Step line, then the area and kind (read only), the same chips Edit's Add folder shows. The folder's friendly name comes first inside the folder window. *@
                             @LibraryFolderStep.Chips(_vaultMode ? LibraryGroupCatalog.VaultKey : _area, _vaultMode && Simple ? null : _vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label, Kind)
                         </TopContent>
                     </ServerFolderPicker>
-                    <p class="create-library__line" data-scan-line>@ScanLine</p>
-                    @if (HeldWords is { } held)
-                    {
-                        <AppAlert Tone="AppUiTone.Warning" data-testid="create-library-held">
-                            @held
-                            <AppActionBar Align="AppHorizontalAlignment.Start">
-                                <AppButton Label="@L["CreateLibraryDialog_ConnectASource"].Value" Size="AppControlSize.Compact" OnClick="ConnectASource" />
-                            </AppActionBar>
-                        </AppAlert>
-                    }
                 </div>
             }
 
-            @if (!string.IsNullOrWhiteSpace(_error))
+            @if (_step != 3 && !string.IsNullOrWhiteSpace(_error))
             {
                 <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
             }
@@ -140,13 +132,13 @@
         <AppActionBar Align="AppHorizontalAlignment.End">
             @if (_step == 1)
             {
+                @* Choosing a row moves on at once, so steps 1 and 2 have no Next (setup and libraries fixes D5, mock). *@
                 <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="NextAsync" />
             }
             else if (_step == 2)
             {
                 <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="BackAsync" />
-                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Kind is null)" OnClick="NextAsync" />
+                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
             }
             else if (_step == 4)
             {
@@ -214,6 +206,8 @@
     private string? _fitDetail;
     private string _createdId = string.Empty;
     private bool _areaChosen;
+    // True after Back to step 1 or 2: the row of the earlier choice is marked. Rows move on when chosen, so nothing is pending-selected otherwise.
+    private bool _returned;
     private string _area = "watch";
     private string? _kindKey;
     // The folder's friendly name and handling, reported by the folder window (Libraries v3 D18, D19). The library itself is never named by the person.
@@ -262,15 +256,8 @@
         _ => null,
     };
 
-    // The name a kind goes by everywhere: the kind list's label ("Videos", "Other audio", "Photos and Videos").
+    // The name a kind goes by everywhere: the kind list's label ("Videos", "Other audio", "Photos and videos").
     private static string LabelOf(LibraryTypeOption kind) => LibraryTypeCatalog.AddChoiceLabel(kind);
-
-    private static string DescriptionOf(LibraryTypeOption kind) => kind.Key switch
-    {
-        "other_videos" => "Anything else, like home videos, recordings or clips. Nothing is looked up.",
-        "photos" => "A dump of your phone or camera: pictures and videos together. Library sorts each file by what it is.",
-        _ => kind.Tooltip,
-    };
 
     private string Heading => _step switch
     {
@@ -288,7 +275,7 @@
         _ => LibraryFolderStep.Lead(L, Kind),
     };
 
-    // The second line under an area's name on its tile ("Movies, TV, videos"), from the strings file.
+    // The one line under an area's name on its row ("Movies, TV shows and other videos."), from the strings file.
     private string? AreaLine(string area) => area switch
     {
         "watch" => L["CreateLibrary_AreaLine_watch"].Value,
@@ -296,15 +283,6 @@
         "read" => L["CreateLibrary_AreaLine_read"].Value,
         "view" => L["CreateLibrary_AreaLine_view"].Value,
         _ => null,
-    };
-
-    private static string AreaDescription(string area) => area switch
-    {
-        "watch" => "Movies, TV shows and home videos",
-        "listen" => "Music, audiobooks and podcasts",
-        "read" => "Books and comics",
-        "view" => "Photos, videos and documents",
-        _ => string.Empty,
     };
 
     private string FitIcon => _fit switch { FitHeadsUp => AppMaterialIcons.Outlined.WarningAmber, FitAlreadyUsed => AppMaterialIcons.Outlined.ErrorOutline, _ => AppMaterialIcons.Outlined.CheckCircle };
@@ -322,6 +300,19 @@
 
     // Library only ever reads a folder it is not told to manage, so the plain sentence says so; a managed folder is kept tidy as well.
     // "Your files are never changed" is said once, in the folder window's footer, so it is not repeated here.
+    // The folder step's one message line, under the handling choice (setup and libraries fixes D7): the error when Add was refused, else the held-kind notice, else the scan line.
+    private RenderFragment FolderMessage =>
+        !string.IsNullOrWhiteSpace(_error)
+            ? @<AppAlert Tone="AppUiTone.Error" Dense="true">@_error</AppAlert>
+            : HeldWords is { } held
+                ? @<AppAlert Tone="AppUiTone.Warning" Dense="true" data-testid="create-library-held">
+                    @held
+                    <AppActionBar Align="AppHorizontalAlignment.Start">
+                        <AppButton Label="@L["CreateLibraryDialog_ConnectASource"].Value" Size="AppControlSize.Compact" OnClick="ConnectASource" />
+                    </AppActionBar>
+                </AppAlert>
+                : @<p class="create-library__line" data-scan-line>@ScanLine</p>;
+
     private string ScanLine => Handling == AddFolderHandling.Managed
         ? L["FolderStep_ScanLineManaged"].Value
         : L["FolderStep_ScanLine"].Value;
@@ -329,27 +320,43 @@
     private LibraryTypeOption? Kind => _kindKey is null ? null : KindsOfArea.FirstOrDefault(kind => kind.Key == _kindKey);
 
     // One library per kind (Libraries v3 D17): a kind that already has a library takes the new folder as a second folder of it, so it stays pickable.
-    // A kind that already has a library is greyed with "Add a folder to it instead" (D23): its tile cannot be chosen, and the new folder goes to that library from its Edit window.
-    // A host that names the kind (StartKindKey, as a dropped file does) still reaches the folder step for it, so this is the tile rule only.
-    private bool CanPick(LibraryTypeOption kind) => AvailabilityOf(kind).Enabled && !HasLibrary(kind);
+    // A kind whose library is listed (it has a folder) is greyed with "Add a folder to it instead" (setup and libraries fixes D5): its row cannot be chosen, but its button goes to the folder step for it.
+    // A kind whose only library has no folders is not listed anywhere (D11), so it is a normal row; choosing it saves the folder into that library.
+    // A host that names the kind (StartKindKey, as a dropped file does) reaches the folder step the same way, so this is the row rule only.
+    private bool CanPick(LibraryTypeOption kind) => !HasListedLibrary(kind);
 
-    private (bool Enabled, string? Reason) AvailabilityOf(LibraryTypeOption kind)
+    // The one line of a kind's row: what belongs there, from the kind list (a new kind brings its own); a kind whose library is listed says so instead, and a Vault kind that is taken says why.
+    private string RowLine(LibraryTypeOption kind) =>
+        !HasListedLibrary(kind)
+            ? LibraryKindLook.RowLine(kind)
+            : _vaultMode
+                ? $"You already have a Vault-protected {LabelOf(kind)} library. Add a folder to it instead."
+                : L["CreateLibrary_AlreadyHave", LibraryNameOf(kind)].Value;
+
+    // The library a kind already has, in the Vault or out of it (each content type has one Vault library beside its ordinary one; the Engine refuses a second);
+    // one that is listed comes first. View's kinds always exist and are not counted as "has a library" here.
+    private LibraryFolderDto? ExistingLibraryOf(LibraryTypeOption kind)
     {
-        // Each content type has one Vault library beside its ordinary one; the Engine refuses a second in any case.
-        if (_vaultMode && Configuration.Libraries.Any(library => library.IsVault && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)))
+        if (_vaultMode)
         {
-            return (false, $"You already have a Vault-protected {LabelOf(kind)} library. Add a folder to it instead.");
+            var vault = Configuration.Libraries.Where(library => library.IsVault && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)).ToList();
+            return vault.FirstOrDefault(library => library.Sources.Count > 0) ?? vault.FirstOrDefault();
         }
 
-        return (true, null);
+        if (string.Equals(kind.Area, ViewAreaKey, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var held = LibraryRollup.LibrariesOf(Configuration, kind);
+        return held.FirstOrDefault(library => library.Sources.Count > 0) ?? held.FirstOrDefault();
     }
 
-    // The library an ordinary kind already has; View's kinds always exist and are not counted as "has a library" here.
-    private bool HasLibrary(LibraryTypeOption kind) => !_vaultMode && !string.Equals(kind.Area, ViewAreaKey, StringComparison.Ordinal) && LibraryRollup.LibrariesOf(Configuration, kind).Count > 0;
+    // The folder is saved into this library whether or not it is listed yet.
+    private bool HasLibrary(LibraryTypeOption kind) => ExistingLibraryOf(kind) is not null;
 
-    private string? ExistingNote(LibraryTypeOption kind) => HasLibrary(kind) ? $"You already have a {LibraryNameOf(kind)} library. Add a folder to {LibraryNameOf(kind)} instead." : null;
-
-    private IReadOnlyList<string> AreaExamples(LibraryGroup group) => [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != AdultContentKindKey && !LibraryTypeCatalog.IsHiddenFromAdd(kind)).Select(LabelOf)];
+    // Only a library with a folder is listed (D11), so only that one greys the kind out.
+    private bool HasListedLibrary(LibraryTypeOption kind) => ExistingLibraryOf(kind) is { Sources.Count: > 0 };
 
     // A Vault library's folders are added as they are (read-only); a folder Library manages in the Vault is part of the Vault update.
     private bool IsVaultChoice => _vaultMode;
@@ -370,7 +377,6 @@
 
     private bool CanCreate => !_saving
         && Kind is not null
-        && AvailabilityOf(Kind).Enabled
         && FolderUsable;
 
     // Movies, TV Shows and Comics wait for a source that can identify them (Plugins screens v4 D38); the dialog says so before the
@@ -417,7 +423,7 @@
             ?? Areas.FirstOrDefault(group => group.Key == "watch")
             ?? Areas.FirstOrDefault();
         _area = start?.Key ?? "watch";
-        var wanted = KindsOfArea.FirstOrDefault(kind => string.Equals(kind.Key, StartKindKey?.Trim(), StringComparison.OrdinalIgnoreCase) && AvailabilityOf(kind).Enabled);
+        var wanted = KindsOfArea.FirstOrDefault(kind => string.Equals(kind.Key, StartKindKey?.Trim(), StringComparison.OrdinalIgnoreCase) && !(_vaultMode && HasListedLibrary(kind)));
         _kindKey = (wanted ?? KindsOfArea.FirstOrDefault(CanPick))?.Key;
         // A host that already knows the content type (Move to Vault, a dropped file) goes straight to the folder; one that knows the area goes to the type;
         // otherwise the person starts by choosing the area. Back walks the other way.
@@ -425,18 +431,49 @@
         _step = wanted is not null ? 3 : _areaChosen ? 2 : 1;
     }
 
-    private async Task NextAsync()
-    {
-        if (_step == 1)
-        {
-            _step = 2;
-            return;
-        }
+    // After an area row moves the window on, keyboard focus goes to the new list instead of dropping to the page.
+    private ElementReference _rowsElement;
+    private bool _focusRows;
 
-        if (Kind is not { } kind) return;
-        if (IsViewArea && _step == 2)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusRows) return;
+        _focusRows = false;
+        if (_step is not (1 or 2)) return;
+        try
         {
-            await AddViewFolderAsync(kind);
+            await _rowsElement.FocusAsync(preventScroll: true);
+        }
+        catch (JSException)
+        {
+            // The list was already replaced by the next step; there is nothing to focus.
+        }
+        catch (InvalidOperationException)
+        {
+            // A host without a browser (prerender, tests): focus is a nicety, not a requirement.
+        }
+    }
+
+    // Choosing an area row moves on to its kinds at once.
+    private async Task PickAreaAsync(string area)
+    {
+        await ChooseAreaAsync(area);
+        if (_saving) return;
+        _returned = false;
+        _step = 2;
+        _focusRows = true;
+    }
+
+    // Choosing a kind row moves on at once: to the folder step, or to the View folder pop-up for a View kind.
+    private async Task PickKindAsync(LibraryTypeOption kind)
+    {
+        if (_saving) return;
+        await ChooseKindAsync(kind);
+        _returned = false;
+        if (Kind is not { } chosen) return;
+        if (IsViewArea)
+        {
+            await AddViewFolderAsync(chosen);
             return;
         }
 
@@ -484,6 +521,10 @@
     private Task BackAsync()
     {
         _step = Math.Max(1, _step == 4 ? 3 : _step - 1);
+        // Back to a row step shows the earlier choice as the current one; going forward never does.
+        _returned = _step < 3;
+        // Back onto a list of rows puts keyboard focus on that list, as moving on to it does.
+        _focusRows = _step < 3;
         _error = null;
         return Task.CompletedTask;
     }
@@ -493,6 +534,18 @@
         if (_kindKey == kind.Key) return Task.CompletedTask;
         _kindKey = kind.Key;
         RestartPicker();
+        return Task.CompletedTask;
+    }
+
+    // "Add a folder to Movies instead": the kind already has a library, so the dialog goes straight to the folder step for it, where Add folder saves the folder into that library.
+    private Task AddFolderInsteadAsync(LibraryTypeOption kind)
+    {
+        if (_saving) return Task.CompletedTask;
+        _kindKey = kind.Key;
+        RestartPicker();
+        _folder = null;
+        _returned = false;
+        _step = 3;
         return Task.CompletedTask;
     }
 
@@ -528,10 +581,14 @@
     // opened only for someone who sees Vault libraries; otherwise the dialog just closes, so nothing about it shows on the page.
     private async Task CreateVaultAsync(LibraryTypeOption kind, ServerFolderValidationResultDto folder)
     {
-        var created = await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, LibraryNameOf(kind), folder.Path));
+        // A kind that already has a Vault library (even one with no folders) takes the folder through the Vault's own Add folder, the one a Vault library's page uses.
+        var existing = HasLibrary(kind);
+        var created = existing
+            ? await Api.AddVaultFolderAsync(new AddVaultFolderRequest(kind.Key, folder.Path))
+            : await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, LibraryNameOf(kind), folder.Path));
         if (created is not { Ok: true })
         {
-            _error = Api.LastError ?? "The library could not be created. Check the folder and try again.";
+            _error = Api.LastError ?? (existing ? "The folder could not be added. Check it and try again." : "The library could not be created. Check the folder and try again.");
             return;
         }
 
@@ -642,7 +699,7 @@
                 return;
             }
 
-            var existing = HasLibrary(kind) ? LibraryRollup.LibrariesOf(Configuration, kind).FirstOrDefault() : null;
+            var existing = ExistingLibraryOf(kind);
             var plan = new AddFolderPlan(
                 kind.Key,
                 folder,

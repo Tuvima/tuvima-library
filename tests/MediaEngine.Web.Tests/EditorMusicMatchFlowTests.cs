@@ -92,7 +92,13 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
                     ProviderName = "musicbrainz",
                     Title = candidate.Title,
                     Verdict = EditorMatchVerdicts.Strong,
-                    Reasons = [new EditorMatchReasonDto { Fact = "track_length", State = EditorMatchEvidenceStates.Agrees, Text = "Length consistent", Note = "3:42 measured · 3:42" }],
+                    Reasons =
+                    [
+                        new EditorMatchReasonDto { Fact = "creator", State = EditorMatchEvidenceStates.Agrees, YourFile = "The Tides", Result = "The Tides" },
+                        new EditorMatchReasonDto { Fact = "album", State = EditorMatchEvidenceStates.Differs, YourFile = "Low Water", Result = "Low Water (Deluxe)" },
+                        new EditorMatchReasonDto { Fact = "title", State = EditorMatchEvidenceStates.Agrees, YourFile = "Harbor Lights", Result = "Harbor Lights" },
+                        new EditorMatchReasonDto { Fact = "track_length", State = EditorMatchEvidenceStates.Agrees, YourFile = "3:42", Result = "3:42", Text = "Length consistent" },
+                    ],
                 });
             });
             stub.SetHandler(nameof(IEngineApiClient.GetEditorMatchPlacementAsync), _ => Task.FromResult(_placement));
@@ -113,7 +119,7 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
             .Add(panel => panel.IsUnmatched, true));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-search]")));
         cut.Find("[data-testid=music-flow-search]").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-track]")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-track-pick]")));
         return cut;
     }
 
@@ -132,7 +138,8 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
         Assert.NotNull(rows[1].QuerySelector("img"));
         Assert.Null(rows[0].QuerySelector("img"));
         Assert.Equal("true", rows[1].GetAttribute("aria-pressed"));
-        Assert.Contains("✓", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.NotNull(rows[1].QuerySelector(".tl-mlrow__tick svg"));
+        Assert.Empty(rows[1].QuerySelectorAll(".app-chip"));
         Assert.Empty(cut.FindAll("button[role=listitem]"));
     }
 
@@ -141,12 +148,12 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
     {
         var cut = Open();
 
-        var picked = Assert.Single(cut.FindAll("[data-testid=music-flow-track].is-picked"));
-        Assert.Equal("true", picked.QuerySelector("[data-testid=music-flow-track-pick]")!.GetAttribute("aria-pressed"));
-        Assert.Equal("2·3", picked.QuerySelector("[data-testid=music-flow-track-pick]")!.TextContent.Trim());
+        var picked = Assert.Single(cut.FindAll("[data-testid=music-flow-track-pick][aria-pressed=true]"));
+        Assert.Equal("2·3", picked.QuerySelector("[data-testid=match-row-number]")!.TextContent.Trim());
         Assert.Equal("2", picked.GetAttribute("data-disc"));
         Assert.Equal("3", picked.GetAttribute("data-track"));
         Assert.Contains("2013 remaster", picked.TextContent, StringComparison.Ordinal);
+        Assert.Equal("3:42", picked.QuerySelector("[data-testid=match-row-trailing]")!.TextContent.Trim());
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
         var candidate = Assert.Single(_judged);
         Assert.Equal(ReleaseB, candidate.BridgeIds["musicbrainz_release_id"]);
@@ -205,7 +212,7 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Opening_AsksNothing_UntilSearchIsPressed_AndTheTracksComeAsATableWithDiscAndTrack()
+    public void Opening_AsksNothing_UntilSearchIsPressed_AndTheTracksComeAsAListPerDisc()
     {
         var cut = Render<EditorMatchPanel>(parameters => parameters
             .Add(panel => panel.Subject, Song())
@@ -214,14 +221,34 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
             .Add(panel => panel.IsUnmatched, true));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-search]")));
         Assert.Empty(cut.FindAll("[data-testid=music-flow-release]"));
-        Assert.NotNull(Assert.Single(cut.FindAll("[data-testid=match-row]")).QuerySelector("[data-testid=music-flow-song]"));
+        var row = Assert.Single(cut.FindAll("[data-testid=match-row]"));
+        Assert.NotNull(row.QuerySelector("[data-testid=music-flow-song]"));
+        Assert.Empty(row.QuerySelectorAll("[data-testid=match-source]"));
+        Assert.Single(cut.FindAll("[data-testid=match-source]"));
 
         cut.Find("[data-testid=music-flow-search]").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-track]")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-track-pick]")));
 
-        Assert.Equal(["#", "Track", "Recording", "Length", "Chosen"], cut.FindAll("[data-testid=music-flow-table] thead th").Select(th => th.TextContent.Trim()).ToList());
-        Assert.Contains("Discs and tracks of Low Water (Deluxe)", cut.Find("[data-testid=music-flow-tracks]").TextContent, StringComparison.Ordinal);
-        Assert.Equal(2, cut.FindAll("[data-testid=music-flow-table] .tl-musicflow__disc").Count);
+        Assert.Equal(2, cut.FindAll("[data-testid=music-flow-releases] [data-testid=music-flow-release]").Count);
+        Assert.Equal("Releases", cut.Find("[data-testid=music-flow-releases] .tl-mlist__title").TextContent.Trim());
+        Assert.Equal(["Tracks", "Tracks"], cut.FindAll("[data-testid=music-flow-tracks] .tl-mlist__title").Select(title => title.TextContent.Trim()).ToList());
+        Assert.Equal(["Disc 1", "Disc 2"], cut.FindAll("[data-testid=music-flow-tracks] .tl-mlist__count").Select(count => count.TextContent.Trim()).ToList());
+        Assert.Equal(3, cut.FindAll("[data-testid=music-flow-track-pick]").Count);
+    }
+
+    [Fact]
+    public void ThePickedTrack_ShowsOnTheSharedCard_WithTheVerdictInWordsAndTheArtistAlbumTitleAndLengthRows()
+    {
+        var cut = Open();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
+
+        Assert.Contains("Strong match", cut.Find("[data-testid=match-verdict]").TextContent, StringComparison.Ordinal);
+        Assert.Equal("Low Water (Deluxe) · Disc 2, Track 3", cut.Find("[data-testid=match-card-series]").TextContent.Trim());
+        var fields = cut.FindAll("[data-testid=match-compare] tbody th").Select(th => th.TextContent.Trim()).ToList();
+        Assert.Equal(["Artist", "Album", "Title", "Length"], fields);
+        Assert.Contains("3:42 measured", cut.Find("[data-testid=match-compare]").TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("[data-testid=match-compare] [data-mark=differs]"));
+        Assert.Equal("Search", cut.Find("[data-testid=music-flow-search]").TextContent.Trim());
     }
 
     [Fact]
@@ -245,7 +272,7 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
         var cut = Open();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-verdict]")));
 
-        cut.FindAll("[data-testid=music-flow-track]").First(row => row.GetAttribute("data-track") == "2").QuerySelector("button")!.Click();
+        cut.FindAll("[data-testid=music-flow-track-pick]").First(row => row.GetAttribute("data-track") == "2").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(2, _judged.Count));
         Assert.Equal("Low Tide", _judged[^1].Title);

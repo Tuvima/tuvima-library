@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 
 @* Tabs with a count on each ("All 11", "Metadata 4"). Arrow keys, Home and End move between tabs; the counts stay honest because
-   the page works them out from the whole list, not from what the search left. *@
+   the page works them out from the whole list, not from what the search left. Every tab carries its outline icon (Look v3.1 D1). *@
 <div class="tl-tabs-toolbar @RootClass" role="tablist" aria-label="@(AriaLabel ?? "Categories")">
     @for (var index = 0; index < Tabs.Count; index++)
     {
@@ -20,7 +20,7 @@
                tabindex="@(selected ? 0 : -1)"
                @onclick="() => SelectAsync(tab.Key)"
                @onkeydown="args => KeyDownAsync(args, position)">
-                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" Size="@(tab.Advanced ? AppIconSize.Control20 : AppIconSize.Row24)" /> }
+                <AppMaterialIcon Icon="@tab.Icon" Size="AppIconSize.Control20" />
                 <span>@tab.Label</span>
                 @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </a>
@@ -35,7 +35,7 @@
                     tabindex="@(selected ? 0 : -1)"
                     @onclick="() => SelectAsync(tab.Key)"
                     @onkeydown="args => KeyDownAsync(args, position)">
-                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" /> }
+                <AppMaterialIcon Icon="@tab.Icon" Size="AppIconSize.Control20" />
                 <span>@tab.Label</span>
                 @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </button>

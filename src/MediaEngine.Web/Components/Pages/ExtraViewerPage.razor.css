@@ -21,23 +21,23 @@
 
 .tl-extra-viewer__heading h1 {
     margin: 0;
-    font-size: var(--tl-font-size-dialog-title);
+    font-size: var(--tl-type-heading-size);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .tl-extra-viewer__heading span {
-    font-size: var(--tl-font-size-secondary);
-    color: rgba(246, 240, 232, 0.66);
+    font-size: var(--tl-type-secondary-size);
+    color: var(--tl-text-secondary);
 }
 
 .tl-extra-viewer__download {
     padding: 0.5rem 0.95rem;
-    border: 1px solid rgba(246, 240, 232, 0.2);
+    border: 1px solid var(--tl-wash-light-5);
     border-radius: var(--tl-radius-pill);
     color: inherit;
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     text-decoration: none;
 }

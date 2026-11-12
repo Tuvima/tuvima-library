@@ -2,7 +2,7 @@
     background: linear-gradient(180deg, var(--playback-surface-elevated), var(--playback-surface));
     border: 1px solid var(--playback-border);
     border-radius: var(--playback-tool-radius);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+    box-shadow: 0 24px 70px var(--tl-scrim-dark-4);
     color: var(--playback-text);
     display: flex;
     flex-direction: column;

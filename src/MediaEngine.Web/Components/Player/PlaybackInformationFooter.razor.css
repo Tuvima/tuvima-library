@@ -1,0 +1,14 @@
+/* The footer holds "Copy details" centered; on a phone sheet the column stretches the button to the full width. */
+.pif {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    justify-content: center;
+}
+
+@media (max-width: 600px) {
+    .pif {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}

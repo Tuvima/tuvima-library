@@ -59,9 +59,6 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <!-- Navigation -->
-  <data name="Common_ToggleFavorite" xml:space="preserve">
-    <value>Toggle favourite</value>
-  </data>
   <data name="ForMe_YourProgressSavedItemsFavorites" xml:space="preserve">
     <value>Your progress, saved items, favourites, and personal spaces—kept distinct and brought together here.</value>
   </data>
@@ -70,9 +67,6 @@
   </data>
   <data name="ForMe_SaveATitleMarkA" xml:space="preserve">
     <value>Save a title, mark a favourite, or begin watching, reading, or listening to see it here.</value>
-  </data>
-  <data name="ForMe_OpenFavoritesPlaylist" xml:space="preserve">
-    <value>Open Favourites playlist</value>
   </data>
   <data name="ListenPage_NoSavedPlaylistsYetFavorites" xml:space="preserve">
     <value>No saved Playlists yet. Favourites remain available from For Me.</value>
@@ -111,7 +105,7 @@
     <value>Background colour</value>
   </data>
   <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
-    <value>Font, colours and opacity</value>
+    <value>Font, size, colours and opacity</value>
   </data>
   <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
     <value>Add song to Favourites</value>
@@ -124,5 +118,20 @@
   </data>
   <data name="VaultImageViewer_TheFavouriteMarkCouldNot" xml:space="preserve">
     <value>The favourite mark could not be saved.</value>
+  </data>
+  <data name="SongTable_AddToFavorites" xml:space="preserve">
+    <value>Add to Favourites</value>
+  </data>
+  <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favourites</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favourites</value>
+  </data>
+  <data name="ListenPage_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favourites</value>
+  </data>
+  <data name="PlaybackInformation_Color" xml:space="preserve">
+    <value>Colour</value>
   </data>
 </root>

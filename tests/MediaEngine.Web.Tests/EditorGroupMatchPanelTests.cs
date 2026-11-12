@@ -14,7 +14,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// The group Match (universal editor v5, D36): with several episodes ticked, one show and season is picked once; each episode is lined up
-/// by its own number; the ones that do not fit are listed as "Check match" and left out until ticked; there is no table of every file.
+/// by its own number; the ones that do not fit are listed as "Weak match" and left out until ticked; there is no table of every file.
 /// </summary>
 public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
 {
@@ -23,6 +23,7 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
     private readonly PendingEditList _pending = new();
     private EditorGroupMatchRequestDto? _request;
     private bool _emptyLineUp;
+    private bool _thirdNamesAnotherSeason;
 
     public EditorGroupMatchPanelTests()
     {
@@ -60,10 +61,16 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
                     [
                         Line(0, fits: true),
                         Line(1, fits: true),
-                        new EditorGroupMatchLineDto
-                        {
-                            EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "9", Fits = false, NoteCode = EditorMatchMessageCodes.NoNumber, Verdict = EditorMatchVerdicts.Check,
-                        },
+                        _thirdNamesAnotherSeason
+                            ? new EditorGroupMatchLineDto
+                            {
+                                EntityId = Ids[2], Title = "s01e03.mkv", NumberText = "S01E03", TargetTitle = "Episode 3", Fits = false, NoteCode = EditorMatchMessageCodes.OtherSeason, NoteValue = "1",
+                                Verdict = EditorMatchVerdicts.Weak, Candidate = Line(2, fits: true).Candidate, Placement = Line(2, fits: true).Placement,
+                            }
+                            : new EditorGroupMatchLineDto
+                            {
+                                EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "9", Fits = false, NoteCode = EditorMatchMessageCodes.NoNumber, Verdict = EditorMatchVerdicts.Weak,
+                            },
                     ],
                 });
             });
@@ -121,7 +128,7 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OnlyTheMisfits_AreListed_AsCheckMatch_AndAreNotTicked()
+    public void OnlyTheMisfits_AreListed_AsWeakMatch_AndAreNotTicked()
     {
         var cut = Open();
 
@@ -177,5 +184,46 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
         cut.Find("[data-testid=group-match-lineup]").Click();
 
         cut.WaitForAssertion(() => Assert.Equal("The provider does not have that.", cut.Find("[data-testid=group-match-message]").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void TheShowSearch_IsTheSharedFormRow_AndTheShowsAreTheSameListRowsAsEveryOtherMatchStep()
+    {
+        IReadOnlyList<BulkEditRow> rows = [.. Ids.Select((id, index) => new BulkEditRow(id, $"s02e0{index + 1}.mkv", DetailEntityType.TvEpisode, Guid.NewGuid(), "TV"))];
+        var cut = Render<EditorGroupMatchPanel>(parameters => parameters
+            .Add(panel => panel.Rows, rows)
+            .Add(panel => panel.MediaType, "TV")
+            .Add(panel => panel.Pending, _pending)
+            .Add(panel => panel.CanChange, true));
+        cut.WaitForAssertion(() => Assert.Equal("The Last Signal", cut.Find("input[aria-label='Show']").GetAttribute("value")));
+
+        var row = cut.Find("[data-testid=match-row]");
+        Assert.True(row.HasAttribute("data-form-row"));
+        Assert.Equal("Search", cut.Find("[data-testid=group-match-search]").TextContent.Trim());
+
+        cut.Find("[data-testid=group-match-search]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=group-match-show-row]")));
+
+        Assert.All(cut.FindAll("[data-testid=group-match-show-row]"), show => Assert.Empty(show.QuerySelectorAll(".app-chip")));
+        Assert.NotEmpty(cut.FindAll("[data-testid=group-match-shows] .tl-mlist__title"));
+    }
+
+    [Fact]
+    public void AFileThatNamesAnotherSeasonThanThePickedOne_IsListedAsAWeakMatch_UntickedWithTheSeasonItNames_AndStagesOnlyWhenTheItemTicksIt()
+    {
+        _thirdNamesAnotherSeason = true;
+        var cut = Open();
+
+        // The picked season (2) travels with the request, so the Engine compares the file's season as well as its episode number.
+        Assert.Equal(2, _request!.SeasonNumber);
+        var misfit = Assert.Single(cut.FindAll("[data-testid=group-match-misfit]"));
+        Assert.Contains("The file name says season 1.", misfit.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Weak match", misfit.TextContent, StringComparison.Ordinal);
+        Assert.False(misfit.QuerySelector("input[type=checkbox]")!.HasAttribute("checked"));
+        Assert.Contains("Apply match to 2", cut.Find("[data-testid=group-match-apply]").TextContent, StringComparison.Ordinal);
+
+        misfit.QuerySelector("input[type=checkbox]")!.Change(true);
+
+        Assert.Contains("Apply match to 3", cut.Find("[data-testid=group-match-apply]").TextContent, StringComparison.Ordinal);
     }
 }

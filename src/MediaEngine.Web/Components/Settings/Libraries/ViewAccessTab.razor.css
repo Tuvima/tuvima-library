@@ -1,2 +1,2 @@
 .view-access { display:flex; flex-direction:column; gap:16px; min-width:0; }
-p { margin:5px 0 0; color:var(--tl-text-muted); font-size:var(--tl-font-size-sm); line-height:1.5; }
+p { margin:5px 0 0; color:var(--tl-text-muted); font-size:var(--tl-type-secondary-size); line-height:1.5; }

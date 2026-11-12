@@ -32,7 +32,7 @@ namespace MediaEngine.Api.Tests;
 public sealed class NeedsReviewAccessTests : IDisposable
 {
     private static readonly string[] ReadRoutes = ["GetPendingReviews", "GetNeedsReviewList", "GetReviewCount", "GetReviewItem"];
-    private static readonly string[] ResolveRoutes = ["ResolveReviewItem", "DismissReviewItem", "MoveReviewItemToTv", "SkipUniverseMatch"];
+    private static readonly string[] ResolveRoutes = ["ResolveReviewItem", "DismissReviewItem", "ReopenReviewItem", "MoveReviewItemToTv", "SkipUniverseMatch", "ChooseReviewItem"];
 
     private readonly string _databasePath;
     private readonly DatabaseConnection _database;
@@ -291,7 +291,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
         {
             typeof(IReviewQueueReadService), typeof(IReviewQueueRepository), typeof(IMetadataClaimRepository),
             typeof(IHydrationPipelineService), typeof(ICanonicalValueRepository), typeof(IEventPublisher),
-            typeof(ISystemActivityRepository), typeof(IReviewMoveToTvService), typeof(ICollectionRepository), typeof(IVaultLibraryRepository),
+            typeof(ISystemActivityRepository), typeof(IReviewMoveToTvService), typeof(IReviewChooseService), typeof(ICollectionRepository), typeof(IVaultLibraryRepository),
             typeof(IRequestAuthorityResolver), typeof(INeedsReviewListReadService),
         })
         {

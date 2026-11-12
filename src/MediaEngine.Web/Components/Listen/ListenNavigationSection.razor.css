@@ -6,9 +6,9 @@
 
 .listen-rail__label {
     margin: 0 0 10px 12px;
-    color: rgba(255, 255, 255, 0.42);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
 }
 
@@ -22,7 +22,7 @@
     border: 0;
     border-radius: var(--tl-radius-md);
     background: transparent;
-    color: rgba(255, 255, 255, 0.74);
+    color: var(--tl-text-secondary);
     text-align: left;
     cursor: pointer;
     transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
@@ -30,8 +30,8 @@
 
 .listen-rail__item:hover,
 .listen-rail__item.is-active {
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(255, 255, 255, 0.96);
+    background: var(--tl-wash-light-3);
+    color: var(--tl-text-primary);
 }
 
 .listen-rail__item:focus-visible {
@@ -40,5 +40,5 @@
 }
 
 .listen-rail__meta {
-    color: rgba(255, 255, 255, 0.58);
+    color: var(--tl-text-muted);
 }

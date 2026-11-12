@@ -531,6 +531,8 @@ public static class ViewClientEndpoints
                 Width = video.Width,
                 Height = video.Height,
                 FrameRate = video.FrameRate,
+                FileName = Services.Playback.PlaybackCapabilitiesService.FileNameOnly(file.FilePath),
+                FileSizeBytes = file.ByteSize > 0 ? file.ByteSize : null,
             },
             SourceBitrateKbps = video.DurationSeconds is > 0 && file.ByteSize > 0
                 ? (int)Math.Min(int.MaxValue, file.ByteSize * 8d / video.DurationSeconds.Value / 1000d)

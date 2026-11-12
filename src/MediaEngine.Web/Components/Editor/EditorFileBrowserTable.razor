@@ -17,14 +17,15 @@
                        Id="@($"{IdPrefix}-{position}")"
                        Highlighted="@(position == Highlight)"
                        Ticked="ticked"
-                       Tickable="@(!ReadOnly)"
+                       Tickable="@(!ReadOnly && (!Phone || Selecting))"
                        TickChanged="@(_ => State.Toggle(row))"
                        TickLabel="@string.Format(L["EditorBrowser_TickRow"].Value, row.Title)"
                        BadgeType="@row.Type"
                        Title="@row.Title"
-                       SubLine="@EditorFileBrowserRules.RowLine(L, row)"
+                       SubLine="@SubLineOf(row)"
                        SubLineQuiet="@(!row.HasOwnTitle)"
-                       Cells="@CellsOf(row)"
+                       Cells="@(Phone ? [] : CellsOf(row))"
+                       OnActivate="@(Phone ? EventCallback.Factory.Create(this, () => Activate(row)) : default)"
                        data-file-id="@row.Id">
         <Badge>
             @if (row.Type == SupportingFileListDefaults.TypeClip)
@@ -48,6 +49,11 @@
                 @* Reading only: one Open button, no menu of edits. *@
                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-open-file="@row.Id"
                            OnClick="@(() => Choose(row, preview: true))">@L["EditorBrowser_Open"]</AppButton>
+            }
+            else if (Phone)
+            {
+                @* A phone has no hover: the row's "..." opens the same three actions as a sheet (a tap, not a pointer menu). *@
+                <AppRowMenu AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)" Title="@row.Title" Items="@RowMenuItems(row)" />
             }
             else
             {
@@ -77,6 +83,12 @@
     /// <summary>Reading only (the page's Extras "See all"): no tick, and an Open button instead of the row menu.</summary>
     [Parameter] public bool ReadOnly { get; set; }
 
+    /// <summary>The phone arrangement (universal editor v6 section 4a): a row is the name with a second line and a "..." sheet, and a tap on the name opens the file, or ticks it while selecting.</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    /// <summary>Phone only: ticking is on (the "Select" control), so the ticks show and a tap on a row ticks it.</summary>
+    [Parameter] public bool Selecting { get; set; }
+
     /// <summary>The row the arrow keys are on, and the prefix of the row ids the frame names it by.</summary>
     [Parameter] public int Highlight { get; set; }
 
@@ -89,6 +101,48 @@
         string.IsNullOrEmpty(row.Group) ? new(L["EditorBrowser_Ungrouped"].Value, Quiet: true) : new(row.Group),
         new(row.RoleLabel),
     ];
+
+    // The phone has one line under the name, so it carries what the four narrow columns say: the file, then its group and role when it has them.
+    private string SubLineOf(SupportingFileRowDto row)
+    {
+        var line = EditorFileBrowserRules.RowLine(L, row);
+        if (!Phone)
+        {
+            return line;
+        }
+
+        var parts = new List<string> { line };
+        if (!string.IsNullOrEmpty(row.Group))
+        {
+            parts.Add(row.Group);
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.RoleLabel))
+        {
+            parts.Add(row.RoleLabel);
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    private IReadOnlyList<AppRowMenuItem> RowMenuItems(SupportingFileRowDto row) =>
+    [
+        new AppRowMenuItem { Label = L["EditorBrowser_Open"].Value, Icon = AppMaterialIcons.Outlined.Visibility, OnClick = EventCallback.Factory.Create(this, () => Choose(row, preview: true)) },
+        new AppRowMenuItem { Label = L["EditorBrowser_Edit"].Value, Icon = AppMaterialIcons.Outlined.Edit, Disabled = !CanEdit, OnClick = EventCallback.Factory.Create(this, () => Choose(row, preview: false)) },
+        new AppRowMenuItem { Label = L["EditorBrowser_Delete"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, Disabled = !CanEdit, OnClick = EventCallback.Factory.Create(this, () => OnDeleteRow.InvokeAsync(row)) },
+    ];
+
+    // A tap on a phone row: while selecting it ticks the row, otherwise it opens the file on its Preview (the same as Enter on a computer).
+    private Task Activate(SupportingFileRowDto row)
+    {
+        if (ReadOnly || !Selecting)
+        {
+            return Choose(row, preview: true);
+        }
+
+        State.Toggle(row);
+        return Task.CompletedTask;
+    }
 
     private Task Choose(SupportingFileRowDto row, bool preview) =>
         Guid.TryParse(row.Id, out var id)

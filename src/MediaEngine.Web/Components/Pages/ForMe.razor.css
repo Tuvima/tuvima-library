@@ -11,13 +11,13 @@
 
 .for-me-page__eyebrow {
     color: var(--tl-accent-primary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .for-me-page__header h1 {
     margin: .35rem 0;
-    font-size: clamp(2.25rem, 5vw, 4rem);
+    font-size: var(--tl-type-page-title-size);
 }
 
 .for-me-page__header p,
@@ -45,7 +45,7 @@
 
 .for-me-page__view-heading h2 {
     margin: 0 0 .35rem;
-    font-size: var(--tl-font-size-xl);
+    font-size: var(--tl-type-heading-size);
 }
 
 .for-me-page__count {
@@ -88,5 +88,3 @@
         justify-content: space-between;
     }
 }
-.for-me-favorites-card { display:flex; align-items:center; gap:12px; width:fit-content; max-width:100%; margin:16px 0; padding:16px; color:var(--tl-text-primary); border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); text-decoration:none; background:var(--tl-menu-surface); flex-wrap:wrap; }
-.for-me-favorites-card img { width:48px; height:48px; object-fit:cover; }

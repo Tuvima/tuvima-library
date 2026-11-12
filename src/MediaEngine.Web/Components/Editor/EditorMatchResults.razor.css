@@ -1,79 +1,35 @@
-/* The results: the "Looking up" line and the messages take the full width; the list and the preview sit side by side. */
+/* The results (universal editor v6, WP3): the "Looking up" line and the messages take the full width; the list and the card sit side by side in the
+   shared split (EditorMatchSplit), the rows in the shared list (EditorMatchList, EditorMatchListRow). */
 .tl-matchres {
     display: flex;
     flex-direction: column;
-    gap: var(--tl-space-3);
+    gap: var(--tl-space-4);
 }
 
 .tl-matchres__wide {
     width: 100%;
 }
 
-.tl-matchres__body {
+/* A line about a provider that did not answer, with its Try again button at the end. */
+.tl-matchres__message {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: var(--tl-space-4);
-}
-
-.tl-matchres__list {
-    flex: 1 1 18rem;
-    min-width: 0;
-}
-
-.tl-matchres__preview {
-    display: flex;
-    flex: 1 1 18rem;
+    align-items: center;
     gap: var(--tl-space-3);
-    padding: var(--tl-space-3);
-    border: 1px solid var(--tl-divider);
-    border-radius: var(--tl-radius-md, 8px);
 }
 
-.tl-matchres__previewart {
-    flex: 0 0 auto;
-}
-
-.tl-matchres__previewtext {
-    display: flex;
-    flex-direction: column;
-    gap: var(--tl-space-1);
+.tl-matchres__message > :first-child {
+    flex: 1 1 auto;
     min-width: 0;
 }
 
-.tl-matchres__description {
-    margin: 0;
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-matchres__verdict {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--tl-space-2) var(--tl-space-4);
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-matchres__reason[data-state="differs"] {
-    color: var(--tl-status-warning, #b26a00);
-}
-
-.tl-matchres__evidence {
-    margin-inline-start: auto;
-}
-
-/* The tick on the chosen row: a fixed slot, so rows do not shift when the choice moves. */
-.tl-matchres__tick {
-    display: inline-flex;
-    flex: 0 0 1.5rem;
-    align-items: center;
-    justify-content: center;
-    color: var(--tl-status-success, #2e7d32);
-}
-
-.tl-matchres__actions {
+.tl-matchres__buttons {
     display: flex;
     justify-content: flex-end;
     gap: var(--tl-space-3);
+}
+
+/* On a phone the plain error line and Try again stack, Try again at the full width. */
+.tl-matchres__message--phone {
+    flex-direction: column;
+    align-items: stretch;
 }

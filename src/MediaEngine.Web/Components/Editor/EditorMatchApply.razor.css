@@ -1,0 +1,23 @@
+/* The foot of the Match card: Cancel and Apply match side by side, and the line saying what Apply does under them. */
+.tl-mapply__buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--tl-space-3);
+}
+
+.tl-mapply__line {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: var(--tl-type-secondary-weight);
+}
+
+/* On a phone the buttons share the width (a grid, so the buttons stretch without a rule on a child component's root); the line under them is centered. */
+.tl-mapply__buttons--phone {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+}
+
+.tl-mapply__line--phone {
+    text-align: center;
+}

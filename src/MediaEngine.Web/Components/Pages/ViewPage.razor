@@ -54,7 +54,7 @@ else
         <QuickFilters>
             @foreach (var filter in PrimaryFilters)
             {
-                <AppNativeButton Type="button" Class="@FilterClass(filter.Key)" AriaLabel="@filter.Value" OnClick="@(_ => SetFilterAsync(filter.Key))">@filter.Value</AppNativeButton>
+                <AppNativeButton Type="button" role="tab" aria-selected="@(_filter == filter.Key ? "true" : "false")" Class="@TabClass(filter.Key)" AriaLabel="@filter.Value" OnClick="@(_ => SetFilterAsync(filter.Key))"><AppMaterialIcon Icon="@FilterIcon(filter.Key)" Size="AppIconSize.Control20" /><span>@filter.Value</span></AppNativeButton>
             }
         </QuickFilters>
         <AdvancedFilters>
@@ -260,6 +260,16 @@ else
     private async Task ToggleMissingAsync() { _includeMissing = !_includeMissing; await LoadAsync(); }
     private async Task SetFilterAsync(string filter) { _filter = filter; _day = null; await LoadAsync(); }
     private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}";
+    // The quick filters are the shared tab row (Look v3.1 D1); the Hidden, Trash and Documents choices under More stay chips.
+    private string TabClass(string filter) => $"tl-tab app-discovery-filter__tab{(_filter == filter ? " tl-tab-active is-active" : "")}";
+    private static string FilterIcon(string filter) => filter switch
+    {
+        "recent" => AppMaterialIcons.Outlined.Schedule,
+        "favorites" => AppMaterialIcons.Outlined.FavoriteBorder,
+        "videos" => AppMaterialIcons.Outlined.Videocam,
+        "archive" => AppMaterialIcons.Outlined.Inventory2,
+        _ => AppMaterialIcons.Outlined.PhotoLibrary,
+    };
     private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private string ScopeDescription => Workspace.ScopeKind switch
     {

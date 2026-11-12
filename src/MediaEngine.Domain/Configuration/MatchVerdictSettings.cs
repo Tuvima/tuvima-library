@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace MediaEngine.Domain.Configuration;
 
 /// <summary>
-/// The Match tab's verdict (universal editor v5, D8 and D34): when a search result reads as a Strong, Possible or Check match, how close a
+/// The Match tab's verdict (universal editor v5, D8 and D34): when a search result reads as a Strong, Possible or Weak match, how close a
 /// measured length has to be to count as "consistent", and which facts each kind of item compares. Lives in <c>config/scoring.json</c>
 /// under <c>match_verdict</c>. The verdict is advice only: Apply match is always available.
 /// </summary>
@@ -13,7 +13,7 @@ public sealed class MatchVerdictSettings
     [JsonPropertyName("strong_min_score")]
     public double StrongMinScore { get; set; } = 0.85;
 
-    /// <summary>A stored confidence at or above this (and below the Strong band) reads as Possible; below it reads as Check.</summary>
+    /// <summary>A stored confidence at or above this (and below the Strong band) reads as Possible; below it reads as Weak.</summary>
     [JsonPropertyName("possible_min_score")]
     public double PossibleMinScore { get; set; } = 0.60;
 
@@ -22,7 +22,7 @@ public sealed class MatchVerdictSettings
     public int StrongMinAgreeingFacts { get; set; } = 2;
 
     /// <summary>
-    /// The facts that say which record this is. When one of them differs the result reads as Check; when only another fact differs
+    /// The facts that say which record this is. When one of them differs the result reads as Weak; when only another fact differs
     /// (a runtime, a year) it reads as Possible.
     /// </summary>
     [JsonPropertyName("identity_facts")]
@@ -43,14 +43,35 @@ public sealed class MatchVerdictSettings
         ["movie"] = ["title", "year", "runtime", "identifier"],
         ["tv_show"] = ["title", "year"],
         ["tv_season"] = ["title", "year", "number"],
-        ["tv_episode"] = ["title", "number", "runtime"],
+        ["tv_episode"] = ["show", "number", "title", "runtime"],
         ["album"] = ["title", "creator", "year"],
-        ["song"] = ["title", "creator", "track_length", "identifier"],
-        ["book"] = ["title", "creator", "year", "identifier"],
+        ["song"] = ["creator", "album", "title", "track_length", "identifier"],
+        ["book"] = ["title", "creator", "identifier", "year"],
         ["audiobook"] = ["title", "creator", "year", "runtime"],
         ["comic"] = ["title", "number", "year"],
         ["video"] = ["identifier"],
     };
+
+    /// <summary>
+    /// Facts a kind judges but does not draw as a row of the compare table (universal editor v6, D9: a song's table is Artist, Album, Title and Length). They
+    /// still count toward the verdict, so an agreeing ISRC or MusicBrainz id keeps its effect. Keyed by the editor's kind.
+    /// </summary>
+    [JsonPropertyName("verdict_only_facts")]
+    public Dictionary<string, List<string>> VerdictOnlyFacts { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["song"] = ["identifier"],
+    };
+
+    /// <summary>
+    /// Words that mark a result as a collection, box set or omnibus rather than one title (universal editor v6, D6): the list row then says
+    /// "Collection". A provider that says so itself (an <c>is_collection</c> field) does not need them. Matched as whole words, any case.
+    /// </summary>
+    [JsonPropertyName("collection_title_markers")]
+    public List<string> CollectionTitleMarkers { get; set; } = ["box set", "boxed set", "boxset", "collection", "complete series", "omnibus", "trilogy"];
+
+    /// <summary>True when a fact is drawn as a row of the compare table for the kind (false for a fact that only counts toward the verdict).</summary>
+    public bool IsDrawn(string? kind, string fact) =>
+        string.IsNullOrWhiteSpace(kind) || !VerdictOnlyFacts.TryGetValue(kind, out var hidden) || !hidden.Contains(fact, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The facts compared for a kind; the title and year when the kind is not listed.</summary>
     public IReadOnlyList<string> FactsFor(string? kind) =>

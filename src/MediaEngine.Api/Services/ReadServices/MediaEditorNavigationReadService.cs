@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Dapper;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Domain;
@@ -9,6 +10,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
 
@@ -275,13 +277,10 @@ public sealed class MediaEditorNavigationReadService(
             Nodes: nodes);
     }
 
-    private static readonly string[] NavigatorIdentityKeys =
-    [
-        "tmdb_id", "tvdb_id", "musicbrainz_release_id", "musicbrainz_recording_id",
-        "comicvine_issue_id", "openlibrary_work_id", "wikidata_qid",
-    ];
-
-    // The works in the tree that carry a provider identity of their own.
+    // The works in the tree that carry an identity of their own (the family dropdown's mark: any key of EditorMatchRule.IdentityKeys). A fact about
+    // a file (a film's or book's id, an episode's id) is stored on the file's media asset, not on the Work, so a file-level work also counts the ids
+    // of its first file. The rule for what counts, where it is read and which file is first is EditorMatchRule / EditorFirstFileRule, the same one
+    // the Match tab's read uses; a container (a show, a season, an album) is never read from the file under it.
     private static HashSet<Guid> QueryNavigatorMatchedIds(SqliteConnection conn, IReadOnlyList<NavigatorTreeRow> rows)
     {
         var hexes = rows.Select(row => row.WorkId.ToString("N")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -290,11 +289,36 @@ public sealed class MediaEditorNavigationReadService(
             return [];
         }
 
-        return conn.Query<Guid>("""
+        var matched = conn.Query<Guid>("""
             SELECT DISTINCT cv.entity_id FROM canonical_values cv
             WHERE LOWER(HEX(cv.entity_id)) IN @hexes
               AND cv.key IN @keys AND NULLIF(cv.value, '') IS NOT NULL;
-            """, new { hexes, keys = NavigatorIdentityKeys }).ToHashSet();
+            """, new { hexes, keys = EditorMatchRule.IdentityKeys }).ToHashSet();
+
+        var fileHexes = rows
+            .Where(row => !EditorMatchRule.IsContainer(row.WorkKind) && !matched.Contains(row.WorkId))
+            .Select(row => row.WorkId.ToString("N"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (fileHexes.Length == 0)
+        {
+            return matched;
+        }
+
+        foreach (var workId in conn.Query<Guid>($"""
+            SELECT DISTINCT e.work_id
+            FROM editions e
+            INNER JOIN media_assets ma ON ma.edition_id = e.id
+            INNER JOIN canonical_values cv ON cv.entity_id = ma.id
+            WHERE LOWER(HEX(e.work_id)) IN @hexes
+              AND ma.id = {EditorFirstFileRule.FirstAssetIdOfWork("e.work_id")}
+              AND cv.key IN @keys AND NULLIF(cv.value, '') IS NOT NULL;
+            """, new { hexes = fileHexes, keys = EditorMatchRule.IdentityKeys }))
+        {
+            matched.Add(workId);
+        }
+
+        return matched;
     }
 
     // A node is matched when it, or the show / album / series it sits under, carries a provider identity (a season rarely has its own).
@@ -554,7 +578,9 @@ public sealed class MediaEditorNavigationReadService(
                    CAST(pic.container AS TEXT) AS InspectionContainer,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
                    COALESCE(
-                   (SELECT ea.id FROM entity_assets ea WHERE ea.entity_id = w.id
+                   (SELECT ea.id FROM entity_assets ea WHERE (ea.entity_id = w.id
+                        -- The editor also keeps a picture under the work's edition. One under a file id is left out: the artwork access check cannot resolve it.
+                        OR (ea.entity_type = 'Edition' AND ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = w.id)))
                     AND ea.asset_type = CASE WHEN w.media_type = 'TV' AND w.work_kind != 'parent' THEN 'EpisodeStill'
                         WHEN w.media_type = 'TV' AND w.parent_work_id IS NOT NULL THEN 'SeasonPoster' ELSE 'CoverArt' END
                     AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL

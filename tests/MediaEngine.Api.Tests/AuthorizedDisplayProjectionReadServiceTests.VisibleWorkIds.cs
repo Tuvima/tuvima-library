@@ -95,6 +95,13 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var actual = await service.LoadVisibleWorkIdsAsync(CancellationToken.None);
 
         Assert.Equal(expected.Order(), actual.Order());
+
+        // The viewer's file list now comes from the light rows. It must name the same (work, file, library) rows the full
+        // read gave before, so People counts and credits cannot show a title the full read would have hidden.
+        string Key(Guid work, Guid asset, string? library) => $"{work:N}|{asset:N}|{library}";
+        var expectedFiles = (await service.LoadWorkLibraryRowsAsync(CancellationToken.None)).Select(row => Key(row.WorkId, row.AssetId, row.LibraryId));
+        var actualFiles = (await service.LoadViewerFilesAsync(CancellationToken.None)).Select(file => Key(file.WorkId, file.AssetId, file.LibraryId));
+        Assert.Equal(expectedFiles.Order(StringComparer.Ordinal), actualFiles.Order(StringComparer.Ordinal));
         return actual;
     }
 

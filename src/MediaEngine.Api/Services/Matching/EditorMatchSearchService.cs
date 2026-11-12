@@ -30,6 +30,9 @@ public sealed class EditorMatchSearchService(
     /// <summary>The sentence shown for an item no provider matches.</summary>
     public const string NoProviderText = "No provider matches this kind of item. The details you enter stand on their own.";
 
+    /// <summary>The sentence shown when the only thing typed is an ISBN that is not 10 or 13 digits.</summary>
+    public const string InvalidIsbnText = "That does not look like an ISBN. An ISBN has 10 or 13 digits.";
+
     private const int MaxCandidates = 10;
 
     /// <summary>
@@ -167,9 +170,25 @@ public sealed class EditorMatchSearchService(
             return await SearchVideoAsync(entityId, provider, fields, read, ct).ConfigureAwait(false);
         }
 
+        // A typed ISBN is cleaned first (dashes and spaces taken out), so the provider and the verdict both see the bare digits.
+        var isbnTyped = fields.TryGetValue(EditorMatchFieldIds.Isbn, out var typedIsbn);
+        var isbn = isbnTyped ? NormaliseTypedIsbn(typedIsbn!) : null;
+        if (isbn is not null)
+        {
+            fields[EditorMatchFieldIds.Isbn] = isbn;
+        }
+
         var lookup = LookupFor(plan, provider, fields);
         if (!HasSearchWords(fields, lookup))
         {
+            // An ISBN by itself is a search (D11): looked up where the provider can, otherwise a plain message.
+            if (isbnTyped)
+            {
+                return Empty(entityId, provider.Name, read, isbn is null
+                    ? InvalidIsbnText
+                    : $"{provider.DisplayName} cannot search by ISBN. Add a title.");
+            }
+
             return Empty(entityId, provider.Name, read, "Enter something to search for.");
         }
 
@@ -360,6 +379,15 @@ public sealed class EditorMatchSearchService(
         };
     }
 
+    /// <summary>
+    /// A typed ISBN as bare digits: spaces and dashes taken out, an X check character kept for a 10 digit ISBN. Null when it is not
+    /// 10 or 13 digits, or holds anything but digits, spaces, dashes and X.
+    /// </summary>
+    internal static string? NormaliseTypedIsbn(string typed) =>
+        typed.All(ch => char.IsAsciiDigit(ch) || ch is ' ' or '-' or 'X' or 'x')
+            ? EditorMatchLocalEvidenceReader.IsbnOf(typed)
+            : null;
+
     private static Dictionary<string, string> Clean(IReadOnlyDictionary<string, string>? fields) =>
         (fields ?? new Dictionary<string, string>())
             .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
@@ -385,6 +413,12 @@ public sealed class EditorMatchSearchService(
         foreach (var (box, kindOfId) in new[] { (EditorMatchFieldIds.Isbn, EditorMatchIdentifierKinds.Isbn), (EditorMatchFieldIds.ProviderId, (string?)null) })
         {
             if (!fields.TryGetValue(box, out var typed) || string.IsNullOrWhiteSpace(typed))
+            {
+                continue;
+            }
+
+            // Something typed into the ISBN box that is not an ISBN is never sent to a lookup; it stays evidence only.
+            if (kindOfId == EditorMatchIdentifierKinds.Isbn && NormaliseTypedIsbn(typed) is null)
             {
                 continue;
             }
@@ -500,7 +534,7 @@ public sealed class EditorMatchSearchService(
             SourceUrl = SourceUrl(candidate, false),
             KindText = "Video",
             Verdict = calculator.Verdict(checks),
-            Reasons = [.. checks.Select(check => new EditorMatchReasonDto { Fact = check.Fact, State = check.State, Text = check.Text, Note = check.Note })],
+            Reasons = ReasonsOf(checks),
         };
         return new EditorMatchSearchResultDto
         {
@@ -584,6 +618,9 @@ public sealed class EditorMatchSearchService(
         Description = source.Description,
         SourceUrl = source.SourceUrl,
         KindText = source.KindText,
+        IsCollection = source.IsCollection,
+        SeriesName = source.SeriesName,
+        SeriesNumber = source.SeriesNumber,
         Verdict = source.Verdict,
         Reasons = source.Reasons,
         Editions = editions ?? [],
@@ -608,12 +645,24 @@ public sealed class EditorMatchSearchService(
             {
                 MatchFactNames.Title => calculator.Title(yourTitle.Use ? yourTitle.Title : YourTitle(kindId, fields, evidence), candidate.Title),
                 MatchFactNames.Year => calculator.Year(fields.GetValueOrDefault(EditorMatchFieldIds.Year) ?? evidence.Year, candidate.Year),
+                MatchFactNames.Number when kindId == EditorKinds.TvEpisode => calculator.SeasonAndEpisode(
+                    evidence.Season, evidence.Number, IntOf(candidate.RequiredFields, MetadataFieldConstants.SeasonNumber), Number(extra)),
                 MatchFactNames.Number => calculator.Number(
                     kindId == EditorKinds.Comic && int.TryParse(fields.GetValueOrDefault(EditorMatchFieldIds.Issue), NumberStyles.Integer, CultureInfo.InvariantCulture, out var issue)
                         ? issue
                         : evidence.Number,
                     Number(extra),
                     kindId == EditorKinds.Comic ? "Issue" : kindId == EditorKinds.TvSeason ? "Season" : "Episode"),
+                // An episode's show and a song's album: what the file says (a typed box, else what the Engine read from the name, tags and folders)
+                // against what the record carries. A side that has nothing leaves the row unknown, never against the match.
+                MatchFactNames.Show => calculator.Named(
+                    MatchFactNames.Show, "Show",
+                    fields.GetValueOrDefault(EditorMatchFieldIds.Show) ?? (read.Fields.TryGetValue(EditorMatchFieldIds.Show, out var fileShow) ? fileShow.Value : evidence.FileTitle),
+                    candidate.RequiredFields.GetValueOrDefault(MetadataFieldConstants.ShowName)),
+                MatchFactNames.Album => calculator.Named(
+                    MatchFactNames.Album, "Album",
+                    fields.GetValueOrDefault(EditorMatchFieldIds.Album) ?? (read.Fields.TryGetValue(EditorMatchFieldIds.Album, out var fileAlbum) ? fileAlbum.Value : null),
+                    candidate.RequiredFields.GetValueOrDefault(MetadataFieldConstants.Album) ?? Extra(extra, MetadataFieldConstants.Album)),
                 MatchFactNames.Creator => calculator.Creator(
                     fields.GetValueOrDefault(EditorMatchFieldIds.Author) ?? fields.GetValueOrDefault(EditorMatchFieldIds.AuthorOrNarrator)
                         ?? fields.GetValueOrDefault(EditorMatchFieldIds.Artist) ?? evidence.Creator,
@@ -637,8 +686,11 @@ public sealed class EditorMatchSearchService(
             Description = candidate.Description,
             SourceUrl = SourceUrl(candidate, isTv),
             KindText = KindText(kindId),
+            IsCollection = calculator.IsCollection(candidate.Title, extra, SeriesNumber(extra)),
+            SeriesName = Extra(extra, MetadataFieldConstants.Series),
+            SeriesNumber = SeriesNumber(extra),
             Verdict = calculator.Verdict(checks),
-            Reasons = [.. checks.Select(check => new EditorMatchReasonDto { Fact = check.Fact, State = check.State, Text = check.Text, Note = check.Note })],
+            Reasons = ReasonsOf(checks.Where(check => calculator.IsDrawn(kindId, check.Fact))),
             Edition = EditorMatchKinds.HasEditions(kindId)
                 ? new EditorMatchEditionDto
                 {
@@ -730,8 +782,41 @@ public sealed class EditorMatchSearchService(
         return ids;
     }
 
+    // The compare table's rows: each fact with what the file and the record say, so the Dashboard never compares anything itself (v6, D9).
+    private static List<EditorMatchReasonDto> ReasonsOf(IEnumerable<MatchFactCheck> checks) =>
+        [.. checks.Select(check => new EditorMatchReasonDto
+        {
+            Fact = check.Fact,
+            State = check.State,
+            YourFile = string.IsNullOrWhiteSpace(check.Yours) ? null : check.Yours,
+            Result = string.IsNullOrWhiteSpace(check.Theirs) ? null : check.Theirs,
+            Text = check.Text,
+            Note = check.Note,
+        })];
+
+    // The record's place in its series as written: "2" for 2 or 2.0, "2.5" kept.
+    private static string? SeriesNumber(IReadOnlyDictionary<string, string> extra)
+    {
+        foreach (var key in new[] { MetadataFieldConstants.SeriesPosition, "issue_number", "issue" })
+        {
+            if (Extra(extra, key) is not { } text)
+            {
+                continue;
+            }
+
+            return decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+                ? number.ToString("0.##", CultureInfo.InvariantCulture)
+                : text;
+        }
+
+        return null;
+    }
+
     private static string? Extra(IReadOnlyDictionary<string, string> extra, string key) =>
         extra.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
+
+    private static int? IntOf(IReadOnlyDictionary<string, string> values, string key) =>
+        values.TryGetValue(key, out var text) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) ? number : null;
 
     private static int? Number(IReadOnlyDictionary<string, string> extra)
     {

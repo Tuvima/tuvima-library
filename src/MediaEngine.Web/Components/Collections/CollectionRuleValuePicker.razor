@@ -5,11 +5,13 @@
 @inject IEngineApiClient ApiClient
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="collection-rule-value-picker" @onkeydown="HandleKeyDown">
-    <span class="collection-rule-value-picker__label">@L["Common_Value"]</span>
+@* A field of the shared form row: its label is on the label line and the trigger on the control line, like the selects beside it. *@
+<div class="collection-rule-value-picker app-field" @onkeydown="HandleKeyDown">
+    <span class="app-field__label" id="@_labelId">@L["Common_Value"]</span>
     <AppNativeButton Type="button"
                      Class="@TriggerClass"
-                     AriaLabel="@TriggerLabel"
+                     id="@TriggerId"
+                     aria-labelledby="@($"{_labelId} {TriggerId}")"
                      aria-haspopup="listbox"
                      aria-expanded="@_isOpen"
                      OnClick="ToggleAsync">
@@ -87,10 +89,14 @@
     [Parameter, EditorRequired] public string Field { get; set; } = string.Empty;
     [Parameter] public bool EntityField { get; set; }
     [Parameter] public string OptionGroup { get; set; } = "Cross-media";
+    /// <summary>Only values used by titles of these media types are offered (empty offers every value).</summary>
+    [Parameter] public IReadOnlyList<string> MediaTypes { get; set; } = [];
     [Parameter] public IReadOnlyList<CollectionRuleValueDto> SelectedOptions { get; set; } = [];
     [Parameter] public EventCallback<IReadOnlyList<CollectionRuleValueDto>> SelectedOptionsChanged { get; set; }
     [Parameter] public string SearchPlaceholder { get; set; } = "Search library values…";
 
+    private readonly string _labelId = $"rule-value-{Guid.NewGuid():N}";
+    private string TriggerId => _labelId + "-trigger";
     private readonly Dictionary<string, CollectionRuleValueDto> _selected = new(StringComparer.OrdinalIgnoreCase);
     private List<CollectionRuleValueDto> _options = [];
     private CancellationTokenSource? _searchCts;
@@ -112,7 +118,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        var signature = $"{Field}|{string.Join('|', SelectedOptions.Select(option => $"{option.Value}:{option.Label}"))}";
+        var signature = $"{Field}|{string.Join(',', MediaTypes)}|{string.Join('|', SelectedOptions.Select(option => $"{option.Value}:{option.Label}"))}";
         if (string.Equals(signature, _selectionSignature, StringComparison.Ordinal))
             return;
 
@@ -173,11 +179,11 @@
             IEnumerable<CollectionRuleValueDto> options;
             if (EntityField)
             {
-                options = await ApiClient.GetCollectionEntityFieldValuesAsync(Field, _search, 500, token);
+                options = await ApiClient.GetCollectionEntityFieldValuesAsync(Field, _search, 500, token, MediaTypes);
             }
             else
             {
-                var values = await ApiClient.GetCollectionFieldValuesAsync(Field, _search, 500, token);
+                var values = await ApiClient.GetCollectionFieldValuesAsync(Field, _search, 500, token, MediaTypes);
                 options = values.Select(value => new CollectionRuleValueDto(value, value, 0, OptionGroup));
             }
 

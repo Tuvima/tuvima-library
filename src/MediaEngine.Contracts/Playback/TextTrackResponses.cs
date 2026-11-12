@@ -51,7 +51,8 @@ public sealed record PreferredTextTrackResponse
 }
 
 /// <summary>
-/// Response for <c>POST /stream/{assetId}/text-tracks/refresh</c>. Property names (including
+/// Response for <c>POST /stream/{assetId}/text-tracks/refresh</c> and for <c>GET /stream/{assetId}/text-tracks/refresh/{operationId}</c>
+/// (the progress of that one queued lookup). Property names (including
 /// snake_case spelling) retain the original fields and add an explicit, truthful outcome
 /// so editor clients can distinguish an update from an empty provider result.
 /// </summary>
@@ -90,10 +91,34 @@ public sealed record TextTrackAlternativesResponse
     public Guid asset_id { get; init; }
     public string kind { get; init; } = string.Empty;
 
-    /// <summary><c>Found</c>, <c>NoneFound</c>, <c>NoSourceOn</c>, <c>NotAllowed</c>, <c>Blocked</c>, <c>Unavailable</c>, <c>AssetMissing</c> or <c>Unsupported</c>.</summary>
+    /// <summary>
+    /// <c>Found</c>, <c>NoneFound</c>, <c>NoSourceOn</c>, <c>NotAllowed</c>, <c>Blocked</c>, <c>Unavailable</c>, <c>AssetMissing</c> or <c>Unsupported</c>.
+    /// For subtitles also <c>IdentityUnverified</c> (the movie or episode cannot be identified for an online search), <c>SourceKeyRequired</c>
+    /// (a source is switched on but its key is missing or was refused), <c>LimitReached</c> (a source's allowance or rate limit is used up)
+    /// and <c>LanguageUnknown</c> (the language asked for cannot be searched).
+    /// </summary>
     public string status { get; init; } = string.Empty;
     public string message { get; init; } = string.Empty;
     public IReadOnlyList<TextTrackAlternativeDto> items { get; init; } = [];
+
+    /// <summary>The display name of the source the status is about (for example <c>SubDL</c>), when there is one.</summary>
+    public string? source_name { get; init; }
+
+    /// <summary>The language code that was searched, for subtitles.</summary>
+    public string? language { get; init; }
+}
+
+/// <summary>
+/// Response for <c>GET /stream/{assetId}/text-tracks/sources</c>: whether a source is switched on for this item, answered from settings
+/// alone without contacting any source.
+/// </summary>
+public sealed record TextTrackSourcesResponse
+{
+    public Guid asset_id { get; init; }
+    public string kind { get; init; } = string.Empty;
+
+    /// <summary><c>Ready</c>, <c>NoSourceOn</c>, <c>SourceKeyRequired</c>, <c>Blocked</c>, <c>NotAllowed</c>, <c>Unsupported</c> or <c>AssetMissing</c>.</summary>
+    public string status { get; init; } = string.Empty;
 }
 
 /// <summary>Body of <c>POST /stream/{assetId}/text-tracks/alternatives/choose</c>.</summary>
@@ -102,6 +127,9 @@ public sealed record ChooseTextTrackAlternativeRequest
     public string kind { get; init; } = string.Empty;
     public string provider { get; init; } = string.Empty;
     public string source_id { get; init; } = string.Empty;
+
+    /// <summary>For subtitles, the language name or code the list was searched in, so the same result is found again.</summary>
+    public string? language { get; init; }
 }
 
 /// <summary>Response for choosing a result or marking one wrong.</summary>

@@ -39,16 +39,16 @@ public sealed class DetailChildCallCountTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AudioItemTable_ReadsProfileFavoritesOnce_AcrossParameterChanges()
+    public void MusicTrackList_ReadsProfileFavoritesOnce_AcrossParameterChanges()
     {
-        var cut = Render<AudioItemTable>(p => p
+        var cut = Render<MusicTrackList>(p => p
             .Add(x => x.Groups, [new MediaGroupingViewModel { Key = "tracks" }])
-            .Add(x => x.SourceTitle, "Album"));
+            .Add(x => x.AlbumTitle, "Album"));
         var afterFirst = _savedReads;
 
         cut.Render(p => p
             .Add(x => x.Groups, [new MediaGroupingViewModel { Key = "tracks" }])
-            .Add(x => x.SourceTitle, "Album (updated)"));
+            .Add(x => x.AlbumTitle, "Album (updated)"));
 
         Assert.True(afterFirst <= 1);
         Assert.Equal(afterFirst, _savedReads);

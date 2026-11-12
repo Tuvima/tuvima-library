@@ -187,10 +187,7 @@ public sealed partial class TextTrackEnrichmentWorker
         }
 
         var lookup = await BuildLookupAsync(asset, lineage, mediaType, kind, ct).ConfigureAwait(false);
-        if (kind == TextTrackKind.Subtitles &&
-            (lookup.SubtitleContext is null ||
-             (mediaType == MediaType.TV && lookup.SubtitleContext.TmdbEpisode is null) ||
-             (mediaType == MediaType.Movies && lookup.SubtitleContext.Movie is null)))
+        if (kind == TextTrackKind.Subtitles && SubtitleIdentityMissing(lookup, mediaType))
         {
             var afterUnverified = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
             return new(importedLocal ? "Updated" : "IdentityUnverified", kind, before.Count,
@@ -204,12 +201,19 @@ public sealed partial class TextTrackEnrichmentWorker
         var instrumentalDetected = false;
         var incompatibleSubtitleDetected = false;
         string? incompatibleProviderName = null;
+        TextTrackLookupException? unreachable = null;
         foreach (var provider in availableProviders)
         {
             IReadOnlyList<TextTrackCandidate> candidates;
             try
             {
                 candidates = await provider.SearchAsync(lookup, ct).ConfigureAwait(false);
+            }
+            catch (TextTrackLookupException ex) when (ex.Status == ProviderUnavailableStatus)
+            {
+                // One source being down says nothing about the others: try the rest, and only end as unreachable when none of them answered.
+                unreachable ??= ex;
+                continue;
             }
             catch (TextTrackLookupException ex)
             {
@@ -231,6 +235,12 @@ public sealed partial class TextTrackEnrichmentWorker
                 try
                 {
                     download = await provider.DownloadAsync(candidate, ct).ConfigureAwait(false);
+                }
+                catch (TextTrackLookupException ex) when (ex.Status == ProviderUnavailableStatus)
+                {
+                    // As with the search: a source that went down at the download says nothing about the others, so try the rest.
+                    unreachable ??= ex;
+                    continue;
                 }
                 catch (TextTrackLookupException ex)
                 {
@@ -282,6 +292,12 @@ public sealed partial class TextTrackEnrichmentWorker
         }
 
         var after = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
+        if (unreachable is not null && !importedLocal && !instrumentalDetected && !incompatibleSubtitleDetected)
+        {
+            return new(unreachable.Status, kind, before.Count, after.Count,
+                after.FirstOrDefault(track => track.IsPreferred)?.Id, unreachable.Message);
+        }
+
         return new(
             importedLocal ? "Updated" : incompatibleSubtitleDetected ? "IncompatibleSubtitle" : instrumentalDetected ? "Instrumental" : "NoResult",
             kind,
@@ -540,6 +556,13 @@ public sealed partial class TextTrackEnrichmentWorker
 
     private const string UnknownLanguage = "und";
 
+    // The status a source gives when it could not be reached (the same word the Engine's operation worker reads).
+    private const string ProviderUnavailableStatus = "ProviderUnavailable";
+
+    // The file-measured length (AudioProcessor) comes first; "duration" may come from an outside provider.
+    private const string DurationSecondsKey = "duration_sec";
+    private const string DurationSecondsAltKey = "duration_seconds";
+
     private async Task<TextTrackLookup> BuildLookupAsync(MediaAsset asset, WorkLineage? lineage, MediaType mediaType, TextTrackKind kind, CancellationToken ct)
     {
         var entityIds = new List<Guid> { asset.Id };
@@ -551,9 +574,36 @@ public sealed partial class TextTrackEnrichmentWorker
 
         var canonicalGroups = await _canonicalRepo.GetByEntitiesAsync(entityIds.Distinct().ToList(), ct).ConfigureAwait(false);
         var bridgeGroups = await _bridgeRepo.GetByEntitiesAsync(entityIds.Distinct().ToList(), ct).ConfigureAwait(false);
-        var values = canonicalGroups.Values.SelectMany(v => v)
-            .GroupBy(v => v.Key, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+        // Each key is taken from the song's own Work first, then the asset, then the parent (the album), so an album's
+        // title can never be sent as the song's title whatever order the repository returns the groups in.
+        var precedence = new List<Guid>();
+        if (lineage is not null)
+        {
+            precedence.Add(lineage.TargetForSelfScope);
+        }
+        precedence.Add(asset.Id);
+        if (lineage is not null)
+        {
+            precedence.Add(lineage.TargetForParentScope);
+        }
+
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entityId in precedence.Distinct())
+        {
+            if (!canonicalGroups.TryGetValue(entityId, out var entries))
+            {
+                continue;
+            }
+
+            foreach (var entry in entries)
+            {
+                if (!string.IsNullOrWhiteSpace(entry.Value))
+                {
+                    values.TryAdd(entry.Key, entry.Value);
+                }
+            }
+        }
+
         var bridgeIds = bridgeGroups.Values.SelectMany(v => v)
             .GroupBy(v => v.IdType, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().IdValue, StringComparer.OrdinalIgnoreCase);
@@ -612,15 +662,28 @@ public sealed partial class TextTrackEnrichmentWorker
             }
         }
 
+        var album = First(values, MetadataFieldConstants.Album, MetadataFieldConstants.Series, MetadataFieldConstants.ShowName);
+        if (kind == TextTrackKind.Lyrics
+            && First(values, MetadataFieldConstants.Album) is null
+            && lineage is not null
+            && lineage.TargetForParentScope != lineage.TargetForSelfScope
+            && canonicalGroups.TryGetValue(lineage.TargetForParentScope, out var parentValues))
+        {
+            // A song with no album value of its own is on the album named by its parent's title.
+            album = parentValues
+                .FirstOrDefault(value => string.Equals(value.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(value.Value))?.Value ?? album;
+        }
+
         return new TextTrackLookup(
             asset,
             mediaType,
             First(values, MetadataFieldConstants.Title, MetadataFieldConstants.EpisodeTitle, MetadataFieldConstants.ShowName),
             First(values, MetadataFieldConstants.Artist, MetadataFieldConstants.Author),
-            First(values, MetadataFieldConstants.Album, MetadataFieldConstants.Series, MetadataFieldConstants.ShowName),
+            album,
             First(values, MetadataFieldConstants.Year),
             First(values, MetadataFieldConstants.Language) ?? (kind == TextTrackKind.Subtitles ? "en" : null),
-            ParseDurationSeconds(First(values, MetadataFieldConstants.DurationField, MetadataFieldConstants.Runtime)),
+            ParseDurationSeconds(First(values, DurationSecondsKey, DurationSecondsAltKey, MetadataFieldConstants.DurationField, MetadataFieldConstants.Runtime)),
             bridgeIds,
             subtitleContext);
     }
@@ -765,6 +828,17 @@ public sealed partial class TextTrackEnrichmentWorker
         if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
         {
             return seconds > 0 ? seconds : null;
+        }
+
+        // "m:ss" is minutes and seconds; TimeSpan.TryParse would read it as hours and minutes.
+        var parts = value.Trim().Split(':');
+        if (parts.Length == 2
+            && int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var minutes)
+            && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var secs)
+            && secs is >= 0 and < 60)
+        {
+            var total = (minutes * 60) + secs;
+            return total > 0 ? total : null;
         }
 
         if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var span))

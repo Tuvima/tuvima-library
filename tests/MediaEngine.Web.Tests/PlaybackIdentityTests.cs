@@ -130,7 +130,7 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
 
         var imageSlot = withImage.Find("[data-playback-artwork]");
         var placeholderSlot = without.Find("[data-playback-artwork]");
-        Assert.Equal(imageSlot.ClassName!.Replace(" playback-identity__art--poster", string.Empty), placeholderSlot.ClassName);
+        Assert.Equal(imageSlot.ClassName, placeholderSlot.ClassName);
         Assert.Equal("placeholder", placeholderSlot.GetAttribute("data-playback-artwork"));
         Assert.NotNull(placeholderSlot.QuerySelector(".playback-identity__art-placeholder"));
         Assert.Null(placeholderSlot.QuerySelector("img"));
@@ -154,32 +154,67 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
     [InlineData(PlaybackBarMedia.Music, "playback-identity__art--square")]
     [InlineData(PlaybackBarMedia.Audiobook, "playback-identity__art--square")]
     [InlineData(PlaybackBarMedia.Tv, "playback-identity__art--wide")]
-    [InlineData(PlaybackBarMedia.Movie, "playback-identity__art--wide")]
-    public void AudioHasASquareSlotAndVideoALandscapeSlot(PlaybackBarMedia media, string expectedClass)
+    [InlineData(PlaybackBarMedia.Movie, "playback-identity__art--poster")]
+    public void AudioHasASquareSlotAnEpisodeALandscapeSlotAndAMovieAPortraitSlot(PlaybackBarMedia media, string expectedClass)
     {
         var slot = RenderShell(media, "/cover.png").Find("[data-playback-artwork]");
 
         Assert.Contains(expectedClass, slot.ClassList);
-        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css"));
-        Assert.Contains("height: 56px;", css, StringComparison.Ordinal);
-        Assert.Contains("width: 56px;", css, StringComparison.Ordinal);
-        Assert.Contains(".playback-identity__art--wide {\n    width: 100px;", css.Replace("\r\n", "\n"), StringComparison.Ordinal);
+        var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
+        Assert.Contains("height: 64px;", css, StringComparison.Ordinal);
+        Assert.Contains("width: 64px;", css, StringComparison.Ordinal);
+        Assert.Contains(".playback-identity__art--wide {\n    width: 114px;", css, StringComparison.Ordinal);
+        Assert.Contains(".playback-identity__art--poster {\n    width: 43px;", css, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AMoviePosterIsContainedOnABlurredFillInTheLandscapeSlotNotStretched()
+    public void AMovieSlotIsPortraitWithNoLandscapeBoxAndNoBlurredFillImage()
     {
         var slot = RenderShell(PlaybackBarMedia.Movie, "/poster.png", poster: true).Find("[data-playback-artwork]");
 
         Assert.Equal("poster", slot.GetAttribute("data-playback-artwork"));
         Assert.Contains("playback-identity__art--poster", slot.ClassList);
-        var fill = slot.QuerySelector("img.playback-identity__art-fill")!;
-        Assert.Equal("true", fill.GetAttribute("aria-hidden"));
-        Assert.Equal("/poster.png", fill.GetAttribute("src"));
+        Assert.DoesNotContain("playback-identity__art--wide", slot.ClassList);
+        Assert.Null(slot.QuerySelector("img.playback-identity__art-fill"));
+        Assert.Single(slot.QuerySelectorAll("img"));
         Assert.Equal("/poster.png", slot.QuerySelector("img.playback-identity__art-image")!.GetAttribute("src"));
         var css = File.ReadAllText(RepoPath("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css")).Replace("\r\n", "\n");
-        Assert.Contains(".playback-identity__art--poster .playback-identity__art-image {\n    object-fit: contain;", css, StringComparison.Ordinal);
-        Assert.Contains("filter: blur(6px) brightness(0.6);", css, StringComparison.Ordinal);
+        Assert.Contains(".playback-identity__art--poster .playback-identity__art-image {\n    object-fit: cover;", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("art-fill", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("blur(", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMoviePlaceholderHasTheSamePortraitSlotAsItsPoster()
+    {
+        var slot = RenderShell(PlaybackBarMedia.Movie).Find("[data-playback-artwork]");
+
+        Assert.Equal("placeholder", slot.GetAttribute("data-playback-artwork"));
+        Assert.Contains("playback-identity__art--poster", slot.ClassList);
+        Assert.DoesNotContain("playback-identity__art--wide", slot.ClassList);
+    }
+
+    [Fact]
+    public void AnEpisodeWithOnlyAPosterIsAPortraitSlotNotALandscapeBox()
+    {
+        var slot = RenderShell(PlaybackBarMedia.Tv, "/poster.png", poster: true).Find("[data-playback-artwork]");
+
+        Assert.Equal("poster", slot.GetAttribute("data-playback-artwork"));
+        Assert.Contains("playback-identity__art--poster", slot.ClassList);
+        Assert.DoesNotContain("playback-identity__art--wide", slot.ClassList);
+        Assert.Null(slot.QuerySelector("img.playback-identity__art-fill"));
+    }
+
+    [Fact]
+    public void AnEpisodeWithAStillIsThe114PixelLandscapeSlot()
+    {
+        var slot = RenderShell(PlaybackBarMedia.Tv, "/still.png", poster: false).Find("[data-playback-artwork]");
+
+        Assert.Contains("playback-identity__art--wide", slot.ClassList);
+        Assert.DoesNotContain("playback-identity__art--poster", slot.ClassList);
+        Assert.Equal(64, PlaybackArtworkUrl.SlotHeightPx);
+        Assert.Equal(114, PlaybackArtworkUrl.LandscapeSlotWidthPx);
+        Assert.Equal(43, PlaybackArtworkUrl.PortraitSlotWidthPx);
     }
 
     [Fact]
@@ -226,6 +261,9 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
         var poster = PlaybackArtworkUrl.ForBarSlot(PlaybackBarMedia.Movie, tv);
         Assert.True(poster.IsPoster);
         Assert.NotNull(poster.Src);
+
+        var movieWithStill = PlaybackArtworkUrl.ForBarSlot(PlaybackBarMedia.Movie, tv, "/stream/artwork/2a8e5e9a-0000-4000-8000-000000000003");
+        Assert.True(movieWithStill.IsPoster);
 
         var none = PlaybackArtworkUrl.ForBarSlot(PlaybackBarMedia.Movie, tv with { CoverUrl = null, WorkId = Guid.Empty });
         Assert.Equal(PlaybackSlotArtwork.None, none);
@@ -453,6 +491,45 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
             .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
 
         cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button[aria-label='Remove from My List']").GetAttribute("aria-pressed")));
+    }
+
+    [Theory]
+    [InlineData(PlaybackBarMedia.Audiobook)]
+    [InlineData(PlaybackBarMedia.Movie)]
+    public void MyListInThePlayersIsAPlusUntilTheTitleIsSaved(PlaybackBarMedia media)
+    {
+        // My List spec D8 and D15: one icon for saving a title everywhere; the heart is only a song's Favorite.
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, media).Add(a => a.Item, Item(media))
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        Assert.Equal("Add", cut.Find("button[aria-label='Add to My List'] svg").GetAttribute("data-playback-glyph"));
+        Assert.Empty(cut.FindAll("svg[data-playback-glyph='Favorite']"));
+    }
+
+    [Theory]
+    [InlineData(PlaybackBarMedia.Audiobook, ProfileEntityKind.Audiobook)]
+    [InlineData(PlaybackBarMedia.Movie, ProfileEntityKind.Movie)]
+    public void MyListInThePlayersIsATickOnceTheTitleIsSaved_NeverAHeart(PlaybackBarMedia media, ProfileEntityKind kind)
+    {
+        var item = Item(media);
+        _saved.Add((kind, media == PlaybackBarMedia.Audiobook ? item.AudiobookWorkId ?? item.WorkId : item.WorkId));
+
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, media).Add(a => a.Item, item)
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        cut.WaitForAssertion(() => Assert.Equal("Check", cut.Find("button[aria-label='Remove from My List'] svg").GetAttribute("data-playback-glyph")));
+        Assert.Empty(cut.FindAll("svg[data-playback-glyph='Favorite']"));
+    }
+
+    [Fact]
+    public void ASongsFavoriteInThePlayersKeepsTheHeart()
+    {
+        var song = Item(PlaybackBarMedia.Music);
+
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Music).Add(a => a.Item, song)
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        Assert.Equal("Favorite", cut.Find("button[aria-label='Add song to Favorites'] svg").GetAttribute("data-playback-glyph"));
     }
 
     // ---- D23: the item actions menu -----------------------------------------------------------------------------------------------------

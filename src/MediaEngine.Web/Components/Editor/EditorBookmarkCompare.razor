@@ -6,7 +6,7 @@
 @* The compare view of an imported bookmark file (universal editor v5 D37, mockup Q): each bookmark in the file beside the nearest one in
    Everyone's, with a tick for the ones to take. "Take all new" ticks only the bookmarks nothing in Everyone's is near. Nothing is changed
    here: Add stages one import for the title, written on Save changes. *@
-<section class="tl-bookmarks-compare">
+<section class="@(Phone ? "tl-bookmarks-compare tl-bookmarks--phone tl-editor-touch" : "tl-bookmarks-compare")">
     <div class="tl-bookmarks__state">
         <div class="tl-bookmarks__state-copy">
             <AppButton ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" OnClick="OnBack">@L["Common_Back"]</AppButton>
@@ -54,6 +54,9 @@
     private readonly Dictionary<int, string> _choices = [];
 
     [Parameter, EditorRequired] public BookmarkSetCompareDto Compare { get; set; } = null!;
+
+    /// <summary>The phone arrangement (v6 section 4a, D21).</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>Raised with the bookmarks the person ticked, ready to stage as one import.</summary>
     [Parameter] public EventCallback<IReadOnlyList<EditorBookmarkImportItem>> OnTake { get; set; }

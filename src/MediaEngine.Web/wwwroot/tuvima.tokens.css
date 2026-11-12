@@ -31,6 +31,12 @@
     --tl-safe-area-left: env(safe-area-inset-left, 0px);
     --tl-touch-target-min: 48px;
     --tl-tap-target-min: 44px;
+    /* How much of the window the on-screen keyboard covers; editor-focus.js sets it on the root while the editor is open on a phone arrangement, and the editor takes it off its height. */
+    --tl-editor-keyboard: 0px;
+    /* The room the phone editor's footer leaves for the home bar; editor-focus.js sets it to 0 while the keyboard covers the bar. */
+    --tl-editor-safe-bottom: env(safe-area-inset-bottom, 0px);
+    /* The height of the phone editor's one-line header (its Close button is centred on it). */
+    --tl-editor-phone-header: 4rem;
     --tl-bottom-dock-height: 0px;
     --tl-audio-dock-height: 0px;
 
@@ -101,6 +107,12 @@
     --tl-icon-size-lg: 32px;
     --tl-icon-size-xl: 48px;
     --tl-icon-size-2xl: 64px;
+    /* The one tab row (Look v3.1 D1): 48 px tall, 28 px between tabs, a 20 px icon, a 3 px underline, a soft fade at the cut edge on a phone. */
+    --tl-tab-min-height: 48px;
+    --tl-tab-gap: 28px;
+    --tl-tab-underline: 3px;
+    --tl-tab-icon-size: var(--tl-icon-size-sm);
+    --tl-tab-edge-fade: 32px;
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
     --tl-touch-min: 44px;
@@ -115,6 +127,31 @@
     --tl-font-weight-medium: 500;
     --tl-font-weight-semibold: 600;
     --tl-font-weight-bold: 700;
+    /* The type scale's jobs (look-pass v3.1 D8): a part names a job, never a number. Written as literals so a test can assert them. */
+    --tl-type-hero-size: 32px;
+    --tl-type-hero-weight: 700;
+    --tl-type-page-title-size: 24px;
+    --tl-type-page-title-weight: 700;
+    --tl-type-heading-size: 20px;
+    --tl-type-heading-weight: 600;
+    --tl-type-subheading-size: 16px;
+    --tl-type-subheading-weight: 600;
+    --tl-type-menu-size: 16px;
+    --tl-type-menu-weight: 500;
+    --tl-type-control-size: 14px;
+    --tl-type-control-weight: 500;
+    --tl-type-body-size: 14px;
+    --tl-type-body-weight: 400;
+    --tl-type-secondary-size: 13px;
+    --tl-type-secondary-weight: 400;
+    --tl-type-label-size: 13px;
+    --tl-type-label-weight: 500;
+    --tl-type-caption-size: 12px;
+    --tl-type-caption-weight: 400;
+    --tl-type-overline-size: 12px;
+    --tl-type-overline-weight: 600;
+    /* The content rating shown over a paused video, read from across the room (video player follow-ups D3). */
+    --tl-type-player-rating-size: 28px;
     --tl-line-height-tight: 1.25;
     --tl-line-height-body: 1.5;
     --tl-line-height-relaxed: 1.625;
@@ -142,9 +179,14 @@
     --tl-menu-item-hover: rgba(255, 255, 255, 0.06);
     --tl-menu-item-selected: var(--tl-accent-primary-soft);
     --tl-menu-icon: var(--tl-text-secondary);
-    --tl-menu-min-width: 10.75rem;
+    /* Pop-up menus (Look v3.1 D2): 48 px rows, a 24 px icon then the label 12 px on, 8 px around the list and between groups; at least
+       240 px wide, growing with the longest label up to 360 px, where the label shortens and shows its full text on hover. */
+    --tl-menu-min-width: 240px;
+    --tl-menu-max-width: 360px;
+    --tl-menu-padding: 8px;
+    --tl-menu-icon-gap: 12px;
     --tl-menu-width: 272px;
-    --tl-menu-row-height: 44px;
+    --tl-menu-row-height: 48px;
     /* The page root is 14px, so menu type is in px: rem would resolve to 14px here (issue 702). */
     --tl-menu-row-font-size: 16px;
     --tl-menu-row-font-weight: 500;
@@ -169,6 +211,8 @@
     --tl-status-warning-soft: rgba(245, 158, 11, 0.14);
     --tl-status-warning-border: rgba(245, 158, 11, 0.38);
     --tl-status-danger: #EF4444;
+    /* Fill of a solid red button (Look v3.1 D4): a shade darker than the danger text color so white text on it reads at 4.8:1. */
+    --tl-status-danger-solid: #DC2626;
     --tl-text-danger: #FF8A8A;
     --tl-tooltip-surface: var(--tl-bg-surface-elevated);
     --tl-tooltip-border: var(--tl-border-default);
@@ -192,12 +236,13 @@
     --player-track: var(--tl-bg-surface-hover);
     --player-text: #F7F7FA;
     --player-text-secondary: var(--tl-text-secondary);
-    /* One size and state set for every playback button (unified player v2 D6): 24 px glyph in a 44 px target, Play 32 px in a 48 px target,
-       bar title 16 px. Hover is a translucent white (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
-    --playback-control-target: 44px;
-    --playback-control-glyph: 24px;
-    --playback-play-target: 48px;
-    --playback-play-glyph: 32px;
+    /* One size and state set for every playback button (unified player v2 D6, sizes raised by video player follow-ups D1): 28 px glyph in a 48 px target,
+       Play 40 px in a 56 px target, bar title 16 px. The phone's collapsed bar pins its own 44 / 24 (PlaybackShell). Hover is a translucent white
+       (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
+    --playback-control-target: 48px;
+    --playback-control-glyph: 28px;
+    --playback-play-target: 56px;
+    --playback-play-glyph: 40px;
     --playback-title-size: 16px;
     --playback-badge-size: 9px;
     --playback-state-hover: rgba(255, 255, 255, 0.08);
@@ -212,9 +257,10 @@
     --playback-slider-rail-height: 4px;
     --playback-slider-handle: 12px;
     --playback-slider-hit: 24px;
-    --playback-volume-slider-width: 96px;
+    --playback-volume-slider-height: 96px;
     --playback-marker: var(--tl-accent-primary-hover);
     --playback-marker-shared: #FFFFFF;
+    --playback-marker-ring: #0C0B10;
     --playback-focus-ring-width: 2px;
     --playback-focus-ring-offset: 2px;
     --playback-bg: var(--player-bg);
@@ -292,6 +338,13 @@
 
     /* Layers (Look pass 4.8): menu, popover, dialog, toast, player. */
     --tl-dialog-title-size: var(--tl-font-size-dialog-title);
+    /* The short dialog (Look v3.1 D4): one roomy box with no lines inside. 28 px all round (20 px as a phone sheet), the message 8 px under
+       the title, 28 px before the buttons, 12 px between the buttons. */
+    --tl-dialog-padding: 28px;
+    --tl-dialog-padding-phone: 20px;
+    --tl-dialog-title-gap: 8px;
+    --tl-dialog-footer-gap: 28px;
+    --tl-dialog-button-gap: 12px;
     /* Hero height on desktop (Look pass 4.5): one token; confirm the value on the real app. */
     --tl-hero-height: 70svh;
     /* One tile size everywhere (One tile design D1, D2): posters 214 x 321, squares the same height as posters in mixed rows (321 x 321)
@@ -363,11 +416,17 @@
     --tl-window-l: 900px;
     --tl-window-xl: 1200px;
     --tl-window-radius: 12px;
+    /* The details window (Look v3.1 D5): 90 % of the screen, never wider than 1440 px, never closer than 32 px to an edge. */
+    --tl-window-details-max: 1440px;
+    --tl-window-details-margin: 32px;
+    --tl-window-details-radius: 16px;
     --tl-sheet-radius: 16px;
     --tl-popout-menu: 272px;
     --tl-popout-panel: 400px;
     --tl-popout-radius: 8px;
     --tl-popout-row: 44px;
+    /* The shared Reorder bar (AppReorderBar) at the bottom of the screen: 44 px buttons between 12 px of padding and its top border. A list open beside it keeps this much clear. */
+    --tl-reorder-bar-height: 72px;
     --tl-viewer-close: 44px;
     --tl-viewer-black: #000000;
 
@@ -403,6 +462,18 @@
     --tl-scrim-soft: rgba(16, 17, 21, 0.55);
     --tl-scrim-soft-strong: rgba(16, 17, 21, 0.72);
     --tl-on-scrim: #FFFFFF;
+    /* Washes and scrims (Look v3.1 D7): white washes for hover fills and hairlines, black scrims for dimming over artwork and wells; every hand-typed black or white alpha rounds onto one of these steps. */
+    --tl-wash-light-1: rgba(255, 255, 255, 0.03);
+    --tl-wash-light-2: rgba(255, 255, 255, 0.05);
+    --tl-wash-light-3: rgba(255, 255, 255, 0.08);
+    --tl-wash-light-4: rgba(255, 255, 255, 0.12);
+    --tl-wash-light-5: rgba(255, 255, 255, 0.18);
+    --tl-scrim-dark-1: rgba(0, 0, 0, 0.2);
+    --tl-scrim-dark-2: rgba(0, 0, 0, 0.3);
+    --tl-scrim-dark-3: rgba(0, 0, 0, 0.4);
+    --tl-scrim-dark-4: rgba(0, 0, 0, 0.5);
+    --tl-scrim-dark-5: rgba(0, 0, 0, 0.6);
+    --tl-scrim-dark-6: rgba(0, 0, 0, 0.7);
     /* The hero's one main button (Look v3 D12): light on any artwork, 56 px tall. */
     --tl-hero-action-bg: #F5F7FB;
     --tl-hero-action-bg-hover: #E3E6EC;
@@ -438,6 +509,10 @@
     --tl-hover-glow-color: var(--tl-accent-primary-glow);
     --tl-z-dropdown: 1200;
     --tl-z-sticky: 1300;
+    /* The details overlay's dimmed backdrop: above the page and top navigation, below the player bar's dock (1350) so the bar stays in front. */
+    --tl-z-details-backdrop: 1340;
+    /* How far the player bar reaches up from the bottom of the screen while a details window is open (set on the window by app-dialog.js; 0 with no bar). */
+    --tl-overlay-bar-inset: 0px;
     --tl-z-modal: 1400;
     --tl-z-toast: 1500;
     --tl-z-popover: 1600;
@@ -457,6 +532,25 @@
     --tl-gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
     --tl-gradient-info: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
     --tl-gradient-surface: linear-gradient(180deg, var(--tl-bg-surface-raised) 0%, var(--tl-bg-surface) 100%);
+}
+
+/* Text typed into a field and a dropdown's chosen value: the Body job on tablet and desktop, 16 px on a phone so the page does not
+   zoom when a field is tapped (look-pass v3.1 D9). */
+:root {
+    --tl-field-text-size: var(--tl-type-body-size);
+}
+
+@media (max-width: 600px) {
+    :root {
+        --tl-field-text-size: var(--tl-font-size-md);
+    }
+}
+
+/* The page title job is 28 px on wide screens (look-pass v3.1 D8). */
+@media (min-width: 1180px) {
+    :root {
+        --tl-type-page-title-size: 28px;
+    }
 }
 
 @media (max-width: 840px) {

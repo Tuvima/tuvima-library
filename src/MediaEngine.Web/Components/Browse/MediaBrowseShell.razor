@@ -65,7 +65,7 @@
                                      Class="browse-shell__tabs">
                                 @foreach (var tab in Preset.Tabs)
                                 {
-                                    <AppTabPanel @key="tab.Id" Text="@tab.Label" />
+                                    <AppTabPanel @key="tab.Id" Text="@tab.Label" Icon="@MediaEngine.Web.Components.Pages.MediaLaneConfigurationBuilder.ResolveTabIcon(tab)" />
                                 }
                             </AppTabs>
                         </div>
@@ -108,19 +108,23 @@
             }
 
             <div class="browse-shell__filter-surface">
-                <div class="browse-shell__filter-search-row">
-                    <AppTextField @key="_searchInputVersion"
-                                  T="string"
-                                  @bind-Value="_searchText"
-                                  Placeholder="@SearchPlaceholder"
-                                  Variant="AppVariant.Outlined"
-                                  Adornment="AppAdornment.Start"
-                                  AdornmentIcon="@AppMaterialIcons.Outlined.Search"
-                                  Immediate="true"
-                                  DebounceInterval="250"
-                                  OnDebounceIntervalElapsed="OnSearchChanged"
-                                  Class="browse-shell__search" />
-                </div>
+                @if (!UsePhoneSongsHeader)
+                {
+                    @* The phone Songs list has its own search in the Songs header (music table spec D21). *@
+                    <div class="browse-shell__filter-search-row">
+                        <AppTextField @key="_searchInputVersion"
+                                      T="string"
+                                      @bind-Value="_searchText"
+                                      Placeholder="@SearchPlaceholder"
+                                      Variant="AppVariant.Outlined"
+                                      Adornment="AppAdornment.Start"
+                                      AdornmentIcon="@AppMaterialIcons.Outlined.Search"
+                                      Immediate="true"
+                                      DebounceInterval="250"
+                                      OnDebounceIntervalElapsed="OnSearchChanged"
+                                      Class="browse-shell__search" />
+                    </div>
+                }
 
                 <div class="browse-shell__filter-lower-row">
                     <div class="browse-shell__control-group browse-shell__control-group--browse">
@@ -255,7 +259,7 @@
                                     }
                                     @if (ActiveLibraryId is not null)
                                     {
-                                        <AppQuickFilterToggle Label="@L["Common_Unmatched"].Value"
+                                        <AppQuickFilterToggle Label="@L["MediaBrowseShell_NeedsReview"].Value"
                                                               Selected="@_unmatched"
                                                               SelectedChanged="OnUnmatchedChanged" />
                                     }
@@ -342,24 +346,40 @@
     else if (UseListLayout && IsMusicSongsGrouping)
     {
         <div class="browse-shell__list">
-            <ListenSongTable Tracks="@SongTracks"
-                             FavoriteIds="@SongFavoriteIds"
-                             SourceLabel="All Songs"
-                             AriaLabel="@L["Common_Songs"].Value"
-                             ShowGenre="false"
-                             ShowPlays="true"
-                             ShowDateAdded="true"
-                             ShowEdit="false"
-                             RequestedSort="@BrowseQueryBuilder.SongTableSort(_sortBy)"
-                             CurrentWorkId="@Playback.CurrentItem?.WorkId"
-                             OnPlayRequested="PlaySongTracksAsync"
-                             OnFavoriteToggled="ToggleSongFavoriteAsync"
-                             OnQueueRequested="QueueSongAsync"
-                             OnPlayNextRequested="PlayNextSongAsync"
-                             OnAlbumRequested="OpenSongAlbumAsync"
-                             OnTracksChanged="ReloadAsync"
-                             OnDragStarted="BeginSongDragAsync"
-                             OnDragEnded="EndSongDragAsync" />
+            @if (UsePhoneSongsHeader)
+            {
+                <SongsPhoneHeader ProfileId="@_activeProfileId"
+                                  SearchText="@_searchText"
+                                  SearchTextChanged="OnPhoneSongsSearchAsync"
+                                  Sort="@SongListSort"
+                                  SortChanged="OnPhoneSongsSortAsync"
+                                  FavoritesOnly="@IsSecondaryQuickFilterSelected"
+                                  FavoritesOnlyChanged="OnSecondaryQuickFilterChanged"
+                                  Genres="@GenreFacets"
+                                  SelectedGenres="@SelectedGenres"
+                                  SelectedGenresChanged="OnGenresChanged"
+                                  PlayDisabled="@(SongTracks.Count == 0)"
+                                  OnPlay="@(() => PlayPhoneSongsAsync(shuffle: false))"
+                                  OnShuffle="@(() => PlayPhoneSongsAsync(shuffle: true))" />
+            }
+            <SongList Place="SongTablePlace.Songs"
+                      Tracks="@SongTracks"
+                      FavoriteIds="@SongFavoriteIds"
+                      SourceLabel="All Songs"
+                      AriaLabel="@L["Common_Songs"].Value"
+                      ProfileId="@_activeProfileId"
+                      Sort="@SongListSort"
+                      PhoneLetterIndex="@UsePhoneSongsHeader"
+                      CurrentWorkId="@Playback.CurrentItem?.WorkId"
+                      IsPlaying="@Playback.IsPlaying"
+                      OnPlayRequested="PlaySongTracksAsync"
+                      OnFavoriteToggled="ToggleSongFavoriteAsync"
+                      OnQueueRequested="QueueSongAsync"
+                      OnPlayNextRequested="PlayNextSongAsync"
+                      OnAlbumRequested="OpenSongAlbumAsync"
+                      OnTracksChanged="ReloadAsync"
+                      OnDragStarted="BeginSongDragAsync"
+                      OnDragEnded="EndSongDragAsync" />
         </div>
     }
     else if (UseListLayout)

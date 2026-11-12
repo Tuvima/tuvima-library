@@ -26,8 +26,8 @@
 .access-users__header {
     padding: .7rem 1rem;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: .06em;
 }
 
@@ -148,7 +148,7 @@
     padding: .65rem;
     overflow-wrap: anywhere;
     border-radius: var(--tl-radius-sm);
-    background: rgb(0 0 0 / 28%);
+    background: var(--tl-scrim-dark-2);
     user-select: all;
 }
 
@@ -190,5 +190,5 @@
 .access-phone-note {
     margin: 0 0 1rem;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }

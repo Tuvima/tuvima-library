@@ -148,8 +148,14 @@ public static class PlaybackLyricsTimeline
 }
 
 /// <summary>Authorized text presentation shared by every audio host, with no playback ownership.</summary>
-public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserPlaybackPreferencesAccessor? preferences = null) : IDisposable
+public sealed partial class PlaybackLyricsPresenter(
+    IEngineApiClient api,
+    IUserPlaybackPreferencesAccessor? preferences = null,
+    Func<TimeSpan, CancellationToken, Task>? delay = null,
+    ILogger<PlaybackLyricsPresenter>? logger = null) : IDisposable
 {
+    // How the waits between looks at a queued lookup pass; tests hand in their own so they never sleep.
+    private readonly Func<TimeSpan, CancellationToken, Task> _delay = delay ?? ((span, token) => Task.Delay(span, token));
     private string? _lyricsLanguage;
     private PlaybackLyricsIdentity? _identity;
     private Guid? _observedProjection, _projectedChoice;
@@ -237,6 +243,10 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
                     .DistinctBy(track => track.Id).ToArray();
                 _lyricsLanguage = await ReadLyricsLanguageAsync();
                 _tracksLoaded = true;
+                if (Tracks.Count == 0)
+                {
+                    await FollowPendingLookupAsync(identity, generation);
+                }
             }
             catch (Exception) { if (Current(identity, generation)) { Fail("Lyrics could not be loaded."); _tracksLoaded = true; } }
             finally
@@ -423,39 +433,49 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserP
         }
     }
 
+    /// <summary>
+    /// "Find lyrics": queues the lookup, then waits for that queued lookup to finish (see <see cref="Lookup"/>) before it reads the tracks again,
+    /// so the panel never says there are no lyrics while the Engine is still looking.
+    /// </summary>
     public async Task RefreshAsync()
     {
-        if (Refreshing || _identity is not { } identity || _commands is null)
+        if (Refreshing || Lookup is PlaybackLyricsLookupState.Looking or PlaybackLyricsLookupState.StillLooking
+            || _identity is not { } identity || _commands is null)
         {
             return;
         }
-        var generation = _generation; var selection = _selectionGeneration;
-        Refreshing = true; Status = null; Changed?.Invoke();
-        bool Fresh() => Current(identity, generation) && selection == _selectionGeneration;
+        var generation = _generation;
+        Refreshing = true; Status = null; Lookup = PlaybackLyricsLookupState.Idle; Changed?.Invoke();
+        var owned = true;
         try
         {
-            var result = await api.RefreshTextTracksAsync(identity.AssetId, "lyrics", _reads.Token);
-            if (!Fresh())
+            var queued = await api.QueueTextTrackRefreshAsync(identity.AssetId, LyricsKind, _reads.Token);
+            if (!Current(identity, generation))
             {
                 return;
             }
-            var message = result?.message ?? "Lyrics search could not start.";
-            _tracksLoaded = false; _contentLoaded = false;
-            var selectedBeforeReload = SelectedTrackId;
-            await EnsureAsync(_snapshot, _commands);
-            if (Current(identity, generation) && SelectedTrackId == selectedBeforeReload && _contentLoaded)
+            if (queued is null)
             {
-                Status = message;
+                Status = "Lyrics search could not start.";
+                return;
             }
+            owned = await WaitForQueuedLookupAsync(identity, generation, queued);
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
-            if (Fresh())
+            // The song changed or the presenter was disposed: nothing to show for it, and not an error.
+            logger?.LogDebug("The Find lyrics request for asset {AssetId} was cancelled.", identity.AssetId);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Find lyrics for asset {AssetId} failed.", identity.AssetId);
+            if (Current(identity, generation))
             {
+                Lookup = PlaybackLyricsLookupState.Idle;
                 Status = "Lyrics search could not start.";
             }
         }
-        finally { if (Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
+        finally { if (owned && Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
     }
 
     public void Dispose() { _disposed = true; _reads.Cancel(); _reads.Dispose(); }

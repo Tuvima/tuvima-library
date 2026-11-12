@@ -206,7 +206,7 @@ else
                                 <LibraryActivityPage ShowTitle="false" />
                                 break;
                             case SettingsSection.Review:
-                                <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" Show="@Query.String("show")" />
+                                <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" />
                                 break;
                             case SettingsSection.DevHarness:
                                 @RenderInternalTool(
@@ -1018,8 +1018,8 @@ else
     private string ReviewDescription => Attention.ReviewCount switch
     {
         <= 0 => "Nothing needs a person right now.",
-        1 => "1 item needs a person. Not matched files and uncertain matches are listed together.",
-        var count => $"{count:N0} items need a person. Not matched files and uncertain matches are listed together.",
+        1 => "1 item needs a person.",
+        var count => $"{count:N0} items need a person.",
     };
 
     private bool IsOperationsView(SettingsSection section) => _activeSection == section;

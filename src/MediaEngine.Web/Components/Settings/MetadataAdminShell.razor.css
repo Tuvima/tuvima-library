@@ -5,7 +5,7 @@
     --metadata-border-strong: color-mix(in srgb, var(--tl-accent-primary) 35%, var(--tl-border-default));
     --metadata-radius: 12px;
     --metadata-radius-compact: 10px;
-    --metadata-shadow: 0 10px 24px rgba(0, 0, 0, .08);
+    --metadata-shadow: 0 10px 24px color-mix(in srgb, var(--tl-viewer-black) 8%, transparent);
     width: 100%;
     min-width: 0;
     container: metadata-module / inline-size;

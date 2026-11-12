@@ -2646,6 +2646,120 @@ public sealed class WorkerPipelineTests
         Assert.Equal(candidateRepo.Candidates[1].Id, updatedJob.SelectedCandidateId);
     }
 
+    [Fact]
+    public async Task RetailMatchWorker_WhenTwoProvidersAreBothAmbiguous_KeepsBothCandidatesForTheReviewRow_BestFirst()
+    {
+        var entityId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var jobRepo = new StubIdentityJobRepository();
+        var candidateRepo = new StubRetailCandidateRepository();
+        await jobRepo.CreateAsync(new IdentityJob
+        {
+            Id = jobId,
+            EntityId = entityId,
+            EntityType = "MediaAsset",
+            MediaType = "Books",
+            State = "Queued",
+        });
+
+        var providers = new IExternalMetadataProvider[]
+        {
+            new StubExternalMetadataProvider
+            {
+                Name = "apple_api",
+                ProviderId = Guid.NewGuid(),
+                Claims =
+                [
+                    new ProviderClaim(MetadataFieldConstants.Title, "Dune Messiah", 0.95),
+                    new ProviderClaim(MetadataFieldConstants.Author, "Frank Herbert", 0.95),
+                    new ProviderClaim("provider_item_id", "apple-1", 0.95),
+                ],
+            },
+            new StubExternalMetadataProvider
+            {
+                Name = "openlibrary",
+                ProviderId = Guid.NewGuid(),
+                Claims =
+                [
+                    new ProviderClaim(MetadataFieldConstants.Title, "Dune", 0.95),
+                    new ProviderClaim(MetadataFieldConstants.Author, "Frank Herbert", 0.95),
+                    new ProviderClaim("provider_item_id", "OL1", 0.95),
+                ],
+            },
+        };
+
+        var retailScoring = new StubRetailMatchScoringService();
+        retailScoring.Results.Enqueue(new FieldMatchScores
+        {
+            TitleScore = 0.78,
+            AuthorScore = 0.70,
+            YearScore = 0.0,
+            FormatScore = 1.0,
+            CrossFieldBoost = 0.0,
+            CoverArtScore = 0.0,
+            CompositeScore = 0.72,
+        });
+        retailScoring.Results.Enqueue(new FieldMatchScores
+        {
+            TitleScore = 0.80,
+            AuthorScore = 0.70,
+            YearScore = 0.0,
+            FormatScore = 1.0,
+            CrossFieldBoost = 0.0,
+            CoverArtScore = 0.0,
+            CompositeScore = 0.74,
+        });
+
+        var configLoader = new StubConfigurationLoader
+        {
+            Providers =
+            [
+                new() { Name = "apple_api", Enabled = true, ProviderId = providers[0].ProviderId.ToString(), Weight = 0.9 },
+                new() { Name = "openlibrary", Enabled = true, ProviderId = providers[1].ProviderId.ToString(), Weight = 0.9 },
+            ],
+        };
+        var canonicalRepo = new StubCanonicalValueRepository();
+        await canonicalRepo.UpsertBatchAsync(
+        [
+            new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.Title, Value = "Dune", LastScoredAt = DateTimeOffset.UtcNow },
+            new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.Author, Value = "Frank Herbert", LastScoredAt = DateTimeOffset.UtcNow },
+        ]);
+
+        var reviews = new RecordingReviewQueueRepository();
+        var factory = new StageOutcomeFactory(
+            reviews,
+            new StubSystemActivityRepository(),
+            new StubEventPublisher(),
+            new StubCanonicalValueRepository(),
+            NullLogger<StageOutcomeFactory>.Instance);
+        var worker = new RetailMatchWorker(
+            jobRepo,
+            candidateRepo,
+            factory,
+            CreateStubTimelineRecorder(),
+            providers,
+            retailScoring,
+            new StubMetadataClaimRepository(),
+            canonicalRepo,
+            new StubScoringEngine(),
+            configLoader,
+            new StubBridgeIdRepository(),
+            new StubWorkRepository(),
+            new WorkClaimRouter(),
+            new StubHttpClientFactory(),
+            null!,
+            NullLogger<RetailMatchWorker>.Instance);
+
+        await worker.PollAsync(CancellationToken.None);
+
+        var review = Assert.Single(reviews.Inserted, entry => entry.Trigger == ReviewTrigger.RetailMatchAmbiguous);
+        var kept = System.Text.Json.JsonSerializer.Deserialize<List<MediaEngine.Domain.Models.RetailChoiceCandidate>>(review.CandidatesJson!)!;
+        Assert.Equal(["Dune", "Dune Messiah"], kept.Select(c => c.Title));
+        Assert.Equal(["OL1", "apple-1"], kept.Select(c => c.ProviderItemId));
+        Assert.Equal(providers[1].ProviderId, kept[0].ProviderId);
+        Assert.Equal("openlibrary", kept[0].ProviderName);
+    }
+
     // ── Provider failures are never "no match" ──
 
     private static async Task<(StubIdentityJobRepository Jobs, IdentityJob Job)> RunRetailWithProviderFailureAsync(
@@ -3059,8 +3173,10 @@ public sealed class WorkerPipelineTests
 
         public Task<int> GetPendingCountAsync(CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> DismissAllByEntityAsync(Guid entityId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<bool> ReopenKeptAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
         public Task<int> ResolveAllByEntityAsync(Guid entityId, string resolvedBy = "system:auto-organize", CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> ResolvePendingByEntityAndTriggersAsync(Guid entityId, IReadOnlyCollection<string> triggers, string resolvedBy, CancellationToken ct = default) => Task.FromResult(0);
+        public Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default) => Task.CompletedTask;
         public Task<int> PurgeOrphanedAsync(CancellationToken ct = default) => Task.FromResult(0);
     }
 
@@ -4143,6 +4259,9 @@ public sealed class WorkerPipelineTests
         public Task<int> DismissAllByEntityAsync(Guid entityId, CancellationToken ct = default)
             => Task.FromResult(0);
 
+        public Task<bool> ReopenKeptAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult(false);
+
         public Task<int> ResolveAllByEntityAsync(Guid entityId, string resolvedBy = "system:auto-organize", CancellationToken ct = default)
             => Task.FromResult(0);
 
@@ -4151,6 +4270,8 @@ public sealed class WorkerPipelineTests
             ResolveCalls.Add((entityId, triggers, resolvedBy));
             return Task.FromResult(0);
         }
+
+        public Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default) => Task.CompletedTask;
 
         public Task<int> PurgeOrphanedAsync(CancellationToken ct = default)
             => Task.FromResult(0);

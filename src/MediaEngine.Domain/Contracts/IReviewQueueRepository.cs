@@ -97,16 +97,24 @@ public interface IReviewQueueRepository
     Task<int> DismissAllByEntityAsync(Guid entityId, CancellationToken ct = default);
 
     /// <summary>
+    /// Puts back an item a person kept with Keep as it is (<see cref="Constants.ReviewStatus.KeptByUser"/>): it becomes <c>Pending</c> again
+    /// and its resolved time and resolver are cleared. Returns false when the item is not a person-kept one (missing, pending, resolved, or
+    /// dismissed by the Engine).
+    /// </summary>
+    Task<bool> ReopenKeptAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
     /// Resolves all <c>Pending</c> review items for a given entity by setting
     /// their status to <c>Resolved</c>. Called by <c>AutoOrganizeService</c> when
     /// a file is successfully promoted from staging to the library — the review
-    /// items are moot once the file passes the organization gate.
+    /// items are moot once the file passes the organization gate. Items a person kept with Keep as it is
+    /// (<c>Dismissed</c> by <see cref="Constants.ReviewStatus.KeptByUser"/>) are closed too: the problem is gone, so they stop counting as kept.
     /// Returns the number of items resolved.
     /// </summary>
     Task<int> ResolveAllByEntityAsync(Guid entityId, string resolvedBy = "system:auto-organize", CancellationToken ct = default);
 
     /// <summary>
-    /// Resolves only pending review rows whose trigger is superseded by a later
+    /// Resolves only pending review rows (and person-kept ones) whose trigger is superseded by a later
     /// successful automated identity outcome.
     /// </summary>
     Task<int> ResolvePendingByEntityAndTriggersAsync(
@@ -133,6 +141,12 @@ public interface IReviewQueueRepository
 
         return resolved;
     }
+
+    /// <summary>
+    /// Replaces the stored candidates of a review item that is still <c>Pending</c> (a newer retail attempt found a different set of
+    /// possible matches). Does nothing for an item that is no longer pending.
+    /// </summary>
+    Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default);
 
     /// <summary>Deletes review queue entries whose entity_id no longer exists in media_assets.</summary>
     Task<int> PurgeOrphanedAsync(CancellationToken ct = default);

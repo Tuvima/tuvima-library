@@ -543,7 +543,7 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
     // -- Presentation ------------------------------------------------------------------------------
 
     [Fact]
-    public void TheOverlay_IsAModalDialogLabelledByTheTitle()
+    public void TheOverlay_IsADialogLabelledByTheTitle_ThatDoesNotAnnounceItselfModal()
     {
         var view = RenderAt("/listen", Underlay());
         _nav.NavigateTo(DetailUri(TitleId));
@@ -552,7 +552,7 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
 
         var dialog = view.Find("dialog[data-details-overlay]");
         Assert.Equal("dialog", dialog.GetAttribute("role"));
-        Assert.Equal("true", dialog.GetAttribute("aria-modal"));
+        Assert.Null(dialog.GetAttribute("aria-modal"));
         var heading = view.WaitForElement("dialog h2");
         Assert.Equal(heading.Id, dialog.GetAttribute("aria-labelledby"));
         Assert.Equal("Dune", heading.TextContent);
@@ -582,7 +582,39 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
         var dialog = view.Find("dialog[data-details-overlay]");
         Assert.Contains("tl-details-overlay--sheet", dialog.ClassName);
         Assert.Single(view.FindAll("[data-app-dialog-grip]"));
-        view.WaitForAssertion(() => Assert.True((bool)_dialogModule.Invocations.Last(call => call.Identifier == "update").Arguments.Last()!));
+        view.WaitForAssertion(() => Assert.True((bool)_dialogModule.Invocations.Last(call => call.Identifier == "update").Arguments[6]!));
+    }
+
+    [Fact]
+    public void TheOverlay_IsKeptModalByTheAppSoThePlayerBarStaysUsable_WithItsOwnBackdropBesideTheDialog()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+
+        var dialog = view.Find("dialog[data-details-overlay]");
+        Assert.True(dialog.PreviousElementSibling!.HasAttribute("data-app-dialog-backdrop"));
+        Assert.Empty(dialog.QuerySelectorAll("[data-app-dialog-backdrop]"));
+        view.WaitForAssertion(() => Assert.True((bool)_dialogModule.Invocations.Last(call => call.Identifier == "update").Arguments[7]!,
+            "the dialog module is told to show the window non-modal and make the page behind it inert itself"));
+    }
+
+    [Fact]
+    public void TheShellMarksThePlayerBarDockLive_SoTheOverlayLeavesItInteractive()
+    {
+        var layout = File.ReadAllText(Path.Combine(FindWebRoot(), "Shared", "MainLayout.razor"));
+        Assert.Matches(@"<div class=""playback-app-frame__audio-dock""[^>]*data-overlay-live=""player-bar""", layout);
+    }
+
+    private static string FindWebRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository root not found."), "src", "MediaEngine.Web");
     }
 
     [Fact]
@@ -629,6 +661,37 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
             Asked++;
             return ValueTask.FromResult(allow);
         }
+    }
+
+    [Fact]
+    public void TheWindowsFixedPositionLayerAndSize_AreRuledInTheGlobalStylesheet_NotInTheHostsScopedOne_BecauseTheScopeAttributeNeverReachesTheDialog()
+    {
+        // AppViewer renders the dialog, which has no isolation attribute of this component: a scoped ".tl-details-overlay { }" compiles to
+        // ".tl-details-overlay[b-xxxx]" and never matches it, leaving a non-modal window with no position, no z-index and no size.
+        var scoped = File.ReadAllText(Path.Combine(FindWebRoot(), "Components", "Details", "DetailsOverlayHost.razor.css"));
+        Assert.DoesNotMatch(@"(?m)^\.tl-details-overlay(--sheet)?(\[open\])?\s*[{,]", scoped);
+        Assert.DoesNotMatch(@"(?m)^\s+\.tl-details-overlay--sheet\[open\]", scoped);
+
+        var global = File.ReadAllText(Path.Combine(FindWebRoot(), "wwwroot", "app.css")).Replace("\r\n", "\n");
+        var window = System.Text.RegularExpressions.Regex.Match(global, @"(?m)^\.tl-details-overlay \{\n(?<body>.*?)\n\}", System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(window.Success, "app.css holds the window's own box");
+        Assert.Contains("position: fixed;", window.Groups["body"].Value, StringComparison.Ordinal);
+        Assert.Contains("z-index: var(--tl-z-modal", window.Groups["body"].Value, StringComparison.Ordinal);
+        Assert.Contains("var(--tl-overlay-bar-inset, 0px)", window.Groups["body"].Value, StringComparison.Ordinal);
+        Assert.Contains(".tl-details-overlay--sheet {", global, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WhatIsDrawnAboveTheWindow_IsMarkedLive_SoTheInertSweepLeavesItUsable_AndThePhoneNavigationDropsUnderTheBackdrop()
+    {
+        var web = FindWebRoot();
+        var layout = File.ReadAllText(Path.Combine(web, "Shared", "MainLayout.razor"));
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(layout, @"class=""layout-shell__engine-banner""[^>]*data-overlay-live=""banner""").Count);
+        var search = File.ReadAllText(Path.Combine(web, "Components", "Search", "UniversalSearchOverlay.razor"));
+        Assert.Contains("data-overlay-live=\"search\"", search, StringComparison.Ordinal);
+
+        var layoutCss = File.ReadAllText(Path.Combine(web, "Shared", "MainLayout.razor.css")).Replace("\r\n", "\n");
+        Assert.Matches(@"(?s)\.playback-app-frame:has\(dialog\[data-details-overlay\]\[open\]\) \.layout-shell__intent-dock \{\s*z-index: calc\(var\(--tl-z-details-backdrop, 1340\) - 1\);", layoutCss);
     }
 
     private sealed class PlainLayout : LayoutComponentBase

@@ -1,10 +1,13 @@
 using System.Text.Json;
+using MediaEngine.Api.Services.Canonical;
+using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -12,21 +15,37 @@ namespace MediaEngine.Api.Services.ReadServices;
 /// The one Needs Review list (universal editor v3, WP7 and D9): the review queue (items the Engine identified but is not sure about) and the
 /// unmatched-files list (files it could not identify) read together, so a person has one place to look and one number to be told. A file is
 /// never in both at once (the Engine clears the Unmatched mark when it raises a review item), so the two sources never repeat a row.
-/// Kept-as-is files and Vault libraries are never listed.
+/// Each row carries its group, its own picture and, when its Work belongs to a family (a show, an album, a Series), the family; rows come
+/// back in group order with a family's rows together (Needs Review redesign WP1). Items a person kept (Keep as it is) are hidden from the
+/// normal list and returned on request. Vault libraries are never listed, and neither are Wikidata-only items (matched to a provider, only
+/// the Wikidata link is missing; the Engine keeps retrying quietly).
 /// </summary>
 public sealed class NeedsReviewListReadService(
     IReviewQueueReadService reviews,
     IUnmatchedAssetRepository unmatched,
     IConfigurationLoader configuration,
-    IVaultLibraryRepository vault) : INeedsReviewListReadService
+    IVaultLibraryRepository vault,
+    INeedsReviewRowContextReadService contexts,
+    IHttpClientFactory? httpFactory = null,
+    IMemoryCache? previewCache = null,
+    ILogger<NeedsReviewListReadService>? logger = null) : INeedsReviewListReadService
 {
-    private static readonly string[] WikidataTriggers = ["WikidataBridgeFailed", "MissingQid", "MultipleQidMatches", "QidNoMatch"];
+    // How many provider pictures for choices are fetched at once; each is small, bounded and cached (RetailCandidateArtworkPreview).
+    private const int ChoicePictureConcurrency = 6;
 
-    /// <summary>The kind of a review item: only a failed retail match is "not matched"; every other trigger is the Engine being unsure.</summary>
-    public static string KindFor(string? trigger) =>
-        string.Equals(trigger, ReviewTrigger.RetailMatchFailed, StringComparison.Ordinal) ? NeedsReviewKinds.NotMatched : NeedsReviewKinds.NotSure;
+    // The list must stay quick however many items wait: one read fetches at most this many pictures and spends at most this long on them.
+    // Pictures left out are simply absent; they are cached once fetched, so a later read picks up where this one stopped.
+    private const int ChoicePictureLimit = 60;
+    private static readonly TimeSpan ChoicePictureBudget = TimeSpan.FromSeconds(4);
 
-    public async Task<NeedsReviewListDto> ListAsync(string? kind, string? libraryId, bool includeFiles, int skip, int take, CancellationToken ct = default)
+    private static readonly string[] WikidataTriggers = ["MultipleQidMatches", "QidNoMatch"];
+
+    // The notifier's own split (ReviewCountResponse): only a failed retail match counts as "not matched". The list itself no longer has kinds.
+    private static bool IsFailedRetailMatch(string? trigger) =>
+        string.Equals(trigger, ReviewTrigger.RetailMatchFailed, StringComparison.Ordinal);
+
+    public async Task<NeedsReviewListDto> ListAsync(
+        string? libraryId, bool includeFiles, int skip, int take, bool keptOnly = false, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var names = await ListedLibrariesAsync(ct).ConfigureAwait(false);
@@ -41,26 +60,15 @@ public sealed class NeedsReviewListReadService(
             }
         }
 
-        var rows = new List<NeedsReviewRowDto>();
         var vaultIds = await vault.GetIdsAsync(ct).ConfigureAwait(false);
-        var pending = library is null
-            ? await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false)
-            : await reviews.GetPendingForLibraryAsync(int.MaxValue, library, ct).ConfigureAwait(false);
-        foreach (var item in pending.Where(item => !IsVaultItem(item, vaultIds)))
-        {
-            var itemLibrary = names.Keys.FirstOrDefault(id => string.Equals(id, item.LibraryId, StringComparison.OrdinalIgnoreCase));
-            rows.Add(new NeedsReviewRowDto
-            {
-                Key = $"review:{item.Id:D}",
-                Kind = KindFor(item.Trigger),
-                LibraryId = itemLibrary ?? item.LibraryId,
-                LibraryName = itemLibrary is null ? null : names[itemLibrary],
-                LastTriedAt = item.CreatedAt,
-                BestGuess = BestGuessFor(item),
-                Review = item,
-            });
-        }
+        var reviewItems = keptOnly
+            ? await reviews.GetKeptAsync(int.MaxValue, library, ct).ConfigureAwait(false)
+            : library is null
+                ? await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false)
+                : await reviews.GetPendingForLibraryAsync(int.MaxValue, library, ct).ConfigureAwait(false);
+        var shownReviews = reviewItems.Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger)).ToList();
 
+        var files = new List<(UnmatchedAssetListItem File, string LibraryId, string LibraryName)>();
         if (includeFiles)
         {
             foreach (var (id, name) in names)
@@ -70,36 +78,179 @@ public sealed class NeedsReviewListReadService(
                     continue;
                 }
 
-                var page = await unmatched.ListByLibraryAsync(id, includeKept: false, 0, int.MaxValue, ct).ConfigureAwait(false);
-                rows.AddRange(page.Items.Select(file => ToRow(file, id, name)));
+                var page = await unmatched.ListByLibraryAsync(id, includeKept: keptOnly, 0, int.MaxValue, ct).ConfigureAwait(false);
+                files.AddRange(page.Items.Where(file => file.Asset.KeptAsIs == keptOnly).Select(file => (file, id, name)));
             }
         }
 
-        var notMatched = rows.Count(row => row.Kind == NeedsReviewKinds.NotMatched);
-        var filtered = rows.Where(row => KindMatches(kind, row.Kind))
-            .OrderByDescending(row => row.LastTriedAt)
-            .ThenBy(row => row.Key, StringComparer.Ordinal)
-            .ToList();
+        // One batched read for the whole list: each row's family and the pictures the Engine can serve.
+        var assetIds = shownReviews.Where(item => item.EntityType == "MediaAsset").Select(item => item.EntityId)
+            .Concat(files.Select(file => file.File.Asset.AssetId)).Distinct().ToList();
+        var workIds = shownReviews.Where(item => item.EntityType == "Work").Select(item => item.EntityId).Distinct().ToList();
+        var context = await contexts.ReadAsync(assetIds, workIds, ct).ConfigureAwait(false);
+
+        var rows = new List<NeedsReviewRowDto>();
+        var pendingPictures = new Dictionary<string, List<PendingPicture>>(StringComparer.Ordinal);
+        foreach (var item in shownReviews)
+        {
+            var itemLibrary = names.Keys.FirstOrDefault(id => string.Equals(id, item.LibraryId, StringComparison.OrdinalIgnoreCase));
+            var itemContext = ContextFor(context, item);
+            var options = NeedsReviewChoices.Read(item.Trigger, item.CandidatesJson, item.MediaType, logger);
+            // One retail candidate worth offering is the row's one answer ("Use this"); two or three are choices.
+            var singleRetail = string.Equals(item.Trigger, ReviewTrigger.RetailMatchAmbiguous, StringComparison.Ordinal) && options.Count == 1
+                ? options[0]
+                : null;
+            var bestGuess = singleRetail is null ? BestGuessFor(item) : UseRetailMatch(singleRetail);
+            var choices = singleRetail is null ? options.Select(option => option.ToDto()).ToList() : [];
+            var key = $"review:{item.Id:D}";
+            var pictures = new List<PendingPicture>();
+            if (bestGuess is not null && singleRetail is not null && !string.IsNullOrWhiteSpace(singleRetail.ImageUrl))
+            {
+                pictures.Add(new PendingPicture(singleRetail.ImageProvider, singleRetail.ImageUrl, url => bestGuess.ImageUrl = url));
+            }
+
+            for (var index = 0; index < choices.Count; index++)
+            {
+                var choice = choices[index];
+                if (!string.IsNullOrWhiteSpace(options[index].ImageUrl))
+                {
+                    pictures.Add(new PendingPicture(options[index].ImageProvider, options[index].ImageUrl!, url => choice.ImageUrl = url));
+                }
+            }
+
+            if (pictures.Count > 0)
+            {
+                pendingPictures[key] = pictures;
+            }
+
+            rows.Add(new NeedsReviewRowDto
+            {
+                Key = key,
+                LibraryId = itemLibrary ?? item.LibraryId,
+                LibraryName = itemLibrary is null ? null : names[itemLibrary],
+                LastTriedAt = item.CreatedAt,
+                BestGuess = bestGuess,
+                Choices = choices,
+                Review = item,
+                Group = NeedsReviewGrouping.GroupFor(item.Trigger, bestGuess is not null),
+                CoverUrl = string.IsNullOrWhiteSpace(item.CoverUrl) ? itemContext?.CoverUrl : item.CoverUrl,
+                FamilyKey = itemContext?.FamilyWorkId?.ToString("D"),
+                FamilyTitle = itemContext?.FamilyTitle,
+                FamilyWorkId = itemContext?.FamilyWorkId,
+                FamilyCoverUrl = itemContext?.FamilyCoverUrl,
+                Kept = keptOnly,
+            });
+        }
+
+        foreach (var (file, id, name) in files)
+        {
+            context.ByAsset.TryGetValue(file.Asset.AssetId, out var fileContext);
+            rows.Add(ToRow(file, id, name, fileContext, keptOnly));
+        }
+
+        var keptTotal = keptOnly ? rows.Count : await CountKeptAsync(library, includeFiles, names, ct).ConfigureAwait(false);
+        var filtered = Order(rows).ToList();
         var offset = Math.Max(0, skip);
         var size = Math.Max(1, take);
+        var pageRows = filtered.Skip(offset).Take(size).ToList();
+        await LoadPicturesAsync(pageRows, pendingPictures, ct).ConfigureAwait(false);
         return new NeedsReviewListDto
         {
-            Items = filtered.Skip(offset).Take(size).ToList(),
+            Items = pageRows,
             Total = filtered.Count,
-            NotMatchedTotal = notMatched,
-            NotSureTotal = rows.Count - notMatched,
+            GroupTotals = TotalsByGroup(filtered),
+            KeptTotal = keptTotal,
             Skip = offset,
             Take = size,
         };
     }
 
+    // A provider's picture never reaches the browser as a link: the Engine fetches the few it needs for the rows on this page (allow-listed
+    // hosts only, small, cached for a while) and hands over a small inline preview. A picture that cannot be fetched is simply absent.
+    private async Task LoadPicturesAsync(
+        IReadOnlyList<NeedsReviewRowDto> page, Dictionary<string, List<PendingPicture>> pending, CancellationToken ct)
+    {
+        if (httpFactory is null || previewCache is null || pending.Count == 0)
+        {
+            return;
+        }
+
+        var wanted = page.Where(row => pending.ContainsKey(row.Key)).SelectMany(row => pending[row.Key])
+            .Take(ChoicePictureLimit).ToList();
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(ChoicePictureBudget);
+        using var gate = new SemaphoreSlim(ChoicePictureConcurrency);
+        await Task.WhenAll(wanted.Select(async picture =>
+        {
+            try
+            {
+                await gate.WaitAsync(budget.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Out of time for pictures on this read: the row is shown without one.
+                return;
+            }
+
+            try
+            {
+                var preview = await RetailCandidateArtworkPreview
+                    .LoadAsync(picture.Provider, picture.SourceUrl, httpFactory, previewCache, budget.Token).ConfigureAwait(false);
+                if (preview is not null)
+                {
+                    picture.Apply(preview);
+                }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Out of time for pictures on this read: the row is shown without one.
+            }
+            finally
+            {
+                gate.Release();
+            }
+        })).ConfigureAwait(false);
+    }
+
+    private sealed record PendingPicture(string? Provider, string SourceUrl, Action<string> Apply);
+
+    // The one retail match the Engine found worth offering: "Use this" applies it through the choose action.
+    private static NeedsReviewBestGuessDto UseRetailMatch(ReviewChoiceOption option) => new()
+    {
+        Action = "use_retail_match",
+        Name = option.Retail?.Title.Trim() ?? option.Title,
+        Year = option.Retail?.Year is { Length: >= 4 } year ? year[..4] : option.Retail?.Year,
+        Source = RetailSourceName(option.Retail?.ProviderName),
+        ChoiceId = option.Id,
+    };
+
+    private static string RetailSourceName(string? provider) => (provider ?? string.Empty).Trim().ToLowerInvariant().Replace('-', '_') switch
+    {
+        "tmdb" => "TMDB",
+        "tvdb" => "TheTVDB",
+        "apple_api" or "apple_music" or "apple_books" => "Apple",
+        "musicbrainz" => "MusicBrainz",
+        "comicvine" or "comic_vine" => "Comic Vine",
+        "openlibrary" or "open_library" => "Open Library",
+        "" => "Provider match",
+        _ => provider!.Trim(),
+    };
+
     public async Task<ReviewCountResponse> CountAsync(bool includeFiles, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        // Counted from the very rows the list holds (after the same Vault filter), so the notifier can never say more than the list shows.
+        // Counted from the very rows the list holds (after the same Vault and Wikidata-only filters), so the notifier can never say more than
+        // the list shows.
         var vaultIds = await vault.GetIdsAsync(ct).ConfigureAwait(false);
-        var pending = (await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false)).Where(item => !IsVaultItem(item, vaultIds)).ToList();
-        var reviewNotMatched = pending.Count(item => KindFor(item.Trigger) == NeedsReviewKinds.NotMatched);
+        var pending = (await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false))
+            .Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger))
+            .ToList();
+        var reviewNotMatched = pending.Count(item => IsFailedRetailMatch(item.Trigger));
         var reviewTotal = pending.Count;
         var files = 0;
         if (includeFiles)
@@ -117,40 +268,94 @@ public sealed class NeedsReviewListReadService(
         };
     }
 
+    // How many kept items the same library filter holds: kept review items, plus (for an administrator) kept files.
+    private async Task<int> CountKeptAsync(string? library, bool includeFiles, Dictionary<string, string> listed, CancellationToken ct)
+    {
+        var total = await reviews.GetKeptCountAsync(library, ct).ConfigureAwait(false);
+        if (includeFiles)
+        {
+            var counts = await unmatched.CountKeptByLibraryAsync(ct).ConfigureAwait(false);
+            // The library ids are compared exactly, as ListByLibraryAsync does when it lists the kept files.
+            total += listed.Keys
+                .Where(id => library is null || string.Equals(id, library, StringComparison.Ordinal))
+                .Sum(id => counts.GetValueOrDefault(id));
+        }
+
+        return total;
+    }
+
+    // Group order, then each family's rows together (families ordered by their most recent row), then newest first, then key.
+    private static IEnumerable<NeedsReviewRowDto> Order(IEnumerable<NeedsReviewRowDto> rows)
+    {
+        var list = rows.ToList();
+        var blockNewest = list
+            .GroupBy(row => (row.Group, Block: row.FamilyKey ?? row.Key))
+            .ToDictionary(group => group.Key, group => group.Max(row => row.LastTriedAt));
+        return list
+            .OrderBy(row => NeedsReviewGrouping.OrderOf(row.Group))
+            .ThenByDescending(row => blockNewest[(row.Group, row.FamilyKey ?? row.Key)])
+            .ThenBy(row => row.FamilyKey ?? row.Key, StringComparer.Ordinal)
+            .ThenByDescending(row => row.LastTriedAt)
+            .ThenBy(row => row.Key, StringComparer.Ordinal);
+    }
+
+    private static Dictionary<string, int> TotalsByGroup(IReadOnlyList<NeedsReviewRowDto> rows) => new()
+    {
+        [NeedsReviewGroups.Ready] = rows.Count(row => row.Group == NeedsReviewGroups.Ready),
+        [NeedsReviewGroups.Choose] = rows.Count(row => row.Group == NeedsReviewGroups.Choose),
+        [NeedsReviewGroups.NoMatch] = rows.Count(row => row.Group == NeedsReviewGroups.NoMatch),
+        [NeedsReviewGroups.FileProblem] = rows.Count(row => row.Group == NeedsReviewGroups.FileProblem),
+    };
+
+    private static NeedsReviewRowContext? ContextFor(NeedsReviewRowContexts context, ReviewItemDto item)
+    {
+        if (item.EntityType == "MediaAsset" && context.ByAsset.TryGetValue(item.EntityId, out var byAsset))
+        {
+            return byAsset;
+        }
+
+        return item.EntityType == "Work" && context.ByWork.TryGetValue(item.EntityId, out var byWork) ? byWork : null;
+    }
+
     // A review item whose file sits in a Vault library is never listed or counted here, whatever the source query returned.
     private static bool IsVaultItem(ReviewItemDto item, IReadOnlySet<string> vaultIds) =>
         !string.IsNullOrWhiteSpace(item.LibraryId) && vaultIds.Any(id => string.Equals(id, item.LibraryId.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    private static bool KindMatches(string? filter, string kind) =>
-        string.IsNullOrWhiteSpace(filter)
-        || string.Equals(filter, "all", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(filter, kind, StringComparison.OrdinalIgnoreCase);
-
-    private static NeedsReviewRowDto ToRow(UnmatchedAssetListItem file, string libraryId, string libraryName) => new()
-    {
-        Key = $"file:{file.Asset.AssetId:D}",
-        Kind = NeedsReviewKinds.NotMatched,
-        LibraryId = libraryId,
-        LibraryName = libraryName,
-        LastTriedAt = file.Asset.LastTriedAt,
-        Unmatched = new UnmatchedItemDto
+    private static NeedsReviewRowDto ToRow(
+        UnmatchedAssetListItem file, string libraryId, string libraryName, NeedsReviewRowContext? context, bool kept) => new()
         {
-            AssetId = file.Asset.AssetId,
+            Key = $"file:{file.Asset.AssetId:D}",
             LibraryId = libraryId,
-            Title = file.Title,
-            FileName = Path.GetFileName(file.FilePath),
-            Folder = Path.GetDirectoryName(file.FilePath),
-            WorkId = file.WorkId,
-            Reason = file.Asset.Reason,
-            FirstUnmatchedAt = file.Asset.FirstUnmatchedAt,
+            LibraryName = libraryName,
             LastTriedAt = file.Asset.LastTriedAt,
+            // Every unmatched file is "No match found": the Engine found nothing to suggest.
+            Group = NeedsReviewGrouping.GroupFor(null, hasBestGuess: false),
+            CoverUrl = context?.CoverUrl,
+            FamilyKey = context?.FamilyWorkId?.ToString("D"),
+            FamilyTitle = context?.FamilyTitle,
+            FamilyWorkId = context?.FamilyWorkId,
+            FamilyCoverUrl = context?.FamilyCoverUrl,
             NextRetryAt = file.Asset.NextRetryAt,
-            KeptAsIs = file.Asset.KeptAsIs,
-        },
-    };
+            Kept = kept,
+            Unmatched = new UnmatchedItemDto
+            {
+                AssetId = file.Asset.AssetId,
+                LibraryId = libraryId,
+                Title = file.Title,
+                FileName = Path.GetFileName(file.FilePath),
+                Folder = Path.GetDirectoryName(file.FilePath),
+                WorkId = file.WorkId,
+                Reason = file.Asset.Reason,
+                FirstUnmatchedAt = file.Asset.FirstUnmatchedAt,
+                LastTriedAt = file.Asset.LastTriedAt,
+                NextRetryAt = file.Asset.NextRetryAt,
+                KeptAsIs = file.Asset.KeptAsIs,
+            },
+        };
 
-    // The one-click "Use this": the film's TV series when the Engine found one, or the provider match when only Wikidata could not confirm it.
-    // Every other row has no single answer to offer, so it has no best guess and Fix starts from the file name instead.
+    // The one-click "Use this": the film's TV series when the Engine found one, the provider match when only Wikidata found several
+    // entities, or the Engine's own linked match when it was not sure enough to accept it by itself. Every other row has no single answer
+    // to offer, so it has no best guess and Fix starts from the file name instead.
     private static NeedsReviewBestGuessDto? BestGuessFor(ReviewItemDto item)
     {
         if (string.Equals(item.Trigger, ReviewTrigger.MovieMatchedAsTv, StringComparison.Ordinal))
@@ -176,6 +381,26 @@ public sealed class NeedsReviewListReadService(
                 Action = "keep_provider_match",
                 Name = item.EntityTitle!,
                 Year = year,
+                Source = "Provider match",
+                ImageUrl = item.CoverUrl,
+            };
+        }
+
+        // A low-confidence item keeps the match the Engine found (the pipeline links the best retail match and only withholds acceptance), so
+        // "Use this" confirms it. The title shown must be the match's own: the list falls back to the file name or the reason text when the
+        // item has no title, so require a real title fact and a provider identifier, plus a confidence above zero.
+        if (string.Equals(item.Trigger, ReviewTrigger.LowConfidence, StringComparison.Ordinal)
+            && item.ConfidenceScore is > 0
+            && !string.IsNullOrWhiteSpace(item.EntityTitle)
+            && item.DetectedFacts.TryGetValue("title", out var matchedTitle) && !string.IsNullOrWhiteSpace(matchedTitle)
+            && item.BridgeIdentifiers.Count > 0)
+        {
+            item.DetectedFacts.TryGetValue("year", out var matchedYear);
+            return new NeedsReviewBestGuessDto
+            {
+                Action = "confirm_match",
+                Name = item.EntityTitle!,
+                Year = matchedYear,
                 Source = "Provider match",
                 ImageUrl = item.CoverUrl,
             };

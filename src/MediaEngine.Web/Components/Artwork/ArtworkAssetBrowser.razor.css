@@ -2,7 +2,7 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     min-height: 0;
-    color: #f8f8ff;
+    color: var(--tl-text-primary);
 }
 
 .artwork-asset-browser__body,
@@ -11,7 +11,7 @@
 .artwork-asset-browser__results {
     padding: 1rem;
     overflow-y: auto;
-    background: rgba(4, 16, 27, .68);
+    background: var(--tl-scrim-dark-6);
 }
 
 .artwork-asset-browser__results-toolbar {
@@ -26,39 +26,39 @@
     display: flex;
     gap: .35rem;
     align-items: baseline;
-    color: rgba(225, 234, 246, .64);
-    font-size: var(--tl-font-size-secondary);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
-.artwork-asset-browser__summary strong { color: #fff; font-size: var(--tl-font-size-md); }
+.artwork-asset-browser__summary strong { color: var(--tl-text-primary); font-size: var(--tl-type-subheading-size); }
 
 .artwork-asset-browser__sort {
     display: flex;
     align-items: center;
     gap: .55rem;
-    color: rgba(225, 234, 246, .7);
-    font-size: var(--tl-font-size-secondary);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .artwork-asset-browser__sort ::deep select {
     min-width: 10rem;
     min-height: 2.5rem;
-    border: 1px solid rgba(145, 181, 217, .26);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 26%, transparent);
     border-radius: .5rem;
-    background: rgba(12, 37, 56, .74);
-    color: #fff;
+    background: color-mix(in srgb, var(--tl-bg-surface-raised) 74%, transparent);
+    color: var(--tl-text-primary);
 }
 
 .artwork-asset-browser__timeline { display: grid; gap: 2rem; }
-.artwork-asset-browser__month > h2 { margin: 0 0 1rem; font-size: var(--tl-font-size-dialog-title); }
+.artwork-asset-browser__month > h2 { margin: 0 0 1rem; font-size: var(--tl-type-heading-size); }
 .artwork-asset-browser__date-group + .artwork-asset-browser__date-group { margin-top: 1.4rem; }
-.artwork-asset-browser__date-group > h3 { min-height: 2.25rem; margin: 0 0 .45rem; font-size: var(--tl-font-size-md); }
+.artwork-asset-browser__date-group > h3 { min-height: 2.25rem; margin: 0 0 .45rem; font-size: var(--tl-type-subheading-size); }
 .artwork-asset-browser__more { display: flex; justify-content: center; padding: 1rem; }
 
 .artwork-asset-browser__viewer-context { display: grid; gap: .45rem; margin-top: 1rem; }
-.artwork-asset-browser__viewer-context h3 { margin: 0; font-size: var(--tl-font-size-secondary); }
-.artwork-asset-browser__viewer-context div { display: grid; gap: .12rem; padding: .55rem; border-radius: .5rem; background: rgba(30, 41, 59, .46); }
-.artwork-asset-browser__viewer-context span { color: rgba(203, 213, 225, .62); font-size: var(--tl-font-size-xs); }
+.artwork-asset-browser__viewer-context h3 { margin: 0; font-size: var(--tl-type-label-size); }
+.artwork-asset-browser__viewer-context div { display: grid; gap: .12rem; padding: .55rem; border-radius: .5rem; background: color-mix(in srgb, var(--tl-bg-surface-hover) 46%, transparent); }
+.artwork-asset-browser__viewer-context span { color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); }
 
 @media (max-width: 720px) {
     .artwork-asset-browser__results { padding: .75rem; }

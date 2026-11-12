@@ -58,10 +58,10 @@ public static class ReviewEndpoints
 
         // ── GET /review/queue ────────────────────────────────────────────────
         group.MapGet("/queue", async (
-            string? kind,
             string? library,
             int? skip,
             int? take,
+            bool? kept,
             HttpContext http,
             IRequestAuthorityResolver authorities,
             INeedsReviewListReadService list,
@@ -69,10 +69,10 @@ public static class ReviewEndpoints
         {
             // One list for review items and unmatched files (universal editor v3, WP7). The unmatched files are an administrator's list.
             var includeFiles = UnmatchedScope.For(await authorities.ResolveAsync(http, ct)).AllLibraries;
-            return Results.Ok(await list.ListAsync(kind, library, includeFiles, skip ?? 0, Math.Clamp(take ?? 100, 1, 500), ct));
+            return Results.Ok(await list.ListAsync(library, includeFiles, skip ?? 0, Math.Clamp(take ?? 100, 1, 500), kept ?? false, ct));
         })
         .WithName("GetNeedsReviewList")
-        .WithSummary("Needs Review as one list: review items and files that could not be matched, newest first, filtered by kind (all, not_matched, not_sure) and library.")
+        .WithSummary("Needs Review as one list: review items and files that could not be matched, grouped by what the person must do (ready, choose, no_match, file_problem) with a family's rows together, filtered by library. kept=true returns only the items a person kept.")
         .Produces<MediaEngine.Contracts.Review.NeedsReviewListDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewRead);
 
@@ -283,7 +283,9 @@ public static class ReviewEndpoints
                 return ApiErrors.BadRequest("Review item is not pending.");
             }
 
-            await reviewRepo.UpdateStatusAsync(id, ReviewStatus.Dismissed, "user", ct);
+            // "Keep as it is" is recorded with its own resolver value, so the kept view lists exactly what a person kept (not the Engine's
+            // own dismissals, nor a skipped Universe) and "Put back" knows what it may reopen.
+            await reviewRepo.UpdateStatusAsync(id, ReviewStatus.Dismissed, ReviewStatus.KeptByUser, ct);
 
             var dismissCanonicals = await canonicalRepo.GetByEntityAsync(item.EntityId, ct);
             var dismissLookup = dismissCanonicals.ToDictionary(
@@ -338,6 +340,70 @@ public static class ReviewEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewResolve);
 
+        // ── POST /review/{id}/reopen ─────────────────────────────────────────
+        // "Put back": an item a person kept with Keep as it is waits in Needs Review again.
+        group.MapPost("/{id:guid}/reopen", async (
+            Guid id,
+            IReviewQueueRepository reviewRepo,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
+            ICanonicalValueRepository canonicalRepo,
+            IEventPublisher publisher,
+            ISystemActivityRepository activityRepo,
+            CancellationToken ct) =>
+        {
+            var item = await reviewRepo.GetByIdAsync(id, ct);
+            // A Vault item answers exactly like a missing one: Vault files never reach Needs Review (the review list hides them too).
+            if (item is null || await vaults.IsInVaultAsync(item.EntityId, ct))
+            {
+                return ApiErrors.NotFound($"Review item '{id}' not found.");
+            }
+
+            if (item.Status != ReviewStatus.Dismissed || item.ResolvedBy != ReviewStatus.KeptByUser)
+            {
+                return ApiErrors.Conflict("Review item was not kept by a person, so it cannot be put back.");
+            }
+
+            // The Engine may have raised the same question again since; two open copies of one question are never wanted.
+            var open = await reviewRepo.GetPendingByEntityAsync(item.EntityId, ct);
+            if (open.Any(entry => string.Equals(entry.Trigger, item.Trigger, StringComparison.Ordinal)))
+            {
+                return ApiErrors.Conflict("The same question is already waiting in Needs Review.");
+            }
+
+            // False also covers the Engine raising the same question between the check above and this write (the repository
+            // answers the pending-question unique index with false), so a race is a 409 as well.
+            if (!await reviewRepo.ReopenKeptAsync(id, ct))
+            {
+                return ApiErrors.Conflict("Review item could not be put back.");
+            }
+
+            // The item waits in Needs Review again: tell open Dashboards (their count refreshes on this event) and the Activity log.
+            var reopenCanonicals = await canonicalRepo.GetByEntityAsync(item.EntityId, ct);
+            var reopenTitle = reopenCanonicals
+                .FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))?.Value;
+
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                ActionType = SystemActionType.ReviewItemCreated,
+                CollectionName = reopenTitle,
+                EntityId = item.EntityId,
+                Detail = "Review item put back by user.",
+            }, ct);
+
+            await publisher.PublishAsync(
+                SignalREvents.ReviewItemCreated,
+                new ReviewItemCreatedEvent(id, item.EntityId, item.Trigger, reopenTitle),
+                ct);
+
+            return Results.Ok(new ReviewReopenResponse(reopened: true, review_item_id: id));
+        })
+        .WithName("ReopenReviewItem")
+        .WithSummary("Put back an item a person kept with Keep as it is: it becomes pending again and shows in Needs Review.")
+        .Produces<ReviewReopenResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewResolve);
+
         // ── POST /review/{id}/move-to-tv ─────────────────────────────────────
         // The user accepted the "Found as a TV title" suggestion. Logical move only: the file on
         // disk is never touched.
@@ -367,6 +433,47 @@ public static class ReviewEndpoints
         .WithName("MoveReviewItemToTv")
         .WithSummary("Accept a 'Found as a TV title' suggestion: re-file the film as Season 0 Episode 1 of the TMDB show in the TV library. The file on disk is not moved.")
         .Produces<ReviewMoveToTvResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewResolve);
+
+        // ── POST /review/{id}/choose ─────────────────────────────────────────
+        // Picks one of the two or three choices a Needs Review row offers (a retail match, a Series, a library type) and applies it through
+        // the same services the editor uses; the item then leaves the list.
+        group.MapPost("/{id:guid}/choose", async (
+            Guid id,
+            ReviewChooseRequestDto request,
+            IReviewChooseService choose,
+            IReviewQueueRepository reviewRepo,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
+            CancellationToken ct) =>
+        {
+            var item = await reviewRepo.GetByIdAsync(id, ct);
+            // A Vault item answers exactly like a missing one: Vault files never reach Needs Review (the review list hides them too).
+            if (item is null || await vaults.IsInVaultAsync(item.EntityId, ct))
+            {
+                return ApiErrors.NotFound($"Review item '{id}' not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ChoiceId))
+            {
+                return ApiErrors.BadRequest("choice_id is required.");
+            }
+
+            var result = await choose.ChooseAsync(id, request.ChoiceId, "user", ct);
+            return result.Outcome switch
+            {
+                ReviewChooseOutcome.Chosen => Results.Ok(result.Response),
+                ReviewChooseOutcome.ReviewItemNotFound => ApiErrors.NotFound(result.Message ?? $"Review item '{id}' not found."),
+                ReviewChooseOutcome.NotPending => ApiErrors.Conflict(result.Message ?? "Review item is not pending."),
+                ReviewChooseOutcome.UnknownChoice => ApiErrors.BadRequest(result.Message ?? "That choice is not one this item offers."),
+                _ => ApiErrors.Problem(result.FailureStatus, "That choice could not be applied.", result.Message ?? "That choice could not be applied."),
+            };
+        })
+        .WithName("ChooseReviewItem")
+        .WithSummary("Pick one of the choices Needs Review offers for a row (a retail match, a Series or a library type): it is applied the way the editor applies it and the item is resolved.")
+        .Produces<ReviewChooseResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status409Conflict)

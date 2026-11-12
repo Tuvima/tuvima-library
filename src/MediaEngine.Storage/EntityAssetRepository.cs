@@ -73,6 +73,27 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
     }
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<Guid>> GetTvEpisodeAssetsMissingProviderStillAsync(int limit, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<Guid>("""
+            SELECT MIN(woa.asset_id)
+            FROM   works w
+            INNER JOIN work_owned_assets woa ON woa.work_id = w.id
+            WHERE  w.media_type = 'TV' AND w.work_kind <> 'parent'
+              AND NOT EXISTS (SELECT 1 FROM entity_assets ea
+                              WHERE ea.entity_id = w.id AND ea.asset_type = 'EpisodeStill'
+                                AND COALESCE(ea.source_provider, '') <> 'generated')
+              AND NOT EXISTS (SELECT 1 FROM canonical_values cv
+                              WHERE cv.entity_id = w.id AND cv.key = 'episode_still_standin')
+            GROUP BY w.id
+            LIMIT @limit;
+            """, new { limit = Math.Max(limit, 1) }).ToList();
+        return Task.FromResult<IReadOnlyList<Guid>>(rows);
+    }
+
     public Task<IReadOnlyList<EntityAsset>> GetByEntityAsync(
         string entityId, string? assetType = null, CancellationToken ct = default)
     {

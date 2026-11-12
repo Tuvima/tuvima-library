@@ -23,6 +23,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/Pages/ViewDocumentsPage.razor"] = "Phone view-options sheet.",
         ["Components/Navigation/PhoneNavigationMenu.razor"] = "Phone navigation sheet.",
         ["Components/Details/OverflowActionMenu.razor"] = "Phone details actions sheet.",
+        ["Components/Editor/EditorMatchSheet.razor"] = "The Match card as a full-height phone sheet (editor v6 section 4a, packet 16): the app's full-screen dialog frame around a bar with Back and the card, exactly as PhoneNavigationMenu does; AppDialogShell's window card cannot fill the screen edge to edge.",
         // Editors (Group C): their layout belongs to the edit panels work; they use the shared close prompt.
         ["Components/Editor/ViewEditorPopover.razor"] = "The photos, videos, documents and galleries editor pop-over (spec photos-documents-editor D1): a native modal dialog drawn once by the layout around the shared editor window (EditorWindowChrome), exactly as the library editor is; it draws no frame of its own, and Esc and Discard use the shared unsaved-changes prompt.",
         ["Components/Editor/EditorPopover.razor"] = "The universal editor pop-over (v3 spec D1, D6): a native modal dialog drawn once by the layout around the editor window, with a tool rail and a fixed Cancel and Save footer; its layout belongs to the editor, and Esc and Cancel use the shared unsaved-changes prompt.",

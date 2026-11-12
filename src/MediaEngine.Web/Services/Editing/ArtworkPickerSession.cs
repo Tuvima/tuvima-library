@@ -229,9 +229,23 @@ public sealed class ArtworkPickerSession
     public bool Busy { get; private set; }
 
     /// <summary>A plain sentence about the last thing that could not be done; empty when all is well.</summary>
-    public string? Message { get; private set; }
+    public string? Message
+    {
+        get => _message;
+        private set
+        {
+            // Any later sentence replaces the one about the saved pictures, so Try again never sits beside an unrelated message.
+            _message = value;
+            SavedLoadFailed = false;
+        }
+    }
+
+    private string? _message;
 
     public bool SavedLoading { get; private set; }
+
+    /// <summary>The last read of the saved pictures did not come back (offline or the Engine did not answer); the phone editor offers Try again.</summary>
+    public bool SavedLoadFailed { get; private set; }
 
     public IReadOnlyList<ArtworkPickerPicture> Saved { get; private set; } = [];
 
@@ -368,6 +382,13 @@ public sealed class ArtworkPickerSession
         await OpenAsync(slot);
     }
 
+    /// <summary>Try again after the saved pictures did not come back: the plain line goes and the read is made again; nothing staged is touched.</summary>
+    public Task RetryLoadSavedAsync()
+    {
+        Message = null;
+        return LoadSavedAsync();
+    }
+
     /// <summary>Lists the pictures already saved for the item and slot.</summary>
     public async Task LoadSavedAsync()
     {
@@ -379,6 +400,7 @@ public sealed class ArtworkPickerSession
         }
 
         SavedLoading = true;
+        SavedLoadFailed = false;
         Changed?.Invoke();
         try
         {
@@ -400,12 +422,14 @@ public sealed class ArtworkPickerSession
             if (workspace is null)
             {
                 Message = "Saved pictures could not be loaded.";
+                SavedLoadFailed = true;
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             _logger?.LogWarning(ex, "The saved pictures for {Slot} could not be loaded", slot);
             Message = "Saved pictures could not be loaded.";
+            SavedLoadFailed = true;
         }
         finally
         {

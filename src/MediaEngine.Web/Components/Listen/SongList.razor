@@ -1,0 +1,48 @@
+@using MediaEngine.Web.Components.Details
+@implements IDisposable
+@inject DeviceContextService DeviceContext
+
+@* The Songs and Albums lists (spec music-table-and-reader-frame WP3): the one SongTable fed with this page's songs. It keeps what those two
+   lists always had around the table: tick boxes with the bulk bar and Edit panel, the delete flow, songs leaving the list when they are
+   deleted anywhere, and dragging a song out to a playlist. *@
+<SongTable Place="@Place"
+           Rows="@_rows"
+           AriaLabel="@AriaLabel"
+           ProfileId="@ProfileId"
+           CurrentRowId="@CurrentRowId"
+           IsPlaying="@IsPlaying"
+           FavoriteIds="@_favoriteIds"
+           Sort="@Sort"
+           OnSortChanged="@OnSortChanged"
+           ShowCovers="@ShowCovers"
+           PhoneLetterIndex="@PhoneLetterIndex"
+           ShowSelection="true"
+           SelectedIds="@_selectedIds"
+           SelectedIdsChanged="@OnSelectedIdsChangedAsync"
+           CanEdit="true"
+           CanDelete="@CanDeleteNow"
+           Notice="@_notice"
+           OnNoticeDismissed="@ClearNoticeAsync"
+           OnPlay="@PlayAsync"
+           OnPlayNext="@PlayNextAsync"
+           OnQueue="@QueueAsync"
+           OnOpenAlbum="@OpenAlbumCallback"
+           OnToggleFavorite="@ToggleFavoriteAsync"
+           OnEdit="@EditAsync"
+           OnDelete="@DeleteRowAsync"
+           OnDragOutStarted="@DragStartedCallback"
+           OnDragOutEnded="@DragEndedCallback"
+           EmptyContent="@EmptyContent"
+           IsLoading="@IsLoading">
+    <BulkContent Context="selected">
+        @* Ticking songs shows the selection bar (Edit, Match, Move to album, Delete in "...") and its right-hand panel (universal editor spec D14). *@
+        <BulkListEntry @ref="_bulkHost"
+                       Rows="@BulkRowsFor(selected)"
+                       MediaType="Music"
+                       OnPlay="@PlayTickedCallback"
+                       OnQueue="@QueueTickedCallback"
+                       OnSaved="@OnEditedAsync"
+                       OnCleared="@ClearSelectionAsync"
+                       OnDeleted="@OnDeletedAsync" />
+    </BulkContent>
+</SongTable>

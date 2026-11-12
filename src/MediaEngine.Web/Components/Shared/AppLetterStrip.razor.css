@@ -1,0 +1,32 @@
+.app-letter-strip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.app-letter-strip__letter {
+    width: 22px;
+    height: 15px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--tl-accent-primary);
+    font: inherit;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
+    line-height: 15px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.app-letter-strip__letter.is-empty {
+    color: var(--tl-text-muted);
+    opacity: 0.4;
+    cursor: default;
+}
+
+.app-letter-strip__letter:focus-visible {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: -2px;
+}

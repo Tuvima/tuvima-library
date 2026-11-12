@@ -2,8 +2,8 @@
     display: grid;
     gap: var(--tl-space-4);
     max-width: 62ch;
-    /* Lines up with the shell's title and keeps the preview off the header and footer dividers. */
-    padding: var(--tl-space-4) 22px;
+    /* The short dialog (Look v3.1 D4) carries the padding on the card itself, so the preview needs none of its own. */
+    padding: 0;
 }
 
 .delete-library p,
@@ -21,8 +21,8 @@
 }
 
 .delete-library__section h3 {
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .delete-library__files {
@@ -66,7 +66,7 @@
 }
 
 .delete-library__group h3 {
-    font-size: var(--tl-font-size-lg);
+    font-size: var(--tl-type-heading-size);
 }
 
 .delete-library__emphasis {

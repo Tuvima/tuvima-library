@@ -3,8 +3,10 @@ using Dapper;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
@@ -77,7 +79,7 @@ public sealed class EditorHeaderReadService(
         var levelChoice = ChooseLevel(family, current, secondLevel);
         var level = await BuildLevelAsync(family, levelChoice, support, query: null, offset: 0, profileId, supportingFileId, ct).ConfigureAwait(false);
 
-        var cover = await ReadCoverAsync(family.Root.EntityId, ct).ConfigureAwait(false);
+        var cover = await ReadCoverAsync(family.Root.EntityId, current.EntityId, ct).ConfigureAwait(false);
 
         // A movie, a book or a comic under a Series keeps the home button, with the Series as home: the same rule as a book in a Series
         // (spec 3a, "Book or comic in a Series"; L7, "a film series"). Only an item with no family at all has none.
@@ -106,8 +108,19 @@ public sealed class EditorHeaderReadService(
             FolderButton = BuildFolderButton(support, levelChoice),
             Colors = cover.Colors,
             FileFacts = family.Current.IsLeaf || !family.HasFamily ? await ReadFileFactsAsync(current.EntityId, support, ct).ConfigureAwait(false) : null,
+            ProviderMatched = ReadProviderMatched(family),
             Config = BuildConfig(config, kind),
         };
+    }
+
+    // Whether the item is matched to a provider by the Match tab's own rule (EditorMatchRule), so the header and the Match tab say the same thing.
+    private bool ReadProviderMatched(Family family)
+    {
+        using var connection = db.CreateConnection();
+        var workKind = connection.QueryFirstOrDefault<string>("SELECT work_kind FROM works WHERE id = @id;", new { id = family.Current.EntityId }) ?? string.Empty;
+        return EditorProviderMatchReader
+            .Read(connection, family.MediaType, family.Root.EntityId, [new EditorProviderMatchReader.Item(family.Current.EntityId, workKind)])
+            .Contains(family.Current.EntityId);
     }
 
     /// <summary>
@@ -1098,22 +1111,37 @@ public sealed class EditorHeaderReadService(
         public string? SecondaryHex { get; init; }
 
         public string? AccentHex { get; init; }
+
+        public string? LocalImagePath { get; init; }
     }
 
-    // The stored colours of the root's cover: the primary picture's artwork record, else the cover row the pages stream. No new extraction.
-    private async Task<CoverRead> ReadCoverAsync(Guid rootId, CancellationToken ct)
+    // The picture the header shows and its stored colours. The root's picture comes first (a show's poster stays the poster of its episodes);
+    // an item whose root has none (a book or film under a Series, which has no picture of its own) shows its own. A picture is looked for under the
+    // work and under its editions, the two owners the artwork access check can resolve; one stored under a file id is refused when it is asked for, so
+    // it gets no address and the Dashboard keeps the page's own picture. The address names the stored picture itself (an entity_assets id, the id
+    // /stream/artwork serves), never the shared artwork_assets row behind it: that id is not served there, and it belongs to whichever item stored
+    // the same image first. It is built by the shared helper, so it carries the picture's change marker.
+    private async Task<CoverRead> ReadCoverAsync(Guid rootId, Guid currentId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         await Task.CompletedTask.ConfigureAwait(false);
         using var connection = db.CreateConnection();
-        var cover = connection.QueryFirstOrDefault<CoverRow>("""
-            SELECT ea.id AS AssetId, ea.primary_hex AS PrimaryHex, ea.secondary_hex AS SecondaryHex, ea.accent_hex AS AccentHex
-            FROM entity_assets ea
-            WHERE ea.entity_id = @rootId AND ea.asset_type = 'CoverArt'
-              AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
-            ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC
-            LIMIT 1;
-            """, new { rootId });
+        var picked = FindStoredCover(connection, rootId) ?? (currentId == rootId ? null : FindStoredCover(connection, currentId));
+        if (picked is not null)
+        {
+            // The picture's shared artwork record is linked under the picture's own id (the link id is the entity_assets id).
+            var shared = connection.QueryFirstOrDefault<CoverRow>("""
+                SELECT aa.id AS AssetId, aa.primary_hex AS PrimaryHex, aa.secondary_hex AS SecondaryHex, aa.accent_hex AS AccentHex
+                FROM entity_artwork_links link
+                INNER JOIN artwork_assets aa ON aa.id = link.artwork_asset_id
+                WHERE link.id = @pickedId
+                LIMIT 1;
+                """, new { pickedId = picked.AssetId });
+            var source = !string.IsNullOrWhiteSpace(shared?.PrimaryHex) ? shared : picked;
+            return new CoverRead(ArtworkCanonicalHelper.StoredArtworkUrl(new EntityAsset { Id = picked.AssetId, LocalImagePath = picked.LocalImagePath ?? string.Empty }), ColorsOf(source));
+        }
+
+        // No stored picture row, only a linked artwork record: the display route reads artwork_assets ids, /stream/artwork does not.
         var linked = connection.QueryFirstOrDefault<CoverRow>("""
             SELECT link.artwork_asset_id AS AssetId, aa.primary_hex AS PrimaryHex, aa.secondary_hex AS SecondaryHex, aa.accent_hex AS AccentHex
             FROM entity_artwork_links link
@@ -1122,9 +1150,28 @@ public sealed class EditorHeaderReadService(
             ORDER BY link.is_user_override DESC, link.is_preferred DESC, link.sort_order, link.id
             LIMIT 1;
             """, new { rootId });
+        return linked is null
+            ? new CoverRead(null, null)
+            : new CoverRead($"/api/v1/display/artwork/assets/{linked.AssetId:D}/content", ColorsOf(linked));
+    }
 
-        var source = !string.IsNullOrWhiteSpace(linked?.PrimaryHex) ? linked : cover;
-        var colors = source is null || (string.IsNullOrWhiteSpace(source.PrimaryHex) && string.IsNullOrWhiteSpace(source.SecondaryHex) && string.IsNullOrWhiteSpace(source.AccentHex))
+    // The work's best stored cover: kept under the work or its edition, with the row's type naming that owner (the access check resolves a "Work"
+    // row by its work and an "Edition" row by its edition, and nothing else); a picture the user chose first, then the preferred one.
+    private static CoverRow? FindStoredCover(System.Data.IDbConnection connection, Guid workId) => connection.QueryFirstOrDefault<CoverRow>("""
+        SELECT ea.id AS AssetId, ea.primary_hex AS PrimaryHex, ea.secondary_hex AS SecondaryHex, ea.accent_hex AS AccentHex,
+               ea.local_image_path AS LocalImagePath
+        FROM entity_assets ea
+        WHERE ea.asset_type = 'CoverArt'
+          AND ((ea.entity_type = 'Work' AND ea.entity_id = @workId)
+               OR (ea.entity_type = 'Edition' AND ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = @workId)))
+          AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
+        ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, CASE WHEN ea.entity_id = @workId THEN 0 ELSE 1 END,
+                 COALESCE(ea.updated_at, ea.created_at) DESC
+        LIMIT 1;
+        """, new { workId });
+
+    private static EditorCoverColorsDto? ColorsOf(CoverRow? source) =>
+        source is null || (string.IsNullOrWhiteSpace(source.PrimaryHex) && string.IsNullOrWhiteSpace(source.SecondaryHex) && string.IsNullOrWhiteSpace(source.AccentHex))
             ? null
             : new EditorCoverColorsDto
             {
@@ -1132,9 +1179,6 @@ public sealed class EditorHeaderReadService(
                 SecondaryHex = NullIfBlank(source.SecondaryHex),
                 AccentHex = NullIfBlank(source.AccentHex),
             };
-        var coverId = linked?.AssetId ?? cover?.AssetId;
-        return new CoverRead(coverId is { } id ? $"/stream/artwork/{id:D}" : null, colors);
-    }
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -1165,6 +1209,32 @@ public sealed class EditorHeaderReadService(
             // Tuvima leaves a file alone when its library folder is Read-only, or when no library folder holds it.
             ReadOnly = path is not null ? resolved is null || !resolved.Source.IsWritable : totals?.ReadOnlyLibrary == true,
             IsMissing = path is not null && !File.Exists(path),
+            LibraryFolderName = LibraryFolderNameOf(resolved),
         };
+    }
+
+    // The library folder's name for Quick facts ("Books"): the name the person gave the library, else the last part of the folder's location. A
+    // name only, never a path; null when no library folder holds the file.
+    private static string? LibraryFolderNameOf(MediaEngine.Ingestion.Models.ResolvedLibrarySource? resolved)
+    {
+        if (resolved is null)
+        {
+            return null;
+        }
+
+        var name = resolved.Library.Name?.Trim();
+        if (!string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
+
+        var root = resolved.Source.Path?.TrimEnd('/', '\\');
+        if (string.IsNullOrEmpty(root))
+        {
+            return null;
+        }
+
+        var last = root[(root.LastIndexOfAny(['/', '\\']) + 1)..];
+        return string.IsNullOrEmpty(last) ? null : last;
     }
 }

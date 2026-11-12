@@ -1,7 +1,7 @@
 .view-artwork-header__count {
     flex: 0 0 auto;
-    color: rgba(255, 255, 255, .58);
-    font-size: var(--tl-font-size-sm);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .view-artwork-controls {
@@ -22,16 +22,16 @@
     gap: .45rem;
     min-height: 2.7rem;
     padding: 0 .9rem;
-    border: 1px solid rgba(255, 255, 255, .1);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: var(--tl-radius-pill);
-    background: rgba(255, 255, 255, .035);
-    color: rgba(255, 255, 255, .7);
+    background: var(--tl-wash-light-1);
+    color: var(--tl-text-secondary);
     cursor: pointer;
 }
 
 .view-artwork-tabs ::deep .view-artwork-tab.is-active {
-    border-color: rgba(155, 101, 255, .62);
-    background: rgba(117, 65, 210, .2);
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 62%, transparent);
+    background: color-mix(in srgb, var(--tl-accent-primary) 20%, transparent);
     color: var(--tl-text-on-accent);
 }
 
@@ -48,14 +48,14 @@
     gap: .65rem;
     min-height: 3rem;
     padding: 0 .9rem;
-    border: 1px solid rgba(255, 255, 255, .12);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: .8rem;
-    background: rgba(7, 8, 14, .55);
+    background: color-mix(in srgb, var(--tl-bg-root) 55%, transparent);
 }
 
 .view-artwork-search:focus-within {
-    border-color: rgba(155, 101, 255, .75);
-    box-shadow: 0 0 0 3px rgba(125, 72, 220, .14);
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 75%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent);
 }
 
 .view-artwork-search ::deep input {
@@ -70,9 +70,9 @@
 .view-artwork-type {
     display: grid;
     gap: .35rem;
-    color: rgba(255, 255, 255, .6);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: .06em;
 }
 
@@ -89,8 +89,8 @@
     padding: 0;
     border: 0;
     border-radius: .9rem;
-    outline: 1px solid rgba(255, 255, 255, .08);
-    background: rgba(255, 255, 255, .025);
+    outline: 1px solid var(--tl-wash-light-3);
+    background: var(--tl-wash-light-1);
     color: inherit;
     text-align: left;
     cursor: pointer;
@@ -101,8 +101,8 @@
 .view-artwork-grid ::deep .view-artwork-card:hover,
 .view-artwork-grid ::deep .view-artwork-card:focus-visible {
     transform: translateY(-2px);
-    outline-color: rgba(156, 103, 255, .85);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, .28), 0 0 0 3px rgba(126, 76, 219, .14);
+    outline-color: color-mix(in srgb, var(--tl-accent-primary) 85%, transparent);
+    box-shadow: 0 12px 30px var(--tl-scrim-dark-2), 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent);
 }
 
 @media (max-width: 640px) {

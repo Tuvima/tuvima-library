@@ -8,22 +8,28 @@
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
 @inject IEngineApiClient Api
+@inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Match tab for one item (universal editor v5, 3c, mockups G1 and G2). The first row carries the provider dropdown (label above) and the
-   "Media providers / Wikidata" switch at the right; while searching it also carries the boxes of the item's kind and a filled Search button. An
-   item that is matched opens on what it is matched to, found by its provider id, with the reasons it fits (Why this match) and the actions
-   Remove match and Change match; nothing is searched until a person asks. An item that is not matched yet opens on the search with
-   "Not matched yet", the boxes pre-filled from the cleaned file name, tags and folders. Apply match only stages the choice in the pending list
-   (Review shows it, with the move it brings when the match names another place); Save changes writes it. Remove match stages a removal the same
-   way. The Engine decides the kind of item, the providers and the boxes; the Dashboard only renders what match-setup returns. *@
+@* The Match tab for one item (universal editor v6, WP2; mock screens A and B). A two-way selector, "Media providers / Wikidata", sits on its own
+   line at the top of the tab for every kind; the tab owns it and draws it once. An item that is matched opens on what it is matched to, found by
+   its provider id, with the reasons it fits (Why this match) and the actions Remove match and Change match; nothing is searched until a person
+   asks. Whether it is matched is the Engine's own read as soon as that has loaded; the page's "unmatched" flag only says what is expected while
+   the read is loading. An item that is not matched yet, or is being changed, shows one search row on the shared form row (Provider, the boxes of
+   the kind, a labeled Search), the "Your file" bar and the results. Nothing is searched until Search or Enter: typing, or changing the provider,
+   never searches. Apply match only stages the choice in the pending list (Review shows it, with the move it brings when the match names another
+   place); Save changes writes it. Remove match stages a removal the same way. The Engine decides the kind of item, the providers and the boxes;
+   the Dashboard only renders what match-setup returns. On a phone (section 4a) the same steps are drawn for touch: the search row stacked, the "Your
+   file" bar on two lines, a result's card as a full-height sheet, and the current match's actions stacked at the full width. *@
 @if (Subject is not null)
 {
-    <div class="tl-match" data-testid="match-panel">
+    <div class="@(IsPhone ? "tl-match tl-match--phone" : "tl-match")" data-testid="match-panel" data-expected="@(IsUnmatched ? "unmatched" : "matched")">
         @if (!CanEdit)
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorMatchPanel_YouCanLookAtMatches"]</AppAlert>
         }
+
+        @SourcePart()
 
         @if (FlowOwnsRow)
         {
@@ -32,42 +38,17 @@
         else if (_wikidata && !_loading)
         {
             <EditorWikidataMatch Subject="Subject" Kind="@_kind" Session="Session" CanEdit="CanEdit" SearchStart="@Subject.Title"
-                                 ProviderKey="@ProviderSide?.Key" ProviderName="@ProviderSide?.Name" ProviderItemId="@ProviderSide?.Id" ProviderTitle="@ProviderSide?.Title" ProviderYear="@ProviderSide?.Year"
-                                 RowEnd="SwitchPart()">
+                                 ProviderKey="@ProviderSide?.Key" ProviderName="@ProviderSide?.Name" ProviderItemId="@ProviderSide?.Id" ProviderTitle="@ProviderSide?.Title" ProviderYear="@ProviderSide?.Year" Lead="FileBar()">
                 @UniverseSection()
             </EditorWikidataMatch>
         }
+        else if (_loading)
+        {
+            <div aria-busy="true" aria-label="@L["EditorMatchPanel_ReadingMatch"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+        }
         else
         {
-            <EditorMatchRow>
-                <Start>
-                    @ProviderPart()
-                    @if (ShowsSearchBoxes)
-                    {
-                        @foreach (var field in _setup!.Fields)
-                        {
-                            <div class="tl-matchrow__field">
-                                <AppTextField Label="@field.Label" Value="@FieldValue(field.Key)" ValueChanged="@(value => OnFieldChangedAsync(field.Key, value))"
-                                              aria-label="@field.Label" Placeholder="@(field.Key == "year" ? L["EditorMatchPanel_Optional"].Value : null)"
-                                              Immediate="false" Disabled="@(!ProviderIsReady || _searching)" data-testid="@("match-field-" + field.Key)" />
-                            </div>
-                        }
-
-                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                                       Disabled="@(_searching || _wikidata || !CanSearch)" OnClick="StartSearchAsync" data-testid="match-search-button" />
-                    }
-                </Start>
-                <End>@SwitchPart()</End>
-            </EditorMatchRow>
-
-            @if (_loading)
-            {
-                <div aria-busy="true" aria-label="@L["EditorMatchPanel_ReadingMatch"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
-            }
-            else
-            {
-                @ProvidersSide()
-            }
+            @ProvidersSide()
         }
     </div>
 }
@@ -81,7 +62,6 @@
     private PendingEditList? _watched;
     private Guid _startedFor;
     private bool _loading;
-    private bool _fresh;
     private bool _wikidata;
     private bool _changing;
     private bool _searching;
@@ -97,9 +77,17 @@
     private EditorMatchResultDto? _edition;
     private string? _problem;
     private string? _staged;
+
+    // True after an Apply on a phone staged a pick: once drawn, the note is scrolled into view and focused (the list above it can be long, and the sheet that
+    // took the pick has just closed), so the person sees it was taken.
+    private bool _revealStaged;
     private string? _stagedMove;
+
+    // True after an Apply was refused because this video's file already moves with a series change staged on this visit or earlier.
+    private bool _seriesFirst;
     private bool _staging;
     private ProviderMatchSide? _stagedSide;
+    private EditorMatchReadState? _reported;
 
     // The provider match as the Wikidata side compares it: what the person has staged, else what the item is matched to. Only read; the two sides never change each other.
     private sealed record ProviderMatchSide(string Key, string Name, string Id, string? Title, string? Year);
@@ -128,8 +116,17 @@
     /// <summary>Raised by "Open Universe". The window closes (asking about unsaved changes) and the Universe page opens; the host does both.</summary>
     [Parameter] public EventCallback<EditorUniverseLink> OnOpenUniverse { get; set; }
 
-    // The Engine's own read wins once the panel has read it again after a save; before that the page's answer (IsUnmatched) decides.
-    private bool IsMatched => (_fresh || !IsUnmatched) && !RemovalStaged && _current is { State: EditorCurrentMatchStates.Matched, Record: not null };
+    /// <summary>Raised once the Engine's read of the item's match has loaded, and again whenever the answer changes (a removal staged, a save), so the one-line header can say the same thing.</summary>
+    [Parameter] public EventCallback<EditorMatchReadState?> OnMatchState { get; set; }
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    private AppControlSize ControlSize => IsPhone ? AppControlSize.Normal : AppControlSize.Compact;
+
+    // The Engine's own read decides as soon as it has loaded (v6 D10); the page's answer (IsUnmatched) is only what is expected while it loads.
+    private bool IsMatched => !RemovalStaged && _current is { State: EditorCurrentMatchStates.Matched, Record: not null };
 
     private bool RemovalStaged => Session is not null && Subject is not null
         && Session.Pending.Changes.Any(change => change.Kind == EditSessionChangeKinds.MatchRemoval && change.EntityId == Subject.EntityId);
@@ -146,7 +143,7 @@
     // the source switch and the flow draws the row. Every other time the tab draws the row itself.
     private bool FlowOwnsRow => (UsesTvBrowser || UsesMusicFlow) && _setup is { NoProvider: false } && !_loading && !_wikidata && (_changing || !IsMatched);
 
-    private bool ShowsSearchBoxes => HasProviders && !UsesTvBrowser && !UsesMusicFlow && (_changing || !IsMatched) && !_wikidata && _loading == false;
+    private bool ShowsSearchBoxes => HasProviders && !UsesTvBrowser && !UsesMusicFlow;
 
     private bool CanSearch => _kind is not null && HasProviders && ProviderIsReady && _setup!.Fields.Count > 0;
 
@@ -155,16 +152,28 @@
     private bool CanApply => CanEdit && Session is { IsActive: true } && (_edition ?? _selected) is not null;
 
     private IReadOnlyList<AppSelectOption> SideOptions =>
-        [new AppSelectOption(SideProviders, L["EditorMatchPanel_MediaProviders"].Value), new AppSelectOption(SideWikidata, L["EditorMatchPanel_Wikidata"].Value)];
+    [
+        new AppSelectOption(SideProviders, L["EditorMatchPanel_MediaProviders"].Value, AppMaterialIcons.Outlined.Storage),
+        new AppSelectOption(SideWikidata, L["EditorMatchPanel_Wikidata"].Value, AppMaterialIcons.Outlined.Public),
+    ];
 
+    // A provider shows its mark and its name; a state shows only when the provider is not ready (it needs a key, or it is off). "Ready" is never said (v6 D4).
     private IReadOnlyList<AppSelectOption> ProviderOptions =>
-        [.. (_setup?.Providers ?? []).Select(p => new AppSelectOption(p.Name, L["EditorMatchPanel_ProviderOption", p.DisplayName, StateText(p.State)].Value))];
+        [.. (_setup?.Providers ?? []).Select(p => new AppSelectOption(
+            p.Name,
+            StateText(p.State) is { } state ? L["EditorMatchPanel_ProviderOption", p.DisplayName, state].Value : p.DisplayName,
+            Mark: ProviderMark(p)))];
 
-    private string StateText(string state) => state switch
+    // The one place a provider's mark comes from. Every provider shows its first letter in a small rounded square; real provider logos need a
+    // per-provider brand-rules check first, and when they ship they are supplied here and nowhere else.
+    private static string ProviderMark(EditorMatchProviderDto provider) =>
+        string.IsNullOrWhiteSpace(provider.DisplayName) ? string.Empty : provider.DisplayName.Trim()[..1];
+
+    private string? StateText(string state) => state switch
     {
+        EditorMatchProviderStates.Ready => null,
         EditorMatchProviderStates.NeedsKey => L["EditorMatchPanel_StateNeedsKey"].Value,
-        EditorMatchProviderStates.Off => L["EditorMatchPanel_StateOff"].Value,
-        _ => L["EditorMatchPanel_StateReady"].Value,
+        _ => L["EditorMatchPanel_StateOff"].Value,
     };
 
     protected override async Task OnParametersSetAsync()
@@ -176,7 +185,6 @@
         }
 
         _startedFor = Subject.EntityId;
-        _fresh = false;
         await LoadAsync();
     }
 
@@ -206,6 +214,13 @@
         _fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _loading = true;
 
+        // A read in progress means the old answer may be out of date: take it back so the header never shows it over the loading placeholder.
+        if (_reported is not null)
+        {
+            _reported = null;
+            await OnMatchState.InvokeAsync(null);
+        }
+
         var id = Subject.EntityId;
         var current = Api.GetEditorCurrentMatchAsync(id);
         var setup = Api.GetEditorMatchSetupAsync(id);
@@ -233,6 +248,30 @@
         // An item with no match yet opens on the search; one with a match opens on the match. Either way nothing has been asked of a provider.
         _changing = !IsMatched;
         _loading = false;
+    }
+
+    // Tells the one-line header what the Engine's read says, once it is known and each time it changes.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_revealStaged && _staged is not null)
+        {
+            _revealStaged = false;
+            await RevealStagedNoteAsync();
+        }
+
+        if (Subject is null || _loading || _current is null)
+        {
+            return;
+        }
+
+        var state = new EditorMatchReadState(Subject.EntityId, IsMatched, IsMatched ? _current.Record?.ProviderName : null);
+        if (state == _reported)
+        {
+            return;
+        }
+
+        _reported = state;
+        await OnMatchState.InvokeAsync(state);
     }
 
     // After Save the staged match has left the pending list: the note clears and the panel reads what the Engine now has.
@@ -270,7 +309,6 @@
 
         _ = InvokeAsync(async () =>
         {
-            _fresh = true;
             await LoadAsync();
             StateHasChanged();
         });
@@ -292,7 +330,7 @@
         return Task.CompletedTask;
     }
 
-    // The filled Search in the first row: opens the compact search in place and asks the provider with the boxes as they stand.
+    // The labeled Search button and Enter in any box: asks the provider with the boxes as they stand. Nothing else searches (v6 D3).
     private async Task StartSearchAsync()
     {
         _changing = true;
@@ -319,10 +357,15 @@
         _problem = null;
     }
 
-    private async Task OnFieldChangedAsync(string key, string? value)
+    // Typing only remembers the text; it is trimmed when the search is sent.
+    private void OnFieldChanged(string key, string? value) => _fields[key] = value ?? string.Empty;
+
+    private async Task OnFieldKeyAsync(KeyboardEventArgs args)
     {
-        _fields[key] = value?.Trim() ?? string.Empty;
-        await SearchAsync();
+        if (args.Key == "Enter" && CanSearch && !_searching)
+        {
+            await StartSearchAsync();
+        }
     }
 
     private async Task SearchAsync()
@@ -346,7 +389,7 @@
             var request = new EditorMatchSearchRequestDto
             {
                 Provider = _provider,
-                Fields = new Dictionary<string, string>(_fields, StringComparer.OrdinalIgnoreCase),
+                Fields = _fields.ToDictionary(pair => pair.Key, pair => pair.Value.Trim(), StringComparer.OrdinalIgnoreCase),
             };
             var found = await Api.SearchEditorMatchAsync(Subject.EntityId, request, source.Token);
             if (source.IsCancellationRequested)
@@ -406,6 +449,20 @@
         _staging = true;
         try
         {
+            // Where would the matched record put this item? A video has no place to move to; everything else asks the Engine.
+            var placement = string.Equals(candidate.ProviderName, YouTubeProvider, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : await Api.GetEditorMatchPlacementAsync(id, candidate);
+
+            // This video's file already moves with a series change: nothing of this match is staged (what was staged before stays as it was), so
+            // nothing is dropped silently and the two never disagree about where the file ends up.
+            if (EditorMatchStaging.SeriesMoveInTheWay(Session.Pending, id, placement))
+            {
+                _seriesFirst = true;
+                return;
+            }
+
+            _seriesFirst = false;
             Unstage(EditSessionChangeKinds.MatchRemoval);
             Session.Pending.SetTarget(
                 EditSessionChangeKinds.Identity,
@@ -413,11 +470,6 @@
                 EditSessionIdentityTarget.Serialize(request),
                 label: $"{facts.Title} ({facts.Provider})",
                 before: MatchBefore());
-
-            // Where would the matched record put this item? A video has no place to move to; everything else asks the Engine.
-            var placement = string.Equals(candidate.ProviderName, YouTubeProvider, StringComparison.OrdinalIgnoreCase)
-                ? null
-                : await Api.GetEditorMatchPlacementAsync(id, candidate);
             StagePlacement(id, placement);
             await StageShowRematchAsync(id, candidate);
         }
@@ -428,10 +480,24 @@
 
         _stagedSide = new ProviderMatchSide(candidate.ProviderId, candidate.ProviderName, candidate.ProviderItemId ?? string.Empty, facts.Title, facts.Year);
         _staged = $"{facts.Title} ({facts.Provider})";
+        _revealStaged = IsPhone;
         _changing = false;
         _found = null;
         _selected = null;
         _edition = null;
+    }
+
+    private async Task RevealStagedNoteAsync()
+    {
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            await module.InvokeVoidAsync("revealStagedNote");
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // Bringing the note into view is a nicety (a test host, a closing circuit): the pick is staged and the note is drawn either way.
+        }
     }
 
     // A show whose match changes takes its seasons and episodes with it: one Review row says how many follow by number and how many go to
@@ -530,11 +596,7 @@
             return;
         }
 
-        var existing = Session.Pending.Changes.FirstOrDefault(change => change.Kind == kind && change.EntityId == Subject.EntityId);
-        if (existing is not null)
-        {
-            Session.Pending.Remove(existing.Id);
-        }
+        EditorMatchStaging.Unstage(Session.Pending, kind, Subject.EntityId);
     }
 
     private string MatchBefore() => _current is { State: EditorCurrentMatchStates.Matched, Record: { } record }
@@ -562,8 +624,8 @@
         if (!_changing && IsMatched)
         {
             @StagedNote()
+            @FileBar()
             @CurrentCard(_current!)
-            @WhyTable(_current!)
         }
         else
         {
@@ -571,139 +633,202 @@
         }
     };
 
+    // The current match (v6 D10): the same card as a chosen search result, filled from the Engine's read of the matched record, with its three actions.
     private RenderFragment CurrentCard(EditorCurrentMatchDto current) => __builder =>
     {
         var record = current.Record!;
-        var idText = string.IsNullOrWhiteSpace(record.ProviderItemId) ? record.ProviderName : $"{record.ProviderName} · {record.ProviderItemId}";
-        <section class="tl-matchcard" aria-label="@L["EditorMatchPanel_CurrentMatch"].Value" data-testid="match-current">
-            @if (!string.IsNullOrWhiteSpace(record.ImageUrl))
-            {
-                <AppImage Src="@record.ImageUrl" Alt="" Width="64" Height="96" ObjectFit="AppObjectFit.Cover" Class="tl-match__art tl-matchcard__art" />
-            }
-            else
-            {
-                <span class="tl-match__art tl-match__art--empty tl-matchcard__art" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
-            }
-            <div class="tl-match__text">
-                <div class="tl-match__title"><span class="tl-match__meta">@L["EditorMatchPanel_CurrentMatch"]</span> <AppChip Text="@L["EditorMatchPanel_Matched"].Value" Tone="AppUiTone.Success" />@if (current.Pinned) { <AppChip Text="@L["EditorMatchPanel_ChosenByYou"].Value" Tone="AppUiTone.Neutral" /> }</div>
-                <div class="tl-matchcard__name">@record.Title</div>
-                <div class="tl-match__meta" data-testid="match-current-id">@idText</div>
-                <div class="tl-match__meta">@string.Join(" · ", new[] { record.Kind, record.Year }.Where(part => !string.IsNullOrWhiteSpace(part)))</div>
-                @if (!string.IsNullOrWhiteSpace(record.Creator))
-                {
-                    <div class="tl-match__meta" data-testid="match-current-creator">@CreatorLine(record)</div>
-                }
-                @if (!string.IsNullOrWhiteSpace(current.Note))
-                {
-                    <div class="tl-match__meta">@current.Note</div>
-                }
-            </div>
-            <div class="tl-matchcard__actions">
-                @if (!string.IsNullOrWhiteSpace(record.SourceUrl))
-                {
-                    <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@record.SourceUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" />
-                }
-                <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
-                           Disabled="@(!CanEdit || Session is not { IsActive: true })" OnClick="RemoveMatch" data-testid="match-remove" />
-                <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Disabled="@(!CanEdit || Session is not { IsActive: true })" OnClick="StartChange" data-testid="match-change" />
-            </div>
-        </section>
+        var canChange = CanEdit && Session is { IsActive: true };
+        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind, L)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" CompareBesideCover="true" data-testid="match-current">
+            <Basis><span data-testid="match-why-note">@L["EditorMatchPanel_ChangingKeepsLocked"]</span></Basis>
+            <Foot>
+                <div class="@(IsPhone ? "tl-matchcard__actions tl-matchcard__actions--phone" : "tl-matchcard__actions")">
+                    @if (!string.IsNullOrWhiteSpace(record.SourceUrl))
+                    {
+                        <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@record.SourceUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-testid="match-open-source" />
+                    }
+                    <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error"
+                               Disabled="@(!canChange)" OnClick="RemoveMatch" data-testid="match-remove" />
+                    <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                               Disabled="@(!canChange)" OnClick="StartChange" data-testid="match-change" />
+                </div>
+            </Foot>
+        </EditorMatchCard>
     };
 
-    // "Directed by" belongs to a film; every other kind of record just names its creator.
-    private string CreatorLine(EditorMatchedRecordDto record) =>
-        string.Equals(record.Kind, "Film", StringComparison.OrdinalIgnoreCase) ? L["EditorMatchPanel_DirectedBy", record.Creator!].Value : record.Creator!;
-
-    private RenderFragment WhyTable(EditorCurrentMatchDto current) => __builder =>
-    {
-        var checkedRows = current.Why.Where(row => row.State != EditorMatchEvidenceStates.NotChecked).ToList();
-        var notChecked = current.Why.Where(row => row.State == EditorMatchEvidenceStates.NotChecked).ToList();
-        var rows = checkedRows.Select(row => new EditorEvidenceCard.Row(
-            WhyFieldLabel(row.Field), WhyValue(row, row.YourFile, true), WhyValue(row, row.MatchedRecord, false), row.State,
-            row.Verdict is null ? null : EditorMatchResults.VerdictText(row.Verdict))).ToList();
-        <EditorEvidenceCard Title="@L["EditorMatchPanel_WhyThisMatch"].Value" YourLabel="@L["EditorMatchPanel_YourFile"].Value" OtherLabel="@L["EditorMatchPanel_MatchedRecord"].Value"
-                            Rows="rows" data-testid="match-why">
-            <Header>
-                @if (current.Verdict is { } verdict)
-                {
-                    <AppChip Text="@L["EditorMatchPanel_MatchVerdict", EditorMatchResults.VerdictText(verdict)].Value" Tone="@EditorMatchResults.VerdictTone(verdict)" />
-                }
-            </Header>
-            <Footer>
-                @foreach (var row in notChecked)
-                {
-                    <p class="tl-match__meta tl-matchwhy__footnote" data-testid="match-why-footnote">@L["EditorMatchPanel_NotCheckedNote", WhyFieldLabel(row.Field)]</p>
-                }
-                <p class="tl-match__meta">@L["EditorMatchPanel_ChangingKeepsLocked"]</p>
-            </Footer>
-        </EditorEvidenceCard>
-    };
-
-    // The measured length and the provider's rounded one say so inside their cells.
-    private string WhyValue(EditorMatchEvidenceRowDto row, string? value, bool yours)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "–";
-        }
-
-        return row.Field != "runtime" ? value : yours ? L["EditorMatchPanel_Measured", value].Value : L["EditorMatchPanel_Rounded", value].Value;
-    }
-
-    private string WhyFieldLabel(string field) => field switch
-    {
-        "title" => L["EditorMatchPanel_FieldTitle"].Value,
-        "year" => L["EditorMatchPanel_FieldYear"].Value,
-        "season_number" => L["EditorMatchPanel_FieldSeason"].Value,
-        "episode_number" => L["EditorMatchPanel_FieldEpisode"].Value,
-        "runtime" => L["EditorMatchPanel_FieldRuntime"].Value,
-        _ => field.Replace('_', ' '),
-    };
-
+    // The provider dropdown by itself (label above): the TV and music flows put it first in their own row, which is the same shared row.
     private RenderFragment ProviderPart() => __builder =>
     {
         if (HasProviders)
         {
-            <div class="tl-matchrow__provider">
-                <AppSelect Value="@_provider" ValueChanged="OnProviderChanged" Options="@ProviderOptions" Label="@L["EditorMatchPanel_Provider"].Value" Disabled="@(_searching || _wikidata)" />
-            </div>
+            @ProviderSelect()
         }
     };
 
-    private RenderFragment SwitchPart() => __builder =>
+    private RenderFragment ProviderSelect() => __builder =>
     {
-        <AppSegmentedControl Options="@SideOptions" Value="@(_wikidata ? SideWikidata : SideProviders)" ValueChanged="OnSideChanged" AriaLabel="@L["EditorMatchPanel_MatchSource"].Value" />
+        <AppSelect Value="@_provider" ValueChanged="OnProviderChanged" Options="@ProviderOptions" Label="@L["EditorMatchPanel_Provider"].Value" Disabled="@_searching" data-testid="match-provider" />
     };
+
+    // Media providers / Wikidata: one two-way selector on its own line under the tab row, for every kind (v6 D1). The panel draws it once.
+    private RenderFragment SourcePart() => __builder =>
+    {
+        <div class="tl-match__source" data-testid="match-source">
+            <AppSegmentedControl Options="@SideOptions" Value="@(_wikidata ? SideWikidata : SideProviders)" ValueChanged="OnSideChanged" AriaLabel="@L["EditorMatchPanel_MatchSource"].Value" />
+        </div>
+    };
+
+    // The plain search (v6 D3): Provider, the boxes of the kind and a labeled Search on the shared form row, every control 44 px with its label above.
+    // The row's message line carries what is wrong with the provider or the words; the results area carries Looking up, nothing found and the like.
+    private RenderFragment SearchRow() => __builder =>
+    {
+        <EditorMatchSearchRow Columns="@RowColumns" Message="@RowMessage" SearchDisabled="@(_searching || !CanSearch)" OnSearch="StartSearchAsync">
+            @ProviderSelect()
+            @foreach (var field in _setup!.Fields)
+            {
+                var key = field.Key;
+                <AppTextField Label="@FieldLabel(field)" Value="@FieldValue(key)" ValueChanged="@(value => OnFieldChanged(key, value))"
+                              aria-label="@FieldLabel(field)" Placeholder="@(key == "year" ? L["EditorMatchPanel_Optional"].Value : null)"
+                              Immediate="true" OnKeyDown="OnFieldKeyAsync" data-testid="@("match-field-" + key)" />
+            }
+        </EditorMatchSearchRow>
+    };
+
+    // Provider fixed, the main box widest, the short ones narrower, the button as wide as its word.
+    private string RowColumns => string.Join(' ', new[] { "220px" }
+        .Concat(_setup!.Fields.Select((box, index) => box.Key is "year" or "issue" ? "minmax(7rem, .5fr)" : box.Key == "isbn" ? "220px" : index == 0 ? "minmax(12rem, 1.6fr)" : "minmax(9rem, 1fr)"))
+        .Append("auto"));
+
+    // An optional box says so in its label (the Year box says it in its placeholder).
+    private string FieldLabel(EditorMatchFieldDto field) =>
+        field.Key == "isbn" ? L["EditorMatchPanel_OptionalLabel", field.Label].Value : field.Label;
+
+    private string? RowMessage
+    {
+        get
+        {
+            if (HasProviders && !ProviderIsReady)
+            {
+                return ProviderStateSentence;
+            }
+
+            // A kind with no boxes has nothing to look up; say why Search is off.
+            if (HasProviders && _setup!.Fields.Count == 0)
+            {
+                return L["EditorMatchPanel_NothingToSearchWith"].Value;
+            }
+
+            // After a search the line says how many came back and from whom (mock A).
+            if (_found is { Results.Count: > 0 } found)
+            {
+                var from = _setup?.Providers.FirstOrDefault(p => p.Name == _provider)?.DisplayName ?? _provider;
+                return found.Results.Count == 1
+                    ? L["EditorMatchPanel_ResultOneFrom", from].Value
+                    : L["EditorMatchPanel_ResultsFrom", found.Results.Count, from].Value;
+            }
+
+            // An answer the Engine gave without searching (a word is missing, an ISBN the provider cannot look up): its sentence goes on the message line.
+            return _found is { Results.Count: 0, FailedProviders.Count: 0 } answer && string.IsNullOrEmpty(answer.Query) && !string.IsNullOrWhiteSpace(answer.Message)
+                ? answer.Message
+                : null;
+        }
+    }
+
+    // What the list area says when there is nothing to list: a provider that did not answer, or a search that found nothing.
+    private string? ListMessage
+    {
+        get
+        {
+            if (_problem is not null)
+            {
+                return _problem;
+            }
+
+            if (_found is null || _found.Results.Count > 0)
+            {
+                return null;
+            }
+
+            if (_found.FailedProviders.Count > 0)
+            {
+                return L["EditorMatchPanel_ProviderDidNotAnswer", _found.FailedProviders[0].DisplayName].Value;
+            }
+
+            return string.IsNullOrEmpty(_found.Query)
+                ? null
+                : _setup!.Fields.Any(box => box.Key == "isbn") ? L["EditorMatchPanel_NothingFoundWithIsbn"].Value : L["EditorMatchPanel_NothingFound"].Value;
+        }
+    }
+
+    // "Your file" (v6 D5): the file name, then what the file itself says (an embedded title or the one read from the name, the creator, the measured
+    // length) and its format. Everything comes from the match-setup read; nothing is searched.
+    private RenderFragment FileBar() => __builder =>
+    {
+        var facts = FileFacts();
+        if (string.IsNullOrWhiteSpace(_fileName) && facts.Length == 0)
+        {
+            return;
+        }
+
+        <div class="@(IsPhone ? "tl-matchfile tl-matchfile--phone" : "tl-matchfile")" data-testid="match-your-file">
+            <span class="tl-matchfile__icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertDriveFile" Size="AppIconSize.Row24" /></span>
+            <span class="tl-matchfile__cap">@L["EditorMatchPanel_YourFile"]</span>
+            <div class="tl-matchfile__text">
+                <div class="tl-matchfile__name" data-testid="match-file-name" data-overflow-tooltip="@_fileName">@(string.IsNullOrWhiteSpace(_fileName) ? L["EditorMatchPanel_FileNothingRead"].Value : _fileName)</div>
+                @if (facts.Length > 0)
+                {
+                    <div class="tl-matchfile__facts" data-testid="match-file-facts">@facts</div>
+                }
+            </div>
+        </div>
+    };
+
+    private string FileFacts()
+    {
+        var evidence = _setup?.Evidence;
+        var parts = new List<string?>();
+        if (evidence is not null)
+        {
+            var embedded = evidence.Identifiers.FirstOrDefault(item => item.Kind == EditorMatchIdentifierKinds.EmbeddedTitle && !string.IsNullOrWhiteSpace(item.Value))?.Value;
+            if (evidence.Season is { } season && evidence.Number is { } episode)
+            {
+                parts.Add(L["EditorMatchPanel_FileFromName", L["EditorMatchPanel_FileSeasonEpisode", season, episode].Value].Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(embedded))
+            {
+                parts.Add(L["EditorMatchPanel_FileEmbeddedTitle", embedded].Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(evidence.FileTitle))
+            {
+                parts.Add(L["EditorMatchPanel_FileFromName", evidence.FileTitle].Value);
+            }
+
+            parts.Add(evidence.Creator);
+            parts.Add(string.IsNullOrWhiteSpace(evidence.MeasuredText) ? null : L["EditorMatchResults_EvidenceMeasured", evidence.MeasuredText].Value);
+        }
+
+        var format = string.IsNullOrWhiteSpace(_fileName) ? string.Empty : System.IO.Path.GetExtension(_fileName).TrimStart('.').ToUpperInvariant();
+        parts.Add(format);
+        return string.Join(" · ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
 
     private RenderFragment StagedNote() => __builder =>
     {
+        if (_seriesFirst)
+        {
+            <AppAlert Severity="AppSeverity.Warning" Dense="true" data-testid="match-series-first">@L["EditorMatchPanel_SeriesFirst"]</AppAlert>
+        }
+
         if (_staged is not null)
         {
-            <AppAlert Severity="AppSeverity.Success" Dense="true" data-testid="match-staged">@L["EditorMatchPanel_Staged", _staged]@if (!string.IsNullOrWhiteSpace(_stagedMove)) { <span data-testid="match-staged-move"> @_stagedMove</span> }</AppAlert>
+            <AppAlert Severity="AppSeverity.Success" Dense="true" data-testid="match-staged" data-staged-note="true" tabindex="-1">@L["EditorMatchPanel_Staged", _staged]@if (!string.IsNullOrWhiteSpace(_stagedMove)) { <span data-testid="match-staged-move"> @_stagedMove</span> }</AppAlert>
         }
     };
 
-    private RenderFragment SearchHeading() => __builder =>
-    {
-        <div>
-            <h3 class="tl-matchsearch__heading">@L["EditorMatchPanel_MatchKind", KindWord]</h3>
-            @if (!IsMatched)
-            {
-                <span class="tl-matchsearch__tag"><NotMatchedTag /> <span class="tl-match__meta">@L["EditorMatchPanel_NotMatchedYet"]</span></span>
-            }
-        </div>
-        @if (YourFileLine() is { Length: > 0 } fileLine)
-        {
-            <div class="tl-match__meta" data-testid="match-your-file">@L["EditorMatchPanel_YourFileLine", fileLine]</div>
-        }
-    };
-
-    // What the flow shows under the row it draws: a staged note, the heading with the "Not matched yet" tag, and the file the Engine read.
+    // What the flow shows under the row it draws: a staged note and the "Your file" bar.
     private RenderFragment FlowLead() => __builder =>
     {
         @StagedNote()
-        @SearchHeading()
+        @FileBar()
     };
 
     private RenderFragment FlowHost() => __builder =>
@@ -713,13 +838,13 @@
             {
                 <EditorTvMatchFlow Subject="Subject" Unmatched="@(!IsMatched)" Context="_tvContext" Evidence="_setup?.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
                                    ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange"
-                                   RowStart="ProviderPart()" RowEnd="SwitchPart()" Lead="FlowLead()" />
+                                   Providers="_setup!.Providers" RowStart="ProviderPart()" Lead="FlowLead()" />
             }
             else
             {
                 <EditorMusicMatchFlow Subject="Subject" Fields="_setup!.Fields" Evidence="_setup.Evidence" CanApply="@(CanEdit && Session is { IsActive: true })"
                                       ShowCancel="IsMatched" OnApplyMatch="ApplyCandidateAsync" OnCancel="CancelChange"
-                                      RowStart="ProviderPart()" RowEnd="SwitchPart()" Lead="FlowLead()" />
+                                      Providers="_setup.Providers" RowStart="ProviderPart()" Lead="FlowLead()" />
             }
         </section>
     };
@@ -728,26 +853,24 @@
     {
         <section class="tl-matchsearch" aria-label="@L["EditorMatchPanel_Match"].Value" data-testid="match-search">
             @StagedNote()
-            @SearchHeading()
-            @if (HasProviders && !ProviderIsReady)
+            @if (ShowsSearchBoxes)
+            {
+                @SearchRow()
+            }
+            else if (HasProviders && !ProviderIsReady)
             {
                 <AppAlert Severity="AppSeverity.Info" Dense="true">@ProviderStateSentence</AppAlert>
             }
 
-            <EditorMatchResults Results="@(_found?.Results ?? [])" Evidence="_found?.Evidence ?? _setup?.Evidence"
+            @FileBar()
+
+            <EditorMatchResults Results="@(_found?.Results ?? [])" Kind="@_kind"
                                 Selected="_selected" SelectedChanged="OnSelectedAsync" Edition="_edition" EditionChanged="OnEditionAsync"
-                                Loading="_searching" Message="@(_problem ?? _found?.Message)" Failed="@(_problem is not null || _found?.FailedProviders.Count > 0)"
+                                Loading="_searching" Message="@ListMessage" Failed="@(_problem is not null || _found?.FailedProviders.Count > 0)"
+                                OnRetry="StartSearchAsync"
                                 CanApply="CanApply" OnApply="ApplyAsync" ShowCancel="IsMatched" OnCancel="CancelChange" />
         </section>
     };
-
-    // The muted line under the heading: what the Engine read from the file (cleaned name, year, measured length).
-    private string YourFileLine()
-    {
-        var evidence = _setup?.Evidence;
-        var parts = new[] { _fileName, evidence?.Year, evidence?.MeasuredText };
-        return string.Join(" · ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
-    }
 
     private string FieldValue(string key) => _fields.TryGetValue(key, out var value) ? value : string.Empty;
 
@@ -756,21 +879,6 @@
             ? L["EditorMatchPanel_NeedsKeySentence", provider.DisplayName].Value
             : L["EditorMatchPanel_OffSentence", provider.DisplayName].Value
         : L["EditorMatchPanel_ChooseProvider"].Value;
-
-    private string KindWord => _kind switch
-    {
-        "movie" => L["EditorMatchPanel_KindMovie"].Value,
-        "book" => L["EditorMatchPanel_KindBook"].Value,
-        "audiobook" => L["EditorMatchPanel_KindAudiobook"].Value,
-        "comic" => L["EditorMatchPanel_KindComic"].Value,
-        "tv_show" => L["EditorMatchPanel_KindShow"].Value,
-        "tv_season" => L["EditorMatchPanel_KindSeason"].Value,
-        "tv_episode" => L["EditorMatchPanel_KindEpisode"].Value,
-        "album" => L["EditorMatchPanel_KindAlbum"].Value,
-        "song" => L["EditorMatchPanel_KindSong"].Value,
-        "video" => L["EditorMatchPanel_KindVideo"].Value,
-        _ => L["EditorMatchPanel_KindItem"].Value,
-    };
 
     // The Universe the item belongs to. "Open Universe" closes the editor, asking about unsaved changes first.
     private RenderFragment UniverseSection() => __builder =>
@@ -792,7 +900,7 @@
                     <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" /></span>
                 }
                 <div class="tl-match__text"><div class="tl-match__title"><span>@universe.Name</span></div></div>
-                <AppButton Label="@L["EditorMatchPanel_OpenUniverse"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                <AppButton Label="@L["EditorMatchPanel_OpenUniverse"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="@ControlSize"
                            OnClick="@(() => OnOpenUniverse.InvokeAsync(universe))" />
             </div>
         </section>

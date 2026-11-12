@@ -135,8 +135,8 @@
   <data name="Nav_Downloads" xml:space="preserve">
     <value>Téléchargements</value>
   </data>
-  <data name="Nav_MyLibrary" xml:space="preserve">
-    <value>Ma bibliothèque</value>
+  <data name="Nav_MyList" xml:space="preserve">
+    <value>Ma liste</value>
   </data>
   <data name="Nav_Menu" xml:space="preserve">
     <value>Menu</value>
@@ -864,5 +864,140 @@
   </data>
   <data name="Common_Time" xml:space="preserve">
     <value>Durée</value>
+  </data>
+  <data name="SongTable_DateAdded" xml:space="preserve">
+    <value>Date d’ajout</value>
+  </data>
+  <data name="SongTable_Plays" xml:space="preserve">
+    <value>Lectures</value>
+  </data>
+  <data name="SongTable_Genre" xml:space="preserve">
+    <value>Genre</value>
+  </data>
+  <data name="SongTable_Status" xml:space="preserve">
+    <value>Statut</value>
+  </data>
+  <data name="SongTable_Owned" xml:space="preserve">
+    <value>Possédé</value>
+  </data>
+  <data name="SongTable_Missing" xml:space="preserve">
+    <value>Manquant</value>
+  </data>
+  <data name="SongTable_ResetColumns" xml:space="preserve">
+    <value>Réinitialiser les colonnes</value>
+  </data>
+  <data name="SongTable_ResizeColumn" xml:space="preserve">
+    <value>Redimensionner la colonne {0}</value>
+  </data>
+  <data name="SongTable_SelectRow" xml:space="preserve">
+    <value>Sélectionner {0}</value>
+  </data>
+  <data name="SongTable_ActionsFor" xml:space="preserve">
+    <value>Actions pour {0}</value>
+  </data>
+  <data name="SongTable_AddToFavorites" xml:space="preserve">
+    <value>Ajouter aux favoris</value>
+  </data>
+  <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
+    <value>Retirer des favoris</value>
+  </data>
+  <data name="SongTable_PlayTitle" xml:space="preserve">
+    <value>Lire {0}</value>
+  </data>
+  <data name="SongTable_AddTitleToQueue" xml:space="preserve">
+    <value>Ajouter {0} à la file d’attente</value>
+  </data>
+  <data name="SongTable_UpdatingDetails" xml:space="preserve">
+    <value>Mise à jour des détails</value>
+  </data>
+  <data name="SongTable_MovedTo" xml:space="preserve">
+    <value>{0} déplacé à la position {1} sur {2}.</value>
+  </data>
+  <data name="SongsHeader_Search" xml:space="preserve">
+    <value>Rechercher des titres</value>
+  </data>
+  <data name="SongsHeader_SortAndFilter" xml:space="preserve">
+    <value>Trier et filtrer</value>
+  </data>
+  <data name="SongsHeader_SortAndFilterActive" xml:space="preserve">
+    <value>Trier et filtrer, {0} filtres actifs</value>
+  </data>
+  <data name="SongsHeader_SortBy" xml:space="preserve">
+    <value>Trier par</value>
+  </data>
+  <data name="SongsHeader_Ascending" xml:space="preserve">
+    <value>Croissant</value>
+  </data>
+  <data name="SongsHeader_Descending" xml:space="preserve">
+    <value>Décroissant</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favoris</value>
+  </data>
+  <data name="SongsHeader_JumpToLetter" xml:space="preserve">
+    <value>Aller à {0}</value>
+  </data>
+  <data name="SongsHeader_LetterIndex" xml:space="preserve">
+    <value>Index des lettres</value>
+  </data>
+  <data name="ReaderFrame_Reader" xml:space="preserve">
+    <value>Lecteur</value>
+  </data>
+  <data name="ReaderFrame_ReaderTools" xml:space="preserve">
+    <value>Outils de lecture</value>
+  </data>
+  <data name="ReaderFrame_Search" xml:space="preserve">
+    <value>Rechercher</value>
+  </data>
+  <data name="ReaderFrame_Contents" xml:space="preserve">
+    <value>Sommaire</value>
+  </data>
+  <data name="ReaderFrame_Pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="ReaderFrame_BookmarkThisPage" xml:space="preserve">
+    <value>Ajouter un signet à cette page</value>
+  </data>
+  <data name="ReaderFrame_RemoveBookmark" xml:space="preserve">
+    <value>Retirer le signet</value>
+  </data>
+  <data name="ReaderFrame_Bookmarks" xml:space="preserve">
+    <value>Signets</value>
+  </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Les miens</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Tout le monde</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>Vous n’avez pas encore de signet. Utilisez « Ajouter un signet à cette page » pour en ajouter un.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Rien n’a encore été partagé avec tout le monde.</value>
+  </data>
+  <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
+    <value>Réglages de lecture</value>
+  </data>
+  <data name="ReaderFrame_Close" xml:space="preserve">
+    <value>Fermer</value>
+  </data>
+  <data name="ReaderFrame_ClosePanel" xml:space="preserve">
+    <value>Fermer {0}</value>
+  </data>
+  <data name="ReaderFrame_Opening" xml:space="preserve">
+    <value>Ouverture en cours</value>
+  </data>
+  <data name="ReaderFrame_TryAgain" xml:space="preserve">
+    <value>Réessayer</value>
+  </data>
+  <data name="BookReader_SearchInThisBook" xml:space="preserve">
+    <value>Rechercher dans ce livre</value>
+  </data>
+  <data name="BookReader_Highlights" xml:space="preserve">
+    <value>Surlignages</value>
+  </data>
+  <data name="BookReader_BookmarkRemoved" xml:space="preserve">
+    <value>Signet supprimé.</value>
   </data>
 </root>

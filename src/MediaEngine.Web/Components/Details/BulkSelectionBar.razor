@@ -11,21 +11,65 @@
 @* The ticked rows' bar (universal editor spec D14), in the list column directly above the rows. It reads "{n} selected", then Edit, Match
    and Move to album/season where they make sense for the ticked rows, a "..." menu holding Delete from library, and Clear. It only opens
    pop-over's bulk panel (the selection says which one; the one editor host opens it over the page or list); the panel stages, and the
-   one Save changes saves. Nothing renders on a device that may not edit, on a page the Engine does not let the person edit, or while no
-   row is ticked. *@
-@if (_notice is not null)
-{
-    @* A refusal, or files a delete left on disk: it stays above the rows until the next try or the close button (nothing is drawn over the page). *@
-    <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-bulk-selection-notice="true">@_notice</AppAlert>
-}
-@if (Active is { Count: > 0 } selection && IsAvailable)
+   one Save changes saves. Ticked songs first get Play, Add to queue and Add to playlist (Listen music spec D9), which need no right to edit
+   and show on any desktop or tablet; every other action, and every other kind of row, renders only on a device that may edit, on a page
+   the Engine lets the person edit. Nothing renders while no row is ticked. *@
+@* The status region is always in the page, empty until there is a notice, so a screen reader already watching it announces the text when it appears. *@
+<div role="status" aria-live="polite" data-bulk-selection-announce="true">
+    @if (_notice is not null)
+    {
+        @* A refusal, or files a delete left on disk: it stays above the rows until the next try or the close button (nothing is drawn over the page). *@
+        <AppAlert Severity="@_noticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-bulk-selection-notice="true">@_notice</AppAlert>
+    }
+</div>
+@if (Active is { Count: > 0 } selection && (IsAvailable || SongActionsShown(selection)))
 {
     var rows = selection.Rows;
     var busy = IsBusy;
-    <section class="tl-batch" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
+    var editable = IsAvailable;
+    var songs = SongActionsShown(selection);
+    @* On a phone the bar is one column: the count, then the actions two to a row at full 44 px height (the arrangement only; the device rule below still decides who may edit). *@
+    <section class="@(Phone ? "tl-batch tl-batch--phone" : "tl-batch")" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
         <div class="tl-batch__bar" role="toolbar" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
             <span class="tl-batch__count" role="status">@BulkEditRules.SelectedLabel(selection.Count)</span>
             <span class="tl-batch__actions">
+                @if (songs && OnPlay.HasDelegate)
+                {
+                    @* Ticked songs play, queue and go into playlists on any desktop or tablet; only Edit and what follows needs the right to edit. *@
+                    <AppButton Label="@L["Common_Play"].Value"
+                               StartIcon="@AppMaterialIcons.Filled.PlayArrow"
+                               Class="tl-batch__play"
+                               Disabled="@busy"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Neutral"
+                               OnClick="PlayAsync" />
+                }
+
+                @if (songs && OnQueue.HasDelegate)
+                {
+                    <AppButton Label="@L["Common_AddToQueue"].Value"
+                               StartIcon="@AppMaterialIcons.Outlined.PlaylistAdd"
+                               Class="tl-batch__queue"
+                               Disabled="@busy"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Neutral"
+                               OnClick="QueueAsync" />
+                }
+
+                @if ((songs || editable) && BulkEditRules.CanAddToPlaylist(rows, selection.MediaType))
+                {
+                    @* Ticked songs and albums go into a hand-made playlist (a normal button: Tab reaches it, Enter or Space opens the list). *@
+                    <AppButton Label="@L["Common_AddToPlaylist"].Value"
+                               StartIcon="@AppMaterialIcons.Outlined.QueueMusic"
+                               Class="tl-batch__playlist"
+                               Disabled="@busy"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Neutral"
+                               OnClick="AddToPlaylistAsync" />
+                }
+
+                @if (editable)
+                {
                 <AppButton Label="@L["Common_Edit"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Edit"
                            Class="tl-batch__edit"
@@ -35,7 +79,9 @@
                            Disabled="@busy"
                            aria-pressed="@Pressed(selection, BulkPanelKind.Edit)"
                            OnClick="@(() => TogglePanel(BulkPanelKind.Edit))" />
-                @if (CanAddToCollection(selection))
+                }
+
+                @if (editable && CanAddToCollection(selection))
                 {
                     <AppButton Label="@BulkEditRules.AddToCollectionLabel(selection.Count)"
                                StartIcon="@AppMaterialIcons.Outlined.PlaylistAdd"
@@ -46,7 +92,7 @@
                                OnClick="AddToCollectionAsync" />
                 }
 
-                @if (BulkEditRules.CanMatch(rows, selection.MediaType))
+                @if (editable && BulkEditRules.CanMatch(rows, selection.MediaType))
                 {
                     <AppButton Label="@L["Common_Match"].Value"
                                StartIcon="@AppMaterialIcons.Outlined.TravelExplore"
@@ -59,7 +105,7 @@
                                OnClick="@(() => TogglePanel(BulkPanelKind.Match))" />
                 }
 
-                @if (BulkEditRules.CanPutInSeries(rows, selection.MediaType))
+                @if (editable && BulkEditRules.CanPutInSeries(rows, selection.MediaType))
                 {
                     <AppButton Label="@BulkEditRules.PutInSeriesLabel"
                                StartIcon="@AppMaterialIcons.Outlined.VideoLibrary"
@@ -72,7 +118,7 @@
                                OnClick="@(() => TogglePanel(BulkPanelKind.Series))" />
                 }
 
-                @if (BulkEditRules.CanMove(rows))
+                @if (editable && BulkEditRules.CanMove(rows))
                 {
                     <AppButton Label="@BulkEditRules.MoveLabel(rows, selection.MediaType)"
                                StartIcon="@AppMaterialIcons.Outlined.AccountTree"
@@ -85,7 +131,7 @@
                                OnClick="@(() => TogglePanel(BulkPanelKind.Move))" />
                 }
 
-                @if (MenuActions(selection) is { Count: > 0 } menu)
+                @if (editable && MenuActions(selection) is { Count: > 0 } menu)
                 {
                     <OverflowActionMenu Actions="@menu"
                                         ButtonClass="tl-batch__more"
@@ -112,8 +158,10 @@
 
     private BulkEditSelection? _selection;
     private bool _deleting;
+    private bool _working;
     private bool _deviceHooked;
     private string? _notice;
+    private AppSeverity _noticeSeverity = AppSeverity.Warning;
 
     /// <summary>The detail page the bar sits on (its Engine edit permission); null for a list with no page behind it, which needs only a device that may edit.</summary>
     [CascadingParameter] public EditorBinding? Binding { get; set; }
@@ -132,12 +180,20 @@
     /// <summary>Raised when Clear ran, so a list that keeps its own ticks can drop them.</summary>
     [Parameter] public EventCallback OnCleared { get; set; }
 
+    /// <summary>Play the ticked songs: replaces the queue with them (in list order) and starts the first. The host does it; without it no Play button shows.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<BulkEditRow>> OnPlay { get; set; }
+
+    /// <summary>Add the ticked songs to the end of the queue. The host does it; without it no Add to queue button shows.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<BulkEditRow>> OnQueue { get; set; }
+
     private BulkEditSelection? Active => Selection ?? CascadedSelection;
+
+    private bool Phone => EditorPhoneArrangement.Applies(Device);
 
     // On a detail page the bar needs the Engine's edit answer for that page; on a list it only needs a device that may edit.
     private bool IsAvailable => Binding is not null ? Binding.CanEdit : EditorDeviceRule.CanEdit(Device);
 
-    private bool IsBusy => Busy || _deleting || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
+    private bool IsBusy => Busy || _deleting || _working || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
 
     private static AppButtonStyle Style(BulkEditSelection selection, BulkPanelKind kind) =>
         selection.Panel == kind ? AppButtonStyle.Filled : AppButtonStyle.Outlined;
@@ -152,7 +208,7 @@
 
     // Any adult profile may put ticked titles in collections it may edit; the list only holds those, and the Engine checks each add.
     private bool CanAddToCollection(BulkEditSelection selection) =>
-        BulkEditRules.CanAddToCollection(selection.Rows)
+        BulkEditRules.CanAddToCollection(selection.Rows, selection.MediaType)
         && Services.GetService<DashboardSessionAccessor>() is { } session
         && CollectionAuthoringRule.CanCreate(session);
 
@@ -165,7 +221,7 @@
 
         if (EditorDeviceRule.TryRefuse(Device))
         {
-            _notice = EditorDeviceRule.Message;
+            Warn(EditorDeviceRule.Message);
             return;
         }
 
@@ -175,13 +231,94 @@
         }
 
         _notice = null;
+        var rows = Active.Rows;
+        var label = BulkEditRules.AddToCollectionLabel(Active.Count);
 
-        _notice = await CollectionMembershipFlow.RunAsync(
+        await WorkingAsync(async () => Warn(await CollectionMembershipFlow.RunAsync(
             Services,
-            [.. Active.Rows.Select(row => new CollectionEditorSeedItem(row.Id, row.Title, row.MediaType))],
-            BulkEditRules.AddToCollectionLabel(Active.Count),
-            title: null);
+            [.. rows.Select(row => new CollectionEditorSeedItem(row.Id, row.Title, row.MediaType))],
+            label,
+            title: null)));
     }
+
+    // While one of the bar's actions runs (a list is open, songs are being added), every button is greyed and a second press does nothing, so a
+    // second list cannot open and nothing is added twice.
+    private async Task WorkingAsync(Func<Task> action)
+    {
+        _working = true;
+        StateHasChanged();
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            _working = false;
+        }
+    }
+
+    // A refusal or a left-behind file: the amber line the bar has always shown. Null clears it.
+    private void Warn(string? message)
+    {
+        _notice = message;
+        _noticeSeverity = AppSeverity.Warning;
+    }
+
+    // Ticked songs (or every song on ticked albums) go into a hand-made playlist; the sentence says how many went in (spec D9, D15).
+    private async Task AddToPlaylistAsync()
+    {
+        if (Active is null || IsBusy)
+        {
+            return;
+        }
+
+        // Putting songs in a playlist is not editing: ticked songs may do it wherever the bar shows them; albums keep the edit gate they had.
+        if (!BulkEditRules.CanAddToPlaylist(Active.Rows, Active.MediaType) || !(SongActionsShown(Active) || IsAvailable))
+        {
+            return;
+        }
+
+        Warn(null);
+        var rows = Active.Rows;
+        await WorkingAsync(async () =>
+        {
+            var notice = await PlaylistMembershipFlow.RunAsync(Services, rows, L["Common_AddToPlaylist"].Value);
+            if (notice is not null)
+            {
+                _notice = notice.Message;
+                _noticeSeverity = notice.Severity;
+            }
+        });
+    }
+
+    // Ticked songs are played and queued in the order the list shows them; the host, which owns playback, does the work.
+    private async Task PlayAsync()
+    {
+        if (Active is null || IsBusy || !SongActionsShown(Active))
+        {
+            return;
+        }
+
+        Warn(null);
+        var rows = Active.Rows;
+        await WorkingAsync(() => OnPlay.InvokeAsync(rows));
+    }
+
+    private async Task QueueAsync()
+    {
+        if (Active is null || IsBusy || !SongActionsShown(Active))
+        {
+            return;
+        }
+
+        Warn(null);
+        var rows = Active.Rows;
+        await WorkingAsync(() => OnQueue.InvokeAsync(rows));
+    }
+
+    // Ticked songs have their own actions on a desktop or tablet (a phone has its own bottom bar), for anyone who may play; Edit stays separate.
+    private bool SongActionsShown(BulkEditSelection selection) =>
+        !Device.IsPhone && BulkEditRules.IsSongSelection(selection.Rows, selection.MediaType);
 
     private bool CanDelete(BulkEditSelection selection) =>
         BulkEditRules.AreDeletable(selection.Rows)
@@ -223,7 +360,7 @@
 
         if (EditorDeviceRule.TryRefuse(Device))
         {
-            _notice = EditorDeviceRule.Message;
+            Warn(EditorDeviceRule.Message);
             return;
         }
 
@@ -269,7 +406,7 @@
 
         if (LibraryItemDeletionFlow.Refusal(Device, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
         {
-            _notice = refusal;
+            Warn(refusal);
             return;
         }
 
@@ -286,7 +423,7 @@
             var result = await LibraryItemDeletionFlow.RunAsync(Dialogs, ids);
             if (result.Outcome != LibraryItemDeletionFlowOutcome.Canceled)
             {
-                _notice = result.Notice;
+                Warn(result.Notice);
                 Active.Clear();
                 if (Active.RefreshAsync is { } refresh)
                 {

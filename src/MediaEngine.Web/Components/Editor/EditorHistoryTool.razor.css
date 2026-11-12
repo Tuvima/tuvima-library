@@ -50,6 +50,29 @@
     font-weight: var(--tl-font-weight-semibold);
 }
 
+/* The phone arrangement (v6 section 4a, D21): a list of one-line entries, each a 44 px button that opens its details under it. */
+.tl-history--phone .tl-history__toolbar {
+    flex-wrap: wrap;
+}
+
+.tl-history--phone .tl-history__toolbar > * {
+    min-width: 0;
+}
+
+.tl-history__row--phone {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+.tl-history__more {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    padding: 0 0 var(--tl-space-3) var(--tl-space-1);
+}
+
 .tl-history__detail,
 .tl-history__actor {
     font-size: var(--tl-font-size-sm);

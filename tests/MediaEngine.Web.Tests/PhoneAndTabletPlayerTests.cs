@@ -133,6 +133,20 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         Assert.Contains("min-height: 56px;", button);
     }
 
+    [Fact]
+    public void TheCollapsedBarKeepsTwentyFourPixelGlyphsIn44PixelTargetsWhileTheBarTokensAreBigger()
+    {
+        var shell = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css");
+
+        var compact = shell.Split(".playback-shell--compact {", StringSplitOptions.None)[1].Split('}')[0];
+        Assert.Contains("--playback-control-target: 44px;", compact);
+        Assert.Contains("--playback-control-glyph: 24px;", compact);
+        Assert.Contains("--playback-play-target: 48px;", compact);
+        Assert.Contains("--playback-play-glyph: 32px;", compact);
+        var row = shell.Split(".playback-shell__row {", StringSplitOptions.None)[1].Split('}')[0];
+        Assert.Contains("min-height: 72px;", row);
+    }
+
     // ---- Video on a phone keeps its overlay (D26) ----
 
     [Fact]
@@ -270,15 +284,18 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         var row = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackToolRow.razor.css");
         var full = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackFullPlayer.razor.css");
 
-        Assert.Contains("--playback-control-target: 44px;", tokens);
-        Assert.Contains("--playback-control-glyph: 24px;", tokens);
+        Assert.Contains("--playback-control-target: 48px;", tokens);
+        Assert.Contains("--playback-control-glyph: 28px;", tokens);
+        Assert.Contains("--playback-play-target: 56px;", tokens);
+        Assert.Contains("--playback-play-glyph: 40px;", tokens);
         var slot = row.Split(".playback-tool-row__slot {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("min-height: var(--playback-control-target);", slot);
         Assert.Contains("min-width: var(--playback-control-target);", slot);
         var trigger = row.Split(".playback-tool-row ::deep .playback-popover-trigger {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("height: var(--playback-control-target);", trigger);
         Assert.Contains("width: var(--playback-control-target);", trigger);
-        Assert.Contains("--playback-control-target:52px;", full);
+        Assert.Contains("--playback-control-target:48px;", full);
+        Assert.Contains("--playback-control-glyph:28px; --playback-play-target:56px; --playback-play-glyph:40px;", full);
         var actions = full.Split(".playback-full__actions {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("--playback-control-target:44px;", actions);
         Assert.DoesNotContain("--playback-control-target:40px;", full);

@@ -64,7 +64,7 @@
             else
             {
                 <code>@review.PersonalSpace.RootPath</code>
-                var sources = review.Sources.Where(source => LibraryRollup.ViewFolderBelongsTo(source, Kind)).ToList();
+                var sources = review.Sources.Where(source => ViewFolderRules.BelongsToRow(source, Kind)).ToList();
                 @if (sources.Count == 0) { <p>@L["ViewFoldersTab_NoFoldersYet", KindNoun]</p> }
                 else
                 {
@@ -219,7 +219,7 @@
 
     // A linked folder's name is optional: an empty box saves the folder's own name, and a name already used by this kind gets " (2)" (View folders spec D2).
     private string AddName(Guid owner) => _mode == LinkedMode
-        ? ViewFolderRules.NameFor(_name, _path, Reviews.Values.SelectMany(review => ViewFolderRules.OfKind(review.Sources, Kind)).Select(source => source.Name))
+        ? ViewFolderRules.NameFor(_name, _path, Reviews.Values.SelectMany(review => ViewFolderRules.OfRow(review.Sources, Kind)).Select(source => source.Name))
         : _name.Trim();
 
     private async Task SetTimelineAsync(Guid owner, ViewSourceAdminDto source, bool value)
@@ -291,9 +291,23 @@
         finally { _busy = false; }
     }
 
+    // The row's name as the list shows it ("Photos and videos", "Personal videos", "Documents").
+    private string RowName => KindNoun.Length == 0 ? KindNoun : char.ToUpperInvariant(KindNoun[0]) + KindNoun[1..];
+
+    // The same folder is counted once, however many profiles list it (the overview's count reads the same set).
+    private bool IsLastFolder(ViewSourceAdminDto source) =>
+        ViewFolderRules.OfRow(Reviews.Values.SelectMany(review => review.Sources), Kind)
+            .Where(item => item.Id != source.Id)
+            .All(item => string.Equals(item.Location, source.Location, StringComparison.OrdinalIgnoreCase));
+
     private async Task DetachAsync(Guid owner, ViewSourceAdminDto source)
     {
-        if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Detach {source.Name}? Original files remain at {source.Location}.", yesText: "Detach folder", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true) return;
+        // Detaching the row's last folder takes the row off the Libraries list (Setup and Libraries fixes D11), so it says so in the Edit window's words.
+        var confirmed = IsLastFolder(source)
+            ? await DialogService.ShowMessageBoxAsync(L["LibraryEditDialog_LastFolderTitle"].Value, L["LibraryEditDialog_LastFolderBody", RowName].Value,
+                yesText: L["LibraryEditDialog_LastFolderRemove"].Value, cancelText: L["LibraryEditDialog_Keep"].Value, options: AppDialogOptions.DestructiveConfirm)
+            : await DialogService.ShowMessageBoxAsync("Detach folder?", $"Detach {source.Name}? Original files remain at {source.Location}.", yesText: "Detach folder", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm);
+        if (confirmed != true) return;
         _busy = true;
         try
         {

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+<title>Video player follow-ups mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one column of numbered figures; each is a framed player screen or panel with a numbered caption underneath. Single dark look on purpose: it is the app's own player palette (Look v3). */
+:root{color-scheme:dark;--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--acc:#8852FC;--acc-t:#A46FFF;--acc-soft:rgba(136,82,252,.22);--t1:#F5F7FB;--t2:#A3A8B8;--t3:#7C8190;--line:rgba(255,255,255,.10);--rail:rgba(255,255,255,.22);--ground:#0B0C0F;--ok:#4AC584;--warn:#E0A53C;--ui:"Segoe UI",system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--t1);font:15px/1.5 var(--ui);padding-block:28px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:1120px;margin:0 auto;display:grid;gap:40px}
+h1{font-size:24px;margin:0;text-wrap:balance}
+.lead{color:var(--t2);margin:6px 0 0;max-width:70ch}
+h2{font-size:18px;margin:0 0 4px}
+.issue{color:var(--t3);font-size:13px;margin:0 0 12px}
+figure{margin:0}
+figcaption{margin-top:12px;color:var(--t2);max-width:80ch}
+figcaption ol{margin:0;padding-left:22px;display:grid;gap:4px}
+figcaption b{color:var(--t1)}
+.scroll{overflow-x:auto}
+.m{position:absolute;z-index:20;width:22px;height:22px;border-radius:50%;background:var(--acc);color:#fff;font:700 12px/22px var(--ui);text-align:center;box-shadow:0 0 0 2px var(--ground)}
+svg.i{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.sm{width:20px;height:20px}svg.i.play{width:40px;height:40px}
+/* 1: video screen */
+.video{position:relative;min-width:980px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(120% 90% at 30% 20%,#3b3450 0%,#1a1824 55%,#0c0b10 100%)}
+.rating{position:absolute;top:36px;left:8%;display:flex;align-items:center;gap:14px}
+.rating i{width:5px;height:40px;border-radius:3px;background:var(--acc)}
+.rating strong{font-size:28px;font-weight:700;letter-spacing:.01em}
+.paused{position:absolute;left:24px;bottom:150px;max-width:460px}
+.paused h3{font-size:30px;margin:0}.paused p{margin:4px 0 0;color:var(--t2)}
+.bar{position:absolute;left:0;right:0;bottom:0;padding:8px 20px 14px;background:linear-gradient(transparent,rgba(0,0,0,.82) 55%)}
+.tl{display:flex;align-items:center;gap:12px;height:30px;font-size:13px;color:var(--t2);font-variant-numeric:tabular-nums}
+.tl .r{flex:1;height:4px;background:var(--rail);border-radius:2px;position:relative}
+.tl .r .played{position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--acc);border-radius:2px}
+.tl .r .handle{position:absolute;left:38%;top:-4px;width:12px;height:12px;border-radius:50%;background:#fff;margin-left:-6px}
+.bead{position:absolute;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--acc-t);box-shadow:0 0 0 2px #0c0b10}
+.bead.all{background:#fff}.bead.hov{width:14px;height:14px;margin:-7px 0 0 -7px}
+.qcard{position:absolute;bottom:22px;left:61%;transform:translateX(-50%);width:190px;background:var(--menu);border:1px solid var(--line);border-radius:8px;padding:6px;box-shadow:0 8px 22px rgba(0,0,0,.5);color:var(--t1);font-size:13px}
+.qcard .frame{height:96px;border-radius:5px;background:linear-gradient(150deg,#5a4a7a,#1f2a44)}
+.qcard b{display:block;margin-top:6px}.qcard span{color:var(--t2)}
+.row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;min-height:72px}
+.id{display:flex;align-items:center;gap:14px;min-width:0}
+.poster{width:43px;height:64px;border-radius:5px;flex:none;background:linear-gradient(165deg,#4d6aa8,#1b2540);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.txt .t{font-size:17px;font-weight:600}.txt .s{font-size:13px;color:var(--t2)}
+.btn{width:48px;height:48px;border-radius:8px;display:grid;place-items:center;position:relative;flex:none}
+.btn.play{width:56px;height:56px}.btn.hov{background:rgba(255,255,255,.12)}
+.btn .n{position:absolute;font:700 10px/1 var(--ui);top:50%;left:50%;transform:translate(-50%,-30%)}
+.mid,.tools{display:flex;align-items:center;gap:2px}.tools{justify-content:flex-end}
+.vslider{position:absolute;bottom:52px;left:50%;transform:translateX(-50%);width:48px;height:118px;display:grid;place-items:center}
+.vslider .vr{width:4px;height:96px;background:rgba(255,255,255,.35);border-radius:2px;position:relative;box-shadow:0 0 0 1px rgba(0,0,0,.45)}
+.vslider .vr i{position:absolute;left:0;right:0;bottom:0;height:70%;background:var(--acc);border-radius:2px}
+.vslider .vr u{position:absolute;left:-4px;bottom:calc(70% - 6px);width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.6)}
+/* panels */
+.panels{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.panel{position:relative;background:var(--menu);border:1px solid var(--line);border-radius:8px;width:100%;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+.panel.w560{max-width:560px}.panel.w420{max-width:420px}
+.ph{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);font-size:17px;font-weight:600}
+.ph .x{margin-left:auto;color:var(--t2)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px}
+.cols>div{min-width:0}
+.mh{color:var(--t3);font-size:12px;padding:8px 10px 4px}
+.pr{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;min-height:44px;padding:4px 10px;border-radius:6px;font-size:16px;font-weight:500}
+.pr.sel{background:var(--acc-soft)}
+.pr .l,.pr .d{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pr .d{grid-column:1/-1;font-size:13px;font-weight:400;color:var(--t2)}
+.pr .ck{color:var(--acc-t)}
+.pf{display:flex;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);font-size:14px;color:var(--t1)}
+.tipx{position:absolute;background:#3a3b46;border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:13px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.prev{margin:10px;height:84px;border-radius:6px;background:linear-gradient(150deg,#4a3f66,#16202f);display:grid;place-items:end center;padding-bottom:12px}
+.prev span{font-size:16px;font-weight:600;text-shadow:0 1px 3px #000,0 0 6px #000}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 10px}
+.tile{position:relative;height:84px;border:1px solid var(--line);border-radius:8px;display:grid;align-content:center;justify-items:center;gap:2px}
+.tile.on{border-color:var(--acc)}
+.tile b{font-size:22px;line-height:1.2}.tile.lg b{font-size:26px}.tile.hc{background:#000}.tile.hc b{-webkit-text-stroke:1px #000;text-shadow:0 0 0 #fff}
+.tile span{font-size:13px;color:var(--t2)}
+.tile .tk{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:var(--acc);display:grid;place-items:center;font-size:11px}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:14px;font-weight:500}
+.seg span{padding:7px 14px;color:var(--t2)}.seg span.on{background:var(--acc);color:#fff}
+.find{padding:8px 10px;display:grid;gap:8px}
+.fhead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:2px 4px;color:var(--t2);font-size:13px;flex-wrap:wrap}
+.sel2{border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--t1);font-size:14px;display:flex;gap:8px;align-items:center}
+.res{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:10px}
+.res.cur{border-color:var(--acc)}
+.res .ti{font-weight:600;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tag{font-size:11px;font-weight:500;padding:1px 8px;border-radius:4px;background:rgba(255,255,255,.08);color:var(--t2)}
+.tag.ok{color:var(--ok)}.tag.warn{color:var(--warn)}
+.res .rel{grid-column:1/-1;font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b{border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:14px;font-weight:600;white-space:nowrap}
+.b.pri{background:var(--acc);border-color:var(--acc)}
+.lnk{color:var(--acc-t);font-size:13px;font-weight:600}
+.why{margin:0;padding:12px;border:1px dashed var(--line);border-radius:8px;color:var(--t2);font-size:14px}
+.why b{color:var(--t1);display:block}
+.kvh{color:var(--t3);font-size:12px;padding:10px 14px 2px}
+.kv{display:flex;justify-content:space-between;gap:16px;padding:6px 14px;font-size:15px}
+.kv dt{color:var(--t2);flex:none}.kv dd{margin:0;text-align:right;min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+dl{margin:0}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="prev" viewBox="0 0 24 24"><path d="M6 5v14M19 5.5v13L9 12z"/></symbol>
+<symbol id="next" viewBox="0 0 24 24"><path d="M18 5v14M5 5.5v13L15 12z"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5"/></symbol>
+<symbol id="cc" viewBox="0 0 24 24"><path d="M4 5h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM20.5 8.5a4 4 0 0 1 0 5"/></symbol>
+<symbol id="bm" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></symbol>
+<symbol id="vol" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></symbol>
+<symbol id="full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="ck" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+<symbol id="lf" viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></symbol>
+<symbol id="dn" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+</defs></svg>
+<main>
+<header>
+<h1>Video player follow-ups</h1>
+<p class="lead">What changes in the video player after the local check of 11 November. Each picture shows the proposed result, with numbered notes underneath. Nothing here is built yet.</p>
+</header>
+
+<section>
+<h2>1. The paused player and the control row</h2>
+<p class="issue">Portrait cover, bigger controls, bigger rating, bookmark marks on the timeline, volume.</p>
+<figure>
+<div class="scroll"><div class="video">
+<span class="m" style="top:20px;left:calc(8% - 30px)">1</span>
+<div class="rating"><i></i><strong>Rated PG-13</strong></div>
+<div class="paused"><h3>The Long Way Home</h3><p>2019 · 2h 4m</p><p>A lighthouse keeper sets out across the country to return a letter that was never delivered.</p></div>
+<div class="bar">
+ <div class="tl"><span>47:12</span>
+  <div class="r"><div class="played"></div>
+   <span class="bead" style="left:12%"></span><span class="bead all" style="left:27%"></span><span class="bead hov" style="left:61%"></span><span class="bead all" style="left:83%"></span>
+   <div class="handle"></div>
+   <div class="qcard"><div class="frame"></div><b>The letter is opened</b><span>1:15:40 · Alex</span></div>
+   <span class="m" style="top:-34px;left:calc(12% - 11px)">3</span>
+   <span class="m" style="top:-150px;left:calc(61% + 104px)">4</span>
+  </div><span>−1:16:48</span></div>
+ <div class="row">
+  <div class="id"><span class="m" style="left:6px;bottom:70px">2</span><div class="poster"></div><div class="txt"><div class="t">The Long Way Home</div><div class="s">2019 · Movie</div></div></div>
+  <div class="mid"><span class="m" style="left:50%;margin-left:-11px;bottom:78px">5</span>
+   <div class="btn" style="opacity:.38"><svg class="i"><use href="#prev"/></svg></div>
+   <div class="btn"><svg class="i"><use href="#back"/></svg><span class="n">10</span></div>
+   <div class="btn play hov"><svg class="i play"><use href="#play"/></svg></div>
+   <div class="btn"><svg class="i"><use href="#fwd"/></svg><span class="n">30</span></div>
+   <div class="btn" style="opacity:.38"><svg class="i"><use href="#next"/></svg></div>
+  </div>
+  <div class="tools">
+   <div class="btn"><svg class="i"><use href="#cc"/></svg></div>
+   <div class="btn"><svg class="i"><use href="#bm"/></svg></div>
+   <div class="btn hov"><svg class="i"><use href="#vol"/></svg><div class="vslider"><div class="vr"><i></i><u></u></div></div><span class="m" style="top:-128px;right:-18px">6</span></div>
+   <div class="btn"><svg class="i"><use href="#gear"/></svg></div>
+   <div class="btn"><svg class="i"><use href="#full"/></svg></div>
+  </div>
+ </div>
+</div>
+</div></div>
+<figcaption><ol>
+<li><b>Rating while paused</b> is 28 px bold with a taller purple mark (today it is body-text size). On a phone it is 20 px.</li>
+<li><b>Movie cover is portrait</b>, a 43 × 64 poster. Today the poster sits inside a landscape box with a blurred fill. TV episodes keep their landscape still.</li>
+<li><b>Bookmark marks sit on the timeline itself</b> as round beads: purple for yours, white for everyone's. Today they are thin 2 px ticks hanging under the line.</li>
+<li><b>Hovering a bead</b> grows it and shows the frame, the name, the time and who made it. Clicking jumps there. A bead you just added pulses once so you see where it landed.</li>
+<li><b>Bigger controls:</b> icons 28 px in 48 px buttons (today 24 in 44), Play 40 px in a 56 px button (today 32 in 48). All side buttons stay equal and aligned.</li>
+<li><b>Volume is a vertical slider above the speaker with no panel behind it</b>, so it covers nothing to its right. Clicking the speaker still mutes.</li>
+</ol></figcaption>
+</figure>
+</section>
+
+<section>
+<h2>2. Audio &amp; subtitles, and Subtitle appearance</h2>
+<p class="issue">Rows stay on one line; style tiles are equal boxes with two lines.</p>
+<figure>
+<div class="panels">
+<div class="panel w560">
+ <div class="ph">Audio &amp; subtitles<svg class="i sm x"><use href="#x"/></svg></div>
+ <div class="cols">
+  <div><div class="mh">Audio</div>
+   <div class="pr sel"><span class="l">English</span><svg class="i sm ck"><use href="#ck"/></svg><span class="d">Dolby TrueHD Atmos · 7.1</span></div>
+   <div class="pr"><span class="l">English · Director commentary with the cast</span><span></span><span class="d">Dolby Digital · 2.0 · Not switchable in this browser</span></div>
+   <div class="pr"><span class="l">French</span><span></span><span class="d">Dolby Digital · 5.1</span></div>
+  </div>
+  <div><div class="mh">Subtitles</div>
+   <div class="pr"><span class="l">Off</span></div>
+   <div class="pr sel"><span class="l">English · SDH</span><svg class="i sm ck"><use href="#ck"/></svg></div>
+   <div class="pr"><span class="l">Portuguese (Brazil) · Forced · SubDL</span></div>
+  </div>
+ </div>
+ <div class="tipx" style="left:16px;top:150px">English · Director commentary with the cast</div>
+ <span class="m" style="left:-10px;top:112px">1</span>
+ <div class="pf">Subtitle appearance<span style="flex:1"></span>Find subtitles…</div>
+</div>
+<div class="panel w420">
+ <div class="ph"><svg class="i sm"><use href="#lf"/></svg>Subtitle appearance<svg class="i sm x"><use href="#x"/></svg></div>
+ <div class="prev"><span>This is how subtitles will look.</span></div>
+ <div class="mh" style="padding-left:14px">Style</div>
+ <div class="tiles">
+  <div class="tile on"><b>Aa</b><span>Default</span><i class="tk">✓</i></div>
+  <div class="tile lg"><b>Aa</b><span>Large text</span></div>
+  <div class="tile hc"><b>Aa</b><span>High contrast</span></div>
+ </div>
+ <span class="m" style="left:-10px;top:176px">2</span>
+ <div class="srow"><span>Background</span><div class="seg"><span class="on">None</span><span>Shadow</span><span>Box</span></div></div>
+ <span class="m" style="left:-10px;top:262px">3</span>
+ <div class="pf">Custom appearance<span style="flex:1"></span><span style="color:var(--t2)">Font, size, colors and opacity</span></div>
+</div>
+</div>
+<figcaption><ol>
+<li><b>Every row stays on one line.</b> A long name is shortened with "…" and the full text shows in the app tooltip on hover or focus. The detail line under an audio row does the same.</li>
+<li><b>Style tiles are three boxes of the same size</b>, the sample "Aa" on the first line and the name on the second. The separate Text size row is gone because the tiles already cover it; Small moves into Custom appearance.</li>
+<li><b>Background is its own choice.</b> Picking None keeps the chosen tile ticked and all three tiles usable. High contrast with no background draws a heavy black outline around the letters.</li>
+</ol></figcaption>
+</figure>
+</section>
+
+<section>
+<h2>3. Find subtitles</h2>
+<p class="issue">A list you pick from, and a plain reason whenever there is nothing.</p>
+<figure>
+<div class="panels">
+<div class="panel w560">
+ <div class="ph"><svg class="i sm"><use href="#lf"/></svg>Find subtitles<svg class="i sm x"><use href="#x"/></svg></div>
+ <div class="find">
+  <div class="fhead"><span>3 results from SubDL</span><span class="sel2">English<svg class="i sm"><use href="#dn"/></svg></span></div>
+  <span class="m" style="right:-10px;top:58px">1</span>
+  <div class="res cur"><div class="ti">English <span class="tag ok">In use now</span><span class="tag">Hearing impaired</span></div><span class="lnk">This one is wrong</span><div class="rel">The.Long.Way.Home.2019.1080p.BluRay.x264</div></div>
+  <div class="res"><div class="ti">English <span class="tag ok">Same release</span></div><span class="b pri">Use this</span><div class="rel">The.Long.Way.Home.2019.2160p.UHD.BluRay.x265</div></div>
+  <div class="res"><div class="ti">English <span class="tag warn">Different release</span></div><span class="b">Use this</span><div class="rel">The.Long.Way.Home.2019.WEB-DL.720p</div></div>
+  <span class="m" style="left:-10px;top:170px">2</span>
+ </div>
+ <div class="pf"><span style="color:var(--t2)">Your choice applies to everyone watching this title.</span><span style="flex:1"></span>Add a subtitle file…</div>
+</div>
+<div class="panel w420">
+ <div class="ph"><svg class="i sm"><use href="#lf"/></svg>Find subtitles<svg class="i sm x"><use href="#x"/></svg></div>
+ <div class="find">
+  <p class="why"><b>No English subtitles were found for this movie.</b>SubDL was asked and had none. Try another language, or add a subtitle file.</p>
+  <p class="why"><b>This episode could not be matched for an online search.</b>Searching needs the show to be matched and a movie database key switched on. An administrator can check both in Settings.</p>
+  <p class="why"><b>SubDL did not accept its key.</b>An administrator can update it under Settings › Plugins.</p>
+  <span class="m" style="left:-10px;top:60px">3</span>
+ </div>
+ <div class="pf"><span style="flex:1"></span>Add a subtitle file…</div>
+</div>
+</div>
+<figcaption><ol>
+<li><b>The search runs as the view opens</b>, in your profile's subtitle language, and the language can be changed here. Today there is one "Find better subtitles" button that quietly picks a single result by itself.</li>
+<li><b>Results are a list:</b> language, how well the release matches your file, and the release name on one line. "Use this" downloads it and switches to it at once. "This one is wrong" removes the current one and never offers it again.</li>
+<li><b>Whenever there is nothing, the view says why in plain words</b> (three examples shown). Today the Engine's reason is a small technical sentence, or nothing if the search runs longer than 20 seconds.</li>
+</ol></figcaption>
+</figure>
+</section>
+
+<section>
+<h2>4. Playback information</h2>
+<p class="issue">A short two-column list of what is playing and how, with Copy details.</p>
+<figure>
+<div class="panels">
+<div class="panel w420">
+ <div class="ph"><svg class="i sm"><use href="#lf"/></svg>Playback information<svg class="i sm x"><use href="#x"/></svg></div>
+ <dl>
+ <div class="kvh">File</div>
+ <div class="kv"><dt>Name</dt><dd>The Long Way Home (2019).mkv</dd></div>
+ <div class="kv"><dt>Format · size</dt><dd>MKV · 38.2 GB</dd></div>
+ <div class="kv"><dt>Overall bitrate</dt><dd>41,200 kb/s</dd></div>
+ <div class="kvh">Video</div>
+ <div class="kv"><dt>Picture</dt><dd>4K (3840 × 2160) · HEVC Main 10</dd></div>
+ <div class="kv"><dt>Frame rate</dt><dd>23.976 fps</dd></div>
+ <div class="kv"><dt>Color</dt><dd>HDR10</dd></div>
+ <div class="kvh">Audio</div>
+ <div class="kv"><dt>Track</dt><dd>English · Dolby TrueHD · 7.1</dd></div>
+ <div class="kv"><dt>Quality</dt><dd>48 kHz · 4,100 kb/s</dd></div>
+ <div class="kvh">Subtitles</div>
+ <div class="kv"><dt>Showing</dt><dd>English · SDH · from SubDL</dd></div>
+ <div class="kvh">How it is playing</div>
+ <div class="kv"><dt>Delivery</dt><dd>Converting for this browser</dd></div>
+ <div class="kv"><dt>Why</dt><dd>This browser cannot play HEVC video</dd></div>
+ <div class="kv"><dt>Connection</dt><dd>Home network · 180 Mb/s</dd></div>
+ <div class="kv"><dt>Buffer</dt><dd>42 s ahead</dd></div>
+ <div class="kv"><dt>Playing on</dt><dd>Edge on Windows</dd></div>
+ </dl>
+ <span class="m" style="left:-10px;top:60px">1</span>
+ <span class="m" style="left:-10px;top:430px">2</span>
+ <div class="pf"><span style="flex:1"></span><span class="b">Copy details</span><span class="m" style="right:-10px;bottom:10px">3</span></div>
+</div>
+</div>
+<figcaption><ol>
+<li><b>The file, video, audio and subtitle facts</b> come from what the Engine read from the file. A line with nothing to say is left out. Only the file's name is shown, never its folder.</li>
+<li><b>How it is playing</b> says whether the file plays as it is or is being converted, and the reason. Buffer updates while you watch.</li>
+<li><b>Copy details</b> puts the whole list on the clipboard as plain text, for asking for help. Music and audiobooks get the same view with File, Audio and How it is playing.</li>
+</ol></figcaption>
+</figure>
+</section>
+</main>
+</body></html>

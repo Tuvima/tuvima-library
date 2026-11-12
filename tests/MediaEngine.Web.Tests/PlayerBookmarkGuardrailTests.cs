@@ -73,7 +73,7 @@ public sealed class PlayerBookmarkGuardrailTests
     public void ThePlayerBookmarkWording_NeverSaysGlobalEveryonesPromoteFindOrImport()
     {
         var root = FindRepoRoot();
-        var banned = new Regex(@"\bGlobal\b|Everyone['’]s|\bPromote\b|\bFind\b|\bImport\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var banned = new Regex(@"Everyone['’]s|\bPromote\b|\bFind\b|\bImport\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         var strings = XDocument.Load(Path.Combine(root, "src/MediaEngine.Web/Resources/SharedStrings.resx"));
         var values = strings.Root!.Elements("data")
             .Where(data => ((string?)data.Attribute("name"))?.StartsWith("BookmarksPanel_", StringComparison.Ordinal) == true)
@@ -85,7 +85,7 @@ public sealed class PlayerBookmarkGuardrailTests
             Assert.False(banned.IsMatch(value), $"{name} says \"{value}\".");
         }
 
-        Assert.DoesNotContain("Global", (string?)strings.Root!.Elements("data").Single(data => (string?)data.Attribute("name") == "Common_Everyone").Element("value"));
+        Assert.DoesNotContain("Global", (string?)strings.Root!.Elements("data").Single(data => (string?)data.Attribute("name") == "ReaderFrame_BookmarksEveryone").Element("value"));
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class PlayerBookmarkGuardrailTests
     }
 
     [Fact]
-    public void TheEditorBookmarkFiles_NeverSayGlobalLibraryBookmarksOrShare()
+    public void TheEditorBookmarkFiles_NeverSayLibraryBookmarksOrShare()
     {
         var root = FindRepoRoot();
         var editorFiles = Directory.GetFiles(Path.Combine(root, "src/MediaEngine.Web/Components/Editor"), "EditorBookmark*");
@@ -145,11 +145,11 @@ public sealed class PlayerBookmarkGuardrailTests
             .ToList();
         Assert.NotEmpty(files);
 
-        var banned = new Regex(@"\bGlobal\b|\bShare\b|Library bookmarks", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var banned = new Regex(@"\bShare\b|Library bookmarks", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         foreach (var file in files)
         {
             var match = banned.Match(File.ReadAllText(file));
-            Assert.False(match.Success, $"{Path.GetFileName(file)} says \"{match.Value}\"; the word is Everyone's.");
+            Assert.False(match.Success, $"{Path.GetFileName(file)} says \"{match.Value}\"; the word is Global (global bookmarks v5).");
         }
 
         var strings = XDocument.Load(Path.Combine(root, "src/MediaEngine.Web/Resources/SharedStrings.resx"));
@@ -160,7 +160,7 @@ public sealed class PlayerBookmarkGuardrailTests
         Assert.NotEmpty(values);
         foreach (var (name, value) in values)
         {
-            Assert.False(banned.IsMatch(value), $"{name} says \"{value}\"; the word is Everyone's.");
+            Assert.False(banned.IsMatch(value), $"{name} says \"{value}\"; the word is Global (global bookmarks v5).");
         }
     }
 

@@ -1,4 +1,0 @@
-/* The tile itself is the shared choice tile (AppChoiceTile); only the host and the small "Add a folder to it instead" note are styled here. */
-.lib-tile-host { min-width: 0; }
-/* The note under the name of a greyed tile, with room above it so it never touches the name. */
-.lib-tile__badge { display: block; margin-top: var(--tl-space-2); color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }

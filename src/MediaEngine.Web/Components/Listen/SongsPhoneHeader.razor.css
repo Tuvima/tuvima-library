@@ -1,0 +1,68 @@
+/* The phone Songs page's header (spec music-table-and-reader-frame D21, mockup A6): search with a Sort and filter button, then Play and
+   Shuffle, and the bottom sheet the button opens. Targets are 44 px (Look v3). */
+
+.songs-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 0 8px;
+}
+
+.songs-header__search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.songs-header__search {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.songs-header__sort {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.songs-header__badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-accent-primary);
+    color: var(--tl-text-on-accent);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
+    line-height: 18px;
+    text-align: center;
+}
+
+.songs-header__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.songs-header-sheet__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 70dvh;
+    padding: 4px 16px 8px;
+    overflow-y: auto;
+}
+
+.songs-header-sheet__section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.songs-header-sheet__genres {
+    display: flex;
+    flex-direction: column;
+}

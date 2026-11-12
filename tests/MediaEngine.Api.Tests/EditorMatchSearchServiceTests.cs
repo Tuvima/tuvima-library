@@ -158,7 +158,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Assert.Equal("Lana Wachowski", strong.Creator);
         Assert.Equal("https://www.themoviedb.org/movie/603", strong.SourceUrl);
         Assert.Contains(strong.Reasons, reason => reason.Fact == "runtime" && reason.State == EditorMatchEvidenceStates.Agrees && reason.Text == "Runtime consistent");
-        Assert.Equal(EditorMatchVerdicts.Check, found.Results[1].Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, found.Results[1].Verdict);
         Assert.Null(found.Message);
         Assert.False(found.RetriedWithoutPunctuation);
     }
@@ -177,7 +177,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ACheckMatch_StillHasItsCandidateIntactToApply()
+    public async Task AWeakMatch_StillHasItsCandidateIntactToApply()
     {
         var movie = Movie("The.Matrix.1999.mkv");
         var wrong = Candidate("999", "Something Else Entirely", "2012", score: 0.3);
@@ -186,7 +186,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         var found = await Service().SearchForKindAsync(movie, EditorKinds.Movie, Request("The Matrix", "1999"));
 
         var result = Assert.Single(found!.Results);
-        Assert.Equal(EditorMatchVerdicts.Check, result.Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, result.Verdict);
         Assert.Same(wrong, result.Candidate);
         Assert.True(result.Candidate.IsApplicable);
         Assert.Equal("999", result.Candidate.ProviderItemId);
@@ -272,6 +272,155 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Assert.Equal("1965", suggested.Edition!.Year);
         Assert.Equal("Chilton", suggested.Edition.Publisher);
         Assert.Empty(found.Results[1].Editions);
+    }
+
+    // ── The compare table (universal editor v6, D9) ───────────────────────────
+
+    private async Task<EditorMatchResultDto> SearchBook(
+        ItemCanonicalRetailCandidateDto candidate, string author = "Rick Riordan", string? isbn = null, string? year = null)
+    {
+        var book = _world.Work("Books", "standalone", "The Sea of Monsters");
+        _world.File(book, "Rick Riordan - The Sea of Monsters.epub");
+        _catalog.Providers = [new RetailProviderInfo("openlibrary", "Open Library", true, false, [EditorKinds.Book], 1)];
+        candidate.ProviderName = "openlibrary";
+        _search.Candidates = [candidate];
+        var fields = new Dictionary<string, string> { ["title"] = "The Sea of Monsters", ["author"] = author };
+        if (isbn is not null)
+        {
+            fields["isbn"] = isbn;
+        }
+
+        if (year is not null)
+        {
+            fields["year"] = year;
+        }
+
+        var found = await Service().SearchForKindAsync(book, EditorKinds.Book, new EditorMatchSearchRequestDto { Fields = fields });
+        return Assert.Single(found!.Results);
+    }
+
+    [Fact]
+    public async Task ABookResult_CarriesOneCompareRowPerFact_InTheOrderTitleAuthorIsbnYear()
+    {
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"));
+
+        Assert.Equal(["title", "creator", "identifier", "year"], result.Reasons.Select(reason => reason.Fact).ToArray());
+    }
+
+    [Fact]
+    public async Task ACompareRow_ShowsWhatEachSideSays_WithATickWhereTheyAgreeAndACrossWhereTheyDiffer()
+    {
+        var result = await SearchBook(
+            Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"), author: "Someone Else", year: "2010");
+
+        var title = result.Reasons.Single(reason => reason.Fact == "title");
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, title.State);
+        Assert.Equal("The Sea of Monsters", title.YourFile);
+        Assert.Equal("The Sea of Monsters", title.Result);
+        var creator = result.Reasons.Single(reason => reason.Fact == "creator");
+        Assert.Equal(EditorMatchEvidenceStates.Differs, creator.State);
+        Assert.Equal("Someone Else", creator.YourFile);
+        Assert.Equal("Rick Riordan", creator.Result);
+        var year = result.Reasons.Single(reason => reason.Fact == "year");
+        Assert.Equal(EditorMatchEvidenceStates.Differs, year.State);
+        Assert.Equal("2010", year.YourFile);
+        Assert.Equal("2009", year.Result);
+    }
+
+    [Fact]
+    public async Task ACompareRow_WhereOneSideSaysNothing_IsUnknownAndShowsTheSideThatDoes_AndNeverCountsAgainstTheMatch()
+    {
+        // The file names an ISBN the record does not carry; the record gives no year but the item says 1999.
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", string.Empty, author: "Rick Riordan"), isbn: "1423103343");
+
+        var isbn = result.Reasons.Single(reason => reason.Fact == "identifier");
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, isbn.State);
+        Assert.Equal("1423103343", isbn.YourFile);
+        Assert.Null(isbn.Result);
+        var year = result.Reasons.Single(reason => reason.Fact == "year");
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, year.State);
+        Assert.Equal("1999", year.YourFile);
+        Assert.Null(year.Result);
+        Assert.Equal(EditorMatchVerdicts.Strong, result.Verdict);
+    }
+
+    [Fact]
+    public async Task ACompareRow_ForAnIsbnOnlyTheRecordCarries_ShowsItOnTheResultSide()
+    {
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan", extra: new() { ["isbn"] = "9781423103349" }));
+
+        var isbn = result.Reasons.Single(reason => reason.Fact == "identifier");
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, isbn.State);
+        Assert.Null(isbn.YourFile);
+        Assert.Equal("9781423103349", isbn.Result);
+    }
+
+    [Fact]
+    public async Task AMovieResult_ComparesTitleYearAndRuntime_WithTheMeasuredAndTheRoundedLength()
+    {
+        var movie = Movie("Arrival.2016.mkv", durationSeconds: 6981);
+        _search.Candidates = [Candidate("329865", "Arrival", "2016", director: "Denis Villeneuve", runtimeMinutes: "116")];
+
+        var found = await Service().SearchForKindAsync(movie, EditorKinds.Movie, Request("Arrival", "2016"));
+
+        var result = Assert.Single(found!.Results);
+        Assert.Equal(["title", "year", "runtime", "identifier"], result.Reasons.Select(reason => reason.Fact).ToArray());
+        var runtime = result.Reasons.Single(reason => reason.Fact == "runtime");
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, runtime.State);
+        Assert.Equal("1:56:21", runtime.YourFile);
+        Assert.Equal("116 min", runtime.Result);
+    }
+
+    [Fact]
+    public async Task AResultWhoseTitleCarriesABoxSetWord_IsMarkedACollection()
+    {
+        var box = await SearchBook(Candidate("OL2W", "Percy Jackson: The Complete Series", "2026", author: "Rick Riordan"));
+        Assert.True(box.IsCollection);
+    }
+
+    [Fact]
+    public async Task ANumberedSeriesEntry_WhoseTitleSaysTrilogy_IsNotMarkedACollection()
+    {
+        var entry = await SearchBook(Candidate(
+            "OL4W", "The Mistborn Trilogy, Book 1", "2006", author: "Brandon Sanderson",
+            extra: new() { ["series"] = "Mistborn", ["series_position"] = "1" }));
+
+        Assert.False(entry.IsCollection);
+        Assert.Equal("1", entry.SeriesNumber);
+    }
+
+    [Fact]
+    public async Task ASingleBook_IsNotMarkedACollection()
+    {
+        var single = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"));
+        Assert.False(single.IsCollection);
+    }
+
+    [Fact]
+    public async Task AResultTheProviderCallsACollection_IsMarkedACollection_WhateverItsTitle()
+    {
+        var flagged = await SearchBook(Candidate("OL3W", "Books I to III", "2014", author: "Rick Riordan", extra: new() { ["is_collection"] = "true" }));
+        Assert.True(flagged.IsCollection);
+    }
+
+    [Fact]
+    public async Task AResultTheProviderPlacesInASeries_CarriesTheSeriesNameAndNumber()
+    {
+        var result = await SearchBook(Candidate(
+            "OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan",
+            extra: new() { ["series"] = "Percy Jackson and the Olympians", ["series_position"] = "2.0" }));
+
+        Assert.Equal("Percy Jackson and the Olympians", result.SeriesName);
+        Assert.Equal("2", result.SeriesNumber);
+    }
+
+    [Fact]
+    public async Task AResultWithNoSeriesFromTheProvider_CarriesNoSeriesFacts()
+    {
+        var result = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"));
+
+        Assert.Null(result.SeriesName);
+        Assert.Null(result.SeriesNumber);
     }
 
     // ── Videos and typed identifiers ──────────────────────────────────────────
@@ -391,6 +540,99 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Assert.Equal("9780441172719", asked.LookupFields!["isbn"]);
     }
 
+    // ── ISBN alone (universal editor v6, D11) ────────────────────────────────
+
+    private Guid Book()
+    {
+        var book = _world.Work("Books", "standalone", "Dune");
+        _world.File(book, "Dune.epub");
+        return book;
+    }
+
+    private static RetailProviderInfo AppleBooks() => new(
+        "apple_api", "Apple Books", true, false, [EditorKinds.Book], 1, [EditorKinds.Book],
+        new Dictionary<string, string> { ["isbn"] = "isbn" });
+
+    private static RetailProviderInfo OpenLibraryWithNoIsbnLookup() => new(
+        "openlibrary", "Open Library", true, false, [EditorKinds.Book], 1, [EditorKinds.Book]);
+
+    private Task<EditorMatchSearchResultDto?> SearchBook(Guid book, string provider, Dictionary<string, string> fields) =>
+        Service().SearchForKindAsync(book, EditorKinds.Book, new EditorMatchSearchRequestDto { Provider = provider, Fields = fields });
+
+    [Theory]
+    [InlineData("978-0-441-17271-9", "9780441172719")]
+    [InlineData("978 0 441 17271 9", "9780441172719")]
+    [InlineData("9780441172719", "9780441172719")]
+    [InlineData("0441172717", "0441172717")]
+    [InlineData("0-441-17271-7", "0441172717")]
+    [InlineData("0-8044-2957-x", "080442957X")]
+    public async Task AnIsbnTypedAlone_IsCleanedAndSentToTheProvidersDirectLookup(string typed, string expected)
+    {
+        _catalog.Providers = [AppleBooks()];
+
+        await SearchBook(Book(), "apple_api", new Dictionary<string, string> { ["isbn"] = typed });
+
+        var asked = Assert.Single(_search.Requests);
+        Assert.Equal(expected, asked.LookupFields!["isbn"]);
+        Assert.Equal(expected, asked.QueryOverride);
+    }
+
+    [Fact]
+    public async Task AnIsbnTypedAlone_ForAProviderThatCannotLookItUp_SaysSoAndAsksForATitle_WithoutCallingTheProvider()
+    {
+        _catalog.Providers = [OpenLibraryWithNoIsbnLookup()];
+
+        var found = await SearchBook(Book(), "openlibrary", new Dictionary<string, string> { ["isbn"] = "978-0-441-17271-9" });
+
+        Assert.Empty(_search.Requests);
+        Assert.Equal("Open Library cannot search by ISBN. Add a title.", found!.Message);
+        Assert.Empty(found.Results);
+    }
+
+    [Theory]
+    [InlineData("12345")]
+    [InlineData("978-0-441-17271")]
+    [InlineData("not an isbn")]
+    [InlineData("97804411727190")]
+    public async Task AnInvalidIsbnTypedAlone_IsToldItIsNotAnIsbn_ForEveryProvider_WithoutCallingTheProvider(string typed)
+    {
+        _catalog.Providers = [AppleBooks(), OpenLibraryWithNoIsbnLookup()];
+        var book = Book();
+
+        foreach (var provider in new[] { "apple_api", "openlibrary" })
+        {
+            var found = await SearchBook(book, provider, new Dictionary<string, string> { ["isbn"] = typed });
+
+            Assert.Equal("That does not look like an ISBN. An ISBN has 10 or 13 digits.", found!.Message);
+        }
+
+        Assert.Empty(_search.Requests);
+    }
+
+    [Fact]
+    public async Task ATitleWithAnIsbn_ForAProviderThatCannotLookItUp_RunsTheTitleSearchAsBefore()
+    {
+        _catalog.Providers = [OpenLibraryWithNoIsbnLookup()];
+
+        await SearchBook(Book(), "openlibrary", new Dictionary<string, string> { ["title"] = "Dune", ["isbn"] = "978-0-441-17271-9" });
+
+        var asked = Assert.Single(_search.Requests);
+        Assert.Equal("Dune", asked.QueryOverride);
+        Assert.Null(asked.LookupFields);
+    }
+
+    [Fact]
+    public async Task ATitleWithAnIsbn_ForAProviderThatCanLookItUp_SearchesTheTitleAndSendsTheCleanedIsbn()
+    {
+        _catalog.Providers = [AppleBooks()];
+
+        await SearchBook(Book(), "apple_api", new Dictionary<string, string> { ["title"] = "Dune", ["isbn"] = "978-0-441-17271-9" });
+
+        var asked = Assert.Single(_search.Requests);
+        Assert.Equal("Dune", asked.QueryOverride);
+        Assert.Equal("9780441172719", asked.LookupFields!["isbn"]);
+    }
+
     [Fact]
     public async Task AProviderListedForOtherKindsOnly_IsNotOfferedForThisOne()
     {
@@ -436,9 +678,9 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
 
     // ── Judging a pick made in the TV or music flow ──────────────────────────
 
-    private static EditorMatchLocalRead EpisodeRead(string? episodeTitle, int number, double? measuredSeconds) => new(
+    private static EditorMatchLocalRead EpisodeRead(string? episodeTitle, int number, double? measuredSeconds, int? season = null) => new(
         Guid.NewGuid(), Guid.NewGuid(), "TV", "/tv/The Last Signal/Season 02/The.Last.Signal.S02E03.mkv", "The.Last.Signal.S02E03.mkv",
-        new EditorMatchLocalEvidenceDto { FileTitle = "The Last Signal", EpisodeTitle = episodeTitle, Number = number, MeasuredSeconds = measuredSeconds, MeasuredText = "45:52" },
+        new EditorMatchLocalEvidenceDto { FileTitle = "The Last Signal", EpisodeTitle = episodeTitle, Number = number, Season = season, MeasuredSeconds = measuredSeconds, MeasuredText = "45:52" },
         new Dictionary<string, (string Value, string From)>());
 
     [Fact]
@@ -455,7 +697,7 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         var runtime = Assert.Single(good.Reasons, reason => reason.Fact == "runtime");
         Assert.Equal(EditorMatchEvidenceStates.Agrees, runtime.State);
         Assert.Equal("45:52 measured · 46 min (rounded)", runtime.Note);
-        Assert.Equal(EditorMatchVerdicts.Check, bad.Verdict);
+        Assert.Equal(EditorMatchVerdicts.Weak, bad.Verdict);
         Assert.Equal(right, good.Candidate);
     }
 
@@ -469,6 +711,140 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
 
         Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "runtime").State);
         Assert.Equal("e23", judged.Candidate.ProviderItemId);
+    }
+
+    [Fact]
+    public void AnEpisodePick_ComparesShowSeasonAndEpisodeTitleAndRuntime_InThatOrder_WithWhatEachSideSays()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, 2752, season: 2);
+        var pick = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e23", 2, 3, "Echoes in the Dark", "2021-01-18", null, null, 46);
+
+        var judged = Service().JudgeRead(EditorKinds.TvEpisode, pick, read);
+
+        Assert.Equal(["show", "number", "title", "runtime"], judged.Reasons.Select(reason => reason.Fact));
+        Assert.All(judged.Reasons, reason => Assert.Equal(EditorMatchEvidenceStates.Agrees, reason.State));
+        var slot = judged.Reasons[1];
+        Assert.Equal("Season 2, Episode 3", slot.YourFile);
+        Assert.Equal("Season 2, Episode 3", slot.Result);
+        Assert.Equal("The Last Signal", judged.Reasons[0].Result);
+    }
+
+    [Fact]
+    public void AnEpisodePick_OfAnotherSeason_DisagreesOnTheSeasonAndEpisodeRow_AndReadsWeak()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, 2752, season: 2);
+        var pick = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e33", 3, 3, "Echoes in the Dark", "2022-01-18", null, null, 46);
+
+        var judged = Service().JudgeRead(EditorKinds.TvEpisode, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "number").State);
+        Assert.Equal(EditorMatchVerdicts.Weak, judged.Verdict);
+    }
+
+    [Fact]
+    public void AnEpisodePick_WhoseFileHasNoSeasonAndNoLength_LeavesThoseRowsUnknown_AndStillReadsStrong()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, null);
+        var pick = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e23", 2, 3, "Echoes in the Dark", "2021-01-18", null, null, 46);
+
+        var judged = Service().JudgeRead(EditorKinds.TvEpisode, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, Assert.Single(judged.Reasons, reason => reason.Fact == "runtime").State);
+        Assert.Equal("Episode 3", Assert.Single(judged.Reasons, reason => reason.Fact == "number").YourFile);
+        Assert.Equal(EditorMatchVerdicts.Strong, judged.Verdict);
+    }
+
+    private static EditorMatchLocalRead SongRead(string title, string artist, string album, double? measuredSeconds) => new(
+        Guid.NewGuid(), Guid.NewGuid(), "Music", "/music/Harbor Lights/Shoreline/04 - Low Tide.flac", "04 - Low Tide.flac",
+        new EditorMatchLocalEvidenceDto { FileTitle = title, Creator = artist, Number = 4, MeasuredSeconds = measuredSeconds },
+        new Dictionary<string, (string Value, string From)>
+        {
+            [EditorMatchFieldIds.Artist] = (artist, EditorMatchFieldSources.Tags),
+            [EditorMatchFieldIds.Album] = (album, EditorMatchFieldSources.Tags),
+            [EditorMatchFieldIds.Song] = (title, EditorMatchFieldSources.Tags),
+        });
+
+    [Fact]
+    public void ASongPick_ComparesArtistAlbumTitleAndLength_InThatOrder_AndAgreesWhenTheyDo()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 222, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(["creator", "album", "title", "track_length"], judged.Reasons.Select(reason => reason.Fact));
+        Assert.All(judged.Reasons, reason => Assert.Equal(EditorMatchEvidenceStates.Agrees, reason.State));
+        Assert.Equal("Shoreline", judged.Reasons[1].YourFile);
+        Assert.Equal("Shoreline", judged.Reasons[1].Result);
+        Assert.Equal(EditorMatchVerdicts.Strong, judged.Verdict);
+    }
+
+    [Fact]
+    public void ASongsIdentifier_StillCountsTowardTheVerdict_ButIsNeverDrawnAsARow()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        read = read with
+        {
+            Evidence = new EditorMatchLocalEvidenceDto
+            {
+                FileTitle = "Low Tide",
+                Creator = "Harbor Lights",
+                Number = 4,
+                MeasuredSeconds = 221,
+                Identifiers = [new EditorMatchIdentifierDto { Kind = EditorMatchIdentifierKinds.Isrc, Value = "USX9P1800001" }],
+            },
+        };
+        var other = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-9", "A Different Song", "Harbor Lights", 1, 4, 222, null);
+        var sameRecording = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-9", "A Different Song", "Harbor Lights", 1, 4, 222, null);
+        sameRecording.ExtraFields["isrc"] = "USX9P1800001";
+
+        var withoutTheId = Service().JudgeRead(EditorKinds.Song, other, read);
+        var withTheId = Service().JudgeRead(EditorKinds.Song, sameRecording, read);
+
+        Assert.Equal(EditorMatchVerdicts.Weak, withoutTheId.Verdict);
+        Assert.Equal(EditorMatchVerdicts.Possible, withTheId.Verdict);
+        Assert.DoesNotContain(withTheId.Reasons, reason => reason.Fact == "identifier");
+        Assert.DoesNotContain(withoutTheId.Reasons, reason => reason.Fact == "identifier");
+    }
+
+    [Fact]
+    public void ASongPick_OnAnotherAlbum_DisagreesOnTheAlbumRow_AndReadsPossible_NotWeak()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-2", "rg-2", "Greatest Hits", "Harbor Lights", "2019", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 222, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "album").State);
+        Assert.Equal(EditorMatchVerdicts.Possible, judged.Verdict);
+    }
+
+    [Fact]
+    public void ASongPick_WhoseLengthDiffersByMoreThanThreeSeconds_IsFlaggedOnTheLengthRow_AndReadsPossible()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 227, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "track_length").State);
+        Assert.Equal(EditorMatchVerdicts.Possible, judged.Verdict);
+    }
+
+    [Fact]
+    public void ASongPick_WhenTheFileHasNoAlbumOrLength_LeavesThoseRowsUnknown_AndNeverCountsThemAgainstIt()
+    {
+        var read = new EditorMatchLocalRead(
+            Guid.NewGuid(), Guid.NewGuid(), "Music", "/music/04 - Low Tide.flac", "04 - Low Tide.flac",
+            new EditorMatchLocalEvidenceDto { FileTitle = "Low Tide", Creator = "Harbor Lights" },
+            new Dictionary<string, (string Value, string From)>());
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 222, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, Assert.Single(judged.Reasons, reason => reason.Fact == "album").State);
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, Assert.Single(judged.Reasons, reason => reason.Fact == "track_length").State);
+        Assert.Equal(EditorMatchVerdicts.Strong, judged.Verdict);
     }
 
     private EditorMatchSearchService Service(IEditorMatchCandidateSearch? candidates = null, IVideoIdentifyWriter? videos = null)

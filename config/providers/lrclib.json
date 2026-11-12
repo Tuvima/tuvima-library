@@ -77,6 +77,18 @@
         ],
         "instrumental_path": "instrumental",
         "id_path": "id",
+        "match": {
+          "title_path": "trackName",
+          "artist_path": "artistName",
+          "ignore_case": true,
+          "ignore_punctuation": true,
+          "ignore_bracketed": true,
+          "ignore_diacritics": true,
+          "strip_suffix_patterns": [
+            "\\s+-\\s+(remaster(ed)?|live|mono|stereo|single|album|radio)\\b.*$",
+            "\\s+(feat\\.?|ft\\.?|featuring)\\s+.*$"
+          ]
+        },
         "duration": {
           "path": "duration",
           "full_within_seconds": 2,

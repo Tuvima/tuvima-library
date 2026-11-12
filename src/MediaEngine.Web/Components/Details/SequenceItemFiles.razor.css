@@ -22,10 +22,10 @@
     max-width: 100%;
     min-height: 1.75rem;
     padding: 0.15rem 0.55rem;
-    border: 1px solid rgba(214, 222, 237, 0.2);
+    border: 1px solid var(--tl-wash-light-5);
     border-radius: 0.4rem;
-    color: rgba(214, 222, 237, 0.78);
-    font-size: var(--tl-font-size-xs);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-caption-size);
     line-height: 1.2;
     text-decoration: none;
 }
@@ -38,8 +38,8 @@
 
 .tl-series-item__file:hover,
 .tl-series-item__file:focus-visible {
-    border-color: rgba(214, 222, 237, 0.5);
-    color: #fff;
+    border-color: color-mix(in srgb, var(--tl-text-primary) 50%, transparent);
+    color: var(--tl-text-primary);
 }
 
 .tl-series-detail.tl-series-panel--landscape .tl-series-item__files {

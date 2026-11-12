@@ -113,6 +113,25 @@ public sealed class PendingEditList
             throw new ArgumentException("Use SetField, SetArtwork, SetExtraMove, SetVideoOrder, AddThing or SetSupportingFile for details, artwork, Extras, video-order, added-thing and supporting-file changes.", nameof(kind));
         }
 
+        if (kind == EditSessionChangeKinds.FileMove)
+        {
+            if (EditSessionVideo.IsMovesWithSeries(token))
+            {
+                throw new ArgumentException("Use SetVideoSeriesMove for the file move that goes with a series change.", nameof(token));
+            }
+
+            if (FindVideoSeriesMove(entityId) is not null)
+            {
+                throw new InvalidOperationException("A video's file cannot move for its match and its series in one save; the series move is staged.");
+            }
+        }
+
+        // A new series choice has not been shown a file move yet: the old one goes, and the caller stages the move it is shown.
+        if (kind == EditSessionChangeKinds.VideoSeries)
+        {
+            RemovePaired(c => c.Kind == EditSessionChangeKinds.FileMove && c.EntityId == entityId && EditSessionVideo.IsMovesWithSeries(c.Token));
+        }
+
         var existing = Find(kind, entityId);
         Replace(existing, new EditSessionChange
         {
@@ -123,6 +142,41 @@ public sealed class PendingEditList
             Token = token,
         }, label, note, before);
     }
+
+    /// <summary>
+    /// Stages the file move that goes with a video's staged series change (universal editor v6, D24): it names that series change by id and
+    /// carries the choice it was shown with, so the Engine moves the file only for that very choice. False, and nothing staged, when the
+    /// video has no staged series change or already has a staged move of its own for a match (the two cannot be saved together).
+    /// <paramref name="fromPath"/> and <paramref name="toPath"/> are for the footer and Review only; the Engine works the destination out itself.
+    /// </summary>
+    public bool SetVideoSeriesMove(Guid videoId, string fromPath, string toPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fromPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toPath);
+        if (FindVideoSeries(videoId) is not { } series || FindFileMove(videoId) is not null)
+        {
+            return false;
+        }
+
+        var existing = FindVideoSeriesMove(videoId);
+        Replace(existing, new EditSessionChange
+        {
+            Id = existing?.Id ?? NewId(),
+            Kind = EditSessionChangeKinds.FileMove,
+            EntityId = videoId,
+            TargetId = series.Id,
+            Token = EditSessionVideo.MovesWithSeries(series.TargetId, series.Token),
+        }, toPath, before: fromPath);
+        return true;
+    }
+
+    /// <summary>The file move staged for a video's match (not the one that goes with its series), or null.</summary>
+    public EditSessionChange? FindFileMove(Guid entityId) =>
+        _changes.FirstOrDefault(c => c.Kind == EditSessionChangeKinds.FileMove && c.EntityId == entityId && !EditSessionVideo.IsMovesWithSeries(c.Token));
+
+    /// <summary>The file move staged beside a video's series change, or null.</summary>
+    public EditSessionChange? FindVideoSeriesMove(Guid videoId) =>
+        _changes.FirstOrDefault(c => c.Kind == EditSessionChangeKinds.FileMove && c.EntityId == videoId && EditSessionVideo.IsMovesWithSeries(c.Token));
 
     /// <summary>
     /// Stages moving one Extra to an episode (<paramref name="extraId"/>, with <see cref="EditSessionExtraMove.ToEpisodeToken"/>) or one
@@ -386,17 +440,45 @@ public sealed class PendingEditList
     /// <summary>Removes one staged change by its id (the row's menu in Review changes).</summary>
     public bool Remove(string changeId)
     {
+        var change = _changes.FirstOrDefault(c => c.Id == changeId);
         var removed = _changes.RemoveAll(c => c.Id == changeId) > 0;
         if (removed)
         {
-            _supportingFiles.Remove(changeId);
-            ForgetLabels(changeId);
-            _notes.Remove(changeId);
-            ForgetBefore(changeId);
+            Forget(changeId);
+            // A video's series change and the file move shown beside it are one choice: taking either out takes both, so a file never
+            // moves for a series change that is no longer there, and a series change in a Managed folder never loses its move unseen.
+            if (change is { Kind: EditSessionChangeKinds.VideoSeries })
+            {
+                RemovePaired(c => c.Kind == EditSessionChangeKinds.FileMove && c.EntityId == change.EntityId
+                                  && EditSessionVideo.IsMovesWithSeries(c.Token) && string.Equals(c.TargetId, change.Id, StringComparison.Ordinal));
+            }
+            else if (change is { Kind: EditSessionChangeKinds.FileMove } && EditSessionVideo.IsMovesWithSeries(change.Token))
+            {
+                RemovePaired(c => c.Kind == EditSessionChangeKinds.VideoSeries && c.EntityId == change.EntityId
+                                  && string.Equals(c.Id, change.TargetId, StringComparison.Ordinal));
+            }
+
             Changed?.Invoke();
         }
 
         return removed;
+    }
+
+    private void Forget(string changeId)
+    {
+        _supportingFiles.Remove(changeId);
+        ForgetLabels(changeId);
+        _notes.Remove(changeId);
+        ForgetBefore(changeId);
+    }
+
+    private void RemovePaired(Func<EditSessionChange, bool> match)
+    {
+        foreach (var paired in _changes.Where(match).ToList())
+        {
+            _changes.Remove(paired);
+            Forget(paired.Id);
+        }
     }
 
     /// <summary>Drops everything staged for one item (it was removed from the library meanwhile).</summary>

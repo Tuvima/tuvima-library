@@ -1,5 +1,5 @@
 .playback-range-slider {
-    --playback-range-accent: var(--playback-accent, #8852FC);
+    --playback-range-accent: var(--playback-accent, var(--tl-accent-primary));
     --playback-range-thumb-size: 30px;
     --playback-range-track-height: 4px;
     --playback-range-track-inset: calc(var(--playback-range-thumb-size) / 2);
@@ -25,7 +25,7 @@
 }
 
 .playback-range-slider__track {
-    background: var(--playback-track, #30364A);
+    background: var(--playback-track, var(--tl-bg-surface-elevated));
     border-radius: var(--tl-radius-round);
     height: var(--playback-range-track-height);
     left: 0;
@@ -131,8 +131,8 @@
 
 .playback-range-slider__labels {
     color: var(--playback-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     height: 44px;
     line-height: 1.2;
     margin: 0 var(--playback-range-track-inset);
@@ -232,6 +232,77 @@
 .playback-range-slider--vertical .playback-range-slider__track { top:0; bottom:0; left:20px; right:auto; width:4px; height:auto; }
 .playback-range-slider--vertical .playback-range-slider__fill { position:absolute; bottom:0; width:100%; height:var(--playback-range-percent); }
 .playback-range-slider--vertical .playback-range-slider__thumb { top:auto; left:22px; transform:translate(-50%,50%); }
+/* Surface "player", vertical (video player follow-ups D5; the volume slider): the same 4 px rail and 12 px handle turned on end, the played part growing from the
+   bottom, the top being the maximum. The element is one handle taller than its rail and pulled back by half a handle at each end, so the visible rail is exactly
+   the length the caller asks for (height) while the handle can sit on either end. Nothing is drawn behind it, so the rail carries a faint dark outline and the
+   handle a small dark shadow to read on bright pictures. The native range input stays on top and does the dragging, so a pointer drag along the Y axis and the
+   arrow, Home and End keys behave as for any vertical range; its track and thumb are told to run the same length. Horizontal sliders never reach these rules. */
+.playback-range-slider--player.playback-range-slider--vertical {
+    height: calc(var(--playback-volume-slider-height, 96px) + var(--playback-slider-handle));
+    margin: calc(var(--playback-slider-handle) / -2) 0;
+    width: var(--playback-control-target, 48px);
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__rail,
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__input {
+    height: 100%;
+    width: 100%;
+}
+
+/* The engine-specific parts sit in rules of their own: a browser drops a whole selector list when one selector in it is unknown to it. */
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__input::-webkit-slider-runnable-track {
+    height: 100%;
+    width: 100%;
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__input::-webkit-slider-thumb {
+    height: var(--playback-slider-handle);
+    width: 100%;
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__input::-moz-range-track {
+    height: 100%;
+    width: 100%;
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__input::-moz-range-thumb {
+    height: var(--playback-slider-handle);
+    width: 100%;
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__visual {
+    inset: calc(var(--playback-slider-handle) / 2) 0;
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__track {
+    bottom: 0;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--tl-viewer-black) 45%, transparent);
+    height: auto;
+    left: calc(50% - var(--playback-slider-rail-height) / 2);
+    right: auto;
+    top: 0;
+    width: var(--playback-slider-rail-height);
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__fill {
+    bottom: 0;
+    height: var(--playback-range-percent);
+    position: absolute;
+    width: 100%;
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__thumb {
+    bottom: 0;
+    box-shadow: 0 1px 4px var(--tl-scrim-dark-5);
+    left: 50%;
+    top: auto;
+    transform: translate(-50%, 50%);
+}
+
+.playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__input:focus-visible {
+    border-radius: 8px;
+}
+
 .playback-range-slider--tick-markers { position:relative; }
 .playback-range-slider--tick-markers .playback-range-slider__labels { position:absolute; top:0; left:var(--playback-range-track-inset); right:var(--playback-range-track-inset); height:44px; pointer-events:none; z-index:4; }
 .playback-range-slider--tick-markers ::deep .playback-range-slider__label { width:44px; height:44px; min-width:44px; background:transparent; color:transparent; font-size:0; pointer-events:auto; }

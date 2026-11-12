@@ -46,8 +46,8 @@
     border-radius: var(--tl-radius-sm);
     background: var(--tl-bg-surface-elevated);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .app-browser-item__text {
@@ -65,4 +65,8 @@
 .app-browser-item__text small,
 .is-quiet {
     color: var(--tl-text-secondary);
+}
+
+.app-browser-item > .app-browser-item__namecell.is-activatable {
+    cursor: pointer;
 }

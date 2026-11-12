@@ -49,6 +49,48 @@ public sealed class EditSessionState
 
     public bool HasPendingChanges => !Pending.IsEmpty;
 
+    /// <summary>True while an order is being arranged in a header list's Reorder mode and Save order has not staged it yet (editor v6 D23).</summary>
+    public bool HasHeldOrder { get; private set; }
+
+    /// <summary>What the editor's leave question asks about: staged changes, or an arranged order not yet staged.</summary>
+    public bool HasUnsavedWork => HasPendingChanges || HasHeldOrder;
+
+    /// <summary>The header lists tell the session that a Reorder-mode arrangement is waiting for Save order (or no longer is).</summary>
+    public void SetHeldOrder(bool held)
+    {
+        if (HasHeldOrder == held)
+        {
+            return;
+        }
+
+        HasHeldOrder = held;
+        RaiseChanged();
+    }
+
+    private HeldVideoOrder? _stashedOrder;
+
+    /// <summary>
+    /// A header list that is going away while an order is held (the window crossed 1024 wide, so the header was drawn again in its other arrangement)
+    /// leaves the arrangement here; the list that takes its place picks it up, so a half-arranged order is never thrown away without asking. Only kept
+    /// while a session is active.
+    /// </summary>
+    public void StashHeldOrder(HeldVideoOrder order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        if (IsActive)
+        {
+            _stashedOrder = order;
+        }
+    }
+
+    /// <summary>Takes the arrangement a replaced header list left, or null.</summary>
+    public HeldVideoOrder? TakeStashedOrder()
+    {
+        var order = _stashedOrder;
+        _stashedOrder = null;
+        return order;
+    }
+
     /// <summary>Starts editing at the end of <paramref name="trail"/>. Starting again while active only moves to the new item.</summary>
     public void Begin(IReadOnlyList<EditTrailItem> trail)
     {
@@ -59,6 +101,7 @@ public sealed class EditSessionState
         }
 
         IsActive = true;
+        _stashedOrder = null;
         Trail = trail;
         ActiveItem = trail[^1];
         Remember(trail);
@@ -107,6 +150,8 @@ public sealed class EditSessionState
     /// <summary>Ends the session after a successful save (the pending list was already applied).</summary>
     public void End()
     {
+        HasHeldOrder = false;
+        _stashedOrder = null;
         IsActive = false;
         ActiveItem = null;
         Trail = [];

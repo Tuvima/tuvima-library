@@ -250,14 +250,14 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     {
         var settings = await _service.GetAsync(_profileId);
         Assert.Null(settings.General.ShowChapterMarks); // The media default applies until the person chooses.
-        Assert.False(settings.General.ShowBookmarksOnBar);
-        Assert.Equal("All", settings.General.BookmarkFilter);
+        Assert.True(settings.General.ShowBookmarksOnBar); // On by default (video player follow-ups D4, D16).
+        Assert.Equal("Mine", settings.General.BookmarkFilter);
         Assert.Equal("Default", settings.Subtitles.SubtitleFont);
         Assert.Equal("White", settings.Subtitles.SubtitleColor);
         Assert.False(settings.Subtitles.SubtitleShadow);
 
         settings.General.ShowChapterMarks = true;
-        settings.General.ShowBookmarksOnBar = true;
+        settings.General.ShowBookmarksOnBar = false; // An explicit off choice is kept.
         settings.General.BookmarkFilter = "Mine";
         settings.Subtitles.SubtitleFont = "Serif";
         settings.Subtitles.SubtitleColor = "Yellow";
@@ -266,13 +266,13 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
 
         var saved = await _service.GetAsync(_profileId);
         Assert.True(saved.General.ShowChapterMarks);
-        Assert.True(saved.General.ShowBookmarksOnBar);
+        Assert.False(saved.General.ShowBookmarksOnBar);
         Assert.Equal("Mine", saved.General.BookmarkFilter);
         Assert.Equal("Serif", saved.Subtitles.SubtitleFont);
         Assert.Equal("Yellow", saved.Subtitles.SubtitleColor);
         Assert.True(saved.Subtitles.SubtitleShadow);
         var other = await _service.GetAsync(_otherProfileId);
-        Assert.False(other.General.ShowBookmarksOnBar);
+        Assert.True(other.General.ShowBookmarksOnBar);
 
         saved.General.BookmarkFilter = "Strangers";
         await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, saved));
@@ -450,6 +450,75 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
         Assert.False(saved.ComicDirections.ContainsKey("other"));
         Assert.Empty(other.ComicDirections);
         Assert.False(other.ShowBookmarksOnBar);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_KeepsSongTableColumnsPerProfile_AndDropsUnknownPlacesAndUnreadableText()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = new()
+        {
+            ["Songs"] = " Show=Genre;Hide=Plays;Width=Song:400 ",
+            ["playlist"] = "hide=album",
+            ["queue"] = "show=genre",
+            ["albums"] = "<script>",
+            ["albumpage"] = "   ",
+        };
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = (await _service.GetAsync(_profileId)).Listening;
+        var other = (await _service.GetAsync(_otherProfileId)).Listening;
+
+        Assert.Equal(2, saved.SongTableColumns.Count);
+        Assert.Equal("show=genre;hide=plays;width=song:400", saved.SongTableColumns["songs"]);
+        Assert.Equal("hide=album", saved.SongTableColumns["playlist"]);
+        Assert.Empty(other.SongTableColumns);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_KeepsThePhoneSongsSortPerProfile_AndDropsItWhenUnreadable()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = new() { ["SongsSort"] = " Plays:Desc " };
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = (await _service.GetAsync(_profileId)).Listening;
+        var other = (await _service.GetAsync(_otherProfileId)).Listening;
+        Assert.Equal("plays:desc", saved.SongTableColumns["songssort"]);
+        Assert.Empty(other.SongTableColumns);
+
+        settings.Listening.SongTableColumns = new() { ["songssort"] = "<b>song</b>" };
+        await _service.UpdateAsync(_profileId, settings);
+        Assert.Empty((await _service.GetAsync(_profileId)).Listening.SongTableColumns);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DropsSongTableColumnsTextThatIsTooLong()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = new()
+        {
+            ["songs"] = new string('a', PlaybackPreferenceValues.MaxSongTableColumnsLength + 1),
+            ["albums"] = new string('a', PlaybackPreferenceValues.MaxSongTableColumnsLength),
+        };
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = (await _service.GetAsync(_profileId)).Listening;
+
+        Assert.False(saved.SongTableColumns.ContainsKey("songs"));
+        Assert.True(saved.SongTableColumns.ContainsKey("albums"));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_KeepsAtMostOneSongTableChoicePerKnownPlace()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Listening.SongTableColumns = Enumerable.Range(0, 200).ToDictionary(i => $"place-{i}", _ => "hide=plays");
+        settings.Listening.SongTableColumns["songs"] = "hide=plays";
+
+        await _service.UpdateAsync(_profileId, settings);
+
+        Assert.Equal(["songs"], (await _service.GetAsync(_profileId)).Listening.SongTableColumns.Keys);
     }
 
     [Fact]

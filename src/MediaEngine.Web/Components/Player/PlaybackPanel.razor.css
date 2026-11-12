@@ -205,7 +205,7 @@
 .playback-panel__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.53);
+    background: var(--tl-scrim-dark-4);
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -1,40 +1,64 @@
-/* The Match tab: the provider and box slots of the first row (the row itself is EditorMatchRow), the current match and its reasons, and the compact search. */
-.tl-matchrow__provider {
-    flex: 0 1 14rem;
-    min-width: 0;
-}
-
-.tl-matchrow__field {
-    flex: 1 1 10rem;
-    min-width: 0;
-}
-
-/* The current match and its reasons. */
-.tl-matchcard {
+/* The Match tab (universal editor v6): the source selector on its own line, the search row on the shared form row, the "Your file" bar, the current match
+   and the compact search. */
+.tl-match__source {
     display: flex;
-    align-items: flex-start;
-    gap: var(--tl-space-3);
-    padding: var(--tl-space-3);
+    align-items: center;
+}
+
+/* "Your file": the file name, then what the file itself says. */
+.tl-matchfile {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-4);
+    min-width: 0;
+    padding: var(--tl-space-3) var(--tl-space-4);
     border: 1px solid var(--tl-divider);
-    border-radius: var(--tl-radius-md, 8px);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised);
 }
 
-.tl-match ::deep .tl-matchcard__art {
-    flex: 0 0 4rem;
-    width: 4rem;
-    height: 6rem;
+.tl-matchfile__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    color: var(--tl-text-secondary);
 }
 
-.tl-matchcard__name {
-    font-size: var(--tl-font-size-lg);
+.tl-matchfile__cap {
+    flex: 0 0 auto;
+    padding-inline-start: var(--tl-space-4);
+    border-inline-start: 1px solid var(--tl-divider);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
     font-weight: var(--tl-font-weight-semibold);
+    white-space: nowrap;
 }
 
+.tl-matchfile__text {
+    min-width: 0;
+}
+
+.tl-matchfile__name {
+    overflow: hidden;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-matchfile__facts {
+    overflow: hidden;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The current match's three actions, at the bottom right of its card. */
 .tl-matchcard__actions {
     display: flex;
-    flex: 0 0 auto;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--tl-space-2);
 }
 
@@ -45,19 +69,36 @@
     gap: var(--tl-space-3);
 }
 
-.tl-matchsearch__heading {
-    margin: 0;
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-semibold);
+/* On a phone (universal editor v6 section 4a): "Your file" wraps onto two lines (the caption, then the name and what the file says), and the current match's
+   actions stack at the full width, 44 px tall. */
+.tl-matchfile--phone {
+    flex-wrap: wrap;
+    gap: var(--tl-space-1) var(--tl-space-3);
+    padding: var(--tl-space-3);
 }
 
-.tl-matchsearch__tag {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--tl-space-2);
-    margin-inline-start: var(--tl-space-2);
+.tl-matchfile--phone .tl-matchfile__cap {
+    padding-inline-start: 0;
+    border-inline-start: 0;
 }
 
-.tl-matchwhy__footnote {
-    margin: 0;
+.tl-matchfile--phone .tl-matchfile__text {
+    flex: 1 1 100%;
+}
+
+.tl-matchfile--phone .tl-matchfile__name,
+.tl-matchfile--phone .tl-matchfile__facts {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.tl-matchcard__actions--phone {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* On a phone the window's body already pads the sides, so the tab does not add a second inset: the fields, the list and the card get the full width. */
+.tl-match--phone {
+    padding: 0;
 }

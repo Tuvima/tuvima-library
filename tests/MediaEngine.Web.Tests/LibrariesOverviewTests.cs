@@ -5,6 +5,7 @@ using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
@@ -32,6 +33,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
     private IReadOnlyList<ViewSourceAdminDto> _viewSources = [];
     private List<LibraryKindDto> _kinds = LibraryKindsTestData.BuiltIn();
+    private int _libraryMutations;
 
     private static LibrariesConfigurationDto BuildConfiguration() => new()
     {
@@ -66,6 +68,17 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ => Task.FromResult(_overview));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryKindsAsync), _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(_kinds));
+            stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
+            {
+                _libraryMutations++;
+                var changed = ((LibraryMutationRequest)args![0]!).Library!;
+                _configuration = new LibrariesConfigurationDto
+                {
+                    StorageLocations = _configuration!.StorageLocations,
+                    Libraries = [.. _configuration.Libraries.Select(library => library.Id == changed.Id ? changed : library)],
+                };
+                return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetProviderCatalogueAsync), _ => Task.FromResult<IReadOnlyList<ProviderCatalogueDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => Task.FromResult<PathTestResultDto?>(_pathProbe((string)args![0]!)));
             stub.SetHandler(nameof(IEngineApiClient.GetViewProfileSourcesAsync), args =>
@@ -148,7 +161,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     {
         var cut = Open();
 
-        Assert.Equal(["All5", "Watch1", "Listen1", "Read0", "View3"], ChipTexts(cut));
+        Assert.Equal(["All2", "Watch1", "Listen1", "Read0", "View0"], ChipTexts(cut));
         Assert.Single(cut.FindAll("table"));
         Assert.Empty(cut.FindAll(".libs__group"));
         Assert.Empty(cut.FindAll(".librail, .libraries__layout"));
@@ -283,16 +296,18 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var items = cut.FindAll($"tr[data-library='{MoviesId}'] [data-folder-list] li");
         Assert.Equal("Family NAS", Text(items[0].QuerySelector("[data-folder-name]")!));
         Assert.Equal("E:\\Library\\Movies", Text(items[0].QuerySelector(".lib-folders__path")!));
-        Assert.Equal("Managed", Text(items[0].QuerySelector("[data-handling]")!));
+        Assert.Equal("managed", items[0].QuerySelector("[data-handling]")!.GetAttribute("data-handling"));
+        Assert.StartsWith("Managed", items[0].QuerySelector("[data-handling]")!.GetAttribute("aria-label"), StringComparison.Ordinal);
         Assert.Equal("4K shelf", Text(items[1].QuerySelector("[data-folder-name]")!));
-        Assert.Equal("Read-only", Text(items[1].QuerySelector("[data-handling]")!));
+        Assert.Equal("read-only", items[1].QuerySelector("[data-handling]")!.GetAttribute("data-handling"));
+        Assert.StartsWith("Read-only", items[1].QuerySelector("[data-handling]")!.GetAttribute("aria-label"), StringComparison.Ordinal);
         // The copy button and the online state are still there.
         Assert.NotNull(items[0].QuerySelector("button[aria-label^='Copy']"));
         Assert.Equal("online", items[0].GetAttribute("data-state"));
     }
 
     [Fact]
-    public void TheFolderListOfALibraryWithOneFolderShowsTheTagButNoName()
+    public void TheFolderListOfALibraryWithOneFolderShowsTheHandlingIconButNoName()
     {
         var cut = OpenAndSettle();
 
@@ -300,7 +315,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var item = cut.Find($"tr[data-library='{AudiobooksId}'] [data-folder-list] li");
         Assert.Null(item.QuerySelector("[data-folder-name]"));
-        Assert.Equal("Read-only", Text(item.QuerySelector("[data-handling]")!));
+        Assert.Equal("read-only", item.QuerySelector("[data-handling]")!.GetAttribute("data-handling"));
     }
 
     [Fact]
@@ -385,7 +400,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal(["Watch", "Movies"], host.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
         Assert.NotNull(host.Find("[data-folder-name]"));
         Assert.NotNull(host.Find("[data-folder-handling]"));
-        Assert.Single(host.FindAll("[data-picker-safety]"));
+        Assert.Empty(host.FindAll("[data-picker-safety]"));
         var buttons = host.FindAll(".server-folder-picker__footer button").Select(Text).ToArray();
         Assert.DoesNotContain("Choose folder", buttons);
         Assert.Contains("Add folder", buttons);
@@ -526,33 +541,29 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
     // 6. The status words.
     [Fact]
-    public void AnOfflineFolderReadsFolderOfflineAndAnEmptyLibraryReadsEmpty()
+    public void AnOfflineFolderReadsFolderOffline()
     {
         _pathProbe = path => path.StartsWith("F:", StringComparison.Ordinal)
             ? new PathTestResultDto { Exists = false }
             : new PathTestResultDto { Exists = true, HasRead = true, HasWrite = true };
-        _configuration!.Libraries[1].Sources.Clear();
         var cut = OpenAndSettle();
 
         Assert.Contains("Folder offline", Text(Row(cut, MoviesId).QuerySelector("[data-status]")!));
         Assert.Equal("folder-offline", Row(cut, MoviesId).QuerySelector("[data-status]")!.GetAttribute("data-status"));
-        Assert.Equal("Empty", Text(Row(cut, AudiobooksId).QuerySelector("[data-status]")!));
-        Assert.Equal("Nothing added yet", Text(Row(cut, AudiobooksId).QuerySelectorAll("td")[2]));
     }
 
     [Fact]
-    public void NotIdentifiedFilesAndNeedsReviewItemsAreTwoCountsBothLinkingToNeedsReviewForTheLibrary()
+    public void FilesNotMatchedAndItemsToConfirmAreOneNeedsReviewCountLinkingToNeedsReviewForTheLibrary()
     {
         _configuration!.Libraries[0].UnmatchedCount = 12;
         _configuration.Libraries[0].ReviewCount = 3;
         var cut = OpenAndSettle();
 
-        var unidentified = Row(cut, MoviesId).QuerySelector("a[data-status=not-identified]")!;
-        Assert.Equal("12 files not identified", Text(unidentified));
-        Assert.Equal($"/settings/review?library={MoviesId}&show=not-matched", unidentified.GetAttribute("href"));
         var review = Row(cut, MoviesId).QuerySelector("a[data-status=needs-review]")!;
-        Assert.Equal("3 need review", Text(review));
+        Assert.Equal("15 need review", Text(review));
         Assert.Equal($"/settings/review?library={MoviesId}", review.GetAttribute("href"));
+        Assert.Single(Row(cut, MoviesId).QuerySelectorAll("a[data-status]"));
+        Assert.DoesNotContain("not identified", Row(cut, MoviesId).TextContent, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -672,20 +683,253 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("Movies", Text(cut.Find("tr[data-area=watch] .libs__link"))));
     }
 
-    // 9. View libraries sit in the same table and open the existing View settings.
+    // 9. View libraries sit in the same table and open the existing View settings. Photos and Personal videos are one "Photos and videos" row (D10).
+    private static ViewSourceAdminDto ViewFolder(string name, string path, string kind) =>
+        new(Guid.NewGuid(), "local_folder", name, "linked", path, true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, ContentKind: kind);
+
     [Fact]
-    public void TheViewTabListsPhotosPersonalVideosAndDocumentsWithTheirFolderCountsAndOpensTheViewSettings()
+    public void ViewListsOnePhotosAndVideosRowHoldingTheFoldersOfBothKindsAndDocumentsSeparately()
     {
         _viewSources =
         [
-            new(Guid.NewGuid(), "local_folder", "Pictures", "linked", "D:\\Pictures", true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, ContentKind: "photos"),
-            new(Guid.NewGuid(), "local_folder", "Paperwork", "linked", "C:\\Paperwork", true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, ContentKind: "documents"),
+            ViewFolder("Pictures", "D:\\Pictures", "photos"),
+            ViewFolder("Clips", "D:\\Clips", "personal_videos"),
+            ViewFolder("Paperwork", "C:\\Paperwork", "documents"),
         ];
         var cut = OpenAndSettle();
 
-        cut.WaitForAssertion(() => Assert.Equal(["1 folder", "Nothing added yet", "1 folder"], cut.FindAll("tr[data-area=view]").Select(row => Text(row.QuerySelectorAll("td")[2])).ToArray()));
-        Assert.Equal(["Photos", "Personal videos", "Documents"], cut.FindAll("tr[data-area=view] .libs__link").Select(Text).ToArray());
+        cut.WaitForAssertion(() => Assert.Equal(["2 folders", "1 folder"], cut.FindAll("tr[data-area=view]").Select(row => Text(row.QuerySelectorAll("td")[2])).ToArray()));
+        Assert.Equal(["Photos and videos", "Documents"], cut.FindAll("tr[data-area=view] .libs__link").Select(Text).ToArray());
         Assert.Equal("/settings/libraries/view/photos", cut.FindAll("tr[data-area=view] .libs__link")[0].GetAttribute("href"));
+        Assert.Empty(cut.FindAll("tr[data-library=personal_videos]"));
+        Assert.Equal(["All4", "Watch1", "Listen1", "Read0", "View2"], ChipTexts(cut));
+
+        cut.Find("tr[data-library=photos] [data-folder-count]").Click();
+        var paths = cut.FindAll("tr[data-library=photos] [data-folder-list] li .lib-folders__path").Select(Text).ToArray();
+        Assert.Equal(["D:\\Pictures", "D:\\Clips"], paths);
+    }
+
+    [Fact]
+    public void FoldersOfPersonalVideosAloneStillShowUnderThePhotosAndVideosRow()
+    {
+        _viewSources = [ViewFolder("Clips", "D:\\Clips", "personal_videos")];
+        var cut = OpenAndSettle();
+
+        cut.WaitForAssertion(() => Assert.Equal(["Photos and videos"], cut.FindAll("tr[data-area=view] .libs__link").Select(Text).ToArray()));
+        Assert.Equal("1 folder", Text(cut.Find("tr[data-library=photos]").QuerySelectorAll("td")[2]));
+    }
+
+    [Fact]
+    public void ViewListsNoRowsWhileItHasNoFolders()
+    {
+        var cut = OpenAndSettle();
+
+        Assert.Empty(cut.FindAll("tr[data-area=view]"));
+        Assert.Equal("View0", ChipTexts(cut)[4]);
+    }
+
+    [Fact]
+    public void TheEditWindowOfThePhotosAndVideosRowListsTheFoldersOfBothKinds()
+    {
+        _viewSources =
+        [
+            ViewFolder("Pictures", "D:\\Pictures", "photos"),
+            ViewFolder("Clips", "D:\\Clips", "personal_videos"),
+            ViewFolder("Paperwork", "C:\\Paperwork", "documents"),
+        ];
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("tr[data-library=photos]")));
+
+        cut.Find("tr[data-library=photos] button[data-edit]").Click();
+
+        host.WaitForAssertion(() => Assert.Equal(["D:\\Pictures", "D:\\Clips"], host.FindAll("[data-view-kind-edit] .lib-edit__path").Select(Text).ToArray()));
+        Assert.Equal("Edit Photos and videos", Text(host.Find(".app-dialog-shell__title")));
+    }
+
+    // D11: a library with no folders is not listed anywhere.
+    [Fact]
+    public void ALibraryWithNoFoldersIsNotInTheTableTheChipsTheCardOrTheFooterCount()
+    {
+        _configuration!.Libraries.Add(new() { Id = HomeVideosId, Name = "Home videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [] });
+        var cut = OpenAndSettle();
+
+        Assert.Empty(cut.FindAll($"tr[data-library='{HomeVideosId}']"));
+        Assert.Equal(["All2", "Watch1", "Listen1", "Read0", "View0"], ChipTexts(cut));
+        Assert.Empty(cut.FindAll($"[data-lib-summary] [data-kind='{HomeVideosId}']"));
+        Assert.Equal("2 libraries · 3 folders", Text(cut.Find("[data-libs-footer]")));
+    }
+
+    // The Add library dialog reaches such a library: its kind is a normal row there, and the folder is saved into it (CreateLibraryDialogTests).
+    [Fact]
+    public void ALibraryWithNoFoldersIsAbsentFromTheVaultAreaToo()
+    {
+        var configuration = BuildConfiguration();
+        configuration.Libraries.Add(new() { Id = "99999999-9999-4999-8999-999999999999", Name = "Private movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"], IsVault = true, Sources = [] });
+
+        var cut = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, configuration).Add(x => x.ShowVault, true));
+
+        Assert.Empty(cut.FindAll("tr[data-area=vault]"));
+        Assert.Equal("0", Text(cut.Find(".lib-chip[data-area=vault] .lib-chip__count")));
+    }
+
+    // A View read that failed is not the same as one that has not finished: the rows are listed with an unknown count and "No libraries yet" stays away.
+    [Fact]
+    public void WhenViewsFoldersCouldNotBeReadItsRowsAreListedWithAnUnknownCountAndNoLibrariesYetIsNotShown()
+    {
+        var configuration = new LibrariesConfigurationDto();
+
+        var cut = Render<LibrariesOverview>(parameters => parameters
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, configuration).Add(x => x.ViewFoldersUnreadable, true));
+
+        Assert.Empty(cut.FindAll("[data-empty=none]"));
+        Assert.Equal(["Photos and videos", "Documents"], cut.FindAll("tr[data-area=view] .libs__link").Select(Text).ToArray());
+        Assert.All(cut.FindAll("tr[data-area=view] .libs__folders"), cell => Assert.Equal("—", Text(cell)));
+    }
+
+    [Fact]
+    public void WhileViewsFoldersAreStillBeingReadItsRowsAreNotListedAndNoLibrariesYetDoesNotFlash()
+    {
+        var cut = Render<LibrariesOverview>(parameters => parameters
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, new LibrariesConfigurationDto()));
+
+        Assert.Empty(cut.FindAll("[data-empty=none]"));
+        Assert.Empty(cut.FindAll("tr[data-area=view]"));
+    }
+
+    [Fact]
+    public void ViewRowsAreListedWithNoCountWhenTheReadFailedAndHiddenWhenTheFoldersAreKnownToBeNone()
+    {
+        var kinds = LibraryKindsTestData.Catalog;
+        var configuration = new LibrariesConfigurationDto();
+
+        var failed = LibraryListing.RowsFor(kinds, "view", configuration, null, null, null, showVault: false, viewFoldersUnreadable: true);
+        var loading = LibraryListing.RowsFor(kinds, "view", configuration, null, null, null, showVault: false);
+        var none = LibraryListing.RowsFor(kinds, "view", configuration, null, new Dictionary<string, int> { ["photos"] = 0, ["documents"] = 0 }, null, showVault: false);
+
+        Assert.Equal(2, failed.Count);
+        Assert.All(failed, row => Assert.Null(row.Folders));
+        Assert.Empty(loading);
+        Assert.Empty(none);
+    }
+
+    [Fact]
+    public void WithOnlyAnEmptyLibraryThePageSaysNoLibrariesYetAndTheImportFolderRowStaysListed()
+    {
+        _configuration!.Libraries.Clear();
+        _configuration.Libraries.Add(new() { Id = HomeVideosId, Name = "Home videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [] });
+        var cut = OpenAndSettle();
+
+        Assert.Contains("No libraries yet", Text(cut.Find("[data-empty=none]")));
+        Assert.Empty(cut.FindAll("tr[data-area]"));
+        Assert.Equal("not-set", cut.Find("tr[data-library=import] [data-import-status]").GetAttribute("data-import-status"));
+    }
+
+    [Fact]
+    public void RemovingTheLastFolderAsksOnceAndKeepingItChangesNothing()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+        EditButton(cut, AudiobooksId).Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+        RemoveFolderAndReview(host, "audio-old");
+
+        host.FindAll("button").Single(button => Text(button) == "Save").Click();
+
+        host.WaitForAssertion(() => Assert.Contains("Remove the last folder?", host.Markup));
+        Assert.Contains("will leave the Libraries list", host.Markup);
+        host.FindAll("button").Single(button => Text(button) == "Keep").Click();
+
+        host.WaitForAssertion(() => Assert.DoesNotContain("Remove the last folder?", host.Markup));
+        Assert.Equal(0, _libraryMutations);
+        Assert.NotEmpty(Row(cut, AudiobooksId).QuerySelectorAll("td"));
+    }
+
+    [Fact]
+    public void ConfirmingTheRemovalOfTheLastFolderSavesAndTheRowDisappears()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+        EditButton(cut, AudiobooksId).Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+        RemoveFolderAndReview(host, "audio-old");
+
+        host.FindAll("button").Single(button => Text(button) == "Save").Click();
+        host.WaitForAssertion(() => Assert.Contains("Remove the last folder?", host.Markup));
+        host.FindAll("button").Single(button => Text(button) == "Remove folder").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll($"tr[data-library='{AudiobooksId}']")));
+        Assert.Equal(1, _libraryMutations);
+        Assert.Equal(["All1", "Watch1", "Listen0", "Read0", "View0"], ChipTexts(cut));
+    }
+
+    [Fact]
+    public void RemovingOneOfSeveralFoldersDoesNotAsk()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = OpenAndSettle();
+        EditButton(cut, MoviesId).Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".lib-edit")));
+        RemoveFolderAndReview(host, "movies-old");
+
+        host.FindAll("button").Single(button => Text(button) == "Save").Click();
+
+        host.WaitForAssertion(() => Assert.Equal(1, _libraryMutations));
+        Assert.DoesNotContain("Remove the last folder?", host.Markup);
+    }
+
+    private static void RemoveFolderAndReview(IRenderedComponent<AppDialogHost> host, string sourceId)
+    {
+        host.Find($".lib-edit__folder[data-source='{sourceId}'] .app-overflow-menu__trigger").Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[role=menuitem]")));
+        host.FindAll("[role=menuitem]").Single(item => Text(item).Contains("Remove", StringComparison.Ordinal)).Click();
+        host.FindAll("button").Single(button => Text(button) == "Save changes").Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[data-review]")));
+    }
+
+    [Fact]
+    public void TheSetupTableListsLibrariesWithFoldersAndOnePhotosAndVideosRowButNoEmptyOnes()
+    {
+        var configuration = BuildConfiguration();
+        configuration.Libraries.Add(new() { Id = HomeVideosId, Name = "Home videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [] });
+        IReadOnlyList<ViewSourceAdminDto> viewFolders =
+        [
+            ViewFolder("Pictures", "D:\\Pictures", "photos"),
+            ViewFolder("Clips", "D:\\Clips", "personal_videos"),
+        ];
+
+        var cut = Render<SetupLibrariesTable>(parameters => parameters
+            .Add(x => x.Configuration, configuration).Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.ViewFolders, viewFolders));
+
+        Assert.Equal(["Movies", "Audiobooks", "Photos and videos"], cut.FindAll(".setup-libs__name strong").Select(Text).ToArray());
+        Assert.Empty(cut.FindAll($"tr[data-library='{HomeVideosId}']"));
+    }
+
+    [Fact]
+    public void TheSetupTableSaysNoLibrariesYetWhenOnlyEmptyLibrariesExist()
+    {
+        var configuration = new LibrariesConfigurationDto();
+        configuration.Libraries.Add(new() { Id = HomeVideosId, Name = "Home videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [] });
+
+        var cut = Render<SetupLibrariesTable>(parameters => parameters.Add(x => x.Configuration, configuration).Add(x => x.Kinds, LibraryKindsTestData.Catalog));
+
+        Assert.Contains("No libraries yet", Text(cut.Find("[data-empty=none]")));
+        Assert.Empty(cut.FindAll("tr[data-library]"));
+    }
+
+    [Fact]
+    public void PhotosAndVideosIsWrittenInSentenceCaseInTheLabelsAndTheCard()
+    {
+        Assert.Equal("Photos and videos", LibraryTypeCatalog.PhotosAndVideosLabel);
+        var photos = LibraryKindsTestData.Catalog.FindViewKind("photos")!;
+        Assert.Equal("Photos and videos", LibraryTypeCatalog.AddChoiceLabel(photos));
+        Assert.Equal(["Photos and videos", "Documents"], LibraryKindsTestData.Catalog.ViewRowKinds.Select(kind => kind.Label).ToArray());
+
+        var rows = LibraryListing.RowsFor(LibraryKindsTestData.Catalog, "view", new LibrariesConfigurationDto(), null, new Dictionary<string, int> { ["photos"] = 1, ["personal_videos"] = 2 }, null, showVault: false);
+        var card = Render<LibrariesSummary>(parameters => parameters.Add(x => x.Rows, rows));
+
+        Assert.Single(card.FindAll("[data-lib-summary] [data-kind=photos]"));
+        Assert.Contains("Photos and videos", Text(card.Find("[data-lib-summary] [data-kind=photos] .lib-summary__label")));
     }
 
     // 10. Phone: counts and status, nothing that changes anything.
@@ -894,7 +1138,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var offline = new LibraryHealth(false, "1 folder unavailable");
 
         Assert.Equal(LibraryStatusKind.FolderOffline, LibraryListing.StatusOf(library, 10, offline).Status);
-        Assert.Equal(LibraryStatusKind.NotIdentified, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
+        Assert.Equal(LibraryStatusKind.NeedsReview, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
         library.UnmatchedCount = 0;
         library.ReviewCount = 1;
         Assert.Equal(LibraryStatusKind.NeedsReview, LibraryListing.StatusOf(library, 10, LibraryHealth.Ok).Status);
@@ -903,5 +1147,178 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal(LibraryStatusKind.Healthy, LibraryListing.StatusOf(library, null, LibraryHealth.Ok).Status);
         Assert.Null(LibraryListing.StatusOf(library, 5, null).Status);
         Assert.Equal(LibraryStatusKind.Empty, LibraryListing.StatusOf(new LibraryFolderDto(), null, null).Status);
+    }
+
+    // D12: one colour per kind, shared by the card cell and the row icon.
+    // The kind's colour class an element carries (lib-kind-color--*); the class is the only thing the card cell and the row icon take their colour from.
+    private static string ColorClassOf(AngleSharp.Dom.IElement element) =>
+        Assert.Single(element.ClassList, name => name.StartsWith("lib-kind-color--", StringComparison.Ordinal));
+
+    private static (LibraryKindCatalog Catalog, LibrariesConfigurationDto Configuration, IReadOnlyList<ViewSourceAdminDto> ViewFolders) EveryKindEverywhere()
+    {
+        // Every kind the Engine offers, plus one a plugin adds (Podcasts), each with a folder so each is listed.
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+        var configuration = new LibrariesConfigurationDto();
+        foreach (var type in catalog.Types)
+        {
+            configuration.Libraries.Add(new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = type.Label,
+                KindKey = type.Key,
+                Area = type.Area,
+                Kind = "catalogued",
+                MediaTypes = [.. type.MediaTypes],
+                Sources = [new() { Id = $"{type.Key}-folder", Path = $"E:\\{type.Key}", ManagementMode = "existing_library", AccessMode = "read_only" }],
+            });
+        }
+
+        IReadOnlyList<ViewSourceAdminDto> viewFolders =
+        [
+            ViewFolder("Pictures", "D:\\Pictures", "photos"),
+            ViewFolder("Clips", "D:\\Clips", "personal_videos"),
+            ViewFolder("Paperwork", "D:\\Paperwork", "documents"),
+        ];
+        return (catalog, configuration, viewFolders);
+    }
+
+    private static IReadOnlyList<LibraryListRow> RowsOf(LibraryKindCatalog catalog, LibrariesConfigurationDto configuration)
+    {
+        var viewCounts = new Dictionary<string, int> { ["photos"] = 1, ["personal_videos"] = 1, ["documents"] = 1 };
+        return [.. new[] { "watch", "listen", "read", "view" }.SelectMany(area => LibraryListing.RowsFor(catalog, area, configuration, null, viewCounts, null, showVault: false))];
+    }
+
+    [Fact]
+    public void EveryKindHasTheSameColourOnItsCardCellAndItsSetupRowIcon()
+    {
+        var (catalog, configuration, viewFolders) = EveryKindEverywhere();
+        var rows = RowsOf(catalog, configuration);
+        Assert.Contains(rows, row => row.Key == "photos" && row.Name == "Photos and videos");
+        Assert.Contains(rows, row => row.Type.Key == "podcasts");
+        Assert.Contains(rows, row => row.Type.Key == "youtube");
+
+        var card = Render<LibrariesSummary>(parameters => parameters.Add(x => x.Rows, rows));
+        var table = Render<SetupLibrariesTable>(parameters => parameters.Add(x => x.Configuration, configuration).Add(x => x.Kinds, catalog).Add(x => x.ViewFolders, viewFolders));
+
+        foreach (var row in rows)
+        {
+            var cell = card.Find($"[data-lib-summary] [data-kind='{row.Key}']");
+            var icon = table.Find($"tr[data-library='{row.Key}'] .lib-kind-tile");
+            Assert.Equal(LibraryKindLook.ColorClass(row.Type), ColorClassOf(cell));
+            Assert.Equal(ColorClassOf(cell), ColorClassOf(icon));
+        }
+    }
+
+    [Fact]
+    public void EveryKindHasTheSameColourOnItsCardCellAndItsLibrariesRowIcon()
+    {
+        var (catalog, configuration, _) = EveryKindEverywhere();
+        _kinds = LibraryKindsTestData.All(LibraryKindsTestData.Podcasts());
+        _configuration = configuration;
+        _overview = null; // no title counts known, so each kind's cell shows its folder count
+        var cut = OpenAndSettle();
+
+        // The Vault kind (Adult content) is not listed here, so it is not in the rows either.
+        var listed = RowsOf(catalog, configuration).Where(row => row.Library is not null).ToList();
+        Assert.True(listed.Count >= 10);
+        foreach (var row in listed)
+        {
+            var cell = cut.Find($"[data-lib-summary] [data-kind='{row.Key}']");
+            var icon = Row(cut, row.Key).QuerySelector(".lib-kind-tile")!;
+            Assert.Equal(LibraryKindLook.ColorClass(row.Type), ColorClassOf(cell));
+            Assert.Equal(ColorClassOf(cell), ColorClassOf(icon));
+        }
+    }
+
+    [Fact]
+    public void AudiobooksIsTheAudiobooksColourOnTheCardAndOnTheRow()
+    {
+        var cut = OpenAndSettle();
+
+        var cell = cut.Find($"[data-lib-summary] [data-kind='{AudiobooksId}']");
+        var icon = Row(cut, AudiobooksId).QuerySelector(".lib-kind-tile")!;
+        Assert.Equal("lib-kind-color--audiobooks", ColorClassOf(cell));
+        Assert.Equal("lib-kind-color--audiobooks", ColorClassOf(icon));
+        Assert.Equal("lib-kind-color--movies", ColorClassOf(cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']")));
+    }
+
+    [Theory]
+    [InlineData("movies", "--tl-media-movies")]
+    [InlineData("tv", "--tl-media-tv")]
+    [InlineData("music", "--tl-media-music")]
+    [InlineData("audiobooks", "--tl-media-audiobooks")]
+    [InlineData("books", "--tl-media-books")]
+    [InlineData("comics", "--tl-media-comics")]
+    [InlineData("documents", "--tl-media-document")]
+    [InlineData("youtube", "--tl-area-watch")]
+    [InlineData("other_videos", "--tl-area-watch")]
+    [InlineData("other_audio", "--tl-area-listen")]
+    [InlineData("other_reading", "--tl-area-read")]
+    [InlineData("photos", "--tl-area-view")]
+    [InlineData("podcasts", "--tl-area-listen")]
+    public void AKindUsesItsOwnMediaColourAndAKindWithoutOneUsesItsAreasColour(string key, string token)
+    {
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+
+        Assert.Equal(token, LibraryKindLook.ColorToken(catalog.Find(key)!));
+    }
+
+    [Fact]
+    public void TheDesignSystemDefinesEveryColorTokenAKindCanUse()
+    {
+        var tokens = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css"));
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+
+        foreach (var token in catalog.Types.Concat(catalog.ViewKinds).Select(LibraryKindLook.ColorToken).Distinct())
+        {
+            Assert.Contains($"{token}:", tokens, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void EveryKindColorClassSetsTheKindColourToItsDesignSystemToken()
+    {
+        var app = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+
+        foreach (var type in catalog.Types.Concat(catalog.ViewKinds))
+        {
+            var rule = $".{LibraryKindLook.ColorClass(type)} {{ --lib-kind-color: var({LibraryKindLook.ColorToken(type)}); }}";
+            Assert.Contains(rule, app, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void ACardCellShowsTheIconThenTheCountThenTheKindName()
+    {
+        var cut = OpenAndSettle();
+
+        var cell = cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']");
+        Assert.Equal(["lib-summary__icon", "lib-summary__count", "lib-summary__label"], cell.Children.Select(child => child.ClassName ?? string.Empty).ToArray());
+        Assert.NotNull(cell.Children[0].QuerySelector("svg"));
+        Assert.Equal("1,284", Text(cell.Children[1]));
+        Assert.Equal("Movies", Text(cell.Children[2]));
+    }
+
+    [Fact]
+    public void TheAreaTagOnARowKeepsTheAreaColourNotTheKindColour()
+    {
+        var cut = OpenAndSettle();
+
+        var tag = Row(cut, AudiobooksId).QuerySelector("[data-area-tag]")!;
+        Assert.Contains("lib-area--listen", tag.ClassName, StringComparison.Ordinal);
+        Assert.DoesNotContain(tag.ClassList, name => name.StartsWith("lib-kind-color--", StringComparison.Ordinal));
+        Assert.Contains("lib-area--watch", Row(cut, MoviesId).QuerySelector("[data-area-tag]")!.ClassName, StringComparison.Ordinal);
+    }
+
+    private static string RepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
     }
 }

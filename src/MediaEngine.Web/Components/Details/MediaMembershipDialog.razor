@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient Api
 @inject UIOrchestratorService Orchestrator
+@inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 @* "Add to collection" / "Add to playlist" (Collections and lists spec 4a, D19). The list holds exactly the hand-picked collections or
    playlists the Engine says the signed-in person may edit: their own, and for an administrator everything they manage. The Engine
@@ -12,6 +13,17 @@
     <ChildContent>
         <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
             @if (_loading) { <p>@L["MediaMembershipDialog_LoadingAvailableDestinations"]</p> }
+            else if (_creating)
+            {
+                <AppNativeInput Type="text"
+                                Value="@_newName"
+                                ValueChanged="@((object? value) => _newName = value?.ToString() ?? string.Empty)"
+                                Placeholder="@L["ListenPage_PlaylistName"].Value"
+                                AriaLabel="@L["ListenPage_PlaylistName"].Value"
+                                maxlength="100"
+                                Disabled="@_saving"
+                                OnKeyDown="OnNameKeyDownAsync" />
+            }
             else if (_options.Count == 0) { <p>No editable manual @(Playlist ? "playlists" : "collections") are available.</p> }
             else { <AppSelect Value="@_selected" ValueChanged="@((string? value) => _selected = value)" Options="@_options" aria-label="@L["Common_Destination"].Value" /> }
             @if (OfferNewCollection && !Playlist)
@@ -23,12 +35,24 @@
                     @NewCollectionLabel
                 </AppButton>
             }
+            @if (Playlist && OfferNewPlaylist && CanCreatePlaylist)
+            {
+                @* "New playlist" asks for a name here, in the same window; choosing again goes back to the list of playlists. *@
+                <AppButton ButtonStyle="AppButtonStyle.Text"
+                           StartIcon="@(_creating ? AppMaterialIcons.Outlined.QueueMusic : AppMaterialIcons.Filled.Add)"
+                           Class="media-membership__new"
+                           Disabled="@_saving"
+                           aria-pressed="@(_creating ? "true" : "false")"
+                           OnClick="ToggleNewPlaylist">
+                    @(_creating ? L["PlaylistMembership_ChooseExisting"].Value : L["PlaylistMembership_NewPlaylist"].Value)
+                </AppButton>
+            }
             @if (_error is not null) { <p role="alert">@_error</p> }
         </div>
     </ChildContent>
     <FooterContent>
         <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Cancel())">@L["Search_Cancel"]</AppButton>
-        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _selected is null)" OnClick="SaveAsync">@L["Vibes_Add"]</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || !CanSave)" OnClick="SaveAsync">@L["Vibes_Add"]</AppButton>
     </FooterContent>
 </AppDialogShell>
 @code {
@@ -39,10 +63,26 @@
     /// <summary>True when the list also offers "New collection with this title"; the dialog then closes with <see cref="CollectionMembershipFlow.NewCollectionChoice"/>.</summary>
     [Parameter] public bool OfferNewCollection { get; set; }
 
+    /// <summary>
+    /// Playlist lists only: the list does not add anything itself, it closes with a <see cref="PlaylistChoice"/> and the caller adds (the
+    /// ticked-songs bar, which says how many went in). Without it a playlist pick adds the titles here, as the song menu always did.
+    /// </summary>
+    [Parameter] public bool ChooseOnly { get; set; }
+
+    /// <summary>Playlist lists only: also offer "New playlist", which asks for a name in this window.</summary>
+    [Parameter] public bool OfferNewPlaylist { get; set; }
+
     private IReadOnlyList<AppSelectOption> _options = [];
     private string? _selected;
     private string? _error;
+    private string _newName = string.Empty;
+    private bool _creating;
     private bool _loading = true, _saving;
+    // "New playlist" is only offered to a profile that may start one (a Kids profile cannot; the Engine refuses it too). Unknown means no.
+    private bool CanCreatePlaylist => Services.GetService<DashboardSessionAccessor>() is { } session && CollectionAuthoringRule.CanCreate(session);
+    private bool CanSave => _creating ? !string.IsNullOrWhiteSpace(_newName) : _selected is not null;
+    private void ToggleNewPlaylist() { _creating = !_creating; _error = null; }
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs args) { if (args.Key == "Enter" && CanSave && !_saving) await SaveAsync(); }
     private string NewCollectionLabel => WorkIds.Count == 1 ? "New collection with this title" : "New collection with these titles";
     protected override async Task OnInitializedAsync() {
         var profile = await Orchestrator.GetActiveProfileAsync();
@@ -52,6 +92,14 @@
         _loading = false;
     }
     private async Task SaveAsync() {
+        if (Playlist && ChooseOnly) {
+            // The caller adds; this only says which playlist (or the name of the new one).
+            if (_creating && !string.IsNullOrWhiteSpace(_newName)) { Dialog.Close(AppDialogResult.Ok(new PlaylistChoice(null, _newName.Trim()))); return; }
+            if (!_creating && Guid.TryParse(_selected, out var chosen)) {
+                Dialog.Close(AppDialogResult.Ok(new PlaylistChoice(chosen, _options.First(option => option.Value == _selected).Label)));
+            }
+            return;
+        }
         if (!Guid.TryParse(_selected, out var id)) return;
         _saving = true;
         var profile = await Orchestrator.GetActiveProfileAsync();

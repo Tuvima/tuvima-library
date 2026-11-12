@@ -23,11 +23,32 @@
     font-size: var(--tl-font-size-sm);
 }
 
+.tl-vseries__intro {
+    margin: 0;
+    font-size: var(--tl-font-size-sm);
+    color: var(--tl-text-secondary, inherit);
+}
+
+.tl-vseries__file {
+    margin: 0;
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-vseries__file--problem {
+    color: var(--tl-status-warning);
+}
+
+.tl-vseries__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
 .tl-vseries__tag {
     margin-left: 0.5rem;
     padding: 0.05rem 0.45rem;
-    border: 1px solid rgba(240, 180, 60, 0.6);
-    color: #f0b43c;
+    border: 1px solid var(--tl-status-warning-border);
+    color: var(--tl-status-warning);
     font-size: var(--tl-font-size-xs);
     font-weight: 500;
     vertical-align: middle;

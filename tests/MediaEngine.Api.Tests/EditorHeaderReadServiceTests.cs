@@ -329,7 +329,8 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         Assert.Equal("#112233", header!.Colors!.PrimaryHex);
         Assert.Equal("#445566", header.Colors.SecondaryHex);
         Assert.Equal("#778899", header.Colors.AccentHex);
-        Assert.Equal($"/stream/artwork/{artwork:D}", header.Root.CoverUrl);
+        // Only the shared artwork record exists (no stored picture row), and /stream/artwork serves picture rows, so the display route carries it.
+        Assert.Equal($"/api/v1/display/artwork/assets/{artwork:D}/content", header.Root.CoverUrl);
     }
 
     [Fact]
@@ -387,6 +388,51 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         var writable = _world.Work("Movies", "standalone", "Heat");
         _world.File(writable, "Heat.mkv");
         Assert.False((await _world.Header().GetHeaderAsync(writable, null))!.FileFacts!.ReadOnly);
+    }
+
+    [Fact]
+    public async Task AFileFactsRead_NamesTheLibraryFolder_NotItsPath()
+    {
+        using var named = new EditorHeaderTestWorld("Arrival", libraryName: "Films");
+        var movie = named.Work("Movies", "standalone", "Arrival");
+        named.File(movie, "Arrival (2016).mkv");
+
+        var facts = (await named.Header().GetHeaderAsync(movie, null))!.FileFacts!;
+
+        Assert.Equal("Films", facts.LibraryFolderName);
+        Assert.DoesNotContain(Path.DirectorySeparatorChar, facts.LibraryFolderName!);
+    }
+
+    [Fact]
+    public async Task AFileFactsRead_WithALibraryThatHasNoName_UsesTheLastPartOfTheFoldersLocation()
+    {
+        var movie = _world.Work("Movies", "standalone", "Heat");
+        _world.File(movie, "Heat.mkv");
+
+        var facts = (await _world.Header().GetHeaderAsync(movie, null))!.FileFacts!;
+
+        Assert.Equal(Path.GetFileName(_world.Library), facts.LibraryFolderName);
+        Assert.DoesNotContain(Path.DirectorySeparatorChar, facts.LibraryFolderName!);
+    }
+
+    [Fact]
+    public async Task AFileOutsideEveryLibraryFolder_HasNoLibraryFolderName_SoQuickFactsLeaveTheFactOut()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), $"tuvima_outside_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outside);
+        try
+        {
+            var movie = _world.Work("Movies", "standalone", "Heat");
+            _world.File(movie, "Heat.mkv", folder: outside);
+
+            var facts = (await _world.Header().GetHeaderAsync(movie, null))!.FileFacts!;
+
+            Assert.Null(facts.LibraryFolderName);
+        }
+        finally
+        {
+            Directory.Delete(outside, recursive: true);
+        }
     }
 
     [Fact]

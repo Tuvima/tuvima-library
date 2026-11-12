@@ -36,7 +36,7 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 4px;
-        font-size: var(--tl-font-size-xs);
+        font-size: var(--tl-type-caption-size);
     }
     .hop-node {
         color: var(--tl-text-primary);
@@ -44,5 +44,5 @@
     }
     .hop-arrow {
         color: var(--tl-border-strong);
-        font-size: var(--tl-font-size-xs);
+        font-size: var(--tl-type-caption-size);
     }

@@ -1,74 +1,212 @@
-/* Find subtitles: a 14 px line, the purple full-width action of the mockup (.btn-p: 12 px padding, 15 / 600, 8 px radius) and an outlined action (.btn-o). */
+/* Find subtitles (follow-ups D9, mockup section 3): a head line (the count at the left, the language choice at the right), result rows (.res: language and tags,
+   the action at the right, the release name on one line below) and plain "why" blocks. On a phone sheet each row is one column with a full-width action. */
 .sfv {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 12px 8px 8px;
+    display: grid;
+    gap: 8px;
+    padding: 8px 10px;
 }
 
-.sfv__intro,
-.sfv__status {
-    color: var(--playback-text-secondary);
-    font: 400 14px/1.45 var(--font-ui);
-    margin: 0;
-}
-
-.sfv__notice {
+.sfv__head {
     align-items: center;
     color: var(--playback-text-secondary);
     display: flex;
-    font: 400 14px/1.45 var(--font-ui);
-    gap: 16px;
+    flex-wrap: wrap;
+    font: 400 13px/1.45 var(--font-ui);
+    gap: 10px;
     justify-content: space-between;
-    margin: 0;
-    padding: 4px 8px;
+    padding: 2px 4px;
 }
 
-.sfv__notice a {
-    color: var(--playback-accent);
-}
-
-.sfv ::deep .sfv__search,
-.sfv ::deep .sfv__preferred {
+.sfv__lang {
+    align-items: center;
+    border: 1px solid var(--playback-hairline);
     border-radius: 8px;
-    box-sizing: border-box;
+    color: var(--playback-text);
+    display: inline-flex;
+    font: 400 14px/1.45 var(--font-ui);
+    min-height: 36px;
+    padding: 4px 10px;
+    position: relative;
+}
+
+.sfv__lang:has(.sfv__select:focus-visible) {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.sfv__lang-value {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+}
+
+.sfv__chevron {
+    --playback-glyph-size: 16px;
+    display: inline-flex;
+}
+
+/* The native list covers the choice, invisible, so the whole choice is the control. */
+.sfv ::deep .sfv__select {
+    appearance: none;
+    background: transparent;
+    border: 0;
     cursor: pointer;
-    min-height: var(--playback-control-target);
-    text-align: center;
+    height: 100%;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    padding: 0;
+    position: absolute;
     width: 100%;
 }
 
-.sfv ::deep .sfv__search {
-    background: var(--playback-accent);
+.sfv__list {
+    display: grid;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.sfv__res {
+    align-items: center;
+    border: 1px solid var(--playback-hairline);
+    border-radius: 8px;
+    display: grid;
+    gap: 4px 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 10px;
+}
+
+.sfv__res--current {
+    border-color: var(--playback-accent);
+}
+
+.sfv__title {
+    align-items: center;
+    color: var(--playback-text);
+    display: flex;
+    flex-wrap: wrap;
+    font: 600 16px/1.45 var(--font-ui);
+    gap: 6px;
+}
+
+.sfv__tag {
+    background: var(--tl-wash-light-3);
+    border-radius: 4px;
+    color: var(--playback-text-secondary);
+    font: 500 11px/1.45 var(--font-ui);
+    padding: 1px 8px;
+}
+
+.sfv__tag--ok {
+    color: var(--tl-status-success);
+}
+
+.sfv__tag--warn {
+    color: var(--tl-status-warning);
+}
+
+/* Follow-ups D6: the release name stays on one line; the full name is in the app tooltip. */
+.sfv__release {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    grid-column: 1 / -1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sfv__row-error {
+    color: var(--playback-danger);
+    font: 400 13px/1.45 var(--font-ui);
+    grid-column: 1 / -1;
+    margin: 0;
+}
+
+/* The buttons are drawn by AppNativeButton, so their rules reach in with ::deep. The primary button only sets the variables the base rule reads. */
+.sfv ::deep .sfv__button {
+    background: var(--sfv-fill, transparent);
+    border: 1px solid var(--sfv-edge, var(--playback-hairline));
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--sfv-text, var(--playback-text));
+    cursor: pointer;
+    font: 600 14px/1.45 var(--font-ui);
+    min-height: 36px;
+    padding: 7px 12px;
+    white-space: nowrap;
+}
+
+.sfv ::deep .sfv__button:hover:not(:disabled) {
+    background: var(--sfv-fill-hover, var(--playback-state-hover));
+}
+
+.sfv ::deep .sfv__button--primary {
+    --sfv-fill: var(--playback-accent);
+    --sfv-fill-hover: var(--playback-accent-hover);
+    --sfv-edge: var(--playback-accent);
+    --sfv-text: var(--tl-text-on-accent);
+}
+
+.sfv ::deep .sfv__link {
+    background: transparent;
     border: 0;
-    color: white;
-    font: 600 15px/1.45 var(--font-ui);
-    padding: 12px;
+    color: var(--playback-accent);
+    cursor: pointer;
+    font: 600 13px/1.45 var(--font-ui);
+    padding: 4px 6px;
 }
 
-.sfv ::deep .sfv__search:hover:not(:disabled) {
-    background: var(--playback-accent-hover);
-}
-
-.sfv ::deep .sfv__search:disabled {
+.sfv ::deep :is(.sfv__button, .sfv__link):disabled {
     cursor: default;
     opacity: var(--playback-state-disabled-opacity);
 }
 
-.sfv ::deep .sfv__preferred {
-    background: transparent;
-    border: 1px solid var(--playback-hairline);
-    color: var(--playback-text);
-    font: 600 14px/1.45 var(--font-ui);
-    padding: 10px 14px;
-}
-
-.sfv ::deep .sfv__preferred:hover {
-    background: var(--playback-state-hover);
-}
-
-.sfv ::deep .sfv__search:focus-visible,
-.sfv ::deep .sfv__preferred:focus-visible {
+.sfv ::deep :is(.sfv__button, .sfv__link):focus-visible,
+.sfv__plugins:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
+}
+
+.sfv__note {
+    color: var(--playback-text-secondary);
+    font: 400 13px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 2px 4px;
+}
+
+.sfv__why-wrap {
+    align-items: flex-start;
+    display: grid;
+    gap: 8px;
+}
+
+.sfv__why {
+    border: 1px dashed var(--playback-hairline);
+    border-radius: 8px;
+    color: var(--playback-text-secondary);
+    font: 400 14px/1.45 var(--font-ui);
+    margin: 0;
+    padding: 12px;
+}
+
+.sfv__why b {
+    color: var(--playback-text);
+    display: block;
+    font-weight: 600;
+}
+
+.sfv__plugins {
+    color: var(--playback-accent);
+    font: 600 13px/1.45 var(--font-ui);
+}
+
+.sfv[data-sheet="true"] .sfv__res {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.sfv[data-sheet="true"] ::deep :is(.sfv__button, .sfv__link) {
+    min-height: var(--playback-control-target);
+    width: 100%;
 }

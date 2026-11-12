@@ -90,6 +90,13 @@ public sealed class EditorHeaderDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public EditorFileFactsDto? FileFacts { get; init; }
 
+    /// <summary>
+    /// True when the Match tab's own rule finds a provider match for the item (a provider id on the item itself, or the show's id for a season or
+    /// show; a Wikidata id alone does not count). The header says "Matched" from this until the Match tab has read the match itself, so the two never disagree.
+    /// </summary>
+    [JsonPropertyName("provider_matched")]
+    public bool ProviderMatched { get; init; }
+
     /// <summary>The thresholds and the rules of this kind of item from <c>config/editor.json</c>.</summary>
     [JsonPropertyName("config")]
     public EditorHeaderConfigDto Config { get; init; } = new();
@@ -390,6 +397,11 @@ public sealed class EditorFileFactsDto
     /// <summary>True when the file is no longer where Library found it ("File not found", with <see cref="Folder"/> as the last known folder).</summary>
     [JsonPropertyName("is_missing")]
     public bool IsMissing { get; init; }
+
+    /// <summary>The name of the library folder that holds the file ("Books"): the name the person gave it, or the last part of its location when it has none. A name only, never a path; null when no library folder holds the file.</summary>
+    [JsonPropertyName("library_folder_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LibraryFolderName { get; init; }
 }
 
 /// <summary>The thresholds and the rules of the item's kind from <c>config/editor.json</c> (D34), so the Dashboard holds no numbers.</summary>

@@ -150,9 +150,9 @@ body {
 
 .tl-dialog.sme-dialog {
 
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid var(--tl-wash-light-3) !important;
 
-    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 0 28px 70px var(--tl-scrim-dark-3) !important;
 
 }
 
@@ -166,7 +166,7 @@ body {
     background: var(--tl-bg-root) !important;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: 14px;
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
     letter-spacing: 0;
 }
@@ -196,13 +196,14 @@ body {
     padding: var(--tl-card-padding);
 }
 
-/* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
-   no page defines its own tab style (spec: one-shared-look). Labels sit one step up the type scale (D8). */
+/* The one tab row (Look v3.1 D1): flat, transparent, a 20px outline icon then the label, 48px tall, 28px between tabs, a 3px
+   accent underline on the active tab and one thin divider under the row. AppTabs and AppCountTabs both render it, so no page
+   defines its own tab style (spec: one-shared-look). Labels use the Control job (D8). */
 .tl-tabs-toolbar {
     display: flex;
     flex-wrap: nowrap;
-    gap: 4px;
-    min-height: var(--tl-tab-min-height, 44px);
+    gap: var(--tl-tab-gap);
+    min-height: var(--tl-tab-min-height);
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
@@ -222,16 +223,16 @@ body {
     align-items: center;
     gap: 8px;
     min-width: 0;
-    min-height: var(--tl-tab-min-height, 44px);
-    padding: 0 16px;
+    min-height: var(--tl-tab-min-height);
+    padding: 0;
     border: 0;
-    border-bottom: 2px solid transparent;
+    border-bottom: var(--tl-tab-underline) solid transparent;
     border-radius: 0;
     background: transparent;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-lg); /* one step up the type scale (D8) */
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-control-font-weight); /* the Control job's weight (500) */
     line-height: var(--tl-control-line-height);
     letter-spacing: var(--tl-control-letter-spacing);
     text-decoration: none;
@@ -245,10 +246,22 @@ body {
     background: transparent;
 }
 
+/* The tab's icon: 20px, outline, muted with the label; purple on the open tab. */
+.tl-tab > .tl-icon-root {
+    flex: 0 0 auto;
+    width: var(--tl-tab-icon-size);
+    height: var(--tl-tab-icon-size);
+    font-size: var(--tl-tab-icon-size);
+}
+
+.tl-tab.tl-tab-active > .tl-icon-root {
+    color: var(--tl-tone-accent);
+}
+
 /* Active tab reads like the top bar: white (primary) text with the purple underline (spec plugins-and-integrations-screens-v3 D21). */
 .tl-tab.tl-tab-active {
     color: var(--tl-text-primary);
-    border-bottom-color: var(--tl-accent-primary);
+    border-bottom: var(--tl-tab-underline) solid var(--tl-accent-primary);
     background: transparent;
 }
 
@@ -271,6 +284,37 @@ body {
 
 .tl-tab.tl-tab--advanced.tl-tab-active {
     border-bottom-color: var(--tl-status-warning);
+}
+
+.tl-tab.tl-tab--advanced > .tl-icon-root,
+.tl-tab.tl-tab--advanced.tl-tab-active > .tl-icon-root {
+    color: inherit;
+}
+
+/* On a phone the row scrolls sideways and every tab and icon stays. A soft fade at the right edge shows there is more, and only
+   then: the fade follows the row's own scroll position, so a row that fits, or one scrolled to its end, has none (the last tab is
+   never dimmed). A browser without scroll-driven animation shows no fade. */
+@property --tl-tab-fade-size {
+    syntax: "<length>";
+    inherits: false;
+    /* Written with a unit that survives the Release minifier, which shortens "0px" to a bare "0" a registered length may not accept. */
+    initial-value: 0.001px;
+}
+
+@keyframes tl-tab-edge-fade {
+    0%, 92% { --tl-tab-fade-size: var(--tl-tab-edge-fade); }
+    100% { --tl-tab-fade-size: 0px; }
+}
+
+@media (max-width: 600px) {
+    @supports (animation-timeline: scroll()) {
+        .tl-tabs-toolbar {
+            -webkit-mask-image: linear-gradient(90deg, var(--tl-viewer-black) calc(100% - var(--tl-tab-fade-size)), transparent);
+            mask-image: linear-gradient(90deg, var(--tl-viewer-black) calc(100% - var(--tl-tab-fade-size)), transparent);
+            animation: tl-tab-edge-fade linear both;
+            animation-timeline: scroll(self inline);
+        }
+    }
 }
 
 .tl-tab__count {
@@ -330,7 +374,7 @@ body {
 .app-dialog-field input,
 .app-dialog-field .tl-input-slot,
 .settings-admin-panel .tl-input-slot {
-    font-size: var(--tl-font-size-sm) !important;
+    font-size: var(--tl-field-text-size) !important;
 }
 
 .app-dialog-textarea textarea,
@@ -397,9 +441,9 @@ body {
     justify-content: center;
     border-radius: var(--tl-control-radius);
     color: var(--tl-text-primary);
-    background: rgba(12, 14, 20, 0.9);
+    background: color-mix(in srgb, var(--tl-bg-root) 90%, transparent);
     border: 1px solid var(--tl-border-default);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--tl-viewer-black) 35%, transparent);
 }
 
 .app-artwork-picker__input {
@@ -440,7 +484,7 @@ body {
 .tl-table thead th,
 .tl-table-cell.column-header {
     color: var(--tl-text-muted) !important;
-    background: rgba(39, 40, 50, 0.72) !important;
+    background: color-mix(in srgb, var(--tl-bg-surface-hover) 72%, transparent) !important;
     border-bottom: 1px solid var(--tl-border-default) !important;
     font-size: var(--tl-font-size-xs) !important;
     font-weight: 600 !important;
@@ -511,9 +555,12 @@ body {
 
 /* AppDialogShell supplies the visible modal surface. Keep the the shared UI layer host
    geometry-only so it cannot add a second border or scrolling container. */
-.tl-dialog.app-dialog-host {
+.tl-dialog.app-dialog-host:where(:not(.tl-fbrowser-host--phone, .tl-hnav__surface--phone, .view-hnav__surface--phone)) {
     width: fit-content !important;
     max-width: calc(100vw - 32px) !important;
+}
+
+.tl-dialog.app-dialog-host {
     overflow: visible !important;
     border: 0 !important;
     background: transparent !important;
@@ -536,14 +583,14 @@ body {
 /* One popup style (one-look spec WP1): the tone icon and the phone button stack live here so the scoped bundle stays under its ceiling. */
 .app-dialog-shell__icon--warning {
     color: var(--tl-status-warning);
-    background: var(--tl-status-warning-soft, rgba(245, 158, 11, 0.14));
-    border-color: var(--tl-status-warning-border, rgba(245, 158, 11, 0.34));
+    background: var(--tl-status-warning-soft);
+    border-color: var(--tl-status-warning-border);
 }
 
 .app-dialog-shell__icon--info {
     color: var(--tl-status-info);
-    background: var(--tl-status-info-soft, rgba(56, 189, 248, 0.14));
-    border-color: var(--tl-status-info-border, rgba(56, 189, 248, 0.34));
+    background: var(--tl-status-info-soft);
+    border-color: var(--tl-status-info-border);
 }
 
 .app-dialog-shell__icon--error {
@@ -571,7 +618,7 @@ body {
 
 .tl-dialog-actions {
     border-top: 1px solid var(--tl-border-default);
-    background: rgba(39, 40, 50, 0.36);
+    background: color-mix(in srgb, var(--tl-bg-surface-hover) 36%, transparent);
 }
 
 .app-timeline {
@@ -678,7 +725,7 @@ code{
 
 /* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
    touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
-.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-xs)); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
+.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:color-mix(in srgb, var(--tl-bg-root) 90%, transparent); color:var(--tl-text-primary); font-family:var(--font-ui); font-size:var(--tl-type-secondary-size); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
 .media-tile-label--status { top:0; left:0; border-bottom-right-radius:var(--tl-radius-md); }
 .media-tile-label--bottom { bottom:0; left:0; border-top-right-radius:var(--tl-radius-md); }
 
@@ -721,7 +768,7 @@ code{
     --app-topbar-height: 65px;
     --tl-appbar-row-height: var(--app-topbar-height);
     --app-dock-width: 0px;
-    --app-inset-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --app-inset-glow: inset 0 1px 0 var(--tl-wash-light-1);
     --app-z-drawer: calc(var(--tl-z-sticky) + 2);
     --app-z-modal-backdrop: calc(var(--tl-z-modal) - 1);
 }
@@ -1171,11 +1218,11 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 }
 
 .top-nav-account-menu__popover.tl-popover {
-    color: var(--tl-text-primary, #e5edf5) !important;
-    background: #0d0f14 !important;
+    color: var(--tl-text-primary) !important;
+    background: var(--tl-bg-root) !important;
     border: 0 !important;
     border-radius: 0 !important;
-    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42) !important;
+    box-shadow: 0 18px 42px var(--tl-scrim-dark-3) !important;
     overflow: hidden !important;
 }
 
@@ -1235,6 +1282,184 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 
 .app-field__help {
     font-size: var(--tl-font-size-secondary);
+}
+
+/* Shared form row (Editor v6 D12): the children of an AppFormRow are other components' roots, so their placement on the row's three lines
+   (label, control, help) is global here; the row itself, its message line and its stacked form live in AppFormRow.razor.css. */
+/* Every direct child sits on the control line (line 2), centred on it: a button, an icon button (and its tooltip wrapper), a checkbox, a bare
+   select, a tag input, a segmented control. Only a field (.app-field, or a wrapper marked data-form-row-field) opts into the three lines. */
+.app-form-row__fields > * {
+    grid-row: 2;
+    align-self: center;
+    min-width: 0;
+}
+
+/* The tooltip wrapper around an icon button is display: contents everywhere else, so it has no box and the button inside would be placed on
+   its own (under the row). In the form row the wrapper takes a real box on the control line and holds the button. */
+.app-form-row__fields > .playback-tooltip-owner {
+    display: flex;
+    align-items: center;
+    justify-self: start;
+}
+
+/* The same wrapper inside a field (a blank label line above an icon button, as the playlist rule rows have for Remove): it holds the button on the
+   field's control line instead of leaving it without a box. */
+.app-form-row__fields > [data-form-row-field] > .playback-tooltip-owner {
+    display: flex;
+    align-items: center;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 3;
+    align-self: stretch;
+    row-gap: 0;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label) {
+    grid-row: 1;
+    padding-block-end: var(--tl-field-label-gap, 6px);
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > :not(.app-field__label, label, .app-field__help) {
+    grid-row: 2;
+    min-width: 0;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > .app-field__help {
+    grid-row: 3;
+    padding-block-start: var(--tl-space-1);
+}
+
+/* A select that sizes to its label (AppSelect Sizing="intrinsic") names its own grid areas for label, field and help; inside the row those
+   areas would fight the subgrid, so the same three parts are placed on lines 1, 2 and 3 by number. */
+.app-form-row .app-form-row__fields > .app-select--intrinsic {
+    grid-template-areas: none;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > .app-field__label {
+    grid-area: 1 / 1;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > :is(.app-select__width-label, .tl-select) {
+    grid-area: 2 / 1;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > .app-field__help {
+    grid-area: 3 / 1;
+}
+
+/* Wrapping (AppFormRow Wrap): when the nearest size container the row sits in (the editor window is one) is narrower than 1280, the row wraps as whole
+   fields. Every child of a wrapping row is a field, or a wrapper marked data-form-row-field (data-form-row-field="fit" keeps its own width) that
+   holds a blank label line above a button or other control. Each child is a column of label, control and help, all start-aligned, so on every
+   visual line the controls share one top whatever help text a neighbour has; each keeps a usable width and never shrinks mid-word. */
+@container (max-width: 1279px) {
+    .app-form-row--wrap > .app-form-row__fields > * {
+        flex: 1 1 12rem;
+        grid-row: auto;
+        align-self: flex-start;
+    }
+
+    .app-form-row--wrap > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-form-row--wrap > .app-form-row__fields > [data-form-row-field="fit"] {
+        flex: 0 0 auto;
+    }
+}
+
+@container (max-width: 599px) {
+    .app-form-row--wrap > .app-form-row__fields > *,
+    .app-form-row--wrap > .app-form-row__fields > [data-form-row-field="fit"] {
+        flex: 1 1 100%;
+    }
+}
+
+/* Stacked: one column, each child's label, control and help in order (with the normal label gap), children one under another. */
+.app-form-row--stack > .app-form-row__fields > * {
+    align-self: flex-start;
+}
+
+.app-form-row--stack > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    row-gap: var(--tl-field-label-gap, 6px);
+}
+
+.app-form-row--stack > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+    padding-block: 0;
+}
+
+.app-form-row--stack > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+    display: none;
+}
+
+/* Stack below a width (AppFormRow StackBelow 380, 540 or 700): under it the children stack exactly as in a stacked row. */
+@container (max-width: 379px) {
+    .app-form-row--stack-below-380 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
+}
+
+@container (max-width: 539px) {
+    .app-form-row--stack-below-540 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
+}
+
+@container (max-width: 699px) {
+    .app-form-row--stack-below-700 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
 }
 
 .app-control.app-control--compact,
@@ -1360,10 +1585,10 @@ input.app-control.tl-input-slot,
 
 .browse-multi-select__popover.tl-popover {
     color: var(--tl-text-primary) !important;
-    background: #0c1525 !important;
-    border: 1px solid rgba(128, 146, 180, 0.28) !important;
+    background: var(--tl-bg-surface) !important;
+    border: 1px solid color-mix(in srgb, var(--tl-text-secondary) 28%, transparent) !important;
     border-radius: 10px !important;
-    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.46) !important;
+    box-shadow: 0 22px 52px var(--tl-scrim-dark-4) !important;
     padding: 0 !important;
     overflow: hidden !important;
 }
@@ -1433,29 +1658,45 @@ input.app-control.tl-input-slot,
     min-height: 2.75rem;
     width: 100%;
     padding: 0 2.5rem 0 0.85rem;
-    border: 1px solid var(--app-control-border, rgba(135, 151, 184, 0.48));
+    border: 1px solid var(--app-control-border, var(--tl-border-strong));
     border-radius: var(--app-control-radius, 0.65rem);
-    background-color: var(--app-control-surface, rgba(11, 18, 29, 0.86));
+    background-color: var(--app-control-surface, color-mix(in srgb, var(--tl-bg-root) 86%, transparent));
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23f4f7ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
     background-position: right 0.85rem center;
     background-repeat: no-repeat;
     background-size: 1.15rem;
-    color: var(--app-control-text, #f4f7ff);
+    color: var(--app-control-text, var(--tl-text-primary));
     font: inherit;
     color-scheme: dark;
 }
 
 .app-native-select:hover {
-    border-color: var(--app-control-border-hover, rgba(142, 170, 235, 0.78));
+    border-color: var(--app-control-border-hover, var(--tl-accent-secondary));
 }
 
 .app-native-select:focus-visible {
-    outline: 2px solid var(--app-control-focus, #6d96ff);
+    outline: 2px solid var(--app-control-focus, var(--tl-focus-ring));
     outline-offset: 2px;
 }
 
 .app-select__option-icon {
     margin-right: var(--tl-space-2);
+}
+
+/* An option's mark (AppSelectOption.Mark): a short text in a small rounded square, before the name; also drawn on the closed control. */
+.app-select__mark {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: var(--tl-space-2);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-caption);
+    font-weight: var(--tl-font-weight-semibold);
 }
 
 .app-button--outlined {
@@ -1839,9 +2080,9 @@ input.app-control.tl-input-slot,
     border-radius: var(--tl-radius-pill);
     align-items: center;
     justify-content: center;
-    border-color: rgba(148, 163, 184, 0.24);
+    border-color: color-mix(in srgb, var(--tl-text-muted) 24%, transparent);
     color: var(--tl-text-secondary);
-    background: rgba(7, 12, 27, 0.56);
+    background: var(--tl-scrim-dark-5);
     font-family: var(--font-ui);
     font-size: var(--tl-control-font-size-sm);
     font-weight: var(--tl-control-font-weight);
@@ -2094,6 +2335,21 @@ input.app-control.tl-input-slot,
     text-overflow: ellipsis;
 }
 
+/* The Match tab's source selector (Editor v6 D1): the shared segmented control, drawn 44 px tall in total (a 36 px item, its padding and border) with
+   the chosen side in the soft accent as in the mock. Only the selector inside the Match tab changes; other segmented controls keep their look. */
+.tl-match__source .app-segmented-control {
+    padding: calc((var(--tl-control-height-md) - var(--tl-control-height-sm) - 2px) / 2);
+}
+
+.tl-match__source .app-segmented-control__item {
+    min-height: var(--tl-control-height-sm);
+}
+
+.tl-match__source .app-segmented-control__item.is-selected {
+    color: var(--tl-accent-primary);
+    background: var(--tl-accent-primary-soft);
+}
+
 .app-chip__remove { display: inline-flex; align-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
 .app-chip__remove:disabled { cursor: not-allowed; }
 
@@ -2122,7 +2378,7 @@ input.app-control.tl-input-slot,
     padding: var(--tl-space-6);
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-lg);
-    background: rgba(255, 255, 255, 0.035);
+    background: var(--tl-wash-light-1);
     color: var(--tl-text-primary);
 }
 
@@ -2176,19 +2432,19 @@ input.app-control.tl-input-slot,
 /* -- Inline-style utility classes generated by UI remediation ---------- */
 /* These one-declaration utilities replace former Razor inline styles. */
 
-.tl-u-background-rgba-249-115-22-0-08 { background: rgba(249,115,22,0.08) !important; }
-.tl-u-background-rgba-255-255-255-0-03 { background: rgba(255,255,255,0.03) !important; }
+.tl-u-background-rgba-249-115-22-0-08 { background: color-mix(in srgb, var(--tl-status-warning) 8%, transparent) !important; }
+.tl-u-background-rgba-255-255-255-0-03 { background: var(--tl-wash-light-1) !important; }
 .tl-u-background-tl-divider { background: var(--tl-divider) !important; }
 .tl-u-background-tl-status-success { background: var(--tl-status-success) !important; }
 .tl-u-background-tl-status-success-soft { background: var(--tl-status-success-soft) !important; }
 
 .tl-u-background-transparent { background: transparent !important; }
 
-.tl-u-border-1px-solid-rgba-249-115-22-0-25 { border: 1px solid rgba(249,115,22,0.25) !important; }
+.tl-u-border-1px-solid-rgba-249-115-22-0-25 { border: 1px solid color-mix(in srgb, var(--tl-status-warning) 25%, transparent) !important; }
 
 .tl-u-border-1px-solid-tl-border-subtle { border: 1px solid var(--tl-border-subtle) !important; }
 .tl-u-border-bottom-1px-solid-tl-border-subtle { border-bottom: 1px solid var(--tl-border-subtle) !important; }
-.tl-u-border-color-rgba-255-255-255-0-1 { border-color: rgba(255,255,255,0.1) !important; }
+.tl-u-border-color-rgba-255-255-255-0-1 { border-color: var(--tl-wash-light-4) !important; }
 .tl-u-border-color-tl-border-default { border-color: var(--tl-border-default) !important; }
 .tl-u-border-radius-10px { border-radius: 10px !important; }
 .tl-u-border-radius-12px { border-radius: 12px !important; }
@@ -2197,24 +2453,24 @@ input.app-control.tl-input-slot,
 .tl-u-border-radius-6px { border-radius: 6px !important; }
 .tl-u-border-radius-8px { border-radius: 8px !important; }
 
-.tl-u-color-hex-1a1208 { color: #1a1208 !important; }
-.tl-u-color-hex-444 { color: #444 !important; }
-.tl-u-color-hex-555 { color: #555 !important; }
-.tl-u-color-hex-888 { color: #888 !important; }
+.tl-u-color-hex-1a1208 { color: var(--tl-text-on-warning) !important; }
+.tl-u-color-hex-444 { color: var(--tl-text-disabled) !important; }
+.tl-u-color-hex-555 { color: var(--tl-text-disabled) !important; }
+.tl-u-color-hex-888 { color: var(--tl-text-muted) !important; }
 
-.tl-u-color-hex-e0e0e0 { color: #e0e0e0 !important; }
-.tl-u-color-hex-f97316 { color: #F97316 !important; }
+.tl-u-color-hex-e0e0e0 { color: var(--tl-text-primary) !important; }
+.tl-u-color-hex-f97316 { color: var(--tl-status-warning) !important; }
 .tl-u-color-inherit { color: inherit !important; }
 
-.tl-u-color-rgba-248-248-248-0-40 { color: rgba(248,248,248,0.40) !important; }
-.tl-u-color-rgba-248-248-248-0-65 { color: rgba(248,248,248,0.65) !important; }
-.tl-u-color-rgba-248-248-248-0-70 { color: rgba(248,248,248,0.70) !important; }
-.tl-u-color-rgba-248-248-248-0-80 { color: rgba(248,248,248,0.80) !important; }
-.tl-u-color-rgba-255-255-255-0-1 { color: rgba(255,255,255,0.1) !important; }
-.tl-u-color-rgba-255-255-255-0-18 { color: rgba(255,255,255,0.18) !important; }
+.tl-u-color-rgba-248-248-248-0-40 { color: var(--tl-text-muted) !important; }
+.tl-u-color-rgba-248-248-248-0-65 { color: var(--tl-text-secondary) !important; }
+.tl-u-color-rgba-248-248-248-0-70 { color: var(--tl-text-secondary) !important; }
+.tl-u-color-rgba-248-248-248-0-80 { color: var(--tl-text-primary) !important; }
+.tl-u-color-rgba-255-255-255-0-1 { color: color-mix(in srgb, var(--tl-text-primary) 10%, transparent) !important; }
+.tl-u-color-rgba-255-255-255-0-18 { color: color-mix(in srgb, var(--tl-text-primary) 18%, transparent) !important; }
 
-.tl-u-color-rgba-255-255-255-0-32 { color: rgba(255,255,255,0.32) !important; }
-.tl-u-color-rgba-255-255-255--18 { color: rgba(255,255,255,.18) !important; }
+.tl-u-color-rgba-255-255-255-0-32 { color: color-mix(in srgb, var(--tl-text-primary) 32%, transparent) !important; }
+.tl-u-color-rgba-255-255-255--18 { color: color-mix(in srgb, var(--tl-text-primary) 18%, transparent) !important; }
 .tl-u-color-tl-accent-primary { color: var(--tl-accent-primary) !important; }
 .tl-u-color-tl-border-strong { color: var(--tl-border-strong) !important; }
 .tl-u-color-tl-status-info { color: var(--tl-status-info) !important; }
@@ -2256,14 +2512,14 @@ input.app-control.tl-input-slot,
 
 .tl-u-font-size-32px { font-size: var(--tl-font-size-hero) !important; }
 .tl-u-font-size-36px { font-size: var(--tl-font-size-hero) !important; }
-.tl-u-font-size-3rem { font-size: 3rem !important; }
+.tl-u-font-size-3rem { font-size: var(--tl-icon-size-xl) !important; }
 
 .tl-u-font-size-42px { font-size: 42px !important; }
 .tl-u-font-size-44px { font-size: 44px !important; }
-.tl-u-font-size-48px { font-size: 48px !important; }
+.tl-u-font-size-48px { font-size: var(--tl-icon-size-xl) !important; }
 .tl-u-font-size-52px { font-size: 52px !important; }
 .tl-u-font-size-56px { font-size: 56px !important; }
-.tl-u-font-size-64px { font-size: 64px !important; }
+.tl-u-font-size-64px { font-size: var(--tl-icon-size-2xl) !important; }
 
 .tl-u-font-weight-600 { font-weight: 600 !important; }
 .tl-u-font-weight-700 { font-weight: 600 !important; }
@@ -2462,7 +2718,7 @@ input.app-control.tl-input-slot,
 }
 
 .dev-harness-danger-row.is-factory {
-    border-bottom: 1px solid rgba(239, 68, 68, 0.28);
+    border-bottom: 1px solid color-mix(in srgb, var(--tl-status-danger) 28%, transparent);
 }
 
 @media (max-width: 720px){
@@ -2493,12 +2749,12 @@ input.app-control.tl-input-slot,
 }
 
 .layout-shell__appbar--cinematic.tl-appbar {
-    color: rgba(248, 250, 252, 0.96) !important;
+    color: var(--tl-text-primary) !important;
     background:
         linear-gradient(
             to bottom,
-            rgba(3, 6, 12, 0.7) 0%,
-            rgba(3, 6, 12, 0.34) 62%,
+            var(--tl-scrim-dark-6) 0%,
+            var(--tl-scrim-dark-2) 62%,
             transparent 100%) !important;
     border-bottom-color: transparent !important;
     box-shadow: none !important;
@@ -2523,11 +2779,14 @@ input.app-control.tl-input-slot,
     background: var(--tl-menu-surface) !important;
     border: 1px solid var(--tl-menu-border) !important;
     border-radius: var(--tl-radius-lg) !important;
-    box-shadow: 0 1.35rem 3.5rem rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(255, 255, 255, 0.025) !important;
+    box-shadow: 0 1.35rem 3.5rem var(--tl-scrim-dark-4), 0 0 0 1px var(--tl-wash-light-1) !important;
     backdrop-filter: blur(20px) saturate(120%);
 }
 
-.app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor),
+.app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor) {
+    max-width: min(var(--tl-menu-max-width), calc(100vw - 16px)) !important;
+}
+
 .app-select__popover.tl-popover {
     max-width: min(var(--tl-menu-width), calc(100vw - 1.5rem)) !important;
 }
@@ -2555,21 +2814,31 @@ input.app-control.tl-input-slot,
 }
 
 .app-overflow-menu__popover {
-    width: var(--tl-menu-width);
-    min-width: 8.75rem;
-    max-width: min(var(--tl-menu-width), calc(100vw - 1rem));
-    padding: 0.16rem;
+    width: max-content;
+    min-width: var(--tl-menu-min-width);
+    max-width: min(var(--tl-menu-max-width), calc(100vw - 16px));
+    padding: 0;
     color: var(--tl-text-primary);
     background: var(--tl-menu-surface);
     border: 1px solid var(--tl-menu-border);
     border-radius: 0.62rem;
-    box-shadow: 0 0.7rem 1.8rem rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.018);
+    box-shadow: 0 0.7rem 1.8rem var(--tl-scrim-dark-3), 0 0 0 1px var(--tl-wash-light-1);
     backdrop-filter: blur(16px) saturate(115%);
 }
 
 .app-overflow-menu__content {
     display: grid;
-    min-width: inherit;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    padding: var(--tl-menu-padding);
+}
+
+/* A menu label too long for the widest menu shortens to one line; its full text is the overflow tooltip (Look v3.1 D2). */
+.app-menu-item__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tl-detail-hero-genres__menu.tl-popover {
@@ -2597,7 +2866,7 @@ input.app-control.tl-input-slot,
 .app-menu-item,
 .app-select__popover .tl-list-item {
     min-height: var(--tl-menu-item-height) !important;
-    gap: var(--tl-space-3);
+    gap: var(--tl-menu-icon-gap);
     padding: var(--tl-menu-row-padding-y) 16px;
     border: 0 !important;
     border-radius: var(--tl-radius-md) !important;
@@ -2610,6 +2879,14 @@ input.app-control.tl-input-slot,
     box-shadow: none !important;
     transition: color var(--tl-motion-duration-fast) var(--tl-motion-ease-standard),
                 background var(--tl-motion-duration-fast) var(--tl-motion-ease-standard);
+}
+
+/* A dropdown's options are the Control job (14 px), the same as its chosen value; pop-up menu rows above stay at the Menu job
+   (look-pass v3.1 D10). Placed after the shared row rule so it wins at equal weight. */
+.tl-select-options .tl-list-item {
+    min-height: var(--tl-popout-row) !important;
+    font-size: var(--tl-type-control-size) !important;
+    font-weight: var(--tl-type-control-weight) !important;
 }
 
 button.app-menu-item {
@@ -2672,7 +2949,7 @@ button.app-menu-item {
 
 .app-menu-item.app-tone--error:hover,
 .app-menu-item.app-tone--error:focus-visible {
-    color: #fecdd3 !important;
+    color: color-mix(in srgb, var(--tl-text-danger) 60%, var(--tl-text-primary)) !important;
     background: var(--tl-status-danger-soft) !important;
 }
 
@@ -2740,11 +3017,11 @@ button.app-menu-item {
 .video-touch-feedback { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
 .video-touch-ripple {
     position: absolute; top: 0; bottom: 0; width: 40%; display: grid; place-items: center;
-    background: rgba(255, 255, 255, .18); color: #fff; animation: video-touch-ripple 700ms ease-out both;
+    background: var(--tl-wash-light-5); color: var(--tl-on-scrim); animation: video-touch-ripple 700ms ease-out both;
 }
 .video-touch-ripple--left { left: 0; border-radius: 0 50% 50% 0 / 0 50% 50% 0; }
 .video-touch-ripple--right { right: 0; border-radius: 50% 0 0 50% / 50% 0 0 50%; }
-.video-touch-ripple__label { font-family: var(--font-ui); font-size: var(--tl-font-size-lg); font-weight: 600; text-shadow: 0 1px 6px rgba(0, 0, 0, .6); }
+.video-touch-ripple__label { font-family: var(--font-ui); font-size: var(--tl-font-size-lg); font-weight: 600; text-shadow: 0 1px 6px var(--tl-scrim-dark-5); }
 @keyframes video-touch-ripple { from { opacity: 0; transform: scale(.92); } 15% { opacity: 1; } to { opacity: 0; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .video-touch-ripple { animation: none; } }
 .video-touch-hint {
@@ -2752,7 +3029,7 @@ button.app-menu-item {
     bottom: calc(var(--playback-chrome-height, 180px) + max(16px, var(--tl-safe-area-bottom)) + 16px);
     display: flex; align-items: center; gap: 4px; width: max-content; max-width: calc(100% - 32px); padding: 4px 4px 4px 16px;
     border: 1px solid var(--playback-border); border-radius: 12px; color: var(--playback-text);
-    background: var(--playback-surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .38); font-family: var(--font-ui);
+    background: var(--playback-surface); box-shadow: 0 12px 32px var(--tl-scrim-dark-3); font-family: var(--font-ui);
 }
 .video-touch-hint[hidden] { display: none; }
 @media (max-height: 450px) {
@@ -2859,7 +3136,7 @@ button.app-menu-item {
 .app-select--playback-flat.app-field:not(.app-select--disabled):hover::before,
 .app-select--playback-flat.app-field:not(.app-select--disabled).app-select--open::before,
 .app-select--playback-flat.app-field:not(.app-select--disabled):focus-within::before {
-    background: var(--playback-utility-highlight, var(--playback-accent-soft, rgba(136, 82, 252, 0.18)));
+    background: var(--playback-utility-highlight, var(--playback-accent-soft, var(--tl-accent-primary-soft)));
 }
 
 .app-select--playback-flat.app-field:focus-within::before {
@@ -2900,7 +3177,7 @@ button.app-menu-item {
 }
 
 .app-menu-divider {
-    margin: 0.16rem 0.28rem !important;
+    margin: var(--tl-menu-padding) 0 !important;
     border-color: var(--tl-menu-divider) !important;
 }
 
@@ -2925,8 +3202,6 @@ button.app-menu-item {
     :root:root .browse-filter-sheet__apply,
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
-    :root:root .listen-song-table__favorite-button,
-    :root:root .listen-track-grid__favorite,
     :root:root .listen-rail__more,
     :root:root .listen-rail__item,
     :root:root .tl-series-carousel__arrow,
@@ -3059,12 +3334,7 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
     }
 
-    /* Universe explorer: the 42px tabs read --tl-tab-min-height (their own !important rule), and the 24px filter chips and
-       the layout select grow to the 44px minimum. */
-    :root:root .chronicle-explorer-tabs {
-        --tl-tab-min-height: var(--tl-tap-target-min);
-    }
-
+    /* Universe explorer: the 24px filter chips and the layout select grow to the 44px minimum (the tab row is already 48px). */
     :root:root .chronicle-explorer-controls .app-chip {
         min-height: var(--tl-tap-target-min);
     }
@@ -3075,7 +3345,6 @@ button.app-menu-item {
 }
 
 /* Tablets: check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle {
     position: relative;
     display: inline-flex;
@@ -3084,7 +3353,6 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
     position: absolute;
     inset: 0;
@@ -3094,33 +3362,25 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input[ty
     opacity: 0;
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle span::before {
     content: "";
     display: inline-block;
     width: 18px;
     height: 18px;
     margin-right: 0.5rem;
-    border: 2px solid rgba(255, 255, 255, 0.55);
+    border: 2px solid color-mix(in srgb, var(--tl-text-primary) 55%, transparent);
     border-radius: 4px;
     vertical-align: -4px;
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary);
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
     outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
-}
-
-/* The queue button's size is forced in AudioItemTable's own styles, so tablets raise it through this value. */
-html[data-form-factor="tablet"] .tl-detail-page {
-    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
 }
 
 /* Page-scoped component rules (a class plus a scope attribute) tie with the :root:root selectors above and are
@@ -3134,9 +3394,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
     :root:root:root .view-tile__select-control,
     :root:root:root .view-date-group__select,
     :root:root:root .listen-button,
-    :root:root:root .listen-detail__edit,
-    :root:root:root .app-overflow-menu__trigger--icon,
-    :root:root:root .listen-song-table__sort-header {
+    :root:root:root .app-overflow-menu__trigger--icon {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
@@ -3167,18 +3425,6 @@ html[data-form-factor="tablet"] .tl-detail-page {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
-
-    :root:root:root .listen-song-table__meta a {
-        display: inline-flex;
-        align-items: center;
-        min-height: var(--tl-tap-target-min);
-    }
-
-    /* Column resizing is a mouse affordance for the desktop form factor. */
-    :root:root:root .listen-song-table__resizer,
-    :root:root:root .listen-column-resizer {
-        display: none;
-    }
 }
 
 /* View on phones, touch sizing for the rows that are not buttons of their own: the shared maplibre map controls,
@@ -3192,7 +3438,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
 
 .view-artwork-row-menu .app-row-menu__trigger {
     border-radius: var(--tl-control-radius);
-    background: rgba(2, 6, 16, 0.72);
+    background: var(--tl-scrim-dark-6);
     color: var(--tl-text-primary);
 }
 
@@ -3311,6 +3557,64 @@ html[data-form-factor="tablet"] .tl-detail-page {
     background: transparent;
 }
 
+/* The buttons of the phone bar for ticked songs (Listen music spec D12). They are first-party buttons drawn by AppNativeButton, so
+   their rules live here beside the other phone selection bar; the bar itself is styled by its component. */
+.song-selection-bar .song-selection-bar__done {
+    flex: 0 0 auto;
+    min-width: var(--tl-tap-target-min, 44px);
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: 0 0.75rem;
+    color: var(--tl-accent-primary-hover, var(--tl-text-primary));
+    font: inherit;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+    border-radius: 0.6rem;
+    cursor: pointer;
+}
+
+.song-selection-bar .song-selection-bar__action {
+    display: inline-flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 0;
+    min-height: max(var(--tl-tap-target-min, 44px), 3rem);
+    padding: 0.25rem;
+    color: var(--tl-text-primary);
+    font: inherit;
+    font-size: var(--tl-font-size-xs);
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 0.6rem;
+    cursor: pointer;
+}
+
+.song-selection-bar .song-selection-bar__action span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-selection-bar .song-selection-bar__action:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.song-selection-bar .song-selection-bar__action:focus-visible,
+.song-selection-bar .song-selection-bar__done:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.song-selection-bar .song-selection-bar__action:active:not(:disabled),
+.song-selection-bar .song-selection-bar__done:active {
+    background: var(--tl-bg-surface-hover);
+}
+
 /* Photo date headings on touch or narrow windows: the "select all on this day" control sits in the heading row
    instead of hanging in the page gutter, where a 44px target would run off the screen edge. */
 @media (hover: none), (max-width: 1023px) {
@@ -3327,13 +3631,11 @@ html[data-form-factor="tablet"] .tl-detail-page {
     color: var(--tl-text-primary);
 }
 
-/* Discovery quick filters on phones: one scrolling chip row that fades where more chips wait off-screen. */
+/* Discovery quick filters on phones: the shared tab row (it scrolls sideways and fades at the cut edge, see .tl-tabs-toolbar). */
 html[data-form-factor="phone"] .app-discovery-filter__tabs {
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
     min-width: 0;
-    padding: 4px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
@@ -3347,19 +3649,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs > * {
     flex: 0 0 auto;
     min-width: max-content;
     white-space: nowrap;
-    justify-content: center;
-}
-
-html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-start="true"] {
-    mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-start="true"][data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
 }
 
 /* The map's own controls (zoom in/out) are 44px, and on phones the bottom corners clear the dock and the audio bar. */
@@ -3373,25 +3662,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
         box-sizing: border-box;
         padding-right: var(--tl-tap-target-min);
     }
-}
-
-/* The playlist row's play button overlays its artwork (hover or focus reveals it); the scoped page styles cannot reach it. */
-.listen-playlist-track-row__art-play {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: var(--tl-bg-overlay);
-    color: var(--tl-text-primary);
-    opacity: 0;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.listen-playlist-track-row__art:hover .listen-playlist-track-row__art-play,
-.listen-playlist-track-row__art:focus-within .listen-playlist-track-row__art-play {
-    opacity: 1;
 }
 
 /* Browse filter sheet (phones): the Filters button and the sheet's sticky Clear / Show footer. */
@@ -3408,9 +3678,9 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
     justify-content: center;
     gap: 8px;
     padding: 0 16px;
-    border: 1px solid rgba(128, 146, 180, 0.28);
+    border: 1px solid color-mix(in srgb, var(--tl-text-secondary) 28%, transparent);
     border-radius: 10px;
-    background: rgba(8, 16, 31, 0.64);
+    background: var(--tl-scrim-dark-5);
     color: var(--tl-text-primary);
     font: inherit;
     font-size: var(--tl-font-size-md);
@@ -3433,15 +3703,15 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
     justify-content: space-between;
     gap: 12px;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid rgba(128, 146, 180, 0.2);
-    background: var(--tl-bg-surface-elevated, #0b1424);
+    border-top: 1px solid var(--tl-border-default);
+    background: var(--tl-bg-surface-elevated);
 }
 
 .browse-filter-sheet__clear {
     padding: 0 12px;
     border: 0;
     background: transparent;
-    color: #bda7ff;
+    color: var(--tl-accent-primary-hover);
     font: inherit;
     font-weight: 600;
     cursor: pointer;
@@ -3458,7 +3728,7 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
     border: 0;
     border-radius: 10px;
     background: var(--tl-accent-primary);
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font: inherit;
     font-weight: 600;
     cursor: pointer;
@@ -3593,8 +3863,8 @@ input[type="reset"],
     }
 }
 
-.tl-dialog,
-.app-dialog-shell {
+.tl-dialog:where(:not(.tl-fbrowser-host--phone)),
+.app-dialog-shell:where(:not(.tl-fbrowser-host--phone .app-dialog-shell)) {
     max-height: calc(100dvh - var(--tl-safe-area-top) - var(--tl-safe-area-bottom) - 1rem) !important;
 }
 
@@ -3642,6 +3912,70 @@ input[type="reset"],
     box-shadow: none !important;
 }
 
+/* The details window (Look v3.1 D5, Details overlay D1; issue 875; music-player-and-listen-fixes D5). On a tablet or desktop a title's details
+   float over the page the person came from: 90 % of the screen's width and height, never wider than 1440 px, never closer than 32 px to an edge,
+   16 px corners, the page dimmed behind it. On a phone it is a bottom sheet about 92 % tall with a grip. Global because the shared Viewer part
+   renders the <dialog>; the selector outranks the Viewer's full-screen :where() rule on purpose: the details window is a Window, not a full-screen Viewer.
+   The app keeps the window modal itself (app-dialog.js shows the dialog non-modal), so the persistent player bar stays usable beside it: it is fixed over the
+   screen at the modal layer, above its own dimmed backdrop element (--tl-z-details-backdrop, in DetailsOverlayHost's styles) and clear of the bar. app-dialog.js
+   publishes --tl-overlay-bar-inset (how far the bar reaches up from the bottom of the screen; 0 when no bar is showing); the window is centred in the space
+   above it and never taller than that space. The layout's DetailsOverlayOutlet draws the host outside the shell's clipping content box
+   (.playback-app-frame__content, a size container), so the window is placed against the screen whatever a browser does with containment there.
+   The class rule below places it (fixed, layer, clear of the bar); the dialog rule after it is the window's size and look. */
+.tl-details-overlay {
+    position: fixed;
+    inset: 0 0 var(--tl-overlay-bar-inset, 0px) 0;
+    z-index: var(--tl-z-modal, 1400);
+    max-height: calc(100vh - var(--tl-overlay-bar-inset, 0px) - 2 * var(--tl-window-details-margin));
+    max-height: calc(100dvh - var(--tl-overlay-bar-inset, 0px) - 2 * var(--tl-window-details-margin));
+}
+
+dialog.tl-details-overlay {
+    box-sizing: border-box;
+    width: min(90vw, var(--tl-window-details-max), calc(100vw - 2 * var(--tl-window-details-margin)));
+    max-width: none;
+    height: min(90vh, calc(100vh - 2 * var(--tl-window-details-margin)));
+    height: min(90dvh, calc(100dvh - 2 * var(--tl-window-details-margin)));
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: var(--tl-window-details-radius);
+    overflow: hidden;
+    background: var(--tl-bg-root);
+    color: var(--tl-text-primary);
+    box-shadow: var(--tl-shadow-lg);
+    /* Makes the window the containing block for anything the page fixes in place (its loading bar), so it stays inside. */
+    contain: layout;
+}
+
+/* The window is shown non-modal (see above), so the browser draws no ::backdrop; the host's own backdrop element dims the page. This keeps the
+   dim the same if a browser ever shows the dialog modal. */
+dialog.tl-details-overlay::backdrop {
+    background: var(--tl-scrim-soft-strong);
+}
+
+dialog.tl-details-overlay.tl-details-overlay--sheet {
+    width: 100%;
+    height: 92vh;
+    height: 92dvh;
+    max-height: calc(100vh - var(--tl-overlay-bar-inset, 0px));
+    max-height: calc(100dvh - var(--tl-overlay-bar-inset, 0px));
+    margin: auto 0 0;
+    border-radius: var(--tl-sheet-radius) var(--tl-sheet-radius) 0 0;
+    transform: translateY(var(--sheet-drag, 0px));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    dialog.tl-details-overlay.tl-details-overlay--sheet[open] {
+        animation: tl-details-overlay-sheet-up 0.22s ease-out;
+    }
+}
+
+@keyframes tl-details-overlay-sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(var(--sheet-drag, 0px)); }
+}
+
 /* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach.
    The page's scroll bar (8-12px) runs down the window's right edge inside the frame, so the button sits 1.5rem in to keep a clear
    gap from it (B29). The phone sheet keeps 0.75rem: its scroll bars overlay the page and its grip sits further in. */
@@ -3675,7 +4009,7 @@ input[type="reset"],
 }
 
 .tl-details-overlay__close:focus-visible {
-    outline: 2px solid var(--tl-palette-primary, #7765e3);
+    outline: 2px solid var(--tl-palette-primary, var(--tl-accent-primary));
     outline-offset: 2px;
 }
 
@@ -3739,7 +4073,7 @@ input[type="reset"],
     border-radius: var(--tl-radius-md);
     background: var(--tl-secondary-action-bg) !important;
     color: var(--tl-text-primary) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+    box-shadow: inset 0 1px 0 var(--tl-wash-light-1) !important;
 }
 
 .tl-detail-person-links .app-overflow-menu__trigger--icon {
@@ -3840,23 +4174,23 @@ input[type="reset"],
 
 /* Universe hierarchy inside the shared artwork workspace. */
 .artwork-workspace-core__hierarchy { display:flex; gap:.45rem; padding:0 1.5rem .8rem; overflow-x:auto; }
-.artwork-workspace-core__hierarchy .artwork-workspace-core__hierarchy-item { display:flex; align-items:center; gap:.4rem; padding:.5rem .75rem; border:1px solid rgba(255,255,255,.1); border-radius:var(--tl-radius-pill); background:transparent; color:rgba(255,255,255,.64); white-space:nowrap; cursor:pointer; }
-.artwork-workspace-core__hierarchy .artwork-workspace-core__hierarchy-item.is-active { border-color:#9859f6; background:rgba(126,63,210,.22); color:#fff; }
-.artwork-workspace-core__hierarchy-item span { font-size:var(--tl-font-size-xs); color:#b993f5; }
+.artwork-workspace-core__hierarchy .artwork-workspace-core__hierarchy-item { display:flex; align-items:center; gap:.4rem; padding:.5rem .75rem; border:1px solid var(--tl-wash-light-4); border-radius:var(--tl-radius-pill); background:transparent; color:var(--tl-text-secondary); white-space:nowrap; cursor:pointer; }
+.artwork-workspace-core__hierarchy .artwork-workspace-core__hierarchy-item.is-active { border-color:var(--tl-accent-primary); background:color-mix(in srgb, var(--tl-accent-primary-active) 22%, transparent); color:var(--tl-text-primary); }
+.artwork-workspace-core__hierarchy-item span { font-size:var(--tl-font-size-xs); color:var(--tl-accent-primary-hover); }
 .artwork-workspace-core__entities { display:flex; gap:.6rem; padding:0 1.5rem 1rem; overflow-x:auto; }
-.artwork-workspace-core__entities button { display:grid; grid-template-columns:3rem minmax(7rem,10rem); align-items:center; gap:.55rem; padding:.35rem; border:1px solid rgba(255,255,255,.1); border-radius:.65rem; background:#0a0f18; color:#fff; text-align:left; cursor:pointer; }
-.artwork-workspace-core__entities button.is-active { border-color:var(--tl-accent-primary); box-shadow:0 0 0 1px rgba(136, 82, 252,.35); }
-.artwork-workspace-core__entities button > span { display:grid; place-items:center; width:3rem; aspect-ratio:1; border-radius:.45rem; overflow:hidden; background:rgba(255,255,255,.05); }
+.artwork-workspace-core__entities button { display:grid; grid-template-columns:3rem minmax(7rem,10rem); align-items:center; gap:.55rem; padding:.35rem; border:1px solid var(--tl-wash-light-4); border-radius:.65rem; background:var(--tl-bg-root); color:var(--tl-text-primary); text-align:left; cursor:pointer; }
+.artwork-workspace-core__entities button.is-active { border-color:var(--tl-accent-primary); box-shadow:0 0 0 1px color-mix(in srgb, var(--tl-accent-primary) 35%, transparent); }
+.artwork-workspace-core__entities button > span { display:grid; place-items:center; width:3rem; aspect-ratio:1; border-radius:.45rem; overflow:hidden; background:var(--tl-wash-light-2); }
 .artwork-workspace-core__entities img { width:100%; height:100%; object-fit:cover; }
 .artwork-workspace-core__entities strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .app-overflow-menu__end-icon { margin-left: auto; flex-shrink: 0; }
 /* Pending enrichment never changes row/card geometry or replaces keyboard focus. */
 .tl-enrichment-pending {
-    box-shadow: inset 0 0 0 2px #e6b93e;
+    box-shadow: inset 0 0 0 2px var(--tl-accent-collection);
     animation: tl-enrichment-pulse 2s ease-in-out infinite;
 }
 @keyframes tl-enrichment-pulse {
-    50% { box-shadow: inset 0 0 0 2px #e6b93e66; }
+    50% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--tl-accent-collection) 40%, transparent); }
 }
 @media (prefers-reduced-motion: reduce){
     .tl-enrichment-pending { animation: none; }
@@ -3901,7 +4235,7 @@ input[type="reset"],
 .who-card:hover:not(:disabled) .who-card__picture--add, .who-card:focus-visible .who-card__picture--add { color: var(--tl-text-primary); border-color: var(--tl-accent-primary); box-shadow: none; }
 .who-card__lock { position: absolute; right: 2%; bottom: 2%; display: grid; place-items: center; width: 28%; height: 28%; min-width: 24px; min-height: 24px; color: var(--tl-text-primary); border-radius: 50%; background: var(--tl-bg-surface-elevated); box-shadow: 0 0 0 2px var(--tl-bg-root); }
 .who-card__lock svg { width: 56%; height: 56%; }
-.who-card__name { max-width: 100%; font-size: clamp(.95rem, 1.2vw, 1.15rem); font-weight: 600; overflow-wrap: anywhere; }
+.who-card__name { max-width: 100%; font-size: var(--tl-type-subheading-size); font-weight: var(--tl-type-subheading-weight); overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .who-card, .who-card__picture { transition: none; } .who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture { transform: none; } }
 @media (min-width: 1600px) { .who-grid { --who-size: 220px; } .who-card__name { font-size: var(--tl-font-size-dialog-title); } .who-button, .who-link { min-height: 56px; } }
 .who-check__box { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
@@ -3922,7 +4256,7 @@ input[type="reset"],
 .pin-pad__dot { width: 16px; height: 16px; box-sizing: border-box; border: 2px solid var(--tl-border-strong); border-radius: 50%; transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease; }
 .pin-pad__dot.is-filled { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary); transform: scale(1.1); }
 .pin-pad__dots.is-wrong { animation: pin-shake 360ms ease-in-out; }
-.pin-pad__dots.is-wrong .pin-pad__dot { border-color: var(--tl-status-danger, #ff6b6b); }
+.pin-pad__dots.is-wrong .pin-pad__dot { border-color: var(--tl-status-danger); }
 .pin-pad__keys { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
 .pin-pad__key { display: grid; place-items: center; width: 72px; height: 72px; padding: 0; color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 50%; background: var(--tl-bg-root); font: inherit; font-size: var(--tl-font-size-xl); font-weight: 600; cursor: pointer; touch-action: manipulation; user-select: none; transition: background-color 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
 .pin-pad__key svg { width: var(--tl-icon-size-lg); height: var(--tl-icon-size-lg); }
@@ -3956,7 +4290,7 @@ input[type="reset"],
 .profile-editor__row { display: flex; flex-wrap: wrap; gap: 10px; }
 .avatar-picker__tabs { display: flex; }
 .avatar-picker__tabs .app-segmented-control__item { flex: 1 1 0; justify-content: center; min-height: 44px; }
-.profile-editor__confirm { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--tl-status-danger, #ff6b6b) 55%, transparent); border-radius: 12px; }
+.profile-editor__confirm { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--tl-status-danger) 55%, transparent); border-radius: 12px; }
 .profile-editor__confirm p { margin: 0; }
 .profile-editor__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .profile-editor__spacer { flex: 1 1 auto; }
@@ -3985,11 +4319,11 @@ input[type="reset"],
     margin: 0.75rem 0;
     padding: 0.5rem;
     border-radius: 0.5rem;
-    background: #fff;
+    background: var(--tl-text-on-accent);
 }
 
 /* Manage profiles on the picker (ProfilePickerPage.razor, ProfileEditorSheet.razor). */
-.who-card__edit { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; border-radius: 50%; background: rgb(0 0 0 / 70%); backdrop-filter: blur(8px); }
+.who-card__edit { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tl-on-scrim); border-radius: 50%; background: var(--tl-scrim-dark-6); backdrop-filter: blur(8px); }
 .who-card__edit svg { width: 36%; height: 36%; }
 .who-backdrop--top { z-index: 1400; }
 /* The padded, centred body every small popup card shares (PIN pads and the like). */
@@ -4033,7 +4367,7 @@ input[type="reset"],
     padding: 0.4rem 0.65rem;
     border: 0;
     border-radius: var(--tl-radius-md, 8px);
-    color: var(--tl-text-primary, #dbe4ed);
+    color: var(--tl-text-primary);
     background: transparent;
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-md);
@@ -4081,8 +4415,8 @@ input[type="reset"],
     flex: 0 0 auto;
     padding: 0.1rem 0.45rem;
     border-radius: var(--tl-radius-pill);
-    color: #fff;
-    background: rgba(136, 82, 252, 0.45);
+    color: var(--tl-text-on-accent);
+    background: var(--tl-accent-primary-border);
     font-size: var(--tl-font-size-xs);
     font-weight: 600;
 }
@@ -4091,14 +4425,14 @@ input[type="reset"],
     flex: 0 0 auto;
     width: 1rem;
     height: 1rem;
-    color: var(--tl-text-muted, #aab0bc);
+    color: var(--tl-text-muted);
 }
 
 .profile-switcher__who {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    color: var(--tl-text-primary, #f4f5f7);
+    color: var(--tl-text-primary);
 }
 
 .profile-switcher__back {
@@ -4110,7 +4444,7 @@ input[type="reset"],
     padding: 0 0.6rem;
     border: 0;
     border-radius: var(--tl-radius-md, 8px);
-    color: var(--tl-text-muted, #aab0bc);
+    color: var(--tl-text-muted);
     background: transparent;
     font: inherit;
     font-weight: 600;
@@ -4127,8 +4461,8 @@ input[type="reset"],
     min-height: var(--tl-touch-target-min, 48px);
     border: 0;
     border-radius: var(--tl-radius-md, 8px);
-    color: #fff;
-    background: var(--tl-accent-primary, #8852fc);
+    color: var(--tl-text-on-accent);
+    background: var(--tl-accent-primary);
     font: inherit;
     font-weight: 600;
     cursor: pointer;
@@ -4141,7 +4475,7 @@ input[type="reset"],
 
 .profile-switcher__error {
     margin: 0.25rem 0.5rem;
-    color: var(--tl-status-warning, #fbbf24);
+    color: var(--tl-status-warning);
     font-size: var(--tl-font-size-sm);
     text-align: center;
 }
@@ -4162,17 +4496,17 @@ input[type="reset"],
 
 /* Same file chip (episodes stored in one combined file): the shared chip and toggle chip; this only spaces it under the episode row. */
 .same-file-chip { margin-top: 0.4rem; }
-.sequence-episode-tile.is-same-file-highlight .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8852FC); outline-offset: 2px; }
+.sequence-episode-tile.is-same-file-highlight .media-tile-media { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 
 /* Kids shell (profiles P6): a calmer, friendlier version of the app for Kids profiles. */
 .layout-kids {
     --tl-kids-tile-scale: 1.12;
     --tl-kids-radius: 20px;
-    --tl-kids-accent: var(--tl-accent-primary, #8852FC);
+    --tl-kids-accent: var(--tl-accent-primary);
 }
 
 .layout-kids .layout-shell__nav-link {
-    font-size: var(--tl-font-size-md, 1rem);
+    font-size: var(--tl-font-size-md);
     min-height: 48px;
     padding-inline: 18px;
 }
@@ -4286,17 +4620,12 @@ input[type="reset"],
     font-weight: 600;
 }
 
-/* The menu sheet's dialog frame comes from AppDialogFrame. The shared dialog surface, border, radius and max-height are
-   all forced on .tl-dialog, so the sheet overrides them to fill the screen edge to edge. */
+/* The menu sheet's dialog frame comes from AppDialogFrame; the full-screen rule (border, radius, shadow, max-height) is shared and sits with the TV marker above. */
 .app-native-dialog.phone-nav-menu-dialog.tl-dialog {
     height: 100dvh;
-    max-height: none !important;
     overflow-y: auto;
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-root) !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -4324,7 +4653,7 @@ input[type="reset"],
 .settings-nav-row__status { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); overflow-wrap: anywhere; }
 .settings-nav-row__note { color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); overflow-wrap: anywhere; }
 .settings-nav-row__chevron { flex: none; display: inline-flex; color: var(--tl-text-muted); }
-.settings-nav-row--danger, .settings-nav-row--danger .settings-nav-row__icon { color: var(--tl-status-danger, #ff6b6b); }
+.settings-nav-row--danger, .settings-nav-row--danger .settings-nav-row__icon { color: var(--tl-status-danger); }
 .settings-nav-row--disabled { cursor: default; opacity: .6; }
 .settings-nav-row--disabled:hover { background: transparent; }
 @media (min-width: 1600px) { .settings-nav-row { min-height: 72px; gap: 20px; font-size: var(--tl-font-size-lg); } .settings-nav-row__status { font-size: var(--tl-font-size-md); } }
@@ -4367,7 +4696,7 @@ input[type="reset"],
 
 /* Player subtitles (unified player v2 D13: Background None / Shadow / Box; the soft shadow follows data-subtitle-shadow, so a look with no backing and no shadow is plain text). ::cue cannot be scoped, so the cue rules live here. VideoPlaybackHost sets data-subtitle-size and
    data-subtitle-background from the profile; they become --tl-subtitle-size and --tl-subtitle-bg, which the cues read. */
-.video-playback-host { --tl-subtitle-size: max(14px, 2.8vh); --tl-subtitle-shadow: none; --tl-sub-text: #fff; --tl-sub-text-o: 100%; --tl-sub-bg: var(--tl-subtitle-swatch-black); --tl-sub-bg-o: 60%;
+.video-playback-host { --tl-subtitle-size: max(14px, 2.8vh); --tl-subtitle-shadow: none; --tl-sub-text: var(--tl-subtitle-swatch-white); --tl-sub-text-o: 100%; --tl-sub-bg: var(--tl-subtitle-swatch-black); --tl-sub-bg-o: 60%;
     --tl-subtitle-bg: color-mix(in srgb, var(--tl-sub-bg) var(--tl-sub-bg-o), transparent); }
 .video-playback-host[data-subtitle-size="Small"] { --tl-subtitle-size: max(14px, 2.2vh); }
 .video-playback-host[data-subtitle-size="Large"] { --tl-subtitle-size: max(14px, 3.6vh); }
@@ -4400,7 +4729,11 @@ input[type="reset"],
 .video-playback-host[data-subtitle-font="Serif"] { --tl-subtitle-font: Georgia, "Times New Roman", serif; }
 .video-playback-host[data-subtitle-font="Mono"] { --tl-subtitle-font: ui-monospace, Consolas, "Courier New", monospace; }
 .video-playback-host[data-subtitle-shadow="true"] { --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
-.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
+/* Follow-ups D8: High contrast is bold white text. With a box the box is solid black (bg opacity 100); with Background None or Shadow it has no box and a heavy black outline instead.
+   VideoPlaybackHost sets data-subtitle-contrast from SubtitleStyleCss.IsHighContrast; the outline value is SubtitleStyleCss.HighContrastOutline, the same one the preview strip uses. */
+.video-playback-host[data-subtitle-contrast="true"] { --tl-subtitle-weight: 700; }
+.video-playback-host[data-subtitle-contrast="true"][data-subtitle-background="false"] { --tl-subtitle-shadow: -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black, 2px 2px 0 black, 0 -2px 0 black, 0 2px 0 black, -2px 0 0 black, 2px 0 0 black, 0 0 4px black; }
+.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); font-weight: var(--tl-subtitle-weight, normal); text-shadow: var(--tl-subtitle-shadow); }
 /* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions. (Audio and Subtitles moved to the Audio & subtitles panel.) */
 .player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
@@ -4408,7 +4741,7 @@ input[type="reset"],
 /* Unified player D12: colour swatches and opacity sliders on the style menu. */
 .player-settings-menu__choices { display: contents; }
 .player-settings-menu__swatches { display: flex; flex-wrap: wrap; gap: 8px; }
-.player-settings-menu .player-settings-menu__swatch { inline-size: 32px; block-size: 32px; padding: 0; border: 2px solid rgba(255, 255, 255, .25); border-radius: 50%; background: var(--swatch); cursor: pointer; }
+.player-settings-menu .player-settings-menu__swatch { inline-size: 32px; block-size: 32px; padding: 0; border: 2px solid color-mix(in srgb, var(--tl-text-primary) 25%, transparent); border-radius: 50%; background: var(--swatch); cursor: pointer; }
 .player-settings-menu .player-settings-menu__swatch.is-selected { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 3px var(--tl-accent-primary); }
 .player-settings-menu__group--slider { align-items: flex-start; }
 .player-settings-menu__group--slider .app-field__label { display: none; }
@@ -4419,7 +4752,7 @@ input[type="reset"],
 .player-settings-menu .player-settings-menu__choice { min-height: 44px; padding: 6px 16px; border: 1px solid var(--playback-border); border-radius: 4px; background: transparent; color: inherit; font-size: var(--tl-font-size-lg); cursor: pointer; }
 .player-settings-menu .player-settings-menu__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--playback-accent-soft); }
 
-.player-settings-menu .player-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
+.player-settings-menu .player-settings-menu__choice { border-color: var(--tl-wash-light-4); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
 
 /* Unified player D12: on touch the style menu uses 48 px rows and choices, with nothing that depends on hover. */
@@ -4455,18 +4788,19 @@ input[type="reset"],
 .merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .merge-folder__option:disabled { cursor: wait; opacity: .65; }
 
-/* Kind options and treatment choices (Change kind, file-drop dialog): AppNativeButton roots, so their styles live here. */
-.lib-choice__kind-option, .lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.lib-choice__kind-option:hover, .lib-choice__kind-option:focus-visible, .lib-choice__kind-option.is-selected,
+/* Treatment choices (the file-drop dialog's "Which library?"): AppNativeButton roots, so their styles live here. */
+.lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
 .lib-choice__choice:hover, .lib-choice__choice:focus-visible, .lib-choice__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
-/* The kind cards and the "Which library?" choices are shared by the file-drop and Change kind dialogs, so their layout lives here too. */
-.lib-choice__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.lib-choice__kind, .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* Equal-width kind cards with left-aligned content: the Metadata cell has a fixed width, so cards do not resize with their provider icons. */
-.lib-choice__kind .lib-choice__kind-option { flex: 1 1 0; justify-content: flex-start; }
-.lib-choice__kind .lib-meta { min-width: 112px; justify-content: flex-end; }
-.lib-choice__kind > .lib-peek { display: flex; flex: 1 1 0; min-width: 0; }
-.lib-choice__kind > .lib-peek > .lib-choice__kind-option { flex: 1 1 auto; }
+/* The file-drop dialog's kind rows (LibraryChoiceRow) stack full width; the "Which library?" choices share this layout. */
+.lib-choice__kinds { display: grid; gap: var(--tl-space-2); }
+.lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The pick button of a LibraryChoiceRow (Add library's area and kind rows, the file-drop kinds): an AppNativeButton root, so its styles live here. The row's own border carries the look. */
+.lib-row__pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: var(--tl-space-4); width: 100%; min-height: 84px; box-sizing: border-box; padding: var(--tl-space-3) var(--tl-space-4); color: var(--tl-text-primary); font: inherit; text-align: left; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.lib-row__pick--chevron { grid-template-columns: 48px minmax(0, 1fr) auto; }
+.lib-row__pick:hover { background: var(--tl-accent-primary-soft); }
+.lib-row__pick:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
+.lib-row.is-disabled .lib-row__pick { cursor: default; opacity: 0.55; }
+.lib-row.is-disabled .lib-row__pick:hover { background: transparent; }
 
 .lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: var(--tl-font-size-dialog-title); }
 .lib-choice__options { display: grid; gap: 10px; }
@@ -4521,10 +4855,21 @@ button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; borde
     .lact-box__toggle { grid-template-areas: "what status chev" "covers covers covers" "count count count"; grid-template-columns: minmax(0, 1fr) auto auto; row-gap: var(--tl-space-2); }
 }
 a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 600; white-space: nowrap; }
-/* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
-.needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
+/* One colour per library kind (setup and libraries fixes D12), chosen in LibraryKindLook.ColorClass; the card cell and the row icon both read --lib-kind-color. */
+.lib-kind-color--movies { --lib-kind-color: var(--tl-media-movies); }
+.lib-kind-color--tv { --lib-kind-color: var(--tl-media-tv); }
+.lib-kind-color--music { --lib-kind-color: var(--tl-media-music); }
+.lib-kind-color--audiobooks { --lib-kind-color: var(--tl-media-audiobooks); }
+.lib-kind-color--books { --lib-kind-color: var(--tl-media-books); }
+.lib-kind-color--comics { --lib-kind-color: var(--tl-media-comics); }
+.lib-kind-color--documents { --lib-kind-color: var(--tl-media-document); }
+.lib-kind-color--area-watch { --lib-kind-color: var(--tl-area-watch); }
+.lib-kind-color--area-listen { --lib-kind-color: var(--tl-area-listen); }
+.lib-kind-color--area-read { --lib-kind-color: var(--tl-area-read); }
+.lib-kind-color--area-view { --lib-kind-color: var(--tl-area-view); }
+.lib-kind-color--area-vault { --lib-kind-color: var(--tl-area-vault); }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
-.lib-kind-tile--lookup { color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
+.lib-kind-tile--lookup { color: var(--lib-kind-color, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-kind-color, var(--tl-accent-primary)) 16%, transparent); }
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .lib-meta__icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
 .lib-meta__icon--plain { min-width: var(--tl-control-height-compact); min-height: var(--tl-control-height-compact); color: var(--tl-text-muted); font-size: var(--tl-icon-size-sm); }
@@ -4633,8 +4978,8 @@ a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 6
 .view-documents-filters__group legend, .view-documents-filters__label { padding: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
 .view-documents-filters__list { display: grid; max-height: 14rem; margin: 0; padding: 0; overflow: auto; list-style: none; }
 .view-documents-filters__hint { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
-.view-documents-filters__input { box-sizing: border-box; width: 100%; min-height: var(--tl-tap-target-min); padding: 0 .85rem; border: 1px solid var(--app-control-border, rgba(135, 151, 184, 0.48)); border-radius: var(--app-control-radius, 0.65rem); background-color: var(--app-control-surface, rgba(11, 18, 29, 0.86)); color: var(--app-control-text, #f4f7ff); font: inherit; color-scheme: dark; }
-.view-documents-filters__input:focus-visible { outline: 2px solid var(--app-control-focus, #6d96ff); outline-offset: 2px; }
+.view-documents-filters__input { box-sizing: border-box; width: 100%; min-height: var(--tl-tap-target-min); padding: 0 .85rem; border: 1px solid var(--app-control-border, var(--tl-border-strong)); border-radius: var(--app-control-radius, 0.65rem); background-color: var(--app-control-surface, color-mix(in srgb, var(--tl-bg-root) 86%, transparent)); color: var(--app-control-text, var(--tl-text-primary)); font: inherit; color-scheme: dark; }
+.view-documents-filters__input:focus-visible { outline: 2px solid var(--app-control-focus, var(--tl-focus-ring)); outline-offset: 2px; }
 .view-documents-filters .app-native-select, .view-documents-scope .app-native-select { min-height: var(--tl-tap-target-min); }
 .view-document-card__edit { position: absolute; top: var(--tl-space-2); right: var(--tl-space-2); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface-raised); }
 .view-documents-organise { display: grid; gap: var(--tl-space-4); }
@@ -4720,8 +5065,8 @@ a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 6
 .view-documents-saved__count { color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); }
 .view-documents-saved__menu { flex: none; }
 .view-documents-saved__form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-1); min-width: 0; }
-.view-documents-saved__input { box-sizing: border-box; flex: 1 1 8rem; min-width: 0; min-height: var(--tl-tap-target-min); padding: 0 .85rem; border: 1px solid var(--app-control-border, rgba(135, 151, 184, 0.48)); border-radius: var(--app-control-radius, 0.65rem); background-color: var(--app-control-surface, rgba(11, 18, 29, 0.86)); color: var(--app-control-text, #f4f7ff); font: inherit; }
-.view-documents-saved__input:focus-visible { outline: 2px solid var(--app-control-focus, #6d96ff); outline-offset: 2px; }
+.view-documents-saved__input { box-sizing: border-box; flex: 1 1 8rem; min-width: 0; min-height: var(--tl-tap-target-min); padding: 0 .85rem; border: 1px solid var(--app-control-border, var(--tl-border-strong)); border-radius: var(--app-control-radius, 0.65rem); background-color: var(--app-control-surface, color-mix(in srgb, var(--tl-bg-root) 86%, transparent)); color: var(--app-control-text, var(--tl-text-primary)); font: inherit; }
+.view-documents-saved__input:focus-visible { outline: 2px solid var(--app-control-focus, var(--tl-focus-ring)); outline-offset: 2px; }
 .view-documents-saved__action { min-height: var(--tl-tap-target-min); padding: 0 var(--tl-space-3); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface-raised); color: var(--tl-text-primary); font: inherit; cursor: pointer; }
 .view-documents-bulk-report { margin-bottom: var(--tl-space-3); }
 .view-documents-bulk-report__reasons { margin: var(--tl-space-1) 0; padding-left: var(--tl-space-4); }
@@ -4769,8 +5114,7 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 
 /* Account menu surface (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
 .tl-popover.top-nav-account-menu__surface {
-    width: min(var(--tl-menu-width), calc(100vw - 1rem));
-    padding: 0.55rem;
+    padding: var(--tl-menu-padding);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -4811,6 +5155,56 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     width: min(33rem, calc(100vw - 2rem));
 }
 
+/* While the shared Reorder bar is up (editor header lists in Reorder mode) the surface keeps clear of it: app-popover.js reads the reserve from the
+   surface's --tl-popover-bottom-reserve and stops the surface above the bar, and the list region, not the surface, gives up the height. */
+.tl-popover.tl-hnav__surface--reordering {
+    --tl-popover-bottom-reserve: var(--tl-reorder-bar-height);
+}
+
+.tl-popover.tl-hnav__surface--reordering:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+}
+
+.tl-popover.tl-hnav__surface--reordering .tl-hnav__panel {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tl-popover.tl-hnav__surface--reordering .tl-hnav__panel .tl-hnav__reorder {
+    flex: 0 1 auto;
+    min-height: 0;
+}
+
+/* The rows of those lists are AppRowButtons (their root carries no scope marker of the editor's header component), so the row box is styled here:
+   a 44 px row, 64 px when it has a still (Look v3 D15), the hover and selected fills, and the quiet "plain" action rows. */
+.tl-hnav__surface .tl-hnav__option {
+    gap: var(--tl-space-3);
+    width: 100%;
+    min-height: var(--tl-popout-row);
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-primary);
+}
+
+.tl-hnav__surface .tl-hnav__option:has(.tl-hnav__still) {
+    min-height: var(--tl-row-h-media);
+}
+
+.tl-hnav__surface .tl-hnav__option:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-hnav__surface .tl-hnav__option.is-selected {
+    background: var(--tl-accent-primary-soft);
+}
+
+.tl-hnav__surface .tl-hnav__option--plain {
+    color: var(--tl-text-secondary);
+}
+
 .tl-hnav__home.is-current {
     box-shadow: 0 0 0 2px var(--tl-accent-primary-hover);
 }
@@ -4848,17 +5242,21 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 /* The View import button's file input is a framework component's root, so the page's scoped CSS never reaches it (it showed as a native Choose Files box). */
 .view-import__input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 
-/* Needs Review: the shared tooltip wrapper is a component root, so this page's scoped CSS never reaches it; without this the folder line ran into the next column. */
-.needs-review-table__path-tip, .needs-review-table__path-tip[data-tooltip-wrapper-target="true"] { display: flex; width: 100%; min-width: 0; max-width: 100%; }
+/* Needs Review: the shared tooltip wrapper around a row's folder line is a component root, so the row's scoped CSS never reaches it; without this the folder line ran into the actions. */
+.nr-row__tip, .nr-row__tip[data-tooltip-wrapper-target="true"] { display: block; max-width: 100%; min-width: 0; }
 
-/* Needs Review: the row picture and the green "Use this" shortcut are component roots (AppImage, AppButton), so the page's scoped CSS never reaches them.
-   "Use this" is a small green chip-shaped text button in the status colours; the shared text button would otherwise force it grey. */
-.needs-review-table__thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.needs-review-table__use-this.app-button--text.app-control--compact { min-width: 0; padding-block: 2px; padding-inline: var(--tl-space-2) !important; color: var(--tl-status-success) !important; background: var(--tl-status-success-soft) !important; border-radius: var(--tl-radius-sm) !important; font-size: var(--tl-font-size-xs); }
+/* Needs Review: the tick box is the shared check box, a component root inside the tick part, so the part's scoped CSS never reaches it (and the page's CSS allows no deep selectors).
+   On a phone its 42 px box grows to the shared tap-target minimum. */
+@media (max-width: 600px) {
+    .nr-tick .app-checkbox { min-height: var(--tl-tap-target-min, 44px); }
+    .nr-tick .app-checkbox__control { min-width: var(--tl-tap-target-min, 44px); min-height: var(--tl-tap-target-min, 44px); }
+}
 
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 
+/* A full-screen dialog frame (AppDialogFrame FullScreen: the phone menu sheet, the Match card sheet) fills the screen edge to edge. The shared dialog surface, border, radius, shadow and max-height are forced on .tl-dialog, so this one rule overrides them for every full-screen frame. */
+.app-native-dialog.app-native-dialog--fullscreen.tl-dialog{max-height:none !important;border:0 !important;border-radius:0 !important;box-shadow:none !important}
 /* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
    labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
 html[data-form-factor="tv"] {
@@ -4896,7 +5294,7 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 }
 
 .phone-hero__dot:focus-visible {
-    outline: 3px solid var(--tl-focus-ring, #ffffff);
+    outline: 3px solid var(--tl-focus-ring);
     outline-offset: 2px;
 }
 
@@ -4919,8 +5317,148 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 .review-changes{display:grid;gap:var(--tl-space-4);padding:var(--tl-space-4) 22px}.review-changes h3,.review-changes p{margin:0}.review-changes__group h3{font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}.review-changes__count{color:var(--tl-text-secondary);font-weight:400}.review-changes__rows{display:grid;gap:var(--tl-space-2);margin:var(--tl-space-2) 0 0;padding:0;list-style:none}.review-changes__row{display:grid;gap:var(--tl-space-1);padding:var(--tl-space-3);border:1px solid var(--tl-border-subtle);border-radius:var(--tl-radius-md,8px)}.review-changes__what{display:flex;flex-wrap:wrap;gap:var(--tl-space-2);align-items:baseline}.review-changes__what span,.review-changes__label,.review-changes__note,.review-changes__files,.review-changes__state{color:var(--tl-text-secondary)}.review-changes__values{display:flex;flex-wrap:wrap;gap:var(--tl-space-1) var(--tl-space-4);overflow-wrap:anywhere}.review-changes__label{margin-right:var(--tl-space-1);font-size:var(--tl-font-size-sm)}.review-changes__status{color:var(--tl-text-secondary)}.review-changes__row[data-state=invalid] .review-changes__status,.review-changes__row[data-state=failed] .review-changes__status{color:var(--tl-status-danger)}.review-changes__actions{display:flex;gap:var(--tl-space-2);align-items:center;justify-content:flex-end}.review-changes__files-block{display:flex;flex-wrap:wrap;gap:var(--tl-space-1) var(--tl-space-3);align-items:center}.review-changes__files-override{flex-basis:100%}
 .tl-editor-scrim{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--tl-bg-shell,#000) 62%,transparent)}.tl-editor-panel{position:fixed;top:50%;left:50%;z-index:31;display:flex;flex-direction:column;box-sizing:border-box;width:min(1280px,calc(100vw - 3rem));height:min(860px,calc(100dvh - 3rem));container:tl-editor/inline-size;transform:translate(-50%,-50%);border:1px solid var(--tl-border-default);border-radius:var(--tl-radius-lg,.75rem);background:var(--tl-bg-surface);color:var(--tl-text-primary);box-shadow:var(--tl-shadow-lg);overflow:hidden}
 @media (max-width:1180px){.tl-editor-window__main{flex-direction:column}}
+/* The editor on a phone (universal editor v6 section 4a, D19 to D22). The pop-over sets .tl-editor-window--phone for a phone, a portrait tablet and a window no wider
+   than a tablet. The window is a full-screen sheet (Close at the top right, no swipe that discards), its height takes off the on-screen keyboard (--tl-editor-keyboard,
+   set by editor-focus.js) so the footer stays above it, the footer is the write-back line and then Discard and Save changes side by side, and every control is 44 px. */
+.tl-editor-panel.tl-editor-window--phone{--tl-field-text-size:var(--tl-font-size-md);top:0;left:0;width:100%;max-width:100%;height:calc(100dvh - var(--tl-editor-keyboard,0px));padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);transform:none;border:0;border-radius:0}
+html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
+.tl-editor-window--phone .tl-editor-window__close{top:calc(env(safe-area-inset-top,0px) + (var(--tl-editor-phone-header) - var(--tl-tap-target-min)) / 2);right:calc(env(safe-area-inset-right,0px) + var(--tl-space-2));width:var(--tl-tap-target-min);height:var(--tl-tap-target-min)}
+.tl-editor-window--phone .tl-editor-window__main,.tl-editor-window--phone .tl-editor-window__content,.tl-editor-window--phone .tl-editor-window__tabs{min-width:0;max-width:100%}
+.tl-editor-window--phone .tl-editor-window__tabs>.tl-tabs-toolbar{padding:0 var(--tl-space-2);overflow-x:auto}
+.tl-editor-window--phone .tl-editor-panel__body{padding:var(--tl-space-3) var(--tl-space-4)}
+.tl-editor-window--phone .tl-editor-window__footer{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;gap:var(--tl-space-2);min-height:0;padding:var(--tl-space-2) var(--tl-space-4) max(var(--tl-space-2),var(--tl-editor-safe-bottom))}
+.tl-editor-window--phone .tl-editor-window__where{padding-left:0;border-left:0}
+.tl-editor-window--phone .tl-editor-window__changes{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.tl-editor-window--phone .tl-editor-window__actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2);width:100%;margin:0}
+.tl-editor-window--phone .tl-editor-window__actions>*{width:100%;min-width:0;min-height:var(--tl-tap-target-min)}
+.tl-editor-window--phone .tl-editor-window__actions>:only-child{grid-column:1/-1}
+.tl-editor-window--phone .tl-editor-window__notice{padding:var(--tl-space-2) var(--tl-space-4) 0}
+.review-changes--phone{padding:var(--tl-space-4) var(--tl-space-4) 0}
+.review-changes--phone .review-changes__footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2);padding-bottom:max(var(--tl-space-3),var(--tl-editor-safe-bottom))}
+.review-changes--phone .review-changes__footer>*{min-width:0;min-height:var(--tl-tap-target-min)}
+.review-changes--phone .review-changes__footer>:only-child{grid-column:1/-1}
+.review-changes--phone .review-changes__actions{flex-wrap:wrap}
+/* The phone header's whole line is one button that opens the navigation sheet; the line is its positioning box. */
+.tl-hnav__phonetap{position:absolute;inset:0;z-index:1;width:100%;min-height:var(--tl-tap-target-min);border-radius:var(--tl-radius-md);background:transparent;color:inherit}
+.tl-hnav__phonetap.is-open{background:var(--tl-bg-surface-hover)}
+/* The navigation sheet: the app's phone sheet (AppDialogFrame in sheet mode) with the dropdowns' rows at the sheet row height. */
+/* The Season or Section choice reads as a dropdown row inside the sheet and opens its list under itself. */
+.tl-hnav__surface .tl-hnav__option--choice{margin:var(--tl-space-1) 0;border:1px solid var(--tl-border-strong)}
+.tl-hnav__surface .tl-hnav__option--choice.is-open{border-color:var(--tl-accent-primary)}
+.tl-hnav__sheet{box-sizing:border-box;padding:0 var(--tl-space-2) var(--tl-space-3)}
+.tl-hnav__sheettitle{margin:0 0 var(--tl-space-2);padding:0 var(--tl-space-2);color:var(--tl-text-primary);font-weight:var(--tl-type-heading-weight);overflow-wrap:anywhere}
+.tl-hnav__sheetkinds{display:flex;flex-direction:column;gap:var(--tl-space-1)}
+.tl-hnav__sheet .tl-hnav__panel{padding:0}
+.tl-hnav__sheet .tl-hnav__scroll{max-height:none;overflow:visible}
+.tl-hnav__sheet .tl-hnav__search{padding:var(--tl-space-1) 0}
+/* The sheet's search box: its 44 px is the field's inside, so the border box is 46 and the typed-in part is the full 44 (and 16 px text from the phone window). */
+.tl-hnav__sheet .tl-hnav__search .app-search-field{--app-control-height:calc(var(--tl-tap-target-min) + 2px)}
+.tl-hnav__surface--phone,.view-hnav__surface--phone{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
+/* Reorder mode in the phone sheet (v6 4a): the shared Reorder bar is fixed to the screen's bottom everywhere else, but the sheet is moved by its drag (a transform), so a fixed box is
+   measured against the sheet itself and laid over the end of the list. Here it is the last thing in the list's panel and sticks to the bottom of the sheet's scrolling part, edge to edge:
+   the list always ends above it, so the last row can be reached, and the sheet's own bottom padding (the safe area) keeps it clear of the home indicator. */
+.tl-hnav__surface--phone.tl-hnav__surface--reordering .app-reorder-bar{position:sticky;bottom:0;inset-inline:auto;margin:0 calc(var(--tl-space-2) * -1) calc((var(--tl-space-2) + var(--tl-space-3)) * -1)}
+/* The list gives up the height the sheet's frame, title and the bar need (21rem), so on a short phone the sheet still fits the screen and the bar ends it, not cut off by the sheet's own limit. */
+.tl-hnav__surface--phone.tl-hnav__surface--reordering .tl-hnav__scroll{max-height:min(32rem,62vh,calc(100dvh - var(--tl-safe-area-top) - var(--tl-safe-area-bottom) - 21rem))}
+/* The tabs of the editor on a phone (v6 D21, WP15): the root of Details, Artwork, History and Bookmarks carries .tl-editor-touch, which makes every compact button and icon button
+   in it a 44 px touch target. The lock beside a label and Revert are the same size; the label line wraps when a long name and its tools do not fit one line. */
+.tl-editor-touch :is(.app-button,.app-icon-button).app-control--compact{--app-control-height:var(--tl-control-height-md)}
+.tl-editor-touch .tl-editor-field__label{flex-wrap:wrap}
+.tl-editor-touch .tl-editor-field__tools{display:contents}
+.tl-editor-touch .tl-editor-field__label>span:first-child{flex:1 1 auto;min-width:0}
+.tl-editor-touch .app-chip__remove{box-sizing:border-box;justify-content:center;min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min);margin:calc(var(--tl-space-3) * -1) calc(var(--tl-space-2) * -1) calc(var(--tl-space-3) * -1) calc(var(--tl-space-4) * -1)}
+.tl-editor-touch .tl-editor-field__lockstate{min-height:var(--tl-tap-target-min)}
+.tl-editor-touch :is(.sme-tag-editor,form.app-tag-input) input{box-sizing:border-box;min-height:var(--tl-tap-target-min);font-size:var(--tl-field-text-size,var(--tl-font-size-md))}
+.tl-editor-touch .sme-tag-editor__add{min-height:var(--tl-tap-target-min)}
+.tl-editor-touch .tl-editor-field__note{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-1)}
+/* Parts of the phone tabs that are drawn by a shared button, so their own stylesheet cannot reach them (v6 D21, WP15). */
+.tl-art-picker--phone .tl-art-picker__hit{display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent;}
+.tl-art-picker--phone .tl-art-picker__retry{align-self: flex-start;}
+.tl-art-picker--phone .tl-art-picker__sources{display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); box-sizing: border-box; width: 100%; max-width: 100%;}
+.tl-art-picker--phone .tl-art-picker__sources .app-segmented-control__item{justify-content: center; min-height: var(--tl-tap-target-min);}
+.tl-art-picker--phone .tl-art-picker__library{grid-column: 1 / -1;}
+.tl-art-picker__phone-sources .app-button{width: 100%;}
+.tl-quick-facts--phone .tl-quick-facts__toggle{display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-2); box-sizing: border-box; width: 100%; min-height: var(--tl-tap-target-min); padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left;}
+.tl-quick-facts--phone .tl-quick-facts__path-reveal{display: flex; flex: 1 1 auto; min-width: 0; white-space: nowrap;}
+.tl-history--phone .tl-history__tap{display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: var(--tl-space-3); box-sizing: border-box; width: 100%; min-height: var(--tl-tap-target-min); padding: var(--tl-space-1) 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left;}
+.tl-history--phone .tl-history__tap .tl-history__title{min-width: 0; overflow-wrap: anywhere; text-align: left;}
+.tl-tap-reveal .tl-tap-reveal__trigger{display: inline-flex; align-items: center; gap: var(--tl-space-1); flex: 1 1 auto; min-width: 0; min-height: var(--tl-tap-target-min); padding: 0 var(--tl-space-1); overflow: hidden; border: 0; border-radius: var(--tl-radius-sm); background: transparent; color: inherit; font: inherit; text-align: left;}
+.tl-tap-reveal .tl-tap-reveal__trigger[aria-expanded="true"]{background: var(--tl-bg-surface-hover);}
+.tl-tap-reveal__actions .app-button{width: 100%;}
+/* The View editor's body on a phone: the window's body already pads the sides, the form is one column, a pair of fields (latitude and longitude, days and hours) shares a line only while each keeps a usable width, and the gallery cover tiles are two to a row. */
+.view-edit-body.view-edit-body--phone{align-items:stretch;padding:0 0 var(--tl-space-4)}
+.view-edit-body.view-edit-body--phone .tl-quick-facts--phone{width:auto;margin:0}
+.view-edit-body.view-edit-body--phone .tl-editor-details{padding:var(--tl-space-2) 0}
+.view-edit-body--phone .view-edit-details__row>*{flex:1 1 9rem;min-width:0}
+.view-edit-body--phone .view-edit-history__list li{min-height:var(--tl-tap-target-min)}
+.view-edit-body--phone .view-edit-contents__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.view-edit-body--phone .view-edit-contents__tile>.app-button{width:100%;height:auto;padding:0}
 .tl-editor-popover__editing{flex:1 1 auto;min-width:0;overflow:hidden;color:var(--tl-text-secondary);text-overflow:ellipsis;white-space:nowrap}.tl-editor-window__main{display:flex;flex:1 1 auto;min-height:0}.tl-editor-window__content{display:flex;flex:1 1 auto;flex-direction:column;min-width:0;min-height:0}.tl-editor-window__tabs{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;padding:0}.tl-editor-window__tabs>.tl-tabs-toolbar{flex:0 0 auto;padding:0 var(--tl-space-4)}.tl-editor-window__tabs>.tl-tabs-panels{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}.tl-editor-window__tabs .tl-tab-panel{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;outline:0}.tl-editor-window__tabs .tl-tab-panel[hidden]{display:none}.tl-editor-window__close{position:absolute;top:1.125rem;right:1.25rem;z-index:3}.tl-editor-window--framed>.tl-editor-header{padding-right:4.5rem}.tl-editor-window__where{display:flex;align-items:center;gap:var(--tl-space-3);min-width:0;padding-left:.875rem;border-left:1px solid var(--tl-divider);color:var(--tl-text-secondary);line-height:1.25}.tl-editor-window__where-icon{flex:0 0 auto}.tl-editor-window__where-text{display:flex;flex-direction:column;min-width:0}.tl-editor-window__where strong{color:var(--tl-text-primary);font-size:.8125rem}.tl-editor-window__where small{color:var(--tl-text-muted);font-size:.8125rem}.tl-editor-window__where--warn{color:var(--tl-status-warning)}.tl-editor-window__where--warn strong{color:var(--tl-status-warning)}.tl-editor-window--framed .tl-editor-window__changes{margin-left:auto}.tl-editor-window--framed .tl-editor-window__actions{margin-left:0}.tl-editor-window__footer{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:var(--tl-space-3);min-height:4rem;padding:var(--tl-space-2) var(--tl-space-5);border-top:1px solid var(--tl-divider);background:color-mix(in srgb,var(--tl-bg-root) 70%,var(--tl-bg-surface))}.tl-editor-window__notice{flex:0 0 auto;padding:var(--tl-space-2) var(--tl-space-4) 0}.tl-editor-window__notice ul{margin:var(--tl-space-1) 0 0;padding-left:1.25rem}.tl-editor-window__footer-start{display:flex;flex:0 0 auto;margin-right:var(--tl-space-2)}.tl-editor-window__changes{color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}.tl-editor-window__actions{display:flex;gap:var(--tl-space-2);margin-left:auto}html:has(.tl-editor-window),body:has(.tl-editor-window){overflow:hidden}@media (max-width:1180px){.tl-editor-panel{width:100vw;height:100dvh;border:0;border-radius:0}}
-.app-step-indicator{display:flex;flex-wrap:wrap;gap:var(--tl-space-4);margin:0;padding:0;list-style:none}.app-step-indicator__step{display:flex;align-items:center;gap:var(--tl-space-2);color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}.app-step-indicator__step.is-active{color:var(--tl-text-primary);font-weight:var(--tl-font-weight-semibold)}.app-step-indicator__number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:1.5rem;height:1.5rem;border-radius:50%;border:1px solid currentColor;font-size:var(--tl-font-size-xs,.75rem)}.app-step-indicator__step.is-active .app-step-indicator__number{background:var(--tl-accent-primary,#8852FC);border-color:var(--tl-accent-primary,#8852FC);color:#fff}
+.app-step-indicator{display:flex;flex-wrap:wrap;gap:var(--tl-space-4);margin:0;padding:0;list-style:none}.app-step-indicator__step{display:flex;align-items:center;gap:var(--tl-space-2);color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}.app-step-indicator__step.is-active{color:var(--tl-text-primary);font-weight:var(--tl-font-weight-semibold)}.app-step-indicator__number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:1.5rem;height:1.5rem;border-radius:50%;border:1px solid currentColor;font-size:var(--tl-font-size-xs,.75rem)}.app-step-indicator__step.is-active .app-step-indicator__number{background:var(--tl-accent-primary);border-color:var(--tl-accent-primary);color:var(--tl-text-on-accent)}
+/* The supporting-files browser on a phone (universal editor v6 section 4a, D19 to D21, WP17). The dialog sets .tl-fbrowser-host--phone and the body
+   .tl-fbrowser--phone for a phone or a tablet in portrait. The window is full screen with the safe areas kept clear; the left list is not drawn (its
+   choices are in the Filters sheet); a row is a card of the name with one line under it and its "..." at the right; every control is at least 44 px. */
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone{--tl-field-text-size:var(--tl-font-size-md);width:100vw;max-width:none;height:100dvh;max-height:100dvh;margin:0;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);box-sizing:border-box}
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone>.app-native-dialog__grip{display:none}
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone>.tl-dialog-content{height:100%}
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone .app-dialog-shell{height:100%;max-height:none;border:0;border-radius:0}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2);padding:var(--tl-space-2) var(--tl-space-4) max(var(--tl-space-2),var(--tl-editor-safe-bottom))}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer>.tl-fbrowser__pager{grid-column:1/-1;justify-content:space-between}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer>.tl-button{min-width:0;min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer>[data-browser-close]:last-child{grid-column:1/-1}
+:root .tl-fbrowser--phone .app-browser{gap:var(--tl-space-2);min-height:0;padding:var(--tl-space-3) var(--tl-space-4)}
+:root .tl-fbrowser--phone .app-browser__body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0}
+:root .tl-fbrowser--phone .app-browser__side{display:none}
+:root .tl-fbrowser--phone .app-browser__search{flex:1 1 100%;min-width:0}
+:root .tl-fbrowser--phone .tl-button,.tl-fbrowser--phone .app-checkbox{min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-host--phone .app-search-field,:root .tl-fbrowser-host--phone .app-field{--app-control-height:calc(var(--tl-tap-target-min) + 2px)}
+:root .tl-fbrowser--phone .app-checkbox__control{width:var(--tl-tap-target-min);height:var(--tl-tap-target-min)}
+:root .tl-fbrowser--phone .app-browser__table,.tl-fbrowser--phone .app-browser__table tbody{display:block}
+:root .tl-fbrowser--phone .app-browser__table thead{display:none}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;border-bottom:1px solid var(--tl-border-default)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>td{height:auto;min-width:0;min-height:3.5rem;padding:0 var(--tl-space-1);border-bottom:0}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__tick{grid-column:1;width:auto}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__tick:not(:has(*)){display:none}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__namecell{grid-column:2;max-width:none;padding-inline:var(--tl-space-2)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__menu{grid-column:3;width:auto;padding:0}
+:root .tl-fbrowser--phone .app-browser-item__text b,.tl-fbrowser--phone .app-browser-item__text small{overflow:visible;overflow-wrap:anywhere;text-overflow:clip;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border-bottom:1px solid var(--tl-border-default)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>td{height:auto;min-width:0;min-height:0;padding:var(--tl-space-1) var(--tl-space-2);border-bottom:0}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>.app-browser-folder__namecell{grid-column:1;max-width:none;min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>.app-browser-folder__middle{grid-column:1/-1;width:auto;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder--folder>.app-browser-folder__middle{display:none}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>.app-browser-folder__end{grid-column:1/-1;width:auto;text-align:start;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder--folder>.app-browser-folder__end{grid-column:2;grid-row:1}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder--file>.app-browser-folder__end{display:flex;flex-wrap:wrap;gap:var(--tl-space-2)}
+:root .tl-fbrowser--phone .app-browser-folder__text{overflow:visible;overflow-wrap:anywhere;text-overflow:clip;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-detail,.tl-fbrowser--phone .app-browser__table tr.app-browser-detail>td{display:block;min-width:0}
+:root .tl-fbrowser--phone .app-icon-button{min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-filters .app-browser-side-item{min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-filters .app-browser-side-section{display:grid;gap:var(--tl-space-1)}
+:root .tl-fbbulk--phone [data-bulk="clear"]{grid-column:2;order:-1;justify-self:end;width:auto}
+:root .tl-fbbulk--phone [data-bulk="delete"]{grid-column:1/-1}
+:root .tl-fbbulk--phone .tl-button,:root .tl-fbbulk--phone .app-overflow-menu,:root .tl-fbbulk--phone .app-overflow-menu__trigger{width:100%;min-width:0;min-height:var(--tl-tap-target-min)}
+:root .tl-fbbulk--phone [data-bulk="clear"].tl-button{width:auto}
+:root .tl-fbbulk--phone .app-overflow-menu__trigger>svg:first-child{display:none}
+:root .tl-fbbulk--phone .app-overflow-menu__trigger{justify-content:space-between;gap:var(--tl-space-1);padding-inline:var(--tl-space-3)}
+:root .tl-fbrowser-host--phone .app-dialog-shell__icon{display:none}
+/* Editing several items on a phone (universal editor v6 WP17): the selection bar, the "Edit N items" window and the group Match. Buttons and the
+   small tools on each field are full 44 px touch targets; the field tools wrap under the label instead of squeezing it. */
+:root .tl-batch--phone .tl-batch__bar{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--tl-space-2);padding:var(--tl-space-3)}
+:root .tl-batch--phone .tl-batch__actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2)}
+:root .tl-batch--phone .tl-batch__actions>.tl-button,:root .tl-batch--phone .tl-batch__actions>.app-overflow-menu,:root .tl-batch--phone .tl-batch__actions>.app-overflow-menu .app-overflow-menu__trigger{width:100%;min-width:0;min-height:var(--tl-tap-target-min)}
+:root .tl-bulk--phone{padding:var(--tl-space-2) 0}
+:root .tl-bulk--phone .tl-editor-field__label{flex-wrap:wrap;row-gap:var(--tl-space-1)}
+:root .tl-bulk--phone .tl-editor-field__tools{flex-wrap:wrap;justify-content:flex-end}
+:root .tl-bulk--phone .tl-editor-field__tools .tl-button,:root .tl-bulk--phone .tl-editor-field__tools .tl-icon-button,:root .tl-bulk--phone .tl-bulk__actions .tl-button,:root .tl-bulk--phone .tl-editor-field__reset,:root .tl-bulk--phone .tl-bulk__cover,:root .tl-bulk--phone .tl-bulk__retry .tl-button{min-height:var(--tl-tap-target-min);min-width:var(--tl-tap-target-min)}
+:root .tl-bulk--phone .tl-bulk__items .app-chip,:root .tl-bulk--phone .tl-bulk__chips .app-chip{min-height:var(--tl-tap-target-min);max-width:100%}
+:root .tl-bulk--phone .tl-bulk__items .app-chip__remove,:root .tl-bulk--phone .tl-bulk__chips .app-chip__remove{min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min)}
+:root .tl-bulk--phone .tl-bulk__items{max-height:12rem}
+:root .tl-bulk--phone .tl-bulk__items>[role="listitem"]{display:flex;min-width:0;max-width:100%}
+:root .tl-bulk--phone .tl-bulk__items .app-chip{min-width:0}
+:root .tl-bulk--phone .tl-file-upload label{display:inline-flex;align-items:center;min-height:var(--tl-tap-target-min);padding-inline:var(--tl-space-3)}
+:root .tl-bulk--phone .app-tag-input input,:root .tl-bulk--phone .app-tag-input button{height:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min)}
+:root .tl-bulk--phone .app-tag-input input{font-size:var(--tl-font-size-md)}
 /* The page behind the pop-over is locked (editor v3 D8): the details overlay's own scroller is the bar that stayed visible beside the dimmed page. */
 body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-window) [data-detail-origin-scroll]{overflow:hidden;overscroll-behavior:none}
 /* The photos, videos, documents and galleries editor (spec photos-documents-editor): the shared editor window with its own tool bodies. */
@@ -4962,6 +5500,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-editor-field__tools{display:inline-flex;align-items:center;gap:var(--tl-space-2);margin-left:auto}
 .tl-editor-field__lockstate{display:inline-flex;align-items:center;gap:var(--tl-space-1);color:var(--tl-accent-primary-hover);font-weight:500}
 .tl-editor-field--form-locked .tl-input,.tl-editor-field__chips{border-style:dashed}
+.tl-editor-field[data-form-row-field] .tl-input{font-weight:var(--tl-type-control-weight)}
 .tl-editor-field--form-locked textarea.tl-input{outline-style:dashed}
 .tl-editor-field--changed .tl-input{border-color:var(--tl-accent-primary)}
 .tl-editor-field--changed textarea.tl-input{outline-color:var(--tl-accent-primary)}
@@ -4969,7 +5508,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .review-changes__what .review-changes__yours{color:var(--tl-accent-primary-hover)}
 
 .tl-batch{display:grid;gap:var(--tl-space-3);box-sizing:border-box;width:100%;margin-bottom:var(--tl-space-4);color:var(--tl-text-primary)}
-.tl-batch__bar,.tl-batch__pending{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--tl-space-2) var(--tl-space-4);padding:var(--tl-space-2) var(--tl-space-4);border:1px solid var(--tl-accent-primary,#8852FC);border-radius:var(--tl-radius-md);background:color-mix(in srgb,var(--tl-accent-primary,#8852FC) 10%,var(--tl-bg-surface))}
+.tl-batch__bar,.tl-batch__pending{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--tl-space-2) var(--tl-space-4);padding:var(--tl-space-2) var(--tl-space-4);border:1px solid var(--tl-accent-primary);border-radius:var(--tl-radius-md);background:color-mix(in srgb,var(--tl-accent-primary,#8852FC) 10%,var(--tl-bg-surface))}
 .tl-batch__pending{position:sticky;top:var(--app-topbar-height,65px);z-index:18;margin-bottom:var(--tl-space-2)}
 .tl-batch__count{font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}
 .tl-batch__full{margin:0;font-size:var(--tl-font-size-sm);color:var(--tl-text-secondary)}
@@ -5099,7 +5638,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 /* The quiet facts in the side column of a plugin or integration page (Plugins and Integrations screens v6 D60). Global because the
    facts are drawn by the page that owns them, not by the column component. */
 .app-detail-columns__side dl { margin: 0; }
-.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs, .75rem); letter-spacing: .08em;}
+.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); letter-spacing: .08em;}
 .app-detail-columns__side dd { margin: 2px 0 6px; color: var(--tl-text-primary); overflow-wrap: anywhere; }
 /* MapLibre builds these class names itself, so no component names them: keep the controls above the phone docks. */
 html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-left,
@@ -5115,7 +5654,7 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     border-radius: var(--tl-radius-md);
     color: var(--tl-text-primary);
     background: var(--tl-bg-surface-elevated);
-    box-shadow: var(--tl-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.3));
+    box-shadow: var(--tl-shadow-lg);
     font-family: var(--font-ui);
 }
 
@@ -5208,9 +5747,6 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     border-top: 1px solid var(--tl-border-subtle);
 }
 
-.tl-editor-tab{padding-inline:var(--tl-space-5, 1.5rem)}
-.tl-editor-tab svg{color:var(--tl-editor-tab-icon,currentColor)}
-.tl-editor-tab--details{--tl-editor-tab-icon:#9a8cf0}.tl-editor-tab--artwork{--tl-editor-tab-icon:#e58fb4}.tl-editor-tab--match{--tl-editor-tab-icon:#4ec9a0}.tl-editor-tab--history{--tl-editor-tab-icon:#8aa0c8}
 /* -------------------------------------------------------------------------
    Viewer (Look v3 D14): the full-screen kind, drawn by AppViewer. Zero specificity on purpose, so a viewer's own
    classes (bars, stages, panels) always win and this only supplies the kind's defaults: full screen, black or the
@@ -5253,7 +5789,10 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 
 /* Window footer (Look v3 D14, D15.3; Shy 2026-11-07: as in the mock): every button sits in one right-hand group in reading order,
    destructive (outlined red), then Cancel or Discard, then the one primary last. Only a quiet extra action marked app-footer-start
-   (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. */
+   (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. The one exception is the short
+   confirmation (AppConfirmDialog and the dialogs built on it, Look v3.1 D4): the safe choice is a neutral outlined button and comes
+   first, and a destructive choice is a solid red button and comes last. A larger window's footer where Delete sits beside Save keeps
+   Delete outlined red as above. */
 .app-dialog-shell__footer > .app-footer-start:not(:last-child),
 .app-action-bar > .app-footer-start:not(:last-child) {
     margin-inline-end: auto;
@@ -5280,6 +5819,9 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     .libs__table .libs__link { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
+/* Dragging songs onto a playlist (Listen music spec D10): song-table.js adds .is-song-drop-over to the [data-song-drop] target under the pointer, and the picture a ticked row drags with. */
+[data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;border-radius:var(--tl-radius-sm,6px);background:color-mix(in srgb,var(--tl-accent-primary) 22%,transparent)}
+.song-table__drag-picture{padding:6px 12px;border-radius:var(--tl-radius-sm,6px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-family:var(--font-ui,sans-serif);font-size:var(--tl-type-control-size);font-weight:600}
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
@@ -5331,9 +5873,9 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-separat
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-item:not(.tl-detail-watch-metadata-item--classification) {
     padding: 0.28rem 0.65rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid var(--tl-wash-light-5);
     border-radius: var(--tl-radius-pill);
-    background: rgba(6, 9, 17, 0.42);
+    background: var(--tl-scrim-dark-3);
     white-space: normal;
 }
 
@@ -5360,9 +5902,9 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre::before {
     position: absolute;
     z-index: 0;
     inset: 0.4rem 0;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 48%, var(--tl-wash-light-5));
     border-radius: var(--tl-radius-round);
-    background: rgba(6, 9, 17, 0.42);
+    background: var(--tl-scrim-dark-3);
 }
 
 /* Actions: one full-width primary button, then a row of 44px round icons with their names underneath. */
@@ -5397,31 +5939,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-actions {
     width: 100%;
     justify-content: flex-start;
     text-align: left;
-}
-
-/* Section tabs on detail pages: the strip fades where more tabs wait off-screen, and tabs keep a comfortable
-   minimum width. The touch contract forces min-width on buttons, so the 112px floor comes from the grid track. */
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(112px, max-content);
-    overscroll-behavior-x: contain;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items > * {
-    justify-content: center;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-start="true"] {
-    mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-start="true"][data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
 }
 
 /* Details page, phone pass: the episode and sequence panel, credits, people and lists. */
@@ -5606,67 +6123,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-source-link {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-/* Details page, phone pass: track lists fit the screen as two-line rows instead of a sideways-scrolling table. */
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio {
-    height: auto;
-    max-height: none;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__table {
-    width: 100%;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row {
-    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
-    grid-template-areas:
-        "ordinal title duration actions"
-        "ordinal status status actions";
-    align-items: center;
-    column-gap: 0.5rem;
-    min-height: 56px;
-    padding-inline: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal {
-    grid-area: ordinal;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal > span:not([class]) {
-    position: static;
-    font-size: var(--tl-font-size-xs);
-    line-height: 1;
-    opacity: 0.7;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__title {
-    grid-area: title;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__duration {
-    grid-area: duration;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__status {
-    grid-area: status;
-    justify-self: start;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row > .playback-tooltip-owner {
-    grid-area: actions;
-    justify-self: center;
-}
-
 /* Check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
     position: relative;
     display: inline-flex;
@@ -5675,7 +6132,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
     position: absolute;
     inset: 0;
@@ -5685,33 +6141,25 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[typ
     opacity: 0;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::before {
     content: "";
     display: inline-block;
     width: 18px;
     height: 18px;
     margin-right: 0.5rem;
-    border: 2px solid rgba(255, 255, 255, 0.55);
+    border: 2px solid color-mix(in srgb, var(--tl-text-primary) 55%, transparent);
     border-radius: 4px;
     vertical-align: -4px;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
     outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
-}
-
-/* The queue button's size is forced in AudioItemTable's own styles, so phones raise it through this value. */
-html[data-form-factor="phone"] .tl-detail-page {
-    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
 }
 
 /* Works, tracks and collection rails (person, universe, album): the same peek sizing as Home's shelves. */

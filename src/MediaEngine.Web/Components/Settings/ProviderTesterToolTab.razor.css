@@ -6,10 +6,10 @@
         border-bottom: none;
     }
     .pt-result-row:hover {
-        background: rgba(255,255,255,0.02);
+        background: var(--tl-wash-light-1);
     }
     .pt-result-expanded {
-        background: rgba(255,255,255,0.03);
+        background: var(--tl-wash-light-1);
     }
     .pt-detail-panel {
         padding: 0 16px 16px;

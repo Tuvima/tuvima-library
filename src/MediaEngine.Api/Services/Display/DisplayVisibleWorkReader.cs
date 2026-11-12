@@ -16,6 +16,9 @@ public sealed class DisplayVisibleWorkRow
     public string MediaType { get; set; } = string.Empty;
     public Guid AssetId { get; set; }
     public string? ContentRating { get; set; }
+
+    /// <summary>The earliest metadata-claim time of the (work, library) pair, as the full read reports it; the earliest file wins a viewer's primary file.</summary>
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 /// <summary>
@@ -58,6 +61,7 @@ public sealed class DisplayVisibleWorkReader
                         ELSE COALESCE(gp.id, p.id, w.id)
                     END AS RootWorkId,
                     ma.id AS AssetId,
+                    MIN(mc.claimed_at) OVER (PARTITION BY w.id, ma.library_id) AS CreatedAt,
                     ROW_NUMBER() OVER (
                         PARTITION BY w.id, ma.library_id
                         ORDER BY CASE WHEN w.media_type = 'Books' AND LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END,
@@ -80,6 +84,7 @@ public sealed class DisplayVisibleWorkReader
                 WorkId,
                 MediaType,
                 AssetId,
+                COALESCE(CreatedAt, CURRENT_TIMESTAMP) AS CreatedAt,
                 {rating} AS ContentRating
             FROM ranked_assets
             WHERE AssetRank = 1;

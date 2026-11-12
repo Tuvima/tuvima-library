@@ -15,7 +15,7 @@
         min-width: 90px;
         color: var(--tl-text-muted);
         padding-top: 6px;
-        font-size: var(--tl-font-size-xs);
+        font-size: var(--tl-type-caption-size);
         text-align: right;
     }
     .gen-members {

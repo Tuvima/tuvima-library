@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Dapper;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Domain;
@@ -158,6 +159,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 applySegmentFilter = allowedSegments is not null ? 1 : 0,
                 allowedSegments = allowedSegments?.Count > 0 ? allowedSegments : ["<none>"],
                 directOnly = directOnly ? 1 : 0,
+                identityKeys = EditorMatchRule.IdentityKeys,
                 limit = pageSize,
                 offset = (page - 1) * pageSize,
             };
@@ -242,6 +244,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 applySegmentFilter = 1,
                 allowedSegments = allowedSegments.Count > 0 ? allowedSegments : ["<none>"],
                 directOnly = 0,
+                identityKeys = EditorMatchRule.IdentityKeys,
                 limit = 1001,
                 offset = 0,
             };
@@ -434,6 +437,8 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
 
     // Values use local canonical rows only. The path is returned for a selected
     // local asset and is searched as a whole, but never promoted into title text.
+    // "Matched" is the editor's one rule: a key of EditorMatchRule.IdentityKeys on the file or its Work (@identityKeys), the list the Match tab
+    // and the family navigation read use too.
     private const string CandidateSql = """
         SELECT ma.id AS AssetId,
                e.id AS EditionId,
@@ -486,7 +491,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                    WHEN EXISTS (
                    SELECT 1 FROM canonical_values identity_value
                    WHERE identity_value.entity_id IN (ma.id, w.id)
-                     AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'tmdb_episode_id', 'tvdb_episode_id', 'tvdb_season_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
+                     AND identity_value.key IN @identityKeys
                      AND NULLIF(identity_value.value, '') IS NOT NULL)
                    THEN 'matched' ELSE 'unmatched' END AS MatchState,
                COALESCE(NULLIF(ma.writeback_status, ''), 'unknown') AS FileState,
@@ -531,7 +536,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
               THEN CASE WHEN EXISTS (SELECT 1 FROM works series WHERE series.id = w.parent_work_id AND series.work_kind = 'parent') THEN 'matched' ELSE 'unmatched' END
               WHEN EXISTS (
               SELECT 1 FROM canonical_values identity_value WHERE identity_value.entity_id IN (ma.id, w.id)
-              AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'tmdb_episode_id', 'tvdb_episode_id', 'tvdb_season_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
+              AND identity_value.key IN @identityKeys
               AND NULLIF(identity_value.value, '') IS NOT NULL) THEN 'matched' ELSE 'unmatched' END)
           AND (@fileStatus IS NULL OR lower(COALESCE(NULLIF(ma.writeback_status, ''), 'unknown')) = lower(@fileStatus))
         """;

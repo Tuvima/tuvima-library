@@ -1,0 +1,565 @@
+@using System.Globalization
+@using MediaEngine.Web.Components.Details
+@implements IAsyncDisposable
+@inject DeviceContextService DeviceContext
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ILogger<SongTable> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one song table (spec music-table-and-reader-frame D1 to D11, D21 to D23). Songs, Albums, an album's tracks and a playlist all draw it;
+   the page that hosts it owns the data and what each action does and passes them in through parameters and callbacks. *@
+@if (_notice is not null)
+{
+    @* A favorite, delete or status change that did not work: it stays above the songs until the next try or the close button. *@
+    <AppAlert Severity="@_noticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="DismissNoticeAsync" data-song-table-notice="true">@_notice</AppAlert>
+}
+@* A listened or unlistened change, with Undo, in place above the songs because the row's menu has closed. *@
+@if (_undo is not null)
+{
+    <AppUndoNote Offer="_undo" OnCleared="ClearUndoAsync" data-song-table-undo="true" />
+}
+@if (TickShown && !IsPhoneList && BulkContent is not null)
+{
+    @BulkContent(SelectedRows)
+}
+@if (IsPhoneList)
+{
+    @PhoneList
+    @if (SelectModeOn)
+    {
+        @* Ticked songs on a phone: the bottom bar with the count, Play, Add to queue, Add to playlist and Done (Listen music spec D12). *@
+        <SongSelectionBar WorkIds="@TickedWorkIds"
+                          Count="@TickedWorkIds.Count"
+                          CanPlay="@OnPlay.HasDelegate"
+                          CanQueue="@OnQueue.HasDelegate"
+                          OnPlay="PlayTickedAsync"
+                          OnQueue="QueueTickedAsync"
+                          OnDone="EndSelectAsync" />
+    }
+}
+else
+{
+    @DesktopTable
+}
+<div class="sr-only" role="status" aria-live="polite">@_announcement</div>
+
+@code {
+    private RenderFragment DesktopTable => @<AppCssElement Tag="div" Css="@_gridVariables">
+        @if (ShowEmpty)
+        {
+            @EmptyContent
+        }
+        else
+        {
+            <div class="song-table"
+                 role="table"
+                 aria-label="@AriaLabelText"
+                 data-song-drag-out="@(CanDragOut ? "true" : null)"
+                 data-song-drag-label="@DragCountLabel"
+                 @ref="_tableRoot">
+                <div class="song-table__head" role="row">
+                    @foreach (var layout in _layout)
+                    {
+                        @HeaderCell(layout.Column)
+                    }
+                    <span class="song-table__head-cell song-table__filler" aria-hidden="true"></span>
+                    <div class="song-table__head-cell song-table__head-cell--actions" role="columnheader">
+                        <span class="sr-only">@L["ApiKeys_Actions"]</span>
+                        @ColumnsMenu
+                    </div>
+                </div>
+                @if (IsLoading && Rows.Count == 0)
+                {
+                    @for (var index = 0; index < SkeletonRowCount; index++)
+                    {
+                        <div class="song-table__row song-table__row--skeleton" role="row" aria-hidden="true">
+                            @foreach (var layout in _layout)
+                            {
+                                <span class="song-table__cell"><AppSkeleton Width="@(layout.Column == SongColumn.Song ? "70%" : "50%")" Height="16px" /></span>
+                            }
+                            <span class="song-table__cell song-table__filler" aria-hidden="true"></span>
+                            <span class="song-table__cell"></span>
+                        </div>
+                    }
+                }
+                else if (Place == SongTablePlace.AlbumPage)
+                {
+                    @* An album's tracks are few, and the Unnumbered group needs its own heading, so they are not virtualized. *@
+                    @foreach (var row in _shown)
+                    {
+                        @if (RowKey(row) == _firstUnnumberedKey)
+                        {
+                            <div class="song-table__group" role="presentation">@L["AudioItemTable_Unnumbered"]</div>
+                        }
+
+                        @DesktopRow(row)
+                    }
+                }
+                else
+                {
+                    <Virtualize Items="@_shown" Context="row" TItem="SongRow" ItemSize="48" OverscanCount="8">
+                        @DesktopRow(row)
+                    </Virtualize>
+                }
+                @if (CanDrag)
+                {
+                    <div class="@(_dropAtEnd ? "song-table__end-zone is-drop-target" : "song-table__end-zone")"
+                         @ondragover="DragOverEnd"
+                         @ondragover:preventDefault="true"
+                         @ondrop="DropAtEndAsync"></div>
+                }
+            </div>
+        }
+    </AppCssElement>;
+
+    private RenderFragment ColumnsMenu => @<AppOverflowMenu Icon="@ColumnsIcon" Size="AppControlSize.Normal" AriaLabel="@L["ListenPage_Columns"].Value">
+        <div class="song-table__columns-menu" @onclick:stopPropagation="true">
+            <div class="app-menu-section-label" role="presentation">@L["ListenPage_Columns"]</div>
+            @foreach (var column in SongTableColumns.Available(Place))
+            {
+                var shownColumn = column;
+                <AppCheckboxRow Label="@ColumnLabel(shownColumn)" Value="@IsColumnVisible(shownColumn)" ValueChanged="@(on => SetColumnVisibleAsync(shownColumn, on))" />
+            }
+        </div>
+        <AppMenuItem Label="@L["SongTable_ResetColumns"].Value" Icon="@AppMaterialIcons.Outlined.RestartAlt" DividerBefore="true" OnClick="ResetColumnsAsync" />
+    </AppOverflowMenu>;
+
+    private RenderFragment HeaderCell(SongColumn column) => @<text>
+        @if (column == SongColumn.Tick)
+        {
+            <span class="song-table__head-cell song-table__head-cell--tick" role="columnheader"><span class="sr-only">@L["Common_Select"]</span></span>
+        }
+        else
+        {
+            var label = ColumnLabel(column);
+            var sortable = SongTableSort.IsSortable(Place, column, OwnOrderSortable);
+            <span class="@HeadCellClass(column)" role="columnheader" aria-sort="@(sortable ? AriaSort(column) : null)">
+                @if (sortable)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               Size="AppControlSize.Compact"
+                               Label="@label"
+                               EndIcon="@(_sort.Column == column ? (_sort.Descending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward) : null)"
+                               OnClick="@(() => ToggleSortAsync(column))" />
+                }
+                else
+                {
+                    <span class="song-table__head-label">@label</span>
+                }
+                @if (!DeviceContext.IsTouch && SongTableColumns.IsResizable(column))
+                {
+                    <span class="song-table__resizer"
+                          role="separator"
+                          aria-label="@L["SongTable_ResizeColumn", label].Value"
+                          aria-orientation="vertical"
+                          tabindex="0"
+                          data-column="@SongTableColumns.KeyOf(column)"
+                          data-min="@SongTableColumns.MinWidth(column)"
+                          data-max="@SongTableColumns.MaxWidthFor(column)"
+                          @onclick:stopPropagation="true"></span>
+                }
+            </span>
+        }
+    </text>;
+
+    private RenderFragment<SongRow> DesktopRow => row => @<div class="@RowClass(row)"
+         @key="RowKey(row)"
+         role="row"
+         id="@RowDomId(row)"
+         data-song-row-id="@row.Id"
+         data-song-ticked="@(_selected.Contains(row.Id) ? "true" : null)"
+         data-listen-immediate-start="@(row.IsOwned ? "music" : null)"
+         data-listen-start-url="@StartUrl(row)"
+         tabindex="@(row.IsOwned ? "0" : null)"
+         aria-disabled="@(row.IsOwned ? null : "true")"
+         draggable="@(CanDrag || CanDragOut ? "true" : null)"
+         @ondragstart="@(() => DragStartAsync(row))"
+         @ondragend="DragEndAsync"
+         @ondragover="@(() => DragOver(row))"
+         @ondragover:preventDefault="CanDrag"
+         @ondrop="@(() => DropAsync(row))"
+         @onclick="@(() => PlayAsync(row))"
+         @onkeydown="@((KeyboardEventArgs args) => RowKeyDownAsync(args, row))">
+        @foreach (var layout in _layout)
+        {
+            @DesktopCell(row, layout.Column)
+        }
+        <span class="song-table__cell song-table__filler" aria-hidden="true"></span>
+        <div class="song-table__cell song-table__cell--actions" role="cell" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+            @if (row.IsOwned)
+            {
+                @if (ShowHoverQueue)
+                {
+                    <span class="song-table__queue">
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.PlaylistAdd" ButtonStyle="AppButtonStyle.Text" Tooltip="@L["Common_AddToQueue"].Value" AriaLabel="@L["SongTable_AddTitleToQueue", row.Title].Value" OnClick="@(() => QueueAsync(row))" />
+                    </span>
+                }
+                <AppOverflowMenu Size="AppControlSize.Normal" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
+                    @RowMenu(row, false)
+                </AppOverflowMenu>
+            }
+        </div>
+        @if (_dropBeforeKey == RowKey(row))
+        {
+            <span class="song-table__drop-line" aria-hidden="true"></span>
+        }
+    </div>;
+
+    private RenderFragment DesktopCell(SongRow row, SongColumn column) => @<text>
+        @switch (column)
+        {
+            case SongColumn.Tick:
+                <div class="song-table__cell song-table__cell--tick" role="cell" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                    @if (row.IsOwned)
+                    {
+                        <AppCheckbox Value="@_selected.Contains(row.Id)"
+                                     ValueChanged="@(on => SetSelectedAsync(row.Id, on))"
+                                     Dense="true"
+                                     aria-label="@L["SongTable_SelectRow", row.Title].Value" />
+                    }
+                </div>
+                break;
+            case SongColumn.Number:
+                <span class="song-table__cell song-table__cell--number" role="cell">
+                    @if (IsCurrent(row))
+                    {
+                        <span class="song-table__mark"><PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" AriaLabel="@L["Common_NowPlaying"].Value" /></span>
+                    }
+                    else
+                    {
+                        <span class="song-table__position">@PositionText(row)</span>
+                    }
+                    @if (CanDrag)
+                    {
+                        <span class="song-table__grip" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppIconSize.Control20" /></span>
+                    }
+                </span>
+                break;
+            case SongColumn.Song:
+                <div class="song-table__cell song-table__cell--song" role="cell">
+                    @if (ShowCovers)
+                    {
+                        <div class="@(row.IsUpdatingDetails ? "song-table__art is-updating" : "song-table__art")">
+                            @ArtworkImage(row, 36)
+                            @if (row.IsUpdatingDetails)
+                            {
+                                <span class="sr-only">@L["SongTable_UpdatingDetails"]</span>
+                            }
+                            @if (row.IsOwned)
+                            {
+                                <span class="song-table__art-play" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                                    <AppIconButton Icon="@AppMaterialIcons.Filled.PlayArrow" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" data-listen-row-play="true" Tooltip="@L["Common_PlaySong"].Value" AriaLabel="@L["SongTable_PlayTitle", row.Title].Value" OnClick="@(() => PlayAsync(row))" />
+                                </span>
+                            }
+                        </div>
+                    }
+                    else if (row.IsOwned)
+                    {
+                        <span class="song-table__play-only" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                            <AppIconButton Icon="@AppMaterialIcons.Filled.PlayArrow" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" data-listen-row-play="true" Tooltip="@L["Common_PlaySong"].Value" AriaLabel="@L["SongTable_PlayTitle", row.Title].Value" OnClick="@(() => PlayAsync(row))" />
+                        </span>
+                    }
+                    @if (IsCurrent(row) && !IsColumnVisible(SongColumn.Number))
+                    {
+                        <span class="song-table__mark"><PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" AriaLabel="@L["Common_NowPlaying"].Value" /></span>
+                    }
+                    <span class="@(IsCurrent(row) ? "song-table__title is-current" : "song-table__title")">@row.Title</span>
+                    @if (row.IsExplicit)
+                    {
+                        <span class="song-table__chip">@L["EditorDetailsPanel_Explicit"]</span>
+                    }
+                    @if (row.IsUnnumbered)
+                    {
+                        @* A track added anyway (details overlay D13): quiet tag, in the Unnumbered group at the end. *@
+                        <NotMatchedTag />
+                    }
+                    @if (!row.IsOwned)
+                    {
+                        <span class="song-table__chip song-table__chip--missing">@L["SongTable_Missing"]</span>
+                    }
+                </div>
+                break;
+            case SongColumn.Artist:
+                <span class="song-table__cell song-table__meta" role="cell">
+                    @if (row.ArtistPersonId is { } artistId && artistId != Guid.Empty)
+                    {
+                        <a href="@ArtistHref(artistId)" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@Dash(row.Artist)</a>
+                    }
+                    else
+                    {
+                        @Dash(row.Artist)
+                    }
+                </span>
+                break;
+            case SongColumn.Album:
+                <span class="song-table__cell song-table__meta" role="cell">
+                    @if (row.CollectionId is { } albumId && albumId != Guid.Empty)
+                    {
+                        <a href="@AlbumHref(albumId)" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@Dash(row.Album)</a>
+                    }
+                    else
+                    {
+                        @Dash(row.Album)
+                    }
+                </span>
+                break;
+            case SongColumn.DateAdded:
+                <span class="song-table__cell song-table__meta" role="cell">@DateAddedText(row)</span>
+                break;
+            case SongColumn.Plays:
+                <span class="song-table__cell song-table__meta song-table__meta--end" role="cell">@(row.Plays > 0 ? row.Plays.ToString(CultureInfo.InvariantCulture) : string.Empty)</span>
+                break;
+            case SongColumn.Genre:
+                <span class="song-table__cell song-table__meta" role="cell">@Dash(row.Genre)</span>
+                break;
+            case SongColumn.Status:
+                <span class="song-table__cell song-table__meta" role="cell">@(row.IsOwned ? L["SongTable_Owned"].Value : L["SongTable_Missing"].Value)</span>
+                break;
+            case SongColumn.Favorite:
+                <div class="song-table__cell song-table__cell--favorite" role="cell" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                    @if (row.IsOwned)
+                    {
+                        var saved = IsFavorite(row);
+                        <AppIconButton Icon="@(saved ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)"
+                                       ButtonStyle="AppButtonStyle.Text"
+                                       Tone="@(saved ? AppUiTone.Primary : AppUiTone.Neutral)"
+                                       Tooltip="@(saved ? L["SongTable_RemoveFromFavorites"].Value : L["SongTable_AddToFavorites"].Value)"
+                                       aria-pressed="@(saved ? "true" : "false")"
+                                       OnClick="@(() => ToggleFavoriteAsync(row))" />
+                    }
+                </div>
+                break;
+            case SongColumn.Time:
+                <span class="song-table__cell song-table__meta song-table__meta--end" role="cell">@row.DurationText</span>
+                break;
+        }
+    </text>;
+
+    private RenderFragment RowMenu(SongRow row, bool sheet) => @<text>
+        @if (sheet && OnToggleFavorite.HasDelegate)
+        {
+            var saved = IsFavorite(row);
+            <AppMenuItem Label="@(saved ? L["SongTable_RemoveFromFavorites"].Value : L["SongTable_AddToFavorites"].Value)"
+                         Icon="@(saved ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)"
+                         OnClick="@(() => ToggleFavoriteAsync(row))" />
+        }
+        @if (OnPlayNext.HasDelegate)
+        {
+            <AppMenuItem Label="@L["Common_PlayNext"].Value" Icon="@AppMaterialIcons.Outlined.PlaylistPlay" OnClick="@(() => PlayNextAsync(row))" />
+        }
+        @if (OnQueue.HasDelegate)
+        {
+            <AppMenuItem Label="@L["Common_AddToQueue"].Value" Icon="@AppMaterialIcons.Outlined.PlaylistAdd" OnClick="@(() => QueueAsync(row))" />
+        }
+        @if (sheet && SelectModeAvailable && row.IsOwned && !SelectModeOn)
+        {
+            @* Several songs at once on a phone: this song is ticked and the list goes into select mode (Listen music spec D12). *@
+            <AppMenuItem Label="@L["SongTable_Select"].Value" Icon="@AppMaterialIcons.Outlined.CheckCircle" OnClick="@(() => BeginSelectAsync(row))" />
+        }
+        @if (Place != SongTablePlace.AlbumPage)
+        {
+            <AppMenuItem Label="@L["SongActions_GoToAlbum"].Value"
+                         Icon="@AppMaterialIcons.Outlined.Album"
+                         Disabled="@(row.CollectionId is null || row.CollectionId == Guid.Empty)"
+                         OnClick="@(() => OpenAlbumAsync(row))" />
+        }
+        <AppMenuItem Label="@L["SongActions_GoToArtist"].Value"
+                     Icon="@AppMaterialIcons.Outlined.Person"
+                     Disabled="@(row.ArtistPersonId is null || row.ArtistPersonId == Guid.Empty)"
+                     OnClick="@(() => OpenArtistAsync(row))" />
+        @if (row.WorkId is { } workId)
+        {
+            <PersonalStatusMenuItems WorkId="workId" OnFailed="ShowNotice" OnChanged="ShowUndo" />
+        }
+        @if (EditAllowed(row))
+        {
+            <AppMenuItem Label="@L["Common_Edit"].Value"
+                         Icon="@AppMaterialIcons.Outlined.Edit"
+                         Disabled="@row.IsUpdatingDetails"
+                         OnClick="@(() => EditAsync(row))" />
+        }
+        @if (ReorderEnabled)
+        {
+            @* In a playlist's or Favorites' own order only (ReorderEnabled is false while a column sorts the list). The phone sheet leaves the
+               impossible move out; the desktop menu keeps both rows and greys the one that cannot go anywhere. *@
+            @if (!sheet || RowIndex(row) > 0)
+            {
+                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Disabled="@(RowIndex(row) <= 0)" OnClick="@(() => MoveByAsync(row, -1))" />
+            }
+            @if (!sheet || RowIndex(row) < _shown.Count - 1)
+            {
+                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Disabled="@(RowIndex(row) >= _shown.Count - 1)" OnClick="@(() => MoveByAsync(row, 1))" />
+            }
+        }
+        @if (RemoveAllowed(row))
+        {
+            <AppMenuItem Label="@(string.IsNullOrWhiteSpace(RemoveLabel) ? L["ListenPage_RemoveFromPlaylist"].Value : RemoveLabel)"
+                         Icon="@AppMaterialIcons.Outlined.PlaylistRemove"
+                         Tone="AppUiTone.Error"
+                         DividerBefore="true"
+                         OnClick="@(() => RemoveAsync(row))" />
+        }
+        @if (DeleteAllowed(row))
+        {
+            <AppMenuItem Label="@L["ListenSongTable_DeleteFromLibrary"].Value"
+                         Icon="@AppMaterialIcons.Outlined.Delete"
+                         Tone="AppUiTone.Error"
+                         DividerBefore="@(!RemoveAllowed(row))"
+                         OnClick="@(() => DeleteAsync(row))" />
+        }
+    </text>;
+
+    private RenderFragment ArtworkImage(SongRow row, int drawnPx) => @<text>
+        @if (!string.IsNullOrWhiteSpace(row.CoverUrl))
+        {
+            <img src="@MediaTileArtworkUrl.ForDrawnSize(row.CoverUrl, drawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(row.CoverUrl, drawnPx)" alt="" loading="lazy" decoding="async" />
+        }
+        else
+        {
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppIconSize.Control20" />
+        }
+    </text>;
+
+    // ---- Phone: a plain, flat list (D10, D22, D23) ------------------------------------------------------------
+
+    private RenderFragment PhoneList => @<text>
+        @if (ShowEmpty)
+        {
+            @EmptyContent
+        }
+        else
+        {
+            <div class="@(SelectModeOn ? "song-table song-table--phone is-selecting" : "song-table song-table--phone")" role="list" aria-label="@AriaLabelText" @ref="_phoneList">
+                @if (LettersShown && !IsLoading)
+                {
+                    @* First in the list so it can stick beside the rows while they scroll. *@
+                    @LetterStrip
+                }
+                @if (IsLoading && Rows.Count == 0)
+                {
+                    @for (var index = 0; index < SkeletonRowCount; index++)
+                    {
+                        <div class="song-table__prow song-table__prow--skeleton" role="presentation" aria-hidden="true">
+                            @if (PhoneCovers)
+                            {
+                                <AppSkeleton Width="48px" Height="48px" />
+                            }
+                            <div class="song-table__ptext">
+                                <AppSkeleton Width="60%" Height="16px" />
+                                <AppSkeleton Width="40%" Height="14px" />
+                            </div>
+                        </div>
+                    }
+                }
+                else if (Place == SongTablePlace.AlbumPage)
+                {
+                    @foreach (var row in _shown)
+                    {
+                        @if (RowKey(row) == _firstUnnumberedKey)
+                        {
+                            <div class="song-table__group" role="presentation">@L["AudioItemTable_Unnumbered"]</div>
+                        }
+
+                        @PhoneRow(row)
+                    }
+                }
+                else
+                {
+                    <Virtualize Items="@PhoneItems" Context="item" TItem="PhoneListItem" ItemSize="64" OverscanCount="8">
+                        @if (item.Row is { } row)
+                        {
+                            @PhoneRow(row)
+                        }
+                        else
+                        {
+                            <div class="song-table__letter" role="presentation" data-song-letter="@item.Letter">@item.Letter</div>
+                        }
+                    </Virtualize>
+                }
+            </div>
+        }
+    </text>;
+
+    // The A to Z strip: sticks beside the list while it scrolls. Each letter jumps to its heading.
+    private RenderFragment LetterStrip => @<nav class="song-table__strip">
+        <div class="song-table__strip-letters">
+            <AppLetterStrip Letters="StripLetters"
+                            Present="PresentLetters"
+                            AriaLabel="@L["SongsHeader_LetterIndex"].Value"
+                            LetterLabel="@(letter => L["SongsHeader_JumpToLetter", letter].Value)"
+                            OnSelect="JumpToLetterAsync" />
+        </div>
+    </nav>;
+
+    private RenderFragment PhoneRow(SongRow row) => @<div class="@PhoneRowClass(row)"
+         @key="RowKey(row)"
+         role="listitem"
+         data-song-row-id="@row.Id"
+         data-song-row-key="@RowKey(row)"
+         data-listen-immediate-start="@(row.IsOwned ? "music" : null)"
+         data-listen-start-url="@StartUrl(row)"
+         tabindex="@(row.IsOwned ? "0" : null)"
+         aria-disabled="@(row.IsOwned ? null : "true")"
+         @onclick="@(() => ActivateRowAsync(row))"
+         @oncontextmenu="@(() => OpenRowMenuAsync(row))"
+         @oncontextmenu:preventDefault="row.IsOwned"
+         @onkeydown="@((KeyboardEventArgs args) => RowKeyDownAsync(args, row))">
+        @if (SelectModeOn)
+        {
+            @* Select mode: a tap anywhere on the row ticks it; the tick box is a 44 px target of its own. *@
+            <span class="song-table__ptick">
+                @if (row.IsOwned)
+                {
+                    <span @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                        <AppCheckbox Value="@_selected.Contains(row.Id)"
+                                     ValueChanged="@(on => SetSelectedAsync(row.Id, on))"
+                                     Dense="true"
+                                     aria-label="@L["SongTable_SelectRow", row.Title].Value" />
+                    </span>
+                }
+            </span>
+        }
+        @if (PhoneCovers)
+        {
+            <div class="@(row.IsUpdatingDetails ? "song-table__art song-table__art--phone is-updating" : "song-table__art song-table__art--phone")">
+                @ArtworkImage(row, 48)
+            </div>
+        }
+        @if (Place == SongTablePlace.AlbumPage)
+        {
+            <span class="song-table__pnumber">@PositionText(row)</span>
+        }
+        <div class="song-table__ptext">
+            <span class="@(IsCurrent(row) ? "song-table__ptitle is-current" : "song-table__ptitle")">
+                <span class="song-table__ptitle-text">@row.Title</span>
+                @if (row.IsExplicit)
+                {
+                    <span class="song-table__chip">@L["EditorDetailsPanel_Explicit"]</span>
+                }
+                @if (row.IsUnnumbered)
+                {
+                    <NotMatchedTag />
+                }
+            </span>
+            @if (IsCurrent(row) || PhoneSubtitle(row) is not null)
+            {
+                <span class="song-table__psub">
+                    @if (IsCurrent(row))
+                    {
+                        <span class="song-table__mark"><PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" AriaLabel="@L["Common_NowPlaying"].Value" /></span>
+                    }
+                    @PhoneSubtitle(row)
+                </span>
+            }
+        </div>
+        @if (row.IsOwned && !SelectModeOn)
+        {
+            <span class="song-table__pmenu" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                <AppOverflowMenu Size="AppControlSize.Normal" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
+                    @RowMenu(row, true)
+                </AppOverflowMenu>
+            </span>
+        }
+    </div>;
+}

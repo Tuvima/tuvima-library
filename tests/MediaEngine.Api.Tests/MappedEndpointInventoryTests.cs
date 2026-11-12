@@ -39,7 +39,7 @@ public sealed class MappedEndpointInventoryTests
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
             [ApplicationPermissionIds.ReviewRead] = ["GetPendingReviews", "GetReviewCount", "GetReviewItem"],
-            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv"],
+            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "ReopenReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv", "ChooseReviewItem"],
             [ApplicationPermissionIds.ProvidersStatusRead] = ["GetProviderHealth", "GetProviderIcon"],
             [ApplicationPermissionIds.ProvidersConfigRead] = ["GetProviderStatus", "GetProviderCatalogue", "GetStashBoxSettings"],
             [ApplicationPermissionIds.ProvidersConfigWrite] = ["UpdateProvider", "TestProviderCredentials", "SaveProviderCredentials", "RemoveProviderCredentials", "TestProvider", "SampleProvider", "UpdateProviderConfig", "DeleteProvider", "UploadProviderIcon", "AddStashBoxServer", "RemoveStashBoxServer", "SetStashBoxServerOrder", "SaveStashBoxServerKey", "RemoveStashBoxServerKey", "TestStashBoxConnection", "SetStashBoxFingerprintPermission"],
@@ -129,7 +129,7 @@ public sealed class MappedEndpointInventoryTests
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
             [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetSeriesPlacement", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetAssetFileWriteStatus", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "GetTvMatchBrowserShows", "GetTvMatchBrowserSeasons", "GetTvMatchBrowserEpisodes", "GetTvMatchBrowserAbsoluteEpisode", "GetEditorMatchContext", "GetEditorFileSorting", "PreviewEpisodeSiblingMatch", "PreviewShowChildRematch", "GetEditorFollowUp", "PreviewTvdbShowOrder", "GetEditorNavLevel", "GetEditorCurrentMatch", "GetSupportingFileEditor", "GetSupportingFileSuggestDetails", "GetSupportingFileHistory", "GetEditorFolderTree", "GetEditorKindConfig", "GetEditorMatchSetup", "GetEditorCurrentWikidata"],
-            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "SetSeriesPlacement", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork", "RetryArtworkWriteback", "UpdateAssetRendition", "PreviewEditionCoverPreference", "SaveEditionCoverPreference", "SaveMediaEditorFileCoverage", "PreviewReviewedTvEpisodeStill", "PreviewReviewedTvSharedArtwork"],
+            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "SetSeriesPlacement", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork", "RetryArtworkWriteback", "UpdateAssetRendition", "PreviewEditionCoverPreference", "SaveEditionCoverPreference", "SaveMediaEditorFileCoverage", "PreviewReviewedTvEpisodeStill", "PreviewReviewedTvSharedArtwork", "GetEditorVideoSeriesPlacement"],
             [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchEditorMatch", "GetEditorMatchPlacement", "GetEditorMatchVerdict", "GetEditorMusicReleases", "GetEditorMusicReleaseTracks", "LineUpEditorGroupMatch", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest", "SaveReviewedParentFirstTvPairing", "SearchEditorWikidata", "CompareEditorWikidataWithProviderMatch"],
             [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "DiscoverScopedProviderArtwork", "TriggerPass2"],
             [ApplicationPermissionIds.MetadataEnrichmentRead] = ["GetPass2Status"],
@@ -385,6 +385,26 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
+    public async Task UnmatchedFileActions_IncludingPutBack_AreForAdministratorsOnly()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        foreach (var (pattern, name) in new[]
+        {
+            ("/library/unmatched/items/{assetId:guid}/retry", "RetryUnmatchedItem"),
+            ("/library/unmatched/items/{assetId:guid}/keep", "KeepUnmatchedItemAsItIs"),
+            ("/library/unmatched/items/{assetId:guid}/unkeep", "UnkeepUnmatchedItem"),
+            ("/library/unmatched/items/{assetId:guid}/look-up-again", "LookUpUnmatchedItemAgain"),
+        })
+        {
+            var route = inventory.Require(pattern, HttpMethods.Post);
+            Assert.Equal(name, route.Name);
+            route.RequiresNamedPolicy(AuthPolicies.Administrator);
+        }
+    }
+
+    [Fact]
     public async Task PluginDirectory_IsReadWithPluginsRead_AndEveryActionIsForAdministratorsOnly()
     {
         await using var app = BuildEndpointOnlyApplication();
@@ -505,6 +525,10 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<TimelineRecorder>();
         builder.Services.AddSingleton<MediaEngine.Providers.Services.SeriesPlacementChoiceService>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not resolve collection placement."));
+        builder.Services.AddSingleton<MediaEngine.Api.Services.Metadata.MediaTypeReclassifyService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not resolve the media type change."));
+        builder.Services.AddSingleton<MediaEngine.Api.Services.Review.IReviewChooseService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not resolve the review choice."));
         builder.Services.AddSingleton<Tuvima.Wikidata.WikidataReconciler>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not resolve external reconciliation."));
         builder.Services.AddScoped<DashboardAuthorityProjector>();

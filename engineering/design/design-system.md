@@ -19,7 +19,7 @@ The look, voice and component rules for the Tuvima Dashboard. Every value below 
 
 ## Color roles
 
-Surface tokens are the only backgrounds in the Dashboard. Purple appears only as: selected (nav row, tab underline, chip, menu row), the primary button, a switch that is on, progress, the focus ring and the Like state. Area colors appear only in chips, icon tiles and area labels. Status colors appear only on status. Nothing else is colored, and a guardrail fails a component style that contains a hex or `rgb()` color outside its allowlist. Icons ask for a tone (neutral, accent, info, success, warning, danger, an area or a media type), never a color.
+Surface tokens are the only backgrounds in the Dashboard. Purple appears only as: selected (nav row, tab underline, chip, menu row), the primary button, a switch that is on, progress, the focus ring and the Like state. Area colors appear only in chips, icon tiles and area labels. Status colors appear only on status. Nothing else is colored. Every color on every screen comes from the tokens (Look v3.1 D7): a guardrail (`LookRatchetGuardrailTests`) fails any component style or shared sheet that types a color in any form (hex, `rgb()` or `hsl()` with typed numbers, a named color, a `var()` fallback) outside a written list of real exceptions: the map, the subtitle color choices and their literal black outline, and, until the Universal editor v6 build has merged, the editor window's styles. A color built from a variable's channels set in code (a cover's artwork colors, an avatar's hue) is not hand-typed; the hero's channel variables carry a typed near-black and off-white default for the moment before the artwork's colors arrive. The readers' stylesheets are locked too, apart from their page themes and highlight colors. Icons ask for a tone (neutral, accent, info, success, warning, danger, an area or a media type), never a color.
 
 ### Surfaces
 
@@ -54,6 +54,24 @@ Surface tokens are the only backgrounds in the Dashboard. Purple appears only as
 | Default border | `--tl-border-default` | `rgba(148, 163, 184, 0.16)` | Fields, cards, menus |
 | Strong border | `--tl-border-strong` | `rgba(182, 194, 214, 0.46)` | Outlined buttons |
 | Divider | `--tl-divider` | `rgba(148, 163, 184, 0.10)` | Dividers inside a surface |
+
+### Washes and scrims
+
+A short named set replaces every hand-typed black or white alpha (Look v3.1 D7): a white wash lightens a surface for hover fills and hairlines, a black scrim dims what is under it. Pick the nearest step; do not type a new alpha.
+
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| Wash 1 | `--tl-wash-light-1` | `rgba(255, 255, 255, 0.03)` | Faintest white wash: inset highlights, the quietest hover fill |
+| Wash 2 | `--tl-wash-light-2` | `rgba(255, 255, 255, 0.05)` | Row and rail hover fills, soft hairlines |
+| Wash 3 | `--tl-wash-light-3` | `rgba(255, 255, 255, 0.08)` | Hover fills on cards and chips, hairlines on artwork |
+| Wash 4 | `--tl-wash-light-4` | `rgba(255, 255, 255, 0.12)` | Stronger hairlines and pressed fills |
+| Wash 5 | `--tl-wash-light-5` | `rgba(255, 255, 255, 0.18)` | Strongest white wash: outlines over artwork |
+| Scrim 1 | `--tl-scrim-dark-1` | `rgba(0, 0, 0, 0.2)` | Lightest black dimming: recessed panels and rails |
+| Scrim 2 | `--tl-scrim-dark-2` | `rgba(0, 0, 0, 0.3)` | Light dimming over artwork, soft shadows |
+| Scrim 3 | `--tl-scrim-dark-3` | `rgba(0, 0, 0, 0.4)` | Medium dimming, shadows under covers |
+| Scrim 4 | `--tl-scrim-dark-4` | `rgba(0, 0, 0, 0.5)` | Wells behind artwork previews |
+| Scrim 5 | `--tl-scrim-dark-5` | `rgba(0, 0, 0, 0.6)` | Heavy dimming behind text over artwork |
+| Scrim 6 | `--tl-scrim-dark-6` | `rgba(0, 0, 0, 0.7)` | Deepest dimming: footers and bars over artwork |
 
 ### Accent and Vault gold
 
@@ -128,7 +146,7 @@ One interface typeface, **Inter** (variable, SIL OFL 1.1, self-hosted woff2), so
 | 12 caption | `--tl-font-size-xs` | `12px` | Captions, metadata, the tile text floor |
 | 13 secondary | `--tl-font-size-secondary` | `13px` | Helper lines, form labels, tooltips |
 | 14 body | `--tl-font-size-body` | `var(--tl-font-size-sm)` | Body copy |
-| 16 controls | `--tl-font-size-md` | `16px` | Controls, menus, rows |
+| 16 menu and subheading | `--tl-font-size-md` | `16px` | Pop-up menu rows, subheadings, text typed into a field on a phone |
 | 20 section | `--tl-font-size-dialog-title` | `20px` | Section and shelf titles, window titles |
 | 24 page title | `--tl-font-size-title` | `24px` | Page titles (28 at 1180 px and wider) |
 | 32 hero | `--tl-font-size-hero` | `32px` | Hero titles |
@@ -139,6 +157,34 @@ One interface typeface, **Inter** (variable, SIL OFL 1.1, self-hosted woff2), so
 | Medium | `--tl-font-weight-medium` | `500` | Labels, menu rows, chips |
 | Semibold | `--tl-font-weight-semibold` | `600` | Group headings, card and row titles |
 | Bold | `--tl-font-weight-bold` | `700` | Page and hero titles only |
+
+Each size has named jobs, and a part picks a job, never a number (look-pass v3.1 D8). Every job has one size token and one weight token. Control text is 14 px on tablet and desktop (buttons, tabs, dropdown values and options, text typed into a field); text typed into a field is 16 px under 600 px so a phone does not zoom the page, through `--tl-field-text-size`. Pop-up menu rows stay at the Menu job (16 px). A check (`LookRatchetGuardrailTests.OffScaleFontSizesOnlyGoDown`) fails any new size written in rem, em, pixels or `clamp()` outside the hero.
+
+| Job | Token | Value | Used for |
+|---|---|---|---|
+| Hero size | `--tl-type-hero-size` | `32px` | The title in a details hero and the Home hero (the only place a size may scale with the screen) |
+| Hero weight | `--tl-type-hero-weight` | `700` | Weight of the hero job |
+| Page title size | `--tl-type-page-title-size` | `24px` | The one title of a page (28 at 1180 px and wider) |
+| Page title weight | `--tl-type-page-title-weight` | `700` | Weight of the page title job |
+| Heading size | `--tl-type-heading-size` | `20px` | Every window title, including the editor's; section and shelf headings |
+| Heading weight | `--tl-type-heading-weight` | `600` | Weight of the heading job |
+| Subheading size | `--tl-type-subheading-size` | `16px` | Group headings in Settings, card and panel headings, a card's title |
+| Subheading weight | `--tl-type-subheading-weight` | `600` | Weight of the subheading job |
+| Menu size | `--tl-type-menu-size` | `16px` | Rows in pop-up menus and side menus |
+| Menu weight | `--tl-type-menu-weight` | `500` | Weight of the menu job |
+| Control size | `--tl-type-control-size` | `14px` | Buttons, tab labels, dropdown values and their options, chips, a row's title in a list or table |
+| Control weight | `--tl-type-control-weight` | `500` | Weight of the control job |
+| Body size | `--tl-type-body-size` | `14px` | Reading text: descriptions, dialog messages, table cells, text typed into a field |
+| Body weight | `--tl-type-body-weight` | `400` | Weight of the body job |
+| Secondary size | `--tl-type-secondary-size` | `13px` | Helper and message lines, meta lines (author, year), counts, tooltips |
+| Secondary weight | `--tl-type-secondary-weight` | `400` | Weight of the secondary job |
+| Label size | `--tl-type-label-size` | `13px` | Field labels |
+| Label weight | `--tl-type-label-weight` | `500` | Weight of the label job |
+| Caption size | `--tl-type-caption-size` | `12px` | Badges, pills, time stamps, table column headings, small captions |
+| Caption weight | `--tl-type-caption-weight` | `400` | Weight of the caption job |
+| Overline size | `--tl-type-overline-size` | `12px` | Overlines above a title |
+| Overline weight | `--tl-type-overline-weight` | `600` | Weight of the overline job |
+| Field text | `--tl-field-text-size` | `var(--tl-type-body-size)` | Text typed into a field and a dropdown's chosen value (16 px under 600 px) |
 
 Buttons and other controls are Medium (`--tl-control-font-weight` is 500); text inputs are Regular (400), the body weight. Line heights 1.2 / 1.3 / 1.5 (`--tl-line-height-title`, `-heading`, `-body`). No uppercase labels; if a page needs an overline it is 12 / 600 with 0.06em spacing.
 
@@ -220,7 +266,8 @@ Everything that floats over the page is one of four kinds, each one shared part.
 - **Window** (`AppDialogShell`; `Framed` when a page opens it inline): centered, with a scrim. S for a confirmation or short form, M for a form or picker, L for a workspace. One anatomy: 20 / 600 title, an optional one-line description, a close X at 44 px top right, the body, and a footer.
 - **Sheet:** the Window on phones. Every Window becomes a Sheet under 600 px: it slides from the bottom, has 16 px top corners and a handle, and keeps the same anatomy.
 - **Pop-out** (`AppPopover`): anchored to its control, no scrim, closes on an outside press or Escape. Menu (44 px rows) or Panel (tools such as the player's speed, audio, subtitles and queue, and the library folders pop-over), on the elevated surface. On phones a Pop-out becomes a Sheet.
-- **Viewer** (`AppViewer`): full screen, for the reader, photo and document viewers, search and the details overlay. It has its own close X at 44 px.
+- **Viewer** (`AppViewer`): full screen, for the reader, photo and document viewers and search. It has its own close X at 44 px.
+- **Details window:** the details overlay floats over the page at 90% of the window, at most 1440 px wide, with at least a 32 px margin and 16 px corners (`--tl-window-details-*`, Look v3.1 D5). On phones it is a Sheet.
 
 **Footer order, left to right (as in the Look v3 mock, Shy 2026-11-07):** an optional quiet extra action (such as Reset, marked `app-footer-start`) alone at the far left; then, together on the right, a destructive button (outlined red), then Cancel or Discard, then the one primary button last. Cancel and Discard never sit apart from the primary. Buttons sit in one row at one height and never stack on desktop; on phones they stack full width, primary first. A destructive confirmation is marked by the screen that asks (`AppDialogOptions.DestructiveConfirm`), never guessed from the label.
 
@@ -357,5 +404,7 @@ Every picture asks the Engine for the copy that fits its drawn size, never the o
 
 ## Known gaps
 
+- A few components still set a color inline in their markup (avatar fallbacks, charts, the design-system swatches); the color lock reads style files, and the hex count ceiling covers markup.
+- Text sizes written by hand remain only where the written list in `LookRatchetGuardrailTests` names them (hero titles, the players, the editor until v6, subtitle cues, the map, icons and artwork stand-ins).
 - `config/ui/palette.json` still feeds some chips and Universe graphs; media-type colors the Engine serves come from it. Page colors come from the tokens.
 - The token file still defines values the ladders above do not name: `--tl-letter-spacing-label` (0.08em, while the overline rule says 0.06em), `--tl-line-height-relaxed`, `--tl-bg-app-gradient` and `--tl-bg-shell-gradient` (the shell is meant to carry no gradient), and `--tl-radius-lg` (equal to `--tl-radius-md`). The cascade cleanup packet decides which go.

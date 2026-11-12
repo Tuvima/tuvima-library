@@ -66,13 +66,25 @@ public partial interface IEngineApiClient
 
     Task<RefreshTextTracksResponse?> RefreshTextTracksAsync(Guid assetId, string kind, CancellationToken ct = default);
 
+    /// <summary>Queues a lyrics or subtitle lookup and answers at once with the queued operation (it does not wait for the lookup). Null when the Engine refused or could not be reached.</summary>
+    Task<RefreshTextTracksResponse?> QueueTextTrackRefreshAsync(Guid assetId, string kind, CancellationToken ct = default);
+
+    /// <summary>How one queued lookup of this asset is going (open to any profile that may queue it). Null when it could not be read right now.</summary>
+    Task<RefreshTextTracksResponse?> GetTextTrackRefreshStatusAsync(Guid assetId, Guid operationId, CancellationToken ct = default);
+
+    /// <summary>The newest lookup of this kind ("lyrics" or "subtitles") for this asset that is still queued or running, including one the Library queued itself after ingestion. Null when there is none or it could not be read right now.</summary>
+    Task<RefreshTextTracksResponse?> GetPendingTextTrackRefreshAsync(Guid assetId, string kind, CancellationToken ct = default);
+
     Task<RefreshTextTracksResponse?> ImportTextTrackAsync(
         Guid assetId, string kind, string language, string fileName, string contentType, Stream content, CancellationToken ct = default);
 
     Task<bool> SetPreferredTextTrackAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
 
     /// <summary>Asks the sources live for other lyrics or subtitles for the item ("Not right? Find another"). Null when the Engine could not be reached.</summary>
-    Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default);
+    Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null);
+
+    /// <summary>Whether a lyrics or subtitle source is switched on for the item, from settings alone (no source is contacted). Null when the Engine could not be reached.</summary>
+    Task<TextTrackSourcesResponse?> GetTextTrackSourcesAsync(Guid assetId, string kind, CancellationToken ct = default);
 
     Task<TextTrackChoiceResponse?> ChooseTextTrackAlternativeAsync(Guid assetId, ChooseTextTrackAlternativeRequest request, CancellationToken ct = default);
 

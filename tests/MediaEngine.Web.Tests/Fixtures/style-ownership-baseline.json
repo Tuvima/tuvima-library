@@ -199,10 +199,6 @@
       "important": 0,
       "deep": 29
     },
-    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor.css": {
-      "important": 0,
-      "deep": 21
-    },
     "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css": {
       "important": 28,
       "deep": 23
@@ -1112,10 +1108,6 @@
     "src/MediaEngine.Web/Components/Player/ListenNowPlayingBar.razor.css": {
       "important": 0,
       "deep": 1
-    },
-    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor.css": {
-      "important": 0,
-      "deep": 21
     },
     "src/MediaEngine.Web/Components/Player/PlaybackContextPanel.razor.css": {
       "important": 0,

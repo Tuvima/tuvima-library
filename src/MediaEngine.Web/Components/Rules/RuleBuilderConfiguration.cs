@@ -43,7 +43,14 @@ public sealed record RuleFieldDefinition(
     string Icon,
     IReadOnlyList<RuleOperatorDefinition> Operators,
     RuleValueProviderDefinition ValueProvider,
-    string? RequiredCapability = null);
+    string? RequiredCapability = null,
+    IReadOnlyList<string>? AppliesTo = null)
+{
+    /// <summary>True when the field means something for at least one of the chosen media types (no choice, or a field for every type, always applies).</summary>
+    public bool AppliesToAny(IReadOnlyCollection<string> mediaTypes) =>
+        AppliesTo is not { Count: > 0 } || mediaTypes.Count == 0
+        || AppliesTo.Any(type => mediaTypes.Contains(type, StringComparer.OrdinalIgnoreCase));
+}
 
 public sealed record RuleCategoryDefinition(string Key, string Label, string Icon);
 

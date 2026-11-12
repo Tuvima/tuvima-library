@@ -357,6 +357,11 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<UniverseStateContainer>();
 builder.Services.AddScoped<ICompanionDeviceIdStore, BrowserCompanionDeviceIdStore>();
 builder.Services.AddScoped<CompanionState>();
+// The song table's remembered columns and widths per profile and place (music table spec D4) and the phone Songs sort (D21) live on
+// the profile, so they follow the person across devices; one shared writer keeps the two from overwriting each other.
+builder.Services.AddScoped<SongTableProfileSettings>();
+builder.Services.AddScoped<ISongTablePreferenceStore, ProfileSongTablePreferenceStore>();
+builder.Services.AddScoped<ISongSortPreferenceStore, ProfileSongSortPreferenceStore>();
 
 // Vault mode and the Vault (Videos spec D17 to D45). NsfwModeState is the one place that decides whether anything about it is drawn.
 builder.Services.AddScoped<IVaultPreferenceStore, BrowserVaultPreferenceStore>();
@@ -431,6 +436,7 @@ builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>
 builder.Services.AddScoped<ShellActivityState>();
 builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
+builder.Services.AddScoped<SongDragDropService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
 builder.Services.AddScoped<PlayerPreferenceService>();
@@ -443,6 +449,7 @@ builder.Services.AddScoped<NowPlayingLauncher>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
 builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
 builder.Services.AddScoped<DetailsOverlayState>();
+builder.Services.AddScoped<DetailsOverlayOutletState>();
 builder.Services.AddScoped<DetailPreviewState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).

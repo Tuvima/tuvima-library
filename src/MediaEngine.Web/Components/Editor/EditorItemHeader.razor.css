@@ -126,6 +126,65 @@
     gap: var(--tl-space-2);
 }
 
+/* The one-line header on the Match tab (v6 D2): a small cover, "Match book", the state, and the navigation at the right. Room is kept at the right for
+   the window's close button. */
+.tl-editor-header--compact {
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-height: 4.75rem;
+    padding: var(--tl-space-3) 4.5rem var(--tl-space-3) var(--tl-space-6);
+}
+
+.tl-editor-header__minicover {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 2.25rem;
+    height: 3.375rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-muted);
+    box-shadow: var(--tl-shadow-sm);
+}
+
+.tl-editor-header__title--compact {
+    flex: 0 1 auto;
+    margin: 0;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
+}
+
+.tl-editor-header__state {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: var(--tl-type-control-weight);
+    white-space: nowrap;
+}
+
+.tl-editor-header__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-status-warning);
+}
+
+.tl-editor-header__dot--ok {
+    background: var(--tl-status-success);
+}
+
+.tl-editor-header__compactnav {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
 /* A Universe's kinds sit under the title, at the foot of the header. */
 .tl-editor-header__selects {
     display: flex;
@@ -183,4 +242,65 @@
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
     }
+}
+
+/* The phone arrangement (v6 section 4a, D20 to D22): always the one line, a small cover, the title and the state. Tapping the line opens the navigation sheet
+   (a button laid over the line by EditorHeaderNav); the "..." with Delete sits at its right and the window's Close over the corner, so room is kept for it. */
+.tl-editor-header--phone {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-height: var(--tl-editor-phone-header, 4rem);
+    padding: var(--tl-space-2) calc(var(--tl-tap-target-min) + var(--tl-space-4)) var(--tl-space-2) var(--tl-space-4);
+}
+
+.tl-editor-header__phoneline {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    min-height: var(--tl-tap-target-min);
+}
+
+.tl-editor-header--phone .tl-editor-header__minicover {
+    width: 1.75rem;
+    height: 2.625rem;
+}
+
+.tl-editor-header__phonetext {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tl-editor-header__title--phone {
+    display: block;
+    margin: 0;
+    overflow: hidden;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-heading-weight);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -webkit-line-clamp: unset;
+}
+
+.tl-editor-header--phone .tl-editor-header__state {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* "Editing N files" on a phone: the same header, with a small cover and room for the Close button; the file chips wrap. */
+.tl-editor-window--phone .tl-editor-header[data-kind="files"] {
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3) calc(var(--tl-tap-target-min) + var(--tl-space-4)) var(--tl-space-3) var(--tl-space-4);
+}
+
+.tl-editor-window--phone .tl-editor-header[data-kind="files"] .tl-editor-header__cover {
+    width: 3rem;
+    height: 4.5rem;
 }

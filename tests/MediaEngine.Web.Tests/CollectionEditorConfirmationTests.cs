@@ -134,14 +134,15 @@ public sealed class CollectionEditorConfirmationTests : AsyncBunitContext
     }
 
     [Fact]
-    public void DeleteCollection_ChangesNothingWhenTheDialogIsClosedWithoutAnAnswer()
+    public async Task DeleteCollection_ChangesNothingWhenTheDialogIsClosedWithoutAnAnswer()
     {
         var host = Render<AppDialogHost>();
         var editor = RenderEditor();
         editor.FindAll("button").Single(button => button.TextContent.Trim() == "Delete collection").Click();
         host.WaitForElement(".app-confirm");
 
-        host.Find("button[aria-label='Close dialog']").Click();
+        // The short confirmation has no close X: Escape and the backdrop reach the frame's cancel.
+        await host.InvokeAsync(() => host.FindComponent<AppDialogFrame>().Instance.RequestCancel());
 
         host.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
         Assert.Empty(_deleted);

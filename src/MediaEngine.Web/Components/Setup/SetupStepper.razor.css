@@ -4,12 +4,12 @@
 ::deep button { position: relative; z-index: 1; display: flex; flex-direction: var(--step-direction); width: 100%; align-items: center; justify-content: var(--step-justify, flex-start); gap: var(--step-gap); padding: 7px 4px; border: 0; color: inherit; background: transparent; cursor: pointer; font: inherit; text-align: var(--step-align); }
 ::deep button:disabled { cursor: not-allowed; opacity: .58; }
 span { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid currentColor; border-radius: 50%; background: var(--tl-bg-root); font-weight: 600; }
-small { min-width: 0; font-size: var(--tl-font-size-sm); }
-em { margin-left: auto; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-style: normal; }
+small { min-width: 0; font-size: var(--tl-type-control-size); }
+em { margin-left: auto; color: var(--tl-text-muted); font-size: var(--tl-type-caption-size); font-style: normal; }
 .is-current { color: var(--tl-text-primary); }
 .is-current small { font-weight: 600; }
 .is-complete { color: var(--tl-accent-primary); }
-.is-current span { border-color: color-mix(in srgb, var(--tl-accent-primary) 78%, white); color: var(--tl-accent-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
+.is-current span { border-color: color-mix(in srgb, var(--tl-accent-primary) 78%, var(--tl-text-primary)); color: var(--tl-accent-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
 .is-blocked { color: var(--tl-status-danger); }
 .is-deferred { color: var(--tl-status-warning); }
 @media (max-width: 1180px) {

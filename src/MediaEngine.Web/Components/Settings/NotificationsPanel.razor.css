@@ -51,8 +51,8 @@
 .notifications-page__badge {
     padding: 1px 8px;
     border-radius: var(--tl-radius-pill);
-    font-size: 0.8em;
-    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.2));
+    font-size: var(--tl-type-caption-size);
+    background: var(--tl-bg-surface-raised);
 }
 
 .notifications-page__channels {
@@ -107,7 +107,7 @@
 
 .notifications-page__matrix-head {
     color: var(--tl-text-muted);
-    font-size: 0.85em;
+    font-size: var(--tl-type-caption-size);
 }
 
 .notifications-page__matrix-copy {

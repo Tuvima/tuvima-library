@@ -35,12 +35,12 @@
 
 .universe-adaptations__source {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     overflow-wrap: anywhere;
 }
 
 .universe-adaptations__kind {
     flex: 0 0 auto;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }

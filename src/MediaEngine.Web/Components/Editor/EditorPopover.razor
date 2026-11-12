@@ -5,7 +5,7 @@
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @using Microsoft.AspNetCore.Components.Routing
-@implements IDisposable
+@implements IAsyncDisposable
 @inject EditorHost Editor
 @inject IAppDialogService Dialogs
 @inject DeviceContextService Device
@@ -13,6 +13,7 @@
 @inject IStringLocalizer<SharedStrings> L
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject ILogger<EditorPopover> Logger
 
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
@@ -26,14 +27,16 @@
     var binding = Editor.Binding;
     @* Reload and tab close ask the browser's own question; in-app navigation is asked here only for a page outside the details overlay
        (inside it the overlay's leave guard asks, so nothing asks twice). *@
-    <NavigationLock ConfirmExternalNavigation="@flow.Session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+    <NavigationLock ConfirmExternalNavigation="@flow.Session.HasUnsavedWork" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
     <AppDialogFrame Open="true"
                     Title="@DialogLabel"
                     DialogOptions="_options"
                     OnCancel="@(() => Editor.RequestCloseAsync())"
                     Class="tl-editor-dialog">
+        <CascadingValue Value="Layout">
         <EditorPanelHost Mode="mode"
                          Flow="flow"
+                         Phone="Phone"
                          Picker="Editor.Picker"
                          TitleOverride="@(BulkPanelTitle ?? FilesBatchTitle)"
                          FilesBatch="@Editor.FileBatch.IsOpen"
@@ -43,7 +46,7 @@
                          ActionNoticeIsError="_actionNoticeIsError"
                          ActionNoticeDismissed="@(() => _actionNotice = null)"
                          ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
-                         FooterStart="@(Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
+                         FooterStart="@FooterStartFragment(flow, mode)">
             <HeaderContent>
                 @if (Editor.FileBatch.IsOpen)
                 {
@@ -91,12 +94,12 @@
                 {
                     <div data-supporting-file-history="true">
                         <EditorHistoryTool EntityId="@(Guid.TryParse(mode.Fields.SupportingFile.File.Id, out var fileId) ? fileId : Guid.Empty)"
-                                           SupportingFileTitleId="@mode.Fields.SupportingFile.TitleId" />
+                                           SupportingFileTitleId="@mode.Fields.SupportingFile.TitleId" Phone="Phone" />
                     </div>
                 }
                 else if (tool == EditTool.Details)
                 {
-                    <EditorDetailsPanel Mode="mode" Session="flow.Session" Flow="flow">@binding?.DetailsExtra</EditorDetailsPanel>
+                    <EditorDetailsPanel Mode="mode" Session="flow.Session" Flow="flow" Phone="Phone">@binding?.DetailsExtra</EditorDetailsPanel>
                 }
                 else if (tool == EditTool.Match && EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind))
                 {
@@ -113,19 +116,21 @@
                                       Session="flow.Session"
                                       CanEdit="@mode.CanEdit"
                                       IsUnmatched="@IsActiveUnmatched"
+                                      OnMatchState="@(state => _matchRead = state)"
                                       Universe="@binding?.UniverseLink?.Invoke()"
                                       OnOpenUniverse="OpenUniverseAsync" />
                 }
                 else if (tool == EditTool.Bookmarks)
                 {
-                    <EditorBookmarksPanel Flow="flow" HasFamily="@EditorBookmarksPanel.FamilyHoldsTheFiles(Editor.Family.Kind)" />
+                    <EditorBookmarksPanel Flow="flow" HasFamily="@EditorBookmarksPanel.FamilyHoldsTheFiles(Editor.Family.Kind)" Phone="Phone" />
                 }
                 else if (tool == EditTool.History)
                 {
-                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" />
+                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" Phone="Phone" />
                 }
             </ChildContent>
         </EditorPanelHost>
+        </CascadingValue>
     </AppDialogFrame>
 }
 
@@ -135,8 +140,10 @@
         @* The way around the family (home, Season or Section, item) sits in the header's nav row and is read from the Engine's header (v5 D1). A
            Universe keeps its own tile and kind dropdowns. *@
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
+                          Compact="@(flow.Session.ActiveTool == EditTool.Match)" MatchRead="_matchRead"
                           UniverseName="@Editor.Universe.UniverseName"
                           HasFamily="@Editor.Universe.Visible"
+                          Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"
                           Hooks="Editor.HeaderHooks">
             <Tile>
                 @if (Editor.Universe.Visible)
@@ -157,6 +164,7 @@
     private RenderFragment FilesBatchHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family"
+                          Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"
                           GroupRows="Editor.FileBatch.Rows"
                           GroupLabel="@Editor.FileBatch.TitleName"
                           GroupTitle="@EditorFileBrowserRules.EditingTitle(L, Editor.FileBatch.Rows.Count)"
@@ -201,6 +209,44 @@
         await Editor.Flow.SwitchToAsync(root);
     }
 
+    // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). On a phone the footer holds only Discard and Save changes
+    // and Delete is in the header's "..." menu (v6 D22); the same three ways to delete, the same confirmation.
+    private RenderFragment? FooterStartFragment(EditSessionFlow flow, EditingModeContext mode) =>
+        Phone ? null
+        : Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode)
+        : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode)
+        : null;
+
+    private IReadOnlyList<AppRowMenuItem>? DeleteMenu(EditSessionFlow flow, EditingModeContext mode)
+    {
+        if (!Phone)
+        {
+            return null;
+        }
+
+        Func<Task>? delete = Editor.FileBatch.IsOpen
+            ? DeleteFilesAsync
+            : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile)
+                ? () => CanDeleteFile ? DeleteFileAsync() : CanDeleteThing ? DeleteThingAsync() : DeleteActiveAsync()
+                : null;
+        if (delete is null)
+        {
+            return null;
+        }
+
+        return
+        [
+            new AppRowMenuItem
+            {
+                Label = L["EditorFooter_Delete"].Value,
+                Icon = AppMaterialIcons.Outlined.Delete,
+                Destructive = true,
+                Disabled = flow.Saving || flow.Switching || (Editor.FileBatch.IsOpen && !mode.CanEdit),
+                OnClick = EventCallback.Factory.Create(this, delete),
+            },
+        ];
+    }
+
     // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). It asks once, naming the item and what goes with
     // it, and then happens at once; it does not wait for Save.
     private RenderFragment DeleteButtonFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
@@ -213,6 +259,10 @@
     };
 
     private bool _deleting;
+
+    // What the Match tab read from the Engine about the active item's match; the one-line header on the Match tab says the same thing.
+    private EditorMatchReadState? _matchRead;
+    private bool _dataSavedSeen;
 
     // What the last Delete had to say (a refusal, a failure, a file that stayed on disk): shown at the top of the window until dismissed or the next try.
     private string? _actionNotice;
@@ -308,9 +358,15 @@
         CloseOnEscapeKey = true,
     };
 
-    // Match is where a failed item is fixed: the tree's own mark wins for an item it lists, else the page's answer for the item it was opened on.
+    // Whether the active item is matched, said the same way on every tab and in the header (v6 D10). The Match tab's own read of the Engine wins as
+    // soon as it exists. Before that the Engine's header says it by the same rule (a provider match, EditorMatchRule); an item with no header falls
+    // back to the family tree's mark, then to the page's answer for the item it was opened on.
     private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
-        && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
+        && (_matchRead is { } read && read.EntityId == active.EntityId
+            ? !read.Matched
+            : Editor.Mode.Fields is { Loaded: true, Header: { } header } && header.CurrentId == active.EntityId
+                ? !header.ProviderMatched
+                : Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
 
     private string? FilesBatchTitle => Editor.FileBatch.IsOpen ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count) : null;
 
@@ -330,8 +386,19 @@
         _ => null,
     };
 
+    /// <summary>Draws the window in the phone arrangement (true) or the desktop one (false) whatever the device says; left unset, the device's form factor decides.</summary>
+    [Parameter] public bool? PhoneArrangement { get; set; }
+
+    // The phone arrangement (v6 section 4a): a phone or a tablet says so by its form factor, which the browser reports before the first draw and again
+    // whenever the window crosses a form-factor width, so a window resized or a tablet turned is drawn again in the other arrangement.
+    private bool Phone => PhoneArrangement ?? EditorPhoneArrangement.Applies(Device);
+
+    // What the parts of the window read instead of each being handed Phone.
+    private EditorWindowLayout Layout => Phone ? EditorWindowLayout.PhoneSheet : EditorWindowLayout.Desktop;
+
     protected override void OnInitialized()
     {
+        Device.OnChanged += DeviceChanged;
         Editor.AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs);
         Editor.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
         Editor.HeaderHooks.OpenSupportingFiles = request => OpenBrowserAsync(EditorBrowserView.Files);
@@ -417,13 +484,33 @@
         await OpenBrowserAsync(EditorBrowserView.Files);
     }
 
-    public void Dispose()
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        Device.OnChanged -= DeviceChanged;
         Editor.Changed -= OnChanged;
         Editor.AskSaveOrDiscard = null;
         Editor.ConfirmDiscard = null;
         Editor.HeaderHooks.OpenSupportingFiles = null;
         Editor.HeaderHooks.OpenFolders = null;
+        if (_focusModule is not null)
+        {
+            try
+            {
+                if (_watching)
+                {
+                    await _focusModule.InvokeVoidAsync("stopKeyboard");
+                }
+
+                await _focusModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended first; the browser already dropped its listeners with the page.
+            }
+        }
     }
 
     private bool _wasOpen;
@@ -437,6 +524,16 @@
         }
 
         _wasOpen = Editor.IsOpen;
+
+        // What the Match tab read belongs to one item and goes with it: another item, a closed window, or a Save (which can change the match) clears it
+        // so a stale answer is never shown; the tab reads the match afresh the next time it is open.
+        var savedNow = Editor.Flow.DataSaved;
+        if (_matchRead is { } stale && (!Editor.IsOpen || stale.EntityId != Editor.Session.ActiveItem?.EntityId || (savedNow && !_dataSavedSeen)))
+        {
+            _matchRead = null;
+        }
+
+        _dataSavedSeen = savedNow;
 
         StateHasChanged();
     });
@@ -454,11 +551,44 @@
 
     private int _focusTries;
     private IJSObjectReference? _focusModule;
+    private bool _watching;
+    private bool _disposed;
+
+    // While the window is open on a phone arrangement, its height is kept above the on-screen keyboard (editor-focus.js). A failure to reach the script (a test
+    // host, a closing circuit, a moment when the connection is down) leaves the state as it was, so the next draw tries again; the window works without the fit.
+    private async Task SyncKeyboardAsync()
+    {
+        var wanted = Editor.IsOpen && Phone;
+        if (_disposed || wanted == _watching)
+        {
+            return;
+        }
+
+        try
+        {
+            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            if (wanted)
+            {
+                await _focusModule.InvokeVoidAsync("watchKeyboard");
+            }
+            else
+            {
+                await _focusModule.InvokeVoidAsync("stopKeyboard");
+            }
+
+            _watching = wanted;
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            Logger.LogDebug(ex, "The editor could not reach its keyboard script; it will try again at the next draw");
+        }
+    }
 
     // The player's lyrics button asks for the Lyrics field: once the pop-over has drawn the fields, the cursor goes there. A field the
     // item does not show (or a page without scripts) is not an error; the request is dropped after a few tries.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await SyncKeyboardAsync();
         if (Editor.FocusField is not { } key || !Editor.IsOpen)
         {
             _focusTries = 0;
@@ -485,7 +615,7 @@
 
     private async Task ConfirmNavigationAsync(LocationChangingContext context)
     {
-        if (Editor.OverlayGuardsNavigation || Editor.Flow is not { Session.HasPendingChanges: true } flow)
+        if (Editor.OverlayGuardsNavigation || Editor.Flow is not { Session.HasUnsavedWork: true } flow)
         {
             return;
         }

@@ -1,14 +1,14 @@
 .who-page { display: grid; justify-items: center; align-content: center; gap: clamp(20px, 4vh, 36px); min-height: 100svh; box-sizing: border-box; padding: max(32px, var(--tl-safe-area-top)) max(16px, var(--tl-safe-area-right)) max(32px, var(--tl-safe-area-bottom)) max(16px, var(--tl-safe-area-left)); text-align: center; }
-.who-page__title { margin: 0; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 700; }
+.who-page__title { margin: 0; font-size: var(--tl-type-page-title-size); font-weight: var(--tl-type-page-title-weight); }
 .who-page__status { margin: 0; color: var(--tl-text-muted); }
-.who-page__error { margin: 0; color: var(--tl-status-danger, #ff6b6b); }
-.who-card__name { max-width: 100%; font-size: var(--tl-font-size-md); font-weight: 600; overflow-wrap: anywhere; }
+.who-page__error { margin: 0; color: var(--tl-status-danger); }
+.who-card__name { max-width: 100%; font-size: var(--tl-type-subheading-size); font-weight: var(--tl-type-subheading-weight); overflow-wrap: anywhere; }
 .who-card__tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 22px; }
-.who-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-xs); }
+.who-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-pill); font-size: var(--tl-type-caption-size); }
 
 .who-signout { margin: 0; }
-.who-note { max-width: 520px; margin: 0; padding: 10px 14px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 10px; font-size: var(--tl-font-size-sm); }
-.who-backdrop { position: fixed; inset: 0; display: grid; place-items: center; overflow-y: auto; padding: 16px; background: rgb(0 0 0 / 62%); }
+.who-note { max-width: 520px; margin: 0; padding: 10px 14px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 10px; font-size: var(--tl-type-body-size); }
+.who-backdrop { position: fixed; inset: 0; display: grid; place-items: center; overflow-y: auto; padding: 16px; background: var(--tl-scrim-dark-5); }
 @media (max-width: 640px) {
     .who-page { align-content: start; padding-top: 48px; }
 }

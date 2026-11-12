@@ -54,6 +54,17 @@ public sealed record PlaybackTechnicalInfoDto
     public int? BitDepth { get; init; }
     public int? Channels { get; init; }
 
+    /// <summary>The file's name with its extension, never any folder (Playback information, video-player follow-ups D13).</summary>
+    public string? FileName { get; init; }
+
+    public long? FileSizeBytes { get; init; }
+
+    /// <summary>"SDR", "HDR10" or "HLG"; null when the file's transfer characteristic is not known.</summary>
+    public string? ColorFormat { get; init; }
+
+    /// <summary>The video stream's profile as ffprobe names it (for example "Main 10" or "High"); null when not known.</summary>
+    public string? VideoProfile { get; init; }
+
     public string? QualityLabel => Height switch
     {
         >= 2160 => "4K",
@@ -592,11 +603,11 @@ public sealed class PlaybackGeneralSettingsDto
     /// </summary>
     public bool? ShowChapterMarks { get; set; }
 
-    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark bubbles on the video progress bar. Off by default.</summary>
-    public bool ShowBookmarksOnBar { get; set; }
+    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark beads on the video progress bar. On by default (video player follow-ups D4, D16); a profile that saved an explicit off keeps it.</summary>
+    public bool ShowBookmarksOnBar { get; set; } = true;
 
     /// <summary>The bookmark list filter the profile last chose in the player: <c>All</c>, <c>Mine</c>, <c>Global</c> or <c>Everyones</c> (administrators).</summary>
-    public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.All;
+    public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.Mine;
 
     /// <summary>
     /// How much of a story characters may reveal for this profile: <c>up_to_progress</c> ("Up to where I am", the default) or
@@ -647,6 +658,13 @@ public sealed class ListeningSettingsDto
     public bool SkipSilence { get; set; } = true;
     public bool RememberPerTitlePlaybackSpeed { get; set; } = true;
     public string OutputPreference { get; set; } = PlaybackPreferenceValues.Auto;
+
+    /// <summary>
+    /// Song table columns and widths this profile chose, kept on the profile so they follow the person across devices: the place
+    /// ("songs", "albums", "albumpage" or "playlist") to the table's own text, for example <c>show=genre;hide=plays;width=song:400</c>.
+    /// A place that is not listed uses its default columns. The key "songssort" holds the phone Songs sort (<c>song:asc</c>).
+    /// </summary>
+    public Dictionary<string, string> SongTableColumns { get; set; } = [];
 }
 
 public sealed class ReadingSettingsDto
@@ -776,6 +794,14 @@ public sealed class SubtitleLanguageSettingsDto
 
 public static class PlaybackPreferenceValues
 {
+    /// <summary>The places a profile can keep song table columns for, keys of <see cref="ListeningSettingsDto.SongTableColumns"/>.</summary>
+    public static readonly IReadOnlyList<string> SongTablePlaces = ["songs", "albums", "albumpage", "playlist"];
+    /// <summary>The key the phone Songs sort is kept under in <see cref="ListeningSettingsDto.SongTableColumns"/>, as text like <c>song:asc</c>.</summary>
+    public const string SongsSortKey = "songssort";
+    /// <summary>Every key <see cref="ListeningSettingsDto.SongTableColumns"/> keeps: the places plus <see cref="SongsSortKey"/>.</summary>
+    public static readonly IReadOnlyList<string> SongTableKeys = [.. SongTablePlaces, SongsSortKey];
+    /// <summary>Longest song table columns text kept for one place.</summary>
+    public const int MaxSongTableColumnsLength = 400;
     public const string Auto = "Auto";
     public const string All = "All";
     public const string Mine = "Mine";

@@ -55,9 +55,9 @@
     padding: 0 6px;
     border-radius: var(--tl-radius-pill);
     background: var(--tl-accent-primary);
-    color: #fff;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    color: var(--tl-text-on-accent);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     line-height: 1;
 }
 
@@ -77,8 +77,8 @@
 .activity-field__label {
     padding: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.08em;
     line-height: 1;
 }
@@ -112,7 +112,7 @@
 
 .activity-toolbar__date-word {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     white-space: nowrap;
 }
 
@@ -146,8 +146,8 @@
     padding: 0 var(--tl-space-2, 8px) var(--tl-space-2, 8px);
     border-bottom: 1px solid var(--tl-border-subtle);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.08em;
 }
 
@@ -168,8 +168,8 @@
     margin: 0;
     padding: 0 var(--tl-space-2, 8px);
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .activity-section__heading::before {

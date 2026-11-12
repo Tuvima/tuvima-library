@@ -11,14 +11,18 @@
     "identity_facts": ["title", "number", "identifier"],
     "runtime_tolerance_minutes": 2,
     "track_length_tolerance_seconds": 3,
+    "verdict_only_facts": {
+      "song": ["identifier"]
+    },
+    "collection_title_markers": ["box set", "boxed set", "boxset", "collection", "complete series", "omnibus", "trilogy"],
     "evidence_facts": {
       "movie": ["title", "year", "runtime", "identifier"],
       "tv_show": ["title", "year"],
       "tv_season": ["title", "year", "number"],
-      "tv_episode": ["title", "number", "runtime"],
+      "tv_episode": ["show", "number", "title", "runtime"],
       "album": ["title", "creator", "year"],
-      "song": ["title", "creator", "track_length", "identifier"],
-      "book": ["title", "creator", "year", "identifier"],
+      "song": ["creator", "album", "title", "track_length", "identifier"],
+      "book": ["title", "creator", "identifier", "year"],
       "audiobook": ["title", "creator", "year", "runtime"],
       "comic": ["title", "number", "year"],
       "video": ["identifier"]

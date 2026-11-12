@@ -2,7 +2,7 @@
    an existing shared/C# renderer boundary; the page context excludes other uses. */
 :where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-overview-credit-group:not(:first-child) {
     padding-top: 1rem;
-    border-top: 1px solid rgba(255,255,255,0.10);
+    border-top: 1px solid var(--tl-wash-light-4);
 }
 
 :where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-media-overview-credits-list--video .tl-overview-credit-group--cast:first-child {
@@ -29,7 +29,7 @@
 
 :where(.tl-detail-page) .tl-overview-section--secondary {
     padding: 0 0 0 clamp(1.5rem, 2.3vw, 2.6rem);
-    border-left: 1px solid rgba(255, 255, 255, 0.09);
+    border-left: 1px solid var(--tl-wash-light-3);
 }
 
 :where(.tl-detail-page) .tl-overview-section__heading {
@@ -44,8 +44,8 @@
 :where(.tl-detail-page) .tl-overview-section__prose {
     display: grid;
     gap: 0.85rem;
-    color: rgba(234, 238, 247, 0.78);
-    font-size: clamp(0.88rem, 0.92vw, 1rem);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-body-size);
     line-height: 1.62;
 }
 
@@ -109,13 +109,13 @@
 }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 
 }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
     margin-top: 0.16rem;
-    color: rgba(225, 231, 241, 0.55);
+    color: var(--tl-text-muted);
 
 }
 
@@ -159,7 +159,7 @@
         border-radius: 0;
         background: transparent;
         box-shadow: none;
-        color: #fff;
+        color: var(--tl-text-primary);
         text-decoration: none;
     }
 
@@ -214,14 +214,14 @@
     }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
-        font-size: var(--tl-font-size-secondary);
-        font-weight: 600;
+        font-size: var(--tl-type-label-size);
+        font-weight: var(--tl-type-label-weight);
     }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
         margin-top: 0.18rem;
-        color: rgba(225, 231, 241, 0.58);
-        font-size: var(--tl-font-size-xs);
+        color: var(--tl-text-muted);
+        font-size: var(--tl-type-caption-size);
     }
 
 }
@@ -231,7 +231,7 @@
 :where(.tl-detail-page) .tl-overview-section--secondary {
         padding: 1.25rem 0;
         border-left: 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid var(--tl-wash-light-3);
     }
 
 :where(.tl-detail-page) .tl-overview-section:first-child {
@@ -263,17 +263,17 @@
     min-width: 0;
     min-height: 4.5rem;
     padding: 0.35rem 0.75rem 0.35rem 0.45rem;
-    border: 1px solid rgba(255, 255, 255, 0.075);
+    border: 1px solid var(--tl-wash-light-3);
     border-radius: 0.65rem;
-    background: rgba(255, 255, 255, 0.055);
-    color: #fff;
+    background: var(--tl-wash-light-2);
+    color: var(--tl-text-primary);
     text-decoration: none;
     width: 100%;
     max-width: none;
 }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--link::after {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--tl-text-muted);
     font-size: var(--tl-font-size-dialog-title);
     content: "›";
 }
@@ -299,8 +299,8 @@
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
     overflow: hidden;
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -308,8 +308,8 @@
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
     margin-top: 0.15rem;
     overflow: hidden;
-    color: rgba(225, 231, 241, 0.57);
-    font-size: var(--tl-font-size-xs);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -325,19 +325,19 @@
     grid-template-columns: minmax(7rem, 0.35fr) minmax(0, 1fr);
     gap: 1rem;
     padding: 0.65rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+    border-bottom: 1px solid var(--tl-wash-light-2);
 }
 
 :where(.tl-detail-page) .tl-overview-facts dt {
-    color: rgba(226, 232, 240, 0.48);
-    font-size: var(--tl-font-size-xs);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
     letter-spacing: 0.08em;
 }
 
 :where(.tl-detail-page) .tl-overview-facts dd {
     margin: 0;
-    color: rgba(248, 250, 252, 0.84);
-    font-size: var(--tl-font-size-secondary);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-secondary-size);
     white-space: pre-line;
 }
 
@@ -347,8 +347,8 @@
 
 :where(.tl-detail-page) .tl-overview-linked-people h3 {
     margin: 0 0 0.55rem;
-    color: rgba(226, 232, 240, 0.58);
-    font-size: var(--tl-font-size-xs);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
     letter-spacing: 0.08em;
 }
 
@@ -382,7 +382,7 @@
     gap: 0.6rem;
     min-width: 0;
     padding-inline: clamp(0.9rem, 1.25vw, 1.35rem);
-    border-left: 1px solid rgba(255, 255, 255, 0.11);
+    border-left: 1px solid var(--tl-wash-light-4);
 }
 
 .tl-overview-credit-group:first-child {
@@ -392,23 +392,23 @@
 
 .tl-overview-credit-group h3 {
     margin: 0;
-    color: #efc77a;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    color: var(--tl-accent-collection-hover);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
     line-height: 1;
 }
 
 .tl-overview-section__heading > span {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 72%, var(--tl-text-primary));
 }
 
 .tl-overview-credit-group--director h3 {
-    color: #efc77a;
+    color: var(--tl-accent-collection-hover);
 }
 
 .tl-overview-credit-group--cast h3 {
-    color: #efc77a;
+    color: var(--tl-accent-collection-hover);
 }
 
 .tl-overview-credit-rows {
@@ -427,7 +427,7 @@
     border-radius: 0;
     background: transparent;
     box-shadow: none;
-    color: #fff;
+    color: var(--tl-text-primary);
     text-decoration: none;
 }
 
@@ -462,14 +462,14 @@
 }
 
 .tl-overview-credit-rows ::deep .tl-credit-card__name {
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .tl-overview-credit-rows ::deep .tl-credit-card__role {
     margin-top: 0.18rem;
-    color: rgba(225, 231, 241, 0.58);
-    font-size: var(--tl-font-size-xs);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
 }
 
 /* The overview is a peek, not a claim of billing order. Keep every person at
@@ -509,7 +509,7 @@
     .tl-overview-credit-group,
     .tl-overview-credit-group:first-child {
         padding: 1rem 0 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.11);
+        border-top: 1px solid var(--tl-wash-light-4);
         border-left: 0;
     }
 

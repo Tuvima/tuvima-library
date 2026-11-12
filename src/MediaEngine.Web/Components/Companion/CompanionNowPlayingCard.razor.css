@@ -41,8 +41,8 @@
 }
 
 .companion-now__eyebrow {
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     color: var(--tl-text-muted);
 }
 
@@ -53,7 +53,7 @@
 }
 
 .companion-now__where {
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     color: var(--tl-text-secondary);
 }
 

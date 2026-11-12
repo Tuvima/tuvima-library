@@ -62,7 +62,7 @@
     position: absolute;
     inset: 0;
     z-index: 4;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.78) 100%);
+    background: linear-gradient(180deg, transparent 50%, color-mix(in srgb, var(--tl-viewer-black) 78%, transparent) 100%);
     pointer-events: none;
 }
 
@@ -78,9 +78,9 @@
     overflow: hidden;
     overflow-wrap: anywhere;
     color: var(--tl-text-on-accent);
-    font-size: max(var(--tl-tile-text-floor, 13px), var(--tl-font-size-md));
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     line-height: 1.25;
-    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+    text-shadow: 0 1px 6px var(--tl-scrim-dark-6);
     pointer-events: none;
 }

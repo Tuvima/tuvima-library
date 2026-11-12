@@ -36,7 +36,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [InlineData(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor", "@key=\"item.RenderKey\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor", "@key=\"item.EntityId\"")]
     [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
-    [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor", "@key=\"row.Key\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReview/NeedsReviewGroupSection.razor", "@key=\"entry.Key\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
     public void HighRiskListComponents_UseStableKeys(string relativePath, string expectedKey)
     {
@@ -51,11 +51,18 @@ public sealed class DashboardReliabilityGuardrailTests
         var source = Read(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor");
         var normalized = source.ReplaceLineEndings("\n");
 
-        Assert.Contains("_loading && _rows.Count == 0", source, StringComparison.Ordinal);
-        var loadStart = normalized.IndexOf("private async Task LoadAsync()", StringComparison.Ordinal);
+        Assert.Contains("_loading && !_model.HasRows", source, StringComparison.Ordinal);
+        var loadStart = normalized.IndexOf("private async Task LoadAsync(", StringComparison.Ordinal);
         var loadEnd = normalized.IndexOf("private async Task LoadMoreAsync", loadStart, StringComparison.Ordinal);
         Assert.True(loadStart >= 0 && loadEnd > loadStart);
-        Assert.DoesNotContain("_rows.Clear();", normalized[loadStart..loadEnd], StringComparison.Ordinal);
+        var load = normalized[loadStart..loadEnd];
+
+        // The rows on screen are replaced only once the Engine's answer is in, and only if it is still the newest one asked for.
+        var fetched = load.IndexOf("await Orchestrator.GetNeedsReviewListAsync(", StringComparison.Ordinal);
+        var stale = load.IndexOf("generation != _loadGeneration", StringComparison.Ordinal);
+        var replaced = load.IndexOf("_model.Replace(page, keepFinished)", StringComparison.Ordinal);
+        Assert.True(fetched >= 0 && stale > fetched && replaced > stale);
+        Assert.DoesNotContain("_model.Reset(", load, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -192,9 +199,7 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("tl-detail-hero__synopsis", content, StringComparison.Ordinal);
         Assert.DoesNotContain("cinematic-hero__section-identity", carousel, StringComparison.Ordinal);
         Assert.DoesNotContain("\"Featured Content\"", carousel, StringComparison.Ordinal);
-        Assert.Contains("Continue Watching", carousel, StringComparison.Ordinal);
-        Assert.Contains("Continue Reading", carousel, StringComparison.Ordinal);
-        Assert.Contains("Continue Listening", carousel, StringComparison.Ordinal);
+        Assert.Contains("Resume", carousel, StringComparison.Ordinal);
         Assert.Contains("Icon = IsOpenAction ? null : PrimaryActionIcon", carousel, StringComparison.Ordinal);
         Assert.Contains("cinematic-hero-carousel__detail-link", carousel, StringComparison.Ordinal);
         Assert.Contains("OpenLandingReaderAsync", carousel, StringComparison.Ordinal);
@@ -235,8 +240,9 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("<SurfaceNavigationBar", mediaHub, StringComparison.Ordinal);
         Assert.DoesNotContain("<SurfaceNavigationBar", home, StringComparison.Ordinal);
         Assert.DoesNotContain("<SurfaceTabBar", home, StringComparison.Ordinal);
-        Assert.Contains("min-height: 4.25rem", navigationStyles, StringComparison.Ordinal);
-        Assert.Contains("border-bottom: 2px solid transparent", navigationStyles, StringComparison.Ordinal);
+        // The section bar's tabs are the shared tab row (Look v3.1 D1): the bar styles only its own box, never a tab.
+        Assert.DoesNotContain("surface-navigation-bar__tab", navigationStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("min-height: 4.25rem", navigationStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("border-top: 1px solid", navigationStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("border-bottom: 1px solid", navigationStyles, StringComparison.Ordinal);
         Assert.Contains(".cinematic-hero-carousel ::deep .cinematic-hero__content", carouselStyles, StringComparison.Ordinal);

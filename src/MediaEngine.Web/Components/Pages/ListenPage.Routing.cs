@@ -69,9 +69,9 @@ public partial class ListenPage
 
     private static readonly IReadOnlyList<MediaHubModeViewModel> ListenHubModes =
     [
-        new("all", "Discover", "/listen"),
-        new("music", "Music", MusicHomeRoute),
-        new("audiobooks", "Audiobooks", AudiobooksRoute),
+        new("all", "Discover", "/listen", AppMaterialIcons.Outlined.Explore),
+        new("music", "Music", MusicHomeRoute, AppMaterialIcons.Outlined.MusicNote),
+        new("audiobooks", "Audiobooks", AudiobooksRoute, AppMaterialIcons.Outlined.Headphones),
     ];
 
     private static readonly IReadOnlyList<BrowseGroupingOption> MusicBrowseOptions =
@@ -107,6 +107,9 @@ public partial class ListenPage
             ? "audiobooks"
             : "music";
 
+    // Favorites open inside Listen as a playlist of the songs this profile hearted (Listen music spec D11), not in the For Me view.
+    private const string FavoriteSongsRoute = "/listen/music/playlists/system/favorite-songs";
+
     private IReadOnlyList<ListenNavigationItem> ListenLibraryItems =>
     [
         new("Discover", "/listen", AppMaterialIcons.Outlined.Explore, null),
@@ -125,7 +128,7 @@ public partial class ListenPage
 
     private IReadOnlyList<ListenNavigationItem> ListenPinnedPlaylistItems =>
     [
-        new("Favorites", "/for-me?view=favorites&area=listen", AppMaterialIcons.Outlined.FavoriteBorder),
+        new("Favorites", FavoriteSongsRoute, AppMaterialIcons.Outlined.FavoriteBorder),
         new("All Playlists", PlaylistsRoute, AppMaterialIcons.Outlined.QueueMusic),
     ];
 

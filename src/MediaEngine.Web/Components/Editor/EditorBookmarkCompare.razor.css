@@ -87,3 +87,22 @@ h3 {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* The phone arrangement (v6 section 4a, D21): the tick, the place and the name stay on one line; the closeness chip goes under the name. */
+.tl-bookmarks--phone .tl-bookmarks__row {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--tl-space-3);
+    row-gap: var(--tl-space-1);
+}
+
+.tl-bookmarks--phone .tl-bookmarks__row > .app-chip {
+    grid-column: 3;
+    justify-self: start;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

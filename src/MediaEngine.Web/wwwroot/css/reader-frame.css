@@ -1,0 +1,413 @@
+/* ============================================================================
+   Reader frame (spec music-table-and-reader-frame, D12-D19) - Tuvima Library
+   The one frame every reader sits in: the shell, the stage slot, the top line (title, tools, Close), the bottom line, the
+   auto-hide, the side panel with its dim and the rows, search box and fields inside it, the phone "..." sheet and the opening and "can't open" states. Drawn by
+   Components/Reader/ReaderFrame.razor. Everything here is prefixed rf-.
+
+   A reader reads three colours from the shell and sets them through its own class (a book theme, a page background):
+     --rf-page    the page background behind the bars
+     --rf-text    the bar text and icons
+     --rf-accent  the "on" tool and the focus ring
+   Stacking follows the order of the markup (stage, bars, state, panel, overlays), so no layer numbers are needed.
+   ============================================================================ */
+
+.rf-shell {
+    --rf-page: var(--tl-viewer-black);
+    --rf-text: var(--player-text);
+    --rf-accent: var(--tl-accent-primary-hover);
+    --rf-sub: color-mix(in srgb, var(--rf-text) 70%, transparent);
+    --rf-hover: color-mix(in srgb, var(--rf-text) 14%, transparent);
+    --rf-bar-top: 60px;
+    --rf-bar-bottom: 64px;
+    --app-icon-button-radius: 50%;
+
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--rf-page);
+    color: var(--rf-text);
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────── */
+
+.rf-stage {
+    position: absolute;
+    inset: 0;
+    isolation: isolate;
+}
+
+.rf-shell[data-state="loading"] .rf-stage,
+.rf-shell[data-state="error"] .rf-stage {
+    visibility: hidden;
+}
+
+/* ── Bars ──────────────────────────────────────────────────────────────── */
+
+.rf-bar {
+    --tl-text-primary: var(--rf-text);
+
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: content-box;
+    color: var(--rf-text);
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.rf-bar--top {
+    top: 0;
+    height: var(--rf-bar-top);
+    padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    background: linear-gradient(color-mix(in srgb, var(--rf-page) 92%, transparent), color-mix(in srgb, var(--rf-page) 70%, transparent) 70%, transparent);
+}
+
+.rf-bar--bottom {
+    bottom: 0;
+    height: var(--rf-bar-bottom);
+    gap: 14px;
+    padding: 0 max(20px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(20px, env(safe-area-inset-left));
+    background: linear-gradient(transparent, color-mix(in srgb, var(--rf-page) 70%, transparent) 30%, color-mix(in srgb, var(--rf-page) 92%, transparent));
+    font-size: var(--tl-font-size-sm);
+    color: var(--rf-sub);
+}
+
+.rf-shell[data-chrome="hidden"] .rf-bar {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* ── Title ─────────────────────────────────────────────────────────────── */
+
+.rf-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-left: 4px;
+}
+
+.rf-title-text,
+.rf-title-sub {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rf-title-text {
+    font-size: var(--tl-font-size-md);
+    font-weight: 600;
+}
+
+.rf-title-sub {
+    font-size: var(--tl-font-size-xs);
+    color: var(--rf-sub);
+}
+
+/* ── Tools ─────────────────────────────────────────────────────────────── */
+
+.rf-tools {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+}
+
+/* Every control on the line is a round 44 px target; the "..." trigger is not an AppIconButton, so it carries the same box here. */
+.rf-ib {
+    flex: none;
+    width: var(--tl-tap-target-min);
+    height: var(--tl-tap-target-min);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--rf-text);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+.rf-ib .tl-icon-root {
+    width: var(--tl-icon-button-icon-lg);
+    height: var(--tl-icon-button-icon-lg);
+    font-size: var(--tl-icon-button-icon-lg);
+}
+
+.rf-ib:hover { background: var(--rf-hover); }
+.rf-ib:focus-visible { outline: 3px solid var(--rf-accent); outline-offset: 2px; }
+
+.app-icon-button.rf-ib--on,
+.app-icon-button.rf-ib--on:hover {
+    background: var(--rf-hover);
+    color: var(--rf-accent);
+}
+
+/* ── Live region (spoken, never drawn) ─────────────────────────────────── */
+
+.rf-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/* ── Opening and "can't open" ──────────────────────────────────────────── */
+
+.rf-overlay {
+    position: absolute;
+    inset: calc(var(--rf-bar-top) + env(safe-area-inset-top)) 0 calc(var(--rf-bar-bottom) + env(safe-area-inset-bottom));
+    display: grid;
+    place-items: center;
+    padding: 0 24px;
+    color: var(--rf-text);
+}
+
+.rf-spinner {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid var(--rf-hover);
+    border-top-color: var(--rf-accent);
+    animation: rf-spin 0.9s linear infinite;
+}
+
+.rf-state {
+    max-width: 420px;
+    text-align: center;
+}
+
+.rf-state p {
+    margin: 0 0 16px;
+    font-size: var(--tl-font-size-md);
+}
+
+.rf-state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+@keyframes rf-spin { to { transform: rotate(360deg); } }
+
+/* ── Side panel (a bottom sheet on phones) ─────────────────────────────── */
+
+.rf-scrim {
+    position: absolute;
+    inset: 0;
+    background: var(--tl-scrim-dark-3);
+}
+
+.rf-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    inline-size: min(var(--tl-popout-panel), 100%);
+    display: flex;
+    flex-direction: column;
+    padding-right: env(safe-area-inset-right);
+    background: var(--tl-bg-surface-elevated);
+    color: var(--tl-text-primary);
+    border-left: 1px solid var(--tl-border-subtle);
+    box-shadow: -8px 0 28px var(--tl-scrim-dark-2);
+}
+
+.rf-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px 16px;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+.rf-panel-title {
+    margin: 0;
+    font-size: var(--tl-font-size-md);
+    font-weight: 600;
+}
+
+.rf-panel-close {
+    color: var(--tl-text-primary);
+}
+
+.rf-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+/* ── Panel contents (rows, search, fields) shared by every reader ─────── */
+
+.rf-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.rf-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.rf-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    inline-size: 100%;
+    min-block-size: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 0;
+    border-radius: var(--tl-radius-md, 0.5rem);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.rf-row--grow {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+}
+
+.rf-row:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.rf-row:focus-visible {
+    outline: 2px solid var(--rf-accent);
+    outline-offset: 2px;
+}
+
+.rf-row--current {
+    color: var(--rf-accent);
+    font-weight: 600;
+}
+
+.rf-row--level1 { padding-inline-start: 1.5rem; }
+.rf-row--level2 { padding-inline-start: 2.25rem; }
+.rf-row--level3 { padding-inline-start: 3rem; }
+
+.rf-row-main,
+.rf-row-sub {
+    max-inline-size: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rf-row-main {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.rf-row-sub {
+    font-size: var(--tl-font-size-xs, 0.75rem);
+    color: var(--tl-text-muted);
+    white-space: nowrap;
+}
+
+.rf-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rf-search-input {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    min-block-size: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md, 0.5rem);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.rf-search-input:focus-visible {
+    outline: 2px solid var(--rf-accent);
+    outline-offset: 2px;
+}
+
+.rf-search-match {
+    padding: 0 0.125rem;
+    border-radius: 0.125rem;
+    background: rgba(234, 179, 8, 0.35);
+    color: inherit;
+}
+
+.rf-empty,
+.rf-hint {
+    margin: 0;
+    font-size: var(--tl-font-size-sm, 0.875rem);
+    color: var(--tl-text-muted);
+}
+
+.rf-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.rf-field-label,
+.rf-subhead {
+    margin: 0;
+    font-size: var(--tl-font-size-sm, 0.875rem);
+    font-weight: 600;
+}
+
+/* ── Phones: shorter bars, and the panel is a sheet from the bottom ────── */
+
+@media (max-width: 600px) {
+    .rf-shell {
+        --rf-bar-top: 56px;
+        --rf-bar-bottom: 60px;
+    }
+
+    .rf-bar--top {
+        padding-left: max(6px, env(safe-area-inset-left));
+        padding-right: max(6px, env(safe-area-inset-right));
+    }
+
+    .rf-bar--bottom {
+        gap: 10px;
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    .rf-panel {
+        top: auto;
+        inline-size: 100%;
+        max-block-size: 78dvh;
+        padding-right: 0;
+        border-left: 0;
+        border-top: 1px solid var(--tl-border-subtle);
+        border-radius: var(--tl-radius-xl) var(--tl-radius-xl) 0 0;
+        box-shadow: 0 -8px 28px var(--tl-scrim-dark-2);
+    }
+
+    .rf-panel-head {
+        padding-top: 8px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rf-bar { transition: none; }
+    .rf-spinner { animation-duration: 3s; }
+}

@@ -14,6 +14,7 @@ public sealed class AlignmentGuardrailTests
     private static readonly string[] SharedPartStyles =
     [
         "Components/Shared/AppSettingRow.razor.css",
+        "Components/Shared/AppFormRow.razor.css",
         "Components/Shared/AppSettingsGroup.razor.css",
         "Components/Shared/AppSwitchRow.razor.css",
         "Components/Shared/AppChoiceRow.razor.css",
@@ -30,7 +31,7 @@ public sealed class AlignmentGuardrailTests
     private static readonly string[] SharedPartSelectorStems =
     [
         ".app-setting-row", ".app-settings-group", ".app-field", ".app-action-bar", ".app-filter-bar", ".app-switch-row",
-        ".app-dialog-shell__footer", ".app-segmented-control", ".tl-matchrow",
+        ".app-dialog-shell__footer", ".app-segmented-control",
     ];
 
     // Written allowlist: "file :: selector fragment :: property" with the reason it is not an alignment nudge. Keep it short; add nothing without a reason.
@@ -111,13 +112,22 @@ public sealed class AlignmentGuardrailTests
     }
 
     [Fact]
-    public void TheMatchRow_IsOneNonWrappingFlexLine_OnTheCentreLine()
+    public void EveryMatchFlowDrawsItsSearchRow_OnTheSharedFormRow_WithTheLabeledSearchButton()
     {
-        var css = File.ReadAllText(Path.Combine(WebRoot(), "Components", "Editor", "EditorMatchRow.razor.css"));
-        var row = Rules(css).Single(rule => rule.Selector.Trim() == ".tl-matchrow").Body;
-        Assert.Contains("display: flex", row, StringComparison.Ordinal);
-        Assert.Contains("align-items: center", row, StringComparison.Ordinal);
-        Assert.DoesNotContain("wrap", row, StringComparison.Ordinal);
+        // Universal editor v6 (WP6): the plain search, the TV, music and Wikidata flows and the group Match all draw their row through
+        // EditorMatchSearchRow, which is one AppFormRow (label line, control line, message line) with a Search button that carries its word.
+        var editor = Path.Combine(WebRoot(), "Components", "Editor");
+        var row = File.ReadAllText(Path.Combine(editor, "EditorMatchSearchRow.razor"));
+        Assert.Contains("<AppFormRow", row, StringComparison.Ordinal);
+        Assert.Contains("EditorMatchPanel_Search", row, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppIconButton", row, StringComparison.Ordinal);
+
+        foreach (var flow in new[] { "EditorMatchPanel", "EditorTvMatchFlow", "EditorMusicMatchFlow", "EditorWikidataMatch", "EditorGroupMatchPanel" })
+        {
+            var markup = File.ReadAllText(Path.Combine(editor, flow + ".razor"));
+            Assert.True(markup.Contains("<EditorMatchSearchRow", StringComparison.Ordinal), $"{flow} must draw its search row with EditorMatchSearchRow.");
+            Assert.False(markup.Contains("tl-matchrow", StringComparison.Ordinal), $"{flow} must not carry a row of its own.");
+        }
     }
 
     [Fact]

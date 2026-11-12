@@ -1,6 +1,6 @@
 # Global bookmarks: promote and find bookmarks (every media type)
 
-> **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; stage 3 PDFs and comics built 2026-11-10 with the PDF and comic reader) · **Version:** 4 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
+> **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; stage 3 PDFs and comics built 2026-11-10 with the PDF and comic reader) · **Version:** 5 (Shy chose Global starts empty, 2026-11-12; built in the same change) · **Last updated:** 2026-11-11 · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
 
 > **Version note (2026-11-10):** parts superseded by [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): D2 (Everyone's), D3 (Promote, now staged inside the editor), D4 and D6 to D9 (Find bookmarks, compare, Export) move from the player to the editor's Bookmarks tab for administrators (D37, WP15), "Global" is now "Everyone's", and a title gains a definitive set that Everyone's pools from the profiles until one exists; the store, closeness config and merge rule stay.
 
@@ -113,3 +113,36 @@ Pre-release, so resets are acceptable (CLAUDE.md rule 6):
 (Updated for every media type.)
 
 Everyone bookmarks for themselves. An admin can see everyone's bookmarks in the player and promote the good ones to Global with one click. Bookmarks from outside come in through "Find bookmarks", like Find another subtitles: you see each incoming bookmark next to your nearest one, labelled Same spot, Close, Far or New, and apply the sensible defaults in one click. Films, audiobooks, books, PDFs and comics all work the same way, with "how close is close" kept in an editable config file instead of a Settings page. There is no Settings page and no bulk import, the old packs go away, and bookmark dots on the progress bar are off unless you turn them on.
+
+## 11. Version 5 (draft, 2026-11-11, from Shy's decision on issue 885)
+
+**Goal.** Make the player's bookmark list personal first, and give administrators one clear, deliberate set that everyone sees on movies and TV.
+
+**Decisions (Shy, 2026-11-11):**
+- **V5-D1. Mine is the default view**, replacing "Everyone by default" (player v2 D21).
+- **V5-D1a. The bookmarks button and the bar markers show only your own bookmarks** (Shy, 2026-11-11 23:45Z). Global rows appear only after you explicitly switch the panel to Global; they are never mixed into Mine, the count on the button, or the markers unless Global is chosen.
+- **V5-D2. "Global" returns as the name** of the set an administrator makes for everybody (it replaces "Everyone" / "Everyone's" in the player and editor).
+- **V5-D3. Global is movies and TV only** (films, episodes and the show-level overview). Books, comics, PDFs and audiobooks have no Global set: their bookmarks are personal. The Bookmarks tab in the editor is not offered for them, and Find/Import there creates personal bookmarks.
+- **V5-D4. Music has no bookmarks at all.** The Bookmarks tool leaves the music player and no bookmark entry point remains.
+- **V5-D5. Who edits what.** A person can rename, change and delete their own bookmarks from any view (Mine or Global). Global rows are read-only for everyone except administrators.
+- **V5-D6. Import.** An administrator's import of a bookmark set (editor Bookmarks tab) lands in Global by default, with an option to import into Mine. Anyone else's import always goes to their own Mine.
+
+**Decided (Shy, 2026-11-12, card answer A):**
+- **V5-D7. Global holds only what an administrator put there.** Today, until an administrator curates a title, "Everyone" shows all profiles' bookmarks pooled. With Mine as the default that pooling is surprising (a person sees others' notes they never chose), so Global starts empty and shows nothing until an administrator adds, imports or promotes bookmarks. The "start over from profiles" action becomes "Clear Global". 
+
+**What changes for people:**
+- The bookmark panel opens on Mine; a Mine | Global choice shows only on movies, episodes and videos with a Global set or for administrators.
+- Empty Global: "No Global bookmarks on this title yet."
+- Books, audiobooks and music players show no Global choice; music shows no Bookmarks tool.
+
+**Data and model.** No new tables (pre-release; resets acceptable). The existing shared flag is Global; pooling on read is removed (V5-D7), restricted to movie/episode/video works. Existing Global/definitive rows for books and audiobooks are dropped on reset.
+
+**Work packets.**
+1. **Engine: scope and rules.** Standard. Global only for movie/TV works; no pooling (V5-D7); Engine refuses Global writes by non-administrators and any bookmark on music; own-row edits allowed whatever the view. Done when tests cover each refusal and the own-row edit.
+2. **Dashboard: player.** Standard. Mine default, Mine | Global choice by media type, own rows editable in every view, music Bookmarks tool removed. Done when each media type shows the right choice at 1440 and 1280.
+3. **Editor Bookmarks tab and wording.** Standard. Import destination (Global default for administrators), tab hidden for books and audiobooks, "Everyone's" becomes "Global" with the public docs updated. Done when an administrator imports a set and another profile sees it under Global.
+4. **Docs and batch list.** Mechanical.
+
+**Local checks.** Open a film as two profiles: panel opens on Mine; as administrator import a set and see it under Global for the other profile; the other profile cannot edit Global but can edit their own from either view; an audiobook and a book show no Global; music has no Bookmarks tool.
+
+**Plain English summary.** Your own bookmarks come first now. If the household admin wants everyone to share a set on a movie or show, they put it in Global (importing a file does that by default). Books and audiobooks stay personal, and music has no bookmarks. You can always change your own, and only admins can change Global.

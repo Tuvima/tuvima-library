@@ -104,12 +104,12 @@
     display: grid;
     place-items: center;
     padding-inline: 0.2rem;
-    border: 2px solid var(--tl-bg-surface, #1e1f27);
+    border: 2px solid var(--tl-bg-surface);
     border-radius: var(--tl-radius-pill);
-    color: var(--tl-bg-surface, #1e1f27);
+    color: var(--tl-bg-surface);
     background: var(--tl-accent-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     line-height: 1;
 }
 

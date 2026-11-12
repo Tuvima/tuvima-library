@@ -15,12 +15,12 @@
     align-items: center;
     min-height: 2.15rem;
     padding: 0.35rem 0.9rem;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 48%, var(--tl-wash-light-5));
     border-radius: var(--tl-radius-pill);
-    background: rgba(6, 9, 17, 0.42);
-    color: rgba(218, 202, 255, 0.96);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 500;
+    background: var(--tl-scrim-dark-3);
+    color: var(--tl-accent-primary-hover);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1;
     letter-spacing: 0.005em;
     text-decoration: none;
@@ -32,10 +32,10 @@
 .tl-detail-hero-genre:focus-visible,
 ::deep .tl-detail-hero-genres__overflow-trigger:hover,
 ::deep .tl-detail-hero-genres__overflow-trigger:focus-visible {
-    border-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 78%, white);
-    color: #fff;
+    border-color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 78%, var(--tl-text-primary));
+    color: var(--tl-text-primary);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(136, 82, 252, 0.22);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tl-accent-primary) 22%, transparent);
 }
 
 ::deep .tl-detail-hero-genres__overflow {
@@ -56,6 +56,6 @@
     ::deep .tl-detail-hero-genres__overflow-trigger {
         min-height: 2rem;
         padding-inline: 0.72rem;
-        font-size: var(--tl-font-size-secondary);
+        font-size: var(--tl-type-control-size);
     }
 }

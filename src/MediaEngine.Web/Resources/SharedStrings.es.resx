@@ -135,8 +135,8 @@
   <data name="Nav_Downloads" xml:space="preserve">
     <value>Descargas</value>
   </data>
-  <data name="Nav_MyLibrary" xml:space="preserve">
-    <value>Mi biblioteca</value>
+  <data name="Nav_MyList" xml:space="preserve">
+    <value>Mi lista</value>
   </data>
   <data name="Nav_Menu" xml:space="preserve">
     <value>Menú</value>
@@ -864,5 +864,140 @@
   </data>
   <data name="Common_Time" xml:space="preserve">
     <value>Tiempo</value>
+  </data>
+  <data name="SongTable_DateAdded" xml:space="preserve">
+    <value>Fecha de adición</value>
+  </data>
+  <data name="SongTable_Plays" xml:space="preserve">
+    <value>Reproducciones</value>
+  </data>
+  <data name="SongTable_Genre" xml:space="preserve">
+    <value>Género</value>
+  </data>
+  <data name="SongTable_Status" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="SongTable_Owned" xml:space="preserve">
+    <value>En tu biblioteca</value>
+  </data>
+  <data name="SongTable_Missing" xml:space="preserve">
+    <value>Falta</value>
+  </data>
+  <data name="SongTable_ResetColumns" xml:space="preserve">
+    <value>Restablecer columnas</value>
+  </data>
+  <data name="SongTable_ResizeColumn" xml:space="preserve">
+    <value>Cambiar el ancho de la columna {0}</value>
+  </data>
+  <data name="SongTable_SelectRow" xml:space="preserve">
+    <value>Seleccionar {0}</value>
+  </data>
+  <data name="SongTable_ActionsFor" xml:space="preserve">
+    <value>Acciones para {0}</value>
+  </data>
+  <data name="SongTable_AddToFavorites" xml:space="preserve">
+    <value>Añadir a Favoritos</value>
+  </data>
+  <data name="SongTable_RemoveFromFavorites" xml:space="preserve">
+    <value>Quitar de Favoritos</value>
+  </data>
+  <data name="SongTable_PlayTitle" xml:space="preserve">
+    <value>Reproducir {0}</value>
+  </data>
+  <data name="SongTable_AddTitleToQueue" xml:space="preserve">
+    <value>Añadir {0} a la cola</value>
+  </data>
+  <data name="SongTable_UpdatingDetails" xml:space="preserve">
+    <value>Actualizando detalles</value>
+  </data>
+  <data name="SongTable_MovedTo" xml:space="preserve">
+    <value>{0} se movió a la posición {1} de {2}.</value>
+  </data>
+  <data name="SongsHeader_Search" xml:space="preserve">
+    <value>Buscar canciones</value>
+  </data>
+  <data name="SongsHeader_SortAndFilter" xml:space="preserve">
+    <value>Ordenar y filtrar</value>
+  </data>
+  <data name="SongsHeader_SortAndFilterActive" xml:space="preserve">
+    <value>Ordenar y filtrar, {0} filtros activos</value>
+  </data>
+  <data name="SongsHeader_SortBy" xml:space="preserve">
+    <value>Ordenar por</value>
+  </data>
+  <data name="SongsHeader_Ascending" xml:space="preserve">
+    <value>Ascendente</value>
+  </data>
+  <data name="SongsHeader_Descending" xml:space="preserve">
+    <value>Descendente</value>
+  </data>
+  <data name="SongsHeader_Favorites" xml:space="preserve">
+    <value>Favoritos</value>
+  </data>
+  <data name="SongsHeader_JumpToLetter" xml:space="preserve">
+    <value>Ir a {0}</value>
+  </data>
+  <data name="SongsHeader_LetterIndex" xml:space="preserve">
+    <value>Índice de letras</value>
+  </data>
+  <data name="ReaderFrame_Reader" xml:space="preserve">
+    <value>Lector</value>
+  </data>
+  <data name="ReaderFrame_ReaderTools" xml:space="preserve">
+    <value>Herramientas de lectura</value>
+  </data>
+  <data name="ReaderFrame_Search" xml:space="preserve">
+    <value>Buscar</value>
+  </data>
+  <data name="ReaderFrame_Contents" xml:space="preserve">
+    <value>Contenido</value>
+  </data>
+  <data name="ReaderFrame_Pages" xml:space="preserve">
+    <value>Páginas</value>
+  </data>
+  <data name="ReaderFrame_BookmarkThisPage" xml:space="preserve">
+    <value>Marcar esta página</value>
+  </data>
+  <data name="ReaderFrame_RemoveBookmark" xml:space="preserve">
+    <value>Quitar marcador</value>
+  </data>
+  <data name="ReaderFrame_Bookmarks" xml:space="preserve">
+    <value>Marcadores</value>
+  </data>
+  <data name="ReaderFrame_BookmarksMine" xml:space="preserve">
+    <value>Mis marcadores</value>
+  </data>
+  <data name="ReaderFrame_BookmarksEveryone" xml:space="preserve">
+    <value>Todos</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksMine" xml:space="preserve">
+    <value>Aún no tienes marcadores. Usa «Marcar esta página» para añadir uno.</value>
+  </data>
+  <data name="ReaderFrame_NoBookmarksEveryone" xml:space="preserve">
+    <value>Todavía no se ha compartido nada con todos.</value>
+  </data>
+  <data name="ReaderFrame_ReadingSettings" xml:space="preserve">
+    <value>Ajustes de lectura</value>
+  </data>
+  <data name="ReaderFrame_Close" xml:space="preserve">
+    <value>Cerrar</value>
+  </data>
+  <data name="ReaderFrame_ClosePanel" xml:space="preserve">
+    <value>Cerrar {0}</value>
+  </data>
+  <data name="ReaderFrame_Opening" xml:space="preserve">
+    <value>Abriendo</value>
+  </data>
+  <data name="ReaderFrame_TryAgain" xml:space="preserve">
+    <value>Intentar de nuevo</value>
+  </data>
+  <data name="BookReader_SearchInThisBook" xml:space="preserve">
+    <value>Buscar en este libro</value>
+  </data>
+  <data name="BookReader_Highlights" xml:space="preserve">
+    <value>Subrayados</value>
+  </data>
+  <data name="BookReader_BookmarkRemoved" xml:space="preserve">
+    <value>Marcador eliminado.</value>
   </data>
 </root>

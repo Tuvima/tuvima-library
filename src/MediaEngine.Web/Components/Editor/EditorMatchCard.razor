@@ -1,0 +1,226 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match card (universal editor v6, WP3; mock screens A and B): the one card for a chosen search result and for the item's current match. A large
+   cover to compare with your own, the title, the series and number, the creator and year, a link to the provider, two lines of description with
+   Read more, the verdict in words, the compare table (Field, Your file, the other side) and a basis note. The caller fills the foot: Apply match
+   under a search, Open source / Remove match / Change match for a match. Every comparison comes from the Engine; this part only draws it. *@
+<section class="@RootClass" aria-label="@Model.Title" data-art="@ArtName" @attributes="AdditionalAttributes">
+    <div class="tl-mcard__top">
+        <div class="tl-mcard__cover" data-testid="match-card-cover">
+            @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+            {
+                <AppImage Src="@Model.ImageUrl" Alt="" Width="@CoverWidth" Height="@CoverHeight" DrawnPx="@CoverDrawnPx" ObjectFit="AppObjectFit.Cover" />
+            }
+            else
+            {
+                <span class="tl-mcard__cover-empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
+            }
+        </div>
+        <div class="tl-mcard__head">
+            <h4 class="tl-mcard__title" data-testid="match-card-title">@Model.Title</h4>
+            @if (!string.IsNullOrWhiteSpace(Model.SeriesLine))
+            {
+                <div class="tl-mcard__meta" data-testid="match-card-series">@Model.SeriesLine</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Byline))
+            {
+                <div class="tl-mcard__meta" data-testid="match-card-byline">@Model.Byline</div>
+            }
+            @foreach (var note in Model.Notes)
+            {
+                <div class="tl-mcard__meta" data-testid="match-card-note">@note</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.ProviderName))
+            {
+                <div class="tl-mcard__provider" data-testid="match-card-provider">
+                    @if (!string.IsNullOrWhiteSpace(Model.SourceUrl))
+                    {
+                        <AppButton Label="@Model.ProviderName" Href="@Model.SourceUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Primary" Size="@ControlSize" />
+                    }
+                    else
+                    {
+                        <span class="tl-mcard__meta">@Model.ProviderName</span>
+                    }
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Description))
+            {
+                <p class="tl-mcard__desc" data-expanded="@(_expanded ? "true" : "false")" data-testid="match-card-description">@Model.Description</p>
+                @if (Model.Description.Length > ReadMoreAfter)
+                {
+                    <div>
+                        <AppButton Label="@(_expanded ? L["EditorMatchCard_ReadLess"].Value : L["EditorMatchCard_ReadMore"].Value)" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
+                                   Size="@ControlSize" OnClick="ToggleDescription" aria-expanded="@(_expanded ? "true" : "false")" data-testid="match-card-read-more" />
+                    </div>
+                }
+            }
+            @if (CompareBesideCover && !IsPhone)
+            {
+                @Compare()
+            }
+        </div>
+    </div>
+
+    @if (!CompareBesideCover || IsPhone)
+    {
+        @Compare()
+    }
+
+    @Extra
+
+    <div class="tl-mcard__foot">
+        <div class="tl-mcard__basis">
+            <span data-testid="match-card-basis">@Model.BasisNote</span>
+            @Basis
+        </div>
+        <div class="tl-mcard__actions">@Foot</div>
+    </div>
+</section>
+
+@code {
+    // Read more shows for anything that could run past two lines at the narrowest the text column gets (about 16 characters a line beside a wide
+    // episode picture), so nothing is ever folded away without a way to open it.
+    private const int ReadMoreAfter = 30;
+
+    private bool _expanded;
+    private string? _shownFor;
+
+    /// <summary>What the card shows, already worded; the Engine's comparisons are in its rows.</summary>
+    [Parameter, EditorRequired] public EditorMatchCardModel Model { get; set; } = default!;
+
+    /// <summary>The heading of the third column: "Selected result" under a search, "Matched record" for the current match.</summary>
+    [Parameter, EditorRequired] public string ResultLabel { get; set; } = string.Empty;
+
+    /// <summary>The actions at the bottom right: Apply match with its line, or Open source, Remove match and Change match.</summary>
+    [Parameter] public RenderFragment? Foot { get; set; }
+
+    /// <summary>More under the basis note on the left of the foot (the current match says unlocked details update).</summary>
+    [Parameter] public RenderFragment? Basis { get; set; }
+
+    /// <summary>True for the current match: the verdict and the table sit in the right column beside the cover. False under a search: they run the full width under it.</summary>
+    [Parameter] public bool CompareBesideCover { get; set; }
+
+    /// <summary>More that belongs with the card, drawn under the table and above the foot (on a phone, the editions of a work, so Apply match stays the last thing).</summary>
+    [Parameter] public RenderFragment? Extra { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    /// <summary>True when the card is drawn in the phone's full-height sheet (EditorMatchSheet): it loses its own frame and pins Apply match to the bottom.</summary>
+    [CascadingParameter(Name = EditorMatchSheet.InSheetName)] public bool InSheet { get; set; }
+
+    // On a phone the compare table runs under the cover (never beside it), the buttons are 44 px and the actions stack.
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    private AppControlSize ControlSize => IsPhone ? AppControlSize.Normal : AppControlSize.Compact;
+
+    private string RootClass => string.Join(' ', new[] { "tl-mcard", IsPhone ? "tl-mcard--phone" : null, InSheet ? "tl-mcard--sheet" : null }.Where(part => part is not null));
+
+    private string ArtName => Model.Art.ToString().ToLowerInvariant();
+
+    private int CoverWidth => Model.Art switch { EditorMatchCardArt.Wide => 240, EditorMatchCardArt.Square => 160, _ => 140 };
+
+    private int CoverHeight => Model.Art switch { EditorMatchCardArt.Wide => 135, EditorMatchCardArt.Square => 160, _ => 210 };
+
+    private int CoverDrawnPx => Math.Max(CoverWidth, CoverHeight);
+
+    private string VerdictKey => Model.Verdict switch
+    {
+        EditorMatchVerdicts.Strong => "strong",
+        EditorMatchVerdicts.Weak => "weak",
+        _ => "possible",
+    };
+
+    private string VerdictWords => Model.Verdict switch
+    {
+        EditorMatchVerdicts.Strong => L["EditorMatchCard_VerdictStrong"].Value,
+        EditorMatchVerdicts.Weak => L["EditorMatchCard_VerdictWeak"].Value,
+        _ => L["EditorMatchCard_VerdictPossible"].Value,
+    };
+
+    private string VerdictIcon => Model.Verdict switch
+    {
+        EditorMatchVerdicts.Strong => AppMaterialIcons.Outlined.CheckCircle,
+        EditorMatchVerdicts.Weak => AppMaterialIcons.Outlined.ErrorOutline,
+        _ => AppMaterialIcons.Outlined.Warning,
+    };
+
+    protected override void OnParametersSet()
+    {
+        // A different result starts with its description folded again.
+        var key = Model.Title + "|" + Model.Description;
+        if (_shownFor != key)
+        {
+            _shownFor = key;
+            _expanded = false;
+        }
+    }
+
+    // The verdict in words and the compare table. Under a search it runs the full width under the cover and facts; for the current match it sits in
+    // the right column beside the cover (mock B).
+    private RenderFragment Compare() => __builder =>
+    {
+        <div class="tl-mcard__compare" data-beside="@(CompareBesideCover && !IsPhone ? "true" : "false")">
+        @* The verdict is the Engine's; a result it gave none for (a Wikidata item) has only the table. *@
+        @if (!string.IsNullOrWhiteSpace(Model.Verdict))
+        {
+        <div class="tl-mcard__verdict" data-verdict="@VerdictKey" role="status" data-testid="match-verdict">
+            <AppMaterialIcon Icon="@VerdictIcon" />
+            <span>@VerdictWords</span>
+        </div>
+        }
+
+        @* No rows means nothing could be compared: the basis note says so, and an empty table would only draw its headings. *@
+        @if (Model.Rows.Count > 0)
+        {
+        <table class="tl-mcard__table" data-testid="match-compare">
+            <thead>
+                <tr>
+                    <th scope="col">@L["EditorMatchPanel_Field"]</th>
+                    <th scope="col">@L["EditorMatchPanel_YourFile"]</th>
+                    <th scope="col">@ResultLabel</th>
+                    <th scope="col"><span class="sr-only">@L["EditorMatchPanel_Result"]</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr data-outcome="@row.Outcome" data-field="@row.Field">
+                        <th scope="row">@row.Field</th>
+                        <td class="@Cell(row.YourFile)">@(string.IsNullOrWhiteSpace(row.YourFile) ? L["EditorMatchCard_NotProvided"].Value : row.YourFile)</td>
+                        <td class="@Cell(row.Result)">@(string.IsNullOrWhiteSpace(row.Result) ? L["EditorMatchCard_NotProvided"].Value : row.Result)</td>
+                        <td class="tl-mcard__mark" data-testid="match-compare-mark">@Mark(row.Outcome)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        }
+        </div>
+    };
+
+    private void ToggleDescription() => _expanded = !_expanded;
+
+    private static string Cell(string? value) => string.IsNullOrWhiteSpace(value) ? "tl-mcard__none" : string.Empty;
+
+    // A tick where the two agree, a cross where they differ, a dash where one side has nothing. A dash never counts against the match.
+    private RenderFragment Mark(string outcome) => __builder =>
+    {
+        if (outcome == EditorMatchEvidenceStates.Agrees)
+        {
+            <span class="tl-mcard__tick" data-mark="agrees"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /><span class="sr-only">@L["EditorMatchCard_Agrees"]</span></span>
+        }
+        else if (outcome == EditorMatchEvidenceStates.Differs)
+        {
+            <span class="tl-mcard__cross" data-mark="differs"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /><span class="sr-only">@L["EditorMatchCard_Differs"]</span></span>
+        }
+        else
+        {
+            <span class="tl-mcard__dash" data-mark="unknown"><span aria-hidden="true">–</span><span class="sr-only">@L["EditorMatchCard_Unknown"]</span></span>
+        }
+    };
+}

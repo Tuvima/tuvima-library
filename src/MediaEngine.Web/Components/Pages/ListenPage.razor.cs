@@ -23,7 +23,7 @@ using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Components.Pages;
 
-public partial class ListenPage
+public partial class ListenPage : IDisposable
 {
     private const string MusicHomeRoute = ListenNavigation.MusicHomeRoute;
     private const string AlbumsRoute = ListenNavigation.AlbumsRoute;
@@ -37,6 +37,7 @@ public partial class ListenPage
     [Inject] private UIOrchestratorService Orchestrator { get; set; } = default!;
     [Inject] private PlaybackSessionController Playback { get; set; } = default!;
     [Inject] private ListenAudioDragService AudioDrag { get; set; } = default!;
+    [Inject] private SongDragDropService SongDrop { get; set; } = default!;
     [Inject] private MediaReactionService Reactions { get; set; } = default!;
     [Inject] private SavedItemService SavedItems { get; set; } = default!;
     [Inject] private IServiceProvider Services { get; set; } = default!;
@@ -88,6 +89,8 @@ public partial class ListenPage
     private ProfileViewModel? _activeProfile;
     private Guid? _activeProfileId;
     private HashSet<Guid> _favoriteWorkIds = [];
+    // The hearted songs in the order the profile keeps them (newest hearted first unless moved by hand); Favorites shows this order.
+    private List<Guid> _favoriteSongOrder = [];
     private HashSet<Guid> _dislikedWorkIds = [];
     private bool _loading = true;
     private bool _redirecting;
@@ -124,43 +127,18 @@ public partial class ListenPage
     private string? _playlistNavigationConfig;
     private List<Guid> _playlistOrder = [];
     private Guid? _draggingPlaylistId;
-    private Guid? _pendingPlaylistRowFocusId;
-    private string _playlistAnnouncement = string.Empty;
-    private Guid? _draggingPlaylistTrackItemId;
-    private Guid? _playlistTrackDropTargetItemId;
-    private bool _playlistTrackDropAfter;
     private bool _activePlaylistSaved;
     private bool _creatingPlaylistInline;
     private string _newPlaylistName = string.Empty;
+    private CarriedSongs? _pendingPlaylistDrop;
     private Guid? _renamingPlaylistId;
     private string _renamePlaylistName = string.Empty;
-    private readonly HashSet<string> _playlistHiddenColumns = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, int> _playlistColumnWidths = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["song"] = 360,
-        ["favorite"] = 96,
-        ["artist"] = 180,
-        ["album"] = 220,
-        ["time"] = 88,
-    };
-    private readonly Dictionary<string, int> _songColumnWidths = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["song"] = 360,
-        ["favorite"] = 96,
-        ["time"] = 88,
-        ["artist"] = 180,
-        ["album"] = 220,
-        ["genre"] = 150,
-        ["plays"] = 92,
-        ["dateAdded"] = 150,
-    };
-    private string? _resizingColumnSet;
-    private string? _resizingColumnKey;
-    private double _resizeStartX;
-    private int _resizeStartWidth;
     private int _listenLoadVersion;
 
     private string? _noticeSection;
+    private bool _disposed;
+
+    protected override void OnInitialized() => SavedItems.Changed += OnSavedItemsChanged;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -190,16 +168,9 @@ public partial class ListenPage
         {
             await PersistUiStateAsync();
         }
-
-        if (_pendingPlaylistRowFocusId is { } focusId)
-        {
-            _pendingPlaylistRowFocusId = null;
-            await JS.InvokeVoidAsync("tuvimaFocusById", PlaylistRowDomId(focusId));
-        }
     }
 
     private sealed record ListenPlaylistTrackRow(CollectionItemDto? Item, WorkViewModel Work, int Index);
-    private sealed record PlaylistColumnDefinition(string Key, string Label);
     private sealed record AudiobookDisplayItem(DisplayCardDto? Card, WorkViewModel? Work);
     private sealed record AudiobookListenItem(AudiobookDisplayItem Item, JourneyItemViewModel? Journey);
     private sealed record AudiobookAuthorGroup(string Name, IReadOnlyList<AudiobookDisplayItem> Items);

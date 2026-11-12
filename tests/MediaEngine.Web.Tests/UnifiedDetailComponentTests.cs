@@ -85,7 +85,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("width: auto", styles);
         Assert.Contains("max-width: 100%", styles);
         Assert.Contains("transform: translateY(-50%)", styles);
-        Assert.Contains("rgba(0, 0, 0, 0) 0%", styles);
+        Assert.Contains("transparent 0%", styles);
         Assert.Contains("background-size: cover", styles);
         Assert.DoesNotContain("tl-detail-hero--watch .tl-detail-hero__artwork,", styles);
         Assert.DoesNotContain("tl-detail-hero--watch .tl-detail-hero__artwork::after", styles);
@@ -93,11 +93,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("min-height: 95svh", styles);
         Assert.Contains("CINEMATIC_CONTRACT_EOF", styles);
         Assert.DoesNotContain("min-height: 1000px", styles);
-        Assert.Contains("rgba(0, 0, 0, 0.60) 14%", styles);
-        Assert.Contains("rgba(0, 0, 0, 0.86) 23%", styles);
-        Assert.Contains("#000 32%", styles);
+        Assert.Contains("color-mix(in srgb, var(--tl-viewer-black) 60%, transparent) 14%", styles);
+        Assert.Contains("color-mix(in srgb, var(--tl-viewer-black) 86%, transparent) 23%", styles);
+        Assert.Contains("var(--tl-viewer-black) 32%", styles);
         Assert.Contains("<SurfaceNavigationBar", ReadSource("src/MediaEngine.Web/Components/Details/DetailTabs.razor"));
-        Assert.Contains("background: #090c12", styles);
+        Assert.Contains("background: var(--tl-bg-root)", styles);
         Assert.Contains("font-family: var(--font-reader)", styles);
         Assert.Contains("font-weight: 500", styles);
         Assert.Contains("max-width: 22ch", styles);
@@ -157,7 +157,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("rgba(var(--hero-bg-rgb), 0) 78%", styles);
         Assert.DoesNotContain("rgba(0, 0, 0, 0.10) 36%", styles);
         Assert.Contains(".tl-detail-hero-genre", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
-        Assert.Contains("background: rgba(20, 23, 28, 0.78)", styles);
+        Assert.Contains("background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent)", styles);
         Assert.Contains("background:var(--tl-accent-primary)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("IsDetailShell", layout);
         Assert.Contains("MainContainerClass", layout);
@@ -929,6 +929,7 @@ public sealed class UnifiedDetailComponentTests
         var seriesRail = ReadSource("src/MediaEngine.Web/Components/Details/MusicAlbumSeriesRail.razor");
         var backdrop = ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor");
         var trackList = ReadSource("src/MediaEngine.Web/Components/Details/MusicTrackList.razor");
+        var trackListCode = ReadSource("src/MediaEngine.Web/Components/Details/MusicTrackList.razor.cs");
         var audioTable = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor");
         var audioTableStyles = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor.css");
         var apiClient = ReadEngineApiClientSources();
@@ -942,7 +943,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("<MusicTrackList", primaryModule);
         Assert.Contains("<MusicTrackList Groups=\"TrackGroups\"", albumOverview);
         Assert.Contains("ArtistName=\"@Model.MusicAlbumCompanion?.PrimaryArtistName\"", albumOverview);
-        Assert.Contains("Compact=\"true\"", albumOverview);
+        Assert.DoesNotContain("Compact=", albumOverview);
         Assert.Contains("<ContributorsSection Groups=\"Model.ContributorGroups\"", albumOverview);
         Assert.Contains("<MusicAlbumSeriesRail Model=\"Model\"", albumOverview);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(17rem, 27%)", albumOverviewStyles);
@@ -965,23 +966,25 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-detail-media-stage--music-cover-background", backdrop);
         Assert.Contains("MusicAlbumCompanion = NormalizeMusicAlbumCompanion(detail.MusicAlbumCompanion)", apiClient);
         Assert.Contains("ArtworkUrl = NormalizeOptionalUrl(album.ArtworkUrl)", apiClient);
+        // An album's tracks are the one song table in its album-page place; the audiobook chapter list keeps its own table.
+        Assert.Contains("<SongTable Place=\"SongTablePlace.AlbumPage\"", trackList);
         Assert.Contains("<AudioItemTable", trackList);
-        Assert.Contains("ArtistName=\"@ArtistName\"", trackList);
-        Assert.Contains("[Parameter] public string? ArtistName { get; set; }", audioTable);
-        Assert.Contains("Subtitle = IsAudiobook ? item.Title : string.IsNullOrWhiteSpace(ArtistName) ? item.Artist : ArtistName", audioTable);
-        Assert.Contains("ReplaceQueueItemsAsync", audioTable);
+        Assert.Contains("AlbumArtist=\"@ArtistName\"", trackList);
+        Assert.Contains("Subtitle = string.IsNullOrWhiteSpace(ArtistName) ? item.Artist : ArtistName", trackListCode);
+        Assert.Contains("ReplaceQueueItemsAsync", trackListCode);
+        Assert.Contains("Show missing tracks", trackList);
+        Assert.DoesNotContain("_showMissing = true", trackListCode, StringComparison.Ordinal);
+        Assert.Contains("item.IsOwned", trackListCode);
+        Assert.Contains("ToggleFavoriteAsync", trackListCode);
         Assert.Contains("tl-embedded-audio__table", audioTable);
         Assert.Contains("grid-template-columns: 4.2rem minmax(16rem, 1fr) 5rem 7.5rem 2.5rem", audioTableStyles);
         Assert.Contains("overflow: auto", audioTableStyles);
-        Assert.Contains("Show missing tracks", audioTable);
-        Assert.DoesNotContain("_showMissingItems = true", audioTable, StringComparison.Ordinal);
-        Assert.Contains("item.IsOwned", audioTable);
         Assert.Contains("DurationSeconds", audioTable);
         Assert.Contains("seconds = minutes * 60d + remainingSeconds", audioTable);
-        Assert.Contains("ToggleSort", audioTable);
-        Assert.Contains("BeginColumnResize", audioTable);
-        Assert.Contains("draggable=\"@CanQueue(item)\"", audioTable);
-        Assert.Contains("AppMaterialIcons.Filled.Favorite", audioTable);
+        Assert.DoesNotContain("ToggleSort", audioTable);
+        Assert.DoesNotContain("BeginColumnResize", audioTable);
+        Assert.DoesNotContain("ToggleFavoriteAsync", audioTable);
+        Assert.DoesNotContain("tl-audio-item-table__resizer", audioTableStyles);
         Assert.DoesNotContain("Search tracks", audioTable);
         Assert.DoesNotContain("Placeholder=\"@($\"Search {ItemNounPlural}\")\"", audioTable);
         Assert.DoesNotContain("@page \"/listen/album", albumRoute, StringComparison.OrdinalIgnoreCase);
@@ -1113,10 +1116,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".tl-detail-stage__navigation", detailStyles);
         Assert.Contains("padding-inline: clamp(4rem, 4.25vw, 5.5rem)", detailStyles);
         Assert.Contains(".tl-detail-primary-module--tracks .tl-detail-primary-module__viewport", detailStyles);
-        Assert.Contains(".tl-detail-primary-module--tracks .tl-detail-track-table-shell", detailStyles);
         Assert.Contains("height: 100%", detailStyles);
-        Assert.Contains(".tl-detail-primary-module--tracks .tl-detail-track-table thead", detailStyles);
-        Assert.Contains("position: sticky", detailStyles);
         Assert.Contains(".tl-detail-secondary-actions", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("flex-wrap: nowrap", detailStyles);
         Assert.Contains(".tl-detail-person-hero__content .tl-detail-hero__copy", detailStyles);
@@ -1125,8 +1125,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("--hero-book-cover-height", ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css"));
         Assert.Contains("tl-detail-person-hero__summary", ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor"));
         Assert.Contains("<AudioItemTable", ReadSource("src/MediaEngine.Web/Components/Details/MusicTrackList.razor"));
-        Assert.Contains("_columns.AddRange(IsAudiobook ? AudiobookColumns() : MusicColumns())", audioTable);
-        Assert.Contains("private static IReadOnlyList<AudioTableColumn> AudiobookColumns()", audioTable);
+        Assert.DoesNotContain("MusicColumns", audioTable);
+        Assert.DoesNotContain("IsAudiobook", audioTable);
         Assert.Contains("[Parameter(CaptureUnmatchedValues = true)]", playbackPrimaryButton);
         Assert.Contains("@attributes=\"AdditionalAttributes\"", playbackPrimaryButton);
         Assert.Contains("playback-primary-button-shell--compact", playbackPrimaryButtonStyles);
@@ -1249,7 +1249,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("IsIntroChapter", detailPage);
         Assert.Contains("item.ResumePositionSeconds is > 0", audioTable);
         Assert.Contains("Chapters = chapters.Select(ToPlaybackChapter).ToList()", detailPage);
-        Assert.Contains("Chapters = IsAudiobook ? VisibleItems.Select(ToPlaybackChapter).ToList()", audioTable);
+        Assert.Contains("Chapters = VisibleItems.Select(ToPlaybackChapter).ToList()", audioTable);
         Assert.Contains("BootstrapDirectStream", playbackService);
         Assert.Contains("public int ResumeRewindSeconds", playbackService);
         Assert.Contains("RequestTransportCommandAsync(CreateStartCommand())", playbackService);
@@ -1281,7 +1281,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("window.detailOrigin.initialize();", appScript);
         Assert.Contains("[data-detail-origin-scroll]", appScript);
         Assert.Contains("registerAudioStateObserver: function", playerScript);
-        Assert.Contains("FormatSeconds(item.DurationSeconds.Value, forceHours: false)", audioTable);
+        Assert.Contains("FormatSeconds(item.DurationSeconds.Value)", audioTable);
         Assert.DoesNotContain("FormatChapterTimeRange", audioTable);
         Assert.Contains("Playback.CurrentTimeSeconds", audioTable);
         Assert.Contains("currentItem.AssetId.Value != assetId", audioTable);
@@ -1295,7 +1295,7 @@ public sealed class UnifiedDetailComponentTests
     {
         var actions = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor");
         var styles = ReadDetailStyles();
-        var songTable = ReadSource("src/MediaEngine.Web/Components/Listen/ListenSongTable.razor");
+        var songTable = ReadSource("src/MediaEngine.Web/Components/Listen/SongTable.razor");
         var libraryTable = ReadSource("src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor");
 
         Assert.Contains("hero-icon-circle", actions);
@@ -1620,7 +1620,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("font-size: clamp(3rem, 3.5vw, 4.2rem)", finalRules, StringComparison.Ordinal);
         Assert.Contains("font-size: clamp(2.4rem, 3vw, 3.6rem)", finalRules, StringComparison.Ordinal);
         Assert.Contains("font-family: var(--media-identity-font-family, var(--font-ui))", finalRules, StringComparison.Ordinal);
-        Assert.Contains("font-size: clamp(1rem, 1.3vw, 1.18rem)", finalRules, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-type-subheading-size)", finalRules, StringComparison.Ordinal);
         Assert.Contains("line-height: 1.5", finalRules, StringComparison.Ordinal);
         Assert.Contains("font: inherit", finalRules, StringComparison.Ordinal);
     }

@@ -13,10 +13,11 @@
    person wants, by drag and drop or Move up and Move down, and a series with sections lets a video be dragged from one section to another. One
    list serves both places that show it: the Reorder videos mode of the item dropdown, and the Videos view of the supporting-files browser. Everything
    here only stages a change: Save changes shows it in Review first, and none of it moves a file. The one exception is the "Rename the files to match
-   this order" switch, off by default and offered only when every video is in a Managed folder. *@
+   this order" switch, off by default and offered only when every video is in a Managed folder. In Reorder mode (HoldChanges, the header lists) the
+   arrangement is held here until the shared Reorder bar's Save order calls CommitAsync, so Cancel leaves nothing staged (v6 D23). *@
 @if (_editor.HasSomethingToOrder)
 {
-    <section class="tl-vorder" data-testid="video-order-section" @ref="_root">
+    <section class="@(IsPhone ? "tl-vorder tl-vorder--phone" : "tl-vorder")" data-testid="video-order-section" @ref="_root">
         @* Move up and Move down are said aloud ("Moved Lesson 3 to position 2") so the order can be followed without seeing the list. *@
         <div class="sr-only" role="status" aria-live="polite" data-testid="video-order-announce">@_announcement</div>
         @if (!Compact)
@@ -60,13 +61,30 @@
                         var row = list.Current[rowIndex];
                         var ri = rowIndex;
                         <li class="tl-vorder__row" data-vo-list="@li" data-vo-row="@ri" data-vo-title="@row.Title" @key="row.Id">
-                            <AppTooltip Text="@L["EditorVideoSeries_DragToReorder", row.Title].Value">
+                            @if (IsPhone)
+                            {
+                                @* A finger drags by the handle (touch-action: none, pointer events in video-order-drag.js); there is no hover, so no tooltip on it. *@
                                 <span class="tl-vorder__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" aria-hidden="true">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
                                 </span>
-                            </AppTooltip>
+                            }
+                            else
+                            {
+                                <AppTooltip Text="@L["EditorVideoSeries_DragToReorder", row.Title].Value">
+                                    <span class="tl-vorder__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" aria-hidden="true">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
+                                    </span>
+                                </AppTooltip>
+                            }
                             <span class="tl-vorder__position" aria-label="@L["EditorVideoSeries_Position", ri + 1].Value">@(ri + 1)</span>
-                            <span class="tl-vorder__title" data-overflow-tooltip="@row.Title">@row.Title</span>
+                            <span class="tl-vorder__title" data-overflow-tooltip="@(IsPhone ? null : row.Title)">@row.Title</span>
+                            @if (IsPhone)
+                            {
+                                @* The other way to move a video: the row's "..." opens Move up and Move down as a sheet. *@
+                                <AppRowMenu AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)" Title="@row.Title" Items="@MoveItems(li, ri)" />
+                            }
+                            else
+                            {
                             <span class="tl-vorder__arrows">
                                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Size="AppControlSize.Compact" Tooltip="@L["EditorVideoSeries_MoveUp", row.Title].Value"
                                                AriaLabel="@L["EditorVideoSeries_MoveUp", row.Title].Value" Disabled="@(!CanChange || !_editor.CanMoveUp(li, ri))"
@@ -75,6 +93,7 @@
                                                AriaLabel="@L["EditorVideoSeries_MoveDown", row.Title].Value" Disabled="@(!CanChange || !_editor.CanMoveDown(li, ri))"
                                                OnClick="@(() => NudgeAsync(li, ri, 1))" />
                             </span>
+                            }
                         </li>
                     }
                 </ol>
@@ -83,37 +102,37 @@
                 {
                     <AppSwitchRow Label="@L["EditorVideoSeries_RenameFiles"].Value"
                                   Description="@L["EditorVideoSeries_RenameDescription"].Value"
-                                  Value="@(Pending?.FindVideoRename(list.ParentId) is not null)"
-                                  ValueChanged="@(value => SetRename(list, value))"
+                                  Value="@RenameOn(list)"
+                                  ValueChanged="@(value => SetRenameAsync(list, value))"
                                   Disabled="@(!CanChange)" />
                 }
             </div>
         }
 
-        @if (_editor.WhatWillHappen(_editor.Lists.Any(list => Pending?.FindVideoRename(list.ParentId) is not null)) is { Length: > 0 } happen)
+        @if (_editor.WhatWillHappen(_editor.Lists.Any(RenameOn)) is { Length: > 0 } happen)
         {
             <p class="tl-vorder__happen" data-testid="video-order-happen"><strong>@L["EditorVideoSeries_WhatWillHappen"]</strong> @happen</p>
         }
-
-        @if (OnDone.HasDelegate)
-        {
-            <div class="tl-vorder__done">
-                <AppButton Label="@L["EditorReorder_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                           OnClick="OnDone" data-reorder-done="true" />
-            </div>
-        }
     </section>
 }
-else if (_loaded && OnDone.HasDelegate)
+else if (_loadFailed)
+{
+    @* The Engine could not be reached: the plain line and Try again; anything already staged stays staged. *@
+    <div class="tl-vorder__failed" data-testid="video-order-failed">
+        <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorVideoSeries_OrderReadFailed"]</AppAlert>
+        <AppButton Label="@L["EditorVideoSeries_TryAgain"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="RetryAsync" data-testid="video-order-retry" />
+    </div>
+}
+else if (_loaded && HoldChanges)
 {
     <div class="tl-vorder__empty" data-testid="video-order-empty">
         <p>@L["EditorReorder_NothingToOrder"]</p>
-        <AppButton Label="@L["EditorReorder_Done"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="OnDone" />
     </div>
 }
 
 @code {
     private readonly VideoOrderEditor _editor = new();
+    private bool _loadFailed;
     private ElementReference _root;
     private Guid _loadedFor;
     private bool _loaded;
@@ -121,6 +140,17 @@ else if (_loaded && OnDone.HasDelegate)
     private string? _attachedTo;
     private IJSObjectReference? _module;
     private DotNetObjectReference<EditorVideoOrderList>? _self;
+    // Reorder mode: the "Rename the files" choices made but not yet staged, by list.
+    private readonly Dictionary<Guid, bool> _renameHeld = [];
+    private bool _lastDirty;
+
+    /// <summary>The arrangement the editor window is drawn in (cascaded from the window).</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    /// <summary>The phone arrangement for a list drawn outside the editor window (the browser's Folders and files view): drag by the handle, or Move up and Move down in the row's "...".</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(Phone, Layout);
 
     /// <summary>An item of the series (the series itself, a section or one video); the Engine reads the series' lists from it.</summary>
     [Parameter, EditorRequired] public Guid EntityId { get; set; }
@@ -163,11 +193,30 @@ else if (_loaded && OnDone.HasDelegate)
     /// <summary>Shows the one-time Sort by file name and Sort by date added buttons.</summary>
     [Parameter] public bool ShowSort { get; set; } = true;
 
-    /// <summary>Done: returns to the normal list. Set by the dropdown's Reorder videos mode; unset elsewhere.</summary>
-    [Parameter] public EventCallback OnDone { get; set; }
+    /// <summary>Reorder mode (the header lists, v6 D23): the arrangement is only held here, and staged by <see cref="CommitAsync"/> (the Reorder bar's Save order). Left off, every change is staged as it is made.</summary>
+    [Parameter] public bool HoldChanges { get; set; }
+
+    /// <summary>Raised in Reorder mode when the held arrangement starts or stops differing from the one the mode began with; Save order waits for it.</summary>
+    [Parameter] public EventCallback<bool> OnDirtyChanged { get; set; }
+
+    /// <summary>
+    /// Reorder mode (the header lists): an arrangement an earlier list of the same header held and left in the session (the window crossed 1024 wide and
+    /// the header was drawn again); it is put back when the lists have been read, so a half-arranged order is not lost.
+    /// </summary>
+    [Parameter] public HeldVideoOrder? Resume { get; set; }
+
+    /// <summary>The arrangement held in Reorder mode and not staged yet, or null when there is none.</summary>
+    public HeldVideoOrder? Hold() =>
+        HoldChanges && IsDirty ? new HeldVideoOrder(SectionsMode, _editor.Arrangement, new Dictionary<Guid, bool>(_renameHeld)) : null;
 
     /// <summary>Raised after the arrangement changed and was staged, so a list that shows the same videos can follow the new order.</summary>
     [Parameter] public EventCallback<IReadOnlyList<Guid>> OnOrderChanged { get; set; }
+
+    /// <summary>True in Reorder mode once the held arrangement (or a held "Rename the files" choice) differs from the one the mode began with.</summary>
+    public bool IsDirty => HoldChanges && (_editor.DiffersFromBaseline || _renameHeld.Any(held => held.Value != (Pending?.FindVideoRename(held.Key) is not null)));
+
+    private bool RenameOn(VideoOrderList list) =>
+        HoldChanges && _renameHeld.TryGetValue(list.ParentId, out var held) ? held : Pending?.FindVideoRename(list.ParentId) is not null;
 
     private PendingEditList? Pending => Session?.Pending;
 
@@ -183,6 +232,7 @@ else if (_loaded && OnDone.HasDelegate)
         var id = EntityId;
         _loadedFor = id;
         _loaded = false;
+        _loadFailed = false;
         if (id == Guid.Empty)
         {
             _editor.Load(null);
@@ -205,7 +255,19 @@ else if (_loaded && OnDone.HasDelegate)
                 _editor.Restore(pending);
             }
 
+            _editor.MarkBaseline();
+            _renameHeld.Clear();
+            if (HoldChanges && Resume is { } resume && resume.SectionsMode == SectionsMode)
+            {
+                _editor.Apply(resume.Lists);
+                foreach (var (parentId, on) in resume.Renames)
+                {
+                    _renameHeld[parentId] = on;
+                }
+            }
+
             _loaded = true;
+            await NotifyDirtyAsync();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -213,6 +275,7 @@ else if (_loaded && OnDone.HasDelegate)
             _editor.Load(null);
             // Forget that this item was loaded, so the next time the list is shown it reads again instead of staying blank.
             _loadedFor = Guid.Empty;
+            _loadFailed = true;
         }
     }
 
@@ -238,6 +301,18 @@ else if (_loaded && OnDone.HasDelegate)
     }
 
     private string _announcement = string.Empty;
+
+    private Task RetryAsync()
+    {
+        _loadedFor = Guid.Empty;
+        return OnParametersSetAsync();
+    }
+
+    private IReadOnlyList<AppRowMenuItem> MoveItems(int list, int index) =>
+    [
+        new AppRowMenuItem { Label = L["EditorReorder_MenuUp"].Value, Icon = AppMaterialIcons.Outlined.ArrowUpward, Disabled = !CanChange || !_editor.CanMoveUp(list, index), OnClick = EventCallback.Factory.Create(this, () => NudgeAsync(list, index, -1)) },
+        new AppRowMenuItem { Label = L["EditorReorder_MenuDown"].Value, Icon = AppMaterialIcons.Outlined.ArrowDownward, Disabled = !CanChange || !_editor.CanMoveDown(list, index), OnClick = EventCallback.Factory.Create(this, () => NudgeAsync(list, index, 1)) },
+    ];
 
     private Task NudgeAsync(int list, int index, int step)
     {
@@ -282,11 +357,63 @@ else if (_loaded && OnDone.HasDelegate)
 
     private async Task ChangedAsync(bool changed)
     {
-        if (!changed || Pending is not { } pending)
+        if (!changed)
         {
             return;
         }
 
+        if (HoldChanges)
+        {
+            StateHasChanged();
+            await NotifyDirtyAsync();
+            return;
+        }
+
+        if (Pending is { } pending)
+        {
+            await StageAsync(pending);
+        }
+    }
+
+    /// <summary>
+    /// Save order (Reorder mode): stages the held arrangement as the one order change (and any held rename choice) the editor's Save changes
+    /// will write and Review changes will list. False when there is no active edit session to stage into.
+    /// </summary>
+    public async Task<bool> CommitAsync()
+    {
+        if (!CanChange || Pending is not { } pending)
+        {
+            return false;
+        }
+
+        foreach (var (parentId, on) in _renameHeld)
+        {
+            var at = _editor.IndexOfList(parentId);
+            if (at >= 0)
+            {
+                ApplyRename(pending, _editor.Lists[at], on);
+            }
+        }
+
+        _renameHeld.Clear();
+        await StageAsync(pending);
+        _editor.MarkBaseline();
+        await NotifyDirtyAsync();
+        return true;
+    }
+
+    private async Task NotifyDirtyAsync()
+    {
+        var dirty = IsDirty;
+        if (dirty != _lastDirty)
+        {
+            _lastDirty = dirty;
+            await OnDirtyChanged.InvokeAsync(dirty);
+        }
+    }
+
+    private async Task StageAsync(PendingEditList pending)
+    {
         _editor.Stage(pending);
         if (!SectionsMode)
         {
@@ -301,13 +428,25 @@ else if (_loaded && OnDone.HasDelegate)
         }
     }
 
-    private void SetRename(VideoOrderList list, bool on)
+    private async Task SetRenameAsync(VideoOrderList list, bool on)
     {
         if (!CanChange || Pending is not { } pending)
         {
             return;
         }
 
+        if (HoldChanges)
+        {
+            _renameHeld[list.ParentId] = on;
+            await NotifyDirtyAsync();
+            return;
+        }
+
+        ApplyRename(pending, list, on);
+    }
+
+    private static void ApplyRename(PendingEditList pending, VideoOrderList list, bool on)
+    {
         if (pending.FindVideoRename(list.ParentId) is { } staged)
         {
             pending.Remove(staged.Id);
@@ -321,6 +460,13 @@ else if (_loaded && OnDone.HasDelegate)
 
     public async ValueTask DisposeAsync()
     {
+        // A header list that goes away while its arrangement is still held and unstaged (the window crossed 1024 wide, so the header was drawn again in
+        // its other arrangement) leaves it in the session for the list that takes its place. Save order and Cancel clear the held flag first.
+        if (HoldChanges && Session is { IsActive: true, HasHeldOrder: true } && Hold() is { } held)
+        {
+            Session.StashHeldOrder(held);
+        }
+
         try
         {
             if (_module is not null)

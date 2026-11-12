@@ -4,7 +4,7 @@ namespace MediaEngine.Web.Services.Integration;
 
 public partial interface IEngineApiClient
 {
-    /// <summary>The record an item is matched to, found by the provider id the Engine stored (never a text search), with the reasons it fits and a Strong, Possible or Check verdict. Null when the Engine could not be reached or the item is gone.</summary>
+    /// <summary>The record an item is matched to, found by the provider id the Engine stored (never a text search), with the reasons it fits and a Strong, Possible or Weak verdict. Null when the Engine could not be reached or the item is gone.</summary>
     Task<EditorCurrentMatchDto?> GetEditorCurrentMatchAsync(Guid entityId, CancellationToken ct = default);
 
     /// <summary>What the Match tab's search opens on: the providers for the item's kind (the Engine works the kind out) with their states, the boxes pre-filled from the file, and the local evidence. A read that makes no search.</summary>
@@ -16,7 +16,7 @@ public partial interface IEngineApiClient
     /// <summary>Where the item would go if this record were applied: the new parent, whether its folder is Managed, and the file's paths before and after. A read that moves nothing. Null when the Engine could not be reached.</summary>
     Task<EditorMatchPlacementDto?> GetEditorMatchPlacementAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default);
 
-    /// <summary>Judges a record picked in the TV or music flow (an episode, a track) against the item's file: Strong, Possible or Check with its reasons. A read. Null when the Engine could not be reached.</summary>
+    /// <summary>Judges a record picked in the TV or music flow (an episode, a track) against the item's file: Strong, Possible or Weak with its reasons. A read. Null when the Engine could not be reached.</summary>
     Task<EditorMatchResultDto?> GetEditorMatchVerdictAsync(Guid entityId, ItemCanonicalRetailCandidateDto candidate, CancellationToken ct = default);
 
     /// <summary>The releases of an album that fit the artist, album or song words, with the current one marked and the one that fits the file suggested. Null when the Engine could not be reached.</summary>

@@ -11,8 +11,11 @@ namespace MediaEngine.Contracts.Editing;
 /// </summary>
 public static class EditorMatchCandidates
 {
-    private const string TvdbName = "tvdb";
-    private const string MusicBrainzName = "musicbrainz";
+    /// <summary>The name of the provider every TV show and episode pick comes from (the TV browser reads TheTVDB only).</summary>
+    public const string TvdbName = "tvdb";
+
+    /// <summary>The name of the provider every music release and track pick comes from.</summary>
+    public const string MusicBrainzName = "musicbrainz";
 
     /// <summary>The fact names the verdict reads from <see cref="ItemCanonicalRetailCandidateDto.ExtraFields"/>.</summary>
     public static class Extra

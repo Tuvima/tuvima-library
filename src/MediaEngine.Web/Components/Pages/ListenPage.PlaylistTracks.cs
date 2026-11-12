@@ -25,287 +25,265 @@ namespace MediaEngine.Web.Components.Pages;
 
 public partial class ListenPage
 {
-    private void TogglePlaylistColumn(string key)
+    // ---- The playlist's songs on the shared SongTable (spec music-table-and-reader-frame WP5) -------------------------------------
+
+    private IReadOnlySet<string> _playlistFavoriteIds = new HashSet<string>();
+    private (IReadOnlySet<Guid>? Source, int Count)? _playlistFavoritesKey;
+
+    // The rows are worked out from the playlist's items at each render, as the old table did; the table keeps this order as given.
+    private IReadOnlyList<SongRow> PlaylistSongRows
+        => IsFavoritesPlaylist
+            ? [.. ActivePlaylistTrackRows.Select(row => SongRowMapper.FromFavorite(row.Work, row.Index))]
+            : [.. ActivePlaylistTrackRows.Select(row => SongRowMapper.FromPlaylistItem(row.Item, row.Work, row.Index))];
+
+    private string? PlaylistCurrentRowId => Playback.CurrentItem is { } current ? current.WorkId.ToString("D") : null;
+
+    private IReadOnlySet<string> PlaylistFavoriteIds
     {
-        if (!_playlistHiddenColumns.Add(key))
+        get
         {
-            _playlistHiddenColumns.Remove(key);
+            if (_playlistFavoritesKey is not { } known || !ReferenceEquals(known.Source, _favoriteWorkIds) || known.Count != _favoriteWorkIds.Count)
+            {
+                _playlistFavoriteIds = _favoriteWorkIds.Select(id => id.ToString("D")).ToHashSet(StringComparer.Ordinal);
+                _playlistFavoritesKey = (_favoriteWorkIds, _favoriteWorkIds.Count);
+            }
+
+            return _playlistFavoriteIds;
         }
     }
 
-    private bool IsPlaylistColumnVisible(string key) => !_playlistHiddenColumns.Contains(key);
+    // Reordering is offered only on a playlist this profile owns, and on its own Favorites; the other built-in lists have no items to move.
+    // Moving your own Favorites is not library editing, so it follows the same rule as your own hand-made playlist. The Engine still
+    // decides who may change a saved order, and a refusal shows the same notice as before.
+    private bool CanReorderActivePlaylist
+        => IsFavoritesPlaylist
+            ? _activeProfileId.HasValue
+            : ActivePlaylistCollection is not null && string.IsNullOrWhiteSpace(PlaylistKey) && !CanSaveActivePlaylist;
 
-    private IReadOnlyList<PlaylistColumnDefinition> BuildPlaylistColumns()
+    // Reorder mode (spec Collections and View fixes, #877): drag, Alt+Up/Down and Move up/down change only the page's copy of the order until
+    // Save order; Cancel and Esc put the saved order back. _trackOrderBefore holds each item with the position it was saved at.
+    private List<(CollectionItemDto Item, int SortOrder)>? _trackOrderBefore;
+    private bool _trackOrderSaving;
+
+    private bool TrackReorderActive => _trackOrderBefore is not null;
+    private bool TrackReorderDirty => _trackOrderBefore is { } before && !before.OrderBy(pair => pair.SortOrder).Select(pair => pair.Item.Id)
+        .SequenceEqual(_playlistItems.OrderBy(item => item.SortOrder).Select(item => item.Id));
+
+    private void BeginTrackReorder() => _trackOrderBefore = [.. _playlistItems.Select(item => (item, item.SortOrder))];
+
+    private Task CancelTrackReorder()
     {
-        var columns = new List<PlaylistColumnDefinition>
+        if (_trackOrderBefore is { } before)
         {
-            new("favorite", "Favorite"),
-            new("artist", "Artist"),
-            new("album", "Album"),
-            new("time", "Time"),
-        };
-
-        return columns;
-    }
-
-    private string BuildPlaylistGridTemplate()
-    {
-        var tracks = new List<string> { $"{_playlistColumnWidths["song"]}px" };
-        if (IsPlaylistColumnVisible("favorite"))
-        {
-            tracks.Add($"{_playlistColumnWidths["favorite"]}px");
+            foreach (var (item, sortOrder) in before)
+            {
+                item.SortOrder = sortOrder;
+            }
         }
 
-        if (IsPlaylistColumnVisible("artist"))
-        {
-            tracks.Add($"{_playlistColumnWidths["artist"]}px");
-        }
-
-        if (IsPlaylistColumnVisible("album"))
-        {
-            tracks.Add($"{_playlistColumnWidths["album"]}px");
-        }
-
-        if (IsPlaylistColumnVisible("time"))
-        {
-            tracks.Add($"{_playlistColumnWidths["time"]}px");
-        }
-
-        tracks.Add("118px");
-        return string.Join(" ", tracks);
-    }
-
-    private string BuildSongsGridTemplate()
-    {
-        var tracks = new[]
-        {
-            $"{_songColumnWidths["song"]}px",
-            $"{_songColumnWidths["favorite"]}px",
-            $"{_songColumnWidths["time"]}px",
-            $"{_songColumnWidths["artist"]}px",
-            $"{_songColumnWidths["album"]}px",
-            $"{_songColumnWidths["genre"]}px",
-            $"{_songColumnWidths["plays"]}px",
-            $"{_songColumnWidths["dateAdded"]}px",
-            "52px",
-        };
-
-        return string.Join(" ", tracks);
-    }
-
-    private void BeginColumnResize(string set, string key, double clientX)
-    {
-        var widths = string.Equals(set, "songs", StringComparison.OrdinalIgnoreCase)
-            ? _songColumnWidths
-            : _playlistColumnWidths;
-
-        if (!widths.TryGetValue(key, out var width))
-        {
-            return;
-        }
-
-        _resizingColumnSet = set;
-        _resizingColumnKey = key;
-        _resizeStartX = clientX;
-        _resizeStartWidth = width;
-    }
-
-    private void ResizeColumn(double clientX)
-    {
-        if (string.IsNullOrWhiteSpace(_resizingColumnSet) || string.IsNullOrWhiteSpace(_resizingColumnKey))
-        {
-            return;
-        }
-
-        var widths = string.Equals(_resizingColumnSet, "songs", StringComparison.OrdinalIgnoreCase)
-            ? _songColumnWidths
-            : _playlistColumnWidths;
-
-        if (!widths.ContainsKey(_resizingColumnKey))
-        {
-            return;
-        }
-
-        widths[_resizingColumnKey] = Math.Clamp(_resizeStartWidth + (int)Math.Round(clientX - _resizeStartX), 64, 560);
-    }
-
-    private void EndColumnResize()
-    {
-        _resizingColumnSet = null;
-        _resizingColumnKey = null;
-    }
-
-    private void BeginPlaylistTrackReorder(Guid itemId)
-    {
-        _draggingPlaylistTrackItemId = itemId;
-        _playlistTrackDropTargetItemId = null;
-        _playlistTrackDropAfter = false;
-    }
-
-    private Task BeginPlaylistTrackReorderAsync(Guid itemId)
-    {
-        BeginPlaylistTrackReorder(itemId);
+        _trackOrderBefore = null;
         return Task.CompletedTask;
     }
 
-    private void EndPlaylistTrackReorder()
+    private async Task<bool> SaveTrackReorderAsync()
     {
-        _draggingPlaylistTrackItemId = null;
-        _playlistTrackDropTargetItemId = null;
-        _playlistTrackDropAfter = false;
+        _trackOrderSaving = true;
+        try
+        {
+            var saved = await SavePlaylistTrackOrderAsync([.. _playlistItems.OrderBy(item => item.SortOrder)]);
+            if (saved)
+            {
+                _trackOrderBefore = null;
+            }
+
+            return saved;
+        }
+        finally
+        {
+            _trackOrderSaving = false;
+        }
     }
 
-    private Task SetPlaylistTrackDropTargetAsync(Guid targetItemId, bool after)
+    private WorkViewModel? PlaylistWorkFor(SongRow row)
+        => row.WorkId is { } workId
+            ? _workLookup.GetValueOrDefault(workId) ?? ActivePlaylistTracks.FirstOrDefault(work => work.Id == workId)
+            : null;
+
+    // Favorites play in the order the table shows (a column may be sorting it); a hand-made playlist plays in its saved order.
+    private Task PlayPlaylistRowAsync(SongPlayRequest request)
+        => PlayTracksAsync(
+            IsFavoritesPlaylist && request.Rows.Count > 0
+                ? [.. request.Rows.Select(PlaylistWorkFor).OfType<WorkViewModel>()]
+                : ActivePlaylistTracks,
+            request.Start.WorkId,
+            ActivePlaylistTitle);
+
+    private Task PlayNextPlaylistRowAsync(SongRow row)
+        => PlaylistWorkFor(row) is { } work ? PlayNextTrackAsync(work) : Task.CompletedTask;
+
+    private Task QueuePlaylistRowAsync(SongRow row)
+        => PlaylistWorkFor(row) is { } work ? QueueTrackAsync(work) : Task.CompletedTask;
+
+    private Task ToggleFavoritePlaylistRowAsync(SongRow row)
+        => PlaylistWorkFor(row) is { } work ? ToggleFavoriteAsync(work) : Task.CompletedTask;
+
+    // Edit opens the universal editor over this page with the song ticked (the table only offers it to a desktop that may edit).
+    private Task EditPlaylistRowAsync(SongRow row)
+        => PlaylistWorkFor(row) is { } work ? EditTrackAsync(work) : Task.CompletedTask;
+
+    private Task OpenPlaylistRowAlbumAsync(SongRow row)
     {
-        if (_draggingPlaylistTrackItemId.HasValue && _draggingPlaylistTrackItemId.Value != targetItemId)
+        if (PlaylistWorkFor(row) is { } work && BuildAlbumRouteForTrack(work) is { Length: > 0 } route)
         {
-            _playlistTrackDropTargetItemId = targetItemId;
-            _playlistTrackDropAfter = after;
-            StateHasChanged();
+            NavigateTo(route);
         }
 
         return Task.CompletedTask;
     }
 
-    private Task SetPlaylistTrackEndDropTargetAsync()
+    private Task RemovePlaylistRowAsync(SongRow row)
+        => IsFavoritesPlaylist
+            ? RemoveFavoriteRowAsync(row)
+            : row.PlaylistItemId is { } itemId ? RemovePlaylistTrackAsync(itemId) : Task.CompletedTask;
+
+    // Remove from Favorites takes the heart off, in place (no notice unless it fails); the row leaves because the list is read again.
+    private async Task RemoveFavoriteRowAsync(SongRow row)
     {
-        if (!_draggingPlaylistTrackItemId.HasValue)
+        if (!_activeProfileId.HasValue || row.WorkId is not { } songId)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        _playlistTrackDropTargetItemId = null;
-        _playlistTrackDropAfter = true;
+        _notice = null;
+        if (!await SavedItems.RemoveAsync(ProfileEntityKind.Song, songId))
+        {
+            ShowNotice(L["ListenPage_SongRemoveFailed"].Value, AppUiTone.Warning, urgent: true);
+            return;
+        }
+
+        await RefreshReactionStateAsync();
+    }
+
+    // Favorites are moved by song, not by a playlist item. The move names the favorite the song should sit before (none means last) instead
+    // of a place, so a song hearted or un-hearted elsewhere since the page last read the list cannot shift where it lands.
+    private async Task ReorderFavoriteRowAsync(SongReorderRequest request)
+    {
+        if (!CanReorderActivePlaylist || request.Row.WorkId is not { } songId)
+        {
+            return;
+        }
+
+        var shown = ActivePlaylistTrackRows;
+        if (request.ToIndex < 0 || request.ToIndex >= shown.Count || request.FromIndex == request.ToIndex)
+        {
+            return;
+        }
+
+        // The rows as they will read once the song has moved: the one that follows it is its neighbour.
+        var others = shown.Select(row => row.Work.Id).Where(id => id != songId).ToList();
+        Guid? beforeSongId = request.ToIndex < others.Count ? others[request.ToIndex] : null;
+
+        _notice = null;
+        if (!await SavedItems.MoveFavoriteSongAsync(songId, beforeSongId))
+        {
+            // The list may be what went wrong (a heart changed elsewhere): read it again, then say the move did not save.
+            await RefreshFavoriteOrderAsync();
+            ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
+            return;
+        }
+
+        _favoriteSongOrder.Remove(songId);
+        var insertAt = beforeSongId is { } before ? _favoriteSongOrder.IndexOf(before) : -1;
+        _favoriteSongOrder.Insert(insertAt >= 0 ? insertAt : _favoriteSongOrder.Count, songId);
+    }
+
+    // Hearts change from the player bar, other lists and other pages while Favorites is open. The page reads the order again when they do,
+    // in place: the table keeps its scroll, sort and any drag in progress, and a newly hearted song appears at the top.
+    private void OnSavedItemsChanged() => _ = InvokeAsync(RefreshFavoritesAfterChangeAsync);
+
+    private async Task RefreshFavoritesAfterChangeAsync()
+    {
+        if (_disposed || !IsFavoritesPlaylist)
+        {
+            return;
+        }
+
+        try
+        {
+            await RefreshFavoriteOrderAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read the Favorites order again after a change.");
+        }
+    }
+
+    // A fresh read straight from the Engine. When it cannot be read the list on screen stays as it is rather than going empty.
+    private async Task RefreshFavoriteOrderAsync()
+    {
+        if (!_activeProfileId.HasValue || await SavedItems.TryGetListAsync() is not { } saved)
+        {
+            return;
+        }
+
+        _favoriteSongOrder = [.. saved.Where(item => item.EntityKind == ProfileEntityKind.Song).Select(item => item.EntityId)];
+        _favoriteWorkIds = _favoriteSongOrder.ToHashSet();
         StateHasChanged();
-        return Task.CompletedTask;
     }
 
-    private async Task DropPlaylistTrackReorderAsync(Guid targetItemId, bool after = false)
+    public void Dispose()
     {
-        if (!_draggingPlaylistTrackItemId.HasValue || _draggingPlaylistTrackItemId.Value == targetItemId)
+        _disposed = true;
+        SavedItems.Changed -= OnSavedItemsChanged;
+    }
+
+    // Drag and the keyboard both arrive here as "this row now sits where that row was". The saved order is worked out on the playlist's own
+    // items (so a song the page could not resolve never shifts the result) and written by SavePlaylistTrackOrderAsync, the one write path.
+    private async Task ReorderPlaylistRowAsync(SongReorderRequest request)
+    {
+        if (IsFavoritesPlaylist)
+        {
+            await ReorderFavoriteRowAsync(request);
+            return;
+        }
+
+        if (!CanReorderActivePlaylist || request.Row.PlaylistItemId is not { } movedItemId)
         {
             return;
         }
 
-        var orderedItems = _playlistItems.OrderBy(item => item.SortOrder).ToList();
-        var sourceIndex = orderedItems.FindIndex(item => item.Id == _draggingPlaylistTrackItemId.Value);
-        var targetIndex = orderedItems.FindIndex(item => item.Id == targetItemId);
+        var shown = ActivePlaylistTrackRows;
+        if (request.ToIndex < 0 || request.ToIndex >= shown.Count || shown[request.ToIndex].Item is not { } target)
+        {
+            return;
+        }
+
+        var ordered = _playlistItems.OrderBy(item => item.SortOrder).ToList();
+        var sourceIndex = ordered.FindIndex(item => item.Id == movedItemId);
+        var targetIndex = ordered.FindIndex(item => item.Id == target.Id);
         if (sourceIndex < 0 || targetIndex < 0)
         {
             return;
         }
 
-        var moved = orderedItems[sourceIndex];
-        orderedItems.RemoveAt(sourceIndex);
-        if (sourceIndex < targetIndex)
-        {
-            targetIndex--;
-        }
-
-        if (after)
-        {
-            targetIndex++;
-        }
-
-        targetIndex = Math.Clamp(targetIndex, 0, orderedItems.Count);
-        orderedItems.Insert(targetIndex, moved);
-        await SavePlaylistTrackOrderAsync(orderedItems);
-        EndPlaylistTrackReorder();
-    }
-
-    private static string PlaylistRowDomId(Guid itemId) => $"listen-playlist-row-{itemId:N}";
-
-    private static string PlaylistCardSubtitle(WorkViewModel track)
-    {
-        var artist = StringHelpers.FirstNonBlank(track.Artist, track.Author);
-        var album = StringHelpers.FirstNonBlank(track.Album);
-        return string.Join(" · ", new[] { artist, album }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    }
-
-    // Menu and keyboard reorder share SavePlaylistTrackOrderAsync with the drag handlers, so there is one write path.
-    private async Task MovePlaylistTrackAsync(Guid itemId, int delta, bool keepFocus = false)
-    {
-        var currentItems = _playlistItems.OrderBy(item => item.SortOrder).ToList();
-        var sourceIndex = currentItems.FindIndex(item => item.Id == itemId);
-        var orderedItems = ListenPlaylistOrder.Move(currentItems, sourceIndex, delta);
-        if (orderedItems is null)
+        var reordered = ListenPlaylistOrder.MoveOnto(ordered, sourceIndex, targetIndex);
+        if (reordered is null)
         {
             return;
         }
 
-        var targetIndex = sourceIndex + delta;
-        var moved = currentItems[sourceIndex];
-        await SavePlaylistTrackOrderAsync(orderedItems);
-        var title = _workLookup.GetValueOrDefault(moved.WorkId)?.Title ?? "Song";
-        _playlistAnnouncement = $"{title} moved to position {targetIndex + 1} of {orderedItems.Count}";
-        if (keepFocus)
+        if (TrackReorderActive)
         {
-            _pendingPlaylistRowFocusId = itemId;
-        }
-    }
+            // Staged only: the order is written by Save order.
+            for (var index = 0; index < reordered.Count; index++)
+            {
+                reordered[index].SortOrder = index + 1;
+            }
 
-    private Task HandlePlaylistRowKeyDownAsync(KeyboardEventArgs args, CollectionItemDto? item, WorkViewModel? playOnEnter = null)
-    {
-        if (args.AltKey && item is not null && (args.Key == "ArrowUp" || args.Key == "ArrowDown"))
-        {
-            return MovePlaylistTrackAsync(item.Id, args.Key == "ArrowUp" ? -1 : 1, keepFocus: true);
-        }
-
-        if (playOnEnter is not null && (args.Key == "Enter" || args.Key == " "))
-        {
-            return PlayTracksAsync(ActivePlaylistTracks, playOnEnter.Id, ActivePlaylistTitle);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    private IReadOnlyList<AppRowMenuItem> PlaylistRowMenuItems(ListenPlaylistTrackRow row)
-    {
-        var track = row.Work;
-        var item = row.Item;
-        var items = new List<AppRowMenuItem>
-        {
-            new() { Label = "Play next", Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayNextTrackAsync(track)) },
-            new() { Label = "Add to queue", Icon = AppMaterialIcons.Outlined.PlaylistAdd, OnClick = EventCallback.Factory.Create(this, () => QueueTrackAsync(track)) },
-        };
-
-        if (item is not null)
-        {
-            var lastIndex = _playlistItems.Count - 1;
-            items.Add(new() { Label = "Move up", Icon = AppMaterialIcons.Outlined.KeyboardArrowUp, Disabled = row.Index <= 0, OnClick = EventCallback.Factory.Create(this, () => MovePlaylistTrackAsync(item.Id, -1)) });
-            items.Add(new() { Label = "Move down", Icon = AppMaterialIcons.Outlined.KeyboardArrowDown, Disabled = row.Index >= lastIndex, OnClick = EventCallback.Factory.Create(this, () => MovePlaylistTrackAsync(item.Id, 1)) });
-        }
-
-        var albumRoute = BuildAlbumRouteForTrack(track);
-        items.Add(new() { Label = "Go to album", Icon = AppMaterialIcons.Outlined.Album, Disabled = string.IsNullOrWhiteSpace(albumRoute), OnClick = EventCallback.Factory.Create(this, () => { if (!string.IsNullOrWhiteSpace(albumRoute)) { NavigateTo(albumRoute); } }) });
-        items.Add(new() { Label = "Go to artist", Icon = AppMaterialIcons.Outlined.Person, Disabled = track.ArtistPersonId is null, OnClick = EventCallback.Factory.Create(this, () => { if (track.ArtistPersonId is { } artistId) { NavigateTo($"/details/person/{artistId:D}"); } }) });
-        if (item is not null)
-        {
-            items.Add(new() { Label = "Remove", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RemovePlaylistTrackAsync(item.Id)) });
-        }
-
-        return items;
-    }
-
-    private async Task DropPlaylistTrackAtEndAsync()
-    {
-        if (!_draggingPlaylistTrackItemId.HasValue)
-        {
             return;
         }
 
-        var orderedItems = _playlistItems.OrderBy(item => item.SortOrder).ToList();
-        var sourceIndex = orderedItems.FindIndex(item => item.Id == _draggingPlaylistTrackItemId.Value);
-        if (sourceIndex < 0 || sourceIndex == orderedItems.Count - 1)
-        {
-            return;
-        }
-
-        var moved = orderedItems[sourceIndex];
-        orderedItems.RemoveAt(sourceIndex);
-        orderedItems.Add(moved);
-        await SavePlaylistTrackOrderAsync(orderedItems);
-        EndPlaylistTrackReorder();
+        await SavePlaylistTrackOrderAsync(reordered);
     }
 
     private IReadOnlyList<WorkViewModel> ResolveActivePlaylistTracks()
@@ -315,13 +293,8 @@ public partial class ListenPage
             return PlaylistKey.ToLowerInvariant() switch
             {
                 "all-music" => SortedSongs.ToList(),
-                "favorite-songs" => _musicWorks
-                    .Where(work => _favoriteWorkIds.Contains(work.Id))
-                    .OrderBy(work => work.Artist ?? work.Author, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(work => work.Album, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(work => ParseTrackNumber(work.TrackNumber))
-                    .ThenBy(DisplayTrackTitle, StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
+                // Favorites keep the profile's own order: newest hearted first unless it was moved by hand.
+                "favorite-songs" => ResolveFavoriteTracks(),
                 "recently-added" => RecentlyAddedTracks.ToList(),
                 _ => [],
             };
@@ -332,6 +305,20 @@ public partial class ListenPage
             .Select(item => _workLookup.GetValueOrDefault(item.WorkId))
             .Where(work => work is not null)
             .Cast<WorkViewModel>()
+            .ToList();
+    }
+
+    private IReadOnlyList<WorkViewModel> ResolveFavoriteTracks()
+    {
+        var music = new Dictionary<Guid, WorkViewModel>();
+        foreach (var work in _musicWorks)
+        {
+            music.TryAdd(work.Id, work);
+        }
+
+        return _favoriteSongOrder
+            .Select(id => music.GetValueOrDefault(id))
+            .OfType<WorkViewModel>()
             .ToList();
     }
 
@@ -356,11 +343,11 @@ public partial class ListenPage
             .ToList();
     }
 
-    private async Task SavePlaylistTrackOrderAsync(List<CollectionItemDto> orderedItems)
+    private async Task<bool> SavePlaylistTrackOrderAsync(List<CollectionItemDto> orderedItems)
     {
         if (ActivePlaylistCollection is null)
         {
-            return;
+            return false;
         }
 
         _notice = null;
@@ -372,7 +359,7 @@ public partial class ListenPage
         if (!saved)
         {
             ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
-            return;
+            return false;
         }
 
         _playlistItems.Clear();
@@ -381,6 +368,8 @@ public partial class ListenPage
             orderedItems[index].SortOrder = index + 1;
             _playlistItems.Add(orderedItems[index]);
         }
+
+        return true;
     }
 
     private async Task RemovePlaylistTrackAsync(Guid itemId)

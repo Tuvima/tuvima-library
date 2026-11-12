@@ -76,6 +76,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ActivityNotificationQueue>();
         Services.AddSingleton(new DashboardAuthUiOptions(false));
         Services.AddScoped<ListenAudioDragService>();
+        Services.AddScoped<SongDragDropService>();
         Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
         Services.AddScoped<ContextSidebarPreferences>();
         Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
@@ -506,11 +507,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
-            // Activity is a tab, not a menu row: Libraries is shaded amber when items wait, with no count bubble.
-            var libraries = cut.FindAll(".media-section-shell__tree-link")
-                .First(item => item.TextContent.Trim() == "Libraries");
-            var reviewNotification = libraries.QuerySelector(".media-section-shell__rail-meta--notification");
-            Assert.Null(reviewNotification);
+            // Activity is a tab, not a menu row: Libraries is shaded amber, with the small count pill, when items wait.
+            Assert.Single(cut.FindAll(".media-section-shell__tree-link"),
+                item => item.QuerySelector(".media-section-shell__tree-label")?.TextContent.Trim() == "Libraries");
             // System opens on the resources summary.
             Assert.Single(cut.FindAll("[data-settings-system-summary]"));
             Assert.DoesNotContain("System exceptions", cut.Markup);
@@ -759,7 +758,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     // The tab title names a library and its area only when the page shows them: the older group, type and Vault addresses redirect, so they read as Libraries.
     [Theory]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies - Watch - Library")]
-    [InlineData("view", "photos", "Photos - View - Library")]
+    [InlineData("view", "photos", "Photos and videos - View - Library")]
     [InlineData("import", null, "Libraries - Library")]
     [InlineData("watch", null, "Libraries - Library")]
     [InlineData("watch", "movies", "Libraries - Library")]
@@ -776,7 +775,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Theory]
     [InlineData(null, null, "Libraries", "Libraries", true)]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Libraries|Watch|Movies", false)]
-    [InlineData("view", "photos", "Photos", "Libraries|View|Photos", false)]
+    [InlineData("view", "photos", "Photos and videos", "Libraries|View|Photos and videos", false)]
     public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
     {
         var cut = RenderLibraries(subsection, detail);
@@ -1360,7 +1359,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains(">All Playlists<", markup);
             Assert.Contains(">Recently Played<", markup);
             Assert.Contains(">Recently Added<", markup);
-            Assert.Contains("Drag to reorder", markup);
+            Assert.Contains("aria-label=\"Manage ", markup);
             Assert.Empty(cut.FindAll(".listen-now-panel"));
         });
     }
@@ -1583,12 +1582,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{createdId:D}\")", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{playlistId:D}\")", browseSource, StringComparison.Ordinal);
-        Assert.True(legacyMarkup.Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 3);
+        Assert.True(legacyMarkup.Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 2);
         Assert.DoesNotContain("_playlistActionsMenuOpen", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("_playlistActionsCollectionId", legacySource, StringComparison.Ordinal);
         Assert.Contains("@onclick:stopPropagation=\"true\"", menuSource, StringComparison.Ordinal);
         Assert.Contains("AppControlSize.Compact", menuSource, StringComparison.Ordinal);
-        Assert.Contains("min-width: 8.75rem;", globalCss, StringComparison.Ordinal);
+        Assert.Contains("min-width: var(--tl-menu-min-width);", globalCss, StringComparison.Ordinal);
         Assert.Contains("min-height: var(--tl-menu-item-height) !important;", globalCss, StringComparison.Ordinal);
     }
 
@@ -1607,7 +1606,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
         var shellCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css"));
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellCss, StringComparison.Ordinal);
-        Assert.Contains("min-height: 60px;", shellCss, StringComparison.Ordinal);
+        Assert.Contains("min-height: 72px;", shellCss, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1693,7 +1692,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("Add group", sharedRuleBuilder);
         Assert.Contains("collection-rule-builder__group", sharedRuleBuilder);
         Assert.Contains("collection-rule-builder__row", sharedRuleBuilder);
-        Assert.Contains("app-dialog-select", sharedRuleBuilder);
+        Assert.Contains("<AppFormRow", sharedRuleBuilder);
     }
 
     [Fact]
@@ -1837,7 +1836,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public async Task MainLayout_TvLibrariesTabLinksToTheLastLibraryAndOpensTheSwitcherOnALibrarySurface()
     {
-        // The Libraries tab belongs to the TV dock now; the phone dock is Home, Search and My Library.
+        // The Libraries tab belongs to the TV dock now; the phone dock is Home, Search and My List.
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
@@ -1997,7 +1996,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
         cut.Render();
 
-        cut.WaitForAssertion(() => Assert.Equal(["/", "/search", "/my-library"],
+        cut.WaitForAssertion(() => Assert.Equal(["/", "/search", "/my-list"],
             cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray()));
     }
 

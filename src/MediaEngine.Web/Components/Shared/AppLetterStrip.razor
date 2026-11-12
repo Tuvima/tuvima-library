@@ -1,0 +1,30 @@
+@namespace MediaEngine.Web.Components.Shared
+@* A column of letters that jump a long list to a heading (the A to Z strip beside a phone list). A letter with nothing under it is
+   shown faded and cannot be pressed. The strip owns its buttons and their styling, so the list using it needs no deep rules. *@
+<div class="app-letter-strip" role="group" aria-label="@AriaLabel">
+    @foreach (var letter in Letters)
+    {
+        var shown = letter;
+        var present = Present.Contains(shown);
+        <button type="button"
+                class="@(present ? "app-letter-strip__letter" : "app-letter-strip__letter is-empty")"
+                disabled="@(!present)"
+                aria-label="@(LetterLabel is null ? shown : LetterLabel(shown))"
+                @onclick="@(() => OnSelect.InvokeAsync(shown))">@shown</button>
+    }
+</div>
+
+@code {
+    /// <summary>The letters, top to bottom.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<string> Letters { get; set; } = [];
+
+    /// <summary>The letters that have something under them; the others are faded.</summary>
+    [Parameter] public ISet<string> Present { get; set; } = new HashSet<string>();
+
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>The accessible name of one letter ("Jump to B"); the letter itself when not set.</summary>
+    [Parameter] public Func<string, string>? LetterLabel { get; set; }
+
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+}

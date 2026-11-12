@@ -11,7 +11,13 @@ public sealed record ReviewResolveResponse(bool resolved, Guid review_item_id);
 
 public sealed record ReviewDismissResponse(bool dismissed, Guid review_item_id);
 
+/// <summary>The result of "Put back": a kept item is waiting in Needs Review again.</summary>
+public sealed record ReviewReopenResponse(bool reopened, Guid review_item_id);
+
 public sealed record ReviewSkipUniverseResponse(bool skipped, Guid review_item_id);
+
+/// <summary>The result of picking a choice in Needs Review: the choice was applied and the row is resolved. <c>kind</c> is the choice's kind.</summary>
+public sealed record ReviewChooseResponse(bool chosen, Guid review_item_id, string choice_id, string kind);
 
 /// <summary>
 /// The result of "Move to TV". <c>season_number</c> and <c>episode_numbers</c> say where the file landed

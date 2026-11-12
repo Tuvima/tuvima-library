@@ -122,7 +122,7 @@ public sealed class PlaybackCapabilitiesService
         var chapters = await BuildChaptersAsync(assetId, probe, profileId, ct);
         var durationSeconds = ResolveManifestDurationSeconds(chapters, probe);
         var sourceBitrateKbps = (durationSeconds is > 0 && probe?.FileSizeBytes > 0 ? (int?)Math.Min(int.MaxValue, probe.FileSizeBytes * 8d / durationSeconds.Value / 1000d) : null);
-        var technical = BuildTechnicalInfo(extension, probe);
+        var technical = BuildTechnicalInfo(extension, probe, asset.FilePathRoot);
         if (ShouldUseAdaptiveRemoteDelivery(
             mediaType,
             connection,
@@ -745,9 +745,10 @@ public sealed class PlaybackCapabilitiesService
         ];
     }
 
-    private static PlaybackTechnicalInfoDto BuildTechnicalInfo(
+    internal static PlaybackTechnicalInfoDto BuildTechnicalInfo(
         string extension,
-        MediaProbeResult? probe)
+        MediaProbeResult? probe,
+        string? filePath = null)
     {
         var width = probe?.Width;
         var height = probe?.Height;
@@ -762,8 +763,40 @@ public sealed class PlaybackCapabilitiesService
             AudioBitrateKbps = probe?.AudioBitrate is > 0 ? probe.AudioBitrate : null,
             SampleRateHz = probe?.SampleRate is > 0 ? probe.SampleRate : null,
             Channels = probe?.Channels is > 0 ? probe.Channels : null,
+            FileName = FileNameOnly(filePath),
+            FileSizeBytes = probe?.FileSizeBytes is > 0 ? probe.FileSizeBytes : null,
+            ColorFormat = ColorFormatFor(probe?.ColorTransfer),
+            VideoProfile = string.IsNullOrWhiteSpace(probe?.VideoProfile) ? null : probe.VideoProfile.Trim(),
         };
     }
+
+    /// <summary>The file's name with its extension and nothing of the folder it lives in (Playback information, video-player follow-ups D13).</summary>
+    internal static string? FileNameOnly(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return null;
+        }
+
+        // Both separators are cut so a Windows path read on another system still loses its folder.
+        var name = filePath.Trim();
+        var cut = name.LastIndexOfAny(['\\', '/']);
+        if (cut >= 0)
+        {
+            name = name[(cut + 1)..];
+        }
+
+        return string.IsNullOrWhiteSpace(name) ? null : name;
+    }
+
+    /// <summary>SDR, HDR10 or HLG from the video stream's transfer characteristic; null when it is missing or not one the player can name.</summary>
+    internal static string? ColorFormatFor(string? colorTransfer) => colorTransfer?.Trim().ToLowerInvariant() switch
+    {
+        "smpte2084" => "HDR10",
+        "arib-std-b67" => "HLG",
+        "bt709" or "smpte170m" or "bt470bg" or "bt470m" or "smpte240m" or "bt2020-10" or "bt2020-12" or "iec61966-2-1" or "iec61966-2-4" or "srgb" => "SDR",
+        _ => null,
+    };
 
     private async Task<IReadOnlyList<PlaybackSubtitleTrackDto>> BuildSubtitleTracksAsync(
         Guid assetId,

@@ -327,7 +327,7 @@ public sealed class MetadataEditorRepository(IDatabaseConnection db) : IMetadata
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return connection.QueryFirstOrDefault<MetadataEditorAssetSample>(new CommandDefinition("""
+        return connection.QueryFirstOrDefault<MetadataEditorAssetSample>(new CommandDefinition($"""
             WITH RECURSIVE work_tree(id, depth) AS (
                 SELECT @workId, 0
                 UNION ALL
@@ -341,7 +341,7 @@ public sealed class MetadataEditorRepository(IDatabaseConnection db) : IMetadata
             FROM work_tree
             INNER JOIN editions e ON e.work_id = work_tree.id
             INNER JOIN media_assets ma ON ma.edition_id = e.id
-            ORDER BY work_tree.depth, ma.id
+            ORDER BY work_tree.depth, {EditorFirstFileRule.AssetOrder}
             LIMIT 1;
             """, new { workId }, cancellationToken: ct));
     }

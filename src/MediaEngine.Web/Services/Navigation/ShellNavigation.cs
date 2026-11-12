@@ -41,13 +41,13 @@ public static class ShellNavigation
     public static IReadOnlyList<ShellNavLink> WithVault(IReadOnlyList<ShellNavLink> links, bool showVault) =>
         showVault ? [.. links, Vault] : links;
 
-    /// <summary>My Library, the phone menu's link to the personal page (the same page as the dock's My Library tab).</summary>
-    public static readonly ShellNavLink MyLibrary = new("MyLibrary", ShellDock.MyLibraryPath, "Nav_MyLibrary", AppMaterialIcons.Outlined.LibraryBooks);
+    /// <summary>My List, the phone menu's link to the personal page (the same page as the dock's My List tab).</summary>
+    public static readonly ShellNavLink MyList = new("MyList", ShellDock.MyListPath, "Nav_MyList", AppMaterialIcons.Outlined.BookmarkBorder);
 
-    /// <summary>The phone menu's destinations: Home, My Library, Recently added (adults), then the top bar lanes in the top bar's order.</summary>
+    /// <summary>The phone menu's destinations: Home, My List, Recently added (adults), then the top bar lanes in the top bar's order.</summary>
     public static IReadOnlyList<ShellNavLink> MenuLinks(bool isKids)
     {
-        var links = new List<ShellNavLink> { Home, MyLibrary };
+        var links = new List<ShellNavLink> { Home, MyList };
         if (!isKids)
         {
             links.Add(ToLink(ShellDock.RecentlyAdded));

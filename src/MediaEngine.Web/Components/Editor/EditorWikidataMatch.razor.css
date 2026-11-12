@@ -1,4 +1,4 @@
-/* The Match tab's Wikidata side (editor v5, 3c): the identity card, the one amber conflict line and the text-only results. */
+/* The Match tab's Wikidata side (editor v5, 3c; v6 WP6): the shared search row, the identity card, the one amber conflict line and the text-only list with the shared card. */
 .tl-wikidata {
     display: flex;
     flex-direction: column;
@@ -6,17 +6,11 @@
     min-width: 0;
 }
 
-.tl-wikidata__field {
-    flex: 1 1 10rem;
-    min-width: 0;
-}
-
 .tl-wikidata__name {
     min-width: 0;
 }
 
-.tl-wikidata__actions,
-.tl-wikidata__resultactions {
+.tl-wikidata__actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -24,30 +18,10 @@
     gap: var(--tl-space-2);
 }
 
-.tl-wikidata__row {
-    cursor: pointer;
-}
-
-.tl-wikidata__row[data-selected="true"] {
-    background: var(--tl-accent-primary-soft);
-}
-
-.tl-wikidata__row[data-relation="parent"] td {
-    border-bottom-style: dashed;
-}
-
-.tl-wikidata__fit[data-state="agrees"] {
-    color: var(--tl-status-success);
-}
-
-.tl-wikidata__fit[data-state="differs"] {
-    color: var(--tl-status-warning);
-}
-
-.tl-wikidata__note {
-    margin: 0;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+/* On a phone the identity's actions stack at the full width, as the provider card's do. */
+.tl-wikidata__actions--phone {
+    flex-direction: column;
+    align-items: stretch;
 }
 
 .tl-wikidata__reason {

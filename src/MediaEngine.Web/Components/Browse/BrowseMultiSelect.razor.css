@@ -13,8 +13,8 @@
 .browse-multi-select__label {
     margin-left: 2px;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1;
 }
 
@@ -36,15 +36,15 @@
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-primary);
     font: inherit;
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     text-align: left;
     cursor: pointer;
 }
 
 ::deep .browse-multi-select__trigger:hover,
 ::deep .browse-multi-select__trigger.is-active {
-    border-color: color-mix(in srgb, var(--tl-accent-primary) 68%, rgba(128, 146, 180, 0.3));
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 68%, color-mix(in srgb, var(--tl-text-muted) 30%, transparent));
     outline: none;
     box-shadow: none;
 }

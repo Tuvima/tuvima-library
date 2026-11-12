@@ -1,0 +1,40 @@
+@namespace MediaEngine.Web.Components.Settings.NeedsReview
+@inject IStringLocalizer<SharedStrings> L
+
+@* The items a person kept with Keep as it is (spec D7): hidden, never lost. A line under the list says how many are hidden and brings them
+   into view; each then offers Put back. Nothing is drawn when nothing is kept. *@
+@if (Total > 0 || Open)
+{
+    <div class="nr-kept">
+        <p class="nr-kept__line" data-testid="needs-review-kept-line">
+            <span>@(Total == 1 ? L["NeedsReviewKept_HiddenOne"].Value : L["NeedsReviewKept_Hidden", Total.ToString("N0")].Value)</span>
+            <AppButton Label="@(Open ? L["NeedsReviewKept_Hide"].Value : L["NeedsReviewKept_Show"].Value)"
+                       ButtonStyle="AppButtonStyle.Text"
+                       Tone="AppUiTone.Primary"
+                       Size="AppControlSize.Compact"
+                       aria-expanded="@(Open ? "true" : "false")"
+                       OnClick="OnToggle" />
+        </p>
+        @if (Open && Section.Entries.Count > 0)
+        {
+            <NeedsReviewGroupSection Section="@Section" Model="@Model" Actions="@Actions" KeptView="true" />
+        }
+    </div>
+}
+
+@code {
+    /// <summary>How many kept items exist for the current library filter.</summary>
+    [Parameter] public int Total { get; set; }
+
+    /// <summary>Whether the kept items are listed.</summary>
+    [Parameter] public bool Open { get; set; }
+
+    [Parameter] public EventCallback OnToggle { get; set; }
+
+    /// <summary>The kept items as one section.</summary>
+    [Parameter, EditorRequired] public NeedsReviewSection Section { get; set; } = default!;
+
+    [Parameter, EditorRequired] public NeedsReviewListModel Model { get; set; } = default!;
+
+    [Parameter, EditorRequired] public NeedsReviewActions Actions { get; set; } = default!;
+}

@@ -29,9 +29,9 @@
 }
 
 .context-sidebar-shell--playback .context-sidebar-shell__aside {
-    color: var(--playback-text, #f8fafc);
-    border-color: var(--playback-border, rgba(255,255,255,.1));
-    background: var(--playback-surface, #101821);
+    color: var(--playback-text, var(--tl-text-primary));
+    border-color: var(--playback-border, var(--tl-wash-light-4));
+    background: var(--playback-surface, var(--tl-bg-shell));
 }
 
 .context-sidebar-shell__header {
@@ -46,14 +46,14 @@
 }
 
 .context-sidebar-shell--playback .context-sidebar-shell__header {
-    border-color: var(--playback-border, rgba(255,255,255,.1));
-    background: var(--playback-surface, #101821);
+    border-color: var(--playback-border, var(--tl-wash-light-4));
+    background: var(--playback-surface, var(--tl-bg-shell));
 }
 
 .context-sidebar-shell__header h2 {
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     line-height: 1.2;
     margin: 0;
     min-width: 0;
@@ -81,8 +81,8 @@
 
 .context-sidebar-shell__header ::deep .context-sidebar-shell__close:hover,
 .context-sidebar-shell__header ::deep .context-sidebar-shell__close:focus-visible {
-    background: var(--tl-bg-surface-raised, rgba(255,255,255,.08));
-    color: var(--tl-text-primary, #fff);
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-primary);
 }
 
 .context-sidebar-shell__header ::deep .context-sidebar-shell__close:focus-visible {
@@ -119,7 +119,7 @@
     .context-sidebar-shell.is-open { grid-template-columns: minmax(0, 1fr); }
 
     .context-sidebar-shell.is-modal .context-sidebar-shell__backdrop {
-        background: rgba(0, 0, 0, .58);
+        background: var(--tl-scrim-dark-5);
         display: block;
         inset: 0;
         overscroll-behavior: contain;
@@ -137,7 +137,7 @@
         border-bottom: 0;
         border-radius: 16px 16px 0 0;
         bottom: 0;
-        box-shadow: 0 -16px 40px rgba(0, 0, 0, .36);
+        box-shadow: 0 -16px 40px var(--tl-scrim-dark-3);
         height: min(82svh, 720px);
         left: 0;
         max-height: 82svh;
@@ -161,7 +161,7 @@
     }
 
     .context-sidebar-shell--playback.is-open .context-sidebar-shell__header {
-        background: var(--playback-surface, #101821);
+        background: var(--playback-surface, var(--tl-bg-shell));
     }
 
     .context-sidebar-shell__resize { display: none; }

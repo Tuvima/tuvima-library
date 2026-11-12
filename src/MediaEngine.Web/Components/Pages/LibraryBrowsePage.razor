@@ -107,8 +107,12 @@
                 {
                     <MediaTileShelf Shelf="@shelf" UseContinueWatchingOrListeningTiles="true" @key="shelf.Key" />
                 }
+                @foreach (var shelf in VisibleShelves.Where(s => IsMyListShelf(s)))
+                {
+                    <MediaTileShelf Shelf="@shelf" @key="shelf.Key" />
+                }
                 <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
-                @foreach (var (shelf, shelfIndex) in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue).Select((shelf, shelfIndex) => (shelf, shelfIndex)))
+                @foreach (var (shelf, shelfIndex) in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue && !IsMyListShelf(s)).Select((shelf, shelfIndex) => (shelf, shelfIndex)))
                 {
                     <MediaTileShelf Shelf="@shelf" EagerItemCount="@(shelfIndex == 0 ? FirstShelfEagerTileCount : 0)" LanePlace="home" OnLaneHidden="HideLane" @key="shelf.Key" />
                 }
@@ -181,6 +185,9 @@
 
     // Lanes the viewer just hid; the Engine has saved it, and the next load leaves them out.
     private readonly HashSet<string> _hiddenLanes = new(StringComparer.OrdinalIgnoreCase);
+
+    // The profile's My List row (My List spec D9) sits directly under Continue, not among the lanes below.
+    private static bool IsMyListShelf(MediaTileShelfViewModel shelf) => string.Equals(shelf.Key, "my-list", StringComparison.OrdinalIgnoreCase);
 
     private IReadOnlyList<MediaTileShelfViewModel> VisibleShelves =>
         _hiddenLanes.Count == 0 ? _visibleShelves : _visibleShelves.Where(shelf => !_hiddenLanes.Contains(shelf.Key)).ToList();

@@ -5,10 +5,10 @@
     align-items: center;
     gap: 18px;
     padding: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: 8px;
-    background: rgba(8, 12, 22, 0.62);
-    color: rgba(248, 250, 252, 0.92);
+    background: var(--tl-scrim-dark-5);
+    color: var(--tl-text-primary);
 }
 
 .empty-shelf-state .tl-icon-root {
@@ -19,12 +19,12 @@
 .empty-shelf-state h2 {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .empty-shelf-state p {
     margin: 6px 0 0;
     font-family: var(--font-ui);
-    color: rgba(203, 213, 225, 0.78);
+    color: var(--tl-text-secondary);
 }

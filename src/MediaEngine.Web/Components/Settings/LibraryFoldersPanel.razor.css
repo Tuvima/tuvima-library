@@ -8,7 +8,7 @@
 .library-folders__empty span {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .library-folders__detail {
@@ -33,7 +33,7 @@
 
 .library-folders__detail-header h3 {
     margin: 0;
-    font-size: var(--tl-font-size-lg);
+    font-size: var(--tl-type-heading-size);
 }
 
 .library-folders__detail-header > div:not(.library-folders__detail-actions) {
@@ -156,7 +156,7 @@
     border-radius: var(--tl-radius-md, 8px);
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* Under the one card breakpoint (840px, by viewport width, so portrait tablets too) folders are read-only: the note says where to
@@ -194,8 +194,8 @@
 .library-folders__table-head {
     min-height: 40px;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .library-folders__table-row {
@@ -215,12 +215,12 @@
     padding: 0 10px;
     border-radius: 14px;
     background: var(--tl-accent-primary-soft);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .library-folders__subheading {
     margin: 4px 0 0;
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
 }
 
 .library-folders__destinations {
@@ -251,7 +251,7 @@
     min-width: 0;
     overflow-wrap: anywhere;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .library-folders__destination-note {
@@ -259,7 +259,7 @@
 }
 
 .library-folders__status {
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .library-folders__status--warning {
@@ -271,5 +271,5 @@
 .library-folders__hint {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }

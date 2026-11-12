@@ -55,6 +55,7 @@ public sealed class VaultRouteInventoryTests
         ("/api/v1/profile-state/reactions/{entityKind}/{entityId:guid}", "Reactions are checked against the authorized projection of the signed-in profile"),
         ("/api/v1/profile-state/reactions/{entityKind}/{entityId:guid}/{reaction}", "Reactions are checked against the authorized projection of the signed-in profile"),
         ("/api/v1/profile-state/saved/{entityKind}/{entityId:guid}", "Saves are checked against the authorized projection of the signed-in profile"),
+        ("/api/v1/profile-state/favorites/songs/{entityId:guid}/move", "Only reorders songs already in the signed-in profile's own Favorites, and only those the authorized projection shows; any other id answers not found"),
         ("/api/v1/display/lanes/{place}/hidden/{collectionId:guid}", "Only stores the profile's own hide for a lane it already has; no item or file is read"),
         ("/api/v1/collections/{id:guid}", "Items are limited by the authorized projection"),
         ("/api/v1/collections/{id:guid}/items", "Items are limited by the authorized projection"),

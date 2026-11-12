@@ -1,5 +1,5 @@
 .app-bg {
-    background: var(--tl-bg-root, #17181e);
+    background: var(--tl-bg-root);
     min-height: 100vh;
     min-height: 100dvh;
 }
@@ -17,7 +17,7 @@
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
-    background: var(--tl-bg-root, #17181e);
+    background: var(--tl-bg-root);
 }
 
 /* The shared variable carrier keeps the native frame's CSS isolation scope. */
@@ -168,10 +168,10 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     min-height: var(--app-topbar-height, 65px);
     height: var(--app-topbar-height, 65px);
     padding: var(--tl-safe-area-top) var(--tl-safe-area-right) 0 var(--tl-safe-area-left) !important;
-    color: var(--tl-text-primary, #aab8c5);
-    background: var(--tl-bg-surface, #1e1f27) !important;
-    border-bottom: 1px solid var(--tl-border-default, #293036);
-    box-shadow: var(--tl-shadow-sm, 0 1px 4px rgba(130, 143, 163, 0.15));
+    color: var(--tl-text-primary);
+    background: var(--tl-bg-surface) !important;
+    border-bottom: 1px solid var(--tl-border-default);
+    box-shadow: var(--tl-shadow-sm);
     overflow: visible;
 }
 
@@ -189,7 +189,7 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     padding: .25rem var(--tl-safe-area-right) max(.25rem, var(--tl-safe-area-bottom)) var(--tl-safe-area-left);
     border-top: 1px solid var(--tl-border-subtle);
     background: color-mix(in srgb, var(--tl-bg-shell) 94%, transparent);
-    box-shadow: 0 -12px 34px rgba(0, 0, 0, .28);
+    box-shadow: 0 -12px 34px var(--tl-scrim-dark-2);
     backdrop-filter: blur(20px) saturate(120%);
 }
 
@@ -260,12 +260,12 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
 }
 
 .layout-shell__appbar--cinematic {
-    color: rgba(248, 250, 252, 0.96);
+    color: var(--tl-text-primary);
     background:
         linear-gradient(
             to bottom,
-            rgba(3, 6, 12, 0.68) 0%,
-            rgba(3, 6, 12, 0.34) 62%,
+            var(--tl-scrim-dark-6) 0%,
+            var(--tl-scrim-dark-2) 62%,
             transparent 100%) !important;
     border-bottom-color: transparent;
     box-shadow: none;
@@ -306,7 +306,7 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     align-items: center;
     gap: 0.6rem;
     flex: 0 0 auto;
-    color: var(--app-text, rgba(245, 245, 245, 0.94));
+    color: var(--app-text, var(--tl-text-primary));
     line-height: 1;
 }
 
@@ -357,7 +357,7 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     min-width: 0;
     flex: 0 0 auto;
     border-radius: var(--tl-radius-xs, 4px);
-    color: var(--tl-text-muted, #8391a2);
+    color: var(--tl-text-muted);
     text-decoration: none;
     transition: color 0.15s ease;
 }
@@ -379,7 +379,7 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     bottom: 0.12rem;
     height: 2px;
     border-radius: var(--tl-radius-round);
-    background: var(--tl-accent-primary, #236dc9);
+    background: var(--tl-accent-primary);
     opacity: 0;
     transform: scaleX(0.45);
     transition: opacity 0.15s ease, transform 0.15s ease;
@@ -387,7 +387,7 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
 
 .layout-shell__nav-link:hover,
 .layout-shell__nav-link--active {
-    color: var(--tl-text-primary, #aab8c5);
+    color: var(--tl-text-primary);
 }
 
 .layout-shell__nav-link:hover::after,
@@ -435,18 +435,18 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     padding: 0;
     border: 0;
     border-radius: var(--tl-control-radius);
-    color: var(--layout-my-list-color, var(--tl-text-primary, #f5f7fb));
+    color: var(--layout-my-list-color, var(--tl-text-primary));
     background: transparent;
     cursor: pointer;
 }
 
-.layout-shell__my-list-slot.is-open { --layout-my-list-color: #f5c518; }
+.layout-shell__my-list-slot.is-open { --layout-my-list-color: var(--tl-accent-primary-hover); }
 
 .layout-shell__search-action-slot ::deep .layout-shell__search-action:hover,
 .layout-shell__search-action-slot ::deep .layout-shell__search-action:focus-visible,
 .layout-shell__my-list-slot ::deep .layout-shell__my-list:hover,
 .layout-shell__my-list-slot ::deep .layout-shell__my-list:focus-visible {
-    color: #fff;
+    color: var(--tl-text-primary);
     background: var(--tl-bg-surface-hover);
 }
 
@@ -543,6 +543,12 @@ html[data-form-factor="phone"] .layout-shell__engine-banner {
     width: auto;
     max-width: none;
     transform: none;
+}
+
+/* While a details window is open the page behind it is dimmed, the phone navigation with it: it drops under the window's backdrop.
+   The player bar (the audio dock, 1350) stays above the backdrop and usable. */
+html[data-form-factor="phone"] .playback-app-frame:has(dialog[data-details-overlay][open]) .layout-shell__intent-dock {
+    z-index: calc(var(--tl-z-details-backdrop, 1340) - 1);
 }
 
 /* The dock is a floating pill: inset from the screen edges, rounded, lifted by a shadow, clear of the bottom safe area.

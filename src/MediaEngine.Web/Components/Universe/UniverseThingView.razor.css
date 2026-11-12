@@ -9,7 +9,7 @@
     align-self: flex-start;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-control-size);
     text-decoration: none;
 }
 
@@ -35,7 +35,7 @@
     aspect-ratio: 1 / 1;
     overflow: hidden;
     border-radius: var(--tl-radius-md, 0.5rem);
-    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
+    background: var(--tl-bg-surface-raised);
 }
 
 .universe-thing__picture img,
@@ -67,16 +67,16 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     letter-spacing: 0.04em;
 }
 
 .universe-thing__chip {
     padding: 0.1rem 0.5rem;
     border-radius: var(--tl-radius-sm, 0.25rem);
-    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
-    font-size: var(--tl-font-size-xs);
+    background: var(--tl-bg-surface-raised);
+    font-size: var(--tl-type-caption-size);
     text-transform: none;
     letter-spacing: 0;
 }
@@ -85,8 +85,8 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-    font-weight: 600;
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     line-height: 1.1;
     overflow-wrap: anywhere;
 }
@@ -96,7 +96,7 @@
     max-width: 62ch;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
 }
 
@@ -108,7 +108,7 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .universe-thing__actions {
@@ -132,8 +132,8 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: clamp(1.15rem, 1.6vw, 1.5rem);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     line-height: 1.15;
 }
 
@@ -177,7 +177,7 @@
     aspect-ratio: 1 / 1;
     overflow: hidden;
     border-radius: var(--tl-radius-md, 0.5rem);
-    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.16));
+    background: var(--tl-bg-surface-raised);
 }
 
 .universe-thing__initial {
@@ -190,8 +190,8 @@
 .universe-thing__name {
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1.25;
     overflow-wrap: anywhere;
 }

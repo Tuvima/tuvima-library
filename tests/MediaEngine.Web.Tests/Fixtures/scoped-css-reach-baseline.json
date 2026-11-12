@@ -38,9 +38,6 @@
       "companion__row",
       "companion__spoiler-control"
     ],
-    "src/MediaEngine.Web/Components/Details/AudioItemTable.razor": [
-      "tl-detail-track-row__play"
-    ],
     "src/MediaEngine.Web/Components/Details/DetailHeroSkeleton.razor": [
       "tl-detail-skeleton__artwork",
       "tl-detail-skeleton__button",
@@ -101,11 +98,6 @@
     "src/MediaEngine.Web/Components/Library/StatusPill.razor": [
       "media-status-badge--muted"
     ],
-    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor": [
-      "listen-song-table__art-play",
-      "listen-song-table__head",
-      "listen-song-table__play-only"
-    ],
     "src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor": [
       "library-section-header__navigation"
     ],
@@ -140,21 +132,12 @@
       "home-discovery-seed-button"
     ],
     "src/MediaEngine.Web/Components/Pages/ListenPage.razor": [
-      "listen-detail__more-menu",
       "listen-filter-input",
       "listen-filter-select",
-      "listen-playlist-track-list__head",
       "listen-rail__add",
       "listen-rail__drag",
       "listen-rail__more",
       "listen-rail__section-toggle"
-    ],
-    "src/MediaEngine.Web/Components/Pages/MyLibrary.razor": [
-      "my-library-header__action-skeleton",
-      "my-library-header__avatar",
-      "my-library-header__name-skeleton",
-      "my-library-skeleton__tile",
-      "my-library-skeleton__title"
     ],
     "src/MediaEngine.Web/Components/Pages/PluginPage.razor": [
       "plugin-page__guide-slot",
@@ -196,7 +179,6 @@
     "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor": [
       "collection-rule-builder__add-condition",
       "collection-rule-builder__add-secondary",
-      "collection-rule-builder__condition-drag",
       "collection-rule-builder__picker-search"
     ],
     "src/MediaEngine.Web/Components/Settings/ActivityLogPanel.razor": [
@@ -240,10 +222,6 @@
     ],
     "src/MediaEngine.Web/Components/Settings/MergeFolderDialog.razor": [
       "merge-folder__option"
-    ],
-    "src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor": [
-      "needs-review-page__search",
-      "needs-review-table"
     ],
     "src/MediaEngine.Web/Components/Settings/NewIntegrationWizard.razor": [
       "integration-wizard__secret"

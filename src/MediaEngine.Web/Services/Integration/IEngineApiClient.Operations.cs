@@ -174,4 +174,10 @@ public partial interface IEngineApiClient
     /// <see cref="LastError"/> then holds the Engine's explanation.
     /// </summary>
     Task<MediaEngine.Contracts.Review.ReviewMoveToTvResponse?> MoveReviewItemToTvAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// POST /review/{id}/choose — pick one of the choices a Needs Review row offers (a retail match, a Series or a library type). Returns
+    /// <c>null</c> on failure; <see cref="LastError"/> then holds the Engine's explanation.
+    /// </summary>
+    Task<MediaEngine.Contracts.Review.ReviewChooseResponse?> ChooseReviewAsync(Guid reviewId, string choiceId, CancellationToken ct = default);
 }
