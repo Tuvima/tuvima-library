@@ -424,7 +424,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
 
         var buttons = bar.FindAll(".tl-batch__bar button:not([hidden])").Select(button => button.TextContent.Trim()).ToList();
 
-        Assert.Equal(["Edit", "Match", "Move to album", "Clear"], buttons);
+        Assert.Equal(["Edit", "Add to playlist", "Match", "Move to album", "Clear"], buttons);
         Assert.Empty(bar.FindAll(".tl-batch__bar button[aria-label='More actions']"));
     }
 

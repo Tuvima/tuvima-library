@@ -165,7 +165,7 @@ public sealed class SongListDeleteTests : AsyncBunitContext
         Checkboxes(cut)[0].Change(true);
 
         Assert.Equal(3, Checkboxes(cut).Count);
-        Assert.Equal(["Edit", "Match", "Move to album", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Edit", "Add to playlist", "Match", "Move to album", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
         Assert.Empty(cut.FindAll($"{Bar} button[aria-label='More actions']"));
         Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
         Assert.DoesNotContain("Delete from library", cut.Markup.Replace("Delete from library…", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
@@ -252,7 +252,7 @@ public sealed class SongListDeleteTests : AsyncBunitContext
 
         var bar = cut.Find(Bar);
         Assert.Contains("3 selected", bar.TextContent);
-        Assert.Equal(["Edit", "Move to album", "More actions", "Clear"], bar.QuerySelectorAll("button:not([hidden])")
+        Assert.Equal(["Edit", "Add to playlist", "Move to album", "More actions", "Clear"], bar.QuerySelectorAll("button:not([hidden])")
             .Select(button => button.GetAttribute("aria-label") ?? button.TextContent.Trim())
             .Where(label => label.Length > 0));
 

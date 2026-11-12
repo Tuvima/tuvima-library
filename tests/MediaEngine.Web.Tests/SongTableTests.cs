@@ -527,6 +527,24 @@ public sealed class SongTableTests : AsyncBunitContext
     // -- Menu ------------------------------------------------------------------------------------------
 
     [Fact]
+    public async Task TheSongMenu_NeverOffersAddToCollection_BecauseSongsGoIntoPlaylists()
+    {
+        await UseDeviceAsync("desktop");
+        var rows = new List<SongRow> { Row("One", playlist: true) };
+
+        var cut = RenderTable(SongTablePlace.Songs, rows, p => p
+            .Add(t => t.OnPlayNext, Cb<SongRow>(_ => { }))
+            .Add(t => t.OnQueue, Cb<SongRow>(_ => { }))
+            .Add(t => t.CanEdit, true)
+            .Add(t => t.CanDelete, true));
+
+        var items = OpenMenu(cut, RowElement(cut, rows[0]).QuerySelector(".song-table__cell--actions button[aria-haspopup='menu']")!);
+
+        Assert.NotEmpty(items);
+        Assert.DoesNotContain(items, item => item.Contains("collection", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task TheRowMenuHasOneOrderAndLeavesOutWhatDoesNotApply()
     {
         await UseDeviceAsync("desktop");

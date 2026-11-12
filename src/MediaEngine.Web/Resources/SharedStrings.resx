@@ -13505,4 +13505,34 @@
   <data name="CollectionRuleBuilder_ChoicesCleared" xml:space="preserve">
     <value>Cleared because they do not apply to the chosen media type: {0}.</value>
   </data>
+  <data name="PlaylistMembership_NewPlaylist" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="PlaylistMembership_ChooseExisting" xml:space="preserve">
+    <value>Choose an existing playlist</value>
+  </data>
+  <data name="PlaylistMembership_NoSongs" xml:space="preserve">
+    <value>There are no songs to add.</value>
+  </data>
+  <data name="PlaylistMembership_OneAdded" xml:space="preserve">
+    <value>1 song added to {0}</value>
+  </data>
+  <data name="PlaylistMembership_ManyAdded" xml:space="preserve">
+    <value>{0} songs added to {1}</value>
+  </data>
+  <data name="PlaylistMembership_SomeAlreadyThere" xml:space="preserve">
+    <value>{0} added, {1} already there</value>
+  </data>
+  <data name="PlaylistMembership_AllAlreadyThere" xml:space="preserve">
+    <value>Those songs are already in {0}.</value>
+  </data>
+  <data name="PlaylistMembership_SomeFailed" xml:space="preserve">
+    <value>{0} added, {1} could not be added</value>
+  </data>
+  <data name="PlaylistMembership_AddFailed" xml:space="preserve">
+    <value>The songs could not be added to {0}.</value>
+  </data>
+  <data name="PlaylistMembership_CreateFailed" xml:space="preserve">
+    <value>The playlist could not be created.</value>
+  </data>
 </root>
