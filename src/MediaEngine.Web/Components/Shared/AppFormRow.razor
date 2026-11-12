@@ -1,16 +1,16 @@
 @namespace MediaEngine.Web.Components.Shared
-<div @attributes="AdditionalAttributes" class="@RootClass" data-alignment-row data-form-row style="--tl-form-row-columns: @Columns">
-    @ChildContent
+<div @attributes="AdditionalAttributes" class="@RootClass" data-alignment-row data-form-row>
+    <div class="app-form-row__fields" style="@FieldsStyle">@ChildContent</div>
     @if (Message is not null || ReserveMessage)
     {
         <div class="app-form-row__message @(ReserveMessage ? "app-form-row__message--reserved" : null)" data-control-text role="status">@Message</div>
     }
 </div>
 @code {
-    /// <summary>The fields and controls of the row, in order. Each one sits in its own column; its label, control and help share the row's three lines.</summary>
+    /// <summary>The fields and controls of the row, in order. Each one sits in its own column. A field (<c>app-field</c>) joins the row's three lines (label, control, help); anything else sits on the control line.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
-    /// <summary>A CSS grid-template-columns value, one entry per child (for example "220px 1.3fr auto"). Callers choose the widths; the row does not wrap by itself.</summary>
-    [Parameter] public string Columns { get; set; } = "repeat(auto-fit, minmax(0, 1fr))";
+    /// <summary>An optional CSS grid-template-columns value, one entry per child (for example "220px 1.3fr auto"). Without it every child takes an equal column. The row does not wrap by itself.</summary>
+    [Parameter] public string? Columns { get; set; }
     /// <summary>Helper, status or error text for the whole row. It sits on its own full-width line under the row, never beside a control.</summary>
     [Parameter] public RenderFragment? Message { get; set; }
     /// <summary>Keeps the message line one text line tall even while it is empty, so text that appears later never moves what is below.</summary>
@@ -18,7 +18,10 @@
     /// <summary>One column: each child's label, control and help stack in order, children one under another.</summary>
     [Parameter] public bool Stack { get; set; }
     [Parameter] public string? Class { get; set; }
+    /// <summary>Other attributes go on the row's root element, including a <c>style</c> (the columns are set on an inner element, so nothing is replaced).</summary>
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string RootClass => string.Join(" ", new[] { "app-form-row", Stack ? "app-form-row--stack" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string? FieldsStyle => string.IsNullOrWhiteSpace(Columns) ? null : $"--tl-form-row-columns: {Columns}";
 }

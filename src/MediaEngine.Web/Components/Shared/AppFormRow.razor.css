@@ -1,10 +1,19 @@
 /* The shared form row (Editor v6 D12): three lines for the whole row. Line 1 holds the labels, line 2 the controls, line 3 each field's own help.
-   Every child field joins these lines through a subgrid, so a label or help text on one field can never push a neighbour's control.
-   The children are other components' roots, so their placement rules (grid-template-rows: subgrid and the line each part sits on) are in
-   wwwroot/app.css under "Shared form row". Row-level helper, status and error text goes on the message line under the row. */
+   The row is a column of two parts: an inner grid of fields (columns side by side, or the caller's Columns) and, under it, the row's
+   own message line. The message is outside the grid so it always spans the full width, whatever the columns are.
+   The children are other components' roots, so their placement on the three lines is in wwwroot/app.css under "Shared form row". */
 .app-form-row {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* Without Columns every child takes an equal implicit column; with Columns the caller's template is used. */
+.app-form-row__fields {
     display: grid;
-    grid-template-columns: var(--tl-form-row-columns, repeat(auto-fit, minmax(0, 1fr)));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: var(--tl-form-row-columns, none);
     grid-template-rows: auto minmax(var(--tl-control-height-md), auto) auto;
     column-gap: var(--tl-space-3);
     row-gap: 0;
@@ -13,8 +22,6 @@
 
 /* The row's own message: full width, under the three lines, in the helper text style. */
 .app-form-row__message {
-    grid-column: 1 / -1;
-    grid-row: 4;
     box-sizing: content-box;
     padding-block-start: var(--tl-space-1);
     color: var(--tl-text-muted);
@@ -27,12 +34,8 @@
 }
 
 /* Stacked: one column, each child's label, control and help in order, children one under another. */
-.app-form-row--stack {
+.app-form-row--stack .app-form-row__fields {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3);
-}
-
-.app-form-row--stack > .app-form-row__message {
-    padding-block-start: 0;
 }

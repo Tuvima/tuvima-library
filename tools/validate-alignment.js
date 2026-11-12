@@ -12,7 +12,8 @@
 //   textOnControl  helper, status, error or result text sits above or below a control inside a column of a multi-item row
 //                  (allowed: the shared form row's own message line, and a field's help inside a multi-item .app-form-row, where it
 //                  sits on the shared help line)
-//   formRow        the controls of one shared .app-form-row (Editor v6 D12) do not share one top and one height
+//   formRow        the control boxes of the fields of one shared .app-form-row (Editor v6 D12) do not share one top and one height, or a
+//                  non-field child (button, checkbox) is off the control line's centre
 () => {
     const TOLERANCE = 2;
     const LADDER = [44, 56, 64];
@@ -41,11 +42,24 @@
         return Number.isFinite(lh) ? lh : fontSize * 1.3;
     };
     const items = row => [...row.children].filter(visible);
-    // The shared form row (AppFormRow) gives helper text two homes: its own message line, and each field's help on the shared help line.
+    // The shared form row (AppFormRow) gives helper text two homes: its own message line, and the help of a field that is a direct column of
+    // the row's field grid (it sits on the shared help line). Help inside anything nested deeper, such as a flex row inside a column, is still checked.
+    const FIELD_SELECTOR = '.app-field, [data-form-row-field]';
+    const LABEL_OR_HELP_SELECTOR = '.app-field__label, label, .app-field__help';
     const isFormRowText = text => {
         if (text.closest('.app-form-row__message')) return true;
-        const formRow = text.matches('.app-field__help') ? text.closest('.app-form-row') : null;
-        return !!formRow && items(formRow).filter(k => !k.matches('.app-form-row__message')).length >= 2;
+        if (!text.matches('.app-field__help')) return false;
+        let field = text.closest(FIELD_SELECTOR);
+        while (field && field.parentElement && field.parentElement.matches(FIELD_SELECTOR)) field = field.parentElement;
+        const grid = field && field.parentElement;
+        return !!grid && grid.matches('.app-form-row__fields') && items(grid).length >= 2;
+    };
+    // The element on a field's control line: the first part of the field that is not its label or help (the control frame, not an adornment
+    // button inside it), looking through a wrapper marked data-form-row-field to the field it holds.
+    const controlBox = field => {
+        const part = items(field).find(k => !k.matches(LABEL_OR_HELP_SELECTOR));
+        if (!part) return field;
+        return part.matches(FIELD_SELECTOR) ? controlBox(part) : part;
     };
     const failures = [];
     const fail = (rule, el, detail) => failures.push({ rule, element: describe(el), detail });
@@ -96,21 +110,25 @@
         }
     }
 
-    // formRow: in one shared form row the control of every column (not the message line) has the same top and height. A field's control is
-    // its first input, select or button; a bare control or a wrapper such as a segmented control is measured as itself.
+    // formRow: in one shared form row the control box of every field (the element on its control line, not its label, help or an adornment
+    // button inside the frame) has the same top and height. A child that is not a field (a button, a checkbox, an icon button) is centred on
+    // the control line, so it only has to share the centre line of the first field's control.
     const formRows = [...document.querySelectorAll('.app-form-row')].filter(visible);
     for (const row of formRows) {
         if (row.matches('.app-form-row--stack')) continue;
-        const controls = items(row)
-            .filter(kid => !kid.matches('.app-form-row__message'))
-            .map(kid => (kid.matches('.app-field') ? firstControl(kid) : kid))
-            .filter(c => c && visible(c));
-        if (controls.length < 2) continue;
-        const first = controls[0].getBoundingClientRect();
-        for (const c of controls.slice(1)) {
-            const r = c.getBoundingClientRect();
-            if (Math.abs(r.top - first.top) > TOLERANCE) fail('formRow', c, `control top is ${Math.abs(r.top - first.top).toFixed(1)} px off the first control of the form row`);
-            else if (Math.abs(r.height - first.height) > TOLERANCE) fail('formRow', c, `control height is ${Math.round(r.height)} px, the first control of the form row is ${Math.round(first.height)} px`);
+        const grid = row.querySelector('.app-form-row__fields') || row;
+        const parts = items(grid).map(kid => ({ field: kid.matches(FIELD_SELECTOR), box: kid.matches(FIELD_SELECTOR) ? controlBox(kid) : kid })).filter(p => visible(p.box));
+        if (parts.length < 2) continue;
+        const reference = (parts.find(p => p.field) || parts[0]).box;
+        const first = reference.getBoundingClientRect();
+        for (const part of parts) {
+            if (part.box === reference) continue;
+            const r = part.box.getBoundingClientRect();
+            if (!part.field) {
+                const delta = Math.abs(centre(part.box) - centre(reference));
+                if (delta > TOLERANCE) fail('formRow', part.box, `control centre is ${delta.toFixed(1)} px off the control line of the form row`);
+            } else if (Math.abs(r.top - first.top) > TOLERANCE) fail('formRow', part.box, `control top is ${Math.abs(r.top - first.top).toFixed(1)} px off the first control of the form row`);
+            else if (Math.abs(r.height - first.height) > TOLERANCE) fail('formRow', part.box, `control height is ${Math.round(r.height)} px, the first control of the form row is ${Math.round(first.height)} px`);
         }
     }
 

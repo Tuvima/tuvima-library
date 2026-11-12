@@ -470,6 +470,15 @@
                 </ChildContent>
                 <Message>10 results</Message>
             </AppFormRow>
+            <AppFormRow data-testid="preview-alignment-formrow-auto">
+                <ChildContent>
+                    <AppTextField Label="Series" Value="Dune" />
+                    <AppTextField Label="Author" Value="Frank Herbert" HelpText="As printed on the cover" />
+                    <AppCheckbox Label="Owned only" Value="true" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="Search" />
+                </ChildContent>
+                <Message>No results yet</Message>
+            </AppFormRow>
             <div data-testid="preview-alignment-footer"><AppActionBar Align="AppHorizontalAlignment.End">
                 <AppButton Label="Reset" ButtonStyle="AppButtonStyle.Text" Class="app-footer-start" />
                 <AppButton Label="Delete" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Outlined" />

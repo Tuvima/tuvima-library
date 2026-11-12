@@ -1239,48 +1239,73 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 
 /* Shared form row (Editor v6 D12): the children of an AppFormRow are other components' roots, so their placement on the row's three lines
    (label, control, help) is global here; the row itself, its message line and its stacked form live in AppFormRow.razor.css. */
-.app-form-row > :is(.app-field, [data-form-row-field]) {
-    display: grid;
-    grid-template-rows: subgrid;
-    grid-row: 1 / span 3;
-    row-gap: 0;
-    min-width: 0;
-}
-
-.app-form-row > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label) {
-    grid-row: 1;
-    padding-block-end: var(--tl-field-label-gap, 6px);
-}
-
-.app-form-row > :is(.app-field, [data-form-row-field]) > :not(.app-field__label, label, .app-field__help) {
-    grid-row: 2;
-    min-width: 0;
-}
-
-.app-form-row > :is(.app-field, [data-form-row-field]) > .app-field__help {
-    grid-row: 3;
-    padding-block-start: var(--tl-space-1);
-}
-
-/* Anything that is not a field (a button, an icon button, a segmented control, any marked element) sits on the control line. */
-.app-form-row > :is(button, .app-button, .app-icon-button, .app-segmented-control, [data-form-row-control]) {
+/* Every direct child sits on the control line (line 2), centred on it: a button, an icon button (and its tooltip wrapper), a checkbox, a bare
+   select, a tag input, a segmented control. Only a field (.app-field, or a wrapper marked data-form-row-field) opts into the three lines. */
+.app-form-row__fields > * {
     grid-row: 2;
     align-self: center;
     min-width: 0;
 }
 
-/* Stacked: one column, each child's label, control and help in order, children one under another. */
-.app-form-row--stack > :is(.app-field, [data-form-row-field]) {
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 3;
+    align-self: stretch;
+    row-gap: 0;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label) {
+    grid-row: 1;
+    padding-block-end: var(--tl-field-label-gap, 6px);
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > :not(.app-field__label, label, .app-field__help) {
+    grid-row: 2;
+    min-width: 0;
+}
+
+.app-form-row__fields > :is(.app-field, [data-form-row-field]) > .app-field__help {
+    grid-row: 3;
+    padding-block-start: var(--tl-space-1);
+}
+
+/* A select that sizes to its label (AppSelect Sizing="intrinsic") names its own grid areas for label, field and help; inside the row those
+   areas would fight the subgrid, so the same three parts are placed on lines 1, 2 and 3 by number. */
+.app-form-row .app-form-row__fields > .app-select--intrinsic {
+    grid-template-areas: none;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > .app-field__label {
+    grid-area: 1 / 1;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > :is(.app-select__width-label, .tl-select) {
+    grid-area: 2 / 1;
+}
+
+.app-form-row .app-form-row__fields > .app-select--intrinsic > .app-field__help {
+    grid-area: 3 / 1;
+}
+
+/* Stacked: one column, each child's label, control and help in order (with the normal label gap), children one under another. */
+.app-form-row--stack > .app-form-row__fields > * {
+    align-self: flex-start;
+}
+
+.app-form-row--stack > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
     display: flex;
     flex-direction: column;
+    align-self: stretch;
+    row-gap: var(--tl-field-label-gap, 6px);
 }
 
-.app-form-row--stack > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label) {
-    padding-block-end: 0;
+.app-form-row--stack > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+    padding-block: 0;
 }
 
-.app-form-row--stack > :is(button, .app-button, .app-icon-button, .app-segmented-control, [data-form-row-control]) {
-    align-self: flex-start;
+.app-form-row--stack > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+    display: none;
 }
 
 .app-control.app-control--compact,
