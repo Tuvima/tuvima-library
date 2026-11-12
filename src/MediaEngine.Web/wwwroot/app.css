@@ -3597,6 +3597,55 @@ input[type="reset"],
     box-shadow: none !important;
 }
 
+/* The details window (Look v3.1 D5, Details overlay D1; issue 875). On a tablet or desktop a title's details float over the page
+   the person came from: 90 % of the screen's width and height, never wider than 1440 px, never closer than 32 px to an edge,
+   16 px corners, the page dimmed behind it. On a phone it is a bottom sheet about 92 % tall with a grip. Global because the shared
+   Viewer part renders the <dialog>; the selector outranks the Viewer's full-screen :where() rule on purpose: the details window
+   is a Window, not a full-screen Viewer. */
+dialog.tl-details-overlay {
+    box-sizing: border-box;
+    inset: 0;
+    width: min(90vw, var(--tl-window-details-max), calc(100vw - 2 * var(--tl-window-details-margin)));
+    max-width: none;
+    height: min(90vh, calc(100vh - 2 * var(--tl-window-details-margin)));
+    height: min(90dvh, calc(100dvh - 2 * var(--tl-window-details-margin)));
+    max-height: none;
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: var(--tl-window-details-radius);
+    overflow: hidden;
+    background: var(--tl-bg-root);
+    color: var(--tl-text-primary);
+    box-shadow: var(--tl-shadow-lg);
+    /* Makes the window the containing block for anything the page fixes in place (its loading bar), so it stays inside. */
+    contain: layout;
+}
+
+dialog.tl-details-overlay::backdrop {
+    background: var(--tl-scrim-soft-strong);
+}
+
+dialog.tl-details-overlay.tl-details-overlay--sheet {
+    width: 100%;
+    height: 92vh;
+    height: 92dvh;
+    margin: auto 0 0;
+    border-radius: var(--tl-sheet-radius) var(--tl-sheet-radius) 0 0;
+    transform: translateY(var(--sheet-drag, 0px));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    dialog.tl-details-overlay.tl-details-overlay--sheet[open] {
+        animation: tl-details-overlay-sheet-up 0.22s ease-out;
+    }
+}
+
+@keyframes tl-details-overlay-sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(var(--sheet-drag, 0px)); }
+}
+
 /* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach.
    The page's scroll bar (8-12px) runs down the window's right edge inside the frame, so the button sits 1.5rem in to keep a clear
    gap from it (B29). The phone sheet keeps 0.75rem: its scroll bars overlay the page and its grip sits further in. */

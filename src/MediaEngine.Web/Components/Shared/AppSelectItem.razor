@@ -3,7 +3,7 @@
 @implements IDisposable
 <div id="@Id" role="option" class="tl-list-item @(Parent?.IsSelected(this) == true ? "tl-selected-item" : null) @(Parent?.IsActive(this) == true ? "tl-active-item" : null) @Class"
      aria-selected="@((Parent?.IsSelected(this) == true).ToString().ToLowerInvariant())" aria-disabled="@Disabled.ToString().ToLowerInvariant()"
-     @onclick="SelectAsync" @onmousedown:preventDefault="true" @attributes="AdditionalAttributes">@ChildContent</div>
+     @onclick="SelectAsync" @onmousedown:preventDefault="true" @attributes="AdditionalAttributes"><span class="tl-list-item__content" data-overflow-tooltip="@DisplayText">@ChildContent</span>@if (Parent?.IsSelected(this) == true) { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" Class="tl-list-item__check" /> }</div>
 @code {
     internal string Id { get; } = $"app-option-{Guid.NewGuid():N}";
     [CascadingParameter] public AppTypedSelect<T>? Parent { get; set; }

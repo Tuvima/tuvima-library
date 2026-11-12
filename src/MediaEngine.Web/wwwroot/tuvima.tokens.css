@@ -363,6 +363,10 @@
     --tl-window-l: 900px;
     --tl-window-xl: 1200px;
     --tl-window-radius: 12px;
+    /* The details window (Look v3.1 D5): 90 % of the screen, never wider than 1440 px, never closer than 32 px to an edge. */
+    --tl-window-details-max: 1440px;
+    --tl-window-details-margin: 32px;
+    --tl-window-details-radius: 16px;
     --tl-sheet-radius: 16px;
     --tl-popout-menu: 272px;
     --tl-popout-panel: 400px;

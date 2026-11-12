@@ -10,13 +10,15 @@
         @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" Class="tl-input-adornment" /> }
         <input @ref="_input" id="@InputId" type="text" class="tl-input tl-input-slot app-control app-autocomplete" value="@_text" placeholder="@Placeholder" disabled="@Disabled" role="combobox" aria-autocomplete="list" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_listId" aria-activedescendant="@ActiveId" @oninput="SearchAsync" @onfocus="FocusedAsync" @onblur="BlurredAsync" @onkeydown="KeyDownAsync" style="@InlineStyle" @attributes="AdditionalAttributes" />
         @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppIconSize.Control20" Class="tl-input-adornment" /> }
-        <AppPopover Open="@_open" OpenChanged="SetOpenAsync" MatchAnchorWidth="true" Class="app-autocomplete__popover" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
+        <AppPopover Open="@_open" OpenChanged="SetOpenAsync" ListWidth="true" Class="app-autocomplete__popover" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
             <div id="@_listId" role="listbox" class="tl-list tl-select-options">
                 @for (var index = 0; index < _items.Count; index++)
                 {
                     var current = index; var item = _items[current];
-                    <div id="@OptionId(current)" role="option" class="tl-list-item @(current == _active ? "tl-active-item" : null)" aria-selected="@(EqualityComparer<TItem>.Default.Equals(item, Value!).ToString().ToLowerInvariant())" @onclick="@(() => SelectAsync(item))" @onmousedown:preventDefault="true">
-                        @if (ItemTemplate is not null) { @ItemTemplate(item) } else { @TextOf(item) }
+                    var chosen = EqualityComparer<TItem>.Default.Equals(item, Value!);
+                    <div id="@OptionId(current)" role="option" class="tl-list-item @(chosen ? "tl-selected-item" : null) @(current == _active ? "tl-active-item" : null)" aria-selected="@chosen.ToString().ToLowerInvariant()" @onclick="@(() => SelectAsync(item))" @onmousedown:preventDefault="true">
+                        <span class="tl-list-item__content" data-overflow-tooltip="@TextOf(item)">@if (ItemTemplate is not null) { @ItemTemplate(item) } else { @TextOf(item) }</span>
+                        @if (chosen) { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" Class="tl-list-item__check" /> }
                     </div>
                 }
                 @if (_searching) { <div role="status" class="tl-list-item">@L["Common_Searching"]</div> }

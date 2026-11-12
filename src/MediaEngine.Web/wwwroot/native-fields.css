@@ -33,6 +33,14 @@ textarea.tl-input:focus-visible { outline: 1px solid var(--tl-accent-primary); o
 .tl-list-item:hover, .tl-active-item { background: var(--tl-menu-item-hover,var(--tl-bg-surface-raised)); color: var(--tl-text-primary); }
 .tl-selected-item { background: var(--tl-menu-item-selected,var(--tl-accent-primary-soft)); color: var(--tl-text-primary); }
 .tl-list-item[aria-disabled="true"] { opacity: .5; cursor: default; }
+/* Dropdown list rows (Look v3.1 D3): one line each; an option too long for the list ends in an ellipsis and keeps its full text
+   as the overflow tooltip (data-overflow-tooltip, app-overflow-tooltip.js). The chosen option carries a 20 px check in the purple text color. */
+.tl-list-item__content { display: flex; align-items: center; gap: .6rem; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+.tl-list-item__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-list-item .tl-list-item__check { flex: 0 0 20px; width: 20px; height: 20px; margin-inline-start: auto; color: var(--tl-accent-primary); }
+.app-popover[data-list-width="true"] .app-menu-item__label, .app-menu-sheet--list .app-menu-item__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-popover[data-list-width="true"] .app-menu-item .app-menu-item__check, .app-menu-sheet--list .app-menu-item .app-menu-item__check { flex: 0 0 20px; width: 20px; height: 20px; color: var(--tl-accent-primary); }
+.app-popover[data-list-width="true"] .app-menu-item[aria-checked="true"], .app-menu-sheet--list .app-menu-item[aria-checked="true"] { background: var(--tl-menu-item-selected, var(--tl-accent-primary-soft)); }
 .app-checkbox { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; cursor: pointer; }
 .app-checkbox__control { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 42px; height: 42px; color: var(--tl-text-muted); }
 .tl-checkbox-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: inherit; z-index: 1; }
