@@ -13,6 +13,7 @@ public sealed class EditorHeaderIconStyleGuardrailTests
         "src/MediaEngine.Web/Components/Editor/EditorHeaderNav.razor",
         "src/MediaEngine.Web/Components/Editor/EditorWindowChrome.razor",
         "src/MediaEngine.Web/Components/Editor/EditorPanelHost.razor",
+        "src/MediaEngine.Web/Components/Editor/ViewEditHeaderNav.razor",
     ];
 
     [Fact]
@@ -29,7 +30,7 @@ public sealed class EditorHeaderIconStyleGuardrailTests
     [Fact]
     public void TheHomeButtonsAreOutlinedNeutralButtons_NotFilledAccentTiles()
     {
-        foreach (var file in new[] { HeaderFiles[0], HeaderFiles[1] })
+        foreach (var file in new[] { HeaderFiles[0], HeaderFiles[1], HeaderFiles[4] })
         {
             var razor = Read(file);
             Assert.DoesNotContain("AppButtonStyle.Filled", razor, StringComparison.Ordinal);
@@ -53,8 +54,19 @@ public sealed class EditorHeaderIconStyleGuardrailTests
     {
         var css = Read("src/MediaEngine.Web/wwwroot/app.css");
 
+        // How the tab icons are colored overall belongs to the Look work; the rule here is only that no tab has a color of its own.
         Assert.DoesNotContain("--tl-editor-tab-icon", css, StringComparison.Ordinal);
-        Assert.Contains(".tl-editor-tab svg{color:currentColor}", css, StringComparison.Ordinal);
+        foreach (var tab in new[] { "details", "artwork", "match", "history" })
+        {
+            var selector = ".tl-editor-tab--" + tab;
+            var index = css.IndexOf(selector, StringComparison.Ordinal);
+            while (index >= 0)
+            {
+                var block = css[index..css.IndexOf('}', index)];
+                Assert.DoesNotContain("color", block, StringComparison.OrdinalIgnoreCase);
+                index = css.IndexOf(selector, index + selector.Length, StringComparison.Ordinal);
+            }
+        }
     }
 
     private static string Read(string relative) => File.ReadAllText(Path.Combine(FindRepoRoot(), relative.Replace('/', Path.DirectorySeparatorChar)));

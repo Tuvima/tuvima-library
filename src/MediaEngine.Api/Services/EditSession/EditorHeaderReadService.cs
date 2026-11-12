@@ -3,8 +3,10 @@ using Dapper;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
@@ -1098,13 +1100,16 @@ public sealed class EditorHeaderReadService(
         public string? SecondaryHex { get; init; }
 
         public string? AccentHex { get; init; }
+
+        public string? LocalImagePath { get; init; }
     }
 
     // The picture the header shows and its stored colours. The root's picture comes first (a show's poster stays the poster of its episodes);
-    // an item whose root has none (a book or film under a Series, which has no picture of its own) shows its own. Ingestion and the editor store
-    // a picture under the work, its edition or its media asset, so all three are looked at (the details page's episode list reads them the same way).
-    // The address names the stored picture itself (an entity_assets id, the id /stream/artwork serves), never the shared artwork_assets row behind
-    // it: that id is not served there, and it belongs to whichever item stored the same image first.
+    // an item whose root has none (a book or film under a Series, which has no picture of its own) shows its own. A picture is looked for under the
+    // work and under its editions, the two owners the artwork access check can resolve; one stored under a file id is refused when it is asked for, so
+    // it gets no address and the Dashboard keeps the page's own picture. The address names the stored picture itself (an entity_assets id, the id
+    // /stream/artwork serves), never the shared artwork_assets row behind it: that id is not served there, and it belongs to whichever item stored
+    // the same image first. It is built by the shared helper, so it carries the picture's change marker.
     private async Task<CoverRead> ReadCoverAsync(Guid rootId, Guid currentId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -1122,7 +1127,7 @@ public sealed class EditorHeaderReadService(
                 LIMIT 1;
                 """, new { pickedId = picked.AssetId });
             var source = !string.IsNullOrWhiteSpace(shared?.PrimaryHex) ? shared : picked;
-            return new CoverRead($"/stream/artwork/{picked.AssetId:D}", ColorsOf(source));
+            return new CoverRead(ArtworkCanonicalHelper.StoredArtworkUrl(new EntityAsset { Id = picked.AssetId, LocalImagePath = picked.LocalImagePath ?? string.Empty }), ColorsOf(source));
         }
 
         // No stored picture row, only a linked artwork record: the display route reads artwork_assets ids, /stream/artwork does not.
@@ -1139,14 +1144,15 @@ public sealed class EditorHeaderReadService(
             : new CoverRead($"/api/v1/display/artwork/assets/{linked.AssetId:D}/content", ColorsOf(linked));
     }
 
-    // The work's best stored cover: kept under the work, its edition or its file; a picture the user chose first, then the preferred one.
+    // The work's best stored cover: kept under the work or its edition, with the row's type naming that owner (the access check resolves a "Work"
+    // row by its work and an "Edition" row by its edition, and nothing else); a picture the user chose first, then the preferred one.
     private static CoverRow? FindStoredCover(System.Data.IDbConnection connection, Guid workId) => connection.QueryFirstOrDefault<CoverRow>("""
-        SELECT ea.id AS AssetId, ea.primary_hex AS PrimaryHex, ea.secondary_hex AS SecondaryHex, ea.accent_hex AS AccentHex
+        SELECT ea.id AS AssetId, ea.primary_hex AS PrimaryHex, ea.secondary_hex AS SecondaryHex, ea.accent_hex AS AccentHex,
+               ea.local_image_path AS LocalImagePath
         FROM entity_assets ea
         WHERE ea.asset_type = 'CoverArt'
-          AND (ea.entity_id = @workId
-               OR ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = @workId)
-               OR ea.entity_id IN (SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId))
+          AND ((ea.entity_type = 'Work' AND ea.entity_id = @workId)
+               OR (ea.entity_type = 'Edition' AND ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = @workId)))
           AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
         ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, CASE WHEN ea.entity_id = @workId THEN 0 ELSE 1 END,
                  COALESCE(ea.updated_at, ea.created_at) DESC

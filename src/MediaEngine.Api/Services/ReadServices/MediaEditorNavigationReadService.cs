@@ -555,9 +555,8 @@ public sealed class MediaEditorNavigationReadService(
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
                    COALESCE(
                    (SELECT ea.id FROM entity_assets ea WHERE (ea.entity_id = w.id
-                        -- Ingestion and the editor also keep a picture under the work's edition or its file, as the details page's episode list reads them.
-                        OR ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = w.id)
-                        OR ea.entity_id IN (SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = w.id))
+                        -- The editor also keeps a picture under the work's edition. One under a file id is left out: the artwork access check cannot resolve it.
+                        OR (ea.entity_type = 'Edition' AND ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = w.id)))
                     AND ea.asset_type = CASE WHEN w.media_type = 'TV' AND w.work_kind != 'parent' THEN 'EpisodeStill'
                         WHEN w.media_type = 'TV' AND w.parent_work_id IS NOT NULL THEN 'SeasonPoster' ELSE 'CoverArt' END
                     AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL

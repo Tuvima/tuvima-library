@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 
@@ -6,8 +7,8 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// Issue 871 and Editor v6 WP8: the editor header's cover and the pictures in its episode list. Ingestion and the editor keep a picture under
-/// the work, its edition or its media asset, and the same image can be shared between items, so the header has to find and address the
-/// picture the way /stream/artwork serves it (an entity_assets id). Pictures here are stored through the real artwork repository on a real
+/// the work or its edition (one stored under a file id is refused by the artwork access check, so it gets no address), and the same image can
+/// be shared between items, so the header has to find and address the picture the way /stream/artwork serves it. Pictures here are stored through the real artwork repository on a real
 /// temp SQLite data store, the way ingestion stores them.
 /// </summary>
 public sealed class EditorHeaderStoredPictureTests : IDisposable
@@ -34,7 +35,7 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
 
         var header = await _world.Header().GetHeaderAsync(movie, null);
 
-        Assert.Equal($"/stream/artwork/{own:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(own, "arrival"), header!.Root.CoverUrl);
     }
 
     [Fact]
@@ -46,22 +47,45 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
 
         var header = await _world.Header().GetHeaderAsync(movie, null);
 
-        Assert.Equal($"/stream/artwork/{cover:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(cover, "arrival"), header!.Root.CoverUrl);
     }
 
-    [Theory]
-    [InlineData("asset")]
-    [InlineData("edition")]
-    public async Task AMoviesCover_ShowsInTheHeader_WhenItIsStoredUnderItsFileOrEdition(string owner)
+    [Fact]
+    public async Task AMoviesCover_ShowsInTheHeader_WhenTheEditorStoredItUnderTheEdition()
     {
         var movie = _world.Work("Movies", "standalone", "Arrival");
-        var asset = _world.File(movie, "Arrival (2016).mkv");
-        var ownerId = owner == "asset" ? asset : EditionOf(movie);
-        var cover = await StoreAsync(ownerId, owner == "asset" ? "Work" : "Edition", "CoverArt", Image("arrival"));
+        _world.File(movie, "Arrival (2016).mkv");
+        var cover = await StoreAsync(EditionOf(movie), "Edition", "CoverArt", Image("arrival"));
 
         var header = await _world.Header().GetHeaderAsync(movie, null);
 
-        Assert.Equal($"/stream/artwork/{cover:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(cover, "arrival"), header!.Root.CoverUrl);
+    }
+
+    [Fact]
+    public async Task AMoviesCover_StoredOnlyUnderItsFileId_GetsNoAddress_BecauseTheArtworkAccessCheckCannotResolveIt()
+    {
+        var movie = _world.Work("Movies", "standalone", "Arrival");
+        var asset = _world.File(movie, "Arrival (2016).mkv");
+        // Ingestion does this when a file has no work link yet; the request for such a row is refused, so the header offers none
+        // and the Dashboard keeps the page's own picture instead of drawing a broken image.
+        await StoreAsync(asset, "Work", "CoverArt", Image("arrival"));
+
+        var header = await _world.Header().GetHeaderAsync(movie, null);
+
+        Assert.Null(header!.Root.CoverUrl);
+    }
+
+    [Fact]
+    public async Task ACoversAddress_CarriesThePicturesChangeMarker_SoAChangedPictureIsNotServedFromCache()
+    {
+        var movie = _world.Work("Movies", "standalone", "Arrival");
+        _world.File(movie, "Arrival (2016).mkv");
+        await StoreAsync(movie, "Work", "CoverArt", Image("arrival"));
+
+        var header = await _world.Header().GetHeaderAsync(movie, null);
+
+        Assert.Contains("?v=", header!.Root.CoverUrl, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -73,7 +97,7 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
 
         var header = await _world.Header().GetHeaderAsync(book, null);
 
-        Assert.Equal($"/stream/artwork/{cover:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(cover, "dune"), header!.Root.CoverUrl);
     }
 
     [Fact]
@@ -88,7 +112,7 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
 
         var header = await _world.Header().GetHeaderAsync(second, null);
 
-        Assert.Equal($"/stream/artwork/{cover:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(cover, "messiah"), header!.Root.CoverUrl);
     }
 
     [Fact]
@@ -99,18 +123,18 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
 
         var header = await _world.Header().GetHeaderAsync(episode, null);
 
-        Assert.Equal($"/stream/artwork/{poster:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(poster, "poster"), header!.Root.CoverUrl);
     }
 
     [Fact]
-    public async Task AnEpisodeWhoseShowHasNoPicture_ShowsThePictureKeptUnderItsFile()
+    public async Task AnEpisodeWhoseShowHasNoPicture_ShowsThePictureKeptUnderTheEpisode()
     {
-        var (_, _, episode, asset) = SeedShow();
-        var cover = await StoreAsync(asset, "Work", "CoverArt", Image("episode"));
+        var (_, _, episode, _) = SeedShow();
+        var cover = await StoreAsync(episode, "Work", "CoverArt", Image("episode"));
 
         var header = await _world.Header().GetHeaderAsync(episode, null);
 
-        Assert.Equal($"/stream/artwork/{cover:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(cover, "episode"), header!.Root.CoverUrl);
     }
 
     [Fact]
@@ -133,7 +157,7 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
 
         var header = await _world.Header().GetHeaderAsync(movie, null);
 
-        Assert.Equal($"/stream/artwork/{cover:D}", header!.Root.CoverUrl);
+        Assert.Equal(StoredAddress(cover, "arrival"), header!.Root.CoverUrl);
         Assert.Equal("#102030", header.Colors!.PrimaryHex);
         Assert.Equal("#405060", header.Colors.SecondaryHex);
     }
@@ -151,14 +175,11 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
         Assert.Equal($"/stream/artwork/{still:D}", Assert.Single(header!.Level!.Items, item => item.IsCurrent).StillUrl);
     }
 
-    [Theory]
-    [InlineData("asset")]
-    [InlineData("edition")]
-    public async Task AnEpisodeRowWithAStillKeptUnderItsFileOrEdition_ShowsThatPicture(string owner)
+    [Fact]
+    public async Task AnEpisodeRowWithAStillKeptUnderItsEdition_ShowsThatPicture()
     {
-        var (_, _, episode, asset) = SeedShow();
-        var ownerId = owner == "asset" ? asset : EditionOf(episode);
-        var still = await StoreAsync(ownerId, owner == "asset" ? "Work" : "Edition", "EpisodeStill", Image("still"));
+        var (_, _, episode, _) = SeedShow();
+        var still = await StoreAsync(EditionOf(episode), "Edition", "EpisodeStill", Image("still"));
 
         var header = await _world.Header().GetHeaderAsync(episode, null);
 
@@ -166,10 +187,21 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
     }
 
     [Fact]
+    public async Task AnEpisodeRowWithAStillKeptOnlyUnderItsFileId_HasNoPicture_BecauseTheArtworkAccessCheckCannotResolveIt()
+    {
+        var (_, _, episode, asset) = SeedShow();
+        await StoreAsync(asset, "Work", "EpisodeStill", Image("still"));
+
+        var header = await _world.Header().GetHeaderAsync(episode, null);
+
+        Assert.Null(Assert.Single(header!.Level!.Items, item => item.IsCurrent).StillUrl);
+    }
+
+    [Fact]
     public async Task AnEpisodeRowWithNoStoredStill_HasNoPictureAddress_AndKeepsItsPlaceholder()
     {
-        var (_, other, episode, asset) = SeedShow();
-        await StoreAsync(asset, "Work", "EpisodeStill", Image("still"));
+        var (_, other, episode, _) = SeedShow();
+        await StoreAsync(episode, "Work", "EpisodeStill", Image("still"));
 
         var header = await _world.Header().GetHeaderAsync(episode, null);
 
@@ -191,6 +223,10 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
         _world.File(other, "Season 01/Severance - S01E02.mkv");
         return (show, other, episode, asset);
     }
+
+    // The address the header gives a stored picture: the shared helper's, carrying the change marker of the picture file.
+    private string StoredAddress(Guid pictureId, string imageName) => ArtworkCanonicalHelper.StoredArtworkUrl(
+        new EntityAsset { Id = pictureId, LocalImagePath = Image(imageName) });
 
     private Guid EditionOf(Guid workId)
     {
