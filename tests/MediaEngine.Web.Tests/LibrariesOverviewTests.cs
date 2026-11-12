@@ -1164,7 +1164,12 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         {
             configuration.Libraries.Add(new()
             {
-                Id = Guid.NewGuid().ToString(), Name = type.Label, KindKey = type.Key, Area = type.Area, Kind = "catalogued", MediaTypes = [.. type.MediaTypes],
+                Id = Guid.NewGuid().ToString(),
+                Name = type.Label,
+                KindKey = type.Key,
+                Area = type.Area,
+                Kind = "catalogued",
+                MediaTypes = [.. type.MediaTypes],
                 Sources = [new() { Id = $"{type.Key}-folder", Path = $"E:\\{type.Key}", ManagementMode = "existing_library", AccessMode = "read_only" }],
             });
         }

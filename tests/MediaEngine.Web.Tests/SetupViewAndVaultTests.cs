@@ -450,7 +450,10 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
             .Add(x => x.AlreadyOn, alreadyOn)
             .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn)))
             .Add(x => x.TurnedOn, EventCallback.Factory.Create(this, () => _vaultTurnedOn++));
-        if (back is { } goBack) parameters.Add(x => x.Back, goBack);
+        if (back is { } goBack)
+        {
+            parameters.Add(x => x.Back, goBack);
+        }
     });
 
     [Fact]
