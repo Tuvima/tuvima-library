@@ -53,7 +53,9 @@ public sealed class DetailsWindowSizeTests
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
             directory = directory.Parent;
+        }
 
         return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
