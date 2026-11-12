@@ -254,7 +254,7 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     overflow: visible;
 }
 
-/* The logo lockup: the Tuvima icon beside the "Tuvima" wordmark, set in the Tuvima font. The whole bar uses that font. */
+/* The logo lockup: the Tuvima icon beside the "Tuvima" wordmark, set in the Tuvima font. */
 .layout-shell__brand-lockup {
     display: inline-flex;
     align-items: center;
@@ -277,11 +277,6 @@ html[data-form-factor="phone"] .playback-app-frame:has(.layout-shell__intent-doc
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-}
-
-.layout-shell__appbar button,
-.layout-shell__appbar input {
-    font-family: var(--font-brand);
 }
 
 .layout-shell__desktop-nav {
