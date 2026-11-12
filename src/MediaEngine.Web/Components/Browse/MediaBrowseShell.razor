@@ -325,7 +325,28 @@
                 <h2>@ActiveGroupingLabel</h2>
                 <span>@ResultCountLabel</span>
             </div>
+            @if (ShowAlbumSelectButton)
+            {
+                @* Albums can be ticked to go into a playlist (Listen music spec D15). Select turns the album covers into tick targets, as My List does. *@
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Label="@(AlbumSelectionOn ? L["Common_Done"].Value : L["Common_Select"].Value)"
+                           OnClick="ToggleAlbumSelectAsync"
+                           data-album-select />
+            }
         </div>
+
+        @if (IsMusicAlbumsGrouping && !_loadFailed)
+        {
+            @* Ticked albums get the selection bar (Add to playlist, Add to collection) on a desktop or tablet, and the phone's bottom bar on a phone. They are never edited, moved, matched or deleted here. *@
+            <BulkListEntry Rows="@AlbumBulkRows" MediaType="Music" OnCleared="ClearAlbumSelectionAsync" />
+            @if (DeviceContext.IsPhone && (AlbumSelectionOn || AlbumBulkRows.Count > 0))
+            {
+                <SongSelectionBar WorkIds="@(Array.Empty<Guid>())"
+                                  AlbumRows="@AlbumBulkRows"
+                                  Count="@AlbumBulkRows.Count"
+                                  OnDone="EndAlbumSelectAsync" />
+            }
+        }
 
         <CompactContinueStrip Title="@ContinueTitle" Items="@_continueCards" Loading="@_continueLoading" OnViewAll="@(IsInProgressOnly ? default : EventCallback.Factory.Create(this, () => OnInProgressChanged(true)))" />
     }
@@ -436,8 +457,13 @@
     }
     else
     {
-        <MediaTileGrid Items="@_cards"
-                       Class="browse-shell__grid" />
+        <CascadingValue Value="@AlbumSelectionOffer" IsFixed="true">
+            <MediaTileGrid Items="@_cards"
+                           Class="browse-shell__grid"
+                           SelectionMode="@AlbumSelectionOn"
+                           IsSelected="@IsAlbumTileSelected"
+                           OnToggle="ToggleAlbumTileAsync" />
+        </CascadingValue>
     }
 
     @if (_hasMore && !IsContainerGrouping)

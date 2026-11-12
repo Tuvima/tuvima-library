@@ -22,12 +22,14 @@
         <AppAlert Severity="@_noticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-bulk-selection-notice="true">@_notice</AppAlert>
     }
 </div>
-@if (Active is { Count: > 0 } selection && (IsAvailable || SongActionsShown(selection)))
+@if (Active is { Count: > 0 } selection && (IsAvailable || SongActionsShown(selection) || AlbumActionsShown(selection)))
 {
     var rows = selection.Rows;
     var busy = IsBusy;
     var editable = IsAvailable;
     var songs = SongActionsShown(selection);
+    @* Ticked albums (Listen Albums list, spec D15) go into playlists on any desktop or tablet; they are never edited, so Edit stays off. *@
+    var albums = AlbumActionsShown(selection);
     @* On a phone the bar is one column: the count, then the actions two to a row at full 44 px height (the arrangement only; the device rule below still decides who may edit). *@
     <section class="@(Phone ? "tl-batch tl-batch--phone" : "tl-batch")" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
         <div class="tl-batch__bar" role="toolbar" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
@@ -56,7 +58,7 @@
                                OnClick="QueueAsync" />
                 }
 
-                @if ((songs || editable) && BulkEditRules.CanAddToPlaylist(rows, selection.MediaType))
+                @if ((songs || albums || editable) && BulkEditRules.CanAddToPlaylist(rows, selection.MediaType))
                 {
                     @* Ticked songs and albums go into a hand-made playlist (a normal button: Tab reaches it, Enter or Space opens the list). *@
                     <AppButton Label="@L["Common_AddToPlaylist"].Value"
@@ -68,7 +70,7 @@
                                OnClick="AddToPlaylistAsync" />
                 }
 
-                @if (editable)
+                @if (editable && !albums)
                 {
                 <AppButton Label="@L["Common_Edit"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Edit"
@@ -272,8 +274,8 @@
             return;
         }
 
-        // Putting songs in a playlist is not editing: ticked songs may do it wherever the bar shows them; albums keep the edit gate they had.
-        if (!BulkEditRules.CanAddToPlaylist(Active.Rows, Active.MediaType) || !(SongActionsShown(Active) || IsAvailable))
+        // Putting songs in a playlist is not editing: ticked songs and albums may do it wherever the bar shows them.
+        if (!BulkEditRules.CanAddToPlaylist(Active.Rows, Active.MediaType) || !(SongActionsShown(Active) || AlbumActionsShown(Active) || IsAvailable))
         {
             return;
         }
@@ -319,6 +321,10 @@
     // Ticked songs have their own actions on a desktop or tablet (a phone has its own bottom bar), for anyone who may play; Edit stays separate.
     private bool SongActionsShown(BulkEditSelection selection) =>
         !Device.IsPhone && BulkEditRules.IsSongSelection(selection.Rows, selection.MediaType);
+
+    // Ticked albums go into playlists on a desktop or tablet (a phone has its own bottom bar), for anyone who may play; they have no Edit.
+    private bool AlbumActionsShown(BulkEditSelection selection) =>
+        !Device.IsPhone && BulkEditRules.IsAlbumSelection(selection.Rows);
 
     private bool CanDelete(BulkEditSelection selection) =>
         BulkEditRules.AreDeletable(selection.Rows)

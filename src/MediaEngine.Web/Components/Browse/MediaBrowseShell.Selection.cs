@@ -68,6 +68,81 @@ public partial class MediaBrowseShell
         return Task.CompletedTask;
     }
 
+    // ---- Albums in the Listen Albums list (Listen music spec D15) ---------------------------------------------------
+    // Albums are ticked only here, so a whole album can go into a playlist. They are never edited, moved, matched or deleted from this list:
+    // every one of those rules still asks BulkEditRules.IsSelectableKind, which refuses albums. A cover or table row is ticked under the
+    // same id the list already gives it (the album name's id), whichever layout is showing.
+
+    private bool IsMusicAlbumsGrouping => IsMusicTab && IsContainerGrouping && string.Equals(_grouping, "albums", StringComparison.OrdinalIgnoreCase);
+
+    // Select mode on the cover grid: covers tick instead of opening. The table has tick boxes of its own, so it needs no mode.
+    private bool _albumSelecting;
+
+    private bool AlbumSelectionOn => _albumSelecting && IsMusicAlbumsGrouping && !UseListLayout;
+
+    // A desktop or tablet has the Select button; a phone starts select mode from a cover's "..." sheet (MediaTileActions).
+    private bool ShowAlbumSelectButton => IsMusicAlbumsGrouping && !UseListLayout && !DeviceContext.IsPhone;
+
+    private static Guid AlbumSelectionKey(ContentGroupViewModel group) => GenerateDeterministicGuid(group.DisplayName);
+
+    // The ticked albums in the order the list shows them. An album is named by its page's id (its root work, else its group id) and its
+    // name and artist, which is how its songs are found when it goes into a playlist.
+    private IReadOnlyList<BulkEditRow> AlbumBulkRows => !IsMusicAlbumsGrouping || _selectedItems.Count == 0
+        ? []
+        : [.. _groups
+            .Where(group => _selectedItems.Contains(AlbumSelectionKey(group)))
+            .Select(group => new BulkEditRow(group.RootWorkId ?? group.CollectionId, group.DisplayName, DetailEntityType.MusicAlbum, null, "Music", group.CoverUrl, group.Creator))
+            .Where(row => BulkEditRules.IsPlaylistSelectableKind(row.Kind))];
+
+    private MediaTileSelectionOffer? _albumSelectionOffer;
+
+    private MediaTileSelectionOffer AlbumSelectionOffer => _albumSelectionOffer ??= new(
+        item => IsMusicAlbumsGrouping && item.Presentation == MediaTilePresentation.Album,
+        BeginAlbumSelectAsync);
+
+    private bool IsAlbumTileSelected(MediaTileViewModel item) => _selectedItems.Contains(item.Id);
+
+    private Task ToggleAlbumTileAsync(MediaTileViewModel item)
+    {
+        if (!_selectedItems.Remove(item.Id))
+        {
+            _selectedItems.Add(item.Id);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task BeginAlbumSelectAsync(MediaTileViewModel item)
+    {
+        _albumSelecting = true;
+        _selectedItems.Add(item.Id);
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task ToggleAlbumSelectAsync() => AlbumSelectionOn ? EndAlbumSelectAsync() : BeginSelectModeAsync();
+
+    private Task BeginSelectModeAsync()
+    {
+        _albumSelecting = true;
+        return Task.CompletedTask;
+    }
+
+    // Clear on the bar: the ticks go, the cover grid stays in select mode.
+    private Task ClearAlbumSelectionAsync()
+    {
+        _selectedItems.Clear();
+        return Task.CompletedTask;
+    }
+
+    // Done: the ticks go and the covers open again.
+    private Task EndAlbumSelectAsync()
+    {
+        _albumSelecting = false;
+        _selectedItems.Clear();
+        return Task.CompletedTask;
+    }
+
     private void HandleTableRowClicked(Guid entityId)
     {
         if (IsContainerGrouping)

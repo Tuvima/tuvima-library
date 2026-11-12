@@ -35,8 +35,10 @@ public static class PlaylistMembership
     private static readonly string PlaylistIcon = AppMaterialIcons.Outlined.QueueMusic;
 
     /// <summary>
-    /// The songs the ticked rows stand for: a ticked song is itself; a ticked album is every song on it in track order (spec D15). Each
-    /// song appears once, in the order the rows were ticked.
+    /// The songs the ticked rows stand for: a ticked song is itself; a ticked album is every song it holds in disc and track order (spec
+    /// D15). An album from the Listen Albums list is found by its name and artist, the way its own page finds it, because that list's id is
+    /// not always a collection id; an album row that carries a collection id falls back to that. Each song appears once, in the order the
+    /// rows were ticked.
     /// </summary>
     public static async Task<IReadOnlyList<Guid>> ResolveSongIdsAsync(
         IEngineApiClient api, IReadOnlyList<BulkEditRow> rows, CancellationToken ct = default)
@@ -52,10 +54,17 @@ public static class PlaylistMembership
                 continue;
             }
 
-            if (await api.GetCollectionGroupDetailAsync(row.Id, ct) is { } album)
+            var album = string.IsNullOrWhiteSpace(row.Title)
+                ? null
+                : await api.GetSystemViewGroupDetailAsync("album", row.Title, "Music", row.Creator, ct);
+            album ??= await api.GetCollectionGroupDetailAsync(row.Id, ct);
+            if (album is not null)
             {
+                // Songs the library does not hold (an album's retail track list) have nothing to add.
                 ids.AddRange(album.Works
-                    .OrderBy(work => TrackOf(work.TrackNumber, work.Ordinal))
+                    .Where(work => work.IsOwned)
+                    .OrderBy(work => work.DiscNumber ?? 0)
+                    .ThenBy(work => TrackOf(work.TrackNumber, work.Ordinal))
                     .ThenBy(work => work.Title, StringComparer.OrdinalIgnoreCase)
                     .Select(work => work.WorkId));
             }

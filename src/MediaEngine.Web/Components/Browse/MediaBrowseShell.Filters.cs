@@ -109,6 +109,8 @@ public partial class MediaBrowseShell
         }
 
         _grouping = grouping;
+        _albumSelecting = false;
+        _selectedItems.Clear();
         _layout = ResolveLayout(null, CurrentTab, _grouping);
         _sortBy = ResolveSort(null);
         ClearActiveGroupState();

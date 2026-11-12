@@ -11,11 +11,11 @@
    list, check and Review as everywhere else. The list's own filters, sort and scroll are never touched: after a save the list is only
    asked to reload. Nothing renders on a device that may not edit, except for ticked songs: those get Play, Add to queue and Add to
    playlist from a bar of their own on any desktop or tablet (Listen music spec D9), with no editor behind it. *@
-@if (_canEdit && ReferenceEquals(Editor.Binding, _binding))
+@if (_canEdit && !AlbumsTicked && ReferenceEquals(Editor.Binding, _binding))
 {
     <BulkSelectionBar Selection="Editor.Batch" Busy="Editor.Flow.Saving" OnDeleted="OnDeletedAsync" OnPlay="OnPlay" OnQueue="OnQueue" />
 }
-else if (!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(_playOnly.Rows, MediaType))
+else if (!Device.IsPhone && ((!_canEdit && BulkEditRules.IsSongSelection(_playOnly.Rows, MediaType)) || AlbumsTicked))
 {
     <BulkSelectionBar Selection="_playOnly" OnPlay="OnPlay" OnQueue="OnQueue" OnCleared="OnCleared" />
 }
@@ -25,6 +25,9 @@ else if (!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(_playOnly
     private bool _canEdit;
     private bool _disposed;
     private readonly BulkEditSelection _playOnly = new();
+
+    // Ticked albums (the Listen Albums list, spec D15) only go into playlists and collections: they are never edited, so no editor is bound for them.
+    private bool AlbumsTicked => BulkEditRules.IsAlbumSelection(Rows);
 
     /// <summary>The rows the list has ticked, in the order it shows them.</summary>
     [Parameter] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];
@@ -62,10 +65,10 @@ else if (!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(_playOnly
         _canEdit = EditorDeviceRule.CanEdit(Device);
         // A device that may not edit still shows ticked songs: they get their own bar, with no editor behind it.
         _playOnly.MediaType = MediaType;
-        _playOnly.Replace(!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(Rows, MediaType) ? Rows : []);
+        _playOnly.Replace(!Device.IsPhone && ((!_canEdit && BulkEditRules.IsSongSelection(Rows, MediaType)) || AlbumsTicked) ? Rows : []);
         _binding.BulkMediaType = MediaType;
         _binding.EntityId = Rows.FirstOrDefault()?.Id ?? Guid.Empty;
-        if (_canEdit && Rows.Count > 0)
+        if (_canEdit && Rows.Count > 0 && !AlbumsTicked)
         {
             // Ticked rows belong to this list: the editor serves it while the pop-over is closed (an open pop-over keeps its own).
             if (!Editor.IsOpen)
@@ -79,7 +82,7 @@ else if (!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(_playOnly
         // A list that stops qualifying for editing (the window became a tablet) drops the ticks; what is staged is kept for the guard to ask about.
         if (ReferenceEquals(Editor.Binding, _binding))
         {
-            Editor.Batch.Replace(_canEdit ? Rows : []);
+            Editor.Batch.Replace(_canEdit && !AlbumsTicked ? Rows : []);
         }
     }
 

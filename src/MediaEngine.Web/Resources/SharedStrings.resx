@@ -13811,6 +13811,9 @@
   <data name="SongSelectionBar_Count" xml:space="preserve">
     <value>{0} selected</value>
   </data>
+  <data name="SongSelectionBar_AlbumsLabel" xml:space="preserve">
+    <value>Selected albums</value>
+  </data>
   <data name="ListenPage_RemoveFromFavorites" xml:space="preserve">
     <value>Remove from Favorites</value>
   </data>

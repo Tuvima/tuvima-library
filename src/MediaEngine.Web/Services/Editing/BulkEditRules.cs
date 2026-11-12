@@ -23,6 +23,12 @@ public static class BulkEditRules
     public static bool IsSelectableKind(DetailEntityType kind) => LibraryItemDeletionFlow.IsSingleTitle(kind);
 
     /// <summary>
+    /// The one place an album can be ticked: the Listen Albums list, so a whole album can go into a playlist (Listen music spec D15). Every
+    /// other list, and every action that edits, moves, matches or deletes, still uses <see cref="IsSelectableKind"/>, which refuses albums.
+    /// </summary>
+    public static bool IsPlaylistSelectableKind(DetailEntityType kind) => kind == DetailEntityType.MusicAlbum;
+
+    /// <summary>
     /// Move is offered when every ticked row is the same kind of single title: the destination picker only offers places that accept
     /// that kind (D15), so a mixed selection has no one right answer.
     /// </summary>
