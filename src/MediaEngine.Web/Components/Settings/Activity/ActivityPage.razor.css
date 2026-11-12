@@ -55,7 +55,7 @@
     padding: 0 6px;
     border-radius: var(--tl-radius-pill);
     background: var(--tl-accent-primary);
-    color: #fff;
+    color: var(--tl-text-on-accent);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     line-height: 1;

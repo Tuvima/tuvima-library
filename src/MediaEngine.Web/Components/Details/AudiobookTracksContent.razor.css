@@ -18,7 +18,7 @@
 }
 
 .tl-audiobook-tracks__heading div > span {
-    color: var(--tl-accent-primary-hover, #a98cff);
+    color: var(--tl-accent-primary-hover);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
@@ -26,12 +26,12 @@
 
 .tl-audiobook-tracks__heading h2 {
     margin: 0;
-    color: #fff;
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-heading-size);
 }
 
 .tl-audiobook-tracks__heading > span {
-    color: rgba(225, 231, 242, 0.64);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-body-size);
 }
 

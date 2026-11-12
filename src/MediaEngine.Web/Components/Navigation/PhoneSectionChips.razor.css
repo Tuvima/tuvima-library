@@ -27,15 +27,15 @@
 
 /* Edge fade: the edge that still has chips beyond it fades out (set by scroll-edge-hint.js). */
 .phone-section-chips__strip[data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, var(--tl-viewer-black) calc(100% - 2.5rem), transparent);
 }
 
 .phone-section-chips__strip[data-scroll-more-start="true"] {
-    mask-image: linear-gradient(to left, black calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to left, var(--tl-viewer-black) calc(100% - 2.5rem), transparent);
 }
 
 .phone-section-chips__strip[data-scroll-more-start="true"][data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, transparent, black 2.5rem, black calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, transparent, var(--tl-viewer-black) 2.5rem, var(--tl-viewer-black) calc(100% - 2.5rem), transparent);
 }
 
 .phone-section-chips__chip {

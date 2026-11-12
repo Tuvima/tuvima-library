@@ -18,7 +18,7 @@
     padding: 0 0.55rem 0 0.42rem !important;
     border: 0 !important;
     border-radius: var(--tl-radius-round) !important;
-    color: var(--tl-text-primary, #e5edf5) !important;
+    color: var(--tl-text-primary) !important;
     background: transparent !important;
     box-shadow: none !important;
     font-family: var(--font-ui) !important;
@@ -57,14 +57,14 @@
 .top-nav-account-menu-shell ::deep .top-nav-account-menu__chevron {
     width: 0.92rem;
     height: 0.92rem;
-    color: var(--tl-text-muted, #8391a2);
+    color: var(--tl-text-muted);
     flex: 0 0 auto;
     font-size: var(--tl-font-size-sm);
 }
 
 /* The surface itself (position, width, background, border) is drawn by AppPopover in the top layer; its styles are global in app.css. */
 .top-nav-account-menu__panel {
-    color: var(--tl-text-primary, #e5edf5);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-menu-size);
 }
@@ -77,13 +77,13 @@
     min-height: 3.35rem;
     margin-bottom: 0.4rem;
     padding: 0.45rem 0.6rem 0.65rem;
-    border-bottom: 1px solid rgba(150, 164, 192, 0.14);
+    border-bottom: 1px solid var(--tl-border-default);
 }
 
 .top-nav-account-menu__header strong {
     min-width: 0;
     overflow: hidden;
-    color: var(--tl-text-primary, #f4f5f7);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-subheading-size);
     font-weight: var(--tl-type-subheading-weight);
@@ -110,7 +110,7 @@
     padding: var(--tl-menu-row-padding-y) 16px !important;
     border: 0 !important;
     border-radius: var(--tl-radius-md, 8px) !important;
-    color: var(--tl-text-primary, #dbe4ed) !important;
+    color: var(--tl-text-primary) !important;
     background: transparent !important;
     font-family: var(--font-ui) !important;
     font-size: var(--tl-menu-row-font-size) !important;
@@ -121,9 +121,9 @@
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__item:hover,
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__item:focus-visible {
-    color: #fff !important;
-    background: rgba(124, 77, 255, 0.14) !important;
-    outline: 1px solid rgba(159, 124, 255, 0.22);
+    color: var(--tl-text-primary) !important;
+    background: var(--tl-accent-primary-soft) !important;
+    outline: 1px solid color-mix(in srgb, var(--tl-accent-primary-hover) 22%, transparent);
     outline-offset: -1px;
 }
 
@@ -132,7 +132,7 @@
     min-width: var(--tl-menu-icon-size);
     height: var(--tl-menu-icon-size);
     margin-right: var(--tl-menu-icon-gap);
-    color: var(--tl-text-muted, #aab0bc) !important;
+    color: var(--tl-text-muted) !important;
 }
 
 .top-nav-account-menu__item-copy {
@@ -147,8 +147,8 @@
     min-width: 1.6rem;
     padding: 0.12rem 0.38rem;
     border-radius: var(--tl-radius-pill);
-    color: #16100a;
-    background: var(--tl-status-warning, #fbbf24);
+    color: var(--tl-text-on-warning);
+    background: var(--tl-status-warning);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     line-height: 1.25;
@@ -157,14 +157,14 @@
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__divider {
     margin: var(--tl-menu-padding) 0 !important;
-    border-color: var(--tl-border-default, rgba(255, 255, 255, 0.09)) !important;
+    border-color: var(--tl-border-default) !important;
 }
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__external {
     width: 1rem !important;
     height: 1rem !important;
     margin-left: auto;
-    color: var(--tl-text-muted, #aab0bc);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-menu-size) !important;
 }
 
@@ -181,7 +181,7 @@
     padding: 0.55rem 0.75rem;
     border: 0;
     border-radius: 0;
-    color: var(--tl-text-primary, #dbe4ed);
+    color: var(--tl-text-primary);
     background: transparent;
     font-family: var(--font-ui);
     font-size: var(--tl-menu-row-font-size);
@@ -193,7 +193,7 @@
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout:hover,
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout:focus-visible {
-    color: #fff;
+    color: var(--tl-text-primary);
     background: var(--tl-bg-surface-hover);
 }
 
@@ -226,7 +226,7 @@
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout .tl-icon-root {
     width: var(--tl-icon-size-md);
     height: var(--tl-icon-size-md);
-    color: var(--tl-text-muted, #aab0bc);
+    color: var(--tl-text-muted);
     font-size: var(--tl-icon-size-md);
 }
 

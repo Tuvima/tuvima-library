@@ -89,7 +89,7 @@
     gap: 1.5rem;
     margin-top: 1.5rem;
     padding-top: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--tl-wash-light-3);
 }
 
 .tl-detail-skeleton__tab {

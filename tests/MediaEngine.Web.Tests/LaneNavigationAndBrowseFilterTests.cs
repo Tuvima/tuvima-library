@@ -113,7 +113,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("browse-shell__filter-surface", browseShell, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: max-content minmax(0, 1fr) max-content", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains(".browse-shell__control-group--filters", browseShellStyles, StringComparison.Ordinal);
-        Assert.Contains("border-left: 1px solid rgba(128, 146, 180, 0.2)", browseShellStyles, StringComparison.Ordinal);
+        Assert.Contains("border-left: 1px solid var(--tl-border-default)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 1680px)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 1400px)", browseShellStyles, StringComparison.Ordinal);
         Assert.Contains("font-size: var(--tl-type-control-size)", browseShellStyles, StringComparison.Ordinal);

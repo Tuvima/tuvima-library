@@ -11,7 +11,7 @@
 :where(.tl-detail-page) .tl-person-avatar span {
     font-size: var(--tl-font-size-lg);
     line-height: 1;
-    text-shadow: 0 0.08rem 0.35rem rgba(0,0,0,0.35);
+    text-shadow: 0 0.08rem 0.35rem var(--tl-scrim-dark-2);
 }
 
 :where(.tl-detail-page) .tl-person-avatar--sm span {

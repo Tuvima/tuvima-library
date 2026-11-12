@@ -44,7 +44,7 @@
 
 ::deep .browse-multi-select__trigger:hover,
 ::deep .browse-multi-select__trigger.is-active {
-    border-color: color-mix(in srgb, var(--tl-accent-primary) 68%, rgba(128, 146, 180, 0.3));
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 68%, color-mix(in srgb, var(--tl-text-muted) 30%, transparent));
     outline: none;
     box-shadow: none;
 }

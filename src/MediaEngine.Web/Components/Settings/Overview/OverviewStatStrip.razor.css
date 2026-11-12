@@ -15,12 +15,12 @@
     padding: var(--tl-space-4, 16px);
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-xl, 12px);
-    background: var(--tl-bg-surface-raised, #151E2F);
+    background: var(--tl-bg-surface-raised);
     --stat-accent: var(--tl-accent-primary);
 }
 
 
-.overview-stats__item--finished { --stat-accent: var(--tl-status-success, #22C55E); }
+.overview-stats__item--finished { --stat-accent: var(--tl-status-success); }
 .overview-stats__item--hours { --stat-accent: var(--tl-accent-collection); }
 
 

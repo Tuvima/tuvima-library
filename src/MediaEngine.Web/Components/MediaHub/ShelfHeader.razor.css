@@ -19,7 +19,7 @@
     line-height: var(--tl-line-height-heading);
     font-weight: var(--tl-type-heading-weight);
     letter-spacing: 0;
-    color: rgba(248, 250, 252, 0.98);
+    color: var(--tl-text-primary);
 }
 
 .shelf-header p {
@@ -27,11 +27,11 @@
     font-family: var(--font-ui);
     font-size: var(--tl-type-secondary-size);
     line-height: 1.42;
-    color: rgba(148, 163, 184, 0.82);
+    color: var(--tl-text-muted);
 }
 
 .shelf-header__count {
-    color: rgba(148, 163, 184, 0.82);
+    color: var(--tl-text-muted);
     font-family: var(--font-ui);
     font-size: var(--tl-type-caption-size);
     font-weight: var(--tl-type-caption-weight);
@@ -48,7 +48,7 @@
 }
 
 .shelf-header__link:hover {
-    color: rgba(196, 181, 253, 0.98);
+    color: var(--tl-accent-primary-hover);
 }
 
 @media (max-width: 640px) {

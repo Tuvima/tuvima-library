@@ -9,7 +9,7 @@ em { margin-left: auto; color: var(--tl-text-muted); font-size: var(--tl-type-ca
 .is-current { color: var(--tl-text-primary); }
 .is-current small { font-weight: 600; }
 .is-complete { color: var(--tl-accent-primary); }
-.is-current span { border-color: color-mix(in srgb, var(--tl-accent-primary) 78%, white); color: var(--tl-accent-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
+.is-current span { border-color: color-mix(in srgb, var(--tl-accent-primary) 78%, var(--tl-text-primary)); color: var(--tl-accent-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
 .is-blocked { color: var(--tl-status-danger); }
 .is-deferred { color: var(--tl-status-warning); }
 @media (max-width: 1180px) {
