@@ -82,7 +82,7 @@ public sealed class PlaybackLyricsTests
             stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult(tracks));
             stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), args => Task.FromResult<string?>(args![1]!.ToString()));
             stub.SetHandler(nameof(IEngineApiClient.SetPreferredTextTrackAsync), args => { saved.Add((Guid)args![1]!); return Task.FromResult(true); });
-            stub.SetHandler(nameof(IEngineApiClient.RefreshTextTracksAsync), _ => Task.FromResult<RefreshTextTracksResponse?>(new() { message = "Search finished." }));
+            stub.SetHandler(nameof(IEngineApiClient.QueueTextTrackRefreshAsync), _ => Task.FromResult<RefreshTextTracksResponse?>(new() { status = "succeeded", message = "Search finished." }));
         });
         using var presenter = new PlaybackLyricsPresenter(api);
         var sink = new Sink();

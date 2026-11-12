@@ -29,6 +29,7 @@ public sealed partial class PlaybackLyricsPresenter
     {
         _lookupGeneration++;
         _probed = false; NoSourceOn = false; _actionsLoaded = false; PluginActions = [];
+        Lookup = PlaybackLyricsLookupState.Idle;
         Alternatives = null; AlternativesOpen = false; AlternativesLoading = false; Choosing = false;
     }
 

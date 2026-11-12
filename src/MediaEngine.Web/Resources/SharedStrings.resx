@@ -1593,7 +1593,7 @@
     <value>Open Plugins</value>
   </data>
   <data name="PlaybackLyrics_NoLyricsFoundForThis" xml:space="preserve">
-    <value>No lyrics found for this song.</value>
+    <value>No lyrics found</value>
   </data>
   <data name="PlaybackLyrics_LyricsOptions" xml:space="preserve">
     <value>Lyrics options</value>
@@ -10600,6 +10600,12 @@
   </data>
   <data name="PlaybackLyrics_FindLyrics" xml:space="preserve">
     <value>Find lyrics</value>
+  </data>
+  <data name="PlaybackLyrics_StillLooking" xml:space="preserve">
+    <value>Still looking. Lyrics will appear when they are found.</value>
+  </data>
+  <data name="PlaybackLyrics_CouldNotBeLookedUp" xml:space="preserve">
+    <value>Lyrics could not be looked up right now</value>
   </data>
   <data name="PlaybackLyrics_AddFile" xml:space="preserve">
     <value>Add a lyrics file</value>
