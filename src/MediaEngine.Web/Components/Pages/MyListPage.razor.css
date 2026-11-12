@@ -1,7 +1,6 @@
 /* My List: the profile header, Downloads, Continue, then the cover grid (mocks M1 to M5, M8). Phones first; the same page widens. */
 .my-list-page {
     --home-shelf-height: clamp(200px, 15vw, 260px);
-    --my-list-title-size: var(--tl-font-size-title);
     box-sizing: border-box;
     min-width: 0;
     min-height: calc(100dvh - 84px);
@@ -17,12 +16,6 @@
 @media (min-width: 600px) {
     .my-list-page {
         padding: var(--tl-space-6) clamp(24px, 2.2vw, 32px) 56px;
-    }
-}
-
-@media (min-width: 1180px) {
-    .my-list-page {
-        --my-list-title-size: 28px;
     }
 }
 
@@ -68,7 +61,7 @@
 
 .my-list-header__title {
     margin: 0;
-    font-size: var(--my-list-title-size);
+    font-size: var(--tl-type-page-title-size);
     font-weight: var(--tl-font-weight-bold);
     line-height: var(--tl-line-height-tight);
 }
