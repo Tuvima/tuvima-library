@@ -26,9 +26,19 @@ public sealed record TextTrackAlternative(
 
 /// <param name="Status">
 /// <c>Found</c>, <c>NoneFound</c>, <c>NoSourceOn</c>, <c>NotAllowed</c>, <c>Blocked</c> (the library never looks anything up),
-/// <c>Unavailable</c> (a source could not be reached) or <c>AssetMissing</c> / <c>Unsupported</c>.
+/// <c>Unavailable</c> (a source could not be reached) or <c>AssetMissing</c> / <c>Unsupported</c>. For subtitles it can also be
+/// <c>IdentityUnverified</c> (the movie or episode cannot be identified for an online search), <c>SourceKeyRequired</c> (a source is
+/// switched on but its key is missing or was refused), <c>LimitReached</c> (a source's allowance or rate limit is used up) or
+/// <c>LanguageUnknown</c> (the language asked for cannot be searched).
 /// </param>
-public sealed record TextTrackAlternativesResult(string Status, IReadOnlyList<TextTrackAlternative> Items, string Message);
+/// <param name="SourceName">The display name of the source the status is about, when there is one.</param>
+/// <param name="Language">The language code that was searched, for subtitles.</param>
+public sealed record TextTrackAlternativesResult(
+    string Status,
+    IReadOnlyList<TextTrackAlternative> Items,
+    string Message,
+    string? SourceName = null,
+    string? Language = null);
 
 /// <summary>
 /// "Not right? Find another" (Plugin architecture spec C24). The list is asked of the sources live and never stored. The Library keeps the
@@ -43,12 +53,42 @@ public sealed partial class TextTrackEnrichmentWorker
         Guid assetId,
         TextTrackKind kind,
         PluginAudience? requester,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? language = null)
     {
-        var session = await OpenSessionAsync(assetId, kind, requester, ct).ConfigureAwait(false);
+        var session = await OpenSessionAsync(assetId, kind, requester, language, ct).ConfigureAwait(false);
         if (session.Failure is not null)
         {
             return session.Failure;
+        }
+
+        string? searchLanguage = null;
+        var providers = session.Providers;
+        if (kind == TextTrackKind.Subtitles)
+        {
+            // The movie or episode must be identified before an online search can say anything (same rule as the refresh).
+            if (SubtitleIdentityMissing(session.Lookup!, session.MediaType))
+            {
+                return new("IdentityUnverified", [], "The movie or episode identity could not be verified for an online subtitle search.");
+            }
+
+            // A language the source cannot be asked for is reported, never searched as "unknown".
+            var searchable = new List<(ITextTrackProvider Provider, string Code)>();
+            foreach (var provider in providers)
+            {
+                if (provider.NormalizeSearchLanguage(session.Lookup!.Language) is { } code)
+                {
+                    searchable.Add((provider, code));
+                }
+            }
+
+            if (searchable.Count == 0)
+            {
+                return new("LanguageUnknown", [], "That language cannot be searched.", providers.FirstOrDefault()?.DisplayName);
+            }
+
+            providers = searchable.Select(entry => entry.Provider).ToList();
+            searchLanguage = searchable[0].Code;
         }
 
         var current = await _trackRepo.GetPreferredAsync(assetId, kind, null, ct).ConfigureAwait(false);
@@ -57,7 +97,8 @@ public sealed partial class TextTrackEnrichmentWorker
             .ToHashSet();
         var items = new List<TextTrackAlternative>();
         string? unreachable = null;
-        foreach (var provider in session.Providers)
+        TextTrackAlternativesResult? failed = null;
+        foreach (var provider in providers)
         {
             IReadOnlyList<TextTrackCandidate> candidates;
             try
@@ -67,6 +108,8 @@ public sealed partial class TextTrackEnrichmentWorker
             catch (TextTrackLookupException ex)
             {
                 unreachable = ex.Message;
+                failed ??= new(
+                    kind == TextTrackKind.Subtitles ? StatusFor(ex) : "Unavailable", [], ex.Message, provider.DisplayName, searchLanguage);
                 continue;
             }
 
@@ -76,13 +119,17 @@ public sealed partial class TextTrackEnrichmentWorker
                          .ThenByDescending(candidate => candidate.Confidence)
                          .Take(MaxAlternatives))
             {
-                var download = await TryDownloadAsync(provider, candidate, ct).ConfigureAwait(false);
+                // A subtitle list never downloads anything: a download happens only when one is chosen. Lyrics keep their preview.
+                var download = kind == TextTrackKind.Subtitles
+                    ? null
+                    : await TryDownloadAsync(provider, candidate, ct).ConfigureAwait(false);
                 items.Add(new TextTrackAlternative(
                     candidate.Provider,
                     provider.DisplayName,
                     candidate.SourceId,
                     candidate.Language,
-                    download is not null && !string.Equals(download.SourceFormat, "txt", StringComparison.OrdinalIgnoreCase),
+                    kind == TextTrackKind.Subtitles
+                        || (download is not null && !string.Equals(download.SourceFormat, "txt", StringComparison.OrdinalIgnoreCase)),
                     candidate.Confidence,
                     candidate.DurationMatchScore,
                     candidate.IsHearingImpaired,
@@ -96,12 +143,48 @@ public sealed partial class TextTrackEnrichmentWorker
 
         if (items.Count > 0)
         {
-            return new("Found", items.Take(MaxAlternatives).ToList(), $"{items.Count} result(s) found.");
+            return new("Found", items.Take(MaxAlternatives).ToList(), $"{items.Count} result(s) found.",
+                kind == TextTrackKind.Subtitles ? SourceNameOf(items) ?? providers.FirstOrDefault()?.DisplayName : null, searchLanguage);
+        }
+
+        if (failed is not null)
+        {
+            return failed;
         }
 
         return unreachable is not null
             ? new("Unavailable", [], unreachable)
-            : new("NoneFound", [], "No other results were found.");
+            : new("NoneFound", [], "No other results were found.",
+                kind == TextTrackKind.Subtitles ? providers.FirstOrDefault()?.DisplayName : null, searchLanguage);
+    }
+
+    private static string? SourceNameOf(IReadOnlyList<TextTrackAlternative> items) =>
+        items.Select(item => item.ProviderName).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1 ? items[0].ProviderName : null;
+
+    /// <summary>What a source's refusal means to the person looking at the list.</summary>
+    private static string StatusFor(TextTrackLookupException ex) => ex.Status switch
+    {
+        "AuthenticationRequired" => "SourceKeyRequired",
+        "QuotaExceeded" or "RateLimited" => "LimitReached",
+        _ => "Unavailable",
+    };
+
+    /// <summary>The same rule as the refresh: a movie or an episode must be identified before an online subtitle search.</summary>
+    private static bool SubtitleIdentityMissing(TextTrackLookup lookup, MediaType mediaType) =>
+        lookup.SubtitleContext is null
+        || (mediaType == MediaType.TV && lookup.SubtitleContext.TmdbEpisode is null)
+        || (mediaType == MediaType.Movies && lookup.SubtitleContext.Movie is null);
+
+    /// <summary>
+    /// Whether a source is switched on for this item and this person, answered from settings alone: no source is contacted and the movie or
+    /// episode is not looked up. <c>Ready</c>, <c>NoSourceOn</c>, <c>SourceKeyRequired</c>, <c>Blocked</c>, <c>NotAllowed</c>,
+    /// <c>Unsupported</c> or <c>AssetMissing</c>.
+    /// </summary>
+    public async Task<string> GetSourceStatusAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, CancellationToken ct = default)
+    {
+        var session = await CheckSourcesAsync(assetId, kind, requester, ct).ConfigureAwait(false);
+        // A source that is switched on but temporarily down is still switched on.
+        return session.Failure is null || session.Failure.Status == "Unavailable" ? "Ready" : session.Failure.Status;
     }
 
     /// <summary>Uses the result a person picked: it becomes the item's choice (the one before it is kept for "Go back"), and write-back replaces the one file beside the song when it is on.</summary>
@@ -111,9 +194,10 @@ public sealed partial class TextTrackEnrichmentWorker
         string provider,
         string sourceId,
         PluginAudience? requester,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? language = null)
     {
-        var session = await OpenSessionAsync(assetId, kind, requester, ct).ConfigureAwait(false);
+        var session = await OpenSessionAsync(assetId, kind, requester, language, ct).ConfigureAwait(false);
         if (session.Failure is not null)
         {
             return new(session.Failure.Status, kind, 0, 0, null, session.Failure.Message);
@@ -290,14 +374,38 @@ public sealed partial class TextTrackEnrichmentWorker
 
     private sealed record Session(
         MediaAsset? Asset,
+        WorkLineage? Lineage,
+        MediaType MediaType,
         TextTrackLookup? Lookup,
         IReadOnlyList<ITextTrackProvider> Providers,
         TextTrackAlternativesResult? Failure);
 
-    /// <summary>Works out which sources may be asked for this item and by this person, with the same rules as an ordinary lookup.</summary>
-    private async Task<Session> OpenSessionAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, CancellationToken ct)
+    /// <summary>
+    /// Works out which sources may be asked for this item and by this person, with the same rules as an ordinary lookup, and builds the lookup.
+    /// <paramref name="language"/> (a name or a code) replaces the title's own language for a subtitle search.
+    /// </summary>
+    private async Task<Session> OpenSessionAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, string? language, CancellationToken ct)
     {
-        static Session Fail(string status, string message) => new(null, null, [], new(status, [], message));
+        var session = await CheckSourcesAsync(assetId, kind, requester, ct).ConfigureAwait(false);
+        if (session.Failure is not null)
+        {
+            return session;
+        }
+
+        var lookup = await BuildLookupAsync(session.Asset!, session.Lineage, session.MediaType, kind, ct).ConfigureAwait(false);
+        if (kind == TextTrackKind.Subtitles && !string.IsNullOrWhiteSpace(language))
+        {
+            lookup = lookup with { Language = language.Trim() };
+        }
+
+        return session with { Lookup = lookup };
+    }
+
+    /// <summary>The checks of <see cref="OpenSessionAsync"/> that need no lookup of the title and contact no source.</summary>
+    private async Task<Session> CheckSourcesAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, CancellationToken ct)
+    {
+        static Session Fail(string status, string message, string? sourceName = null) =>
+            new(null, null, MediaType.Unknown, null, [], new(status, [], message, sourceName));
 
         var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
         if (asset is null)
@@ -317,11 +425,45 @@ public sealed partial class TextTrackEnrichmentWorker
             return Fail("Blocked", "This library never looks anything up.");
         }
 
-        var available = _providers
-            .Where(provider => provider.Kind == kind && provider.CanHandle(mediaType) && provider.GetAvailability(mediaType).IsAvailable)
-            .ToList();
+        var matching = _providers.Where(provider => provider.Kind == kind && provider.CanHandle(mediaType)).ToList();
+        var available = matching.Where(provider => provider.GetAvailability(mediaType).IsAvailable).ToList();
         if (available.Count == 0)
         {
+            if (kind == TextTrackKind.Subtitles)
+            {
+                // Subtitles say why: a missing or refused key, or a source that is switched on but down (lyrics keep "no source").
+                ITextTrackProvider? Match(string status) =>
+                    matching.FirstOrDefault(provider => string.Equals(provider.GetAvailability(mediaType).Status, status, StringComparison.OrdinalIgnoreCase));
+                // A profile that may not use a source is not told about that source's key or health.
+                if (_accessGate is not null && matching.Count > 0)
+                {
+                    var anyAllowed = false;
+                    foreach (var provider in matching)
+                    {
+                        if (await _accessGate.CheckAsync(new PluginAccessQuery(provider.Name, requester, asset.LibraryId, asset.Id), ct).ConfigureAwait(false) == PluginAccessOutcome.Allowed)
+                        {
+                            anyAllowed = true;
+                            break;
+                        }
+                    }
+
+                    if (!anyAllowed)
+                    {
+                        return Fail("NotAllowed", $"No {kind.ToString().ToLowerInvariant()} source can be used for this item.");
+                    }
+                }
+
+                if (Match("AuthenticationRequired") is { } keyless)
+                {
+                    return Fail("SourceKeyRequired", $"{keyless.DisplayName} needs an API key.", keyless.DisplayName);
+                }
+
+                if (Match("ProviderUnavailable") is { } down)
+                {
+                    return Fail("Unavailable", $"{down.DisplayName} is temporarily unavailable.", down.DisplayName);
+                }
+            }
+
             return Fail("NoSourceOn", $"No {kind.ToString().ToLowerInvariant()} source is switched on.");
         }
 
@@ -345,7 +487,6 @@ public sealed partial class TextTrackEnrichmentWorker
             available = permitted;
         }
 
-        var lookup = await BuildLookupAsync(asset, lineage, mediaType, kind, ct).ConfigureAwait(false);
-        return new(asset, lookup, available, null);
+        return new(asset, lineage, mediaType, null, available, null);
     }
 }

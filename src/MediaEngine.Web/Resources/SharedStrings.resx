@@ -7457,12 +7457,6 @@
   <data name="VideoPlaybackHost_NoAudioInformationForThis" xml:space="preserve">
     <value>No audio information for this file.</value>
   </data>
-  <data name="VideoPlaybackHost_SetPreferredVersion" xml:space="preserve">
-    <value>Set preferred version</value>
-  </data>
-  <data name="VideoPlaybackHost_FindBetterSubtitles" xml:space="preserve">
-    <value>Find better subtitles…</value>
-  </data>
   <data name="VideoPlaybackHost_TurnYourPhoneForFull" xml:space="preserve">
     <value>Turn your phone for full screen</value>
   </data>
@@ -8098,12 +8092,6 @@
   </data>
   <data name="VideoPlaybackHost_PlaybackPausedRestoreToContinue" xml:space="preserve">
     <value>Playback paused. Restore to continue.</value>
-  </data>
-  <data name="VideoPlaybackHost_PreferredSubtitlesSaved" xml:space="preserve">
-    <value>Preferred subtitles saved.</value>
-  </data>
-  <data name="VideoPlaybackHost_CouldNotSaveThePreferred" xml:space="preserve">
-    <value>Could not save the preferred subtitles.</value>
   </data>
   <data name="VideoPlaybackHost_AudioCanTBeSwitched" xml:space="preserve">
     <value>Audio can’t be switched right now.</value>
@@ -8999,9 +8987,6 @@
   <data name="RestorePlugins_NothingChanged" xml:space="preserve">
     <value>Nothing could be restored.</value>
   </data>
-  <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
-    <value>No subtitle source is switched on</value>
-  </data>
   <data name="PlayerSettings_Plugins" xml:space="preserve">
     <value>Plugins</value>
   </data>
@@ -9067,9 +9052,6 @@
   </data>
   <data name="PlayerSettings_Green" xml:space="preserve">
     <value>Green</value>
-  </data>
-  <data name="PlayerSettings_Searching" xml:space="preserve">
-    <value>Searching…</value>
   </data>
   <data name="PlayerContext_Lessons" xml:space="preserve">
     <value>Lessons</value>
@@ -10431,7 +10413,7 @@
     <value>Custom appearance</value>
   </data>
   <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
-    <value>Font, colors and opacity</value>
+    <value>Font, size, colors and opacity</value>
   </data>
   <data name="SubtitleAppearance_Reset" xml:space="preserve">
     <value>Reset to default</value>
@@ -10439,8 +10421,107 @@
   <data name="SubtitleAppearance_Saved" xml:space="preserve">
     <value>Changes saved automatically</value>
   </data>
-  <data name="SubtitleFind_Intro" xml:space="preserve">
-    <value>Looks in the subtitle sources you have switched on for other versions of this title’s subtitles.</value>
+  <data name="SubtitleFind_ResultsFrom" xml:space="preserve">
+    <value>{0} results from {1}</value>
+  </data>
+  <data name="SubtitleFind_ResultFrom" xml:space="preserve">
+    <value>1 result from {0}</value>
+  </data>
+  <data name="SubtitleFind_ResultsPlain" xml:space="preserve">
+    <value>{0} results</value>
+  </data>
+  <data name="SubtitleFind_ResultPlain" xml:space="preserve">
+    <value>1 result</value>
+  </data>
+  <data name="SubtitleFind_SearchingSource" xml:space="preserve">
+    <value>Searching {0}…</value>
+  </data>
+  <data name="SubtitleFind_Searching" xml:space="preserve">
+    <value>Searching…</value>
+  </data>
+  <data name="SubtitleFind_StillSearching" xml:space="preserve">
+    <value>Still searching…</value>
+  </data>
+  <data name="SubtitleFind_Language" xml:space="preserve">
+    <value>Subtitle language</value>
+  </data>
+  <data name="SubtitleFind_InUse" xml:space="preserve">
+    <value>In use now</value>
+  </data>
+  <data name="SubtitleFind_HearingImpaired" xml:space="preserve">
+    <value>Hearing impaired</value>
+  </data>
+  <data name="SubtitleFind_SameRelease" xml:space="preserve">
+    <value>Same release</value>
+  </data>
+  <data name="SubtitleFind_DifferentRelease" xml:space="preserve">
+    <value>Different release</value>
+  </data>
+  <data name="SubtitleFind_UseThis" xml:space="preserve">
+    <value>Use this</value>
+  </data>
+  <data name="SubtitleFind_ThisOneIsWrong" xml:space="preserve">
+    <value>This one is wrong</value>
+  </data>
+  <data name="SubtitleFind_CouldNotDownload" xml:space="preserve">
+    <value>Could not download this one</value>
+  </data>
+  <data name="SubtitleFind_CouldNotRemove" xml:space="preserve">
+    <value>Could not remove this one</value>
+  </data>
+  <data name="SubtitleFind_Applies" xml:space="preserve">
+    <value>Your choice applies to everyone watching this title.</value>
+  </data>
+  <data name="SubtitleFind_Movie" xml:space="preserve">
+    <value>movie</value>
+  </data>
+  <data name="SubtitleFind_Episode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="SubtitleFind_NoneFound" xml:space="preserve">
+    <value>No {0} subtitles were found for this {1}.</value>
+  </data>
+  <data name="SubtitleFind_NoneFoundHint" xml:space="preserve">
+    <value>Try another language.</value>
+  </data>
+  <data name="SubtitleFind_NoSource" xml:space="preserve">
+    <value>No subtitle source is switched on.</value>
+  </data>
+  <data name="SubtitleFind_SourceFallback" xml:space="preserve">
+    <value>The subtitle source</value>
+  </data>
+  <data name="SubtitleFind_KeyRefused" xml:space="preserve">
+    <value>{0} did not accept its key.</value>
+  </data>
+  <data name="SubtitleFind_Unmatched" xml:space="preserve">
+    <value>This {0} could not be matched for an online search.</value>
+  </data>
+  <data name="SubtitleFind_UnmatchedEpisodeHint" xml:space="preserve">
+    <value>Searching needs the show to be matched and a movie database key switched on.</value>
+  </data>
+  <data name="SubtitleFind_UnmatchedMovieHint" xml:space="preserve">
+    <value>Searching needs the movie to be matched.</value>
+  </data>
+  <data name="SubtitleFind_Limit" xml:space="preserve">
+    <value>{0} has reached its limit for now. Try again later.</value>
+  </data>
+  <data name="SubtitleFind_Unreachable" xml:space="preserve">
+    <value>{0} could not be reached.</value>
+  </data>
+  <data name="SubtitleFind_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
+  <data name="SubtitleFind_Blocked" xml:space="preserve">
+    <value>This library never looks anything up online.</value>
+  </data>
+  <data name="SubtitleFind_NotAllowed" xml:space="preserve">
+    <value>Your profile cannot search for subtitles.</value>
+  </data>
+  <data name="SubtitleFind_LanguageUnknown" xml:space="preserve">
+    <value>That language is not supported for subtitle search.</value>
+  </data>
+  <data name="SubtitleFind_Failed" xml:space="preserve">
+    <value>The search could not be completed.</value>
   </data>
   <data name="PlaybackTimeline_Chapter" xml:space="preserve">
     <value>Chapter {0}</value>
@@ -10734,7 +10815,7 @@
     <value>Your playback preferences could not be saved. Try again.</value>
   </data>
   <data name="PlaybackInformation_None" xml:space="preserve">
-    <value>No technical details are available for this file yet.</value>
+    <value>No details are available for this file.</value>
   </data>
   <data name="PlaybackInformation_Video" xml:space="preserve">
     <value>Video</value>
@@ -10751,32 +10832,20 @@
   <data name="PlaybackInformation_Subtitles" xml:space="preserve">
     <value>Subtitles</value>
   </data>
-  <data name="PlaybackInformation_Quality" xml:space="preserve">
-    <value>Audio quality</value>
-  </data>
-  <data name="PlaybackInformation_Container" xml:space="preserve">
-    <value>Container</value>
-  </data>
   <data name="PlaybackInformation_Delivery" xml:space="preserve">
     <value>Delivery</value>
   </data>
   <data name="PlaybackInformation_ConversionReason" xml:space="preserve">
-    <value>Why it is converted</value>
+    <value>Why</value>
   </data>
   <data name="PlaybackInformation_Connection" xml:space="preserve">
     <value>Connection</value>
   </data>
-  <data name="PlaybackInformation_Bandwidth" xml:space="preserve">
-    <value>Bandwidth</value>
-  </data>
-  <data name="PlaybackInformation_FileBitrate" xml:space="preserve">
-    <value>File bitrate</value>
-  </data>
   <data name="PlaybackInformation_MegabitsPerSecond" xml:space="preserve">
-    <value>{0} Mbps</value>
+    <value>{0} Mb/s</value>
   </data>
   <data name="PlaybackInformation_KilobitsPerSecond" xml:space="preserve">
-    <value>{0} kbps</value>
+    <value>{0} kb/s</value>
   </data>
   <data name="PlaybackInformation_Kilohertz" xml:space="preserve">
     <value>{0} kHz</value>
@@ -10788,19 +10857,88 @@
     <value>{0} channels</value>
   </data>
   <data name="PlaybackInformation_DeliveryConverted" xml:space="preserve">
-    <value>Converted while playing</value>
+    <value>Converting for this browser</value>
   </data>
   <data name="PlaybackInformation_DeliveryDirect" xml:space="preserve">
-    <value>Played as stored</value>
+    <value>Playing the file as it is</value>
   </data>
   <data name="PlaybackInformation_DeliveryDownloaded" xml:space="preserve">
     <value>Downloaded copy</value>
   </data>
   <data name="PlaybackInformation_ConnectionLocal" xml:space="preserve">
-    <value>On your home network</value>
+    <value>Home network</value>
   </data>
   <data name="PlaybackInformation_ConnectionRemote" xml:space="preserve">
-    <value>Away from home</value>
+    <value>Remote</value>
+  </data>
+  <data name="PlaybackInformation_Loading" xml:space="preserve">
+    <value>Loading details…</value>
+  </data>
+  <data name="PlaybackInformation_SectionFile" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="PlaybackInformation_SectionPlaying" xml:space="preserve">
+    <value>How it is playing</value>
+  </data>
+  <data name="PlaybackInformation_FileName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaybackInformation_FileFormat" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="PlaybackInformation_OverallBitrate" xml:space="preserve">
+    <value>Overall bitrate</value>
+  </data>
+  <data name="PlaybackInformation_Picture" xml:space="preserve">
+    <value>Picture</value>
+  </data>
+  <data name="PlaybackInformation_Color" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="PlaybackInformation_AudioTrack" xml:space="preserve">
+    <value>Track</value>
+  </data>
+  <data name="PlaybackInformation_AudioQuality" xml:space="preserve">
+    <value>Quality</value>
+  </data>
+  <data name="PlaybackInformation_SubtitlesShowing" xml:space="preserve">
+    <value>Showing</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleFrom" xml:space="preserve">
+    <value>{0} · from {1}</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleSourceFile" xml:space="preserve">
+    <value>in the file</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleSourceBeside" xml:space="preserve">
+    <value>a file beside it</value>
+  </data>
+  <data name="PlaybackInformation_SubtitleSourceYours" xml:space="preserve">
+    <value>your file</value>
+  </data>
+  <data name="PlaybackInformation_ConnectionWithSpeed" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PlaybackInformation_Buffer" xml:space="preserve">
+    <value>Buffer</value>
+  </data>
+  <data name="PlaybackInformation_BufferAhead" xml:space="preserve">
+    <value>{0} s ahead</value>
+  </data>
+  <data name="PlaybackInformation_PlayingOn" xml:space="preserve">
+    <value>Playing on</value>
+  </data>
+  <data name="PlaybackInformation_CopyDetails" xml:space="preserve">
+    <value>Copy details</value>
+  </data>
+  <data name="PlaybackInformation_CouldNotCopy" xml:space="preserve">
+    <value>Could not copy</value>
+  </data>
+  <data name="PlaybackInformation_Resolution" xml:space="preserve">
+    <value>{0} ({1} × {2})</value>
+  </data>
+  <data name="PlaybackInformation_Size" xml:space="preserve">
+    <value>{0} · {1}</value>
   </data>
   <data name="PlaybackSpeed_Unavailable" xml:space="preserve">
     <value>Playback speed unavailable</value>

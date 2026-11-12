@@ -178,6 +178,32 @@ public sealed class SubdlTextTrackProviderTests
         type, "Dune: Part Two", null, null, "2024", "en", null,
         new Dictionary<string, string>(), context);
 
+    // The names the player's Subtitle language list offers (PlaybackLanguageOptions.Common in the Dashboard). Each must be searchable,
+    // or a profile whose subtitle language is Dutch would be told "not supported" every time it opens Find subtitles.
+    [Theory]
+    [InlineData("English"), InlineData("Spanish"), InlineData("French"), InlineData("German"), InlineData("Italian"), InlineData("Portuguese")]
+    [InlineData("Dutch"), InlineData("Swedish"), InlineData("Norwegian"), InlineData("Danish"), InlineData("Finnish"), InlineData("Polish")]
+    [InlineData("Czech"), InlineData("Hungarian"), InlineData("Greek"), InlineData("Turkish"), InlineData("Russian"), InlineData("Ukrainian")]
+    [InlineData("Hebrew"), InlineData("Arabic"), InlineData("Hindi"), InlineData("Japanese"), InlineData("Korean"), InlineData("Chinese")]
+    [InlineData("Thai"), InlineData("Vietnamese"), InlineData("Indonesian")]
+    public void EveryLanguageThePlayerOffers_CanBeSearched(string name)
+    {
+        var provider = CreateProvider(_ => Json("{}"));
+
+        var code = provider.NormalizeSearchLanguage(name);
+
+        Assert.NotNull(code);
+        Assert.Equal(2, code!.Length);
+    }
+
+    [Fact]
+    public void ALanguageTheSourceDoesNotKnow_IsReportedAsNotSearchable()
+    {
+        var provider = CreateProvider(_ => Json("{}"));
+
+        Assert.Null(provider.NormalizeSearchLanguage("Portuguese (Brazil)"));
+    }
+
     private static TextTrackProviderAdapter CreateProvider(Func<HttpRequestMessage, HttpResponseMessage> respond)
     {
         // The provider is the shipped subdl.json run by the general adapter, with a test key.

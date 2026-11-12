@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 @using Microsoft.JSInterop
 @using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.MediaTiles
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
@@ -34,23 +35,35 @@
                 @foreach (var bookmark in Bookmarks)
                 {
                     var open = _quickLookId == bookmark.Id;
-                    <span class="playback-seek-rail__bookmark-wrap" style="left:@Percent(bookmark.Seconds)%"
+                    var frame = ShowFrames ? BookmarksPanel.FrameAddress(bookmark) : null;
+                    var name = bookmark.DisplayName;
+                    <span class="playback-seek-rail__bookmark-wrap" @key="bookmark.Id" style="left:@Percent(bookmark.Seconds)%"
                           @onmouseenter="@(() => HoverBookmark(bookmark.Id))" @onmouseleave="@(() => LeaveBookmark(bookmark.Id))">
-                        <button type="button" class="playback-seek-rail__bookmark @(bookmark.IsGlobal ? "is-global" : null)"
+                        <button type="button" class="playback-seek-rail__bookmark @(bookmark.IsGlobal ? "is-global" : null) @(bookmark.Id == NewBookmarkId ? "is-new" : null)"
                                 aria-label="@BookmarkLabel(bookmark)" aria-expanded="@(open ? "true" : "false")" data-bookmark-id="@bookmark.Id"
                                 @onclick="@(() => ToggleBookmark(bookmark.Id))" @onfocus="@(() => HoverBookmark(bookmark.Id))"></button>
                         @if (open)
                         {
-                            <div class="playback-seek-rail__quicklook" role="group" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
-                                <strong>@Time(bookmark.Seconds)@if (!bookmark.IsYours && !string.IsNullOrWhiteSpace(bookmark.OwnerName)) { <span> · @bookmark.OwnerName</span> }</strong>
-                                @if (!string.IsNullOrWhiteSpace(bookmark.Label)) { <p><b>@bookmark.Label</b></p> }
-                                @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }
+                            <div class="playback-seek-rail__quicklook @(ShowFrames ? "playback-seek-rail__quicklook--framed" : null)" role="group" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
+                                @if (ShowFrames)
+                                {
+                                    @* The picture from that moment (video follow-ups D4): the Bookmarks panel's own frame address, with its neutral placeholder until it loads or when it cannot. *@
+                                    <div class="playback-seek-rail__frame" data-bookmark-frame>
+                                        @if (!string.IsNullOrWhiteSpace(frame) && !_framesFailed.Contains(bookmark.Id))
+                                        {
+                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(frame, 178)" width="178" height="100" alt="" decoding="async" @onerror="@(() => _framesFailed.Add(bookmark.Id))" />
+                                        }
+                                    </div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(name)) { <b class="playback-seek-rail__name">@name</b> }
+                                <span class="playback-seek-rail__when">@Time(bookmark.Seconds)@if (!bookmark.IsYours && !string.IsNullOrWhiteSpace(bookmark.OwnerName)) { <text> · @bookmark.OwnerName</text> }</span>
+                                @if (!string.IsNullOrWhiteSpace(bookmark.Label) && !string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Description))
                                 {
                                     @if (_moreId == bookmark.Id) { <p>@bookmark.Description</p> }
                                     else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _moreId = bookmark.Id)">@L["Common_More"]</button> }
                                 }
-                                <span>
+                                <span class="playback-seek-rail__actions">
                                     <button type="button" class="playback-seek-rail__more" @onclick="@(() => JumpAsync(bookmark))">@L["Common_Play"]</button>
                                     @if (BookmarkDelete.HasDelegate && bookmark.IsYours && !bookmark.IsGlobal)
                                     {
@@ -74,7 +87,7 @@
     [Parameter] public EventCallback<double> ValueChanged { get; set; }
     [Parameter] public IReadOnlyList<double>? ChapterTicks { get; set; }
     [Parameter] public Func<double, string>? ChapterLabel { get; set; }
-    /// <summary>The title's saved bookmarks. Each gets a tick beside the chapters and a quick-look card (hover, or a tap on touch).</summary>
+    /// <summary>The title's saved bookmarks. Each gets a round bead on the rail and a quick-look card (hover, or a tap on touch; video player follow-ups D4).</summary>
     [Parameter] public IReadOnlyList<PlaybackRailBookmark>? Bookmarks { get; set; }
     /// <summary>Raised when "Jump here" is chosen in a quick-look card.</summary>
     [Parameter] public EventCallback<PlaybackRailBookmark> BookmarkJump { get; set; }
@@ -82,7 +95,15 @@
     [Parameter] public EventCallback<PlaybackRailBookmark> BookmarkDelete { get; set; }
     /// <summary>A short line shown over the rail, such as "Bookmark added 13:42".</summary>
     [Parameter] public string? Notice { get; set; }
+    /// <summary>
+    /// The bookmark just added from the player, or null (video player follow-ups D4). Its bead pulses once (class <c>is-new</c>, no animation under
+    /// reduced motion); the host clears it a few seconds later and when the item changes.
+    /// </summary>
+    [Parameter] public Guid? NewBookmarkId { get; set; }
     private Guid? _quickLookId, _pinnedId, _moreId, _deleteId;
+    private readonly HashSet<Guid> _framesFailed = [];
+    /// <summary>Only video has a picture from the bookmarked moment; music and audiobooks show no frame box (video player follow-ups D4).</summary>
+    private bool ShowFrames => string.Equals(Surface, "video", StringComparison.OrdinalIgnoreCase);
     private async Task DeleteAsync(PlaybackRailBookmark bookmark) { CloseQuickLook(); await BookmarkDelete.InvokeAsync(bookmark); }
     private string Percent(double seconds) => (Math.Clamp(seconds / Math.Max(1, Duration), 0, 1) * 100).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
     private string CardStyle(double seconds)

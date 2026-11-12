@@ -51,7 +51,7 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         SubtitleTracks = [new() { Index = 0, Language = "eng", DisplayName = "Subtitles (eng)", DeliveryUrl = "/subs/0" }, new() { Index = 1, Language = "eng", DisplayName = "English SDH", DeliveryUrl = "/subs/1" }],
     };
 
-    private PlaybackSessionController Arrange(UserPlaybackSettingsDto settings, Guid asset, Func<Guid, PlaybackManifestDto?>? adaptive = null, List<UserPlaybackSettingsDto>? saved = null)
+    private PlaybackSessionController Arrange(UserPlaybackSettingsDto settings, Guid asset, Func<Guid, PlaybackManifestDto?>? adaptive = null, List<UserPlaybackSettingsDto>? saved = null, Action<EngineApiClientStub>? configureApi = null)
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
@@ -73,6 +73,7 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
                     return Task.FromResult<UserPlaybackSettingsDto?>((UserPlaybackSettingsDto)args[1]!);
                 });
             }
+            configureApi?.Invoke(stub);
         });
         var playback = new PlaybackSessionController(null!, api, preferences: preferences);
         playback.RestoreState(new()
@@ -129,9 +130,69 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("Large", cut.Find("section.video-playback-host").GetAttribute("data-subtitle-size")));
         Assert.Equal("large", cut.Find("[data-sav-preset][aria-checked='true']").GetAttribute("data-sav-preset"));
-        await cut.Find(".sav__row:not(.sav__row--first) .app-segmented-control__item:first-child").ClickAsync();
+        await cut.Find(".sav__row .app-segmented-control__item:first-child").ClickAsync();
         cut.WaitForAssertion(() => Assert.Equal("false", cut.Find("section.video-playback-host").GetAttribute("data-subtitle-background")));
-        Assert.Empty(cut.FindAll("[data-sav-preset][aria-checked='true']"));
+        // Background is its own choice (follow-ups D8): the ticked style stays ticked.
+        Assert.Equal("large", cut.Find("[data-sav-preset][aria-checked='true']").GetAttribute("data-sav-preset"));
+    }
+
+    [Fact]
+    public async Task OpeningAudioAndSubtitles_AsksOnceWhetherASourceIsOn_AndSearchesNothing()
+    {
+        var asset = Guid.NewGuid();
+        Arrange(UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid()), asset);
+        var cut = Render<VideoPlaybackHost>();
+        var panel = cut.FindComponent<AudioSubtitlesPanel>().FindComponent<PlaybackPanel>();
+
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForElement("[data-audio-subtitles]");
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(false));
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+
+        var calls = ((EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>()).Calls;
+        cut.WaitForAssertion(() => Assert.Single(calls, name => name == nameof(IEngineApiClient.GetTextTrackSourcesAsync)));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), calls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.RefreshTextTracksAsync), calls);
+    }
+
+    [Fact]
+    public async Task UsingASubtitleResult_ReloadsTheTitlesTracks_AndSelectsTheNewOne()
+    {
+        var asset = Guid.NewGuid();
+        var chosen = Guid.NewGuid();
+        var reloads = 0;
+        Arrange(UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid()), asset, configureApi: stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ =>
+            {
+                reloads++;
+                return Task.FromResult<IReadOnlyList<TextTrackDto>>(reloads < 2 ? [] : [new() { Id = chosen, Kind = "Subtitles", Language = "en", Provider = "subdl", IsPreferred = true }]);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ => Task.FromResult<TextTrackAlternativesResponse?>(new()
+            {
+                status = "Found",
+                source_name = "SubDL",
+                items = [new() { provider = "subdl", provider_name = "SubDL", source_id = "b", language = "en", confidence = 0.93, release_name = "Release.B" }],
+            }));
+            stub.SetHandler(nameof(IEngineApiClient.ChooseTextTrackAlternativeAsync),
+                _ => Task.FromResult<TextTrackChoiceResponse?>(new() { status = "Updated", track_id = chosen }));
+        });
+        JSInterop.Setup<bool>("listenPlayback.selectCaptionTrack", _ => true).SetResult(true);
+        JSInterop.Setup<VideoPlaybackHost.VideoMetrics>("listenPlayback.readAudioState", _ => true).SetResult(new VideoPlaybackHost.VideoMetrics { RequestVersion = -1 });
+        var cut = Render<VideoPlaybackHost>();
+        cut.WaitForAssertion(() => Assert.Equal(1, reloads));
+        var panel = cut.FindComponent<AudioSubtitlesPanel>().FindComponent<PlaybackPanel>();
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForElement("[data-audio-subtitles]");
+        await cut.Find("[data-asa-action='find']").ClickAsync();
+        cut.WaitForElement("[data-sfv-results]");
+
+        await cut.Find("[data-sfv-action='use']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, reloads));
+        cut.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call =>
+            call.Identifier == "listenPlayback.selectCaptionTrack" && call.Arguments.Contains($"managed:{chosen:D}")));
+        Assert.NotNull(cut.Find($"track[data-playback-track-key='managed:{chosen:D}']"));
     }
 
     [Fact]
