@@ -2,6 +2,8 @@
 
 > **Status:** Built, awaiting Local checks (see engineering/validation/batch.md); Locked by Shy 2026-10-27 · **Version:** 2 (replaces v1, same day; nothing was built on v1) · **Last updated:** 2026-10-27 · **Related docs:** [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Design system](../design/design-system.md) · bug log items F44, F52, F53, F54, F55, F56, F57, F64, F65 (also touches F45, F46, F48)
 
+> **Version note (2026-11-12):** [universal-editor-v6](archive/universal-editor-v6-match-and-aligned-rows.md) (section 9) replaces the "editing is desktop-only" rule wherever this spec states it or hides an edit action on phones: item editing works on desktop, tablet and phone (`EditorDeviceRule.CanEditItems`), the Engine's permission check still decides who may edit, and TVs do not edit. Settings and Vault tools stay desktop-only. The Locked body below is unchanged.
+
 ## 1. Goal
 
 Make the music player and the Songs list feel finished: song lengths are right, the queue and history are tidy and easy to read, lyrics can be closed, and it is always clear where lyrics come from and how to get them. Today each of these is a small, separate annoyance, but they share a few root causes, so one piece of work fixes them together.
