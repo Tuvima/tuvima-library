@@ -24,8 +24,7 @@ public sealed class EditorQuickFactsTests
         var model = EditorQuickFactsBuilder.Build(
             QuickFactsKind.Film,
             Fields(("runtime", "2h 35m"), ("year", "2021")),
-            new ItemQuickFactsDto { FileCount = 2, SizeBytes = 62_500_000_000, BestQuality = "4K HDR" },
-            fileWriteOff: false);
+            new ItemQuickFactsDto { FileCount = 2, SizeBytes = 62_500_000_000, BestQuality = "4K HDR" });
 
         Assert.Equal(["runtime", "year", "size", "quality"], Keys(model));
         Assert.Equal("2h 35m", ValueOf(model, "runtime"));
@@ -47,7 +46,7 @@ public sealed class EditorQuickFactsTests
         };
         Assert.Equal(QuickFactsKind.FilmSeries, EditorQuickFactsBuilder.KindOf(null, null, EditorSubjectKinds.Series, totals));
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.FilmSeries, Fields(), totals, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.FilmSeries, Fields(), totals);
 
         Assert.Equal(["films", "runtime", "size"], Keys(model));
         Assert.Equal("3", ValueOf(model, "films"));
@@ -67,7 +66,7 @@ public sealed class EditorQuickFactsTests
             SizeBytes = 40L * 1024 * 1024 * 1024,
         };
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Show, Fields(), totals, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Show, Fields(), totals);
 
         Assert.Equal(["seasons", "episodes", "size"], Keys(model));
         Assert.Equal("3", ValueOf(model, "seasons"));
@@ -89,7 +88,7 @@ public sealed class EditorQuickFactsTests
             SizeBytes = 18L * 1024 * 1024 * 1024,
         };
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Season, Fields(), totals, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Season, Fields(), totals);
 
         Assert.Equal(["episodes", "runtime", "size"], Keys(model));
         Assert.Equal("13", ValueOf(model, "episodes"));
@@ -100,7 +99,7 @@ public sealed class EditorQuickFactsTests
     public void ASeasonMissingEpisodes_SaysHowManyAreOwned()
     {
         var model = EditorQuickFactsBuilder.Build(
-            QuickFactsKind.Season, Fields(), new ItemQuickFactsDto { DirectOwned = 11, DirectTotal = 13 }, false);
+            QuickFactsKind.Season, Fields(), new ItemQuickFactsDto { DirectOwned = 11, DirectTotal = 13 });
 
         Assert.Equal("11 of 13", ValueOf(model, "episodes"));
     }
@@ -111,8 +110,7 @@ public sealed class EditorQuickFactsTests
         var model = EditorQuickFactsBuilder.Build(
             QuickFactsKind.Episode,
             Fields(("air_date", "8 Feb 2017"), ("runtime", "42 min")),
-            new ItemQuickFactsDto { FileCount = 1, SizeBytes = 1_500_000_000, BestQuality = "1080p" },
-            false);
+            new ItemQuickFactsDto { FileCount = 1, SizeBytes = 1_500_000_000, BestQuality = "1080p" });
 
         Assert.Equal(["air_date", "runtime", "size", "quality"], Keys(model));
         Assert.Equal("8 Feb 2017", ValueOf(model, "air_date"));
@@ -126,8 +124,7 @@ public sealed class EditorQuickFactsTests
         var model = EditorQuickFactsBuilder.Build(
             QuickFactsKind.Book,
             Fields(("page_count", "412"), ("edition_format", "Paperback"), ("isbn", "9780441013593")),
-            new ItemQuickFactsDto { FileCount = 1, SizeBytes = 2_000_000 },
-            false);
+            new ItemQuickFactsDto { FileCount = 1, SizeBytes = 2_000_000 });
 
         Assert.Equal(["pages", "edition", "isbn", "size"], Keys(model));
         Assert.Equal("412", ValueOf(model, "pages"));
@@ -140,8 +137,7 @@ public sealed class EditorQuickFactsTests
         var model = EditorQuickFactsBuilder.Build(
             QuickFactsKind.Audiobook,
             Fields(("narrator", "Scott Brick")),
-            new ItemQuickFactsDto { FileCount = 12, SizeBytes = 900_000_000, RuntimeSeconds = 21 * 3600 },
-            false);
+            new ItemQuickFactsDto { FileCount = 12, SizeBytes = 900_000_000, RuntimeSeconds = 21 * 3600 });
 
         Assert.Equal(["narrator", "length", "files", "size"], Keys(model));
         Assert.Equal("Scott Brick", ValueOf(model, "narrator"));
@@ -155,8 +151,7 @@ public sealed class EditorQuickFactsTests
         var model = EditorQuickFactsBuilder.Build(
             QuickFactsKind.ComicIssue,
             Fields(("issue_number", "12"), ("page_count", "32")),
-            new ItemQuickFactsDto { FileCount = 1, SizeBytes = 80_000_000 },
-            false);
+            new ItemQuickFactsDto { FileCount = 1, SizeBytes = 80_000_000 });
 
         Assert.Equal(["issue", "pages", "size"], Keys(model));
         Assert.Equal("12", ValueOf(model, "issue"));
@@ -171,7 +166,7 @@ public sealed class EditorQuickFactsTests
         var totals = new ItemQuickFactsDto { DirectOwned = 8, DirectTotal = 10, FileCount = 8, SizeBytes = 400_000_000 };
         Assert.Equal(QuickFactsKind.Series, EditorQuickFactsBuilder.KindOf(mediaType, "series", null, totals));
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Series, Fields(), totals, false, mediaType);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Series, Fields(), totals, mediaType);
 
         Assert.Equal(["owned", "size"], Keys(model));
         Assert.Equal("8 of 10", ValueOf(model, "owned"));
@@ -189,7 +184,7 @@ public sealed class EditorQuickFactsTests
             CountsByKind = [new ItemQuickFactCountDto { Label = "Books", Count = 5 }],
         };
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Series, Fields(), totals, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Series, Fields(), totals);
 
         Assert.Equal("5", ValueOf(model, "owned"));
         Assert.Equal("Books owned", LabelOf(model, "owned"));
@@ -201,8 +196,7 @@ public sealed class EditorQuickFactsTests
         var model = EditorQuickFactsBuilder.Build(
             QuickFactsKind.Album,
             Fields(),
-            new ItemQuickFactsDto { LeafOwned = 10, LeafTotal = 12, DirectOwned = 10, DirectTotal = 12, RuntimeSeconds = 2700, FileCount = 10, SizeBytes = 300_000_000 },
-            false);
+            new ItemQuickFactsDto { LeafOwned = 10, LeafTotal = 12, DirectOwned = 10, DirectTotal = 12, RuntimeSeconds = 2700, FileCount = 10, SizeBytes = 300_000_000 });
 
         Assert.Equal(["tracks", "length", "size"], Keys(model));
         Assert.Equal("10 of 12", ValueOf(model, "tracks"));
@@ -215,8 +209,7 @@ public sealed class EditorQuickFactsTests
         var model = EditorQuickFactsBuilder.Build(
             QuickFactsKind.Song,
             Fields(("duration", "3m 54s"), ("track_number", "3"), ("disc_number", "1")),
-            new ItemQuickFactsDto { FileCount = 1, BestQuality = "FLAC" },
-            false);
+            new ItemQuickFactsDto { FileCount = 1, BestQuality = "FLAC" });
 
         Assert.Equal(["length", "track", "quality"], Keys(model));
         Assert.Equal("3m 54s", ValueOf(model, "length"));
@@ -228,7 +221,7 @@ public sealed class EditorQuickFactsTests
     public void APersonalVideo_ShowsLengthAndSize()
     {
         var model = EditorQuickFactsBuilder.Build(
-            QuickFactsKind.PersonalVideo, Fields(), new ItemQuickFactsDto { FileCount = 1, RuntimeSeconds = 754, SizeBytes = 250_000_000 }, false);
+            QuickFactsKind.PersonalVideo, Fields(), new ItemQuickFactsDto { FileCount = 1, RuntimeSeconds = 754, SizeBytes = 250_000_000 });
 
         Assert.Equal(["length", "size"], Keys(model));
         Assert.Equal("13m", ValueOf(model, "length"));
@@ -238,7 +231,7 @@ public sealed class EditorQuickFactsTests
     public void APerson_ShowsRolesAndWorksInTheLibrary()
     {
         var model = EditorQuickFactsBuilder.Build(
-            QuickFactsKind.Person, Fields(), new ItemQuickFactsDto { Roles = ["Author", "Screenwriter"], ItemCount = 7 }, false);
+            QuickFactsKind.Person, Fields(), new ItemQuickFactsDto { Roles = ["Author", "Screenwriter"], ItemCount = 7 });
 
         Assert.Equal(["roles", "works"], Keys(model));
         Assert.Equal("Author, Screenwriter", ValueOf(model, "roles"));
@@ -249,7 +242,7 @@ public sealed class EditorQuickFactsTests
     public void ACuratedCollection_ShowsItemsAndOwner()
     {
         var model = EditorQuickFactsBuilder.Build(
-            QuickFactsKind.CuratedCollection, Fields(), new ItemQuickFactsDto { ItemCount = 24, Owner = "Library" }, false);
+            QuickFactsKind.CuratedCollection, Fields(), new ItemQuickFactsDto { ItemCount = 24, Owner = "Library" });
 
         Assert.Equal(["items", "owner"], Keys(model));
         Assert.Equal("24", ValueOf(model, "items"));
@@ -270,7 +263,7 @@ public sealed class EditorQuickFactsTests
             ],
         };
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Universe, Fields(), totals, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Universe, Fields(), totals);
 
         Assert.Equal(["works", "kind_books", "kind_films", "kind_shows"], Keys(model));
         Assert.Equal("14", ValueOf(model, "works"));
@@ -280,7 +273,7 @@ public sealed class EditorQuickFactsTests
     [Fact]
     public void AFactNeitherTheFieldsNorTheEngineKnows_IsLeftOutNotGuessed()
     {
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Film, Fields(("runtime", "2h")), null, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Film, Fields(("runtime", "2h")), null);
 
         Assert.Equal(["runtime"], Keys(model));
     }
@@ -288,26 +281,28 @@ public sealed class EditorQuickFactsTests
     [Fact]
     public void AnItemWithNothingToShow_HasNoQuickFacts()
     {
-        Assert.True(EditorQuickFactsBuilder.Build(QuickFactsKind.None, Fields(), null, true).IsEmpty);
-        Assert.True(EditorQuickFactsBuilder.Build(QuickFactsKind.Film, Fields(), null, false).IsEmpty);
+        Assert.True(EditorQuickFactsBuilder.Build(QuickFactsKind.None, Fields(), null).IsEmpty);
+        Assert.True(EditorQuickFactsBuilder.Build(QuickFactsKind.Film, Fields(), null).IsEmpty);
     }
 
     [Fact]
-    public void AReadOnlyLibrary_AndFileWriteBackOff_AreNamedPlainly()
+    public void AReadOnlyLibrary_AddsNoPill_BecauseTheFooterLineSaysIt()
     {
         var model = EditorQuickFactsBuilder.Build(
-            QuickFactsKind.Film, Fields(("runtime", "2h")), new ItemQuickFactsDto { ReadOnlyLibrary = true }, fileWriteOff: true);
-
-        Assert.Equal([EditorQuickFactsBuilder.ReadOnlyLibraryNote, EditorQuickFactsBuilder.WriteBackOffNote], model.Notes);
-    }
-
-    [Fact]
-    public void NoNotes_WhenTheLibraryIsWritableAndWriteBackIsOnOrUnknown()
-    {
-        var model = EditorQuickFactsBuilder.Build(
-            QuickFactsKind.Film, Fields(("runtime", "2h")), new ItemQuickFactsDto { ReadOnlyLibrary = false }, fileWriteOff: false);
+            QuickFactsKind.Film, Fields(("runtime", "2h")), new ItemQuickFactsDto { ReadOnlyLibrary = true });
 
         Assert.Empty(model.Notes);
+        Assert.Equal(["runtime"], Keys(model));
+    }
+
+    [Fact]
+    public void ThePathOfTheFile_JoinsTheFolderAndTheNameWithTheSeparatorTheFolderUses()
+    {
+        Assert.Equal("/media/Books/Dune/Dune.epub", EditorQuickFactsBuilder.PathOf("/media/Books/Dune/", "Dune.epub"));
+        Assert.Equal(@"Z:\Books\Dune\Dune.epub", EditorQuickFactsBuilder.PathOf(@"Z:\Books\Dune", "Dune.epub"));
+        Assert.Equal("Dune.epub", EditorQuickFactsBuilder.PathOf(null, "Dune.epub"));
+        Assert.Equal("/media/Books", EditorQuickFactsBuilder.PathOf("/media/Books", " "));
+        Assert.Null(EditorQuickFactsBuilder.PathOf(null, null));
     }
 
     [Theory]
@@ -341,7 +336,7 @@ public sealed class EditorQuickFactsTests
             CountsByKind = Enumerable.Range(0, 8).Select(i => new ItemQuickFactCountDto { Label = "Kind" + i, Count = i + 1 }).ToList(),
         };
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Universe, Fields(), totals, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Universe, Fields(), totals);
 
         Assert.InRange(model.Facts.Count, 3, 5);
     }

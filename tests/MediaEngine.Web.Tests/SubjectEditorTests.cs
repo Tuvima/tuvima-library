@@ -300,7 +300,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to canonical value").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field__note[data-note-for='title']").TextContent));
     }
 
     // -- Review changes and saving --------------------------------------------------------------

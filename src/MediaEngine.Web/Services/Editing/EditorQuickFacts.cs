@@ -36,11 +36,12 @@ public enum QuickFactsKind
 /// <summary>One read-only fact: a short value with the label that says what it is.</summary>
 public sealed record QuickFact(string Key, string Icon, string Value, string Label);
 
-/// <summary>The facts the panel shows, and the plain notes under them ("Read-only library", "File write-back off").</summary>
+/// <summary>The facts the panel shows, and the plain notes under them ("File not found"). The Read-only and Write-back pills are gone (Editor v6 D15): the footer says it.</summary>
 /// <param name="OffersPreview">True for a supporting file the panel can preview: a button under the facts opens the Preview tab.</param>
 /// <param name="PreviewLabel">The words on that button ("Preview PDF").</param>
+/// <param name="FilePath">The item's file with the folder it sits in, shown once on one line at the foot of the panel (Editor v6 D14), never as a fact in the list; null when the Engine does not know it.</param>
 public sealed record QuickFactsModel(
-    QuickFactsKind Kind, IReadOnlyList<QuickFact> Facts, IReadOnlyList<string> Notes, bool OffersPreview = false, string? PreviewLabel = null)
+    QuickFactsKind Kind, IReadOnlyList<QuickFact> Facts, IReadOnlyList<string> Notes, bool OffersPreview = false, string? PreviewLabel = null, string? FilePath = null)
 {
     public static QuickFactsModel Empty { get; } = new(QuickFactsKind.None, [], []);
 
@@ -49,14 +50,11 @@ public sealed record QuickFactsModel(
 
 /// <summary>
 /// Works out the Quick Facts of an item (universal editor v4, D4 and the table in section 3a): three to five read-only facts that suit its
-/// kind, plus "Read-only library" or "File write-back off" when true. Pure: the facts a single item already has come from the editor's
+/// kind. Pure: the facts a single item already has come from the editor's
 /// field list, the totals of a container come from the Engine's Quick Facts read, and a fact neither knows is left out rather than guessed.
 /// </summary>
 public static class EditorQuickFactsBuilder
 {
-    public const string ReadOnlyLibraryNote = "Read-only library";
-    public const string WriteBackOffNote = "File write-back off";
-
     // Icon names are the app's own Material icon keys (see EditorQuickFacts.razor).
     private const string Clock = "Schedule";
     private const string Calendar = "CalendarToday";
@@ -115,9 +113,8 @@ public static class EditorQuickFactsBuilder
     /// <param name="field">Looks up the first present field among the keys and returns its shown value, or null.</param>
     /// <param name="totals">The Engine's totals, or null when that read failed (the facts then say only what the fields say).</param>
     /// <param name="mediaType">The Engine's media type, which words a Series' "owned" line (books, issues).</param>
-    /// <param name="fileWriteOff">True only when the library's own write-back switch is known to be off.</param>
     public static QuickFactsModel Build(
-        QuickFactsKind kind, Func<string[], string?> field, ItemQuickFactsDto? totals, bool fileWriteOff, string? mediaType = null)
+        QuickFactsKind kind, Func<string[], string?> field, ItemQuickFactsDto? totals, string? mediaType = null)
     {
         ArgumentNullException.ThrowIfNull(field);
         if (kind == QuickFactsKind.None)
@@ -268,19 +265,9 @@ public static class EditorQuickFactsBuilder
                 break;
         }
 
-        var notes = new List<string>();
-        if (totals is { ReadOnlyLibrary: true })
-        {
-            notes.Add(ReadOnlyLibraryNote);
-        }
-
-        if (fileWriteOff)
-        {
-            notes.Add(WriteBackOffNote);
-        }
-
-        // Three to five facts: never more than five, however many the kind could offer.
-        return new QuickFactsModel(kind, facts.Take(5).ToList(), notes);
+        // Three to five facts: never more than five, however many the kind could offer. The library being Read-only, or its write-back
+        // being off, is not a fact here: the editor's footer line says it (Editor v6 D15).
+        return new QuickFactsModel(kind, facts.Take(5).ToList(), []);
     }
 
     /// <summary>
@@ -345,9 +332,6 @@ public static class EditorQuickFactsBuilder
             ? $"{file.TypeLabel} document"
             : file.TypeLabel;
 
-    /// <summary>The note under the facts for a file in a folder the library only reads.</summary>
-    public const string ReadOnlyFolderNote = "Read-only folder";
-
     /// <summary>The note under a supporting file's facts when its folder is only read: it is never moved or deleted.</summary>
     public const string SupportingFileReadOnlyNote = "Read-only folder. The file is read where it is.";
 
@@ -355,9 +339,10 @@ public static class EditorQuickFactsBuilder
     public const string FileNotFoundNote = "File not found";
 
     /// <summary>
-    /// Adds the file facts the old Files tab used to carry (universal editor v5, 1a item 8) to a model: quality, container, folder, the number of
-    /// supporting files on a container, a read-only mark and a "File not found" note with the last known folder. Only the facts the kind's
-    /// own list in <c>config/editor.json</c> asks for are added, and a fact the header does not know is left out.
+    /// Adds the file facts the old Files tab used to carry (universal editor v5, 1a item 8) to a model: quality, container, the number of
+    /// supporting files on a container and a "File not found" note with the last known folder. Only the facts the kind's own list in
+    /// <c>config/editor.json</c> asks for are added, and a fact the header does not know is left out. The file's path is not a fact: it goes
+    /// on the model's <see cref="QuickFactsModel.FilePath"/>, shown once at the foot of the panel (Editor v6 D14).
     /// </summary>
     public static QuickFactsModel WithFileFacts(QuickFactsModel model, EditorHeaderDto? header, string? providerName = null)
     {
@@ -401,15 +386,16 @@ public static class EditorQuickFactsBuilder
             }
 
             Add("container", FileIcon, Clean(file.Container), "Container");
-            Add("folder", Folder, Clean(file.Folder), "Folder");
             if (file.IsMissing)
             {
                 notes.Add(string.IsNullOrWhiteSpace(file.Folder) ? FileNotFoundNote : $"{FileNotFoundNote} · last known folder {file.Folder!.Trim()}");
             }
-            else if (file.ReadOnly)
-            {
-                notes.Add(ReadOnlyFolderNote);
-            }
+        }
+
+        string? filePath = null;
+        if (header.FileFacts is { } located)
+        {
+            filePath = PathOf(located.Folder, located.FileName);
         }
 
         var supporting = header.Level.SupportingFiles.TotalInRoot;
@@ -418,7 +404,29 @@ public static class EditorQuickFactsBuilder
             Add("supporting_file_count", SupportingFiles, Count(supporting), supporting == 1 ? "Supporting file" : "Supporting files");
         }
 
-        return new QuickFactsModel(model.Kind, facts, notes);
+        return new QuickFactsModel(model.Kind, facts, notes, FilePath: filePath);
+    }
+
+    /// <summary>
+    /// The file's full path from the folder it sits in and its name, written with the separator the folder already uses. Null when neither is
+    /// known; with only one of them, that one.
+    /// </summary>
+    public static string? PathOf(string? folder, string? fileName)
+    {
+        var name = Clean(fileName);
+        var directory = Clean(folder)?.TrimEnd('/', '\\');
+        if (string.IsNullOrEmpty(directory))
+        {
+            return name;
+        }
+
+        if (name is null)
+        {
+            return directory;
+        }
+
+        var separator = directory.Contains('\\') && !directory.Contains('/') ? '\\' : '/';
+        return directory + separator + name;
     }
 
     private const string Check = "Check";

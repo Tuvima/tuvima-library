@@ -676,7 +676,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         {
             Assert.True(editor.Session.Pending.TryGetField(MovieId, "title", out var staged));
             Assert.True(string.IsNullOrEmpty(staged));
-            Assert.Contains("provider's value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent);
+            Assert.Contains("provider's value", cut.Find(".tl-editor-field__note[data-note-for='title']").TextContent);
         });
         Assert.Empty(_overrideSaves);
     }
@@ -957,7 +957,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AReadOnlyLibrary_IsNamedInQuickFacts()
+    public async Task AReadOnlyLibrary_ShowsNoPillInQuickFacts_TheFooterLineSaysIt()
     {
         _quickFacts = new ItemQuickFactsDto { Id = MovieId, FileCount = 1, SizeBytes = 1_000_000_000, ReadOnlyLibrary = true };
         var editor = await StartEditorAsync();
@@ -966,7 +966,10 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
 
         var facts = cut.WaitForElement(".tl-quick-facts");
 
-        Assert.Equal("Read-only library", facts.QuerySelector("[data-note]")!.TextContent.Trim());
+        Assert.Empty(facts.QuerySelectorAll("[data-note]"));
+        Assert.DoesNotContain("Read-only", facts.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("write-back", facts.TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEmpty(cut.FindAll("[data-fact]"));
     }
 
     [Fact]

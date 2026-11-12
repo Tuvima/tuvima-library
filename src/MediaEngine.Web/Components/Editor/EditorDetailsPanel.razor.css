@@ -33,3 +33,33 @@
     line-height: 1.8;
     list-style: none;
 }
+
+/* The groups of fields are columns of shared form rows (Editor v6 D12): each row lines its own fields up, so the group only stacks the rows. */
+.tl-editor-details__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+}
+
+/* Line 1 of a row: the field's label with its lock or Revert at the right. Every label line is as tall as the lock button, so a row whose
+   fields have no lock reads the same as one whose fields do; the controls below it share one top either way. */
+.tl-editor-field__label {
+    min-height: calc(var(--tl-control-height-sm) + var(--tl-field-label-gap, 6px));
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
+}
+
+/* Control text is the Control job (14 / 500); a provider fact's value is Body. */
+.tl-editor-field ::deep .tl-input {
+    font-weight: var(--tl-type-control-weight);
+}
+
+.tl-editor-field__value {
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
+}
+
+.tl-editor-details__heading {
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
+}

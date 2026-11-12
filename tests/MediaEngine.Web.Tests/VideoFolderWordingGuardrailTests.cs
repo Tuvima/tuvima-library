@@ -136,7 +136,7 @@ public sealed class VideoFolderWordingGuardrailTests
         var totals = new ItemQuickFactsDto { DirectOwned = 88, DirectTotal = 88, LeafOwned = 88, LeafTotal = 88 };
         var kind = EditorQuickFactsBuilder.KindOf("Videos", "series", null, totals);
         Assert.Equal(QuickFactsKind.VideoSeries, kind);
-        var facts = EditorQuickFactsBuilder.Build(kind, _ => null, totals, fileWriteOff: false, mediaType: "Videos");
+        var facts = EditorQuickFactsBuilder.Build(kind, _ => null, totals, mediaType: "Videos");
         Assert.NotEmpty(facts.Facts);
         foreach (var fact in facts.Facts)
         {
