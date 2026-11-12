@@ -84,7 +84,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
     {
         var cut = RenderHero(Folder(started: true));
 
-        Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context--above-title").TextContent.Trim());
+        Assert.Equal("Resume", cut.Find(".cinematic-hero-carousel__context--above-title").TextContent.Trim());
         Assert.Contains("Next up: Variables", cut.Find(".tl-detail-hero__subtitle").TextContent);
         Assert.Contains("25 minutes left", cut.Find(".tl-detail-hero__subtitle").TextContent);
         Assert.StartsWith("Resume", cut.Find(".tl-detail-action--primary").TextContent.Trim());
@@ -114,7 +114,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
 
     [Theory]
     [InlineData(false, "Video", "21 min", "Play")]
-    [InlineData(true, "Continue Watching", "38 minutes left", "Resume")]
+    [InlineData(true, "Resume", "38 minutes left", "Resume")]
     public void ASingleVideo_DesktopHeroSaysVideoOrContinueWatchingItsLengthOrTimeLeftAndPlayOrResume(bool started, string label, string line, string button)
     {
         var cut = RenderHero(Single(started));
@@ -142,7 +142,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
         var cut = RenderHero(movie);
 
         Assert.Empty(cut.FindAll(".cinematic-hero-carousel__context--above-title"));
-        Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context").TextContent.Trim());
+        Assert.Equal("Resume", cut.Find(".cinematic-hero-carousel__context").TextContent.Trim());
         Assert.Empty(cut.FindAll(".tl-detail-hero__subtitle"));
     }
 
@@ -166,7 +166,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
 
         var cut = RenderHero(Folder(started: true));
 
-        Assert.Equal("Continue Watching", cut.Find(".phone-hero__tag").TextContent.Trim());
+        Assert.Equal("Resume", cut.Find(".phone-hero__tag").TextContent.Trim());
         Assert.Contains("Next up: Variables", cut.Find(".phone-hero__meta").TextContent);
         Assert.Equal("Resume", cut.Find(".tl-detail-action-label > span:first-child").TextContent.Trim());
         Assert.Equal("25 min left", cut.Find(".tl-detail-action-progress__label").TextContent.Trim());
@@ -174,7 +174,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
 
     [Theory]
     [InlineData(false, "Video", "21 min", "Play")]
-    [InlineData(true, "Continue Watching", "38 minutes left", "Resume")]
+    [InlineData(true, "Resume", "38 minutes left", "Resume")]
     public async Task APhoneSingleVideoHero_SaysVideoOrContinueWatchingItsLengthOrTimeLeftAndPlayOrResume(bool started, string label, string line, string button)
     {
         await UsePhoneAsync();
@@ -192,7 +192,7 @@ public sealed class HomeVideoHeroTests : AsyncBunitContext
     {
         Assert.Equal("Video folder", PhoneHeroPresentation.VideoLabel(Folder(started: false)));
         Assert.Equal("Video", PhoneHeroPresentation.VideoLabel(Single(started: false)));
-        Assert.Equal("Continue Watching", PhoneHeroPresentation.VideoLabel(Single(started: true)));
+        Assert.Equal("Resume", PhoneHeroPresentation.VideoLabel(Single(started: true)));
         var book = new DiscoveryHeroViewModel { Title = "B", MediaKind = "Book", MetaPills = ["592 pages"] };
         Assert.Null(PhoneHeroPresentation.VideoLabel(book));
         Assert.Null(PhoneHeroPresentation.VideoLine(book));

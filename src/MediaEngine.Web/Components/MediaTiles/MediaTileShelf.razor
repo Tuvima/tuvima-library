@@ -5,7 +5,7 @@
 
 @if (Shelf.Items.Count > 0)
 {
-    <section class="media-tile-shelf @RowClass">
+    <section class="media-tile-shelf @RowClass @ContinueRowClass">
         @if (ShowHeader)
         {
             <div class="media-tile-shelf-header">
@@ -80,6 +80,8 @@ else if (ShowHeader && !string.IsNullOrWhiteSpace(EmptyMessage))
     [Parameter] public EventCallback<string> OnLaneHidden { get; set; }
 
     private bool HasViewAllTile => !string.IsNullOrWhiteSpace(Shelf.SeeAllRoute);
+
+    private string ContinueRowClass => UseContinueWatchingOrListeningTiles ? "is-continue-row" : string.Empty;
 
     private string RowClass => Shelf.Items.FirstOrDefault()?.Shape switch
     {
