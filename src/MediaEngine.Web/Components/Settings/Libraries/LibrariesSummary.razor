@@ -29,7 +29,7 @@
     // Titles when the Engine counts them for the kind, else folders ("2 folders"); rows with nothing in them are left out.
     private IReadOnlyList<Item> Items => [.. Rows
         .Select(row => row.Titles is { } titles
-            ? new Item(row.Key, LibraryKindLook.ColourClass(row.Type), row.Type.Icon, row.Type.PluralLabel, titles)
-            : new Item(row.Key, LibraryKindLook.ColourClass(row.Type), row.Type.Icon, L["LibrariesSummary_KindFolders", row.Type.PluralLabel].Value, row.Folders ?? 0))
+            ? new Item(row.Key, LibraryKindLook.ColorClass(row.Type), row.Type.Icon, row.Type.PluralLabel, titles)
+            : new Item(row.Key, LibraryKindLook.ColorClass(row.Type), row.Type.Icon, L["LibrariesSummary_KindFolders", row.Type.PluralLabel].Value, row.Folders ?? 0))
         .Where(item => item.Count > 0)];
 }

@@ -53,7 +53,7 @@
                 @foreach (var row in rows)
                 {
                     <tr @key="row.Key" data-library="@row.Key">
-                        <td data-card-role="title"><span class="setup-libs__name"><span class="lib-kind-tile lib-kind-tile--lookup @LibraryKindLook.ColourClass(row.Type)" data-kind-icon="@row.Type.Key"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
+                        <td data-card-role="title"><span class="setup-libs__name"><span class="lib-kind-tile lib-kind-tile--lookup @LibraryKindLook.ColorClass(row.Type)" data-kind-icon="@row.Type.Key"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
                         <td data-card-role="subtitle">@row.AreaLabel</td>
                         <td class="setup-libs__folders">
                             @if (row.ViewFolders is { Count: > 0 } viewFolders)

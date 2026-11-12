@@ -4479,21 +4479,21 @@ button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; borde
 a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 600; white-space: nowrap; }
 /* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
 .needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
-/* One colour per library kind (setup and libraries fixes D12), chosen in LibraryKindLook.ColourClass; the card cell and the row icon both read --lib-kind-colour. */
-.lib-kind-colour--movies { --lib-kind-colour: var(--tl-media-movies); }
-.lib-kind-colour--tv { --lib-kind-colour: var(--tl-media-tv); }
-.lib-kind-colour--music { --lib-kind-colour: var(--tl-media-music); }
-.lib-kind-colour--audiobooks { --lib-kind-colour: var(--tl-media-audiobooks); }
-.lib-kind-colour--books { --lib-kind-colour: var(--tl-media-books); }
-.lib-kind-colour--comics { --lib-kind-colour: var(--tl-media-comics); }
-.lib-kind-colour--documents { --lib-kind-colour: var(--tl-media-document); }
-.lib-kind-colour--area-watch { --lib-kind-colour: var(--tl-area-watch); }
-.lib-kind-colour--area-listen { --lib-kind-colour: var(--tl-area-listen); }
-.lib-kind-colour--area-read { --lib-kind-colour: var(--tl-area-read); }
-.lib-kind-colour--area-view { --lib-kind-colour: var(--tl-area-view); }
-.lib-kind-colour--area-vault { --lib-kind-colour: var(--tl-area-vault); }
+/* One colour per library kind (setup and libraries fixes D12), chosen in LibraryKindLook.ColorClass; the card cell and the row icon both read --lib-kind-color. */
+.lib-kind-color--movies { --lib-kind-color: var(--tl-media-movies); }
+.lib-kind-color--tv { --lib-kind-color: var(--tl-media-tv); }
+.lib-kind-color--music { --lib-kind-color: var(--tl-media-music); }
+.lib-kind-color--audiobooks { --lib-kind-color: var(--tl-media-audiobooks); }
+.lib-kind-color--books { --lib-kind-color: var(--tl-media-books); }
+.lib-kind-color--comics { --lib-kind-color: var(--tl-media-comics); }
+.lib-kind-color--documents { --lib-kind-color: var(--tl-media-document); }
+.lib-kind-color--area-watch { --lib-kind-color: var(--tl-area-watch); }
+.lib-kind-color--area-listen { --lib-kind-color: var(--tl-area-listen); }
+.lib-kind-color--area-read { --lib-kind-color: var(--tl-area-read); }
+.lib-kind-color--area-view { --lib-kind-color: var(--tl-area-view); }
+.lib-kind-color--area-vault { --lib-kind-color: var(--tl-area-vault); }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
-.lib-kind-tile--lookup { color: var(--lib-kind-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-kind-colour, var(--tl-accent-primary)) 16%, transparent); }
+.lib-kind-tile--lookup { color: var(--lib-kind-color, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-kind-color, var(--tl-accent-primary)) 16%, transparent); }
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .lib-meta__icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
 .lib-meta__icon--plain { min-width: var(--tl-control-height-compact); min-height: var(--tl-control-height-compact); color: var(--tl-text-muted); font-size: var(--tl-icon-size-sm); }

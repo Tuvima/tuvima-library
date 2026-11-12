@@ -1110,9 +1110,9 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     // D12: one colour per kind, shared by the card cell and the row icon.
-    // The kind's colour class an element carries (lib-kind-colour--*); the class is the only thing the card cell and the row icon take their colour from.
-    private static string ColourClassOf(AngleSharp.Dom.IElement element) =>
-        Assert.Single(element.ClassList, name => name.StartsWith("lib-kind-colour--", StringComparison.Ordinal));
+    // The kind's colour class an element carries (lib-kind-color--*); the class is the only thing the card cell and the row icon take their colour from.
+    private static string ColorClassOf(AngleSharp.Dom.IElement element) =>
+        Assert.Single(element.ClassList, name => name.StartsWith("lib-kind-color--", StringComparison.Ordinal));
 
     private static (LibraryKindCatalog Catalog, LibrariesConfigurationDto Configuration, IReadOnlyList<ViewSourceAdminDto> ViewFolders) EveryKindEverywhere()
     {
@@ -1159,8 +1159,8 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         {
             var cell = card.Find($"[data-lib-summary] [data-kind='{row.Key}']");
             var icon = table.Find($"tr[data-library='{row.Key}'] .lib-kind-tile");
-            Assert.Equal(LibraryKindLook.ColourClass(row.Type), ColourClassOf(cell));
-            Assert.Equal(ColourClassOf(cell), ColourClassOf(icon));
+            Assert.Equal(LibraryKindLook.ColorClass(row.Type), ColorClassOf(cell));
+            Assert.Equal(ColorClassOf(cell), ColorClassOf(icon));
         }
     }
 
@@ -1180,8 +1180,8 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         {
             var cell = cut.Find($"[data-lib-summary] [data-kind='{row.Key}']");
             var icon = Row(cut, row.Key).QuerySelector(".lib-kind-tile")!;
-            Assert.Equal(LibraryKindLook.ColourClass(row.Type), ColourClassOf(cell));
-            Assert.Equal(ColourClassOf(cell), ColourClassOf(icon));
+            Assert.Equal(LibraryKindLook.ColorClass(row.Type), ColorClassOf(cell));
+            Assert.Equal(ColorClassOf(cell), ColorClassOf(icon));
         }
     }
 
@@ -1192,9 +1192,9 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var cell = cut.Find($"[data-lib-summary] [data-kind='{AudiobooksId}']");
         var icon = Row(cut, AudiobooksId).QuerySelector(".lib-kind-tile")!;
-        Assert.Equal("lib-kind-colour--audiobooks", ColourClassOf(cell));
-        Assert.Equal("lib-kind-colour--audiobooks", ColourClassOf(icon));
-        Assert.Equal("lib-kind-colour--movies", ColourClassOf(cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']")));
+        Assert.Equal("lib-kind-color--audiobooks", ColorClassOf(cell));
+        Assert.Equal("lib-kind-color--audiobooks", ColorClassOf(icon));
+        Assert.Equal("lib-kind-color--movies", ColorClassOf(cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']")));
     }
 
     [Theory]
@@ -1215,30 +1215,30 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     {
         var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
 
-        Assert.Equal(token, LibraryKindLook.ColourToken(catalog.Find(key)!));
+        Assert.Equal(token, LibraryKindLook.ColorToken(catalog.Find(key)!));
     }
 
     [Fact]
-    public void TheDesignSystemDefinesEveryColourTokenAKindCanUse()
+    public void TheDesignSystemDefinesEveryColorTokenAKindCanUse()
     {
         var tokens = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css"));
         var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
 
-        foreach (var token in catalog.Types.Concat(catalog.ViewKinds).Select(LibraryKindLook.ColourToken).Distinct())
+        foreach (var token in catalog.Types.Concat(catalog.ViewKinds).Select(LibraryKindLook.ColorToken).Distinct())
         {
             Assert.Contains($"{token}:", tokens, StringComparison.Ordinal);
         }
     }
 
     [Fact]
-    public void EveryKindColourClassSetsTheKindColourToItsDesignSystemToken()
+    public void EveryKindColorClassSetsTheKindColourToItsDesignSystemToken()
     {
         var app = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
         var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
 
         foreach (var type in catalog.Types.Concat(catalog.ViewKinds))
         {
-            var rule = $".{LibraryKindLook.ColourClass(type)} {{ --lib-kind-colour: var({LibraryKindLook.ColourToken(type)}); }}";
+            var rule = $".{LibraryKindLook.ColorClass(type)} {{ --lib-kind-color: var({LibraryKindLook.ColorToken(type)}); }}";
             Assert.Contains(rule, app, StringComparison.Ordinal);
         }
     }
@@ -1262,7 +1262,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var tag = Row(cut, AudiobooksId).QuerySelector("[data-area-tag]")!;
         Assert.Contains("lib-area--listen", tag.ClassName, StringComparison.Ordinal);
-        Assert.DoesNotContain(tag.ClassList, name => name.StartsWith("lib-kind-colour--", StringComparison.Ordinal));
+        Assert.DoesNotContain(tag.ClassList, name => name.StartsWith("lib-kind-color--", StringComparison.Ordinal));
         Assert.Contains("lib-area--watch", Row(cut, MoviesId).QuerySelector("[data-area-tag]")!.ClassName, StringComparison.Ordinal);
     }
 

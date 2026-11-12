@@ -224,8 +224,8 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         Assert.True(LibraryKindLook.ManagedOffered(videos));
         Assert.True(LibraryKindLook.ManagedOffered(other));
-        Assert.Equal("--tl-area-watch", LibraryKindLook.ColourToken(videos));
-        Assert.Equal("--tl-media-music", LibraryKindLook.ColourToken(other));
+        Assert.Equal("--tl-area-watch", LibraryKindLook.ColorToken(videos));
+        Assert.Equal("--tl-media-music", LibraryKindLook.ColorToken(other));
     }
 
     [Fact]
