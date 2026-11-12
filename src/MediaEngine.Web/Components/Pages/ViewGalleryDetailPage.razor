@@ -367,7 +367,14 @@
 
     private async Task TrashAsync()
     {
-        if (_active is not null && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_active.Id))
+        // Move to Trash is offered only where the device may edit items (never a TV), and never for an item in a read-only folder.
+        if (EditorDeviceRule.TryRefuseItems(DeviceContext))
+        {
+            _deviceNotice = EditorDeviceRule.ItemMessage;
+            return;
+        }
+
+        if (_active is { CanTrash: true } && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_active.Id))
         {
             _active = null;
             await OnParametersSetAsync();

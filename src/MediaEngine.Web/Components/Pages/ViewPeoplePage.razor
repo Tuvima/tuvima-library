@@ -66,7 +66,7 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
     private ViewActions ActionsFor(LocalAssetDto item) => ViewActionPolicy.For(new ViewActionContext(
         ViewActionPolicy.OwnershipOf(Workspace.ScopeKind, item.AddedByProfileId, _profileId),
         EditorHost.CanEdit, item.FileMissing, item.CanTrash,
-        item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden));
+        item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden, DeviceMayEditItems: EditorHost.CanEdit));
     private async Task FavoriteSelectionAsync()
     {
         var value = !AllSelectedFavorite;
@@ -92,7 +92,9 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
     }
     private async Task TrashActiveAsync()
     {
-        if (_active is not { } item || !await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
+        // Move to Trash is offered only where the device may edit items (never a TV), and never for an item in a read-only folder.
+        if (!EditorHost.CanEdit) { Ribbon.Add(EditorDeviceRule.ItemMessage, AppSeverity.Warning); return; }
+        if (_active is not { CanTrash: true } item || !await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
         if (await ApiClient.TrashViewItemAsync(item.Id, default)) { RemoveItem(item); Ribbon.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
         else Ribbon.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
     }

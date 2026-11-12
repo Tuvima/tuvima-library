@@ -197,7 +197,7 @@
     // The same action list as the selection bar and the tile menu (ViewActionPolicy). A page that passes Actions gets exactly that; one that does not keeps the older CanManage rule.
     private ViewActions Allowed => Actions ?? ViewActionPolicy.For(new ViewActionContext(
         CanManage ? ViewItemOwnership.Own : string.Equals(Item.ScopeKind, "shared", StringComparison.OrdinalIgnoreCase) ? ViewItemOwnership.SharedByOther : ViewItemOwnership.OtherPerson, CanEdit, Item.FileMissing, Item.CanTrash,
-        Item.ArchivedAt.HasValue, Item.TrashedAt.HasValue, Item.Hidden));
+        Item.ArchivedAt.HasValue, Item.TrashedAt.HasValue, Item.Hidden, DeviceMayEditItems: EditorHost.CanEdit));
     private MediaViewerCapabilities ViewerCapabilities => new(
         CanFavorite: Allowed.HasFlag(ViewActions.Favorite),
         IsFavorite: Item.Favorite,

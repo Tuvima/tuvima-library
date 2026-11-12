@@ -39,12 +39,13 @@ public readonly record struct ViewActionContext(
     bool IsArchived,
     bool IsTrashed,
     bool IsHidden,
-    bool DownloadAllowed = true);
+    bool DownloadAllowed = true,
+    bool DeviceMayEditItems = true);
 
 /// <summary>
 /// The one rule for which actions an item offers (spec view-section D5). The selection bar, the tile menu and the viewer all ask here, so they
-/// never differ. Trash and Edit are offered on a phone as on a desktop (Edit wherever the device may edit items, which the caller passes as CanEdit); an item in a read-only folder never goes to
-/// Trash; Restore replaces Archive and Trash for an archived or trashed item.
+/// never differ. Trash and Edit are offered on a phone as on a desktop (Edit wherever the device may edit items, which the caller passes as CanEdit); Trash is offered only where the device may
+/// edit items (DeviceMayEditItems, <c>EditorDeviceRule.CanEditItems</c>: never a TV or an unknown device); an item in a read-only folder never goes to Trash; Restore replaces Archive and Trash for an archived or trashed item.
 /// </summary>
 public static class ViewActionPolicy
 {
@@ -90,7 +91,7 @@ public static class ViewActionPolicy
             actions |= ViewActions.Archive | (c.IsHidden ? ViewActions.None : ViewActions.Hide);
         }
 
-        if (live && c.CanTrash)
+        if (live && c.CanTrash && c.DeviceMayEditItems)
         {
             actions |= ViewActions.Trash;
         }

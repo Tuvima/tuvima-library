@@ -56,6 +56,24 @@ public sealed class ViewActionPolicyTests
     }
 
     [Fact]
+    public void OnADeviceThatMayNotEditItems_ATv_NeverOffersTrash_ButKeepsTheOtherActions()
+    {
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { CanEdit = false, DeviceMayEditItems = false });
+
+        Assert.False(actions.HasFlag(ViewActions.Trash));
+        Assert.True(actions.HasFlag(ViewActions.Archive));
+        Assert.True(actions.HasFlag(ViewActions.Favorite));
+    }
+
+    [Fact]
+    public void TrashedPhoto_OnATv_StillOffersRestore()
+    {
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsTrashed = true, DeviceMayEditItems = false });
+
+        Assert.True(actions.HasFlag(ViewActions.Restore));
+    }
+
+    [Fact]
     public void PhotoInAReadOnlyFolder_NeverOffersTrash()
     {
         var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { CanTrash = false });
