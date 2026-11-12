@@ -2632,7 +2632,10 @@ input.app-control.tl-input-slot,
     backdrop-filter: blur(20px) saturate(120%);
 }
 
-.app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor),
+.app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor) {
+    max-width: min(var(--tl-menu-max-width), calc(100vw - 16px)) !important;
+}
+
 .app-select__popover.tl-popover {
     max-width: min(var(--tl-menu-width), calc(100vw - 1.5rem)) !important;
 }
@@ -2660,10 +2663,10 @@ input.app-control.tl-input-slot,
 }
 
 .app-overflow-menu__popover {
-    width: var(--tl-menu-width);
-    min-width: 8.75rem;
-    max-width: min(var(--tl-menu-width), calc(100vw - 1rem));
-    padding: 0.16rem;
+    width: max-content;
+    min-width: var(--tl-menu-min-width);
+    max-width: min(var(--tl-menu-max-width), calc(100vw - 16px));
+    padding: 0;
     color: var(--tl-text-primary);
     background: var(--tl-menu-surface);
     border: 1px solid var(--tl-menu-border);
@@ -2674,7 +2677,16 @@ input.app-control.tl-input-slot,
 
 .app-overflow-menu__content {
     display: grid;
-    min-width: inherit;
+    min-width: 0;
+    padding: var(--tl-menu-padding);
+}
+
+/* A menu label too long for the widest menu shortens to one line; its full text is the overflow tooltip (Look v3.1 D2). */
+.app-menu-item__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tl-detail-hero-genres__menu.tl-popover {
@@ -2702,7 +2714,7 @@ input.app-control.tl-input-slot,
 .app-menu-item,
 .app-select__popover .tl-list-item {
     min-height: var(--tl-menu-item-height) !important;
-    gap: var(--tl-space-3);
+    gap: var(--tl-menu-icon-gap);
     padding: var(--tl-menu-row-padding-y) 16px;
     border: 0 !important;
     border-radius: var(--tl-radius-md) !important;
@@ -2720,6 +2732,7 @@ input.app-control.tl-input-slot,
 /* A dropdown's options are the Control job (14 px), the same as its chosen value; pop-up menu rows above stay at the Menu job
    (look-pass v3.1 D10). Placed after the shared row rule so it wins at equal weight. */
 .tl-select-options .tl-list-item {
+    min-height: var(--tl-popout-row) !important;
     font-size: var(--tl-type-control-size) !important;
     font-weight: var(--tl-type-control-weight) !important;
 }
@@ -3012,7 +3025,7 @@ button.app-menu-item {
 }
 
 .app-menu-divider {
-    margin: 0.16rem 0.28rem !important;
+    margin: var(--tl-menu-padding) 0 !important;
     border-color: var(--tl-menu-divider) !important;
 }
 

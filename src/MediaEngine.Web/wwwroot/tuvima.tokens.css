@@ -171,9 +171,14 @@
     --tl-menu-item-hover: rgba(255, 255, 255, 0.06);
     --tl-menu-item-selected: var(--tl-accent-primary-soft);
     --tl-menu-icon: var(--tl-text-secondary);
-    --tl-menu-min-width: 10.75rem;
+    /* Pop-up menus (Look v3.1 D2): 48 px rows, a 24 px icon then the label 12 px on, 8 px around the list and between groups; at least
+       240 px wide, growing with the longest label up to 360 px, where the label shortens and shows its full text on hover. */
+    --tl-menu-min-width: 240px;
+    --tl-menu-max-width: 360px;
+    --tl-menu-padding: 8px;
+    --tl-menu-icon-gap: 12px;
     --tl-menu-width: 272px;
-    --tl-menu-row-height: 44px;
+    --tl-menu-row-height: 48px;
     /* The page root is 14px, so menu type is in px: rem would resolve to 14px here (issue 702). */
     --tl-menu-row-font-size: 16px;
     --tl-menu-row-font-weight: 500;

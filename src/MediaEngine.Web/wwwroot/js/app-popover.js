@@ -96,6 +96,8 @@ export function update(marker, surface, anchor, dotnet, open, anchorOrigin, tran
         state = { marker, surface, anchor: anchor || discoverAnchor(marker), dotnet, open: false };
         state.layout = () => position(state);
         state.pointer = event => {
+            // A Sheet's dim area is the surface's own backdrop, so a press there reports the surface as its target: above the Sheet's top edge it is an outside press.
+            if (opened.at(-1) === state && event.target === surface && surface.classList.contains('app-popout--sheet') && event.clientY < surface.getBoundingClientRect().top) { close(state, false); return; }
             if (opened.at(-1) !== state || surface.contains(event.target) || state.anchor?.contains(event.target)) return;
             // Descendant dialogs belong to this popup's journey and must not dismiss its ancestor accidentally.
             if (event.target.closest?.('dialog[open]') && !state.anchor?.closest('dialog[open]')?.contains(event.target)) return;

@@ -1588,7 +1588,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("_playlistActionsCollectionId", legacySource, StringComparison.Ordinal);
         Assert.Contains("@onclick:stopPropagation=\"true\"", menuSource, StringComparison.Ordinal);
         Assert.Contains("AppControlSize.Compact", menuSource, StringComparison.Ordinal);
-        Assert.Contains("min-width: 8.75rem;", globalCss, StringComparison.Ordinal);
+        Assert.Contains("min-width: var(--tl-menu-min-width);", globalCss, StringComparison.Ordinal);
         Assert.Contains("min-height: var(--tl-menu-item-height) !important;", globalCss, StringComparison.Ordinal);
     }
 
