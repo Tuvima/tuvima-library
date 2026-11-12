@@ -121,7 +121,7 @@ public sealed class EditorBookmarkOverviewService(
         };
     }
 
-    /// <summary>The whole show's Everyone's bookmarks as one file, each episode named by season and episode number.</summary>
+    /// <summary>The whole show's Global bookmarks as one file, each episode named by season and episode number.</summary>
     public async Task<BookmarkPackFileDto> ExportAsync(Guid workId, CancellationToken ct = default)
     {
         var loaded = await LoadAsync(workId, ct);
@@ -172,7 +172,7 @@ public sealed class EditorBookmarkOverviewService(
 
         if (episodes.Count == 0)
         {
-            throw new BookmarkPackInvalidException("This show has no Everyone's bookmarks to export yet.");
+            throw new BookmarkPackInvalidException("This show has no Global bookmarks to export yet.");
         }
 
         var chosen = episodes.Take(EditorBookmarkLimits.MaximumShowEpisodes).ToList();

@@ -10,10 +10,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Tests;
 
-// The player's Bookmarks panel (unified player v2 D21, acceptance A11). The Engine returns, in one list, the viewer's own bookmarks (Mine) and the
-// title's Everyone list: the administrator's set once there is one, otherwise every profile's bookmarks pooled with same-spot ones merged. Each row is
+// The player's Bookmarks panel (unified player v2 D21, acceptance A11; global bookmarks v5 D1-D7). The Engine returns, in one list, the viewer's own
+// bookmarks (Mine) and the title's Global list: only the rows an administrator flagged, never other profiles' bookmarks pooled. Each row is
 // marked by the Engine (isYours, inEveryone), so the Dashboard never compares profile ids. "May see the title, may see its bookmarks": a Vault file
-// has no pooled view, a Kid profile gets Everyone only for titles it may watch, and another profile's row can be neither renamed nor deleted.
+// has no Global view, a Kid profile gets Global only for titles it may watch, and another profile's row can be neither renamed nor deleted.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
     private void MakeDefinitive(Guid workId, Guid madeBy)
@@ -41,7 +41,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task PlayerBookmarks_WithNoAdministratorsSet_EveryoneIsTheProfilesPooled_AndEachRowSaysWhoseItIs()
+    public async Task PlayerBookmarks_WithNoGlobalSet_ThePlayerListsOnlyTheViewersOwn_AndOtherProfilesAreNotPooled()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var other = AddOtherProfile();
@@ -51,35 +51,33 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         var listed = await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId);
 
-        Assert.Equal([mine.Id, theirs.Id], listed.Select(row => row.Id));
-        var own = listed.Single(row => row.Id == mine.Id);
-        var another = listed.Single(row => row.Id == theirs.Id);
+        var own = Assert.Single(listed);
+        Assert.Equal(mine.Id, own.Id);
         Assert.True(own.IsYours);
-        Assert.True(own.InEveryone);
-        Assert.False(another.IsYours);
-        Assert.True(another.InEveryone);
-        Assert.Equal("Someone else", another.OwnerName);
+        Assert.False(own.InEveryone);
+        Assert.DoesNotContain(listed, row => row.Id == theirs.Id);
     }
 
     [Fact]
-    public async Task PlayerBookmarks_TwoProfilesBookmarkingTheSameSpot_AreOneRowInEveryone_AndBothKeepTheirOwnUnderMine()
+    public async Task PlayerBookmarks_AGlobalBookmarkAndAnOwnOneAtTheSameSpot_AreTwoRows_AndOnlyTheGlobalOneIsInGlobal()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var other = AddOtherProfile();
         var mine = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 300);
-        var theirs = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 301);
+        var theirs = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 301, global: true);
         var (player, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
 
         var listed = await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId);
 
-        // One of the two stands in Everyone's list; the viewer's own stays theirs either way.
+        // Nothing is merged for the viewer any more: the Global one stands in Global, the viewer's own stays theirs.
+        Assert.Equal([mine.Id, theirs.Id], listed.Select(row => row.Id));
         Assert.Single(listed, row => row.InEveryone);
-        Assert.Contains(listed, row => row.Id == mine.Id && row.IsYours);
-        Assert.DoesNotContain(listed, row => row.Id == theirs.Id && !row.InEveryone);
+        Assert.Contains(listed, row => row.Id == mine.Id && row.IsYours && !row.InEveryone);
+        Assert.Contains(listed, row => row.Id == theirs.Id && !row.IsYours && row.InEveryone);
     }
 
     [Fact]
-    public async Task PlayerBookmarks_OnceTheAdministratorHasASet_ItReplacesThePool_AndOthersPersonalOnesLeaveTheList()
+    public async Task PlayerBookmarks_GlobalRowsAreShownWithOrWithoutTheSetBeingMarkedMade_AndOthersPersonalOnesNeverAre()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var other = AddOtherProfile();
@@ -87,7 +85,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var curated = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 240, global: true);
         var theirs = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 360);
         var (player, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
-        Assert.Equal(3, (await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId)).Count);
+        Assert.Equal([mine.Id, curated.Id], (await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId)).Select(row => row.Id));
 
         MakeDefinitive(shape.Normal.WorkId, other);
         var listed = await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId);
@@ -135,7 +133,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task PlayerBookmarks_AWorkWithOrdinaryAndVaultFiles_PoolsOnlyItsOrdinaryFiles()
+    public async Task PlayerBookmarks_AWorkWithOrdinaryAndVaultFiles_ShowsGlobalOnlyFromItsOrdinaryFiles()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
@@ -143,8 +141,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var vaultCopy = Guid.NewGuid();
         await InsertAssetForWorkAsync(shape.Normal.WorkId, vaultCopy, shape.VaultLibrary, "Vault copy", createWork: false);
         var other = AddOtherProfile();
-        var ordinary = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 100);
-        var inVault = await BookmarkOf(other, shape.Normal.WorkId, vaultCopy, 200);
+        var ordinary = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 100, global: true);
+        var inVault = await BookmarkOf(other, shape.Normal.WorkId, vaultCopy, 200, global: true);
         var (unlocked, _) = BookmarkPlayer(shape.Account, session);
 
         var listed = await unlocked.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId);
@@ -154,12 +152,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task PlayerBookmarks_AKidProfile_GetsEveryoneOnlyForTitlesItMayWatch()
+    public async Task PlayerBookmarks_AKidProfile_GetsGlobalOnlyForTitlesItMayWatch()
     {
         var (account, profile, _, items) = await SeedKidsCatalogueAsync();
         var other = AddOtherProfile();
-        var family = await BookmarkOf(other, items.FamilyFilm.WorkId, items.FamilyFilm.AssetId, 100);
-        var mature = await BookmarkOf(other, items.MatureFilm.WorkId, items.MatureFilm.AssetId, 100);
+        var family = await BookmarkOf(other, items.FamilyFilm.WorkId, items.FamilyFilm.AssetId, 100, global: true);
+        var mature = await BookmarkOf(other, items.MatureFilm.WorkId, items.MatureFilm.AssetId, 100, global: true);
         KidsLimitTestSupport.SetLimit(_database, profile, watch: "PG", read: "G", listen: "G", showUnrated: false);
         var (kid, _) = BookmarkPlayerFor(HumanContext(account, profile));
 

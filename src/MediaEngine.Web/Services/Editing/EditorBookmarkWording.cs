@@ -5,8 +5,8 @@ using MediaEngine.Domain.Services;
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
-/// Times and Review lines of the editor's Bookmarks tab (universal editor v5 D37). The wording is the product's: "Everyone's bookmarks",
-/// "Add to Everyone's", "Remove from Everyone's", "definitive set", "From profiles" and "Start over from profiles". Pure.
+/// Times and Review lines of the editor's Bookmarks tab (universal editor v5 D37). The wording is the product's: "Global bookmarks",
+/// "Add to Global", "Remove from Global", "definitive set", "From profiles" and "Clear Global". Pure.
 /// </summary>
 public static class EditorBookmarkWording
 {
@@ -83,7 +83,7 @@ public static class EditorBookmarkWording
             : string.IsNullOrWhiteSpace(item.ChapterTitle) ? "In the text" : item.ChapterTitle!;
     }
 
-    /// <summary>Where the nearest bookmark of Everyone's is, for the compare view: a time, or "In the text" for a book.</summary>
+    /// <summary>Where the nearest bookmark of Global is, for the compare view: a time, or "In the text" for a book.</summary>
     public static string NearestPlace(BookmarkSetExistingDto near)
     {
         ArgumentNullException.ThrowIfNull(near);
@@ -124,9 +124,9 @@ public static class EditorBookmarkWording
     public static string Short(EditorBookmarkRowDto row) =>
         string.IsNullOrWhiteSpace(row.Name) ? Place(row) : $"{Place(row)} {row.Name.Trim()}";
 
-    public static string AddedLine(EditorBookmarkRowDto row) => $"Added to Everyone's: {Short(row)}";
+    public static string AddedLine(EditorBookmarkRowDto row) => $"Added to Global: {Short(row)}";
 
-    public static string RemovedLine(EditorBookmarkRowDto row) => $"Removed from Everyone's: {Short(row)}";
+    public static string RemovedLine(EditorBookmarkRowDto row) => $"Removed from Global: {Short(row)}";
 
     public static string RenamedLine(EditorBookmarkRowDto row, string name) => $"Renamed {Place(row)} to {name.Trim()}";
 
@@ -140,7 +140,7 @@ public static class EditorBookmarkWording
         return string.IsNullOrWhiteSpace(forEpisode) ? line : $"{line} ({forEpisode.Trim()})";
     }
 
-    public const string StartOverLine = "Started over from profiles";
+    public const string StartOverLine = "Cleared Global";
 
     /// <summary>
     /// Where the picture of a bookmark's moment is drawn from: the Dashboard's own address for it (the browser never talks to the Engine), keeping

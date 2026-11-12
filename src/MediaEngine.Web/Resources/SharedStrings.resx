@@ -11370,10 +11370,10 @@
     <value>Supporting file</value>
   </data>
   <data name="EditorBookmarks_Add" xml:space="preserve">
-    <value>Add to Everyone's</value>
+    <value>Add to Global</value>
   </data>
   <data name="EditorBookmarks_AddChosen" xml:space="preserve">
-    <value>Add {0} to Everyone's</value>
+    <value>Add {0} to Global</value>
   </data>
   <data name="EditorBookmarks_ChangeTime" xml:space="preserve">
     <value>Change time</value>
@@ -11388,10 +11388,10 @@
     <value>No such episode in this show</value>
   </data>
   <data name="EditorBookmarks_EveryoneEmpty" xml:space="preserve">
-    <value>Nothing in Everyone's yet.</value>
+    <value>Nothing in Global yet.</value>
   </data>
   <data name="EditorBookmarks_EveryoneHeading" xml:space="preserve">
-    <value>Everyone's bookmarks</value>
+    <value>Global bookmarks</value>
   </data>
   <data name="EditorBookmarks_Export" xml:space="preserve">
     <value>Export</value>
@@ -11421,7 +11421,7 @@
     <value>From profiles</value>
   </data>
   <data name="EditorBookmarks_FromProfilesHint" xml:space="preserve">
-    <value>Every profile's own bookmarks. Add one to Everyone's to put it in the list above.</value>
+    <value>Every profile's own bookmarks. Add one to Global to put it in the list above.</value>
   </data>
   <data name="EditorBookmarks_FromYou" xml:space="preserve">
     <value>from you</value>
@@ -11433,7 +11433,7 @@
     <value>Import for the show</value>
   </data>
   <data name="EditorBookmarks_InEveryone" xml:space="preserve">
-    <value>In Everyone's</value>
+    <value>In Global</value>
   </data>
   <data name="EditorBookmarks_LoadFailed" xml:space="preserve">
     <value>The bookmarks could not be read.</value>
@@ -11466,7 +11466,7 @@
     <value>Name</value>
   </data>
   <data name="EditorBookmarks_Nearest" xml:space="preserve">
-    <value>Nearest in Everyone's: {0} {1}</value>
+    <value>Nearest in Global: {0} {1}</value>
   </data>
   <data name="EditorBookmarks_New" xml:space="preserve">
     <value>New</value>
@@ -11484,19 +11484,19 @@
     <value>This file is not for this title.</value>
   </data>
   <data name="EditorBookmarks_NothingNear" xml:space="preserve">
-    <value>Nothing near it in Everyone's</value>
+    <value>Nothing near it in Global</value>
   </data>
   <data name="EditorBookmarks_OpenEpisode" xml:space="preserve">
     <value>Open the bookmarks of {0}</value>
   </data>
   <data name="EditorBookmarks_OverviewTotals" xml:space="preserve">
-    <value>{0} bookmarks in Everyone's across {1} titles</value>
+    <value>{0} bookmarks in Global across {1} titles</value>
   </data>
   <data name="EditorBookmarks_ProfilesEmpty" xml:space="preserve">
     <value>No profile has bookmarked this title.</value>
   </data>
   <data name="EditorBookmarks_Remove" xml:space="preserve">
-    <value>Remove from Everyone's</value>
+    <value>Remove from Global</value>
   </data>
   <data name="EditorBookmarks_Rename" xml:space="preserve">
     <value>Rename</value>
@@ -11514,13 +11514,13 @@
     <value>+{0} staged</value>
   </data>
   <data name="EditorBookmarks_StartOver" xml:space="preserve">
-    <value>Start over from profiles</value>
+    <value>Clear Global</value>
   </data>
   <data name="EditorBookmarks_StateDefinitive" xml:space="preserve">
     <value>Definitive set</value>
   </data>
   <data name="EditorBookmarks_StatePooled" xml:space="preserve">
-    <value>Pooled from every profile's bookmarks</value>
+    <value>Nothing is in Global until you add it</value>
   </data>
   <data name="EditorBookmarks_Take" xml:space="preserve">
     <value>Take this bookmark</value>
@@ -11565,7 +11565,7 @@
     <value>Episode</value>
   </data>
   <data name="EditorBookmarks_ColEveryone" xml:space="preserve">
-    <value>Everyone's</value>
+    <value>Global</value>
   </data>
   <data name="EditorBookmarks_ColSet" xml:space="preserve">
     <value>Set</value>
@@ -11577,10 +11577,10 @@
     <value>Definitive (staged)</value>
   </data>
   <data name="EditorBookmarks_SetPooled" xml:space="preserve">
-    <value>Pooled from profiles</value>
+    <value>Not set yet</value>
   </data>
   <data name="EditorBookmarks_SetPooledStaged" xml:space="preserve">
-    <value>Pooled from profiles (staged)</value>
+    <value>Not set yet (staged)</value>
   </data>
   <data name="EditorMatchVerdictBar_Verdict" xml:space="preserve">
     <value>{0} match</value>
@@ -12345,7 +12345,7 @@
     <value>Show bookmarks from</value>
   </data>
   <data name="BookmarksPanel_Everyone" xml:space="preserve">
-    <value>Everyone · {0}</value>
+    <value>Global · {0}</value>
   </data>
   <data name="BookmarksPanel_Mine" xml:space="preserve">
     <value>Mine · {0}</value>
@@ -12381,7 +12381,7 @@
     <value>Couldn’t delete · Try again</value>
   </data>
   <data name="BookmarksPanel_EmptyEveryone" xml:space="preserve">
-    <value>No bookmarks for this title yet</value>
+    <value>No Global bookmarks on this title yet</value>
   </data>
   <data name="BookmarksPanel_EmptyMine" xml:space="preserve">
     <value>No bookmarks of yours yet</value>

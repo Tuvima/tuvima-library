@@ -45,25 +45,25 @@
       "match_fields": ["title", "year", "provider_id"]
     },
     "album": {
-      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
+      "tabs": ["details", "artwork", "match", "history"],
       "facts_line": ["artist", "year", "track_count", "match_state"],
       "quick_facts": ["match_state", "file_count", "total_size", "total_runtime", "last_refresh", "supporting_file_count"],
       "match_fields": ["artist", "album", "song"]
     },
     "song": {
-      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
+      "tabs": ["details", "artwork", "match", "history"],
       "facts_line": ["track_number", "runtime", "artist", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "last_refresh"],
       "match_fields": ["artist", "album", "song"]
     },
     "book": {
-      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
+      "tabs": ["details", "artwork", "match", "history"],
       "facts_line": ["author", "year", "page_count", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
       "match_fields": ["title", "author", "isbn"]
     },
     "audiobook": {
-      "tabs": ["details", "artwork", "match", "bookmarks", "history"],
+      "tabs": ["details", "artwork", "match", "history"],
       "facts_line": ["author", "narrator", "runtime", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
       "match_fields": ["title", "author_or_narrator"]
