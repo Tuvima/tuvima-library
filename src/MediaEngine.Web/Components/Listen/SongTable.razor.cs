@@ -179,8 +179,16 @@ public partial class SongTable
 
     private string AriaLabelText => string.IsNullOrWhiteSpace(AriaLabel) ? L["Common_Songs"].Value : AriaLabel;
 
-    // Tick boxes and the bulk bar are for a desktop that may edit; the Engine decides who really may (the host's panel says so when it refuses).
-    private bool TickShown => ShowSelection && !DeviceContext.IsPhone && DeviceContext.CanEdit;
+    // Tick boxes and the host's bar are for a desktop or tablet whose host wants them (ticked songs play, queue and go in playlists without
+    // any right to edit; the host's bar offers Edit only where editing is allowed). A phone ticks only in select mode, with its own bar.
+    private bool TickShown => IsPhoneList ? SelectModeOn : ShowSelection && (DeviceContext.IsDesktop || DeviceContext.IsTablet);
+
+    // Select mode (Listen music spec D12): chosen from a song's "..." sheet on a phone; rows then tick when tapped and a bottom bar appears.
+    private bool _selectMode;
+
+    private bool SelectModeOn => _selectMode && IsPhoneList;
+
+    private bool SelectModeAvailable => IsPhoneList && OnPlay.HasDelegate;
 
     private bool ShowEmpty => !IsLoading && _shown.Count == 0 && EmptyContent is not null;
 
@@ -220,6 +228,12 @@ public partial class SongTable
             _choiceKey = null;
             _sort = SongTableSort.DefaultFor(Place);
             _shownKey = null;
+        }
+
+        if (_selectMode && !IsPhoneList)
+        {
+            // The window became wider than a phone: select mode belongs to the phone list only.
+            _selectMode = false;
         }
 
         if (Sort is { } requested && requested != _hostSort)
@@ -516,6 +530,11 @@ public partial class SongTable
             classes.Add("is-playing");
         }
 
+        if (SelectModeOn && _selected.Contains(row.Id))
+        {
+            classes.Add("is-selected");
+        }
+
         if (!row.IsOwned)
         {
             classes.Add("is-missing");
@@ -739,6 +758,62 @@ public partial class SongTable
 
     // ---- Selection and notices -----------------------------------------------------------------------------------
 
+    // "Select" in the phone sheet: this song is ticked and the list goes into select mode.
+    private async Task BeginSelectAsync(SongRow row)
+    {
+        if (!SelectModeAvailable || !row.IsOwned)
+        {
+            return;
+        }
+
+        _selectMode = true;
+        await SetSelectedAsync(row.Id, true);
+    }
+
+    // Done: the ticks are dropped and the bar goes away.
+    private async Task EndSelectAsync()
+    {
+        _selectMode = false;
+        if (_selected.Count > 0)
+        {
+            _selected.Clear();
+            await SelectedIdsChanged.InvokeAsync(new HashSet<string>(StringComparer.Ordinal));
+        }
+    }
+
+    // A tap on a phone row plays it, or ticks it while the list is in select mode.
+    private Task ActivateRowAsync(SongRow row)
+    {
+        if (!SelectModeOn)
+        {
+            return PlayAsync(row);
+        }
+
+        return row.IsOwned ? SetSelectedAsync(row.Id, !_selected.Contains(row.Id)) : Task.CompletedTask;
+    }
+
+    // The ticked songs that can play, in the order the list shows them.
+    private IReadOnlyList<SongRow> TickedPlayable => [.. SelectedRows.Where(row => row.IsOwned)];
+
+    private IReadOnlyList<Guid> TickedWorkIds => [.. TickedPlayable.Select(row => row.WorkId).OfType<Guid>().Where(id => id != Guid.Empty)];
+
+    private async Task PlayTickedAsync()
+    {
+        var rows = TickedPlayable;
+        if (rows.Count > 0)
+        {
+            await OnPlay.InvokeAsync(new SongPlayRequest(rows, rows[0]));
+        }
+    }
+
+    private async Task QueueTickedAsync()
+    {
+        foreach (var row in TickedPlayable)
+        {
+            await OnQueue.InvokeAsync(row);
+        }
+    }
+
     private async Task SetSelectedAsync(string id, bool selected)
     {
         if (selected)
@@ -882,7 +957,7 @@ public partial class SongTable
 
         if (args.Key is "Enter" or " ")
         {
-            await PlayAsync(row);
+            await ActivateRowAsync(row);
         }
     }
 

@@ -1,0 +1,55 @@
+/* The phone's bar for ticked songs (Listen music spec D12): fixed above the player bar and the bottom navigation (the dock token already
+   includes the bottom safe area), with the side safe areas as margins. Row one is the count and Done, row two the three actions in
+   equal columns, each at least 44 px tall. */
+.song-selection-bar {
+    position: fixed;
+    z-index: 1200;
+    right: max(0.5rem, env(safe-area-inset-right, 0px));
+    bottom: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-audio-dock-height, 0px) + 0.5rem);
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    display: grid;
+    gap: 0.25rem;
+    box-sizing: border-box;
+    padding: 0.35rem 0.5rem 0.5rem;
+    color: var(--tl-text-primary);
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-lg, 12px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.song-selection-bar__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+.song-selection-bar__count {
+    min-width: 0;
+    padding-left: 0.25rem;
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold, 600);
+}
+
+.song-selection-bar__notice {
+    margin: 0;
+    padding: 0 0.25rem;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.song-selection-bar__notice--warning {
+    color: var(--tl-status-warning, var(--tl-text-primary));
+}
+
+.song-selection-bar__notice--error {
+    color: var(--tl-status-error, var(--tl-text-primary));
+}
+
+.song-selection-bar__actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+}

@@ -177,7 +177,7 @@ public sealed class MusicTrackListTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPageThePersonMayNotEdit_NoTickBoxesAreDrawn()
+    public async Task OnAPageThePersonMayNotEdit_TickBoxesAreStillDrawn_ForPlayingQueuingAndPlaylists()
     {
         await UseDeviceAsync("desktop");
         var binding = new EditorBinding(_device) { HasPermission = false, EntityId = Album };
@@ -185,7 +185,7 @@ public sealed class MusicTrackListTests : AsyncBunitContext
             .AddCascadingValue(binding)
             .AddCascadingValue(new BulkEditSelection { MediaType = "Music" }));
 
-        Assert.Empty(cut.FindAll(".song-table__cell--tick"));
+        Assert.NotEmpty(cut.FindAll(".song-table__cell--tick"));
     }
 
     // -- Phone ------------------------------------------------------------------------------------------

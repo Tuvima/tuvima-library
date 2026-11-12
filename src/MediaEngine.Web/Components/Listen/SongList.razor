@@ -39,6 +39,8 @@
         <BulkListEntry @ref="_bulkHost"
                        Rows="@BulkRowsFor(selected)"
                        MediaType="Music"
+                       OnPlay="@PlayTickedCallback"
+                       OnQueue="@QueueTickedCallback"
                        OnSaved="@OnEditedAsync"
                        OnCleared="@ClearSelectionAsync"
                        OnDeleted="@OnDeletedAsync" />

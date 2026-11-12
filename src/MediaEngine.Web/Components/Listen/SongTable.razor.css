@@ -460,6 +460,26 @@
     flex: 0 0 auto;
 }
 
+/* Select mode on a phone (Listen music spec D12): a 44 px tick box at the start of each row, the ticked rows tinted, and room under the
+   last row so the bottom bar never covers it. */
+
+.song-table__ptick {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--tl-tap-target-min, 44px);
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+.song-table__prow.is-selected {
+    background: var(--tl-bg-surface-hover);
+}
+
+.song-table--phone.is-selecting {
+    padding-bottom: calc(9rem + var(--tl-safe-area-bottom, 0px));
+}
+
 /* Letter headings and the A to Z strip on the phone Songs list (sorted by Song or Artist) */
 
 .song-table__letter {

@@ -79,6 +79,12 @@ public static class BulkEditRules
     public static bool CanAddToPlaylist(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) =>
         AllSongs(rows, pageMediaType) || IsAlbumSelection(rows);
 
+    /// <summary>
+    /// True when every ticked row is a song. Ticked songs are played, queued and put in playlists on any desktop or tablet by anyone who may
+    /// play, without the right to edit (spec D9); only Edit, Match and Move need that.
+    /// </summary>
+    public static bool IsSongSelection(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) => AllSongs(rows, pageMediaType);
+
     /// <summary>True when every ticked row is an album (its songs are added to a playlist, in album order).</summary>
     public static bool IsAlbumSelection(IReadOnlyList<BulkEditRow> rows) =>
         rows.Count > 0 && rows.All(row => row.Kind == DetailEntityType.MusicAlbum);

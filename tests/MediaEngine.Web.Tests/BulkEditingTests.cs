@@ -410,9 +410,27 @@ public sealed class BulkEditingTests : AsyncBunitContext
     [Theory]
     [InlineData("tablet")]
     [InlineData("phone")]
-    public async Task Bar_OnADeviceThatMayNotEdit_IsHiddenEvenWithRowsTicked(string formFactor)
+    public async Task Bar_OnADeviceThatMayNotEdit_IsHiddenForEveryKindOfRowButSongs(string formFactor)
     {
-        var bar = await RenderBarAsync(Ticked(FourSongs()), formFactor);
+        var bar = await RenderBarAsync(Ticked(
+            [new BulkEditRow(EpisodeOne, "One", DetailEntityType.TvEpisode, Season, "TV"), new BulkEditRow(EpisodeTwo, "Two", DetailEntityType.TvEpisode, Season, "TV")],
+            "TV"), formFactor);
+
+        Assert.Empty(bar.FindAll(".tl-batch__bar"));
+    }
+
+    [Fact]
+    public async Task Bar_ForSongsOnATablet_OffersThePlaylistActionButNoEditing()
+    {
+        var bar = await RenderBarAsync(Ticked(FourSongs()), "tablet");
+
+        Assert.Equal(["Add to playlist", "Clear"], bar.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task Bar_ForSongsOnAPhone_IsNotDrawnBecauseThePhoneHasItsOwnBottomBar()
+    {
+        var bar = await RenderBarAsync(Ticked(FourSongs()), "phone");
 
         Assert.Empty(bar.FindAll(".tl-batch__bar"));
     }
@@ -424,7 +442,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
 
         var buttons = bar.FindAll(".tl-batch__bar button:not([hidden])").Select(button => button.TextContent.Trim()).ToList();
 
-        Assert.Equal(["Edit", "Add to playlist", "Match", "Move to album", "Clear"], buttons);
+        Assert.Equal(["Add to playlist", "Edit", "Match", "Move to album", "Clear"], buttons);
         Assert.Empty(bar.FindAll(".tl-batch__bar button[aria-label='More actions']"));
     }
 
@@ -979,17 +997,37 @@ public sealed class BulkEditingTests : AsyncBunitContext
         list.WaitForAssertion(() => Assert.True(cleared >= 1));
     }
 
-    [Theory]
-    [InlineData("tablet")]
-    [InlineData("phone")]
-    public async Task List_OnADeviceThatMayNotEdit_RendersNothing_AndOpensNothing(string formFactor)
+    [Fact]
+    public async Task List_OnAPhone_RendersNothing_AndOpensNothing()
     {
-        var (list, popover, host) = await ListOverPopoverAsync(formFactor: formFactor);
+        var (list, popover, host) = await ListOverPopoverAsync(formFactor: "phone");
 
         Assert.Empty(list.FindAll(".tl-batch"));
         Assert.Empty(popover.FindAll(".tl-editor-panel"));
         Assert.False(host.IsOpen);
         Assert.Equal(0, host.Batch.Count);
+    }
+
+    [Fact]
+    public async Task List_OnATablet_ShowsTheSongActionsButNoEdit_AndBindsNoEditor()
+    {
+        var (list, popover, host) = await ListOverPopoverAsync(formFactor: "tablet");
+
+        Assert.Equal(["Add to playlist", "Clear"], list.FindAll(".tl-batch__bar button").Select(button => button.TextContent.Trim()));
+        Assert.Empty(popover.FindAll(".tl-editor-panel"));
+        Assert.False(host.IsOpen);
+        Assert.Equal(0, host.Batch.Count);
+    }
+
+    [Fact]
+    public async Task List_OnATablet_ClearTellsTheListToDropItsTicks()
+    {
+        var cleared = 0;
+        var (list, _, _) = await ListOverPopoverAsync(cleared: () => cleared++, formFactor: "tablet");
+
+        list.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Clear").Click();
+
+        list.WaitForAssertion(() => Assert.Equal(1, cleared));
     }
 
     [Fact]

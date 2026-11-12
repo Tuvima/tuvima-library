@@ -322,6 +322,41 @@ public partial class SongList
         await OnPlayRequested(works, Guid.TryParse(request.Start.Id, out var start) ? start : null, SourceLabel, false);
     }
 
+    // The bar's Play and Add to queue for ticked songs: the same calls the rows make, with the songs in the order the list shows them.
+    private EventCallback<IReadOnlyList<BulkEditRow>> PlayTickedCallback => OnPlayRequested is null
+        ? default
+        : EventCallback.Factory.Create<IReadOnlyList<BulkEditRow>>(this, PlayTickedAsync);
+
+    private EventCallback<IReadOnlyList<BulkEditRow>> QueueTickedCallback => OnQueueRequested is null
+        ? default
+        : EventCallback.Factory.Create<IReadOnlyList<BulkEditRow>>(this, QueueTickedAsync);
+
+    // The bar's rows already come in the order the table shows them.
+    private IReadOnlyList<WorkViewModel> TickedWorks(IReadOnlyList<BulkEditRow> rows)
+        => [.. rows.Select(row => _byId.GetValueOrDefault(row.Id.ToString("D"))).OfType<WorkViewModel>()];
+
+    private async Task PlayTickedAsync(IReadOnlyList<BulkEditRow> rows)
+    {
+        var works = TickedWorks(rows);
+        if (works.Count > 0 && OnPlayRequested is not null)
+        {
+            await OnPlayRequested(works, null, SourceLabel, false);
+        }
+    }
+
+    private async Task QueueTickedAsync(IReadOnlyList<BulkEditRow> rows)
+    {
+        if (OnQueueRequested is null)
+        {
+            return;
+        }
+
+        foreach (var work in TickedWorks(rows))
+        {
+            await OnQueueRequested(work);
+        }
+    }
+
     private Task PlayNextAsync(SongRow row) => WorkFor(row) is { } work && OnPlayNextRequested is not null ? OnPlayNextRequested(work) : Task.CompletedTask;
 
     private Task QueueAsync(SongRow row) => WorkFor(row) is { } work && OnQueueRequested is not null ? OnQueueRequested(work) : Task.CompletedTask;

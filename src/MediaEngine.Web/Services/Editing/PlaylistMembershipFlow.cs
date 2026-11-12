@@ -12,42 +12,48 @@ namespace MediaEngine.Web.Services.Editing;
 public sealed record PlaylistFlowNotice(string Message, AppSeverity Severity);
 
 /// <summary>
-/// "Add to playlist" from ticked songs or albums (Listen music spec D9, D15): the list of hand-made playlists with "New playlist", then
-/// the add, then one plain sentence for the caller to show in place. The selection bar goes through here, so every list that shows the bar
-/// behaves the same.
+/// "Add to playlist" from ticked songs or albums (Listen music spec D9, D12, D15): the list of hand-made playlists with "New playlist",
+/// then the add, then one plain sentence for the caller to show in place. The desktop selection bar and the phone's bottom bar both go
+/// through here, so every list behaves the same.
 /// </summary>
 public static class PlaylistMembershipFlow
 {
     /// <summary>
-    /// Runs the flow. Returns the sentence to show in place, or null when the person closed the list without choosing. Off a desktop it
-    /// returns the device message and opens nothing.
+    /// Runs the flow for ticked rows (songs, or albums that stand for their songs). Returns the sentence to show in place, or null when the
+    /// person closed the list without choosing. Putting songs in a playlist is not editing, so any device that shows a song list may do it.
     /// </summary>
     public static async Task<PlaylistFlowNotice?> RunAsync(IServiceProvider services, IReadOnlyList<BulkEditRow> rows, string label)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(rows);
-        var strings = services.GetRequiredService<IStringLocalizer<SharedStrings>>();
-        var device = services.GetRequiredService<DeviceContextService>();
-        if (EditorDeviceRule.TryRefuse(device))
-        {
-            return new PlaylistFlowNotice(EditorDeviceRule.Message, AppSeverity.Info);
-        }
+        var songIds = await PlaylistMembership.ResolveSongIdsAsync(services.GetRequiredService<IEngineApiClient>(), rows);
+        return await RunForSongsAsync(services, songIds, label);
+    }
 
-        var api = services.GetRequiredService<IEngineApiClient>();
-        var songIds = await PlaylistMembership.ResolveSongIdsAsync(api, rows);
+    /// <summary>The same flow for songs already known by their ids (the phone's bottom bar). On a phone the list is a bottom sheet.</summary>
+    public static async Task<PlaylistFlowNotice?> RunForSongsAsync(IServiceProvider services, IReadOnlyList<Guid> songIds, string label)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(songIds);
+        var strings = services.GetRequiredService<IStringLocalizer<SharedStrings>>();
         if (songIds.Count == 0)
         {
             return new PlaylistFlowNotice(strings["PlaylistMembership_NoSongs"].Value, AppSeverity.Warning);
         }
 
+        var api = services.GetRequiredService<IEngineApiClient>();
+        var phone = services.GetService<DeviceContextService>()?.IsPhone == true;
         var dialogs = services.GetRequiredService<IAppDialogService>();
-        var dialog = await dialogs.ShowAsync<MediaMembershipDialog>(label, new AppDialogParameters<MediaMembershipDialog>
-        {
-            { d => d.Playlist, true },
-            { d => d.ChooseOnly, true },
-            { d => d.OfferNewPlaylist, true },
-            { d => d.WorkIds, songIds },
-        });
+        var dialog = await dialogs.ShowAsync<MediaMembershipDialog>(
+            label,
+            new AppDialogParameters<MediaMembershipDialog>
+            {
+                { d => d.Playlist, true },
+                { d => d.ChooseOnly, true },
+                { d => d.OfferNewPlaylist, true },
+                { d => d.WorkIds, songIds },
+            },
+            phone ? new AppDialogOptions { Sheet = AppDialogSheetMode.Phone } : null);
         var result = await dialog.Result;
         if (result is not { Canceled: false, Data: PlaylistChoice choice })
         {

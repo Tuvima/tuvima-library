@@ -3285,6 +3285,58 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:fo
     background: transparent;
 }
 
+/* The buttons of the phone bar for ticked songs (Listen music spec D12). They are first-party buttons drawn by AppNativeButton, so
+   their rules live here beside the other phone selection bar; the bar itself is styled by its component. */
+.song-selection-bar .song-selection-bar__done {
+    flex: 0 0 auto;
+    min-width: var(--tl-tap-target-min, 44px);
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: 0 0.75rem;
+    color: var(--tl-accent-primary-hover, var(--tl-text-primary));
+    font: inherit;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+    border-radius: 0.6rem;
+    cursor: pointer;
+}
+
+.song-selection-bar .song-selection-bar__action {
+    display: inline-flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 0;
+    min-height: max(var(--tl-tap-target-min, 44px), 3rem);
+    padding: 0.25rem;
+    color: var(--tl-text-primary);
+    font: inherit;
+    font-size: var(--tl-font-size-xs);
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 0.6rem;
+    cursor: pointer;
+}
+
+.song-selection-bar .song-selection-bar__action span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-selection-bar .song-selection-bar__action:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.song-selection-bar .song-selection-bar__action:active:not(:disabled),
+.song-selection-bar .song-selection-bar__done:active {
+    background: var(--tl-bg-surface-hover);
+}
+
 /* Photo date headings on touch or narrow windows: the "select all on this day" control sits in the heading row
    instead of hanging in the page gutter, where a 44px target would run off the screen edge. */
 @media (hover: none), (max-width: 1023px) {

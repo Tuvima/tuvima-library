@@ -31,7 +31,7 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     private static readonly Guid AlbumTwo = Guid.Parse("a1000000-0000-0000-0000-000000000002");
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
-    private readonly ChoiceDialogService _dialogs = new();
+    private readonly PlaylistChoiceDialogService _dialogs = new();
     private readonly List<(Guid Playlist, Guid Work)> _added = [];
     private readonly List<(string Name, IReadOnlyList<Guid> Works)> _created = [];
     private readonly List<Guid> _alreadyInPlaylist = [];
@@ -291,15 +291,25 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
         Assert.Equal([SongA, SongB, SongC], _added.Select(pair => pair.Work));
     }
 
-    [Theory]
-    [InlineData("phone")]
-    [InlineData("tablet")]
-    public async Task OffTheDesktop_TheBarIsNotDrawnSoNoPlaylistChoiceIsOffered(string formFactor)
+    [Fact]
+    public async Task OnAPhone_TheDesktopBarIsNotDrawn_BecauseThePhoneHasItsOwnBottomBar()
     {
-        var bar = await RenderBarAsync(Songs(SongA), "Music", formFactor);
+        var bar = await RenderBarAsync(Songs(SongA), "Music", "phone");
 
         Assert.Empty(bar.FindAll(".tl-batch__bar"));
         Assert.Empty(_dialogs.Titles);
+    }
+
+    [Fact]
+    public async Task OnATablet_TickedSongsStillAddToAPlaylist_WithoutAnyRightToEdit()
+    {
+        _dialogs.Choice = new PlaylistChoice(RoadTrip, "Road trip");
+        var bar = await RenderBarAsync(Songs(SongA, SongB), "Music", "tablet");
+
+        Assert.False(HasButton(bar, "Edit"));
+        bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
+
+        bar.WaitForAssertion(() => Assert.Contains("2 songs added to Road trip", bar.Find("[data-bulk-selection-notice]").TextContent));
     }
 
     // -- Helpers -------------------------------------------------------------------------------
@@ -338,40 +348,6 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
             .Add(component => component.WorkIds, new[] { SongA }));
         dialog.WaitForAssertion(() => Assert.DoesNotContain(dialog.FindAll("p"), p => p.TextContent.Contains("Loading", StringComparison.OrdinalIgnoreCase)));
         return dialog;
-    }
-
-    /// <summary>Hands back the choice a person would have made, without drawing the window.</summary>
-    private sealed class ChoiceDialogService : IAppDialogService
-    {
-        public PlaylistChoice? Choice { get; set; }
-        public List<string?> Titles { get; } = [];
-        public AppDialogParameters? LastParameters { get; private set; }
-
-        public Task<IAppDialogReference> ShowAsync<TComponent>(string? title = null, AppDialogParameters? parameters = null, AppDialogOptions? options = null)
-            where TComponent : IComponent
-        {
-            Titles.Add(title);
-            LastParameters = parameters;
-            return Task.FromResult<IAppDialogReference>(new Reference(Choice));
-        }
-
-        public Task<IAppDialogReference> ShowAsync<TComponent>(string? title, AppDialogOptions options)
-            where TComponent : IComponent => ShowAsync<TComponent>(title, null, options);
-
-        public Task<bool?> ShowMessageBoxAsync(string? title, string message, string yesText = "OK", string? noText = null, string? cancelText = null, AppDialogOptions? options = null) =>
-            Task.FromResult<bool?>(null);
-
-        public Task<bool?> ShowMessageBoxAsync(string? title, MarkupString message, string yesText = "OK", string? noText = null, string? cancelText = null, AppDialogOptions? options = null) =>
-            Task.FromResult<bool?>(null);
-
-        private sealed class Reference(PlaylistChoice? choice) : IAppDialogReference
-        {
-            public Guid Id { get; } = Guid.NewGuid();
-            public Task<AppDialogResult?> Result => Task.FromResult<AppDialogResult?>(choice is null ? AppDialogResult.Cancel() : AppDialogResult.Ok(choice));
-            public void Close(AppDialogResult? result = null)
-            {
-            }
-        }
     }
 
     /// <summary>A dialog window that remembers what it was closed with.</summary>

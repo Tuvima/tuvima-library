@@ -211,6 +211,7 @@ public sealed class PlayerGuardrailTests
     {
         ["SongTable"] = "the one song table for the Songs, Albums, album and playlist pages (spec music-table-and-reader-frame), not part of the player",
         ["SongList"] = "the Songs and Albums lists: feeds the one song table and keeps its tick boxes, bulk bar and delete flow, not part of the player",
+        ["SongSelectionBar"] = "the phone's bottom bar for ticked songs (spec music-player-and-listen-fixes D12): library browsing, not part of the player",
         ["SongsPhoneHeader"] = "the phone Songs page header (search, Play, Shuffle, sort and filter sheet), not part of the player",
         ["ListenNavigationSection"] = "the Listen page's side navigation (Library, Formats, Your library), not part of the player",
     };
