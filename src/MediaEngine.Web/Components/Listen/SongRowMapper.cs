@@ -31,6 +31,16 @@ public static class SongRowMapper
     }
 
     /// <summary>
+    /// Maps a song in the profile's Favorites. A heart has no row of its own, so the song's id stands in as the item id the table uses to
+    /// remove or move it; the # column is its place in Favorites, counted from 1.
+    /// </summary>
+    public static SongRow FromFavorite(WorkViewModel work, int index)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+        return BuildFromWork(work, SongRowSource.PlaylistItem, work.Id, number: index + 1);
+    }
+
+    /// <summary>
     /// Maps a track on an album page. A track added anyway (<c>IsUnmatched</c>) has no number and lands in the Unnumbered group;
     /// a track with no track number falls back to its chapter index.
     /// </summary>

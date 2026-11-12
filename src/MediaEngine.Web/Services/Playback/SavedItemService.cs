@@ -67,6 +67,32 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
         return new SavedItemMembership(entityKind, entityId, list.Any(item => item.EntityKind == entityKind && item.EntityId == entityId));
     }
 
+    /// <summary>Takes one item out of the saved items (for a song, the heart comes off). False when the Engine refused or could not be reached.</summary>
+    public async Task<bool> RemoveAsync(ProfileEntityKind entityKind, Guid entityId, CancellationToken ct = default)
+    {
+        if (!await apiClient.RemoveSavedItemAsync(entityKind, entityId, ct))
+        {
+            return false;
+        }
+
+        InvalidateList();
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>Moves one hearted song to a new place (0 is the top) in the profile's Favorites and drops the cached list so the next read has the new order.</summary>
+    public async Task<bool> MoveFavoriteSongAsync(Guid songId, int toIndex, CancellationToken ct = default)
+    {
+        if (!await apiClient.MoveFavoriteSongAsync(songId, toIndex, ct))
+        {
+            return false;
+        }
+
+        InvalidateList();
+        Changed?.Invoke();
+        return true;
+    }
+
     public async Task<SavedItemMembership?> ToggleAsync(
         ProfileEntityKind entityKind,
         Guid entityId,

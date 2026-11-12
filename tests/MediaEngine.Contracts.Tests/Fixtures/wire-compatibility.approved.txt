@@ -2323,6 +2323,11 @@
   input request | default=required | shape=8025adc70ce782d7d74e791c95a59cf9eb44d5bb7b6c2bf7ca2c5b3798faff5a
   response | shape=322a848d420f5f39b8f20f17f16aecfe983a579aad8a28a75942dcece6cb9fa2
 
+[method] MoveFavoriteSongAsync
+  input songId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+  input toIndex | default=required | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
 [method] MoveLibraryItemsAsync
   input request | default=required | shape=1577e806f32aaab716545e6c8fd995c18d7b67fbb246f10b63735a74e61f6041
   response | shape=4548eeb570d2ef36f1a2b8fc161d44e0cc930f62820fff3b484ecfce40fc5605

@@ -168,7 +168,8 @@ public partial class ListenPage
             _managedCollections.Clear();
             _managedCollections.AddRange(collectionsTask.Result);
 
-            _favoriteWorkIds = await LoadFavoriteSongIdsAsync(ct);
+            _favoriteSongOrder = await LoadFavoriteSongIdsAsync(ct);
+            _favoriteWorkIds = _favoriteSongOrder.ToHashSet();
             _dislikedWorkIds = (await Reactions.GetDislikedWorkIdsAsync(_activeProfileId, ct)).ToHashSet();
             if (!IsCurrentLoad(loadVersion))
             {
@@ -318,8 +319,8 @@ public partial class ListenPage
         return await ApiClient.GetCollectionGroupDetailAsync(CollectionId.Value, ct);
     }
 
-    /// <summary>Favorites are the songs the profile saved (its saved items); Like and Dislike are separate reactions.</summary>
-    private async Task<HashSet<Guid>> LoadFavoriteSongIdsAsync(CancellationToken ct)
+    /// <summary>Favorites are the songs the profile saved (its saved items); Like and Dislike are separate reactions. Returned in the profile's saved order.</summary>
+    private async Task<List<Guid>> LoadFavoriteSongIdsAsync(CancellationToken ct)
     {
         if (!_activeProfileId.HasValue)
         {
@@ -329,12 +330,13 @@ public partial class ListenPage
         return (await SavedItems.GetListAsync(ct))
             .Where(item => item.EntityKind == ProfileEntityKind.Song)
             .Select(item => item.EntityId)
-            .ToHashSet();
+            .ToList();
     }
 
     private async Task RefreshReactionStateAsync()
     {
-        _favoriteWorkIds = await LoadFavoriteSongIdsAsync(CancellationToken.None);
+        _favoriteSongOrder = await LoadFavoriteSongIdsAsync(CancellationToken.None);
+        _favoriteWorkIds = _favoriteSongOrder.ToHashSet();
         _dislikedWorkIds = (await Reactions.GetDislikedWorkIdsAsync(_activeProfileId)).ToHashSet();
         StateHasChanged();
     }

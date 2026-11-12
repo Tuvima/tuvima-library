@@ -29,6 +29,9 @@ public sealed partial class EngineApiClient
     public Task<bool> RemoveSavedItemAsync(ProfileEntityKind entityKind, Guid entityId, CancellationToken ct = default) =>
         DeleteAsync("Remove saved profile item", $"/api/v1/profile-state/saved/{entityKind}/{entityId:D}", ct: ct);
 
+    public Task<bool> MoveFavoriteSongAsync(Guid songId, int toIndex, CancellationToken ct = default) =>
+        PostAsync("Move favorite song", $"/api/v1/profile-state/favorites/songs/{songId:D}/move", new ProfileSavedItemMoveRequest(toIndex), ct: ct);
+
     public Task<IReadOnlyList<ProfileReactionDto>> GetProfileReactionsAsync(CancellationToken ct = default) =>
         GetAsync<IReadOnlyList<ProfileReactionDto>>(
             "Profile reactions",

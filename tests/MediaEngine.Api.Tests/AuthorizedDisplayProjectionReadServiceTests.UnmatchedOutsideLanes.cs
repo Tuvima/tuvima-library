@@ -504,7 +504,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         DefaultHttpContext user,
         string method,
         object? routeValues = null,
-        string query = "")
+        string query = "",
+        string? jsonBody = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
         builder.Services.AddAuthorization();
@@ -527,10 +528,25 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             }
         }
 
+        if (jsonBody is not null)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(jsonBody);
+            context.Request.ContentType = "application/json";
+            context.Request.ContentLength = bytes.Length;
+            context.Request.Body = new MemoryStream(bytes);
+            // Without a server there is no body-detection feature, and the route table then treats the request as having no body.
+            context.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>(new JsonBodyDetection());
+        }
+
         context.Response.Body = new MemoryStream();
         await route.RequestDelegate!(context);
         context.Response.Body.Position = 0;
         return (context.Response.StatusCode, await new StreamReader(context.Response.Body).ReadToEndAsync());
+    }
+
+    private sealed class JsonBodyDetection : Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature
+    {
+        public bool CanHaveBody => true;
     }
 
     private void ProfileStateServices(IServiceCollection services, DefaultHttpContext context)

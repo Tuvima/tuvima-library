@@ -131,7 +131,7 @@ else
         else
         {
             var label = ColumnLabel(column);
-            var sortable = SongTableSort.IsSortable(Place, column);
+            var sortable = SongTableSort.IsSortable(Place, column, OwnOrderSortable);
             <span class="@HeadCellClass(column)" role="columnheader" aria-sort="@(sortable ? AriaSort(column) : null)">
                 @if (sortable)
                 {
@@ -389,7 +389,7 @@ else
         }
         @if (RemoveAllowed(row))
         {
-            <AppMenuItem Label="@L["ListenPage_RemoveFromPlaylist"].Value"
+            <AppMenuItem Label="@(string.IsNullOrWhiteSpace(RemoveLabel) ? L["ListenPage_RemoveFromPlaylist"].Value : RemoveLabel)"
                          Icon="@AppMaterialIcons.Outlined.PlaylistRemove"
                          Tone="AppUiTone.Error"
                          DividerBefore="true"

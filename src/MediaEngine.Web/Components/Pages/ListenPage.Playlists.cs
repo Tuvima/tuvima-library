@@ -36,11 +36,14 @@ public partial class ListenPage
         ? PlaylistKey.ToLowerInvariant() switch
         {
             "all-music" => "All Music",
-            "favorite-songs" => "Favorite Songs",
+            "favorite-songs" => L["Glossary_Favorites"].Value,
             "recently-added" => "Recently Added",
             _ => "Playlist",
         }
         : ActivePlaylistCollection?.Name ?? "Playlist";
+
+    // The built-in Favorites list: the profile's hearted songs, kept in an order it can change by hand.
+    private bool IsFavoritesPlaylist => string.Equals(PlaylistKey, "favorite-songs", StringComparison.OrdinalIgnoreCase);
 
     private string ActivePlaylistTypeLabel => !string.IsNullOrWhiteSpace(PlaylistKey)
         ? "System Playlist"

@@ -8,6 +8,9 @@ public sealed record ProfileSavedItemDto(
     DateTimeOffset SavedAt,
     int? Position);
 
+/// <summary>Move one song to a new place in the profile's Favorites. <paramref name="ToIndex"/> counts the songs the profile sees, from 0 at the top.</summary>
+public sealed record ProfileSavedItemMoveRequest(int ToIndex);
+
 public sealed record ProfileReactionDto(
     ProfileEntityKind EntityKind,
     Guid EntityId,

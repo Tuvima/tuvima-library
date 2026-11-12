@@ -158,6 +158,15 @@ public partial class SongTable
     /// <summary>Remove this song from the playlist (playlist only).</summary>
     [Parameter] public EventCallback<SongRow> OnRemoveFromPlaylist { get; set; }
 
+    /// <summary>The words for the row action that takes a song out of the list; left empty it reads "Remove from playlist". Favorites says "Remove from Favorites".</summary>
+    [Parameter] public string? RemoveLabel { get; set; }
+
+    /// <summary>
+    /// The list has an order of its own (Favorites) and its headers may also sort it. Reordering by hand is offered only while the list
+    /// is in its own order, not while a column sorts it. Playlist only.
+    /// </summary>
+    [Parameter] public bool SortableOwnOrder { get; set; }
+
     /// <summary>A playlist row moved; the host saves the order and hands back the reordered rows.</summary>
     [Parameter] public EventCallback<SongReorderRequest> OnReorder { get; set; }
 
@@ -192,7 +201,9 @@ public partial class SongTable
 
     private bool ShowEmpty => !IsLoading && _shown.Count == 0 && EmptyContent is not null;
 
-    private bool ReorderEnabled => Place == SongTablePlace.Playlist && CanReorder && OnReorder.HasDelegate;
+    private bool OwnOrderSortable => Place == SongTablePlace.Playlist && SortableOwnOrder;
+
+    private bool ReorderEnabled => Place == SongTablePlace.Playlist && CanReorder && OnReorder.HasDelegate && (!OwnOrderSortable || _sort.Column is null);
 
     // Drag is a mouse affordance; touch screens and phones move rows from the "..." menu or the keyboard.
     private bool CanDrag => ReorderEnabled && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
@@ -310,9 +321,9 @@ public partial class SongTable
             return;
         }
 
-        _shown = Place == SongTablePlace.Playlist
+        _shown = Place == SongTablePlace.Playlist && !OwnOrderSortable
             ? [.. Rows]
-            : [.. SongTableSort.Sort(Rows, Place, _sort, FavoriteIds)];
+            : [.. SongTableSort.Sort(Rows, Place, _sort, FavoriteIds, OwnOrderSortable)];
         _shownKey = key;
 
         _positions = new Dictionary<string, int>(_shown.Count, StringComparer.Ordinal);
@@ -479,7 +490,7 @@ public partial class SongTable
 
     private async Task ToggleSortAsync(SongColumn column)
     {
-        var next = SongTableSort.Click(Place, _sort, column);
+        var next = SongTableSort.Click(Place, _sort, column, OwnOrderSortable);
         if (next == _sort)
         {
             return;

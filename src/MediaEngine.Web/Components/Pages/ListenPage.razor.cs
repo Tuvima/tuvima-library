@@ -88,6 +88,8 @@ public partial class ListenPage
     private ProfileViewModel? _activeProfile;
     private Guid? _activeProfileId;
     private HashSet<Guid> _favoriteWorkIds = [];
+    // The hearted songs in the order the profile keeps them (newest hearted first unless moved by hand); Favorites shows this order.
+    private List<Guid> _favoriteSongOrder = [];
     private HashSet<Guid> _dislikedWorkIds = [];
     private bool _loading = true;
     private bool _redirecting;
