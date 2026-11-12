@@ -198,6 +198,37 @@ public sealed class SongTableColumnsTests
     }
 
     [Fact]
+    public void ResettingOneColumnsWidth_KeepsTheOtherWidthsAndTheColumnChoices()
+    {
+        var choice = SongTablePreferences.WithColumnVisible(SongTableChoice.Default, SongTablePlace.Songs, SongColumn.Genre, visible: true);
+        choice = SongTablePreferences.WithWidth(choice, SongColumn.Artist, 240);
+        choice = SongTablePreferences.WithWidth(choice, SongColumn.Album, 300);
+
+        var reset = SongTablePreferences.WithDefaultWidth(choice, SongColumn.Artist);
+
+        Assert.False(reset.Widths.ContainsKey(SongColumn.Artist));
+        Assert.Equal(300, reset.Widths[SongColumn.Album]);
+        Assert.Equal(choice.Shown, reset.Shown);
+        Assert.Equal(SongTableColumns.DefaultWidth(SongColumn.Artist), SongTableColumns.Resolve(SongTablePlace.Songs, reset).First(item => item.Column == SongColumn.Artist).Width);
+    }
+
+    [Fact]
+    public void ResettingTheOnlyChangedWidth_ReturnsToTheDefaults()
+    {
+        var choice = SongTablePreferences.WithWidth(SongTableChoice.Default, SongColumn.Artist, 240);
+
+        Assert.True(SongTablePreferences.WithDefaultWidth(choice, SongColumn.Artist).IsDefault);
+    }
+
+    [Fact]
+    public void ResettingAColumnThatHasNoSavedWidth_ChangesNothing()
+    {
+        var choice = SongTablePreferences.WithWidth(SongTableChoice.Default, SongColumn.Artist, 240);
+
+        Assert.Same(choice, SongTablePreferences.WithDefaultWidth(choice, SongColumn.Album));
+    }
+
+    [Fact]
     public void EachPlaceRemembersItsOwnChoice()
     {
         var store = new Dictionary<string, string>();

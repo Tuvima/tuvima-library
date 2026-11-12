@@ -1076,6 +1076,21 @@
   <data name="DetailsTab_ThisIsAGroupingOpen" xml:space="preserve">
     <value>This is a grouping. Open an item inside it to see its file details.</value>
   </data>
+  <data name="DetailsTab_SeriesInLibrary" xml:space="preserve">
+    <value>In your library</value>
+  </data>
+  <data name="DetailsTab_SeriesOwnedOfTotal" xml:space="preserve">
+    <value>{0} of {1} {2}</value>
+  </data>
+  <data name="DetailsTab_SeriesFirstPublished" xml:space="preserve">
+    <value>First published</value>
+  </data>
+  <data name="DetailsTab_SeriesLatest" xml:space="preserve">
+    <value>Latest</value>
+  </data>
+  <data name="DetailsTab_SeriesAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
   <data name="DetailsTab_LoadingHistory" xml:space="preserve">
     <value>Loading history...</value>
   </data>
@@ -13594,5 +13609,32 @@
   </data>
   <data name="ReaderFrame_TryAgain" xml:space="preserve">
     <value>Try again</value>
+  </data>
+  <data name="AppReorderBar_Region" xml:space="preserve">
+    <value>Reorder</value>
+  </data>
+  <data name="AppReorderBar_Hint" xml:space="preserve">
+    <value>Drag to reorder</value>
+  </data>
+  <data name="AppReorderBar_Save" xml:space="preserve">
+    <value>Save order</value>
+  </data>
+  <data name="AppReorderBar_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="AppReorderBar_Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="AppReorderBar_LeaveTitle" xml:space="preserve">
+    <value>Save or discard?</value>
+  </data>
+  <data name="AppReorderBar_LeaveMessage" xml:space="preserve">
+    <value>You changed the order but have not saved it.</value>
+  </data>
+  <data name="AppReorderBar_MenuReorder" xml:space="preserve">
+    <value>Reorder</value>
+  </data>
+  <data name="CollectionRuleBuilder_ChoicesCleared" xml:space="preserve">
+    <value>Cleared because they do not apply to the chosen media type: {0}.</value>
   </data>
 </root>

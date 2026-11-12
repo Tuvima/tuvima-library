@@ -391,6 +391,99 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Assert.Equal("9780441172719", asked.LookupFields!["isbn"]);
     }
 
+    // ── ISBN alone (universal editor v6, D11) ────────────────────────────────
+
+    private Guid Book()
+    {
+        var book = _world.Work("Books", "standalone", "Dune");
+        _world.File(book, "Dune.epub");
+        return book;
+    }
+
+    private static RetailProviderInfo AppleBooks() => new(
+        "apple_api", "Apple Books", true, false, [EditorKinds.Book], 1, [EditorKinds.Book],
+        new Dictionary<string, string> { ["isbn"] = "isbn" });
+
+    private static RetailProviderInfo OpenLibraryWithNoIsbnLookup() => new(
+        "openlibrary", "Open Library", true, false, [EditorKinds.Book], 1, [EditorKinds.Book]);
+
+    private Task<EditorMatchSearchResultDto?> SearchBook(Guid book, string provider, Dictionary<string, string> fields) =>
+        Service().SearchForKindAsync(book, EditorKinds.Book, new EditorMatchSearchRequestDto { Provider = provider, Fields = fields });
+
+    [Theory]
+    [InlineData("978-0-441-17271-9", "9780441172719")]
+    [InlineData("978 0 441 17271 9", "9780441172719")]
+    [InlineData("9780441172719", "9780441172719")]
+    [InlineData("0441172717", "0441172717")]
+    [InlineData("0-441-17271-7", "0441172717")]
+    [InlineData("0-8044-2957-x", "080442957X")]
+    public async Task AnIsbnTypedAlone_IsCleanedAndSentToTheProvidersDirectLookup(string typed, string expected)
+    {
+        _catalog.Providers = [AppleBooks()];
+
+        await SearchBook(Book(), "apple_api", new Dictionary<string, string> { ["isbn"] = typed });
+
+        var asked = Assert.Single(_search.Requests);
+        Assert.Equal(expected, asked.LookupFields!["isbn"]);
+        Assert.Equal(expected, asked.QueryOverride);
+    }
+
+    [Fact]
+    public async Task AnIsbnTypedAlone_ForAProviderThatCannotLookItUp_SaysSoAndAsksForATitle_WithoutCallingTheProvider()
+    {
+        _catalog.Providers = [OpenLibraryWithNoIsbnLookup()];
+
+        var found = await SearchBook(Book(), "openlibrary", new Dictionary<string, string> { ["isbn"] = "978-0-441-17271-9" });
+
+        Assert.Empty(_search.Requests);
+        Assert.Equal("Open Library cannot search by ISBN. Add a title.", found!.Message);
+        Assert.Empty(found.Results);
+    }
+
+    [Theory]
+    [InlineData("12345")]
+    [InlineData("978-0-441-17271")]
+    [InlineData("not an isbn")]
+    [InlineData("97804411727190")]
+    public async Task AnInvalidIsbnTypedAlone_IsToldItIsNotAnIsbn_ForEveryProvider_WithoutCallingTheProvider(string typed)
+    {
+        _catalog.Providers = [AppleBooks(), OpenLibraryWithNoIsbnLookup()];
+        var book = Book();
+
+        foreach (var provider in new[] { "apple_api", "openlibrary" })
+        {
+            var found = await SearchBook(book, provider, new Dictionary<string, string> { ["isbn"] = typed });
+
+            Assert.Equal("That does not look like an ISBN. An ISBN has 10 or 13 digits.", found!.Message);
+        }
+
+        Assert.Empty(_search.Requests);
+    }
+
+    [Fact]
+    public async Task ATitleWithAnIsbn_ForAProviderThatCannotLookItUp_RunsTheTitleSearchAsBefore()
+    {
+        _catalog.Providers = [OpenLibraryWithNoIsbnLookup()];
+
+        await SearchBook(Book(), "openlibrary", new Dictionary<string, string> { ["title"] = "Dune", ["isbn"] = "978-0-441-17271-9" });
+
+        var asked = Assert.Single(_search.Requests);
+        Assert.Equal("Dune", asked.QueryOverride);
+        Assert.Null(asked.LookupFields);
+    }
+
+    [Fact]
+    public async Task ATitleWithAnIsbn_ForAProviderThatCanLookItUp_SearchesTheTitleAndSendsTheCleanedIsbn()
+    {
+        _catalog.Providers = [AppleBooks()];
+
+        await SearchBook(Book(), "apple_api", new Dictionary<string, string> { ["title"] = "Dune", ["isbn"] = "978-0-441-17271-9" });
+
+        var asked = Assert.Single(_search.Requests);
+        Assert.Equal("Dune", asked.QueryOverride);
+        Assert.Equal("9780441172719", asked.LookupFields!["isbn"]);
+    }
+
     [Fact]
     public async Task AProviderListedForOtherKindsOnly_IsNotOfferedForThisOne()
     {

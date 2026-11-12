@@ -576,13 +576,14 @@ public sealed partial class EngineApiClient
         string field,
         string? query = null,
         int limit = 100,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IReadOnlyList<string>? mediaTypes = null)
     {
         return await GetAsync<IReadOnlyList<CollectionRuleValueDto>>(
             "GET /collections/entity-field-values/{field}",
             $"/collections/entity-field-values/{Uri.EscapeDataString(field)}",
             static () => [],
-            new Dictionary<string, string?> { ["q"] = query, ["limit"] = Math.Clamp(limit, 1, 500).ToString() },
+            new Dictionary<string, string?> { ["q"] = query, ["limit"] = Math.Clamp(limit, 1, 500).ToString(), ["mediaTypes"] = mediaTypes is { Count: > 0 } ? string.Join(',', mediaTypes) : null },
             ct: ct);
     }
 
@@ -590,13 +591,14 @@ public sealed partial class EngineApiClient
         string field,
         string? query = null,
         int limit = 100,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IReadOnlyList<string>? mediaTypes = null)
     {
         return await GetAsync<IReadOnlyList<string>>(
             "GET /collections/field-values/{field}",
             $"/collections/field-values/{Uri.EscapeDataString(field)}",
             static () => [],
-            new Dictionary<string, string?> { ["q"] = query, ["limit"] = Math.Clamp(limit, 1, 500).ToString() },
+            new Dictionary<string, string?> { ["q"] = query, ["limit"] = Math.Clamp(limit, 1, 500).ToString(), ["mediaTypes"] = mediaTypes is { Count: > 0 } ? string.Join(',', mediaTypes) : null },
             ct: ct);
     }
 
