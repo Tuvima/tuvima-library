@@ -84,7 +84,7 @@ public sealed class NeedsReviewListModel
     public bool HasMore => _unread > 0;
 
     /// <summary>How many rows to skip when asking for the next page: the rows read from the Engine that still wait (a finished row is no longer listed).</summary>
-    public int WaitingRead => _rows.Count(IsWaiting);
+    public int WaitingRead => _rows.Count(row => IsWaiting(row) && !_carried.Contains(row.Key));
 
     /// <summary>Starts again from one page: rows and states are replaced, so every finished line leaves (a first load, or a changed library).</summary>
     public void Reset(NeedsReviewListDto page) => Replace(page, keepFinished: false);
@@ -92,6 +92,7 @@ public sealed class NeedsReviewListModel
     /// <summary>
     /// Replaces the rows with the Engine's fresh page. With <paramref name="keepFinished"/> a row finished in this view stays where it was
     /// with its line, until the page is left (spec D8); a fresh row with the same key wins, so a row put back or reopened is waiting again.
+    /// A row whose action is still running is carried the same way when the Engine no longer lists it, so its later finish or failure has a row to land on.
     /// </summary>
     public void Replace(NeedsReviewListDto page, bool keepFinished = false)
     {
@@ -122,7 +123,7 @@ public sealed class NeedsReviewListModel
             for (var index = 0; index < oldRows.Count; index++)
             {
                 var row = oldRows[index];
-                if (fresh.Contains(row.Key) || !oldStates.TryGetValue(row.Key, out var state) || state.Done is null)
+                if (fresh.Contains(row.Key) || !oldStates.TryGetValue(row.Key, out var state) || (state.Done is null && !state.Busy))
                 {
                     continue;
                 }
@@ -168,7 +169,8 @@ public sealed class NeedsReviewListModel
     {
         EngineTotal = page.Total;
         KeptTotal = page.KeptTotal;
-        var waiting = _rows.Where(IsWaiting).ToList();
+        // A carried row (finished, or still busy, though the Engine no longer lists it) is not part of the Engine's totals.
+        var waiting = _rows.Where(row => IsWaiting(row) && !_carried.Contains(row.Key)).ToList();
         _unread = Math.Max(0, page.Total - waiting.Count);
         _unreadByGroup = page.GroupTotals.ToDictionary(
             total => total.Key,

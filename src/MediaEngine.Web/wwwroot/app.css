@@ -4994,6 +4994,13 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 /* Needs Review: the shared tooltip wrapper around a row's folder line is a component root, so the row's scoped CSS never reaches it; without this the folder line ran into the actions. */
 .nr-row__tip, .nr-row__tip[data-tooltip-wrapper-target="true"] { display: block; max-width: 100%; min-width: 0; }
 
+/* Needs Review: the tick box is the shared check box, a component root inside the tick part, so the part's scoped CSS never reaches it (and the page's CSS allows no deep selectors).
+   On a phone its 42 px box grows to the shared tap-target minimum. */
+@media (max-width: 600px) {
+    .nr-tick .app-checkbox { min-height: var(--tl-tap-target-min, 44px); }
+    .nr-tick .app-checkbox__control { min-width: var(--tl-tap-target-min, 44px); min-height: var(--tl-tap-target-min, 44px); }
+}
+
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 
