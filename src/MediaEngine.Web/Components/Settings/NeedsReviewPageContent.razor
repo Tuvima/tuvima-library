@@ -26,7 +26,7 @@
    editor over this list on Match. A finished row becomes one quiet line, a failed one shows its reason under it (no toasts). The list is for
    server administrators only; everyone else gets no list and no review-list request. Ticking rows (the parts draw the tick boxes) shows the
    action bar at the bottom; its buttons act on the ticked rows only, each through the same per-row action a single press uses. *@
-<div class="@PageClass" data-testid="needs-review" @onkeydown="OnKeyDown">
+<div @ref="_root" class="@PageClass" tabindex="-1" data-testid="needs-review" @onkeydown="OnKeyDown">
     @if (!CanViewReview)
     {
         <AppEmptyState Title="@L["NeedsReviewPageContent_NeedsReviewIsForServer"].Value"
@@ -175,6 +175,8 @@
     private string? _loadedLibrary;
     private int _loadGeneration;
     private int _keptGeneration;
+    private ElementReference _root;
+    private bool _focusAfterBarGone;
 
     // Same rule as the account menu's Needs Review entry and the shell badge (MainLayout.CanViewReview).
     private bool CanViewReview => Session.HasNavigation("settings.administration");
@@ -331,6 +333,35 @@
         }
     }
 
+    // When the action bar has gone (its close button, Escape, or a bar action that finished every ticked row) the focused control left the page
+    // with it, so focus moves to the list region instead of falling back to the top of the document.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusAfterBarGone)
+        {
+            return;
+        }
+
+        _focusAfterBarGone = false;
+        if (_disposed || _selection.Count > 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await _root.FocusAsync(preventScroll: true);
+        }
+        catch (Microsoft.JSInterop.JSDisconnectedException ex)
+        {
+            Logger.LogDebug(ex, "The Needs Review list could not take focus because the browser connection is gone.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            Logger.LogDebug(ex, "The Needs Review list could not take focus before the page was ready.");
+        }
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         var searchChanged = !string.Equals(_loadedInitialSearch, InitialSearch, StringComparison.Ordinal);
@@ -349,6 +380,8 @@
         if (searchChanged) _search = InitialSearch;
         if (filterChanged)
         {
+            // Another library is another list: nothing stays ticked from the old one.
+            _selection.Clear();
             await LoadAsync(keepFinished: false);
         }
     }
@@ -586,12 +619,21 @@
                 break;
             case "confirm_match":
                 // The person says yes to the match the Engine already linked: the review is resolved by them, and the match is not changed.
-                await RunOneAsync(row, async () => (await Orchestrator.ResolveReviewAsync(review.Id, new MediaEngine.Web.Models.ViewDTOs.ReviewResolveRequestDto()), null),
+                await RunOneAsync(row, async () => (await Orchestrator.ResolveReviewAsync(review.Id, new MediaEngine.Web.Models.ViewDTOs.ReviewResolveRequestDto(), refreshCount: !_deferCountRefresh), null),
+                    L["NeedsReviewRow_DoneMatched", TitleOf(row), name].Value, L["NeedsReviewRow_FailMatch", TitleOf(row)].Value);
+                break;
+            case "keep_provider_match":
+                await RunOneAsync(row, async () => (await Orchestrator.SkipUniverseAsync(review.Id, refreshCount: !_deferCountRefresh), null),
                     L["NeedsReviewRow_DoneMatched", TitleOf(row), name].Value, L["NeedsReviewRow_FailMatch", TitleOf(row)].Value);
                 break;
             default:
-                await RunOneAsync(row, async () => (await Orchestrator.SkipUniverseAsync(review.Id), null),
-                    L["NeedsReviewRow_DoneMatched", TitleOf(row), name].Value, L["NeedsReviewRow_FailMatch", TitleOf(row)].Value);
+                // An action this page does not know (or a retail match with no choice to apply) makes no Engine call: the row says it could not be matched.
+                Logger.LogWarning("The Needs Review best guess action {Action} on {Key} is not one this page can run.", guess.Action, row.Key);
+                if (CanAct(row))
+                {
+                    _model.Fail(row, L["NeedsReviewRow_FailMatch", TitleOf(row)].Value);
+                }
+
                 break;
         }
     }
@@ -611,7 +653,7 @@
             : L["NeedsReviewRow_FailChoose", TitleOf(row)].Value;
         await RunOneAsync(row, async () =>
             {
-                var attempt = await Orchestrator.ChooseReviewAsync(review.Id, choiceId);
+                var attempt = await Orchestrator.ChooseReviewAsync(review.Id, choiceId, refreshCount: !_deferCountRefresh);
                 return (attempt.Succeeded, attempt.Error);
             },
             done, fail);
@@ -622,7 +664,7 @@
         if (row.Review is not { } review) return;
         await RunOneAsync(row, async () =>
             {
-                var attempt = await Orchestrator.MoveReviewToTvAsync(review.Id);
+                var attempt = await Orchestrator.MoveReviewToTvAsync(review.Id, refreshCount: !_deferCountRefresh);
                 return (attempt.Response is not null, attempt.Error);
             },
             L["NeedsReviewRow_DoneMovedToTv", TitleOf(row)].Value, L["NeedsReviewRow_FailMoveToTv", TitleOf(row)].Value);
@@ -631,7 +673,7 @@
     private async Task KeepAsFilmAsync(NeedsReviewRowDto row)
     {
         if (row.Review is not { } review) return;
-        var done = await RunOneAsync(row, async () => (await Orchestrator.DismissReviewAsync(review.Id), null),
+        var done = await RunOneAsync(row, async () => (await Orchestrator.DismissReviewAsync(review.Id, refreshCount: !_deferCountRefresh), null),
             L["NeedsReviewRow_DoneKept", TitleOf(row)].Value, L["NeedsReviewRow_FailKeep", TitleOf(row)].Value);
         if (done) await NoteKeptAsync(1);
     }
@@ -649,7 +691,7 @@
     {
         var kept = await RunManyAsync(rows, async row => row.Unmatched is { } file
             ? (await Api.KeepUnmatchedItemAsync(file.AssetId) is not null, null)
-            : (row.Review is { } review && await Orchestrator.DismissReviewAsync(review.Id), null),
+            : (row.Review is { } review && await Orchestrator.DismissReviewAsync(review.Id, refreshCount: !_deferCountRefresh), null),
             subject => rows.Count == 1 ? L["NeedsReviewRow_DoneKept", subject].Value : L["NeedsReviewRow_DoneKeptMany", subject].Value,
             subject => L["NeedsReviewRow_FailKeep", subject].Value);
         await NoteKeptAsync(kept.Count);
@@ -781,9 +823,21 @@
 
     private IReadOnlyList<NeedsReviewTicked> Ticked => _selection.Count == 0 ? [] : _model.TickedEntries(_selection, _search);
 
+    // The ticked rows an action could start on right now: a row that is already working on an action is left out, so a count, a confirm
+    // dialog and a button only ever speak of rows that will really be acted on.
+    private IReadOnlyList<NeedsReviewTicked> Actable => [.. Ticked
+        .Select(item =>
+        {
+            var rows = item.Rows.Where(CanAct).ToList();
+            return rows.Count == item.Rows.Count ? item : new NeedsReviewTicked(item.Entry, rows, false);
+        })
+        .Where(item => item.Rows.Count > 0)];
+
+    // "N selected" counts every ticked row (a busy one is still ticked); the buttons count only what they will act on. While a bar run is
+    // going its own rows are busy, so the buttons keep the plan they started with (they are disabled) instead of vanishing mid-run.
     private NeedsReviewBarPlan BarPlan => _selection.Count == 0
         ? NeedsReviewBarPlan.Empty
-        : NeedsReviewBulk.PlanFor(Ticked, Device.CanEdit, _actions.CanDelete);
+        : NeedsReviewBulk.PlanFor(_barBusy ? Ticked : Actable, Device.CanEdit, _actions.CanDelete) with { Selected = Ticked.Sum(item => item.Rows.Count) };
 
     // Only rows that are still waiting and still shown stay ticked: a finished row, a row the search hides and a row that left the list lose their tick.
     private void PruneSelection()
@@ -795,14 +849,20 @@
         }
     }
 
-    private void ClearSelection() => _selection.Clear();
+    private void ClearSelection()
+    {
+        var hadSelection = _selection.Count > 0;
+        _selection.Clear();
+        _focusAfterBarGone |= hadSelection;
+    }
 
-    // Escape clears the selection (the bar goes with it).
+    // Escape clears the selection (the bar goes with it). A row's "..." menu and its phone sheet keep their own Escape: the row stops the key
+    // there (NeedsReviewRow), so closing a menu never also clears the ticks.
     private void OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape" && _selection.Count > 0)
+        if (e.Key == "Escape")
         {
-            _selection.Clear();
+            ClearSelection();
         }
     }
 
@@ -817,6 +877,7 @@
         _barBusy = true;
         _deferCountRefresh = true;
         _actionError = null;
+        var hadSelection = _selection.Count > 0;
         try
         {
             await work();
@@ -829,6 +890,7 @@
             if (!_disposed)
             {
                 PruneSelection();
+                _focusAfterBarGone |= hadSelection && _selection.Count == 0;
                 StateHasChanged();
             }
         }
@@ -838,7 +900,7 @@
     // own Use this. Ticked rows without exactly one suggestion are skipped and stay ticked.
     private async Task UseSuggestionsAsync()
     {
-        var rows = NeedsReviewBulk.SuggestionRows(Ticked);
+        var rows = NeedsReviewBulk.SuggestionRows(Actable);
         if (_barBusy || rows.Count == 0)
         {
             return;
@@ -867,7 +929,7 @@
 
     private async Task BarTryAgainAsync()
     {
-        var groups = NeedsReviewBulk.TryAgainGroups(Ticked);
+        var groups = NeedsReviewBulk.TryAgainGroups(Actable);
         if (_barBusy || groups.Count == 0)
         {
             return;
@@ -886,7 +948,7 @@
     // Keep as they are asks once, like the old "Keep all" did, then keeps each ticked row (a family whose files are all ticked as one line).
     private async Task BarKeepAsync()
     {
-        var groups = NeedsReviewBulk.KeepGroups(Ticked);
+        var groups = NeedsReviewBulk.KeepGroups(Actable);
         var count = groups.Sum(group => group.Count);
         if (_barBusy || count == 0)
         {
@@ -918,7 +980,7 @@
     // changes there; the list is read again when the window closes after a save.
     private async Task BarEditAsync()
     {
-        var rows = NeedsReviewBulk.EditRows(Ticked, Device.CanEdit);
+        var rows = NeedsReviewBulk.EditRows(Actable, Device.CanEdit);
         if (_barBusy || rows.Count == 0)
         {
             return;
@@ -956,7 +1018,7 @@
     // Delete asks once for all ticked rows (the shared Delete from library dialog), then each row becomes a "deleted" line.
     private async Task BarDeleteAsync()
     {
-        var rows = NeedsReviewBulk.DeleteRows(Ticked, _actions.CanDelete).Where(CanAct).ToList();
+        var rows = NeedsReviewBulk.DeleteRows(Actable, _actions.CanDelete).ToList();
         if (_barBusy || rows.Count == 0)
         {
             return;

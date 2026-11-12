@@ -127,7 +127,10 @@ else
                                    OnClick="OnToggle" />
                 }
 
-                <AppRowMenu AriaLabel="@L["NeedsReviewRow_MoreActions", Title].Value" Title="@Title" Items="@MenuItems" />
+                @* Keys pressed inside the menu or its phone sheet stop here, so the Escape that closes a menu does not also reach the page and clear the ticks. *@
+                <span class="nr-row__menu" @onkeydown:stopPropagation="true">
+                    <AppRowMenu AriaLabel="@L["NeedsReviewRow_MoreActions", Title].Value" Title="@Title" Items="@MenuItems" />
+                </span>
             }
         </div>
         @if (!KeptView && !Child && HasChoices)
@@ -318,7 +321,8 @@ else
         }
     }
 
-    private NeedsReviewBestGuessDto? Guess => IsFamily ? null : Row.BestGuess;
+    // A best guess whose action the page cannot run is not shown as a suggestion at all (Fix stays).
+    private NeedsReviewBestGuessDto? Guess => !IsFamily && Row.BestGuess is { } guess && NeedsReviewRowInfo.IsKnownAction(guess) ? guess : null;
 
     private bool HasSuggestion => Guess is not null && !HasTvChoices;
 

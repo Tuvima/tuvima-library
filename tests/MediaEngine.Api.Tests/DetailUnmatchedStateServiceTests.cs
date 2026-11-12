@@ -49,6 +49,8 @@ public sealed class DetailUnmatchedStateServiceTests : IDisposable
         Assert.Equal(asset, listed.AssetId);
         Assert.False(listed.KeptAsIs);
         Assert.Equal(["edit", "unmatched-retry", "unmatched-keep"], page.OverflowActions.Select(action => action.Key).ToArray());
+        // The wording matches the Needs Review page's "Keep as it is".
+        Assert.Equal("Keep as it is", page.OverflowActions.Single(action => action.Key == "unmatched-keep").Label);
     }
 
     [Fact]

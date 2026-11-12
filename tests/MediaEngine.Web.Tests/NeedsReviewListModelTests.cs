@@ -480,4 +480,103 @@ public sealed class NeedsReviewListModelTests
 
         Assert.Empty(NeedsReviewBulk.DeleteRows(model.TickedEntries(selection), _ => true));
     }
+
+    // ---- Review follow-ups -----------------------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("move_to_tv", null, true)]
+    [InlineData("keep_provider_match", null, true)]
+    [InlineData("confirm_match", null, true)]
+    [InlineData("use_retail_match", "retail:tmdb:438631", true)]
+    [InlineData("use_retail_match", null, false)]
+    [InlineData("use_retail_match", " ", false)]
+    [InlineData("something_new", null, false)]
+    [InlineData("", null, false)]
+    public void ARowIsOnlySuggested_WhenItsBestGuessIsAnActionThePageCanRun(string action, string? choiceId, bool suggested)
+    {
+        var guess = new NeedsReviewBestGuessDto { Action = action, Name = "Dune", Year = "2021", Source = "TMDB", ChoiceId = choiceId };
+        var row = NeedsReviewTestRows.ReviewRow(Id(1), "Dune", guess: guess);
+
+        Assert.Equal(suggested, NeedsReviewRowInfo.HasSingleSuggestion(row));
+        var ticked = Loaded(row);
+        var selection = new NeedsReviewSelection();
+        selection.Set([row.Key], true);
+        Assert.Equal(suggested ? 1 : 0, NeedsReviewBulk.SuggestionRows(ticked.TickedEntries(selection)).Count);
+    }
+
+    [Fact]
+    public void ReplacingAndKeepingFinishedLines_AlsoCarriesARowWhoseActionIsStillRunning_SoItsLaterFinishHasARowToLandOn()
+    {
+        var running = NeedsReviewTestRows.FileRow(Id(1), "Running.mkv", group: NeedsReviewGroups.NoMatch);
+        var other = NeedsReviewTestRows.FileRow(Id(2), "Other.mkv", group: NeedsReviewGroups.NoMatch);
+        var model = Loaded(running, other);
+        model.SetBusy(running, true);
+
+        // The Engine no longer lists the running row (for example the items-removed event reloaded the list mid-action).
+        model.Replace(NeedsReviewTestRows.Page([other], total: 1), keepFinished: true);
+
+        Assert.Equal([running.Key, other.Key], model.Rows.Select(row => row.Key));
+        Assert.True(model.IsBusy(running));
+        Assert.Equal(1, model.WaitingRead);
+        model.Finish(running, "Running.mkv deleted");
+        Assert.Equal("Running.mkv deleted", model.StateOf(running.Key).Done);
+        Assert.False(model.IsBusy(running));
+        Assert.Equal(1, model.WaitingTotal);
+    }
+
+    [Fact]
+    public void ARowThatFailsAfterBeingCarried_KeepsItsReasonOnTheRow()
+    {
+        var running = NeedsReviewTestRows.FileRow(Id(1), "Running.mkv");
+        var model = Loaded(running);
+        model.SetBusy(running, true);
+        model.Replace(NeedsReviewTestRows.Page([]), keepFinished: true);
+
+        model.Fail(running, "Could not be deleted.");
+
+        Assert.Single(model.Rows);
+        Assert.Equal("Could not be deleted.", model.StateOf(running.Key).Failure);
+    }
+
+    [Fact]
+    public void AFreshStart_DropsARunningRowTheEngineNoLongerLists()
+    {
+        var running = NeedsReviewTestRows.FileRow(Id(1), "Running.mkv");
+        var model = Loaded(running);
+        model.SetBusy(running, true);
+
+        model.Replace(NeedsReviewTestRows.Page([]), keepFinished: false);
+
+        Assert.Empty(model.Rows);
+    }
+
+    [Fact]
+    public void EditNItems_CountsEachWorkOnce_WhenTwoTickedRowsOpenTheSameWork()
+    {
+        var work = Guid.Parse("77777777-7777-4777-8777-777777777777");
+        var first = NeedsReviewTestRows.ReviewRow(Id(1), "Cibola Burn", entityId: work);
+        var second = NeedsReviewTestRows.ReviewRow(Id(2), "Cibola Burn (second file)", entityId: work);
+        var third = NeedsReviewTestRows.ReviewRow(Id(3), "Other Film");
+        var model = Loaded(first, second, third);
+        var selection = new NeedsReviewSelection();
+        selection.Set([first.Key, second.Key, third.Key], true);
+        var ticked = model.TickedEntries(selection);
+
+        var rows = NeedsReviewBulk.EditRows(ticked, deviceMayEdit: true);
+
+        Assert.Equal([first.Key, third.Key], rows.Select(row => row.Key));
+        Assert.Equal(2, NeedsReviewBulk.PlanFor(ticked, deviceMayEdit: true, canDelete: _ => false).Edit);
+        Assert.Equal(3, NeedsReviewBulk.PlanFor(ticked, deviceMayEdit: true, canDelete: _ => false).Selected);
+    }
+
+    [Fact]
+    public void EditNItems_OffersNothing_OnADeviceThatMayNotEdit()
+    {
+        var row = NeedsReviewTestRows.ReviewRow(Id(1), "Cibola Burn");
+        var model = Loaded(row);
+        var selection = new NeedsReviewSelection();
+        selection.Set([row.Key], true);
+
+        Assert.Empty(NeedsReviewBulk.EditRows(model.TickedEntries(selection), deviceMayEdit: false));
+    }
 }

@@ -1868,6 +1868,309 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         Assert.Contains(cut.FindAll($"{RowSelector(file)} .nr-row__actions button"), button => button.TextContent.Trim() == "Try again");
     }
 
+    // ---- Review follow-ups: unknown actions, Escape in menus, focus, counts and late answers ---------------------------------------
+
+    private static readonly NeedsReviewBestGuessDto UnknownGuess = new() { Action = "do_something_new", Name = "Odd Film", Year = "2020", Source = "Provider match" };
+
+    private static readonly Microsoft.AspNetCore.Components.Web.KeyboardEventArgs EscapeKey = new() { Key = "Escape" };
+
+    private int FocusCalls() => JSInterop.Invocations.Count(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus");
+
+    [Fact]
+    public async Task ABestGuessWithAnActionThePageDoesNotKnow_ShowsNoSuggestion_KeepsFix_AndIsLeftOutOfUseSuggestions()
+    {
+        var row = ReviewRow(Id(1), "Odd Film", group: NeedsReviewGroups.Ready, guess: UnknownGuess);
+        var engine = Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        Assert.Empty(cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-suggestion']"));
+        Assert.Contains(cut.FindAll($"{RowSelector(row)} .nr-row__actions button"), button => button.TextContent.Trim() == "Fix");
+        Tick(cut, row);
+        Assert.DoesNotContain("Use suggestions", BarLabels(cut));
+        Assert.Empty(engine.Skipped);
+        Assert.Empty(engine.Resolved);
+        Assert.DoesNotContain(nameof(IEngineApiClient.SkipUniverseAsync), engine.Calls);
+    }
+
+    [Fact]
+    public async Task ARetailGuessWithNoChoiceToApply_ShowsNoSuggestion()
+    {
+        var guess = new NeedsReviewBestGuessDto { Action = "use_retail_match", Name = "Dune", Year = "2021", Source = "TMDB", ChoiceId = null };
+        var row = ReviewRow(Id(1), "Dune", group: NeedsReviewGroups.Ready, guess: guess);
+        var engine = Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        Assert.Empty(cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-suggestion']"));
+        Assert.Empty(engine.Chosen);
+    }
+
+    [Fact]
+    public async Task Escape_PressedInARowsMenu_ClosesTheMenuOnly_AndTheTicksStay()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, row);
+        cut.Find($"{RowSelector(row)} .app-overflow-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
+
+        cut.Find($"{RowSelector(row)} .nr-row__menu .app-overflow-menu").KeyDown(EscapeKey);
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("button.app-menu-item")));
+        Assert.Single(cut.FindAll(BarSelector));
+        Assert.Equal("all", TickState(cut, TickSelector(row)));
+
+        // With no menu in the way, the same key on the page clears the ticks.
+        cut.Find("[data-testid='needs-review']").KeyDown(EscapeKey);
+        Assert.Empty(cut.FindAll(BarSelector));
+    }
+
+    [Fact]
+    public async Task OnAPhone_EscapePressedInARowsSheet_DoesNotClearTheTicks()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        Register(() => Page([row]));
+        await UsePhoneAsync();
+        var cut = RenderLoaded();
+        cut.Find($"{RowSelector(row)} .app-row-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
+        cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == "Select").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(BarSelector)));
+        cut.Find($"{RowSelector(row)} .app-row-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"{RowSelector(row)} .nr-row__menu dialog")));
+
+        // The key stops at the row's menu wrapper, so the page above never sees it (nothing is left to handle it, which bUnit reports).
+        Assert.Throws<Bunit.MissingEventHandlerException>(() => cut.Find($"{RowSelector(row)} .nr-row__menu dialog").KeyDown(EscapeKey));
+
+        Assert.Single(cut.FindAll(BarSelector));
+        Assert.Equal("all", TickState(cut, TickSelector(row)));
+    }
+
+    [Fact]
+    public async Task WhenTheBarsCloseButtonRemovesTheBar_FocusMovesToTheList()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, row);
+        var before = FocusCalls();
+
+        PressBar(cut, "needs-review-bar-close");
+
+        cut.WaitForAssertion(() => Assert.True(FocusCalls() > before));
+        Assert.Equal("-1", cut.Find("[data-testid='needs-review']").GetAttribute("tabindex"));
+    }
+
+    [Fact]
+    public async Task WhenEscapeRemovesTheBar_FocusMovesToTheList()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, row);
+        var before = FocusCalls();
+
+        cut.Find("[data-testid='needs-review']").KeyDown(EscapeKey);
+
+        cut.WaitForAssertion(() => Assert.True(FocusCalls() > before));
+    }
+
+    [Fact]
+    public async Task WhenABarActionFinishesEveryTickedRow_FocusMovesToTheList()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Other Film");
+        Register(() => Page([first, second]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        Tick(cut, first, second);
+        PressBar(cut, "needs-review-bar-use");
+        var dialog = WaitForDialog<AppConfirmDialog>(cut);
+        var before = FocusCalls();
+
+        dialog.Close(AppDialogResult.Ok(AppConfirmResult.Primary));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll(BarSelector));
+            Assert.True(FocusCalls() > before);
+        });
+    }
+
+    [Fact]
+    public async Task UnticksTheLastRowByHand_DoesNotMoveFocusAwayFromTheTickBox()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, row);
+        var before = FocusCalls();
+
+        cut.Find(TickSelector(row)).Change(false);
+
+        Assert.Empty(cut.FindAll(BarSelector));
+        Assert.Equal(before, FocusCalls());
+    }
+
+    [Fact]
+    public async Task ChangingTheLibraryFilter_ClearsTheSelection_EvenForARowThatIsInBothLists()
+    {
+        var row = ReadyRow(1, "Cibola Burn");
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Tick(cut, row);
+        Assert.Single(cut.FindAll(BarSelector));
+
+        cut.Render(p => p.Add(c => c.Library, "tv"));
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(BarSelector)));
+        Assert.Equal("none", TickState(cut, TickSelector(row)));
+    }
+
+    [Fact]
+    public async Task EditNItems_CountsWhatTheEditorWillOpen_SoTwoRowsOfOneWorkReadEdit1Item()
+    {
+        var work = Guid.Parse("77777777-7777-4777-8777-777777777777");
+        var first = ReviewRow(Id(1), "Cibola Burn", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.9, entityId: work);
+        var second = ReviewRow(Id(2), "Cibola Burn (second file)", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.9, entityId: work);
+        Register(() => Page([first, second]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+
+        Tick(cut, first, second);
+
+        Assert.Equal("2 selected", BarCount(cut));
+        Assert.Contains("Edit 1 item", BarLabels(cut));
+    }
+
+    [Fact]
+    public async Task EditNItems_IsRefusedByTheHandler_OnADeviceThatMayNotEdit_NotOnlyHiddenFromTheBar()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        Register(() => Page([one, two]));
+        await UseDesktopAsync();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
+        var cut = RenderLoaded(2);
+        Tick(cut, one, two);
+        Assert.Contains("Edit 2 items", BarLabels(cut));
+        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        var handler = typeof(NeedsReviewPageContent).GetMethod("BarEditAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+
+        await cut.InvokeAsync(() => (Task)handler.Invoke(cut.Instance, null)!);
+
+        var host = Services.GetRequiredService<EditorHost>();
+        Assert.False(host.IsOpen);
+        Assert.Empty(host.Batch.Ids);
+        Assert.Equal(BulkPanelKind.None, host.Batch.Panel);
+    }
+
+    [Fact]
+    public async Task UseSuggestions_CountsOnlyTheRowsThatWillReallyBeActedOn_NotARowAlreadyWorking()
+    {
+        var first = ReadyRow(1, "Cibola Burn");
+        var second = ReadyRow(2, "Other Film");
+        var gate = new TaskCompletionSource<bool>();
+        Register(() => Page([first, second]), configure: stub => stub.SetHandler(nameof(IEngineApiClient.ResolveReviewItemAsync), args =>
+            (Guid)args![0]! == first.Review!.Id ? gate.Task : Task.FromResult(true)));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        Tick(cut, first, second);
+        cut.Find($"{RowSelector(first)} [data-testid='needs-review-suggestion'] button").Click();
+        cut.WaitForAssertion(() => Assert.True(cut.Find($"{RowSelector(first)} [data-testid='needs-review-suggestion'] button").HasAttribute("disabled")));
+
+        PressBar(cut, "needs-review-bar-use");
+
+        var dialog = WaitForDialog<AppConfirmDialog>(cut);
+        Assert.Equal("Library will apply its suggestion to 1 item.", dialog.Parameters["Message"]);
+        Assert.Equal("2 selected", BarCount(cut));
+        dialog.Close(AppDialogResult.Cancel());
+        gate.SetResult(true);
+    }
+
+    [Fact]
+    public async Task KeepAsTheyAre_CountsOnlyTheRowsThatWillReallyBeActedOn_NotARowAlreadyWorking()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        var gate = new TaskCompletionSource<bool>();
+        Register(() => Page([one, two]), configure: stub => stub.SetHandler(nameof(IEngineApiClient.KeepUnmatchedItemAsync), args =>
+            (Guid)args![0]! == one.Unmatched!.AssetId
+                ? gate.Task.ContinueWith(_ => (UnmatchedActionResultDto?)new UnmatchedActionResultDto { Affected = 1 })
+                : Task.FromResult<UnmatchedActionResultDto?>(new UnmatchedActionResultDto { Affected = 1 })));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        Tick(cut, one, two);
+        OpenMenuAndClick(cut, RowSelector(one), "Keep as it is");
+        cut.WaitForAssertion(() => Assert.True(cut.Find($"{RowSelector(one)} .nr-row__actions button").HasAttribute("disabled")));
+
+        PressBar(cut, "needs-review-bar-keep");
+
+        var dialog = WaitForDialog<AppConfirmDialog>(cut);
+        Assert.Equal("Keep 1 item as it is?", dialog.Parameters["Title"]);
+        dialog.Close(AppDialogResult.Cancel());
+        gate.SetResult(true);
+    }
+
+    [Fact]
+    public async Task AUseSuggestionsRun_ReadsTheReviewCountOnce_AtTheEnd_NotAfterEveryRow()
+    {
+        var rows = new[] { ReadyRow(1, "One"), ReadyRow(2, "Two"), ReadyRow(3, "Three") };
+        var engine = Register(() => Page(rows));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(3);
+        Tick(cut, rows);
+        var before = engine.Calls.Count(call => call == nameof(IEngineApiClient.GetReviewCountAsync));
+        PressBar(cut, "needs-review-bar-use");
+
+        WaitForDialog<AppConfirmDialog>(cut).Close(AppDialogResult.Ok(AppConfirmResult.Primary));
+
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-testid='needs-review-done']").Count));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(BarSelector)));
+        Assert.Equal(3, engine.Resolved.Count);
+        Assert.Equal(before + 1, engine.Calls.Count(call => call == nameof(IEngineApiClient.GetReviewCountAsync)));
+    }
+
+    [Fact]
+    public async Task AnOlderKeptListAnswerThatArrivesLate_NeverReplacesTheNewerKeptList()
+    {
+        var older = new TaskCompletionSource<NeedsReviewListAttempt>();
+        var keptReads = 0;
+        var staleKept = ReviewRow(Id(5), "Stale Kept", trigger: "RetailMatchFailed");
+        var currentKept = ReviewRow(Id(6), "Current Kept", trigger: "RetailMatchFailed");
+        Register(() => Page([]), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), args =>
+        {
+            if ((bool)args![3]!)
+            {
+                return Interlocked.Increment(ref keptReads) == 1
+                    ? older.Task
+                    : Task.FromResult(new NeedsReviewListAttempt(Page([currentKept], keptTotal: 1), null));
+            }
+
+            return Task.FromResult(new NeedsReviewListAttempt(Page([ReviewRow(Id(1), "Cibola Burn")], keptTotal: 1), null));
+        }));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+        cut.WaitForAssertion(() => Assert.Equal(1, keptReads));
+
+        await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([], [])));
+        cut.WaitForAssertion(() => Assert.Contains("Current Kept", cut.Find("[data-testid='needs-review-kept']").TextContent, StringComparison.Ordinal));
+        older.SetResult(new NeedsReviewListAttempt(Page([staleKept], keptTotal: 1), null));
+        await cut.InvokeAsync(() => Task.CompletedTask);
+        await Task.Delay(100);
+
+        Assert.Contains("Current Kept", cut.Find("[data-testid='needs-review-kept']").TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stale Kept", cut.Markup, StringComparison.Ordinal);
+    }
+
     /// <summary>The active person comes from the Dashboard session; the cookie principal adds nothing.</summary>
     private sealed class SessionOnlyAuthentication : AuthenticationStateProvider
     {
