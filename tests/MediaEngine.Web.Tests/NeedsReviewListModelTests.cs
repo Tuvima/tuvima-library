@@ -116,15 +116,151 @@ public sealed class NeedsReviewListModelTests
     }
 
     [Fact]
-    public void ReplacingTheList_StartsAgain_SoAFinishedRowsLineLeavesWithTheReload()
+    public void ReloadingTheList_KeepsAFinishedRowsLineWhereItWas_UntilThePageIsLeft()
+    {
+        var first = NeedsReviewTestRows.ReviewRow(Id(1), "One", group: NeedsReviewGroups.Ready);
+        var second = NeedsReviewTestRows.ReviewRow(Id(2), "Two", group: NeedsReviewGroups.Ready);
+        var third = NeedsReviewTestRows.ReviewRow(Id(3), "Three", group: NeedsReviewGroups.Ready);
+        var model = Loaded(first, second, third);
+        model.Finish(second, "Two matched");
+
+        // The Engine no longer lists the finished row.
+        model.Replace(NeedsReviewTestRows.Page([first, third]), keepFinished: true);
+
+        Assert.Equal([first.Key, second.Key, third.Key], model.Rows.Select(row => row.Key).ToArray());
+        Assert.Equal("Two matched", model.StateOf(second.Key).Done);
+        Assert.False(model.IsWaiting(second));
+        Assert.Equal(2, model.CountOf(NeedsReviewGroups.Ready));
+        Assert.Equal(2, model.WaitingTotal);
+    }
+
+    [Fact]
+    public void ReloadingTheList_ListsARowOnce_AndTheFreshRowWinsWhenTheEngineStillHasItWaiting()
+    {
+        var row = NeedsReviewTestRows.ReviewRow(Id(1), "One");
+        var model = Loaded(row);
+        model.Finish(row, "One kept");
+
+        // The person put it back: the Engine lists it as waiting again.
+        model.Replace(NeedsReviewTestRows.Page([row]), keepFinished: true);
+
+        Assert.Single(model.Rows);
+        Assert.Null(model.StateOf(row.Key).Done);
+        Assert.True(model.IsWaiting(row));
+        Assert.Equal(1, model.WaitingTotal);
+    }
+
+    [Fact]
+    public void ReloadingTheList_KeepsARunningActionOnARowThatIsStillListed()
+    {
+        var row = NeedsReviewTestRows.ReviewRow(Id(1), "One");
+        var model = Loaded(row);
+        model.SetBusy(row, true);
+
+        model.Replace(NeedsReviewTestRows.Page([row]), keepFinished: true);
+
+        Assert.True(model.IsBusy(row));
+    }
+
+    [Fact]
+    public void ReloadingTheList_PutsAFinishedRowThatWasFirstInItsGroupBackAtTheTop()
+    {
+        var first = NeedsReviewTestRows.ReviewRow(Id(1), "One", group: NeedsReviewGroups.Ready);
+        var other = NeedsReviewTestRows.ReviewRow(Id(2), "Two", group: NeedsReviewGroups.Ready);
+        var model = Loaded(first, other);
+        model.Finish(first, "One matched");
+
+        model.Replace(NeedsReviewTestRows.Page([other]), keepFinished: true);
+
+        Assert.Equal([first.Key, other.Key], Assert.Single(model.Sections()).Entries.Select(entry => entry.Key).ToArray());
+    }
+
+    [Fact]
+    public void AGenuineFreshStart_DropsEveryFinishedLine_SoALibraryChangeStartsClean()
     {
         var row = NeedsReviewTestRows.ReviewRow(Id(1), "One");
         var model = Loaded(row);
         model.Finish(row, "One matched");
 
-        model.Replace(NeedsReviewTestRows.Page([row]));
+        model.Reset(NeedsReviewTestRows.Page([]));
 
+        Assert.Empty(model.Rows);
         Assert.Null(model.StateOf(row.Key).Done);
+    }
+
+    [Fact]
+    public void ShowMore_SkipsOnlyTheRowsStillWaiting_BecauseTheEngineNoLongerListsAFinishedRow()
+    {
+        var rows = Enumerable.Range(1, 4).Select(n => NeedsReviewTestRows.ReviewRow(Id(n), $"Row {n}")).ToArray();
+        var model = new NeedsReviewListModel();
+        model.Replace(NeedsReviewTestRows.Page(rows, total: 10));
+        model.Finish(rows[0], "Row 1 matched");
+        model.Finish(rows[1], "Row 2 matched");
+
+        Assert.Equal(2, model.WaitingRead);
+        Assert.True(model.HasMore);
+    }
+
+    [Fact]
+    public void ShowMore_IsNotOffered_WhenEveryRowTheEngineHeldWasReadAndSomeHaveFinished()
+    {
+        var rows = Enumerable.Range(1, 3).Select(n => NeedsReviewTestRows.ReviewRow(Id(n), $"Row {n}")).ToArray();
+        var model = Loaded(rows);
+
+        model.Finish(rows[0], "Row 1 matched");
+
+        Assert.False(model.HasMore);
+        Assert.Equal(2, model.WaitingTotal);
+    }
+
+    [Fact]
+    public void TheGroupCounts_StillCountTheRowsNotReadYet_AfterRowsFinish()
+    {
+        var rows = Enumerable.Range(1, 3).Select(n => NeedsReviewTestRows.ReviewRow(Id(n), $"Row {n}", group: NeedsReviewGroups.Ready)).ToArray();
+        var page = NeedsReviewTestRows.Page(rows, total: 8);
+        page.GroupTotals[NeedsReviewGroups.Ready] = 8;
+        var model = new NeedsReviewListModel();
+        model.Replace(page);
+
+        model.Finish(rows[0], "Row 1 matched");
+
+        // Two waiting rows read, five not read yet.
+        Assert.Equal(7, model.CountOf(NeedsReviewGroups.Ready));
+        Assert.Equal(7, model.WaitingTotal);
+    }
+
+    [Fact]
+    public void ANextPage_IsCountedAgainstTheEnginesFreshTotals_SoFinishedRowsAreNotSubtractedTwice()
+    {
+        var rows = Enumerable.Range(1, 3).Select(n => NeedsReviewTestRows.ReviewRow(Id(n), $"Row {n}", group: NeedsReviewGroups.Ready)).ToArray();
+        var first = NeedsReviewTestRows.Page(rows, total: 5);
+        first.GroupTotals[NeedsReviewGroups.Ready] = 5;
+        var model = new NeedsReviewListModel();
+        model.Replace(first);
+        model.Finish(rows[0], "Row 1 matched");
+
+        // The Engine now holds four (the finished one left); the next page starts after the two waiting rows.
+        var next = NeedsReviewTestRows.Page([NeedsReviewTestRows.ReviewRow(Id(4), "Row 4", group: NeedsReviewGroups.Ready), NeedsReviewTestRows.ReviewRow(Id(5), "Row 5", group: NeedsReviewGroups.Ready)], total: 4);
+        next.GroupTotals[NeedsReviewGroups.Ready] = 4;
+        model.Append(next);
+
+        Assert.False(model.HasMore);
+        Assert.Equal(4, model.CountOf(NeedsReviewGroups.Ready));
+    }
+
+    [Fact]
+    public void ChangingARowsState_RaisesChanged_SoPartsThatShowItAreDrawnAgain()
+    {
+        var row = NeedsReviewTestRows.ReviewRow(Id(1), "One");
+        var model = Loaded(row);
+        var raised = 0;
+        model.Changed += () => raised++;
+
+        model.SetBusy(row, true);
+        model.Fail(row, "No.");
+        model.Finish(row, "Done.");
+
+        Assert.Equal(3, raised);
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Library;
+using MediaEngine.Contracts.Realtime;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
@@ -1007,6 +1008,207 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-empty']")));
         Assert.Contains("3 items are hidden", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
+    }
+
+    // ---- Reloads, late answers and rows that are busy -------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AFinishedLine_StaysInPlaceWhenTheListIsReadAgain_ForExampleAfterTheEngineSaysItemsWereRemoved()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        var engine = Register(() => Page([one, two]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        OpenMenuAndClick(cut, RowSelector(one), "Keep as it is");
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(one))));
+        var readsBefore = engine.NormalListReads;
+        var three = FileRow(Id(3), "Three.mkv", workId: Id(93));
+        engine.List = (_, _) => new NeedsReviewListAttempt(Page([two, three]), null);
+
+        await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([], [])));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(engine.NormalListReads > readsBefore);
+            Assert.Single(cut.FindAll(RowSelector(three)));
+        });
+        Assert.Contains("One.mkv kept as it is", cut.Find(DoneSelector(one)).TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll(RowSelector(two)));
+    }
+
+    [Fact]
+    public void ShowMore_AfterARowFinished_StartsAfterTheRowsStillWaiting_AndTheCountsStayRight()
+    {
+        var first = ReviewRow(Id(1), "First Book");
+        var second = ReviewRow(Id(2), "Second Book");
+        var third = ReviewRow(Id(3), "Third Book");
+        var engine = Register(() => Page([first, second], total: 3));
+        engine.List = (_, _) => engine.NormalListReads <= 1
+            ? new NeedsReviewListAttempt(Page([first, second], total: 3), null)
+            : new NeedsReviewListAttempt(Page([third], total: 2), null);
+        var cut = RenderLoaded(2);
+        OpenMenuAndClick(cut, RowSelector(first), "Keep as it is");
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(first))));
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Show more").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(RowSelector(third))));
+        Assert.Contains(engine.ListReads, read => read.Skip == 1 && !read.Kept);
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Show more");
+        Assert.Contains("2 items", cut.Find("[data-testid='needs-review-summary']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AnOlderAnswerThatArrivesLate_NeverReplacesTheNewerList()
+    {
+        var older = new TaskCompletionSource<NeedsReviewListAttempt>();
+        var calls = 0;
+        var stale = ReviewRow(Id(1), "Stale Book");
+        var current = ReviewRow(Id(2), "Current Book");
+        Register(() => Page([]), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), args =>
+        {
+            if ((bool)args![3]!)
+            {
+                return Task.FromResult(new NeedsReviewListAttempt(Page([]), null));
+            }
+
+            return Interlocked.Increment(ref calls) == 1
+                ? older.Task
+                : Task.FromResult(new NeedsReviewListAttempt(Page([current]), null));
+        }));
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForAssertion(() => Assert.Equal(1, calls));
+
+        await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([], [])));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(RowSelector(current))));
+        older.SetResult(new NeedsReviewListAttempt(Page([stale]), null));
+        await cut.InvokeAsync(() => Task.CompletedTask);
+        await Task.Delay(100);
+
+        Assert.Single(cut.FindAll(RowSelector(current)));
+        Assert.Empty(cut.FindAll(RowSelector(stale)));
+    }
+
+    [Fact]
+    public void WhenOnlyKeptItemsRemain_AndTheyCannotBeLoaded_ThePageSaysSo()
+    {
+        RegisterEngine(new Engine { List = (_, kept) => kept ? new NeedsReviewListAttempt(null, "No answer.") : new NeedsReviewListAttempt(Page([], keptTotal: 3), null) });
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-empty']");
+
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("The kept items could not be loaded.", cut.Find("[data-review-load-more-failure]").TextContent, StringComparison.Ordinal));
+        Assert.Single(cut.FindAll("[data-testid='needs-review-empty']"));
+    }
+
+    [Fact]
+    public async Task KeepAsItIs_WhileTheKeptItemsAreShown_ReadsThemAgain_SoTheNewlyKeptFileIsListed()
+    {
+        var kept = FileRow(Id(5), "Kept.Earlier.mkv", workId: Id(95));
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        var keptNow = new List<NeedsReviewRowDto> { kept };
+        var engine = Register((_, wantKept) => wantKept ? Page(keptNow, keptTotal: keptNow.Count) : Page([file], keptTotal: keptNow.Count));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-kept'] button"), button => button.TextContent.Trim() == "Put back"));
+        var keptReadsBefore = engine.ListReads.Count(read => read.Kept);
+        keptNow.Add(file);
+
+        OpenMenuAndClick(cut, RowSelector(file), "Keep as it is");
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(engine.ListReads.Count(read => read.Kept) > keptReadsBefore);
+            Assert.Equal(2, cut.FindAll("[data-testid='needs-review-kept'] button").Count(button => button.TextContent.Trim() == "Put back"));
+        });
+    }
+
+    // Holds the Engine's answer to Keep as it is for one file until the test lets it go, so the row stays busy.
+    private Engine RegisterWithAKeepThatWaits(NeedsReviewListDto page, Guid holdAssetId, TaskCompletionSource<bool> release)
+    {
+        var engine = new Engine { List = (_, _) => new NeedsReviewListAttempt(page, null) };
+        return RegisterEngine(engine, configure: stub => stub.SetHandler(nameof(IEngineApiClient.KeepUnmatchedItemAsync), args => KeepAsync(engine, (Guid)args![0]!, holdAssetId, release)));
+    }
+
+    private static async Task<UnmatchedActionResultDto?> KeepAsync(Engine engine, Guid assetId, Guid holdAssetId, TaskCompletionSource<bool> release)
+    {
+        engine.KeptFiles.Add(assetId);
+        if (assetId == holdAssetId)
+        {
+            await release.Task;
+        }
+
+        return new UnmatchedActionResultDto { Affected = 1 };
+    }
+
+    [Fact]
+    public async Task WhileARowIsWorking_ItsMenuItemsAreDisabled_AndNothingIsSentAgain()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        var release = new TaskCompletionSource<bool>();
+        var engine = RegisterWithAKeepThatWaits(Page([file]), file.Unmatched!.AssetId, release);
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        OpenMenuAndClick(cut, RowSelector(file), "Keep as it is");
+        cut.WaitForAssertion(() => Assert.Single(engine.KeptFiles));
+        MenuLabels(cut, RowSelector(file));
+
+        cut.WaitForAssertion(() => Assert.All(cut.FindAll("button.app-menu-item"), item => Assert.True(item.HasAttribute("disabled"))));
+        Assert.Single(engine.KeptFiles);
+        release.SetResult(true);
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(file))));
+        Assert.Single(engine.KeptFiles);
+    }
+
+    [Fact]
+    public async Task WhileOneFileOfAFamilyIsWorking_TheFamilyHeadersButtonsAreDisabled()
+    {
+        var files = Episodes(2);
+        var release = new TaskCompletionSource<bool>();
+        var engine = RegisterWithAKeepThatWaits(Page(files), files[0].Unmatched!.AssetId, release);
+        await UseDesktopAsync();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+        cut.Find("[data-testid='needs-review-family-toggle']").Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid='needs-review-family-files'] [data-testid='needs-review-row']").Count));
+        Assert.All(cut.FindAll("[data-testid='needs-review-family-row'] .nr-row__actions button.tl-button"), button => Assert.False(button.HasAttribute("disabled")));
+
+        OpenMenuAndClick(cut, RowSelector(files[0]), "Keep as it is");
+
+        cut.WaitForAssertion(() => Assert.Single(engine.KeptFiles));
+        cut.WaitForAssertion(() =>
+        {
+            var header = cut.FindAll("[data-testid='needs-review-family-row'] .nr-row__actions button").Single(button => button.TextContent.Trim() == "Fix");
+            Assert.True(header.HasAttribute("disabled"));
+        });
+        release.SetResult(true);
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(files[0]))));
+    }
+
+    [Fact]
+    public async Task KeepOnTheBar_SkipsATickedRowThatIsAlreadyWorking_SoNothingIsSentTwice()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        var release = new TaskCompletionSource<bool>();
+        var engine = RegisterWithAKeepThatWaits(Page([one, two]), one.Unmatched!.AssetId, release);
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
+        Tick(cut, one, two);
+        OpenMenuAndClick(cut, RowSelector(one), "Keep as it is");
+        cut.WaitForAssertion(() => Assert.Equal([one.Unmatched!.AssetId], engine.KeptFiles));
+
+        PressBar(cut, "needs-review-bar-keep");
+        WaitForDialog<AppConfirmDialog>(cut).Close(AppDialogResult.Ok(AppConfirmResult.Primary));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(two))));
+        release.SetResult(true);
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(one))));
+        Assert.Equal([one.Unmatched!.AssetId, two.Unmatched!.AssetId], engine.KeptFiles);
     }
 
     // ---- The shell's count ----------------------------------------------------------------------------------------------------------

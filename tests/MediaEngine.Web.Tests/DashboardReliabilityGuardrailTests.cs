@@ -52,10 +52,17 @@ public sealed class DashboardReliabilityGuardrailTests
         var normalized = source.ReplaceLineEndings("\n");
 
         Assert.Contains("_loading && !_model.HasRows", source, StringComparison.Ordinal);
-        var loadStart = normalized.IndexOf("private async Task LoadAsync()", StringComparison.Ordinal);
+        var loadStart = normalized.IndexOf("private async Task LoadAsync(", StringComparison.Ordinal);
         var loadEnd = normalized.IndexOf("private async Task LoadMoreAsync", loadStart, StringComparison.Ordinal);
         Assert.True(loadStart >= 0 && loadEnd > loadStart);
-        Assert.DoesNotContain("_model.Clear", normalized[loadStart..loadEnd], StringComparison.Ordinal);
+        var load = normalized[loadStart..loadEnd];
+
+        // The rows on screen are replaced only once the Engine's answer is in, and only if it is still the newest one asked for.
+        var fetched = load.IndexOf("await Orchestrator.GetNeedsReviewListAsync(", StringComparison.Ordinal);
+        var stale = load.IndexOf("generation != _loadGeneration", StringComparison.Ordinal);
+        var replaced = load.IndexOf("_model.Replace(page, keepFinished)", StringComparison.Ordinal);
+        Assert.True(fetched >= 0 && stale > fetched && replaced > stale);
+        Assert.DoesNotContain("_model.Reset(", load, StringComparison.Ordinal);
     }
 
     [Fact]

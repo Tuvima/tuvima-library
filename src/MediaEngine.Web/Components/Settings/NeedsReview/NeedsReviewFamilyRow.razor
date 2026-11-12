@@ -4,17 +4,21 @@
 @* Two or more files of one show, album or Series share one row (spec D6): the family's cover and name, "12 episodes", one sentence, and Fix
    that opens the show itself in the editor so one correction sorts every file. The arrow lists the files (collapsed until pressed). The
    family's "..." menu applies Try again and Keep as they are to every file in it. *@
-@if (_waiting.Count == 0)
+@{
+    // Worked out each time the family is drawn from the files' live states, never kept from an earlier draw.
+    var view = ViewOf();
+}
+@if (view.Waiting.Count == 0)
 {
     @* Every file finished: one quiet line for the family. *@
-    <NeedsReviewRow Row="@Entry.First" Family="@Entry" State="@_finished" Actions="@Actions" />
+    <NeedsReviewRow Row="@Entry.First" Family="@Entry" State="@view.Finished" Actions="@Actions" />
 }
 else
 {
     <div class="nr-family" data-testid="needs-review-family" data-key="@Entry.Key">
-        <NeedsReviewRow Row="@_waiting[0]"
-                        Family="@_familyOfWaiting"
-                        State="@_aggregate"
+        <NeedsReviewRow Row="@view.Waiting[0]"
+                        Family="@view.FamilyOfWaiting"
+                        State="@view.Aggregate"
                         Actions="@Actions"
                         Expanded="@_expanded"
                         OnToggle="Toggle" />
@@ -38,32 +42,28 @@ else
     [Parameter, EditorRequired] public NeedsReviewActions Actions { get; set; } = default!;
 
     private bool _expanded;
-    private List<NeedsReviewRowDto> _waiting = [];
-    private NeedsReviewEntry _familyOfWaiting = default!;
-    private NeedsReviewRowState _aggregate = new();
-    private NeedsReviewRowState _finished = new();
 
-    protected override void OnParametersSet() => Refresh();
+    private void Toggle() => _expanded = !_expanded;
 
-    private void Toggle()
+    private sealed record FamilyView(
+        List<NeedsReviewRowDto> Waiting,
+        NeedsReviewEntry FamilyOfWaiting,
+        NeedsReviewRowState Aggregate,
+        NeedsReviewRowState Finished);
+
+    private FamilyView ViewOf()
     {
-        _expanded = !_expanded;
-        Refresh();
-    }
-
-    private void Refresh()
-    {
-        _waiting = Entry.Rows.Where(Model.IsWaiting).ToList();
-        _familyOfWaiting = new NeedsReviewEntry(Entry.Key, _waiting, family: true);
+        var waiting = Entry.Rows.Where(Model.IsWaiting).ToList();
         var states = Entry.Rows.Select(row => Model.StateOf(row.Key)).ToList();
 
         // The header is busy while any of its files is, and says the first reason a file failed, until the files are listed (each then
         // says its own).
-        _aggregate = new NeedsReviewRowState
+        var aggregate = new NeedsReviewRowState
         {
             Busy = states.Any(state => state.Busy),
             Failure = _expanded ? null : states.Select(state => state.Failure).FirstOrDefault(failure => !string.IsNullOrEmpty(failure)),
         };
-        _finished = new NeedsReviewRowState { Done = states.Select(state => state.Done).FirstOrDefault(line => !string.IsNullOrEmpty(line)) };
+        var finished = new NeedsReviewRowState { Done = states.Select(state => state.Done).FirstOrDefault(line => !string.IsNullOrEmpty(line)) };
+        return new FamilyView(waiting, new NeedsReviewEntry(Entry.Key, waiting, family: true), aggregate, finished);
     }
 }

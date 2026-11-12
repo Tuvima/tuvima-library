@@ -409,7 +409,9 @@ else
         ];
     }
 
-    private EventCallback Callback(Func<Task> action) => EventCallback.Factory.Create(this, action);
+    // A press while this row is working does nothing (the items are also drawn disabled), so one action cannot be sent twice.
+    private EventCallback Callback(Func<Task> action) =>
+        EventCallback.Factory.Create(this, () => State.Busy ? Task.CompletedTask : action());
 
     // Items that cannot apply are left out, never greyed. Fix leads the sheet on a phone, and sits here on a desktop when Try again is the
     // row's button.
@@ -446,7 +448,8 @@ else
                 items.Add(new AppRowMenuItem { Label = L["NeedsReviewRow_Delete"].Value, Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = Callback(() => Actions.Delete(Row)) });
             }
 
-            return items;
+            // While this row works on an action none of its menu items can start another.
+            return State.Busy ? [.. items.Select(item => item with { Disabled = true })] : items;
         }
     }
 }

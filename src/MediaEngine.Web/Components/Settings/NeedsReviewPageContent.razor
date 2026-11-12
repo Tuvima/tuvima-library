@@ -18,6 +18,7 @@
 @inject DashboardSessionAccessor Session
 @inject UniverseStateContainer State
 @inject IStringLocalizer<SharedStrings> L
+@inject ILogger<NeedsReviewPageContent> Logger
 
 @* Settings, Needs Review (spec needs-review-redesign): ONE list for everything the Engine wants a person to look at, split by what the person
    must do: Ready to confirm, Choose a match, No match found, File problems. This host owns loading, the filters, the states and every action;
@@ -54,12 +55,13 @@
         <AppAlert Tone="AppUiTone.Error">
             <span class="review-load-error">
                 <span>@L["NeedsReviewPageContent_NeedsReviewCouldNotLoad"]</span>
-                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="LoadAsync" />
+                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="@(() => LoadAsync())" />
             </span>
         </AppAlert>
     }
     else if (!_model.HasRows && !HasFilter)
     {
+        @ActionErrorAlert
         <div class="needs-review-page__empty" data-testid="needs-review-empty">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Choice48" />
             <strong>@L["NeedsReviewPage_EmptyTitle"]</strong>
@@ -105,10 +107,7 @@
             </div>
         </AppFilterRow>
 
-        @if (_actionError is not null)
-        {
-            <AppAlert Tone="AppUiTone.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _actionError = null; })" data-review-load-more-failure>@_actionError</AppAlert>
-        }
+        @ActionErrorAlert
 
         @if (_model.MatchingRows(_search) == 0)
         {
@@ -174,6 +173,8 @@
     private bool _showKept;
     private string? _loadedInitialSearch;
     private string? _loadedLibrary;
+    private int _loadGeneration;
+    private int _keptGeneration;
 
     // Same rule as the account menu's Needs Review entry and the shell badge (MainLayout.CanViewReview).
     private bool CanViewReview => Session.HasNavigation("settings.administration");
@@ -216,6 +217,8 @@
     protected override void OnInitialized()
     {
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+        _model.Changed += OnModelChanged;
+        _keptModel.Changed += OnModelChanged;
         Editor.Closed += OnEditorClosed;
         State.IngestionQueueProgressReceived += OnQueueProgress;
         Device.OnChanged += OnDeviceChanged;
@@ -293,6 +296,13 @@
             StateHasChanged();
         });
 
+    // A row began, finished or failed an action: every part that shows its state (a family header, the counts) is drawn again at once.
+    private void OnModelChanged() =>
+        _ = InvokeAsync(() =>
+        {
+            if (!_disposed) StateHasChanged();
+        });
+
     private void OnQueueProgress(MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto snapshot) =>
         _ = InvokeAsync(() =>
         {
@@ -309,6 +319,8 @@
     {
         _disposed = true;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
+        _model.Changed -= OnModelChanged;
+        _keptModel.Changed -= OnModelChanged;
         Editor.Closed -= OnEditorClosed;
         State.IngestionQueueProgressReceived -= OnQueueProgress;
         Device.OnChanged -= OnDeviceChanged;
@@ -329,18 +341,20 @@
         {
             _initialized = true;
             _search = InitialSearch;
-            await LoadAsync();
+            await LoadAsync(keepFinished: false);
             return;
         }
 
         if (searchChanged) _search = InitialSearch;
         if (filterChanged)
         {
-            await LoadAsync();
+            await LoadAsync(keepFinished: false);
         }
     }
 
-    private async Task LoadAsync()
+    // Reads the list again. A finished row's line stays until the page is left (spec D8), so a reload keeps them; the first load and a
+    // changed library start clean. Only the newest answer is applied: an older one that arrives late is dropped.
+    private async Task LoadAsync(bool keepFinished = true)
     {
         if (!CanViewReview)
         {
@@ -350,21 +364,27 @@
             return;
         }
 
+        var generation = ++_loadGeneration;
         _loading = true;
         _actionError = null;
         try
         {
             await ResolveLibrariesAsync();
             var attempt = await Orchestrator.GetNeedsReviewListAsync(Library, 0, PageSize);
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
+
             if (attempt.List is { } page)
             {
-                _model.Replace(page);
+                _model.Replace(page, keepFinished);
                 PruneSelection();
                 _error = null;
                 await Orchestrator.RefreshReviewCountAsync();
                 if (_showKept)
                 {
-                    await LoadKeptAsync();
+                    await LoadKeptAsync(keepFinished);
                 }
             }
             else
@@ -373,15 +393,29 @@
                 _error = attempt.Error ?? L["NeedsReviewPage_NoListReturned"].Value;
             }
         }
-        finally { _loading = false; }
+        finally
+        {
+            if (generation == _loadGeneration)
+            {
+                _loading = false;
+            }
+        }
     }
 
+    // The next page starts after the rows still waiting (a finished row is no longer in the Engine's list); an answer that arrives after a
+    // newer load began is dropped.
     private async Task LoadMoreAsync()
     {
+        var generation = _loadGeneration;
         _busy = true;
         try
         {
-            var attempt = await Orchestrator.GetNeedsReviewListAsync(Library, _model.Rows.Count, PageSize);
+            var attempt = await Orchestrator.GetNeedsReviewListAsync(Library, _model.WaitingRead, PageSize);
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
+
             if (attempt.List is { } page) _model.Append(page);
             else _actionError = L["NeedsReviewList_MoreCouldNotBeLoaded"].Value;
         }
@@ -405,8 +439,21 @@
                 _libraryMediaTypes[library.Id] = library.MediaTypes[0];
             }
         }
-        catch (Exception) { _libraryOptions = []; }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The libraries could not be read for the Needs Review library choices.");
+            _libraryOptions = [];
+        }
     }
+
+    // A refusal or a failed read (the kept items, the next page, Edit) that has no row to sit under; drawn with the list and with the empty page.
+    private RenderFragment ActionErrorAlert => __builder =>
+    {
+        if (_actionError is not null)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _actionError = null; })" data-review-load-more-failure>@_actionError</AppAlert>
+        }
+    };
 
     private RenderFragment KeptBlock => __builder =>
     {
@@ -435,16 +482,38 @@
         }
     }
 
-    private async Task LoadKeptAsync()
+    // The newest answer wins here too: opening, a Keep and a Put back may each ask while an earlier read is still on its way.
+    private async Task LoadKeptAsync(bool keepFinished = true)
     {
+        var generation = ++_keptGeneration;
         var attempt = await Orchestrator.GetNeedsReviewListAsync(Library, 0, PageSize, kept: true);
+        if (generation != _keptGeneration)
+        {
+            return;
+        }
+
         if (attempt.List is { } page)
         {
-            _keptModel.Replace(page);
+            _keptModel.Replace(page, keepFinished);
         }
         else
         {
             _actionError = L["NeedsReviewPage_KeptCouldNotBeLoaded"].Value;
+        }
+    }
+
+    // Items just kept leave the list and join the hidden ones: the count rises at once and the open kept list is read again.
+    private async Task NoteKeptAsync(int count)
+    {
+        if (count == 0)
+        {
+            return;
+        }
+
+        _model.NoteKept(count);
+        if (_showKept)
+        {
+            await LoadKeptAsync();
         }
     }
 
@@ -485,10 +554,14 @@
         var mediaType = NeedsReviewRowInfo.MediaTypeOf(first, first.LibraryId is { } id ? _libraryMediaTypes.GetValueOrDefault(id) : null);
         _awaitingFix = true;
         var target = ListEditTarget.ForLibraryRow(entityId, title, mediaType);
-        // A delete that closes the editor has its line shown under the row.
+        // A delete that closes the editor leaves its line (the title is gone, files may be left on disk) as a finished line in place of the row.
         if (!await EditLauncher.OpenAsync(target, EditTool.Match, notice => InvokeAsync(() =>
             {
-                _model.Fail(first, notice);
+                foreach (var row in entry.Rows)
+                {
+                    _model.Finish(row, notice);
+                }
+
                 StateHasChanged();
             })))
         {
@@ -533,9 +606,9 @@
     private async Task KeepAsFilmAsync(NeedsReviewRowDto row)
     {
         if (row.Review is not { } review) return;
-        await RunOneAsync(row, async () => (await Orchestrator.DismissReviewAsync(review.Id), null),
+        var done = await RunOneAsync(row, async () => (await Orchestrator.DismissReviewAsync(review.Id), null),
             L["NeedsReviewRow_DoneKept", TitleOf(row)].Value, L["NeedsReviewRow_FailKeep", TitleOf(row)].Value);
-        if (_model.StateOf(row.Key).Done is not null) _model.NoteKept(1);
+        if (done) await NoteKeptAsync(1);
     }
 
     // Try again: a file is looked up now; a file whose tags could not be saved is handed to the Engine's re-tag sweep again.
@@ -549,19 +622,19 @@
     // Keep as it is stops a file's retries; for an item the Engine was unsure about it records that the person chose to leave it as it is.
     private async Task KeepAsync(IReadOnlyList<NeedsReviewRowDto> rows)
     {
-        await RunManyAsync(rows, async row => row.Unmatched is { } file
+        var kept = await RunManyAsync(rows, async row => row.Unmatched is { } file
             ? (await Api.KeepUnmatchedItemAsync(file.AssetId) is not null, null)
             : (row.Review is { } review && await Orchestrator.DismissReviewAsync(review.Id), null),
             subject => rows.Count == 1 ? L["NeedsReviewRow_DoneKept", subject].Value : L["NeedsReviewRow_DoneKeptMany", subject].Value,
             subject => L["NeedsReviewRow_FailKeep", subject].Value);
-        _model.NoteKept(rows.Count(row => _model.StateOf(row.Key).Done is not null));
+        await NoteKeptAsync(kept.Count);
     }
 
     // Delete takes the file out through the same Delete from library dialog as any title (with the Recycle bin on for the library's type,
     // the file goes there). It asks once, and the row becomes a "deleted" line.
     private async Task DeleteAsync(NeedsReviewRowDto row)
     {
-        if (row.Unmatched is not { WorkId: { } workId } file) return;
+        if (row.Unmatched is not { WorkId: { } workId } file || !CanAct(row)) return;
         if (LibraryItemDeletionFlow.Refusal(Device, Session) is { } refusal) { _model.Fail(row, refusal); return; }
         _model.SetBusy(row, true);
         try
@@ -580,6 +653,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Deleting the Needs Review item {Key} failed.", row.Key);
             _model.Fail(row, $"{L["NeedsReviewRow_FailDelete", TitleOf(row)].Value} {ex.Message}");
         }
     }
@@ -587,6 +661,7 @@
     // Put back: a kept item waits in Needs Review again, then both lists are read again.
     private async Task PutBackAsync(NeedsReviewRowDto row)
     {
+        if (_keptModel.IsBusy(row)) return;
         var title = TitleOf(row);
         _keptModel.SetBusy(row, true);
         try
@@ -605,22 +680,33 @@
         }
         catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Putting the kept Needs Review item {Key} back failed.", row.Key);
             _keptModel.Fail(row, $"{L["NeedsReviewRow_FailPutBack", title].Value} {ex.Message}");
         }
     }
 
-    // One row, one action: busy while it runs, then one quiet line (success) or the reason under the row (failure).
-    private Task RunOneAsync(NeedsReviewRowDto row, Func<Task<(bool Ok, string? Reason)>> action, string doneLine, string failLine) =>
-        RunManyAsync([row], _ => action(), _ => doneLine, _ => failLine);
+    // One row, one action: busy while it runs, then one quiet line (success) or the reason under the row (failure). True when it finished.
+    private async Task<bool> RunOneAsync(NeedsReviewRowDto row, Func<Task<(bool Ok, string? Reason)>> action, string doneLine, string failLine) =>
+        (await RunManyAsync([row], _ => action(), _ => doneLine, _ => failLine)).Count == 1;
+
+    // A row that is already working on an action, or has finished, takes no second one: a press on its menu, a bar button or a family
+    // button that reaches it again does nothing.
+    private bool CanAct(NeedsReviewRowDto row) => _model.IsWaiting(row) && !_model.IsBusy(row);
 
     // Rows act one after another. When all succeed they share one line named for the group (a family); when some fail, those rows keep
-    // their reason and the others finish under their own names.
-    private async Task RunManyAsync(
-        IReadOnlyList<NeedsReviewRowDto> rows,
+    // their reason and the others finish under their own names. Returns the rows that finished.
+    private async Task<IReadOnlyList<NeedsReviewRowDto>> RunManyAsync(
+        IReadOnlyList<NeedsReviewRowDto> requested,
         Func<NeedsReviewRowDto, Task<(bool Ok, string? Reason)>> action,
         Func<string, string> doneLine,
         Func<string, string> failLine)
     {
+        var rows = requested.Where(CanAct).ToList();
+        if (rows.Count == 0)
+        {
+            return [];
+        }
+
         foreach (var row in rows)
         {
             _model.SetBusy(row, true);
@@ -638,6 +724,7 @@
             }
             catch (Exception ex)
             {
+                Logger.LogWarning(ex, "A Needs Review action on {Key} failed.", row.Key);
                 failed.Add((row, ex.Message));
             }
         }
@@ -659,6 +746,8 @@
         {
             await Orchestrator.RefreshReviewCountAsync();
         }
+
+        return succeeded;
     }
 
     // ---- Ticking and the action bar (spec WP5) --------------------------------------------------------------------------------------------
@@ -842,7 +931,7 @@
     // Delete asks once for all ticked rows (the shared Delete from library dialog), then each row becomes a "deleted" line.
     private async Task BarDeleteAsync()
     {
-        var rows = NeedsReviewBulk.DeleteRows(Ticked, _actions.CanDelete);
+        var rows = NeedsReviewBulk.DeleteRows(Ticked, _actions.CanDelete).Where(CanAct).ToList();
         if (_barBusy || rows.Count == 0)
         {
             return;
@@ -884,6 +973,7 @@
             }
             catch (Exception ex)
             {
+                Logger.LogWarning(ex, "Deleting {Count} ticked Needs Review items failed.", rows.Count);
                 foreach (var row in rows)
                 {
                     _model.Fail(row, $"{L["NeedsReviewRow_FailDelete", TitleOf(row)].Value} {ex.Message}");

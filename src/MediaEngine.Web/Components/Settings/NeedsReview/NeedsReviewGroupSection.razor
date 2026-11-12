@@ -21,7 +21,7 @@
     <div class="nr-section__list">
         @foreach (var entry in Section.Entries)
         {
-            <AppRowErrorBoundary @key="entry.Key" ItemTitle="@TitleOf(entry)" ResetKey="@entry">
+            <AppRowErrorBoundary @key="entry.Key" ItemTitle="@TitleOf(entry)" ResetKey="@entry.Key">
                 @if (KeptView)
                 {
                     <NeedsReviewRow Row="@entry.First" State="@Model.StateOf(entry.First.Key)" Actions="@Actions" KeptView="true" />
