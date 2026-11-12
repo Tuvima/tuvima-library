@@ -17,7 +17,7 @@
                     var current = index; var item = _items[current];
                     var chosen = EqualityComparer<TItem>.Default.Equals(item, Value!);
                     <div id="@OptionId(current)" role="option" class="tl-list-item @(chosen ? "tl-selected-item" : null) @(current == _active ? "tl-active-item" : null)" aria-selected="@chosen.ToString().ToLowerInvariant()" @onclick="@(() => SelectAsync(item))" @onmousedown:preventDefault="true">
-                        <span class="tl-list-item__content" data-overflow-tooltip="@TextOf(item)">@if (ItemTemplate is not null) { @ItemTemplate(item) } else { @TextOf(item) }</span>
+                        <span class="tl-list-item__content @(ItemTemplate is null ? "tl-list-item__content--text" : null)" data-overflow-tooltip="@TextOf(item)">@if (ItemTemplate is not null) { @ItemTemplate(item) } else { @TextOf(item) }</span>
                         @if (chosen) { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" Class="tl-list-item__check" /> }
                     </div>
                 }

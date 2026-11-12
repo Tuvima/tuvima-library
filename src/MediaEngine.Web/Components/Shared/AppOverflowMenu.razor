@@ -105,8 +105,9 @@
         return Task.CompletedTask;
     }
 
-    // A menu opened from a labelled button is a dropdown list (Look v3.1 D3): it follows the shared list width rule. A plain "..." icon menu keeps its menu size.
-    private bool IsListMenu => !string.IsNullOrWhiteSpace(Label);
+    /// <summary>The menu is a dropdown (it picks a value, such as a folder or a group), so its list follows the shared list width rule (Look v3.1 D3). Action menus leave this off and keep the menu size.</summary>
+    [Parameter] public bool ListWidth { get; set; }
+    private bool IsListMenu => ListWidth;
     private string EffectiveAriaLabel => AriaLabel ?? Label ?? "More actions";
     private string TriggerRootClass =>
         string.Join(" ", new[] { "app-overflow-menu", AppUiMaps.SizeClass(Size), Class }

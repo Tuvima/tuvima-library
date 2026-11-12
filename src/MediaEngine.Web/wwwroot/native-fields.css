@@ -22,6 +22,8 @@ textarea.tl-input:focus-visible { outline: 1px solid var(--tl-accent-primary); o
 .tl-input-container:has(input.tl-input):has(.tl-input-adornment) > :is(button,span).tl-input-adornment { min-height: 0; height: 100%; box-sizing: border-box; }
 .tl-input-container:has(.tl-input-adornment):focus-within { border-color: var(--tl-accent-primary); box-shadow: var(--tl-shadow-focus); }
 .tl-select-trigger { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: pointer; }
+/* The chosen value matches its options (Look v3.1 D10): Control job. A button never makes a phone zoom, so it stays 14 px there. */
+.tl-input.tl-select-trigger { font-size: var(--tl-type-control-size); font-weight: var(--tl-type-control-weight); }
 .tl-select-trigger[aria-expanded="true"] { border-color: var(--tl-accent-primary); box-shadow: var(--tl-shadow-focus); }
 .tl-select-value { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-select-arrow { display: block; width: 24px; height: 24px; flex: none; margin-left: auto; pointer-events: none; }
@@ -36,6 +38,7 @@ textarea.tl-input:focus-visible { outline: 1px solid var(--tl-accent-primary); o
 /* Dropdown list rows (Look v3.1 D3): one line each; an option too long for the list ends in an ellipsis and keeps its full text
    as the overflow tooltip (data-overflow-tooltip, app-overflow-tooltip.js). The chosen option carries a 20 px check in the purple text color. */
 .tl-list-item__content { display: flex; align-items: center; gap: .6rem; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+.tl-list-item__content--text { display: block; text-overflow: ellipsis; }
 .tl-list-item__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-list-item .tl-list-item__check { flex: 0 0 20px; width: 20px; height: 20px; margin-inline-start: auto; color: var(--tl-accent-primary); }
 .app-popover[data-list-width="true"] .app-menu-item__label, .app-menu-sheet--list .app-menu-item__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

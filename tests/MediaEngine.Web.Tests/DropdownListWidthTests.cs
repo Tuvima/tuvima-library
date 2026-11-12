@@ -44,16 +44,30 @@ public sealed class DropdownListWidthTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LabelledMenu_AsksForTheListWidthRule_WhenItOpens()
+    public void DropdownStyleMenu_AsksForTheListWidthRule_WhenItOpens()
     {
         var cut = Render<AppOverflowMenu>(parameters => parameters
             .Add(component => component.Label, "Episodes")
+            .Add(component => component.ListWidth, true)
             .AddChildContent("<button role='menuitem'>Episode one</button>"));
         cut.Find("button.app-overflow-menu__trigger").Click();
 
         var surface = cut.Find(".app-popover");
         Assert.Equal("true", surface.GetAttribute("data-list-width"));
         Assert.Null(surface.GetAttribute("data-popout-size"));
+    }
+
+    [Fact]
+    public void LabelledActionMenu_KeepsItsMenuSize_AndDoesNotAskForTheListWidthRule()
+    {
+        var cut = Render<AppOverflowMenu>(parameters => parameters
+            .Add(component => component.Label, "Organise")
+            .AddChildContent("<button role='menuitem'>Add a tag</button>"));
+        cut.Find("button.app-overflow-menu__trigger").Click();
+
+        var surface = cut.Find(".app-popover");
+        Assert.Null(surface.GetAttribute("data-list-width"));
+        Assert.Equal("menu", surface.GetAttribute("data-popout-size"));
     }
 
     [Fact]
