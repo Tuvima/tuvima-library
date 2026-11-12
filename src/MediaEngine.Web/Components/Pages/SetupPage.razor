@@ -96,7 +96,7 @@
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "vault" when _vaultProfileId is { } vaultProfileId:
-                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" AlreadyOn="@SetupVaultStepRules.IsAlreadyOn(StepState("vault"), Nsfw.IsAvailable)" Finished="VaultFinishedAsync" Back="GoBackAsync" />
+                    <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" AlreadyOn="@SetupVaultStepRules.IsAlreadyOn(StepState("vault"), Nsfw.IsAvailable)" Finished="VaultFinishedAsync" TurnedOn="VaultTurnedOnAsync" Back="GoBackAsync" />
                     break;
                 case "metadata":
                     <SetupMetadataStage Catalogue="@_providerCatalogue" Loaded="@_providersLoaded" SetupSession="@_setupSession" Busy="@_busy"
@@ -645,6 +645,16 @@
         if (profile is null) return;
         _vaultProfileId = profile.Id;
         _vaultProfileHasPin = profile.HasPin;
+    }
+
+    // Turning the Vault on is recorded at once and the person stays on the step, so Back or the step list cannot leave it marked as skipped.
+    private async Task VaultTurnedOnAsync()
+    {
+        if (!SetupVaultStepRules.NeedsDecision(StepState("vault"), turnedOn: true)) return;
+        var status = await ApiClient.DecideSetupStepAsync("vault", "passed", "The Vault was turned on during setup.", _setupSession);
+        if (status is null) return;
+        _status = status;
+        _selectedStep = "vault";
     }
 
     // Leaving the step records an answer only when it changed: Continue from a revisited step just moves on to Libraries, the step after it.

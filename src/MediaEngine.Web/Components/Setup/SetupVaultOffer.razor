@@ -107,6 +107,9 @@
     /// <summary>Raised when the step is over; true when the Vault was turned on, false after Not now.</summary>
     [Parameter] public EventCallback<bool> Finished { get; set; }
 
+    /// <summary>Raised once, when the Vault has just been turned on, before the person presses Continue.</summary>
+    [Parameter] public EventCallback TurnedOn { get; set; }
+
     /// <summary>Goes back to the step before; the offer's first screen shows Back only when the page gives one.</summary>
     [Parameter] public EventCallback Back { get; set; }
 
@@ -178,6 +181,8 @@
             }
 
             _pin = string.Empty;
+            // The answer is saved the moment the Vault is on, so leaving by Back or the step list keeps it.
+            await TurnedOn.InvokeAsync();
             _pinAgain = string.Empty;
             _phase = Phase.On;
         }

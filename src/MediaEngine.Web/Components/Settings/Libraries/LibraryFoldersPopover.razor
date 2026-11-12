@@ -48,8 +48,8 @@
                 {
                     var issue = IssueFor(source);
                     var (pathStart, pathEnd) = SplitPath(source.Path);
-                    <li class="lib-folders__item" data-source="@source.Id" data-state="@(issue is null ? "online" : "offline")">
-                        @if (issue is null)
+                    <li class="lib-folders__item" data-source="@source.Id" data-state="@(Reachable(issue) ? "online" : "offline")">
+                        @if (Reachable(issue))
                         {
                             <AppTooltip Text="@ReachableWords">
                                 <span class="lib-folders__icon lib-folders__icon--ok" role="img" aria-label="@ReachableWords" data-folder-status="reachable"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /></span>
@@ -144,6 +144,10 @@
         if (cut <= 0 || path.Length - cut > PathEndLength) cut = path.Length - PathEndLength;
         return (path[..cut], path[cut..]);
     }
+
+    // A folder waiting for its lookup source is still reachable: it keeps the green check and says what it is waiting for (D4 keeps the triangle for folders
+    // Library cannot reach).
+    private static bool Reachable(string? issue) => issue is null or LibraryFolderHealth.WaitingForSource;
 
     // The short status word becomes a sentence that says what to try (D4, the folder status mock).
     private string ReasonText(string issue) => issue switch

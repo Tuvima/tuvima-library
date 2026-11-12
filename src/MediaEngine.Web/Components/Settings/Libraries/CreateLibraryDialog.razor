@@ -28,7 +28,7 @@
         <div class="create-library" data-step="@_step">
             @if (_step == 1)
             {
-                <div class="create-library__rows" role="group" aria-label="@L["Common_Area"].Value" data-area-rows>
+                <div class="create-library__rows" role="group" aria-label="@L["Common_Area"].Value" data-area-rows tabindex="-1" @ref="_rowsElement">
                     @foreach (var group in Areas)
                     {
                         <LibraryChoiceRow Key="@group.Key"
@@ -70,7 +70,7 @@
                 }
                 else
                 {
-                    <div class="create-library__rows" role="group" aria-label="@L["Common_ContentType"].Value" data-kind-rows>
+                    <div class="create-library__rows" role="group" aria-label="@L["Common_ContentType"].Value" data-kind-rows tabindex="-1" @ref="_rowsElement">
                         @foreach (var kind in KindsOfArea)
                         {
                             var availability = AvailabilityOf(kind);
@@ -417,6 +417,29 @@
         _step = wanted is not null ? 3 : _areaChosen ? 2 : 1;
     }
 
+    // After an area row moves the window on, keyboard focus goes to the new list instead of dropping to the page.
+    private ElementReference _rowsElement;
+    private bool _focusRows;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusRows) return;
+        _focusRows = false;
+        if (_step is not (1 or 2)) return;
+        try
+        {
+            await _rowsElement.FocusAsync(preventScroll: true);
+        }
+        catch (JSException)
+        {
+            // The list was already replaced by the next step; there is nothing to focus.
+        }
+        catch (InvalidOperationException)
+        {
+            // A host without a browser (prerender, tests): focus is a nicety, not a requirement.
+        }
+    }
+
     // Choosing an area row moves on to its kinds at once.
     private async Task PickAreaAsync(string area)
     {
@@ -424,6 +447,7 @@
         if (_saving) return;
         _returned = false;
         _step = 2;
+        _focusRows = true;
     }
 
     // Choosing a kind row moves on at once: to the folder step, or to the View folder pop-up for a View kind.

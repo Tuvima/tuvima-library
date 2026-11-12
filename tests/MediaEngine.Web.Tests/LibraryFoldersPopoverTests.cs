@@ -57,6 +57,16 @@ public sealed class LibraryFoldersPopoverTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AFolderWaitingForItsSourceKeepsTheGreenCheckAndSaysWhatItWaitsFor()
+    {
+        var cut = OpenWith(new FolderListItem("a", "Z:\\Media\\Movies", Issue: "Waiting for a source", Managed: false));
+
+        Assert.Equal("reachable", cut.Find("li [data-folder-status]").GetAttribute("data-folder-status"));
+        Assert.Equal("Waiting for a source", Text(cut.Find("li [data-folder-reason]")));
+        Assert.Equal("online", cut.Find("li").GetAttribute("data-state"));
+    }
+
+    [Fact]
     public void AReadOnlyFolderShowsTheLockAndAManagedFolderShowsThePencilEachWithAName()
     {
         var cut = OpenWith(

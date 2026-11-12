@@ -307,12 +307,14 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     // ----- The Vault step (packet 8) ---------------------------------------------------------------------------------------------
 
     private readonly List<bool> _vaultFinished = [];
+    private int _vaultTurnedOn;
 
     private IRenderedComponent<SetupVaultOffer> RenderOffer() => Render<SetupVaultOffer>(parameters => parameters
         .Add(x => x.ProfileId, _me)
         .Add(x => x.AdministratorHasPin, _hasPin)
         .Add(x => x.SetupSession, Session)
-        .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn))));
+        .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn)))
+            .Add(x => x.TurnedOn, EventCallback.Factory.Create(this, () => _vaultTurnedOn++)));
 
     private static AngleSharp.Dom.IElement Button(IRenderedComponent<SetupVaultOffer> cut, string text) => cut.FindAll("button").Single(x => Text(x) == text);
 
@@ -371,7 +373,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
             .Add(x => x.AdministratorHasPin, _hasPin)
             .Add(x => x.SetupSession, Session)
             .Add(x => x.Back, EventCallback.Factory.Create(this, () => wentBack++))
-            .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn))));
+            .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn)))
+            .Add(x => x.TurnedOn, EventCallback.Factory.Create(this, () => _vaultTurnedOn++)));
 
         var footer = cut.Find("[data-setup-vault] footer.setup-stage__footer");
         Assert.Equal("Back", Text(footer.QuerySelector(":scope > .app-button")!));
@@ -445,7 +448,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
             .Add(x => x.AdministratorHasPin, _hasPin)
             .Add(x => x.SetupSession, Session)
             .Add(x => x.AlreadyOn, alreadyOn)
-            .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn)));
+            .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn)))
+            .Add(x => x.TurnedOn, EventCallback.Factory.Create(this, () => _vaultTurnedOn++));
         if (back is { } goBack) parameters.Add(x => x.Back, goBack);
     });
 
@@ -481,6 +485,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         Assert.Equal("Your Vault is on", Text(cut.Find("h2")));
         Assert.Equal("On the next step, press Add library and choose Vault to add a private library.", Text(cut.Find("[data-vault-note]")));
+        // Already on: nothing is recorded again.
+        Assert.Equal(0, _vaultTurnedOn);
         Assert.Equal("You can turn the Vault off later in Settings.", Text(cut.Find("[data-vault-off-later]")));
         Assert.Empty(cut.FindAll("input"));
         Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Turn on the Vault" or "Not now" or "Skip PIN");
@@ -579,6 +585,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         // The Vault step has no add controls of its own: private libraries are added from the one Add library list (the Vault row).
         Assert.Empty(cut.FindAll(".setup-area"));
         Assert.Equal("On the next step, press Add library and choose Vault to add a private library.", Text(cut.Find("[data-vault-note]")));
+        // The answer is handed over the moment the Vault is on, before Continue, so Back or the step list cannot leave it as skipped.
+        Assert.Equal(1, _vaultTurnedOn);
         Assert.Equal(["Continue"], cut.FindAll("footer button").Select(Text).ToArray());
         Assert.Contains("stays out of the menu", cut.Markup, StringComparison.Ordinal);
 
