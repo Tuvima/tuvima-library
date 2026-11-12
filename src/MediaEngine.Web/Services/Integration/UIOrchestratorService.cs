@@ -588,8 +588,8 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     /// <summary>Returns one page of the Needs Review list (review items and unmatched files together), or the reason it could not be loaded.</summary>
     public Task<NeedsReviewListAttempt> GetNeedsReviewListAsync(
-        string? kind, string? libraryId, int skip, int take, CancellationToken ct = default)
-        => _api.GetNeedsReviewListAsync(kind, libraryId, skip, take, ct);
+        string? libraryId, int skip, int take, bool kept = false, CancellationToken ct = default)
+        => _api.GetNeedsReviewListAsync(libraryId, skip, take, kept, ct);
 
     /// <summary>Returns a single review item.</summary>
     public Task<ReviewItemViewModel?> GetReviewItemAsync(
@@ -606,6 +606,18 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             await RefreshReviewCountSnapshotAsync(ct);
             _state.Invalidate();
         }
+        return ok;
+    }
+
+    /// <summary>Puts back a review item a person kept, so it waits in Needs Review again.</summary>
+    public async Task<bool> ReopenReviewAsync(Guid id, CancellationToken ct = default)
+    {
+        var ok = await _api.ReopenReviewItemAsync(id, ct);
+        if (ok)
+        {
+            await RefreshReviewCountSnapshotAsync(ct);
+        }
+
         return ok;
     }
 

@@ -58,7 +58,6 @@ public static class ReviewEndpoints
 
         // ── GET /review/queue ────────────────────────────────────────────────
         group.MapGet("/queue", async (
-            string? kind,
             string? library,
             int? skip,
             int? take,
@@ -70,7 +69,7 @@ public static class ReviewEndpoints
         {
             // One list for review items and unmatched files (universal editor v3, WP7). The unmatched files are an administrator's list.
             var includeFiles = UnmatchedScope.For(await authorities.ResolveAsync(http, ct)).AllLibraries;
-            return Results.Ok(await list.ListAsync(kind, library, includeFiles, skip ?? 0, Math.Clamp(take ?? 100, 1, 500), kept ?? false, ct));
+            return Results.Ok(await list.ListAsync(library, includeFiles, skip ?? 0, Math.Clamp(take ?? 100, 1, 500), kept ?? false, ct));
         })
         .WithName("GetNeedsReviewList")
         .WithSummary("Needs Review as one list: review items and files that could not be matched, grouped by what the person must do (ready, choose, no_match, file_problem) with a family's rows together, filtered by library. kept=true returns only the items a person kept.")

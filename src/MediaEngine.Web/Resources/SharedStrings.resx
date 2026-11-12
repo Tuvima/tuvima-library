@@ -1478,18 +1478,6 @@
   <data name="LibraryConfigurableTable_NoItemsMatchYourCurrent" xml:space="preserve">
     <value>No items match your current filters.</value>
   </data>
-  <data name="MovieAsTvSuggestionCard_FoundAsATVTitle" xml:space="preserve">
-    <value>Found as a TV title</value>
-  </data>
-  <data name="MovieAsTvSuggestionCard_MoveToTV" xml:space="preserve">
-    <value>Move to TV</value>
-  </data>
-  <data name="MovieAsTvSuggestionCard_SearchAgain" xml:space="preserve">
-    <value>Search again</value>
-  </data>
-  <data name="MovieAsTvSuggestionCard_KeepAsUnmatchedFilm" xml:space="preserve">
-    <value>Keep as unmatched film</value>
-  </data>
   <data name="Common_Lyrics" xml:space="preserve">
     <value>Lyrics</value>
   </data>
@@ -5610,13 +5598,7 @@
     <value>Invalidate benchmark</value>
   </data>
   <data name="NeedsReviewPageContent_NeedsReviewCouldNotLoad" xml:space="preserve">
-    <value>Needs Review could not load. Nothing was changed.</value>
-  </data>
-  <data name="NeedsReviewPageContent_NoItemsNeedReview" xml:space="preserve">
-    <value>No items need review</value>
-  </data>
-  <data name="NeedsReviewPageContent_AddedAgo" xml:space="preserve">
-    <value>{0} · Added {1} ago</value>
+    <value>Needs Review could not be loaded.</value>
   </data>
   <data name="NeedsReviewPageContent_NeedsReviewIsForServer" xml:space="preserve">
     <value>Needs Review is for server administrators</value>
@@ -5628,31 +5610,10 @@
     <value>Needs Review search</value>
   </data>
   <data name="NeedsReviewPageContent_SearchItemsNeedingReview" xml:space="preserve">
-    <value>Search items needing review...</value>
-  </data>
-  <data name="NeedsReviewPageContent_ItemsThatNeedReview" xml:space="preserve">
-    <value>Items that need review</value>
-  </data>
-  <data name="NeedsReviewPageContent_NoReviewItemsMatchThe" xml:space="preserve">
-    <value>No review items match the search</value>
-  </data>
-  <data name="NeedsReviewPageContent_TheFullUnresolvedQueueRemains" xml:space="preserve">
-    <value>The full unresolved queue remains available when the search is cleared.</value>
-  </data>
-  <data name="NeedsReviewPageContent_FromTheImportFolder" xml:space="preserve">
-    <value>From the Import folder</value>
+    <value>Search items that need review</value>
   </data>
   <data name="Common_Review" xml:space="preserve">
     <value>Review</value>
-  </data>
-  <data name="NeedsReviewPageContent_FindInRecentHistory" xml:space="preserve">
-    <value>Find in recent history</value>
-  </data>
-  <data name="NeedsReviewPageContent_KeepProviderMatch" xml:space="preserve">
-    <value>Keep provider match</value>
-  </data>
-  <data name="NeedsReviewPageContent_DismissFromReview" xml:space="preserve">
-    <value>Dismiss from review</value>
   </data>
   <data name="NetworkOverviewPanel_TestConnection" xml:space="preserve">
     <value>Test Connection</value>
@@ -7940,9 +7901,6 @@
   <data name="MetadataSettingsPage_StartTheEngineAndRetry" xml:space="preserve">
     <value>Start the Engine and retry. No sample provider state is being shown.</value>
   </data>
-  <data name="NeedsReviewPageContent_ReviewItemCouldNotBe" xml:space="preserve">
-    <value>Review item could not be dismissed.</value>
-  </data>
   <data name="NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe" xml:space="preserve">
     <value>Network settings could not be saved.</value>
   </data>
@@ -9074,80 +9032,14 @@
   <data name="PlaybackSettingsPage_ChapterMarksHint" xml:space="preserve">
     <value>Off for video and on for audiobooks until you choose.</value>
   </data>
-  <data name="NeedsReviewList_ShowAriaLabel" xml:space="preserve">
-    <value>Show</value>
-  </data>
   <data name="NeedsReviewList_Library" xml:space="preserve">
     <value>Library</value>
   </data>
   <data name="NeedsReviewList_AllLibraries" xml:space="preserve">
     <value>All libraries</value>
   </data>
-  <data name="NeedsReviewList_TryAgainAll" xml:space="preserve">
-    <value>Try again for all</value>
-  </data>
-  <data name="NeedsReviewList_KeepAll" xml:space="preserve">
-    <value>Keep all as they are</value>
-  </data>
-  <data name="NeedsReviewList_KeepAllTitle" xml:space="preserve">
-    <value>Keep all as they are?</value>
-  </data>
-  <data name="NeedsReviewList_KeepAllMessage" xml:space="preserve">
-    <value>{0} items will be left as they are. Files stop being looked up again, and items the Engine was unsure about leave this list.</value>
-  </data>
-  <data name="NeedsReviewList_KeepAllConfirm" xml:space="preserve">
-    <value>Keep all</value>
-  </data>
-  <data name="NeedsReviewList_KeepAllCancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="NeedsReviewList_Caption" xml:space="preserve">
-    <value>Items that need review, with why, the best guess and when each was last tried</value>
-  </data>
-  <data name="NeedsReviewList_Picture" xml:space="preserve">
-    <value>Picture</value>
-  </data>
-  <data name="NeedsReviewList_Today" xml:space="preserve">
-    <value>Today</value>
-  </data>
-  <data name="NeedsReviewList_Yesterday" xml:space="preserve">
-    <value>Yesterday</value>
-  </data>
-  <data name="NeedsReviewList_DaysAgo" xml:space="preserve">
-    <value>{0} days ago</value>
-  </data>
-  <data name="NeedsReviewList_NotYet" xml:space="preserve">
-    <value>Not yet</value>
-  </data>
-  <data name="NeedsReviewList_Item" xml:space="preserve">
-    <value>Item</value>
-  </data>
-  <data name="NeedsReviewList_Why" xml:space="preserve">
-    <value>Why</value>
-  </data>
-  <data name="NeedsReviewList_BestGuess" xml:space="preserve">
-    <value>Best guess</value>
-  </data>
-  <data name="NeedsReviewList_LastTried" xml:space="preserve">
-    <value>Last tried</value>
-  </data>
   <data name="NeedsReviewList_Fix" xml:space="preserve">
     <value>Fix</value>
-  </data>
-  <data name="NeedsReviewList_All" xml:space="preserve">
-    <value>All</value>
-  </data>
-  <data name="NeedsReviewList_NotMatched" xml:space="preserve">
-    <value>Not matched</value>
-  </data>
-  <data name="NeedsReviewList_NotSure" xml:space="preserve">
-    <value>Not sure</value>
-  </data>
-  <data name="NeedsReviewList_NothingNotMatched" xml:space="preserve">
-    <value>Every file has been matched.</value>
-  </data>
-  <data name="NeedsReviewList_NothingNotSure" xml:space="preserve">
-    <value>Nothing the Engine is unsure about.</value>
   </data>
   <data name="NeedsReviewList_MoreCouldNotBeLoaded" xml:space="preserve">
     <value>More items could not be loaded. Try again in a moment.</value>
@@ -9155,14 +9047,8 @@
   <data name="NeedsReviewList_UseThis" xml:space="preserve">
     <value>Use this</value>
   </data>
-  <data name="NeedsReviewList_None" xml:space="preserve">
-    <value>None</value>
-  </data>
   <data name="NeedsReviewList_KeepAsItIs" xml:space="preserve">
     <value>Keep as it is</value>
-  </data>
-  <data name="NeedsReviewList_RemoveFromLibrary" xml:space="preserve">
-    <value>Remove from library</value>
   </data>
   <data name="TopNavAccountMenu_NeedsReviewCount" xml:space="preserve">
     <value>{0} need review</value>
@@ -13540,5 +13426,227 @@
   </data>
   <data name="NeedsReviewReason_RetryNever" xml:space="preserve">
     <value>Will not try again by itself</value>
+  </data>
+  <data name="NeedsReviewPage_SummaryOne" xml:space="preserve">
+    <value>1 item needs review</value>
+  </data>
+  <data name="NeedsReviewPage_SummaryMany" xml:space="preserve">
+    <value>{0} items need review</value>
+  </data>
+  <data name="NeedsReviewPage_SummaryHint" xml:space="preserve">
+    <value>Everything else in your Library is matched and filed.</value>
+  </data>
+  <data name="NeedsReviewPage_EmptyTitle" xml:space="preserve">
+    <value>Nothing needs review</value>
+  </data>
+  <data name="NeedsReviewPage_EmptyMessage" xml:space="preserve">
+    <value>Library will list items here when it is not sure about them.</value>
+  </data>
+  <data name="NeedsReviewPage_NoMatchSearch" xml:space="preserve">
+    <value>No items match "{0}"</value>
+  </data>
+  <data name="NeedsReviewPage_NoMatchFilter" xml:space="preserve">
+    <value>No items match this filter</value>
+  </data>
+  <data name="NeedsReviewPage_StillNeedOne" xml:space="preserve">
+    <value>1 item still needs review.</value>
+  </data>
+  <data name="NeedsReviewPage_StillNeedMany" xml:space="preserve">
+    <value>{0} items still need review.</value>
+  </data>
+  <data name="NeedsReviewPage_Importing" xml:space="preserve">
+    <value>Library is still working on {0} files, so more items may appear here.</value>
+  </data>
+  <data name="NeedsReviewPage_ImportingOne" xml:space="preserve">
+    <value>Library is still working on 1 file, so more items may appear here.</value>
+  </data>
+  <data name="NeedsReviewPage_ViewActivity" xml:space="preserve">
+    <value>View Activity</value>
+  </data>
+  <data name="NeedsReviewPage_Loading" xml:space="preserve">
+    <value>Loading Needs Review</value>
+  </data>
+  <data name="NeedsReviewPage_NoListReturned" xml:space="preserve">
+    <value>The Engine did not return the review list.</value>
+  </data>
+  <data name="NeedsReviewPage_KeptCouldNotBeLoaded" xml:space="preserve">
+    <value>The kept items could not be loaded.</value>
+  </data>
+  <data name="NeedsReviewGroup_Ready" xml:space="preserve">
+    <value>Ready to confirm</value>
+  </data>
+  <data name="NeedsReviewGroup_Choose" xml:space="preserve">
+    <value>Choose a match</value>
+  </data>
+  <data name="NeedsReviewGroup_NoMatch" xml:space="preserve">
+    <value>No match found</value>
+  </data>
+  <data name="NeedsReviewGroup_FileProblem" xml:space="preserve">
+    <value>File problems</value>
+  </data>
+  <data name="NeedsReviewKind_Movie" xml:space="preserve">
+    <value>Movie</value>
+  </data>
+  <data name="NeedsReviewKind_Episode" xml:space="preserve">
+    <value>Episode</value>
+  </data>
+  <data name="NeedsReviewKind_Book" xml:space="preserve">
+    <value>Book</value>
+  </data>
+  <data name="NeedsReviewKind_Audiobook" xml:space="preserve">
+    <value>Audiobook</value>
+  </data>
+  <data name="NeedsReviewKind_Song" xml:space="preserve">
+    <value>Song</value>
+  </data>
+  <data name="NeedsReviewKind_Comic" xml:space="preserve">
+    <value>Comic</value>
+  </data>
+  <data name="NeedsReviewFamily_Episodes" xml:space="preserve">
+    <value>{0} episodes</value>
+  </data>
+  <data name="NeedsReviewFamily_Songs" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="NeedsReviewFamily_Books" xml:space="preserve">
+    <value>{0} books</value>
+  </data>
+  <data name="NeedsReviewFamily_Issues" xml:space="preserve">
+    <value>{0} issues</value>
+  </data>
+  <data name="NeedsReviewFamily_Items" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="NeedsReviewFamily_FilesNeedReview" xml:space="preserve">
+    <value>{0} files need review</value>
+  </data>
+  <data name="NeedsReviewFamily_Show" xml:space="preserve">
+    <value>Show the files of {0}</value>
+  </data>
+  <data name="NeedsReviewFamily_Hide" xml:space="preserve">
+    <value>Hide the files of {0}</value>
+  </data>
+  <data name="NeedsReviewChoice_TvTitle" xml:space="preserve">
+    <value>{0} (TV, {1})</value>
+  </data>
+  <data name="NeedsReviewChoice_TvTitleNoYear" xml:space="preserve">
+    <value>{0} (TV)</value>
+  </data>
+  <data name="NeedsReviewChoice_OneSeason" xml:space="preserve">
+    <value>1 season</value>
+  </data>
+  <data name="NeedsReviewChoice_Seasons" xml:space="preserve">
+    <value>{0} seasons</value>
+  </data>
+  <data name="NeedsReviewChoice_OneEpisode" xml:space="preserve">
+    <value>1 episode</value>
+  </data>
+  <data name="NeedsReviewChoice_Episodes" xml:space="preserve">
+    <value>{0} episodes</value>
+  </data>
+  <data name="NeedsReviewChoice_MoveToTv" xml:space="preserve">
+    <value>Move to TV</value>
+  </data>
+  <data name="NeedsReviewChoice_KeepAsFilm" xml:space="preserve">
+    <value>Keep as a film</value>
+  </data>
+  <data name="NeedsReviewChoice_KeepAsFilmDetail" xml:space="preserve">
+    <value>Stays in Movies with its file details</value>
+  </data>
+  <data name="NeedsReviewChoice_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="NeedsReviewRow_UnknownTitle" xml:space="preserve">
+    <value>Unknown title</value>
+  </data>
+  <data name="NeedsReviewRow_UseThisFor" xml:space="preserve">
+    <value>Use this for {0}</value>
+  </data>
+  <data name="NeedsReviewRow_FixFor" xml:space="preserve">
+    <value>Fix {0}</value>
+  </data>
+  <data name="NeedsReviewRow_TryAgainFor" xml:space="preserve">
+    <value>Try again for {0}</value>
+  </data>
+  <data name="NeedsReviewRow_MoreActions" xml:space="preserve">
+    <value>More actions for {0}</value>
+  </data>
+  <data name="NeedsReviewRow_ChoiceAria" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="NeedsReviewRow_PercentSure" xml:space="preserve">
+    <value>{0}% sure</value>
+  </data>
+  <data name="NeedsReviewRow_KeepAsTheyAre" xml:space="preserve">
+    <value>Keep as they are</value>
+  </data>
+  <data name="NeedsReviewRow_ShowInActivity" xml:space="preserve">
+    <value>Show in Activity</value>
+  </data>
+  <data name="NeedsReviewRow_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="NeedsReviewRow_SubjectMany" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="NeedsReviewRow_DoneMatched" xml:space="preserve">
+    <value>{0} matched to {1}</value>
+  </data>
+  <data name="NeedsReviewRow_DoneMovedToTv" xml:space="preserve">
+    <value>{0} moved to TV</value>
+  </data>
+  <data name="NeedsReviewRow_DoneKept" xml:space="preserve">
+    <value>{0} kept as it is</value>
+  </data>
+  <data name="NeedsReviewRow_DoneKeptMany" xml:space="preserve">
+    <value>{0} kept as they are</value>
+  </data>
+  <data name="NeedsReviewRow_DoneDeleted" xml:space="preserve">
+    <value>{0} deleted</value>
+  </data>
+  <data name="NeedsReviewRow_DoneRetry" xml:space="preserve">
+    <value>{0}: trying again</value>
+  </data>
+  <data name="NeedsReviewRow_FailMatch" xml:space="preserve">
+    <value>{0} could not be matched.</value>
+  </data>
+  <data name="NeedsReviewRow_FailMoveToTv" xml:space="preserve">
+    <value>{0} could not be moved to TV.</value>
+  </data>
+  <data name="NeedsReviewRow_FailKeep" xml:space="preserve">
+    <value>{0} could not be kept as it is.</value>
+  </data>
+  <data name="NeedsReviewRow_FailRetry" xml:space="preserve">
+    <value>{0} could not be tried again.</value>
+  </data>
+  <data name="NeedsReviewRow_FailDelete" xml:space="preserve">
+    <value>{0} could not be deleted.</value>
+  </data>
+  <data name="NeedsReviewRow_FailPutBack" xml:space="preserve">
+    <value>{0} could not be put back.</value>
+  </data>
+  <data name="NeedsReviewRow_TryAgainInAMoment" xml:space="preserve">
+    <value>Try again in a moment.</value>
+  </data>
+  <data name="NeedsReviewKept_Hidden" xml:space="preserve">
+    <value>{0} items are hidden because you kept them as they are.</value>
+  </data>
+  <data name="NeedsReviewKept_HiddenOne" xml:space="preserve">
+    <value>1 item is hidden because you kept it as it is.</value>
+  </data>
+  <data name="NeedsReviewKept_Show" xml:space="preserve">
+    <value>Show them</value>
+  </data>
+  <data name="NeedsReviewKept_Hide" xml:space="preserve">
+    <value>Hide them</value>
+  </data>
+  <data name="NeedsReviewKept_Title" xml:space="preserve">
+    <value>Kept as they are</value>
+  </data>
+  <data name="NeedsReviewKept_PutBack" xml:space="preserve">
+    <value>Put back</value>
+  </data>
+  <data name="NeedsReviewKept_PutBackFor" xml:space="preserve">
+    <value>Put back {0}</value>
   </data>
 </root>

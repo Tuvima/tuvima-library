@@ -3,41 +3,86 @@
 @inject UIOrchestratorService Orchestrator
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Review
+@using MediaEngine.Web.Components.Settings.NeedsReview
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Theming
 @inject IEngineApiClient Api
-@inject IServiceProvider Services
 @inject ListEditLauncher EditLauncher
 @inject EditorHost Editor
 @inject DeviceContextService Device
 @inject NavigationManager Nav
 @inject IAppDialogService Dialogs
 @inject DashboardSessionAccessor Session
+@inject UniverseStateContainer State
 @inject IStringLocalizer<SharedStrings> L
 
-@* Settings, Needs Review: ONE list for everything the Engine wants a person to look at (universal editor v3 D9, option B). It holds both the items
-   the Engine identified but is not sure about ("Not sure") and the files it could not identify at all ("Not matched"); the title and breadcrumb
-   come from the Settings frame. Why says which, with the real trigger in plain words; Best guess offers a one-click "Use this" where the Engine
-   has a single answer and a percent chip where it is only partly sure; Fix opens the pop-over editor over this list on Match. "Try again for
-   all" and "Keep all as they are" sit at the right of the filter row and act on the rows the filters leave (the approved mock, screen 2).
-   A row's own menu keeps what the mock's Fix cannot cover: Try again for one file, Keep as it is, Remove from library and the history
-   search. It is for server administrators only; everyone else gets no list and no review-list request. *@
+@* Settings, Needs Review (spec needs-review-redesign): ONE list for everything the Engine wants a person to look at, split by what the person
+   must do: Ready to confirm, Choose a match, No match found, File problems. This host owns loading, the filters, the states and every action;
+   the parts in NeedsReview/ draw the groups, rows, families and choices and ask this page (NeedsReviewActions) to act. Fix opens the pop-over
+   editor over this list on Match. A finished row becomes one quiet line, a failed one shows its reason under it (no toasts). The list is for
+   server administrators only; everyone else gets no list and no review-list request. *@
 <div class="needs-review-page" data-testid="needs-review">
     @if (!CanViewReview)
     {
         <AppEmptyState Title="@L["NeedsReviewPageContent_NeedsReviewIsForServer"].Value"
                        Message="@L["NeedsReviewPageContent_AskAServerAdministratorTo"].Value" />
     }
+    else if (_loading && !_model.HasRows)
+    {
+        <div class="needs-review-page__loading" role="status" aria-label="@L["NeedsReviewPage_Loading"].Value" data-testid="needs-review-loading">
+            <AppSkeleton Width="180px" Height="18px" />
+            <div class="needs-review-page__skeleton-list">
+                @for (var placeholder = 0; placeholder < 3; placeholder++)
+                {
+                    <div class="needs-review-page__skeleton-row">
+                        <AppSkeleton Width="44px" Height="64px" />
+                        <div class="needs-review-page__skeleton-text">
+                            <AppSkeleton Width="40%" Height="12px" />
+                            <AppSkeleton Width="65%" Height="12px" />
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error">
+            <span class="review-load-error">
+                <span>@L["NeedsReviewPageContent_NeedsReviewCouldNotLoad"]</span>
+                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="LoadAsync" />
+            </span>
+        </AppAlert>
+    }
+    else if (!_model.HasRows && !HasFilter)
+    {
+        <div class="needs-review-page__empty" data-testid="needs-review-empty">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Choice48" />
+            <strong>@L["NeedsReviewPage_EmptyTitle"]</strong>
+            <span>@L["NeedsReviewPage_EmptyMessage"]</span>
+        </div>
+        @KeptBlock
+    }
     else
     {
+        <div class="needs-review-page__summary" data-testid="needs-review-summary">
+            <span class="needs-review-page__count">@SummaryText</span>
+            <span class="needs-review-page__hint">@L["NeedsReviewPage_SummaryHint"]</span>
+        </div>
+
+        @if (ImportRemaining is { } remaining)
+        {
+            <div class="needs-review-page__note" data-testid="needs-review-importing">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppIconSize.Control20" />
+                <span>@(remaining == 1 ? L["NeedsReviewPage_ImportingOne"].Value : L["NeedsReviewPage_Importing", remaining].Value)</span>
+                <AppButton Label="@L["NeedsReviewPage_ViewActivity"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Href="/settings/library-activity" />
+            </div>
+        }
+
         <AppFilterRow Class="needs-review-page__filters" AriaLabel="@L["NeedsReviewPageContent_NeedsReviewSearch"].Value">
-            <AppSegmentedControl Options="@KindOptions"
-                                 Value="@KindKey"
-                                 ValueChanged="OnKindChanged"
-                                 AriaLabel="@L["NeedsReviewList_ShowAriaLabel"].Value"
-                                 Class="needs-review-page__kinds" />
-            @if (_libraryOptions.Count > 1)
+            @if (_libraryOptions.Count > 2)
             {
                 <AppSelect T="string"
                            Label="@L["NeedsReviewList_Library"].Value"
@@ -45,262 +90,75 @@
                            Value="@(Library ?? AllLibrariesKey)"
                            ValueChanged="OnLibraryChanged"
                            Options="@_libraryOptions"
-                           FullWidth="false"
-                           Class="needs-review-page__library" />
+                           FullWidth="false" />
             }
-            <AppTextField Value="@_search"
-                          ValueChanged="OnSearchChanged"
-                          Label="@L["NeedsReviewPageContent_SearchItemsNeedingReview"].Value"
-                          HideLabel="true"
-                          Placeholder="@L["NeedsReviewPageContent_SearchItemsNeedingReview"].Value"
-                          Adornment="AppAdornment.Start"
-                          AdornmentIcon="@AppMaterialIcons.Outlined.Search"
-                          Class="needs-review-page__search" />
-            @if (!_loading && _error is null && VisibleRows.Count > 0)
-            {
-                @* Both act on the rows the filters and the search leave, never on rows that are hidden. *@
-                <div class="needs-review-page__bulk" data-testid="needs-review-bulk">
-                    <AppButton Label="@L["NeedsReviewList_TryAgainAll"].Value"
-                               ButtonStyle="AppButtonStyle.Text"
-                               Size="AppControlSize.Compact"
-                               Disabled="@(_busy || VisibleRows.Count(CanTryAgain) == 0)"
-                               OnClick="TryAgainAllAsync" />
-                    <span class="needs-review-page__bulk-dot" aria-hidden="true">·</span>
-                    <AppButton Label="@L["NeedsReviewList_KeepAll"].Value"
-                               ButtonStyle="AppButtonStyle.Text"
-                               Size="AppControlSize.Compact"
-                               Disabled="@_busy"
-                               OnClick="KeepAllAsync" />
-                </div>
-            }
+            <div class="needs-review-page__search">
+                <AppTextField Value="@_search"
+                              ValueChanged="OnSearchChanged"
+                              Label="@L["NeedsReviewPageContent_SearchItemsNeedingReview"].Value"
+                              HideLabel="true"
+                              Placeholder="@L["NeedsReviewPageContent_SearchItemsNeedingReview"].Value"
+                              Adornment="AppAdornment.Start"
+                              AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
+            </div>
         </AppFilterRow>
 
-        @if (_loading && _rows.Count == 0)
+        @if (_actionError is not null)
         {
-            <AppProgressBar Indeterminate="true" />
+            <AppAlert Tone="AppUiTone.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _actionError = null; })" data-review-load-more-failure>@_actionError</AppAlert>
         }
-        else if (_error is not null)
+
+        @if (_model.MatchingRows(_search) == 0)
         {
-            <AppAlert Tone="AppUiTone.Error">
-                <span class="review-load-error">
-                    <span>@L["NeedsReviewPageContent_NeedsReviewCouldNotLoad"]</span>
-                    <AppButton Label="@L["Common_Retry"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="LoadAsync" />
-                </span>
-            </AppAlert>
-        }
-        else if (_rows.Count == 0)
-        {
-            <div class="review-pinned-empty" data-testid="needs-review-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>@EmptyText</span></div>
+            <div class="needs-review-page__nomatch" data-testid="needs-review-no-match">
+                <strong>@NoMatchTitle</strong>
+                <span>@StillNeedText</span>
+            </div>
         }
         else
         {
-            @if (_actionError is not null)
+            @foreach (var section in _model.Sections(_search))
             {
-                <AppAlert Tone="_actionTone" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _actionError = null; })" data-review-failure>@_actionError</AppAlert>
-            }
-
-            <section class="review-pinned" aria-label="@L["NeedsReviewPageContent_ItemsThatNeedReview"].Value">
-                @if (VisibleRows.Count == 0)
-                {
-                    <AppEmptyState Title="@L["NeedsReviewPageContent_NoReviewItemsMatchThe"].Value" Message="@L["NeedsReviewPageContent_TheFullUnresolvedQueueRemains"].Value" />
-                }
-                else
-                {
-                    <AppTable Hover="true" Dense="true" CardsOn="AppTableCardsMode.Phone" Class="needs-review-table">
-                        <caption class="sr-only">@L["NeedsReviewList_Caption"]</caption>
-                        <thead>
-                            <tr>
-                                <th class="needs-review-table__thumb-cell"><span class="sr-only">@L["NeedsReviewList_Picture"]</span></th>
-                                <th>@L["NeedsReviewList_Item"]</th>
-                                <th>@L["NeedsReviewList_Why"]</th>
-                                <th>@L["NeedsReviewList_BestGuess"]</th>
-                                <th>@L["NeedsReviewList_LastTried"]</th>
-                                <th><span class="sr-only">@L["NeedsReviewList_Fix"]</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in VisibleRows)
-                            {
-                                @* One row that cannot be drawn shows a "couldn't be shown" row; the rest of the list stays usable. *@
-                                <AppRowErrorBoundary @key="row.Key" ItemTitle="@TitleOf(row)" ResetKey="@row">
-                                    <ErrorContent>
-                                        <tr data-testid="row-error"><td colspan="6"><strong>@AppRowErrorBoundary.Headline</strong> <small>@TitleOf(row)</small></td></tr>
-                                    </ErrorContent>
-                                    <ChildContent>
-                                    @{
-            var model = _reviewModels.GetValueOrDefault(row.Key);
-            var issue = model is null ? null : ReviewIssueClassifier.Classify(model.Trigger);
-            var tvSuggestion = model is not null && model.Trigger == MovieTvSuggestionReader.Trigger ? MovieTvSuggestionReader.Read(model.CandidatesJson) : null;
-            var busy = _busyKeys.Contains(row.Key);
-            var title = TitleOf(row);
-                                    }
-                                <tr class="needs-review-table__row" data-key="@row.Key" data-kind="@row.Kind">
-                                    <td class="needs-review-table__thumb-cell">
-                                        @* A small picture when the Engine has one; a dark square otherwise (a file it could not match has none). *@
-                                        <span class="needs-review-table__thumb" aria-hidden="true">
-                                            @if (ThumbnailOf(row) is { } image)
-                                            {
-                                                <AppImage Src="@image" Alt="" Width="44" Height="44" ObjectFit="AppObjectFit.Cover" Class="needs-review-table__thumb-img" />
-                                            }
-                                        </span>
-                                    </td>
-                                    <td class="needs-review-table__item">
-                                        <strong class="needs-review-table__title">@title</strong>
-                                        @* The kind, then ONE line for where the file sits: the last two folder names, the full path in the shared tooltip. *@
-                                        @if (row.Review is { } reviewed)
-                                        {
-                                            <small>@L["NeedsReviewPageContent_AddedAgo", MediaLabel(row), RelativeAge(reviewed.CreatedAt)]</small>
-                                        }
-                                        else if (row.Unmatched is { } file)
-                                        {
-                                            @if (!string.IsNullOrWhiteSpace(row.LibraryName))
-                                            {
-                                                <small>@row.LibraryName</small>
-                                            }
-                                            @if (string.IsNullOrWhiteSpace(file.Folder))
-                                            {
-                                                <small class="needs-review-table__path">@file.FileName</small>
-                                            }
-                                            else
-                                            {
-                                                <AppTooltip Text="@file.Folder" Class="needs-review-table__path-tip">
-                                                    <small class="needs-review-table__path" data-testid="needs-review-path">@ShortFolder(file.Folder)</small>
-                                                </AppTooltip>
-                                            }
-                                        }
-                                        @if (row.Review is { FromImportFolder: true } or { FromMerge: true })
-                                        {
-                                            <span class="review-row__badges">
-                                                @if (row.Review!.FromImportFolder){<AppStatusBadge Text="@L["NeedsReviewPageContent_FromTheImportFolder"].Value" Tone="AppUiTone.Info" />}
-                                                @if (row.Review.FromMerge){<AppStatusBadge Text="@L["Common_FromMerge"].Value" Tone="AppUiTone.Info" />}
-                                            </span>
-                                        }
-                                    </td>
-                                    <td class="needs-review-table__why">
-                                        <AppStatusBadge Text="@(row.Kind == NeedsReviewKinds.NotMatched ? L["NeedsReviewList_NotMatched"].Value : L["NeedsReviewList_NotSure"].Value)"
-                                                        Tone="@(row.Kind == NeedsReviewKinds.NotMatched ? AppUiTone.Error : AppUiTone.Warning)" />
-                                        @if (model is not null && issue is not null)
-                                        {
-                                            <strong>@issue.Label</strong>
-                                            <small>@ReviewIssuePresentationBuilder.Build(model).QueueExplanation.</small>
-                                        }
-                                        else if (row.Unmatched is { } unmatched)
-                                        {
-                                            <small>@UnmatchedReasonText(unmatched)</small>
-                                        }
-                                    </td>
-                                    <td class="needs-review-table__guess">
-                                        @* The Engine's one-click answer (clear cases), or what it matched so far with how sure it is, or None. *@
-                                        @if (row.BestGuess is { } guess && model is not null)
-                                        {
-                                            <span class="needs-review-table__guess-name">@guess.Name@(string.IsNullOrWhiteSpace(guess.Year) ? null : $" ({guess.Year})")</span>
-                                            <AppButton Label="@L["NeedsReviewList_UseThis"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Success" Size="AppControlSize.Compact" Class="needs-review-table__use-this"
-                                                       Disabled="@busy" aria-label="@($"Use this for {title}")" OnClick="@(() => UseThisAsync(row, model, guess))" />
-                                        }
-                                        else if (PartialGuessOf(row, model) is { } partial)
-                                        {
-                                            <span class="needs-review-table__guess-name">@partial.Name</span>
-                                            <AppStatusBadge Text="@partial.Percent" Tone="AppUiTone.Neutral" Class="needs-review-table__confidence" />
-                                        }
-                                        else
-                                        {
-                                            <span class="needs-review-table__none">@L["NeedsReviewList_None"]</span>
-                                        }
-                                    </td>
-                                    <td class="needs-review-table__tried" data-label="@L["NeedsReviewList_LastTried"].Value">@LastTriedText(row.LastTriedAt)</td>
-                                    <td class="needs-review-table__actions">
-                                      <div class="needs-review-table__actions-row">
-                                        @if (tvSuggestion is null && CanFix(row))
-                                        {
-                                            <AppButton Label="@L["NeedsReviewList_Fix"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
-                                                       Disabled="@busy" aria-label="@($"Fix {title}")" OnClick="@(() => FixAsync(row))" />
-                                        }
-                                        <AppOverflowMenu AriaLabel="@($"More actions for {title}")" Size="AppControlSize.Compact">
-                                            <AppMenuItem Label="@L["NeedsReviewPageContent_FindInRecentHistory"].Value" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/library-activity?q={Uri.EscapeDataString(title)}"))" />
-                                            @if (model is not null && IsWikidataReview(model.Trigger))
-                                            {
-                                                <AppMenuItem Label="@L["NeedsReviewPageContent_KeepProviderMatch"].Value" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(row, model))" />
-                                            }
-                                            @if (CanTryAgain(row))
-                                            {
-                                                <AppMenuItem Label="@L["Common_TryAgain"].Value" Icon="@AppMaterialIcons.Outlined.Sync" OnClick="@(() => TryAgainAsync(row))" />
-                                            }
-                                            @if (row.Unmatched is not null)
-                                            {
-                                                <AppMenuItem Label="@L["NeedsReviewList_KeepAsItIs"].Value" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => KeepAsync(row))" />
-                                                @if (row.Unmatched.WorkId is not null && CanRemove)
-                                                {
-                                                    <AppMenuItem Label="@L["NeedsReviewList_RemoveFromLibrary"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="@(() => RemoveAsync(row))" />
-                                                }
-                                            }
-                                            else
-                                            {
-                                                <AppMenuItem Label="@L["NeedsReviewPageContent_DismissFromReview"].Value" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => KeepAsync(row))" />
-                                            }
-                                        </AppOverflowMenu>
-                                      </div>
-                                    </td>
-                                </tr>
-                                @if (tvSuggestion is not null && model is not null)
-                                {
-                                    <tr class="needs-review-table__suggestion" data-key="@row.Key">
-                                        <td colspan="6">
-                                            <MovieAsTvSuggestionCard Suggestion="@tvSuggestion"
-                                                                     Busy="@busy"
-                                                                     OnMoveToTv="@(() => MoveToTvAsync(row, model))"
-                                                                     OnSearchAgain="@(() => FixAsync(row))"
-                                                                     OnKeepAsFilm="@(() => KeepAsFilmAsync(row))" />
-                                        </td>
-                                    </tr>
-                                }
-                                    </ChildContent>
-                                </AppRowErrorBoundary>
-                            }
-                        </tbody>
-                    </AppTable>
-                }
-            </section>
-
-            @if (_rows.Count < _total)
-            {
-                <AppButton Label="@L["Common_ShowMore"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="LoadMoreAsync" />
+                <NeedsReviewGroupSection @key="section.Group" Section="@section" Model="@_model" Actions="@_actions" />
             }
         }
+
+        @if (_model.HasMore)
+        {
+            <div class="needs-review-page__more">
+                <AppButton Label="@L["Common_ShowMore"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="LoadMoreAsync" />
+            </div>
+        }
+
+        @KeptBlock
     }
 </div>
 
 @code {
     private const int PageSize = 500;
     private const string AllLibrariesKey = "all";
-    private const string KindAll = "all";
 
     [Parameter] public string? InitialSearch { get; set; }
 
-    /// <summary>The Id of the library the list is narrowed to (<c>?library=</c>, from a library's "N files not identified" or "N need review" link); null shows every library.</summary>
+    /// <summary>The Id of the library the list is narrowed to (<c>?library=</c>, from a library's "N need review" link); null shows every library.</summary>
     [Parameter] public string? Library { get; set; }
 
-    /// <summary>Which rows to show (<c>?show=</c>): <c>not-matched</c>, <c>not-sure</c> or <c>all</c> (null).</summary>
-    [Parameter] public string? Show { get; set; }
-
-    private readonly List<NeedsReviewRowDto> _rows = [];
-    private readonly Dictionary<string, ReviewItemViewModel> _reviewModels = [];
-    private readonly HashSet<string> _busyKeys = [];
+    private readonly NeedsReviewListModel _model = new();
+    private readonly NeedsReviewListModel _keptModel = new();
+    private readonly Dictionary<string, string> _libraryMediaTypes = new(StringComparer.OrdinalIgnoreCase);
+    private NeedsReviewActions _actions = default!;
     private IReadOnlyList<AppSelectOption> _libraryOptions = [];
-    private int _total;
-    private int _notMatchedTotal;
-    private int _notSureTotal;
     private string? _search;
     private string? _error;
     private string? _actionError;
-    private AppUiTone _actionTone = AppUiTone.Warning;
     private bool _loading = true;
     private bool _busy;
     private bool _initialized;
     private bool _disposed;
     private bool _awaitingFix;
+    private bool _showKept;
     private string? _loadedInitialSearch;
     private string? _loadedLibrary;
-    private string? _loadedShow;
 
     // Same rule as the account menu's Needs Review entry and the shell badge (MainLayout.CanViewReview).
     private bool CanViewReview => Session.HasNavigation("settings.administration");
@@ -308,36 +166,78 @@
     // Deleting is for an administrator on a desktop; the Engine checks again on every call.
     private bool CanRemove => LibraryItemDeletionFlow.CanDelete(Device, Session);
 
-    private string KindKey => Show switch
+    private bool HasFilter => !string.IsNullOrWhiteSpace(Library) || !string.IsNullOrWhiteSpace(_search);
+
+    private string SummaryText
     {
-        "not-matched" => NeedsReviewKinds.NotMatched,
-        "not-sure" => NeedsReviewKinds.NotSure,
-        _ => KindAll,
-    };
+        get
+        {
+            var waiting = _model.WaitingTotal;
+            return waiting == 1 ? L["NeedsReviewPage_SummaryOne"].Value : L["NeedsReviewPage_SummaryMany", waiting.ToString("N0")].Value;
+        }
+    }
 
-    private IReadOnlyList<AppSelectOption> KindOptions =>
-    [
-        new(KindAll, $"{L["NeedsReviewList_All"].Value} {_notMatchedTotal + _notSureTotal:N0}"),
-        new(NeedsReviewKinds.NotMatched, $"{L["NeedsReviewList_NotMatched"].Value} {_notMatchedTotal:N0}"),
-        new(NeedsReviewKinds.NotSure, $"{L["NeedsReviewList_NotSure"].Value} {_notSureTotal:N0}"),
-    ];
+    private string NoMatchTitle => string.IsNullOrWhiteSpace(_search)
+        ? L["NeedsReviewPage_NoMatchFilter"].Value
+        : L["NeedsReviewPage_NoMatchSearch", _search.Trim()].Value;
 
-    private IReadOnlyList<NeedsReviewRowDto> VisibleRows => _rows
-        .Where(row => string.IsNullOrWhiteSpace(_search) || SearchText(row).Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .ToList();
-
-    private string EmptyText => KindKey switch
+    // The search leaves nothing: how many items still wait. With a library chosen the Engine's list holds only that library, so the shell's
+    // own number (every library) is the honest one.
+    private string StillNeedText
     {
-        NeedsReviewKinds.NotMatched => L["NeedsReviewList_NothingNotMatched"].Value,
-        NeedsReviewKinds.NotSure => L["NeedsReviewList_NothingNotSure"].Value,
-        _ => L["NeedsReviewPageContent_NoItemsNeedReview"].Value,
-    };
+        get
+        {
+            var waiting = string.IsNullOrWhiteSpace(Library) ? _model.WaitingTotal : Math.Max(_model.WaitingTotal, Orchestrator.ReviewCount);
+            return waiting == 1 ? L["NeedsReviewPage_StillNeedOne"].Value : L["NeedsReviewPage_StillNeedMany", waiting.ToString("N0")].Value;
+        }
+    }
+
+    // The files Library is still working through, from the same queue snapshot the Activity page shows; null when nothing is being imported.
+    private int? ImportRemaining =>
+        State.IngestionQueueProgress is { } queue && IngestionQueueProgressText.IsWorking(queue) && queue.FilesFound - queue.FilesDone is > 0 and var remaining
+            ? remaining
+            : null;
 
     protected override void OnInitialized()
     {
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         Editor.Closed += OnEditorClosed;
+        State.IngestionQueueProgressReceived += OnQueueProgress;
+        Device.OnChanged += OnDeviceChanged;
+        _actions = new NeedsReviewActions
+        {
+            CanFix = entry => Device.CanEdit && FixTargetOf(entry) is not null,
+            CanDelete = row => row.Unmatched?.WorkId is not null && CanRemove,
+            IsPhone = () => Device.IsPhone,
+            LibraryMediaTypeOf = row => row.LibraryId is { } id ? _libraryMediaTypes.GetValueOrDefault(id) : null,
+            Fix = Redraw<NeedsReviewEntry>(FixAsync),
+            UseThis = Redraw<NeedsReviewRowDto>(UseThisAsync),
+            MoveToTv = Redraw<NeedsReviewRowDto>(MoveToTvAsync),
+            KeepAsFilm = Redraw<NeedsReviewRowDto>(KeepAsFilmAsync),
+            TryAgain = Redraw<IReadOnlyList<NeedsReviewRowDto>>(TryAgainAsync),
+            Keep = Redraw<IReadOnlyList<NeedsReviewRowDto>>(KeepAsync),
+            ShowInActivity = title =>
+            {
+                Nav.NavigateTo($"/settings/library-activity?q={Uri.EscapeDataString(title)}");
+                return Task.CompletedTask;
+            },
+            Delete = Redraw<NeedsReviewRowDto>(DeleteAsync),
+            PutBack = Redraw<NeedsReviewRowDto>(PutBackAsync),
+        };
     }
+
+    // A row's button redraws that row only; the counts, groups and summary belong to this page, so every action ends by drawing the page again.
+    private Func<T, Task> Redraw<T>(Func<T, Task> action) => async argument =>
+    {
+        try
+        {
+            await action(argument);
+        }
+        finally
+        {
+            if (!_disposed) StateHasChanged();
+        }
+    };
 
     // The pop-over Fix opened over this list closed: when it saved or matched something, the list is read again so the fixed row leaves
     // (or shows its new state) without the person being taken away from the list.
@@ -368,21 +268,33 @@
             StateHasChanged();
         });
 
+    private void OnQueueProgress(MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto snapshot) =>
+        _ = InvokeAsync(() =>
+        {
+            if (!_disposed) StateHasChanged();
+        });
+
+    private void OnDeviceChanged() =>
+        _ = InvokeAsync(() =>
+        {
+            if (!_disposed) StateHasChanged();
+        });
+
     public void Dispose()
     {
         _disposed = true;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Editor.Closed -= OnEditorClosed;
+        State.IngestionQueueProgressReceived -= OnQueueProgress;
+        Device.OnChanged -= OnDeviceChanged;
     }
 
     protected override async Task OnParametersSetAsync()
     {
         var searchChanged = !string.Equals(_loadedInitialSearch, InitialSearch, StringComparison.Ordinal);
         _loadedInitialSearch = InitialSearch;
-        var filterChanged = _initialized
-            && (!string.Equals(_loadedLibrary, Library, StringComparison.Ordinal) || !string.Equals(_loadedShow, Show, StringComparison.Ordinal));
+        var filterChanged = _initialized && !string.Equals(_loadedLibrary, Library, StringComparison.Ordinal);
         _loadedLibrary = Library;
-        _loadedShow = Show;
 
         if (!_initialized)
         {
@@ -414,17 +326,21 @@
         try
         {
             await ResolveLibrariesAsync();
-            var attempt = await Orchestrator.GetNeedsReviewListAsync(KindKey == KindAll ? null : KindKey, Library, 0, PageSize);
+            var attempt = await Orchestrator.GetNeedsReviewListAsync(Library, 0, PageSize);
             if (attempt.List is { } page)
             {
-                Apply(page, replace: true);
+                _model.Replace(page);
                 _error = null;
                 await Orchestrator.RefreshReviewCountAsync();
+                if (_showKept)
+                {
+                    await LoadKeptAsync();
+                }
             }
             else
             {
                 // A failed load is never shown as an empty list.
-                _error = attempt.Error ?? "The Engine did not return the review list.";
+                _error = attempt.Error ?? L["NeedsReviewPage_NoListReturned"].Value;
             }
         }
         finally { _loading = false; }
@@ -435,319 +351,276 @@
         _busy = true;
         try
         {
-            var attempt = await Orchestrator.GetNeedsReviewListAsync(KindKey == KindAll ? null : KindKey, Library, _rows.Count, PageSize);
-            if (attempt.List is { } page) Apply(page, replace: false);
+            var attempt = await Orchestrator.GetNeedsReviewListAsync(Library, _model.Rows.Count, PageSize);
+            if (attempt.List is { } page) _model.Append(page);
             else _actionError = L["NeedsReviewList_MoreCouldNotBeLoaded"].Value;
         }
         finally { _busy = false; }
     }
 
-    private void Apply(NeedsReviewListDto page, bool replace)
-    {
-        if (replace)
-        {
-            _rows.Clear();
-            _reviewModels.Clear();
-        }
-
-        foreach (var row in page.Items)
-        {
-            _rows.Add(row);
-            if (row.Review is { } review) _reviewModels[row.Key] = review.ToViewModel();
-        }
-
-        _total = page.Total;
-        _notMatchedTotal = page.NotMatchedTotal;
-        _notSureTotal = page.NotSureTotal;
-    }
-
-    // The library choices come from the configured libraries; the Vault is never named outside its own area.
+    // The library choices come from the configured libraries; the Vault is never named outside its own area. Each library's media type
+    // names the kind of the files in it that the Engine could not match (those have no type of their own).
     private async Task ResolveLibrariesAsync()
     {
         try
         {
             var configuration = await Orchestrator.GetLibrariesAsync();
             var options = new List<AppSelectOption> { new(AllLibrariesKey, L["NeedsReviewList_AllLibraries"].Value) };
-            options.AddRange((configuration?.Libraries ?? []).Where(library => !library.IsVault).Select(library => new AppSelectOption(library.Id, library.Name)));
+            var listed = (configuration?.Libraries ?? []).Where(library => !library.IsVault).ToList();
+            options.AddRange(listed.Select(library => new AppSelectOption(library.Id, library.Name)));
             _libraryOptions = options;
+            _libraryMediaTypes.Clear();
+            foreach (var library in listed.Where(library => library.MediaTypes.Count == 1))
+            {
+                _libraryMediaTypes[library.Id] = library.MediaTypes[0];
+            }
         }
         catch (Exception) { _libraryOptions = []; }
     }
 
-    private Task OnSearchChanged(string? value) { _search = value; return Task.CompletedTask; }
+    private RenderFragment KeptBlock => __builder =>
+    {
+        <NeedsReviewKeptBlock Total="@_model.KeptTotal" Open="@_showKept" OnToggle="ToggleKeptAsync" Model="@_keptModel" Section="@KeptSection()" Actions="@_actions" />
+    };
 
-    private void OnKindChanged(string kind) =>
-        Nav.NavigateTo(Nav.GetUriWithQueryParameter("show", kind switch
-        {
-            NeedsReviewKinds.NotMatched => "not-matched",
-            NeedsReviewKinds.NotSure => "not-sure",
-            _ => (string?)null,
-        }), replace: true);
+    private Task OnSearchChanged(string? value) { _search = value; return Task.CompletedTask; }
 
     private void OnLibraryChanged(string? library) =>
         Nav.NavigateTo(Nav.GetUriWithQueryParameter("library", string.IsNullOrEmpty(library) || library == AllLibrariesKey ? null : library), replace: true);
 
-    // ---- What a row says ----------------------------------------------------------------------------------------------------------------
+    // ---- The kept items (spec D7) ---------------------------------------------------------------------------------------------------------
 
-    private static string TitleOf(NeedsReviewRowDto row) =>
-        row.Unmatched is { } file
-            ? StringHelpers.FirstNonBlankOr("Unknown title", file.Title, file.FileName)
-            : StringHelpers.FirstNonBlankOr("Unknown Title", row.Review?.EntityTitle, row.Review?.Detail);
-
-    private static string SearchText(NeedsReviewRowDto row) =>
-        $"{TitleOf(row)} {row.Review?.Detail} {row.Review?.Trigger} {row.Review?.MediaType} {row.Unmatched?.FileName} {row.Unmatched?.Folder} {row.LibraryName}";
-
-    // The reasons the Engine records for a file it could not match, in plain words. A reason this page does not know reads as the general one.
-    internal static string UnmatchedReasonText(UnmatchedItemDto item) => item.Reason switch
+    private async Task ToggleKeptAsync()
     {
-        "no_youtube_id" => "There is no YouTube video ID in the file name, so it cannot be looked up.",
-        _ => "No match was found online. It is tried again from time to time.",
-    };
-
-    // Last tried reads relative: Today, Yesterday, "N days ago", and a plain date once it is more than a week old.
-    internal static int? WholeDaysAgo(DateTimeOffset value, DateTimeOffset now) =>
-        value == default ? null : Math.Max(0, (now.ToLocalTime().Date - value.ToLocalTime().Date).Days);
-
-    private string LastTriedText(DateTimeOffset value) => WholeDaysAgo(value, DateTimeOffset.Now) switch
-    {
-        null => L["NeedsReviewList_NotYet"].Value,
-        0 => L["NeedsReviewList_Today"].Value,
-        1 => L["NeedsReviewList_Yesterday"].Value,
-        < 7 and var days => L["NeedsReviewList_DaysAgo", days].Value,
-        _ => value.ToLocalTime().ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture),
-    };
-
-    // The small picture: the item's own cover, or the picture of the Engine's best guess; null draws the dark placeholder.
-    private static string? ThumbnailOf(NeedsReviewRowDto row) =>
-        !string.IsNullOrWhiteSpace(row.Review?.CoverUrl) ? row.Review!.CoverUrl
-        : !string.IsNullOrWhiteSpace(row.BestGuess?.ImageUrl) ? row.BestGuess!.ImageUrl
-        : null;
-
-    // For an item the Engine is not sure about and offers no one-click answer: what it matched so far and how sure it is. Files it could not
-    // match, and items with no score, have none ("None").
-    internal static (string Name, string Percent)? PartialGuessOf(NeedsReviewRowDto row, ReviewItemViewModel? model)
-    {
-        if (row.Kind != NeedsReviewKinds.NotSure || model is not { ConfidenceScore: > 0 and var score } || string.IsNullOrWhiteSpace(model.EntityTitle))
+        _showKept = !_showKept;
+        if (_showKept)
         {
-            return null;
+            await LoadKeptAsync();
+        }
+    }
+
+    private async Task LoadKeptAsync()
+    {
+        var attempt = await Orchestrator.GetNeedsReviewListAsync(Library, 0, PageSize, kept: true);
+        if (attempt.List is { } page)
+        {
+            _keptModel.Replace(page);
+        }
+        else
+        {
+            _actionError = L["NeedsReviewPage_KeptCouldNotBeLoaded"].Value;
+        }
+    }
+
+    private NeedsReviewSection KeptSection() =>
+        new("kept", _keptModel.Rows.Select(row => new NeedsReviewEntry(row.Key, [row])).ToList(), _keptModel.Rows.Count);
+
+    // ---- What a row says and what Fix opens -------------------------------------------------------------------------------------------------
+
+    private string TitleOf(NeedsReviewRowDto row) => NeedsReviewRowInfo.TitleOf(row, L["NeedsReviewRow_UnknownTitle"].Value);
+
+    private static Guid? FixTargetOf(NeedsReviewEntry entry) =>
+        entry.IsFamily ? entry.First.FamilyWorkId : NeedsReviewRowInfo.FixTargetOf(entry.First);
+
+    // What several rows are called in a finished or failed line: the row's title, the family's title, or how many items.
+    private string SubjectOf(IReadOnlyList<NeedsReviewRowDto> rows)
+    {
+        if (rows.Count == 1)
+        {
+            return TitleOf(rows[0]);
         }
 
-        string? year = null;
-        model.DetectedFacts?.TryGetValue("year", out year);
-        var name = string.IsNullOrWhiteSpace(year) ? model.EntityTitle! : $"{model.EntityTitle} ({year})";
-        return (name, Math.Min(score, 1d).ToString("P0", System.Globalization.CultureInfo.CurrentCulture));
+        var family = rows[0].FamilyTitle;
+        return !string.IsNullOrWhiteSpace(family) && rows.All(row => row.FamilyKey == rows[0].FamilyKey)
+            ? family
+            : L["NeedsReviewRow_SubjectMany", rows.Count].Value;
     }
-
-    // A folder on one line: an ellipsis, then the last two folder names (the drive and the rest stay in the tooltip).
-    internal static string ShortFolder(string folder)
-    {
-        var separator = folder.Contains('\\') ? '\\' : '/';
-        var names = folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
-        return names.Length <= 2 ? folder : $"…{separator}{string.Join(separator, names[^2..])}";
-    }
-
-    private static bool IsWikidataReview(string? trigger) => trigger is "WikidataBridgeFailed" or "MissingQid" or "MultipleQidMatches" or "QidNoMatch";
-
-    private static bool CanTryAgain(NeedsReviewRowDto row) => row.Unmatched is { Reason: not "no_youtube_id" };
-
-    private bool CanFix(NeedsReviewRowDto row) => Device.CanEdit && FixTarget(row) is not null;
-
-    private static Guid? FixTarget(NeedsReviewRowDto row) => row.Review is { } review ? review.EntityId : row.Unmatched?.WorkId;
-
-    private string MediaLabel(NeedsReviewRowDto row) => row.Review is { } review
-        ? StringHelpers.FirstNonBlankOr("Unknown type", review.MediaType, review.EntityType).TrimEnd('s')
-        : row.LibraryName ?? string.Empty;
 
     // ---- Actions ----------------------------------------------------------------------------------------------------------------------
 
     // Fix opens the pop-over editor over this list, on Match (universal editor v3 D6, D9): the same Match, Review changes and Save as
-    // everywhere else, and no navigation away. The Engine's own answer says whether this item may be edited.
-    private async Task FixAsync(NeedsReviewRowDto row)
+    // everywhere else, and no navigation away. A family opens its show, album or Series. The Engine's own answer says whether this item may
+    // be edited.
+    private async Task FixAsync(NeedsReviewEntry entry)
     {
-        if (FixTarget(row) is not { } entityId) return;
+        if (FixTargetOf(entry) is not { } entityId) return;
+        var first = entry.First;
+        var title = entry.IsFamily && !string.IsNullOrWhiteSpace(first.FamilyTitle) ? first.FamilyTitle : TitleOf(first);
+        var mediaType = NeedsReviewRowInfo.MediaTypeOf(first, first.LibraryId is { } id ? _libraryMediaTypes.GetValueOrDefault(id) : null);
         _awaitingFix = true;
-        _actionError = null;
-        var target = ListEditTarget.ForLibraryRow(entityId, TitleOf(row), row.Review?.MediaType);
-        // A delete that closes the editor has its line shown in the list's own alert, which the next action clears.
+        var target = ListEditTarget.ForLibraryRow(entityId, title, mediaType);
+        // A delete that closes the editor has its line shown under the row.
         if (!await EditLauncher.OpenAsync(target, EditTool.Match, notice => InvokeAsync(() =>
             {
-                Fail(notice, AppUiTone.Warning);
+                _model.Fail(first, notice);
                 StateHasChanged();
             })))
         {
             _awaitingFix = false;
-            if (EditLauncher.LastNotice is { } why) Fail(why, AppUiTone.Warning);
+            if (EditLauncher.LastNotice is { } why) _model.Fail(first, why);
         }
     }
 
-    // Use this runs the one action the Engine offered as its best guess.
-    private Task UseThisAsync(NeedsReviewRowDto row, ReviewItemViewModel model, NeedsReviewBestGuessDto guess) =>
-        guess.Action == "move_to_tv" ? MoveToTvAsync(row, model) : SkipUniverseAsync(row, model);
-
-    private async Task TryAgainAsync(NeedsReviewRowDto row)
+    // Use this runs the one action the Engine offered as the row's best guess.
+    private async Task UseThisAsync(NeedsReviewRowDto row)
     {
-        if (row.Unmatched is not { } file) return;
-        await RunAsync(row, async () => await Api.RetryUnmatchedItemAsync(file.AssetId) is not null,
-            $"'{TitleOf(row)}' could not be tried again. Try again in a moment.", leavesList: false);
+        if (row.Review is not { } review || row.BestGuess is not { } guess) return;
+        var name = string.IsNullOrWhiteSpace(guess.Year) ? guess.Name : $"{guess.Name} ({guess.Year})";
+        switch (guess.Action)
+        {
+            case "move_to_tv":
+                await MoveToTvAsync(row);
+                break;
+            case "confirm_match":
+                // The person says yes to the match the Engine already linked: the review is resolved by them, and the match is not changed.
+                await RunOneAsync(row, async () => (await Orchestrator.ResolveReviewAsync(review.Id, new MediaEngine.Web.Models.ViewDTOs.ReviewResolveRequestDto()), null),
+                    L["NeedsReviewRow_DoneMatched", TitleOf(row), name].Value, L["NeedsReviewRow_FailMatch", TitleOf(row)].Value);
+                break;
+            default:
+                await RunOneAsync(row, async () => (await Orchestrator.SkipUniverseAsync(review.Id), null),
+                    L["NeedsReviewRow_DoneMatched", TitleOf(row), name].Value, L["NeedsReviewRow_FailMatch", TitleOf(row)].Value);
+                break;
+        }
     }
 
-    // Keep as it is stops a file's retries; for an item the Engine was unsure about it is Dismiss, the same "leave it as it is".
-    private async Task KeepAsync(NeedsReviewRowDto row)
+    private async Task MoveToTvAsync(NeedsReviewRowDto row)
     {
-        if (row.Unmatched is { } file)
-        {
-            await RunAsync(row, async () => await Api.KeepUnmatchedItemAsync(file.AssetId) is not null,
-                $"'{TitleOf(row)}' could not be kept as it is. Try again in a moment.");
-        }
-        else if (_reviewModels.GetValueOrDefault(row.Key) is { } model)
-        {
-            await RunAsync(row, () => Orchestrator.DismissReviewAsync(model.Id),
-                $"'{TitleOf(row)}' could not be dismissed. It is still in Needs Review.");
-        }
+        if (row.Review is not { } review) return;
+        await RunOneAsync(row, async () =>
+            {
+                var attempt = await Orchestrator.MoveReviewToTvAsync(review.Id);
+                return (attempt.Response is not null, attempt.Error);
+            },
+            L["NeedsReviewRow_DoneMovedToTv", TitleOf(row)].Value, L["NeedsReviewRow_FailMoveToTv", TitleOf(row)].Value);
     }
 
     private async Task KeepAsFilmAsync(NeedsReviewRowDto row)
     {
-        if (_reviewModels.GetValueOrDefault(row.Key) is not { } model) return;
-        await RunAsync(row, () => Orchestrator.DismissReviewAsync(model.Id), L["NeedsReviewPageContent_ReviewItemCouldNotBe"].Value);
+        if (row.Review is not { } review) return;
+        await RunOneAsync(row, async () => (await Orchestrator.DismissReviewAsync(review.Id), null),
+            L["NeedsReviewRow_DoneKept", TitleOf(row)].Value, L["NeedsReviewRow_FailKeep", TitleOf(row)].Value);
+        if (_model.StateOf(row.Key).Done is not null) _model.NoteKept(1);
     }
 
-    private Task SkipUniverseAsync(NeedsReviewRowDto row, ReviewItemViewModel model) =>
-        RunAsync(row, () => Orchestrator.SkipUniverseAsync(model.Id), $"'{TitleOf(row)}' could not keep the provider match. It is still in Needs Review.");
+    // Try again: a file is looked up now; a file whose tags could not be saved is handed to the Engine's re-tag sweep again.
+    private Task TryAgainAsync(IReadOnlyList<NeedsReviewRowDto> rows) =>
+        RunManyAsync(rows, async row => row.Unmatched is { } file
+            ? (await Api.RetryUnmatchedItemAsync(file.AssetId) is not null, null)
+            : (NeedsReviewRowInfo.IsWritebackRetry(row) && await Orchestrator.RetryRetagForAssetAsync(row.Review!.EntityId), null),
+            subject => L["NeedsReviewRow_DoneRetry", subject].Value,
+            subject => L["NeedsReviewRow_FailRetry", subject].Value);
 
-    private async Task MoveToTvAsync(NeedsReviewRowDto row, ReviewItemViewModel model)
+    // Keep as it is stops a file's retries; for an item the Engine was unsure about it records that the person chose to leave it as it is.
+    private async Task KeepAsync(IReadOnlyList<NeedsReviewRowDto> rows)
     {
-        _busyKeys.Add(row.Key);
-        _actionError = null;
-        try
-        {
-            var attempt = await Orchestrator.MoveReviewToTvAsync(model.Id);
-            if (attempt.Response is not null)
-            {
-                // The row leaves the list; that is the confirmation.
-                await LeaveListAsync(row);
-            }
-            else
-            {
-                Fail($"'{TitleOf(row)}' could not be moved to TV: {attempt.Error ?? "the Engine did not accept the change"}.", AppUiTone.Error);
-            }
-        }
-        catch (Exception ex) { Fail($"'{TitleOf(row)}' could not be moved to TV: {ex.Message}", AppUiTone.Error); }
-        finally { _busyKeys.Remove(row.Key); }
+        await RunManyAsync(rows, async row => row.Unmatched is { } file
+            ? (await Api.KeepUnmatchedItemAsync(file.AssetId) is not null, null)
+            : (row.Review is { } review && await Orchestrator.DismissReviewAsync(review.Id), null),
+            subject => rows.Count == 1 ? L["NeedsReviewRow_DoneKept", subject].Value : L["NeedsReviewRow_DoneKeptMany", subject].Value,
+            subject => L["NeedsReviewRow_FailKeep", subject].Value);
+        _model.NoteKept(rows.Count(row => _model.StateOf(row.Key).Done is not null));
     }
 
-    // Remove from library takes the file out through the same Delete from library dialog as any title (with the Recycle bin on for the
-    // library's type, the file goes there).
-    private async Task RemoveAsync(NeedsReviewRowDto row)
+    // Delete takes the file out through the same Delete from library dialog as any title (with the Recycle bin on for the library's type,
+    // the file goes there). It asks once, and the row becomes a "deleted" line.
+    private async Task DeleteAsync(NeedsReviewRowDto row)
     {
         if (row.Unmatched is not { WorkId: { } workId } file) return;
-        if (LibraryItemDeletionFlow.Refusal(Device, Session) is { } refusal) { Fail(refusal, AppUiTone.Warning); return; }
-        _busy = true;
-        _actionError = null;
+        if (LibraryItemDeletionFlow.Refusal(Device, Session) is { } refusal) { _model.Fail(row, refusal); return; }
+        _model.SetBusy(row, true);
         try
         {
             var result = await LibraryItemDeletionFlow.RunAsync(Dialogs, [workId], file.FileName);
             if (result.Outcome != LibraryItemDeletionFlowOutcome.Canceled)
             {
-                await LoadAsync();
-                // Files a delete left on disk are told after the list reloads (a reload clears the line above the list).
-                if (result.Notice is { } notice) Fail(notice, AppUiTone.Warning);
-            }
-        }
-        finally { _busy = false; }
-    }
-
-    // A failed or refused action is told at the top of the list until the next attempt or until dismissed.
-    private void Fail(string message, AppUiTone tone)
-    {
-        _actionError = message;
-        _actionTone = tone;
-    }
-
-    private async Task RunAsync(NeedsReviewRowDto row, Func<Task<bool>> action, string failure, bool leavesList = true)
-    {
-        _busyKeys.Add(row.Key);
-        _actionError = null;
-        try
-        {
-            if (await action())
-            {
-                if (leavesList) await LeaveListAsync(row);
-                else await LoadAsync();
+                var line = L["NeedsReviewRow_DoneDeleted", TitleOf(row)].Value;
+                _model.Finish(row, result.Notice is { Length: > 0 } notice ? $"{line} {notice}" : line);
+                await Orchestrator.RefreshReviewCountAsync();
             }
             else
             {
-                // The Engine refused: say so and keep the row, since nothing changed.
-                Fail(failure, AppUiTone.Warning);
+                _model.SetBusy(row, false);
             }
         }
-        catch (Exception ex) { Fail($"{failure} ({ex.Message})", AppUiTone.Error); }
-        finally { _busyKeys.Remove(row.Key); }
-    }
-
-    // A row that was resolved, kept or dismissed leaves the list at once, without another read; the shell count is refreshed.
-    private async Task LeaveListAsync(NeedsReviewRowDto row)
-    {
-        if (_rows.Remove(row))
+        catch (Exception ex)
         {
-            _reviewModels.Remove(row.Key);
-            _total = Math.Max(0, _total - 1);
-            if (row.Kind == NeedsReviewKinds.NotMatched) _notMatchedTotal = Math.Max(0, _notMatchedTotal - 1);
-            else _notSureTotal = Math.Max(0, _notSureTotal - 1);
+            _model.Fail(row, $"{L["NeedsReviewRow_FailDelete", TitleOf(row)].Value} {ex.Message}");
         }
-
-        await Orchestrator.RefreshReviewCountAsync();
     }
 
-    // Bulk acts on the rows the filters and the search leave. Try again for all looks every such file that can be looked up again up now (the
-    // others are left as they are); Keep all as they are stops the retries of such files and dismisses such items the Engine was unsure about,
-    // after one question that says how many rows that is (there is no tick step any more, so one click must not decide it silently). Rows are
-    // handled one after another, and the list is read again once at the end.
-    private async Task TryAgainAllAsync()
+    // Put back: a kept item waits in Needs Review again, then both lists are read again.
+    private async Task PutBackAsync(NeedsReviewRowDto row)
     {
-        var targets = VisibleRows.Where(CanTryAgain).ToList();
-        await BulkAsync(targets, async row => await Api.RetryUnmatchedItemAsync(row.Unmatched!.AssetId) is not null,
-            "could not be tried again");
-    }
-
-    private async Task KeepAllAsync()
-    {
-        var targets = VisibleRows.ToList();
-        if (targets.Count == 0) return;
-        var answer = await AppConfirmDialog.ShowAsync(
-            Dialogs,
-            L["NeedsReviewList_KeepAllTitle"].Value,
-            L["NeedsReviewList_KeepAllMessage", targets.Count].Value,
-            L["NeedsReviewList_KeepAllConfirm"].Value,
-            L["NeedsReviewList_KeepAllCancel"].Value);
-        if (answer != AppConfirmResult.Primary) return;
-
-        await BulkAsync(targets, async row =>
-        {
-            if (row.Unmatched is { } file) return await Api.KeepUnmatchedItemAsync(file.AssetId) is not null;
-            return _reviewModels.GetValueOrDefault(row.Key) is { } model && await Orchestrator.DismissReviewAsync(model.Id);
-        }, "could not be kept as they are");
-    }
-
-    private async Task BulkAsync(IReadOnlyList<NeedsReviewRowDto> targets, Func<NeedsReviewRowDto, Task<bool>> action, string failureWords)
-    {
-        if (targets.Count == 0) return;
-        _busy = true;
-        _actionError = null;
-        var failed = 0;
+        var title = TitleOf(row);
+        _keptModel.SetBusy(row, true);
         try
         {
-            foreach (var row in targets)
+            var ok = row.Unmatched is { } file
+                ? await Api.UnkeepUnmatchedItemAsync(file.AssetId) is not null
+                : row.Review is { } review && await Orchestrator.ReopenReviewAsync(review.Id);
+            if (ok)
             {
-                try { if (!await action(row)) failed++; }
-                catch (Exception) { failed++; }
+                await LoadAsync();
             }
-
-            await LoadAsync();
-            if (failed > 0) _actionError = $"{failed:N0} of {targets.Count:N0} {failureWords}. Try again in a moment.";
+            else
+            {
+                _keptModel.Fail(row, $"{L["NeedsReviewRow_FailPutBack", title].Value} {L["NeedsReviewRow_TryAgainInAMoment"].Value}");
+            }
         }
-        finally { _busy = false; }
+        catch (Exception ex)
+        {
+            _keptModel.Fail(row, $"{L["NeedsReviewRow_FailPutBack", title].Value} {ex.Message}");
+        }
     }
 
-    private static string RelativeAge(DateTimeOffset value) { var age = DateTimeOffset.UtcNow - value; return age.TotalDays >= 1 ? $"{Math.Max(1, (int)age.TotalDays)}d" : age.TotalHours >= 1 ? $"{Math.Max(1, (int)age.TotalHours)}h" : $"{Math.Max(1, (int)age.TotalMinutes)}m"; }
+    // One row, one action: busy while it runs, then one quiet line (success) or the reason under the row (failure).
+    private Task RunOneAsync(NeedsReviewRowDto row, Func<Task<(bool Ok, string? Reason)>> action, string doneLine, string failLine) =>
+        RunManyAsync([row], _ => action(), _ => doneLine, _ => failLine);
+
+    // Rows act one after another. When all succeed they share one line named for the group (a family); when some fail, those rows keep
+    // their reason and the others finish under their own names.
+    private async Task RunManyAsync(
+        IReadOnlyList<NeedsReviewRowDto> rows,
+        Func<NeedsReviewRowDto, Task<(bool Ok, string? Reason)>> action,
+        Func<string, string> doneLine,
+        Func<string, string> failLine)
+    {
+        foreach (var row in rows)
+        {
+            _model.SetBusy(row, true);
+        }
+
+        var succeeded = new List<NeedsReviewRowDto>();
+        var failed = new List<(NeedsReviewRowDto Row, string? Reason)>();
+        foreach (var row in rows)
+        {
+            try
+            {
+                var (ok, reason) = await action(row);
+                if (ok) succeeded.Add(row);
+                else failed.Add((row, reason));
+            }
+            catch (Exception ex)
+            {
+                failed.Add((row, ex.Message));
+            }
+        }
+
+        var allOk = failed.Count == 0;
+        foreach (var row in succeeded)
+        {
+            _model.Finish(row, doneLine(allOk ? SubjectOf(rows) : TitleOf(row)));
+        }
+
+        foreach (var (row, reason) in failed)
+        {
+            var sentence = failLine(TitleOf(row));
+            _model.Fail(row, $"{sentence} {(string.IsNullOrWhiteSpace(reason) ? L["NeedsReviewRow_TryAgainInAMoment"].Value : reason)}");
+        }
+
+        if (succeeded.Count > 0)
+        {
+            await Orchestrator.RefreshReviewCountAsync();
+        }
+    }
 }

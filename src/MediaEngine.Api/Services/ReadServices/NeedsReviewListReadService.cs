@@ -27,12 +27,12 @@ public sealed class NeedsReviewListReadService(
 {
     private static readonly string[] WikidataTriggers = ["MultipleQidMatches", "QidNoMatch"];
 
-    /// <summary>The kind of a review item: only a failed retail match is "not matched"; every other trigger is the Engine being unsure.</summary>
-    public static string KindFor(string? trigger) =>
-        string.Equals(trigger, ReviewTrigger.RetailMatchFailed, StringComparison.Ordinal) ? NeedsReviewKinds.NotMatched : NeedsReviewKinds.NotSure;
+    // The notifier's own split (ReviewCountResponse): only a failed retail match counts as "not matched". The list itself no longer has kinds.
+    private static bool IsFailedRetailMatch(string? trigger) =>
+        string.Equals(trigger, ReviewTrigger.RetailMatchFailed, StringComparison.Ordinal);
 
     public async Task<NeedsReviewListDto> ListAsync(
-        string? kind, string? libraryId, bool includeFiles, int skip, int take, bool keptOnly = false, CancellationToken ct = default)
+        string? libraryId, bool includeFiles, int skip, int take, bool keptOnly = false, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var names = await ListedLibrariesAsync(ct).ConfigureAwait(false);
@@ -85,7 +85,6 @@ public sealed class NeedsReviewListReadService(
             rows.Add(new NeedsReviewRowDto
             {
                 Key = $"review:{item.Id:D}",
-                Kind = KindFor(item.Trigger),
                 LibraryId = itemLibrary ?? item.LibraryId,
                 LibraryName = itemLibrary is null ? null : names[itemLibrary],
                 LastTriedAt = item.CreatedAt,
@@ -108,16 +107,13 @@ public sealed class NeedsReviewListReadService(
         }
 
         var keptTotal = keptOnly ? rows.Count : await CountKeptAsync(library, includeFiles, names, ct).ConfigureAwait(false);
-        var notMatched = rows.Count(row => row.Kind == NeedsReviewKinds.NotMatched);
-        var filtered = Order(rows.Where(row => KindMatches(kind, row.Kind))).ToList();
+        var filtered = Order(rows).ToList();
         var offset = Math.Max(0, skip);
         var size = Math.Max(1, take);
         return new NeedsReviewListDto
         {
             Items = filtered.Skip(offset).Take(size).ToList(),
             Total = filtered.Count,
-            NotMatchedTotal = notMatched,
-            NotSureTotal = rows.Count - notMatched,
             GroupTotals = TotalsByGroup(filtered),
             KeptTotal = keptTotal,
             Skip = offset,
@@ -134,7 +130,7 @@ public sealed class NeedsReviewListReadService(
         var pending = (await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false))
             .Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger))
             .ToList();
-        var reviewNotMatched = pending.Count(item => KindFor(item.Trigger) == NeedsReviewKinds.NotMatched);
+        var reviewNotMatched = pending.Count(item => IsFailedRetailMatch(item.Trigger));
         var reviewTotal = pending.Count;
         var files = 0;
         if (includeFiles)
@@ -204,16 +200,10 @@ public sealed class NeedsReviewListReadService(
     private static bool IsVaultItem(ReviewItemDto item, IReadOnlySet<string> vaultIds) =>
         !string.IsNullOrWhiteSpace(item.LibraryId) && vaultIds.Any(id => string.Equals(id, item.LibraryId.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    private static bool KindMatches(string? filter, string kind) =>
-        string.IsNullOrWhiteSpace(filter)
-        || string.Equals(filter, "all", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(filter, kind, StringComparison.OrdinalIgnoreCase);
-
     private static NeedsReviewRowDto ToRow(
         UnmatchedAssetListItem file, string libraryId, string libraryName, NeedsReviewRowContext? context, bool kept) => new()
         {
             Key = $"file:{file.Asset.AssetId:D}",
-            Kind = NeedsReviewKinds.NotMatched,
             LibraryId = libraryId,
             LibraryName = libraryName,
             LastTriedAt = file.Asset.LastTriedAt,

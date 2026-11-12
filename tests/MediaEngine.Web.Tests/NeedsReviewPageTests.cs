@@ -2,45 +2,38 @@ using System.Security.Claims;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
-using MediaEngine.Contracts.Paging;
-using MediaEngine.Web.Components.Editor;
-using MediaEngine.Web.Components.Pages;
+using MediaEngine.Contracts.Library;
+using MediaEngine.Contracts.Review;
 using MediaEngine.Web.Components.Settings;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
-using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using static MediaEngine.Web.Tests.Support.NeedsReviewTestRows;
 
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Settings → Needs Review: the page reports a failed load instead of an empty queue, says so when Dismiss or
-/// Keep provider match is refused, shows the From merge / Import folder badges, and resolves an item. Only server
-/// administrators get the list at all. Recently Added no longer holds any review markup or request.
+/// Settings → Needs Review (spec needs-review-redesign): four groups with counts, rows as cards, the Engine's suggestion with Use this,
+/// families, the choices strip, in-row done and failure lines, the kept items, and every state of the page. Only server administrators get
+/// the list at all.
 /// </summary>
 public sealed class NeedsReviewPageTests : AsyncBunitContext
 {
-    private static readonly Guid FirstId = Guid.Parse("11111111-1111-4111-8111-111111111111");
-    private static readonly Guid SecondId = Guid.Parse("22222222-2222-4222-8222-222222222222");
-
-    private sealed record Registered(List<string?> HistoryStatuses, List<Guid> Dismissed, List<Guid> Kept)
-    {
-        /// <summary>Every Engine client method the Dashboard called, in order.</summary>
-        public List<string> EngineCalls { get; set; } = [];
-
-        /// <summary>How many times the Needs Review list was read.</summary>
-        public int ReviewReads { get; set; }
-    }
-
     private static readonly Guid AccountId = Guid.Parse("44444444-4444-4444-8444-444444444444");
     private static readonly Guid ProfileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    private static Guid Id(int n) => Guid.Parse($"{n:D8}-1111-4111-8111-111111111111");
+
+    private static readonly NeedsReviewBestGuessDto ConfirmGuess = new() { Action = "confirm_match", Name = "Cibola Burn", Year = "2014", Source = "Provider match" };
+    private static readonly NeedsReviewBestGuessDto KeepGuess = new() { Action = "keep_provider_match", Name = "Leviathan Wakes", Year = "2011", Source = "Provider match" };
+    private static readonly NeedsReviewBestGuessDto TvGuess = new() { Action = "move_to_tv", Name = "Dr. Horrible's Sing-Along Blog", Year = "2008", Source = "TMDB TV series" };
 
     private static AccountProfileGrantDto[] Grants(bool adminEnabled) =>
     [
@@ -48,806 +41,991 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow),
     ];
 
-    /// <summary>What the Engine tells the Dashboard about a server administrator.</summary>
     private static DashboardAuthorityResponse ServerAdministrator() => new(
         AccountId, ProfileId, true, true, 1, 1, true, true, null, 1, Grants(adminEnabled: true),
         ["settings.administration"], ["access.manage"]);
 
-    /// <summary>What the Engine tells the Dashboard about a household administrator who is not a server administrator.</summary>
     private static DashboardAuthorityResponse HouseholdAdministrator() => new(
         AccountId, ProfileId, true, true, 1, 1, false, false, null, 1, Grants(adminEnabled: false),
         [], ["household.manage"]);
 
-    private Registered Register(
-        Func<ReviewListAttempt> reviews,
-        Func<Task<bool>>? dismiss = null,
-        Func<Task<bool>>? skipUniverse = null,
-        DashboardAuthorityResponse? authority = null,
-        Func<string, ReviewListAttempt>? libraryReviews = null,
-        Action<EngineApiClientStub>? configure = null)
+    /// <summary>What the page asked of the Engine, and the switches a test flips to make an action fail.</summary>
+    private sealed class Engine
     {
-        var result = new Registered([], [], []);
+        public Func<string?, bool, NeedsReviewListAttempt> List { get; set; } = (_, _) => new NeedsReviewListAttempt(Page([]), null);
+
+        public List<string> Calls { get; set; } = [];
+
+        public List<(string? Library, int Skip, bool Kept)> ListReads { get; } = [];
+
+        public List<Guid> Resolved { get; } = [];
+
+        public List<Guid> Dismissed { get; } = [];
+
+        public List<Guid> Skipped { get; } = [];
+
+        public List<Guid> Moved { get; } = [];
+
+        public List<Guid> Reopened { get; } = [];
+
+        public List<Guid> Retagged { get; } = [];
+
+        public List<Guid> RetriedFiles { get; } = [];
+
+        public List<Guid> KeptFiles { get; } = [];
+
+        public List<Guid> UnkeptFiles { get; } = [];
+
+        public List<Guid> OpenedInEditor { get; } = [];
+
+        /// <summary>Names of Engine client methods that answer "no" (or nothing).</summary>
+        public HashSet<string> Failing { get; } = [];
+
+        public UniverseStateContainer State { get; } = new();
+
+        public int NormalListReads => ListReads.Count(read => !read.Kept);
+    }
+
+    private Engine Register(Func<NeedsReviewListDto> list, DashboardAuthorityResponse? authority = null, Action<EngineApiClientStub>? configure = null) =>
+        Register((_, _) => list(), authority, configure);
+
+    private Engine Register(Func<string?, bool, NeedsReviewListDto> list, DashboardAuthorityResponse? authority = null, Action<EngineApiClientStub>? configure = null)
+    {
+        var engine = new Engine { List = (library, kept) => new NeedsReviewListAttempt(list(library, kept), null) };
+        return RegisterEngine(engine, authority, configure);
+    }
+
+    private Engine RegisterEngine(Engine engine, DashboardAuthorityResponse? authority = null, Action<EngineApiClientStub>? configure = null)
+    {
         var session = new DashboardSessionAccessor();
         session.Set("test-session-token", AccountId, ProfileId, Guid.NewGuid(), authority ?? ServerAdministrator());
         Services.AddSingleton(session);
         var api = EngineApiClientStub.Create(stub =>
         {
-            result.EngineCalls = stub.Calls;
-            stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), _ =>
+            engine.Calls = stub.Calls;
+            stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), args =>
             {
-                result.ReviewReads++;
-                return Task.FromResult(reviews());
+                var kept = args![3] is true;
+                engine.ListReads.Add(((string?)args[0], (int)args[1]!, kept));
+                return Task.FromResult(engine.List((string?)args[0], kept));
             });
-            // The Engine's own per-item answer for Fix: this item may be edited, and its fields can be read.
-            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<MediaEngine.Contracts.Details.DetailPageViewModel?>(new()
+            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), args =>
             {
-                Id = MediaEngine.Web.Tests.Support.EditingModeTestData.MovieId.ToString("D"),
-                EntityType = MediaEngine.Contracts.Details.DetailEntityType.Work,
-                Title = "Cibola Burn",
-                OverflowActions = [new() { Key = "edit", Label = "Edit this title", Icon = "edit" }],
-            }));
+                engine.OpenedInEditor.Add((Guid)args![1]!);
+                return Task.FromResult<MediaEngine.Contracts.Details.DetailPageViewModel?>(new()
+                {
+                    Id = EditingModeTestData.MovieId.ToString("D"),
+                    EntityType = MediaEngine.Contracts.Details.DetailEntityType.Work,
+                    Title = "Cibola Burn",
+                    OverflowActions = [new() { Key = "edit", Label = "Edit this title", Icon = "edit" }],
+                });
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ =>
-                Task.FromResult<MediaEngine.Contracts.Metadata.MediaEditorContextDto?>(MediaEngine.Web.Tests.Support.EditingModeTestData.MovieContext()));
+                Task.FromResult<MediaEngine.Contracts.Metadata.MediaEditorContextDto?>(EditingModeTestData.MovieContext()));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
-            if (libraryReviews is not null)
+            stub.SetHandler(nameof(IEngineApiClient.ResolveReviewItemAsync), args =>
             {
-                stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsForLibraryAttemptAsync), args => Task.FromResult(libraryReviews((string)args![0]!)));
-            }
+                engine.Resolved.Add((Guid)args![0]!);
+                return Task.FromResult(!engine.Failing.Contains(nameof(IEngineApiClient.ResolveReviewItemAsync)));
+            });
             stub.SetHandler(nameof(IEngineApiClient.DismissReviewItemAsync), args =>
             {
-                result.Dismissed.Add((Guid)args![0]!);
-                return (dismiss ?? (() => Task.FromResult(true)))();
+                engine.Dismissed.Add((Guid)args![0]!);
+                return Task.FromResult(!engine.Failing.Contains(nameof(IEngineApiClient.DismissReviewItemAsync)));
             });
             stub.SetHandler(nameof(IEngineApiClient.SkipUniverseAsync), args =>
             {
-                result.Kept.Add((Guid)args![0]!);
-                return (skipUniverse ?? (() => Task.FromResult(true)))();
+                engine.Skipped.Add((Guid)args![0]!);
+                return Task.FromResult(!engine.Failing.Contains(nameof(IEngineApiClient.SkipUniverseAsync)));
             });
-            configure?.Invoke(stub);
-            stub.SetHandler(nameof(IEngineApiClient.GetRecentIngestionAdditionsAsync), args =>
+            stub.SetHandler(nameof(IEngineApiClient.ReopenReviewItemAsync), args =>
             {
-                result.HistoryStatuses.Add((string?)args![7]);
-                return Task.FromResult<PagedResponse<IngestionMediaGroupDto>?>(
-                    new PagedResponse<IngestionMediaGroupDto>([], Offset: 0, Limit: 25, HasMore: false, TotalCount: 0));
+                engine.Reopened.Add((Guid)args![0]!);
+                return Task.FromResult(!engine.Failing.Contains(nameof(IEngineApiClient.ReopenReviewItemAsync)));
             });
+            stub.SetHandler(nameof(IEngineApiClient.MoveReviewItemToTvAsync), args =>
+            {
+                var id = (Guid)args![0]!;
+                engine.Moved.Add(id);
+                return Task.FromResult<ReviewMoveToTvResponse?>(engine.Failing.Contains(nameof(IEngineApiClient.MoveReviewItemToTvAsync))
+                    ? null
+                    : new ReviewMoveToTvResponse(true, id, Guid.NewGuid(), "Dr. Horrible's Sing-Along Blog", "tv-library", 1, [1, 2, 3], null));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.RetryRetagForAssetAsync), args =>
+            {
+                engine.Retagged.Add((Guid)args![0]!);
+                return Task.FromResult(!engine.Failing.Contains(nameof(IEngineApiClient.RetryRetagForAssetAsync)));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.RetryUnmatchedItemAsync), args =>
+            {
+                engine.RetriedFiles.Add((Guid)args![0]!);
+                return Task.FromResult<UnmatchedActionResultDto?>(engine.Failing.Contains(nameof(IEngineApiClient.RetryUnmatchedItemAsync)) ? null : new UnmatchedActionResultDto { Affected = 1 });
+            });
+            stub.SetHandler(nameof(IEngineApiClient.KeepUnmatchedItemAsync), args =>
+            {
+                engine.KeptFiles.Add((Guid)args![0]!);
+                return Task.FromResult<UnmatchedActionResultDto?>(engine.Failing.Contains(nameof(IEngineApiClient.KeepUnmatchedItemAsync)) ? null : new UnmatchedActionResultDto { Affected = 1 });
+            });
+            stub.SetHandler(nameof(IEngineApiClient.UnkeepUnmatchedItemAsync), args =>
+            {
+                engine.UnkeptFiles.Add((Guid)args![0]!);
+                return Task.FromResult<UnmatchedActionResultDto?>(engine.Failing.Contains(nameof(IEngineApiClient.UnkeepUnmatchedItemAsync)) ? null : new UnmatchedActionResultDto { Affected = 1 });
+            });
+            // Two libraries: a file the Engine could not match has no type of its own, so its kind comes from its library.
+            stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<MediaEngine.Contracts.Settings.LibrariesConfigurationDto?>(new()
+            {
+                Libraries =
+                [
+                    new() { Id = "movies", Name = "Movies", Area = "watch", MediaTypes = ["Movies"] },
+                    new() { Id = "tv", Name = "TV", Area = "watch", MediaTypes = ["TV"] },
+                ],
+            }));
+            configure?.Invoke(stub);
         });
         Services.AddSingleton(api);
+        Services.AddSingleton(engine.State);
         Services.AddSingleton(provider => new UIOrchestratorService(
             api,
-            new UniverseStateContainer(),
+            engine.State,
             new ActiveProfileSessionService(
                 provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api,
                 authenticationStateProvider: new SessionOnlyAuthentication(), dashboardSession: session),
             new ConfigurationBuilder().Build(),
             NullLogger<UIOrchestratorService>.Instance,
             dashboardSession: session));
-        // The merged Activity list reads the live Libraries state and the context sidebar, as it does in the app.
-        Services.AddSingleton(new UniverseStateContainer());
-        Services.AddSingleton(provider => new MediaEngine.Web.Services.Integration.IngestionLiveDashboardState(
-            api,
-            provider.GetRequiredService<UIOrchestratorService>(),
-            provider.GetRequiredService<UniverseStateContainer>()));
-        Services.AddSingleton(provider => new MediaEngine.Web.Services.Playback.ContextSidebarPreferences(
-            provider.GetRequiredService<UIOrchestratorService>(),
-            new MediaEngine.Web.Tests.Support.LiveLibraryTestContext.NoPlaybackPreferences()));
-        Services.AddSingleton<MediaEngine.Web.Services.Playback.ContextSidebarCoordinator>();
         JSInterop.Mode = JSRuntimeMode.Loose;
-        return result;
+        return engine;
     }
 
-    private static ReviewItemViewModel Item(Guid id, string title, string trigger = "LowConfidence") => new()
+    private Task UseDesktopAsync() =>
+        Services.GetRequiredService<DeviceContextService>()
+            .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+
+    private Task UsePhoneAsync() =>
+        Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+
+    private IRenderedComponent<NeedsReviewPageContent> RenderLoaded(int expectedRows = 1, Action<ComponentParameterCollectionBuilder<NeedsReviewPageContent>>? parameters = null)
     {
-        Id = id,
-        EntityId = Guid.NewGuid(),
-        EntityType = "MediaAsset",
-        EntityTitle = title,
-        Trigger = trigger,
-        Status = "Pending",
-        MediaType = "Books",
-        CreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
-    };
+        var cut = parameters is null ? Render<NeedsReviewPageContent>() : Render(parameters);
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("[data-testid='needs-review-row'], [data-testid='needs-review-family-row']").Count >= expectedRows));
+        return cut;
+    }
 
-    private static ReviewListAttempt Loaded(params ReviewItemViewModel[] items) => new([.. items], null);
+    private static string RowSelector(NeedsReviewRowDto row) => $"[data-testid='needs-review-row'][data-key='{row.Key}']";
 
+    private static string DoneSelector(NeedsReviewRowDto row) => $"[data-testid='needs-review-done'][data-key='{row.Key}']";
 
-    private static void OpenMenuAndClick(IRenderedComponent<NeedsReviewPageContent> cut, string label)
+    private static string GroupHeading(AngleSharp.Dom.IElement group) => group.QuerySelector("h2, h3")!.TextContent.Trim();
+
+    private static void OpenMenuAndClick(IRenderedComponent<NeedsReviewPageContent> cut, string rowSelector, string label)
     {
-        cut.Find("tr.needs-review-table__row .app-overflow-menu__trigger").Click();
+        cut.Find($"{rowSelector} .app-overflow-menu__trigger").Click();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.app-menu-item"), button => button.TextContent.Contains(label, StringComparison.Ordinal)));
         cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains(label, StringComparison.Ordinal)).Click();
     }
 
+    private static string[] MenuLabels(IRenderedComponent<NeedsReviewPageContent> cut, string rowSelector)
+    {
+        cut.Find($"{rowSelector} .app-overflow-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
+        return cut.FindAll("button.app-menu-item").Select(button => button.TextContent.Trim()).ToArray();
+    }
+
+    // ---- States ---------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void WhileTheListLoads_ThePageShowsPlaceholderRows_NotTheEmptyMessage()
+    {
+        var release = new TaskCompletionSource<NeedsReviewListAttempt>();
+        Register(() => Page([]), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => release.Task));
+
+        var cut = Render<NeedsReviewPageContent>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-loading']")));
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-empty']"));
+
+        release.SetResult(new NeedsReviewListAttempt(Page([ReviewRow(Id(1), "Loaded Book")]), null));
+        cut.WaitForAssertion(() => Assert.Contains("Loaded Book", cut.Markup, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-loading']"));
+    }
+
+    [Fact]
+    public void WithNothingToReview_ThePageSaysNothingNeedsReview()
+    {
+        Register(() => Page([]));
+
+        var cut = Render<NeedsReviewPageContent>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing needs review", cut.Find("[data-testid='needs-review-empty']").TextContent, StringComparison.Ordinal));
+        Assert.DoesNotContain("could not be loaded", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-group']"));
+    }
+
+    [Fact]
+    public void ALoadThatFails_ShowsTheErrorWithTryAgain_NeverTheEmptyMessage_AndTryAgainShowsTheRows()
+    {
+        var failing = true;
+        var engine = new Engine { List = (_, _) => failing ? new NeedsReviewListAttempt(null, "The Engine answered 500.") : new NeedsReviewListAttempt(Page([ReviewRow(Id(1), "Recovered Book")]), null) };
+        RegisterEngine(engine);
+
+        var cut = Render<NeedsReviewPageContent>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Needs Review could not be loaded.", cut.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("Nothing needs review", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-row']"));
+
+        failing = false;
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Try again").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-row']")));
+        Assert.DoesNotContain("could not be loaded", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Recovered Book", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AHouseholdAdministrator_GetsNoList_AndNoReviewRequestIsMade()
+    {
+        var engine = Register(() => Page([ReviewRow(Id(1), "Pending Book")]), authority: HouseholdAdministrator());
+
+        var cut = Render<NeedsReviewPageContent>();
+
+        cut.WaitForAssertion(() => Assert.Contains("server administrators", cut.Markup, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-row']"));
+        Assert.DoesNotContain("Nothing needs review", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetNeedsReviewListAsync), engine.Calls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), engine.Calls);
+    }
+
+    [Fact]
+    public void ASearchThatLeavesNothing_SaysSoAndHowManyItemsStillNeedReview()
+    {
+        Register(() => Page([ReviewRow(Id(1), "Dune"), ReviewRow(Id(2), "Emma")]));
+        var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.InitialSearch, "zzz"));
+
+        var message = cut.WaitForElement("[data-testid='needs-review-no-match']").TextContent;
+
+        Assert.Contains("No items match \"zzz\"", message, StringComparison.Ordinal);
+        Assert.Contains("2 items still need review.", message, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-group']"));
+    }
+
+    [Fact]
+    public void TheSearch_StartsFromTheQueryText_AndNarrowsTheList()
+    {
+        Register(() => Page([ReviewRow(Id(1), "Dune"), ReviewRow(Id(2), "Emma")]));
+
+        var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.InitialSearch, "dune"));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-row']")));
+        Assert.Contains("Dune", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Emma", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WithALibrary_TheListIsRequestedForThatLibraryOnly_AndTheRequestCarriesNoKind()
+    {
+        var engine = Register(() => Page([ReviewRow(Id(1), "Pending Book")]));
+
+        RenderLoaded(1, p => p.Add(c => c.Library, "library-a"));
+
+        var read = Assert.Single(engine.ListReads);
+        Assert.Equal("library-a", read.Library);
+        Assert.False(read.Kept);
+    }
+
+    [Fact]
+    public void WhenTheEngineHoldsMoreRowsThanThePageReadSoFar_ShowMoreReadsTheNextPage()
+    {
+        var second = ReviewRow(Id(2), "Second Page Book");
+        var engine = Register((_, _) => Page([ReviewRow(Id(1), "First Page Book")], total: 2));
+        engine.List = (_, _) => engine.ListReads.Count(read => !read.Kept) <= 1
+            ? new NeedsReviewListAttempt(Page([ReviewRow(Id(1), "First Page Book")], total: 2), null)
+            : new NeedsReviewListAttempt(Page([second], total: 2), null);
+        var cut = RenderLoaded();
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Show more").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid='needs-review-row']").Count));
+        Assert.Contains(engine.ListReads, read => read.Skip == 1);
+    }
+
+    [Fact]
+    public async Task WhileFilesAreStillBeingImported_ALineSaysMoreItemsMayAppear_AndLinksToActivity()
+    {
+        var engine = Register(() => Page([ReviewRow(Id(1), "Pending Book")]));
+        engine.State.PushIngestionQueueProgress(new IngestionQueueProgressDto { State = IngestionQueueProgressText.WorkingState, FilesFound = 40, FilesDone = 25 });
+
+        var cut = RenderLoaded();
+
+        var note = cut.Find("[data-testid='needs-review-importing']");
+        Assert.Contains("still working on 15 files", note.TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/library-activity", note.QuerySelector("a")!.GetAttribute("href"));
+
+        await cut.InvokeAsync(() => engine.State.PushIngestionQueueProgress(
+            new IngestionQueueProgressDto { State = IngestionQueueProgressText.IdleState, FilesFound = 40, FilesDone = 40, UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(1) }));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid='needs-review-importing']")));
+    }
+
+    // ---- Groups and rows ------------------------------------------------------------------------------------------------------------
+
+    private static NeedsReviewListDto OneRowPerGroup() => Page(
+    [
+        ReviewRow(Id(1), "Ready Film", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.84),
+        ReviewRow(Id(2), "Choose Film", trigger: "RetailMatchAmbiguous", group: NeedsReviewGroups.Choose),
+        FileRow(Id(3), "Nothing.Close.mkv"),
+        ReviewRow(Id(4), "Locked Song", trigger: "WritebackFailed", group: NeedsReviewGroups.FileProblem),
+    ]);
+
+    [Fact]
+    public void TheListIsSplitIntoFourGroupsInOrder_EachWithItsCount_AndASummaryOfEverythingWaiting()
+    {
+        Register(() => OneRowPerGroup());
+
+        var cut = RenderLoaded(4);
+
+        var groups = cut.FindAll("[data-testid='needs-review-group']");
+        Assert.Equal(["Ready to confirm", "Choose a match", "No match found", "File problems"], groups.Select(GroupHeading).ToArray());
+        Assert.All(groups, group => Assert.Equal("1", group.QuerySelector("[data-testid='needs-review-group-count']")!.TextContent.Trim()));
+        Assert.Contains("4 items need review", cut.Find("[data-testid='needs-review-summary']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AGroupWithNoItems_IsNotDrawn()
+    {
+        Register(() => Page([FileRow(Id(1), "a.mkv"), FileRow(Id(2), "b.mkv")]));
+
+        var cut = RenderLoaded(2);
+
+        Assert.Equal(["No match found"], cut.FindAll("[data-testid='needs-review-group']").Select(GroupHeading).ToArray());
+        Assert.Contains("2 items need review", cut.Find("[data-testid='needs-review-summary']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NoWordOnThePage_SaysNotMatchedNotSureOrUnmatched()
+    {
+        Register(() => OneRowPerGroup());
+
+        var cut = RenderLoaded(4);
+
+        var text = cut.Find("[data-testid='needs-review']").TextContent;
+        Assert.DoesNotContain("Not matched", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Not sure", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("unmatched", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Dismiss from review", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Keep provider match", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ARow_ShowsItsName_AKindLibraryAndFolderLine_AndOnePlainSentenceForWhy()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", folder: "C:/media/movies/Action/2019");
+        Register(() => Page([file]));
+
+        var cut = RenderLoaded();
+
+        var row = cut.Find(RowSelector(file));
+        Assert.Equal("Mystery.2019.mkv", row.QuerySelector("[data-testid='needs-review-title']")!.TextContent.Trim());
+        Assert.Equal("Movie · Movies · …/Action/2019", row.QuerySelector("[data-testid='needs-review-meta']")!.TextContent.Trim());
+        Assert.Contains("found nothing close enough", row.QuerySelector("[data-testid='needs-review-reason']")!.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AFileTheEngineWillLookUpAgain_SaysWhen_AndHasNoTickBox()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9), nextRetryAt: DateTimeOffset.Now.AddDays(3));
+        Register(() => Page([file]));
+        await UseDesktopAsync();
+
+        var cut = RenderLoaded();
+
+        Assert.Contains("3", cut.Find($"{RowSelector(file)} [data-testid='needs-review-retry']").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll($"{RowSelector(file)} input[type='checkbox']"));
+    }
+
+    // ---- Suggestion and Use this ----------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TheEnginesSuggestion_ShowsItsNameAndHowSureItIs_BesideUseThis()
+    {
+        var row = ReviewRow(Id(1), "Cibola Burn", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.84);
+        Register(() => Page([row]));
+
+        var cut = RenderLoaded();
+
+        var suggestion = cut.Find($"{RowSelector(row)} [data-testid='needs-review-suggestion']");
+        Assert.Contains("Cibola Burn (2014)", suggestion.TextContent, StringComparison.Ordinal);
+        Assert.Contains("84% sure", suggestion.TextContent, StringComparison.Ordinal);
+        Assert.Equal("Use this", suggestion.QuerySelector("button")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public void UseThis_OnAConfirmedMatch_ResolvesTheItem_NotDismissesIt_AndTheRowBecomesAMatchedLine()
+    {
+        var row = ReviewRow(Id(1), "Cibola Burn", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.84);
+        var other = ReviewRow(Id(2), "Other Film", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.9);
+        var engine = Register(() => Page([row, other]));
+        var cut = RenderLoaded(2);
+
+        cut.Find($"{RowSelector(row)} [data-testid='needs-review-suggestion'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Cibola Burn matched to Cibola Burn (2014)", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([row.Review!.Id], engine.Resolved);
+        Assert.Empty(engine.Dismissed);
+        Assert.Empty(engine.Skipped);
+        Assert.Empty(cut.FindAll(RowSelector(row)));
+        Assert.NotNull(cut.Find($"{DoneSelector(row)} .nr-done__tick"));
+    }
+
+    [Fact]
+    public void UseThis_OnAProviderMatchTheEngineKept_RunsTheKeepProviderMatchAction()
+    {
+        var row = ReviewRow(Id(1), "Leviathan Wakes", trigger: "MultipleQidMatches", group: NeedsReviewGroups.Ready, guess: KeepGuess);
+        var engine = Register(() => Page([row]));
+        var cut = RenderLoaded();
+
+        cut.Find($"{RowSelector(row)} [data-testid='needs-review-suggestion'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(row))));
+        Assert.Equal([row.Review!.Id], engine.Skipped);
+        Assert.Empty(engine.Resolved);
+    }
+
+    [Fact]
+    public void UseThis_ForAFilmThatIsReallyATvShow_MovesItToTv()
+    {
+        var row = ReviewRow(Id(1), "Dr Horribles", trigger: "RetailMatchAmbiguous", group: NeedsReviewGroups.Ready, guess: TvGuess);
+        var engine = Register(() => Page([row]));
+        var cut = RenderLoaded();
+
+        cut.Find($"{RowSelector(row)} [data-testid='needs-review-suggestion'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("moved to TV", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([row.Review!.Id], engine.Moved);
+    }
+
+    [Fact]
+    public void WhenTheEngineRefusesUseThis_TheRowStays_AndAReasonShowsUnderIt()
+    {
+        var row = ReviewRow(Id(1), "Cibola Burn", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.84);
+        var engine = Register(() => Page([row]));
+        engine.Failing.Add(nameof(IEngineApiClient.ResolveReviewItemAsync));
+        var cut = RenderLoaded();
+
+        cut.Find($"{RowSelector(row)} [data-testid='needs-review-suggestion'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Cibola Burn could not be matched.", cut.Find($"{RowSelector(row)} [data-review-failure]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll(DoneSelector(row)));
+        Assert.Contains("1 item needs review", cut.Find("[data-testid='needs-review-summary']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheCountsDropAtOnce_WhenARowFinishes_WithoutWaitingForTheListToReload()
+    {
+        var first = ReviewRow(Id(1), "Cibola Burn", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.84);
+        var second = ReviewRow(Id(2), "Other Film", group: NeedsReviewGroups.Ready, guess: ConfirmGuess, confidence: 0.9);
+        var engine = Register(() => Page([first, second]));
+        var cut = RenderLoaded(2);
+        var readsBefore = engine.NormalListReads;
+
+        cut.Find($"{RowSelector(first)} [data-testid='needs-review-suggestion'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(first))));
+        Assert.Equal("1", cut.Find("[data-testid='needs-review-group-count']").TextContent.Trim());
+        Assert.Contains("1 item needs review", cut.Find("[data-testid='needs-review-summary']").TextContent, StringComparison.Ordinal);
+        Assert.Equal(readsBefore, engine.NormalListReads);
+        Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), engine.Calls);
+    }
+
+    // ---- The choices strip ----------------------------------------------------------------------------------------------------------
+
+    private static string TvCandidates() => System.Text.Json.JsonSerializer.Serialize(new[]
+    {
+        new MovieTvSuggestionDto
+        {
+            TmdbTvId = "5739",
+            Name = "Dr. Horrible's Sing-Along Blog",
+            FirstAirYear = 2008,
+            Type = "Miniseries",
+            Seasons = 1,
+            Episodes = 3,
+            PosterUrl = "https://image.tmdb.org/t/p/w500/dr.jpg",
+        },
+    });
+
+    [Fact]
+    public void AFilmThatMayBeATvShow_ShowsAChoicesStripWithMoveToTvAndKeepAsAFilm_AndNoSeparateSuggestionCard()
+    {
+        var row = ReviewRow(Id(1), "Dr Horribles", trigger: "MovieMatchedAsTv", group: NeedsReviewGroups.Choose, candidatesJson: TvCandidates(), guess: TvGuess);
+        Register(() => Page([row]));
+
+        var cut = RenderLoaded();
+
+        var strip = cut.Find($"{RowSelector(row)} [data-testid='needs-review-choices']");
+        Assert.Equal(
+            ["Move to TV", "Keep"],
+            strip.QuerySelectorAll("button").Select(button => button.TextContent.Trim()).ToArray());
+        Assert.Contains("Dr. Horrible's Sing-Along Blog (TV, 2008)", strip.TextContent, StringComparison.Ordinal);
+        Assert.Contains("1 season · 3 episodes", strip.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Keep as a film", strip.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".movie-as-tv-card"));
+        Assert.Empty(cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-suggestion']"));
+    }
+
+    [Fact]
+    public void MoveToTv_OnTheChoicesStrip_MovesTheFilm_AndTheRowBecomesAMovedLine()
+    {
+        var row = ReviewRow(Id(1), "Dr Horribles", trigger: "MovieMatchedAsTv", group: NeedsReviewGroups.Choose, candidatesJson: TvCandidates());
+        var engine = Register(() => Page([row]));
+        var cut = RenderLoaded();
+
+        cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices'] button")[0].Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Dr Horribles moved to TV", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([row.Review!.Id], engine.Moved);
+    }
+
+    [Fact]
+    public void KeepAsAFilm_OnTheChoicesStrip_KeepsTheFilm_AndItJoinsTheHiddenItems()
+    {
+        var row = ReviewRow(Id(1), "Dr Horribles", trigger: "MovieMatchedAsTv", group: NeedsReviewGroups.Choose, candidatesJson: TvCandidates());
+        var engine = Register(() => Page([row]));
+        var cut = RenderLoaded();
+
+        cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices'] button")[1].Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("kept as it is", cut.Find(DoneSelector(row)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([row.Review!.Id], engine.Dismissed);
+        Assert.Contains("1 item is hidden because you kept it as it is.", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WhenMoveToTvFails_TheStripStays_AndAReasonShowsUnderTheRow()
+    {
+        var row = ReviewRow(Id(1), "Dr Horribles", trigger: "MovieMatchedAsTv", group: NeedsReviewGroups.Choose, candidatesJson: TvCandidates());
+        var engine = Register(() => Page([row]));
+        engine.Failing.Add(nameof(IEngineApiClient.MoveReviewItemToTvAsync));
+        var cut = RenderLoaded();
+
+        cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices'] button")[0].Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Dr Horribles could not be moved to TV.", cut.Find($"{RowSelector(row)} [data-review-failure]").TextContent, StringComparison.Ordinal));
+        Assert.Single(cut.FindAll($"{RowSelector(row)} [data-testid='needs-review-choices']"));
+    }
+
+    // ---- The row menu ---------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheRowMenu_OffersTryAgainKeepAsItIsShowInActivityAndDelete_InThatOrder_AndNeverTheOldWording()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        Register(() => Page([file]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        var labels = MenuLabels(cut, RowSelector(file));
+
+        Assert.Equal(["Try again", "Keep as it is", "Show in Activity", "Delete"], labels);
+    }
+
+    [Fact]
+    public async Task Delete_IsLeftOutOfTheMenu_ForAFileThatHasNoWorkYet()
+    {
+        var file = FileRow(Id(1), "Orphan.mkv", workId: null);
+        Register(() => Page([file]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        Assert.DoesNotContain("Delete", MenuLabels(cut, RowSelector(file)));
+    }
+
+    [Fact]
+    public async Task TryAgain_OnAFile_LooksItUpAgain_AndTheRowBecomesATryingAgainLine()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        var engine = Register(() => Page([file]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        OpenMenuAndClick(cut, RowSelector(file), "Try again");
+
+        cut.WaitForAssertion(() => Assert.Contains("Mystery.2019.mkv: trying again", cut.Find(DoneSelector(file)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([file.Unmatched!.AssetId], engine.RetriedFiles);
+    }
+
+    [Fact]
+    public async Task TryAgain_WhenTheEngineDoesNotAnswer_SaysSoUnderTheRow()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        var engine = Register(() => Page([file]));
+        engine.Failing.Add(nameof(IEngineApiClient.RetryUnmatchedItemAsync));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        OpenMenuAndClick(cut, RowSelector(file), "Try again");
+
+        cut.WaitForAssertion(() => Assert.Contains("Mystery.2019.mkv could not be tried again. Try again in a moment.", cut.Find($"{RowSelector(file)} [data-review-failure]").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task KeepAsItIs_OnAFile_KeepsIt_HidesIt_AndAddsItToTheHiddenCount()
+    {
+        var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        var engine = Register(() => Page([file], keptTotal: 1));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+        Assert.Contains("1 item is hidden", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
+
+        OpenMenuAndClick(cut, RowSelector(file), "Keep as it is");
+
+        cut.WaitForAssertion(() => Assert.Contains("Mystery.2019.mkv kept as it is", cut.Find(DoneSelector(file)).TextContent, StringComparison.Ordinal));
+        Assert.Equal([file.Unmatched!.AssetId], engine.KeptFiles);
+        Assert.Contains("2 items are hidden because you kept them as they are.", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task KeepAsItIs_OnAnItemTheEngineWasUnsureAbout_RecordsTheChoiceInsteadOfDeletingAnything()
+    {
+        var row = ReviewRow(Id(1), "Cibola Burn", trigger: "RetailMatchFailed");
+        var engine = Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        OpenMenuAndClick(cut, RowSelector(row), "Keep as it is");
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(row))));
+        Assert.Equal([row.Review!.Id], engine.Dismissed);
+    }
+
+    [Fact]
+    public async Task ShowInActivity_OpensTheActivityListSearchedForTheTitle()
+    {
+        var row = ReviewRow(Id(1), "Cibola Burn", trigger: "RetailMatchFailed");
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        OpenMenuAndClick(cut, RowSelector(row), "Show in Activity");
+
+        cut.WaitForAssertion(() => Assert.EndsWith("/settings/library-activity?q=Cibola%20Burn", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+    }
+
+    // ---- File problems --------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AFileWhoseTagsCouldNotBeSaved_OffersTryAgainAsItsButton_AndHandsTheFileToTheRetagSweep()
+    {
+        var entityId = Id(7);
+        var row = ReviewRow(Id(1), "Locked Song", trigger: "WritebackFailed", group: NeedsReviewGroups.FileProblem, entityId: entityId, mediaType: "Music");
+        var engine = Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        var buttons = cut.FindAll($"{RowSelector(row)} .nr-row__actions button").Select(button => button.TextContent.Trim()).ToArray();
+        Assert.Contains("Try again", buttons);
+        Assert.DoesNotContain("Fix", buttons);
+
+        cut.FindAll($"{RowSelector(row)} .nr-row__actions button").First(button => button.TextContent.Trim() == "Try again").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(DoneSelector(row))));
+        Assert.Equal([entityId], engine.Retagged);
+    }
+
+    [Fact]
+    public async Task AFileProblemWithNoRetryAction_KeepsFixAsItsButton_AndOffersNoTryAgain()
+    {
+        var row = ReviewRow(Id(1), "Broken Film", trigger: "MediaInspectionFailed", group: NeedsReviewGroups.FileProblem);
+        Register(() => Page([row]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded();
+
+        var buttons = cut.FindAll($"{RowSelector(row)} .nr-row__actions button").Select(button => button.TextContent.Trim()).ToArray();
+        Assert.Contains("Fix", buttons);
+        Assert.DoesNotContain("Try again", buttons);
+        Assert.DoesNotContain("Try again", MenuLabels(cut, RowSelector(row)));
+    }
+
+    // ---- Families -------------------------------------------------------------------------------------------------------------------
+
+    private static readonly Guid ShowWorkId = Guid.Parse("99999999-9999-4999-8999-999999999999");
+
+    private static NeedsReviewRowDto[] Episodes(int count) => Enumerable.Range(1, count)
+        .Select(n => FileRow(Id(100 + n), $"Severance.S01E0{n}.mkv", workId: Id(200 + n), familyKey: "severance", familyTitle: "Severance", familyWorkId: ShowWorkId, folder: "C:/media/tv/Severance/Season 1", library: "tv"))
+        .ToArray();
+
+    [Fact]
+    public void TwoOrMoreFilesOfOneShow_ShareOneRow_CollapsedUntilTheArrowIsPressed()
+    {
+        Register(() => Page(Episodes(3)));
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+
+        var row = cut.Find("[data-testid='needs-review-family-row']");
+        Assert.Equal("Severance", row.QuerySelector("[data-testid='needs-review-title']")!.TextContent.Trim());
+        Assert.Contains("3 episodes", row.QuerySelector("[data-testid='needs-review-meta']")!.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-family-files']"));
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-row']"));
+        Assert.Equal("3", cut.Find("[data-testid='needs-review-group-count']").TextContent.Trim());
+
+        cut.Find("[data-testid='needs-review-family-toggle']").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-testid='needs-review-family-files'] [data-testid='needs-review-row']").Count));
+        Assert.Contains("Severance.S01E01.mkv", cut.Find("[data-testid='needs-review-family-files']").TextContent, StringComparison.Ordinal);
+        Assert.Equal("true", cut.Find("[data-testid='needs-review-family-toggle']").GetAttribute("aria-expanded"));
+    }
+
+    [Fact]
+    public async Task FixOnAFamily_OpensTheShowItselfInTheEditorOnMatch()
+    {
+        var engine = Register(() => Page(Episodes(3)));
+        await UseDesktopAsync();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+
+        cut.FindAll("[data-testid='needs-review-family-row'] .nr-row__actions button").Single(button => button.TextContent.Trim() == "Fix").Click();
+
+        var host = Services.GetRequiredService<EditorHost>();
+        popover.WaitForAssertion(() => Assert.True(host.IsOpen));
+        Assert.Equal(EditTool.Match, host.Session.ActiveTool);
+        Assert.Contains(ShowWorkId, engine.OpenedInEditor);
+    }
+
+    [Fact]
+    public async Task KeepAsTheyAre_OnAFamily_ActsOnEveryFileInIt_AndTheFamilyBecomesOneLine()
+    {
+        var engine = Register(() => Page(Episodes(3)));
+        await UseDesktopAsync();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+
+        OpenMenuAndClick(cut, "[data-testid='needs-review-family-row']", "Keep as they are");
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-done']")));
+        Assert.Contains("Severance kept as they are", cut.Find("[data-testid='needs-review-done']").TextContent, StringComparison.Ordinal);
+        Assert.Equal(3, engine.KeptFiles.Count);
+    }
+
+    [Fact]
+    public async Task TryAgain_OnAFamily_LooksUpEveryFileAgain()
+    {
+        var engine = Register(() => Page(Episodes(2)));
+        await UseDesktopAsync();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+
+        OpenMenuAndClick(cut, "[data-testid='needs-review-family-row']", "Try again");
+
+        cut.WaitForAssertion(() => Assert.Equal(2, engine.RetriedFiles.Count));
+        cut.WaitForAssertion(() => Assert.Contains("Severance: trying again", cut.Find("[data-testid='needs-review-done']").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task WhenTheEngineRefusesEveryFileOfAFamily_TheFamilyStaysAndSaysWhy_AndNothingFinishes()
+    {
+        var engine = Register(() => Page(Episodes(2)));
+        engine.Failing.Add(nameof(IEngineApiClient.KeepUnmatchedItemAsync));
+        await UseDesktopAsync();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForElement("[data-testid='needs-review-family-row']");
+
+        OpenMenuAndClick(cut, "[data-testid='needs-review-family-row']", "Keep as they are");
+
+        cut.WaitForAssertion(() => Assert.Contains("could not be kept as it is", cut.Find("[data-testid='needs-review-family-row'] [data-review-failure]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-done']"));
+        Assert.Equal(2, engine.KeptFiles.Count);
+    }
+
+    // ---- Fix ------------------------------------------------------------------------------------------------------------------------
+
     [Fact]
     public async Task Fix_OnADesktop_OpensThePopOverOverTheListOnMatch_AndTheListReadsAgainAfterAMatch()
     {
-        var item = Item(FirstId, "Cibola Burn");
-        var registered = Register(() => Loaded(item));
-        await Services.GetRequiredService<DeviceContextService>()
-            .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+        var row = ReviewRow(Id(1), "Cibola Burn", trigger: "RetailMatchFailed");
+        var engine = Register(() => Page([row]));
+        await UseDesktopAsync();
+        var navigation = Services.GetRequiredService<NavigationManager>();
         var before = navigation.Uri;
         var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        var readsBefore = registered.ReviewReads;
+        var cut = RenderLoaded();
+        var readsBefore = engine.NormalListReads;
 
-        cut.FindAll("tr.needs-review-table__row button").Single(button => button.TextContent.Trim() == "Fix").Click();
+        cut.FindAll($"{RowSelector(row)} button").Single(button => button.TextContent.Trim() == "Fix").Click();
 
-        // The pop-over is open over the list, on Match, and the person is still on the list.
         var host = Services.GetRequiredService<EditorHost>();
         popover.WaitForAssertion(() => Assert.Single(popover.FindAll(".tl-editor-panel[data-tool='match']")));
         Assert.True(host.IsOpen);
         Assert.Equal(EditTool.Match, host.Session.ActiveTool);
+        Assert.Contains(row.Review!.EntityId, engine.OpenedInEditor);
         Assert.Equal(before, navigation.Uri);
-        Assert.Single(cut.FindAll("tr.needs-review-table__row"));
+        Assert.Single(cut.FindAll(RowSelector(row)));
 
-        // A match went through and the pop-over closed: the queue is read again, so the row shows its new state.
         await cut.InvokeAsync(async () =>
         {
             await host.NotifyCommittedAsync();
             await host.RequestCloseAsync();
         });
-        cut.WaitForAssertion(() => Assert.True(registered.ReviewReads > readsBefore));
+        cut.WaitForAssertion(() => Assert.True(engine.NormalListReads > readsBefore));
     }
 
     [Fact]
-    public async Task Fix_ThatChangedNothing_DoesNotReadTheQueueAgain()
+    public async Task Fix_ThatChangedNothing_DoesNotReadTheListAgain()
     {
-        var item = Item(FirstId, "Cibola Burn");
-        var registered = Register(() => Loaded(item));
-        await Services.GetRequiredService<DeviceContextService>()
-            .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var row = ReviewRow(Id(1), "Cibola Burn", trigger: "RetailMatchFailed");
+        var engine = Register(() => Page([row]));
+        await UseDesktopAsync();
         var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        cut.FindAll("tr.needs-review-table__row button").Single(button => button.TextContent.Trim() == "Fix").Click();
+        var cut = RenderLoaded();
+        cut.FindAll($"{RowSelector(row)} button").Single(button => button.TextContent.Trim() == "Fix").Click();
         var host = Services.GetRequiredService<EditorHost>();
         popover.WaitForAssertion(() => Assert.True(host.IsOpen));
-        var readsBefore = registered.ReviewReads;
+        var readsBefore = engine.NormalListReads;
 
         await cut.InvokeAsync(() => host.RequestCloseAsync());
 
         Assert.False(host.IsOpen);
-        Assert.Equal(readsBefore, registered.ReviewReads);
+        Assert.Equal(readsBefore, engine.NormalListReads);
     }
 
     [Fact]
-    public async Task Fix_OffTheDesktop_StaysOnTheListAndOpensNothing()
+    public async Task OffTheDesktop_NoRowCarriesFix_AndNothingOpens()
     {
-        var item = Item(FirstId, "Cibola Burn");
-        Register(() => Loaded(item));
-        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
-        var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
-        var before = navigation.Uri;
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
+        var row = ReviewRow(Id(1), "Cibola Burn", trigger: "RetailMatchFailed");
+        Register(() => Page([row]));
+        await UsePhoneAsync();
+        var before = Services.GetRequiredService<NavigationManager>().Uri;
+        var cut = RenderLoaded();
 
-        // Editing is desktop-only: off the desktop the row carries no Fix button at all.
-        Assert.DoesNotContain(cut.FindAll("tr.needs-review-table__row button"), button => button.TextContent.Trim() == "Fix");
-        Assert.Equal(before, navigation.Uri);
+        Assert.DoesNotContain(cut.FindAll($"{RowSelector(row)} button"), button => button.TextContent.Trim() == "Fix");
+        Assert.Equal(before, Services.GetRequiredService<NavigationManager>().Uri);
         Assert.False(Services.GetRequiredService<EditorHost>().IsOpen);
     }
 
     [Fact]
-    public void ReviewLoadFailure_ShowsTheErrorAndRetry_NeverTheEmptyMessage_AndRetryShowsTheRows()
+    public async Task AFileWithNoWork_OffersNoFix()
     {
-        var failing = true;
-        Register(() => failing ? new ReviewListAttempt(null, "The Engine answered 500.") : Loaded(Item(FirstId, "Recovered Book")));
+        var withWork = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
+        var orphan = FileRow(Id(2), "Orphan.mkv", workId: null);
+        Register(() => Page([withWork, orphan]));
+        await UseDesktopAsync();
+        var cut = RenderLoaded(2);
 
-        var cut = Render<NeedsReviewPageContent>();
+        Assert.Contains(cut.FindAll($"{RowSelector(withWork)} button"), button => button.TextContent.Trim() == "Fix");
+        Assert.DoesNotContain(cut.FindAll($"{RowSelector(orphan)} button"), button => button.TextContent.Trim() == "Fix");
+    }
 
-        cut.WaitForAssertion(() => Assert.Contains("Needs Review could not load. Nothing was changed.", cut.Markup));
-        Assert.DoesNotContain("No items need review", cut.Markup);
-        Assert.Empty(cut.FindAll("tr.needs-review-table__row"));
+    // ---- The kept items -------------------------------------------------------------------------------------------------------------
 
-        failing = false;
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Retry").Click();
+    [Fact]
+    public void WhenNothingIsKept_NoHiddenLineIsDrawn()
+    {
+        Register(() => Page([ReviewRow(Id(1), "Cibola Burn")]));
 
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        Assert.DoesNotContain("could not load", cut.Markup);
-        Assert.Contains("Recovered Book", cut.Markup);
+        var cut = RenderLoaded();
+
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-kept-line']"));
     }
 
     [Fact]
-    public void ReviewLoad_WithNothingPending_StillSaysNoItemsNeedReview()
+    public void TheHiddenLine_SaysHowManyAreKept_AndShowThemListsThemWithPutBack()
     {
-        Register(() => Loaded());
+        var kept = ReviewRow(Id(5), "Kept Film", trigger: "RetailMatchFailed");
+        var keptFile = FileRow(Id(6), "Kept.File.mkv");
+        var engine = Register((_, wantKept) => wantKept ? Page([kept, keptFile], keptTotal: 2) : Page([ReviewRow(Id(1), "Cibola Burn")], keptTotal: 2));
+        var cut = RenderLoaded();
+        Assert.Contains("2 items are hidden because you kept them as they are.", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='needs-review-kept']"));
+        Assert.DoesNotContain(engine.ListReads, read => read.Kept);
 
-        var cut = Render<NeedsReviewPageContent>();
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("No items need review", cut.Markup));
-        Assert.DoesNotContain("could not load", cut.Markup);
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid='needs-review-kept'] button").Count(button => button.TextContent.Trim() == "Put back")));
+        Assert.Contains(engine.ListReads, read => read.Kept);
+        Assert.Equal("Hide them", cut.Find("[data-testid='needs-review-kept-line'] button").TextContent.Trim());
+
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid='needs-review-kept']")));
     }
 
     [Fact]
-    public void OneReviewItemThatCannotBeDrawn_ShowsACouldntBeShownRowAndTheOtherItemsStayUsable()
+    public void PutBack_OnAKeptItem_ReopensIt_AndBothListsAreReadAgain()
     {
-        var broken = Item(FirstId, "Cibola Burn");
-        broken.DetectedFacts = null!;
-        Register(() => Loaded(broken, Item(SecondId, "Leviathan Wakes")));
+        var kept = ReviewRow(Id(5), "Kept Film", trigger: "RetailMatchFailed");
+        var engine = Register((_, wantKept) => wantKept ? Page([kept], keptTotal: 1) : Page([ReviewRow(Id(1), "Cibola Burn")], keptTotal: 1));
+        var cut = RenderLoaded();
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+        cut.WaitForElement("[data-testid='needs-review-kept'] button");
+        var readsBefore = engine.NormalListReads;
 
-        var cut = Render<NeedsReviewPageContent>();
+        cut.FindAll("[data-testid='needs-review-kept'] button").Single(button => button.TextContent.Trim() == "Put back").Click();
 
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        Assert.Contains("Leviathan Wakes", cut.Find("tr.needs-review-table__row").TextContent, StringComparison.Ordinal);
-        var fallback = Assert.Single(cut.FindAll("[data-testid='row-error']"));
-        Assert.Contains("This item couldn't be shown", fallback.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Cibola Burn", fallback.TextContent, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll(".app-error-state"));
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Dismiss_WhenTheEngineRefusesOrFails_SaysSoAndKeepsTheRow(bool throws)
-    {
-        Register(
-            () => Loaded(Item(FirstId, "Stubborn Book"), Item(SecondId, "Other Book")),
-            dismiss: () => throws ? Task.FromException<bool>(new InvalidOperationException("boom")) : Task.FromResult(false));
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-
-        OpenMenuAndClick(cut, "Dismiss from review");
-
-        // The reason is an alert at the top of the list (a refusal is a warning, an unexpected error an error), never a toast.
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-review-failure]")));
-        var alert = cut.Find("[data-review-failure]");
-        Assert.Contains("could not be dismissed", alert.TextContent);
-        if (!throws)
-        {
-            Assert.Contains("tl-alert-warning", alert.ClassName);
-            Assert.Contains("It is still in Needs Review.", alert.TextContent);
-        }
-        else
-        {
-            Assert.Contains("tl-alert-error", alert.ClassName);
-        }
-
-        Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void KeepProviderMatch_WhenTheEngineRefusesOrFails_SaysSoAndKeepsTheRow(bool throws)
-    {
-        var registered = Register(
-            () => Loaded(Item(FirstId, "Stubborn Book", "MissingQid")),
-            skipUniverse: () => throws ? Task.FromException<bool>(new InvalidOperationException("boom")) : Task.FromResult(false));
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-
-        OpenMenuAndClick(cut, "Keep provider match");
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-review-failure]")));
-        var alert = cut.Find("[data-review-failure]");
-        Assert.Equal([FirstId], registered.Kept);
-        Assert.Contains("could not keep the provider match", alert.TextContent);
-        Assert.Contains(throws ? "tl-alert-error" : "tl-alert-warning", alert.ClassName);
-        Assert.Single(cut.FindAll("tr.needs-review-table__row"));
+        cut.WaitForAssertion(() => Assert.True(engine.NormalListReads > readsBefore));
+        Assert.Equal([kept.Review!.Id], engine.Reopened);
     }
 
     [Fact]
-    public void ReviewRows_ShowFromMergeAndImportFolderBadgesOnlyOnMatchingRows()
+    public void PutBack_OnAKeptFile_UnkeepsIt()
     {
-        var merged = Item(FirstId, "Merged Book");
-        merged.FromMerge = true;
-        var imported = Item(SecondId, "Imported Book");
-        imported.FromImportFolder = true;
-        var plain = Item(Guid.Parse("33333333-3333-4333-8333-333333333333"), "Plain Book");
-        Register(() => Loaded(merged, imported, plain));
+        var keptFile = FileRow(Id(6), "Kept.File.mkv");
+        var engine = Register((_, wantKept) => wantKept ? Page([keptFile], keptTotal: 1) : Page([ReviewRow(Id(1), "Cibola Burn")], keptTotal: 1));
+        var cut = RenderLoaded();
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+        cut.WaitForElement("[data-testid='needs-review-kept'] button");
 
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("tr.needs-review-table__row").Count));
+        cut.FindAll("[data-testid='needs-review-kept'] button").Single(button => button.TextContent.Trim() == "Put back").Click();
 
-        string[] BadgesOf(string title) => cut.FindAll("tr.needs-review-table__row")
-            .Single(row => row.TextContent.Contains(title, StringComparison.Ordinal))
-            .QuerySelectorAll(".needs-review-table__item .app-status-badge")
-            .Select(badge => badge.TextContent.Trim())
-            .ToArray();
-
-        Assert.Equal(["From merge"], BadgesOf("Merged Book"));
-        Assert.Equal(["From the Import folder"], BadgesOf("Imported Book"));
-        Assert.Empty(BadgesOf("Plain Book"));
+        cut.WaitForAssertion(() => Assert.Equal([keptFile.Unmatched!.AssetId], engine.UnkeptFiles));
     }
 
     [Fact]
-    public void ServerAdministrator_SeesTheNeedsReviewSection_AndTheCountIsFetched()
+    public void WhenPutBackFails_TheKeptItemStays_AndSaysWhy()
     {
-        var registered = Register(() => Loaded(Item(FirstId, "Pending Book")));
+        var kept = ReviewRow(Id(5), "Kept Film", trigger: "RetailMatchFailed");
+        var engine = Register((_, wantKept) => wantKept ? Page([kept], keptTotal: 1) : Page([ReviewRow(Id(1), "Cibola Burn")], keptTotal: 1));
+        engine.Failing.Add(nameof(IEngineApiClient.ReopenReviewItemAsync));
+        var cut = RenderLoaded();
+        cut.Find("[data-testid='needs-review-kept-line'] button").Click();
+        cut.WaitForElement("[data-testid='needs-review-kept'] button");
 
-        var cut = Render<NeedsReviewPageContent>();
+        cut.FindAll("[data-testid='needs-review-kept'] button").Single(button => button.TextContent.Trim() == "Put back").Click();
 
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        Assert.Contains("Needs Review", cut.Markup);
-        Assert.Contains(nameof(IEngineApiClient.GetNeedsReviewListAsync), registered.EngineCalls);
-        Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+        cut.WaitForAssertion(() => Assert.Contains("Kept Film could not be put back.", cut.Find("[data-testid='needs-review-kept'] [data-review-failure]").TextContent, StringComparison.Ordinal));
     }
 
     [Fact]
-    public void WithALibrary_TheListIsRequestedForThatLibrary()
+    public void WhenOnlyKeptItemsRemain_ThePageSaysNothingNeedsReview_AndStillOffersToShowThem()
     {
-        var asked = new List<string>();
-        var registered = Register(
-            () => Loaded(Item(FirstId, "Pending Book"), Item(SecondId, "Other Library Book")),
-            libraryReviews: library => { asked.Add(library); return Loaded(Item(FirstId, "Pending Book")); });
-
-        var cut = Render<NeedsReviewPageContent>(parameters => parameters.Add(p => p.Library, "library-a"));
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        Assert.Equal(["library-a"], asked);
-        Assert.Contains(nameof(IEngineApiClient.GetNeedsReviewListAsync), registered.EngineCalls);
-    }
-
-    [Fact]
-    public void HouseholdAdministrator_GetsNoNeedsReviewSection_AndNoReviewRequestIsMade()
-    {
-        var registered = Register(() => Loaded(Item(FirstId, "Pending Book")), authority: HouseholdAdministrator());
+        Register(() => Page([], keptTotal: 3));
 
         var cut = Render<NeedsReviewPageContent>();
 
-        cut.WaitForAssertion(() => Assert.Contains("server administrators", cut.Markup));
-        Assert.DoesNotContain("No items need review", cut.Markup);
-        Assert.DoesNotContain("could not load", cut.Markup);
-        Assert.Empty(cut.FindAll("tr.needs-review-table__row"));
-        Assert.Empty(cut.FindAll(".review-pinned"));
-        Assert.DoesNotContain(nameof(IEngineApiClient.GetNeedsReviewListAsync), registered.EngineCalls);
-        Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAsync), registered.EngineCalls);
-        Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='needs-review-empty']")));
+        Assert.Contains("3 items are hidden", cut.Find("[data-testid='needs-review-kept-line']").TextContent, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Dismiss_WhenTheEngineAccepts_CallsTheEngineAndTheRowLeavesTheList()
-    {
-        var registered = Register(() => Loaded(Item(FirstId, "Resolved Book"), Item(SecondId, "Other Book")));
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-
-        OpenMenuAndClick(cut, "Dismiss from review");
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        Assert.Single(registered.Dismissed);
-    }
-
-    [Fact]
-    public void NeedsReviewPage_SearchNarrowsTheList_AndStartsFromTheQueryText()
-    {
-        Register(() => Loaded(Item(FirstId, "Dune"), Item(SecondId, "Emma")));
-
-        var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.InitialSearch, "dune"));
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        Assert.Contains("Dune", cut.Markup);
-        Assert.DoesNotContain("Emma", cut.Markup);
-    }
+    // ---- The shell's count ----------------------------------------------------------------------------------------------------------
 
     [Fact]
     public async Task ReviewCount_ForAServerAdministrator_IsFetchedFromTheEngine()
     {
-        var registered = Register(() => Loaded(), authority: ServerAdministrator());
+        var engine = Register(() => Page([]));
 
         var count = await Services.GetRequiredService<UIOrchestratorService>().RefreshReviewCountAsync();
 
         Assert.Equal(3, count);
-        Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+        Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), engine.Calls);
     }
 
     [Fact]
     public async Task ReviewCount_ForAHouseholdAdministrator_MakesNoEngineRequestAndStaysZero()
     {
-        var registered = Register(() => Loaded(), authority: HouseholdAdministrator());
+        var engine = Register(() => Page([]), authority: HouseholdAdministrator());
 
         var count = await Services.GetRequiredService<UIOrchestratorService>().RefreshReviewCountAsync();
 
         Assert.Equal(0, count);
-        Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), engine.Calls);
     }
-
-    // ---- One list (universal editor v3 WP7 and D9) ---------------------------------------------------------------------------------
-
-    private static readonly Guid FileAssetId = Guid.Parse("55555555-5555-4555-8555-555555555555");
-    private static readonly Guid FileWorkId = Guid.Parse("66666666-6666-4666-8666-666666666666");
-
-    private static MediaEngine.Contracts.Review.NeedsReviewRowDto FileRow(Guid assetId, string name, Guid? workId = null, string reason = "no_match", string library = "movies", string folder = "C:/media/movies", DateTimeOffset? lastTried = null) => new()
-    {
-        Key = $"file:{assetId:D}",
-        Kind = MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched,
-        LibraryId = library,
-        LibraryName = "Movies",
-        LastTriedAt = lastTried ?? DateTimeOffset.UtcNow.AddHours(-3),
-        Unmatched = new MediaEngine.Contracts.Library.UnmatchedItemDto
-        {
-            AssetId = assetId,
-            LibraryId = library,
-            FileName = name,
-            Folder = folder,
-            WorkId = workId,
-            Reason = reason,
-            LastTriedAt = DateTimeOffset.UtcNow.AddHours(-3),
-        },
-    };
-
-    private static MediaEngine.Contracts.Review.NeedsReviewRowDto ReviewRow(Guid id, string title, string trigger, MediaEngine.Contracts.Review.NeedsReviewBestGuessDto? guess = null, double? confidence = null, string? year = null, string? cover = null) => new()
-    {
-        Key = $"review:{id:D}",
-        Kind = trigger == "RetailMatchFailed" ? MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched : MediaEngine.Contracts.Review.NeedsReviewKinds.NotSure,
-        LibraryId = "movies",
-        LibraryName = "Movies",
-        LastTriedAt = DateTimeOffset.UtcNow.AddHours(-2),
-        BestGuess = guess,
-        Review = new MediaEngine.Contracts.Review.ReviewItemDto
-        {
-            Id = id,
-            EntityId = Guid.NewGuid(),
-            EntityType = "MediaAsset",
-            Trigger = trigger,
-            Status = "Pending",
-            EntityTitle = title,
-            MediaType = "Movies",
-            CreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
-            LibraryId = "movies",
-            ConfidenceScore = confidence,
-            CoverUrl = cover,
-            DetectedFacts = FactsOf(year),
-        },
-    };
-
-    private static Dictionary<string, string> FactsOf(string? year)
-    {
-        var facts = new Dictionary<string, string>();
-        if (year is not null)
-        {
-            facts["year"] = year;
-        }
-
-        return facts;
-    }
-
-    private static NeedsReviewListAttempt ListOf(params MediaEngine.Contracts.Review.NeedsReviewRowDto[] rows) => new(new MediaEngine.Contracts.Review.NeedsReviewListDto
-    {
-        Items = [.. rows],
-        Total = rows.Length,
-        NotMatchedTotal = rows.Count(row => row.Kind == MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched),
-        NotSureTotal = rows.Count(row => row.Kind == MediaEngine.Contracts.Review.NeedsReviewKinds.NotSure),
-        Take = 500,
-    }, null);
-
-    [Fact]
-    public void TheListHoldsUnmatchedFilesAndReviewItemsTogether_EachSayingWhyInWords()
-    {
-        var list = ListOf(
-            FileRow(FileAssetId, "Mystery.2019.mkv"),
-            ReviewRow(FirstId, "Cibola Burn", "MissingQid"));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-        var file = cut.Find($"tr[data-key='file:{FileAssetId:D}']");
-        Assert.Contains("Not matched", file.TextContent, StringComparison.Ordinal);
-        Assert.Contains("No match was found online", file.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Mystery.2019.mkv", file.TextContent, StringComparison.Ordinal);
-        var review = cut.Find($"tr[data-key='review:{FirstId:D}']");
-        Assert.Contains("Not sure", review.TextContent, StringComparison.Ordinal);
-        Assert.Contains("No canonical identity found", review.TextContent, StringComparison.Ordinal);
-        // The columns the product promises.
-        var headings = cut.FindAll("thead th").Select(th => th.TextContent.Trim()).ToArray();
-        Assert.Contains("Why", headings);
-        Assert.Contains("Best guess", headings);
-        Assert.Contains("Last tried", headings);
-    }
-
-    [Fact]
-    public void TheFilterChipsShowTheTotals_AndAFilterAsksTheEngineForThatKindAndLibrary()
-    {
-        var asked = new List<(string? Kind, string? Library)>();
-        var list = ListOf(FileRow(FileAssetId, "Mystery.2019.mkv"), ReviewRow(FirstId, "Cibola Burn", "MissingQid"));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), args =>
-        {
-            asked.Add(((string?)args![0], (string?)args[1]));
-            return Task.FromResult(list);
-        }));
-
-        var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.Show, "not-matched").Add(c => c.Library, "movies"));
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(asked));
-        Assert.Equal(("not_matched", "movies"), asked[0]);
-        var chips = cut.FindAll(".app-segmented-control__item").Select(chip => chip.TextContent.Trim()).ToArray();
-        Assert.Equal(["All 2", "Not matched 1", "Not sure 1"], chips);
-        Assert.Equal("true", cut.FindAll(".app-segmented-control__item").Single(chip => chip.TextContent.Contains("Not matched", StringComparison.Ordinal)).GetAttribute("aria-pressed"));
-    }
-
-    [Fact]
-    public async Task Fix_OnAnUnmatchedFile_OpensThePopOverOnMatch_AndAFileWithNoWorkOffersNoFix()
-    {
-        var list = ListOf(FileRow(FileAssetId, "Mystery.2019.mkv", FileWorkId), FileRow(Guid.NewGuid(), "Orphan.mkv", workId: null));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-        await Services.GetRequiredService<DeviceContextService>()
-            .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-
-        var fixes = cut.FindAll("tr.needs-review-table__row button").Where(button => button.TextContent.Trim() == "Fix").ToList();
-        Assert.Single(fixes);
-        fixes[0].Click();
-
-        popover.WaitForAssertion(() => Assert.True(Services.GetRequiredService<EditorHost>().IsOpen));
-        Assert.Equal(EditTool.Match, Services.GetRequiredService<EditorHost>().Session.ActiveTool);
-    }
-
-    [Fact]
-    public void UseThis_RunsTheEnginesBestGuess_AndTheRowLeavesTheList()
-    {
-        var guess = new MediaEngine.Contracts.Review.NeedsReviewBestGuessDto { Action = "keep_provider_match", Name = "Cibola Burn", Year = "2014", Source = "Provider match" };
-        var list = ListOf(ReviewRow(FirstId, "Cibola Burn", "MissingQid", guess), ReviewRow(SecondId, "Other", "MetadataConflict"));
-        var registered = Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-        Assert.Contains("Cibola Burn (2014)", cut.Find($"tr[data-key='review:{FirstId:D}'] .needs-review-table__guess").TextContent, StringComparison.Ordinal);
-        Assert.Equal("None", cut.Find($"tr[data-key='review:{SecondId:D}'] .needs-review-table__guess").TextContent.Trim());
-
-        cut.Find($"tr[data-key='review:{FirstId:D}'] .needs-review-table__guess button").Click();
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        Assert.Equal([FirstId], registered.Kept);
-    }
-
-    [Fact]
-    public void BulkTryAgainForAllAndKeepAllAsTheyAre_ActOnTheRowsTheFiltersLeave()
-    {
-        var retried = new List<Guid>();
-        var kept = new List<Guid>();
-        var list = ListOf(
-            FileRow(FileAssetId, "A.mkv"),
-            FileRow(Guid.Parse("77777777-7777-4777-8777-777777777777"), "B.mkv"),
-            ReviewRow(FirstId, "Cibola Burn", "MetadataConflict"));
-        var registered = Register(() => Loaded(), configure: stub =>
-        {
-            stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list));
-            stub.SetHandler(nameof(IEngineApiClient.RetryUnmatchedItemAsync), args =>
-            {
-                retried.Add((Guid)args![0]!);
-                return Task.FromResult<MediaEngine.Contracts.Library.UnmatchedActionResultDto?>(new() { Affected = 1 });
-            });
-            stub.SetHandler(nameof(IEngineApiClient.KeepUnmatchedItemAsync), args =>
-            {
-                kept.Add((Guid)args![0]!);
-                return Task.FromResult<MediaEngine.Contracts.Library.UnmatchedActionResultDto?>(new() { Affected = 1 });
-            });
-        });
-        var dialogs = Render<AppDialogHost>();
-        var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.InitialSearch, "mkv"));
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-
-        // The two links sit in the filter row, not on a row of their own, and there is no tick step.
-        Assert.Equal(2, cut.FindAll(".needs-review-page__filters .needs-review-page__bulk button").Count);
-        Assert.Empty(cut.FindAll("input[type=checkbox]"));
-        Assert.DoesNotContain("Tick rows", cut.Markup, StringComparison.Ordinal);
-
-        // The search leaves the two files, so Try again for all reaches both and never the hidden review item.
-        BulkButton(cut, "Try again for all").Click();
-        cut.WaitForAssertion(() => Assert.Equal([FileAssetId, Guid.Parse("77777777-7777-4777-8777-777777777777")], retried));
-        Assert.Empty(registered.Dismissed);
-
-        // Keep all as they are asks first and says how many rows it covers; Cancel changes nothing.
-        BulkButton(cut, "Keep all as they are").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("2 items will be left as they are", dialogs.Find(".app-confirm__message").TextContent, StringComparison.Ordinal));
-        dialogs.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Cancel").Click();
-        Assert.Empty(kept);
-        Assert.Empty(registered.Dismissed);
-
-        BulkButton(cut, "Keep all as they are").Click();
-        dialogs.WaitForAssertion(() => Assert.NotEmpty(dialogs.FindAll(".app-confirm")));
-        dialogs.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Keep all").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal(2, kept.Count));
-        Assert.Empty(registered.Dismissed);
-    }
-
-    private static AngleSharp.Dom.IElement BulkButton(IRenderedComponent<NeedsReviewPageContent> cut, string label) =>
-        cut.FindAll(".needs-review-page__bulk button").Single(button => button.TextContent.Trim() == label);
-
-    [Fact]
-    public void KeepAllAsTheyAre_WithNoSearch_AlsoDismissesTheItemsTheEngineWasUnsureAbout()
-    {
-        var list = ListOf(FileRow(FileAssetId, "A.mkv"), ReviewRow(FirstId, "Cibola Burn", "MetadataConflict"));
-        var kept = new List<Guid>();
-        var registered = Register(() => Loaded(), configure: stub =>
-        {
-            stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list));
-            stub.SetHandler(nameof(IEngineApiClient.KeepUnmatchedItemAsync), args =>
-            {
-                kept.Add((Guid)args![0]!);
-                return Task.FromResult<MediaEngine.Contracts.Library.UnmatchedActionResultDto?>(new() { Affected = 1 });
-            });
-        });
-        var dialogs = Render<AppDialogHost>();
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-
-        BulkButton(cut, "Keep all as they are").Click();
-        dialogs.WaitForAssertion(() => Assert.NotEmpty(dialogs.FindAll(".app-confirm")));
-        dialogs.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Keep all").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal([FileAssetId], kept));
-        Assert.Equal([FirstId], registered.Dismissed);
-    }
-
-    [Fact]
-    public void TryAgainForAll_IsOff_WhenNoRowLeftCanBeLookedUpAgain()
-    {
-        var list = ListOf(ReviewRow(FirstId, "Cibola Burn", "MetadataConflict"));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-
-        Assert.True(BulkButton(cut, "Try again for all").HasAttribute("disabled"));
-        Assert.False(BulkButton(cut, "Keep all as they are").HasAttribute("disabled"));
-    }
-
-    [Fact]
-    public void AnEmptyFilter_SaysSoInWords()
-    {
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(ListOf())));
-
-        var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.Show, "not-matched"));
-
-        cut.WaitForAssertion(() => Assert.Contains("Every file has been matched.", cut.Markup));
-    }
-
-    [Fact]
-    public void AnUnmatchedFileRow_ShowsTitleKindAndOneShortenedFolderLine_WithTheFullPathInTheTooltip()
-    {
-        const string folder = @"Z:\Development\testing\media\real_media\books\Rick Riordan\The Percy Jackson and the Olympians, Book Two_ Sea of Monsters (112)";
-        var list = ListOf(FileRow(FileAssetId, "Sea of Monsters.epub", folder: folder));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        var item = cut.Find("td.needs-review-table__item");
-        Assert.Equal("Movies", item.QuerySelectorAll("small")[0].TextContent.Trim());
-        var path = item.QuerySelectorAll("[data-testid='needs-review-path']").Single();
-        Assert.Equal(@"…\Rick Riordan\The Percy Jackson and the Olympians, Book Two_ Sea of Monsters (112)", path.TextContent.Trim());
-        Assert.DoesNotContain("real_media", path.TextContent, StringComparison.Ordinal);
-        Assert.Equal(folder, item.QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
-        Assert.Null(item.QuerySelector("[title]"));
-    }
-
-    [Theory]
-    [InlineData(@"Z:\a\b\c\d", @"…\c\d")]
-    [InlineData("C:/media/movies", "…/media/movies")]
-    [InlineData(@"Z:\movies", @"Z:\movies")]
-    [InlineData("/movies", "/movies")]
-    public void ShortFolder_KeepsTheLastTwoFolderNames_AndTheSeparatorTheFolderUses(string folder, string expected)
-    {
-        Assert.Equal(expected, NeedsReviewPageContent.ShortFolder(folder));
-    }
-
-    [Fact]
-    public void TheLastTriedColumn_ReadsRelative_Today_Yesterday_AndDaysAgo()
-    {
-        var noon = DateTime.Today.AddHours(12);
-        var yesterday = Guid.Parse("88888888-8888-4888-8888-888888888888");
-        var older = Guid.Parse("99999999-9999-4999-8999-999999999999");
-        var list = ListOf(
-            FileRow(FileAssetId, "Today.mkv", lastTried: new DateTimeOffset(noon)),
-            FileRow(yesterday, "Yesterday.mkv", lastTried: new DateTimeOffset(noon.AddDays(-1))),
-            FileRow(older, "Older.mkv", lastTried: new DateTimeOffset(noon.AddDays(-2))));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-
-        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("tr.needs-review-table__row").Count));
-        string TriedOf(Guid id) => cut.Find($"tr[data-key='file:{id:D}'] td.needs-review-table__tried").TextContent.Trim();
-        Assert.Equal("Today", TriedOf(FileAssetId));
-        Assert.Equal("Yesterday", TriedOf(yesterday));
-        Assert.Equal("2 days ago", TriedOf(older));
-    }
-
-    [Theory]
-    [InlineData(0, 0)]
-    [InlineData(1, 1)]
-    [InlineData(2, 2)]
-    [InlineData(30, 30)]
-    public void WholeDaysAgo_CountsCalendarDays_AndNothingYetHasNone(int daysBack, int expected)
-    {
-        var now = new DateTimeOffset(2026, 11, 6, 0, 30, 0, TimeSpan.Zero);
-        var tried = now.AddDays(-daysBack);
-
-        Assert.Equal(expected, NeedsReviewPageContent.WholeDaysAgo(tried, now));
-        Assert.Null(NeedsReviewPageContent.WholeDaysAgo(default, now));
-    }
-
-    [Fact]
-    public void TheRow_HasAPictureBeforeTheName_ADarkSquareWhenThereIsNone_AndNoTickBox()
-    {
-        var list = ListOf(
-            FileRow(FileAssetId, "Mystery.2019.mkv"),
-            ReviewRow(FirstId, "Cibola Burn", "MetadataConflict", cover: "/engine-image/cibola.jpg"));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-        Assert.Empty(cut.FindAll("input[type=checkbox]"));
-        var file = cut.Find($"tr[data-key='file:{FileAssetId:D}']");
-        Assert.Empty(file.QuerySelectorAll(".needs-review-table__thumb img"));
-        Assert.Single(file.QuerySelectorAll(".needs-review-table__thumb"));
-        var review = cut.Find($"tr[data-key='review:{FirstId:D}']");
-        Assert.Single(review.QuerySelectorAll(".needs-review-table__thumb img.needs-review-table__thumb-img"));
-        // The picture is the first cell, ahead of the name.
-        Assert.Contains("needs-review-table__thumb-cell", review.Children[0].ClassName, StringComparison.Ordinal);
-        Assert.Contains("needs-review-table__item", review.Children[1].ClassName, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void BestGuess_ShowsANamedGuessWithAPercentChipWhenTheEngineIsPartlySure_AndNoneWhenItHasNothing()
-    {
-        var list = ListOf(
-            ReviewRow(FirstId, "Dune", "LowConfidence", confidence: 0.82, year: "2021"),
-            FileRow(FileAssetId, "sample_clip.mp4"));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tr.needs-review-table__row").Count));
-        var partial = cut.Find($"tr[data-key='review:{FirstId:D}'] .needs-review-table__guess");
-        Assert.Contains("Dune (2021)", partial.TextContent, StringComparison.Ordinal);
-        Assert.Contains("82", partial.QuerySelector(".needs-review-table__confidence")!.TextContent, StringComparison.Ordinal);
-        Assert.Empty(partial.QuerySelectorAll("button"));
-        Assert.Equal("None", cut.Find($"tr[data-key='file:{FileAssetId:D}'] .needs-review-table__guess").TextContent.Trim());
-    }
-
-    [Fact]
-    public void UseThis_IsAGreenShortcutOnTheClearCases_AndRunsTheEnginesAnswerInOneClick()
-    {
-        var guess = new MediaEngine.Contracts.Review.NeedsReviewBestGuessDto { Action = "keep_provider_match", Name = "Cibola Burn", Year = "2014", Source = "Provider match" };
-        var list = ListOf(ReviewRow(FirstId, "Cibola Burn", "MissingQid", guess));
-        var registered = Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        var useThis = cut.Find(".needs-review-table__guess button.needs-review-table__use-this");
-        Assert.Contains("success", useThis.ClassName, StringComparison.OrdinalIgnoreCase);
-
-        useThis.Click();
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("tr.needs-review-table__row")));
-        Assert.Equal([FirstId], registered.Kept);
-    }
-
-    [Fact]
-    public async Task Fix_IsAPlainOutlinedButton_AndTheRowMenuKeepsWhatFixCannotCover()
-    {
-        var list = ListOf(FileRow(FileAssetId, "Mystery.2019.mkv", FileWorkId));
-        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
-        await Services.GetRequiredService<DeviceContextService>()
-            .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-
-        var cut = Render<NeedsReviewPageContent>();
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
-        var fix = cut.FindAll("tr.needs-review-table__row button").Single(button => button.TextContent.Trim() == "Fix");
-        Assert.Contains("app-button--outlined", fix.ClassName, StringComparison.Ordinal);
-        Assert.DoesNotContain("app-button--filled", fix.ClassName, StringComparison.Ordinal);
-        Assert.DoesNotContain("app-tone--primary", fix.ClassName, StringComparison.Ordinal);
-        Assert.Single(cut.FindAll("td.needs-review-table__actions .needs-review-table__actions-row .app-overflow-menu__trigger"));
-        Assert.Equal(6, cut.FindAll("thead th").Count);
-        Assert.Equal(6, cut.FindAll("tr.needs-review-table__row > td").Count);
-
-        cut.Find("tr.needs-review-table__row .app-overflow-menu__trigger").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
-        var items = cut.FindAll("button.app-menu-item").Select(item => item.TextContent.Trim()).ToArray();
-        Assert.Contains("Try again", items);
-        Assert.Contains("Keep as it is", items);
-        Assert.Contains("Remove from library", items);
-        Assert.DoesNotContain("Fix", items);
-    }
-
 
     /// <summary>The active person comes from the Dashboard session; the cookie principal adds nothing.</summary>
     private sealed class SessionOnlyAuthentication : AuthenticationStateProvider

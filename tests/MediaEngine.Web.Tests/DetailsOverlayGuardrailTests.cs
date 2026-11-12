@@ -83,7 +83,7 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Navigation/TopNavProfileSwitcher.razor"] = (1, "Full reload to Home after switching profile."),
         ["Components/Pages/BookReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
         ["Components/Settings/Libraries/LibrariesOverview.razor"] = (1, "The Libraries page rewriting its own area filter address (?area=) so Back leaves the page; it is a Settings route, never a /details/ address."),
-        ["Components/Settings/NeedsReviewPageContent.razor"] = (2, "The Needs Review list rewriting its own filter address (kind and library) so Back leaves the list."),
+        ["Components/Settings/NeedsReviewPageContent.razor"] = (1, "The Needs Review list rewriting its own filter address (library) so Back leaves the list."),
         ["Components/Pages/ProfilePickerPage.razor"] = (1, "Full reload to the sanitized same-site return address after choosing a profile (ProfilePickerRoute)."),
         ["Components/Pages/SearchPage.razor"] = (1, "The search page rewriting its own query."),
         ["Components/Pages/Settings.razor"] = (2, "A Kids profile or a page switched off for this device goes Home (an address that is not a Settings page shows the not-found page in place, with no replace)."),

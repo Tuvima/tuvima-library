@@ -4,20 +4,6 @@ using MediaEngine.Contracts.Library;
 namespace MediaEngine.Contracts.Review;
 
 /// <summary>
-/// Needs Review is one list (universal editor v3, WP7 and D9): the items the Engine identified but is not sure about and the files it
-/// could not match at all, read together. A library's "N files not identified" and the Settings notifier count come from the same two
-/// sources, so the number a person is told and the rows they find always agree.
-/// </summary>
-public static class NeedsReviewKinds
-{
-    /// <summary>The Engine found nothing to match this file to (an Unmatched file, or a review item for a failed retail match).</summary>
-    public const string NotMatched = "not_matched";
-
-    /// <summary>The Engine found a match, or several, and is not sure of it (every other review item).</summary>
-    public const string NotSure = "not_sure";
-}
-
-/// <summary>
 /// The four groups of the redesigned Needs Review page, in the order the page shows them: what the person must do with the item.
 /// Every row carries exactly one (<see cref="NeedsReviewRowDto.Group"/>).
 /// </summary>
@@ -66,10 +52,6 @@ public sealed class NeedsReviewRowDto
     /// <summary><c>review:{id}</c> or <c>file:{assetId}</c>; stable, so a ticked row stays ticked while the list reloads.</summary>
     [JsonPropertyName("key")]
     public string Key { get; init; } = string.Empty;
-
-    /// <summary><see cref="NeedsReviewKinds.NotMatched"/> or <see cref="NeedsReviewKinds.NotSure"/>.</summary>
-    [JsonPropertyName("kind")]
-    public string Kind { get; init; } = NeedsReviewKinds.NotSure;
 
     [JsonPropertyName("library_id")]
     public string? LibraryId { get; init; }
@@ -126,25 +108,20 @@ public sealed class NeedsReviewRowDto
     public bool Kept { get; init; }
 }
 
-/// <summary>One page of the Needs Review list, with the totals the filter chips show.</summary>
+/// <summary>
+/// One page of the Needs Review list (review items and the files the Engine could not match, read together), with the totals for its groups
+/// and for the kept items.
+/// </summary>
 public sealed class NeedsReviewListDto
 {
     [JsonPropertyName("items")]
     public List<NeedsReviewRowDto> Items { get; init; } = [];
 
-    /// <summary>Rows that match the filter and the library filter.</summary>
+    /// <summary>Rows that match the library filter.</summary>
     [JsonPropertyName("total")]
     public int Total { get; init; }
 
-    /// <summary>Not matched rows in the chosen library (or everywhere), whatever the kind filter says.</summary>
-    [JsonPropertyName("not_matched_total")]
-    public int NotMatchedTotal { get; init; }
-
-    /// <summary>Not sure rows in the chosen library (or everywhere), whatever the kind filter says.</summary>
-    [JsonPropertyName("not_sure_total")]
-    public int NotSureTotal { get; init; }
-
-    /// <summary>How many rows each <see cref="NeedsReviewGroups"/> group holds in the filtered list, before paging. All four keys are present.</summary>
+    /// <summary>How many rows each <see cref="NeedsReviewGroups"/> group holds in the list, before paging. All four keys are present.</summary>
     [JsonPropertyName("group_totals")]
     public Dictionary<string, int> GroupTotals { get; init; } = new()
     {

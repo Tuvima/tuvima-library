@@ -1,0 +1,72 @@
+/* One row, mock screen 1: cover | item | suggestion | actions on one line; the suggestion drops under the item below 1180 px; a card on a phone.
+   The grid areas are named so a leading tick box column can be added in front of the cover without touching the rest. */
+.nr-row {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 400px) auto;
+    grid-template-areas:
+        "cover item suggestion actions"
+        ". choices choices choices"
+        ". failure failure failure";
+    column-gap: var(--tl-space-3);
+    align-items: center;
+    min-block-size: 88px;
+    padding: var(--tl-space-3);
+    border-block-start: 1px solid var(--tl-border-default);
+}
+.nr-row:first-child { border-block-start: 0; }
+.nr-row--child { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 400px) auto; min-block-size: 64px; padding-inline-start: 44px; background: var(--tl-bg-surface-raised); }
+.nr-row--done { grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "cover item"; min-block-size: 64px; }
+.nr-row__cover { grid-area: cover; display: block; }
+.nr-row__item { grid-area: item; min-inline-size: 0; }
+.nr-row__title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tl-font-size-sm); font-weight: var(--tl-font-weight-medium); }
+.nr-row__meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
+.nr-row__why { display: flex; align-items: center; gap: 6px; margin: var(--tl-space-1) 0 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
+.nr-row__why-icon { display: inline-flex; flex: none; color: var(--tl-status-warning); }
+.nr-row__why--problem .nr-row__why-icon { color: var(--tl-status-error); }
+
+.nr-row__suggestion { grid-area: suggestion; display: flex; align-items: center; gap: 10px; min-inline-size: 0; }
+.nr-row__guess { flex: 1; min-inline-size: 0; }
+.nr-row__guess b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tl-font-size-sm); font-weight: var(--tl-font-weight-medium); }
+.nr-row__guess small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
+.nr-row__note { grid-area: suggestion; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
+
+.nr-row__actions { grid-area: actions; display: flex; align-items: center; justify-content: flex-end; gap: var(--tl-space-1); }
+.nr-row__choices { grid-area: choices; margin-block-start: 10px; }
+.nr-row__fixfull { grid-area: fixfull; }
+.nr-row__failure { grid-area: failure; display: flex; align-items: center; gap: 6px; margin: var(--tl-space-2) 0 0; color: var(--tl-status-error); font-size: var(--tl-font-size-secondary); }
+.nr-row__failure-icon { display: inline-flex; flex: none; }
+
+.nr-done { grid-area: item; display: flex; align-items: center; gap: var(--tl-space-2); margin: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.nr-done__tick { display: inline-flex; flex: none; color: var(--tl-status-success); }
+
+
+/* Narrower desktop and tablet: the suggestion moves under the item so nothing is cut off and the buttons keep their place. */
+@media (max-width: 1180px) {
+    .nr-row, .nr-row--child {
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        grid-template-areas:
+            "cover item actions"
+            ". suggestion suggestion"
+            ". choices choices"
+            ". failure failure";
+    }
+    .nr-row--done { grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "cover item"; }
+    .nr-row__suggestion, .nr-row__note { margin-block-start: 10px; }
+}
+
+/* Phone: cards. The suggestion and the choices take the full width under the item; a card with no suggestion shows Fix as a full-width button. */
+@media (max-width: 600px) {
+    .nr-row, .nr-row--child {
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        grid-template-areas:
+            "cover item actions"
+            "suggestion suggestion suggestion"
+            "choices choices choices"
+            "fixfull fixfull fixfull"
+            "failure failure failure";
+        padding: var(--tl-space-3);
+    }
+    .nr-row--child { padding-inline-start: var(--tl-space-3); }
+    .nr-row__title { white-space: normal; }
+    .nr-row__fixfull { margin-block-start: 10px; }
+}
