@@ -57,12 +57,53 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
     }
 
     public Task<IReadOnlyList<ReviewItemDto>> GetPendingAsync(int limit, CancellationToken ct = default)
-        => GetPendingCoreAsync(limit, null, ct);
+        => GetPendingCoreAsync(limit, null, ReviewStatus.Pending, null, ct);
 
     public Task<IReadOnlyList<ReviewItemDto>> GetPendingForLibraryAsync(int limit, string libraryId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryId);
-        return GetPendingCoreAsync(limit, libraryId.Trim(), ct);
+        return GetPendingCoreAsync(limit, libraryId.Trim(), ReviewStatus.Pending, null, ct);
+    }
+
+    public Task<IReadOnlyList<ReviewItemDto>> GetKeptAsync(int limit, string? libraryId, CancellationToken ct = default)
+        => GetPendingCoreAsync(limit, string.IsNullOrWhiteSpace(libraryId) ? null : libraryId.Trim(), ReviewStatus.Dismissed, ReviewStatus.KeptByUser, ct);
+
+    public async Task<int> GetKeptCountAsync(string? libraryId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var conn = _db.CreateConnection();
+        // The same items GetKeptAsync lists, counted without reading them: kept by a person, review-ready, an entity that still exists,
+        // never a Vault entity, and never a Wikidata-only item (the list hides those).
+        return await conn.ExecuteScalarAsync<int>($$"""
+            SELECT COUNT(*)
+            FROM review_queue rq
+            WHERE rq.status = @status
+              AND rq.resolved_by = @resolvedBy
+              AND rq.review_ready_at IS NOT NULL
+              AND rq.trigger NOT IN @hidden
+              AND (
+                    (rq.entity_type = 'MediaAsset' AND EXISTS (SELECT 1 FROM media_assets ma WHERE ma.id = rq.entity_id))
+                 OR (rq.entity_type = 'Work' AND EXISTS (SELECT 1 FROM works w WHERE w.id = rq.entity_id))
+                 OR (rq.entity_type NOT IN ('MediaAsset', 'Work'))
+              )
+              AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
+              AND (@libraryId IS NULL OR EXISTS (
+                    SELECT 1 FROM media_assets ma
+                    WHERE lower(ma.library_id) = lower(@libraryId)
+                      AND ma.id = CASE
+                            WHEN rq.entity_type = 'MediaAsset' THEN rq.entity_id
+                            WHEN rq.entity_type = 'Work' THEN (
+                                SELECT ma2.id FROM editions e JOIN media_assets ma2 ON ma2.edition_id = e.id
+                                WHERE e.work_id = rq.entity_id ORDER BY ma2.file_path_root LIMIT 1)
+                          END));
+            """, new
+        {
+            status = ReviewStatus.Dismissed,
+            resolvedBy = ReviewStatus.KeptByUser,
+            hidden = new[] { ReviewTrigger.MissingQid, ReviewTrigger.WikidataBridgeFailed },
+            libraryId = string.IsNullOrWhiteSpace(libraryId) ? null : libraryId.Trim(),
+        }).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyDictionary<string, int>> GetPendingCountsByLibraryAsync(CancellationToken ct = default)
@@ -89,7 +130,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         return rows.ToDictionary(row => row.LibraryId, row => row.Count, StringComparer.OrdinalIgnoreCase);
     }
 
-    private async Task<IReadOnlyList<ReviewItemDto>> GetPendingCoreAsync(int limit, string? libraryId, CancellationToken ct)
+    private async Task<IReadOnlyList<ReviewItemDto>> GetPendingCoreAsync(int limit, string? libraryId, string status, string? resolvedBy, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -139,6 +180,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     END AS work_id
                 FROM review_queue rq
                 WHERE rq.status = @status
+                  AND (@resolvedBy IS NULL OR rq.resolved_by = @resolvedBy)
                   AND rq.review_ready_at IS NOT NULL
                   AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
             )
@@ -188,7 +230,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
               AND (@libraryId IS NULL OR (ma.id IS NOT NULL AND lower(ma.library_id) = lower(@libraryId)))
             ORDER BY p.created_at DESC
             LIMIT @limit;
-            """, new { status = ReviewStatus.Pending, limit, libraryId })).AsList();
+            """, new { status, resolvedBy, limit, libraryId })).AsList();
 
         var importPath = _importFolders?.GetImportPath();
         var managedRoots = ManagedFolderRoots();

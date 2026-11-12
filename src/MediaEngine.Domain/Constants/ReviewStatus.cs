@@ -21,4 +21,11 @@ public static class ReviewStatus
     /// The user dismissed the review item as irrelevant or unactionable.
     /// </summary>
     public const string Dismissed = "Dismissed";
+
+    /// <summary>
+    /// The <c>resolved_by</c> value recorded when a person dismisses an item with Keep as it is. It tells that choice apart from the Engine's
+    /// own dismissals (<c>reconciliation</c>) and from other person decisions that also dismiss (<c>user</c>, for example skipping a Universe),
+    /// so the Needs Review kept view lists exactly the items a person kept and can put them back.
+    /// </summary>
+    public const string KeptByUser = "user:kept";
 }
