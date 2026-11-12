@@ -135,6 +135,59 @@ public sealed class DeletePinOnTapTests
         Assert.Equal(0, pin.Asked);
     }
 
+    [Fact]
+    public async Task InsideTheEditorsFileBrowser_OnlyALockedAdministratorIsAsked()
+    {
+        var pin = new PinPrompt(null) { Enter = false };
+
+        // The browser's own rules already decided for these; the prompt is not theirs.
+        Assert.True(await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(null, pin));
+        Assert.True(await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(Session(false, false), pin));
+        Assert.True(await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(Session(true, true), pin));
+        Assert.Equal(0, pin.Asked);
+
+        Assert.False(await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(Session(true, false), pin));
+        Assert.False(await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(Session(true, true, DateTimeOffset.UtcNow.AddMinutes(-1)), pin));
+        Assert.False(await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(Session(true, false), null));
+        Assert.Equal(2, pin.Asked);
+
+        var session = Session(true, false);
+        Assert.True(await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(session, new PinPrompt(session) { Enter = true }));
+    }
+
+    [Fact]
+    public void EveryPlaceThatStartsADelete_AsksThePinGateFirst()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "MediaEngine.slnx")))
+        {
+            root = Path.GetDirectoryName(root) ?? throw new InvalidOperationException("The repository root was not found.");
+        }
+
+        var web = Path.Combine(root, "src", "MediaEngine.Web");
+        var starters = new[]
+        {
+            "LibraryItemDeletionFlow.RunAsync(", "LibraryItemDeletionFlow.RunGroupAsync(", "LibraryItemDeletionFlow.RunForResultAsync(",
+            "state.DeleteAsync(rows)",
+        };
+        var ungated = Directory.EnumerateFiles(web, "*.*", SearchOption.AllDirectories)
+            .Where(path => (path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".razor", StringComparison.Ordinal))
+                && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !path.EndsWith("LibraryItemDeletionFlow.cs", StringComparison.Ordinal))
+            .Where(path =>
+            {
+                var text = File.ReadAllText(path);
+                return starters.Any(starter => text.Contains(starter, StringComparison.Ordinal))
+                    && !text.Contains("LibraryItemDeletionFlow.EnsureMayDeleteAsync(", StringComparison.Ordinal)
+                    && !text.Contains("LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(", StringComparison.Ordinal);
+            })
+            .Select(path => Path.GetRelativePath(root, path))
+            .ToList();
+
+        Assert.Empty(ungated);
+    }
+
     /// <summary>The PIN prompt, hand-written: counts how often it was shown and, when the PIN is "entered", unlocks the session it was given as the Engine would.</summary>
     private sealed class PinPrompt(DashboardSessionAccessor? session) : IAdministratorSurfaceAccessService
     {

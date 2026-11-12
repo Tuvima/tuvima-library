@@ -89,6 +89,24 @@ public static class LibraryItemDeletionFlow
             : new(false, null);
     }
 
+    /// <summary>
+    /// For a delete whose place already decided who may use it (the supporting-files browser inside the editor): only an administrator
+    /// whose settings are locked, for instance because a timed unlock ran out while the editor was open, is asked for the PIN before
+    /// the question. Everyone else passes straight through to the existing checks. False means stop quietly (the prompt was closed).
+    /// </summary>
+    public static async Task<bool> EnsureUnlockedForDeleteAsync(
+        DashboardSessionAccessor? session,
+        IAdministratorSurfaceAccessService? administratorAccess,
+        CancellationToken ct = default)
+    {
+        if (session?.Authority?.EffectiveAdministrator != true || IsUnlocked(session))
+        {
+            return true;
+        }
+
+        return administratorAccess is not null && await administratorAccess.EnsureUnlockedAsync(ct) && IsUnlocked(session);
+    }
+
     private static bool IsUnlocked(DashboardSessionAccessor? session) =>
         session?.Authority is { EffectiveAdministrator: true, AdministratorSurfaceUnlocked: true } authority
         && (authority.AdministratorUnlockExpiresAt is null || authority.AdministratorUnlockExpiresAt > DateTimeOffset.UtcNow);

@@ -193,7 +193,9 @@
         try
         {
             var rows = Editor.FileBatch.Rows.ToList();
-            await ShowAsync(await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, L));
+            await ShowAsync(await EditorFileBrowserDeleteFlow.DeleteAsync(
+                Editor.FileBrowser, rows, Dialogs, L,
+                Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>()));
         }
         finally
         {

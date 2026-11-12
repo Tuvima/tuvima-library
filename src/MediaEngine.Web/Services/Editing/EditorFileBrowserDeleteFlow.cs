@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Resources;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
 using Microsoft.Extensions.Localization;
 
@@ -20,11 +21,19 @@ public static class EditorFileBrowserDeleteFlow
         EditorFileBrowserState state,
         IReadOnlyList<SupportingFileRowDto> rows,
         IAppDialogService dialogs,
-        IStringLocalizer<SharedStrings> l)
+        IStringLocalizer<SharedStrings> l,
+        DashboardSessionAccessor? session = null,
+        IAdministratorSurfaceAccessService? administratorAccess = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(rows);
         if (rows.Count == 0)
+        {
+            return EditorDeleteResult.Nothing;
+        }
+
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        if (!await LibraryItemDeletionFlow.EnsureUnlockedForDeleteAsync(session, administratorAccess))
         {
             return EditorDeleteResult.Nothing;
         }
