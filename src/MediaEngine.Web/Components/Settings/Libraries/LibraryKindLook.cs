@@ -33,6 +33,13 @@ public static class LibraryKindLook
     /// <summary>The classes of a kind's icon tile: always the area's colour, so Videos follows Watch like Movies and TV Shows (Libraries fixes, item 6b).</summary>
     public static string TileClass(LibraryTypeOption type) => $"lib-kind-tile lib-kind-tile--lookup lib-area--{type.Area.ToLowerInvariant()}";
 
+    /// <summary>
+    /// The one line under a kind's name on its row (setup and libraries fixes D5): what belongs there, then what Library does with it, both from the
+    /// kind list in config so a new kind brings its own words.
+    /// </summary>
+    public static string RowLine(LibraryTypeOption type) =>
+        string.Join(" ", new[] { type.Explainer, type.LibraryDoes }.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()));
+
     /// <summary>What a provider supplies, from its capabilities: "matching, titles and descriptions, posters and covers".</summary>
     public static string SuppliesText(IEnumerable<string> capabilities)
     {

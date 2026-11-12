@@ -177,10 +177,10 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     {
         cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
         _dialogs.WaitForElement(".create-library[data-step='1']");
-        _dialogs.Find("[data-area-tiles]").QuerySelectorAll("button").Single(row => Text(row).StartsWith("View", StringComparison.Ordinal)).Click();
+        _dialogs.Find("[data-area-rows]").QuerySelectorAll(".lib-row__pick").Single(row => Text(row).StartsWith("View", StringComparison.Ordinal)).Click();
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".create-library[data-step='2']");
-        _dialogs.Find("[data-kind-tiles]").QuerySelectorAll("button").Single(row => Text(row).StartsWith(kindLabel, StringComparison.Ordinal)).Click();
+        _dialogs.Find("[data-kind-rows]").QuerySelectorAll(".lib-row__pick").Single(row => Text(row).StartsWith(kindLabel, StringComparison.Ordinal)).Click();
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".add-view-folder");
     }
@@ -194,9 +194,10 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
         _dialogs.WaitForElement(".create-library[data-step='1']");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-tiles]").QuerySelectorAll(".lib-tile__name").Select(Text).ToArray());
-        _dialogs.FindAll(".lib-peek").Single(card => card.QuerySelector(".lib-tile__name")?.TextContent == "View").MouseEnter();
-        Assert.Contains("Photos, videos and documents", Text(_dialogs.Find("[data-hover-card]")), StringComparison.Ordinal);
+        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-rows]").QuerySelectorAll(".lib-row__name").Select(Text).ToArray());
+        // The row says what belongs in View itself; there is nothing to hover.
+        Assert.Contains("Your own photos, videos and documents.", Text(_dialogs.Find("[data-area-rows] [data-choice-row='view']")), StringComparison.Ordinal);
+        Assert.Empty(_dialogs.FindAll("[data-hover-card]"));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true);
     }
 

@@ -80,13 +80,5 @@
 
 .create-library__chip { display: inline-flex; align-items: center; padding: 2px 12px; border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-sm); font-weight: 600; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-text-muted)) 14%, transparent); }
 
-/* Areas and kinds are square tiles in an auto-fill grid with one fixed tile size; the grid wraps naturally and scrolls inside the fixed window (Libraries v3 D23). */
-.create-library__tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, 132px);
-    gap: var(--tl-space-4);
-    justify-content: start;
-    padding-bottom: 140px;
-}
-
+/* Areas and kinds are full-width rows of one height (setup and libraries fixes D5); the window body scrolls only when the list is longer than the window, and no space is reserved under it. */
 .create-library__area-line { display: flex; align-items: center; gap: var(--tl-space-2); margin: 0; color: var(--tl-text-secondary); }

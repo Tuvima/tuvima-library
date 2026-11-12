@@ -8757,7 +8757,7 @@
     <value>Vault</value>
   </data>
   <data name="CreateLibrary_VaultInfo" xml:space="preserve">
-    <value>Anything you want hidden, adult content included. Locked behind its own PIN and hidden from kids profiles.</value>
+    <value>Anything you want hidden. Locked behind its own PIN. Hidden from Kids profiles.</value>
   </data>
   <data name="CreateLibrary_ChooseAnother" xml:space="preserve">
     <value>Choose another folder</value>
@@ -10008,19 +10008,22 @@
     <value>Change</value>
   </data>
   <data name="CreateLibrary_AddFolderInstead" xml:space="preserve">
-    <value>Add a folder to it instead</value>
+    <value>Add a folder to {0} instead</value>
+  </data>
+  <data name="CreateLibrary_AlreadyHave" xml:space="preserve">
+    <value>You already have a {0} library.</value>
   </data>
   <data name="CreateLibrary_AreaLine_watch" xml:space="preserve">
-    <value>Movies, TV, videos</value>
+    <value>Movies, TV shows and other videos.</value>
   </data>
   <data name="CreateLibrary_AreaLine_listen" xml:space="preserve">
-    <value>Music, audiobooks</value>
+    <value>Music, audiobooks and other audio.</value>
   </data>
   <data name="CreateLibrary_AreaLine_read" xml:space="preserve">
-    <value>Books, comics</value>
+    <value>Books, comics and other reading.</value>
   </data>
   <data name="CreateLibrary_AreaLine_view" xml:space="preserve">
-    <value>Photos, videos, documents</value>
+    <value>Your own photos, videos and documents.</value>
   </data>
   <data name="FolderStep_Where" xml:space="preserve">
     <value>Where is it?</value>

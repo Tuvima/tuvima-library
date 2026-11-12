@@ -1,0 +1,73 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Components.Shared
+
+@* One full-width row of Add library's area and kind steps and of the file-drop kind window (setup and libraries fixes D5): the icon on a square tinted in the
+   area's colour, the name and one line saying what belongs there. Nothing is hidden behind a hover or a tooltip, because the row already says it. A row that
+   cannot be chosen is greyed and carries its one action at the end ("Add a folder to Movies instead"). The pick button's own styles are in app.css
+   (an AppNativeButton root takes no scoped style). *@
+<div class="@RootClass" data-choice-row="@Key">
+    <AppNativeButton Type="button"
+                     Class="lib-row__pick"
+                     aria-pressed="@(Selected ? "true" : "false")"
+                     aria-disabled="@(Disabled ? "true" : null)"
+                     OnClick="@(_ => PickAsync())"
+                     @attributes="AdditionalAttributes">
+        <span class="lib-row__tile" aria-hidden="true"><AppMaterialIcon Icon="@Icon" /></span>
+        <span class="lib-row__copy">
+            <strong class="lib-row__name">@Title</strong>
+            @if (!string.IsNullOrWhiteSpace(Line))
+            {
+                <span class="lib-row__line">@Line</span>
+            }
+        </span>
+    </AppNativeButton>
+    @if (HasTrailing)
+    {
+        <span class="lib-row__action">
+            @if (!string.IsNullOrWhiteSpace(ActionLabel))
+            {
+                <AppButton Label="@ActionLabel" OnClick="OnAction" data-row-action="@Key" />
+            }
+            @ChildContent
+        </span>
+    }
+</div>
+
+@code {
+    /// <summary>The kind's or area's key; it marks the row for tests and for the action button.</summary>
+    [Parameter] public string? Key { get; set; }
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    /// <summary>The one line under the name: what belongs here.</summary>
+    [Parameter] public string? Line { get; set; }
+    /// <summary>The area key that colours the icon square ("watch", "listen", "read", "view", "vault"); anything else is neutral.</summary>
+    [Parameter] public string? AreaKey { get; set; }
+    [Parameter] public bool Selected { get; set; }
+    /// <summary>A row that cannot be chosen: greyed, and its action (if any) stays usable.</summary>
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    /// <summary>The label of the action at the end of a greyed row; null draws none.</summary>
+    [Parameter] public string? ActionLabel { get; set; }
+    [Parameter] public EventCallback OnAction { get; set; }
+    /// <summary>Extra content at the end of the row (the file-drop window's Metadata icons).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private static readonly string[] Areas = ["watch", "listen", "read", "view", "vault"];
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "lib-row",
+        AreaClass,
+        Selected ? "is-selected" : null,
+        Disabled ? "is-disabled" : null,
+        HasTrailing ? "has-action" : null,
+    }.Where(value => value is not null));
+
+    // The area's colour comes from a class per area (tokens --tl-area-*), so the row carries no inline style.
+    private string? AreaClass => AreaKey?.ToLowerInvariant() is { } area && Areas.Contains(area) ? $"lib-row--{area}" : null;
+
+    private bool HasTrailing => !string.IsNullOrWhiteSpace(ActionLabel) || ChildContent is not null;
+
+    private Task PickAsync() => Disabled ? Task.CompletedTask : OnClick.InvokeAsync();
+}

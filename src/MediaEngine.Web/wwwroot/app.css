@@ -4410,18 +4410,18 @@ input[type="reset"],
 .merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .merge-folder__option:disabled { cursor: wait; opacity: .65; }
 
-/* Kind options and treatment choices (Change kind, file-drop dialog): AppNativeButton roots, so their styles live here. */
-.lib-choice__kind-option, .lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.lib-choice__kind-option:hover, .lib-choice__kind-option:focus-visible, .lib-choice__kind-option.is-selected,
+/* Treatment choices (the file-drop dialog's "Which library?"): AppNativeButton roots, so their styles live here. */
+.lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
 .lib-choice__choice:hover, .lib-choice__choice:focus-visible, .lib-choice__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
-/* The kind cards and the "Which library?" choices are shared by the file-drop and Change kind dialogs, so their layout lives here too. */
-.lib-choice__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.lib-choice__kind, .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* Equal-width kind cards with left-aligned content: the Metadata cell has a fixed width, so cards do not resize with their provider icons. */
-.lib-choice__kind .lib-choice__kind-option { flex: 1 1 0; justify-content: flex-start; }
-.lib-choice__kind .lib-meta { min-width: 112px; justify-content: flex-end; }
-.lib-choice__kind > .lib-peek { display: flex; flex: 1 1 0; min-width: 0; }
-.lib-choice__kind > .lib-peek > .lib-choice__kind-option { flex: 1 1 auto; }
+/* The file-drop dialog's kind rows (LibraryChoiceRow) stack full width; the "Which library?" choices share this layout. */
+.lib-choice__kinds { display: grid; gap: var(--tl-space-2); }
+.lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The pick button of a LibraryChoiceRow (Add library's area and kind rows, the file-drop kinds): an AppNativeButton root, so its styles live here. The row's own border carries the look. */
+.lib-row__pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: var(--tl-space-4); width: 100%; min-height: 84px; box-sizing: border-box; padding: var(--tl-space-3) var(--tl-space-4); color: var(--tl-text-primary); font: inherit; text-align: left; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.lib-row__pick:hover { background: var(--tl-accent-primary-soft); }
+.lib-row__pick:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
+.lib-row.is-disabled .lib-row__pick { cursor: default; opacity: 0.55; }
+.lib-row.is-disabled .lib-row__pick:hover { background: transparent; }
 
 .lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: var(--tl-font-size-dialog-title); }
 .lib-choice__options { display: grid; gap: 10px; }

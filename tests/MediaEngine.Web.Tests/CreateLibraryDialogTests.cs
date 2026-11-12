@@ -142,10 +142,11 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
     // A host that names the content type goes straight to the folder screen; otherwise the dialog opens on "What is it?".
-    private async Task OpenAsync(string? area = null, string? kind = null, bool simple = false, string? setupSession = null, LibraryKindCatalog? kinds = null, bool chooseFolder = true, string? access = null, bool noArea = false)
+    private async Task OpenAsync(string? area = null, string? kind = null, bool simple = false, string? setupSession = null, LibraryKindCatalog? kinds = null, bool chooseFolder = true, string? access = null, bool noArea = false, bool vaultVisible = false)
     {
         var parameters = new AppDialogParameters<CreateLibraryDialog>
         {
+            { component => component.VaultVisible, vaultVisible },
             { component => component.Configuration, _configuration },
             { component => component.Kinds, kinds ?? LibraryKindsTestData.Catalog },
             { component => component.StartAreaKey, noArea ? null : area ?? "watch" },
@@ -186,25 +187,33 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
     private AngleSharp.Dom.IElement CreateButton => _dialogs.FindAll("button").Single(x => Text(x) == "Add library");
 
-    private IEnumerable<AngleSharp.Dom.IElement> KindRows => _dialogs.Find("[data-kind-tiles]").QuerySelectorAll("button");
+    private IEnumerable<AngleSharp.Dom.IElement> KindRows => _dialogs.Find("[data-kind-rows]").QuerySelectorAll(".lib-row__pick");
 
-    private IEnumerable<AngleSharp.Dom.IElement> AreaTiles => _dialogs.Find("[data-area-tiles]").QuerySelectorAll("button");
+    private IEnumerable<AngleSharp.Dom.IElement> AreaRows => _dialogs.Find("[data-area-rows]").QuerySelectorAll(".lib-row__pick");
 
-    // Hovering a tile opens its card (Libraries v3 D24); the words are only in the page while it is open.
-    private string HoverWords(string title)
+    // A row is its pick button (name and one line); the row around it also holds the action button of a greyed row.
+    private static string LineOf(AngleSharp.Dom.IElement pick) => Text(pick.QuerySelector(".lib-row__line")!);
+
+    private static AngleSharp.Dom.IElement RowOf(AngleSharp.Dom.IElement pick) => pick.ParentElement!;
+
+    private static bool IsOff(AngleSharp.Dom.IElement pick) => pick.GetAttribute("aria-disabled") == "true";
+
+    private AngleSharp.Dom.IElement KindRow(string title) => KindRows.Single(x => x.QuerySelector(".lib-row__name")!.TextContent == title);
+
+    private static string RepoRoot()
     {
-        _dialogs.FindAll(".lib-peek").Single(card => card.QuerySelector(".lib-tile__name")?.TextContent == title).MouseEnter();
-        return Text(_dialogs.Find("[data-hover-card]"));
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
     }
-
-    private static bool IsOff(AngleSharp.Dom.IElement tile) => tile.GetAttribute("aria-disabled") == "true";
-
-    private AngleSharp.Dom.IElement KindRow(string title) => KindRows.Single(x => x.QuerySelector(".lib-tile__name")!.TextContent == title);
 
     // The folder window's friendly name field (Libraries v3 D18); the library itself is never named by the person.
     private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find(".server-folder-picker input");
 
-    // Local-check bug 1: the Add library tiles drew a 28px icon beside the text. They are the shared choice tile: a 48px icon above the name.
     [Fact]
     public void PlainVideosOffersManagedAndEveryKindFollowsItsAreaColor()
     {
@@ -219,54 +228,140 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheAddLibraryAreaTilesUseTheChoiceTile()
+    public async Task StepOneAndStepTwoDrawOneFullWidthRowPerChoiceWithItsNameAndOneLine()
     {
         await OpenAsync(noArea: true, chooseFolder: false);
 
-        var tiles = _dialogs.Find("[data-area-tiles]").QuerySelectorAll("button.app-choice-tile").ToArray();
-        Assert.Equal(4, tiles.Length);
-        Assert.All(tiles, tile =>
+        var areas = AreaRows.ToArray();
+        Assert.Equal(4, areas.Length);
+        Assert.All(areas, pick =>
         {
-            var square = tile.QuerySelector(".app-choice-tile__square")!;
-            Assert.NotNull(square.QuerySelector("svg.tl-icon-size-choice48"));
-            Assert.NotNull(tile.QuerySelector(".app-choice-tile__label"));
-            // The icon square comes first in the tile, so the name sits under it (the tile is a column).
-            Assert.Same(square, tile.Children[0]);
-            Assert.Null(tile.QuerySelector("svg.tl-icon-size-control20, svg.tl-icon-size-inline16"));
+            // The icon square comes first in the row, then the name and its one line.
+            Assert.Equal("lib-row__tile", pick.Children[0].ClassName);
+            Assert.NotNull(pick.QuerySelector(".lib-row__tile svg"));
+            Assert.NotEmpty(pick.QuerySelector(".lib-row__name")!.TextContent);
+            Assert.NotEmpty(LineOf(pick));
+            Assert.Single(pick.QuerySelectorAll(".lib-row__line"));
         });
+        Assert.Empty(_dialogs.FindAll("button.app-choice-tile"));
 
-        AreaTiles.Single(x => Text(x).StartsWith("Listen", StringComparison.Ordinal)).Click();
+        AreaRows.Single(x => Text(x).StartsWith("Listen", StringComparison.Ordinal)).Click();
         Next();
         _dialogs.WaitForAssertion(() => Assert.Equal("Step 2 of 3", Text(_dialogs.Find(".app-dialog-shell__eyebrow"))));
-        var kindTiles = _dialogs.Find("[data-kind-tiles]").QuerySelectorAll("button.app-choice-tile").ToArray();
-        Assert.NotEmpty(kindTiles);
-        Assert.All(kindTiles, tile => Assert.NotNull(tile.QuerySelector("svg.tl-icon-size-choice48")));
+        var kinds = KindRows.ToArray();
+        Assert.NotEmpty(kinds);
+        Assert.All(kinds, pick =>
+        {
+            Assert.NotNull(pick.QuerySelector(".lib-row__tile svg"));
+            Assert.NotEmpty(LineOf(pick));
+        });
+        Assert.Empty(_dialogs.FindAll("button.app-choice-tile"));
     }
 
     [Fact]
-    public async Task TheDialogIsThreeStepsOfSquareTilesAndNeverAsksForAName()
+    public async Task EachRowIsTintedInItsAreasColor()
     {
         await OpenAsync(noArea: true, chooseFolder: false);
 
-        // Step 1 asks for the area as square tiles.
+        var tones = AreaRows.Select(pick => RowOf(pick).ClassName!).ToArray();
+        Assert.Contains("lib-row--watch", tones[0], StringComparison.Ordinal);
+        Assert.Contains("lib-row--listen", tones[1], StringComparison.Ordinal);
+        Assert.Contains("lib-row--read", tones[2], StringComparison.Ordinal);
+        Assert.Contains("lib-row--view", tones[3], StringComparison.Ordinal);
+        // The classes take the colors from the area tokens, and the rows carry no inline style.
+        var css = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "Components", "Settings", "Libraries", "LibraryChoiceRow.razor.css"));
+        foreach (var area in new[] { "watch", "listen", "read", "view", "vault" })
+        {
+            Assert.Contains($".lib-row--{area} {{ --lib-row-tone: var(--tl-area-{area}); }}", css, StringComparison.Ordinal);
+        }
+        Assert.Empty(_dialogs.Find("[data-area-rows]").QuerySelectorAll("[style]"));
+    }
+
+    [Fact]
+    public async Task TheRowsHaveNoHoverCardAndNoTooltip()
+    {
+        await OpenAsync(noArea: true, chooseFolder: false);
+
+        // Nothing wraps a row in a hover card: no mouse handler, no card markup, no tooltip.
+        Assert.Throws<Bunit.MissingEventHandlerException>(() => RowOf(AreaRows.First()).MouseEnter());
+        Assert.Empty(_dialogs.FindAll("[data-hover-card], .lib-peek, [role=tooltip]"));
+        Assert.Empty(_dialogs.Find("[data-area-rows]").QuerySelectorAll("[title], [role=tooltip]"));
+
+        AreaRows.Single(x => Text(x).StartsWith("Watch", StringComparison.Ordinal)).Click();
+        Next();
+        _dialogs.WaitForElement("[data-kind-rows]");
+        Assert.Throws<Bunit.MissingEventHandlerException>(() => RowOf(KindRows.First()).MouseEnter());
+        Assert.Empty(_dialogs.FindAll("[data-hover-card], .lib-peek, [role=tooltip]"));
+        Assert.Empty(_dialogs.Find("[data-kind-rows]").QuerySelectorAll("[title], [role=tooltip]"));
+    }
+
+    [Fact]
+    public void AddLibraryReservesNoSpaceUnderTheRowsSoThereIsNoNeedlessScrollBar()
+    {
+        var css = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "Components", "Settings", "Libraries", "CreateLibraryDialog.razor.css"));
+
+        Assert.DoesNotContain("140px", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("create-library__tiles", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AKindTheListBringsAppearsAsItsOwnRowWithItsOwnLine()
+    {
+        var podcasts = LibraryKindsTestData.Podcasts();
+        podcasts.Explainer = "Episodes of shows you follow.";
+        podcasts.LibraryDoes = "Keeps each show together.";
+        await OpenAsync(area: "listen", kinds: new LibraryKindCatalog(LibraryKindsTestData.BuiltIn(podcasts)), chooseFolder: false);
+
+        var row = KindRow("Podcasts");
+        Assert.Equal("Episodes of shows you follow. Keeps each show together.", LineOf(row));
+    }
+
+    [Fact]
+    public async Task FifteenKindsStayOneRowEachInAListThatSetsNoHeightOfItsOwn()
+    {
+        var extra = Enumerable.Range(1, 12).Select(index => new LibraryKindDto
+        {
+            Key = $"extra_{index}",
+            Area = "watch",
+            Label = $"Extra {index}",
+            Icon = "Movie",
+            Explainer = $"Extra kind number {index}.",
+            Order = 100 + index,
+            Available = true,
+        }).ToArray();
+        await OpenAsync(area: "watch", kinds: new LibraryKindCatalog(LibraryKindsTestData.BuiltIn(extra)), chooseFolder: false);
+
+        var rows = KindRows.ToArray();
+        Assert.True(rows.Length >= 15, $"expected at least 15 rows, got {rows.Length}");
+        Assert.Equal(rows.Length, rows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent).Distinct().Count());
+        // The rows are a plain stack in the window body, which is what scrolls: the list sets no height or overflow of its own.
+        Assert.False(_dialogs.Find("[data-kind-rows]").HasAttribute("style"));
+    }
+
+    [Fact]
+    public async Task TheDialogIsThreeStepsOfRowsAndNeverAsksForAName()
+    {
+        await OpenAsync(noArea: true, chooseFolder: false);
+
+        // Step 1 asks for the area as rows.
         Assert.Equal("Step 1 of 3", Text(_dialogs.Find(".app-dialog-shell__eyebrow")));
-        Assert.Equal(["Watch", "Listen", "Read", "View"], AreaTiles.Select(tile => tile.QuerySelector(".lib-tile__name")!.TextContent).ToArray());
-        Assert.Contains("Movies, TV shows and home videos", HoverWords("Watch"), StringComparison.Ordinal);
+        Assert.Equal(["Watch", "Listen", "Read", "View"], AreaRows.Select(tile => tile.QuerySelector(".lib-row__name")!.TextContent).ToArray());
+        Assert.Contains("Movies, TV shows and other videos.", LineOf(AreaRows.First()), StringComparison.Ordinal);
         Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
-        AreaTiles.Single(x => Text(x).StartsWith("Listen", StringComparison.Ordinal)).Click();
+        AreaRows.Single(x => Text(x).StartsWith("Listen", StringComparison.Ordinal)).Click();
         Next();
 
         // Step 2 asks for the kind within that area.
         _dialogs.WaitForAssertion(() => Assert.Equal("Step 2 of 3", Text(_dialogs.Find(".app-dialog-shell__eyebrow"))));
         Assert.Equal("What is it?", Text(_dialogs.Find(".app-dialog-shell__title")));
-        Assert.Contains("Music", KindRows.Select(row => row.QuerySelector(".lib-tile__name")!.TextContent));
-        Assert.DoesNotContain("Movies", KindRows.Select(row => row.QuerySelector(".lib-tile__name")!.TextContent));
+        Assert.Contains("Music", KindRows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent));
+        Assert.DoesNotContain("Movies", KindRows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent));
         Back();
         _dialogs.WaitForElement(".create-library[data-step='1']");
-        AreaTiles.Single(x => Text(x).StartsWith("Watch", StringComparison.Ordinal)).Click();
+        AreaRows.Single(x => Text(x).StartsWith("Watch", StringComparison.Ordinal)).Click();
         Next();
         _dialogs.WaitForElement(".create-library[data-step='2']");
-        Assert.Equal(["Movies", "TV Shows", "Videos"], KindRows.Select(row => row.QuerySelector(".lib-tile__name")!.TextContent).ToArray().Take(3).ToArray());
+        Assert.Equal(["Movies", "TV Shows", "Videos"], KindRows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent).ToArray().Take(3).ToArray());
         Assert.Empty(_dialogs.FindAll(".create-library input"));
         Assert.DoesNotContain(_dialogs.FindAll(".create-library button"), x => Text(x) == "Browse");
 
@@ -288,7 +383,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     {
         await OpenAsync(area: "view", chooseFolder: false);
 
-        _dialogs.WaitForAssertion(() => Assert.Equal(["Photos and Videos", "Documents"], KindRows.Select(row => row.QuerySelector(".lib-tile__name")!.TextContent).ToArray()));
+        _dialogs.WaitForAssertion(() => Assert.Equal(["Photos and Videos", "Documents"], KindRows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent).ToArray()));
         Assert.All(KindRows, row => Assert.False(IsOff(row)));
 
         Next();
@@ -359,27 +454,69 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         var movies = KindRow("Movies");
         Assert.True(IsOff(movies));
-        Assert.Contains("is-disabled", movies.ClassList);
-        Assert.Equal("Add a folder to it instead", Text(movies.QuerySelector("[data-add-folder-instead]")!));
-        Assert.DoesNotContain("Added", Text(movies), StringComparison.Ordinal);
-        Assert.False(movies.ClassList.Contains("is-selected"));
-        Assert.Contains("You already have a Movies library. Add a folder to Movies instead.", HoverWords("Movies"), StringComparison.Ordinal);
+        Assert.Contains("is-disabled", RowOf(movies).ClassList);
+        Assert.Equal("true", movies.GetAttribute("aria-disabled"));
+        Assert.Equal("You already have a Movies library.", LineOf(movies));
+        Assert.Equal("Add a folder to Movies instead", Text(RowOf(movies).QuerySelector("[data-row-action]")!));
+        Assert.Equal("false", movies.GetAttribute("aria-pressed"));
 
-        // Clicking it chooses nothing; the first kind that can still take a library is the one chosen.
+        // Clicking the greyed row chooses nothing; the first kind that can still take a library is the one chosen.
         movies.Click();
-        Assert.False(KindRow("Movies").ClassList.Contains("is-selected"));
-        Assert.True(KindRow("TV Shows").ClassList.Contains("is-selected"));
+        Assert.Equal("false", KindRow("Movies").GetAttribute("aria-pressed"));
+        Assert.Equal("true", KindRow("TV Shows").GetAttribute("aria-pressed"));
         Assert.False(IsOff(KindRow("TV Shows")));
-        Assert.Null(KindRow("TV Shows").QuerySelector("[data-add-folder-instead]"));
+        Assert.Null(RowOf(KindRow("TV Shows")).QuerySelector("[data-row-action]"));
     }
 
     [Fact]
-    public async Task TheAreaTilesCarryTheSecondLineUnderTheirName()
+    public async Task TheAddAFolderInsteadButtonOfAGreyedKindGoesToAddingAFolderToThatExistingLibrary()
+    {
+        await OpenAsync(chooseFolder: false);
+
+        _dialogs.Find("[data-row-action='movies']").Click();
+
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
+        Assert.Equal("Where is it? · Movies", Text(_dialogs.Find(".app-dialog-shell__title")));
+        Assert.DoesNotContain(_dialogs.FindAll("button"), x => Text(x) == "Add library");
+
+        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.FindAll("button").Single(x => Text(x) == "Add folder").HasAttribute("disabled")));
+        _dialogs.FindAll("button").Single(x => Text(x) == "Add folder").Click();
+
+        // The folder joins the library Movies already has, not a second one.
+        _dialogs.WaitForAssertion(() => Assert.Single(_mutations));
+        Assert.Equal("11111111-1111-4111-8111-111111111111", _mutations[0].Library!.Id);
+    }
+
+    [Fact]
+    public async Task TheAreaRowsCarryOneLineUnderTheirNameFromTheStringsFile()
     {
         await OpenAsync(noArea: true, chooseFolder: false);
 
-        var lines = AreaTiles.Select(tile => Text(tile.QuerySelector(".app-choice-tile__description")!)).ToArray();
-        Assert.Equal(["Movies, TV, videos", "Music, audiobooks", "Books, comics", "Photos, videos, documents"], lines);
+        var lines = AreaRows.Select(LineOf).ToArray();
+        Assert.Equal(
+            ["Movies, TV shows and other videos.", "Music, audiobooks and other audio.", "Books, comics and other reading.", "Your own photos, videos and documents."],
+            lines);
+    }
+
+    [Fact]
+    public async Task TheVaultRowIsNotDrawnForSomeoneWithoutVaultAccess()
+    {
+        await OpenAsync(noArea: true, chooseFolder: false, vaultVisible: true);
+        Assert.Empty(_dialogs.FindAll("[data-choice-row='vault']"));
+        Assert.Equal(4, AreaRows.Count());
+    }
+
+    [Fact]
+    public async Task TheVaultRowIsTheFifthRowWithItsOwnColorAndTheLockedBehindItsOwnPinLine()
+    {
+        await SignInAsAdministratorAsync();
+        await OpenAsync(noArea: true, chooseFolder: false, vaultVisible: true);
+
+        var rows = AreaRows.ToArray();
+        Assert.Equal(["Watch", "Listen", "Read", "View", "Vault"], rows.Select(pick => pick.QuerySelector(".lib-row__name")!.TextContent).ToArray());
+        var vault = rows[4];
+        Assert.Contains("Locked behind its own PIN. Hidden from Kids profiles.", LineOf(vault), StringComparison.Ordinal);
+        Assert.Contains("lib-row--vault", RowOf(vault).ClassName, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -444,7 +581,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         await OpenAsync(area: "vault", chooseFolder: false);
 
         Assert.Equal("Stored in the Vault, away from everyone without Vault access.", Text(_dialogs.Find(".app-dialog-shell__subtitle")));
-        Assert.Equal(["Movies", "TV Shows", "Music", "Books", "Adult content", "Videos"], KindRows.Select(row => row.QuerySelector(".lib-tile__name")!.TextContent).ToArray());
+        Assert.Equal(["Movies", "TV Shows", "Music", "Books", "Adult content", "Videos"], KindRows.Select(row => row.QuerySelector(".lib-row__name")!.TextContent).ToArray());
         Assert.Empty(_dialogs.FindAll("[role=switch]"));
     }
 
@@ -474,7 +611,8 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         await OpenAsync(area: "vault", chooseFolder: false);
 
         Assert.True(IsOff(KindRow("TV Shows")));
-        Assert.Contains("You already have a Vault-protected TV Shows library.", HoverWords("TV Shows"), StringComparison.Ordinal);
+        Assert.Contains("You already have a Vault-protected TV Shows library.", LineOf(KindRow("TV Shows")), StringComparison.Ordinal);
+        Assert.Null(RowOf(KindRow("TV Shows")).QuerySelector("[data-row-action]"));
     }
 
     [Fact]

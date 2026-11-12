@@ -204,11 +204,11 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
 
         _dialogs.WaitForElement(".create-library[data-step='1']");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-tiles]").QuerySelectorAll(".lib-tile__name").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-rows]").QuerySelectorAll(".lib-row__name").Select(Text).ToArray());
         Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".create-library[data-step='2']");
-        Assert.Contains("Movies", Text(_dialogs.Find("[data-kind-tiles]")), StringComparison.Ordinal);
+        Assert.Contains("Movies", Text(_dialogs.Find("[data-kind-rows]")), StringComparison.Ordinal);
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
         Assert.NotNull(_dialogs.Find(".server-folder-picker input"));
