@@ -17,6 +17,36 @@ public static partial class MetadataEndpoints
     /// current match found by its stored id, the supporting-file editor's read, "Suggest details" for a supporting file's document, the folder button's tree, and the rules of
     /// one kind of item. The first view of the header itself rides on the editor-context read. All six are reads: nothing is written until Save.
     /// </summary>
+    /// <summary>
+    /// Where a video's file goes if it joins a series (universal editor v6, D24). The series is checked first, like the list of series a video
+    /// could join: one the caller may not change looks exactly like one that does not exist, and nothing about it is read.
+    /// </summary>
+    internal static async Task<IResult> GetVideoSeriesPlacementAsync(
+        Guid entityId,
+        EditorVideoSeriesPlacementRequestDto request,
+        HttpContext http,
+        CatalogueResourceAuthorizationService resources,
+        [Microsoft.AspNetCore.Mvc.FromServices] IVideoSeriesPlacement placement,
+        CancellationToken ct)
+    {
+        if (!await VideoSeriesTargetAccess.MayUseAsync(http, resources, request.TargetId, request.Token, ct))
+        {
+            return ApiErrors.NotFound("That series is no longer available.");
+        }
+
+        var plan = await placement.PlanAsync(entityId, request.TargetId, request.Token, ct);
+        return plan is null
+            ? ApiErrors.NotFound("That is not a video.")
+            : Results.Ok(new EditorVideoSeriesPlacementDto
+            {
+                Managed = plan.Managed,
+                FromPath = plan.FromPath,
+                ToPath = plan.ToPath,
+                Reason = plan.Reason,
+                Blocked = plan.Blocks,
+            });
+    }
+
     private static void MapEditorHeaderEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/{entityId:guid}/editor-nav/level", async (
@@ -100,23 +130,7 @@ public static partial class MetadataEndpoints
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
 
-        group.MapPost("/{entityId:guid}/video-series-placement", async (
-            Guid entityId,
-            EditorVideoSeriesPlacementRequestDto request,
-            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.EditSession.IVideoSeriesPlacement placement,
-            CancellationToken ct) =>
-        {
-            var plan = await placement.PlanAsync(entityId, request.TargetId, request.Token, ct);
-            return plan is null
-                ? ApiErrors.NotFound("That is not a video.")
-                : Results.Ok(new EditorVideoSeriesPlacementDto
-                {
-                    Managed = plan.Managed,
-                    FromPath = plan.FromPath,
-                    ToPath = plan.ToPath,
-                    Reason = plan.Reason,
-                });
-        }).WithName("GetEditorVideoSeriesPlacement")
+        group.MapPost("/{entityId:guid}/video-series-placement", GetVideoSeriesPlacementAsync).WithName("GetEditorVideoSeriesPlacement")
           .WithSummary("Where a video's file goes when it joins a series: the series' folder in a Managed folder, nowhere in a Read-only one. Reads only.")
           .Produces<EditorVideoSeriesPlacementDto>(StatusCodes.Status200OK)
           .ProducesProblem(StatusCodes.Status404NotFound)

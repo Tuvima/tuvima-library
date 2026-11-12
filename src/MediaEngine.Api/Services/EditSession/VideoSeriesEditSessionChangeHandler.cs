@@ -95,16 +95,17 @@ public sealed class VideoSeriesEditSessionChangeHandler(
         // they fail the file goes back.
         VideoSeriesFilePlan? plan = null;
         string? movedFrom = null;
+        string? movedTo = null;
         if (moveFile && placement is not null && organizer is not null)
         {
             plan = await placement.PlanAsync(change.EntityId, change.TargetId, change.Token, ct).ConfigureAwait(false);
+            if (plan is { Blocks: true })
+            {
+                throw new InvalidOperationException(plan.Reason);
+            }
+
             if (plan is { TargetFolder: not null, ToPath: not null })
             {
-                if (plan.Blocks)
-                {
-                    throw new InvalidOperationException(plan.Reason);
-                }
-
                 var outcome = await organizer.MoveToFolderAsync(plan.AssetId, plan.TargetFolder, ct).ConfigureAwait(false);
                 if (outcome.Kind != AssetRefileOutcomeKind.Moved)
                 {
@@ -113,6 +114,7 @@ public sealed class VideoSeriesEditSessionChangeHandler(
                 }
 
                 movedFrom = Path.GetDirectoryName(plan.FromPath);
+                movedTo = Path.GetDirectoryName(outcome.Path);
             }
         }
 
@@ -123,34 +125,64 @@ public sealed class VideoSeriesEditSessionChangeHandler(
         }
         catch when (movedFrom is not null)
         {
-            await PutFileBackAsync(plan!.AssetId, movedFrom).ConfigureAwait(false);
+            await PutFileBackAsync(
+                plan!.AssetId, movedFrom,
+                where => $"The video was not changed, but its file could not be moved back to {movedFrom} and is now in {where}.").ConfigureAwait(false);
             throw;
         }
 
-        if (movedFrom is null)
+        if (movedFrom is null || movedTo is null)
         {
             return seriesUndo;
         }
 
         var assetId = plan!.AssetId;
+        var forwardFolder = movedTo;
         return async undoCt =>
         {
-            if (seriesUndo is not null)
+            // The file goes back first. If it cannot, nothing else is touched: the series change stays saved and the file is where that
+            // change put it, so Library and disk still agree, and the person is told which file is where.
+            await PutFileBackAsync(
+                assetId, movedFrom,
+                where => $"The series change stays saved, because the video's file could not be moved back to {movedFrom}. It is in {where}.").ConfigureAwait(false);
+            if (seriesUndo is null)
+            {
+                return;
+            }
+
+            try
             {
                 await seriesUndo(undoCt).ConfigureAwait(false);
             }
-
-            await PutFileBackAsync(assetId, movedFrom).ConfigureAwait(false);
+            catch
+            {
+                // The series rows could not be put back, so the file goes forward again to stay with them; the failure itself still
+                // reaches the person (the exception is rethrown). A move that fails here is reported by the next check of the folder.
+                await TryMoveAsync(assetId, forwardFolder).ConfigureAwait(false);
+                throw;
+            }
         };
     }
 
-    private async Task PutFileBackAsync(Guid assetId, string folder)
+    private async Task PutFileBackAsync(Guid assetId, string folder, Func<string, string> failure)
     {
         var outcome = await organizer!.MoveToFolderAsync(assetId, folder, CancellationToken.None).ConfigureAwait(false);
         if (outcome.Kind is not (AssetRefileOutcomeKind.Moved or AssetRefileOutcomeKind.AlreadyFits))
         {
-            throw new InvalidOperationException(
-                $"The video was not changed, but its file could not be moved back to {folder} and is now in {Path.GetDirectoryName(outcome.Path)}.");
+            throw new InvalidOperationException(failure(Path.GetDirectoryName(outcome.Path) ?? "its new folder"));
+        }
+    }
+
+    private async Task TryMoveAsync(Guid assetId, string folder)
+    {
+        try
+        {
+            await organizer!.MoveToFolderAsync(assetId, folder, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            // Best effort, on a path that is already reporting a failure to the person: the original exception is the one they are told.
+            _ = ex;
         }
     }
 

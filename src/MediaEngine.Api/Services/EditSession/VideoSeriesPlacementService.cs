@@ -20,7 +20,37 @@ public sealed class VideoSeriesPlacementService(
 {
     public const string SeriesHasNoFolder = "That series has no folder of its own yet, so the file stays where it is.";
     public const string SeriesInManyFolders = "That series' videos are in more than one folder, so the file stays where it is.";
-    public const string NameNotUsable = "That name cannot be used as a folder name, so the file stays where it is.";
+    public const string NameNotUsable = "That name cannot be used as a folder name. Choose another name for the series.";
+
+    // Names Windows will not make a folder of, whatever the Engine runs on: the library may be opened there, or backed up to it.
+    private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL",
+        "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
+    /// <summary>
+    /// The folder name a new series gets, or null when none can be made from <paramref name="name"/>: nothing usable left after cleaning,
+    /// a name that ends in a dot or a space (Windows drops it, so the folder would not be the one shown), or a reserved device name such
+    /// as CON, NUL or COM1 (with or without an extension).
+    /// </summary>
+    public static string? FolderNameFor(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.EndsWith('.') || name.EndsWith(' '))
+        {
+            return null;
+        }
+
+        var segment = FileOrganizer.SanitizeSegment(name);
+        if (segment.Length == 0 || segment.EndsWith('.') || segment.EndsWith(' ') || segment.TrimStart('.', ' ').Length == 0)
+        {
+            return null;
+        }
+
+        var stem = segment.Split('.')[0].TrimEnd(' ');
+        return ReservedNames.Contains(stem) ? null : segment;
+    }
 
     public async Task<VideoSeriesFilePlan?> PlanAsync(Guid entityId, string? targetId, string? token, CancellationToken ct = default)
     {
@@ -53,10 +83,11 @@ public sealed class VideoSeriesPlacementService(
         }
         else if (EditSessionVideo.TryParseNewSeries(token, out var name))
         {
-            var segment = FileOrganizer.SanitizeSegment(name).Trim('.', ' ');
-            if (segment.Length == 0)
+            var segment = FolderNameFor(name);
+            if (segment is null)
             {
-                return VideoSeriesFilePlan.Stays(assetId, managed: true, NameNotUsable);
+                // The save is refused, whatever the Engine runs on, so the folder a person is told about is the folder they get.
+                return new VideoSeriesFilePlan(true, assetId, null, null, null, NameNotUsable, true);
             }
 
             folder = Path.Combine(root, segment);

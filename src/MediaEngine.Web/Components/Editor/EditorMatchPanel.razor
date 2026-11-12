@@ -98,6 +98,9 @@
     private string? _problem;
     private string? _staged;
     private string? _stagedMove;
+
+    // True after an Apply was refused because this video's file already moves with a series change staged on this visit or earlier.
+    private bool _seriesFirst;
     private bool _staging;
     private ProviderMatchSide? _stagedSide;
 
@@ -406,6 +409,20 @@
         _staging = true;
         try
         {
+            // Where would the matched record put this item? A video has no place to move to; everything else asks the Engine.
+            var placement = string.Equals(candidate.ProviderName, YouTubeProvider, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : await Api.GetEditorMatchPlacementAsync(id, candidate);
+
+            // This video's file already moves with a series change: nothing of this match is staged (what was staged before stays as it was), so
+            // nothing is dropped silently and the two never disagree about where the file ends up.
+            if (EditorMatchStaging.SeriesMoveInTheWay(Session.Pending, id, placement))
+            {
+                _seriesFirst = true;
+                return;
+            }
+
+            _seriesFirst = false;
             Unstage(EditSessionChangeKinds.MatchRemoval);
             Session.Pending.SetTarget(
                 EditSessionChangeKinds.Identity,
@@ -413,11 +430,6 @@
                 EditSessionIdentityTarget.Serialize(request),
                 label: $"{facts.Title} ({facts.Provider})",
                 before: MatchBefore());
-
-            // Where would the matched record put this item? A video has no place to move to; everything else asks the Engine.
-            var placement = string.Equals(candidate.ProviderName, YouTubeProvider, StringComparison.OrdinalIgnoreCase)
-                ? null
-                : await Api.GetEditorMatchPlacementAsync(id, candidate);
             StagePlacement(id, placement);
             await StageShowRematchAsync(id, candidate);
         }
@@ -530,11 +542,7 @@
             return;
         }
 
-        var existing = Session.Pending.Changes.FirstOrDefault(change => change.Kind == kind && change.EntityId == Subject.EntityId);
-        if (existing is not null)
-        {
-            Session.Pending.Remove(existing.Id);
-        }
+        EditorMatchStaging.Unstage(Session.Pending, kind, Subject.EntityId);
     }
 
     private string MatchBefore() => _current is { State: EditorCurrentMatchStates.Matched, Record: { } record }
@@ -678,6 +686,11 @@
 
     private RenderFragment StagedNote() => __builder =>
     {
+        if (_seriesFirst)
+        {
+            <AppAlert Severity="AppSeverity.Warning" Dense="true" data-testid="match-series-first">@L["EditorMatchPanel_SeriesFirst"]</AppAlert>
+        }
+
         if (_staged is not null)
         {
             <AppAlert Severity="AppSeverity.Success" Dense="true" data-testid="match-staged">@L["EditorMatchPanel_Staged", _staged]@if (!string.IsNullOrWhiteSpace(_stagedMove)) { <span data-testid="match-staged-move"> @_stagedMove</span> }</AppAlert>

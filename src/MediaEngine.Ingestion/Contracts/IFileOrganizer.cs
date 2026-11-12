@@ -46,4 +46,19 @@ public interface IFileOrganizer
         string sourcePath,
         string destinationPath,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// As <see cref="ExecuteMoveAsync"/>, except that a taken <paramref name="destinationPath"/> is never renamed around: the file does not
+    /// move and the result is <see langword="null"/>. Used where the person was shown the exact name and a different one would be a surprise
+    /// (a video following its series into a folder). The default checks first; <see cref="FileOrganizer"/> also refuses atomically, so a name
+    /// taken between the check and the move is refused too.
+    /// </summary>
+    Task<string?> ExecuteMoveWithoutRenameAsync(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken ct = default) =>
+        File.Exists(destinationPath)
+        && !string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase)
+            ? Task.FromResult<string?>(null)
+            : ExecuteMoveAsync(sourcePath, destinationPath, ct);
 }

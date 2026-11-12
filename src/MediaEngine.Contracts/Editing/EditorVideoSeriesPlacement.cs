@@ -38,4 +38,12 @@ public sealed class EditorVideoSeriesPlacementDto
     [JsonPropertyName("reason")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Reason { get; init; }
+
+    /// <summary>
+    /// True when <see cref="Reason"/> stops the change from being saved at all (a name taken in the series' folder, a name that cannot be a
+    /// folder name). Otherwise the reason only explains why the file stays where it is and the series choice can still be saved.
+    /// </summary>
+    [JsonPropertyName("blocked")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Blocked { get; init; }
 }

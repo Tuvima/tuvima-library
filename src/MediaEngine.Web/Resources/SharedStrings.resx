@@ -9401,6 +9401,21 @@
   <data name="EditorFooter_MoveDetail" xml:space="preserve">
     <value>Managed folder · {0} → {1}</value>
   </data>
+  <data name="EditorMatchPanel_SeriesFirst" xml:space="preserve">
+    <value>This video's file already moves with a series change you made. Save the series change first, then change the match.</value>
+  </data>
+  <data name="EditorGroupMatch_SeriesFirst" xml:space="preserve">
+    <value>Left out because their files already move with a series change you made: {0}. Save the series change first, then match them.</value>
+  </data>
+  <data name="EditorVideoSeries_MatchFirst" xml:space="preserve">
+    <value>This video has a match waiting to be saved, and its file would move for the match too. Save the match first, then change the series.</value>
+  </data>
+  <data name="EditorVideoSeries_PreviewFailed" xml:space="preserve">
+    <value>Library could not check where the file would go, so nothing was changed.</value>
+  </data>
+  <data name="EditorVideoSeries_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
   <data name="EditorFooter_MoveDetailGeneric" xml:space="preserve">
     <value>Managed folder · Moved and renamed to match the new details</value>
   </data>

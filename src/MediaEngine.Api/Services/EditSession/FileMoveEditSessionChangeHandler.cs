@@ -17,7 +17,7 @@ namespace MediaEngine.Api.Services.EditSession;
 /// <see cref="EditSessionChange.Token"/>, when the Dashboard sends one from its move preview, is not required and is ignored.
 /// </para>
 /// <para>
-/// A move that carries <see cref="EditSessionVideo.MovesWithSeriesToken"/> belongs to a series change of a video (editor v6, D24). A video's
+/// A move whose token starts with <see cref="EditSessionVideo.MovesWithSeriesPrefix"/> belongs to a series change of a video (editor v6, D24). A video's
 /// folder is its series, which no naming template computes, so the series change moves the file itself, first, and puts it back if anything
 /// fails. This change is what lets Review and the footer say so; it has nothing left to do and never asks the naming policy to move the file.
 /// </para>
@@ -30,7 +30,7 @@ public sealed class FileMoveEditSessionChangeHandler(
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
-        if (string.Equals(change.Token, EditSessionVideo.MovesWithSeriesToken, StringComparison.Ordinal))
+        if (EditSessionVideo.IsMovesWithSeries(change.Token))
         {
             return null;
         }
@@ -68,7 +68,7 @@ public sealed class FileMoveEditSessionChangeHandler(
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
-        if (string.Equals(change.Token, EditSessionVideo.MovesWithSeriesToken, StringComparison.Ordinal))
+        if (EditSessionVideo.IsMovesWithSeries(change.Token))
         {
             return null;
         }

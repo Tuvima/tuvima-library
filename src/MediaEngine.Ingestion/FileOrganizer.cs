@@ -235,10 +235,24 @@ public sealed class FileOrganizer : IFileOrganizer
     }
 
     /// <inheritdoc/>
-    public async Task<string?> ExecuteMoveAsync(
+    public Task<string?> ExecuteMoveAsync(
         string sourcePath,
         string destinationPath,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        MoveCoreAsync(sourcePath, destinationPath, allowRename: true, ct);
+
+    /// <inheritdoc/>
+    public Task<string?> ExecuteMoveWithoutRenameAsync(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken ct = default) =>
+        MoveCoreAsync(sourcePath, destinationPath, allowRename: false, ct);
+
+    private async Task<string?> MoveCoreAsync(
+        string sourcePath,
+        string destinationPath,
+        bool allowRename,
+        CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
@@ -247,13 +261,6 @@ public sealed class FileOrganizer : IFileOrganizer
         {
             _logger.LogWarning("Move skipped — source file not found: {Source}", sourcePath);
             return null;
-        }
-
-        // Ensure the destination directory exists.
-        string? destDir = Path.GetDirectoryName(destinationPath);
-        if (!string.IsNullOrEmpty(destDir))
-        {
-            Directory.CreateDirectory(destDir);
         }
 
         // If the source is already at the requested destination, there is
@@ -268,8 +275,22 @@ public sealed class FileOrganizer : IFileOrganizer
             return sourcePath;
         }
 
+        // A move that may not take another name stops at a taken one before a folder is made for it.
+        if (!allowRename && File.Exists(destinationPath))
+        {
+            _logger.LogInformation("Move skipped — {Destination} is already taken and may not be renamed around.", destinationPath);
+            return null;
+        }
+
+        // Ensure the destination directory exists.
+        string? destDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
         // Resolve collision: if destination exists with different content, find a free name.
-        string finalDest = ResolveCollision(destinationPath);
+        string finalDest = allowRename ? ResolveCollision(destinationPath) : destinationPath;
 
         var delay = InitialRetryDelay;
         for (int attempt = 1; attempt <= MaxMoveAttempts; attempt++)
@@ -277,7 +298,8 @@ public sealed class FileOrganizer : IFileOrganizer
             ct.ThrowIfCancellationRequested();
             try
             {
-                File.Move(sourcePath, finalDest);
+                // Without a rename the move itself refuses a name taken since the check above (it never overwrites).
+                File.Move(sourcePath, finalDest, overwrite: false);
                 if (_hashCache is not null)
                 {
                     await _hashCache.MoveAsync(
@@ -287,6 +309,11 @@ public sealed class FileOrganizer : IFileOrganizer
                 }
                 _logger.LogInformation("Moved {Source} → {Destination}", sourcePath, finalDest);
                 return finalDest;
+            }
+            catch (IOException) when (!allowRename && File.Exists(finalDest))
+            {
+                _logger.LogInformation("Move skipped — {Destination} was taken just before the move and may not be renamed around.", finalDest);
+                return null;
             }
             catch (IOException ex) when (attempt < MaxMoveAttempts)
             {
