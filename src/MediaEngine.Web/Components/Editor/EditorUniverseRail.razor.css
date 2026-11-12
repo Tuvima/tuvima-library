@@ -76,8 +76,8 @@
 }
 
 .tl-urail__crumb.is-current {
-    border-color: var(--tl-accent-primary, #8852FC);
-    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 14%, var(--tl-bg-surface));
+    border-color: var(--tl-accent-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 14%, var(--tl-bg-surface));
 }
 
 .tl-urail__thumb {
@@ -124,7 +124,7 @@
     width: 0.5rem;
     height: 0.5rem;
     border-radius: var(--tl-radius-round);
-    background: var(--tl-accent-primary, #8852FC);
+    background: var(--tl-accent-primary);
 }
 
 /* The list itself (position, width, border, background) is drawn by AppPopover in the top layer; its surface styles are global in app.css. */
@@ -172,7 +172,7 @@
 }
 
 .tl-urail__option.is-selected {
-    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 16%, transparent);
+    background: color-mix(in srgb, var(--tl-accent-primary) 16%, transparent);
     color: var(--tl-text-primary);
 }
 
@@ -191,7 +191,7 @@
 
 .tl-urail__waiting {
     flex: 0 0 auto;
-    color: var(--tl-accent-primary, #8852FC);
+    color: var(--tl-accent-primary);
     font-size: var(--tl-font-size-xs, 0.75rem);
 }
 
