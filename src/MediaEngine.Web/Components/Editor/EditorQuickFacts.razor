@@ -39,11 +39,18 @@
             var (start, end) = SplitPath(path);
             var copyText = _copied ? L["Common_Copied"].Value : L["EditorQuickFacts_CopyPath"].Value;
             <div class="tl-quick-facts__path" data-quick-facts-path="true">
-                <span class="tl-quick-facts__path-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" Size="AppIconSize.Control20" /></span>
+                <span class="tl-quick-facts__path-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" /></span>
                 <AppTooltip Text="@path">
                     <span class="tl-quick-facts__path-text" tabindex="0" role="group" aria-label="@L["EditorQuickFacts_FilePath"].Value">
                         <span class="sr-only">@path</span>
-                        <span class="tl-quick-facts__path-start" aria-hidden="true">@start</span><span class="tl-quick-facts__path-end" dir="rtl" aria-hidden="true"><bdi dir="ltr">@end</bdi></span>
+                        @if (start.Length > 0)
+                        {
+                            <span class="tl-quick-facts__path-start" aria-hidden="true">@start</span>
+                        }
+                        @if (end.Length > 0)
+                        {
+                            <span class="tl-quick-facts__path-end" dir="rtl" aria-hidden="true"><bdi dir="ltr">@end</bdi></span>
+                        }
                     </span>
                 </AppTooltip>
                 <AppIconButton Icon="@(_copied ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.ContentCopy)"
@@ -54,10 +61,11 @@
                                AriaLabel="@L["EditorQuickFacts_CopyPath"].Value"
                                data-quick-facts-copy="true"
                                OnClick="@(() => CopyPathAsync(path))" />
+                <span class="sr-only" role="status">@(_copied ? L["Common_Copied"].Value : string.Empty)</span>
             </div>
             @if (_copyFailed)
             {
-                <div class="tl-quick-facts__path-error" role="alert">@ClipboardInterop.FailedMessage("the path")</div>
+                <div class="tl-quick-facts__path-error" role="alert">@ClipboardInterop.FailedMessage(L["EditorQuickFacts_ThePath"].Value)</div>
             }
         }
     </aside>

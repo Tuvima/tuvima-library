@@ -301,14 +301,51 @@ public sealed class EditorHeaderRulesTests
         {
             Kind = EditorKindNames.Movie,
             Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
-            FileFacts = new EditorFileFactsDto { Container = "MKV", Folder = "/media/Movies/Dune (2021)", FileName = "Dune (2021).mkv" },
+            FileFacts = new EditorFileFactsDto { Container = "MKV", Folder = "/media/Movies/Dune (2021)", FileName = "Dune (2021).mkv", LibraryFolderName = "Movies" },
+            Config = EditorHeaderTestData.Config(EditorKindNames.Movie),
+        };
+
+        var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
+
+        // The Folder fact is the library folder's name only; the path lives on its own line.
+        var folder = model.Facts.Single(fact => fact.Key == "folder");
+        Assert.Equal("Movies", folder.Value);
+        Assert.Equal("Folder", folder.Label);
+        Assert.DoesNotContain(model.Facts, fact => fact.Value.Contains('/', StringComparison.Ordinal));
+        Assert.Equal("/media/Movies/Dune (2021)/Dune (2021).mkv", model.FilePath);
+    }
+
+    [Fact]
+    public void WithoutALibraryFolderName_TheFolderFactIsLeftOut_AndTheFolderPathIsNeverUsedInItsPlace()
+    {
+        var header = new EditorHeaderDto
+        {
+            Kind = EditorKindNames.Movie,
+            Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
+            FileFacts = new EditorFileFactsDto { Container = "MKV", Folder = "/outside/Dune (2021)", FileName = "Dune (2021).mkv" },
             Config = EditorHeaderTestData.Config(EditorKindNames.Movie),
         };
 
         var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
 
         Assert.DoesNotContain(model.Facts, fact => fact.Key == "folder");
-        Assert.Equal("/media/Movies/Dune (2021)/Dune (2021).mkv", model.FilePath);
+        Assert.Equal("/outside/Dune (2021)/Dune (2021).mkv", model.FilePath);
+    }
+
+    [Fact]
+    public void TheFolderFact_IsOnlyShownWhenTheKindsQuickFactsListAsksForIt()
+    {
+        var header = new EditorHeaderDto
+        {
+            Kind = EditorKindNames.Movie,
+            Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
+            FileFacts = new EditorFileFactsDto { Container = "MKV", LibraryFolderName = "Movies" },
+            Config = new EditorHeaderConfigDto { Kind = EditorKindNames.Movie, QuickFacts = ["container"] },
+        };
+
+        var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
+
+        Assert.Equal(["container"], model.Facts.Select(fact => fact.Key));
     }
 
     [Fact]

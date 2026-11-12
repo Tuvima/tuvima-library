@@ -339,10 +339,10 @@ public static class EditorQuickFactsBuilder
     public const string FileNotFoundNote = "File not found";
 
     /// <summary>
-    /// Adds the file facts the old Files tab used to carry (universal editor v5, 1a item 8) to a model: quality, container, the number of
+    /// Adds the file facts the old Files tab used to carry (universal editor v5, 1a item 8) to a model: quality, container, the library folder's name, the number of
     /// supporting files on a container and a "File not found" note with the last known folder. Only the facts the kind's own list in
     /// <c>config/editor.json</c> asks for are added, and a fact the header does not know is left out. The file's path is not a fact: it goes
-    /// on the model's <see cref="QuickFactsModel.FilePath"/>, shown once at the foot of the panel (Editor v6 D14).
+    /// on the model's <see cref="QuickFactsModel.FilePath"/>, shown once at the foot of the panel (Editor v6 D14); the "folder" fact is only the library folder's name.
     /// </summary>
     public static QuickFactsModel WithFileFacts(QuickFactsModel model, EditorHeaderDto? header, string? providerName = null)
     {
@@ -386,6 +386,8 @@ public static class EditorQuickFactsBuilder
             }
 
             Add("container", FileIcon, Clean(file.Container), "Container");
+            // The library folder's name only ("Books"); the file's path is not a fact, it is the line at the foot of the panel.
+            Add("folder", Folder, Clean(file.LibraryFolderName), "Folder");
             if (file.IsMissing)
             {
                 notes.Add(string.IsNullOrWhiteSpace(file.Folder) ? FileNotFoundNote : $"{FileNotFoundNote} · last known folder {file.Folder!.Trim()}");
@@ -409,7 +411,7 @@ public static class EditorQuickFactsBuilder
 
     /// <summary>
     /// The file's full path from the folder it sits in and its name, written with the separator the folder already uses. Null when neither is
-    /// known; with only one of them, that one.
+    /// known; with only the name, the name; with only the folder, the folder with a closing separator (so it never reads as a file name).
     /// </summary>
     public static string? PathOf(string? folder, string? fileName)
     {
@@ -420,13 +422,8 @@ public static class EditorQuickFactsBuilder
             return name;
         }
 
-        if (name is null)
-        {
-            return directory;
-        }
-
         var separator = directory.Contains('\\') && !directory.Contains('/') ? '\\' : '/';
-        return directory + separator + name;
+        return name is null ? directory + separator : directory + separator + name;
     }
 
     private const string Check = "Check";

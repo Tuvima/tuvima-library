@@ -50,7 +50,7 @@
     overflow-wrap: anywhere;
     color: var(--tl-text-primary);
     font-size: var(--tl-type-body-size);
-    font-weight: var(--tl-font-weight-semibold);
+    font-weight: var(--tl-type-body-weight);
 }
 
 .tl-quick-facts__label {

@@ -986,7 +986,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
 
     // -- Details rows on the shared form row (Editor v6 D12, WP7) -----------------------------------
 
-    // A film whose Sort title and Rating are neighbours: the pair that drifted out of line when only one of them had a lock.
+    // A film whose Sort title and Rating are neighbors: the pair that drifted out of line when only one of them had a lock.
     private static MediaEditorContextDto MovieWithSortTitleBesideRating()
     {
         var context = EditingModeTestData.MovieContext();
@@ -1029,6 +1029,17 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         Assert.Equal(
             ["title", "description", "sort_title", "rating", "genre", "custom_tags"],
             group.QuerySelectorAll("[data-form-row-field]").Select(field => field.GetAttribute("data-field-key")!).ToArray());
+    }
+
+    [Fact]
+    public async Task ARowThatPairsATextFieldWithAShortOne_GivesTheTextFieldTwoPartsAndTheShortOneAPart()
+    {
+        var editor = await StartEditorAsync(MovieWithSortTitleBesideRating());
+        var cut = await OpenDetailsAsync(editor);
+
+        var pair = cut.Find("[data-field-key='sort_title']").ParentElement!;
+
+        Assert.Contains("minmax(0, 2fr) minmax(0, 1fr)", pair.GetAttribute("style"), StringComparison.Ordinal);
     }
 
     [Fact]

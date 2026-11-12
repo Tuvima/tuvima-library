@@ -4244,7 +4244,8 @@
   Folder: System.String | json=folder | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ReadOnly: System.Boolean | json=read_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsMissing: System.Boolean | json=is_missing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"file_count":7,"quality":"sample","container":"sample","size_bytes":7,"file_name":"sample","folder":"sample","read_only":true,"is_missing":true}
+  LibraryFolderName: System.String | json=library_folder_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  sample={"file_count":7,"quality":"sample","container":"sample","size_bytes":7,"file_name":"sample","folder":"sample","read_only":true,"is_missing":true,"library_folder_name":"sample"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorFileGuessDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -40,6 +40,25 @@ public sealed class EditorQuickFactsPathTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheFootLine_LeadsWithADecorativeFolderIcon_AndTheFolderFactShowsTheNameOnly()
+    {
+        var model = new QuickFactsModel(
+            QuickFactsKind.Film,
+            [new QuickFact("folder", "FolderOpen", "Movies", "Folder")],
+            [],
+            FilePath: Path);
+
+        var cut = RenderFacts(model);
+
+        var foot = cut.Find("[data-quick-facts-path]");
+        var icon = foot.FirstElementChild!;
+        Assert.Equal("true", icon.GetAttribute("aria-hidden"));
+        Assert.NotNull(icon.QuerySelector("svg"));
+        Assert.Equal("Movies", cut.Find("[data-fact='folder'] strong").TextContent);
+        Assert.DoesNotContain("/", cut.Find("[data-fact='folder']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheFootLine_HoldsAStartPartAndAnEndPart_ThatJoinBackToTheWholePath()
     {
         var cut = RenderFacts(Model(Path));
@@ -50,6 +69,37 @@ public sealed class EditorQuickFactsPathTests : AsyncBunitContext
         Assert.Equal(Path, start + end);
         Assert.Equal("/media/Movies/Dune (2021)/", start);
         Assert.Equal("Dune.Part.One.2021.2160p.UHD.BluRay.REMUX.HDR.mkv", end);
+    }
+
+    [Fact]
+    public void WithOnlyAFileName_ThereIsNoStartPart_SoNothingIsReservedForIt()
+    {
+        var cut = RenderFacts(Model("Book 2.epub"));
+
+        Assert.Empty(cut.FindAll(".tl-quick-facts__path-start"));
+        Assert.Equal("Book 2.epub", cut.Find(".tl-quick-facts__path-end").TextContent);
+    }
+
+    [Fact]
+    public void AFolderOnlyPath_IsAllStart_AndNeverPresentsTheLastFolderAsAFileName()
+    {
+        var folderOnly = EditorQuickFactsBuilder.PathOf("/media/Books/Rick Riordan", null);
+        var cut = RenderFacts(Model(folderOnly));
+
+        Assert.Equal("/media/Books/Rick Riordan/", cut.Find(".tl-quick-facts__path-start").TextContent);
+        Assert.Empty(cut.FindAll(".tl-quick-facts__path-end"));
+    }
+
+    [Fact]
+    public void AfterACopy_AScreenReaderHearsCopied_AndItGoesAwayAgain()
+    {
+        var cut = RenderFacts(Model(Path));
+        Assert.Empty(cut.Find("[data-quick-facts-path] [role='status']").TextContent);
+
+        cut.Find("button[data-quick-facts-copy]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Copied", cut.Find("[data-quick-facts-path] [role='status']").TextContent));
+        Assert.Contains("sr-only", cut.Find("[data-quick-facts-path] [role='status']").ClassList);
     }
 
     [Fact]

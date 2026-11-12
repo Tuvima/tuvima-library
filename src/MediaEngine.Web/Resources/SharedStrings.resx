@@ -10658,6 +10658,9 @@
   <data name="EditorQuickFacts_FilePath" xml:space="preserve">
     <value>File path</value>
   </data>
+  <data name="EditorQuickFacts_ThePath" xml:space="preserve">
+    <value>the path</value>
+  </data>
   <data name="EditorQuickFacts_CopyPath" xml:space="preserve">
     <value>Copy file path</value>
   </data>

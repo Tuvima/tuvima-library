@@ -301,7 +301,8 @@ public sealed class EditorQuickFactsTests
         Assert.Equal("/media/Books/Dune/Dune.epub", EditorQuickFactsBuilder.PathOf("/media/Books/Dune/", "Dune.epub"));
         Assert.Equal(@"Z:\Books\Dune\Dune.epub", EditorQuickFactsBuilder.PathOf(@"Z:\Books\Dune", "Dune.epub"));
         Assert.Equal("Dune.epub", EditorQuickFactsBuilder.PathOf(null, "Dune.epub"));
-        Assert.Equal("/media/Books", EditorQuickFactsBuilder.PathOf("/media/Books", " "));
+        Assert.Equal("/media/Books/", EditorQuickFactsBuilder.PathOf("/media/Books", " "));
+        Assert.Equal(@"Z:\Books\", EditorQuickFactsBuilder.PathOf(@"Z:\Books", null));
         Assert.Null(EditorQuickFactsBuilder.PathOf(null, null));
     }
 

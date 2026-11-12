@@ -46,7 +46,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             <section class="tl-editor-details__group" aria-label="@L["Common_DetailsYouCanChange"].Value">
                 @* Every row of fields is the shared form row (Editor v6 D12): labels on one line, controls on the next, so two fields side by
                    side share a top edge whatever a lock, a Revert button or a note does beside or under either. *@
-                @foreach (var row in InRows(editable, honourWide: true))
+                @foreach (var row in InRows(editable, honorWide: true))
                 {
                     <AppFormRow Columns="@ColumnsOf(row)" Message="@RowNotes(fields, session, row)" data-details-row="true">
                         @foreach (var field in row)
@@ -70,7 +70,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 {
                     <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
                 }
-                @foreach (var row in InRows(facts, honourWide: false))
+                @foreach (var row in InRows(facts, honorWide: false))
                 {
                     <AppFormRow Columns="@ColumnsOf(row)" data-details-row="true">
                         @foreach (var field in row)
@@ -202,7 +202,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     };
 
     // The words under a row when a field in it is sent back to the provider's value: one line for the whole row (Editor v6 D12), so the
-    // note never makes a field taller than its neighbour. Null when no field of the row is waiting to go back.
+    // note never makes a field taller than its neighbor. Null when no field of the row is waiting to go back.
     private RenderFragment? RowNotes(ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> row)
     {
         var reset = row.Where(field => session.Pending.TryGetField(fields.EntityId, StageKey(field), out var staged) && string.IsNullOrWhiteSpace(staged)).ToList();
@@ -224,18 +224,38 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
     private const string OneColumn = "minmax(0, 1fr)";
     private const string TwoColumns = "minmax(0, 1fr) minmax(0, 1fr)";
+    private const string LongThenShort = "minmax(0, 2fr) minmax(0, 1fr)";
+    private const string ShortThenLong = "minmax(0, 1fr) minmax(0, 2fr)";
 
-    private static string ColumnsOf(IReadOnlyList<MediaEditorDetailsFieldPresentation> row) =>
-        row.Count == 1 && IsWide(row[0]) ? OneColumn : TwoColumns;
+    // The mock's proportions (Editor v6 screen F): a row that pairs a longer text field with a short one (a rating, a year, a choice) gives the
+    // text field two parts and the short one a part; any other pair shares the row equally.
+    private static string ColumnsOf(IReadOnlyList<MediaEditorDetailsFieldPresentation> row)
+    {
+        if (row.Count == 1)
+        {
+            return IsWide(row[0]) ? OneColumn : TwoColumns;
+        }
+
+        return (IsShort(row[0]), IsShort(row[1])) switch
+        {
+            (false, true) => LongThenShort,
+            (true, false) => ShortThenLong,
+            _ => TwoColumns,
+        };
+    }
+
+    private static bool IsShort(MediaEditorDetailsFieldPresentation field) =>
+        !field.IsChips
+        && (field.InputKind?.ToLowerInvariant() is "choice" or "date" or "number" or "rating" || Baseline(field).Length <= 12);
 
     // Fields are laid out two to a row, the way a two-column grid would place them; a wide field (title, description, chips) takes a row of its own.
-    private static List<List<MediaEditorDetailsFieldPresentation>> InRows(IEnumerable<MediaEditorDetailsFieldPresentation> fields, bool honourWide)
+    private static List<List<MediaEditorDetailsFieldPresentation>> InRows(IEnumerable<MediaEditorDetailsFieldPresentation> fields, bool honorWide)
     {
         var rows = new List<List<MediaEditorDetailsFieldPresentation>>();
         List<MediaEditorDetailsFieldPresentation>? open = null;
         foreach (var field in fields)
         {
-            if (honourWide && IsWide(field))
+            if (honorWide && IsWide(field))
             {
                 rows.Add([field]);
                 open = null;
