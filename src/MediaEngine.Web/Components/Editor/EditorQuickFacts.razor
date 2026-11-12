@@ -43,7 +43,7 @@
                 <AppTooltip Text="@path">
                     <span class="tl-quick-facts__path-text" tabindex="0" role="group" aria-label="@L["EditorQuickFacts_FilePath"].Value">
                         <span class="sr-only">@path</span>
-                        <span class="tl-quick-facts__path-start" aria-hidden="true">@start</span><span class="tl-quick-facts__path-end" aria-hidden="true">@end</span>
+                        <span class="tl-quick-facts__path-start" aria-hidden="true">@start</span><span class="tl-quick-facts__path-end" dir="rtl" aria-hidden="true"><bdi dir="ltr">@end</bdi></span>
                     </span>
                 </AppTooltip>
                 <AppIconButton Icon="@(_copied ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.ContentCopy)"
@@ -70,19 +70,11 @@
     private bool _copyFailed;
     private static readonly TimeSpan CopiedFor = TimeSpan.FromSeconds(2);
 
-    // The end of the path that never gives way when the line is too narrow: the file name, or its last characters when the name itself is
-    // long. Everything before it is the start, which is cut with an ellipsis by the stylesheet at whatever width the panel has.
-    private const int KeptEndLength = 26;
-
+    // The path in two parts for the stylesheet to shorten in the middle at whatever width the panel has: the folders (the start, cut with an
+    // ellipsis at its end) and the file name (the end, which gives way last, and then loses the front of its name, never its extension).
     private static (string Start, string End) SplitPath(string path)
     {
-        var lastSeparator = path.LastIndexOfAny(['/', '\\']);
-        var cut = lastSeparator + 1;
-        if (path.Length - cut > KeptEndLength)
-        {
-            cut = path.Length - KeptEndLength;
-        }
-
+        var cut = path.LastIndexOfAny(['/', '\\']) + 1;
         return (path[..cut], path[cut..]);
     }
 

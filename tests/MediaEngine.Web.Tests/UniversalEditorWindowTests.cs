@@ -984,6 +984,102 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         Assert.EndsWith("characters", count.TextContent.Trim());
     }
 
+    // -- Details rows on the shared form row (Editor v6 D12, WP7) -----------------------------------
+
+    // A film whose Sort title and Rating are neighbours: the pair that drifted out of line when only one of them had a lock.
+    private static MediaEditorContextDto MovieWithSortTitleBesideRating()
+    {
+        var context = EditingModeTestData.MovieContext();
+        var snapshot = context.Scopes[0].FieldSnapshot;
+        snapshot.CanonicalFields.Add(new MediaEngine.Contracts.Metadata.MediaEditorScopedFieldValueDto { Key = "sort_title", Value = "Dune, Part One", ProviderName = "tmdb" });
+        snapshot.CanonicalFields.RemoveAll(field => field.Key is "release_date" or "runtime");
+        snapshot.AllowedOverrideKeys = [.. snapshot.AllowedOverrideKeys, "sort_title"];
+        return context;
+    }
+
+    private async Task<IRenderedComponent<CascadingValue<EditingModeContext>>> OpenDetailsAsync(Editor editor)
+    {
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-details");
+        return cut;
+    }
+
+    [Fact]
+    public async Task EveryRowOfFieldsOnDetails_IsASharedFormRow_WithItsFieldsAsDirectChildrenOfTheRow()
+    {
+        var editor = await StartEditorAsync(MovieWithSortTitleBesideRating());
+        var cut = await OpenDetailsAsync(editor);
+
+        var group = cut.Find(".tl-editor-details__group[aria-label='Details you can change']");
+        var rows = group.QuerySelectorAll(".app-form-row").ToList();
+
+        Assert.NotEmpty(rows);
+        // Nothing sits in the group outside a row, and every field is a wrapper the row part recognizes.
+        Assert.All(group.Children, child => Assert.Contains("app-form-row", child.ClassList));
+        Assert.All(rows, row =>
+        {
+            var fields = row.QuerySelector(".app-form-row__fields")!.Children;
+            Assert.NotEmpty(fields);
+            Assert.All(fields, field => Assert.True(field.HasAttribute("data-form-row-field")));
+        });
+        var pair = Assert.Single(rows, row => row.QuerySelector("[data-field-key='sort_title']") is not null);
+        Assert.Equal(["sort_title", "rating"], pair.QuerySelectorAll("[data-form-row-field]").Select(field => field.GetAttribute("data-field-key")!).ToArray());
+        // The fields of the form are the same as before, in the same order.
+        Assert.Equal(
+            ["title", "description", "sort_title", "rating", "genre", "custom_tags"],
+            group.QuerySelectorAll("[data-form-row-field]").Select(field => field.GetAttribute("data-field-key")!).ToArray());
+    }
+
+    [Fact]
+    public async Task ALockedField_AndAnUnlockedOne_InOneRow_BothPutTheirLabelFirstAndTheirControlOnTheControlLine()
+    {
+        var editor = await StartEditorAsync(MovieWithSortTitleBesideRating());
+        var cut = await OpenDetailsAsync(editor);
+
+        void AssertThreeLines()
+        {
+            var pair = cut.Find("[data-field-key='sort_title']").ParentElement!;
+            Assert.Equal(2, pair.QuerySelectorAll("[data-form-row-field]").Length);
+            foreach (var field in pair.QuerySelectorAll("[data-form-row-field]"))
+            {
+                // Line 1 is the label with its lock beside it; the control is the next child, whatever the lock or Revert beside the label does.
+                Assert.Contains("app-field__label", field.Children[0].ClassList);
+                Assert.DoesNotContain("app-field__label", field.Children[1].ClassList);
+                Assert.NotNull(field.Children[1].QuerySelector("input, select, textarea, .tl-select, [role='combobox'], button"));
+                Assert.Empty(field.Children[1].QuerySelectorAll(".tl-editor-field__lockstate"));
+            }
+        }
+
+        // Sort title is the person's own field (no lock); Rating starts locked by the provider.
+        Assert.Equal("locked", cut.LockStateOf("rating"));
+        Assert.Empty(cut.FindAll("[data-field-key='sort_title'] .tl-editor-field__lockstate"));
+        AssertThreeLines();
+
+        cut.Find("[data-field-key='rating'] button.tl-editor-field__lock-toggle").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("unlocked", cut.LockStateOf("rating")));
+        AssertThreeLines();
+    }
+
+    [Fact]
+    public async Task AFieldSentBackToTheProvider_SaysSoOnTheRowsOwnMessageLine_NotInsideTheField()
+    {
+        var editor = await StartEditorAsync(MovieWithSortTitleBesideRating());
+        var cut = await OpenDetailsAsync(editor);
+        Assert.Empty(cut.Find("[data-field-key='sort_title']").ParentElement!.ParentElement!.QuerySelectorAll(".app-form-row__message"));
+
+        editor.Session.Pending.SetField(MovieId, "sort_title", string.Empty);
+
+        cut.WaitForAssertion(() =>
+        {
+            var pair = cut.Find("[data-field-key='sort_title']").ParentElement!.ParentElement!;
+            var message = pair.QuerySelector(".app-form-row__message")!;
+            Assert.Contains("Sort title goes back to the provider's value when you save.", message.TextContent, StringComparison.Ordinal);
+            Assert.Empty(pair.QuerySelectorAll("[data-form-row-field] .tl-editor-field__note"));
+        });
+    }
+
     // -- Save changes ----------------------------------------------------------------------------
 
     [Fact]

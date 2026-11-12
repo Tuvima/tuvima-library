@@ -5107,6 +5107,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-editor-field__tools{display:inline-flex;align-items:center;gap:var(--tl-space-2);margin-left:auto}
 .tl-editor-field__lockstate{display:inline-flex;align-items:center;gap:var(--tl-space-1);color:var(--tl-accent-primary-hover);font-weight:500}
 .tl-editor-field--form-locked .tl-input,.tl-editor-field__chips{border-style:dashed}
+.tl-editor-field[data-form-row-field] .tl-input{font-weight:var(--tl-type-control-weight)}
 .tl-editor-field--form-locked textarea.tl-input{outline-style:dashed}
 .tl-editor-field--changed .tl-input{border-color:var(--tl-accent-primary)}
 .tl-editor-field--changed textarea.tl-input{outline-color:var(--tl-accent-primary)}

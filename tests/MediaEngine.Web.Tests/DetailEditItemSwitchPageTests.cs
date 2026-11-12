@@ -402,6 +402,8 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         var text = _editor.Find(".tl-editor-window__where").TextContent;
         Assert.Contains("File write-back off", text, StringComparison.Ordinal);
         Assert.Contains("Edits save in Library. Original files stay unchanged.", text, StringComparison.Ordinal);
+        // The footer says it once: Quick Facts carry no Read-only or Write-back pill beside it (Editor v6 D15).
+        Assert.Empty(_editor.FindAll(".tl-quick-facts [data-note]"));
     }
 
     [Fact]

@@ -97,16 +97,20 @@
 }
 
 .tl-quick-facts__path-start {
-    flex: 0 1 auto;
-    min-width: 0;
+    flex: 0 5 auto;
+    min-width: 8ch;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+/* The file name gives way last (a fifth of the start's shrink; factors stay whole numbers because a total under 1 only shrinks part of the
+   overflow). When it too is too long it is cut at its front (the element reads right to left, its text isolated left to right), so the
+   extension and the last words of the name stay. */
 .tl-quick-facts__path-end {
-    flex: 0 0 auto;
-    max-width: 100%;
+    flex: 0 1 auto;
+    min-width: 10ch;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tl-quick-facts__path-error {

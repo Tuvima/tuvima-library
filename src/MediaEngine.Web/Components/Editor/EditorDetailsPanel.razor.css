@@ -49,11 +49,7 @@
     font-weight: var(--tl-type-label-weight);
 }
 
-/* Control text is the Control job (14 / 500); a provider fact's value is Body. */
-.tl-editor-field ::deep .tl-input {
-    font-weight: var(--tl-type-control-weight);
-}
-
+/* A provider fact's value is the Body job (control text, the Control job, is set next to the field styles in app.css). */
 .tl-editor-field__value {
     font-size: var(--tl-type-body-size);
     font-weight: var(--tl-type-body-weight);
