@@ -485,6 +485,33 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         Assert.True(still.IsPreferred);
     }
 
+    [Fact]
+    public async Task EpisodesMissingAProviderStill_ListsOnlyEpisodesWhosePicturePassWasMissed()
+    {
+        // The nightly retry picks up an episode with no provider still and no "provider has none" mark,
+        // never one that was checked (marked) or already has a real still.
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:retry-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var missed = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var checkedNone = await _works.InsertChildAsync(MediaType.TV, season, 2);
+        var hasStill = await _works.InsertChildAsync(MediaType.TV, season, 3);
+        var missedAsset = await SeedAssetForExistingWorkAsync(missed, Path.Combine("TV", "Retry", "Season 01", "Retry - s01e01.mkv"));
+        await SeedAssetForExistingWorkAsync(checkedNone, Path.Combine("TV", "Retry", "Season 01", "Retry - s01e02.mkv"));
+        await SeedAssetForExistingWorkAsync(hasStill, Path.Combine("TV", "Retry", "Season 01", "Retry - s01e03.mkv"));
+        await SeedCanonicalsAsync(checkedNone, (MetadataFieldConstants.EpisodeStillStandIn, "2027-02-01"));
+        await _entityAssets.UpsertAsync(new EntityAsset
+        {
+            Id = Guid.NewGuid(), EntityId = hasStill.ToString(), EntityType = "Work",
+            AssetTypeValue = AssetType.EpisodeStill.ToString(), ImageUrl = "https://artworks.thetvdb.com/x.png",
+            SourceProvider = "tvdb", AssetClassValue = "Artwork", StorageLocationValue = "Central",
+            LocalImagePath = Path.Combine(Path.GetTempPath(), "x.jpg"), CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var ids = await _entityAssets.GetTvEpisodeAssetsMissingProviderStillAsync(50);
+
+        Assert.Equal([missedAsset.AssetId], ids);
+    }
+
     private sealed class FixedFrameSource(byte[] bytes) : MediaEngine.Domain.Contracts.IEpisodeFrameSource
     {
         public Task<byte[]?> GetFrameAsync(Guid episodeWorkId, CancellationToken ct = default) => Task.FromResult<byte[]?>(bytes);
