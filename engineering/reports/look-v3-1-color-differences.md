@@ -370,3 +370,11 @@ Smaller shared parts:
 
 - `Components/View/ViewMap.razor.css` (15 colors): the map draws its own base, labels and hotspots over map tiles.
 - No other exception was needed. The histogram bars are the app's purple, so they moved to tokens.
+
+## The app frame and the structure sheet (WP11, last pieces)
+
+- The My List button in the top bar, while its page is open, is the lighter purple accent (was a yellow). Selected things are purple everywhere.
+- Scroll bar thumbs are the secondary text color, and the muted text color on hover (were two plain greys): a slightly cooler grey.
+- The top bar over a hero fades from the 70% black scrim to the 20% scrim (was 68% and 34% of a near-black navy).
+- The phone bottom bar's shadow is the 20% black scrim (was 28%); the side drawer's shadow is the 40% scrim, and its backdrop the 70% scrim (was 72%).
+- Table row hover and list row hover are the 5% white wash (were 4%); striped rows the 3% wash (2.5%); the alert close button's hover the 8% wash.
