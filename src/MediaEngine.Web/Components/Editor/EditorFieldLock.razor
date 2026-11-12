@@ -4,7 +4,22 @@
 @* The lock beside a field's label (universal editor v5 D5), shared by the library editor's Details and the View editor's. Locked: an accent lock to
    click, "Unlock to edit". Unlocked and not changed: an open lock to click, "Lock", which just locks it again. Changed (the person's own value): no
    button; the words say it is kept, and Revert is the way back. None of these stages anything by itself. *@
-@if (Changed)
+@if (IsPhone && Reason is not null && OnRevert.HasDelegate && (Changed || !Locked))
+{
+    @* On a phone the lock stays a control once it is open (v6 section 4a): a tap opens the reason it was locked and Revert, which puts the provider's
+       or the file's value back and locks the field again. Nothing here stages anything by itself. *@
+    <span class="tl-editor-field__lockstate" data-lock-state="@(Changed ? "yours" : "unlocked")">
+        <EditorTapReveal Text="@(Changed ? $"{Reason} {L["EditorPhone_YoursKeptNote"].Value}" : Reason)"
+                         Label="@string.Format(L["EditorPhone_WhyLocked"].Value, FieldLabel)"
+                         ActionText="@L["EditorDetailsPanel_Revert"].Value"
+                         OnAction="OnRevert"
+                         TriggerClass="tl-editor-field__lock-toggle tl-editor-field__lock-reveal">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LockOpen" Size="AppIconSize.Control20" />
+            <span>@L["EditorDetailsPanel_Unlocked"]</span>
+        </EditorTapReveal>
+    </span>
+}
+else if (Changed)
 {
     <span class="tl-editor-field__lockstate" data-lock-state="yours">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LockOpen" Size="AppIconSize.Control20" />
@@ -37,4 +52,17 @@ else
     [Parameter] public bool Changed { get; set; }
 
     [Parameter] public EventCallback OnToggle { get; set; }
+
+    /// <summary>The phone arrangement: an open lock is tapped for the reason and Revert (the window's cascaded layout says it too).</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    /// <summary>Where the value came from, told on a phone when the open lock is tapped.</summary>
+    [Parameter] public string? Reason { get; set; }
+
+    /// <summary>Revert on a phone: the value goes back to the provider's or the file's and the field locks again.</summary>
+    [Parameter] public EventCallback OnRevert { get; set; }
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(Phone, Layout);
 }

@@ -179,6 +179,17 @@
     font-size: var(--tl-font-size-xs);
 }
 
+/* The phone sheet (v6 section 4a): the gallery's row, then the photos' list; the sheet scrolls as a whole instead of the list scrolling inside it. */
+.view-hnav__sheet {
+    box-sizing: border-box;
+    padding: 0 var(--tl-space-2) var(--tl-space-3);
+}
+
+.view-hnav__sheet .view-hnav__scroll {
+    max-height: none;
+    overflow: visible;
+}
+
 /* Under 1180 the nav row wraps under the title and the dropdown may take the whole row. */
 @media (max-width: 1180px) {
     .view-hnav ::deep .view-hnav__trigger {

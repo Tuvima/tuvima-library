@@ -12,7 +12,7 @@
    profiles' own below ("From profiles"), each row with a picture of its moment when the title is a video. Everything here is staged like any
    other editor change and written on Save changes; the lists show what Save would do, marked "staged". Export and Import sit at the top only
    for a title that is not part of a show or album (a family has them once, on its own page). *@
-<div class="tl-bookmarks">
+<div class="@(Phone ? "tl-bookmarks tl-bookmarks--phone tl-editor-touch" : "tl-bookmarks")" data-phone="@(Phone ? "true" : null)">
     @if (_loading)
     {
         <EditorPanelBusy Label="@L["EditorBookmarks_Loading"].Value" />
@@ -26,7 +26,7 @@
     }
     else if (_compare is { } compare)
     {
-        <EditorBookmarkCompare Compare="compare" OnTake="TakeImportAsync" OnBack="@(() => { _compare = null; })" />
+        <EditorBookmarkCompare Compare="compare" Phone="Phone" OnTake="TakeImportAsync" OnBack="@(() => { _compare = null; })" />
     }
     else
     {
@@ -127,6 +127,9 @@
     /// <summary>True when the title belongs to a show or album: Export and Import are then offered once, on the family's own page.</summary>
     [Parameter] public bool HasFamily { get; set; }
 
+    /// <summary>The phone arrangement (v6 section 4a, D21): rows with the frame, the time and the name; the row actions stay in "...".</summary>
+    [Parameter] public bool Phone { get; set; }
+
     private PendingEditList Pending => Flow.Session.Pending;
 
     private bool StartOverStaged => Pending.BookmarkOps(WorkId).Any(op => op.Kind == EditorBookmarkOpKinds.StartOver);
@@ -169,7 +172,7 @@
         var row = view.Row;
         var removed = view.Mark == EditorBookmarkRowMark.Removed;
         var editing = everyone && _editId == row.Id;
-        <li class="tl-bookmarks__row" data-mark="@view.Mark.ToString().ToLowerInvariant()" @key="@(everyone ? row.Id : row.Id.ToString("N") + "p")">
+        <li class="tl-bookmarks__row" data-editing="@(editing ? "true" : null)" data-mark="@view.Mark.ToString().ToLowerInvariant()" @key="@(everyone ? row.Id : row.Id.ToString("N") + "p")">
             @if (_loaded is { HasFrames: true })
             {
                 var frame = EditorBookmarkWording.FrameSource(row);

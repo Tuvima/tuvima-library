@@ -4620,17 +4620,12 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     font-weight: 600;
 }
 
-/* The menu sheet's dialog frame comes from AppDialogFrame. The shared dialog surface, border, radius and max-height are
-   all forced on .tl-dialog, so the sheet overrides them to fill the screen edge to edge. */
+/* The menu sheet's dialog frame comes from AppDialogFrame; the full-screen rule (border, radius, shadow, max-height) is shared and sits with the TV marker above. */
 .app-native-dialog.phone-nav-menu-dialog.tl-dialog {
     height: 100dvh;
-    max-height: none !important;
     overflow-y: auto;
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-root) !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -5260,6 +5255,8 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 
+/* A full-screen dialog frame (AppDialogFrame FullScreen: the phone menu sheet, the Match card sheet) fills the screen edge to edge. The shared dialog surface, border, radius, shadow and max-height are forced on .tl-dialog, so this one rule overrides them for every full-screen frame. */
+.app-native-dialog.app-native-dialog--fullscreen.tl-dialog{max-height:none !important;border:0 !important;border-radius:0 !important;box-shadow:none !important}
 /* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
    labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
 html[data-form-factor="tv"] {
@@ -5357,6 +5354,39 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 /* The sheet's search box: its 44 px is the field's inside, so the border box is 46 and the typed-in part is the full 44 (and 16 px text from the phone window). */
 .tl-hnav__sheet .tl-hnav__search .app-search-field{--app-control-height:calc(var(--tl-tap-target-min) + 2px)}
 .tl-hnav__surface--phone{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
+/* The tabs of the editor on a phone (v6 D21, WP15): the root of Details, Artwork, History and Bookmarks carries .tl-editor-touch, which makes every compact button and icon button
+   in it a 44 px touch target. The lock beside a label and Revert are the same size; the label line wraps when a long name and its tools do not fit one line. */
+.tl-editor-touch :is(.app-button,.app-icon-button).app-control--compact{--app-control-height:var(--tl-control-height-md)}
+.tl-editor-touch .tl-editor-field__label{flex-wrap:wrap}
+.tl-editor-touch .tl-editor-field__tools{display:contents}
+.tl-editor-touch .tl-editor-field__label>span:first-child{flex:1 1 auto;min-width:0}
+.tl-editor-touch .app-chip__remove{box-sizing:border-box;justify-content:center;min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min);margin:calc(var(--tl-space-3) * -1) calc(var(--tl-space-2) * -1) calc(var(--tl-space-3) * -1) calc(var(--tl-space-4) * -1)}
+.tl-editor-touch .tl-editor-field__lockstate{min-height:var(--tl-tap-target-min)}
+.tl-editor-touch :is(.sme-tag-editor,form.app-tag-input) input{box-sizing:border-box;min-height:var(--tl-tap-target-min);font-size:var(--tl-field-text-size,var(--tl-font-size-md))}
+.tl-editor-touch .sme-tag-editor__add{min-height:var(--tl-tap-target-min)}
+.tl-editor-touch .tl-editor-field__note{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-1)}
+/* Parts of the phone tabs that are drawn by a shared button, so their own stylesheet cannot reach them (v6 D21, WP15). */
+.tl-art-picker--phone .tl-art-picker__hit{display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent;}
+.tl-art-picker--phone .tl-art-picker__retry{align-self: flex-start;}
+.tl-art-picker--phone .tl-art-picker__sources{display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); box-sizing: border-box; width: 100%; max-width: 100%;}
+.tl-art-picker--phone .tl-art-picker__sources .app-segmented-control__item{justify-content: center; min-height: var(--tl-tap-target-min);}
+.tl-art-picker--phone .tl-art-picker__library{grid-column: 1 / -1;}
+.tl-art-picker__phone-sources .app-button{width: 100%;}
+.tl-quick-facts--phone .tl-quick-facts__toggle{display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-2); box-sizing: border-box; width: 100%; min-height: var(--tl-tap-target-min); padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left;}
+.tl-quick-facts--phone .tl-quick-facts__path-reveal{display: flex; flex: 1 1 auto; min-width: 0; white-space: nowrap;}
+.tl-history--phone .tl-history__tap{display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: var(--tl-space-3); box-sizing: border-box; width: 100%; min-height: var(--tl-tap-target-min); padding: var(--tl-space-1) 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left;}
+.tl-history--phone .tl-history__tap .tl-history__title{min-width: 0; overflow-wrap: anywhere; text-align: left;}
+.tl-tap-reveal .tl-tap-reveal__trigger{display: inline-flex; align-items: center; gap: var(--tl-space-1); flex: 1 1 auto; min-width: 0; min-height: var(--tl-tap-target-min); padding: 0 var(--tl-space-1); overflow: hidden; border: 0; border-radius: var(--tl-radius-sm); background: transparent; color: inherit; font: inherit; text-align: left;}
+.tl-tap-reveal .tl-tap-reveal__trigger[aria-expanded="true"]{background: var(--tl-bg-surface-hover);}
+.tl-tap-reveal__actions .app-button{width: 100%;}
+/* The View editor's body on a phone: the window's body already pads the sides, the form is one column, a pair of fields (latitude and longitude, days and hours) shares a line only while each keeps a usable width, and the gallery cover tiles are two to a row. */
+.view-edit-body.view-edit-body--phone{align-items:stretch;padding:0 0 var(--tl-space-4)}
+.view-edit-body.view-edit-body--phone .tl-quick-facts--phone{width:auto;margin:0}
+.view-edit-body.view-edit-body--phone .tl-editor-details{padding:var(--tl-space-2) 0}
+.view-edit-body--phone .view-edit-details__row>*{flex:1 1 9rem;min-width:0}
+.view-edit-body--phone .view-edit-history__list li{min-height:var(--tl-tap-target-min)}
+.view-edit-body--phone .view-edit-contents__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.view-edit-body--phone .view-edit-contents__tile>.app-button{width:100%;height:auto;padding:0}
 .tl-editor-popover__editing{flex:1 1 auto;min-width:0;overflow:hidden;color:var(--tl-text-secondary);text-overflow:ellipsis;white-space:nowrap}.tl-editor-window__main{display:flex;flex:1 1 auto;min-height:0}.tl-editor-window__content{display:flex;flex:1 1 auto;flex-direction:column;min-width:0;min-height:0}.tl-editor-window__tabs{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;padding:0}.tl-editor-window__tabs>.tl-tabs-toolbar{flex:0 0 auto;padding:0 var(--tl-space-4)}.tl-editor-window__tabs>.tl-tabs-panels{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}.tl-editor-window__tabs .tl-tab-panel{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;outline:0}.tl-editor-window__tabs .tl-tab-panel[hidden]{display:none}.tl-editor-window__close{position:absolute;top:1.125rem;right:1.25rem;z-index:3}.tl-editor-window--framed>.tl-editor-header{padding-right:4.5rem}.tl-editor-window__where{display:flex;align-items:center;gap:var(--tl-space-3);min-width:0;padding-left:.875rem;border-left:1px solid var(--tl-divider);color:var(--tl-text-secondary);line-height:1.25}.tl-editor-window__where-icon{flex:0 0 auto}.tl-editor-window__where-text{display:flex;flex-direction:column;min-width:0}.tl-editor-window__where strong{color:var(--tl-text-primary);font-size:.8125rem}.tl-editor-window__where small{color:var(--tl-text-muted);font-size:.8125rem}.tl-editor-window__where--warn{color:var(--tl-status-warning)}.tl-editor-window__where--warn strong{color:var(--tl-status-warning)}.tl-editor-window--framed .tl-editor-window__changes{margin-left:auto}.tl-editor-window--framed .tl-editor-window__actions{margin-left:0}.tl-editor-window__footer{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:var(--tl-space-3);min-height:4rem;padding:var(--tl-space-2) var(--tl-space-5);border-top:1px solid var(--tl-divider);background:color-mix(in srgb,var(--tl-bg-root) 70%,var(--tl-bg-surface))}.tl-editor-window__notice{flex:0 0 auto;padding:var(--tl-space-2) var(--tl-space-4) 0}.tl-editor-window__notice ul{margin:var(--tl-space-1) 0 0;padding-left:1.25rem}.tl-editor-window__footer-start{display:flex;flex:0 0 auto;margin-right:var(--tl-space-2)}.tl-editor-window__changes{color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}.tl-editor-window__actions{display:flex;gap:var(--tl-space-2);margin-left:auto}html:has(.tl-editor-window),body:has(.tl-editor-window){overflow:hidden}@media (max-width:1180px){.tl-editor-panel{width:100vw;height:100dvh;border:0;border-radius:0}}
 .app-step-indicator{display:flex;flex-wrap:wrap;gap:var(--tl-space-4);margin:0;padding:0;list-style:none}.app-step-indicator__step{display:flex;align-items:center;gap:var(--tl-space-2);color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}.app-step-indicator__step.is-active{color:var(--tl-text-primary);font-weight:var(--tl-font-weight-semibold)}.app-step-indicator__number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:1.5rem;height:1.5rem;border-radius:50%;border:1px solid currentColor;font-size:var(--tl-font-size-xs,.75rem)}.app-step-indicator__step.is-active .app-step-indicator__number{background:var(--tl-accent-primary);border-color:var(--tl-accent-primary);color:var(--tl-text-on-accent)}
 /* The supporting-files browser on a phone (universal editor v6 section 4a, D19 to D21, WP17). The dialog sets .tl-fbrowser-host--phone and the body

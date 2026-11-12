@@ -10,17 +10,20 @@
     {
         @if (UsesOverview(item))
         {
-            <EditorBookmarkOverview @key="item.EntityId" Flow="Flow" WorkId="item.EntityId" AtTheTop="@(item.Kind != EditTrailKinds.Season)" />
+            <EditorBookmarkOverview @key="item.EntityId" Flow="Flow" WorkId="item.EntityId" AtTheTop="@(item.Kind != EditTrailKinds.Season)" Phone="Phone" />
         }
         else
         {
-            <EditorBookmarkTitle @key="item.EntityId" Flow="Flow" WorkId="item.EntityId" HasFamily="HasFamily" />
+            <EditorBookmarkTitle @key="item.EntityId" Flow="Flow" WorkId="item.EntityId" HasFamily="HasFamily" Phone="Phone" />
         }
     }
 </div>
 
 @code {
     [Parameter, EditorRequired] public EditSessionFlow Flow { get; set; } = null!;
+
+    /// <summary>The phone arrangement (v6 section 4a, D21): rows with the frame, the time and the name, and 44 px targets.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>True when the item sits in a show, season or album: Export and Import are then offered on the family's page, not on each title.</summary>
     [Parameter] public bool HasFamily { get; set; }

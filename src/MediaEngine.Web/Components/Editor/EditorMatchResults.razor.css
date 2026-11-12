@@ -27,3 +27,9 @@
     justify-content: flex-end;
     gap: var(--tl-space-3);
 }
+
+/* On a phone the plain error line and Try again stack, Try again at the full width. */
+.tl-matchres__message--phone {
+    flex-direction: column;
+    align-items: stretch;
+}

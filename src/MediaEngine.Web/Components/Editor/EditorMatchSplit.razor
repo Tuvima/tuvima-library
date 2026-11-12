@@ -1,17 +1,36 @@
 @namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
 
 @* The body of a Match step (universal editor v6, mock screens A to E): the list on the left and the card for the chosen item on the right. On a screen
    of 1180 or less, where the editor window becomes full screen, the card moves under the list. The search results, the TV show and episode steps, the
-   music release and track steps and the Wikidata items all sit in it. *@
-<div class="tl-msplit" data-testid="@TestId">
-    <div class="tl-msplit__list">@List</div>
-    @if (Card is not null && ShowCard)
+   music release and track steps and the Wikidata items all sit in it. On a phone (section 4a) the list fills the width and the card is not beside or
+   under it at all: the flow opens it as a full-height sheet when a row is tapped (SheetOpen) and closes it with Back, which returns to the list with the
+   tick kept. *@
+@if (IsPhone)
+{
+    <div class="tl-msplit tl-msplit--phone" data-testid="@TestId">
+        <div class="tl-msplit__list">@List</div>
+    </div>
+    @if (Card is not null && ShowCard && SheetOpen)
     {
-        <div class="tl-msplit__card">@Card</div>
+        <EditorMatchSheet Title="@(SheetTitle ?? L["EditorMatchResults_SelectedResult"].Value)" OnBack="OnSheetClose">@Card</EditorMatchSheet>
     }
-</div>
+}
+else
+{
+    <div class="tl-msplit" data-testid="@TestId">
+        <div class="tl-msplit__list">@List</div>
+        @if (Card is not null && ShowCard)
+        {
+            <div class="tl-msplit__card">@Card</div>
+        }
+    </div>
+}
 
 @code {
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
     /// <summary>The list column: its heading, rows and anything under them.</summary>
     [Parameter] public RenderFragment? List { get; set; }
 
@@ -21,5 +40,16 @@
     /// <summary>False while nothing is chosen, so the empty column does not take room from the list.</summary>
     [Parameter] public bool ShowCard { get; set; } = true;
 
+    /// <summary>On a phone: whether the card's sheet is open. The flow sets it when a row is tapped and clears it on Back and after Apply match; it is ignored on a computer.</summary>
+    [Parameter] public bool SheetOpen { get; set; }
+
+    /// <summary>On a phone: raised by Back and Escape on the sheet.</summary>
+    [Parameter] public EventCallback OnSheetClose { get; set; }
+
+    /// <summary>The words in the sheet's bar; "Selected result" when left empty.</summary>
+    [Parameter] public string? SheetTitle { get; set; }
+
     [Parameter] public string? TestId { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
 }

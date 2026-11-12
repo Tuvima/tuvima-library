@@ -7,9 +7,24 @@
    It reuses the library editor's Quick Facts look. *@
 @if (_facts.Count > 0 || Notes.Count > 0)
 {
-    <aside class="tl-quick-facts" aria-label="@L["EditorQuickFacts_Title"].Value">
-        <h3 class="tl-quick-facts__title">@L["EditorQuickFacts_Title"]</h3>
-        @foreach (var fact in _facts)
+    <aside class="@(Phone ? "tl-quick-facts tl-quick-facts--phone tl-editor-touch" : "tl-quick-facts")" aria-label="@L["EditorQuickFacts_Title"].Value" data-phone="@(Phone ? "true" : null)">
+        @if (Phone)
+        {
+            @* On a phone Quick Facts is a section under the form, closed until it is tapped (v6 section 4a). *@
+            <h3 class="tl-quick-facts__title">
+                <AppRowButton Class="tl-quick-facts__toggle" aria-expanded="@(_open ? "true" : "false")" data-quick-facts-toggle="true" OnClick="@(() => _open = !_open)">
+                    <span>@L["EditorQuickFacts_Title"]</span>
+                    <AppMaterialIcon Icon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppIconSize.Control20" />
+                </AppRowButton>
+            </h3>
+        }
+        else
+        {
+            <h3 class="tl-quick-facts__title">@L["EditorQuickFacts_Title"]</h3>
+        }
+        @if (!Phone || _open)
+        {
+        foreach (var fact in _facts)
         {
             <div class="tl-quick-facts__row" data-fact="@fact.Key">
                 <span class="tl-quick-facts__icon" aria-hidden="true"><AppMaterialIcon Icon="@IconFor(fact.Icon)" Size="AppIconSize.Control20" /></span>
@@ -19,17 +34,22 @@
                 </div>
             </div>
         }
-        @foreach (var note in Notes)
+        foreach (var note in Notes)
         {
             <div class="tl-quick-facts__note" data-note="@note" role="note">@L[note]</div>
+        }
         }
     </aside>
 }
 
 @code {
     private IReadOnlyList<ViewQuickFact> _facts = [];
+    private bool _open;
 
     [Parameter, EditorRequired] public IReadOnlyList<LocalAssetDto> Items { get; set; } = [];
+
+    /// <summary>The phone arrangement (v6 section 4a): a section under the form, closed until tapped.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>Also drawn read-only in the viewer's side panel (spec D6), where the notes are left out.</summary>
     [Parameter] public bool ShowNotes { get; set; } = true;
