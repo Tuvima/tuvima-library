@@ -11078,7 +11078,8 @@
 
 [contracts] MediaEngine.Contracts.ProfileState.ProfileSavedItemMoveRequest
   kind=class | converter=default | number-handling=default | unmapped=default
-  ToIndex: System.Int32 | json=toIndex | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToIndex: System.Int32? | json=toIndex | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BeforeEntityId: System.Guid? | json=beforeEntityId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.ProfileState.ProfileStateMutationDto
   kind=class | converter=default | number-handling=default | unmapped=default

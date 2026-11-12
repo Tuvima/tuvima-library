@@ -128,7 +128,7 @@ public sealed partial class PlaybackLyricsPresenter
     /// <summary>Follows one queued lookup. Returns false when a newer wait took over (this one then leaves the shared state to it).</summary>
     private async Task<bool> WaitForQueuedLookupAsync(PlaybackLyricsIdentity identity, long generation, RefreshTextTracksResponse queued)
     {
-        // The earlier wait is cancelled, not disposed: it may still be reading its token on its way out.
+        // The earlier wait is only cancelled here: it may still be reading its token on its way out, and disposes its own source when it ends.
         _wait?.Cancel();
         var wait = _wait = CancellationTokenSource.CreateLinkedTokenSource(_reads.Token);
         try
@@ -140,6 +140,16 @@ public sealed partial class PlaybackLyricsPresenter
         {
             logger?.LogDebug("A newer lyrics lookup wait took over from the one for asset {AssetId}.", identity.AssetId);
             return false;
+        }
+        finally
+        {
+            // Stop pointing at this source before it is disposed, so a later wait never cancels a disposed one.
+            if (ReferenceEquals(_wait, wait))
+            {
+                _wait = null;
+            }
+
+            wait.Dispose();
         }
     }
 

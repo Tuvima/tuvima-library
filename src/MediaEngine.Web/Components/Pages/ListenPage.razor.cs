@@ -23,7 +23,7 @@ using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Components.Pages;
 
-public partial class ListenPage
+public partial class ListenPage : IDisposable
 {
     private const string MusicHomeRoute = ListenNavigation.MusicHomeRoute;
     private const string AlbumsRoute = ListenNavigation.AlbumsRoute;
@@ -136,6 +136,9 @@ public partial class ListenPage
     private int _listenLoadVersion;
 
     private string? _noticeSection;
+    private bool _disposed;
+
+    protected override void OnInitialized() => SavedItems.Changed += OnSavedItemsChanged;
 
     protected override async Task OnParametersSetAsync()
     {

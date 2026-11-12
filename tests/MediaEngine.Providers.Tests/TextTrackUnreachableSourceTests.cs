@@ -64,6 +64,34 @@ public sealed class TextTrackUnreachableSourceTests
         Assert.Equal("NoResult", result.Status);
     }
 
+    [Fact]
+    public async Task ASourceThatGoesDownAtTheDownload_DoesNotStopTheNextSourceFromBeingTried()
+    {
+        var down = new FakeSource("Down", offersLyrics: true, downloadUnreachable: true);
+        var up = new FakeSource("Up", offersLyrics: true);
+
+        var result = await EnrichAsync(down, up);
+
+        Assert.Equal(1, down.Downloads);
+        Assert.Equal(1, up.Downloads);
+        Assert.Equal("Updated", result.Status);
+        Assert.Contains("Up", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ALyricsLookup_WhereEverySourceWentDownAtTheDownload_EndsAsUnreachable()
+    {
+        var first = new FakeSource("First", offersLyrics: true, downloadUnreachable: true);
+        var second = new FakeSource("Second", offersLyrics: true, downloadUnreachable: true);
+
+        var result = await EnrichAsync(first, second);
+
+        Assert.Equal(1, first.Downloads);
+        Assert.Equal(1, second.Downloads);
+        Assert.Equal("ProviderUnavailable", result.Status);
+        Assert.Equal("First could not be reached.", result.Message);
+    }
+
     private static async Task<TextTrackEnrichmentResult> EnrichAsync(params ITextTrackProvider[] sources)
     {
         var assetId = Guid.NewGuid();
@@ -113,6 +141,8 @@ public sealed class TextTrackUnreachableSourceTests
             "GetByAssetAsync" => Task.FromResult<IReadOnlyList<TextTrack>>([]),
             "GetPreferredAsync" => Task.FromResult<TextTrack?>(null),
             "GetRejectionsAsync" => Task.FromResult<IReadOnlyList<TextTrackRejection>>([]),
+            "UpsertAsync" => Task.CompletedTask,
+            "SetPreferredAsync" => Task.CompletedTask,
             _ => throw new NotSupportedException(method.Name),
         });
         var temp = Path.Combine(Path.GetTempPath(), $"tuvima-lyrics-unreachable-{Guid.NewGuid():N}");
@@ -139,9 +169,12 @@ public sealed class TextTrackUnreachableSourceTests
         return stub;
     }
 
-    private sealed class FakeSource(string name, bool unreachable = false, bool instrumental = false) : ITextTrackProvider
+    private sealed class FakeSource(
+        string name, bool unreachable = false, bool instrumental = false, bool offersLyrics = false, bool downloadUnreachable = false) : ITextTrackProvider
     {
         public int Searches { get; private set; }
+
+        public int Downloads { get; private set; }
 
         public string Name => name;
 
@@ -161,11 +194,22 @@ public sealed class TextTrackUnreachableSourceTests
 
             IReadOnlyList<TextTrackCandidate> found = instrumental
                 ? [new TextTrackCandidate(name, TextTrackKind.Lyrics, "1", null, "und", "lrc", 1, false, null, IsInstrumental: true)]
-                : [];
+                : offersLyrics
+                    ? [new TextTrackCandidate(name, TextTrackKind.Lyrics, "1", null, "und", "txt", 1, false, null)]
+                    : [];
             return Task.FromResult(found);
         }
 
-        public Task<TextTrackDownload?> DownloadAsync(TextTrackCandidate candidate, CancellationToken ct = default) =>
-            Task.FromResult<TextTrackDownload?>(null);
+        public Task<TextTrackDownload?> DownloadAsync(TextTrackCandidate candidate, CancellationToken ct = default)
+        {
+            Downloads++;
+            if (downloadUnreachable)
+            {
+                throw new TextTrackLookupException("ProviderUnavailable", $"{name} could not be reached.");
+            }
+
+            return Task.FromResult<TextTrackDownload?>(
+                offersLyrics ? new TextTrackDownload(candidate, "Plain words", "txt", "txt") : null);
+        }
     }
 }

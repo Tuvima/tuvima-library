@@ -15,6 +15,13 @@ public interface IProfileStateRepository
     /// one transaction. Nothing changes unless the result is <see cref="SavedItemMoveResult.Moved"/>.
     /// </summary>
     Task<SavedItemMoveResult> MoveSavedItemAsync(Guid profileId, ProfileEntityKind entityKind, Guid entityId, int toIndex, CancellationToken ct = default);
+    /// <summary>
+    /// Moves one saved item so it sits directly before another saved item of the same kind (or last when <paramref name="beforeEntityId"/> is
+    /// null). The neighbour is found inside the same write transaction as the move, so a save or removal landing in between cannot shift it.
+    /// <see cref="SavedItemMoveResult.NotSaved"/> when either item is not saved by the profile; nothing changes unless the result is
+    /// <see cref="SavedItemMoveResult.Moved"/>.
+    /// </summary>
+    Task<SavedItemMoveResult> MoveSavedItemBeforeAsync(Guid profileId, ProfileEntityKind entityKind, Guid entityId, Guid? beforeEntityId, CancellationToken ct = default);
     Task<bool> RemoveSavedItemAsync(Guid profileId, ProfileEntityKind entityKind, Guid entityId, CancellationToken ct = default);
 
     /// <summary>

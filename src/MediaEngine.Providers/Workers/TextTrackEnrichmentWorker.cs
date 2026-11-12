@@ -236,6 +236,12 @@ public sealed partial class TextTrackEnrichmentWorker
                 {
                     download = await provider.DownloadAsync(candidate, ct).ConfigureAwait(false);
                 }
+                catch (TextTrackLookupException ex) when (ex.Status == ProviderUnavailableStatus)
+                {
+                    // As with the search: a source that went down at the download says nothing about the others, so try the rest.
+                    unreachable ??= ex;
+                    continue;
+                }
                 catch (TextTrackLookupException ex)
                 {
                     var current = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);

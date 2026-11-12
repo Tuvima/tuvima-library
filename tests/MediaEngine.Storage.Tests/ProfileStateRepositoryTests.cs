@@ -243,6 +243,76 @@ public sealed class ProfileStateRepositoryTests : IDisposable
         Assert.Equal([c, b], await FavoriteOrderAsync(profileId));
     }
 
+    [Fact]
+    public async Task MovingAFavoriteBeforeANamedFavorite_PutsItDirectlyBeforeIt_AndSavesTheWholeOrder()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c, d) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { d, c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, d, b));
+        Assert.Equal([a, d, b, c], await FavoriteOrderAsync(profileId));
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, c, a));
+        Assert.Equal([c, a, d, b], await FavoriteOrderAsync(profileId));
+
+        using var reopened = new DatabaseConnection(_databasePath);
+        Assert.Equal([c, a, d, b], (await new ProfileStateRepository(reopened).GetSavedItemsAsync(profileId, ProfileEntityKind.Song)).Select(item => item.EntityId));
+    }
+
+    [Fact]
+    public async Task MovingAFavoriteBeforeNoOne_PutsItLast()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, a, null));
+
+        Assert.Equal([b, c, a], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task TheNeighbourIsFoundInTheCurrentList_SoASongHeartedAfterThePageReadItCannotShiftTheTarget()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c, late) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        // The page read [a, b, c]; a heart lands before the move arrives. Moving c before b still means "directly before b".
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, late);
+        await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, c, b);
+
+        Assert.Equal([late, a, c, b], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task MovingBeforeAFavoriteTheProfileDoesNotHave_ChangesNothing_EvenWhenAnotherProfileHeartedIt()
+    {
+        var owner = SeedProfile("Owner");
+        var other = SeedProfile("Other");
+        var (mine, theirs, shared) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        await _repository.SaveItemAsync(owner, ProfileEntityKind.Song, mine);
+        await _repository.SaveItemAsync(owner, ProfileEntityKind.Song, theirs);
+        await _repository.SaveItemAsync(other, ProfileEntityKind.Song, shared);
+        await _repository.SaveItemAsync(owner, ProfileEntityKind.Song, SeedWork("Music"));
+        var before = await FavoriteOrderAsync(owner);
+
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemBeforeAsync(owner, ProfileEntityKind.Song, mine, shared));
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemBeforeAsync(owner, ProfileEntityKind.Song, shared, mine));
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemBeforeAsync(owner, ProfileEntityKind.Movie, mine, theirs));
+
+        Assert.Equal(before, await FavoriteOrderAsync(owner));
+    }
+
     private async Task<List<Guid>> FavoriteOrderAsync(Guid profileId)
         => (await _repository.GetSavedItemsAsync(profileId, ProfileEntityKind.Song)).Select(item => item.EntityId).ToList();
 

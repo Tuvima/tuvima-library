@@ -147,6 +147,48 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
 
         ordered.RemoveAt(from);
         ordered.Insert(toIndex, entityId);
+        WriteSavedOrder(connection, transaction, profileId, entityKind, ordered, token);
+        return SavedItemMoveResult.Moved;
+    }, ct);
+
+    public Task<SavedItemMoveResult> MoveSavedItemBeforeAsync(
+        Guid profileId,
+        ProfileEntityKind entityKind,
+        Guid entityId,
+        Guid? beforeEntityId,
+        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+    {
+        // The order is read and the neighbour found inside this one write transaction, so a heart landing meanwhile cannot shift the target.
+        var ordered = ReadSavedOrder(connection, transaction, profileId, entityKind, token);
+        if (!ordered.Contains(entityId) || (beforeEntityId is { } neighbour && !ordered.Contains(neighbour)))
+        {
+            return SavedItemMoveResult.NotSaved;
+        }
+
+        if (beforeEntityId == entityId)
+        {
+            return SavedItemMoveResult.Moved;
+        }
+
+        ordered.Remove(entityId);
+        ordered.Insert(beforeEntityId is { } before ? ordered.IndexOf(before) : ordered.Count, entityId);
+        WriteSavedOrder(connection, transaction, profileId, entityKind, ordered, token);
+        return SavedItemMoveResult.Moved;
+    }, ct);
+
+    private static List<Guid> ReadSavedOrder(
+        System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Guid profileId, ProfileEntityKind entityKind, CancellationToken token)
+        => connection.Query<Guid>(new CommandDefinition(
+            """
+            SELECT entity_id FROM profile_saved_items
+            WHERE profile_id = @profileId AND entity_kind = @entityKind
+            ORDER BY CASE WHEN position IS NULL THEN 1 ELSE 0 END, position, saved_at DESC, entity_id;
+            """,
+            new { profileId, entityKind = entityKind.ToString() }, transaction, cancellationToken: token)).ToList();
+
+    private static void WriteSavedOrder(
+        System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Guid profileId, ProfileEntityKind entityKind, List<Guid> ordered, CancellationToken token)
+    {
         for (var index = 0; index < ordered.Count; index++)
         {
             connection.Execute(new CommandDefinition(
@@ -156,9 +198,7 @@ public sealed class ProfileStateRepository(IDatabaseConnection db) : IProfileSta
                 """,
                 new { index, profileId, entityKind = entityKind.ToString(), entityId = ordered[index] }, transaction, cancellationToken: token));
         }
-
-        return SavedItemMoveResult.Moved;
-    }, ct);
+    }
 
     public Task<IReadOnlyList<ProfileSavedItem>> RemoveSavedItemsAsync(
         Guid profileId,

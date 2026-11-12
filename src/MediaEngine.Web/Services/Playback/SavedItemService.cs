@@ -117,11 +117,16 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
         return true;
     }
 
-    /// <summary>Moves one hearted song to a new place (0 is the top) in the profile's Favorites and drops the cached list so the next read has the new order.</summary>
-    public async Task<bool> MoveFavoriteSongAsync(Guid songId, int toIndex, CancellationToken ct = default)
+    /// <summary>
+    /// Moves one hearted song so it sits directly before another favorite (last when none is named) in the profile's Favorites and drops the
+    /// cached list so the next read has the new order.
+    /// </summary>
+    public async Task<bool> MoveFavoriteSongAsync(Guid songId, Guid? beforeSongId, CancellationToken ct = default)
     {
-        if (!await apiClient.MoveFavoriteSongAsync(songId, toIndex, ct))
+        if (!await apiClient.MoveFavoriteSongAsync(songId, beforeSongId, ct))
         {
+            // A refused move often means the cached list is out of date; drop it so the caller's next read is the Engine's own.
+            InvalidateList();
             return false;
         }
 

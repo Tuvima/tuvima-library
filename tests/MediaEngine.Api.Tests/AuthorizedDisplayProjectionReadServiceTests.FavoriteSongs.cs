@@ -34,6 +34,15 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             services => ProfileStateServices(services, context),
             "MoveFavoriteSong", context, "POST", new { entityId = songId }, jsonBody: $"{{\"toIndex\":{toIndex}}}");
 
+    private Task<(int Status, string Body)> MoveFavoriteWithBodyAsync(DefaultHttpContext context, Guid songId, string jsonBody)
+        => CallAsync(
+            app => app.MapProfileStateEndpoints(),
+            services => ProfileStateServices(services, context),
+            "MoveFavoriteSong", context, "POST", new { entityId = songId }, jsonBody: jsonBody);
+
+    private Task<(int Status, string Body)> MoveFavoriteBeforeAsync(DefaultHttpContext context, Guid songId, Guid? beforeEntityId)
+        => MoveFavoriteWithBodyAsync(context, songId, beforeEntityId is { } named ? $"{{\"beforeEntityId\":\"{named:D}\"}}" : "{}");
+
     private static async Task<List<Guid>> FavoritesOf(ProfileStateRepository state, Guid profile)
         => (await state.GetSavedItemsAsync(profile, ProfileEntityKind.Song)).Select(item => item.EntityId).ToList();
 
@@ -115,5 +124,107 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.Equal(StatusCodes.Status204NoContent, moved.Status);
         Assert.Equal([second, hidden, third, first], await FavoritesOf(world.State, ProfileForLookups));
+    }
+
+    [Fact]
+    public async Task MovingAFavoriteSongBeforeANamedFavorite_PutsItDirectlyBeforeThatSong_WhateverTheListWasWhenThePageLastRead()
+    {
+        var world = await SeedFavoriteSongsAsync(4);
+        var (a, b, c, d) = (world.Songs[0], world.Songs[1], world.Songs[2], world.Songs[3]);
+        foreach (var song in new[] { c, b, a })
+        {
+            await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, song);
+        }
+
+        // The page read [a, b, c]; a song hearted since then lands at the top. The move still lands before the song it names.
+        await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, d);
+        var moved = await MoveFavoriteBeforeAsync(world.Context, c, b);
+
+        Assert.Equal(StatusCodes.Status204NoContent, moved.Status);
+        Assert.Equal([d, a, c, b], await FavoritesOf(world.State, ProfileForLookups));
+    }
+
+    [Fact]
+    public async Task MovingAFavoriteSongWithNoNeighbourNamed_PutsItLast()
+    {
+        var world = await SeedFavoriteSongsAsync(3);
+        var (a, b, c) = (world.Songs[0], world.Songs[1], world.Songs[2]);
+        foreach (var song in new[] { c, b, a })
+        {
+            await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, song);
+        }
+
+        var moved = await MoveFavoriteBeforeAsync(world.Context, a, null);
+
+        Assert.Equal(StatusCodes.Status204NoContent, moved.Status);
+        Assert.Equal([b, c, a], await FavoritesOf(world.State, ProfileForLookups));
+    }
+
+    [Fact]
+    public async Task ANeighbourThatIsNotAFavoriteOrIsHidden_AnswersNotFoundWithTheSameWords_AndChangesNothing()
+    {
+        var hiddenLibrary = Guid.NewGuid();
+        var world = await SeedFavoriteSongsAsync(3, hiddenLibrary);
+        var (first, second, notHearted) = (world.Songs[0], world.Songs[1], world.Songs[2]);
+        var hidden = (await InsertOwnedWorkWithIdAsync(hiddenLibrary, "Hidden favorite", "Music")).WorkId;
+        foreach (var song in new[] { hidden, second, first })
+        {
+            await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, song);
+        }
+
+        var beforeHidden = await MoveFavoriteBeforeAsync(world.Context, second, hidden);
+        var beforeNotHearted = await MoveFavoriteBeforeAsync(world.Context, second, notHearted);
+        var beforeUnknown = await MoveFavoriteBeforeAsync(world.Context, second, Guid.NewGuid());
+
+        Assert.Equal(StatusCodes.Status404NotFound, beforeHidden.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, beforeNotHearted.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, beforeUnknown.Status);
+        Assert.Equal(beforeNotHearted.Body, beforeHidden.Body);
+        Assert.DoesNotContain(hidden.ToString("D"), beforeHidden.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal([first, second, hidden], await FavoritesOf(world.State, ProfileForLookups));
+    }
+
+    [Fact]
+    public async Task MovingASongThatIsNotAFavoriteBeforeANamedSong_AnswersNotFound()
+    {
+        var world = await SeedFavoriteSongsAsync(2);
+        await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, world.Songs[0]);
+
+        var moved = await MoveFavoriteBeforeAsync(world.Context, world.Songs[1], world.Songs[0]);
+
+        Assert.Equal(StatusCodes.Status404NotFound, moved.Status);
+        Assert.Equal([world.Songs[0]], await FavoritesOf(world.State, ProfileForLookups));
+    }
+
+    [Fact]
+    public async Task AHiddenFavoriteKeepsItsPlace_WhenASongIsMovedBeforeAVisibleNeighbour()
+    {
+        var hiddenLibrary = Guid.NewGuid();
+        var world = await SeedFavoriteSongsAsync(3, hiddenLibrary);
+        var (first, second, third) = (world.Songs[0], world.Songs[1], world.Songs[2]);
+        var hidden = (await InsertOwnedWorkWithIdAsync(hiddenLibrary, "Hidden favorite", "Music")).WorkId;
+        foreach (var song in new[] { third, hidden, second, first })
+        {
+            await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, song);
+        }
+
+        var moved = await MoveFavoriteBeforeAsync(world.Context, first, third);
+
+        Assert.Equal(StatusCodes.Status204NoContent, moved.Status);
+        Assert.Equal([second, hidden, first, third], await FavoritesOf(world.State, ProfileForLookups));
+    }
+
+    [Fact]
+    public async Task AMoveThatNamesBothAPlaceAndANeighbour_IsRefused_AndChangesNothing()
+    {
+        var world = await SeedFavoriteSongsAsync(2);
+        await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, world.Songs[1]);
+        await world.State.SaveItemAsync(ProfileForLookups, ProfileEntityKind.Song, world.Songs[0]);
+
+        var moved = await MoveFavoriteWithBodyAsync(
+            world.Context, world.Songs[0], $"{{\"toIndex\":1,\"beforeEntityId\":\"{world.Songs[1]:D}\"}}");
+
+        Assert.Equal(StatusCodes.Status400BadRequest, moved.Status);
+        Assert.Equal([world.Songs[0], world.Songs[1]], await FavoritesOf(world.State, ProfileForLookups));
     }
 }

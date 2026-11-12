@@ -7,8 +7,8 @@
     right: max(0.5rem, env(safe-area-inset-right, 0px));
     bottom: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-audio-dock-height, 0px) + 0.5rem);
     left: max(0.5rem, env(safe-area-inset-left, 0px));
-    display: grid;
-    gap: 0.25rem;
+    display: flex;
+    flex-direction: column;
     box-sizing: border-box;
     padding: 0.35rem 0.5rem 0.5rem;
     color: var(--tl-text-primary);
@@ -40,9 +40,10 @@
     font-size: var(--tl-font-size-sm);
 }
 
-/* Empty until there is something to say (the status element is always in the page); it then takes no room, not even the grid gap. */
-.song-selection-bar__notice:empty {
-    margin-top: -0.25rem;
+/* Empty until there is something to say (the status element is always in the page, so a screen reader that is watching it announces the
+   text when it arrives). The space between rows belongs to the rows that are drawn, so an empty notice takes no room at all. */
+.song-selection-bar__notice:not(:empty) {
+    margin-top: 0.25rem;
 }
 
 .song-selection-bar__notice--warning {
@@ -57,4 +58,5 @@
     display: flex;
     flex-wrap: nowrap;
     gap: 0.25rem;
+    margin-top: 0.25rem;
 }

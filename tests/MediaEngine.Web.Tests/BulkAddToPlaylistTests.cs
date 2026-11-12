@@ -147,8 +147,13 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     {
         var smart = new ManagedCollectionDto
         {
-            Id = Guid.NewGuid(), Name = "Newest rock", CollectionType = "Playlist", Resolution = "materialized",
-            MembershipMode = "Smart", CanEdit = true, IsEnabled = true,
+            Id = Guid.NewGuid(),
+            Name = "Newest rock",
+            CollectionType = "Playlist",
+            Resolution = "materialized",
+            MembershipMode = "Smart",
+            CanEdit = true,
+            IsEnabled = true,
         };
 
         Assert.False(CollectionAuthoringRule.IsAddTarget(smart, playlist: true));

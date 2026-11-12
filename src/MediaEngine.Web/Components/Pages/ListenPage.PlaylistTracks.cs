@@ -164,8 +164,8 @@ public partial class ListenPage
         await RefreshReactionStateAsync();
     }
 
-    // Favorites are moved by song, not by a playlist item. The Engine counts places among the songs this profile sees, so the target place
-    // is found in the order the page read from the Engine, not in the rows drawn (a song the page could not resolve never shifts it).
+    // Favorites are moved by song, not by a playlist item. The move names the favorite the song should sit before (none means last) instead
+    // of a place, so a song hearted or un-hearted elsewhere since the page last read the list cannot shift where it lands.
     private async Task ReorderFavoriteRowAsync(SongReorderRequest request)
     {
         if (!CanReorderActivePlaylist || request.Row.WorkId is not { } songId)
@@ -174,27 +174,67 @@ public partial class ListenPage
         }
 
         var shown = ActivePlaylistTrackRows;
-        if (request.ToIndex < 0 || request.ToIndex >= shown.Count)
+        if (request.ToIndex < 0 || request.ToIndex >= shown.Count || request.FromIndex == request.ToIndex)
         {
             return;
         }
 
-        var toIndex = _favoriteSongOrder.IndexOf(shown[request.ToIndex].Work.Id);
-        var fromIndex = _favoriteSongOrder.IndexOf(songId);
-        if (toIndex < 0 || fromIndex < 0 || toIndex == fromIndex)
-        {
-            return;
-        }
+        // The rows as they will read once the song has moved: the one that follows it is its neighbour.
+        var others = shown.Select(row => row.Work.Id).Where(id => id != songId).ToList();
+        Guid? beforeSongId = request.ToIndex < others.Count ? others[request.ToIndex] : null;
 
         _notice = null;
-        if (!await SavedItems.MoveFavoriteSongAsync(songId, toIndex))
+        if (!await SavedItems.MoveFavoriteSongAsync(songId, beforeSongId))
         {
+            // The list may be what went wrong (a heart changed elsewhere): read it again, then say the move did not save.
+            await RefreshFavoriteOrderAsync();
             ShowNotice(L["ListenPage_PlaylistOrderSaveFailed"].Value, AppUiTone.Warning, urgent: true);
             return;
         }
 
-        _favoriteSongOrder.RemoveAt(fromIndex);
-        _favoriteSongOrder.Insert(toIndex, songId);
+        _favoriteSongOrder.Remove(songId);
+        var insertAt = beforeSongId is { } before ? _favoriteSongOrder.IndexOf(before) : -1;
+        _favoriteSongOrder.Insert(insertAt >= 0 ? insertAt : _favoriteSongOrder.Count, songId);
+    }
+
+    // Hearts change from the player bar, other lists and other pages while Favorites is open. The page reads the order again when they do,
+    // in place: the table keeps its scroll, sort and any drag in progress, and a newly hearted song appears at the top.
+    private void OnSavedItemsChanged() => _ = InvokeAsync(RefreshFavoritesAfterChangeAsync);
+
+    private async Task RefreshFavoritesAfterChangeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await RefreshFavoriteOrderAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read the Favorites order again after a change.");
+        }
+    }
+
+    // A fresh read straight from the Engine. When it cannot be read the list on screen stays as it is rather than going empty.
+    private async Task RefreshFavoriteOrderAsync()
+    {
+        if (!_activeProfileId.HasValue || await SavedItems.TryGetListAsync() is not { } saved)
+        {
+            return;
+        }
+
+        _favoriteSongOrder = [.. saved.Where(item => item.EntityKind == ProfileEntityKind.Song).Select(item => item.EntityId)];
+        _favoriteWorkIds = _favoriteSongOrder.ToHashSet();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        SavedItems.Changed -= OnSavedItemsChanged;
     }
 
     // Drag and the keyboard both arrive here as "this row now sits where that row was". The saved order is worked out on the playlist's own

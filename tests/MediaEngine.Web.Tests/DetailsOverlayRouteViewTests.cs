@@ -610,7 +610,10 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
             directory = directory.Parent;
+        }
+
         return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository root not found."), "src", "MediaEngine.Web");
     }
 

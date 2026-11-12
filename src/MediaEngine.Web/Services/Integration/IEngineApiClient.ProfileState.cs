@@ -9,8 +9,11 @@ public partial interface IEngineApiClient
     Task<ProfileSavedItemDto?> GetSavedItemAsync(ProfileEntityKind entityKind, Guid entityId, CancellationToken ct = default);
     Task<ProfileStateMutationDto?> SaveItemAsync(ProfileEntityKind entityKind, Guid entityId, CancellationToken ct = default);
     Task<bool> RemoveSavedItemAsync(ProfileEntityKind entityKind, Guid entityId, CancellationToken ct = default);
-    /// <summary>Moves one song to a new place (0 is the top) in the signed-in profile's Favorites; false when the Engine refused or could not be reached.</summary>
-    Task<bool> MoveFavoriteSongAsync(Guid songId, int toIndex, CancellationToken ct = default);
+    /// <summary>
+    /// Moves one song so it sits directly before another favorite (<paramref name="beforeSongId"/>), or last when none is named, in the
+    /// signed-in profile's Favorites; false when the Engine refused or could not be reached.
+    /// </summary>
+    Task<bool> MoveFavoriteSongAsync(Guid songId, Guid? beforeSongId, CancellationToken ct = default);
 
     Task<IReadOnlyList<ProfileSavedItemDto>> GetFinishedSavedItemsAsync(CancellationToken ct = default);
     Task<IReadOnlyList<ProfileSavedItemDto>?> RemoveSavedItemsAsync(IReadOnlyList<ProfileSavedItemKeyDto> items, CancellationToken ct = default);

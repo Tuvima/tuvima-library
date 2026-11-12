@@ -9,12 +9,34 @@ public sealed class ProfileSavedItemMoveContractTests
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public void TheMoveRequest_CarriesOnlyTheNewPlace_AsToIndex()
+    public void TheMoveRequest_StillCarriesAPlace_AsToIndex()
     {
         var json = JsonSerializer.Serialize(new ProfileSavedItemMoveRequest(3), Web);
 
-        Assert.Equal("{\"toIndex\":3}", json);
+        Assert.Equal("{\"toIndex\":3,\"beforeEntityId\":null}", json);
         Assert.Equal(0, JsonSerializer.Deserialize<ProfileSavedItemMoveRequest>("{\"toIndex\":0}", Web)!.ToIndex);
+    }
+
+    [Fact]
+    public void TheMoveRequest_CanNameTheFavoriteTheSongShouldSitBefore_AsBeforeEntityId()
+    {
+        var neighbour = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+        var json = JsonSerializer.Serialize(new ProfileSavedItemMoveRequest(BeforeEntityId: neighbour), Web);
+
+        Assert.Equal("{\"toIndex\":null,\"beforeEntityId\":\"22222222-2222-2222-2222-222222222222\"}", json);
+        var read = JsonSerializer.Deserialize<ProfileSavedItemMoveRequest>("{\"beforeEntityId\":\"22222222-2222-2222-2222-222222222222\"}", Web)!;
+        Assert.Null(read.ToIndex);
+        Assert.Equal(neighbour, read.BeforeEntityId);
+    }
+
+    [Fact]
+    public void AMoveRequestWithNeitherField_MeansMoveToTheEnd()
+    {
+        var read = JsonSerializer.Deserialize<ProfileSavedItemMoveRequest>("{}", Web)!;
+
+        Assert.Null(read.ToIndex);
+        Assert.Null(read.BeforeEntityId);
     }
 
     [Fact]

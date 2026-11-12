@@ -736,6 +736,7 @@ public static class StreamEndpoints
                 or MediaOperationStatus.NoResult
                 or MediaOperationStatus.Blocked
                 or MediaOperationStatus.FailedTerminal
+                or MediaOperationStatus.DeadLettered
                 or MediaOperationStatus.Cancelled;
             return Results.Accepted($"/operations/{operation.Id:D}", new RefreshTextTracksResponse
             {

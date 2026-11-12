@@ -23,7 +23,9 @@ public sealed class TextTrackRefreshOperationWorker(
 
     /// <summary>
     /// A lookup whose source could not be reached is tried at most this many times in all, so an offline Library does not keep every song's
-    /// lookup alive for ever. The last attempt finishes it as dead-lettered (terminal); a later Find lyrics or rescan queues a fresh one.
+    /// lookup alive for ever. The last attempt finishes it as dead-lettered (terminal). A later Find lyrics queues a fresh request (its key is
+    /// new each time); a rescan puts the song's own automatic request back in the queue for one more try (see QuickHydrationWorker), and
+    /// because the attempts already used still count, that try gives up again at once if the source is still down.
     /// </summary>
     internal const int MaxUnreachableAttempts = 3;
 

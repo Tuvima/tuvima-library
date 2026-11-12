@@ -9446,7 +9446,8 @@ MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileSav
   EntityId: System.Guid | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileSavedItemMoveRequest
-  ToIndex: System.Int32 | nullability=not-null | accessors=get,init
+  ToIndex: System.Int32? | nullability=nullable | accessors=get,init
+  BeforeEntityId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileStateMutationDto
   EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | nullability=not-null | accessors=get,init
