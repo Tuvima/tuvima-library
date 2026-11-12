@@ -31,8 +31,12 @@
     --tl-safe-area-left: env(safe-area-inset-left, 0px);
     --tl-touch-target-min: 48px;
     --tl-tap-target-min: 44px;
-    /* How much of the window the on-screen keyboard covers; editor-focus.js sets it on the root while the editor is open on a narrow window, and the editor takes it off its height. */
+    /* How much of the window the on-screen keyboard covers; editor-focus.js sets it on the root while the editor is open on a phone arrangement, and the editor takes it off its height. */
     --tl-editor-keyboard: 0px;
+    /* The room the phone editor's footer leaves for the home bar; editor-focus.js sets it to 0 while the keyboard covers the bar. */
+    --tl-editor-safe-bottom: env(safe-area-inset-bottom, 0px);
+    /* The height of the phone editor's one-line header (its Close button is centred on it). */
+    --tl-editor-phone-header: 4rem;
     --tl-bottom-dock-height: 0px;
     --tl-audio-dock-height: 0px;
 

@@ -13,6 +13,7 @@
 @inject IStringLocalizer<SharedStrings> L
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject ILogger<EditorPopover> Logger
 
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
@@ -32,6 +33,7 @@
                     DialogOptions="_options"
                     OnCancel="@(() => Editor.RequestCloseAsync())"
                     Class="tl-editor-dialog">
+        <CascadingValue Value="Layout">
         <EditorPanelHost Mode="mode"
                          Flow="flow"
                          Phone="Phone"
@@ -128,6 +130,7 @@
                 }
             </ChildContent>
         </EditorPanelHost>
+        </CascadingValue>
     </AppDialogFrame>
 }
 
@@ -383,11 +386,15 @@
         _ => null,
     };
 
-    // The phone arrangement (v6 section 4a): a phone or a tablet says so by its form factor (known before the first draw), and the browser says so for a
-    // window no wider than a tablet; the same width the form factor is read from, so the two agree and a narrow desktop window gets it too.
-    private bool _narrow;
-    private DotNetObjectReference<EditorPopover>? _self;
-    private bool Phone => EditorPhoneArrangement.Applies(Device, _narrow);
+    /// <summary>Draws the window in the phone arrangement (true) or the desktop one (false) whatever the device says; left unset, the device's form factor decides.</summary>
+    [Parameter] public bool? PhoneArrangement { get; set; }
+
+    // The phone arrangement (v6 section 4a): a phone or a tablet says so by its form factor, which the browser reports before the first draw and again
+    // whenever the window crosses a form-factor width, so a window resized or a tablet turned is drawn again in the other arrangement.
+    private bool Phone => PhoneArrangement ?? EditorPhoneArrangement.Applies(Device);
+
+    // What the parts of the window read instead of each being handed Phone.
+    private EditorWindowLayout Layout => Phone ? EditorWindowLayout.PhoneSheet : EditorWindowLayout.Desktop;
 
     protected override void OnInitialized()
     {
@@ -494,7 +501,7 @@
             {
                 if (_watching)
                 {
-                    await _focusModule.InvokeVoidAsync("stopLayout");
+                    await _focusModule.InvokeVoidAsync("stopKeyboard");
                 }
 
                 await _focusModule.DisposeAsync();
@@ -504,8 +511,6 @@
                 // The circuit ended first; the browser already dropped its listeners with the page.
             }
         }
-
-        _self?.Dispose();
     }
 
     private bool _wasOpen;
@@ -547,25 +552,14 @@
     private int _focusTries;
     private IJSObjectReference? _focusModule;
     private bool _watching;
-    private bool _layoutUnavailable;
     private bool _disposed;
 
-    /// <summary>The browser's answer when the window crosses the tablet width (see <see cref="EditorPhoneArrangement.NarrowWindowQuery"/>).</summary>
-    [JSInvokable]
-    public Task NarrowWindowChanged(bool narrow) => InvokeAsync(() =>
+    // While the window is open on a phone arrangement, its height is kept above the on-screen keyboard (editor-focus.js). A failure to reach the script (a test
+    // host, a closing circuit, a moment when the connection is down) leaves the state as it was, so the next draw tries again; the window works without the fit.
+    private async Task SyncKeyboardAsync()
     {
-        if (_narrow != narrow)
-        {
-            _narrow = narrow;
-            StateHasChanged();
-        }
-    });
-
-    // While the window is open the browser tells it when the window is narrow and keeps its height above the on-screen keyboard (editor-focus.js). Without
-    // scripts (a test host, a closing circuit) the device's form factor still decides the arrangement.
-    private async Task SyncLayoutAsync()
-    {
-        if (_disposed || _layoutUnavailable || Editor.IsOpen == _watching)
+        var wanted = Editor.IsOpen && Phone;
+        if (_disposed || wanted == _watching)
         {
             return;
         }
@@ -573,28 +567,20 @@
         try
         {
             _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
-            if (Editor.IsOpen)
+            if (wanted)
             {
-                _watching = true;
-                _self ??= DotNetObjectReference.Create(this);
-                var narrow = await _focusModule.InvokeAsync<bool>("watchLayout", _self, EditorPhoneArrangement.NarrowWindowQuery);
-                if (narrow != _narrow)
-                {
-                    _narrow = narrow;
-                    StateHasChanged();
-                }
+                await _focusModule.InvokeVoidAsync("watchKeyboard");
             }
             else
             {
-                _watching = false;
-                _narrow = false;
-                await _focusModule.InvokeVoidAsync("stopLayout");
+                await _focusModule.InvokeVoidAsync("stopKeyboard");
             }
+
+            _watching = wanted;
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
         {
-            // No script support here (a test host, a closing circuit): the device's form factor still decides, and the window is usable without the keyboard fit.
-            _layoutUnavailable = true;
+            Logger.LogDebug(ex, "The editor could not reach its keyboard script; it will try again at the next draw");
         }
     }
 
@@ -602,7 +588,7 @@
     // item does not show (or a page without scripts) is not an error; the request is dropped after a few tries.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await SyncLayoutAsync();
+        await SyncKeyboardAsync();
         if (Editor.FocusField is not { } key || !Editor.IsOpen)
         {
             _focusTries = 0;

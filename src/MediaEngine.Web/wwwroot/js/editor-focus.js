@@ -10,51 +10,51 @@ export function focusField(key) {
     return document.activeElement === input;
 }
 
-// The editor on a phone (universal editor v6, section 4a): tells the pop-over when the window is no wider than a tablet (so the phone arrangement is drawn
-// for a narrow window as well as for a phone), and keeps the window's height above the on-screen keyboard so the footer stays in sight and the field being
-// typed in scrolls into view. Returns whether the window is narrow now; the pop-over is told again when that changes.
-let layout = null;
+// The editor on a phone (universal editor v6, section 4a): keeps the window's height above the on-screen keyboard so the footer stays in sight, and scrolls the
+// field being typed in into view once the keyboard is up. Whether the phone arrangement is drawn is the device's form factor, not decided here; the property
+// this sets (--tl-editor-keyboard) is read only by the phone window's height, so on any other window it does nothing.
+let keyboard = null;
 
-export function watchLayout(ref, query) {
-    stopLayout();
-    const narrow = window.matchMedia(query);
+export function watchKeyboard() {
+    stopKeyboard();
     const viewport = window.visualViewport;
     const root = document.documentElement;
 
-    // The part of the window the keyboard covers (the visual viewport shrinks, the layout viewport does not); the window's height takes it off.
+    // The part of the window the keyboard covers (the visual viewport shrinks, the layout viewport does not); the window's height takes it off. A pinch zoom
+    // shrinks the visual viewport too but is not a keyboard, so while the page is zoomed the last answer stands. With the keyboard up the home bar is
+    // behind it, so the bottom safe area is not added to the footer then.
     const fit = () => {
-        const covered = narrow.matches && viewport ? Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop)) : 0;
-        if (covered > 0) root.style.setProperty('--tl-editor-keyboard', covered + 'px');
-        else root.style.removeProperty('--tl-editor-keyboard');
-    };
-
-    const tell = () => {
-        fit();
-        ref.invokeMethodAsync('NarrowWindowChanged', narrow.matches).catch(() => { /* the pop-over is gone */ });
+        if (!viewport || Math.abs(viewport.scale - 1) > 0.01) return;
+        const covered = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+        if (covered > 0) {
+            root.style.setProperty('--tl-editor-keyboard', covered + 'px');
+            root.style.setProperty('--tl-editor-safe-bottom', '0px');
+        } else {
+            root.style.removeProperty('--tl-editor-keyboard');
+            root.style.removeProperty('--tl-editor-safe-bottom');
+        }
     };
 
     const reveal = (event) => {
         const field = event.target;
-        if (!narrow.matches || !(field instanceof HTMLElement) || !field.matches('input, textarea, select, [contenteditable="true"]')) return;
+        if (!(field instanceof HTMLElement) || !field.matches('input, textarea, select, [contenteditable="true"]') || !field.closest('.tl-editor-window--phone')) return;
         // Once the keyboard has finished opening, so the field is scrolled to the room that is left.
         window.setTimeout(() => field.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
     };
 
-    narrow.addEventListener('change', tell);
     viewport?.addEventListener('resize', fit);
     viewport?.addEventListener('scroll', fit);
     document.addEventListener('focusin', reveal);
-    layout = { narrow, viewport, tell, fit, reveal, root };
+    keyboard = { viewport, fit, reveal, root };
     fit();
-    return narrow.matches;
 }
 
-export function stopLayout() {
-    if (!layout) return;
-    layout.narrow.removeEventListener('change', layout.tell);
-    layout.viewport?.removeEventListener('resize', layout.fit);
-    layout.viewport?.removeEventListener('scroll', layout.fit);
-    document.removeEventListener('focusin', layout.reveal);
-    layout.root.style.removeProperty('--tl-editor-keyboard');
-    layout = null;
+export function stopKeyboard() {
+    if (!keyboard) return;
+    keyboard.viewport?.removeEventListener('resize', keyboard.fit);
+    keyboard.viewport?.removeEventListener('scroll', keyboard.fit);
+    document.removeEventListener('focusin', keyboard.reveal);
+    keyboard.root.style.removeProperty('--tl-editor-keyboard');
+    keyboard.root.style.removeProperty('--tl-editor-safe-bottom');
+    keyboard = null;
 }

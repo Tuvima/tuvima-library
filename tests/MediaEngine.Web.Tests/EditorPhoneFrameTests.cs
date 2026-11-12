@@ -74,15 +74,17 @@ public sealed class EditorPhoneFrameTests : AsyncBunitContext
     private IRenderedComponent<CascadingValue<EditingModeContext>> RenderWindow(EditingModeContext mode, EditSessionFlow flow, bool phone) =>
         Render<CascadingValue<EditingModeContext>>(parameters => parameters
             .Add(host => host.Value, mode)
-            .Add(host => host.ChildContent, builder =>
-            {
-                builder.OpenComponent<EditorPanelHost>(0);
-                builder.AddComponentParameter(1, nameof(EditorPanelHost.Mode), mode);
-                builder.AddComponentParameter(2, nameof(EditorPanelHost.Flow), flow);
-                builder.AddComponentParameter(3, nameof(EditorPanelHost.Phone), phone);
-                builder.AddComponentParameter(4, nameof(EditorPanelHost.ShowHistory), true);
-                builder.CloseComponent();
-            }));
+            .Add(host => host.ChildContent, WindowContent(mode, flow, phone)));
+
+    private static RenderFragment WindowContent(EditingModeContext mode, EditSessionFlow flow, bool phone) => builder =>
+    {
+        builder.OpenComponent<EditorPanelHost>(0);
+        builder.AddComponentParameter(1, nameof(EditorPanelHost.Mode), mode);
+        builder.AddComponentParameter(2, nameof(EditorPanelHost.Flow), flow);
+        builder.AddComponentParameter(3, nameof(EditorPanelHost.Phone), phone);
+        builder.AddComponentParameter(4, nameof(EditorPanelHost.ShowHistory), true);
+        builder.CloseComponent();
+    };
 
     [Fact]
     public async Task OnAPhone_TheWindowAndItsFooterCarryThePhoneArrangement_WithDiscardAndSaveChangesSideBySide()
@@ -137,6 +139,60 @@ public sealed class EditorPhoneFrameTests : AsyncBunitContext
         buttons[0].Click();
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".review-changes")));
         Assert.True(session.HasPendingChanges);
+    }
+
+    [Fact]
+    public async Task WhenTheWindowSaysPhoneThroughTheCascade_ThePartsDrawThePhoneArrangement_WithoutAPhoneParameter()
+    {
+        var (mode, session, flow) = await StartAsync();
+        session.Pending.SetField(MovieId, "title", "Dune");
+        var cut = Render<CascadingValue<EditorWindowLayout>>(parameters => parameters
+            .Add(host => host.Value, EditorWindowLayout.PhoneSheet)
+            .Add(host => host.ChildContent, builder =>
+            {
+                builder.OpenComponent<CascadingValue<EditingModeContext>>(0);
+                builder.AddComponentParameter(1, nameof(CascadingValue<EditingModeContext>.Value), mode);
+                builder.AddComponentParameter(2, nameof(CascadingValue<EditingModeContext>.ChildContent), WindowContent(mode, flow, phone: false));
+                builder.CloseComponent();
+            }));
+
+        Assert.Contains("tl-editor-window--phone", cut.Find(".tl-editor-window").ClassList);
+        cut.Find("button.tl-editor-window__save").Click();
+        cut.WaitForElement(".review-changes--phone");
+        Assert.DoesNotContain("Discard", cut.Find(".review-changes__footer").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WhenTheWindowCrossesIntoTheDesktopArrangementDuringReview_ReviewStaysOpenWithEveryStagedChange()
+    {
+        var (mode, session, flow) = await StartAsync();
+        session.Pending.SetField(MovieId, "title", "Dune");
+        var cut = RenderWindow(mode, flow, phone: true);
+        cut.Find("button.tl-editor-window__save").Click();
+        cut.WaitForElement(".review-changes--phone");
+
+        cut.Render(parameters => parameters.Add(host => host.Value, mode).Add(host => host.ChildContent, WindowContent(mode, flow, phone: false)));
+
+        cut.WaitForElement(".review-changes--page");
+        Assert.Empty(cut.FindAll(".review-changes--phone"));
+        Assert.Single(cut.FindAll(".review-changes__row"));
+        Assert.True(session.HasPendingChanges);
+        Assert.Equal(1, session.Pending.ChangeCount);
+    }
+
+    [Fact]
+    public async Task WhenTheWindowCrossesIntoThePhoneArrangement_TheStagedChangesAndTheOpenToolAreKept()
+    {
+        var (mode, session, flow) = await StartAsync();
+        session.Pending.SetField(MovieId, "title", "Dune");
+        var cut = RenderWindow(mode, flow, phone: false);
+        Assert.Empty(cut.FindAll(".tl-editor-window--phone"));
+
+        cut.Render(parameters => parameters.Add(host => host.Value, mode).Add(host => host.ChildContent, WindowContent(mode, flow, phone: true)));
+
+        cut.WaitForElement(".tl-editor-window--phone");
+        Assert.Equal(EditTool.Details, session.ActiveTool);
+        Assert.Equal(1, session.Pending.ChangeCount);
     }
 
     [Fact]
