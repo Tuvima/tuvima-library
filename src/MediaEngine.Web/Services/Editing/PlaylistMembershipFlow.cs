@@ -75,7 +75,7 @@ public static class PlaylistMembershipFlow
         if (result.Added == 0 && result.AlreadyThere == 0)
         {
             return new PlaylistFlowNotice(
-                result.Created ? strings["PlaylistMembership_CreateFailed"].Value : strings["PlaylistMembership_AddFailed", result.PlaylistName].Value,
+                result.Creating ? strings["PlaylistMembership_CreateFailed"].Value : strings["PlaylistMembership_AddFailed", result.PlaylistName].Value,
                 AppSeverity.Error);
         }
 

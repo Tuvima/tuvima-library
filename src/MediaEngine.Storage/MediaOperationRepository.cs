@@ -166,7 +166,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
             SelectSql + """
              WHERE entity_id = @entityId
                AND operation_type = @operationType
-               AND status IN @unfinishedStatuses
+               AND status NOT IN @terminalStatuses
              ORDER BY created_at DESC
              LIMIT 1;
             """,
@@ -174,14 +174,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
             {
                 entityId,
                 operationType,
-                unfinishedStatuses = new[]
-                {
-                    MediaOperationStatus.Pending,
-                    MediaOperationStatus.Queued,
-                    MediaOperationStatus.Leased,
-                    MediaOperationStatus.Running,
-                    MediaOperationStatus.RetryWaiting,
-                },
+                terminalStatuses = TerminalStatuses,
             });
         return Task.FromResult(row is null ? null : Map(row));
     }

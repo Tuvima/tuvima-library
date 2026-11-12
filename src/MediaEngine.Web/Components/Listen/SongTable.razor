@@ -30,7 +30,7 @@
     {
         @* Ticked songs on a phone: the bottom bar with the count, Play, Add to queue, Add to playlist and Done (Listen music spec D12). *@
         <SongSelectionBar WorkIds="@TickedWorkIds"
-                          Count="@_selected.Count"
+                          Count="@TickedWorkIds.Count"
                           CanPlay="@OnPlay.HasDelegate"
                           CanQueue="@OnQueue.HasDelegate"
                           OnPlay="PlayTickedAsync"

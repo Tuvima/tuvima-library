@@ -21,6 +21,15 @@ public sealed class TextTrackRefreshOperationWorker(
         MediaOperationType.TextTrackSubtitles,
     ];
 
+    /// <summary>
+    /// A lookup whose source could not be reached is tried at most this many times in all, so an offline Library does not keep every song's
+    /// lookup alive for ever. The last attempt finishes it as dead-lettered (terminal); a later Find lyrics or rescan queues a fresh one.
+    /// </summary>
+    internal const int MaxUnreachableAttempts = 3;
+
+    /// <summary>The wait after the first failed attempt, then after the second. There is no wait after the last attempt: it gives up.</summary>
+    internal static readonly TimeSpan[] UnreachableRetryDelays = [TimeSpan.FromMinutes(15), TimeSpan.FromHours(2)];
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -83,11 +92,7 @@ public sealed class TextTrackRefreshOperationWorker(
                     await operations.MarkSucceededAsync(operation.Id, result.Message, ct);
                     break;
                 case "ProviderUnavailable":
-                    await operations.MarkFailedRetryableAsync(
-                        operation.Id,
-                        result.Message,
-                        DateTimeOffset.UtcNow.AddMinutes(15),
-                        ct);
+                    await RetryOrGiveUpAsync(operation, result.Message, ct);
                     break;
                 case "AuthenticationRequired":
                 case "Disabled":
@@ -116,5 +121,23 @@ public sealed class TextTrackRefreshOperationWorker(
                 DateTimeOffset.UtcNow.AddMinutes(5),
                 ct);
         }
+    }
+
+    // The poison count only grows on a failed attempt (a lease or a restart does not add to it), so it is the number of attempts already
+    // made and this one is the next. The panel shows retry_waiting and dead_lettered alike as "could not be looked up right now".
+    private async Task RetryOrGiveUpAsync(MediaOperation operation, string error, CancellationToken ct)
+    {
+        var attemptsMade = operation.PoisonAttemptCount + 1;
+        if (attemptsMade >= MaxUnreachableAttempts)
+        {
+            logger.LogInformation(
+                "Text-track lookup {OperationId} for asset {AssetId} gave up after {Attempts} attempts because its source could not be reached.",
+                operation.Id, operation.EntityId, attemptsMade);
+            await operations.MarkDeadLetteredAsync(operation.Id, error, ct);
+            return;
+        }
+
+        var delay = UnreachableRetryDelays[Math.Min(attemptsMade - 1, UnreachableRetryDelays.Length - 1)];
+        await operations.MarkFailedRetryableAsync(operation.Id, error, DateTimeOffset.UtcNow.Add(delay), ct);
     }
 }

@@ -12,10 +12,8 @@
         <strong class="song-selection-bar__count" role="status" aria-live="polite">@L["SongSelectionBar_Count", Count].Value</strong>
         <AppNativeButton Type="button" Class="song-selection-bar__done" OnClick="@(_ => OnDone.InvokeAsync())">@L["Common_Done"].Value</AppNativeButton>
     </div>
-    @if (_notice is not null)
-    {
-        <p class="@NoticeClass" role="status" data-song-selection-notice="true">@_notice</p>
-    }
+    @* Always in the page, empty until there is something to say, so a screen reader that is already watching it announces the text when it appears. *@
+    <p class="@NoticeClass" role="status" data-song-selection-notice="true">@_notice</p>
     <div class="song-selection-bar__actions">
         @if (CanPlay)
         {
@@ -69,16 +67,44 @@
         _ => "song-selection-bar__notice",
     };
 
+    // Play, Add to queue and Add to playlist share one busy flag: while one runs every button is greyed, so a second press cannot open a
+    // second list or add the songs twice.
     private async Task PlayAsync()
     {
+        if (_busy || WorkIds.Count == 0)
+        {
+            return;
+        }
+
+        _busy = true;
         _notice = null;
-        await OnPlay.InvokeAsync();
+        try
+        {
+            await OnPlay.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task QueueAsync()
     {
+        if (_busy || WorkIds.Count == 0)
+        {
+            return;
+        }
+
+        _busy = true;
         _notice = null;
-        await OnQueue.InvokeAsync();
+        try
+        {
+            await OnQueue.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task AddToPlaylistAsync()

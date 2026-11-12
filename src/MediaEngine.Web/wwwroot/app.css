@@ -3332,6 +3332,12 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:fo
     opacity: 0.5;
 }
 
+.song-selection-bar .song-selection-bar__action:focus-visible,
+.song-selection-bar .song-selection-bar__done:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
 .song-selection-bar .song-selection-bar__action:active:not(:disabled),
 .song-selection-bar .song-selection-bar__done:active {
     background: var(--tl-bg-surface-hover);

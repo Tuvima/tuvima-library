@@ -75,6 +75,68 @@ public sealed class TextTrackRefreshOperationWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task ALyricsSourceThatCannotBeReached_IsTriedAgainAfterFifteenMinutes_ThenAfterTwoHours()
+    {
+        _source.Failure = new TextTrackLookupException("ProviderUnavailable", "lrclib could not be reached.");
+        var queued = await QueueLyricsAsync();
+
+        await _worker.ProcessAsync(queued, CancellationToken.None);
+        var first = await _operations.GetByIdAsync(queued.Id);
+        await _worker.ProcessAsync(first!, CancellationToken.None);
+        var second = await _operations.GetByIdAsync(queued.Id);
+
+        Assert.Equal(MediaOperationStatus.RetryWaiting, first!.Status);
+        AssertWaitsAbout(first, TimeSpan.FromMinutes(15));
+        Assert.Equal(MediaOperationStatus.RetryWaiting, second!.Status);
+        AssertWaitsAbout(second, TimeSpan.FromHours(2));
+    }
+
+    [Fact]
+    public async Task ALyricsSourceThatCannotBeReachedOnTheThirdAttempt_EndsTheRequestAsDeadLettered_AndNeverRetriesAgain()
+    {
+        _source.Failure = new TextTrackLookupException("ProviderUnavailable", "lrclib could not be reached.");
+        var operation = await QueueLyricsAsync();
+
+        for (var attempt = 1; attempt <= TextTrackRefreshOperationWorker.MaxUnreachableAttempts; attempt++)
+        {
+            await _worker.ProcessAsync(operation, CancellationToken.None);
+            operation = (await _operations.GetByIdAsync(operation.Id))!;
+        }
+
+        Assert.Equal(MediaOperationStatus.DeadLettered, operation.Status);
+        Assert.NotNull(operation.CompletedAt);
+        Assert.Equal("lrclib could not be reached.", operation.LastError);
+        var leased = await _operations.LeaseNextAsync("test", [MediaOperationType.TextTrackLyrics], 4, TimeSpan.FromMinutes(1));
+        Assert.Empty(leased);
+        Assert.Null(await _operations.GetNewestUnfinishedByEntityAsync(_assetId, MediaOperationType.TextTrackLyrics));
+    }
+
+    [Fact]
+    public async Task ALyricsLookupThatGaveUp_LetsALaterRequestQueueAFreshLookup()
+    {
+        _source.Failure = new TextTrackLookupException("ProviderUnavailable", "lrclib could not be reached.");
+        var operation = await QueueLyricsAsync();
+        for (var attempt = 1; attempt <= TextTrackRefreshOperationWorker.MaxUnreachableAttempts; attempt++)
+        {
+            await _worker.ProcessAsync(operation, CancellationToken.None);
+            operation = (await _operations.GetByIdAsync(operation.Id))!;
+        }
+
+        var fresh = await QueueLyricsAsync();
+        _source.Failure = null;
+        await _worker.ProcessAsync(fresh, CancellationToken.None);
+
+        Assert.Equal(MediaOperationStatus.DeadLettered, operation.Status);
+        Assert.Equal(MediaOperationStatus.NoResult, (await _operations.GetByIdAsync(fresh.Id))!.Status);
+    }
+
+    private static void AssertWaitsAbout(MediaOperation operation, TimeSpan expected)
+    {
+        var wait = operation.NextRetryAt!.Value - DateTimeOffset.UtcNow;
+        Assert.InRange(wait, expected - TimeSpan.FromMinutes(1), expected + TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
     public async Task ALyricsSourceThatAnsweredWithNothing_EndsTheRequestAsNoResult()
     {
         var queued = await QueueLyricsAsync();

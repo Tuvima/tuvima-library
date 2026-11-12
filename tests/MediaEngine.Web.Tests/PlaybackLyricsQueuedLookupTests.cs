@@ -2,6 +2,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Web.Tests;
 
@@ -14,6 +15,7 @@ public sealed class PlaybackLyricsQueuedLookupTests
     private readonly Guid _operation = Guid.NewGuid();
     private int _trackReads, _queued, _pendingReads;
     private RefreshTextTracksResponse? _pending;
+    private TaskCompletionSource<RefreshTextTracksResponse?>? _pendingGate;
     private readonly List<string> _statusReads = [];
     private readonly Queue<string> _statuses = new();
     private IReadOnlyList<TextTrackDto> _tracks = [];
@@ -30,7 +32,7 @@ public sealed class PlaybackLyricsQueuedLookupTests
         stub.SetHandler(nameof(IEngineApiClient.GetPendingTextTrackRefreshAsync), _ =>
         {
             _pendingReads++;
-            return Task.FromResult(_pending);
+            return _pendingGate?.Task ?? Task.FromResult(_pending);
         });
         stub.SetHandler(nameof(IEngineApiClient.GetTextTrackRefreshStatusAsync), args =>
         {
@@ -388,6 +390,160 @@ public sealed class PlaybackLyricsQueuedLookupTests
         Assert.Equal("Lyrics search could not start.", presenter.Status);
         Assert.Equal(PlaybackLyricsLookupState.Idle, presenter.Lookup);
         Assert.Empty(wait.Requested);
+    }
+
+    [Theory]
+    [InlineData("interrupted")]
+    [InlineData("paused")]
+    public async Task ASongOpenedWhileItsAutomaticLookupWasInterruptedOrPaused_SaysStillLooking_NotCouldNotBeLookedUp(string status)
+    {
+        _pending = new() { operation_id = _operation, status = status };
+        _statuses.Enqueue("running");
+        var wait = new LyricsWaitSpy();
+        var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        Assert.Equal(PlaybackLyricsLookupState.Looking, presenter.Lookup);
+        Assert.True(presenter.Refreshing);
+        presenter.Dispose();
+    }
+
+    [Theory]
+    [InlineData("retry_waiting")]
+    [InlineData("failed_retryable")]
+    [InlineData("dead_lettered")]
+    public async Task ASongOpenedWhileItsAutomaticLookupCouldNotBeMade_SaysItCouldNotBeLookedUpRightNow(string status)
+    {
+        _pending = new() { operation_id = _operation, status = status };
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, new LyricsWaitSpy().Wait);
+
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        Assert.Equal(PlaybackLyricsLookupState.Unreachable, presenter.Lookup);
+        Assert.False(presenter.Refreshing);
+    }
+
+    [Fact]
+    public async Task PressingFindLyricsWhileTheAutomaticLookupIsBeingAskedAbout_FollowsOnlyTheOneLookupPressedFor()
+    {
+        _pendingGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _statuses.Enqueue("running"); _statuses.Enqueue("succeeded");
+        var wait = new LyricsWaitSpy();
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+        var snapshot = Snapshot();
+        var sink = new Sink();
+        var opened = presenter.EnsureAsync(snapshot, sink);
+        await WaitUntilAsync(() => _pendingReads == 1);
+
+        var find = presenter.RefreshAsync();
+        await WaitUntilAsync(() => wait.Requested.Count == 1);
+        _pendingGate.SetResult(new() { operation_id = _operation, status = "running" });
+        await opened;
+
+        // The late answer about the automatic lookup starts no second polling loop beside the one Find lyrics started.
+        Assert.Equal(1, _queued);
+        Assert.Single(wait.Requested);
+        await wait.ReleaseNextAsync();
+        await WaitUntilAsync(() => _statusReads.Count == 1);
+        await wait.ReleaseNextAsync();
+        await find;
+        Assert.Equal(["running", "succeeded"], _statusReads);
+        Assert.Equal(2, wait.Requested.Count);
+    }
+
+    [Fact]
+    public async Task PressingFindLyricsWhileStillLooking_DoesNothing_SoNoSecondLoopStarts()
+    {
+        _statuses.Enqueue("running");
+        var wait = new LyricsWaitSpy();
+        var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+        var find = presenter.RefreshAsync();
+        for (var look = 0; look < 16; look++)
+        {
+            await wait.ReleaseNextAsync();
+        }
+        await WaitUntilAsync(() => presenter.Lookup == PlaybackLyricsLookupState.StillLooking);
+        var asked = wait.Requested.Count;
+
+        await presenter.RefreshAsync();
+
+        Assert.Equal(1, _queued);
+        Assert.Equal(asked, wait.Requested.Count);
+        Assert.Equal(PlaybackLyricsLookupState.StillLooking, presenter.Lookup);
+        presenter.Dispose();
+        await find;
+    }
+
+    [Fact]
+    public async Task AnUnexpectedFailureWhileFollowingALookup_IsLogged_AndTheMessageSaysTheSearchCouldNotStart()
+    {
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.QueueTextTrackRefreshAsync), _ =>
+                Task.FromResult<RefreshTextTracksResponse?>(new() { operation_id = _operation, status = "queued" }));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackRefreshStatusAsync), _ => throw new InvalidOperationException("boom"));
+        });
+        var logger = new RecordingLogger();
+        using var presenter = new PlaybackLyricsPresenter(api, null, new LyricsWaitSpy(instant: true).Wait, logger);
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        await presenter.RefreshAsync();
+
+        Assert.Equal("Lyrics search could not start.", presenter.Status);
+        var entry = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Warning);
+        Assert.IsType<InvalidOperationException>(entry.Exception);
+    }
+
+    [Fact]
+    public async Task AnUnexpectedFailureWhileFollowingAnAutomaticLookup_IsLogged()
+    {
+        _pending = new() { operation_id = _operation, status = "running" };
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.GetPendingTextTrackRefreshAsync), _ => Task.FromResult(_pending));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackRefreshStatusAsync), _ => throw new InvalidOperationException("boom"));
+        });
+        var logger = new RecordingLogger();
+        using var presenter = new PlaybackLyricsPresenter(api, null, new LyricsWaitSpy(instant: true).Wait, logger);
+
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+        await WaitUntilAsync(() => presenter.Status == "Lyrics search could not start." && !presenter.Refreshing);
+
+        Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task ChangingSongWhileLooking_IsNotLoggedAsAnError()
+    {
+        _statuses.Enqueue("running");
+        var wait = new LyricsWaitSpy();
+        var logger = new RecordingLogger();
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait, logger);
+        var sink = new Sink();
+        await presenter.EnsureAsync(Snapshot(), sink);
+        var find = presenter.RefreshAsync();
+        await WaitUntilAsync(() => wait.Requested.Count == 1);
+
+        presenter.Observe(Snapshot(), sink);
+        await find;
+
+        Assert.DoesNotContain(logger.Entries, entry => entry.Level >= LogLevel.Warning);
+    }
+
+    private sealed class RecordingLogger : ILogger<PlaybackLyricsPresenter>
+    {
+        public List<(LogLevel Level, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, exception));
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

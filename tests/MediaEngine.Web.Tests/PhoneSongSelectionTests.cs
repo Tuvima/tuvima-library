@@ -101,6 +101,103 @@ public sealed class PhoneSongSelectionTests : AsyncBunitContext
         Assert.Equal([(Playlist, rows[1].WorkId!.Value)], _added);
     }
 
+    [Fact]
+    public async Task OnAPhone_TheBarsStatusLineIsAlwaysInThePage_AndEmptyUntilThereIsANotice()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
+        _dialogs.Choice = new PlaylistChoice(Playlist, "Road trip");
+        var rows = Songs();
+        var cut = Render<SongTable>(parameters => parameters
+            .Add(table => table.Place, SongTablePlace.Songs)
+            .Add(table => table.Rows, rows)
+            .Add(table => table.OnPlay, EventCallback.Factory.Create<SongPlayRequest>(this, _ => { })));
+
+        ChooseSelect(cut, rows[0]);
+
+        var notice = cut.Find("[data-song-selection-notice]");
+        Assert.Equal("status", notice.GetAttribute("role"));
+        Assert.Equal(string.Empty, notice.TextContent.Trim());
+        cut.FindAll(".song-selection-bar__action").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
+        cut.WaitForAssertion(() => Assert.Contains("1 song added to Road trip", cut.Find("[data-song-selection-notice]").TextContent));
+    }
+
+    [Fact]
+    public async Task OnAPhone_WhileThePlaylistListIsOpen_EveryActionIsDisabled_AndASecondPressOpensNoSecondList()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
+        _dialogs.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _dialogs.Choice = new PlaylistChoice(Playlist, "Road trip");
+        var rows = Songs();
+        var cut = Render<SongTable>(parameters => parameters
+            .Add(table => table.Place, SongTablePlace.Songs)
+            .Add(table => table.Rows, rows)
+            .Add(table => table.OnPlay, EventCallback.Factory.Create<SongPlayRequest>(this, _ => { }))
+            .Add(table => table.OnQueue, EventCallback.Factory.Create<SongRow>(this, _ => { })));
+        ChooseSelect(cut, rows[0]);
+        var add = () => cut.FindAll(".song-selection-bar__action").Single(button => button.TextContent.Trim() == "Add to playlist");
+
+        add().Click();
+        cut.WaitForAssertion(() => Assert.True(add().HasAttribute("disabled")));
+        Assert.All(cut.FindAll(".song-selection-bar__action"), button => Assert.True(button.HasAttribute("disabled")));
+        add().Click();
+
+        Assert.Single(_dialogs.Titles);
+        _dialogs.Gate.SetResult();
+        cut.WaitForAssertion(() => Assert.Contains("1 song added to Road trip", cut.Find("[data-song-selection-notice]").TextContent));
+        Assert.All(cut.FindAll(".song-selection-bar__action"), button => Assert.False(button.HasAttribute("disabled")));
+        Assert.Single(_added);
+    }
+
+    [Fact]
+    public async Task OnAPhone_WhilePlayIsRunning_EveryActionIsDisabled()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var played = 0;
+        var rows = Songs();
+        var cut = Render<SongTable>(parameters => parameters
+            .Add(table => table.Place, SongTablePlace.Songs)
+            .Add(table => table.Rows, rows)
+            .Add(table => table.OnPlay, EventCallback.Factory.Create<SongPlayRequest>(this, async _ =>
+            {
+                played++;
+                await gate.Task;
+            })));
+        ChooseSelect(cut, rows[0]);
+        var play = () => cut.FindAll(".song-selection-bar__action").Single(button => button.TextContent.Trim() == "Play");
+
+        play().Click();
+        cut.WaitForAssertion(() => Assert.True(play().HasAttribute("disabled")));
+        Assert.All(cut.FindAll(".song-selection-bar__action"), button => Assert.True(button.HasAttribute("disabled")));
+
+        gate.SetResult();
+        cut.WaitForAssertion(() => Assert.False(play().HasAttribute("disabled")));
+        Assert.Equal(1, played);
+    }
+
+    [Fact]
+    public async Task OnAPhone_WhenASearchHidesTickedSongs_TheirTicksAreDropped_AndTheCountIsTheSongsTheActionsUse()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
+        _dialogs.Choice = new PlaylistChoice(Playlist, "Road trip");
+        var rows = Songs();
+        var cut = Render<SongTable>(parameters => parameters
+            .Add(table => table.Place, SongTablePlace.Songs)
+            .Add(table => table.Rows, rows)
+            .Add(table => table.OnPlay, EventCallback.Factory.Create<SongPlayRequest>(this, _ => { })));
+        ChooseSelect(cut, rows[0]);
+        cut.Find($"[data-song-row-id='{rows[1].Id}']").Click();
+        cut.WaitForAssertion(() => Assert.Equal("2 selected", cut.Find("[data-song-selection-bar] [role='status']").TextContent.Trim()));
+
+        // The search now shows only the second and third songs: the first (ticked) is hidden.
+        cut.Render(parameters => parameters.Add(table => table.Rows, new List<SongRow> { rows[1], rows[2] }));
+
+        cut.WaitForAssertion(() => Assert.Equal("1 selected", cut.Find("[data-song-selection-bar] [role='status']").TextContent.Trim()));
+        cut.FindAll(".song-selection-bar__action").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
+        cut.WaitForAssertion(() => Assert.Contains("1 song added to Road trip", cut.Find("[data-song-selection-notice]").TextContent));
+        Assert.Equal([(Playlist, rows[1].WorkId!.Value)], _added);
+    }
+
     private static void ChooseSelect(IRenderedComponent<SongTable> cut, SongRow row)
     {
         cut.Find($"[data-song-row-id='{row.Id}'] button[aria-haspopup]").Click();

@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient Api
 @inject UIOrchestratorService Orchestrator
+@inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 @* "Add to collection" / "Add to playlist" (Collections and lists spec 4a, D19). The list holds exactly the hand-picked collections or
    playlists the Engine says the signed-in person may edit: their own, and for an administrator everything they manage. The Engine
@@ -34,7 +35,7 @@
                     @NewCollectionLabel
                 </AppButton>
             }
-            @if (Playlist && OfferNewPlaylist)
+            @if (Playlist && OfferNewPlaylist && CanCreatePlaylist)
             {
                 @* "New playlist" asks for a name here, in the same window; choosing again goes back to the list of playlists. *@
                 <AppButton ButtonStyle="AppButtonStyle.Text"
@@ -77,6 +78,8 @@
     private string _newName = string.Empty;
     private bool _creating;
     private bool _loading = true, _saving;
+    // "New playlist" is only offered to a profile that may start one (a Kids profile cannot; the Engine refuses it too). Unknown means no.
+    private bool CanCreatePlaylist => Services.GetService<DashboardSessionAccessor>() is { } session && CollectionAuthoringRule.CanCreate(session);
     private bool CanSave => _creating ? !string.IsNullOrWhiteSpace(_newName) : _selected is not null;
     private void ToggleNewPlaylist() { _creating = !_creating; _error = null; }
     private async Task OnNameKeyDownAsync(KeyboardEventArgs args) { if (args.Key == "Enter" && CanSave && !_saving) await SaveAsync(); }
