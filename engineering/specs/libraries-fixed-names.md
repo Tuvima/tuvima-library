@@ -1,6 +1,8 @@
 # Spec: Libraries v3 — fixed library names, folder names, and one folder picker
 
 > **Status:** Built, awaiting Local checks (L1 to L9 and L11 in `engineering/validation/batch.md`; L10 and WP9 come from the local-check fix build) · **Version:** 3 of the Libraries design (revises D1/D2 naming parts of v2 and the rail of [libraries-redesign](libraries-redesign.md) v1 D1; nothing else in v2 changes) · **Last updated:** 2026-11-06 · **Related docs:** [Libraries page v2 and the folder picker](libraries-and-folder-picker.md) · [Libraries redesign](libraries-redesign.md) · [Photo and video filing](photo-video-filing.md) · [Library access](library-access.md) · [Design system](../design/design-system.md) · Local check: `engineering/validation/local-check-2026-11-05.md` items 4 to 7, 11 and 13 (not yet on main; written from Shy's answers 8A, 9A, 10A, 12A, 13A) · Mockups: `../design/mockups/libraries-fixed-names.html`
+>
+> **Amended 2026-11-12** by [Setup and Libraries fixes](setup-and-libraries-fixes.md): D23 (square tiles) and D24 (hover cards) are replaced by full-width rows in Add library (D5), and the folder window layout in D21 gives the list the spare height (D6 to D9). Where the two differ, the newer spec wins.
 
 > **Version note (2026-11-10):** parts superseded by [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): D21's one folder picker moves onto the shared browser frame (D32 and WP8a): the folder you are inside is the selection, named above the list, and "Type a path…" lives in the Locations list; every other rule stays.
 

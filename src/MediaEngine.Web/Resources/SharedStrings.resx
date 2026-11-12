@@ -8081,9 +8081,6 @@
   <data name="ProviderOnboardingDialog_TheDashboardCouldNotReach" xml:space="preserve">
     <value>The Dashboard could not reach the Engine. Check that it is running and try again.</value>
   </data>
-  <data name="ServerFolderPicker_LibraryCouldNotReachThis" xml:space="preserve">
-    <value>Library could not reach this server folder. Check that the location is online and try again.</value>
-  </data>
   <data name="ServerFolderPicker_LibraryCouldNotValidateThis" xml:space="preserve">
     <value>Library could not validate this server folder. Check that the location is online and try again.</value>
   </data>
@@ -8763,7 +8760,7 @@
     <value>Vault</value>
   </data>
   <data name="CreateLibrary_VaultInfo" xml:space="preserve">
-    <value>Anything you want hidden, adult content included. Locked behind its own PIN and hidden from kids profiles.</value>
+    <value>Anything you want hidden. Locked behind its own PIN. Hidden from Kids profiles.</value>
   </data>
   <data name="CreateLibrary_ChooseAnother" xml:space="preserve">
     <value>Choose another folder</value>
@@ -9797,6 +9794,15 @@
   <data name="LibraryFoldersPopover_Online" xml:space="preserve">
     <value>Online</value>
   </data>
+  <data name="LibraryFoldersPopover_NotFound" xml:space="preserve">
+    <value>Folder not found. Is the drive connected?</value>
+  </data>
+  <data name="LibraryFoldersPopover_Reachable" xml:space="preserve">
+    <value>Library can reach this folder</value>
+  </data>
+  <data name="LibraryFoldersPopover_Unreachable" xml:space="preserve">
+    <value>Library can't reach this folder</value>
+  </data>
   <data name="LibraryFoldersPopover_CopyPath" xml:space="preserve">
     <value>Copy path</value>
   </data>
@@ -9914,6 +9920,9 @@
   <data name="LibraryEditDialog_LibraryLower" xml:space="preserve">
     <value>library</value>
   </data>
+  <data name="LibraryEditDialog_ThisLibrary" xml:space="preserve">
+    <value>This library</value>
+  </data>
   <data name="LibraryEditDialog_LeadImport" xml:space="preserve">
     <value>The landing place for new files of any kind. Files are never changed until Library files them.</value>
   </data>
@@ -9980,6 +9989,15 @@
   <data name="LibraryEditDialog_Keep" xml:space="preserve">
     <value>Keep</value>
   </data>
+  <data name="LibraryEditDialog_LastFolderTitle" xml:space="preserve">
+    <value>Remove the last folder?</value>
+  </data>
+  <data name="LibraryEditDialog_LastFolderBody" xml:space="preserve">
+    <value>{0} will leave the Libraries list until you add a folder again. Your files stay where they are.</value>
+  </data>
+  <data name="LibraryEditDialog_LastFolderRemove" xml:space="preserve">
+    <value>Remove folder</value>
+  </data>
   <data name="LibraryEditDialog_RemoveFailed" xml:space="preserve">
     <value>The library could not be removed. Try again.</value>
   </data>
@@ -9996,7 +10014,7 @@
     <value>The folder could not be added. Check it and try again.</value>
   </data>
   <data name="SetupVaultOffer_AddFromLibraries" xml:space="preserve">
-    <value>To add a private library, go back to the Libraries step, press Add library and choose the Vault tab.</value>
+    <value>On the next step, press Add library and choose Vault to add a private library.</value>
   </data>
   <data name="MediaBrowseShell_Folders" xml:space="preserve">
     <value>Folders</value>
@@ -10008,19 +10026,22 @@
     <value>Change</value>
   </data>
   <data name="CreateLibrary_AddFolderInstead" xml:space="preserve">
-    <value>Add a folder to it instead</value>
+    <value>Add a folder to {0} instead</value>
+  </data>
+  <data name="CreateLibrary_AlreadyHave" xml:space="preserve">
+    <value>You already have a {0} library.</value>
   </data>
   <data name="CreateLibrary_AreaLine_watch" xml:space="preserve">
-    <value>Movies, TV, videos</value>
+    <value>Movies, TV shows and other videos.</value>
   </data>
   <data name="CreateLibrary_AreaLine_listen" xml:space="preserve">
-    <value>Music, audiobooks</value>
+    <value>Music, audiobooks and other audio.</value>
   </data>
   <data name="CreateLibrary_AreaLine_read" xml:space="preserve">
-    <value>Books, comics</value>
+    <value>Books, comics and other reading.</value>
   </data>
   <data name="CreateLibrary_AreaLine_view" xml:space="preserve">
-    <value>Photos, videos, documents</value>
+    <value>Your own photos, videos and documents.</value>
   </data>
   <data name="FolderStep_Where" xml:space="preserve">
     <value>Where is it?</value>
@@ -12614,6 +12635,12 @@
   <data name="FolderPicker_OneFolderMatches" xml:space="preserve">
     <value>1 folder matches</value>
   </data>
+  <data name="FolderPicker_NoFoldersInside" xml:space="preserve">
+    <value>This folder has no folders inside. You can still choose it.</value>
+  </data>
+  <data name="FolderPicker_CantOpen" xml:space="preserve">
+    <value>Library can't open this folder.</value>
+  </data>
   <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
     <value>Add song to Favorites</value>
   </data>
@@ -12804,13 +12831,7 @@
     <value>Add a Managed folder</value>
   </data>
   <data name="AddViewFolderDialog_Heading" xml:space="preserve">
-    <value>Add a folder</value>
-  </data>
-  <data name="AddViewFolderDialog_Subtitle" xml:space="preserve">
-    <value>Choose the folder that holds your {0}</value>
-  </data>
-  <data name="AddViewFolderDialog_ReadOnlySafety" xml:space="preserve">
-    <value>Your files are never deleted or changed in a read-only folder.</value>
+    <value>Add folder</value>
   </data>
   <data name="ViewFolderRules_UploadsNeedManagedLine" xml:space="preserve">
     <value>You can't upload {0} until you add a Managed folder.</value>
@@ -12886,6 +12907,15 @@
   </data>
   <data name="SetupStepper_Optional" xml:space="preserve">
     <value>optional</value>
+  </data>
+  <data name="SetupStepper_On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="SetupStepper_Skipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="SetupVaultOffer_TurnOffInSettings" xml:space="preserve">
+    <value>You can turn the Vault off later in Settings.</value>
   </data>
   <data name="SetupToolsStage_LocalAIName" xml:space="preserve">
     <value>Local AI</value>

@@ -28,6 +28,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     private readonly List<string> _browsed = [];
     private bool _rootsDown;
     private bool _missingBrowse;
+    private string? _unreadable;
     private bool _rootsEmpty;
     private int _rootsCalls;
     private int _validateCalls;
@@ -57,7 +58,8 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
                 var relative = request.RelativePath ?? string.Empty;
                 _browsed.Add(relative);
                 // A folder that does not exist yet cannot be listed.
-                return Task.FromResult<BrowseServerFoldersResultDto?>(_missingBrowse && relative.Contains("Not", StringComparison.Ordinal) ? null : Browse(relative));
+                var unlistable = (_missingBrowse && relative.Contains("Not", StringComparison.Ordinal)) || relative == _unreadable;
+                return Task.FromResult<BrowseServerFoldersResultDto?>(unlistable ? null : Browse(relative));
             });
             stub.SetHandler(nameof(IEngineApiClient.ValidateServerFolderAsync), args =>
             {
@@ -468,5 +470,61 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
 
         Assert.Single(host.FindAll("th.is-wide-only"));
         Assert.Equal(2, host.FindAll("td.is-wide-only").Count);
+    }
+
+    [Fact]
+    public async Task AFolderWithNothingInsideSaysSoAndCanStillBeChosen()
+    {
+        var host = await OpenPickerAsync();
+
+        Row(host, "Movies").Click();
+        host.WaitForAssertion(() => Row(host, "Action"));
+        Row(host, "Action").Click();
+
+        host.WaitForAssertion(() => Assert.Equal("This folder has no folders inside. You can still choose it.", host.Find("[data-picker-empty]").TextContent.Trim()));
+        Assert.Contains("C:\\srv\\Movies\\Action", host.Find("[data-picker-selected]").TextContent, StringComparison.Ordinal);
+        Assert.False(ConfirmButton(host).HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AFolderLibraryCannotOpenSaysSoAndBackListsTheLastFolderAgain()
+    {
+        _unreadable = "Movies";
+        var host = await OpenPickerAsync();
+
+        Row(host, "Movies").Click();
+
+        host.WaitForAssertion(() => Assert.Equal("Library can't open this folder.", host.Find("[data-picker-cant-open] span").TextContent.Trim()));
+        Assert.Empty(host.FindAll(FolderRows));
+        // The selection stays on the last folder that opened, and nothing is drawn as a separate error line.
+        Assert.Contains("C:\\srv", host.Find("[data-picker-selected]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(host.FindAll("[data-picker-message]"));
+
+        host.Find("[data-picker-cant-open-back]").Click();
+
+        host.WaitForAssertion(() => Assert.Empty(host.FindAll("[data-picker-cant-open]")));
+        Assert.Equal(["Movies", "TV"], host.FindAll(FolderRows).Select(row => row.QuerySelector(".app-browser-folder__text")!.TextContent).ToArray());
+    }
+
+    [Fact]
+    public async Task TheCheckAnswerIsTheOneMessageLineDirectlyUnderTheHandlingChoice()
+    {
+        _issueCode = "already_configured";
+        var host = Render<AppDialogHost>();
+        var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.OfferHandling, true } };
+        await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
+        host.WaitForElement(FolderRows);
+
+        // Nothing to say yet: no message line, no reserved space, and no grey safety line next to the handling choice.
+        Assert.Empty(host.FindAll("[data-picker-message]"));
+        Assert.Empty(host.FindAll("[data-picker-safety]"));
+        Assert.Empty(host.FindAll(".server-folder-picker__notices"));
+
+        Row(host, "Movies").Click();
+        ConfirmButton(host).Click();
+
+        host.WaitForAssertion(() => Assert.Equal("already-used", host.Find("[data-picker-message] .server-folder-picker__result").GetAttribute("data-result")));
+        Assert.Single(host.FindAll("[data-picker-message]"));
+        Assert.True(host.Find("[data-folder-handling]").NextElementSibling!.HasAttribute("data-picker-message"));
     }
 }

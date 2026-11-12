@@ -1,3 +1,4 @@
+using System.Globalization;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Formatting;
 
@@ -123,6 +124,14 @@ public static class SettingsMenuBuilder
         node.Section is SettingsSection.LocalAi or SettingsSection.Plugins or SettingsSection.Integrations
         || SettingsNav.GetGroup(node.Section).Key is "developer";
 
+    /// <summary>The count drawn in the pill: the number, or "99+" above 99.</summary>
+    public static string ReviewPillText(int reviewCount) =>
+        reviewCount > 99 ? "99+" : reviewCount.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>What a screen reader adds to the row name: "8 items need review", "1 item needs review".</summary>
+    public static string ReviewPillSpokenText(int reviewCount) =>
+        reviewCount == 1 ? "1 item needs review" : $"{ReviewPillText(reviewCount)} items need review";
+
     private static MediaSectionNavigationItem BuildItem(SettingsMenuNode node, SettingsMenuContext context)
     {
         // Needs Review is a tab of the Libraries page, so that row carries the amber "waiting" shading; Local AI, Plugins and Integrations show red with "Broken" while something switched on cannot work
@@ -130,6 +139,8 @@ public static class SettingsMenuBuilder
         // red with "No password" until the account is secured. Phones show plain rows.
         var sections = node.Sections.ToList();
         var showReview = sections.Contains(SettingsSection.Review) && context.ReviewCount > 0;
+        // The same count also rides on that row as a small amber pill (#867, D13): administrators only, hidden at zero, "99+" above 99.
+        var reviewPill = showReview && context.AdministrationAllowed;
         var localAiOff = node.Section == SettingsSection.LocalAi && context.LocalAiBlocked && context.AiFeaturesOn && !context.IsMobile;
         var pluginsBroken = node.Section == SettingsSection.Plugins && context.PluginsBroken && !context.IsMobile;
         var integrationsBroken = node.Section == SettingsSection.Integrations && context.IntegrationsBroken && !context.IsMobile;
@@ -141,6 +152,9 @@ public static class SettingsMenuBuilder
             node.Label,
             node.Route,
             node.Icon,
+            Meta: reviewPill ? ReviewPillText(context.ReviewCount) : null,
+            MetaIsNotification: reviewPill,
+            MetaAriaLabel: reviewPill ? ReviewPillSpokenText(context.ReviewCount) : null,
             // A page stays lit on all of its tabs and on the pages beneath them (a library's own page, a provider's detail).
             Exact: false,
             // On a phone the row has no red shading, so it keeps the plain dot.

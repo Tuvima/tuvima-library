@@ -109,8 +109,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         var libraries = Flatten(groups).Single(row => row.Label == "Libraries");
         Assert.Equal(MediaSectionAttentionLevel.Waiting, libraries.Attention);
-        Assert.Null(libraries.Meta);
-        Assert.False(libraries.MetaIsNotification);
+        Assert.Equal("3", libraries.Meta);
+        Assert.True(libraries.MetaIsNotification);
         Assert.DoesNotContain(Flatten(groups), row => row.Label == "Recently Added");
         Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "System").EffectiveAttention);
     }
@@ -405,6 +405,98 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.Equal(MediaSectionAttentionLevel.Blocked, red.EffectiveAttention);
         Assert.Equal("FFmpeg missing", red.AttentionLabel);
         Assert.Equal(MediaSectionAttentionLevel.None, plain.EffectiveAttention);
+    }
+
+    [Fact]
+    public void ReviewPill_ShowsTheCountBesideLibraries_ForAnAdministrator()
+    {
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/profiles");
+
+        var pill = cut.Find("a[href='/settings/libraries'] .media-section-shell__rail-meta--notification");
+        Assert.Equal("8", pill.TextContent.Trim());
+        Assert.Single(cut.FindAll(".media-section-shell__rail-meta--notification"));
+    }
+
+    [Fact]
+    public void ReviewPill_IsHidden_WhenNothingIsWaiting()
+    {
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 0 }), "/settings/profiles");
+
+        Assert.Empty(cut.FindAll(".media-section-shell__rail-meta--notification"));
+        Assert.Null(cut.Find("a[href='/settings/libraries']").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void ReviewPill_IsHidden_ForSomeoneWhoIsNotAServerAdministrator()
+    {
+        var member = Flatten(SettingsMenuBuilder.Build(Context(administrator: false) with { ReviewCount = 8 }));
+        var kids = Flatten(SettingsMenuBuilder.Build(Context(administrator: false) with { ReviewCount = 8, RestrictedProfile = true }));
+
+        Assert.All(member, row => Assert.Null(row.Meta));
+        Assert.All(kids, row => Assert.Null(row.Meta));
+    }
+
+    [Theory]
+    [InlineData(99, "99")]
+    [InlineData(100, "99+")]
+    [InlineData(4210, "99+")]
+    public void ReviewPill_ShowsNinetyNinePlus_AboveNinetyNine(int count, string expected)
+    {
+        var libraries = Flatten(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = count }))
+            .Single(row => row.Label == "Libraries");
+
+        Assert.Equal(expected, libraries.Meta);
+    }
+
+    [Theory]
+    [InlineData(1, "Libraries, 1 item needs review")]
+    [InlineData(8, "Libraries, 8 items need review")]
+    [InlineData(250, "Libraries, 99+ items need review")]
+    public void ReviewPill_GivesTheRowASpokenName_WithSingularAndPluralWording(int count, string expected)
+    {
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = count }), "/settings/profiles");
+
+        Assert.Equal(expected, cut.Find("a[href='/settings/libraries']").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void ReviewPill_IsPartOfTheLibrariesRow_SoTheRowStillOpensLibraries()
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/profiles");
+
+        var link = cut.Find("a[href='/settings/libraries']");
+        Assert.NotNull(link.QuerySelector(".media-section-shell__rail-meta--notification"));
+
+        link.Click();
+
+        Assert.EndsWith("/settings/libraries", navigation.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReviewPill_FollowsTheCount_WhenTheMenuIsDrawnAgain()
+    {
+        // Settings rebuilds the menu from the shared attention state on every draw and redraws when that state changes,
+        // so the shell only has to show whatever groups it is handed.
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/profiles");
+        Assert.Equal("8", cut.Find(".media-section-shell__rail-meta--notification").TextContent.Trim());
+
+        cut.Render(parameters => parameters
+            .Add(component => component.NavigationGroups, SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 2 })));
+        Assert.Equal("2", cut.Find(".media-section-shell__rail-meta--notification").TextContent.Trim());
+
+        cut.Render(parameters => parameters
+            .Add(component => component.NavigationGroups, SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 0 })));
+        Assert.Empty(cut.FindAll(".media-section-shell__rail-meta--notification"));
+    }
+
+    [Fact]
+    public void ReviewPill_IsNotDrawnOnAPhone_BecauseNeedsReviewIsADesktopPage()
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8, IsMobile = true });
+
+        Assert.All(Flatten(groups), row => Assert.Null(row.Meta));
+        Assert.Equal("Libraries", SettingsMenuBuilder.BuildPhoneSelector(groups).SelectMany(group => group.Options).Single(option => option.Route == "/settings/libraries").Label);
     }
 
     private static SettingsMenuContext Context(bool administrator) =>

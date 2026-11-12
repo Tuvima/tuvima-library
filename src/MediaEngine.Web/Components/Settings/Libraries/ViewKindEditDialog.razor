@@ -141,7 +141,8 @@
     private string Title => L["LibrariesOverview_EditNamed", Kind.Label].Value;
     private string Lead => L["ViewKindEdit_Lead", Noun].Value;
 
-    private IReadOnlyList<ViewFolderEntry> OfKind => [.. _entries.Where(entry => ViewFolderRules.OfKind([entry.Source], Kind.Key).Count == 1)];
+    // Every folder under this row: "Photos and videos" holds the Photos and Personal videos folders together (Setup and Libraries fixes D10).
+    private IReadOnlyList<ViewFolderEntry> OfKind => [.. _entries.Where(entry => ViewFolderRules.OfRow([entry.Source], Kind.Key).Count == 1)];
     private IReadOnlyList<ViewFolderEntry> Kept => [.. OfKind.Where(entry => !_removed.Contains(entry.Source.Id))];
 
     // The names show only once the kind has two or more folders (Libraries v3 D18).
@@ -247,6 +248,8 @@
     private async Task SaveAsync()
     {
         if (_saving) return;
+        // Taking away the last folder takes the row off the list (D11), so it asks once; Keep goes back to the Review page with nothing changed.
+        if (Kept.Count == 0 && _added.Count == 0 && OfKind.Count > 0 && !await ConfirmLastFolderAsync()) return;
         _saving = true;
         _error = null;
         try
@@ -285,6 +288,10 @@
             _saving = false;
         }
     }
+
+    private async Task<bool> ConfirmLastFolderAsync() =>
+        await AppConfirmDialog.ShowAsync(DialogService, L["LibraryEditDialog_LastFolderTitle"].Value, L["LibraryEditDialog_LastFolderBody", Kind.Label].Value,
+            L["LibraryEditDialog_LastFolderRemove"].Value, L["LibraryEditDialog_Keep"].Value, primaryDestructive: true) == AppConfirmResult.Primary;
 
     // A refusal shows the Engine's own words above the footer and goes back to the form; what was already saved stays saved.
     private void Fail(string fallback)
