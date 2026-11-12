@@ -739,6 +739,31 @@ public static class StreamEndpoints
         .RequireClientScope(ClientApiScopes.PlaybackWrite)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
 
+        // Whether a lookup (the Library's own automatic one after ingestion, or one a person queued) is still waiting or running for this
+        // asset, so the Lyrics panel can say "Looking for lyrics..." instead of "No lyrics found". Same scope and asset access as the action
+        // that queues a lookup; 204 when nothing is pending.
+        group.MapGet("/{assetId:guid}/text-tracks/refresh", async (
+            Guid assetId,
+            string? kind,
+            IMediaOperationRepository operationRepo,
+            CancellationToken ct) =>
+        {
+            if (!TryParseTextTrackKind(kind, out var textTrackKind))
+            {
+                return ApiErrors.BadRequest("kind must be either 'lyrics' or 'subtitles'.");
+            }
+
+            var pending = await ReadPendingTextTrackRefreshAsync(operationRepo, assetId, textTrackKind, ct);
+            return pending is null ? Results.NoContent() : Results.Ok(pending);
+        })
+        .WithName("GetAssetPendingTextTrackRefresh")
+        .WithSummary("Read the newest unfinished lyrics or subtitle refresh of one media asset, or 204 when there is none.")
+        .Produces<RefreshTextTracksResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
         group.MapGet("/{assetId:guid}/cover-thumb", async (
             Guid assetId,
             IMediaAssetRepository assetRepo,
@@ -858,20 +883,45 @@ public static class StreamEndpoints
             return null;
         }
 
+        return ToTextTrackRefreshResponse(operation, assetId, type.Value);
+    }
+
+    /// <summary>
+    /// The newest lyrics (or subtitle) lookup of this asset that is still queued or running, or null when none is. Reads the operation queue
+    /// through the repository and answers with the same shape as the status read, so the Dashboard follows it with the same code.
+    /// </summary>
+    internal static async Task<RefreshTextTracksResponse?> ReadPendingTextTrackRefreshAsync(
+        IMediaOperationRepository operationRepo, Guid assetId, TextTrackKind kind, CancellationToken ct)
+    {
+        var operationType = kind == TextTrackKind.Lyrics ? MediaOperationType.TextTrackLyrics : MediaOperationType.TextTrackSubtitles;
+        var operation = await operationRepo.GetNewestUnfinishedByEntityAsync(assetId, operationType, ct);
+        return operation is null
+            ? null
+            : ToTextTrackRefreshResponse(operation, assetId, kind == TextTrackKind.Lyrics ? EnrichmentType.TimedLyrics : EnrichmentType.Subtitles);
+    }
+
+    // The message is the Engine's own wording: a summary the lookup stored, or fixed words. A raw error (which can carry an exception's text)
+    // is never sent to the caller.
+    private static RefreshTextTracksResponse ToTextTrackRefreshResponse(MediaOperation operation, Guid assetId, EnrichmentType type)
+    {
         var finished = operation.Status is MediaOperationStatus.Succeeded
             or MediaOperationStatus.NoResult
             or MediaOperationStatus.Blocked
             or MediaOperationStatus.FailedTerminal
-            or MediaOperationStatus.Cancelled;
+            or MediaOperationStatus.Cancelled
+            or MediaOperationStatus.MissingConfirmed
+            or MediaOperationStatus.NotApplicable
+            or MediaOperationStatus.Skipped
+            or MediaOperationStatus.DeadLettered;
         return new RefreshTextTracksResponse
         {
             operation_id = operation.Id,
             asset_id = assetId,
-            enrichment_type = type.Value.ToString(),
+            enrichment_type = type.ToString(),
             refreshed = operation.Status == MediaOperationStatus.Succeeded,
             status = operation.Status,
             message = finished
-                ? operation.ResultSummary ?? operation.LastError ?? operation.MissingReason ?? "The text-track refresh finished."
+                ? operation.ResultSummary ?? operation.MissingReason ?? "The text-track refresh finished."
                 : "The text-track refresh is still running.",
         };
     }

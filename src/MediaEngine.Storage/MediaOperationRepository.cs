@@ -158,6 +158,34 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         return Task.FromResult<IReadOnlyList<MediaOperation>>(rows.Select(Map).ToList());
     }
 
+    public Task<MediaOperation?> GetNewestUnfinishedByEntityAsync(Guid entityId, string operationType, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var row = conn.QueryFirstOrDefault<MediaOperationRow>(
+            SelectSql + """
+             WHERE entity_id = @entityId
+               AND operation_type = @operationType
+               AND status IN @unfinishedStatuses
+             ORDER BY created_at DESC
+             LIMIT 1;
+            """,
+            new
+            {
+                entityId,
+                operationType,
+                unfinishedStatuses = new[]
+                {
+                    MediaOperationStatus.Pending,
+                    MediaOperationStatus.Queued,
+                    MediaOperationStatus.Leased,
+                    MediaOperationStatus.Running,
+                    MediaOperationStatus.RetryWaiting,
+                },
+            });
+        return Task.FromResult(row is null ? null : Map(row));
+    }
+
     public Task<IReadOnlyList<MediaOperation>> GetByPluginAsync(string pluginId, int limit, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

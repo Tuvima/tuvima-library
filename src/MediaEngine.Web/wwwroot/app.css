@@ -3651,7 +3651,8 @@ input[type="reset"],
 
 /* Details overlay window (spec D1, music-player-and-listen-fixes D5): global because AppViewer renders the dialog, so the host's scoped styles cannot reach it.
    Fixed over the screen at the modal layer, above its backdrop (--tl-z-details-backdrop) and clear of the player bar: the window ends above the bar by
-   --tl-overlay-bar-inset, which app-dialog.js publishes. DetailsOverlayHost is drawn outside the shell's clipping content box (DetailsOverlayPortal). */
+   --tl-overlay-bar-inset, which app-dialog.js publishes. The layout's DetailsOverlayOutlet draws the host outside the shell's clipping content box
+   (.playback-app-frame__content, a size container), so the window is placed against the screen whatever a browser does with containment there. */
 .tl-details-overlay {
     position: fixed;
     inset: 5vh 0 auto 0;

@@ -109,12 +109,28 @@ public sealed class LrclibLyricsReplayTests
     }
 
     [Fact]
-    public async Task ASourceThatCannotBeReached_IsLoggedAsSourceUnreachable()
+    public async Task ASourceThatCannotBeReached_IsLoggedAsSourceUnreachable_AndEndsAsAProviderUnavailableFailure()
     {
         var (provider, log) = Build(new RecordingHandler(_ => throw new HttpRequestException("connection refused")));
 
-        Assert.Empty(await provider.SearchAsync(Song("Song")));
+        var failure = await Assert.ThrowsAsync<TextTrackLookupException>(() => provider.SearchAsync(Song("Song")));
 
+        Assert.Equal("ProviderUnavailable", failure.Status);
+        Assert.Contains("SourceUnreachable", Assert.Single(log.Information), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.RequestTimeout)]
+    public async Task ARequestTheSourceAnswersWithAServerOrLimitError_EndsAsAProviderUnavailableFailure(HttpStatusCode status)
+    {
+        var (provider, log) = Build(new RecordingHandler(_ => RecordingHandler.Json("{}", status)));
+
+        var failure = await Assert.ThrowsAsync<TextTrackLookupException>(() => provider.SearchAsync(Song("Song")));
+
+        Assert.Equal("ProviderUnavailable", failure.Status);
         Assert.Contains("SourceUnreachable", Assert.Single(log.Information), StringComparison.Ordinal);
     }
 
@@ -126,12 +142,25 @@ public sealed class LrclibLyricsReplayTests
             : throw new HttpRequestException("connection reset"));
         var (provider, log) = Build(handler);
 
-        Assert.Empty(await provider.SearchAsync(Song("Song")));
+        await Assert.ThrowsAsync<TextTrackLookupException>(() => provider.SearchAsync(Song("Song")));
 
         Assert.Equal(2, handler.Lines.Count);
         var line = Assert.Single(log.Information);
         Assert.Contains("SourceUnreachable", line, StringComparison.Ordinal);
         Assert.DoesNotContain("NoMatch", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AnExactLookupThatFailedInTransport_FollowedByASearchThatFoundTheSong_StillFindsTheLyrics()
+    {
+        var handler = new RecordingHandler(request => request.Uri.AbsolutePath == "/api/get"
+            ? throw new HttpRequestException("connection reset")
+            : RecordingHandler.Json(List(Entry("Song", "The Beatles", 125))));
+        var (provider, log) = Build(handler);
+
+        Assert.Single(await provider.SearchAsync(Song("Song")));
+
+        Assert.Contains("Found", Assert.Single(log.Information), StringComparison.Ordinal);
     }
 
     [Fact]

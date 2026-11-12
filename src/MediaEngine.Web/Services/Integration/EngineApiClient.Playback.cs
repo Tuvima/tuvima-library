@@ -400,6 +400,28 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<RefreshTextTracksResponse?> GetPendingTextTrackRefreshAsync(Guid assetId, string kind, CancellationToken ct = default)
+    {
+        // 204 (nothing is waiting or running for this asset) has no body, so the shared raw read answers it with an empty string.
+        var body = await GetRawTextAsync(
+            "GET /stream/{assetId}/text-tracks/refresh",
+            $"/stream/{assetId:D}/text-tracks/refresh?kind={Uri.EscapeDataString(kind)}", ct);
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<RefreshTextTracksResponse>(body, JsonSerializerOptions.Web);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "GET /stream/{AssetId}/text-tracks/refresh returned an unreadable answer", assetId);
+            return null;
+        }
+    }
+
     public async Task<RefreshTextTracksResponse?> RefreshTextTracksAsync(Guid assetId, string kind, CancellationToken ct = default)
     {
         try

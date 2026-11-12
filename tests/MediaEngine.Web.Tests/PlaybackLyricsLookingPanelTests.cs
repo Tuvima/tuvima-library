@@ -175,7 +175,9 @@ public sealed class PlaybackLyricsLookingPanelTests : AsyncBunitContext
         Assert.Contains(cut.FindAll("[data-lyrics-state=unavailable] button"), button => button.TextContent.Trim() == "Find lyrics" && button.HasAttribute("disabled"));
         Assert.DoesNotContain("No lyrics found", cut.Markup);
 
+        // Still queued or running, it keeps being checked (every 10 seconds); once it finishes the lyrics are read and shown.
         _tracks = [new() { Id = _track, Kind = "Lyrics", Provider = "lrclib", IsPreferred = true }];
+        _statuses.Clear(); _statuses.Enqueue("succeeded");
         await _wait.ReleaseNextAsync();
         await find;
         cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));

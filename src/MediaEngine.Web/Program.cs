@@ -448,6 +448,7 @@ builder.Services.AddScoped<NowPlayingLauncher>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
 builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
 builder.Services.AddScoped<DetailsOverlayState>();
+builder.Services.AddScoped<DetailsOverlayOutletState>();
 builder.Services.AddScoped<DetailPreviewState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).

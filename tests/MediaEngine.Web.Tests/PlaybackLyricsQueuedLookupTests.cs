@@ -12,7 +12,8 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackLyricsQueuedLookupTests
 {
     private readonly Guid _operation = Guid.NewGuid();
-    private int _trackReads, _queued;
+    private int _trackReads, _queued, _pendingReads;
+    private RefreshTextTracksResponse? _pending;
     private readonly List<string> _statusReads = [];
     private readonly Queue<string> _statuses = new();
     private IReadOnlyList<TextTrackDto> _tracks = [];
@@ -25,6 +26,11 @@ public sealed class PlaybackLyricsQueuedLookupTests
         {
             _queued++;
             return Task.FromResult<RefreshTextTracksResponse?>(new() { operation_id = _operation, status = "queued" });
+        });
+        stub.SetHandler(nameof(IEngineApiClient.GetPendingTextTrackRefreshAsync), _ =>
+        {
+            _pendingReads++;
+            return Task.FromResult(_pending);
         });
         stub.SetHandler(nameof(IEngineApiClient.GetTextTrackRefreshStatusAsync), args =>
         {
@@ -106,7 +112,7 @@ public sealed class PlaybackLyricsQueuedLookupTests
     }
 
     [Fact]
-    public async Task AfterThirtySecondsOfLooking_TheStateIsStillLooking_AndTheTracksAreReadOnceMoreThirtySecondsLater()
+    public async Task AfterThirtySecondsOfLooking_TheStateIsStillLooking_AndTheLookupIsCheckedEveryTenSecondsUntilItFinishes()
     {
         _statuses.Enqueue("running");
         var wait = new LyricsWaitSpy();
@@ -123,16 +129,203 @@ public sealed class PlaybackLyricsQueuedLookupTests
         Assert.Equal(16, _statusReads.Count);
         Assert.False(presenter.Refreshing);
         Assert.Equal(1, _trackReads);
-        await WaitUntilAsync(() => wait.Requested.Count == 17);
-        Assert.Equal(TimeSpan.FromSeconds(30), wait.Requested[^1]);
+
+        // It never turns into "none" while the lookup is queued or running: it keeps asking, 10 seconds apart.
+        for (var look = 17; look <= 20; look++)
+        {
+            await WaitUntilAsync(() => wait.Requested.Count == look);
+            Assert.Equal(TimeSpan.FromSeconds(10), wait.Requested[^1]);
+            await wait.ReleaseNextAsync();
+            await WaitUntilAsync(() => _statusReads.Count == look);
+            Assert.Equal(PlaybackLyricsLookupState.StillLooking, presenter.Lookup);
+            Assert.Equal(1, _trackReads);
+        }
 
         _tracks = [new() { Id = Guid.NewGuid(), Kind = "Lyrics", IsPreferred = true }];
+        _statuses.Clear(); _statuses.Enqueue("succeeded");
+        await WaitUntilAsync(() => wait.Requested.Count == 21);
         await wait.ReleaseNextAsync();
         await find;
 
         Assert.Equal(2, _trackReads);
         Assert.Equal(PlaybackLyricsLookupState.Found, presenter.Lookup);
         Assert.Equal("Found words", Assert.Single(presenter.Lines).Text);
+    }
+
+    [Fact]
+    public async Task AStillLookingLookupThatEndsWithNothing_ReadsTheTracksOnce_ThenSaysNoneFound()
+    {
+        _statuses.Enqueue("running");
+        var wait = new LyricsWaitSpy();
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        var find = presenter.RefreshAsync();
+        for (var look = 0; look < 16; look++)
+        {
+            await wait.ReleaseNextAsync();
+        }
+        await WaitUntilAsync(() => presenter.Lookup == PlaybackLyricsLookupState.StillLooking);
+
+        _statuses.Clear(); _statuses.Enqueue("no_result");
+        await WaitUntilAsync(() => wait.Requested.Count == 17);
+        await wait.ReleaseNextAsync();
+        await find;
+
+        Assert.Equal(PlaybackLyricsLookupState.NoneFound, presenter.Lookup);
+        Assert.Equal(2, _trackReads);
+    }
+
+    [Fact]
+    public async Task AStillLookingLookupThatCouldNotBeMade_EndsAsUnreachable_WithoutReadingTheTracks()
+    {
+        _statuses.Enqueue("running");
+        var wait = new LyricsWaitSpy();
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        var find = presenter.RefreshAsync();
+        for (var look = 0; look < 16; look++)
+        {
+            await wait.ReleaseNextAsync();
+        }
+        await WaitUntilAsync(() => presenter.Lookup == PlaybackLyricsLookupState.StillLooking);
+
+        _statuses.Clear(); _statuses.Enqueue("failed_retryable");
+        await WaitUntilAsync(() => wait.Requested.Count == 17);
+        await wait.ReleaseNextAsync();
+        await find;
+
+        Assert.Equal(PlaybackLyricsLookupState.Unreachable, presenter.Lookup);
+        Assert.Equal(1, _trackReads);
+    }
+
+    [Fact]
+    public async Task AfterFifteenMinutesOfLooking_ThePollingStops_AndTheStateStaysStillLookingNeverNone()
+    {
+        _statuses.Enqueue("running");
+        var wait = new LyricsWaitSpy(instant: true);
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        await presenter.RefreshAsync();
+
+        var total = wait.Requested.Aggregate(TimeSpan.Zero, (sum, span) => sum + span);
+        Assert.InRange(total, TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(15) + TimeSpan.FromSeconds(10));
+        Assert.Equal(wait.Requested.Count, _statusReads.Count);
+        Assert.Equal(PlaybackLyricsLookupState.StillLooking, presenter.Lookup);
+        Assert.False(presenter.Refreshing);
+        Assert.Equal(1, _trackReads);
+        Assert.Empty(presenter.Lines);
+    }
+
+    [Fact]
+    public async Task ASongOpenedWhileItsAutomaticLookupIsStillQueued_SaysLookingAtOnce_AndShowsTheLyricsWhenItFinishes()
+    {
+        _pending = new() { operation_id = _operation, status = "queued" };
+        _statuses.Enqueue("running"); _statuses.Enqueue("succeeded");
+        var wait = new LyricsWaitSpy();
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        Assert.Equal(PlaybackLyricsLookupState.Looking, presenter.Lookup);
+        Assert.True(presenter.Refreshing);
+        Assert.Equal(1, _pendingReads);
+        Assert.Equal(0, _queued);
+        await wait.ReleaseNextAsync();
+        await WaitUntilAsync(() => _statusReads.Count == 1);
+        Assert.Equal(PlaybackLyricsLookupState.Looking, presenter.Lookup);
+        Assert.Equal(1, _trackReads);
+
+        _tracks = [new() { Id = Guid.NewGuid(), Kind = "Lyrics", IsPreferred = true }];
+        await wait.ReleaseNextAsync();
+        await WaitUntilAsync(() => presenter.Lookup == PlaybackLyricsLookupState.Found && !presenter.Refreshing);
+
+        Assert.Equal(["running", "succeeded"], _statusReads);
+        Assert.Equal(2, _trackReads);
+        Assert.Equal(1, _pendingReads);
+        Assert.Equal("Found words", Assert.Single(presenter.Lines).Text);
+        Assert.False(presenter.Refreshing);
+    }
+
+    [Fact]
+    public async Task ASongWithNoLyricsAndNoPendingLookup_IsAskedAboutOnce_AndIsNotLooking()
+    {
+        var wait = new LyricsWaitSpy(instant: true);
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+        var sink = new Sink();
+
+        await presenter.EnsureAsync(Snapshot(), sink);
+        await presenter.RetryAsync();
+
+        Assert.Equal(1, _pendingReads);
+        Assert.Equal(PlaybackLyricsLookupState.Idle, presenter.Lookup);
+        Assert.False(presenter.Refreshing);
+        Assert.Empty(wait.Requested);
+        Assert.Empty(_statusReads);
+    }
+
+    [Fact]
+    public async Task ASongThatAlreadyHasLyrics_NeverAsksForAPendingLookup()
+    {
+        _tracks = [new() { Id = Guid.NewGuid(), Kind = "Lyrics", IsPreferred = true }];
+        _pending = new() { operation_id = _operation, status = "queued" };
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, new LyricsWaitSpy(instant: true).Wait);
+
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        Assert.Equal(0, _pendingReads);
+        Assert.Equal(PlaybackLyricsLookupState.Idle, presenter.Lookup);
+        Assert.Equal("Found words", Assert.Single(presenter.Lines).Text);
+    }
+
+    [Fact]
+    public async Task ChangingSongWhileFollowingAnAutomaticLookup_StopsFollowingIt_AndAsksAboutTheNewSongOnce()
+    {
+        _pending = new() { operation_id = _operation, status = "running" };
+        _statuses.Enqueue("running");
+        var wait = new LyricsWaitSpy();
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+        var sink = new Sink();
+        await presenter.EnsureAsync(Snapshot(), sink);
+        await WaitUntilAsync(() => wait.Requested.Count == 1);
+
+        _pending = null;
+        await presenter.EnsureAsync(Snapshot(), sink);
+        await WaitUntilAsync(() => presenter.Lookup == PlaybackLyricsLookupState.Idle && !presenter.Refreshing);
+
+        Assert.Empty(_statusReads);
+        Assert.Equal(2, _pendingReads);
+        Assert.Empty(presenter.Lines);
+    }
+
+    [Fact]
+    public async Task WhenTheSourceFailedAndTheLookupWaitsToBeTriedAgain_TheSourceIsUnreachable_NotStillLookingAndNotNone()
+    {
+        _statuses.Enqueue("running"); _statuses.Enqueue("retry_waiting");
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, new LyricsWaitSpy(instant: true).Wait);
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        await presenter.RefreshAsync();
+
+        Assert.Equal(PlaybackLyricsLookupState.Unreachable, presenter.Lookup);
+        Assert.Equal(1, _trackReads);
+    }
+
+    [Fact]
+    public async Task ASongOpenedWhileItsAutomaticLookupWaitsToBeTriedAgainAfterAFailure_SaysItCouldNotBeLookedUp_AtOnce()
+    {
+        _pending = new() { operation_id = _operation, status = "retry_waiting" };
+        var wait = new LyricsWaitSpy();
+        using var presenter = new PlaybackLyricsPresenter(Api(), null, wait.Wait);
+
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        Assert.Equal(PlaybackLyricsLookupState.Unreachable, presenter.Lookup);
+        Assert.False(presenter.Refreshing);
+        Assert.Empty(wait.Requested);
+        Assert.Empty(_statusReads);
     }
 
     [Fact]
