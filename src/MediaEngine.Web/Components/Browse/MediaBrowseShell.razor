@@ -331,11 +331,12 @@
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
                            Label="@(AlbumSelectionOn ? L["Common_Done"].Value : L["Common_Select"].Value)"
                            OnClick="ToggleAlbumSelectAsync"
+                           aria-pressed="@(AlbumSelectionOn ? "true" : "false")"
                            data-album-select />
             }
         </div>
 
-        @if (IsMusicAlbumsGrouping && !_loadFailed)
+        @if (IsAlbumSelectionList && !_loadFailed)
         {
             @* Ticked albums get the selection bar (Add to playlist, Add to collection) on a desktop or tablet, and the phone's bottom bar on a phone. They are never edited, moved, matched or deleted here. *@
             <BulkListEntry Rows="@AlbumBulkRows" MediaType="Music" OnCleared="ClearAlbumSelectionAsync" />

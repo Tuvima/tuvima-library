@@ -14,7 +14,7 @@
         <AppNativeButton Type="button" Class="song-selection-bar__done" OnClick="@(_ => OnDone.InvokeAsync())">@L["Common_Done"].Value</AppNativeButton>
     </div>
     @* Always in the page, empty until there is something to say, so a screen reader that is already watching it announces the text when it appears. *@
-    <p class="@NoticeClass" role="status" data-song-selection-notice="true">@_notice</p>
+    <p class="@NoticeClass" role="status" data-song-selection-notice="true">@(_notice ?? TooManyAlbumsNotice)</p>
     <div class="song-selection-bar__actions">
         @if (CanPlay)
         {
@@ -30,7 +30,7 @@
                 <span>@L["Common_AddToQueue"].Value</span>
             </AppNativeButton>
         }
-        <AppNativeButton Type="button" Class="song-selection-bar__action" Disabled="@(Count == 0 || _busy)" OnClick="@(_ => AddToPlaylistAsync())">
+        <AppNativeButton Type="button" Class="song-selection-bar__action" Disabled="@(Count == 0 || _busy || TooManyAlbums)" OnClick="@(_ => AddToPlaylistAsync())">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" />
             <span>@L["Common_AddToPlaylist"].Value</span>
         </AppNativeButton>
@@ -63,6 +63,11 @@
 
     /// <summary>Leave select mode: the ticks are dropped and the bar goes away.</summary>
     [Parameter] public EventCallback OnDone { get; set; }
+
+    // More albums than one Add to playlist takes: the bar says so in its own line and the button is off.
+    private bool TooManyAlbums => AlbumRows is not null && BulkEditRules.TooManyAlbums(AlbumRows);
+
+    private string? TooManyAlbumsNotice => TooManyAlbums ? L["PlaylistMembership_TooManyAlbums", BulkEditRules.MaxAlbumsPerAdd].Value : null;
 
     private string NoticeClass => _noticeSeverity switch
     {
@@ -113,7 +118,7 @@
 
     private async Task AddToPlaylistAsync()
     {
-        if (_busy || Count == 0)
+        if (_busy || Count == 0 || TooManyAlbums)
         {
             return;
         }

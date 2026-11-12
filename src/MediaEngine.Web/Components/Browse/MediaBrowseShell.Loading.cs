@@ -95,6 +95,7 @@ public partial class MediaBrowseShell
             if (loadVersion == _browseLoadVersion)
             {
                 _loading = false;
+                DropTicksOfHiddenAlbums();
             }
 
             _hasLoadedOnce = true;

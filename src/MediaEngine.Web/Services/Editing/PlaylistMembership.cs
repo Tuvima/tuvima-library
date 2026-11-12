@@ -34,43 +34,91 @@ public static class PlaylistMembership
     /// <summary>The icon a playlist made from Listen carries, as the rail's New playlist gives it.</summary>
     private static readonly string PlaylistIcon = AppMaterialIcons.Outlined.QueueMusic;
 
+    /// <summary>The songs the ticked rows stand for, and how many ticked albums could not be read (their songs are missing, not zero).</summary>
+    public sealed record SongResolution(IReadOnlyList<Guid> SongIds, int UnreadableAlbums);
+
+    /// <summary>How many album lookups run at once.</summary>
+    private const int AlbumLookupParallelism = 4;
+
     /// <summary>
     /// The songs the ticked rows stand for: a ticked song is itself; a ticked album is every song it holds in disc and track order (spec
-    /// D15). An album from the Listen Albums list is found by its name and artist, the way its own page finds it, because that list's id is
-    /// not always a collection id; an album row that carries a collection id falls back to that. Each song appears once, in the order the
-    /// rows were ticked.
+    /// D15). An album from the Listen Albums list is found by its title and artist, the way its own page finds it, because that list's id
+    /// is not a collection id; an album row from anywhere else carries a collection id and is read by it. Each song appears once, in the
+    /// order the rows were ticked. An album the Engine cannot read (or that holds no song in the library) is counted, not skipped silently.
     /// </summary>
-    public static async Task<IReadOnlyList<Guid>> ResolveSongIdsAsync(
+    public static async Task<SongResolution> ResolveAsync(
         IEngineApiClient api, IReadOnlyList<BulkEditRow> rows, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(rows);
-        var ids = new List<Guid>();
-        foreach (var row in rows)
-        {
-            if (row.Kind != DetailEntityType.MusicAlbum)
-            {
-                ids.Add(row.Id);
-                continue;
-            }
 
-            var album = string.IsNullOrWhiteSpace(row.Title)
-                ? null
-                : await api.GetSystemViewGroupDetailAsync("album", row.Title, "Music", row.Creator, ct);
-            album ??= await api.GetCollectionGroupDetailAsync(row.Id, ct);
-            if (album is not null)
+        // The albums are read a few at a time (each read can make the Engine fetch a track list from a provider), then put back in tick order.
+        using var gate = new SemaphoreSlim(AlbumLookupParallelism);
+        var lookups = rows
+            .Select((row, index) => (row, index))
+            .Where(pair => pair.row.Kind == DetailEntityType.MusicAlbum)
+            .Select(pair => ReadAlbumSongsLimitedAsync(api, pair.row, pair.index, gate, ct))
+            .ToList();
+        var albumSongs = (await Task.WhenAll(lookups)).ToDictionary(pair => pair.Index, pair => pair.Songs);
+
+        var ids = new List<Guid>();
+        for (var index = 0; index < rows.Count; index++)
+        {
+            if (rows[index].Kind == DetailEntityType.MusicAlbum)
             {
-                // Songs the library does not hold (an album's retail track list) have nothing to add.
-                ids.AddRange(album.Works
-                    .Where(work => work.IsOwned)
-                    .OrderBy(work => work.DiscNumber ?? 0)
-                    .ThenBy(work => TrackOf(work.TrackNumber, work.Ordinal))
-                    .ThenBy(work => work.Title, StringComparer.OrdinalIgnoreCase)
-                    .Select(work => work.WorkId));
+                ids.AddRange(albumSongs[index]);
+            }
+            else
+            {
+                ids.Add(rows[index].Id);
             }
         }
 
-        return [.. ids.Where(id => id != Guid.Empty).Distinct()];
+        return new SongResolution(
+            [.. ids.Where(id => id != Guid.Empty).Distinct()],
+            albumSongs.Values.Count(songs => songs.Count == 0));
+    }
+
+    /// <summary>The song ids alone, for callers that do not tell the person about unreadable albums.</summary>
+    public static async Task<IReadOnlyList<Guid>> ResolveSongIdsAsync(
+        IEngineApiClient api, IReadOnlyList<BulkEditRow> rows, CancellationToken ct = default) =>
+        (await ResolveAsync(api, rows, ct)).SongIds;
+
+    private static async Task<(int Index, IReadOnlyList<Guid> Songs)> ReadAlbumSongsLimitedAsync(
+        IEngineApiClient api, BulkEditRow row, int index, SemaphoreSlim gate, CancellationToken ct)
+    {
+        await gate.WaitAsync(ct);
+        try
+        {
+            return (index, await ReadAlbumSongsAsync(api, row, ct));
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private static async Task<IReadOnlyList<Guid>> ReadAlbumSongsAsync(IEngineApiClient api, BulkEditRow row, CancellationToken ct)
+    {
+        // A row from the Albums list is read by name only; its id is not a collection id, so the collection read is never tried with it.
+        var album = row.FromAlbumsList
+            ? string.IsNullOrWhiteSpace(row.Title) ? null : await api.GetSystemViewGroupDetailAsync("album", row.Title, "Music", row.Creator, ct)
+            : await api.GetCollectionGroupDetailAsync(row.Id, ct);
+        if (album is null)
+        {
+            return [];
+        }
+
+        // Songs the library does not hold (an album's retail track list) have nothing to add.
+        return
+        [
+            .. album.Works
+                .Where(work => work.IsOwned && work.WorkId != Guid.Empty)
+                .OrderBy(work => work.DiscNumber ?? 0)
+                .ThenBy(work => TrackOf(work.TrackNumber, work.Ordinal))
+                .ThenBy(work => work.Title, StringComparer.OrdinalIgnoreCase)
+                .Select(work => work.WorkId),
+        ];
     }
 
     /// <summary>Adds the songs to an existing playlist, skipping the ones it already holds.</summary>

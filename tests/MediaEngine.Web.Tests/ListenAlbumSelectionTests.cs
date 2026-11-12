@@ -74,6 +74,13 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
     private readonly PlaylistChoiceDialogService _dialogs = new() { Choice = new PlaylistChoice(RoadTrip, "Road trip") };
     private readonly List<Guid> _added = [];
     private readonly List<Guid> _alreadyInPlaylist = [];
+    private readonly List<(string Album, string? Artist)> _lookups = [];
+    private readonly HashSet<string> _unreadableArtists = [];
+    private List<ContentGroupDto> _albums =
+    [
+        Group(AlbumOne, "One", "Band", rootWork: AlbumOne),
+        Group(AlbumTwo, "Two", "Band", rootWork: AlbumTwo),
+    ];
     private readonly NavigationManager _nav;
     private readonly DetailsOverlayState _overlay;
 
@@ -83,21 +90,29 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
         Services.AddLogging();
         var api = EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.GetSystemViewGroupsAsync), _ => Task.FromResult(new List<ContentGroupViewModel>
-            {
-                ContentGroupViewModel.FromContract(new ContentGroupDto { CollectionId = AlbumOne, RootWorkId = AlbumOne, DisplayName = "One", Creator = "Band", PrimaryMediaType = "Music", WorkCount = 2 }),
-                ContentGroupViewModel.FromContract(new ContentGroupDto { CollectionId = AlbumTwo, RootWorkId = AlbumTwo, DisplayName = "Two", Creator = "Band", PrimaryMediaType = "Music", WorkCount = 1 }),
-            }));
+            stub.SetHandler(nameof(IEngineApiClient.GetSystemViewGroupsAsync), _ =>
+                Task.FromResult(_albums.Select(ContentGroupViewModel.FromContract).ToList()));
             stub.SetHandler(nameof(IEngineApiClient.GetSystemViewGroupDetailAsync), args =>
             {
                 var album = (string)args![1]!;
+                var artist = (string?)args[3];
+                _lookups.Add((album, artist));
+                if (_unreadableArtists.Contains(artist ?? string.Empty))
+                {
+                    return Task.FromResult<CollectionGroupDetailViewModel?>(null);
+                }
+
                 return Task.FromResult<CollectionGroupDetailViewModel?>(CollectionGroupDetailViewModel.FromContract(new CollectionGroupDetailDto
                 {
                     CollectionId = Guid.NewGuid(),
                     DisplayName = album,
-                    Works = album == "One"
-                        ? [Track(SongB, "Second", "2"), Track(SongA, "First", "1")]
-                        : [Track(SongC, "Only", "1")],
+                    Works = (album, artist) switch
+                    {
+                        ("One", _) => [Track(SongB, "Second", "2"), Track(SongA, "First", "1")],
+                        ("Same", "A") => [Track(SongA, "By A", "1")],
+                        ("Same", "B") => [Track(SongB, "By B", "1")],
+                        _ => [Track(SongC, "Only", "1")],
+                    },
                 }));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ =>
@@ -153,7 +168,7 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnATablet_TickedAlbumsOfferAddToPlaylistWithoutAnyRightToEdit()
+    public async Task OnATablet_TickedAlbumsOfferAddToPlaylistAndCollection_ButNeverEdit()
     {
         var lane = await RenderLaneAsync("tablet", "albums");
 
@@ -162,8 +177,218 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
 
         var labels = BarLabels(lane);
         Assert.Contains("Add to playlist", labels);
+        Assert.Contains("Add 1 to collection", labels);
         Assert.DoesNotContain("Edit", labels);
+    }
+
+    [Fact]
+    public async Task TwoAlbumsWithTheSameTitleByDifferentArtists_TickSeparately_AndOnlyTheTickedOnesSongsAreAdded()
+    {
+        _albums = [Group(AlbumOne, "Same", "A", rootWork: AlbumOne), Group(AlbumTwo, "Same", "B", rootWork: AlbumTwo)];
+        var lane = await RenderLaneAsync("desktop", "albums");
+        lane.Find("[data-album-select]").Click();
+
+        Tick(lane, 1);
+
+        Assert.Equal("false,true", string.Join(",", lane.FindAll(".media-tile-pick__hit button").Select(button => button.GetAttribute("aria-pressed"))));
+        Assert.Contains("1 selected", lane.Find(".tl-batch__count").TextContent);
+        PressBar(lane, "Add to playlist");
+        lane.WaitForAssertion(() => Assert.Contains("1 song added to Road trip", lane.Find("[data-bulk-selection-notice]").TextContent));
+        Assert.Equal([SongB], _added);
+        Assert.Equal(("Same", "B"), Assert.Single(_lookups));
+    }
+
+    [Fact]
+    public async Task AnAlbumTheEngineCannotRead_IsToldInThePlaylistNotice_WithWarningSeverity()
+    {
+        _unreadableArtists.Add("B");
+        var rows = new[]
+        {
+            new BulkEditRow(AlbumOne, "One", DetailEntityType.MusicAlbum, null, "Music", null, "Band", FromAlbumsList: true),
+            new BulkEditRow(AlbumTwo, "Same", DetailEntityType.MusicAlbum, null, "Music", null, "B", FromAlbumsList: true),
+        };
+
+        var notice = await PlaylistMembershipFlow.RunAsync(Services, rows, "Add to playlist");
+
+        Assert.NotNull(notice);
+        Assert.Equal("2 songs added to Road trip. 1 album could not be read.", notice.Message);
+        Assert.Equal(AppSeverity.Warning, notice.Severity);
+        Assert.Equal([SongA, SongB], _added);
+    }
+
+    [Fact]
+    public async Task AnAlbumsListRow_IsNeverReadAsACollection_WhenItsLookupFails()
+    {
+        var calls = new List<string>();
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetSystemViewGroupDetailAsync), _ => Task.FromResult<CollectionGroupDetailViewModel?>(null));
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionGroupDetailAsync), _ =>
+            {
+                calls.Add("collection");
+                return Task.FromResult<CollectionGroupDetailViewModel?>(null);
+            });
+        });
+
+        var resolved = await PlaylistMembership.ResolveAsync(
+            api, [new BulkEditRow(AlbumOne, "One", DetailEntityType.MusicAlbum, null, "Music", null, "Band", FromAlbumsList: true)]);
+
+        Assert.Equal(1, resolved.UnreadableAlbums);
+        Assert.Empty(calls);
+    }
+
+    [Fact]
+    public async Task AlbumLookupsRunAtMostFourAtATime_AndSongsComeBackInTickOrder()
+    {
+        var running = 0;
+        var peak = 0;
+        async Task<CollectionGroupDetailViewModel?> Lookup(string album)
+        {
+            var now = Interlocked.Increment(ref running);
+            InterlockedMax(ref peak, now);
+            await Task.Delay(20);
+            Interlocked.Decrement(ref running);
+            var number = int.Parse(album, System.Globalization.CultureInfo.InvariantCulture);
+            return CollectionGroupDetailViewModel.FromContract(new CollectionGroupDetailDto
+            {
+                CollectionId = Guid.NewGuid(),
+                DisplayName = album,
+                Works = [Track(new Guid(number, 0, 0, new byte[8]), "Song", "1")],
+            });
+        }
+
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetSystemViewGroupDetailAsync), args => Lookup((string)args![1]!)));
+        var rows = Enumerable.Range(1, 12)
+            .Select(number => new BulkEditRow(Guid.NewGuid(), number.ToString(System.Globalization.CultureInfo.InvariantCulture), DetailEntityType.MusicAlbum, null, "Music", null, "Band", FromAlbumsList: true))
+            .ToArray();
+
+        var resolved = await PlaylistMembership.ResolveAsync(api, rows);
+
+        Assert.True(peak is > 1 and <= 4, $"peak {peak}");
+        Assert.Equal(Enumerable.Range(1, 12).Select(number => new Guid(number, 0, 0, new byte[8])), resolved.SongIds);
+    }
+
+    [Fact]
+    public async Task MoreThanTwentyAlbums_SayPickUpToTwentyInPlace_AndAddToPlaylistIsOff()
+    {
+        _albums = [.. Enumerable.Range(1, 21).Select(number => Group(new Guid(number, 0, 0, new byte[8]), $"Album {number}", "Band", rootWork: new Guid(number, 1, 0, new byte[8])))];
+        var lane = await RenderLaneAsync("desktop", "albums");
+        lane.Find("[data-album-select]").Click();
+
+        for (var index = 0; index < 20; index++)
+        {
+            Tick(lane, index);
+        }
+
+        Assert.Empty(lane.FindAll("[data-bulk-selection-albums-full]"));
+        Assert.False(lane.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").HasAttribute("disabled"));
+
+        Tick(lane, 20);
+
+        Assert.Equal("Pick up to 20 albums at a time", lane.Find("[data-bulk-selection-albums-full]").TextContent.Trim());
+        Assert.True(lane.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").HasAttribute("disabled"));
+        Assert.Empty(_dialogs.Titles);
+    }
+
+    [Fact]
+    public async Task AnAlbumWithNoRootWork_CanGoInAPlaylist_ButNotInACollection()
+    {
+        _albums = [Group(AlbumOne, "One", "Band", rootWork: AlbumOne), Group(AlbumTwo, "Two", "Band", rootWork: null)];
+        var lane = await RenderLaneAsync("desktop", "albums");
+        lane.Find("[data-album-select]").Click();
+        Tick(lane, 0);
+        Assert.Contains("Add 1 to collection", BarLabels(lane));
+
+        Tick(lane, 1);
+
+        var labels = BarLabels(lane);
+        Assert.Contains("Add to playlist", labels);
         Assert.DoesNotContain(labels, label => label.Contains("collection", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ACollectionTakesTheAlbumsRootWork_NotItsGroupId()
+    {
+        var album = new BulkEditRow(AlbumOne, "One", DetailEntityType.MusicAlbum, null, "Music", null, "Band", FromAlbumsList: true, RootWorkId: AlbumTwo);
+
+        Assert.Equal(AlbumTwo, BulkEditRules.CollectionWorkId(album));
+        Assert.True(BulkEditRules.HasCollectionWork(album));
+        Assert.False(BulkEditRules.HasCollectionWork(album with { RootWorkId = null }));
+    }
+
+    [Fact]
+    public async Task ChangingTheGrouping_EndsSelectModeAndDropsTheAlbumTicks()
+    {
+        var lane = await StartTickingAsync();
+
+        await lane.InvokeAsync(() => Call(lane, "SwitchGroupingAsync", "artists"));
+        lane.WaitForAssertion(() => Assert.Empty(lane.FindAll(".tl-batch__bar")));
+        Assert.Empty(lane.FindAll("[data-album-select]"));
+
+        await lane.InvokeAsync(() => Call(lane, "SwitchGroupingAsync", "albums"));
+        AssertAlbumsAreUntickedAndClosed(lane);
+    }
+
+    [Fact]
+    public async Task AnAddressChangeAwayFromAlbums_AsBackAndForwardDo_EndsSelectModeAndDropsTheAlbumTicks()
+    {
+        var lane = await StartTickingAsync();
+
+        _nav.NavigateTo("/listen/music?browse=songs");
+        lane.WaitForAssertion(() => Assert.Empty(lane.FindAll(".tl-batch__bar")));
+        Assert.Empty(lane.FindAll("[data-album-select]"));
+
+        _nav.NavigateTo("/listen/music?browse=albums");
+        AssertAlbumsAreUntickedAndClosed(lane);
+    }
+
+    [Fact]
+    public async Task ChangingToTheTableLayout_EndsSelectModeAndDropsTheAlbumTicks()
+    {
+        var lane = await StartTickingAsync();
+
+        await lane.InvokeAsync(() => Call(lane, "SwitchLayoutAsync", LibraryLayoutMode.List));
+        lane.WaitForAssertion(() => Assert.Empty(lane.FindAll(".tl-batch__bar")));
+        Assert.Empty(lane.FindAll("[data-album-select]"));
+
+        await lane.InvokeAsync(() => Call(lane, "SwitchLayoutAsync", LibraryLayoutMode.Card));
+        AssertAlbumsAreUntickedAndClosed(lane);
+    }
+
+    private async Task<IRenderedComponent<MediaBrowseShell>> StartTickingAsync()
+    {
+        var lane = await RenderLaneAsync("desktop", "albums");
+        lane.Find("[data-album-select]").Click();
+        Tick(lane, 0);
+        Assert.NotEmpty(lane.FindAll(".tl-batch__bar"));
+        return lane;
+    }
+
+    // Back on the covers: the Select button is offered again, select mode is off and nothing is ticked.
+    private static void AssertAlbumsAreUntickedAndClosed(IRenderedComponent<MediaBrowseShell> lane)
+    {
+        lane.WaitForAssertion(() => Assert.NotEmpty(lane.FindAll("[data-album-select]")));
+        Assert.Equal("false", lane.Find("[data-album-select]").GetAttribute("aria-pressed"));
+        Assert.Empty(lane.FindAll(".media-tile-pick"));
+        Assert.Empty(lane.FindAll(".tl-batch__bar"));
+    }
+
+    [Fact]
+    public async Task AnAlbumThatAFilterHides_IsNoLongerTicked()
+    {
+        var lane = await RenderLaneAsync("desktop", "albums");
+        lane.Find("[data-album-select]").Click();
+        Tick(lane, 0);
+        Tick(lane, 1);
+        Assert.Contains("2 selected", lane.Find(".tl-batch__count").TextContent);
+
+        _albums = [Group(AlbumTwo, "Two", "Band", rootWork: AlbumTwo)];
+        await lane.InvokeAsync(() => Call(lane, "ReloadAsync"));
+
+        lane.WaitForAssertion(() => Assert.Contains("1 selected", lane.Find(".tl-batch__count").TextContent));
+        PressBar(lane, "Add to playlist");
+        lane.WaitForAssertion(() => Assert.Equal([SongC], _added));
     }
 
     [Fact]
@@ -200,12 +425,15 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
     public async Task Done_DropsTheTicksAndTheCoversOpenAgain()
     {
         var lane = await RenderLaneAsync("desktop", "albums");
+        Assert.Equal("false", lane.Find("[data-album-select]").GetAttribute("aria-pressed"));
         lane.Find("[data-album-select]").Click();
+        Assert.Equal("true", lane.Find("[data-album-select]").GetAttribute("aria-pressed"));
         Tick(lane, 0);
         Assert.NotEmpty(lane.FindAll(".tl-batch__bar"));
 
         lane.Find("[data-album-select]").Click();
 
+        Assert.Equal("false", lane.Find("[data-album-select]").GetAttribute("aria-pressed"));
         Assert.Empty(lane.FindAll(".tl-batch__bar"));
         Assert.Empty(lane.FindAll(".media-tile-pick"));
     }
@@ -218,6 +446,13 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
         Assert.Empty(lane.FindAll("[data-album-select]"));
         Assert.Empty(lane.FindAll(".media-tile-pick"));
         Assert.Empty(lane.FindAll(".tl-batch__bar"));
+
+        // Ticking a row (the table reports its selection to this handler, as a ctrl-click does) gives albums no bar either.
+        await lane.InvokeAsync(() => Call(lane, "OnSelectionChanged", new HashSet<Guid> { AlbumOne, AlbumTwo }));
+
+        Assert.Empty(lane.FindAll(".tl-batch__bar"));
+        Assert.Empty(lane.FindAll(".song-selection-bar"));
+        Assert.Empty(lane.FindAll("[data-album-select]"));
     }
 
     // -- Phone --------------------------------------------------------------------------------------
@@ -374,7 +609,7 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
         }));
 
         var ids = await PlaylistMembership.ResolveSongIdsAsync(
-            api, [new BulkEditRow(AlbumOne, "One", DetailEntityType.MusicAlbum, null, "Music", null, "Band")]);
+            api, [new BulkEditRow(AlbumOne, "One", DetailEntityType.MusicAlbum, null, "Music", null, "Band", FromAlbumsList: true)]);
 
         Assert.Equal(("One", "Band"), asked);
         Assert.Equal([SongA, SongB], ids);
@@ -384,6 +619,9 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
     // -- Helpers -------------------------------------------------------------------------------------
 
     private static readonly AppDialogSheetMode PhoneSheet = AppDialogSheetMode.Phone;
+
+    private static ContentGroupDto Group(Guid id, string title, string artist, Guid? rootWork) =>
+        new() { CollectionId = id, RootWorkId = rootWork, DisplayName = title, Creator = artist, PrimaryMediaType = "Music", WorkCount = 1 };
 
     private static CollectionGroupWorkDto Track(Guid id, string title, string number, int? disc = null) =>
         new() { WorkId = id, Title = title, TrackNumber = number, DiscNumber = disc };
@@ -418,6 +656,21 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
         lane.WaitForAssertion(() => Assert.False((bool)typeof(MediaBrowseShell)
             .GetField("_loading", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(lane.Instance)!));
         return lane;
+    }
+
+    // Calls one of the shell's private handlers, as the click or address change that reaches it would.
+    private static async Task Call(IRenderedComponent<MediaBrowseShell> lane, string method, params object?[] args)
+    {
+        await (Task)typeof(MediaBrowseShell).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(lane.Instance, args)!;
+        typeof(ComponentBase).GetMethod("StateHasChanged", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(lane.Instance, null);
+    }
+
+    private static void InterlockedMax(ref int target, int value)
+    {
+        int seen;
+        while (value > (seen = Volatile.Read(ref target)) && Interlocked.CompareExchange(ref target, value, seen) != seen)
+        {
+        }
     }
 
     private static void Tick(IRenderedComponent<MediaBrowseShell> lane, int index) =>
