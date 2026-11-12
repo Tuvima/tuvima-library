@@ -364,8 +364,16 @@
         var mediaType = _result.SubjectMediaType ?? string.Empty;
         var scope = _result.SubjectScopeId ?? string.Empty;
         var group = _result.SubjectTargetGroup ?? string.Empty;
-        foreach (var line in _result.Lines.Where(line => _ticked.Contains(line.EntityId) && line.Candidate is not null))
+        var seriesFirst = new List<string>();
+        foreach (var line in _result.Lines.Where(line => _ticked.Contains(line.EntityId) && line.Candidate is not null).ToList())
         {
+            // A video whose file already moves with a series change keeps that change and is left out, so nothing is dropped silently.
+            if (EditorMatchStaging.SeriesMoveInTheWay(Pending, line.EntityId, line.Placement))
+            {
+                seriesFirst.Add(line.Title);
+                continue;
+            }
+
             var candidate = line.Candidate!;
             var subject = new EditorMatchSubject(line.EntityId, mediaType, scope, group, line.Title, null, null, null,
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), []);
@@ -379,6 +387,13 @@
                 label: $"{facts.Title} ({facts.Provider})",
                 before: line.Title);
             EditorMatchStaging.StageMove(Pending, line.EntityId, line.Placement);
+            _ticked.Remove(line.EntityId);
+        }
+
+        if (seriesFirst.Count > 0)
+        {
+            _message = L["EditorGroupMatch_SeriesFirst", string.Join(", ", seriesFirst)].Value;
+            return;
         }
 
         _result = null;

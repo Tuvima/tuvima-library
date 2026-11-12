@@ -145,6 +145,9 @@ public partial interface IEngineApiClient
     Task<MediaEngine.Contracts.Items.VideoRenameResponse?> RenameVideoFilesToOrderAsync(Guid entityId, Guid parentId, CancellationToken ct = default);
     /// <summary>GET /library/items/{entityId}/video-series — whether a video stands alone or is in a series, and the series it could join.</summary>
     Task<MediaEngine.Contracts.Items.VideoSeriesStateResponse?> GetVideoSeriesAsync(Guid entityId, CancellationToken ct = default);
+
+    /// <summary>Where a video's file goes when it joins <paramref name="targetId"/>, starts the series named by <paramref name="token"/> or stands alone (universal editor v6, D24). A read; null when the Engine cannot say.</summary>
+    Task<MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementDto?> GetVideoSeriesPlacementAsync(Guid entityId, string? targetId, string? token, CancellationToken ct = default);
     /// <summary>PUT /library/items/{entityId}/video-series — put a standalone video in a series (existing, or new with a name); files never move.</summary>
     Task<bool> PromoteVideoToSeriesAsync(Guid entityId, Guid? seriesId, string? newSeriesName, CancellationToken ct = default);
     /// <summary>GET /library/items/{entityId}/video-identify — whether a video has been matched online, and whether its library allows the lookup.</summary>

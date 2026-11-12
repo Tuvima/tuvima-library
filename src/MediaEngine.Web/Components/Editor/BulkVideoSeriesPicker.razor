@@ -8,7 +8,8 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* "Put in a series" for several ticked videos (universal editor v3.1, D9): the same chooser as one video, applied to each. It only stages one
-   change per video; Review changes lists them all and flags any that cannot join. Nothing here moves a file. *@
+   change per video, and in a Managed folder the file move that goes with it (universal editor v6, D24: the same rule as one video, one move per
+   file); Review changes lists them all and flags any that cannot join. Nothing is written here. *@
 <section class="tl-bulk__group" aria-label="@BulkEditRules.PutInSeriesLabel" data-testid="bulk-video-series">
     <p class="tl-bulk__note">@L["BulkVideoSeries_Intro", Rows.Count]</p>
     @if (_loading)
@@ -31,6 +32,11 @@
         }
     }
 
+    @if (_problem is not null)
+    {
+        <p class="tl-bulk__note" role="alert" data-testid="bulk-video-series-problem">@_problem</p>
+    }
+
     <div class="tl-bulk__actions">
         <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanChange || !CanStage)" OnClick="Stage">@L["BulkVideoSeries_Stage"]</AppButton>
         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="Cancel">@L["Search_Cancel"]</AppButton>
@@ -45,6 +51,7 @@
     private string _choice = string.Empty;
     private string _name = string.Empty;
     private Guid[] _loadedFor = [];
+    private string? _problem;
 
     [Parameter, EditorRequired] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];
 
@@ -111,7 +118,52 @@
         }
 
         var target = Guid.TryParse(_choice, out var id) ? _targets.FirstOrDefault(candidate => candidate.Id == id) : null;
+        var targetId = target?.Id.ToString();
+        var token = target is null ? EditSessionVideo.NewSeriesToken(_name) : null;
+
+        // The Engine says where each file goes before anything is staged: a series change goes in only with the file move it needs, so if any
+        // video's answer is missing, refused, or in the way of a match waiting to be saved, nothing is staged and the person is told.
+        _problem = null;
+        var placements = new List<(BulkEditRow Row, EditorVideoSeriesPlacementDto? Placement)>();
+        foreach (var row in Rows)
+        {
+            EditorVideoSeriesPlacementDto? placement = null;
+            try
+            {
+                placement = await Api.GetVideoSeriesPlacementAsync(row.Id, targetId, token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Logger.LogWarning(ex, "Where the file of video {EntityId} goes with its series could not be read", row.Id);
+            }
+
+            placements.Add((row, placement));
+        }
+
+        if (placements.Any(entry => entry.Placement is null))
+        {
+            _problem = L["EditorVideoSeries_PreviewFailed"].Value;
+            return;
+        }
+
+        if (placements.FirstOrDefault(entry => entry.Placement!.Blocked && !EditorVideoSeriesStaging.MovesFile(entry.Placement)).Placement is { } refused)
+        {
+            _problem = refused.Reason ?? L["EditorVideoSeries_PreviewFailed"].Value;
+            return;
+        }
+
+        if (placements.Any(entry => EditorVideoSeriesStaging.MovesFile(entry.Placement) && Pending.FindFileMove(entry.Row.Id) is not null))
+        {
+            _problem = L["EditorVideoSeries_MatchFirst"].Value;
+            return;
+        }
+
         BulkEditStager.PutInSeries(Pending, Rows, target?.Id, target is null ? _name : null, target?.Title ?? _name.Trim());
+        foreach (var (row, placement) in placements.Where(entry => EditorVideoSeriesStaging.MovesFile(entry.Placement)))
+        {
+            Pending.SetVideoSeriesMove(row.Id, placement!.FromPath!, placement.ToPath!);
+        }
+
         await OnDone.InvokeAsync();
     }
 

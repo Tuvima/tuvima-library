@@ -313,6 +313,11 @@ public sealed partial class EngineApiClient
             new MediaEngine.Contracts.Items.VideoRenameRequest { ParentId = parentId },
             ct: ct);
 
+    public Task<MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementDto?> GetVideoSeriesPlacementAsync(Guid entityId, string? targetId, string? token, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementRequestDto, MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementDto>(
+            "Video series placement", $"/metadata/{entityId}/video-series-placement",
+            new MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementRequestDto { TargetId = targetId, Token = token }, ct: ct);
+
     public Task<MediaEngine.Contracts.Items.VideoSeriesStateResponse?> GetVideoSeriesAsync(Guid entityId, CancellationToken ct = default) =>
         GetAsync<MediaEngine.Contracts.Items.VideoSeriesStateResponse>(
             "GET /library/items/{id}/video-series", $"/library/items/{entityId}/video-series", ct: ct);

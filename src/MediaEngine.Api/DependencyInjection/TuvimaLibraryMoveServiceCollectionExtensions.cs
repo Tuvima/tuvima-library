@@ -28,6 +28,11 @@ public static class TuvimaLibraryMoveServiceCollectionExtensions
         services.AddSingleton<IEditSessionChangeHandler, ChildRematchEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, FileMoveEditSessionChangeHandler>();
 
+        // Where a video's file goes when it changes series: the series' folder in a Managed folder, nowhere else (universal editor v6, D24).
+        services.AddSingleton<MediaEngine.Api.Services.EditSession.VideoSeriesPlacementService>();
+        services.AddSingleton<MediaEngine.Api.Services.EditSession.IVideoSeriesPlacement>(
+            sp => sp.GetRequiredService<MediaEngine.Api.Services.EditSession.VideoSeriesPlacementService>());
+
         // Where applying a match would put an item and its file: a read over the same places and previews (universal editor v5, D8).
         services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchPlacementService>();
         services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchPlacement>(sp => sp.GetRequiredService<MediaEngine.Api.Services.Matching.EditorMatchPlacementService>());
