@@ -145,6 +145,8 @@
     [Parameter] public EventCallback<CollectionPreviewResult?> PreviewChanged { get; set; }
     [Parameter] public EventCallback Changed { get; set; }
     [Parameter] public string Density { get; set; } = "editor";
+    /// <summary>The media types chosen above the rules: only fields that apply to them are offered (none chosen offers every field).</summary>
+    [Parameter] public IReadOnlyList<string> MediaTypes { get; set; } = [];
     [Parameter] public Func<RuleBuilderPreviewRequest, CancellationToken, Task<CollectionPreviewResult?>>? PreviewLoader { get; set; }
 
     /// <summary>The groups layout (today's) or the plain-sentence layout: rules joined by "and" with a "but never when" list.</summary>
@@ -166,7 +168,7 @@
     private bool _initialPreviewQueued;
     private CancellationTokenSource? _previewCts;
 
-    private IReadOnlyList<RuleFieldDefinition> Fields => Catalog.Fields.Where(IsCapabilityEnabled).ToList();
+    private IReadOnlyList<RuleFieldDefinition> Fields => Catalog.Fields.Where(IsCapabilityEnabled).Where(candidate => candidate.AppliesToAny(MediaTypes)).ToList();
     private List<CollectionRulePredicateViewModel> CompleteConditions => Definition.AllConditions.Where(IsComplete).ToList();
     private IReadOnlyList<RuleFieldDefinition> PickerFields => Fields
         .Where(item => _pickerTarget != ExceptionTarget || CollectionRuleSentence.CanBeException(item))
@@ -599,6 +601,7 @@
             <CollectionRuleValuePicker Field="@condition.Field"
                                        EntityField="@field.ValueProvider.ResolvesEntities"
                                        OptionGroup="@field.ValueProvider.OptionGroup"
+                                       MediaTypes="@MediaTypes"
                                        SelectedOptions="@SelectedOptions(condition, field)"
                                        SelectedOptionsChanged="@(options => OnOptionsChangedAsync(condition, options, negated))"
                                        SearchPlaceholder="@field.ValueProvider.SearchPlaceholder" />

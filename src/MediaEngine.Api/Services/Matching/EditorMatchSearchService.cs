@@ -30,6 +30,9 @@ public sealed class EditorMatchSearchService(
     /// <summary>The sentence shown for an item no provider matches.</summary>
     public const string NoProviderText = "No provider matches this kind of item. The details you enter stand on their own.";
 
+    /// <summary>The sentence shown when the only thing typed is an ISBN that is not 10 or 13 digits.</summary>
+    public const string InvalidIsbnText = "That does not look like an ISBN. An ISBN has 10 or 13 digits.";
+
     private const int MaxCandidates = 10;
 
     /// <summary>
@@ -167,9 +170,25 @@ public sealed class EditorMatchSearchService(
             return await SearchVideoAsync(entityId, provider, fields, read, ct).ConfigureAwait(false);
         }
 
+        // A typed ISBN is cleaned first (dashes and spaces taken out), so the provider and the verdict both see the bare digits.
+        var isbnTyped = fields.TryGetValue(EditorMatchFieldIds.Isbn, out var typedIsbn);
+        var isbn = isbnTyped ? NormaliseTypedIsbn(typedIsbn!) : null;
+        if (isbn is not null)
+        {
+            fields[EditorMatchFieldIds.Isbn] = isbn;
+        }
+
         var lookup = LookupFor(plan, provider, fields);
         if (!HasSearchWords(fields, lookup))
         {
+            // An ISBN by itself is a search (D11): looked up where the provider can, otherwise a plain message.
+            if (isbnTyped)
+            {
+                return Empty(entityId, provider.Name, read, isbn is null
+                    ? InvalidIsbnText
+                    : $"{provider.DisplayName} cannot search by ISBN. Add a title.");
+            }
+
             return Empty(entityId, provider.Name, read, "Enter something to search for.");
         }
 
@@ -360,6 +379,15 @@ public sealed class EditorMatchSearchService(
         };
     }
 
+    /// <summary>
+    /// A typed ISBN as bare digits: spaces and dashes taken out, an X check character kept for a 10 digit ISBN. Null when it is not
+    /// 10 or 13 digits, or holds anything but digits, spaces, dashes and X.
+    /// </summary>
+    internal static string? NormaliseTypedIsbn(string typed) =>
+        typed.All(ch => char.IsAsciiDigit(ch) || ch is ' ' or '-' or 'X' or 'x')
+            ? EditorMatchLocalEvidenceReader.IsbnOf(typed)
+            : null;
+
     private static Dictionary<string, string> Clean(IReadOnlyDictionary<string, string>? fields) =>
         (fields ?? new Dictionary<string, string>())
             .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
@@ -385,6 +413,12 @@ public sealed class EditorMatchSearchService(
         foreach (var (box, kindOfId) in new[] { (EditorMatchFieldIds.Isbn, EditorMatchIdentifierKinds.Isbn), (EditorMatchFieldIds.ProviderId, (string?)null) })
         {
             if (!fields.TryGetValue(box, out var typed) || string.IsNullOrWhiteSpace(typed))
+            {
+                continue;
+            }
+
+            // Something typed into the ISBN box that is not an ISBN is never sent to a lookup; it stays evidence only.
+            if (kindOfId == EditorMatchIdentifierKinds.Isbn && NormaliseTypedIsbn(typed) is null)
             {
                 continue;
             }

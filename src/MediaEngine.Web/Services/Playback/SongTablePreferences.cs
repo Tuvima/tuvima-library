@@ -97,6 +97,20 @@ public static class SongTablePreferences
         return choice with { Widths = widths };
     }
 
+    /// <summary>The choice after the person double-clicks a column's handle: that one column's saved width is forgotten so its default applies; others are kept.</summary>
+    public static SongTableChoice WithDefaultWidth(SongTableChoice choice, SongColumn column)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        if (!choice.Widths.ContainsKey(column))
+        {
+            return choice;
+        }
+
+        var widths = new Dictionary<SongColumn, int>(choice.Widths);
+        widths.Remove(column);
+        return choice with { Widths = widths };
+    }
+
     /// <summary>Writes a choice as text: <c>show=artist,genre;hide=plays;width=song:400,artist:200</c>.</summary>
     public static string Encode(SongTableChoice choice)
     {
