@@ -29,8 +29,22 @@
                  OnOpenRow="OpenHighlightedAsync"
                  InsideContent="@(InSubFolder || IsReadOnlyFolder ? PathAtTop : null)"
                  ShowState="@(State.TreeError is not null || State.FolderEntries.Count == 0)">
-    <Sidebar><EditorFileBrowserSidebar State="State" /></Sidebar>
+    <Sidebar>
+        @if (!Phone)
+        {
+            <EditorFileBrowserSidebar State="State" />
+        }
+    </Sidebar>
     <TopContent>
+        @if (Phone)
+        {
+            @* The left list is not drawn on a phone, so the way back to the supporting files is a button here. *@
+            <div class="tl-fbfolders__back">
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" Label="@L["EditorBrowser_BackToFiles"].Value"
+                           data-testid="file-browser-back-to-files" OnClick="@(() => State.ShowFilesAsync())" />
+            </div>
+        }
+
         @if (Subject is not null)
         {
             @* A video chooses its series here (it used to sit under Match): the panel shows itself only for a video. *@
@@ -41,7 +55,7 @@
         {
             <section class="tl-fbfolders__order" aria-label="@L["EditorBrowser_VideoOrder"].Value">
                 <h4 class="tl-fbfolders__heading">@L["EditorBrowser_VideoOrder"]</h4>
-                <EditorVideoOrderList EntityId="State.TitleId" SeriesTitle="@State.TitleName" Session="Session" Family="Family" CanEdit="@Editable" Compact="true" />
+                <EditorVideoOrderList EntityId="State.TitleId" SeriesTitle="@State.TitleName" Session="Session" Family="Family" CanEdit="@Editable" Compact="true" Phone="Phone" />
             </section>
         }
     </TopContent>
@@ -76,7 +90,7 @@
                 </AppBrowserFolderRow>
                 @if (_sorting == entry.Path && entry.ItemId is { } itemId)
                 {
-                    <AppBrowserRowDetail Span="3">
+                    <AppBrowserRowDetail Span="3" FocusOnOpen="Phone">
                         <EditorFileSortPanel Subject="@SubjectFor(itemId, entry.Name)" Session="Session" CanEdit="@Editable" />
                     </AppBrowserRowDetail>
                 }
@@ -129,6 +143,9 @@
 
     /// <summary>True for a Videos series, where the order of the videos is edited above the tree.</summary>
     [Parameter] public bool IsVideoSeries { get; set; }
+
+    /// <summary>The phone arrangement: no left list (the way back to the supporting files is a button), and each file's actions sit under its name.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>False outside a desktop editing session: the answers and the order are shown but not changeable.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;

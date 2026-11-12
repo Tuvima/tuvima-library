@@ -35,6 +35,10 @@
     border-color: var(--tl-border-strong);
 }
 
+.tl-bulk__retry {
+    display: flex;
+}
+
 .tl-bulk__cover-face {
     display: block;
     width: 72px;

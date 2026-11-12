@@ -10,15 +10,18 @@
    shared browser frame's sidebar slot (D32) with the frame's own rows. *@
 @if (State.View == EditorBrowserView.Files)
 {
-    <AppBrowserSideSection Heading="@L["EditorBrowser_Where"].Value">
-        @foreach (var option in PlaceOptions)
-        {
-            <AppBrowserSideItem Label="@option.Label" Detail="@option.FileCount.ToString()" Selected="@(State.Where == option.Key)" CheckWhenSelected="true"
-                                data-where="@option.Key" OnClick="@(() => State.SetWhereAsync(option.Key))" />
-        }
-    </AppBrowserSideSection>
+    @if (!OmitWhere)
+    {
+        <AppBrowserSideSection Heading="@L["EditorBrowser_Where"].Value">
+            @foreach (var option in PlaceOptions)
+            {
+                <AppBrowserSideItem Label="@option.Label" Detail="@option.FileCount.ToString()" Selected="@(State.Where == option.Key)" CheckWhenSelected="true"
+                                    data-where="@option.Key" OnClick="@(() => State.SetWhereAsync(option.Key))" />
+            }
+        </AppBrowserSideSection>
+    }
 
-    <AppBrowserSideSection Heading="@L["EditorBrowser_Groups"].Value" RuleAbove="true">
+    <AppBrowserSideSection Heading="@L["EditorBrowser_Groups"].Value" RuleAbove="@(!OmitWhere)">
         <AppBrowserSideItem Label="@L["EditorBrowser_AllGroups"].Value" Selected="@(State.Group == SupportingFileListDefaults.GroupAll)"
                             data-group="all" OnClick="@(() => State.SetGroupAsync(SupportingFileListDefaults.GroupAll))" />
         @foreach (var group in State.List?.Groups ?? [])
@@ -53,6 +56,9 @@ else
 
     /// <summary>The read-only browser has no Folders and files view, so no switch to it.</summary>
     [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>The phone's Filters sheet has the Where choice as a dropdown of its own, so the list leaves its Where section out.</summary>
+    [Parameter] public bool OmitWhere { get; set; }
 
     // The title's own level and the seasons, sections and albums with files; single episodes and lessons are in the toolbar's dropdown only.
     private IEnumerable<SupportingFileWhereOptionDto> PlaceOptions =>

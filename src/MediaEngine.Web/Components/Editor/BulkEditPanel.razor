@@ -15,7 +15,7 @@
    a field the items disagree on says "Mixed, leave unchanged" and only fields that are changed are staged, one entry per item and field.
    Music rows also get Renumber sequentially and Change album; "Move to album/season" and "Match" show their own step. Everything here
    stages into the page's pending list; the one Save changes (and its check) does the saving. *@
-<div class="tl-editor-details tl-bulk" data-panel="@PanelName">
+<div class="@(IsPhone ? "tl-editor-details tl-bulk tl-bulk--phone" : "tl-editor-details tl-bulk")" data-panel="@PanelName">
     @if (Selection.Count == 0)
     {
         <p class="tl-bulk__note">@L["BulkEditPanel_TickSomeRowsToEdit"]</p>
@@ -85,7 +85,11 @@
         }
         else if (!string.IsNullOrWhiteSpace(_fields.Error))
         {
-            <AppAlert Severity="AppSeverity.Error" Dense="true">@_fields.Error</AppAlert>
+            @* The plain error line and Try again; nothing already staged is touched (a retry only reads the fields again). *@
+            <AppAlert Severity="AppSeverity.Error" Dense="true" data-testid="bulk-fields-failed">@_fields.Error</AppAlert>
+            <div class="tl-bulk__retry">
+                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="RetryFieldsAsync" data-testid="bulk-fields-retry" />
+            </div>
         }
         else
         {
@@ -169,6 +173,11 @@
 
     /// <summary>False shows the fields read-only (a library or person that cannot edit); the device rule is checked as well.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>The editor window's layout; a phone window gets 44 px controls and shows lock reasons as text instead of a tooltip.</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
 
     private bool CanChange => CanEdit && EditorDeviceRule.CanEditItems(Device) && !_fields.Forbidden;
 
@@ -301,6 +310,15 @@
         StateHasChanged();
     });
 
+    // Try again after the fields could not be read: reads only the items that failed, so nothing staged and nothing already read is lost.
+    private async Task RetryFieldsAsync()
+    {
+        if (Selection.Count > 0)
+        {
+            await _fields.LoadAsync(Selection.Ids.ToList());
+        }
+    }
+
     private void OnPendingChanged() => _ = InvokeAsync(StateHasChanged);
 
     private void OnFieldsChanged() => _ = InvokeAsync(StateHasChanged);
@@ -347,7 +365,7 @@
                                                ButtonStyle="AppButtonStyle.Text"
                                                Class="tl-editor-field__lock-toggle"
                                                Disabled="@(!CanChange)"
-                                               Tooltip="@lockText"
+                                               Tooltip="@(IsPhone ? null : lockText)"
                                                AriaLabel="@lockText"
                                                OnClick="@(() => ToggleLock(field, locked))" />
                                 <span>@(locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
@@ -478,13 +496,27 @@
         <div class="tl-editor-field tl-editor-field--locked" data-field-key="@shown.Key">
             <div class="tl-editor-field__label">
                 <span>@shown.Label</span>
-                <AppTooltip Text="@why">
-                    <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{shown.Label} is locked. {why}")">
+                @if (IsPhone)
+                {
+                    @* A touch screen has no hover: the lock is a plain icon and the reason is written under the value. *@
+                    <span class="tl-editor-field__lock" role="img" aria-label="@($"{shown.Label} is locked")">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" />
                     </span>
-                </AppTooltip>
+                }
+                else
+                {
+                    <AppTooltip Text="@why">
+                        <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{shown.Label} is locked. {why}")">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" />
+                        </span>
+                    </AppTooltip>
+                }
             </div>
             <div class="tl-editor-field__value">@FactText(shown)</div>
+            @if (IsPhone)
+            {
+                <span class="tl-editor-field__note" data-testid="bulk-fact-reason">@why</span>
+            }
         </div>
     };
 

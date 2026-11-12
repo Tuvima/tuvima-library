@@ -11,7 +11,7 @@
    Managed folder; a Read-only folder never moves a file (D30). *@
 @if (State.Ticked.Count > 0)
 {
-    <div class="tl-fbbulk" role="group" aria-label="@L["EditorBrowser_BulkActions"].Value" data-testid="file-browser-bulk">
+    <div class="@(Phone ? "tl-fbbulk tl-fbbulk--phone" : "tl-fbbulk")" role="group" aria-label="@L["EditorBrowser_BulkActions"].Value" data-testid="file-browser-bulk">
         <b class="tl-fbbulk__count">@string.Format(L["EditorBrowser_Selected"].Value, State.Ticked.Count)</b>
         @if (!CanEdit)
         {
@@ -92,6 +92,9 @@
 
     /// <summary>False outside a desktop editing session: every action is disabled and a line says why.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>The phone arrangement: the bar sits at the bottom of the list with the count and Clear on one line and the actions two to a line, each a full 44 px button.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>Delete was pressed; the dialog asks once and deletes.</summary>
     [Parameter] public EventCallback OnDelete { get; set; }
