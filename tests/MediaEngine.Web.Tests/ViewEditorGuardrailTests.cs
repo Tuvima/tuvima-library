@@ -80,6 +80,17 @@ public sealed class ViewEditorGuardrailTests
     }
 
     [Fact]
+    public void EveryViewSurfaceThatAsksThePolicyPassesTheDeviceRule()
+    {
+        // Move to Trash is offered only where EditorDeviceRule.CanEditItems is true (never a TV). The policy field has no default, so a caller cannot forget it;
+        // this checks the value each caller passes. The Trash handlers' refusal on a TV is covered at runtime in ViewEmptyTrashTests (ViewPage, People, Places, Gallery, Documents).
+        foreach (var file in new[] { "ViewPage", "ViewPeoplePage", "ViewImmersiveViewer" })
+        {
+            Assert.Contains("DeviceMayEditItems: EditorHost.CanEdit", Web($"Components/Pages/{file}.razor"), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void ThePhotosAndDocumentsScreensSpeakThroughTheRibbonNotAToast()
     {
         // Every View screen, panel and setting speaks through the ribbon (spec view-section WP2), not only the four photo pages.

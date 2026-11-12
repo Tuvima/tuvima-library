@@ -401,6 +401,7 @@ else
     private async Task ArchiveSelectionAsync() { if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService, _selected.Count)) return; await MutateSelectionAsync(ApiClient.ArchiveViewItemAsync, "Archived selected items."); }
     private async Task TrashSelectionAsync()
     {
+        if (TryRefuseTrash()) return;
         // Items in a read-only folder never go to Trash (the Engine refuses them too); the others do, and the note says how many stayed.
         var readOnly = _selected.Where(IsKnownReadOnly).ToHashSet();
         var note = EmptyTrashText.ReadOnlyNote(readOnly.Count);
@@ -444,7 +445,7 @@ else
         var actions = ViewActionPolicy.For(new ViewActionContext(
             ViewActionPolicy.OwnershipOf(scopeKind, item.AddedByProfileId, _profileId),
             EditorHost.CanEdit, item.FileMissing, item.CanTrash,
-            item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden));
+            item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden, DeviceMayEditItems: EditorHost.CanEdit));
         // The Trash list only restores; Archive's own list can restore too.
         return _filter == "trash" ? actions & (ViewActions.Download | ViewActions.Restore) : actions;
     }
@@ -490,8 +491,16 @@ else
         var closed = await EditorHost.WhenClosedAsync();
         if (closed.Changed) { ClearSelection(); await LoadAsync(preserveSelection: false); }
     }
+    // Move to Trash is offered only where the device may edit items (never a TV); every Trash handler asks here first, so hiding the button is never the only protection.
+    private bool TryRefuseTrash()
+    {
+        if (!EditorDeviceRule.TryRefuseItems(DeviceContext)) return false;
+        Ribbon.Add(EditorDeviceRule.ItemMessage, AppSeverity.Warning);
+        return true;
+    }
     private async Task TrashItemAsync(LocalAssetDto item)
     {
+        if (TryRefuseTrash() || !item.CanTrash) return;
         if (!await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
         if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Ribbon.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
         else Ribbon.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
@@ -526,7 +535,7 @@ else
     private async Task ArchiveActiveAsync() { if (_activeItem is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
     private async Task HideActiveAsync() { if (_activeItem is not null && await ApiClient.SetViewItemHiddenAsync(_activeItem.Id, true)) { Ribbon.Add(L["ViewPage_ItemHidden"].Value, AppSeverity.Success); await RemoveActiveAsync(); } else Ribbon.Add(L["ViewPage_HideFailed"].Value, AppSeverity.Error); }
     private async Task RestoreActiveAsync() { if (_activeItem is not null && await ApiClient.RestoreViewItemAsync(_activeItem.Id)) { Workspace.ClearTrashFailures([_activeItem.Id]); _trashVersion++; await RemoveActiveAsync(); } }
-    private async Task TrashActiveAsync() { if (_activeItem is { CanTrash: true } && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
+    private async Task TrashActiveAsync() { if (TryRefuseTrash()) return; if (_activeItem is { CanTrash: true } && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
     private async Task RemoveActiveAsync() { _activeItem = null; await LoadAsync(); }
     private void Replace(LocalAssetDto updated) { _activeItem = updated; if (_page is not null) _page = _page with { Items = _page.Items.Select(i => i.Id == updated.Id ? updated : i).ToList() }; }
     private string AssetUrl(LocalAssetDto item, ViewMediaResourceKind kind, ViewMediaResourceRole role = ViewMediaResourceRole.Primary)

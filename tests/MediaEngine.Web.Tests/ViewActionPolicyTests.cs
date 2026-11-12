@@ -6,7 +6,7 @@ namespace MediaEngine.Web.Tests;
 public sealed class ViewActionPolicyTests
 {
     private static ViewActionContext Desktop(ViewItemOwnership ownership) =>
-        new(ownership, CanEdit: true, FileMissing: false, CanTrash: true, IsArchived: false, IsTrashed: false, IsHidden: false);
+        new(ownership, CanEdit: true, FileMissing: false, CanTrash: true, IsArchived: false, IsTrashed: false, IsHidden: false, DeviceMayEditItems: true);
 
     [Fact]
     public void OwnPhoto_OnDesktop_OffersEverything()
@@ -53,6 +53,24 @@ public sealed class ViewActionPolicyTests
 
         Assert.False(actions.HasFlag(ViewActions.Edit));
         Assert.True(actions.HasFlag(ViewActions.Trash));
+    }
+
+    [Fact]
+    public void OnADeviceThatMayNotEditItems_ATv_NeverOffersTrash_ButKeepsTheOtherActions()
+    {
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { CanEdit = false, DeviceMayEditItems = false });
+
+        Assert.False(actions.HasFlag(ViewActions.Trash));
+        Assert.True(actions.HasFlag(ViewActions.Archive));
+        Assert.True(actions.HasFlag(ViewActions.Favorite));
+    }
+
+    [Fact]
+    public void TrashedPhoto_OnATv_StillOffersRestore()
+    {
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsTrashed = true, DeviceMayEditItems = false });
+
+        Assert.True(actions.HasFlag(ViewActions.Restore));
     }
 
     [Fact]
