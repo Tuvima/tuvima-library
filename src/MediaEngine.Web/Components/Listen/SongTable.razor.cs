@@ -57,7 +57,9 @@ public partial class SongTable
     private DotNetObjectReference<SongTable>? _self;
     private string? _wiredRootId;
 
-    private SongRow? _draggingOut;
+    private IReadOnlyList<SongRow>? _draggingOut;
+    private AppSeverity _noticeSeverity = AppSeverity.Warning;
+    private SongDragDropService? _dropService;
     private string? _dragKey;
     private string? _focusRowKey;
     private string? _dropBeforeKey;
@@ -171,12 +173,13 @@ public partial class SongTable
     [Parameter] public EventCallback<SongReorderRequest> OnReorder { get; set; }
 
     /// <summary>
-    /// A song row is being dragged out of the table (for example onto a playlist in the side rail). Outside a playlist, setting this makes
-    /// owned rows draggable on a pointer device; a playlist's rows drag to reorder instead.
+    /// Songs are being dragged out of the table: the dragged row, or every ticked row (in list order) when the dragged row is ticked. The
+    /// table itself carries them to a playlist (<see cref="SongDragDropService"/>); this lets a host also use them, for example to drop them
+    /// on the queue. A playlist's own rows still drag to reorder inside the table.
     /// </summary>
-    [Parameter] public EventCallback<SongRow> OnDragOutStarted { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<SongRow>> OnDragOutStarted { get; set; }
 
-    [Parameter] public EventCallback<SongRow> OnDragOutEnded { get; set; }
+    [Parameter] public EventCallback OnDragOutEnded { get; set; }
 
     /// <summary>
     /// On a phone, group the list under letter headings and show the A to Z jump strip while it is sorted by Song or Artist (the phone
@@ -208,8 +211,12 @@ public partial class SongTable
     // Drag is a mouse affordance; touch screens and phones move rows from the "..." menu or the keyboard.
     private bool CanDrag => ReorderEnabled && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
 
-    // Dragging a song out to somewhere else (a playlist in the rail) is also a mouse affordance.
-    private bool CanDragOut => Place != SongTablePlace.Playlist && OnDragOutStarted.HasDelegate && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
+    // Dragging songs out to somewhere else (a playlist in the rail or a playlist tile) is also a mouse affordance. A playlist's rows reorder
+    // inside the table and are carried out when the drag leaves it: a drop on a row or the end zone reorders, a drop on a playlist adds.
+    private bool CanDragOut => (OnDragOutStarted.HasDelegate || _dropService is not null) && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
+
+    // "3 songs" for the drag picture when a ticked row carries more than one song; the browser script reads it from the table.
+    private string? DragCountLabel => CanDragOut && TickedPlayable.Count > 1 ? L["SongTable_DragCount", TickedPlayable.Count].Value : null;
 
     private bool LettersShown => PhoneLetterIndex && IsPhoneList && SongTableSort.ShowsLetters(Place, _sort);
 
@@ -225,6 +232,12 @@ public partial class SongTable
     protected override void OnInitialized()
     {
         DeviceContext.OnChanged += DeviceChanged;
+        _dropService = Services.GetService<SongDragDropService>();
+        if (_dropService is not null)
+        {
+            _dropService.NoticeRaised += OnDropNotice;
+        }
+
         _placeShown = Place;
         _sort = SongTableSort.DefaultFor(Place);
     }
@@ -257,6 +270,7 @@ public partial class SongTable
         {
             _hostNotice = Notice;
             _notice = Notice;
+            _noticeSeverity = AppSeverity.Warning;
         }
 
         if (!ReferenceEquals(Undo, _hostUndo))
@@ -299,6 +313,12 @@ public partial class SongTable
     public async ValueTask DisposeAsync()
     {
         DeviceContext.OnChanged -= DeviceChanged;
+        if (_dropService is not null)
+        {
+            _dropService.NoticeRaised -= OnDropNotice;
+            _dropService.End(this);
+        }
+
         await UnwireResizeAsync();
         if (_resizeModule is not null)
         {
@@ -311,6 +331,19 @@ public partial class SongTable
     }
 
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // What a drop of this table's songs said ("3 songs added to Road trip"): shown in place above the table, like the selection bar's sentence.
+    private void OnDropNotice(SongDropNotice drop)
+    {
+        if (!ReferenceEquals(drop.Owner, this))
+        {
+            return;
+        }
+
+        _notice = drop.Notice.Message;
+        _noticeSeverity = drop.Notice.Severity;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     // ---- Rows, sort and layout ---------------------------------------------------------------------------------
 
@@ -848,6 +881,7 @@ public partial class SongTable
     private Task ShowNotice(string message)
     {
         _notice = message;
+        _noticeSeverity = AppSeverity.Warning;
         return Task.CompletedTask;
     }
 
@@ -1036,10 +1070,14 @@ public partial class SongTable
             _dropBeforeKey = null;
             _dropAtEnd = false;
         }
-        else if (CanDragOut && row.IsOwned)
+
+        if (CanDragOut && row.IsOwned)
         {
-            _draggingOut = row;
-            await OnDragOutStarted.InvokeAsync(row);
+            // A ticked song carries every ticked song, in the order the list shows them; an unticked song carries just itself.
+            IReadOnlyList<SongRow> carried = _selected.Contains(row.Id) ? TickedPlayable : [row];
+            _draggingOut = carried;
+            _dropService?.Begin(this, [.. carried.Select(song => song.WorkId).OfType<Guid>()]);
+            await OnDragOutStarted.InvokeAsync(carried);
         }
     }
 
@@ -1076,10 +1114,11 @@ public partial class SongTable
     private async Task DragEndAsync()
     {
         DragEnd();
-        if (_draggingOut is { } row)
+        if (_draggingOut is not null)
         {
             _draggingOut = null;
-            await OnDragOutEnded.InvokeAsync(row);
+            _dropService?.End(this);
+            await OnDragOutEnded.InvokeAsync();
         }
     }
 

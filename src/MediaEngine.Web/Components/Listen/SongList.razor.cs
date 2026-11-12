@@ -85,7 +85,8 @@ public partial class SongList
     /// <summary>Asks the host to reload its songs after the bulk panel saved changes; the table keeps its sort and selection.</summary>
     [Parameter] public Func<Task>? OnTracksChanged { get; set; }
 
-    [Parameter] public Func<Guid, Task>? OnDragStarted { get; set; }
+    /// <summary>Songs are being dragged out: the dragged song, or every ticked song (in list order) when a ticked one is dragged.</summary>
+    [Parameter] public Func<IReadOnlyList<Guid>, Task>? OnDragStarted { get; set; }
 
     [Parameter] public Func<Task>? OnDragEnded { get; set; }
 
@@ -98,13 +99,13 @@ public partial class SongList
         ? default
         : EventCallback.Factory.Create<SongRow>(this, OpenAlbumAsync);
 
-    private EventCallback<SongRow> DragStartedCallback => OnDragStarted is null
+    private EventCallback<IReadOnlyList<SongRow>> DragStartedCallback => OnDragStarted is null
         ? default
-        : EventCallback.Factory.Create<SongRow>(this, StartDragAsync);
+        : EventCallback.Factory.Create<IReadOnlyList<SongRow>>(this, StartDragAsync);
 
-    private EventCallback<SongRow> DragEndedCallback => OnDragEnded is null
+    private EventCallback DragEndedCallback => OnDragEnded is null
         ? default
-        : EventCallback.Factory.Create<SongRow>(this, EndDragAsync);
+        : EventCallback.Factory.Create(this, EndDragAsync);
 
     protected override void OnInitialized()
     {
@@ -365,7 +366,10 @@ public partial class SongList
 
     private Task OpenAlbumAsync(SongRow row) => WorkFor(row) is { } work && OnAlbumRequested is not null ? OnAlbumRequested(work) : Task.CompletedTask;
 
-    private Task StartDragAsync(SongRow row) => OnDragStarted is not null && Guid.TryParse(row.Id, out var id) ? OnDragStarted(id) : Task.CompletedTask;
+    private Task StartDragAsync(IReadOnlyList<SongRow> rows) =>
+        OnDragStarted is null
+            ? Task.CompletedTask
+            : OnDragStarted([.. rows.Select(row => Guid.TryParse(row.Id, out var id) ? id : Guid.Empty).Where(id => id != Guid.Empty)]);
 
-    private Task EndDragAsync(SongRow row) => OnDragEnded is not null ? OnDragEnded() : Task.CompletedTask;
+    private Task EndDragAsync() => OnDragEnded is not null ? OnDragEnded() : Task.CompletedTask;
 }

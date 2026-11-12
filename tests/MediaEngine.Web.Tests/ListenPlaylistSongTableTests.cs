@@ -186,20 +186,21 @@ public sealed class ListenPlaylistSongTableTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task DraggingOutIsOffInAPlaylistBecauseDragIsForReordering()
+    public async Task AReadOnlyPlaylistCanStillCarryASongOutButHasNoReorderZone()
     {
         await UseDesktopAsync();
         var rows = PlaylistRows();
-        var dragOut = 0;
+        var carried = new List<IReadOnlyList<SongRow>>();
 
         var cut = Render<SongTable>(parameters => parameters
             .Add(table => table.Place, SongTablePlace.Playlist)
             .Add(table => table.Rows, rows)
-            .Add(table => table.OnDragOutStarted, EventCallback.Factory.Create<SongRow>(this, _ => dragOut++)));
+            .Add(table => table.OnDragOutStarted, EventCallback.Factory.Create<IReadOnlyList<SongRow>>(this, carried.Add)));
 
-        Assert.Empty(cut.FindAll("[draggable]"));
+        Assert.Equal(ItemCount, cut.FindAll("[draggable]").Count);
+        Assert.Empty(cut.FindAll(".song-table__end-zone"));
         RowElement(cut, rows[0]).DragStart();
-        Assert.Equal(0, dragOut);
+        Assert.Equal([rows[0]], Assert.Single(carried));
     }
 
     [Theory]

@@ -91,6 +91,7 @@ public sealed class ListenFavoritesPlaylistTests : AsyncBunitContext
         Services.AddScoped<UIOrchestratorService>();
         Services.AddScoped<CollectionEditorLauncherService>();
         Services.AddScoped<ListenAudioDragService>();
+        Services.AddScoped<SongDragDropService>();
         Services.AddSingleton(new SavedItemService(api));
         Services.AddSingleton(new MediaReactionService(api));
         Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new DefaultPreferences());

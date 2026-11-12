@@ -67,6 +67,7 @@
         {
             <section class="media-section-shell__rail-group @(IsFlatTree ? "is-flat" : null)" aria-labelledby="@GroupId(group)">
                 <div class="media-section-shell__rail-heading"
+                     data-song-drop="@(group.CreateOptions?.ManualDropTarget is NewPlaylistNavigationDropTarget ? "new-playlist" : null)"
                      @ondragover:preventDefault="@(group.CreateOptions?.ManualDropTarget is not null)"
                      @ondrop:preventDefault="@(group.CreateOptions?.ManualDropTarget is not null)"
                      @ondrop="@(() => DropOnCreateGroupAsync(group))">
@@ -138,6 +139,7 @@
                                 <a id="@ItemId(item)"
                                    href="@item.Route"
                                    class="media-section-shell__rail-item media-section-shell__rail-item--parent @(IsParentRouteCurrent(item) ? "is-active" : active ? "is-branch-active" : null) @(DropClass(item))"
+                                   data-song-drop="@SongDropKind(item)"
                                    aria-current="@(IsParentRouteCurrent(item) ? "page" : null)"
                                    @onclick="@(() => NavigateBranch(item))"
                                    @onclick:preventDefault="true">
@@ -214,6 +216,7 @@
                                                         <a id="@ItemId(child)"
                                                            href="@child.Route"
                                                            class="media-section-shell__rail-item media-section-shell__rail-item--managed @(childActive ? "is-active" : null) @(DropClass(child))"
+                                                           data-song-drop="@SongDropKind(child)"
                                                            @onclick="@(() => NavigateManagedItem(child))"
                                                            @onclick:preventDefault="true"
                                                            aria-current="@(childActive ? "page" : null)">
@@ -258,6 +261,7 @@
                                                id="@ItemId(child)"
                                                href="@child.Route"
                                                class="media-section-shell__rail-item media-section-shell__rail-item--child @(childActive ? "is-active" : null) @(SectionBreakClass(child)) @(DropClass(child))"
+                                               data-song-drop="@SongDropKind(child)"
                                                @ondragover:preventDefault="@(child.DropTarget is not null)"
                                                @ondrop:preventDefault="@(child.DropTarget is not null)"
                                                @ondrop="@(() => DropOnNavigationItemAsync(child))"
@@ -324,6 +328,7 @@
                                     <a id="@ItemId(item)"
                                        href="@item.Route"
                                        class="media-section-shell__rail-item media-section-shell__rail-item--managed @(active ? "is-active" : null) @(DropClass(item))"
+                                       data-song-drop="@SongDropKind(item)"
                                        @onclick="@(() => NavigateManagedItem(item))"
                                        @onclick:preventDefault="true"
                                        aria-current="@(active ? "page" : null)">
@@ -369,6 +374,7 @@
                            id="@ItemId(item)"
                            href="@item.Route"
                            class="media-section-shell__rail-item @(active ? "is-active" : null) @(SectionBreakClass(item)) @(DropClass(item))"
+                           data-song-drop="@SongDropKind(item)"
                            @ondragover:preventDefault="@(item.DropTarget is not null)"
                            @ondrop:preventDefault="@(item.DropTarget is not null)"
                            @ondrop="@(() => DropOnNavigationItemAsync(item))"
@@ -900,6 +906,11 @@
 
     private static string? DropClass(MediaSectionNavigationItem item) =>
         item.DropTarget is null ? null : "is-drop-target";
+
+    // Where dragged songs are accepted (Listen music spec D10): a hand-made playlist in the rail. The attribute is what the song table's
+    // script highlights while the songs hover; a rule-based or system playlist carries none.
+    private static string? SongDropKind(MediaSectionNavigationItem item) =>
+        item.DropTarget is PlaylistNavigationDropTarget ? "playlist" : null;
 
     private static string? SectionBreakClass(MediaSectionNavigationItem item) =>
         item.SectionBreakBefore ? "media-section-shell__rail-item--section-break" : null;

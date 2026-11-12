@@ -11,7 +11,7 @@
 @inject BrowseLibrariesState LibraryList
 @inject UIOrchestratorService Orchestrator
 @inject MediaTileComposerService MediaTiles
-@inject ListenAudioDragService AudioDrag
+@inject SongDragDropService SongDrop
 @inject CollectionEditorLauncherService CollectionEditorLauncher
 @inject NavigationManager Nav
 @inject ILogger<ListenBrowsePage> Logger
@@ -67,7 +67,7 @@
     private Guid? _activeProfileId;
     private string? _playlistNavigationConfig;
     private List<Guid> _playlistOrder = [];
-    private List<Guid> _pendingPlaylistWorkIds = [];
+    private CarriedSongs? _pendingPlaylistDrop;
     private bool _loading = true;
     private bool _loadFailed;
     private bool _playlistsLoaded;
@@ -108,7 +108,7 @@
                     $"/listen/music/playlists/{playlist.Id:D}",
                     IsSmartPlaylist(playlist) ? AppMaterialIcons.Outlined.AutoAwesome : AppMaterialIcons.Outlined.PlaylistPlay,
                     playlist.ItemCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    DropTarget: IsManualPlaylist(playlist) ? new PlaylistNavigationDropTarget(playlist.Id) : null,
+                    DropTarget: CollectionAuthoringRule.IsAddTarget(playlist, playlist: true) ? new PlaylistNavigationDropTarget(playlist.Id) : null,
                     Management: new MediaSectionNavigationItemManagement(
                         playlist.Id,
                         "playlist",
@@ -279,6 +279,8 @@
         }
     }
 
+    // Dragged songs dropped on a hand-made playlist in the rail: the add, the skip of songs already there and the sentence all come from the
+    // one drop service; the table the songs came from shows the sentence in place.
     private async Task AddDraggedSongsToPlaylistAsync(MediaSectionNavigationDropEvent dropEvent)
     {
         if (dropEvent.Target is not PlaylistNavigationDropTarget playlistTarget)
@@ -286,46 +288,19 @@
             return;
         }
 
-        var playlistId = playlistTarget.PlaylistId;
-        if (!AudioDrag.HasItems)
+        var result = await SongDrop.DropOnPlaylistAsync(playlistTarget.PlaylistId, dropEvent.Item.Label);
+        if (result is { Added: > 0 } && _playlists.FirstOrDefault(item => item.Id == playlistTarget.PlaylistId) is { } playlist)
         {
-            return;
+            playlist.ItemCount += result.Added;
         }
-
-        var playlist = _playlists.FirstOrDefault(item => item.Id == playlistId);
-        if (playlist is null || !IsManualPlaylist(playlist))
-        {
-            return;
-        }
-
-        var workIds = AudioDrag.WorkIds.ToList();
-        var added = 0;
-        foreach (var workId in workIds)
-        {
-            if (await ApiClient.AddCollectionItemAsync(playlistId, workId, _activeProfileId))
-            {
-                added++;
-            }
-        }
-
-        AudioDrag.Clear();
-        if (added == 0)
-        {
-            ShowNotice(L["ListenBrowsePage_ThoseSongsAreAlreadyIn"].Value, AppUiTone.Info);
-            return;
-        }
-
-        // The playlist's count in the rail is the confirmation.
-        _notice = null;
-        playlist.ItemCount += added;
     }
 
+    // Songs dropped on New playlist: they wait while the rail asks for a name, then go into the new playlist.
     private Task StageDraggedSongsForPlaylistAsync(MediaSectionNavigationCreateDropEvent createEvent)
     {
-        if (createEvent.Target is ManualPlaylistCreateTarget && AudioDrag.HasItems)
+        if (createEvent.Target is ManualPlaylistCreateTarget)
         {
-            _pendingPlaylistWorkIds = AudioDrag.WorkIds.Distinct().ToList();
-            AudioDrag.Clear();
+            _pendingPlaylistDrop = SongDrop.Take();
         }
         return Task.CompletedTask;
     }
@@ -333,7 +308,7 @@
     private Task CancelPlaylistCreateAsync(MediaSectionNavigationCreateTarget target)
     {
         if (target is ManualPlaylistCreateTarget)
-            _pendingPlaylistWorkIds.Clear();
+            _pendingPlaylistDrop = null;
         return Task.CompletedTask;
     }
 
@@ -341,6 +316,21 @@
     {
         if (createEvent.Target is not ManualPlaylistCreateTarget || _activeProfileId is null)
             return false;
+        if (_pendingPlaylistDrop is { } carried)
+        {
+            // Songs were dropped on New playlist: the playlist is made already holding them, and the sentence goes to their table.
+            _pendingPlaylistDrop = null;
+            var made = await SongDrop.CreatePlaylistAsync(createEvent.Name, carried);
+            if (!made.Created)
+            {
+                return false;
+            }
+
+            _notice = null;
+            await ReloadPlaylistsAsync();
+            return true;
+        }
+
         var playlistId = await ApiClient.CreateCollectionWithItemsAsync(
             createEvent.Name,
             null,
@@ -350,14 +340,13 @@
             "title",
             "asc",
             "private",
-            _pendingPlaylistWorkIds,
+            [],
             _activeProfileId);
         if (playlistId is null)
         {
             ShowNotice(L["ListenBrowsePage_ThePlaylistCouldNotBe"].Value, AppUiTone.Error);
             return false;
         }
-        _pendingPlaylistWorkIds.Clear();
         _notice = null;
         await ReloadPlaylistsAsync();
         return true;
@@ -474,10 +463,6 @@
         var index = _playlistOrder.IndexOf(playlist.Id);
         return index < 0 ? int.MaxValue : index;
     }
-
-    private static bool IsManualPlaylist(ManagedCollectionViewModel playlist) =>
-        string.Equals(playlist.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase)
-        && !string.Equals(playlist.MembershipMode, "Smart", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSmartPlaylist(ManagedCollectionViewModel playlist) =>
         string.Equals(playlist.MembershipMode, "Smart", StringComparison.OrdinalIgnoreCase)

@@ -52,7 +52,7 @@ else
                                          OnNavigate="NavigateRailLink" />
 
                 <section class="listen-rail__section" @onclick:stopPropagation="true">
-                    <div class="listen-rail__section-heading">
+                    <div class="listen-rail__section-heading" data-song-drop="new-playlist" @ondragover:preventDefault="true" @ondrop="DropSongsOnNewPlaylist">
                         <AppNativeButton Type="button" Class="listen-rail__section-toggle" aria-expanded="@_playlistsExpanded" OnClick="@(() => _playlistsExpanded = !_playlistsExpanded)">
                             <span>@L["Glossary_Playlists"]</span>
                             <AppMaterialIcon Icon="@(_playlistsExpanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Class="tl-u-font-size-18px" />
@@ -115,7 +115,7 @@ else
                                 }
                                 else
                                 {
-                                    <a href="@playlistRoute" target="_top" data-enhance-nav="false" class='@($"listen-rail__item is-child {(IsRouteActive(playlistRoute) ? "is-active" : null)}")' aria-current="@(IsRouteActive(playlistRoute) ? "page" : null)" @onclick="@(() => NavigateRailLink(playlistRoute))" @onclick:preventDefault="true" @ondragover:preventDefault="@CanAcceptPlaylistItems(playlist)" @ondrop="@(() => CanAcceptPlaylistItems(playlist) ? HandlePlaylistDropAsync(playlist.Id) : Task.CompletedTask)">
+                                    <a href="@playlistRoute" target="_top" data-enhance-nav="false" class='@($"listen-rail__item is-child {(IsRouteActive(playlistRoute) ? "is-active" : null)}")' aria-current="@(IsRouteActive(playlistRoute) ? "page" : null)" @onclick="@(() => NavigateRailLink(playlistRoute))" @onclick:preventDefault="true" data-song-drop="@(AcceptsSongDrops(playlist) ? "playlist" : null)" @ondragover:preventDefault="@AcceptsSongDrops(playlist)" @ondrop="@(() => DropSongsOnPlaylistAsync(playlist))">
                                         @if (!string.IsNullOrWhiteSpace(playlist.CoverArtworkUrl))
                                         {
                                             <span class="listen-rail__thumb"><img src="@MediaTileArtworkUrl.ForDrawnSize(playlist.CoverArtworkUrl, 20)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(playlist.CoverArtworkUrl, 20)" alt="" loading="lazy" decoding="async" /></span>
