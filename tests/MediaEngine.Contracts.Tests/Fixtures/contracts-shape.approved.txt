@@ -3693,6 +3693,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderDto
   FolderButton: MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto | nullability=nullable | accessors=get,init
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | nullability=nullable | accessors=get,init
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | nullability=nullable | accessors=get,init
+  ProviderMatched: System.Boolean | nullability=not-null | accessors=get,init
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
