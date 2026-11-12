@@ -521,6 +521,39 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Delete_ForALockedAdministrator_AsksForThePin_AndAsksNothingElseWhenThePromptIsClosed()
+    {
+        await UseDeviceAsync("desktop");
+        SetLockedAdministrator();
+        var host = Render<AppDialogHost>();
+        var cut = RenderPage();
+
+        await InvokeActionAsync(cut);
+
+        Assert.Equal(1, _pin.Asked);
+        Assert.Empty(_deleteCalls);
+        Assert.Empty(host.FindAll(".delete-library__section"));
+    }
+
+    [Fact]
+    public async Task Delete_ForALockedAdministrator_ShowsItsQuestionOnceThePinIsEntered()
+    {
+        await UseDeviceAsync("desktop");
+        SetLockedAdministrator();
+        _pin.Enter = true;
+        var host = Render<AppDialogHost>();
+        var cut = RenderPage();
+
+        var run = InvokeActionAsync(cut);
+        host.WaitForElement(".delete-library__section");
+        host.FindAll("footer button").Single(button => button.TextContent.Trim() == "Delete from library and disk").Click();
+        await run;
+
+        Assert.Equal(1, _pin.Asked);
+        Assert.Single(_deleteCalls);
+    }
+
+    [Fact]
     public async Task AnUnlockedAdministrator_IsNeverAskedForThePin()
     {
         await UseDeviceAsync("desktop");

@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject IAppDialogService Dialogs
 @inject DeviceContextService Device
+@inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 
 @* The supporting-files browser (universal editor v5 WP8, screen E): "All supporting files" and the folder button open it over the editor. A dialog
@@ -305,7 +306,9 @@
             return;
         }
 
-        var result = await EditorFileBrowserDeleteFlow.DeleteAsync(State, rows, Dialogs, L);
+        var result = await EditorFileBrowserDeleteFlow.DeleteAsync(
+            State, rows, Dialogs, L,
+            Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>());
         _deleteNotice = result.Notice;
     }
 

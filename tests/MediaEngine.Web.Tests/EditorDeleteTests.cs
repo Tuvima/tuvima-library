@@ -186,6 +186,38 @@ public sealed class EditorDeleteTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ADeleteByALockedAdministrator_AsksForThePinFirst_AndAsksNothingElseWhenThePromptIsClosed()
+    {
+        UseApi();
+        var id = Guid.NewGuid();
+        _session.Set("test-session-token", id, id, Guid.NewGuid(),
+            new DashboardAuthorityResponse(id, id, true, true, 1, 1, true, false, null, 1, [], [], []));
+        var host = await OpenAsync(EpisodeOne, Show, Season, Episode);
+        var dialogs = RenderDialogs();
+        var pin = new ClosedPinPrompt();
+
+        var deleted = await dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(
+            host, Services.GetRequiredService<IAppDialogService>(), _device, _session, pin));
+
+        Assert.Equal(1, pin.Asked);
+        Assert.False(deleted.Deleted);
+        Assert.Null(deleted.Notice);
+        Assert.Empty(_previewTitles);
+    }
+
+    /// <summary>The administrator PIN prompt, closed without a PIN every time.</summary>
+    private sealed class ClosedPinPrompt : IAdministratorSurfaceAccessService
+    {
+        public int Asked { get; private set; }
+
+        public Task<bool> EnsureUnlockedAsync(CancellationToken ct = default)
+        {
+            Asked++;
+            return Task.FromResult(false);
+        }
+    }
+
+    [Fact]
     public async Task ADeleteThePersonMayNotMake_IsRefused_BeforeAnythingIsAsked()
     {
         UseApi();

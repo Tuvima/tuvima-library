@@ -193,7 +193,9 @@
         try
         {
             var rows = Editor.FileBatch.Rows.ToList();
-            await ShowAsync(await EditorFileBrowserDeleteFlow.DeleteAsync(Editor.FileBrowser, rows, Dialogs, L));
+            await ShowAsync(await EditorFileBrowserDeleteFlow.DeleteAsync(
+                Editor.FileBrowser, rows, Dialogs, L,
+                Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>()));
         }
         finally
         {
@@ -300,7 +302,7 @@
         _deleting = true;
         try
         {
-            await ShowAsync(await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
+            await ShowAsync(await EditorSupportingFileFlow.DeleteAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>()));
         }
         finally
         {
@@ -321,7 +323,7 @@
         _deleting = true;
         try
         {
-            await ShowAsync(await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
+            await ShowAsync(await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>()));
         }
         finally
         {
@@ -343,7 +345,7 @@
         _deleting = true;
         try
         {
-            await ShowAsync(await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>()));
+            await ShowAsync(await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Device, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>()));
         }
         finally
         {

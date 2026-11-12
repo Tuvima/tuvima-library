@@ -435,14 +435,20 @@
             return;
         }
 
-        if (LibraryItemDeletionFlow.Refusal(Device, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+        if (!BulkEditRules.AreDeletable(Active.Rows) || Active.Count > BulkEditRules.MaxDeleteItems)
         {
-            Warn(refusal);
             return;
         }
 
-        if (!BulkEditRules.AreDeletable(Active.Rows) || Active.Count > BulkEditRules.MaxDeleteItems)
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        var deleteGate = await LibraryItemDeletionFlow.EnsureMayDeleteAsync(Device, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>());
+        if (!deleteGate.Allowed)
         {
+            if (deleteGate.Message is { } refusal)
+            {
+                Warn(refusal);
+            }
+
             return;
         }
 
