@@ -121,6 +121,19 @@ public static class UnmatchedEndpoints
         .Produces<UnmatchedActionResultDto>()
         .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapPost("/items/{assetId:guid}/unkeep", (
+            Guid assetId,
+            IUnmatchedAssetRepository unmatched,
+            IConfigurationLoader configuration,
+            IVaultLibraryRepository vault,
+            [FromServices] UnmatchedAssetService service,
+            CancellationToken ct) =>
+            ActOnItemAsync(assetId, unmatched, configuration, vault, service.UnkeepAsync, ct))
+        .WithName("UnkeepUnmatchedItem")
+        .WithSummary("Put back: clears a file's kept mark so it counts and is retried again on the normal schedule, without looking it up now. Affected is 0 when the file was not kept.")
+        .Produces<UnmatchedActionResultDto>()
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapPost("/items/{assetId:guid}/look-up-again", (
             Guid assetId,
             IUnmatchedAssetRepository unmatched,

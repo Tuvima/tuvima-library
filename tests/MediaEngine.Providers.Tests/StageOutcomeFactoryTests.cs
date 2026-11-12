@@ -151,6 +151,9 @@ public sealed class StageOutcomeFactoryTests
         public Task<int> DismissAllByEntityAsync(Guid entityId, CancellationToken ct = default)
             => ResolveAllByEntityAsync(entityId, "test:dismiss", ct);
 
+        public Task<bool> ReopenKeptAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult(false);
+
         public Task<int> ResolveAllByEntityAsync(
             Guid entityId,
             string resolvedBy = "system:auto-organize",

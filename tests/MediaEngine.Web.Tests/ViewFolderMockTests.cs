@@ -98,7 +98,7 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
         _ = cut.Find("[data-add-managed]").ClickAsync(new());
 
         _dialogs.WaitForElement(".add-view-folder");
-        Assert.Equal("Add a folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
+        Assert.Equal("Add folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
         _dialogs.WaitForAssertion(() => Assert.NotNull(_dialogs.Find("[data-managed-note]")));
         var chosen = _dialogs.FindAll("[data-folder-handling] .app-choice-row.is-selected");
         var row = Assert.Single(chosen);
@@ -131,44 +131,75 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
 
     // ----- Mock C: the Add window ------------------------------------------------------------------------------------------------
 
-    private async Task OpenAddWindowAsync(string kindKey)
+    private async Task OpenAddWindowAsync(string kindKey, IReadOnlyList<ViewSourceAdminDto>? existing = null)
     {
         var kind = LibraryKindsTestData.Catalog.FindViewKind(kindKey)!;
         var parameters = new AppDialogParameters<AddViewFolderDialog>
         {
             { component => component.Kind, kind },
             { component => component.Configuration, Configuration },
+            { component => component.ExistingFolders, existing },
         };
         await Services.GetRequiredService<IAppDialogService>().ShowAsync<AddViewFolderDialog>(string.Empty, parameters, AddViewFolderDialog.DialogOptions);
         _dialogs.WaitForElement(".add-view-folder");
     }
 
     [Fact]
-    public async Task TheAddWindowReadsAddAFolderAndNamesWhatTheFolderHolds()
+    public async Task TheAddWindowHeaderNamesTheAreaAndKindAboveTheTitleAddFolder()
     {
         await OpenAddWindowAsync("photos");
 
-        Assert.Equal("Add a folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
-        Assert.Equal("Choose the folder that holds your photos and videos", Text(_dialogs.FindAll(".app-dialog-shell__subtitle").Last()));
+        Assert.Equal("View \u00b7 Photos and videos", Text(_dialogs.FindAll(".app-dialog-shell__eyebrow").Last()));
+        Assert.Equal("Add folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
+        Assert.Empty(_dialogs.FindAll(".app-dialog-shell__subtitle"));
     }
 
     [Fact]
-    public async Task TheAddWindowNamesDocumentsForTheDocumentsKind()
+    public async Task TheAddWindowHeaderNamesDocumentsForTheDocumentsKind()
     {
         await OpenAddWindowAsync("documents");
 
-        Assert.Equal("Choose the folder that holds your documents", Text(_dialogs.FindAll(".app-dialog-shell__subtitle").Last()));
+        Assert.Equal("View \u00b7 Documents", Text(_dialogs.FindAll(".app-dialog-shell__eyebrow").Last()));
     }
 
     [Fact]
-    public async Task TheAddWindowFooterCarriesTheReadOnlyPromiseAtTheLeftAndTheBodyDoesNotRepeatIt()
+    public async Task TheAddWindowDrawsNoGreyReadOnlyLineBecauseTheReadOnlyChoiceAlreadySaysIt()
     {
         await OpenAddWindowAsync("photos");
 
         var footer = _dialogs.FindAll(".app-dialog-shell__footer").Last();
-        Assert.Equal("Your files are never deleted or changed in a read-only folder.", Text(footer.QuerySelector("[data-footer-line]")!));
-        Assert.Contains("app-footer-start", footer.QuerySelector("[data-footer-line]")!.ClassName, StringComparison.Ordinal);
+        Assert.Empty(_dialogs.FindAll("[data-footer-line]"));
+        Assert.Empty(_dialogs.FindAll("[data-picker-safety]"));
+        Assert.DoesNotContain("never", Text(footer), StringComparison.Ordinal);
+        Assert.Contains("Your files are never changed.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
         Assert.DoesNotContain("Library scans this folder", Text(_dialogs.Find(".add-view-folder")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheAddWindowHasExactlyOneMessageLineUnderTheHandlingChoiceAndNoReservedSpace()
+    {
+        await OpenAddWindowAsync("photos");
+
+        // Read-only on a kind with no Managed folder: the one line is the upload line, directly after the choice.
+        var message = Assert.Single(_dialogs.FindAll("[data-picker-message]"));
+        Assert.Equal("You can't upload photos and videos until you add a Managed folder.", Text(message));
+        Assert.True(_dialogs.Find("[data-folder-handling]").NextElementSibling!.HasAttribute("data-picker-message"));
+        Assert.Empty(_dialogs.FindAll(".server-folder-picker__notices"));
+
+        // Managed: the Managed note replaces it; there is still only one line.
+        _dialogs.Find("[data-folder-handling]").QuerySelectorAll("button").Single(button => Text(button).StartsWith("Managed", StringComparison.Ordinal)).Click();
+        _dialogs.WaitForAssertion(() => Assert.NotNull(_dialogs.Find("[data-managed-note]")));
+        Assert.Single(_dialogs.FindAll("[data-picker-message]"));
+        Assert.Empty(_dialogs.FindAll("[data-uploads-note]"));
+    }
+
+    [Fact]
+    public async Task TheAddWindowHasNoMessageLineAtAllWhenThereIsNothingToSay()
+    {
+        _shared.Add(Folder("Holidays", "managed", "D:\\Pictures\\Holidays"));
+        await OpenAddWindowAsync("photos", existing: [.. _shared]);
+
+        Assert.Empty(_dialogs.FindAll("[data-picker-message]"));
     }
 
     // ----- Mock D: the Edit window -----------------------------------------------------------------------------------------------

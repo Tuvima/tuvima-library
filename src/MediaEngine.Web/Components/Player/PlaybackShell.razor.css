@@ -32,10 +32,10 @@
     display: grid;
     gap: 12px;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    min-height: 60px;
+    min-height: 72px;
 }
 
-/* Transport: always centred in the bar. Buttons sit 2 px apart; Play is 48 px, the rest 44 px. */
+/* Transport: always centred in the bar. Buttons sit 2 px apart; Play is 56 px, the rest 48 px (video player follow-ups D1). */
 .playback-shell__transport {
     align-items: center;
     display: flex;
@@ -131,6 +131,11 @@
 
 /* The phone's collapsed bar (D26, finished by the phone packet): art, text, then Play and Next, no Favorite. */
 .playback-shell--compact {
+    /* The collapsed bar keeps the old sizes (video player follow-ups D1): 24 px glyphs in 44 px targets, Play 32 px in 48 px. */
+    --playback-control-target: 44px;
+    --playback-control-glyph: 24px;
+    --playback-play-target: 48px;
+    --playback-play-glyph: 32px;
     padding-bottom: calc(6px + var(--tl-safe-area-bottom, 0px));
 }
 

@@ -41,7 +41,7 @@
     <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="@L["Common_LibrarySections"].Value">
         @foreach (var tab in Tabs)
         {
-            <AppTabPanel Text="@tab.Label">
+            <AppTabPanel Text="@tab.Label" Icon="@tab.Icon">
                 @if (tab.Slug == LibraryShell.FoldersTab)
                 {
                     <ViewFoldersTab Kind="@Kind"
@@ -90,9 +90,12 @@
     private bool _loading = true;
     private bool _adding;
 
-    private LibraryTypeOption? KindOption => Kinds.FindViewKind(Kind);
+    // The Photos kind is the "Photos and videos" row (Setup and Libraries fixes D10): its page is titled the same and also holds Personal videos folders.
+    private LibraryTypeOption? KindOption => Kinds.FindViewKind(Kind) is { } found && string.Equals(found.Key, LibraryTypeCatalog.PhotosKey, StringComparison.OrdinalIgnoreCase)
+        ? found with { Label = LibraryTypeCatalog.PhotosAndVideosLabel, PluralLabel = LibraryTypeCatalog.PhotosAndVideosLabel }
+        : Kinds.FindViewKind(Kind);
 
-    // The kind's name as it reads in a sentence: "photos", "personal videos", "documents".
+    // The kind's name as it reads in a sentence: "photos and videos", "personal videos", "documents".
     private string KindNoun => (KindOption?.Label ?? Kind).ToLowerInvariant();
 
     private LibraryListRow Row
@@ -104,24 +107,24 @@
         }
     }
 
-    private sealed record TabDef(string Slug, string Label);
+    private sealed record TabDef(string Slug, string Label, string Icon);
 
     // Photos and Personal videos have an Activity tab; Documents do not (nothing is filed by day there).
     private IReadOnlyList<TabDef> Tabs => Kind == ViewContentKinds.Documents ? DocumentTabs : MediaTabs;
 
     private static readonly IReadOnlyList<TabDef> DocumentTabs =
     [
-        new(LibraryShell.FoldersTab, "Folders"),
-        new(LibraryShell.AccessTab, "Access"),
-        new(LibraryShell.FileHandlingTab, "File handling"),
+        new(LibraryShell.FoldersTab, "Folders", AppMaterialIcons.Outlined.Folder),
+        new(LibraryShell.AccessTab, "Access", AppMaterialIcons.Outlined.Lock),
+        new(LibraryShell.FileHandlingTab, "File handling", AppMaterialIcons.Outlined.DriveFileMove),
     ];
 
     private static readonly IReadOnlyList<TabDef> MediaTabs =
     [
-        new(LibraryShell.FoldersTab, "Folders"),
-        new(LibraryShell.AccessTab, "Access"),
-        new(LibraryShell.FileHandlingTab, "File handling"),
-        new(LibraryShell.ActivityTab, "Activity"),
+        new(LibraryShell.FoldersTab, "Folders", AppMaterialIcons.Outlined.Folder),
+        new(LibraryShell.AccessTab, "Access", AppMaterialIcons.Outlined.Lock),
+        new(LibraryShell.FileHandlingTab, "File handling", AppMaterialIcons.Outlined.DriveFileMove),
+        new(LibraryShell.ActivityTab, "Activity", AppMaterialIcons.Outlined.History),
     ];
 
     private int ActiveIndex => Math.Max(Tabs.ToList().FindIndex(tab => string.Equals(tab.Slug, Tab?.Trim(), StringComparison.OrdinalIgnoreCase)), 0);
@@ -131,7 +134,7 @@
     // The same folder is counted once, however many profiles list it.
     private int DistinctFolders() => _reviews.Values
         .SelectMany(review => review.Sources)
-        .Where(source => LibraryRollup.ViewFolderBelongsTo(source, Kind) && !string.IsNullOrWhiteSpace(source.Location))
+        .Where(source => ViewFolderRules.BelongsToRow(source, Kind) && !string.IsNullOrWhiteSpace(source.Location))
         .Select(source => source.Location)
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .Count();

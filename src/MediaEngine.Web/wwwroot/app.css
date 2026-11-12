@@ -196,13 +196,14 @@ body {
     padding: var(--tl-card-padding);
 }
 
-/* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
-   no page defines its own tab style (spec: one-shared-look). Labels use the Control job (look-pass v3.1 D8). */
+/* The one tab row (Look v3.1 D1): flat, transparent, a 20px outline icon then the label, 48px tall, 28px between tabs, a 3px
+   accent underline on the active tab and one thin divider under the row. AppTabs and AppCountTabs both render it, so no page
+   defines its own tab style (spec: one-shared-look). Labels use the Control job (D8). */
 .tl-tabs-toolbar {
     display: flex;
     flex-wrap: nowrap;
-    gap: 4px;
-    min-height: var(--tl-tab-min-height, 44px);
+    gap: var(--tl-tab-gap);
+    min-height: var(--tl-tab-min-height);
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
@@ -222,10 +223,10 @@ body {
     align-items: center;
     gap: 8px;
     min-width: 0;
-    min-height: var(--tl-tab-min-height, 44px);
-    padding: 0 16px;
+    min-height: var(--tl-tab-min-height);
+    padding: 0;
     border: 0;
-    border-bottom: 2px solid transparent;
+    border-bottom: var(--tl-tab-underline) solid transparent;
     border-radius: 0;
     background: transparent;
     color: var(--tl-text-secondary);
@@ -245,10 +246,22 @@ body {
     background: transparent;
 }
 
+/* The tab's icon: 20px, outline, muted with the label; purple on the open tab. */
+.tl-tab > .tl-icon-root {
+    flex: 0 0 auto;
+    width: var(--tl-tab-icon-size);
+    height: var(--tl-tab-icon-size);
+    font-size: var(--tl-tab-icon-size);
+}
+
+.tl-tab.tl-tab-active > .tl-icon-root {
+    color: var(--tl-tone-accent);
+}
+
 /* Active tab reads like the top bar: white (primary) text with the purple underline (spec plugins-and-integrations-screens-v3 D21). */
 .tl-tab.tl-tab-active {
     color: var(--tl-text-primary);
-    border-bottom-color: var(--tl-accent-primary);
+    border-bottom: var(--tl-tab-underline) solid var(--tl-accent-primary);
     background: transparent;
 }
 
@@ -271,6 +284,37 @@ body {
 
 .tl-tab.tl-tab--advanced.tl-tab-active {
     border-bottom-color: var(--tl-status-warning);
+}
+
+.tl-tab.tl-tab--advanced > .tl-icon-root,
+.tl-tab.tl-tab--advanced.tl-tab-active > .tl-icon-root {
+    color: inherit;
+}
+
+/* On a phone the row scrolls sideways and every tab and icon stays. A soft fade at the right edge shows there is more, and only
+   then: the fade follows the row's own scroll position, so a row that fits, or one scrolled to its end, has none (the last tab is
+   never dimmed). A browser without scroll-driven animation shows no fade. */
+@property --tl-tab-fade-size {
+    syntax: "<length>";
+    inherits: false;
+    /* Written with a unit that survives the Release minifier, which shortens "0px" to a bare "0" a registered length may not accept. */
+    initial-value: 0.001px;
+}
+
+@keyframes tl-tab-edge-fade {
+    0%, 92% { --tl-tab-fade-size: var(--tl-tab-edge-fade); }
+    100% { --tl-tab-fade-size: 0px; }
+}
+
+@media (max-width: 600px) {
+    @supports (animation-timeline: scroll()) {
+        .tl-tabs-toolbar {
+            -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--tl-tab-fade-size)), transparent);
+            mask-image: linear-gradient(90deg, #000 calc(100% - var(--tl-tab-fade-size)), transparent);
+            animation: tl-tab-edge-fade linear both;
+            animation-timeline: scroll(self inline);
+        }
+    }
 }
 
 .tl-tab__count {
@@ -2606,7 +2650,10 @@ input.app-control.tl-input-slot,
     backdrop-filter: blur(20px) saturate(120%);
 }
 
-.app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor),
+.app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor) {
+    max-width: min(var(--tl-menu-max-width), calc(100vw - 16px)) !important;
+}
+
 .app-select__popover.tl-popover {
     max-width: min(var(--tl-menu-width), calc(100vw - 1.5rem)) !important;
 }
@@ -2634,10 +2681,10 @@ input.app-control.tl-input-slot,
 }
 
 .app-overflow-menu__popover {
-    width: var(--tl-menu-width);
-    min-width: 8.75rem;
-    max-width: min(var(--tl-menu-width), calc(100vw - 1rem));
-    padding: 0.16rem;
+    width: max-content;
+    min-width: var(--tl-menu-min-width);
+    max-width: min(var(--tl-menu-max-width), calc(100vw - 16px));
+    padding: 0;
     color: var(--tl-text-primary);
     background: var(--tl-menu-surface);
     border: 1px solid var(--tl-menu-border);
@@ -2648,7 +2695,17 @@ input.app-control.tl-input-slot,
 
 .app-overflow-menu__content {
     display: grid;
-    min-width: inherit;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    padding: var(--tl-menu-padding);
+}
+
+/* A menu label too long for the widest menu shortens to one line; its full text is the overflow tooltip (Look v3.1 D2). */
+.app-menu-item__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tl-detail-hero-genres__menu.tl-popover {
@@ -2676,7 +2733,7 @@ input.app-control.tl-input-slot,
 .app-menu-item,
 .app-select__popover .tl-list-item {
     min-height: var(--tl-menu-item-height) !important;
-    gap: var(--tl-space-3);
+    gap: var(--tl-menu-icon-gap);
     padding: var(--tl-menu-row-padding-y) 16px;
     border: 0 !important;
     border-radius: var(--tl-radius-md) !important;
@@ -2694,6 +2751,7 @@ input.app-control.tl-input-slot,
 /* A dropdown's options are the Control job (14 px), the same as its chosen value; pop-up menu rows above stay at the Menu job
    (look-pass v3.1 D10). Placed after the shared row rule so it wins at equal weight. */
 .tl-select-options .tl-list-item {
+    min-height: var(--tl-popout-row) !important;
     font-size: var(--tl-type-control-size) !important;
     font-weight: var(--tl-type-control-weight) !important;
 }
@@ -2986,7 +3044,7 @@ button.app-menu-item {
 }
 
 .app-menu-divider {
-    margin: 0.16rem 0.28rem !important;
+    margin: var(--tl-menu-padding) 0 !important;
     border-color: var(--tl-menu-divider) !important;
 }
 
@@ -3143,12 +3201,7 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
     }
 
-    /* Universe explorer: the 42px tabs read --tl-tab-min-height (their own !important rule), and the 24px filter chips and
-       the layout select grow to the 44px minimum. */
-    :root:root .chronicle-explorer-tabs {
-        --tl-tab-min-height: var(--tl-tap-target-min);
-    }
-
+    /* Universe explorer: the 24px filter chips and the layout select grow to the 44px minimum (the tab row is already 48px). */
     :root:root .chronicle-explorer-controls .app-chip {
         min-height: var(--tl-tap-target-min);
     }
@@ -3387,13 +3440,11 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:fo
     color: var(--tl-text-primary);
 }
 
-/* Discovery quick filters on phones: one scrolling chip row that fades where more chips wait off-screen. */
+/* Discovery quick filters on phones: the shared tab row (it scrolls sideways and fades at the cut edge, see .tl-tabs-toolbar). */
 html[data-form-factor="phone"] .app-discovery-filter__tabs {
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
     min-width: 0;
-    padding: 4px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
@@ -3407,19 +3458,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs > * {
     flex: 0 0 auto;
     min-width: max-content;
     white-space: nowrap;
-    justify-content: center;
-}
-
-html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-start="true"] {
-    mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-start="true"][data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
 }
 
 /* The map's own controls (zoom in/out) are 44px, and on phones the bottom corners clear the dock and the audio bar. */
@@ -4490,7 +4528,11 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .video-playback-host[data-subtitle-font="Serif"] { --tl-subtitle-font: Georgia, "Times New Roman", serif; }
 .video-playback-host[data-subtitle-font="Mono"] { --tl-subtitle-font: ui-monospace, Consolas, "Courier New", monospace; }
 .video-playback-host[data-subtitle-shadow="true"] { --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
-.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
+/* Follow-ups D8: High contrast is bold white text. With a box the box is solid black (bg opacity 100); with Background None or Shadow it has no box and a heavy black outline instead.
+   VideoPlaybackHost sets data-subtitle-contrast from SubtitleStyleCss.IsHighContrast; the outline value is SubtitleStyleCss.HighContrastOutline, the same one the preview strip uses. */
+.video-playback-host[data-subtitle-contrast="true"] { --tl-subtitle-weight: 700; }
+.video-playback-host[data-subtitle-contrast="true"][data-subtitle-background="false"] { --tl-subtitle-shadow: -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black, 2px 2px 0 black, 0 -2px 0 black, 0 2px 0 black, -2px 0 0 black, 2px 0 0 black, 0 0 4px black; }
+.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); font-weight: var(--tl-subtitle-weight, normal); text-shadow: var(--tl-subtitle-shadow); }
 /* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions. (Audio and Subtitles moved to the Audio & subtitles panel.) */
 .player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
@@ -4545,18 +4587,19 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .merge-folder__option:disabled { cursor: wait; opacity: .65; }
 
-/* Kind options and treatment choices (Change kind, file-drop dialog): AppNativeButton roots, so their styles live here. */
-.lib-choice__kind-option, .lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.lib-choice__kind-option:hover, .lib-choice__kind-option:focus-visible, .lib-choice__kind-option.is-selected,
+/* Treatment choices (the file-drop dialog's "Which library?"): AppNativeButton roots, so their styles live here. */
+.lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
 .lib-choice__choice:hover, .lib-choice__choice:focus-visible, .lib-choice__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
-/* The kind cards and the "Which library?" choices are shared by the file-drop and Change kind dialogs, so their layout lives here too. */
-.lib-choice__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.lib-choice__kind, .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* Equal-width kind cards with left-aligned content: the Metadata cell has a fixed width, so cards do not resize with their provider icons. */
-.lib-choice__kind .lib-choice__kind-option { flex: 1 1 0; justify-content: flex-start; }
-.lib-choice__kind .lib-meta { min-width: 112px; justify-content: flex-end; }
-.lib-choice__kind > .lib-peek { display: flex; flex: 1 1 0; min-width: 0; }
-.lib-choice__kind > .lib-peek > .lib-choice__kind-option { flex: 1 1 auto; }
+/* The file-drop dialog's kind rows (LibraryChoiceRow) stack full width; the "Which library?" choices share this layout. */
+.lib-choice__kinds { display: grid; gap: var(--tl-space-2); }
+.lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The pick button of a LibraryChoiceRow (Add library's area and kind rows, the file-drop kinds): an AppNativeButton root, so its styles live here. The row's own border carries the look. */
+.lib-row__pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: var(--tl-space-4); width: 100%; min-height: 84px; box-sizing: border-box; padding: var(--tl-space-3) var(--tl-space-4); color: var(--tl-text-primary); font: inherit; text-align: left; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.lib-row__pick--chevron { grid-template-columns: 48px minmax(0, 1fr) auto; }
+.lib-row__pick:hover { background: var(--tl-accent-primary-soft); }
+.lib-row__pick:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
+.lib-row.is-disabled .lib-row__pick { cursor: default; opacity: 0.55; }
+.lib-row.is-disabled .lib-row__pick:hover { background: transparent; }
 
 .lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: var(--tl-font-size-dialog-title); }
 .lib-choice__options { display: grid; gap: 10px; }
@@ -4613,8 +4656,21 @@ button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; borde
 a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 600; white-space: nowrap; }
 /* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
 .needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
+/* One colour per library kind (setup and libraries fixes D12), chosen in LibraryKindLook.ColorClass; the card cell and the row icon both read --lib-kind-color. */
+.lib-kind-color--movies { --lib-kind-color: var(--tl-media-movies); }
+.lib-kind-color--tv { --lib-kind-color: var(--tl-media-tv); }
+.lib-kind-color--music { --lib-kind-color: var(--tl-media-music); }
+.lib-kind-color--audiobooks { --lib-kind-color: var(--tl-media-audiobooks); }
+.lib-kind-color--books { --lib-kind-color: var(--tl-media-books); }
+.lib-kind-color--comics { --lib-kind-color: var(--tl-media-comics); }
+.lib-kind-color--documents { --lib-kind-color: var(--tl-media-document); }
+.lib-kind-color--area-watch { --lib-kind-color: var(--tl-area-watch); }
+.lib-kind-color--area-listen { --lib-kind-color: var(--tl-area-listen); }
+.lib-kind-color--area-read { --lib-kind-color: var(--tl-area-read); }
+.lib-kind-color--area-view { --lib-kind-color: var(--tl-area-view); }
+.lib-kind-color--area-vault { --lib-kind-color: var(--tl-area-vault); }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
-.lib-kind-tile--lookup { color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
+.lib-kind-tile--lookup { color: var(--lib-kind-color, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-kind-color, var(--tl-accent-primary)) 16%, transparent); }
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .lib-meta__icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
 .lib-meta__icon--plain { min-width: var(--tl-control-height-compact); min-height: var(--tl-control-height-compact); color: var(--tl-text-muted); font-size: var(--tl-icon-size-sm); }
@@ -4859,8 +4915,7 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 
 /* Account menu surface (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
 .tl-popover.top-nav-account-menu__surface {
-    width: min(var(--tl-menu-width), calc(100vw - 1rem));
-    padding: 0.55rem;
+    padding: var(--tl-menu-padding);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -5298,9 +5353,6 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     border-top: 1px solid var(--tl-border-subtle);
 }
 
-.tl-editor-tab{padding-inline:var(--tl-space-5, 1.5rem)}
-/* Editor v6 D18: the tab icons are outlines in the normal icon color (the tab's own text color), not one color per tab. */
-.tl-editor-tab svg{color:currentColor}
 /* -------------------------------------------------------------------------
    Viewer (Look v3 D14): the full-screen kind, drawn by AppViewer. Zero specificity on purpose, so a viewer's own
    classes (bars, stages, panels) always win and this only supplies the kind's defaults: full screen, black or the
@@ -5343,7 +5395,10 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 
 /* Window footer (Look v3 D14, D15.3; Shy 2026-11-07: as in the mock): every button sits in one right-hand group in reading order,
    destructive (outlined red), then Cancel or Discard, then the one primary last. Only a quiet extra action marked app-footer-start
-   (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. */
+   (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. The one exception is the short
+   confirmation (AppConfirmDialog and the dialogs built on it, Look v3.1 D4): the safe choice is a neutral outlined button and comes
+   first, and a destructive choice is a solid red button and comes last. A larger window's footer where Delete sits beside Save keeps
+   Delete outlined red as above. */
 .app-dialog-shell__footer > .app-footer-start:not(:last-child),
 .app-action-bar > .app-footer-start:not(:last-child) {
     margin-inline-end: auto;
@@ -5487,31 +5542,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-actions {
     width: 100%;
     justify-content: flex-start;
     text-align: left;
-}
-
-/* Section tabs on detail pages: the strip fades where more tabs wait off-screen, and tabs keep a comfortable
-   minimum width. The touch contract forces min-width on buttons, so the 112px floor comes from the grid track. */
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(112px, max-content);
-    overscroll-behavior-x: contain;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items > * {
-    justify-content: center;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-start="true"] {
-    mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
-}
-
-html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-start="true"][data-scroll-more-end="true"] {
-    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
 }
 
 /* Details page, phone pass: the episode and sequence panel, credits, people and lists. */

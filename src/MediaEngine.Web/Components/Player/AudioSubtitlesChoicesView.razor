@@ -36,16 +36,16 @@
                         <AppNativeButton Type="button" Class="@RowClass(choice.Selected, choice.Switchable || choice.Selected)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
                                          tabindex="@(choice.Index == AudioTabStop ? 0 : -1)" Disabled="@(!choice.Switchable)" data-asv-audio="@choice.Index" data-asv-purpose="@choice.Purpose.ToString().ToLowerInvariant()"
                                          OnClick="@(() => ChooseAudioAsync(choice))">
-                            <span class="asv__label">@choice.Label</span>
+                            <span class="asv__label" data-overflow-tooltip="@choice.Label">@choice.Label</span>
                             @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
                             @* An unswitchable row keeps its facts; the note comes under them. *@
                             @if (!string.IsNullOrWhiteSpace(choice.Detail))
                             {
-                                <span class="asv__sub">@choice.Detail</span>
+                                <span class="asv__sub" data-overflow-tooltip="@choice.Detail">@choice.Detail</span>
                             }
                             @if (note is not null)
                             {
-                                <span class="asv__sub asv__sub--note">@note</span>
+                                <span class="asv__sub asv__sub--note" data-overflow-tooltip="@note">@note</span>
                             }
                         </AppNativeButton>
                     }
@@ -67,7 +67,7 @@
                         var choice = row;
                         <AppNativeButton Type="button" Class="@RowClass(choice.Selected, true)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
                                          tabindex="@(choice.Key == SubtitleTabStop ? 0 : -1)" data-asv-subtitle="@(choice.Key ?? "off")" OnClick="@(() => ChooseSubtitleAsync(choice))">
-                            <span class="asv__label">@choice.Label</span>
+                            <span class="asv__label" data-overflow-tooltip="@choice.Label">@choice.Label</span>
                             @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
                         </AppNativeButton>
                     }

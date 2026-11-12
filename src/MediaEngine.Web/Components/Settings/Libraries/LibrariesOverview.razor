@@ -58,9 +58,10 @@
     </div>
     </div>
 
-    @if (everyRow.All(row => row.IsView))
+    @if (everyRow.Count == 0 && ViewFoldersKnown)
     {
-        @* Empty (no libraries; View's kinds always exist, so they do not count): a heading, a gap, one sentence and an obvious button. The Import folder row still shows below. *@
+        @* Empty (no library has a folder; a library with no folders is not listed, D11): a heading, a gap, one sentence and an obvious button. The Import folder row still shows below.
+           Not drawn while View's folders are still being read, so a person who only has photos does not see it flash. *@
         <div class="libs__empty" data-empty="none">
             <h3>@L["LibrariesOverview_NoLibrariesYet"]</h3>
             <p>@L["LibrariesOverview_AddOneForEachKind"]</p>
@@ -118,7 +119,7 @@
                 <tr @key="row.Key" class="@RowClass(row)" data-library="@row.Key" data-area="@AreaKeyOf(row)" data-new="@(row.Key == _newLibraryId ? "true" : null)" @onclick="@(() => OpenRow(row))">
                     <td data-card-role="title">
                         <span class="libs__name">
-                            <span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
+                            <span class="lib-kind-tile lib-kind-tile--lookup @LibraryKindLook.ColorClass(row.Type)" data-kind-icon="@row.Type.Key"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
                             <span class="libs__title">
                                 <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
                             </span>
@@ -193,6 +194,8 @@
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     /// <summary>View's folder count per kind; null while it is not known.</summary>
     [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
+    /// <summary>True when View's folders were asked for and could not be read (as opposed to still loading): its rows are then listed with an unknown count.</summary>
+    [Parameter] public bool ViewFoldersUnreadable { get; set; }
     /// <summary>View's folders per kind, for the "N folders" list; null while not known.</summary>
     [Parameter] public IReadOnlyDictionary<string, IReadOnlyList<FolderListItem>>? ViewFolderLists { get; set; }
     /// <summary>Folder path to issue; null while the folder checks have not finished (no status is claimed then).</summary>
@@ -288,7 +291,7 @@
 
     private IReadOnlyList<AreaRows> Groups => [.. Areas.Select(area =>
     {
-        var all = LibraryListing.RowsFor(Kinds, area.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault);
+        var all = LibraryListing.RowsFor(Kinds, area.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault, ViewFoldersUnreadable);
         return new AreaRows(area, all, [.. all.Where(Matches)]);
     })];
 
@@ -335,10 +338,13 @@
     // The Import folder has no page of its own any more (D15): the row opens its Edit window.
     private Task OpenImport() => ReadOnly ? Task.CompletedTask : EditImportAsync();
 
-    // Add library is open to everyone who can edit; View's kinds always exist, so inside a View chip it offers its folder pop-up instead (Add library, View tab).
+    // Add library is open to everyone who can edit; it is how a library with no folders appears (D11), View's rows included.
     private bool CanAddLibrary => !ReadOnly;
 
-    private bool CanAddLibraryIn(LibraryGroup area) => !ReadOnly && !string.Equals(area.Key, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase);
+    private bool CanAddLibraryIn(LibraryGroup area) => !ReadOnly;
+
+    // View's folder counts arrive after the first render; until they do, View's rows (and so the empty state) are not known. A read that failed lists the rows instead.
+    private bool ViewFoldersKnown => ViewFolders is not null || ViewFoldersUnreadable || !Kinds.ViewRowKinds.Any();
 
     // The one place the add flow is started: the Add library dialog, on the area the person is looking at (Watch when All).
     private Task OpenAddLibraryAsync(string? areaKey) => LibraryAddFlow.OpenAsync(

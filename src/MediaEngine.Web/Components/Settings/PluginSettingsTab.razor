@@ -162,11 +162,11 @@ else
     ];
 
     // Named for when Library uses the plugin (v4 D31).
-    private static readonly (string Key, string Label)[] Categories =
+    private static readonly (string Key, string Label, string Icon)[] Categories =
     [
-        (PluginCategories.Intake, "Getting items in"),
-        (PluginCategories.Enrichment, "After import"),
-        (PluginCategories.Accounts, "Accounts & lists"),
+        (PluginCategories.Intake, "Getting items in", AppMaterialIcons.Outlined.MoveToInbox),
+        (PluginCategories.Enrichment, "After import", AppMaterialIcons.Outlined.AutoAwesome),
+        (PluginCategories.Accounts, "Accounts & lists", AppMaterialIcons.Outlined.AccountCircle),
     ];
 
     private static string SectionExplainer(string key) => key switch
@@ -260,8 +260,8 @@ else
         var pool = FilteredIgnoringTab();
         return
         [
-            new AppCountTab("all", "All", pool.Count),
-            .. Categories.Select(category => new AppCountTab(category.Key, category.Label, pool.Count(plugin => PluginCategories.Resolve(plugin.Category) == category.Key))),
+            new AppCountTab("all", "All", pool.Count, AppMaterialIcons.Outlined.AllInclusive),
+            .. Categories.Select(category => new AppCountTab(category.Key, category.Label, pool.Count(plugin => PluginCategories.Resolve(plugin.Category) == category.Key), category.Icon)),
         ];
     }
 
@@ -392,12 +392,12 @@ else
         var tab = DetailTab switch { "activity" => "activity", "file" when canSeeFile => "file", _ => "setup" };
         var tabs = new List<AppCountTab>
         {
-            new("setup", "Set up", null, DetailHref(plugin.Id, "setup")),
-            new("activity", "Activity", null, DetailHref(plugin.Id, "activity")),
+            new("setup", "Set up", null, AppMaterialIcons.Outlined.Tune, DetailHref(plugin.Id, "setup")),
+            new("activity", "Activity", null, AppMaterialIcons.Outlined.History, DetailHref(plugin.Id, "activity")),
         };
         if (canSeeFile)
         {
-            tabs.Add(new("file", "File", null, DetailHref(plugin.Id, "file")));
+            tabs.Add(new("file", "File", null, AppMaterialIcons.Outlined.InsertDriveFile, DetailHref(plugin.Id, "file")));
         }
 
         // One shared frame draws the header, status sentence and tabs for every plugin and integration page (v6 D60, D69).

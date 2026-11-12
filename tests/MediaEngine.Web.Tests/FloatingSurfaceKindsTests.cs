@@ -149,7 +149,7 @@ public sealed class FloatingSurfaceKindsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PopOutsAreMenu272AndPanel400WithEightPixelCornersOnTheRaisedSurface()
+    public void PopOutsAreMenu240To360AndPanel400WithEightPixelCornersOnTheRaisedSurface()
     {
         var tokens = ReadWeb("wwwroot/tuvima.tokens.css");
         var css = ReadWeb("Components/Shared/AppPopover.razor.css");
@@ -158,13 +158,15 @@ public sealed class FloatingSurfaceKindsTests : AsyncBunitContext
         Assert.Contains("--tl-popout-panel: 400px;", tokens);
         Assert.Contains("--tl-popout-row: 44px;", tokens);
         Assert.Contains("--tl-popout-radius: 8px;", tokens);
-        Assert.Contains(".app-popover.app-popout--menu{width:var(--tl-popout-menu,272px)}", css);
+        // A menu grows with its longest label between 240 and 360 px (Look v3.1 D2).
+        Assert.Contains(".app-popover.app-popout--menu{width:max-content;min-width:var(--tl-menu-min-width,240px);max-width:min(var(--tl-menu-max-width,360px),calc(100vw - 16px))}", css);
         Assert.Contains(".app-popover.app-popout--panel{width:var(--tl-popout-panel,400px)}", css);
         Assert.Contains("background:var(--tl-bg-surface-elevated)", css);
         Assert.Contains("border-radius:var(--tl-popout-radius,8px)", css);
-        // The one menu width and row height the menus already use are the same numbers.
-        Assert.Contains("--tl-menu-width: 272px;", tokens);
-        Assert.Contains("--tl-menu-row-height: 44px;", tokens);
+        // Menu rows are 48 px (Look v3.1 D2); a dropdown's option rows stay at the 44 px pop-out row.
+        Assert.Contains("--tl-menu-min-width: 240px;", tokens);
+        Assert.Contains("--tl-menu-max-width: 360px;", tokens);
+        Assert.Contains("--tl-menu-row-height: 48px;", tokens);
     }
 
     [Fact]

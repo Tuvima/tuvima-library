@@ -182,7 +182,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     private static void Answer(IRenderedComponent<AppDialogHost> host, string label)
     {
         host.WaitForElement(".app-confirm");
-        Assert.Equal("Unsaved changes", host.Find(".app-dialog-shell__title").TextContent.Trim());
+        Assert.Equal("Discard changes?", host.Find(".app-dialog-shell__title").TextContent.Trim());
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == label).Click();
     }
 
@@ -324,7 +324,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
 
         var dismissal = DismissAsync(cut);
         host.WaitForElement(".app-confirm");
-        host.Find("button[aria-label='Close dialog']").Click();
+        await host.InvokeAsync(() => host.FindComponent<AppDialogFrame>().Instance.RequestCancel());
 
         Assert.False(await dismissal);
         Assert.Empty(_steps);
@@ -380,7 +380,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         var host = Render<AppDialogHost>();
         var asked = CanDismissAsync(cut);
         host.WaitForElement(".app-confirm");
-        host.Find("button[aria-label='Close dialog']").Click();
+        await host.InvokeAsync(() => host.FindComponent<AppDialogFrame>().Instance.RequestCancel());
         Assert.False(await asked);
 
         _editor.Find("button.tl-editor-window__cancel").Click();

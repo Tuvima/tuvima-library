@@ -39,7 +39,7 @@ public sealed class MappedEndpointInventoryTests
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
             [ApplicationPermissionIds.ReviewRead] = ["GetPendingReviews", "GetReviewCount", "GetReviewItem"],
-            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv"],
+            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "ReopenReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv"],
             [ApplicationPermissionIds.ProvidersStatusRead] = ["GetProviderHealth", "GetProviderIcon"],
             [ApplicationPermissionIds.ProvidersConfigRead] = ["GetProviderStatus", "GetProviderCatalogue", "GetStashBoxSettings"],
             [ApplicationPermissionIds.ProvidersConfigWrite] = ["UpdateProvider", "TestProviderCredentials", "SaveProviderCredentials", "RemoveProviderCredentials", "TestProvider", "SampleProvider", "UpdateProviderConfig", "DeleteProvider", "UploadProviderIcon", "AddStashBoxServer", "RemoveStashBoxServer", "SetStashBoxServerOrder", "SaveStashBoxServerKey", "RemoveStashBoxServerKey", "TestStashBoxConnection", "SetStashBoxFingerprintPermission"],
@@ -382,6 +382,26 @@ public sealed class MappedEndpointInventoryTests
         Assert.DoesNotContain(inventory.Endpoints, endpoint => endpoint.Name is "ApplyMediaEditorMembershipChange" or "GetMediaEditorMembershipSuggestions"
             or "PreviewMusicTrackMove" or "SaveMusicTrackMove");
         Assert.Contains(inventory.Endpoints, endpoint => endpoint.Name == "PreviewMediaEditorMembershipChange");
+    }
+
+    [Fact]
+    public async Task UnmatchedFileActions_IncludingPutBack_AreForAdministratorsOnly()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        foreach (var (pattern, name) in new[]
+        {
+            ("/library/unmatched/items/{assetId:guid}/retry", "RetryUnmatchedItem"),
+            ("/library/unmatched/items/{assetId:guid}/keep", "KeepUnmatchedItemAsItIs"),
+            ("/library/unmatched/items/{assetId:guid}/unkeep", "UnkeepUnmatchedItem"),
+            ("/library/unmatched/items/{assetId:guid}/look-up-again", "LookUpUnmatchedItemAgain"),
+        })
+        {
+            var route = inventory.Require(pattern, HttpMethods.Post);
+            Assert.Equal(name, route.Name);
+            route.RequiresNamedPolicy(AuthPolicies.Administrator);
+        }
     }
 
     [Fact]

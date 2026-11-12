@@ -29,17 +29,21 @@ public sealed record LibraryTypeOption(
 public static class LibraryTypeCatalog
 {
     /// <summary>
-    /// Add library offers View as two choices (Libraries and folder picker D8): "Photos and Videos" (a dump of your phone: the Photos kind,
-    /// whose folder already takes pictures and videos together) and Documents. Personal videos is not a separate choice there.
+    /// View lists and offers two choices (Setup and Libraries fixes D10): "Photos and videos" (the Photos kind and the Personal videos kind together; a dump
+    /// of your phone, whose folder already takes pictures and videos together) and Documents. Personal videos is not a row or a choice of its own. Written in
+    /// sentence case everywhere it appears.
     /// </summary>
-    public const string PhotosAndVideosLabel = "Photos and Videos";
+    public const string PhotosAndVideosLabel = "Photos and videos";
+
+    public const string PhotosKey = "photos";
+    public const string PersonalVideosKey = "personal_videos";
 
     public static bool IsHiddenFromAdd(LibraryTypeOption kind) =>
-        string.Equals(kind.Key, "personal_videos", StringComparison.OrdinalIgnoreCase);
+        string.Equals(kind.Key, PersonalVideosKey, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The words an Add choice uses for a View kind ("Photos and Videos" for the Photos kind); other kinds keep their label.</summary>
+    /// <summary>The words an Add choice uses for a View kind ("Photos and videos" for the Photos kind); other kinds keep their label.</summary>
     public static string AddChoiceLabel(LibraryTypeOption kind) =>
-        string.Equals(kind.Key, "photos", StringComparison.OrdinalIgnoreCase) ? PhotosAndVideosLabel : kind.Label;
+        string.Equals(kind.Key, PhotosKey, StringComparison.OrdinalIgnoreCase) ? PhotosAndVideosLabel : kind.Label;
 
     public const string ImportKey = "import";
     public const string ViewArea = "view";
@@ -92,6 +96,19 @@ public sealed class LibraryKindCatalog
     /// Work/Edition graph, so they are not in <see cref="Types"/>.
     /// </summary>
     public IReadOnlyList<LibraryTypeOption> ViewKinds => [.. _all.Where(LibraryTypeCatalog.IsViewKind)];
+
+    /// <summary>
+    /// The View kinds as the lists show them (Setup and Libraries fixes D10): Photos and Personal videos are one row, "Photos and videos" (the Photos kind, renamed),
+    /// and Documents is its own row. The folders of both underlying kinds list under that row (<see cref="ViewFolderRules.ContentKindsOf"/>).
+    /// </summary>
+    public IReadOnlyList<LibraryTypeOption> ViewRowKinds =>
+    [
+        .. ViewKinds
+            .Where(kind => !LibraryTypeCatalog.IsHiddenFromAdd(kind))
+            .Select(kind => string.Equals(kind.Key, LibraryTypeCatalog.PhotosKey, StringComparison.OrdinalIgnoreCase)
+                ? kind with { Label = LibraryTypeCatalog.PhotosAndVideosLabel, PluralLabel = LibraryTypeCatalog.PhotosAndVideosLabel }
+                : kind),
+    ];
 
     /// <summary>An available View kind by key, or null (a kind of another group is not a View kind).</summary>
     public LibraryTypeOption? FindViewKind(string? key) => Find(key) is { } kind && LibraryTypeCatalog.IsViewKind(kind) ? kind : null;
@@ -195,7 +212,7 @@ public static class LibraryAddress
         // View keeps its own settings per kind: Libraries > View > Photos. The older group, type and "other" addresses redirect, so they name nothing here.
         if (string.Equals(sub, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase) && kinds.FindViewKind(det) is { } viewKind)
         {
-            return Level(viewKind.Label, libraries, new LibraryCrumb(kinds.TryGetGroup(sub)?.Label ?? "View", LibraryListing.OverviewAddress(sub.ToLowerInvariant())));
+            return Level(LibraryTypeCatalog.AddChoiceLabel(viewKind), libraries, new LibraryCrumb(kinds.TryGetGroup(sub)?.Label ?? "View", LibraryListing.OverviewAddress(sub.ToLowerInvariant())));
         }
 
         return front;
