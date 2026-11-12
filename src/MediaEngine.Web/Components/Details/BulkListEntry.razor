@@ -90,7 +90,8 @@ else if (!Device.IsPhone && ((!_canEdit && BulkEditRules.IsSongSelection(_playOn
     /// <summary>A row's own Edit button: the row is ticked by the list, then this opens the pop-over's Edit panel for the ticked rows.</summary>
     public void OpenEditPanel()
     {
-        // The row's Edit is offered only to a profile the Engine says may edit item details; the Engine still checks every save.
+        // The row's Edit is offered only to a profile the Engine says may edit item details; the caller has already asked a locked
+        // administrator for the PIN (EditorDeviceRule.EnsureMayEditItemsAsync). The Engine still checks every save.
         if (!_canEdit || Rows.Count == 0 || Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata != true)
         {
             return;

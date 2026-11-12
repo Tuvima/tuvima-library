@@ -62,9 +62,13 @@ public sealed class DashboardMetadataCapabilityTests : IDisposable
             await AuthorityAsync(accountId, profileId, sessionId), Decisions(), Evaluator(), default);
 
         var emitted = projected.ActionCapabilities.Contains(Capability, StringComparer.Ordinal);
-        Assert.Equal(expected, policy.Allows("edit"));
-        Assert.Equal(policy.Allows("edit"), emitted);
+        Assert.Equal(expected, policy.CanManageMetadata);
+        Assert.Equal(policy.CanManageMetadata, emitted);
         Assert.Equal(expected, emitted);
+        // Edit is also shown (display only) to an administrator whose PIN is locked, so the Dashboard can ask for the PIN on tap; to nobody else.
+        Assert.Equal(expected || person == Person.ServerAdministratorWithPinLocked, policy.Allows("edit"));
+        Assert.Equal(person == Person.ServerAdministratorWithPinLocked, policy.OfferMetadataAfterUnlock);
+        Assert.Equal(expected, policy.IsHumanAdministrator);
     }
 
     [Fact]
@@ -86,8 +90,12 @@ public sealed class DashboardMetadataCapabilityTests : IDisposable
 
         Assert.Contains("DetailActionAuthorizationPolicy.MayManageMetadataAsHumanAsync(", projector);
         Assert.DoesNotContain("EvaluateAdministratorAsync", projector);
-        // The helper is the only place in the policy that asks, and the policy's human and delegated paths both go through it.
-        Assert.Equal(1, Occurrences(policy, "EvaluateAdministratorAsync("));
+        // The helper is the only place in the policy that asks whether editing is allowed, and the policy's human and delegated paths both
+        // go through it. The one other question (is this an administrator at all, PIN aside) only decides whether Edit is shown to a
+        // locked administrator so the Dashboard can ask for the PIN; it allows nothing.
+        Assert.Equal(1, Occurrences(policy, "EvaluateAdministratorAsync(authority, requireSurfaceUnlock: true, ct)"));
+        Assert.Equal(1, Occurrences(policy, "EvaluateAdministratorAsync(authority, requireSurfaceUnlock: false, ct)"));
+        Assert.Equal(2, Occurrences(policy, "EvaluateAdministratorAsync("));
         Assert.Equal(2, Occurrences(policy, "MayManageMetadataAsHumanAsync(authority, accounts, ct)"));
     }
 

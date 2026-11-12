@@ -16,6 +16,7 @@
 @inject NavigationManager Nav
 @inject IAppDialogService Dialogs
 @inject DashboardSessionAccessor Session
+@inject IServiceProvider Services
 @inject UniverseStateContainer State
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<NeedsReviewPageContent> Logger
@@ -998,6 +999,14 @@
         }
 
         _actionError = null;
+        // An administrator whose settings are locked is asked for the PIN before the window opens; closing the prompt stops quietly.
+        var gate = await EditorDeviceRule.EnsureMayEditItemsAsync(Device, Session, Services.GetService<IAdministratorSurfaceAccessService>());
+        if (!gate.Allowed)
+        {
+            _actionError = gate.Message;
+            return;
+        }
+
         var editRows = rows
             .Select(row => new BulkEditRow(
                 NeedsReviewRowInfo.FixTargetOf(row)!.Value,

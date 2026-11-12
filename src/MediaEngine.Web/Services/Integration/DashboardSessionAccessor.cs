@@ -240,6 +240,12 @@ public sealed class DashboardSessionAccessor
     /// </summary>
     public bool CanManageMetadata => HasAction("metadata.manage");
 
+    /// <summary>
+    /// True when Edit may be offered: the profile may edit item details now, or is an administrator whose settings are locked and who is
+    /// asked for the PIN on tap (<c>EditorDeviceRule.EnsureMayEditItemsAsync</c>). Display only; it never lets an editor open by itself.
+    /// </summary>
+    public bool CanOfferMetadataEdit => CanManageMetadata || Authority?.EffectiveAdministrator == true;
+
     public bool ShouldLockOnLeave => Authority?.ProfileGrants
         .FirstOrDefault(grant => grant.ProfileId == ActiveProfileId)
         ?.AdminProtection.UnlockMode.Equals("LockOnLeave", StringComparison.OrdinalIgnoreCase) == true;

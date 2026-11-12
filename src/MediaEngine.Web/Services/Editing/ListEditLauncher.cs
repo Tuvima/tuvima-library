@@ -111,10 +111,12 @@ public sealed class ListEditLauncher
             return false;
         }
 
-        // Ticked rows have no per-item Engine answer, so the Engine's per-profile answer is checked here as well as the device.
-        if (EditorDeviceRule.ItemRefusal(_device, Session) is { } refusal)
+        // Ticked rows have no per-item Engine answer, so the Engine's per-profile answer is checked here as well as the device. A locked
+        // administrator is asked for the PIN first.
+        var gate = await EditorDeviceRule.EnsureMayEditItemsAsync(_device, Session, AdministratorAccess);
+        if (!gate.Allowed)
         {
-            LastNotice = refusal;
+            LastNotice = gate.Message;
             return false;
         }
 
@@ -248,6 +250,12 @@ public sealed class ListEditLauncher
             return null;
         }
 
+        // The Engine offers Edit to an administrator whose settings are locked; the PIN is asked for before anything opens.
+        if (!await EditorDeviceRule.EnsureUnlockedForItemAsync(Session, AdministratorAccess))
+        {
+            return null;
+        }
+
         var editorTarget = page.EditorTarget is { } found && Guid.TryParse(found.EntityId, out var foundId)
             ? (Id: foundId, Kind: found.EntityKind, Scope: found.InitialScope)
             : (Id: target.EntityId, Kind: target.Kind.ToString(), Scope: (string?)null);
@@ -287,6 +295,9 @@ public sealed class ListEditLauncher
         };
         return binding;
     }
+
+    private IAdministratorSurfaceAccessService? AdministratorAccess =>
+        _services.GetService(typeof(IAdministratorSurfaceAccessService)) as IAdministratorSurfaceAccessService;
 
     private DashboardSessionAccessor? Session => _services.GetService(typeof(DashboardSessionAccessor)) as DashboardSessionAccessor;
 

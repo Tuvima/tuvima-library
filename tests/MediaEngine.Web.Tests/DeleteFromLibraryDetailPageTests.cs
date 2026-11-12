@@ -84,7 +84,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     {
         var id = Guid.NewGuid();
         _session.Set("test-session-token", id, id, Guid.NewGuid(),
-            new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
+            new DashboardAuthorityResponse(id, id, true, true, 1, 1, administrator, administrator, null, 1, [], [], administrator ? ["metadata.manage"] : []));
     }
 
     // The Engine offers "edit" only to a person it allows to edit; engineOffersEdit false is such a profile.

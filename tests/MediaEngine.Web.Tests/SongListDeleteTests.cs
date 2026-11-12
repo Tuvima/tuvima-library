@@ -186,17 +186,20 @@ public sealed class SongListDeleteTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AnAdministratorWhoMayNotEditDetails_StillGetsDeleteOnTheBar_ButNoEdit()
+    public async Task AnAdministratorWhoseSettingsAreLocked_IsStillOfferedEditOnTheBarAndInASongMenu_AndKeepsDelete()
     {
+        // Edit is offered to a locked administrator; tapping it asks for the PIN (EditorDeviceRule.EnsureMayEditItemsAsync).
         await UseDeviceAsync("desktop");
         SetAdministrator(true, mayEditItems: false);
 
         var cut = RenderTable(Songs(3));
         Checkboxes(cut)[0].Change(true);
 
-        Assert.DoesNotContain(cut.FindAll($"{Bar} button"), button => button.TextContent.Trim() is "Edit" or "Match" or "Move to album");
+        Assert.Contains(cut.FindAll($"{Bar} button"), button => button.TextContent.Trim() == "Edit");
         Assert.NotEmpty(cut.FindAll($"{Bar} button[aria-label='More actions']"));
-        Assert.Contains(OpenRowMenuItems(cut, 0), IsDelete);
+        var menu = OpenRowMenuItems(cut, 0);
+        Assert.Contains(menu, item => item.TextContent.Trim() == "Edit");
+        Assert.Contains(menu, IsDelete);
     }
 
     [Fact]

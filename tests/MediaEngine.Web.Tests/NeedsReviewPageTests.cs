@@ -49,7 +49,8 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         AccountId, ProfileId, true, true, 1, 1, true, true, null, 1, Grants(adminEnabled: true),
         ["settings.administration"], ["access.manage", "metadata.manage"]);
 
-    // An administrator the Engine does not (yet) let edit item details, for instance one whose administrator PIN is locked: no "metadata.manage".
+    // An administrator the Engine does not (yet) let edit item details because the administrator PIN is locked: no "metadata.manage".
+    // Edit is offered and asks for the PIN on tap; these tests register no PIN prompt, so nothing can open.
     private static DashboardAuthorityResponse ServerAdministratorWhoMayNotEditDetails() => new(
         AccountId, ProfileId, true, true, 1, 1, true, true, null, 1, Grants(adminEnabled: true),
         ["settings.administration"], ["access.manage"]);
@@ -2105,7 +2106,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AProfileThatMayNotEditDetails_SeesNeitherFixNorEditNItems_ButKeepsDeleteAndTheOtherActions()
+    public async Task AnAdministratorWhoseSettingsAreLocked_IsStillOfferedFixAndEditNItems()
     {
         var file = FileRow(Id(1), "One.mkv", workId: Id(91));
         var other = FileRow(Id(2), "Two.mkv", workId: Id(92));
@@ -2113,14 +2114,15 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         await UseDesktopAsync();
         var cut = RenderLoaded(2);
 
-        Assert.DoesNotContain(cut.FindAll($"{RowSelector(file)} button"), button => button.TextContent.Trim() == "Fix");
+        // Tapping either asks for the PIN first (EditorDeviceRule.EnsureMayEditItemsAsync); nothing opens without it.
+        Assert.Contains(cut.FindAll($"{RowSelector(file)} button"), button => button.TextContent.Trim() == "Fix");
         Tick(cut, file, other);
 
-        Assert.Equal(["Try again", "Keep as they are", "Delete", "Clear selection"], BarLabels(cut));
+        Assert.Equal(["Try again", "Keep as they are", "Edit 2 items", "Delete", "Clear selection"], BarLabels(cut));
     }
 
     [Fact]
-    public async Task EditNItems_IsRefusedByTheHandler_ForAProfileThatMayNotEditDetails_NotOnlyHiddenFromTheBar()
+    public async Task EditNItems_OpensNothing_ForALockedAdministratorWhoDoesNotEnterThePin()
     {
         var one = FileRow(Id(1), "One.mkv", workId: Id(91));
         var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
