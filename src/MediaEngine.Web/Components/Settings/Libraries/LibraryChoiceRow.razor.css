@@ -50,6 +50,13 @@
     font-size: var(--tl-font-size-sm);
 }
 
+/* The muted right arrow at the end of a row that moves on when chosen. */
+.lib-row__chevron {
+    display: grid;
+    place-items: center;
+    color: var(--tl-text-muted);
+}
+
 .lib-row__action { padding-right: var(--tl-space-4); }
 
 @media (max-width: 600px) {

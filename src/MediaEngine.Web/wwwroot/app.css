@@ -4418,6 +4418,7 @@ input[type="reset"],
 .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
 /* The pick button of a LibraryChoiceRow (Add library's area and kind rows, the file-drop kinds): an AppNativeButton root, so its styles live here. The row's own border carries the look. */
 .lib-row__pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: var(--tl-space-4); width: 100%; min-height: 84px; box-sizing: border-box; padding: var(--tl-space-3) var(--tl-space-4); color: var(--tl-text-primary); font: inherit; text-align: left; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.lib-row__pick--chevron { grid-template-columns: 48px minmax(0, 1fr) auto; }
 .lib-row__pick:hover { background: var(--tl-accent-primary-soft); }
 .lib-row__pick:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
 .lib-row.is-disabled .lib-row__pick { cursor: default; opacity: 0.55; }

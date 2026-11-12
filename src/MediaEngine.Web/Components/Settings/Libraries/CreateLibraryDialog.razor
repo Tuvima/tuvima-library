@@ -36,9 +36,10 @@
                                           Icon="@group.Icon"
                                           AreaKey="@group.Key"
                                           Line="@AreaLine(group.Key)"
-                                          Selected="@(!_vaultMode && group.Key == _area)"
+                                          Selected="@(_returned && !_vaultMode && group.Key == _area)"
+                                          GoesOnWhenChosen="true"
                                           Disabled="@_saving"
-                                          OnClick="@(() => ChooseAreaAsync(group.Key))" />
+                                          OnClick="@(() => PickAreaAsync(group.Key))" />
                     }
                     @if (VaultRowShown)
                     {
@@ -47,9 +48,10 @@
                                           Icon="@AppMaterialIcons.Outlined.Lock"
                                           AreaKey="@LibraryGroupCatalog.VaultKey"
                                           Line="@L["CreateLibrary_VaultInfo"].Value"
-                                          Selected="@_vaultMode"
+                                          Selected="@(_returned && _vaultMode)"
+                                          GoesOnWhenChosen="true"
                                           Disabled="@_saving"
-                                          OnClick="@(() => ChooseAreaAsync(LibraryGroupCatalog.VaultKey))" />
+                                          OnClick="@(() => PickAreaAsync(LibraryGroupCatalog.VaultKey))" />
                     }
                 </div>
             }
@@ -78,9 +80,10 @@
                                               AreaKey="@kind.Area.ToLowerInvariant()"
                                               Line="@RowLine(kind, availability.Reason)"
                                               ActionLabel="@(HasLibrary(kind) ? L["CreateLibrary_AddFolderInstead", LibraryNameOf(kind)].Value : null)"
-                                              Selected="@(kind.Key == _kindKey)"
+                                              Selected="@(_returned && kind.Key == _kindKey && CanPick(kind))"
+                                              GoesOnWhenChosen="true"
                                               Disabled="@(_saving || !CanPick(kind))"
-                                              OnClick="@(() => ChooseKindAsync(kind))"
+                                              OnClick="@(() => PickKindAsync(kind))"
                                               OnAction="@(() => AddFolderInsteadAsync(kind))" />
                         }
                     </div>
@@ -130,13 +133,13 @@
         <AppActionBar Align="AppHorizontalAlignment.End">
             @if (_step == 1)
             {
+                @* Choosing a row moves on at once, so steps 1 and 2 have no Next (setup and libraries fixes D5, mock). *@
                 <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="NextAsync" />
             }
             else if (_step == 2)
             {
                 <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="BackAsync" />
-                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Kind is null)" OnClick="NextAsync" />
+                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
             }
             else if (_step == 4)
             {
@@ -204,6 +207,8 @@
     private string? _fitDetail;
     private string _createdId = string.Empty;
     private bool _areaChosen;
+    // True after Back to step 1 or 2: the row of the earlier choice is marked. Rows move on when chosen, so nothing is pending-selected otherwise.
+    private bool _returned;
     private string _area = "watch";
     private string? _kindKey;
     // The folder's friendly name and handling, reported by the folder window (Libraries v3 D18, D19). The library itself is never named by the person.
@@ -412,18 +417,25 @@
         _step = wanted is not null ? 3 : _areaChosen ? 2 : 1;
     }
 
-    private async Task NextAsync()
+    // Choosing an area row moves on to its kinds at once.
+    private async Task PickAreaAsync(string area)
     {
-        if (_step == 1)
-        {
-            _step = 2;
-            return;
-        }
+        await ChooseAreaAsync(area);
+        if (_saving) return;
+        _returned = false;
+        _step = 2;
+    }
 
-        if (Kind is not { } kind) return;
-        if (IsViewArea && _step == 2)
+    // Choosing a kind row moves on at once: to the folder step, or to the View folder pop-up for a View kind.
+    private async Task PickKindAsync(LibraryTypeOption kind)
+    {
+        if (_saving) return;
+        await ChooseKindAsync(kind);
+        _returned = false;
+        if (Kind is not { } chosen) return;
+        if (IsViewArea)
         {
-            await AddViewFolderAsync(kind);
+            await AddViewFolderAsync(chosen);
             return;
         }
 
@@ -471,6 +483,8 @@
     private Task BackAsync()
     {
         _step = Math.Max(1, _step == 4 ? 3 : _step - 1);
+        // Back to a row step shows the earlier choice as the current one; going forward never does.
+        _returned = _step < 3;
         _error = null;
         return Task.CompletedTask;
     }
@@ -490,6 +504,7 @@
         _kindKey = kind.Key;
         RestartPicker();
         _folder = null;
+        _returned = false;
         _step = 3;
         return Task.CompletedTask;
     }

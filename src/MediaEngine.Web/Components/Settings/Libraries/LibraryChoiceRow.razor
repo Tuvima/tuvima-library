@@ -7,7 +7,7 @@
    (an AppNativeButton root takes no scoped style). *@
 <div class="@RootClass" data-choice-row="@Key">
     <AppNativeButton Type="button"
-                     Class="lib-row__pick"
+                     Class="@PickClass"
                      aria-pressed="@(Selected ? "true" : "false")"
                      aria-disabled="@(Disabled ? "true" : null)"
                      OnClick="@(_ => PickAsync())"
@@ -20,6 +20,10 @@
                 <span class="lib-row__line">@Line</span>
             }
         </span>
+        @if (ChevronShown)
+        {
+            <span class="lib-row__chevron" aria-hidden="true" data-row-chevron><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+        }
     </AppNativeButton>
     @if (HasTrailing)
     {
@@ -43,6 +47,8 @@
     /// <summary>The area key that colours the icon square ("watch", "listen", "read", "view", "vault"); anything else is neutral.</summary>
     [Parameter] public string? AreaKey { get; set; }
     [Parameter] public bool Selected { get; set; }
+    /// <summary>True when choosing the row moves straight on (Add library): an enabled row then ends with a muted right arrow; a greyed row has none.</summary>
+    [Parameter] public bool GoesOnWhenChosen { get; set; }
     /// <summary>A row that cannot be chosen: greyed, and its action (if any) stays usable.</summary>
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
@@ -66,6 +72,10 @@
 
     // The area's colour comes from a class per area (tokens --tl-area-*), so the row carries no inline style.
     private string? AreaClass => AreaKey?.ToLowerInvariant() is { } area && Areas.Contains(area) ? $"lib-row--{area}" : null;
+
+    private bool ChevronShown => GoesOnWhenChosen && !Disabled;
+
+    private string PickClass => ChevronShown ? "lib-row__pick lib-row__pick--chevron" : "lib-row__pick";
 
     private bool HasTrailing => !string.IsNullOrWhiteSpace(ActionLabel) || ChildContent is not null;
 

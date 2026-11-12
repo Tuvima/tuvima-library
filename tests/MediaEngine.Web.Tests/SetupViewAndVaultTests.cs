@@ -178,10 +178,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
         _dialogs.WaitForElement(".create-library[data-step='1']");
         _dialogs.Find("[data-area-rows]").QuerySelectorAll(".lib-row__pick").Single(row => Text(row).StartsWith("View", StringComparison.Ordinal)).Click();
-        DialogButton("Next").Click();
         _dialogs.WaitForElement(".create-library[data-step='2']");
         _dialogs.Find("[data-kind-rows]").QuerySelectorAll(".lib-row__pick").Single(row => Text(row).StartsWith(kindLabel, StringComparison.Ordinal)).Click();
-        DialogButton("Next").Click();
         _dialogs.WaitForElement(".add-view-folder");
     }
 
