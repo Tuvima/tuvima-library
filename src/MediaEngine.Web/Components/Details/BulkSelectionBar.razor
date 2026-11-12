@@ -14,11 +14,14 @@
    one Save changes saves. Ticked songs first get Play, Add to queue and Add to playlist (Listen music spec D9), which need no right to edit
    and show on any desktop or tablet; every other action, and every other kind of row, renders only on a device that may edit, on a page
    the Engine lets the person edit. Nothing renders while no row is ticked. *@
-@if (_notice is not null)
-{
-    @* A refusal, or files a delete left on disk: it stays above the rows until the next try or the close button (nothing is drawn over the page). *@
-    <AppAlert Severity="@_noticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-bulk-selection-notice="true">@_notice</AppAlert>
-}
+@* The status region is always in the page, empty until there is a notice, so a screen reader already watching it announces the text when it appears. *@
+<div role="status" aria-live="polite" data-bulk-selection-announce="true">
+    @if (_notice is not null)
+    {
+        @* A refusal, or files a delete left on disk: it stays above the rows until the next try or the close button (nothing is drawn over the page). *@
+        <AppAlert Severity="@_noticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-bulk-selection-notice="true">@_notice</AppAlert>
+    }
+</div>
 @if (Active is { Count: > 0 } selection && (IsAvailable || SongActionsShown(selection)))
 {
     var rows = selection.Rows;
@@ -154,6 +157,7 @@
 
     private BulkEditSelection? _selection;
     private bool _deleting;
+    private bool _working;
     private bool _deviceHooked;
     private string? _notice;
     private AppSeverity _noticeSeverity = AppSeverity.Warning;
@@ -186,7 +190,7 @@
     // On a detail page the bar needs the Engine's edit answer for that page; on a list it only needs a device that may edit.
     private bool IsAvailable => Binding is not null ? Binding.CanEdit : EditorDeviceRule.CanEdit(Device);
 
-    private bool IsBusy => Busy || _deleting || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
+    private bool IsBusy => Busy || _deleting || _working || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
 
     private static AppButtonStyle Style(BulkEditSelection selection, BulkPanelKind kind) =>
         selection.Panel == kind ? AppButtonStyle.Filled : AppButtonStyle.Outlined;
@@ -224,12 +228,30 @@
         }
 
         _notice = null;
+        var rows = Active.Rows;
+        var label = BulkEditRules.AddToCollectionLabel(Active.Count);
 
-        Warn(await CollectionMembershipFlow.RunAsync(
+        await WorkingAsync(async () => Warn(await CollectionMembershipFlow.RunAsync(
             Services,
-            [.. Active.Rows.Select(row => new CollectionEditorSeedItem(row.Id, row.Title, row.MediaType))],
-            BulkEditRules.AddToCollectionLabel(Active.Count),
-            title: null));
+            [.. rows.Select(row => new CollectionEditorSeedItem(row.Id, row.Title, row.MediaType))],
+            label,
+            title: null)));
+    }
+
+    // While one of the bar's actions runs (a list is open, songs are being added), every button is greyed and a second press does nothing, so a
+    // second list cannot open and nothing is added twice.
+    private async Task WorkingAsync(Func<Task> action)
+    {
+        _working = true;
+        StateHasChanged();
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            _working = false;
+        }
     }
 
     // A refusal or a left-behind file: the amber line the bar has always shown. Null clears it.
@@ -254,12 +276,16 @@
         }
 
         Warn(null);
-        var notice = await PlaylistMembershipFlow.RunAsync(Services, Active.Rows, L["Common_AddToPlaylist"].Value);
-        if (notice is not null)
+        var rows = Active.Rows;
+        await WorkingAsync(async () =>
         {
-            _notice = notice.Message;
-            _noticeSeverity = notice.Severity;
-        }
+            var notice = await PlaylistMembershipFlow.RunAsync(Services, rows, L["Common_AddToPlaylist"].Value);
+            if (notice is not null)
+            {
+                _notice = notice.Message;
+                _noticeSeverity = notice.Severity;
+            }
+        });
     }
 
     // Ticked songs are played and queued in the order the list shows them; the host, which owns playback, does the work.
@@ -271,7 +297,8 @@
         }
 
         Warn(null);
-        await OnPlay.InvokeAsync(Active.Rows);
+        var rows = Active.Rows;
+        await WorkingAsync(() => OnPlay.InvokeAsync(rows));
     }
 
     private async Task QueueAsync()
@@ -282,7 +309,8 @@
         }
 
         Warn(null);
-        await OnQueue.InvokeAsync(Active.Rows);
+        var rows = Active.Rows;
+        await WorkingAsync(() => OnQueue.InvokeAsync(rows));
     }
 
     // Ticked songs have their own actions on a desktop or tablet (a phone has its own bottom bar), for anyone who may play; Edit stays separate.

@@ -276,8 +276,14 @@ public partial class SongTable
 
         if (_selected.Count > 0)
         {
+            // A search or filter that hides ticked songs drops their ticks (as the bulk lists elsewhere do), so what the bar counts is what
+            // Play, Add to queue and Add to playlist use. The host is told, so it does not bring them back when the search is cleared.
             var present = Rows.Select(row => row.Id).ToHashSet(StringComparer.Ordinal);
-            _selected.RemoveWhere(id => !present.Contains(id));
+            if (_selected.RemoveWhere(id => !present.Contains(id)) > 0 && SelectedIdsChanged.HasDelegate)
+            {
+                var kept = _selected.ToHashSet(StringComparer.Ordinal);
+                _ = InvokeAsync(() => SelectedIdsChanged.InvokeAsync(kept));
+            }
         }
 
         UpdateLayout();

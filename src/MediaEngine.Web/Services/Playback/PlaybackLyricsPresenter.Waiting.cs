@@ -61,7 +61,8 @@ public sealed partial class PlaybackLyricsPresenter
         }
         _pendingAsked = true;
         var pending = await api.GetPendingTextTrackRefreshAsync(identity.AssetId, LyricsKind, _reads.Token);
-        if (!Current(identity, generation) || pending is null)
+        // The person may have pressed Find lyrics while the Engine was being asked: that lookup is then the one being followed, so this one is not.
+        if (!Current(identity, generation) || pending is null || Refreshing || Lookup != PlaybackLyricsLookupState.Idle)
         {
             return;
         }
@@ -80,14 +81,20 @@ public sealed partial class PlaybackLyricsPresenter
 
     private async Task FollowPendingAsync(PlaybackLyricsIdentity identity, long generation, RefreshTextTracksResponse pending)
     {
+        var owned = true;
         try
         {
-            await WaitForQueuedLookupAsync(identity, generation, pending);
+            owned = await WaitForQueuedLookupAsync(identity, generation, pending);
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
-            // The song changed or the presenter was disposed (the wait is cancelled), or something unexpected broke: only the second is shown, as the same
-            // message "Find lyrics" gives, and only while this song is still the one on screen.
+            // The song changed or the presenter was disposed (the wait is cancelled): nothing to show for it, and not an error.
+            logger?.LogDebug("Following the queued lyrics lookup for asset {AssetId} was cancelled.", identity.AssetId);
+        }
+        catch (Exception ex)
+        {
+            // Something unexpected broke: shown as the same message "Find lyrics" gives, and only while this song is still the one on screen.
+            logger?.LogWarning(ex, "Following the queued lyrics lookup for asset {AssetId} failed.", identity.AssetId);
             if (Current(identity, generation))
             {
                 Lookup = PlaybackLyricsLookupState.Idle;
@@ -96,24 +103,47 @@ public sealed partial class PlaybackLyricsPresenter
         }
         finally
         {
-            if (Current(identity, generation))
+            if (owned && Current(identity, generation))
             {
                 Refreshing = false; Changed?.Invoke();
             }
         }
     }
 
-    // The Engine's operation statuses. null means the lookup has not finished (pending, queued, leased, running, paused). A lookup whose source failed is stored as
-    // retry_waiting (it is tried again later), so that is "could not look right now", never "still looking" and never "none".
+    // The Engine's operation statuses. null means the lookup has not finished and is still being looked for (pending, queued, leased, running, and also
+    // interrupted by an Engine restart or paused, which pick up again by themselves). A lookup whose source failed is stored as retry_waiting or
+    // failed_retryable (it is tried again later) and one that gave up as dead_lettered, so those are "could not look right now", never "still looking" and never "none".
     private static QueuedLookupEnd? Classify(string? status) => status?.ToLowerInvariant() switch
     {
         "succeeded" or "no_result" or "blocked" or "failed_terminal" or "cancelled"
             or "missing_confirmed" or "not_applicable" or "skipped" => QueuedLookupEnd.Finished,
         "failed_retryable" or "retry_waiting" or "dead_lettered" => QueuedLookupEnd.CouldNotLook,
+        "interrupted" or "paused" => null,
         _ => null,
     };
 
-    private async Task WaitForQueuedLookupAsync(PlaybackLyricsIdentity identity, long generation, RefreshTextTracksResponse queued)
+    // The wait that is following a lookup right now. Starting another cancels this one, so there is never more than one polling loop for a song.
+    private CancellationTokenSource? _wait;
+
+    /// <summary>Follows one queued lookup. Returns false when a newer wait took over (this one then leaves the shared state to it).</summary>
+    private async Task<bool> WaitForQueuedLookupAsync(PlaybackLyricsIdentity identity, long generation, RefreshTextTracksResponse queued)
+    {
+        // The earlier wait is cancelled, not disposed: it may still be reading its token on its way out.
+        _wait?.Cancel();
+        var wait = _wait = CancellationTokenSource.CreateLinkedTokenSource(_reads.Token);
+        try
+        {
+            await FollowQueuedLookupAsync(identity, generation, queued, wait);
+            return true;
+        }
+        catch (OperationCanceledException) when (!ReferenceEquals(_wait, wait) && !_reads.IsCancellationRequested)
+        {
+            logger?.LogDebug("A newer lyrics lookup wait took over from the one for asset {AssetId}.", identity.AssetId);
+            return false;
+        }
+    }
+
+    private async Task FollowQueuedLookupAsync(PlaybackLyricsIdentity identity, long generation, RefreshTextTracksResponse queued, CancellationTokenSource wait)
     {
         Lookup = PlaybackLyricsLookupState.Looking; Changed?.Invoke();
         var end = Classify(queued.status);
@@ -129,17 +159,19 @@ public sealed partial class PlaybackLyricsPresenter
                 {
                     Refreshing = false; Lookup = PlaybackLyricsLookupState.StillLooking; Changed?.Invoke();
                 }
-                await _delay(pause, _reads.Token);
+                await _delay(pause, wait.Token);
                 if (!Current(identity, generation))
                 {
                     return;
                 }
+                wait.Token.ThrowIfCancellationRequested();
                 waited += pause; pause = waited < LookingWindow ? LookEvery : SlowLookEvery;
-                var progress = await api.GetTextTrackRefreshStatusAsync(identity.AssetId, operationId, _reads.Token);
+                var progress = await api.GetTextTrackRefreshStatusAsync(identity.AssetId, operationId, wait.Token);
                 if (!Current(identity, generation))
                 {
                     return;
                 }
+                wait.Token.ThrowIfCancellationRequested();
                 end = Classify(progress?.status);
             }
             stillQueuedOrRunning = end is null;

@@ -13,6 +13,9 @@ internal sealed class PlaylistChoiceDialogService : IAppDialogService
     /// <summary>What the person "chose"; null means they closed the list without choosing.</summary>
     public PlaylistChoice? Choice { get; set; }
 
+    /// <summary>When set, the window stays open (its result does not arrive) until the test completes this.</summary>
+    public TaskCompletionSource? Gate { get; set; }
+
     public List<string?> Titles { get; } = [];
 
     public AppDialogParameters? LastParameters { get; private set; }
@@ -25,7 +28,7 @@ internal sealed class PlaylistChoiceDialogService : IAppDialogService
         Titles.Add(title);
         LastParameters = parameters;
         LastOptions = options;
-        return Task.FromResult<IAppDialogReference>(new Reference(Choice));
+        return Task.FromResult<IAppDialogReference>(new Reference(Choice, Gate));
     }
 
     public Task<IAppDialogReference> ShowAsync<TComponent>(string? title, AppDialogOptions options)
@@ -37,11 +40,21 @@ internal sealed class PlaylistChoiceDialogService : IAppDialogService
     public Task<bool?> ShowMessageBoxAsync(string? title, MarkupString message, string yesText = "OK", string? noText = null, string? cancelText = null, AppDialogOptions? options = null) =>
         Task.FromResult<bool?>(null);
 
-    private sealed class Reference(PlaylistChoice? choice) : IAppDialogReference
+    private sealed class Reference(PlaylistChoice? choice, TaskCompletionSource? gate) : IAppDialogReference
     {
         public Guid Id { get; } = Guid.NewGuid();
 
-        public Task<AppDialogResult?> Result => Task.FromResult<AppDialogResult?>(choice is null ? AppDialogResult.Cancel() : AppDialogResult.Ok(choice));
+        public Task<AppDialogResult?> Result => ResultAsync();
+
+        private async Task<AppDialogResult?> ResultAsync()
+        {
+            if (gate is not null)
+            {
+                await gate.Task;
+            }
+
+            return choice is null ? AppDialogResult.Cancel() : AppDialogResult.Ok(choice);
+        }
 
         public void Close(AppDialogResult? result = null)
         {

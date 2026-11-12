@@ -151,7 +151,8 @@ public static class PlaybackLyricsTimeline
 public sealed partial class PlaybackLyricsPresenter(
     IEngineApiClient api,
     IUserPlaybackPreferencesAccessor? preferences = null,
-    Func<TimeSpan, CancellationToken, Task>? delay = null) : IDisposable
+    Func<TimeSpan, CancellationToken, Task>? delay = null,
+    ILogger<PlaybackLyricsPresenter>? logger = null) : IDisposable
 {
     // How the waits between looks at a queued lookup pass; tests hand in their own so they never sleep.
     private readonly Func<TimeSpan, CancellationToken, Task> _delay = delay ?? ((span, token) => Task.Delay(span, token));
@@ -445,6 +446,7 @@ public sealed partial class PlaybackLyricsPresenter(
         }
         var generation = _generation;
         Refreshing = true; Status = null; Lookup = PlaybackLyricsLookupState.Idle; Changed?.Invoke();
+        var owned = true;
         try
         {
             var queued = await api.QueueTextTrackRefreshAsync(identity.AssetId, LyricsKind, _reads.Token);
@@ -457,17 +459,23 @@ public sealed partial class PlaybackLyricsPresenter(
                 Status = "Lyrics search could not start.";
                 return;
             }
-            await WaitForQueuedLookupAsync(identity, generation, queued);
+            owned = await WaitForQueuedLookupAsync(identity, generation, queued);
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
+            // The song changed or the presenter was disposed: nothing to show for it, and not an error.
+            logger?.LogDebug("The Find lyrics request for asset {AssetId} was cancelled.", identity.AssetId);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Find lyrics for asset {AssetId} failed.", identity.AssetId);
             if (Current(identity, generation))
             {
                 Lookup = PlaybackLyricsLookupState.Idle;
                 Status = "Lyrics search could not start.";
             }
         }
-        finally { if (Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
+        finally { if (owned && Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
     }
 
     public void Dispose() { _disposed = true; _reads.Cancel(); _reads.Dispose(); }

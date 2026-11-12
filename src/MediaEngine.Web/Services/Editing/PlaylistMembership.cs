@@ -12,8 +12,11 @@ public sealed record PlaylistChoice(Guid? PlaylistId, string Name)
     public bool IsNew => PlaylistId is null;
 }
 
-/// <summary>How an add to a playlist went: how many songs went in, how many were already there, how many the Engine refused.</summary>
-public sealed record PlaylistAddResult(string PlaylistName, int Added, int AlreadyThere, int Failed, bool Created);
+/// <summary>
+/// How an add to a playlist went: how many songs went in, how many were already there, how many the Engine refused. <c>Creating</c> says the
+/// request was "New playlist" (so a failure is worded as "could not be created"); <c>Created</c> says that playlist was made.
+/// </summary>
+public sealed record PlaylistAddResult(string PlaylistName, int Added, int AlreadyThere, int Failed, bool Created, bool Creating = false);
 
 /// <summary>
 /// Putting several songs into a hand-made playlist (Listen music spec D9, D10, D15). One place for the selection bar and, later, drag and
@@ -114,8 +117,8 @@ public static class PlaylistMembership
             profileId,
             ct);
         return id is null
-            ? new PlaylistAddResult(name, 0, 0, wanted.Count, Created: false)
-            : new PlaylistAddResult(name, wanted.Count, 0, 0, Created: true);
+            ? new PlaylistAddResult(name, 0, 0, wanted.Count, Created: false, Creating: true)
+            : new PlaylistAddResult(name, wanted.Count, 0, 0, Created: true, Creating: true);
     }
 
     private static int TrackOf(string? trackNumber, int? ordinal)

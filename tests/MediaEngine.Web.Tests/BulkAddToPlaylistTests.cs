@@ -252,6 +252,99 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task NewPlaylistThatTheEngineCouldNotCreate_SaysThePlaylistCouldNotBeCreated()
+    {
+        _stub.SetHandler(nameof(IEngineApiClient.CreateCollectionWithItemsAsync), _ => Task.FromResult<Guid?>(null));
+        _dialogs.Choice = new PlaylistChoice(null, "Weekend");
+        var bar = await RenderBarAsync(Songs(SongA, SongB), "Music");
+
+        bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
+
+        bar.WaitForAssertion(() => Assert.Equal("The playlist could not be created.", bar.Find("[data-bulk-selection-notice]").TextContent.Trim()));
+        Assert.Empty(_added);
+    }
+
+    [Fact]
+    public async Task WhileTheListIsOpen_EveryBarButtonIsDisabled_AndASecondPressOpensNoSecondList()
+    {
+        _dialogs.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _dialogs.Choice = new PlaylistChoice(RoadTrip, "Road trip");
+        var bar = await RenderBarAsync(Songs(SongA, SongB), "Music");
+        var add = () => bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist");
+
+        add().Click();
+        bar.WaitForAssertion(() => Assert.True(add().HasAttribute("disabled")));
+        Assert.All(bar.FindAll(".tl-batch__bar button").Where(button => button.TextContent.Trim() is "Add to playlist" or "Clear" or "Edit"),
+            button => Assert.True(button.HasAttribute("disabled")));
+        add().Click();
+
+        Assert.Single(_dialogs.Titles);
+        _dialogs.Gate.SetResult();
+        bar.WaitForAssertion(() => Assert.Contains("2 songs added to Road trip", bar.Find("[data-bulk-selection-notice]").TextContent));
+        Assert.False(add().HasAttribute("disabled"));
+        Assert.Equal(2, _added.Count);
+    }
+
+    [Fact]
+    public async Task WhilePlayIsRunning_EveryBarButtonIsDisabled_AndAnotherPressDoesNothing()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var played = 0;
+        var selection = new BulkEditSelection { MediaType = "Music" };
+        selection.Replace(Songs(SongA, SongB));
+        var bar = Render<BulkSelectionBar>(parameters => parameters
+            .Add(component => component.Selection, selection)
+            .Add(component => component.OnPlay, EventCallback.Factory.Create<IReadOnlyList<BulkEditRow>>(this, async _ =>
+            {
+                played++;
+                await gate.Task;
+            })));
+        var play = () => bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Play");
+
+        play().Click();
+        bar.WaitForAssertion(() => Assert.True(play().HasAttribute("disabled")));
+        Assert.All(bar.FindAll(".tl-batch__bar button").Where(button => button.TextContent.Trim() is "Add to playlist" or "Clear"),
+            button => Assert.True(button.HasAttribute("disabled")));
+
+        gate.SetResult();
+        bar.WaitForAssertion(() => Assert.False(play().HasAttribute("disabled")));
+        Assert.Equal(1, played);
+    }
+
+    [Fact]
+    public async Task TheStatusRegion_IsAlwaysInThePage_AndEmptyUntilThereIsANotice()
+    {
+        _dialogs.Choice = new PlaylistChoice(RoadTrip, "Road trip");
+        var bar = await RenderBarAsync(Songs(SongA), "Music");
+        var region = bar.Find("[data-bulk-selection-announce]");
+
+        Assert.Equal("status", region.GetAttribute("role"));
+        Assert.Equal(string.Empty, region.TextContent.Trim());
+        bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
+
+        bar.WaitForAssertion(() => Assert.Contains("1 song added to Road trip", bar.Find("[data-bulk-selection-announce]").TextContent));
+    }
+
+    [Fact]
+    public void ForAKidsProfile_TheListDoesNotOfferNewPlaylist()
+    {
+        Services.AddSingleton(TestSessions.For(kids: true, administrator: false));
+
+        var dialog = RenderDialog(out _, offerNew: true);
+
+        Assert.DoesNotContain(dialog.FindAll("button"), button => button.TextContent.Trim() == "New playlist");
+    }
+
+    [Fact]
+    public void ForAnAdultProfile_TheListOffersNewPlaylist()
+    {
+        var dialog = RenderDialog(out _, offerNew: true);
+
+        Assert.Contains(dialog.FindAll("button"), button => button.TextContent.Trim() == "New playlist");
+    }
+
+    [Fact]
     public async Task ClosingTheListWithoutChoosing_ChangesNothingAndSaysNothing()
     {
         _dialogs.Choice = null;
