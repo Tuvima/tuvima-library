@@ -1,5 +1,5 @@
 /* The Match tab (universal editor v6): the source selector on its own line, the search row on the shared form row, the "Your file" bar, the current match
-   and its reasons, and the compact search. */
+   and the compact search. */
 .tl-match__source {
     display: flex;
     align-items: center;
@@ -63,32 +63,12 @@
     min-width: 0;
 }
 
-/* The current match and its reasons. */
-.tl-matchcard {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--tl-space-3);
-    padding: var(--tl-space-3);
-    border: 1px solid var(--tl-divider);
-    border-radius: var(--tl-radius-md, 8px);
-}
-
-.tl-match ::deep .tl-matchcard__art {
-    flex: 0 0 4rem;
-    width: 4rem;
-    height: 6rem;
-}
-
-.tl-matchcard__name {
-    font-size: var(--tl-font-size-lg);
-    font-weight: var(--tl-font-weight-semibold);
-}
-
+/* The current match's three actions, at the bottom right of its card. */
 .tl-matchcard__actions {
     display: flex;
-    flex: 0 0 auto;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--tl-space-2);
 }
 
@@ -97,8 +77,4 @@
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3);
-}
-
-.tl-matchwhy__footnote {
-    margin: 0;
 }

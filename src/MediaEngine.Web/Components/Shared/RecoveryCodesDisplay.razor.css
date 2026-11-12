@@ -19,7 +19,7 @@
     border-radius: var(--tl-radius-md);
     outline: none;
     background: var(--tl-bg-surface-raised);
-    font: 600 15px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
+    font: 600 var(--tl-type-body-size)/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
     letter-spacing: .04em;
     user-select: all;
 }

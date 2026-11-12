@@ -75,16 +75,16 @@
     object-fit: contain;
     margin-top: var(--tl-space-4, 1rem);
     border-radius: var(--tl-radius-md, 0.75rem);
-    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--tl-scrim-dark-6) 64%, transparent);
 }
 
 .phone-hero__card--cover .phone-hero__art {
-    background: linear-gradient(160deg, rgba(136, 82, 252, 0.28), rgba(5, 7, 12, 0.9));
+    background: linear-gradient(160deg, color-mix(in srgb, var(--tl-accent-primary) 28%, transparent), color-mix(in srgb, var(--tl-bg-root) 90%, transparent));
 }
 
 /* No usable picture: a quiet tinted tile that says what it is, never a blurred fake cover. */
 .phone-hero__card--placeholder .phone-hero__art {
-    background: linear-gradient(160deg, rgba(136, 82, 252, 0.22), rgba(5, 7, 12, 0.92));
+    background: linear-gradient(160deg, color-mix(in srgb, var(--tl-accent-primary) 22%, transparent), color-mix(in srgb, var(--tl-bg-root) 92%, transparent));
 }
 
 .phone-hero__placeholder {
@@ -92,7 +92,7 @@
     justify-items: center;
     gap: var(--tl-space-2, 0.5rem);
     margin-bottom: 35%;
-    color: var(--tl-text-secondary, rgba(248, 250, 252, 0.72));
+    color: var(--tl-text-secondary);
 }
 
 .phone-hero__placeholder-icon {
@@ -117,7 +117,7 @@
     gap: var(--tl-space-1, 0.25rem);
     box-sizing: border-box;
     padding: var(--tl-space-4, 1rem);
-    background: linear-gradient(to top, rgba(5, 7, 12, 0.94) 0%, rgba(5, 7, 12, 0.78) 42%, rgba(5, 7, 12, 0) 78%);
+    background: linear-gradient(to top, color-mix(in srgb, var(--tl-bg-root) 94%, transparent) 0%, color-mix(in srgb, var(--tl-bg-root) 78%, transparent) 42%, transparent 78%);
     pointer-events: none;
 }
 
@@ -134,8 +134,8 @@
     display: inline-block;
     padding: 0.1rem 0.55rem;
     border-radius: var(--tl-radius-pill);
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--tl-text-secondary, rgba(248, 250, 252, 0.78));
+    background: var(--tl-wash-light-4);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-caption-size);
 }
 
@@ -174,7 +174,7 @@
 .phone-hero__meta {
     margin: 0;
     min-height: 1.4em;
-    color: var(--tl-text-secondary, rgba(248, 250, 252, 0.78));
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-body-size);
     line-height: 1.4;
     white-space: nowrap;
@@ -193,13 +193,13 @@
     border: 0;
     border-radius: var(--tl-radius-round, 999px);
     appearance: none;
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--tl-wash-light-5);
     color: var(--tl-accent-primary);
     overflow: hidden;
 }
 
 .phone-hero__progress::-webkit-progress-bar {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--tl-wash-light-5);
 }
 
 .phone-hero__progress::-webkit-progress-value {
@@ -229,7 +229,7 @@
     width: 0.5rem;
     height: 0.5rem;
     border-radius: var(--tl-radius-round, 999px);
-    background: rgba(255, 255, 255, 0.38);
+    background: color-mix(in srgb, var(--tl-text-primary) 38%, transparent);
 }
 
 .phone-hero__dot.is-active .phone-hero__dot-mark {

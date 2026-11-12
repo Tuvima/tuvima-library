@@ -46,7 +46,7 @@
     height: 10px;
     border-radius: 50%;
     background: var(--tl-accent-primary);
-    box-shadow: 0 0 0 3px var(--tl-bg-surface-raised, #151E2F);
+    box-shadow: 0 0 0 3px var(--tl-bg-surface-raised);
     content: "";
     transform: translateY(-50%);
 }
@@ -143,7 +143,7 @@
 
 .overview-timeline__title:focus-visible {
     border-radius: var(--tl-radius-sm, 6px);
-    outline: 3px solid var(--tl-focus-ring, #A78BFA);
+    outline: 3px solid var(--tl-focus-ring);
     outline-offset: 2px;
 }
 
@@ -163,7 +163,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--tl-status-success, #22C55E);
+    color: var(--tl-status-success);
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
 }

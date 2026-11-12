@@ -10,7 +10,7 @@
     "stale_claim_decay_factor": { "type": "number", "minimum": 0, "maximum": 1 },
     "match_verdict": {
       "type": "object",
-      "description": "The Match tab's Strong / Possible / Check verdict (universal editor v5).",
+      "description": "The Match tab's Strong / Possible / Weak verdict (universal editor v5).",
       "properties": {
         "strong_min_score": { "type": "number", "minimum": 0, "maximum": 1 },
         "possible_min_score": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -21,6 +21,7 @@
         },
         "runtime_tolerance_minutes": { "type": "number", "minimum": 0 },
         "track_length_tolerance_seconds": { "type": "number", "minimum": 0 },
+        "collection_title_markers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "evidence_facts": {
           "type": "object",
           "additionalProperties": {

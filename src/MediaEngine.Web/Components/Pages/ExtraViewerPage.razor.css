@@ -29,12 +29,12 @@
 
 .tl-extra-viewer__heading span {
     font-size: var(--tl-type-secondary-size);
-    color: rgba(246, 240, 232, 0.66);
+    color: var(--tl-text-secondary);
 }
 
 .tl-extra-viewer__download {
     padding: 0.5rem 0.95rem;
-    border: 1px solid rgba(246, 240, 232, 0.2);
+    border: 1px solid var(--tl-wash-light-5);
     border-radius: var(--tl-radius-pill);
     color: inherit;
     font-size: var(--tl-type-control-size);

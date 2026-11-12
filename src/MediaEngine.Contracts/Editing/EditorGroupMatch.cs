@@ -68,7 +68,7 @@ public sealed class EditorGroupMatchLineDto
     [JsonPropertyName("reasons")]
     public IReadOnlyList<EditorMatchReasonDto> Reasons { get; init; } = [];
 
-    /// <summary>True when the item lines up and its verdict is not Check match: it is ticked by default.</summary>
+    /// <summary>True when the item lines up and its verdict is not Weak match: it is ticked by default.</summary>
     [JsonPropertyName("fits")]
     public bool Fits { get; init; }
 

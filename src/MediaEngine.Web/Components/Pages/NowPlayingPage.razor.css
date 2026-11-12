@@ -80,7 +80,7 @@
     aspect-ratio: 1;
     background: linear-gradient(150deg, color-mix(in srgb, var(--playback-accent) 70%, var(--playback-bg)), color-mix(in srgb, var(--playback-blue) 50%, var(--playback-bg)));
     border-radius: 8px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 50px var(--tl-scrim-dark-4);
     overflow: hidden;
     width: min(280px, 100%);
 }

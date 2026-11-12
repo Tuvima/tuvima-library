@@ -40,7 +40,7 @@ public sealed class NowPlayingMockupStyleTests
         Assert.Contains("width:min(280px,100%);", cover);
         Assert.Contains("aspect-ratio:1;", cover);
         Assert.Contains("border-radius:8px;", cover);
-        Assert.Contains("box-shadow:020px50pxrgba(0,0,0,0.5);", cover);
+        Assert.Contains("box-shadow:020px50pxvar(--tl-scrim-dark-4);", cover);
     }
 
     [Fact]

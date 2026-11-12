@@ -15,7 +15,7 @@
     background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-lg, 12px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 8px 24px var(--tl-scrim-dark-3);
 }
 
 .song-selection-bar__head {
