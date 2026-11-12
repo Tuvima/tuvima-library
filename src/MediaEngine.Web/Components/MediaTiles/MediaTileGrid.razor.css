@@ -21,3 +21,57 @@
     flex: 0 0 auto;
     width: var(--tl-tile-poster-w);
 }
+
+/* Select (My List): a tick box top left, and a layer over the whole cover that ticks it instead of opening it. */
+.media-tile-pick {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.media-tile-pick ::deep .media-tile-actions {
+    display: none;
+}
+
+.media-tile-pick__hit {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: var(--tl-radius-md);
+    cursor: pointer;
+}
+
+.media-tile-pick__hit:focus-visible {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 2px;
+}
+
+.media-tile-pick__box {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--tl-text-primary);
+    border-radius: 6px;
+    background: var(--tl-bg-overlay);
+    color: var(--tl-text-on-accent);
+    pointer-events: none;
+}
+
+.media-tile-pick.is-picked .media-tile-pick__box {
+    border-color: var(--tl-accent-primary);
+    background: var(--tl-accent-primary);
+}
+
+@media (min-width: 600px) {
+    .media-tile-pick__box {
+        top: 10px;
+        left: 10px;
+        width: 24px;
+        height: 24px;
+    }
+}

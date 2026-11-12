@@ -1,0 +1,328 @@
+/* My List: the profile header, Downloads, Continue, then the cover grid (mocks M1 to M5, M8). Phones first; the same page widens. */
+.my-list-page {
+    --home-shelf-height: clamp(200px, 15vw, 260px);
+    --my-list-title-size: var(--tl-font-size-title);
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: calc(100dvh - 84px);
+    padding: var(--tl-space-1) var(--tl-space-4) 56px;
+    color: var(--tl-text-primary);
+}
+
+:root[data-form-factor="phone"] .my-list-page {
+    --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5);
+    --phone-shelf-height: var(--home-shelf-height);
+}
+
+@media (min-width: 600px) {
+    .my-list-page {
+        padding: var(--tl-space-6) clamp(24px, 2.2vw, 32px) 56px;
+    }
+}
+
+@media (min-width: 1180px) {
+    .my-list-page {
+        --my-list-title-size: 28px;
+    }
+}
+
+/* Phone: Sort and the page menu sit in a row at the top, right aligned. */
+.my-list-phonebar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 52px;
+    margin-inline: calc(var(--tl-space-2) * -1);
+}
+
+/* Header: picture, heading and name on the left, the four links on the right (their own row on a phone). */
+.my-list-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-4);
+    margin-bottom: var(--tl-space-5);
+}
+
+.my-list-header__identity {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    margin-inline-end: auto;
+}
+
+.my-list-header__avatar {
+    display: block;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.my-list-header__copy {
+    display: grid;
+    min-width: 0;
+}
+
+.my-list-header__title {
+    margin: 0;
+    font-size: var(--my-list-title-size);
+    font-weight: var(--tl-font-weight-semibold);
+    line-height: var(--tl-line-height-tight);
+}
+
+.my-list-header__name {
+    margin: 0;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-body);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.my-list-header__name-skeleton {
+    display: block;
+    width: 8rem;
+}
+
+.my-list-header__links {
+    display: flex;
+    flex-wrap: wrap;
+    flex: 1 0 100%;
+    margin-inline: calc(var(--tl-space-3) * -1);
+}
+
+@media (min-width: 600px) {
+    .my-list-header {
+        gap: var(--tl-space-3) var(--tl-space-4);
+    }
+
+    .my-list-header__identity {
+        gap: var(--tl-space-4);
+    }
+
+    .my-list-header__avatar {
+        width: 56px;
+        height: 56px;
+    }
+
+    .my-list-header__links {
+        flex: 0 1 auto;
+        margin-inline: 0;
+    }
+}
+
+.my-list-link {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: var(--tl-touch-min);
+    padding: 0 var(--tl-space-3);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-body);
+    font-weight: var(--tl-font-weight-semibold);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.my-list-link:hover {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
+}
+
+.my-list-link:focus-visible,
+.my-list-downloads:focus-visible {
+    border-radius: var(--tl-radius-md);
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+/* Downloads card (the Tuvima app only). */
+.my-list-downloads {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    box-sizing: border-box;
+    min-height: 72px;
+    margin-bottom: var(--tl-space-5);
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-lg);
+    color: var(--tl-text-primary);
+    text-decoration: none;
+    background: var(--tl-bg-surface);
+}
+
+.my-list-downloads__copy {
+    display: grid;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.my-list-downloads__copy span {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+}
+
+/* Continue holds its height while it loads, so the list below does not move when it arrives. */
+.my-list-continue {
+    min-width: 0;
+    margin-bottom: var(--tl-space-6);
+}
+
+.my-list-continue--loading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+    min-height: calc(var(--home-shelf-height) * .8 + 120px);
+}
+
+/* The list. */
+.my-list-list {
+    min-width: 0;
+}
+
+.my-list-error {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3);
+}
+
+.my-list-count {
+    min-height: 1.25rem;
+    margin: 0 0 var(--tl-space-3);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+}
+
+.my-list-undo {
+    margin-bottom: var(--tl-space-3);
+}
+
+/* Kind chips on the left; Sort, Select and the page menu on the right. Below the wide breakpoint the chips take their own line. */
+.my-list-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3) var(--tl-space-2);
+    min-height: var(--tl-touch-min);
+    margin-bottom: var(--tl-space-5);
+}
+
+.my-list-chips {
+    display: flex;
+    flex: 1 1 100%;
+    gap: var(--tl-space-2);
+    min-width: 0;
+    padding-block: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.my-list-chips::-webkit-scrollbar {
+    display: none;
+}
+
+.my-list-chip__count {
+    color: var(--tl-text-muted);
+}
+
+.my-list-tools {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin-inline-start: auto;
+}
+
+.my-list-tools__sort {
+    width: 11rem;
+}
+
+@media (min-width: 1180px) {
+    .my-list-chips {
+        flex: 1 1 0;
+    }
+}
+
+/* Select: this bar replaces the chips row; on a phone it is fixed at the bottom, above the dock. */
+.my-list-selbar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: var(--tl-bottom-dock-height, 0px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-3) var(--tl-space-4) var(--tl-space-4);
+    border-radius: var(--tl-radius-lg) var(--tl-radius-lg) 0 0;
+    background: var(--tl-bg-surface-elevated);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.my-list-page.is-selecting {
+    padding-bottom: calc(var(--tl-bottom-dock-height, 0px) + 96px);
+}
+
+.my-list-selbar__spacer {
+    flex: 1 1 auto;
+}
+
+@media (min-width: 600px) {
+    .my-list-selbar {
+        position: static;
+        gap: var(--tl-space-3);
+        min-height: var(--tl-touch-min);
+        margin-bottom: var(--tl-space-5);
+        padding: 0;
+        border-radius: 0;
+        background: none;
+    }
+
+    .my-list-page.is-selecting {
+        padding-bottom: 56px;
+    }
+}
+
+.my-list-grid {
+    --media-tile-hover-clearance: 0px;
+    --media-tile-hover-lift: 0px;
+    padding: var(--tl-space-1) 0 var(--tl-space-6);
+}
+
+/* The first read holds a fixed height, so the page below does not move when the covers arrive. */
+.my-list-skeleton {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: clamp(14px, 1.4vw, 20px);
+    height: 36rem;
+    overflow: hidden;
+}
+
+.my-list-skeleton__tile {
+    width: var(--tl-tile-poster-w);
+    aspect-ratio: 2 / 3;
+}
+
+.my-list-more {
+    display: flex;
+    min-height: 48px;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.my-list-more__error {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+/* The scroll trigger: no height of its own, it only marks where the grid ends. */
+.my-list-sentinel {
+    height: 1px;
+}
