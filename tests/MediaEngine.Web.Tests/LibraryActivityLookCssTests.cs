@@ -67,7 +67,7 @@ public sealed class LibraryActivityLookCssTests
         var css = Read(Folder + "LibraryActivityHistory.razor.css");
         var razor = Read(Folder + "LibraryActivityHistory.razor");
 
-        Assert.Contains("font-weight: var(--tl-font-weight-semibold);", Rule(css, ".lact-group__toggle strong"), StringComparison.Ordinal);
+        Assert.Contains("font-weight: var(--tl-type-subheading-weight);", Rule(css, ".lact-group__toggle strong"), StringComparison.Ordinal);
         Assert.Contains("color: var(--tl-text-muted);", Rule(css, ".lact-group__count"), StringComparison.Ordinal);
         Assert.Contains("<span class=\"lact-group__count\">· @LibraryActivityText.BatchCount(month.Count)</span>", razor, StringComparison.Ordinal);
     }
@@ -105,8 +105,8 @@ public sealed class LibraryActivityLookCssTests
 
         Assert.Contains("color: var(--tl-status-success);", Rule(css, ".lact-live.is-live"), StringComparison.Ordinal);
         var title = Rule(css, ".lact-title-main");
-        Assert.Contains("font-size: var(--tl-font-size-hero);", title, StringComparison.Ordinal);
-        Assert.Contains("font-weight: var(--tl-font-weight-bold);", title, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-type-page-title-size);", title, StringComparison.Ordinal);
+        Assert.Contains("font-weight: var(--tl-type-page-title-weight);", title, StringComparison.Ordinal);
     }
 
     [Fact]

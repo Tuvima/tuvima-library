@@ -73,8 +73,8 @@
 
 ::deep .tl-detail-hero-brand-badge span {
     color: rgba(var(--hero-text-rgb, 245, 247, 250), 0.95);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 700;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     letter-spacing: 0;
     line-height: 1;
     white-space: nowrap;
@@ -113,7 +113,7 @@
 }
 
 ::deep .tl-detail-description-attribution--compact {
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     margin-top: 0.75rem;
 }
 
@@ -160,8 +160,8 @@
 
 ::deep :where(.tl-section-heading) h2 {
     margin: 0 0 1rem;
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     color: var(--tl-text-primary);
 }
 
@@ -181,8 +181,8 @@
 
 ::deep .tl-detail-watch-metadata-item__lane-label {
     color: var(--tl-accent-primary-hover);
-    font-size: 0.92em;
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 ::deep .tl-series-strip {
@@ -226,7 +226,7 @@
 ::deep .tl-detail-dl {
     margin-top: 0.25rem;
     color: rgba(246, 240, 232, 0.62);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.35;
 }
 
@@ -287,11 +287,11 @@
 /* Full series presentation: reusable information rail + large sequence artwork. */
 
 ::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-item__title.is-long {
-    font-size: clamp(0.75rem, 0.88vw, 0.94rem);
+    font-size: var(--tl-type-caption-size);
 }
 
 ::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-item__title.is-very-long {
-    font-size: clamp(0.68rem, 0.78vw, 0.84rem);
+    font-size: var(--tl-type-caption-size);
 }
 
 ::deep .tl-series-placement,
@@ -323,7 +323,7 @@
 ::deep .tl-series-owned-summary {
     margin-top: 0.25rem;
     color: rgba(255,255,255,0.58);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     line-height: 1.2;
     text-align: center;
 }
@@ -341,8 +341,8 @@
     width: fit-content;
     max-width: min(100%, 52rem);
     color: rgba(var(--hero-text-rgb, 245, 247, 250), 0.88);
-    font-size: clamp(1rem, 1.3vw, 1.18rem);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 ::deep .tl-detail-watch-metadata-item {
@@ -417,7 +417,7 @@
 @media (width < 840px) {
 ::deep .tl-detail-watch-metadata-row {
         gap: 0.52rem;
-        font-size: var(--tl-font-size-md);
+        font-size: var(--tl-type-subheading-size);
     }
 
 }
@@ -430,8 +430,8 @@
     max-width: none;
     gap: 0.42rem;
     color: rgba(255, 255, 255, 0.78);
-    font-size: clamp(0.74rem, 0.82vw, 0.86rem);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.015em;
 }
 
@@ -554,8 +554,8 @@
 
 ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-watch-metadata-row {
     gap: 0.7rem;
-    font-size: clamp(1rem, 1.3vw, 1.18rem);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     letter-spacing: 0;
 }
 
@@ -691,8 +691,8 @@
 
 ::deep .tl-overview-section__heading > span {
     color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 72%, var(--tl-text-on-accent));
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.13em;
 }
 

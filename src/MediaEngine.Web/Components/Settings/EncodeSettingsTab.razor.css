@@ -47,12 +47,12 @@
 
 .encode-settings__current strong {
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-label-size);
 }
 
 .encode-settings__current span {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .encode-settings__warnings {

@@ -214,7 +214,10 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
             .Add(panel => panel.IsUnmatched, true));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-search]")));
         Assert.Empty(cut.FindAll("[data-testid=music-flow-release]"));
-        Assert.NotNull(Assert.Single(cut.FindAll("[data-testid=match-row]")).QuerySelector("[data-testid=music-flow-song]"));
+        var row = Assert.Single(cut.FindAll("[data-testid=match-row]"));
+        Assert.NotNull(row.QuerySelector("[data-testid=music-flow-song]"));
+        Assert.Empty(row.QuerySelectorAll("[data-testid=match-source]"));
+        Assert.Single(cut.FindAll("[data-testid=match-source]"));
 
         cut.Find("[data-testid=music-flow-search]").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-track]")));

@@ -7,8 +7,8 @@
     margin: var(--tl-space-1) 0;
     padding: 0 var(--tl-space-2);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .app-browser-side__list {

@@ -17,8 +17,8 @@
 
 .plugin-page__title {
     margin: 0;
-    font-size: var(--tl-font-size-xl);
-    font-weight: var(--tl-font-weight-bold);
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
 }
 
 .plugin-page__source,
@@ -77,7 +77,7 @@
 .plugin-page__tile-subtitle,
 .plugin-page__row-cell-label {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .plugin-page__row-cell {
@@ -118,7 +118,7 @@
 
 .plugin-page__detail-row dt {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .plugin-page__detail-row dd {
@@ -160,7 +160,7 @@
     top: var(--tl-space-3);
     transform: translateX(-50%);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .plugin-page__guide-slot {
@@ -186,7 +186,7 @@
 
 .plugin-page__guide-slot-time {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 @media (max-width: 600px) {

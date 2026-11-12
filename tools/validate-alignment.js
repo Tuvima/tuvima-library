@@ -13,7 +13,7 @@
 //                  (allowed: the shared form row's own message line, and a field's help inside a multi-item .app-form-row, where it
 //                  sits on the shared help line)
 //   formRow        the control boxes of the fields of one shared .app-form-row (Editor v6 D12) do not share one top and one height, or a
-//                  non-field child (button, checkbox) is off the control line's centre
+//                  non-field child (button, checkbox) is off the control line's centre; a row that wraps is judged per visual line
 () => {
     const TOLERANCE = 2;
     const LADDER = [44, 56, 64];
@@ -125,18 +125,36 @@
             return r.width > 0 && r.height > 0 ? kid : (firstControl(kid) || kid.querySelector('*') || kid);
         };
         const parts = [...grid.children].filter(kid => style(kid).display !== 'none' && !kid.matches('[hidden]'))
-            .map(kid => ({ field: kid.matches(FIELD_SELECTOR), box: boxOf(kid) })).filter(p => visible(p.box));
+            .map(kid => ({ kid, field: kid.matches(FIELD_SELECTOR), box: boxOf(kid) })).filter(p => visible(p.box));
         if (parts.length < 2) continue;
-        const reference = (parts.find(p => p.field) || parts[0]).box;
-        const first = reference.getBoundingClientRect();
-        for (const part of parts) {
-            if (part.box === reference) continue;
-            const r = part.box.getBoundingClientRect();
-            if (!part.field) {
-                const delta = Math.abs(centre(part.box) - centre(reference));
-                if (delta > TOLERANCE) fail('formRow', part.box, `control centre is ${delta.toFixed(1)} px off the control line of the form row`);
-            } else if (Math.abs(r.top - first.top) > TOLERANCE) fail('formRow', part.box, `control top is ${Math.abs(r.top - first.top).toFixed(1)} px off the first control of the form row`);
-            else if (Math.abs(r.height - first.height) > TOLERANCE) fail('formRow', part.box, `control height is ${Math.round(r.height)} px, the first control of the form row is ${Math.round(first.height)} px`);
+        // A row that wraps is several visual lines (a child whose box lies wholly below the others starts a new one); the controls of one
+        // line share a top and a height, and each line is judged by itself. An unwrapped row is one line.
+        const spanOf = p => {
+            const own = p.kid.getBoundingClientRect();
+            return own.width > 0 && own.height > 0 ? own : p.box.getBoundingClientRect();
+        };
+        const lines = [];
+        for (const part of [...parts].sort((a, b) => spanOf(a).top - spanOf(b).top)) {
+            const span = spanOf(part);
+            const line = lines[lines.length - 1];
+            if (line && span.top < line.bottom - 1) {
+                line.parts.push(part);
+                line.bottom = Math.max(line.bottom, span.bottom);
+            } else lines.push({ parts: [part], bottom: span.bottom });
+        }
+        for (const line of lines) {
+            if (line.parts.length < 2) continue;
+            const reference = (line.parts.find(p => p.field) || line.parts[0]).box;
+            const first = reference.getBoundingClientRect();
+            for (const part of line.parts) {
+                if (part.box === reference) continue;
+                const r = part.box.getBoundingClientRect();
+                if (!part.field) {
+                    const delta = Math.abs(centre(part.box) - centre(reference));
+                    if (delta > TOLERANCE) fail('formRow', part.box, `control centre is ${delta.toFixed(1)} px off the control line of the form row`);
+                } else if (Math.abs(r.top - first.top) > TOLERANCE) fail('formRow', part.box, `control top is ${Math.abs(r.top - first.top).toFixed(1)} px off the first control of its line in the form row`);
+                else if (Math.abs(r.height - first.height) > TOLERANCE) fail('formRow', part.box, `control height is ${Math.round(r.height)} px, the first control of its line in the form row is ${Math.round(first.height)} px`);
+            }
         }
     }
 

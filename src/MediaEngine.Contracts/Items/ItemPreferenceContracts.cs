@@ -126,6 +126,9 @@ public sealed class VideoSeriesStateResponse
     [JsonPropertyName("in_series")] public bool InSeries { get; init; }
     [JsonPropertyName("series_title")] public string? SeriesTitle { get; init; }
 
+    /// <summary>True when the video is in its series only because of the folder it sits in; false when a person put it there (universal editor v6, D17).</summary>
+    [JsonPropertyName("from_folder")] public bool FromFolder { get; init; }
+
     /// <summary>The series (or section) a video can join. Empty when none exists yet; a new one can still be started.</summary>
     [JsonPropertyName("targets")] public IReadOnlyList<VideoSeriesTargetDto> Targets { get; init; } = [];
 }

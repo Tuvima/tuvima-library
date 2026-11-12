@@ -8,7 +8,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Match tab's Wikidata side (universal editor v5, 3c, mockup G5). The first row is the same row the provider side uses: "Search Wikidata", "Paste
-   a Wikidata link or QID" and an icon-only Search, with the source switch at the end. Nothing is searched when the tab opens; a search runs when a
+   a Wikidata link or QID" and an icon-only Search, (the source selector is drawn above it by the Match tab). Nothing is searched when the tab opens; a search runs when a
    person types or pastes or presses Search. Results are text only. A pasted link or QID resolves straight to its item. The Engine says whether a
    result is the item itself or its parent; a parent is shown for context and cannot be applied. The identity card shows what the item is linked to
    now (read by its stored QID). Apply, Change match and Remove match only stage a change; Save changes writes it. The link and the provider match
@@ -27,7 +27,6 @@
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Disabled="@(!CanSearch || _searching)" OnClick="SearchAsync" data-testid="wikidata-search-button" />
         </Start>
-        <End>@RowEnd</End>
     </EditorMatchRow>
 
     @if (_loading)
@@ -87,9 +86,6 @@
     [Parameter] public string? ProviderTitle { get; set; }
 
     [Parameter] public string? ProviderYear { get; set; }
-
-    /// <summary>The source switch, drawn at the end of the first row by the Match tab.</summary>
-    [Parameter] public RenderFragment? RowEnd { get; set; }
 
     /// <summary>What follows the Wikidata side (the Universe link).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }

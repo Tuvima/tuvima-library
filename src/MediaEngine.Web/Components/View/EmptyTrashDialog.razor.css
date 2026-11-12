@@ -22,8 +22,8 @@
 }
 
 .empty-trash__section h3 {
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .empty-trash__more {

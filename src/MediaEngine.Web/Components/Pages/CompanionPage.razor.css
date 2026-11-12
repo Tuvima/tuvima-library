@@ -12,7 +12,7 @@
 
 .companion-page__notice {
     margin: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
     color: var(--tl-text-secondary);
 }
 

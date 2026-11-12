@@ -3,8 +3,8 @@
     border: 1px solid rgba(246, 240, 232, 0.2);
     border-radius: var(--tl-radius-pill);
     color: inherit;
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     text-decoration: none;
 }
 
@@ -104,7 +104,7 @@
     bottom: 1rem;
     left: 50%;
     transform: translateX(-50%);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     color: rgba(246, 240, 232, 0.75);
 }
 

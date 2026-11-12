@@ -18,15 +18,15 @@
 
 .add-view-folder__caption {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.06em;
 }
 
 .add-view-folder__line {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* "You can't upload ... until you add a Managed folder." carries the warning icon of the mock. */
@@ -43,7 +43,7 @@
     gap: var(--tl-space-2);
     margin: 0;
     color: var(--tl-status-success);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .add-view-folder__folder {

@@ -16,8 +16,8 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: clamp(1.25rem, 1.8vw, 1.7rem);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     line-height: 1.15;
 }
 
@@ -32,8 +32,8 @@
 }
 
 .universe-connections__explorer {
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.14em;
 }
 
@@ -67,8 +67,8 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .universe-connections__state {
@@ -87,7 +87,7 @@
     margin: 0;
     color: var(--tl-text-muted);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .universe-connections__fandom {

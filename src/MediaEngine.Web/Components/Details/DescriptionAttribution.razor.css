@@ -7,7 +7,7 @@
     column-gap: 0.24rem;
     row-gap: 0.12rem;
     color: color-mix(in srgb, var(--tl-text-muted) 82%, var(--tl-accent-primary));
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     line-height: 1.45;
     margin: 0.9rem 0 0;
 }

@@ -56,7 +56,7 @@
     margin: 0;
     color: rgba(255, 255, 255, 0.78);
     font-family: var(--media-identity-font-family, var(--font-ui));
-    font-size: clamp(1rem, 1.3vw, 1.22rem);
+    font-size: var(--tl-type-subheading-size);
     font-weight: var(--media-identity-subtitle-weight, 600);
     line-height: 1.35;
 }
@@ -66,8 +66,8 @@
     margin: 0;
     color: rgba(255, 255, 255, 0.84);
     font-family: var(--media-identity-font-family, var(--font-ui));
-    font-size: clamp(1rem, 1.25vw, 1.2rem);
-    font-weight: 400;
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
     line-height: 1.4;
     text-wrap: balance;
 }
@@ -89,8 +89,8 @@
     margin: 0 0 0.42rem;
     color: rgba(255, 255, 255, 0.94);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1.35;
     letter-spacing: 0.01em;
 }
@@ -102,8 +102,8 @@
     margin: 0;
     color: rgba(255, 255, 255, 0.72);
     font-family: var(--media-identity-font-family, var(--font-ui));
-    font-size: clamp(0.94rem, 1.05vw, 1.08rem);
-    font-weight: 400;
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
     line-height: 1.45;
     letter-spacing: 0;
     white-space: normal;
@@ -133,8 +133,8 @@
     gap: 0.7rem;
     max-width: none;
     color: rgba(255, 255, 255, 0.86);
-    font-size: clamp(1rem, 1.3vw, 1.18rem);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 ::deep .tl-detail-watch-metadata-row--facts {
@@ -275,8 +275,8 @@
 :where(.tl-detail-page) .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle,
 :where(.tl-detail-page) .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle {
     color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 88%, var(--tl-text-on-accent));
-    font-size: clamp(1.2rem, 2vw, 1.85rem);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     letter-spacing: 0.38em;
 }
 
@@ -319,7 +319,7 @@
 :where(.tl-detail-page) .tl-detail-hero__subtitle,
 :where(.tl-detail-page) .tl-detail-hero__tagline {
     color: rgba(246, 240, 232, 0.78);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-subheading-size);
     line-height: 1.6;
     max-width: 42rem;
 }
@@ -415,7 +415,7 @@
     order: 5;
     margin: 0;
     color: var(--tl-text-on-accent);
-    font-size: clamp(0.94rem, 1.1vw, 1.05rem);
+    font-size: var(--tl-type-body-size);
     line-height: 1.55;
 }
 
@@ -429,8 +429,8 @@
 :where(.tl-detail-page) .tl-detail-hero__subtitle {
     margin: -0.2rem 0 0;
     color: color-mix(in srgb, rgb(var(--hero-text-rgb, 246, 240, 232)) 76%, var(--tl-detail-primary, var(--tl-accent-collection)));
-    font-size: clamp(1.05rem, 1.8vw, 1.55rem);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
 }
 
 @media (width < 840px) {
@@ -454,7 +454,7 @@
 
 @media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__subtitle {
-        font-size: var(--tl-font-size-md);
+        font-size: var(--tl-type-subheading-size);
     }
 }
 
@@ -511,8 +511,8 @@
     order: 6;
     max-width: min(47.5rem, 62vw);
     color: rgba(255, 255, 255, 0.88);
-    font-size: clamp(0.82rem, 0.9vw, 0.94rem);
-    font-weight: 500;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
     line-height: 1.45;
     white-space: normal;
 }
@@ -611,8 +611,8 @@
     margin: 0 0 0.42rem;
     color: rgba(255, 255, 255, 0.94);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1.35;
     letter-spacing: 0.01em;
 }
@@ -623,8 +623,8 @@
     max-width: none;
     margin: 0;
     color: rgba(255, 255, 255, 0.72);
-    font-size: clamp(0.94rem, 1.05vw, 1.08rem);
-    font-weight: 400;
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
     line-height: 1.45;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;

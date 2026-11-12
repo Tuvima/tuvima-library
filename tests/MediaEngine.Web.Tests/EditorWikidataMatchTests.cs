@@ -126,7 +126,11 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         var row = cut.Find("[data-testid=match-row]");
         Assert.Contains("Search Wikidata", row.InnerHtml, StringComparison.Ordinal);
         Assert.Contains("Paste a Wikidata link or QID", row.InnerHtml, StringComparison.Ordinal);
-        Assert.Contains("Media providers", row.TextContent, StringComparison.Ordinal);
+        // The Media providers / Wikidata selector is on its own line above the row, drawn once by the tab (v6 D1), not in the row.
+        Assert.DoesNotContain("Media providers", row.TextContent, StringComparison.Ordinal);
+        var source = Assert.Single(cut.FindAll("[data-testid=match-source]"));
+        Assert.Contains("Media providers", source.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Wikidata", source.TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

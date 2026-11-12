@@ -52,8 +52,8 @@
 
 .context-sidebar-shell__header h2 {
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     line-height: 1.2;
     margin: 0;
     min-width: 0;

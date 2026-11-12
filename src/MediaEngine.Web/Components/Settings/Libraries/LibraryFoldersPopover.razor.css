@@ -13,8 +13,8 @@
 .lib-folders__path { display: flex; min-width: 0; color: var(--tl-text-secondary); white-space: nowrap; }
 .lib-folders__path-start { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .lib-folders__path-end { flex: 0 0 auto; }
-.lib-folders__why { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-status-warning); font-size: var(--tl-font-size-sm); }
-.lib-folders__foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lib-folders__why { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-status-warning); font-size: var(--tl-type-secondary-size); }
+.lib-folders__foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 @media (max-width: 600px) {
     .lib-folders__inner { padding: 16px; }
 }

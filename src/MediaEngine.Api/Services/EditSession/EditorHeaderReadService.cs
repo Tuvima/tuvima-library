@@ -108,8 +108,19 @@ public sealed class EditorHeaderReadService(
             FolderButton = BuildFolderButton(support, levelChoice),
             Colors = cover.Colors,
             FileFacts = family.Current.IsLeaf || !family.HasFamily ? await ReadFileFactsAsync(current.EntityId, support, ct).ConfigureAwait(false) : null,
+            ProviderMatched = ReadProviderMatched(family),
             Config = BuildConfig(config, kind),
         };
+    }
+
+    // Whether the item is matched to a provider by the Match tab's own rule (EditorMatchRule), so the header and the Match tab say the same thing.
+    private bool ReadProviderMatched(Family family)
+    {
+        using var connection = db.CreateConnection();
+        var workKind = connection.QueryFirstOrDefault<string>("SELECT work_kind FROM works WHERE id = @id;", new { id = family.Current.EntityId }) ?? string.Empty;
+        return EditorProviderMatchReader
+            .Read(connection, family.MediaType, family.Root.EntityId, [new EditorProviderMatchReader.Item(family.Current.EntityId, workKind)])
+            .Contains(family.Current.EntityId);
     }
 
     /// <summary>

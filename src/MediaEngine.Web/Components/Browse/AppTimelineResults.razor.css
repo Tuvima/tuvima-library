@@ -22,7 +22,7 @@
     grid-row: 1;
 }
 
-.app-timeline__decade-heading { margin: 1rem 0 .5rem; font-size: var(--tl-font-size-lg); }
+.app-timeline__decade-heading { margin: 1rem 0 .5rem; font-size: var(--tl-type-heading-size); }
 
 .app-timeline__header {
     display: grid;
@@ -33,7 +33,7 @@
 
 .app-timeline__header small {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .app-timeline__groups {
@@ -77,13 +77,13 @@
     margin: 0;
     color: rgba(248, 250, 252, 0.98);
     font-family: var(--font-ui);
-    font-size: clamp(1.35rem, 2vw, 1.7rem);
+    font-size: var(--tl-type-heading-size);
     line-height: 1;
 }
 
 .app-timeline__year-heading span {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     white-space: nowrap;
 }
 

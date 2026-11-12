@@ -25,7 +25,7 @@
     box-sizing: content-box;
     padding-block-start: var(--tl-space-1);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     line-height: 1.4;
 }
 
@@ -38,4 +38,15 @@
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3);
+}
+
+/* Wrap: when the nearest size container (such as the editor window) is narrower than 1280, the fields flow onto further lines as whole fields
+   instead of sharing one grid line. The fields start-align; each is its own column of label, control and help (rules in wwwroot/app.css). */
+@container (max-width: 1279px) {
+    .app-form-row--wrap .app-form-row__fields {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: var(--tl-space-3);
+    }
 }

@@ -19,7 +19,7 @@
 .taste-page__scope-label {
     flex: 0 0 auto;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-label-size);
     white-space: nowrap;
 }
 
@@ -36,15 +36,15 @@
 .taste-page__sentence {
     margin: 0 0 var(--tl-space-4, 16px);
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-xl);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     line-height: 1.3;
 }
 
 .taste-page__sentence--waiting {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-regular);
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
 }
 
 .taste-page__cards {
@@ -73,14 +73,14 @@
 .taste-block__title {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .taste-page__basis {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 @media (max-width: 840px) {
@@ -89,7 +89,7 @@
     }
 
     .taste-page__sentence {
-        font-size: var(--tl-font-size-dialog-title);
+        font-size: var(--tl-type-heading-size);
     }
 }
 
@@ -108,8 +108,8 @@
 .taste-group__title {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .taste-group__empty {
@@ -146,7 +146,7 @@
     flex: 0 0 auto;
     margin-inline-start: var(--tl-space-2, 8px);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* The Add control: a text box and its button on one line, the button level with the box and not its helper text. */

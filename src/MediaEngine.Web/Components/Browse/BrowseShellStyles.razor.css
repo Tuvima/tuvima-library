@@ -60,15 +60,15 @@
 }
 
 .browse-shell__title-eyebrow {
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     color: var(--tl-text-muted);
 }
 
 .browse-shell__title-text {
     margin: 0;
-    font-size: clamp(1.55rem, 1.2vw + 1rem, 2rem);
-    font-weight: 600;
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     letter-spacing: 0;
     line-height: 1;
     color: var(--tl-text-primary);
@@ -119,8 +119,8 @@
     background: transparent !important;
     color: var(--tl-text-secondary) !important;
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-md);
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: var(--tl-control-line-height) !important;
     letter-spacing: var(--tl-control-letter-spacing);
     text-transform: none;
@@ -173,8 +173,8 @@
     background: rgba(7, 12, 27, 0.56) !important;
     color: var(--tl-text-secondary) !important;
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-sm);
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: var(--tl-control-line-height) !important;
     letter-spacing: var(--tl-control-letter-spacing);
     box-sizing: border-box;
@@ -205,8 +205,8 @@
     background: transparent;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-sm);
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: var(--tl-control-line-height);
     letter-spacing: var(--tl-control-letter-spacing);
     cursor: pointer;
@@ -252,7 +252,7 @@
 
 .browse-shell__empty h3 {
     margin: 0;
-    font-size: var(--tl-font-size-lg);
+    font-size: var(--tl-type-heading-size);
     color: var(--tl-text-primary);
 }
 
@@ -320,6 +320,6 @@
         min-width: 0;
         gap: 5px;
         padding: 0 0.55rem;
-        font-size: var(--tl-font-size-secondary);
+        font-size: var(--tl-type-control-size);
     }
 }
