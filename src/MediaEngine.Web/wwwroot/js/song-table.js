@@ -42,15 +42,20 @@ export function scrollToIndex(list, index, itemSize, topOffset) {
 }
 
 // ---- Column resizing --------------------------------------------------------------------------------------------------------
-// Dragging a header edge is handled here, in the browser, so the table follows the pointer without a round trip per mouse move.
-// The component draws the grid as a CSS variable on the wrapper around the table (--song-table-columns, one track per header cell, the
-// actions cell last; --song-table-min-width is the table's smallest width). While a handle is dragged this only rewrites that variable
-// (and the minimum width for the Song track), so the header and every row follow together. When the drag ends, .NET is called once with
-// the column and the final width; it saves the choice and draws the same widths itself.
+// Dragging a header edge, or pressing Left or Right on it, is handled here in the browser, so the table follows the pointer without a
+// round trip per mouse move. The component draws the grid as inline CSS variables on the wrapper around the table: --song-table-columns
+// (one grid track per header cell, a filler track before the actions track once the Song column has a fixed width, the actions track
+// last), --song-table-min-width (the table's smallest width) and --song-table-filler (block or none: whether the empty filler cells show).
+// While a handle is dragged this only rewrites those variables, so the header and every row follow together. When the drag ends, .NET is
+// called once with the column and the final width. It saves the choice and returns the exact variables it now draws, which are written
+// back so the page matches what .NET holds even when its own redraw finds nothing to change.
 
 const COLUMNS_VARIABLE = '--song-table-columns';
 const MIN_WIDTH_VARIABLE = '--song-table-min-width';
-const FLEXIBLE_TRACK = /^minmax\(\s*[\d.]+px\s*,\s*1fr\s*\)$/;
+const FILLER_VARIABLE = '--song-table-filler';
+const FILLER_TRACK = 'minmax(0, 1fr)';
+const COLUMN_GAP = 8;
+const KEYBOARD_STEP = 8;
 const wirings = new WeakMap();
 
 // A width kept between the column's smallest and largest allowed size.
@@ -61,6 +66,12 @@ export function clampWidth(width, min, max) {
 // The width after the pointer moved by `delta` pixels from where the drag began, rounded to whole pixels and kept within the limits.
 export function widthFromDelta(startWidth, delta, min, max) {
     return clampWidth(Math.round(startWidth + delta), min, max);
+}
+
+// The upper limit for one drag: the column's own limit, or the width it already has when it starts wider than that (the Song column on a
+// very wide screen), so the first move never shrinks it by itself.
+export function limitForDrag(max, startWidth) {
+    return Math.max(max, startWidth);
 }
 
 // Splits a grid template into its tracks, keeping minmax(a, b) together.
@@ -81,11 +92,6 @@ export function splitTemplate(template) {
 
     if (current) tracks.push(current);
     return tracks;
-}
-
-// True when the track is the flexible one (the Song column with no width of its own, minmax(Wpx, 1fr)).
-export function isFlexibleTrack(template, index) {
-    return FLEXIBLE_TRACK.test(splitTemplate(template)[index] ?? '');
 }
 
 // How much a track adds to the table's smallest width: a minmax(a, b) track its minimum a, a fixed track its width. 0 for anything else.
@@ -114,6 +120,24 @@ export function withTrackWidth(template, index, width) {
     return tracks.join(' ');
 }
 
+// True when the template already has the filler track right before the last (actions) track.
+export function hasFillerTrack(template) {
+    const tracks = splitTemplate(template);
+    return tracks.length >= 2 && tracks[tracks.length - 2] === FILLER_TRACK;
+}
+
+// The template with the filler track put right before the last (actions) track, so spare width falls there and the actions track stays
+// at the right edge. A template that has it already is returned as it is.
+export function withFillerTrack(template) {
+    const tracks = splitTemplate(template);
+    if (tracks.length < 1 || hasFillerTrack(template)) {
+        return tracks.join(' ');
+    }
+
+    tracks.splice(tracks.length - 1, 0, FILLER_TRACK);
+    return tracks.join(' ');
+}
+
 // Wires resizing for one table: `root` is the .song-table element, `dotnetRef` the component. Handles are found by event delegation, so
 // showing or hiding columns needs no re-wiring. Each handle names its column and limits in data-column, data-min and data-max.
 // Returns a function that removes everything it added; wiring the same table again replaces the earlier wiring.
@@ -125,11 +149,31 @@ export function wireResize(root, dotnetRef) {
 
     let drag = null;
 
-    const restore = (state) => {
-        state.holder.style.setProperty(COLUMNS_VARIABLE, state.template);
-        if (Number.isFinite(state.minTable)) {
-            state.holder.style.setProperty(MIN_WIDTH_VARIABLE, `${state.minTable}px`);
-        }
+    const variables = (holder) => ({
+        columns: holder.style.getPropertyValue(COLUMNS_VARIABLE),
+        minWidth: holder.style.getPropertyValue(MIN_WIDTH_VARIABLE),
+        filler: holder.style.getPropertyValue(FILLER_VARIABLE),
+    });
+
+    const restore = (holder, saved) => {
+        holder.style.setProperty(COLUMNS_VARIABLE, saved.columns);
+        holder.style.setProperty(MIN_WIDTH_VARIABLE, saved.minWidth);
+        holder.style.setProperty(FILLER_VARIABLE, saved.filler);
+    };
+
+    // Calls .NET and writes back the variables it answers with. A failed call must not throw out of an event handler (nothing could catch
+    // it), so it is reported on the console and the table goes back to how it was before the change.
+    const callDotnet = (holder, saved, method, ...args) => {
+        Promise.resolve(dotnetRef.invokeMethodAsync(method, ...args))
+            .then((css) => {
+                if (typeof css === 'string' && css) {
+                    holder.style.cssText = css;
+                }
+            })
+            .catch((error) => {
+                console.warn('Song table: could not apply the column change.', error);
+                restore(holder, saved);
+            });
     };
 
     const finish = (commit) => {
@@ -146,10 +190,11 @@ export function wireResize(root, dotnetRef) {
             // The browser already ended the capture; there is nothing left to let go of.
         }
 
-        if (!commit) {
-            restore(finished);
-        } else if (finished.width !== finished.startWidth) {
-            Promise.resolve(dotnetRef.invokeMethodAsync('ColumnResized', finished.column, finished.width)).catch(() => { });
+        if (commit && finished.width !== finished.startWidth) {
+            callDotnet(finished.holder, finished.saved, 'ColumnResized', finished.column, finished.width);
+        } else {
+            // Cancelled, or let go where it started: nothing is sent, so the table must not keep the fixed width written while dragging.
+            restore(finished.holder, finished.saved);
         }
     };
 
@@ -167,11 +212,10 @@ export function wireResize(root, dotnetRef) {
             return;
         }
 
-        // No text selection and no native drag may start from here, and the press must not reach the header's sort.
+        // No text selection and no native drag may start from here.
         event.preventDefault();
-        event.stopPropagation();
 
-        const template = holder.style.getPropertyValue(COLUMNS_VARIABLE);
+        const saved = variables(holder);
         const index = Array.prototype.indexOf.call(head.children, cell);
         const startWidth = Math.round(cell.getBoundingClientRect().width);
         drag = {
@@ -179,15 +223,15 @@ export function wireResize(root, dotnetRef) {
             handle,
             holder,
             index,
-            template,
+            saved,
             pointerId: event.pointerId,
             startX: event.clientX,
             startWidth,
             width: startWidth,
             min: Number(handle.dataset.min) || 0,
-            max: Number(handle.dataset.max) || Number.MAX_SAFE_INTEGER,
-            minTable: parseFloat(holder.style.getPropertyValue(MIN_WIDTH_VARIABLE)),
-            trackMinimum: trackMinimum(template, index),
+            max: limitForDrag(Number(handle.dataset.max) || Number.MAX_SAFE_INTEGER, startWidth),
+            minTable: parseFloat(saved.minWidth),
+            trackMinimum: trackMinimum(saved.columns, index),
         };
 
         handle.setPointerCapture(event.pointerId);
@@ -205,9 +249,18 @@ export function wireResize(root, dotnetRef) {
         }
 
         drag.width = width;
-        drag.holder.style.setProperty(COLUMNS_VARIABLE, withTrackWidth(drag.template, drag.index, width));
+        let columns = withTrackWidth(drag.saved.columns, drag.index, width);
+        let extra = 0;
+        if (drag.column === 'song' && !hasFillerTrack(columns)) {
+            // Song now has a fixed width: the spare width goes to a filler before the actions column, which stays at the right edge.
+            columns = withFillerTrack(columns);
+            extra = COLUMN_GAP;
+            drag.holder.style.setProperty(FILLER_VARIABLE, 'block');
+        }
+
+        drag.holder.style.setProperty(COLUMNS_VARIABLE, columns);
         if (Number.isFinite(drag.minTable)) {
-            drag.holder.style.setProperty(MIN_WIDTH_VARIABLE, `${drag.minTable + width - drag.trackMinimum}px`);
+            drag.holder.style.setProperty(MIN_WIDTH_VARIABLE, `${drag.minTable + width - drag.trackMinimum + extra}px`);
         }
     };
 
@@ -226,12 +279,35 @@ export function wireResize(root, dotnetRef) {
 
     const onDoubleClick = (event) => {
         const handle = event.target?.closest?.('.song-table__resizer');
-        if (!handle || !root.contains(handle) || !handle.dataset.column) {
+        const holder = root.parentElement;
+        if (!handle || !root.contains(handle) || !handle.dataset.column || !holder) {
             return;
         }
 
         event.preventDefault();
-        Promise.resolve(dotnetRef.invokeMethodAsync('ColumnResetWidth', handle.dataset.column)).catch(() => { });
+        callDotnet(holder, variables(holder), 'ColumnResetWidth', handle.dataset.column);
+    };
+
+    // Left and Right on a focused handle change that column by one step from the width it has on screen (the Song column is usually wider
+    // than its default), kept within the column's limits, and tell .NET once.
+    const onKeyDown = (event) => {
+        const handle = event.target?.closest?.('.song-table__resizer');
+        const delta = event.key === 'ArrowLeft' ? -KEYBOARD_STEP : event.key === 'ArrowRight' ? KEYBOARD_STEP : 0;
+        const cell = handle?.closest('.song-table__head-cell');
+        const holder = root.parentElement;
+        if (!handle || !delta || !cell || !holder || !root.contains(handle) || !handle.dataset.column) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        const measured = Math.round(cell.getBoundingClientRect().width);
+        const min = Number(handle.dataset.min) || 0;
+        const max = limitForDrag(Number(handle.dataset.max) || Number.MAX_SAFE_INTEGER, measured);
+        const width = widthFromDelta(measured, delta, min, max);
+        if (width !== measured) {
+            callDotnet(holder, variables(holder), 'ColumnResized', handle.dataset.column, width);
+        }
     };
 
     root.addEventListener('pointerdown', onPointerDown);
@@ -239,6 +315,7 @@ export function wireResize(root, dotnetRef) {
     root.addEventListener('pointerup', onPointerUp);
     root.addEventListener('pointercancel', onPointerCancel);
     root.addEventListener('dblclick', onDoubleClick);
+    root.addEventListener('keydown', onKeyDown);
 
     const dispose = () => {
         root.removeEventListener('pointerdown', onPointerDown);
@@ -246,6 +323,7 @@ export function wireResize(root, dotnetRef) {
         root.removeEventListener('pointerup', onPointerUp);
         root.removeEventListener('pointercancel', onPointerCancel);
         root.removeEventListener('dblclick', onDoubleClick);
+        root.removeEventListener('keydown', onKeyDown);
         root.classList.remove('is-resizing');
         drag = null;
         if (wirings.get(root) === dispose) {

@@ -8,6 +8,7 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
@@ -22,11 +23,12 @@ public sealed class SongTableTests : AsyncBunitContext
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly SpyPreferenceStore _store = new();
+    private readonly CapturingLoggerProvider _logs = new();
 
     public SongTableTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddLogging();
+        Services.AddLogging(builder => builder.AddProvider(_logs));
         Services.AddSingleton(_device);
         Services.AddSingleton(EngineApiClientStub.CreateDefault());
         Services.AddSingleton<ISongTablePreferenceStore>(_store);
@@ -411,7 +413,7 @@ public sealed class SongTableTests : AsyncBunitContext
         Assert.Contains("minmax(360px, 1fr)", Columns());
 
         await cut.InvokeAsync(() => cut.Instance.ColumnResized("song", 300));
-        Assert.DoesNotContain("1fr", Columns());
+        Assert.DoesNotContain("minmax(360px, 1fr)", Columns());
         Assert.Contains(" 300px ", Columns());
 
         await cut.InvokeAsync(() => cut.Instance.ColumnResized("song", 500));
@@ -458,14 +460,68 @@ public sealed class SongTableTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AResizeHandleMovesByTheKeyboard()
+    public async Task TheKeyboardStepTheBrowserWorksOutIsSavedThroughTheSameCallAsADrag()
     {
         await UseDeviceAsync("desktop");
 
+        // The script measures the column on screen and adds 8 (180 + 8); the component only applies and saves what it is told.
         var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
-        cut.Find("[aria-label='Resize Artist column']").KeyDown(new KeyboardEventArgs { Key = "ArrowRight" });
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("artist", 188));
 
         Assert.Equal(188, Assert.Single(_store.Saves).Choice.Widths[SongColumn.Artist]);
+        Assert.Contains(" 188px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
+    }
+
+    [Fact]
+    public async Task TheComponentAnswersAResizeWithTheExactVariablesItNowDraws()
+    {
+        await UseDeviceAsync("desktop");
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+
+        var answer = await cut.InvokeAsync(() => cut.Instance.ColumnResized("artist", 220));
+
+        Assert.Equal(cut.Find("[style*='--song-table-columns']").GetAttribute("style")!.TrimEnd(';').Trim(), answer.TrimEnd(';').Trim());
+    }
+
+    [Fact]
+    public async Task AFailedProfileSaveIsLoggedAndTheNewWidthStaysOnScreen()
+    {
+        await UseDeviceAsync("desktop");
+        _store.FailSaves = true;
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("artist", 240));
+        await cut.InvokeAsync(() => cut.Instance.ColumnResetWidth("album"));
+
+        Assert.Contains(" 240px ", cut.Find("[style*='--song-table-columns']").GetAttribute("style"));
+        Assert.Equal(2, _logs.Warnings.Count(message => message.Contains("Could not save the song table's column widths", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task WhileSongIsFlexibleTheFillerCellsAreHiddenAndOnceItIsFixedTheyAndTheirTrackAppearBeforeTheActionsColumn()
+    {
+        await UseDeviceAsync("desktop");
+        var cut = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ProfileId, Profile));
+        string Style() => cut.Find("[style*='--song-table-columns']").GetAttribute("style")!;
+
+        // One filler cell in the header and one in each row, empty and hidden from assistive tools; the track and the cells show only when
+        // Song has a fixed width.
+        Assert.Equal(4, cut.FindAll(".song-table__filler[aria-hidden='true']").Count);
+        Assert.All(cut.FindAll(".song-table__filler"), filler => Assert.Equal(string.Empty, filler.TextContent.Trim()));
+        Assert.Contains("--song-table-filler: none", Style());
+        Assert.DoesNotContain("minmax(0, 1fr)", Style());
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResized("song", 500));
+
+        Assert.Contains("--song-table-filler: block", Style());
+        Assert.Contains(" 500px minmax(64px, 180px)", Style());
+        Assert.Contains("minmax(0, 1fr) 100px;", Style());
+        Assert.Equal(4, cut.FindAll(".song-table__filler").Count);
+
+        await cut.InvokeAsync(() => cut.Instance.ColumnResetWidth("song"));
+
+        Assert.Contains("--song-table-filler: none", Style());
+        Assert.DoesNotContain("minmax(0, 1fr)", Style());
     }
 
     // -- Menu ------------------------------------------------------------------------------------------
@@ -900,11 +956,45 @@ public sealed class SongTableTests : AsyncBunitContext
         public ValueTask<SongTableChoice> LoadAsync(Guid profileId, SongTablePlace place) =>
             ValueTask.FromResult(Stored.TryGetValue((profileId, place), out var choice) ? choice : SongTableChoice.Default);
 
+        public bool FailSaves { get; set; }
+
         public ValueTask SaveAsync(Guid profileId, SongTablePlace place, SongTableChoice choice)
         {
+            if (FailSaves)
+            {
+                throw new InvalidOperationException("The profile could not be saved.");
+            }
+
             Saves.Add((profileId, place, choice));
             Stored[(profileId, place)] = choice;
             return ValueTask.CompletedTask;
+        }
+    }
+
+    // Keeps the warnings the component logs, so a test can see a failure was reported rather than swallowed.
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        public List<string> Warnings { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(Warnings);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class CapturingLogger(List<string> warnings) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                if (logLevel == LogLevel.Warning)
+                {
+                    warnings.Add(formatter(state, exception));
+                }
+            }
         }
     }
 }

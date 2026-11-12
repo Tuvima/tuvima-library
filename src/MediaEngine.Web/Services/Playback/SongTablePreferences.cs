@@ -111,7 +111,7 @@ public static class SongTablePreferences
         return choice with { Widths = widths };
     }
 
-    /// <summary>Writes a choice as text:<c>show=artist,genre;hide=plays;width=song:400,artist:200</c>.</summary>
+    /// <summary>Writes a choice as text: <c>show=artist,genre;hide=plays;width=song:400,artist:200</c>.</summary>
     public static string Encode(SongTableChoice choice)
     {
         ArgumentNullException.ThrowIfNull(choice);

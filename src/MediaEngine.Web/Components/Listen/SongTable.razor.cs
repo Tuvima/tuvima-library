@@ -20,7 +20,6 @@ public partial class SongTable
     private const int SkeletonRowCount = 8;
     private const int ActionsColumnWidth = 100;
     private const int ColumnGap = 8;
-    private const int KeyboardResizeStep = 8;
     private const int PhoneRowHeight = 64;
     private const int PhoneJumpOffset = 8;
 
@@ -424,8 +423,17 @@ public partial class SongTable
             }
         }
 
+        // With Song at a fixed width the spare width goes to an empty filler track (and its empty cells), so the actions column stays at the
+        // right edge and the header and row backgrounds still span the whole table.
+        var filler = _choice.Widths.ContainsKey(SongColumn.Song);
+        if (filler)
+        {
+            template.Add("minmax(0, 1fr)");
+            minimum += ColumnGap;
+        }
+
         template.Add($"{ActionsColumnWidth}px");
-        _gridVariables = $"--song-table-columns: {string.Join(' ', template)}; --song-table-min-width: {minimum}px";
+        _gridVariables = $"--song-table-columns: {string.Join(' ', template)}; --song-table-min-width: {minimum}px; --song-table-filler: {(filler ? "block" : "none")}";
     }
 
     private bool IsColumnVisible(SongColumn column) => _layout.Any(layout => layout.Column == column);
@@ -683,52 +691,50 @@ public partial class SongTable
         }
     }
 
-    /// <summary>A drag of a column's header edge ended in the browser: the final width, already kept between the column's limits there.</summary>
+    /// <summary>
+    /// A drag (or a Left or Right press) on a column's handle ended in the browser: the final width, already kept between the column's
+    /// limits there. Returns the grid variables now drawn, which the browser writes back so the page always matches this component.
+    /// </summary>
     [JSInvokable]
-    public async Task ColumnResized(string column, int width)
+    public async Task<string> ColumnResized(string column, int width)
     {
-        if (!SongTableColumns.TryParseKey(column, out var parsed) || !SongTableColumns.IsResizable(parsed))
+        if (SongTableColumns.TryParseKey(column, out var parsed) && SongTableColumns.IsResizable(parsed))
         {
-            return;
+            _choice = SongTablePreferences.WithWidth(_choice, parsed, width);
+            UpdateLayout();
+            StateHasChanged();
+            await TrySaveChoiceAsync();
         }
 
-        _choice = SongTablePreferences.WithWidth(_choice, parsed, width);
-        UpdateLayout();
-        await SaveChoiceAsync();
-        StateHasChanged();
+        return _gridVariables;
     }
 
-    /// <summary>Double-click on a handle: that one column goes back to its default width.</summary>
+    /// <summary>Double-click on a handle: that one column goes back to its default width (the Song column back to flexible).</summary>
     [JSInvokable]
-    public async Task ColumnResetWidth(string column)
+    public async Task<string> ColumnResetWidth(string column)
     {
-        if (!SongTableColumns.TryParseKey(column, out var parsed) || !SongTableColumns.IsResizable(parsed))
+        if (SongTableColumns.TryParseKey(column, out var parsed) && SongTableColumns.IsResizable(parsed))
         {
-            return;
+            _choice = SongTablePreferences.WithDefaultWidth(_choice, parsed);
+            UpdateLayout();
+            StateHasChanged();
+            await TrySaveChoiceAsync();
         }
 
-        _choice = SongTablePreferences.WithDefaultWidth(_choice, parsed);
-        UpdateLayout();
-        await SaveChoiceAsync();
-        StateHasChanged();
+        return _gridVariables;
     }
 
-    private async Task ResizeByKeyboardAsync(SongColumn column, KeyboardEventArgs args)
+    // A column width that could not be saved to the profile still stays on screen for this visit; the failure is logged, never swallowed.
+    private async Task TrySaveChoiceAsync()
     {
-        var delta = args.Key switch
+        try
         {
-            "ArrowLeft" => -KeyboardResizeStep,
-            "ArrowRight" => KeyboardResizeStep,
-            _ => 0,
-        };
-        if (delta == 0 || _layout.FirstOrDefault(layout => layout.Column == column) is not { } current)
-        {
-            return;
+            await SaveChoiceAsync();
         }
-
-        _choice = SongTablePreferences.WithWidth(_choice, column, current.Width + delta);
-        UpdateLayout();
-        await SaveChoiceAsync();
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.LogWarning(exception, "Could not save the song table's column widths for this profile; the widths stay for this visit.");
+        }
     }
 
     // ---- Selection and notices -----------------------------------------------------------------------------------

@@ -177,6 +177,13 @@
     gap: 4px;
 }
 
+/* The empty cell that takes the spare width before the actions column once Song has a fixed width. It is in the grid only then: the
+   wrapper's --song-table-filler is block while its track exists and none otherwise, so no cell is left without a track. */
+.song-table__head-cell.song-table__filler,
+.song-table__cell.song-table__filler {
+    display: var(--song-table-filler, none);
+}
+
 .song-table__meta {
     overflow: hidden;
     text-overflow: ellipsis;
