@@ -9,7 +9,7 @@
 }
 else
 {
-    <AppDialogShell Bare="true" HostClass="sme-dialog">
+    <AppDialogShell Bare="true" HostClass="@(Phone ? "sme-dialog--phone" : "sme-dialog")">
         @ChildContent
     </AppDialogShell>
 }
@@ -17,6 +17,9 @@ else
 @code {
     [Parameter] public bool Inline { get; set; }
     [Parameter] public bool HeroConstrained { get; set; }
+
+    /// <summary>The phone arrangement: the window is a full-screen sheet, so it drops the framed window's width, border and shadow (the phone rules are in app.css).</summary>
+    [Parameter] public bool Phone { get; set; }
 
     [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
 }

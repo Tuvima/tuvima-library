@@ -484,7 +484,6 @@
     .collection-editor-workspace { height: calc(100dvh - 16px); min-height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); }
     .collection-editor-header { min-height: auto; align-items: flex-start; padding: 16px; }
     .collection-editor-header-icon { display: none; }
-    .collection-editor-header-actions > :not(:last-child) { display: none; }
     /* The Close button is the normal control size on a phone (44 px), not the compact one. */
     .collection-editor-header-actions ::deep .sme-close { --app-control-height: var(--tl-control-height-md); min-width: var(--tl-tap-target-min); min-height: var(--tl-tap-target-min); }
     .collection-editor-body { padding: 16px; }
