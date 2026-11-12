@@ -11,8 +11,10 @@
 
 @* "Turn on the Vault?" (library setup and add-folder v2, D17 to D21): its own optional step after Libraries, offered once, after the libraries,
    to the first administrator only. Not now leaves no trace: the caller carries straight on and nothing here is ever drawn. Turn on the Vault asks for a PIN
-   typed twice (strongly suggested, never required: Vault sections D44), turns the Vault on for this administrator only, opens it for the rest of setup, so the one Add library list on the Libraries step shows a Vault tab, and leaves it out of the main menu. It is one profile PIN, the same
-   one that protects the profile (Videos D52). The caller locks the Vault again when setup finishes. *@
+   typed twice (strongly suggested, never required: Vault sections D44), turns the Vault on for this administrator only, opens it for the rest of setup, so the one Add library list on the Libraries step shows a Vault row, and leaves it out of the main menu. It is one profile PIN, the same
+   one that protects the profile (Videos D52). The caller locks the Vault again when setup finishes.
+   The step stays reachable with Back (setup fixes D3): opened again after Not now it shows the offer; opened again once the Vault is on (AlreadyOn)
+   it shows only "Your Vault is on" with Back and Continue, never a second turn-on, a PIN box or a way to turn it off. *@
 <div class="setup-stage-content" data-setup-vault>
     @switch (_phase)
     {
@@ -75,9 +77,9 @@
         default:
             <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_YourVaultIsOn"]</h2><p>@L["SetupVaultOffer_AddAFirstPrivateLibrary"]</p></div></div>
             <p class="setup-vault__note" data-vault-note>@L["SetupVaultOffer_AddFromLibraries"]</p>
-            @* Not now (Quiet) beside Continue, as in the design: the Vault is already on, so both carry on; Not now simply says no library for now. *@
-            <SetupStageFooter>
-                <AppButton Label="@L["Common_NotNow"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Finished.InvokeAsync(true))" />
+            <p class="setup-vault__note" data-vault-off-later>@L["SetupVaultOffer_TurnOffInSettings"]</p>
+            @* Back and Continue only, as in the design (setup fixes D3): once the Vault is on there is no second turn-on, no PIN and no way to turn it off here. *@
+            <SetupStageFooter Back="Back">
                 <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Finished.InvokeAsync(true))" />
             </SetupStageFooter>
             break;
@@ -95,9 +97,18 @@
 
     [Parameter] public string? SetupSession { get; set; }
 
+    /// <summary>
+    /// True when the Vault is already on (the step was passed, or it was turned on a moment ago): the step opens on "Your Vault is on",
+    /// with Continue only. A step that was skipped is not "on": it shows the offer again.
+    /// </summary>
+    [Parameter] public bool AlreadyOn { get; set; }
+
     /// <summary>Raised when the person is done with this part: Not now, or Continue once the Vault is on.</summary>
     /// <summary>Raised when the step is over; true when the Vault was turned on, false after Not now.</summary>
     [Parameter] public EventCallback<bool> Finished { get; set; }
+
+    /// <summary>Raised once, when the Vault has just been turned on, before the person presses Continue.</summary>
+    [Parameter] public EventCallback TurnedOn { get; set; }
 
     /// <summary>Goes back to the step before; the offer's first screen shows Back only when the page gives one.</summary>
     [Parameter] public EventCallback Back { get; set; }
@@ -109,7 +120,11 @@
     private string _pinAgain = string.Empty;
     private string? _error;
 
-    protected override void OnInitialized() => _hasPin = AdministratorHasPin;
+    protected override void OnInitialized()
+    {
+        _hasPin = AdministratorHasPin;
+        if (AlreadyOn) _phase = Phase.On;
+    }
 
     private static bool IsValidPin(string value) => value.Length is >= 4 and <= 12 && value.All(char.IsAsciiDigit);
     private bool PinTypedValid => IsValidPin(_pin);
@@ -166,6 +181,8 @@
             }
 
             _pin = string.Empty;
+            // The answer is saved the moment the Vault is on, so leaving by Back or the step list keeps it.
+            await TurnedOn.InvokeAsync();
             _pinAgain = string.Empty;
             _phase = Phase.On;
         }

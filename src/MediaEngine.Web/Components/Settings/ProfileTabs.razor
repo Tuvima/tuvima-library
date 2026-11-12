@@ -23,9 +23,9 @@
 
     private IReadOnlyList<AppCountTab> Items =>
     [
-        new(RouteFor(string.Empty), "Profile", null, RouteFor(string.Empty), AppMaterialIcons.Outlined.Person),
-        new(RouteFor("preferences"), "Preferences", null, RouteFor("preferences"), AppMaterialIcons.Outlined.Tune),
-        new(RouteFor("access"), "Access & safety", null, RouteFor("access"), AppMaterialIcons.Outlined.Shield),
+        new(RouteFor(string.Empty), "Profile", null, AppMaterialIcons.Outlined.Person, RouteFor(string.Empty)),
+        new(RouteFor("preferences"), "Preferences", null, AppMaterialIcons.Outlined.Tune, RouteFor("preferences")),
+        new(RouteFor("access"), "Access & safety", null, AppMaterialIcons.Outlined.Shield, RouteFor("access")),
     ];
 
     private Task OpenAsync(string route)

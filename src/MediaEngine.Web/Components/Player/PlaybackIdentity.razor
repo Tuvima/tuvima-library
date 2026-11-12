@@ -2,10 +2,10 @@
 @using System.Linq
 @using MediaEngine.Web.Services.Playback
 
-@* The left zone of the persistent bar (unified player v2 D5; mockup screen 1, markers 4): a fixed artwork slot 56 px tall, the title (16 / 600) with
-   the second line (13, muted) beside it, then the item's actions. Square for music and audiobooks, 100 x 56 for TV and movies. A poster that fills
-   a landscape slot is drawn whole on a blurred copy of itself (contain, never stretch); a missing or broken picture is a neutral placeholder of the
-   same size, so the text never moves. Names are links through the host's LinkContent. There is no "View details" button. *@
+@* The left zone of the persistent bar (unified player v2 D5; mockup screen 1, markers 4): a fixed artwork slot 64 px tall (video player follow-ups D2), the
+   title (16 / 600) with the second line (13, muted) beside it, then the item's actions. Square (64 x 64) for music and audiobooks, a 114 x 64 landscape slot
+   for a TV episode's still, and a 43 x 64 portrait slot for a movie's poster or an episode that has only a poster (cover-fitted, no blurred fill); a missing or
+   broken picture is a neutral placeholder of the same size, so the text never moves. Names are links through the host's LinkContent. There is no "View details" button. *@
 <div class="@RootClass" data-playback-zone="identity" data-playback-identity>
     @if (ExpandsAsOneButton)
     {
@@ -94,7 +94,7 @@
     [Parameter] public string? ArtworkAlt { get; set; }
     [Parameter] public string? ArtworkDisplay { get; set; }
 
-    /// <summary>True when the picture is a portrait poster in a landscape slot: it is contained on a blurred fill.</summary>
+    /// <summary>True when the picture is a portrait poster: video draws it in the 43 x 64 portrait slot instead of the landscape one.</summary>
     [Parameter] public bool ArtworkIsPoster { get; set; }
 
     /// <summary>The artwork becomes a button (it opens Now playing) when the host listens.</summary>
@@ -128,11 +128,13 @@
         Compact ? "playback-identity--compact" : null,
     }.Where(value => value is not null));
 
+    // A movie is always the portrait slot (so its placeholder matches its poster); an episode is landscape unless it has only the show's poster.
+    private bool IsPortraitSlot => IsVideoMedia && (Media == PlaybackBarMedia.Movie || (HasImage && ArtworkIsPoster));
+
     private string ArtworkClass => string.Join(" ", new[]
     {
         "playback-identity__art",
-        IsVideoMedia ? "playback-identity__art--wide" : "playback-identity__art--square",
-        HasImage && ArtworkIsPoster && IsVideoMedia ? "playback-identity__art--poster" : null,
+        !IsVideoMedia ? "playback-identity__art--square" : IsPortraitSlot ? "playback-identity__art--poster" : "playback-identity__art--wide",
         ArtworkClick.HasDelegate ? "playback-identity__art--button" : null,
     }.Where(value => value is not null));
 
@@ -147,18 +149,6 @@
             builder.AddAttribute(2, "aria-hidden", "true");
             builder.CloseElement();
             return;
-        }
-
-        if (ArtworkIsPoster && IsVideoMedia)
-        {
-            // The blurred fill is a second copy of the poster behind the whole poster; it is decoration, so it has no name.
-            builder.OpenElement(3, "img");
-            builder.AddAttribute(4, "class", "playback-identity__art-fill");
-            builder.AddAttribute(5, "src", ArtworkSrc);
-            builder.AddAttribute(6, "alt", string.Empty);
-            builder.AddAttribute(7, "aria-hidden", "true");
-            builder.AddAttribute(8, "decoding", "async");
-            builder.CloseElement();
         }
 
         builder.OpenElement(10, "img");

@@ -68,13 +68,13 @@
                 <h2>@ViewTitle</h2>
                 <p>@ViewDescription</p>
             </div>
-            @if (ActiveView is "my-list" or "favorites" or "liked")
+            @if (ActiveView is "favorites" or "liked")
             {
                 <span class="for-me-page__count">@CountLabel</span>
             }
         </div>
 
-        @if (ActiveView is "my-list" or "favorites" or "liked")
+        @if (ActiveView is "favorites" or "liked")
         {
             <div class="for-me-page__controls">
                 <div class="for-me-page__areas" role="group" aria-label="@L["ForMe_MediaArea"].Value">
@@ -97,13 +97,6 @@
             </div>
         }
 
-        @if (ActiveView == "my-list" && FavoriteStates.Count > 0)
-        {
-            <a class="for-me-favorites-card" href="/for-me?view=favorites&area=listen" aria-label="@L["ForMe_OpenFavoritesPlaylist"].Value">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Favorite" /><strong>@L["Glossary_Favorites"]</strong><span>@FavoriteStates.Count songs</span>
-                @foreach (var cover in FavoriteItems.Select(item => item.TileImageUrl ?? item.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().Take(4)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 48)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 48)" alt="" loading="lazy" decoding="async" /> }
-            </a>
-        }
         @if (ActiveItems.Count == 0)
         {
             <AppEmptyState Title="@EmptyTitle" Message="@EmptyMessage" />
@@ -128,7 +121,7 @@
     private readonly List<ProfileSavedItemDto> _saved = [];
     private readonly List<ProfileReactionDto> _reactions = [];
     private PersonalTileIndex _index = new([], [], []);
-    // Same rule as My Library: Document items stay hidden until the View settings say this profile may see Documents.
+    // Same rule as My List: Document items stay hidden until the View settings say this profile may see Documents.
     private bool _documentsAllowed;
     private readonly List<MediaTileViewModel> _continue = [];
     private readonly List<MediaTileViewModel> _collections = [];
@@ -140,7 +133,6 @@
 
     private string ActiveView => View?.ToLowerInvariant() switch
     {
-        "my-list" => "my-list",
         "favorites" => "favorites",
         "liked" => "liked",
         "collections" => "collections",
@@ -161,7 +153,6 @@
     private IReadOnlyList<SurfaceTabItem> NavigationItems =>
     [
         new("overview", "Overview", AppMaterialIcons.Outlined.SpaceDashboard),
-        new("my-list", "My List", AppMaterialIcons.Filled.Favorite, _saved.Count(s => s.EntityKind != ProfileEntityKind.Song)),
         new("favorites", "Favorites", AppMaterialIcons.Outlined.FavoriteBorder, FavoriteStates.Count),
         new("liked", "Liked", AppMaterialIcons.Outlined.ThumbUp, LikedStates.Count),
         new("collections", "Collections", AppMaterialIcons.Outlined.CollectionsBookmark, _collections.Count),
@@ -214,7 +205,6 @@
 
     private IReadOnlyList<MediaTileViewModel> ActiveItems => ActiveView switch
     {
-        "my-list" => SavedItems,
         "favorites" => FavoriteItems,
         "liked" => LikedItems,
         "collections" => _collections,
@@ -229,7 +219,7 @@
         {
             var shelves = new List<MediaTileShelfViewModel>();
             AddShelf(shelves, "continue", "Continue", "Pick up where you left off", _continue, "/?shelf=continue");
-            AddShelf(shelves, "my-list", "My List", "Saved for later", SavedItems, MyListGridRoute);
+            AddShelf(shelves, "my-list", "My List", "Saved for later", SavedItems, ShellDock.MyListPath);
             AddShelf(shelves, "favorites", "Favorites", "Songs you added to Favorites", FavoriteItems, "/for-me?view=favorites");
             AddShelf(shelves, "collections", "Your Collections", "Collections owned by this profile", _collections, "/for-me?view=collections");
             AddShelf(shelves, "playlists", "Your Playlists", "Listening queues owned by this profile", _playlists, "/for-me?view=playlists");
@@ -240,7 +230,6 @@
 
     private string ViewTitle => ActiveView switch
     {
-        "my-list" => "My List",
         "favorites" => "Favorites",
         "liked" => "Liked",
         "collections" => "Your Collections",
@@ -250,7 +239,6 @@
     };
     private string ViewDescription => ActiveView switch
     {
-        "my-list" => "Movies, shows, books, albums, Collections, and shared Playlists you saved for later.",
         "favorites" => "Songs you added to Favorites with the heart.",
         "liked" => "Everything you marked Like, across movies, shows, books, audiobooks, albums and songs.",
         "collections" => "Collections owned by this profile. Library-wide Collections remain in Collections unless you save one.",
@@ -261,7 +249,6 @@
     private string CountLabel => ActiveItems.Count == 1 ? "1 item" : $"{ActiveItems.Count:N0} items";
     private string EmptyTitle => ActiveView switch
     {
-        "my-list" => "Your list is empty",
         "favorites" => "No favorites yet",
         "liked" => "Nothing liked yet",
         "collections" => "No personal Collections yet",
@@ -271,7 +258,6 @@
     };
     private string EmptyMessage => ActiveView switch
     {
-        "my-list" => "Use Add to My List on a media or Collection detail page to save it here.",
         "favorites" => "Use the heart on a song to add it to Favorites.",
         "liked" => "Use Like on a title to see it here.",
         "collections" => "Create a personal Collection to organize media for this profile.",
@@ -279,9 +265,6 @@
         "galleries" => "Create a Gallery from View to organize personal photos and videos.",
         _ => "There are no items in this view.",
     };
-
-    /// <summary>The route of the My List grid: the same View all grid every shelf uses. The My Library page shows the same list as a shelf.</summary>
-    internal const string MyListGridRoute = "/all/personal/my-list";
 
     /// <summary>The route of the Liked grid, the same View all grid.</summary>
     internal const string LikedGridRoute = "/all/personal/liked";
@@ -436,7 +419,6 @@
         Nav.NavigateTo(view switch
         {
             "overview" => "/for-me",
-            "my-list" => MyListGridRoute,
             "liked" => LikedGridRoute,
             _ => $"/for-me?view={Uri.EscapeDataString(view)}",
         });

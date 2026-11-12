@@ -19,16 +19,34 @@
 .playback-seek-rail__tile { position:absolute; bottom:calc(100% + 38px); left:50%; transform:translateX(-50%); display:none; overflow:hidden; box-sizing:content-box; border:1px solid var(--playback-hairline); border-radius:6px; background-color:var(--playback-surface); background-repeat:no-repeat; box-shadow:var(--tl-shadow-md); pointer-events:none; z-index:5; }
 .playback-seek-rail__tile.is-visible { display:block; }
 
-/* Bookmark markers: 2 x 10 px ticks under the rail, the person's own in the accent tint and shared ones white (the Bookmarks panel's filter colors).
-   They are hidden while the handle is being dragged. The button keeps an 18 x 26 px hit area around the tick. */
+/* Bookmark beads (video player follow-ups D4): a 10 px round bead centred on the rail line with a 2 px dark ring, so it reads on the played and unplayed part;
+   the person's own in the accent tint and shared ones white (the Bookmarks panel's filter colors). Hovered or focused it grows to 14 px (no animation under
+   reduced motion). They are hidden while the handle is being dragged. The wrap is a zero-size anchor at the mark's time on the rail's middle line, with no
+   transform, so the bead and its hit area stay in the slider's stacking context: the bead draws above the rail and played fill and below the handle, while
+   the invisible 18 x 26 px hit area (above the slider's own input) takes the pointer. */
 .playback-seek-rail__bookmarks { position:absolute; inset:0; pointer-events:none; }
 .playback-seek-rail[data-dragging="true"] .playback-seek-rail__bookmarks { visibility:hidden; }
-.playback-seek-rail__bookmark-wrap { position:absolute; top:calc(50% + 4px); transform:translateX(-50%); pointer-events:auto; }
-.playback-seek-rail__bookmark { position:relative; display:block; box-sizing:border-box; width:2px; height:10px; padding:0; border:0; border-radius:1px; background:var(--playback-marker); cursor:pointer; }
-.playback-seek-rail__bookmark::before { content:""; position:absolute; inset:-4px -8px; }
-.playback-seek-rail__bookmark:focus-visible { outline:var(--playback-focus-ring-width) solid var(--playback-focus-ring); outline-offset:var(--playback-focus-ring-offset); }
+.playback-seek-rail__bookmark-wrap { position:absolute; top:50%; width:0; height:0; pointer-events:auto; }
+.playback-seek-rail__bookmark { position:absolute; left:0; top:0; display:block; box-sizing:border-box; width:10px; height:10px; margin:-5px 0 0 -5px; padding:0; border:0; border-radius:50%; background:var(--playback-marker); box-shadow:0 0 0 2px var(--playback-marker-ring); cursor:pointer; transition:width .12s ease, height .12s ease, margin .12s ease; }
+.playback-seek-rail__bookmark::before { content:""; position:absolute; inset:-8px -4px; z-index:4; }
+.playback-seek-rail__bookmark:hover, .playback-seek-rail__bookmark:focus-visible, .playback-seek-rail__bookmark[aria-expanded="true"] { width:14px; height:14px; margin:-7px 0 0 -7px; }
+.playback-seek-rail__bookmark:focus-visible { outline:var(--playback-focus-ring-width) solid var(--playback-focus-ring); outline-offset:calc(var(--playback-focus-ring-offset) + 2px); }
 .playback-seek-rail__bookmark.is-global { background:var(--playback-marker-shared); }
+/* The bead of a bookmark just added pulses once: a ring around it grows and fades (a pseudo-element, so the bead itself never gets a transform). */
+.playback-seek-rail__bookmark.is-new::after { content:""; position:absolute; inset:-2px; border:2px solid var(--playback-marker); border-radius:50%; pointer-events:none; animation:playback-seek-rail-bead-pulse .9s ease-out 1; }
+.playback-seek-rail__bookmark.is-global.is-new::after { border-color:var(--playback-marker-shared); }
+@keyframes playback-seek-rail-bead-pulse { from { transform:scale(1); opacity:.9; } to { transform:scale(2.6); opacity:0; } }
+@media (prefers-reduced-motion: reduce) {
+    .playback-seek-rail__bookmark { transition:none; }
+    .playback-seek-rail__bookmark.is-new::after { animation:none; }
+}
 .playback-seek-rail__notice { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); padding:4px 10px; border-radius:6px; background:rgba(0,0,0,.7); color:var(--tl-on-scrim); font-size:var(--tl-font-size-sm); white-space:nowrap; pointer-events:none; }
-.playback-seek-rail__quicklook { position:absolute; bottom:calc(100% + 18px); left:50%; transform:translateX(-50%); display:grid; gap:4px; width:max-content; max-width:min(260px,70vw); padding:8px 10px; border:1px solid var(--playback-hairline); border-radius:6px; background:var(--playback-popover-surface); color:var(--playback-text); font-size:var(--tl-type-secondary-size); text-align:left; white-space:normal; overflow-wrap:anywhere; z-index:6; }
+.playback-seek-rail__quicklook { position:absolute; bottom:calc(100% + 22px); left:50%; transform:translateX(-50%); display:grid; gap:4px; width:max-content; max-width:min(260px,70vw); padding:8px 10px; border:1px solid var(--playback-hairline); border-radius:6px; background:var(--playback-popover-surface); color:var(--playback-text); font-size:var(--tl-type-secondary-size); text-align:left; white-space:normal; overflow-wrap:anywhere; z-index:6; }
 .playback-seek-rail__quicklook p { margin:0; }
+/* A video bookmark's card (video player follow-ups D4): the frame from that moment (16:9, 178 px wide, 5 px corners), then the name, then "time · owner". */
+.playback-seek-rail__quicklook--framed { box-sizing:border-box; width:190px; max-width:min(190px,70vw); padding:6px; }
+.playback-seek-rail__frame { aspect-ratio:16 / 9; overflow:hidden; border-radius:5px; background:var(--playback-state-pressed); }
+.playback-seek-rail__frame img { display:block; width:100%; height:100%; object-fit:cover; }
+.playback-seek-rail__name { font-weight:600; }
+.playback-seek-rail__when { color:var(--playback-text-secondary); }
 .playback-seek-rail__more { justify-self:start; min-height:32px; padding:0 8px 0 0; border:0; background:none; color:var(--tl-accent-primary); font:inherit; cursor:pointer; }

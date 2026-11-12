@@ -1,6 +1,8 @@
 # Spec: Libraries page v2 and the folder picker
 
 > **Status:** Built, awaiting your Local checks (PR #669) · **Version:** 2 of the Libraries design (replaces D2, D8 in part, D10 in part of [libraries-redesign](libraries-redesign.md) v1) · **Last updated:** 2026-11-05 (locked by Shy, all recommendations) · **Related docs:** [Libraries redesign](libraries-redesign.md) · [First-run setup rework](first-run-setup-rework.md) · [Look pass](look-pass.md) · [Photo and video filing](photo-video-filing.md) · [Design system](../design/design-system.md) · Audit: `engineering/validation/spec-audit-2026-11-03.md` · Local check: `engineering/validation/local-check-2026-11-03.md` (items 1-12, 18) · Mockups: `libraries-and-folder-picker.html`
+>
+> **Amended 2026-11-12** by [Setup and Libraries fixes](setup-and-libraries-fixes.md): the "In your collection" card is a grid of equal cells with one color per kind, shared with the row icons (D12). Where the two differ, the newer spec wins.
 
 > **Version note (2026-11-10):** parts superseded by [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): the picker's selection rule changes: the folder you are inside is the selection, named above the list, and "Type a path…" lives in the Locations list instead of a path box (D32); the dialog, rows, toolbar and search move onto the shared browser frame, and every other selection rule stays.
 

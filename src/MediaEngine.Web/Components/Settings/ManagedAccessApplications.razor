@@ -230,13 +230,13 @@
         };
         var tabs = new List<AppCountTab>
         {
-            new("overview", "Overview", null, PageHref(app.Id, "overview")),
-            new("access", "Access", null, PageHref(app.Id, "access")),
-            new("keys", "Keys", app.Credentials.Count(credential => credential.RevokedAt is null), PageHref(app.Id, "keys")),
+            new("overview", "Overview", null, AppMaterialIcons.Outlined.Dashboard, PageHref(app.Id, "overview")),
+            new("access", "Access", null, AppMaterialIcons.Outlined.AdminPanelSettings, PageHref(app.Id, "access")),
+            new("keys", "Keys", app.Credentials.Count(credential => credential.RevokedAt is null), AppMaterialIcons.Outlined.Key, PageHref(app.Id, "keys")),
         };
         if (hasDeliveries)
-            tabs.Add(new("deliveries", "Deliveries", null, PageHref(app.Id, "deliveries")));
-        tabs.Add(new("activity", "Activity", null, PageHref(app.Id, "activity")));
+            tabs.Add(new("deliveries", "Deliveries", null, AppMaterialIcons.Outlined.CloudUpload, PageHref(app.Id, "deliveries")));
+        tabs.Add(new("activity", "Activity", null, AppMaterialIcons.Outlined.History, PageHref(app.Id, "activity")));
         var failing = FailingWebhook(app);
 
         return @<AppDetailPageFrame Title="@app.Name"
@@ -569,9 +569,9 @@
         var matching = _applications.Where(MatchesFilters).ToList();
         return
         [
-            new("all", "All", matching.Count),
-            new("applications", "Applications", matching.Count(app => !IsWebhook(app))),
-            new("webhooks", "Webhooks", matching.Count(IsWebhook)),
+            new("all", "All", matching.Count, AppMaterialIcons.Outlined.AllInclusive),
+            new("applications", "Applications", matching.Count(app => !IsWebhook(app)), AppMaterialIcons.Outlined.Apps),
+            new("webhooks", "Webhooks", matching.Count(IsWebhook), AppMaterialIcons.Outlined.Link),
         ];
     }
 

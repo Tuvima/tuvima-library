@@ -10,7 +10,7 @@
 @* The one confirmation for taking titles out of the library. It asks the Engine what would happen, shows every file and what becomes of
    it, the hand-picked collections the titles leave, and the progress that goes with them, then deletes exactly that plan. Cancel has the
    focus when it opens (the autofocus attribute is honoured by the native dialog), and Escape cancels. The caller shows the toast. *@
-<AppDialogShell Title="@Heading" Size="Medium">
+<AppDialogShell Title="@Heading" Size="Medium" Compact="true">
     <ChildContent>
         <div class="delete-library">
             @if (_state == DialogState.Loading)
@@ -173,8 +173,8 @@
         </div>
     </ChildContent>
     <FooterContent>
-        @* Cancel is the first button and carries autofocus: the native dialog focuses it on open, even though the body can hold buttons. *@
-        <AppButton Label="@(_state == DialogState.Failed ? "Close" : "Cancel")" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
+        @* Cancel is the first button (neutral outlined) and carries autofocus: the native dialog focuses it on open, even though the body can hold buttons. The red delete button is last (Look v3.1 D4). *@
+        <AppButton Label="@(_state == DialogState.Failed ? "Close" : "Cancel")" ButtonStyle="AppButtonStyle.Outlined" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
         @if (_state == DialogState.Failed && _canRetry)
         {
             <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />

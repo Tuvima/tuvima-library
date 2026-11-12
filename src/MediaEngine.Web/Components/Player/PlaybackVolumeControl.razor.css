@@ -1,22 +1,25 @@
-/* The volume control (unified player v2 D10; mockup screen 2). The speaker is an ordinary bar button. Beside it sits a slot that is always in the
-   markup and always 0 px wide, so the bar's other tools never shift. When the slider opens (playback-volume.js sets data-open on hover or keyboard
-   focus, and clears it 400 ms after both have left) it is drawn as an overlay from the speaker's right edge, centred on it, on the bar's own fill; it
-   may cover the tools to its right while it is open. The overlay is inside the control, so moving from the speaker onto it keeps it open. */
+/* The volume control (unified player v2 D10, made vertical by video player follow-ups D5; mockup section 1, marker 6). The speaker is an ordinary bar button.
+   Beside it sits a slot that is always in the markup and always 0 px, so the bar's tools never shift. When the slider opens (playback-volume.js sets data-open
+   on hover or keyboard focus, clears it 400 ms after both have left, and on Escape) it is drawn directly ABOVE the speaker, centred on it, over the picture
+   or page: a 4 px rail 96 px tall with the purple part growing from the bottom and a 12 px white handle, and no box, border or radius behind it. The panel
+   below is only the invisible hit area. It is inside the control, so the pointer on it holds the control open, and it ends flush with the speaker's top edge,
+   so moving the pointer up from the speaker never leaves the control (the hover bridge).
+   It is position:fixed with no offsets, which keeps it where it would sit in the slot (the speaker's right edge, at the bar's middle) and, unlike
+   position:absolute, is not cut off by the tools zone of a narrow window, which scrolls sideways and so clips on both axes. The transform then lifts it to
+   sit centred on the speaker, with its bottom on the speaker's top edge. The speaker is exactly one bar-button target wide and tall. */
 .playback-volume { position:relative; display:inline-flex; align-items:center; flex:none; }
 .playback-volume__button { display:inline-flex; }
 
-.playback-volume__slot { position:relative; box-sizing:border-box; display:block; flex:none; width:0; height:0; visibility:hidden; transition:visibility 0s linear 120ms; }
+.playback-volume__slot { box-sizing:border-box; display:block; flex:none; width:0; height:0; visibility:hidden; transition:visibility 0s linear 120ms; }
 .playback-volume[data-open="true"] .playback-volume__slot { visibility:visible; transition:visibility 0s; }
 
-/* 8 px between the speaker and the rail (as the mockup), plus the 6 px the handle overhangs at either end of the rail; 4 px of fill beyond each end so the
-   speaker and slider read as one piece. */
+/* 12 px of reach above and below the rail (the handle overhangs it by 6 px at either end). Nothing here is filled, bordered or rounded. */
 .playback-volume__panel {
-    position:absolute; left:0; top:50%; z-index:3; box-sizing:border-box; display:grid; align-items:center;
-    width:calc(var(--playback-volume-slider-width) + 24px); min-height:var(--playback-control-target); padding:0 10px 0 18px;
-    background:var(--tl-bg-shell); border-radius:0 8px 8px 0; opacity:0; transform:translateY(-50%); transition:opacity 120ms ease;
+    position:fixed; z-index:3; box-sizing:border-box; display:grid; place-items:center;
+    width:var(--playback-control-target); height:calc(var(--playback-volume-slider-height) + 24px); padding:0;
+    opacity:0; transform:translate(calc(var(--playback-control-target) * -1), calc(-100% - var(--playback-control-target) / 2)); transition:opacity 120ms ease;
 }
 .playback-volume[data-open="true"] .playback-volume__panel { opacity:1; }
-.playback-volume--video .playback-volume__panel { background:var(--playback-surface); }
 
 /* Touch: the speaker opens the Volume panel (Menu size). A 44 px row: mute, the rail, the level. */
 .playback-volume-panel { display:flex; align-items:center; gap:8px; min-height:var(--playback-panel-row-height); padding:0 8px 0 4px; color:var(--playback-text); }

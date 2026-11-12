@@ -125,7 +125,7 @@
         <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="@L["Common_LibrarySections"].Value">
             @foreach (var tab in Tabs)
             {
-                <AppTabPanel Text="@tab.Label">
+                <AppTabPanel Text="@tab.Label" Icon="@tab.Icon">
                     @if (tab.Slug == FoldersTab && IsVault)
                     {
                         @if (Library.Sources.Count == 0)
@@ -246,7 +246,7 @@
 
     private LibraryListRow Row => LibraryListing.RowFor(Kinds, Library, Configuration, Overview, PathIssues);
 
-    private sealed record TabDef(string Slug, string Label);
+    private sealed record TabDef(string Slug, string Label, string Icon);
 
     private IReadOnlyList<TabDef> Tabs
     {
@@ -254,15 +254,15 @@
         {
             var tabs = new List<TabDef>
             {
-                new(FoldersTab, "Folders"),
-                new(FileHandlingTab, "File handling"),
-                new(ActivityTab, "Activity"),
+                new(FoldersTab, "Folders", AppMaterialIcons.Outlined.Folder),
+                new(FileHandlingTab, "File handling", AppMaterialIcons.Outlined.DriveFileMove),
+                new(ActivityTab, "Activity", AppMaterialIcons.Outlined.History),
             };
             // The files the Engine could not match are not a tab here: they sit in Needs Review beside the items it is unsure about, and the
             // strip above links there filtered to this library (universal editor v3 D9).
             if (LibraryLookupRules.HasLookupTab(Library, Kinds.Find(Library.KindKey)))
             {
-                tabs.Add(new(LookupTab, "Lookup"));
+                tabs.Add(new(LookupTab, "Lookup", AppMaterialIcons.Outlined.ManageSearch));
             }
 
             return tabs;

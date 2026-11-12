@@ -3,7 +3,7 @@ namespace MediaEngine.Web.Models.ViewDTOs;
 public sealed record SurfaceTabItem(
     string Key,
     string Label,
-    string? Icon = null,
+    string Icon,
     int? Count = null);
 
 public enum CinematicHeroDensity
