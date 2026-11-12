@@ -4,7 +4,6 @@
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Matching
 @using MediaEngine.Contracts.Metadata
-@using MediaEngine.Domain.Configuration
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
@@ -154,7 +153,7 @@
 
     private bool NeedsEpisode => Subject is not null && EditorTvMatchCandidates.NeedsEpisode(Subject.ScopeId);
 
-    private string KindId => NeedsEpisode ? EditorKinds.TvEpisode : EditorKinds.TvShow;
+    private string KindId => NeedsEpisode ? MediaEngine.Domain.Configuration.EditorKinds.TvEpisode : MediaEngine.Domain.Configuration.EditorKinds.TvShow;
 
     // The row's columns when it is wide enough for one line: the provider (when the tab hands one in), the show widest, the year narrow, the button as wide as its word.
     private string RowColumns => (RowStart is null ? string.Empty : "220px ") + "minmax(12rem, 1.6fr) minmax(7rem, .5fr) auto";

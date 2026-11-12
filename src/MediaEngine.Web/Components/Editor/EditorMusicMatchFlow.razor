@@ -3,7 +3,6 @@
 @using System.Net.Http
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Matching
-@using MediaEngine.Domain.Configuration
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
@@ -408,7 +407,7 @@
                 </Basis>
                 <Foot>
                     <EditorMatchApply ShowCancel="ShowCancel" CanApply="@(CanApply && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel"
-                                      Line="@EditorMatchCardModels.ApplyLine(EditorKinds.Song, model.ProviderName, L)" />
+                                      Line="@EditorMatchCardModels.ApplyLine(MediaEngine.Domain.Configuration.EditorKinds.Song, model.ProviderName, L)" />
                 </Foot>
             </EditorMatchCard>
         }
@@ -417,7 +416,7 @@
     // The song's card names its album and its place on it (mock D): "Shoreline · Disc 1, Track 4".
     private EditorMatchCardModel CardModel(EditorMatchResultDto judged, ItemCanonicalRetailCandidateDto candidate)
     {
-        var model = EditorMatchCardModels.ForPick(judged, candidate, EditorKinds.Song, ProviderDisplay(candidate.ProviderName), L);
+        var model = EditorMatchCardModels.ForPick(judged, candidate, MediaEngine.Domain.Configuration.EditorKinds.Song, ProviderDisplay(candidate.ProviderName), L);
         return _pickedTrack is { } track && _release is { } release
             ? model with { SeriesLine = EditorMatchCardModels.Join(release.Title, L["EditorMusicMatchFlow_DiscTrack", track.Disc, track.Track].Value) }
             : model;
