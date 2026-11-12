@@ -365,7 +365,7 @@ public sealed class PlaybackTimelineAndVolumeTests : AsyncBunitContext
         // On a bright picture the bare rail and handle read through a faint dark outline and a small dark shadow.
         var slider = SourceText("Components/Shared/AppRangeSlider.razor.css");
         var vertical = slider[slider.IndexOf("playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__track {", StringComparison.Ordinal)..];
-        Assert.Contains("box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45)", vertical[..vertical.IndexOf('}', StringComparison.Ordinal)], StringComparison.Ordinal);
+        Assert.Contains("box-shadow: 0 0 0 1px color-mix(in srgb, var(--tl-viewer-black) 45%, transparent)", vertical[..vertical.IndexOf('}', StringComparison.Ordinal)], StringComparison.Ordinal);
     }
 
     [Fact]

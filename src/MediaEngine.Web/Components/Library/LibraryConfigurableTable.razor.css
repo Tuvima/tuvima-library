@@ -14,7 +14,7 @@
     .vct-text-cell {
         font-size: var(--tl-type-label-size);
         font-weight: var(--tl-type-label-weight);
-        color: rgba(255, 255, 255, 0.55);
+        color: var(--tl-text-muted);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -26,8 +26,8 @@
     }
 
     .vmt-table-wrap {
-        background: rgba(255, 255, 255, 0.01);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: var(--tl-wash-light-1);
+        border: 1px solid var(--tl-wash-light-2);
         border-radius: 10px;
         overflow: hidden;
     }
@@ -41,7 +41,7 @@
 
     .vmt-thead-row {
         border-bottom: 1px solid var(--tl-border-subtle);
-        background: rgb(32, 32, 32);
+        background: var(--tl-bg-surface-raised);
         position: sticky;
         top: 0;
         z-index: 2;
@@ -51,7 +51,7 @@
         padding: 8px 16px;
         font-size: var(--tl-type-overline-size);
         font-weight: var(--tl-type-overline-weight);
-        color: rgba(255, 255, 255, 0.60);
+        color: var(--tl-text-secondary);
         letter-spacing: 0.1em;
     }
 
@@ -125,7 +125,7 @@
         border-radius: 6px;
         overflow: hidden;
         border: 1px solid var(--tl-border-subtle);
-        background: rgba(255, 255, 255, 0.02);
+        background: var(--tl-wash-light-1);
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -182,7 +182,7 @@
         max-height: 300px;
         object-fit: cover;
         border-radius: 12px;
-        box-shadow: 0 16px 64px rgba(0,0,0,0.9), 0 0 0 1px var(--tl-border-subtle);
+        box-shadow: 0 16px 64px color-mix(in srgb, var(--tl-viewer-black) 90%, transparent), 0 0 0 1px var(--tl-border-subtle);
     }
 
     @keyframes vmt-hover-fade-in {
@@ -197,14 +197,14 @@
         width: 22px;
         height: 22px;
         border-radius: 6px;
-        background: #14181d;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--tl-bg-shell);
+        border: 1px solid var(--tl-wash-light-4);
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--tl-text-secondary);
         z-index: 2;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 2px 6px var(--tl-scrim-dark-3);
     }
 
     .vmt-media-info {
@@ -223,12 +223,12 @@
     }
 
     .vmt-title--muted {
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--tl-text-muted);
     }
 
     .vmt-original-title {
         font-size: var(--tl-type-caption-size);
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--tl-text-muted);
         font-style: italic;
         margin: 2px 0 4px 0;
         white-space: nowrap;
@@ -249,8 +249,8 @@
         font-size: var(--tl-type-overline-size);
         font-weight: var(--tl-type-overline-weight);
         color: var(--tl-accent-primary);
-        background: rgba(201, 146, 46, 0.12);
-        border: 1px solid rgba(201, 146, 46, 0.25);
+        background: color-mix(in srgb, var(--tl-accent-collection) 12%, transparent);
+        border: 1px solid color-mix(in srgb, var(--tl-accent-collection) 25%, transparent);
         border-radius: 4px;
         padding: 2px 6px;
         margin: 2px 0 0 0;
@@ -294,7 +294,7 @@
     .vmt-provider-waiting {
         font-size: var(--tl-type-overline-size);
         font-weight: var(--tl-type-overline-weight);
-        color: #38BDF8;
+        color: var(--tl-accent-secondary);
         margin-top: 4px;
         font-style: italic;
     }
@@ -308,7 +308,7 @@
         font-size: var(--tl-type-overline-size);
         font-weight: var(--tl-type-overline-weight);
         letter-spacing: 0.05em;
-        color: #A78BFA;
+        color: var(--tl-accent-primary-hover);
     }
 
     .vmt-universe-standalone {
@@ -330,7 +330,7 @@
         margin-bottom: 12px;
         user-select: none;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.02);
+        background: var(--tl-wash-light-1);
         border: 1px solid var(--tl-divider);
     }
 
@@ -399,7 +399,7 @@
     }
 
     .vmt-sort-header:hover {
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--tl-text-primary);
         text-decoration: underline;
         text-decoration-color: var(--tl-text-muted);
     }
@@ -418,18 +418,18 @@
         border: 0;
         border-radius: 8px;
         background: transparent;
-        color: rgba(255, 255, 255, 0.38);
+        color: var(--tl-text-disabled);
         cursor: pointer;
         transition: background 0.15s ease, color 0.15s ease;
     }
 
     .vmt-favorite-button:hover {
         background: var(--tl-border-subtle);
-        color: rgba(255, 255, 255, 0.78);
+        color: var(--tl-text-primary);
     }
 
     .vmt-favorite-button.is-active {
-        color: #ff4f76;
+        color: var(--tl-status-unmatched);
     }
 
 
@@ -573,21 +573,21 @@
         height: 28px;
         border-radius: 6px;
         border: 1px solid var(--tl-border-subtle);
-        background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.4);
+        background: var(--tl-wash-light-1);
+        color: var(--tl-text-muted);
         cursor: pointer;
         transition: all 0.15s;
     }
 
     .vmt-manage-btn:hover {
         background: var(--tl-border-subtle);
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--tl-text-primary);
     }
 
     .vmt-manage-btn--delete:hover {
-        background: rgba(239, 68, 68, 0.15);
-        color: #EF4444;
-        border-color: rgba(239, 68, 68, 0.3);
+        background: color-mix(in srgb, var(--tl-status-danger) 15%, transparent);
+        color: var(--tl-status-danger);
+        border-color: color-mix(in srgb, var(--tl-status-danger) 30%, transparent);
     }
 
 
@@ -597,7 +597,7 @@
         justify-content: center;
         border-radius: 4px;
         overflow: hidden;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--tl-wash-light-1);
     }
 
     .vmt-cover-thumb-img {

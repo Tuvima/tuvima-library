@@ -1,7 +1,7 @@
 .playback-context-row {
     --playback-context-duration-width:56px;
     align-items: center;
-    border-bottom: 1px solid var(--playback-divider, rgba(245,248,255,.08));
+    border-bottom: 1px solid var(--playback-divider, var(--tl-wash-light-3));
     column-gap: 12px;
     display: grid;
     grid-template-columns: var(--playback-context-leading-width, 56px) minmax(0, 1fr) var(--playback-context-duration-width, 56px) 44px;

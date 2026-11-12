@@ -1,5 +1,5 @@
 .app-tag-input{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.5rem}
-.app-tag-input ::deep input{min-width:0;width:100%;height:2.6rem;padding:.5rem .7rem;border:1px solid rgba(148,163,184,.25);border-radius:.5rem;background:rgba(15,23,42,.65);color:inherit;font:inherit}
-.app-tag-input ::deep button{height:2.6rem;min-width:2.75rem;padding:0 .75rem;border:1px solid rgba(167,139,250,.4);border-radius:.5rem;background:rgba(109,40,217,.25);color:inherit;font:inherit}
-.app-tag-input ::deep :focus-visible{outline:2px solid #a78bfa;outline-offset:2px}
+.app-tag-input ::deep input{min-width:0;width:100%;height:2.6rem;padding:.5rem .7rem;border:1px solid color-mix(in srgb, var(--tl-text-muted) 25%, transparent);border-radius:.5rem;background:color-mix(in srgb, var(--tl-bg-surface) 65%, transparent);color:inherit;font:inherit}
+.app-tag-input ::deep button{height:2.6rem;min-width:2.75rem;padding:0 .75rem;border:1px solid color-mix(in srgb, var(--tl-accent-primary-hover) 40%, transparent);border-radius:.5rem;background:color-mix(in srgb, var(--tl-accent-primary-active) 25%, transparent);color:inherit;font:inherit}
+.app-tag-input ::deep :focus-visible{outline:2px solid var(--tl-focus-ring);outline-offset:2px}
 .app-tag-input ::deep button:disabled{opacity:.45}

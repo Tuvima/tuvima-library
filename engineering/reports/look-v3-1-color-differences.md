@@ -277,3 +277,96 @@ Utility classes (`.tl-u-*`; names unchanged because markup uses them):
 - `.tl-u-color-hex-1a1208` is the dark-on-warning text color (unused in markup today).
 
 Switch (`native-fields.css`): the thumb shadow is the 40% scrim; the checked thumb is the on-accent text color (pure white).
+
+## Shared parts, artwork, tiles, View and Library (WP11 part c1)
+
+Every hand-typed color in the shared parts (`Components/Shared`, `Artwork`, `MediaTiles`, `View`, `Library`) moved onto the shared set. Most moves are exact. This list holds the ones that are not one to one, by screen, so the visual review can look at them. The map (`View/ViewMap.razor.css`) is a written exception and was not touched.
+
+### Everywhere in these parts
+
+- Text that was a translucent white or slate (25% to 98%) is now one of the four solid text colors: 78% and up is primary, 60% to 77% is secondary, 40% to 59% is muted, below 40% is disabled. Text is solid where it was translucent.
+- Pure white, cream and near-white text and borders are the primary text color (a very slightly cooler white).
+- Solid slate text (`#94a3b8`, `#aab6ca`, `#b7c2d4`, `#b8c0d2`, `#b6bbcc`, `#cbd5e1`) is the muted or secondary text color, whichever is closer.
+- White washes and hairlines snap to the five named steps (3, 5, 8, 12, 18%). Most moves are 1 to 2 points; 10% hairlines are now 12%.
+- White hairlines stronger than 18% (24% to 30%) are a mix of the primary text color at the same strength.
+- Dark dims snap to the named black scrims (20 to 70%). Seven moves are 4 points off: 24% to 20%, 34% to 30% (five places), 36% to 40%, and white 22% to 18%.
+- Very dark navy and near-black fills are the page background color (or a mix of it at the same strength, 78% to 98.5%). They are a touch lighter and neutral where they were blue-black.
+- Dark navy fills at 70% or less that sat over artwork are the named black scrims (28% and 34% became 30%; 68% to 74% became 70%).
+- Slate hairlines at 12% to 18% snap to the subtle or default border. Slate hairlines and fills at 20% to 58% are a mix of the muted text color at the same strength.
+- Lavender and violet tints (`#c4b5fd`, `#ddd6fe`, `rgba(167,139,250,...)`) are the lighter purple accent. The mid purples (`#8852fc`, `rgba(124,92,255,...)`, `rgba(136,82,252,...)`) are the purple accent. Slight hue changes.
+- Hand-typed fallbacks inside `var(--tl-...)` were dropped. Fallbacks inside `var(--playback-...)` and `var(--art-bg-...)` now fall back to a shared color; the playback or artwork color still wins whenever it is set.
+- Every `#a78bfa` focus outline and border is the shared focus ring color.
+
+### Shared parts
+
+Viewer window (`MediaViewerShell`):
+
+- The info panel gradient was two near-black navies; it is now the shell background to the page background, both at 98%.
+- The top bar, zoom bar and info panel are the page background color at 86% to 98.5% (were navy at the same strengths).
+- The stage backdrop is the page background color (was `#02040a`).
+- The navigation arrows are the 70% scrim (were navy at 68%).
+
+Artwork stack (`TuvimaArtworkStack`) and group preview (`MediaArtworkGroupPreview`):
+
+- The glow fallbacks are the warning color at 18% and 22% (was an orange at the same strengths) and the purple accent (was a violet). A teal glow is the View area teal at 12%.
+- The base fallback (navy at 74%) is the 70% scrim.
+- The group preview's dashed placeholder gradient runs from a mix of the hover surface (92%) to the page background (98%).
+
+Discovery filter bar (`AppDiscoveryFilterBar`):
+
+- The search field and the tab fills (navy at 72% to 82%) are the 70% scrim, or the shell background at 82%. The "More" button fill is the raised surface at 76%.
+- Tab text at 78% is the primary text color; label text at 72% is the secondary text color.
+
+Smaller shared parts:
+
+- Tag input: the add button is the darker purple accent at 25% (was violet at 25%). Its field is the base surface at 65%.
+- Timeline navigator: the empty-year text (34%) is the disabled text color; the month text (68%) is the secondary text color; the compact bubble is the page background color at 90%.
+- Range slider: the track fallback is the highest surface (was a blue-gray `#30364a`).
+- Tools summary line: the neutral chip is the muted text color at 12% (was gray at 12%).
+- Bookmarks panel: the lighten and darken mixes use the primary text color and the viewer black instead of `white` and `black`; same strengths.
+- Context sidebar: the surface fallback is the shell background (was `#101821`).
+
+### Artwork
+
+- The workspace background gradient runs from the shell background to the page background (was two navies).
+- Panels, previews and wells that were deep navy or near-black (`#05080d`, `#070a11`, `#080d17`, `#0b1019`, `#070c14`) are the page background color. The dark violet upload note (`#171026`) is the base surface.
+- Role card and dim fills (navy at 72% and 88%) are the 70% scrim or the page background at 88%.
+- Purple selection colors (`#aa64ff`, `#b15dff`, `#ae70ff`, `#a66aff`, `#c084fc`) are the lighter purple accent. Their glows are the purple accent at the old strengths. The old picks were slightly different violets.
+- The selected-pill fills (dark violet at 90% and 92%) are the darker purple accent at 90% and 92%. They are lighter than the old deep violet.
+- The "upload" gradient (`#792df3` to `#5020bc`) is the purple accent to the darker purple accent.
+- The `#9443dc55` glow is the darker purple accent at 33%.
+- The gallery check fill (`#111827d9`) is the base surface at 85%.
+- Asset browser: blue-gray border (`rgba(145,181,217,.26)`) is a mix of the muted text color at 26%. The viewer fill (teal-navy at 74%) is the raised surface at 74%. The context cards (slate at 46%) are the hover surface at 46%.
+
+### Media tiles
+
+- The video collection tile gradient was a deep violet to two near-blacks; it is now a 35% mix of the darker purple accent into the page background, then the base surface, then the shell background. A little less violet at the top.
+- Its border and rule are the purple accent at 45% and 50%; the creator line is the lighter purple accent at 80%.
+- The shelf scroller arrows are the page background color at 82% and the shell background at 94% (were two different navies). The arrow border snaps from 22% white to the 18% wash.
+- Stand-in and shadow fills (navy at 8%, 28%, 70%) are the viewer black at 8%, the 30% scrim and the 70% scrim.
+- The collection wash fallback ends on the 70% scrim.
+- The tile shelf muted line (slate at 88%) is the muted text color (a little dimmer).
+
+### Library
+
+- Library table dialog background (`rgb(32,32,32)`) is the raised surface (bluer by a few points). The table row background (`#14181d`) is the shell background.
+- The gold flag (`rgba(201,146,46,...)`) is the collection accent at 12% and 25% (a slightly lighter gold).
+- The favorite heart (`#ff4f76`) is the shared pink-red (`--tl-status-unmatched`); a bit softer.
+- The error text, wash and border (`#ef4444`, `rgba(239,68,68,...)`, `rgba(226,75,74,.7)`) are the danger color at the same strengths.
+- Blue link text (`#38bdf8`) is the secondary accent (same color).
+- The stage dot ring (`#0d0f12`) is the page background color.
+
+### View (places)
+
+- The story panel gradient (`#070d1a` to `#040812`) is the shell background to the page background. The scrollbar thumb (`#4c1d95`) is the darker purple accent (lighter).
+- Fact card and thumbnail fills (slate navy at 58% and solid) are the base surface at 58% and solid.
+- Chips and facts: slate hairlines follow the border rules above; the fact border is the purple accent at 20%.
+- Timeline bar: the border (`#334155`) is the default border; the tooltip border (`#475569`) is the strong border; the tooltip fill (`#182033`) is the raised surface; the bar fill is the page background color at 94%.
+- Callout (`#382064`, light text `#ede9fe`) is a 35% mix of the darker purple accent into the page background, with primary text.
+- Selected and outside histogram bars (`#a66bff`) are the lighter purple accent. The hover bar (`#c4b5fd` and `#e9d5ff`) is the lighter purple accent, mixed 60% into the primary text color for the brightest state.
+- The active range button fill (`#5b21b6`) is the darker purple accent (lighter).
+
+### Exceptions left alone
+
+- `Components/View/ViewMap.razor.css` (15 colors): the map draws its own base, labels and hotspots over map tiles.
+- No other exception was needed. The histogram bars are the app's purple, so they moved to tokens.

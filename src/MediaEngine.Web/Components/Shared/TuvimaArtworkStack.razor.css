@@ -14,9 +14,9 @@
     inset: 0;
     border-radius: inherit;
     background:
-        radial-gradient(circle at 35% 40%, var(--art-bg-glow, rgba(245, 158, 80, .18)), transparent 44%),
-        radial-gradient(circle at 70% 50%, var(--art-bg-glow-secondary, rgba(124, 92, 255, .18)), transparent 48%),
-        linear-gradient(135deg, var(--art-bg-base-dark, rgba(3, 7, 14, .92)), var(--art-bg-base, rgba(12, 17, 29, .74)) 54%, var(--art-bg-base-dark, rgba(3, 7, 13, .96)));
+        radial-gradient(circle at 35% 40%, var(--art-bg-glow, color-mix(in srgb, var(--tl-status-warning) 18%, transparent)), transparent 44%),
+        radial-gradient(circle at 70% 50%, var(--art-bg-glow-secondary, color-mix(in srgb, var(--tl-accent-primary) 18%, transparent)), transparent 48%),
+        linear-gradient(135deg, var(--art-bg-base-dark, color-mix(in srgb, var(--tl-bg-root) 92%, transparent)), var(--art-bg-base, var(--tl-scrim-dark-6)) 54%, var(--art-bg-base-dark, color-mix(in srgb, var(--tl-bg-root) 96%, transparent)));
 }
 
 .artwork-stack__stage::before {
@@ -25,9 +25,9 @@
     inset: 8%;
     z-index: 0;
     background:
-        radial-gradient(circle at 35% 40%, var(--art-bg-glow, rgba(245, 158, 80, .22)), transparent 45%),
-        radial-gradient(circle at 70% 50%, var(--art-bg-glow-secondary, rgba(124, 92, 255, .20)), transparent 48%),
-        radial-gradient(circle at 55% 70%, rgba(45, 212, 191, .12), transparent 44%);
+        radial-gradient(circle at 35% 40%, var(--art-bg-glow, color-mix(in srgb, var(--tl-status-warning) 22%, transparent)), transparent 45%),
+        radial-gradient(circle at 70% 50%, var(--art-bg-glow-secondary, color-mix(in srgb, var(--tl-accent-primary) 20%, transparent)), transparent 48%),
+        radial-gradient(circle at 55% 70%, color-mix(in srgb, var(--tl-area-view) 12%, transparent), transparent 44%);
     filter: blur(44px);
     opacity: .9;
 }
@@ -38,8 +38,8 @@
     inset: 0;
     z-index: 1;
     background:
-        linear-gradient(90deg, rgba(2, 6, 16, .72), transparent 38%, rgba(2, 6, 16, .28)),
-        linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(2, 6, 16, .34));
+        linear-gradient(90deg, var(--tl-scrim-dark-6), transparent 38%, var(--tl-scrim-dark-2)),
+        linear-gradient(180deg, var(--tl-wash-light-1), var(--tl-scrim-dark-2));
     pointer-events: none;
 }
 
@@ -53,13 +53,13 @@
     aspect-ratio: var(--artwork-ratio);
     overflow: hidden;
     border-radius: var(--artwork-radius);
-    background: rgba(255, 255, 255, .04);
-    border: 1px solid rgba(255, 255, 255, .13);
-    border-color: var(--art-bg-border, rgba(255, 255, 255, .13));
+    background: var(--tl-wash-light-1);
+    border: 1px solid var(--tl-wash-light-4);
+    border-color: var(--art-bg-border, var(--tl-wash-light-4));
     box-shadow:
-        0 24px 70px var(--art-bg-shadow, rgba(0, 0, 0, .45)),
-        0 10px 26px rgba(0, 0, 0, .28),
-        0 0 0 1px rgba(255, 255, 255, .08);
+        0 24px 70px var(--art-bg-shadow, color-mix(in srgb, var(--tl-viewer-black) 45%, transparent)),
+        0 10px 26px var(--tl-scrim-dark-2),
+        0 0 0 1px var(--tl-wash-light-3);
     transform: translate(-50%, -50%) rotate(var(--rotate)) scale(var(--scale));
     transform-origin: center center;
     z-index: var(--z);
@@ -100,10 +100,10 @@
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     line-height: 1;
-    color: rgba(248, 250, 252, .96);
-    background: rgba(2, 6, 16, .72);
-    border: 1px solid rgba(255, 255, 255, .16);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, .34);
+    color: var(--tl-text-primary);
+    background: var(--tl-scrim-dark-6);
+    border: 1px solid var(--tl-wash-light-5);
+    box-shadow: 0 8px 18px var(--tl-scrim-dark-2);
     backdrop-filter: blur(10px);
 }
 
@@ -116,11 +116,11 @@
     place-items: center;
     width: min(42%, 12rem);
     aspect-ratio: 1 / 1;
-    color: rgba(226, 232, 240, .38);
-    border: 1px solid rgba(255, 255, 255, .12);
+    color: var(--tl-text-disabled);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: 1rem;
-    background: rgba(255, 255, 255, .04);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, .34);
+    background: var(--tl-wash-light-1);
+    box-shadow: 0 24px 70px var(--tl-scrim-dark-2);
     transform: translate(-50%, -50%);
 }
 
