@@ -5353,7 +5353,7 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .tl-hnav__sheet .tl-hnav__search{padding:var(--tl-space-1) 0}
 /* The sheet's search box: its 44 px is the field's inside, so the border box is 46 and the typed-in part is the full 44 (and 16 px text from the phone window). */
 .tl-hnav__sheet .tl-hnav__search .app-search-field{--app-control-height:calc(var(--tl-tap-target-min) + 2px)}
-.tl-hnav__surface--phone{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
+.tl-hnav__surface--phone,.view-hnav__surface--phone{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
 /* Reorder mode in the phone sheet (v6 4a): the shared Reorder bar is fixed to the screen's bottom everywhere else, but the sheet is moved by its drag (a transform), so a fixed box is
    measured against the sheet itself and laid over the end of the list. Here it is the last thing in the list's panel and sticks to the bottom of the sheet's scrolling part, edge to edge:
    the list always ends above it, so the last row can be reached, and the sheet's own bottom padding (the safe area) keeps it clear of the home indicator. */
