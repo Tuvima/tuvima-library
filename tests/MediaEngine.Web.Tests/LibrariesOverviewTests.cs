@@ -283,16 +283,18 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var items = cut.FindAll($"tr[data-library='{MoviesId}'] [data-folder-list] li");
         Assert.Equal("Family NAS", Text(items[0].QuerySelector("[data-folder-name]")!));
         Assert.Equal("E:\\Library\\Movies", Text(items[0].QuerySelector(".lib-folders__path")!));
-        Assert.Equal("Managed", Text(items[0].QuerySelector("[data-handling]")!));
+        Assert.Equal("managed", items[0].QuerySelector("[data-handling]")!.GetAttribute("data-handling"));
+        Assert.StartsWith("Managed", items[0].QuerySelector("[data-handling]")!.GetAttribute("aria-label"), StringComparison.Ordinal);
         Assert.Equal("4K shelf", Text(items[1].QuerySelector("[data-folder-name]")!));
-        Assert.Equal("Read-only", Text(items[1].QuerySelector("[data-handling]")!));
+        Assert.Equal("read-only", items[1].QuerySelector("[data-handling]")!.GetAttribute("data-handling"));
+        Assert.StartsWith("Read-only", items[1].QuerySelector("[data-handling]")!.GetAttribute("aria-label"), StringComparison.Ordinal);
         // The copy button and the online state are still there.
         Assert.NotNull(items[0].QuerySelector("button[aria-label^='Copy']"));
         Assert.Equal("online", items[0].GetAttribute("data-state"));
     }
 
     [Fact]
-    public void TheFolderListOfALibraryWithOneFolderShowsTheTagButNoName()
+    public void TheFolderListOfALibraryWithOneFolderShowsTheHandlingIconButNoName()
     {
         var cut = OpenAndSettle();
 
@@ -300,7 +302,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var item = cut.Find($"tr[data-library='{AudiobooksId}'] [data-folder-list] li");
         Assert.Null(item.QuerySelector("[data-folder-name]"));
-        Assert.Equal("Read-only", Text(item.QuerySelector("[data-handling]")!));
+        Assert.Equal("read-only", item.QuerySelector("[data-handling]")!.GetAttribute("data-handling"));
     }
 
     [Fact]

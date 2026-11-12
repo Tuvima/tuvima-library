@@ -9797,6 +9797,12 @@
   <data name="LibraryFoldersPopover_Online" xml:space="preserve">
     <value>Online</value>
   </data>
+  <data name="LibraryFoldersPopover_Reachable" xml:space="preserve">
+    <value>Library can reach this folder</value>
+  </data>
+  <data name="LibraryFoldersPopover_Unreachable" xml:space="preserve">
+    <value>Library can't reach this folder</value>
+  </data>
   <data name="LibraryFoldersPopover_CopyPath" xml:space="preserve">
     <value>Copy path</value>
   </data>

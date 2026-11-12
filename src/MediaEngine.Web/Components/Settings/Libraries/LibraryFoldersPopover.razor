@@ -6,8 +6,9 @@
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @implements IDisposable
 
-@* "N folders" as a button (Libraries and folder picker D3): it opens a small list of the library's real paths, each with its online or offline state and a copy
-   button; with two or more folders each shows its friendly name above its path, and every folder says Read-only or Managed. It never navigates. Enter or Space opens it, Esc closes it; on a phone the list is a bottom sheet. *@
+@* "N folders" as a button (Libraries and folder picker D3): it opens a small list of the library's real paths, each on one line: a green check when Library can reach it
+   or an amber triangle with the reason under the path, the path shortened in the middle (its full path is the tooltip), a grey lock (Read-only) or a purple pencil
+   (Managed) and a copy button; with two or more folders each shows its friendly name above its path. It never navigates. Enter or Space opens it, Esc closes it; on a phone the list is a bottom sheet. *@
 <span class="lib-folders" @onclick:stopPropagation="true">
     <span @ref="_anchor" class="lib-folders__anchor">
     <AppButton Label="@Label"
@@ -46,20 +47,42 @@
                 @foreach (var source in Rows)
                 {
                     var issue = IssueFor(source);
+                    var (pathStart, pathEnd) = SplitPath(source.Path);
                     <li class="lib-folders__item" data-source="@source.Id" data-state="@(issue is null ? "online" : "offline")">
+                        @if (issue is null)
+                        {
+                            <AppTooltip Text="@ReachableWords">
+                                <span class="lib-folders__icon lib-folders__icon--ok" role="img" aria-label="@ReachableWords" data-folder-status="reachable"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /></span>
+                            </AppTooltip>
+                        }
+                        else
+                        {
+                            <AppTooltip Text="@UnreachableWords">
+                                <span class="lib-folders__icon lib-folders__icon--warn" role="img" aria-label="@UnreachableWords" data-folder-status="unreachable"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" /></span>
+                            </AppTooltip>
+                        }
                         <span class="lib-folders__body">
                             @if (ShowNames && !string.IsNullOrWhiteSpace(source.Name))
                             {
                                 <strong class="lib-folders__name" data-folder-name>@source.Name</strong>
                             }
-                            <span class="lib-folders__path" data-overflow-tooltip="@source.Path">@source.Path</span>
+                            <AppTooltip Text="@source.Path">
+                                <span class="lib-folders__path" data-folder-path="@source.Path"><span class="lib-folders__path-start">@pathStart</span>@if (pathEnd.Length > 0){<span class="lib-folders__path-end">@pathEnd</span>}</span>
+                            </AppTooltip>
+                            @if (issue is not null)
+                            {
+                                <span class="lib-folders__why" data-folder-reason data-overflow-tooltip="@issue">@issue</span>
+                            }
                         </span>
                         @if (source.Managed is { } managed)
                         {
-                            <span class="lib-folders__tag" data-handling="@(managed ? "managed" : "read-only")">@FolderHandlingWords.LabelFor(managed)</span>
+                            var handling = HandlingWords(managed);
+                            <AppTooltip Text="@handling">
+                                <span class="@(managed ? "lib-folders__icon lib-folders__icon--managed" : "lib-folders__icon")" role="img" aria-label="@handling" data-handling="@(managed ? "managed" : "read-only")"><AppMaterialIcon Icon="@(managed ? AppMaterialIcons.Outlined.Edit : AppMaterialIcons.Outlined.Lock)" /></span>
+                            </AppTooltip>
                         }
-                        <span class="lib-folders__state">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.ContentCopy"
+                                       ButtonStyle="AppButtonStyle.Text"
                                        Tooltip="@L["LibraryFoldersPopover_CopyPath"].Value"
                                        AriaLabel="@L["LibraryFoldersPopover_CopyThisPath", source.Path].Value"
                                        OnClick="@(() => CopyAsync(source.Path))" />
@@ -104,6 +127,23 @@
 
     private string Label => Rows.Count == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", Rows.Count].Value;
     private string PanelLabel => L["LibraryFoldersPopover_FoldersOf", LibraryName].Value;
+
+    private string ReachableWords => L["LibraryFoldersPopover_Reachable"].Value;
+    private string UnreachableWords => L["LibraryFoldersPopover_Unreachable"].Value;
+    private static string HandlingWords(bool managed) => $"{FolderHandlingWords.LabelFor(managed)}: {FolderHandlingWords.ExplainerFor(managed)}";
+
+    // A long path keeps its start and its last segments visible: the start is the part that is cut with an ellipsis (CSS), the end never is.
+    private const int PathEndLength = 28;
+
+    private static (string Start, string End) SplitPath(string path)
+    {
+        if (path.Length <= PathEndLength) return (path, string.Empty);
+        var trimmed = path.TrimEnd('\\', '/');
+        var lastSeparator = trimmed.LastIndexOfAny(['\\', '/']);
+        var cut = lastSeparator > 0 ? trimmed.LastIndexOfAny(['\\', '/'], lastSeparator - 1) : -1;
+        if (cut <= 0 || path.Length - cut > PathEndLength) cut = path.Length - PathEndLength;
+        return (path[..cut], path[cut..]);
+    }
 
     private string? IssueFor(FolderListItem source) => source.Issue ?? (PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null);
 
