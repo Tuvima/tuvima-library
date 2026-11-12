@@ -3,7 +3,7 @@
 
 @* The Match card as a full-height sheet on a phone (universal editor v6 section 4a, D20 and D21; mock screen H, screen 2). Tapping a row of a Match list
    opens the card for it here instead of beside the list: a bar with Back and "Selected result", then the card, which scrolls, with Apply match fixed at
-   the bottom under the thumb (the card pins its own actions while it is in a sheet). Back, Escape and swiping the sheet down all return to the list with
+   the bottom under the thumb (the card pins its own actions while it is in a sheet). Back and Escape both return to the list with
    the tick kept; nothing is chosen or staged by leaving. The sheet is the app's native dialog frame, so the page behind the editor window stays still. *@
 <AppDialogFrame Open="true" Title="@Title" DialogOptions="_options" Class="tl-msheet" OnCancel="OnBack">
     <div class="tl-msheet__page" data-testid="match-sheet">
@@ -26,7 +26,7 @@
     /// <summary>The words in the bar: "Selected result".</summary>
     [Parameter] public string Title { get; set; } = string.Empty;
 
-    /// <summary>Raised by Back, Escape and a swipe down: the sheet closes and the list shows again.</summary>
+    /// <summary>Raised by Back and Escape: the sheet closes and the list shows again.</summary>
     [Parameter] public EventCallback OnBack { get; set; }
 
     /// <summary>The card (and anything that belongs with it, such as the editions).</summary>

@@ -479,7 +479,7 @@
                 {
                     <div class="tl-match__meta">@L["EditorWikidata_Offline"]</div>
                 }
-                <div class="tl-wikidata__actions">
+                <div class="@(IsPhone ? "tl-wikidata__actions tl-wikidata__actions--phone" : "tl-wikidata__actions")">
                     @if (!staged && !string.IsNullOrWhiteSpace(_identity?.Url))
                     {
                         <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@_identity!.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="@ControlSize" />

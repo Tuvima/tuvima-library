@@ -31,10 +31,13 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
     private EditorMatchContextDto _context = new() { EntityId = ItemId, ParsedShow = "The Last Signal", ParsedSeason = 2, ParsedEpisode = 3 };
     private EditorWikidataSearchResultDto _wikidata = new() { EntityId = ItemId };
     private bool _matched;
+    private readonly BunitJSModuleInterop _focusModule;
 
     public EditorMatchPhoneTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
+        _focusModule = JSInterop.SetupModule("./js/editor-focus.js");
+        _focusModule.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddNativeUiServices();
         _session.Begin([new EditTrailItem(ItemId, "The Sea of Monsters", "Item")]);
@@ -253,6 +256,37 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AfterApplyOnAPhone_TheStagedNoteIsALiveRegionThatIsFocusable_AndIsBroughtIntoView()
+    {
+        var cut = SearchBook();
+        Tap(cut, "match-result", 0);
+        cut.WaitForElement("[data-testid=match-sheet]");
+        Assert.DoesNotContain(_focusModule.Invocations, call => call.Identifier == "revealStagedNote");
+
+        ApplyInTheSheet(cut);
+
+        // The note is drawn, announced politely, can take focus, and the editor's script is asked to scroll it into view and focus it.
+        var note = cut.WaitForElement("[data-testid=match-staged]");
+        Assert.Equal("status", note.GetAttribute("role"));
+        Assert.Equal("-1", note.GetAttribute("tabindex"));
+        Assert.True(note.HasAttribute("data-staged-note"));
+        cut.WaitForAssertion(() => _focusModule.VerifyInvoke("revealStagedNote"));
+    }
+
+    [Fact]
+    public void AfterApplyOnAComputer_NothingIsScrolledOrFocused()
+    {
+        var cut = SearchBook(phone: false);
+        Tap(cut, "match-result", 0);
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid=match-apply]").HasAttribute("disabled")));
+
+        cut.Find("[data-testid=match-apply]").Click();
+
+        cut.WaitForElement("[data-testid=match-staged]");
+        Assert.DoesNotContain(_focusModule.Invocations, call => call.Identifier == "revealStagedNote");
+    }
+
+    [Fact]
     public void BackOnTheCardSheet_ReturnsToTheListWithTheTickKept_AndStagesNothing()
     {
         var cut = SearchBook();
@@ -355,7 +389,7 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ReadMore_WorksByTap_InTheCardSheet_AndEveryButtonThereIs44Px()
+    public void ReadMore_WorksByTap_InTheCardSheet_AndNoButtonThereUsesTheCompactSize()
     {
         var cut = SearchBook();
         Tap(cut, "match-result", 0);
@@ -366,6 +400,7 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
         readMore.Click();
 
         cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("[data-testid=match-sheet] [data-testid=match-card-description]").GetAttribute("data-expanded")));
+        // Only the size class can be checked here (the phone arrangement asks for the normal size); the 44 px height itself is proven by the headless layout measurement.
         foreach (var button in cut.Find("[data-testid=match-sheet]").QuerySelectorAll("button, a"))
         {
             Assert.DoesNotContain("app-control--compact", button.ClassList);
@@ -428,6 +463,7 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
         Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-staged]")));
         Assert.Equal("true", cut.FindAll("[data-testid=tv-flow-episode-pick]")[1].GetAttribute("aria-pressed"));
+        cut.WaitForAssertion(() => _focusModule.VerifyInvoke("revealStagedNote"));
     }
 
     [Fact]
@@ -500,6 +536,7 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
         Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-staged]")));
         Assert.Equal("true", cut.FindAll("[data-testid=music-flow-track-pick]")[2].GetAttribute("aria-pressed"));
+        cut.WaitForAssertion(() => _focusModule.VerifyInvoke("revealStagedNote"));
     }
 
     [Fact]

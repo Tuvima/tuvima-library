@@ -18,6 +18,12 @@
     gap: var(--tl-space-2);
 }
 
+/* On a phone the identity's actions stack at the full width, as the provider card's do. */
+.tl-wikidata__actions--phone {
+    flex-direction: column;
+    align-items: stretch;
+}
+
 .tl-wikidata__reason {
     margin: 0;
     color: var(--tl-status-warning);

@@ -43,7 +43,7 @@ else
     /// <summary>On a phone: whether the card's sheet is open. The flow sets it when a row is tapped and clears it on Back and after Apply match; it is ignored on a computer.</summary>
     [Parameter] public bool SheetOpen { get; set; }
 
-    /// <summary>On a phone: raised by Back, Escape and a swipe down on the sheet.</summary>
+    /// <summary>On a phone: raised by Back and Escape on the sheet.</summary>
     [Parameter] public EventCallback OnSheetClose { get; set; }
 
     /// <summary>The words in the sheet's bar; "Selected result" when left empty.</summary>

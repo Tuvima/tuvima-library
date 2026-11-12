@@ -4617,17 +4617,12 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     font-weight: 600;
 }
 
-/* The menu sheet's dialog frame comes from AppDialogFrame. The shared dialog surface, border, radius and max-height are
-   all forced on .tl-dialog, so the sheet overrides them to fill the screen edge to edge. */
+/* The menu sheet's dialog frame comes from AppDialogFrame; the full-screen rule (border, radius, shadow, max-height) is shared and sits with the TV marker above. */
 .app-native-dialog.phone-nav-menu-dialog.tl-dialog {
     height: 100dvh;
-    max-height: none !important;
     overflow-y: auto;
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-root) !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -5257,8 +5252,8 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 
-/* The Match card sheet on a phone (EditorMatchSheet): the app's full-screen dialog frame. The shared dialog surface, border and max-height are forced on .tl-dialog, so the sheet overrides them to fill the screen edge to edge. */
-.app-native-dialog.tl-msheet.tl-dialog{height:100dvh;max-height:none !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;overflow:hidden}
+/* A full-screen dialog frame (AppDialogFrame FullScreen: the phone menu sheet, the Match card sheet) fills the screen edge to edge. The shared dialog surface, border, radius, shadow and max-height are forced on .tl-dialog, so this one rule overrides them for every full-screen frame. */
+.app-native-dialog.app-native-dialog--fullscreen.tl-dialog{max-height:none !important;border:0 !important;border-radius:0 !important;box-shadow:none !important}
 /* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
    labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
 html[data-form-factor="tv"] {

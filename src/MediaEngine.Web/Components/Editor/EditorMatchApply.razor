@@ -39,6 +39,6 @@
 
     [CascadingParameter] public MediaEngine.Web.Services.Editing.EditorWindowLayout? Layout { get; set; }
 
-    // On a phone the buttons share the width (Apply match the wider) and the line under them is centered.
+    // On a phone the buttons share the width equally (as one button when there is no Cancel, it fills the width, as in mock screen H) and the line under them is centered.
     private bool IsPhone => MediaEngine.Web.Services.Editing.EditorWindowLayout.IsPhone(false, Layout);
 }
