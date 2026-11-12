@@ -488,22 +488,21 @@
 
     public async ValueTask DisposeAsync()
     {
-        _disposed = true;
         Device.OnChanged -= DeviceChanged;
         Editor.Changed -= OnChanged;
         Editor.AskSaveOrDiscard = null;
         Editor.ConfirmDiscard = null;
         Editor.HeaderHooks.OpenSupportingFiles = null;
         Editor.HeaderHooks.OpenFolders = null;
+        if (_keyboard is not null)
+        {
+            await _keyboard.DisposeAsync();
+        }
+
         if (_focusModule is not null)
         {
             try
             {
-                if (_watching)
-                {
-                    await _focusModule.InvokeVoidAsync("stopKeyboard");
-                }
-
                 await _focusModule.DisposeAsync();
             }
             catch (JSDisconnectedException)
@@ -551,37 +550,14 @@
 
     private int _focusTries;
     private IJSObjectReference? _focusModule;
-    private bool _watching;
-    private bool _disposed;
+    private EditorKeyboardFit? _keyboard;
 
-    // While the window is open on a phone arrangement, its height is kept above the on-screen keyboard (editor-focus.js). A failure to reach the script (a test
-    // host, a closing circuit, a moment when the connection is down) leaves the state as it was, so the next draw tries again; the window works without the fit.
+    // While the window is open on a phone arrangement, its height is kept above the on-screen keyboard (editor-focus.js, shared with the collection builder). A
+    // failure to reach the script leaves the state as it was, so the next draw tries again; the window works without the fit.
     private async Task SyncKeyboardAsync()
     {
-        var wanted = Editor.IsOpen && Phone;
-        if (_disposed || wanted == _watching)
-        {
-            return;
-        }
-
-        try
-        {
-            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
-            if (wanted)
-            {
-                await _focusModule.InvokeVoidAsync("watchKeyboard");
-            }
-            else
-            {
-                await _focusModule.InvokeVoidAsync("stopKeyboard");
-            }
-
-            _watching = wanted;
-        }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
-        {
-            Logger.LogDebug(ex, "The editor could not reach its keyboard script; it will try again at the next draw");
-        }
+        _keyboard ??= new EditorKeyboardFit(JS, Logger);
+        await _keyboard.SyncAsync(Editor.IsOpen && Phone);
     }
 
     // The player's lyrics button asks for the Lyrics field: once the pop-over has drawn the fields, the cursor goes there. A field the

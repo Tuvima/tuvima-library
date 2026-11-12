@@ -27,6 +27,11 @@ public partial class CollectionEditorShell
         // The editor's phone class, so the shared keyboard script and safe-area rules find this sheet the same way they find the editor window.
         + (Phone ? " collection-editor-workspace--phone tl-editor-window--phone" : string.Empty);
 
+    // The body is the one tab panel of the tab row (the row's own panels are not drawn), named by the open tab.
+    private const string TabPanelId = "collection-editor-tabpanel";
+
+    private static string TabId(string tabId) => "collection-editor-tab-" + tabId;
+
     private int ActiveTabIndex => Math.Max(0, Array.FindIndex(VisibleTabs, tab => IsTabSelected(tab.Id)));
 
     // Delete collection leaves the rail for the header's "..." on a phone (v6 D22): the same condition, the same handler, the same question.

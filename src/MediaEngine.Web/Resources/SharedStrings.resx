@@ -12851,6 +12851,9 @@
   <data name="CollectionFlow_StepNameAndShow" xml:space="preserve">
     <value>Name and show it</value>
   </data>
+  <data name="CollectionFlow_StepOf3" xml:space="preserve">
+    <value>Step {0} of 3, {1}</value>
+  </data>
   <data name="CollectionFlow_WayPickTitlesText" xml:space="preserve">
     <value>Search your library and add titles yourself. Drag to order.</value>
   </data>

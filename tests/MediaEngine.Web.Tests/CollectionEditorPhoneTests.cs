@@ -25,6 +25,7 @@ public sealed class CollectionEditorPhoneTests : AsyncBunitContext
     private static readonly Guid CollectionId = Guid.Parse("00000000-0000-0000-0000-0000000000c2");
 
     private readonly List<Guid> _deleted = [];
+    private readonly List<CollectionGalleryReferenceDto> _galleries = [];
     private readonly DeviceContextService _device;
     private readonly BunitJSModuleInterop _focusModule;
 
@@ -39,7 +40,7 @@ public sealed class CollectionEditorPhoneTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
-        Services.AddSingleton<ICollectionPersonalMediaClient>(new EmptyPersonalMediaClient());
+        Services.AddSingleton<ICollectionPersonalMediaClient>(new EmptyPersonalMediaClient(_galleries));
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
             stub.SetHandler(nameof(IEngineApiClient.DeleteCollectionAsync), args =>
             {
@@ -202,6 +203,48 @@ public sealed class CollectionEditorPhoneTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WhenTheDeviceTurns_WhatWasStagedInTheCompanionsAndOtherFieldsIsKept()
+    {
+        _galleries.Add(new CollectionGalleryReferenceDto(Guid.NewGuid(), "Family Trip", "manual", DateTimeOffset.UtcNow));
+        _galleries.Add(new CollectionGalleryReferenceDto(Guid.NewGuid(), "Recent Favorites", "manual", DateTimeOffset.UtcNow));
+        var editor = RenderEditor(ExistingCollection(), phone: true);
+        editor.WaitForAssertion(() => Assert.Equal(2, editor.FindAll(".collection-personal-media__gallery").Count));
+        var tabs = editor.FindAll(".collection-editor-tabs [role=tab]");
+        tabs.Single(tab => tab.TextContent.Trim() == "Companions").Click();
+        editor.FindAll(".collection-personal-media__gallery")[1].Click();
+        editor.FindAll(".collection-personal-media__gallery")[0].Click();
+        Assert.Equal(2, editor.FindAll(".collection-personal-media__gallery.is-selected").Count);
+        Assert.Equal(true, UnsavedField(editor).GetValue(editor.Instance));
+
+        // A tablet turned: the arrangement changes to the desktop one and back, and the ticks (a reloaded list would have none) are still there.
+        editor.Render(parameters => parameters.Add(shell => shell.PhoneArrangement, false));
+        Assert.Empty(editor.FindAll(".collection-editor-tabs"));
+        Assert.Single(editor.FindAll(".collection-editor-rail"));
+        Assert.Equal(2, editor.FindAll(".collection-personal-media__gallery.is-selected").Count);
+
+        editor.Render(parameters => parameters.Add(shell => shell.PhoneArrangement, true));
+        Assert.Single(editor.FindAll(".collection-editor-tabs"));
+        Assert.Equal(2, editor.FindAll(".collection-personal-media__gallery.is-selected").Count);
+        Assert.Equal(true, UnsavedField(editor).GetValue(editor.Instance));
+    }
+
+    [Fact]
+    public void OnAPhone_TheBodyIsTheOneTabPanelAndTheTabsNameIt()
+    {
+        var editor = RenderEditor(ExistingCollection(), phone: true);
+
+        var body = editor.Find(".collection-editor-body");
+        Assert.Equal("tabpanel", body.GetAttribute("role"));
+        var tabs = editor.FindAll(".collection-editor-tabs [role=tab]");
+        Assert.All(tabs, tab => Assert.Equal(body.Id, tab.GetAttribute("aria-controls")));
+        Assert.Equal(tabs[0].Id, body.GetAttribute("aria-labelledby"));
+        Assert.Empty(editor.FindAll(".collection-editor-tabs [role=tabpanel], .collection-editor-tabs .tl-tab-panel"));
+
+        var desktop = RenderEditor(ExistingCollection(), phone: false);
+        Assert.Null(desktop.Find(".collection-editor-body").GetAttribute("role"));
+    }
+
+    [Fact]
     public void OnADesktop_TheRailAndItsDeleteStayAndThereIsNoMoreMenu()
     {
         var editor = RenderEditor(ExistingCollection(), phone: false);
@@ -267,10 +310,10 @@ public sealed class CollectionEditorPhoneTests : AsyncBunitContext
         public Task<bool?> ShowMessageBoxAsync(string? title, MarkupString message, string yesText = "OK", string? noText = null, string? cancelText = null, AppDialogOptions? options = null) => Task.FromResult<bool?>(null);
     }
 
-    private sealed class EmptyPersonalMediaClient : ICollectionPersonalMediaClient
+    private sealed class EmptyPersonalMediaClient(List<CollectionGalleryReferenceDto> galleries) : ICollectionPersonalMediaClient
     {
         public string? LastError => null;
-        public Task<IReadOnlyList<CollectionGalleryReferenceDto>> GetEligibleGalleriesAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionGalleryReferenceDto>>([]);
+        public Task<IReadOnlyList<CollectionGalleryReferenceDto>> GetEligibleGalleriesAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionGalleryReferenceDto>>(galleries.ToList());
         public Task<IReadOnlyList<CollectionPersonalMediaSourceDto>> GetSourcesAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionPersonalMediaSourceDto>>([]);
         public Task<CollectionPersonalMediaSourceDto?> AddSourceAsync(Guid collectionId, CollectionPersonalMediaSourceWriteRequest request, CancellationToken ct = default) => Task.FromResult<CollectionPersonalMediaSourceDto?>(null);
         public Task<CollectionPersonalMediaSourceDto?> UpdateSourceAsync(Guid collectionId, Guid sourceId, CollectionPersonalMediaSourceWriteRequest request, CancellationToken ct = default) => Task.FromResult<CollectionPersonalMediaSourceDto?>(null);

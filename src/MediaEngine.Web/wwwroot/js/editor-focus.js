@@ -12,11 +12,14 @@ export function focusField(key) {
 
 // The editor on a phone (universal editor v6, section 4a): keeps the window's height above the on-screen keyboard so the footer stays in sight, and scrolls the
 // field being typed in into view once the keyboard is up. Whether the phone arrangement is drawn is the device's form factor, not decided here; the property
-// this sets (--tl-editor-keyboard) is read only by the phone window's height, so on any other window it does nothing.
+// this sets (--tl-editor-keyboard) is read only by the phone window's height, so on any other window it does nothing. The editor window and the collection builder
+// can both be open, so the watcher is shared: each owner's watch adds one, each stop takes one away, and the listeners come off with the last.
 let keyboard = null;
+let owners = 0;
 
 export function watchKeyboard() {
-    stopKeyboard();
+    owners += 1;
+    if (keyboard) return;
     const viewport = window.visualViewport;
     const root = document.documentElement;
 
@@ -50,7 +53,8 @@ export function watchKeyboard() {
 }
 
 export function stopKeyboard() {
-    if (!keyboard) return;
+    if (owners > 0) owners -= 1;
+    if (owners > 0 || !keyboard) return;
     keyboard.viewport?.removeEventListener('resize', keyboard.fit);
     keyboard.viewport?.removeEventListener('scroll', keyboard.fit);
     document.removeEventListener('focusin', keyboard.reveal);

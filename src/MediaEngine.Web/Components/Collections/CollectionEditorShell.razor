@@ -35,7 +35,7 @@
                     <h2 class="sme-title" tabindex="-1">@EditorIdentityTitle</h2>
                     @if (IsCreateFlow)
                     {
-                        <div class="collection-flow__step-line" data-testid="phone-step" aria-live="polite">@L["NewIntegrationWizard_StepOf3", _step, StepLabel(_step)]</div>
+                        <div class="collection-flow__step-line" data-testid="phone-step" aria-live="polite">@L["CollectionFlow_StepOf3", _step, StepLabel(_step)]</div>
                     }
                 </div>
                 <div class="collection-editor-header-actions">
@@ -92,31 +92,13 @@
         {
             @RenderFlow()
         }
-        else if (Phone)
-        {
-        <div class="sme-workspace collection-editor-layout collection-editor-layout--phone">
-            <main class="sme-main-pane collection-editor-main">
-                @* The rail becomes the shared tab row; its panels are empty because the body below is drawn once, and not again on every tab. *@
-                <AppTabs Class="collection-editor-tabs"
-                         Label="@L["CollectionEditorShell_CollectionEditorSections"].Value"
-                         Rounded="false"
-                         Border="false"
-                         Elevation="0"
-                         ActivePanelIndex="@ActiveTabIndex"
-                         ActivePanelIndexChanged="OnTabChanged">
-                    @foreach (var tab in VisibleTabs)
-                    {
-                        <AppTabPanel Text="@tab.Label" Icon="@tab.Icon" Class="@($"collection-editor-tab collection-editor-tab--{tab.Id}")" />
-                    }
-                </AppTabs>
-                @RenderEditBody()
-                @RenderEditFooter()
-            </main>
-        </div>
-        }
         else
         {
-        <div class="sme-workspace collection-editor-layout">
+        @* One layout and one main in both arrangements, so the body keeps its place in the render tree when the device turns (a tablet rotated) and nothing the person
+           has staged in it is lost; only the rail or the tab row, and a class, change. *@
+        <div class="@(Phone ? "sme-workspace collection-editor-layout collection-editor-layout--phone" : "sme-workspace collection-editor-layout")">
+            @if (!Phone)
+            {
             <nav class="sme-section-nav collection-editor-rail" aria-label="@L["CollectionEditorShell_CollectionEditorSections"].Value">
                 @for (var index = 0; index < VisibleTabs.Length; index++)
                 {
@@ -147,8 +129,26 @@
                     </div>
                 }
             </nav>
+            }
 
             <main class="sme-main-pane collection-editor-main">
+                @if (Phone)
+                {
+                    @* The rail becomes the shared tab row; its panels are not drawn because the body below is the one panel and is drawn once, not again on every tab. *@
+                    <AppTabs Class="collection-editor-tabs"
+                             Label="@L["CollectionEditorShell_CollectionEditorSections"].Value"
+                             Rounded="false"
+                             Border="false"
+                             Elevation="0"
+                             ControlsId="@TabPanelId"
+                             ActivePanelIndex="@ActiveTabIndex"
+                             ActivePanelIndexChanged="OnTabChanged">
+                        @foreach (var tab in VisibleTabs)
+                        {
+                            <AppTabPanel Id="@TabId(tab.Id)" Text="@tab.Label" Icon="@tab.Icon" Class="@($"collection-editor-tab collection-editor-tab--{tab.Id}")" />
+                        }
+                    </AppTabs>
+                }
                 @RenderEditBody()
                 @RenderEditFooter()
             </main>
@@ -180,7 +180,7 @@
     </text>;
 
     private RenderFragment RenderEditBody() => @<text>
-        <div class="sme-body collection-editor-body">
+        <div class="sme-body collection-editor-body" id="@(Phone ? TabPanelId : null)" role="@(Phone ? "tabpanel" : null)" aria-labelledby="@(Phone ? TabId(VisibleTabs[ActiveTabIndex].Id) : null)">
             @RenderNotice()
             @switch (_activeTab)
             {
