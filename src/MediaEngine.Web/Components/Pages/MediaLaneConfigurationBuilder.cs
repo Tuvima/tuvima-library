@@ -12,11 +12,12 @@ public static class MediaLaneConfigurationBuilder
 {
     public static IReadOnlyList<MediaHubModeViewModel> BuildModes(LibraryBrowsePreset preset) =>
     [
-        new("all", "Discover", preset.RouteBase),
+        new("all", "Discover", preset.RouteBase, AppMaterialIcons.Outlined.Explore),
         .. preset.Tabs.Select(tab => new MediaHubModeViewModel(
             tab.Id,
             tab.Label,
-            $"{preset.RouteBase}/{tab.Id}")),
+            $"{preset.RouteBase}/{tab.Id}",
+            ResolveTabIcon(tab))),
     ];
 
     /// <summary>
@@ -55,7 +56,8 @@ public static class MediaLaneConfigurationBuilder
                     ResolveTabIcon(tab))),
             ]);
 
-    private static string ResolveTabIcon(BrowseTabPreset tab) =>
+    /// <summary>The outline icon of a browse tab: the one of its default grouping, the same icon its side-menu row carries.</summary>
+    public static string ResolveTabIcon(BrowseTabPreset tab) =>
         tab.GroupingOptions.FirstOrDefault(option =>
             string.Equals(option.Value, tab.DefaultGrouping, StringComparison.OrdinalIgnoreCase))?.Icon
         ?? tab.GroupingOptions.FirstOrDefault()?.Icon

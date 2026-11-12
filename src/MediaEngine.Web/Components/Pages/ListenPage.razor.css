@@ -671,21 +671,6 @@
     flex: 1 1 520px;
 }
 
-.audiobooks-segmented ::deep .app-browse-mode {
-    width: 100%;
-}
-
-.audiobooks-segmented ::deep .app-browse-mode__option {
-    min-width: 0;
-    flex: 1 1 0;
-    gap: 4px;
-    padding-inline: 8px;
-}
-
-.audiobooks-segmented ::deep .app-browse-mode__option .tl-icon-root {
-    display: none;
-}
-
 .audiobooks-toolbar__controls {
     display: flex;
     min-width: 0;

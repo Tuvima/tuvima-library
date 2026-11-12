@@ -14,11 +14,11 @@ internal static class CollectionsSectionConfiguration
 
     public static IReadOnlyList<MediaHubModeViewModel> Modes { get; } =
     [
-        new(Overview, "Discovery", "/collections"),
-        new(Automatic, "Automatic", "/collections/automatic"),
-        new(Curated, "Curated", "/collections/curated"),
-        new(Shelves, "Shelves", "/collections/shelves"),
-        new(People, "People", "/collections/people"),
+        new(Overview, "Discovery", "/collections", AppMaterialIcons.Outlined.Explore),
+        new(Automatic, "Automatic", "/collections/automatic", AppMaterialIcons.Outlined.AutoAwesome),
+        new(Curated, "Curated", "/collections/curated", AppMaterialIcons.Outlined.CollectionsBookmark),
+        new(Shelves, "Shelves", "/collections/shelves", AppMaterialIcons.Outlined.ViewCarousel),
+        new(People, "People", "/collections/people", AppMaterialIcons.Outlined.People),
     ];
 
     public static IReadOnlyList<MediaSectionNavigationGroup> BuildNavigation(

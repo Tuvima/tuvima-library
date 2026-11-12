@@ -82,7 +82,7 @@
         : CinematicHeroDensity.Full;
 
     private IReadOnlyList<SurfaceTabItem> FilterTabs => AvailableModes
-        .Select(mode => new SurfaceTabItem(mode.Id, mode.Label))
+        .Select(mode => new SurfaceTabItem(mode.Id, mode.Label, mode.Icon))
         .ToList();
 
     private IReadOnlyList<string> AvailableGenres => Shelves

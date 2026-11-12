@@ -620,7 +620,7 @@
 
     private string _seriesSet = "complete";
     private string _listTab = "all";
-    private static readonly IReadOnlyList<AppCountTab> ListTabs = [new("all", "All", 3), new("metadata", "Metadata", 1), new("services", "Services", 1)];
+    private static readonly IReadOnlyList<AppCountTab> ListTabs = [new("all", "All", 3, AppMaterialIcons.Outlined.AllInclusive), new("metadata", "Metadata", 1, AppMaterialIcons.Outlined.Tag), new("services", "Services", 1, AppMaterialIcons.Outlined.Hub)];
     private bool _sheetOpen;
     private bool _viewerOpen;
     private AppWindowSize? _windowOpen;

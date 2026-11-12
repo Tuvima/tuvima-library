@@ -101,6 +101,12 @@
     --tl-icon-size-lg: 32px;
     --tl-icon-size-xl: 48px;
     --tl-icon-size-2xl: 64px;
+    /* The one tab row (Look v3.1 D1): 48 px tall, 28 px between tabs, a 20 px icon, a 3 px underline, a soft fade at the cut edge on a phone. */
+    --tl-tab-min-height: 48px;
+    --tl-tab-gap: 28px;
+    --tl-tab-underline: 3px;
+    --tl-tab-icon-size: var(--tl-icon-size-sm);
+    --tl-tab-edge-fade: 32px;
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
     --tl-touch-min: 44px;
@@ -316,7 +322,7 @@
     --tl-tone-wash: 14%;
 
     /* Layers (Look pass 4.8): menu, popover, dialog, toast, player. */
-    --tl-dialog-title-size: var(--tl-type-heading-size);
+    --tl-dialog-title-size: var(--tl-font-size-dialog-title);
     /* The short dialog (Look v3.1 D4): one roomy box with no lines inside. 28 px all round (20 px as a phone sheet), the message 8 px under
        the title, 28 px before the buttons, 12 px between the buttons. */
     --tl-dialog-padding: 28px;

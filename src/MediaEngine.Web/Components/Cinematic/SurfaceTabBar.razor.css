@@ -6,34 +6,9 @@
     gap: 1rem;
 }
 
+/* The tabs themselves are the shared tab row; only the room it may shrink into is named here. */
 .surface-tab-bar__items {
     min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-}
-
-.surface-tab-bar__items::-webkit-scrollbar {
-    display: none;
-}
-
-.surface-tab-bar__item,
-::deep .surface-tab-bar__item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.42rem;
-    white-space: nowrap;
-}
-
-.surface-tab-bar__count {
-    min-width: 1.45rem;
-    padding: 0.12rem 0.38rem;
-    border-radius: var(--tl-radius-pill);
-    background: rgba(255, 255, 255, 0.08);
-    font-size: var(--tl-font-size-xs);
-    text-align: center;
 }
 
 .surface-tab-bar__trailing {
