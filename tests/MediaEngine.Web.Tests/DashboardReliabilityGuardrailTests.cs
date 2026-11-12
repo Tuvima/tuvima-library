@@ -36,7 +36,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [InlineData(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor", "@key=\"item.RenderKey\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor", "@key=\"item.EntityId\"")]
     [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
-    [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor", "@key=\"row.Key\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReview/NeedsReviewGroupSection.razor", "@key=\"entry.Key\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
     public void HighRiskListComponents_UseStableKeys(string relativePath, string expectedKey)
     {
@@ -51,11 +51,18 @@ public sealed class DashboardReliabilityGuardrailTests
         var source = Read(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor");
         var normalized = source.ReplaceLineEndings("\n");
 
-        Assert.Contains("_loading && _rows.Count == 0", source, StringComparison.Ordinal);
-        var loadStart = normalized.IndexOf("private async Task LoadAsync()", StringComparison.Ordinal);
+        Assert.Contains("_loading && !_model.HasRows", source, StringComparison.Ordinal);
+        var loadStart = normalized.IndexOf("private async Task LoadAsync(", StringComparison.Ordinal);
         var loadEnd = normalized.IndexOf("private async Task LoadMoreAsync", loadStart, StringComparison.Ordinal);
         Assert.True(loadStart >= 0 && loadEnd > loadStart);
-        Assert.DoesNotContain("_rows.Clear();", normalized[loadStart..loadEnd], StringComparison.Ordinal);
+        var load = normalized[loadStart..loadEnd];
+
+        // The rows on screen are replaced only once the Engine's answer is in, and only if it is still the newest one asked for.
+        var fetched = load.IndexOf("await Orchestrator.GetNeedsReviewListAsync(", StringComparison.Ordinal);
+        var stale = load.IndexOf("generation != _loadGeneration", StringComparison.Ordinal);
+        var replaced = load.IndexOf("_model.Replace(page, keepFinished)", StringComparison.Ordinal);
+        Assert.True(fetched >= 0 && stale > fetched && replaced > stale);
+        Assert.DoesNotContain("_model.Reset(", load, StringComparison.Ordinal);
     }
 
     [Fact]

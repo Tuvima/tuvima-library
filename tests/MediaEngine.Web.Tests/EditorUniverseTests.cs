@@ -174,7 +174,7 @@ public sealed class EditorUniverseTests
         var fields = new Dictionary<string, string> { ["kind"] = "Faction", ["wikidata"] = "Q123" };
         var totals = new ItemQuickFactsDto { ItemCount = 4 };
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Thing, keys => keys.Select(key => fields.GetValueOrDefault(key)).FirstOrDefault(value => value is not null), totals, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Thing, keys => keys.Select(key => fields.GetValueOrDefault(key)).FirstOrDefault(value => value is not null), totals);
 
         Assert.Equal(["kind", "appears_in", "wikidata"], model.Facts.Select(fact => fact.Key));
         Assert.Equal("Faction", model.Facts[0].Value);
@@ -187,7 +187,7 @@ public sealed class EditorUniverseTests
     {
         var fields = new Dictionary<string, string> { ["kind"] = "Place", ["wikidata"] = "Not on Wikidata, added by you" };
 
-        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Thing, keys => keys.Select(key => fields.GetValueOrDefault(key)).FirstOrDefault(value => value is not null), new ItemQuickFactsDto { ItemCount = 0 }, false);
+        var model = EditorQuickFactsBuilder.Build(QuickFactsKind.Thing, keys => keys.Select(key => fields.GetValueOrDefault(key)).FirstOrDefault(value => value is not null), new ItemQuickFactsDto { ItemCount = 0 });
 
         Assert.DoesNotContain(model.Facts, fact => fact.Key == "appears_in");
         Assert.Contains(model.Facts, fact => fact.Value == "Not on Wikidata, added by you");

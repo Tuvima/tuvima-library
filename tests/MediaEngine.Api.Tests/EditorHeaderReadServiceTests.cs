@@ -391,6 +391,51 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AFileFactsRead_NamesTheLibraryFolder_NotItsPath()
+    {
+        using var named = new EditorHeaderTestWorld("Arrival", libraryName: "Films");
+        var movie = named.Work("Movies", "standalone", "Arrival");
+        named.File(movie, "Arrival (2016).mkv");
+
+        var facts = (await named.Header().GetHeaderAsync(movie, null))!.FileFacts!;
+
+        Assert.Equal("Films", facts.LibraryFolderName);
+        Assert.DoesNotContain(Path.DirectorySeparatorChar, facts.LibraryFolderName!);
+    }
+
+    [Fact]
+    public async Task AFileFactsRead_WithALibraryThatHasNoName_UsesTheLastPartOfTheFoldersLocation()
+    {
+        var movie = _world.Work("Movies", "standalone", "Heat");
+        _world.File(movie, "Heat.mkv");
+
+        var facts = (await _world.Header().GetHeaderAsync(movie, null))!.FileFacts!;
+
+        Assert.Equal(Path.GetFileName(_world.Library), facts.LibraryFolderName);
+        Assert.DoesNotContain(Path.DirectorySeparatorChar, facts.LibraryFolderName!);
+    }
+
+    [Fact]
+    public async Task AFileOutsideEveryLibraryFolder_HasNoLibraryFolderName_SoQuickFactsLeaveTheFactOut()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), $"tuvima_outside_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outside);
+        try
+        {
+            var movie = _world.Work("Movies", "standalone", "Heat");
+            _world.File(movie, "Heat.mkv", folder: outside);
+
+            var facts = (await _world.Header().GetHeaderAsync(movie, null))!.FileFacts!;
+
+            Assert.Null(facts.LibraryFolderName);
+        }
+        finally
+        {
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task AnUnknownItem_HasNoHeader()
     {
         Assert.Null(await _world.Header().GetHeaderAsync(Guid.NewGuid(), null));

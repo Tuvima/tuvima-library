@@ -1,6 +1,6 @@
 # Spec: Needs Review redesign
 
-> **Status:** In progress (Locked by Shy, 2026-11-12: "build it here"; build started 2026-11-12) · **Version:** 1 · **Last updated:** 2026-11-12 · **Related docs:** [Product overview](../product/overview.md) · [Universal editor v3 (D9, D13: one Needs Review list and its notifier)](universal-editor-v3.md) · [Universal editor v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) · [Library activity](library-activity.md) · [Mockups](../design/mockups/needs-review-redesign.html)
+> **Status:** Built, awaiting your Local checks (Locked by Shy, 2026-11-12: "build it here"; built 2026-11-12 in PRs 918, 924 and 938; Local checks L1 to L7 in [validation/batch.md](../../validation/batch.md)) · **Version:** 1 · **Last updated:** 2026-11-12 · **Related docs:** [Product overview](../../product/overview.md) · [Universal editor v3 (D9, D13: one Needs Review list and its notifier)](../universal-editor-v3.md) · [Universal editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) · [Library activity](../library-activity.md) · [Mockups](../../design/mockups/needs-review-redesign.html)
 
 ## Plain-English walkthrough
 

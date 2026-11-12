@@ -82,7 +82,7 @@ public sealed class UniversalSearchReadService(
         var unmatchedMatches = await SearchUnmatchedAsync(trimmed, Math.Min(10, take), visibleWorks, ct).ConfigureAwait(false);
         if (unmatchedMatches.Count > 0)
         {
-            sections.Add(new UniversalSearchSectionDto(UnmatchedKey, "Unmatched", unmatchedMatches, unmatchedMatches.Count, null));
+            sections.Add(new UniversalSearchSectionDto(UnmatchedKey, "Needs review", unmatchedMatches, unmatchedMatches.Count, null));
         }
 
         // Supporting files (documents, pictures, clips and audio kept with a title) are found by title, description and file name, and

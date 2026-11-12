@@ -588,32 +588,51 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     /// <summary>Returns one page of the Needs Review list (review items and unmatched files together), or the reason it could not be loaded.</summary>
     public Task<NeedsReviewListAttempt> GetNeedsReviewListAsync(
-        string? kind, string? libraryId, int skip, int take, CancellationToken ct = default)
-        => _api.GetNeedsReviewListAsync(kind, libraryId, skip, take, ct);
+        string? libraryId, int skip, int take, bool kept = false, CancellationToken ct = default)
+        => _api.GetNeedsReviewListAsync(libraryId, skip, take, kept, ct);
 
     /// <summary>Returns a single review item.</summary>
     public Task<ReviewItemViewModel?> GetReviewItemAsync(
         Guid id, CancellationToken ct = default)
         => _api.GetReviewItemAsync(id, ct);
 
-    /// <summary>Resolves a review item and invalidates the collection cache.</summary>
+    /// <summary>
+    /// Resolves a review item and invalidates the collection cache. A bulk run passes <paramref name="refreshCount"/> false and reads the
+    /// review count once at its end instead of after every item.
+    /// </summary>
     public async Task<bool> ResolveReviewAsync(
-        Guid id, ReviewResolveRequestDto request, CancellationToken ct = default)
+        Guid id, ReviewResolveRequestDto request, CancellationToken ct = default, bool refreshCount = true)
     {
         var ok = await _api.ResolveReviewItemAsync(id, request, ct);
         if (ok)
         {
-            await RefreshReviewCountSnapshotAsync(ct);
+            if (refreshCount)
+            {
+                await RefreshReviewCountSnapshotAsync(ct);
+            }
+
             _state.Invalidate();
         }
         return ok;
     }
 
-    /// <summary>Dismisses a review item.</summary>
-    public async Task<bool> DismissReviewAsync(Guid id, CancellationToken ct = default)
+    /// <summary>Puts back a review item a person kept, so it waits in Needs Review again.</summary>
+    public async Task<bool> ReopenReviewAsync(Guid id, CancellationToken ct = default)
+    {
+        var ok = await _api.ReopenReviewItemAsync(id, ct);
+        if (ok)
+        {
+            await RefreshReviewCountSnapshotAsync(ct);
+        }
+
+        return ok;
+    }
+
+    /// <summary>Dismisses a review item. A bulk run passes <paramref name="refreshCount"/> false and reads the count once at its end.</summary>
+    public async Task<bool> DismissReviewAsync(Guid id, CancellationToken ct = default, bool refreshCount = true)
     {
         var ok = await _api.DismissReviewItemAsync(id, ct);
-        if (ok)
+        if (ok && refreshCount)
         {
             await RefreshReviewCountSnapshotAsync(ct);
         }
@@ -625,7 +644,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     /// Accepts a "Found as a TV title" suggestion: the Engine re-files the film under the TMDB show as a
     /// special and re-runs identity as TV. The file on disk is never moved.
     /// </summary>
-    public async Task<ReviewMoveToTvAttempt> MoveReviewToTvAsync(Guid id, CancellationToken ct = default)
+    public async Task<ReviewMoveToTvAttempt> MoveReviewToTvAsync(Guid id, CancellationToken ct = default, bool refreshCount = true)
     {
         var response = await _api.MoveReviewItemToTvAsync(id, ct);
         if (response is null)
@@ -633,18 +652,47 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             return new ReviewMoveToTvAttempt(null, _api.LastError);
         }
 
-        await RefreshReviewCountSnapshotAsync(ct);
+        if (refreshCount)
+        {
+            await RefreshReviewCountSnapshotAsync(ct);
+        }
+
         _state.Invalidate();
         return new ReviewMoveToTvAttempt(response, null);
     }
 
+    /// <summary>
+    /// Picks one of the choices a Needs Review row offers: the Engine applies it the way the editor would (a retail match, a Series, a
+    /// library type) and resolves the item. A bulk run passes <paramref name="refreshCount"/> false and reads the count once at its end.
+    /// </summary>
+    public async Task<ReviewChooseAttempt> ChooseReviewAsync(Guid reviewId, string choiceId, CancellationToken ct = default, bool refreshCount = true)
+    {
+        var response = await _api.ChooseReviewAsync(reviewId, choiceId, ct);
+        if (response is null)
+        {
+            return new ReviewChooseAttempt(null, _api.LastError);
+        }
+
+        if (refreshCount)
+        {
+            await RefreshReviewCountSnapshotAsync(ct);
+        }
+
+        _state.Invalidate();
+        return new ReviewChooseAttempt(response, null);
+    }
+
     /// <summary>Skips Universe matching for a review item and dismisses it.</summary>
-    public async Task<bool> SkipUniverseAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> SkipUniverseAsync(Guid id, CancellationToken ct = default, bool refreshCount = true)
     {
         var ok = await _api.SkipUniverseAsync(id, ct);
         if (ok)
         {
-            await RefreshReviewCountSnapshotAsync(ct);
+            if (refreshCount)
+            {
+                await RefreshReviewCountSnapshotAsync(ct);
+            }
+
             _state.Invalidate();
         }
         return ok;

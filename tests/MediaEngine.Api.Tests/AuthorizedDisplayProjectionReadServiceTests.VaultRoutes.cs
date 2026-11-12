@@ -93,6 +93,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData("ReopenReviewItem", false)]
     [InlineData("SkipUniverseMatch", false)]
     [InlineData("MoveReviewItemToTv", false)]
+    [InlineData("ChooseReviewItem", true)]
     public async Task Vault_AReviewItemOnAVaultFile_AnswersExactlyLikeAMissingOne_ForEveryReviewAction(string routeName, bool hasBody)
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
@@ -117,6 +118,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.DoesNotContain(vaultReview, _moveToTv.Seen);
         Assert.DoesNotContain(workReview, _moveToTv.Seen);
+        Assert.DoesNotContain(vaultReview, _choose.Seen);
+        Assert.DoesNotContain(workReview, _choose.Seen);
 
         // Nothing was changed on the way.
         Assert.Equal(ReviewStatus.Pending, (await new ReviewQueueRepository(_database).GetByIdAsync(vaultReview))!.Status);
@@ -223,6 +226,17 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         }
     }
 
+    private sealed class RecordingChoose : IReviewChooseService
+    {
+        public List<Guid> Seen { get; } = [];
+
+        public Task<ReviewChooseResult> ChooseAsync(Guid reviewItemId, string choiceId, string resolvedBy, CancellationToken ct = default)
+        {
+            Seen.Add(reviewItemId);
+            return Task.FromResult(new ReviewChooseResult(ReviewChooseOutcome.ReviewItemNotFound));
+        }
+    }
+
     private sealed record RouteResult(int Status, string Body, string? CacheControl);
 
     private async Task<IReadOnlyDictionary<string, RouteEndpoint>> MapReviewRoutesAsync() =>
@@ -253,6 +267,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         }
 
         builder.Services.AddSingleton<IReviewMoveToTvService>(_moveToTv);
+        builder.Services.AddSingleton<IReviewChooseService>(_choose);
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications));
         // Only here so mapping can infer each route's parameters; the routes under test never ask for them.
         builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Vault.VaultAdministrationService), _ => throw new InvalidOperationException("Not used by these routes."));
@@ -290,6 +305,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
     private readonly List<WebApplication> _routeApps = [];
     private readonly RecordingMoveToTv _moveToTv = new();
+    private readonly RecordingChoose _choose = new();
 
     private async Task<RouteResult> InvokeAsync(
         RouteEndpoint endpoint, Guid account, Guid session, (string Name, string Value) route, string? body = null)

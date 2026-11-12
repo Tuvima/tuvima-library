@@ -44,9 +44,16 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 </div>
             }
             <section class="tl-editor-details__group" aria-label="@L["Common_DetailsYouCanChange"].Value">
-                @foreach (var field in editable)
+                @* Every row of fields is the shared form row (Editor v6 D12): labels on one line, controls on the next, so two fields side by
+                   side share a top edge whatever a lock, a Revert button or a note does beside or under either. *@
+                @foreach (var row in InRows(editable, honorWide: true))
                 {
-                    @EditableRow(fields, session, field)
+                    <AppFormRow Columns="@ColumnsOf(row)" Message="@RowNotes(fields, session, row)" data-details-row="true">
+                        @foreach (var field in row)
+                        {
+                            @EditableRow(fields, session, field)
+                        }
+                    </AppFormRow>
                 }
             </section>
         }
@@ -63,9 +70,14 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 {
                     <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
                 }
-                @foreach (var field in facts)
+                @foreach (var row in InRows(facts, honorWide: false))
                 {
-                    @FactRow(field)
+                    <AppFormRow Columns="@ColumnsOf(row)" data-details-row="true">
+                        @foreach (var field in row)
+                        {
+                            @FactRow(field)
+                        }
+                    </AppFormRow>
                 }
             </section>
         }
@@ -131,8 +143,8 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         // Sent back to the provider (Revert): the field shows the provider's value again, not the saved one it is about to lose.
         var shown = staged && !isReset ? stagedValue ?? string.Empty : isReset ? field.ProviderValue ?? string.Empty : Baseline(field);
         var isTags = IsTags(field);
-        <div class="@FieldClass(field, state)" data-field-key="@field.Key" data-locked="@(state.Locked ? "true" : "false")" data-changed="@(state.Changed ? "true" : "false")">
-            <div class="tl-editor-field__label">
+        <div class="@FieldClass(field, state)" data-form-row-field data-field-key="@field.Key" data-locked="@(state.Locked ? "true" : "false")" data-changed="@(state.Changed ? "true" : "false")">
+            <div class="app-field__label tl-editor-field__label">
                 <span>@field.Label</span>
                 <span class="tl-editor-field__tools">
                     @if (state.Changed && !isReset)
@@ -179,21 +191,92 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             {
                 <AppTextarea Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
                              Lines="@LinesFor(shown)" ReadOnly="@state.Locked" aria-label="@field.Label" />
-                <small class="tl-editor-field__count">@Count(shown)</small>
+                <small class="app-field__help tl-editor-field__count">@Count(shown)</small>
             }
             else
             {
                 <AppTextField Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
                               InputType="@InputTypeOf(field)" ReadOnly="@state.Locked" aria-label="@field.Label" />
             }
-            @if (isReset)
-            {
-                <span class="tl-editor-field__note">Goes back to the @Canonical(field) value when you save.
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                               OnClick="@(() => Undo(fields, session, field))">Undo</AppButton></span>
-            }
         </div>
     };
+
+    // The words under a row when a field in it is sent back to the provider's value: one line for the whole row (Editor v6 D12), so the
+    // note never makes a field taller than its neighbor. Null when no field of the row is waiting to go back.
+    private RenderFragment? RowNotes(ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> row)
+    {
+        var reset = row.Where(field => session.Pending.TryGetField(fields.EntityId, StageKey(field), out var staged) && string.IsNullOrWhiteSpace(staged)).ToList();
+        if (reset.Count == 0)
+        {
+            return null;
+        }
+
+        return __builder =>
+        {
+            foreach (var field in reset)
+            {
+                <span class="tl-editor-field__note" data-note-for="@field.Key">@L["EditorDetailsPanel_GoesBackToProvider", field.Label, Canonical(field)]
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               OnClick="@(() => Undo(fields, session, field))">@L["Common_Undo"]</AppButton></span>
+            }
+        };
+    }
+
+    private const string OneColumn = "minmax(0, 1fr)";
+    private const string TwoColumns = "minmax(0, 1fr) minmax(0, 1fr)";
+    private const string LongThenShort = "minmax(0, 2fr) minmax(0, 1fr)";
+    private const string ShortThenLong = "minmax(0, 1fr) minmax(0, 2fr)";
+
+    // The mock's proportions (Editor v6 screen F): a row that pairs a longer text field with a short one (a rating, a year, a choice) gives the
+    // text field two parts and the short one a part; any other pair shares the row equally.
+    private static string ColumnsOf(IReadOnlyList<MediaEditorDetailsFieldPresentation> row)
+    {
+        if (row.Count == 1)
+        {
+            return IsWide(row[0]) ? OneColumn : TwoColumns;
+        }
+
+        return (IsShort(row[0]), IsShort(row[1])) switch
+        {
+            (false, true) => LongThenShort,
+            (true, false) => ShortThenLong,
+            _ => TwoColumns,
+        };
+    }
+
+    private static bool IsShort(MediaEditorDetailsFieldPresentation field) =>
+        !field.IsChips
+        && (field.InputKind?.ToLowerInvariant() is "choice" or "date" or "number" or "rating");
+
+    // Fields are laid out two to a row, the way a two-column grid would place them; a wide field (title, description, chips) takes a row of its own.
+    private static List<List<MediaEditorDetailsFieldPresentation>> InRows(IEnumerable<MediaEditorDetailsFieldPresentation> fields, bool honorWide)
+    {
+        var rows = new List<List<MediaEditorDetailsFieldPresentation>>();
+        List<MediaEditorDetailsFieldPresentation>? open = null;
+        foreach (var field in fields)
+        {
+            if (honorWide && IsWide(field))
+            {
+                rows.Add([field]);
+                open = null;
+                continue;
+            }
+
+            if (open is null)
+            {
+                open = [];
+                rows.Add(open);
+            }
+
+            open.Add(field);
+            if (open.Count == 2)
+            {
+                open = null;
+            }
+        }
+
+        return rows;
+    }
 
     // The lock beside the label (universal editor v5 D5): the shared EditorFieldLock draws it. Nothing here stages anything by itself.
     private RenderFragment LockState(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state) => __builder =>
@@ -305,8 +388,8 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     private RenderFragment FactRow(MediaEditorDetailsFieldPresentation field) => __builder =>
     {
         var why = WhyLocked(field);
-        <div class="tl-editor-field tl-editor-field--locked" data-field-key="@field.Key">
-            <div class="tl-editor-field__label">
+        <div class="tl-editor-field tl-editor-field--locked" data-form-row-field data-field-key="@field.Key">
+            <div class="app-field__label tl-editor-field__label">
                 <span>@field.Label</span>
                 <AppTooltip Text="@why">
                     <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{field.Label} is locked. {why}")">

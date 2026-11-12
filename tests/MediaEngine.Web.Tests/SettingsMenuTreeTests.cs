@@ -491,11 +491,12 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ReviewPill_IsNotDrawnOnAPhone_BecauseNeedsReviewIsADesktopPage()
+    public void ReviewPill_IsDrawnOnAPhoneToo_BecauseNeedsReviewWorksOnAPhone()
     {
+        // Needs Review redesign D12: the page does on a phone what it does on a computer, so its count shows there as well.
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8, IsMobile = true });
 
-        Assert.All(Flatten(groups), row => Assert.Null(row.Meta));
+        Assert.Equal("8", Assert.Single(Flatten(groups), row => row.Meta is not null).Meta);
         Assert.Equal("Libraries", SettingsMenuBuilder.BuildPhoneSelector(groups).SelectMany(group => group.Options).Single(option => option.Route == "/settings/libraries").Label);
     }
 

@@ -83,7 +83,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
     private static readonly DetailAction[] NotKeptActions =
     [
         new() { Key = "unmatched-retry", Label = "Retry now", Icon = "refresh", IsAdminOnly = true },
-        new() { Key = "unmatched-keep", Label = "Keep as is", Icon = "check", IsAdminOnly = true },
+        new() { Key = "unmatched-keep", Label = "Keep as it is", Icon = "check", IsAdminOnly = true },
     ];
 
     private static readonly DetailAction[] KeptActions =
@@ -116,7 +116,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         var labels = OpenMenu(cut);
 
         Assert.Contains("Retry now", labels);
-        Assert.Contains("Keep as is", labels);
+        Assert.Contains("Keep as it is", labels);
         Assert.DoesNotContain("Look up again", labels);
     }
 
@@ -142,13 +142,13 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         var cut = RenderPage(Model(NotKeptActions, [Asset(OpenAsset, kept: false)]));
         OpenMenu(cut);
 
-        Choose(cut, "Keep as is");
+        Choose(cut, "Keep as it is");
 
         host.WaitForElement(".app-confirm");
-        Assert.Contains("Stop trying to match this? It stays under Unmatched, marked Kept. You can look it up again later.", host.Markup);
+        Assert.Contains("Stop trying to match this? It stays out of Needs Review until you show kept items again. You can look it up again later.", host.Markup);
         Assert.Empty(_calls);
 
-        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Keep as is").Click();
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Keep as it is").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(1, _detailLoads));
         Assert.Equal([$"keep:{OpenAsset}"], _calls);
@@ -163,7 +163,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         var host = Render<AppDialogHost>();
         var cut = RenderPage(Model(NotKeptActions, [Asset(OpenAsset, kept: false)]));
         OpenMenu(cut);
-        Choose(cut, "Keep as is");
+        Choose(cut, "Keep as it is");
         host.WaitForElement(".app-confirm");
 
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Cancel").Click();
@@ -182,7 +182,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         var labels = OpenMenu(cut);
         Assert.Contains("Look up again", labels);
         Assert.DoesNotContain("Retry now", labels);
-        Assert.DoesNotContain("Keep as is", labels);
+        Assert.DoesNotContain("Keep as it is", labels);
 
         Choose(cut, "Look up again");
 
@@ -199,7 +199,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         var labels = OpenMenu(cut);
 
         Assert.DoesNotContain("Retry now", labels);
-        Assert.DoesNotContain("Keep as is", labels);
+        Assert.DoesNotContain("Keep as it is", labels);
         Assert.DoesNotContain("Look up again", labels);
     }
 
@@ -212,7 +212,7 @@ public sealed class DetailUnmatchedActionsTests : AsyncBunitContext
         var labels = OpenMenu(cut);
 
         Assert.Contains("Retry now", labels);
-        Assert.Contains("Keep as is", labels);
+        Assert.Contains("Keep as it is", labels);
         Assert.DoesNotContain("Edit", labels);
     }
 

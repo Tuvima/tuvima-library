@@ -27,26 +27,6 @@ public sealed class HalfAddedRowTests : LiveLibraryTestContext
         Services.GetRequiredService<ILoggerFactory>().AddProvider(_logs);
     }
 
-    [Theory]
-    [InlineData("duration_sec", "1e300")]
-    [InlineData("duration_sec", "Infinity")]
-    [InlineData("duration_sec", "NaN")]
-    [InlineData("duration", "99999999999999999999")]
-    public void NeedsReviewFacts_WithAnImpossibleDuration_AreShownAsTheyWereDetectedInsteadOfThrowing(string key, string value)
-    {
-        var item = new ReviewItemViewModel
-        {
-            EntityTitle = "Cibola Burn",
-            MediaType = "Audiobooks",
-            Trigger = "RetailMatchFailed",
-            DetectedFacts = new Dictionary<string, string> { [key] = value },
-        };
-
-        var presentation = ReviewIssuePresentationBuilder.Build(item);
-
-        Assert.Contains(presentation.KnownFacts, fact => fact.Value == value);
-    }
-
     [Fact]
     public void TheRowBoundary_LogsTheExceptionAndShowsTheItemTitleInItsFallback()
     {
@@ -93,7 +73,7 @@ public sealed class HalfAddedRowTests : LiveLibraryTestContext
     }
 
     [Theory]
-    [InlineData("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor")]
+    [InlineData("src/MediaEngine.Web/Components/Settings/NeedsReview/NeedsReviewGroupSection.razor")]
     [InlineData("src/MediaEngine.Web/Components/Settings/ActivityLogPanel.razor")]
     public void EveryRowLoopOnTheIngestionPages_IsWrappedInTheRowErrorBoundary(string relativePath)
     {

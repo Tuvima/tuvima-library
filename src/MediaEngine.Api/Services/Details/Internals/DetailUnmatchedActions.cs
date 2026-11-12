@@ -3,7 +3,7 @@ using MediaEngine.Contracts.Details;
 namespace MediaEngine.Api.Services.Details.Internals;
 
 /// <summary>
-/// The "..." menu's Unmatched entries for one item (Library setup spec D34, D40): Retry now and Keep as is while a file is Unmatched and not
+/// The "..." menu's Unmatched entries for one item (Library setup spec D34, D40): Retry now and Keep as it is while a file is Unmatched and not
 /// kept, Look up again once every Unmatched file is kept. The Dashboard calls the existing Unmatched item routes; no new Engine action exists.
 /// </summary>
 internal static class DetailUnmatchedActions
@@ -23,7 +23,7 @@ internal static class DetailUnmatchedActions
         if (unmatched.Any(asset => !asset.KeptAsIs))
         {
             yield return new DetailAction { Key = RetryKey, Label = "Retry now", Icon = "refresh", IsAdminOnly = true };
-            yield return new DetailAction { Key = KeepKey, Label = "Keep as is", Icon = "check", IsAdminOnly = true };
+            yield return new DetailAction { Key = KeepKey, Label = "Keep as it is", Icon = "check", IsAdminOnly = true };
         }
         else
         {

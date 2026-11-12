@@ -587,6 +587,10 @@ public sealed partial class EngineApiClient
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/items/{assetId}/keep", $"/library/unmatched/items/{assetId:D}/keep", null, ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> UnkeepUnmatchedItemAsync(Guid assetId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/items/{assetId}/unkeep", $"/library/unmatched/items/{assetId:D}/unkeep", null, ct: ct);
+
     public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> LookUpUnmatchedItemAgainAsync(Guid assetId, CancellationToken ct = default) =>
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/items/{assetId}/look-up-again", $"/library/unmatched/items/{assetId:D}/look-up-again", null, ct: ct);

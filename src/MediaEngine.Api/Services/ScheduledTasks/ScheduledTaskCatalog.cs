@@ -68,7 +68,7 @@ public static class ScheduledTaskCatalog
         Continuous(ScheduledTaskKeys.CollectionListRefresh, "Imported list refresh", "every 15 minutes");
         ContinuousAt(
             ScheduledTaskKeys.UnmatchedRetry,
-            "Unmatched file retry",
+            "Retry files that need review",
             () =>
             {
                 var days = Math.Clamp(configLoader.LoadMaintenance().UnmatchedRetryDays, UnmatchedRetryLimits.MinDays, UnmatchedRetryLimits.MaxDays);

@@ -1209,6 +1209,32 @@ public sealed class EditorHeaderReadService(
             // Tuvima leaves a file alone when its library folder is Read-only, or when no library folder holds it.
             ReadOnly = path is not null ? resolved is null || !resolved.Source.IsWritable : totals?.ReadOnlyLibrary == true,
             IsMissing = path is not null && !File.Exists(path),
+            LibraryFolderName = LibraryFolderNameOf(resolved),
         };
+    }
+
+    // The library folder's name for Quick facts ("Books"): the name the person gave the library, else the last part of the folder's location. A
+    // name only, never a path; null when no library folder holds the file.
+    private static string? LibraryFolderNameOf(MediaEngine.Ingestion.Models.ResolvedLibrarySource? resolved)
+    {
+        if (resolved is null)
+        {
+            return null;
+        }
+
+        var name = resolved.Library.Name?.Trim();
+        if (!string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
+
+        var root = resolved.Source.Path?.TrimEnd('/', '\\');
+        if (string.IsNullOrEmpty(root))
+        {
+            return null;
+        }
+
+        var last = root[(root.LastIndexOfAny(['/', '\\']) + 1)..];
+        return string.IsNullOrEmpty(last) ? null : last;
     }
 }
