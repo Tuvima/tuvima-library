@@ -57,6 +57,11 @@ public sealed class EnrichmentService : IEnrichmentService
     {
         _logger.LogInformation("Quick pass starting for entity {Id} (QID {Qid})", entityId, qid);
         await _coverArt.DownloadAndPersistAsync(entityId, qid, ct);
+        // Episode pictures no longer wait for the Wikidata universe stage (a failure there used to skip them).
+        await _concurrency.RunAsync(
+            EnrichmentWorkKind.TmdbArtwork,
+            token => _images.EnrichEpisodeStillsAsync(entityId, token),
+            ct);
         try
         {
             await _concurrency.RunAsync(

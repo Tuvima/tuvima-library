@@ -17,10 +17,32 @@ public static class NeedsReviewKinds
     public const string NotSure = "not_sure";
 }
 
+/// <summary>
+/// The four groups of the redesigned Needs Review page, in the order the page shows them: what the person must do with the item.
+/// Every row carries exactly one (<see cref="NeedsReviewRowDto.Group"/>).
+/// </summary>
+public static class NeedsReviewGroups
+{
+    /// <summary>The item has exactly one suggestion to confirm.</summary>
+    public const string Ready = "ready";
+
+    /// <summary>Several close matches, or a question only a person can answer (two Series claim it, a film may be a TV show).</summary>
+    public const string Choose = "choose";
+
+    /// <summary>Nothing close enough was found, or the file says too little to look it up.</summary>
+    public const string NoMatch = "no_match";
+
+    /// <summary>The file could not be read, written to, named or changed.</summary>
+    public const string FileProblem = "file_problem";
+}
+
 /// <summary>The Engine's best guess for a row, with the one action "Use this" runs.</summary>
 public sealed class NeedsReviewBestGuessDto
 {
-    /// <summary><c>keep_provider_match</c> (the provider's match stands, Wikidata could not confirm it) or <c>move_to_tv</c> (the film is really this TV show).</summary>
+    /// <summary>
+    /// <c>keep_provider_match</c> (the provider's match stands, Wikidata found several entities), <c>move_to_tv</c> (the film is really this TV show)
+    /// or <c>confirm_match</c> (the Engine's match is linked but it was not sure enough to accept it by itself).
+    /// </summary>
     [JsonPropertyName("action")]
     public string Action { get; init; } = string.Empty;
 
@@ -67,6 +89,41 @@ public sealed class NeedsReviewRowDto
 
     [JsonPropertyName("unmatched")]
     public UnmatchedItemDto? Unmatched { get; init; }
+
+    /// <summary>One of <see cref="NeedsReviewGroups"/>: what the person must do with this row.</summary>
+    [JsonPropertyName("group")]
+    public string Group { get; init; } = NeedsReviewGroups.NoMatch;
+
+    /// <summary>
+    /// The item's own picture: a review item's resolved cover, or the cover inside the file or beside it in its folder. Null when the Engine
+    /// knows of none; a URL here always serves a picture.
+    /// </summary>
+    [JsonPropertyName("cover_url")]
+    public string? CoverUrl { get; init; }
+
+    /// <summary>The top parent Work's id (<c>D</c> format) when the row's Work sits in a family (episode to season to show, track to album); rows with the same key are one family. Null otherwise.</summary>
+    [JsonPropertyName("family_key")]
+    public string? FamilyKey { get; init; }
+
+    /// <summary>The family's display title (the show, album or Series); null when the row has no family.</summary>
+    [JsonPropertyName("family_title")]
+    public string? FamilyTitle { get; init; }
+
+    /// <summary>The family's top Work, so the page can open it; null when the row has no family.</summary>
+    [JsonPropertyName("family_work_id")]
+    public Guid? FamilyWorkId { get; init; }
+
+    /// <summary>The family's picture when the Engine knows of one; null otherwise.</summary>
+    [JsonPropertyName("family_cover_url")]
+    public string? FamilyCoverUrl { get; init; }
+
+    /// <summary>For a file, when it is next looked up (null once kept as it is); always null for a review item.</summary>
+    [JsonPropertyName("next_retry_at")]
+    public DateTimeOffset? NextRetryAt { get; init; }
+
+    /// <summary>True only on rows of the kept view (<c>kept=true</c>): items a person chose to Keep as is.</summary>
+    [JsonPropertyName("kept")]
+    public bool Kept { get; init; }
 }
 
 /// <summary>One page of the Needs Review list, with the totals the filter chips show.</summary>
@@ -86,6 +143,20 @@ public sealed class NeedsReviewListDto
     /// <summary>Not sure rows in the chosen library (or everywhere), whatever the kind filter says.</summary>
     [JsonPropertyName("not_sure_total")]
     public int NotSureTotal { get; init; }
+
+    /// <summary>How many rows each <see cref="NeedsReviewGroups"/> group holds in the filtered list, before paging. All four keys are present.</summary>
+    [JsonPropertyName("group_totals")]
+    public Dictionary<string, int> GroupTotals { get; init; } = new()
+    {
+        [NeedsReviewGroups.Ready] = 0,
+        [NeedsReviewGroups.Choose] = 0,
+        [NeedsReviewGroups.NoMatch] = 0,
+        [NeedsReviewGroups.FileProblem] = 0,
+    };
+
+    /// <summary>How many kept items exist for the same library filter (the "hidden items" line), whichever view this page is.</summary>
+    [JsonPropertyName("kept_total")]
+    public int KeptTotal { get; init; }
 
     [JsonPropertyName("skip")]
     public int Skip { get; init; }

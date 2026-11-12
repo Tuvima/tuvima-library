@@ -10,6 +10,11 @@
                           Selected="@CollectionRuleSentence.MediaTypes(Definition)"
                           SelectedChanged="OnMediaTypesChangedAsync" />
 
+    @if (!string.IsNullOrWhiteSpace(_clearedNotice))
+    {
+        <p class="collection-rule-sentence__hint" role="status" data-cleared-notice>@_clearedNotice</p>
+    }
+
     <SharedRuleBuilder @ref="_builder"
                        Catalog="@CollectionRuleCatalog.Instance"
                        Layout="@(Advanced ? RuleBuilderLayout.Groups : RuleBuilderLayout.Sentence)"
@@ -29,6 +34,7 @@
                        PreviewChanged="@PreviewChanged"
                        Changed="@Changed"
                        Density="@Density"
+                       MediaTypes="@ScopeTypes"
                        PreviewLoader="PreviewRulesAsync" />
 
     <section class="collection-rule-sentence__order" aria-label="@L["CollectionRuleBuilder_OrderAndLimits"].Value" data-order-and-limits>
@@ -122,6 +128,19 @@
 
     public Task RefreshAsync() => _builder?.RefreshAsync() ?? Task.CompletedTask;
 
+    private string? _clearedNotice;
+
+    /// <summary>The media types every dependent list is narrowed to: the ticked chips, or all of a playlist's types when none is ticked.</summary>
+    private IReadOnlyList<string> ScopeTypes
+    {
+        get
+        {
+            var ticked = CollectionRuleSentence.MediaTypes(Definition);
+            if (ticked.Count > 0) return ticked;
+            return ReferenceEquals(MediaTypeChoices, CollectionMediaChips.CollectionTypes) ? [] : MediaTypeChoices.Select(type => type.Key).ToList();
+        }
+    }
+
     private IReadOnlyList<AppSelectOption> OrderOptions
     {
         get
@@ -134,8 +153,9 @@
 
     private IReadOnlyList<AppSelectOption> ThenByOptions => SortChoices().Where(option => !option.Value.StartsWith(SortField + "|", StringComparison.Ordinal)).ToList();
 
-    private static IEnumerable<AppSelectOption> SortChoices() =>
-        CollectionRuleCatalog.Instance.SortFields.SelectMany(field => new[] { "asc", "desc" }.Select(direction =>
+    // Sorting by media type means nothing once a single type is chosen.
+    private IEnumerable<AppSelectOption> SortChoices() =>
+        CollectionRuleCatalog.Instance.SortFields.Where(field => field.Key != "media_type" || ScopeTypes.Count != 1).SelectMany(field => new[] { "asc", "desc" }.Select(direction =>
             new AppSelectOption($"{field.Key}|{direction}", $"{field.Label}, {Lowered(SharedRuleBuilder.DirectionLabel(field.Key, direction))}")));
 
     // "Release year, newest first" reads better than "Newest first"; the alphabetical labels keep their capitals.
@@ -147,9 +167,66 @@
     private async Task OnMediaTypesChangedAsync(IReadOnlyList<string> types)
     {
         CollectionRuleSentence.SetMediaTypes(Definition, types);
+        await ClearChoicesThatNoLongerApplyAsync();
         await DefinitionChanged.InvokeAsync(Definition);
         await Changed.InvokeAsync();
         await RefreshAsync();
+    }
+
+    /// <summary>After the media type changes: drops rule values the new types do not have, and says which rules changed.</summary>
+    private async Task ClearChoicesThatNoLongerApplyAsync()
+    {
+        var scope = ScopeTypes;
+        var catalog = CollectionRuleCatalog.Instance;
+        var changed = new List<string>();
+        foreach (var condition in Definition.AllConditions.ToList())
+        {
+            var field = catalog.Fields.FirstOrDefault(candidate => candidate.Key == condition.Field);
+            if (field is null || condition.Field == CollectionRuleSentence.MediaField) continue;
+            if (!field.AppliesToAny(scope))
+            {
+                // The rule belongs to another media type: drop it, so it is neither shown under the wrong field nor saved.
+                changed.Add(field.Label);
+                foreach (var group in Definition.Groups)
+                    group.Conditions.Remove(condition);
+                continue;
+            }
+
+            if (field.ValueProvider.Kind != RuleValueProviderKind.CollectionLibrary) continue;
+            var chosen = condition.Values is { Length: > 0 } ? condition.Values : string.IsNullOrWhiteSpace(condition.Value) ? [] : [condition.Value];
+            if (chosen.Length == 0) continue;
+            // Ask about each chosen value on its own: a long list cannot push a valid choice out of view.
+            var keptValues = new List<string>();
+            foreach (var value in chosen)
+            {
+                // People, places and other entity values are found by their id; plain values by their text.
+                var stillOffered = field.ValueProvider.ResolvesEntities
+                    ? (await ApiClient.GetCollectionEntityFieldValuesAsync(condition.Field, value, 20, default, scope)).Any(option => string.Equals(option.Value, value, StringComparison.OrdinalIgnoreCase))
+                    : (await ApiClient.GetCollectionFieldValuesAsync(condition.Field, value, 50, default, scope)).Contains(value, StringComparer.OrdinalIgnoreCase);
+                if (stillOffered)
+                    keptValues.Add(value);
+            }
+
+            var kept = keptValues.ToArray();
+            if (kept.Length == chosen.Length) continue;
+            changed.Add(field.Label);
+            if (kept.Length == 0)
+            {
+                condition.Value = null; condition.DisplayValue = null; condition.Values = null; condition.DisplayValues = null;
+            }
+            else if (kept.Length == 1)
+            {
+                condition.Value = kept[0]; condition.DisplayValue = kept[0]; condition.Values = null; condition.DisplayValues = null;
+            }
+            else
+            {
+                condition.Values = kept; condition.DisplayValues = kept;
+            }
+        }
+
+        _clearedNotice = changed.Count == 0
+            ? null
+            : string.Format(L["CollectionRuleBuilder_ChoicesCleared"].Value, string.Join(", ", changed.Distinct()));
     }
 
     private async Task OnOrderChangedAsync(string? value)

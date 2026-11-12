@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Unified player v2 D21, D21a, D22 and acceptance A11 (mockup screen 11): one Bookmarks panel for every medium. Everyone is the default list; the
+/// Unified player v2 D21, D21a, D22 and acceptance A11, amended by global bookmarks v5: one Bookmarks panel for every medium. Mine is the default list and Global shows only when chosen; the
 /// maker is on Everyone rows, which have no actions; Mine rows have Edit and a two-click Delete; the markers follow the list shown. Which list a
 /// bookmark belongs to comes from the Engine (IsYours, InEveryone); the panel never compares profile ids.
 /// </summary>
@@ -41,17 +41,29 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
         });
 
     [Fact]
-    public void Everyone_IsTheDefaultList_AndTheChoiceShowsTheCounts()
+    public void Mine_IsTheDefaultList_AndGlobalShowsOnlyWhenChosen()
     {
-        var cut = RenderPanel([Everyone(100, "The first clue"), Everyone(200, "The hidden room"), Mine(300, "My own")]);
+        var all = new[] { Everyone(100, "The first clue"), Everyone(200, "The hidden room"), Mine(300, "My own") };
+        var cut = RenderPanel(all);
 
         var choice = cut.Find("[data-bookmarks-choice]");
-        Assert.Contains("Everyone · 2", choice.TextContent);
+        Assert.Contains("Global · 2", choice.TextContent);
         Assert.Contains("Mine · 1", choice.TextContent);
-        var rows = cut.FindAll("[data-bookmark-id]");
+        var row = Assert.Single(cut.FindAll("[data-bookmark-id]"));
+        Assert.Contains("My own", row.TextContent);
+        Assert.DoesNotContain("The first clue", cut.Markup);
+
+        var global = RenderPanel(all, p => p.Add(x => x.Choice, PlaybackPreferenceValues.All));
+        var rows = global.FindAll("[data-bookmark-id]");
         Assert.Equal(2, rows.Count);
         Assert.Contains("The first clue", rows[0].TextContent);
-        Assert.DoesNotContain("My own", cut.Markup);
+        Assert.DoesNotContain("My own", global.Markup);
+    }
+
+    [Fact]
+    public void TheChoice_IsHidden_WhenThereIsNoGlobalSet()
+    {
+        Assert.Empty(RenderPanel([Mine(300, "My own")]).FindAll("[data-bookmarks-choice]"));
     }
 
     [Fact]
@@ -104,7 +116,7 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
     [Fact]
     public void AnEveryoneRow_ShowsTheMaker_AndHasNoActions()
     {
-        var cut = RenderPanel([Everyone(100, "The first clue", maker: "Morgan"), Mine(150, "Mine", inEveryone: true)]);
+        var cut = RenderPanel([Everyone(100, "The first clue", maker: "Morgan"), Mine(150, "Mine", inEveryone: true)], p => p.Add(x => x.Choice, PlaybackPreferenceValues.All));
 
         var rows = cut.FindAll("[data-bookmark-id]");
         Assert.Equal(2, rows.Count);
@@ -286,10 +298,10 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
     public void TheSearchBox_AppearsOnlyAboveEightRows()
     {
         var eight = Enumerable.Range(1, BookmarksPanel.SearchThreshold).Select(index => Everyone(index * 10, $"Note {index}")).ToList();
-        Assert.Empty(RenderPanel(eight).FindAll("[data-bookmarks-search]"));
+        Assert.Empty(RenderPanel(eight, p => p.Add(x => x.Choice, PlaybackPreferenceValues.All)).FindAll("[data-bookmarks-search]"));
 
         eight.Add(Everyone(900, "Note nine"));
-        var nine = RenderPanel(eight);
+        var nine = RenderPanel(eight, p => p.Add(x => x.Choice, PlaybackPreferenceValues.All));
         Assert.Single(nine.FindAll("[data-bookmarks-search]"));
         nine.Find("[data-bookmarks-search] input").Input("nine");
         Assert.Single(nine.FindAll("[data-bookmark-id]"));
@@ -298,9 +310,9 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
     [Fact]
     public void TheEmptyStates_NameTheListThatIsEmpty()
     {
-        Assert.Contains("No bookmarks for this title yet", RenderPanel([]).Find("[data-bookmarks-empty]").TextContent);
-        var mine = RenderPanel([Everyone(10, "x")], p => p.Add(x => x.Choice, PlaybackPreferenceValues.Mine));
-        Assert.Contains("No bookmarks of yours yet", mine.Find("[data-bookmarks-empty]").TextContent);
+        Assert.Contains("No bookmarks of yours yet", RenderPanel([]).Find("[data-bookmarks-empty]").TextContent);
+        var global = RenderPanel([], p => p.Add(x => x.Choice, PlaybackPreferenceValues.All));
+        Assert.Contains("No Global bookmarks on this title yet", global.Find("[data-bookmarks-empty]").TextContent);
     }
 
     [Fact]
@@ -308,7 +320,7 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
     {
         var sought = new List<double>();
         var cut = RenderPanel([Everyone(100, "One"), Everyone(200, "Two")],
-            p => p.Add(x => x.Seek, EventCallback.Factory.Create<PlaybackRailBookmark>(this, bookmark => sought.Add(bookmark.Seconds))));
+            p => p.Add(x => x.Choice, PlaybackPreferenceValues.All).Add(x => x.Seek, EventCallback.Factory.Create<PlaybackRailBookmark>(this, bookmark => sought.Add(bookmark.Seconds))));
 
         await cut.FindAll("[data-bookmark-id] button").First(button => button.TextContent.Contains("Two")).ClickAsync();
 
@@ -338,7 +350,7 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
     {
         var all = new[] { Everyone(100), Mine(200), Mine(300, inEveryone: true) };
 
-        Assert.Equal([100d, 300d], PlaybackRailBookmark.ForChoice(all, null).Select(marker => marker.Seconds));
+        Assert.Equal([200d, 300d], PlaybackRailBookmark.ForChoice(all, null).Select(marker => marker.Seconds));
         Assert.Equal([100d, 300d], PlaybackRailBookmark.ForChoice(all, PlaybackPreferenceValues.All).Select(marker => marker.Seconds));
         Assert.Equal([200d, 300d], PlaybackRailBookmark.ForChoice(all, PlaybackPreferenceValues.Mine).Select(marker => marker.Seconds));
     }
@@ -351,9 +363,9 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
         Assert.Equal($"/engine-bookmark-frame/{id:D}?v=abc", BookmarksPanel.FrameAddress(withFrame));
         Assert.Null(BookmarksPanel.FrameAddress(Everyone(100)));
 
-        var video = RenderPanel([withFrame]);
+        var video = RenderPanel([withFrame], p => p.Add(x => x.Choice, PlaybackPreferenceValues.All));
         Assert.Contains("engine-bookmark-frame", video.Markup);
-        var audio = RenderPanel([withFrame], p => p.Add(x => x.UseFrames, false).Add(x => x.CoverUrl, "/cover.jpg"));
+        var audio = RenderPanel([withFrame], p => p.Add(x => x.Choice, PlaybackPreferenceValues.All).Add(x => x.UseFrames, false).Add(x => x.CoverUrl, "/cover.jpg"));
         Assert.DoesNotContain("engine-bookmark-frame", audio.Markup);
         Assert.Contains("/cover.jpg", audio.Markup);
     }
@@ -367,7 +379,7 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
             .Add(p => p.ChildContent, (RenderFragment)(builder =>
             {
                 builder.OpenComponent<BookmarksPanel>(0);
-                builder.AddAttribute(1, nameof(BookmarksPanel.Bookmarks), (IReadOnlyList<PlaybackRailBookmark>)[Everyone(100, "Sheet row")]);
+                builder.AddAttribute(1, nameof(BookmarksPanel.Bookmarks), (IReadOnlyList<PlaybackRailBookmark>)[Mine(100, "Sheet row")]);
                 builder.CloseComponent();
             })));
         await host.InvokeAsync(() => host.Instance.SetViewport(true));
@@ -381,11 +393,11 @@ public sealed class BookmarksPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ThePlayerWording_NeverUsesGlobalPromoteFindOrImport()
+    public void ThePlayerWording_NeverUsesPromoteFindOrImport()
     {
-        var cut = RenderPanel([Everyone(100, "x"), Mine(200, "y")], p => p.Add(x => x.ShowOnTimeline, true));
+        var cut = RenderPanel([Everyone(100, "x"), Mine(200, "y")], p => p.Add(x => x.ShowOnTimeline, true).Add(x => x.Choice, PlaybackPreferenceValues.All));
         var text = cut.Markup;
-        foreach (var word in new[] { "Global", "Promote", "Find", "Import", "Everyone's", "Everyone’s" })
+        foreach (var word in new[] { "Promote", "Find", "Import", "Everyone's", "Everyone’s" })
         {
             Assert.DoesNotContain(word, text, StringComparison.Ordinal);
         }

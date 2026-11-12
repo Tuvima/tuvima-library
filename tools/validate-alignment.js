@@ -10,6 +10,10 @@
 //   labelWraps     a toolbar, footer or segmented label wraps onto a second line
 //   rowHeight      a single-line row is off the 44 / 56 / 64 ladder (a settings row whose label wraps is allowed to grow)
 //   textOnControl  helper, status, error or result text sits above or below a control inside a column of a multi-item row
+//                  (allowed: the shared form row's own message line, and a field's help inside a multi-item .app-form-row, where it
+//                  sits on the shared help line)
+//   formRow        the control boxes of the fields of one shared .app-form-row (Editor v6 D12) do not share one top and one height, or a
+//                  non-field child (button, checkbox) is off the control line's centre
 () => {
     const TOLERANCE = 2;
     const LADDER = [44, 56, 64];
@@ -37,9 +41,28 @@
         const s = style(el), fontSize = parseFloat(s.fontSize) || 14, lh = parseFloat(s.lineHeight);
         return Number.isFinite(lh) ? lh : fontSize * 1.3;
     };
+    const items = row => [...row.children].filter(visible);
+    // The shared form row (AppFormRow) gives helper text two homes: its own message line, and the help of a field that is a direct column of
+    // the row's field grid (it sits on the shared help line). Help inside anything nested deeper, such as a flex row inside a column, is still checked.
+    const FIELD_SELECTOR = '.app-field, [data-form-row-field]';
+    const LABEL_OR_HELP_SELECTOR = '.app-field__label, label, .app-field__help';
+    const isFormRowText = text => {
+        if (text.closest('.app-form-row__message')) return true;
+        if (!text.matches('.app-field__help')) return false;
+        let field = text.closest(FIELD_SELECTOR);
+        while (field && field.parentElement && field.parentElement.matches(FIELD_SELECTOR)) field = field.parentElement;
+        const grid = field && field.parentElement;
+        return !!grid && grid.matches('.app-form-row__fields') && items(grid).length >= 2;
+    };
+    // The element on a field's control line: the first part of the field that is not its label or help (the control frame, not an adornment
+    // button inside it), looking through a wrapper marked data-form-row-field to the field it holds.
+    const controlBox = field => {
+        const part = items(field).find(k => !k.matches(LABEL_OR_HELP_SELECTOR));
+        if (!part) return field;
+        return part.matches(FIELD_SELECTOR) ? controlBox(part) : part;
+    };
     const failures = [];
     const fail = (rule, el, detail) => failures.push({ rule, element: describe(el), detail });
-    const items = row => [...row.children].filter(visible);
     const firstControl = el => (el.matches(CONTROL_SELECTOR) ? el : el.querySelector(CONTROL_SELECTOR));
     const isControl = el => el.matches(CONTROL_SELECTOR) || !!el.querySelector(CONTROL_SELECTOR);
 
@@ -80,9 +103,40 @@
             const c = control.getBoundingClientRect();
             for (const text of kid.querySelectorAll(HELPER_SELECTOR)) {
                 if (!visible(text) || text.contains(control) || control.contains(text) || !(text.textContent || '').trim()) continue;
+                if (isFormRowText(text)) continue;
                 const t = text.getBoundingClientRect();
                 if (t.bottom <= c.top + 1 || t.top >= c.bottom - 1) fail('textOnControl', text, 'status or helper text sits above or below a control inside the row; give it its own full-width line under the row');
             }
+        }
+    }
+
+    // formRow: in one shared form row the control box of every field (the element on its control line, not its label, help or an adornment
+    // button inside the frame) has the same top and height. A child that is not a field (a button, a checkbox, an icon button) is centred on
+    // the control line, so it only has to share the centre line of the first field's control.
+    const formRows = [...document.querySelectorAll('.app-form-row')].filter(visible);
+    for (const row of formRows) {
+        if (row.matches('.app-form-row--stack')) continue;
+        const grid = row.querySelector('.app-form-row__fields') || row;
+        // Every child counts, including a wrapper with no box of its own (display: contents, such as the tooltip wrapper around an icon
+        // button): it is measured by the visible control inside it, so a button that was placed off the control line is found.
+        const boxOf = kid => {
+            if (kid.matches(FIELD_SELECTOR)) return controlBox(kid);
+            const r = kid.getBoundingClientRect();
+            return r.width > 0 && r.height > 0 ? kid : (firstControl(kid) || kid.querySelector('*') || kid);
+        };
+        const parts = [...grid.children].filter(kid => style(kid).display !== 'none' && !kid.matches('[hidden]'))
+            .map(kid => ({ field: kid.matches(FIELD_SELECTOR), box: boxOf(kid) })).filter(p => visible(p.box));
+        if (parts.length < 2) continue;
+        const reference = (parts.find(p => p.field) || parts[0]).box;
+        const first = reference.getBoundingClientRect();
+        for (const part of parts) {
+            if (part.box === reference) continue;
+            const r = part.box.getBoundingClientRect();
+            if (!part.field) {
+                const delta = Math.abs(centre(part.box) - centre(reference));
+                if (delta > TOLERANCE) fail('formRow', part.box, `control centre is ${delta.toFixed(1)} px off the control line of the form row`);
+            } else if (Math.abs(r.top - first.top) > TOLERANCE) fail('formRow', part.box, `control top is ${Math.abs(r.top - first.top).toFixed(1)} px off the first control of the form row`);
+            else if (Math.abs(r.height - first.height) > TOLERANCE) fail('formRow', part.box, `control height is ${Math.round(r.height)} px, the first control of the form row is ${Math.round(first.height)} px`);
         }
     }
 

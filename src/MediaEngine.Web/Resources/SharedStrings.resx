@@ -1076,6 +1076,21 @@
   <data name="DetailsTab_ThisIsAGroupingOpen" xml:space="preserve">
     <value>This is a grouping. Open an item inside it to see its file details.</value>
   </data>
+  <data name="DetailsTab_SeriesInLibrary" xml:space="preserve">
+    <value>In your library</value>
+  </data>
+  <data name="DetailsTab_SeriesOwnedOfTotal" xml:space="preserve">
+    <value>{0} of {1} {2}</value>
+  </data>
+  <data name="DetailsTab_SeriesFirstPublished" xml:space="preserve">
+    <value>First published</value>
+  </data>
+  <data name="DetailsTab_SeriesLatest" xml:space="preserve">
+    <value>Latest</value>
+  </data>
+  <data name="DetailsTab_SeriesAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
   <data name="DetailsTab_LoadingHistory" xml:space="preserve">
     <value>Loading history...</value>
   </data>
@@ -11376,10 +11391,10 @@
     <value>Supporting file</value>
   </data>
   <data name="EditorBookmarks_Add" xml:space="preserve">
-    <value>Add to Everyone's</value>
+    <value>Add to Global</value>
   </data>
   <data name="EditorBookmarks_AddChosen" xml:space="preserve">
-    <value>Add {0} to Everyone's</value>
+    <value>Add {0} to Global</value>
   </data>
   <data name="EditorBookmarks_ChangeTime" xml:space="preserve">
     <value>Change time</value>
@@ -11394,10 +11409,10 @@
     <value>No such episode in this show</value>
   </data>
   <data name="EditorBookmarks_EveryoneEmpty" xml:space="preserve">
-    <value>Nothing in Everyone's yet.</value>
+    <value>Nothing in Global yet.</value>
   </data>
   <data name="EditorBookmarks_EveryoneHeading" xml:space="preserve">
-    <value>Everyone's bookmarks</value>
+    <value>Global bookmarks</value>
   </data>
   <data name="EditorBookmarks_Export" xml:space="preserve">
     <value>Export</value>
@@ -11427,7 +11442,7 @@
     <value>From profiles</value>
   </data>
   <data name="EditorBookmarks_FromProfilesHint" xml:space="preserve">
-    <value>Every profile's own bookmarks. Add one to Everyone's to put it in the list above.</value>
+    <value>Every profile's own bookmarks. Add one to Global to put it in the list above.</value>
   </data>
   <data name="EditorBookmarks_FromYou" xml:space="preserve">
     <value>from you</value>
@@ -11439,7 +11454,7 @@
     <value>Import for the show</value>
   </data>
   <data name="EditorBookmarks_InEveryone" xml:space="preserve">
-    <value>In Everyone's</value>
+    <value>In Global</value>
   </data>
   <data name="EditorBookmarks_LoadFailed" xml:space="preserve">
     <value>The bookmarks could not be read.</value>
@@ -11472,7 +11487,7 @@
     <value>Name</value>
   </data>
   <data name="EditorBookmarks_Nearest" xml:space="preserve">
-    <value>Nearest in Everyone's: {0} {1}</value>
+    <value>Nearest in Global: {0} {1}</value>
   </data>
   <data name="EditorBookmarks_New" xml:space="preserve">
     <value>New</value>
@@ -11490,19 +11505,19 @@
     <value>This file is not for this title.</value>
   </data>
   <data name="EditorBookmarks_NothingNear" xml:space="preserve">
-    <value>Nothing near it in Everyone's</value>
+    <value>Nothing near it in Global</value>
   </data>
   <data name="EditorBookmarks_OpenEpisode" xml:space="preserve">
     <value>Open the bookmarks of {0}</value>
   </data>
   <data name="EditorBookmarks_OverviewTotals" xml:space="preserve">
-    <value>{0} bookmarks in Everyone's across {1} titles</value>
+    <value>{0} bookmarks in Global across {1} titles</value>
   </data>
   <data name="EditorBookmarks_ProfilesEmpty" xml:space="preserve">
     <value>No profile has bookmarked this title.</value>
   </data>
   <data name="EditorBookmarks_Remove" xml:space="preserve">
-    <value>Remove from Everyone's</value>
+    <value>Remove from Global</value>
   </data>
   <data name="EditorBookmarks_Rename" xml:space="preserve">
     <value>Rename</value>
@@ -11520,13 +11535,13 @@
     <value>+{0} staged</value>
   </data>
   <data name="EditorBookmarks_StartOver" xml:space="preserve">
-    <value>Start over from profiles</value>
+    <value>Clear Global</value>
   </data>
   <data name="EditorBookmarks_StateDefinitive" xml:space="preserve">
     <value>Definitive set</value>
   </data>
   <data name="EditorBookmarks_StatePooled" xml:space="preserve">
-    <value>Pooled from every profile's bookmarks</value>
+    <value>Nothing is in Global until you add it</value>
   </data>
   <data name="EditorBookmarks_Take" xml:space="preserve">
     <value>Take this bookmark</value>
@@ -11571,7 +11586,7 @@
     <value>Episode</value>
   </data>
   <data name="EditorBookmarks_ColEveryone" xml:space="preserve">
-    <value>Everyone's</value>
+    <value>Global</value>
   </data>
   <data name="EditorBookmarks_ColSet" xml:space="preserve">
     <value>Set</value>
@@ -11583,10 +11598,10 @@
     <value>Definitive (staged)</value>
   </data>
   <data name="EditorBookmarks_SetPooled" xml:space="preserve">
-    <value>Pooled from profiles</value>
+    <value>Not set yet</value>
   </data>
   <data name="EditorBookmarks_SetPooledStaged" xml:space="preserve">
-    <value>Pooled from profiles (staged)</value>
+    <value>Not set yet (staged)</value>
   </data>
   <data name="EditorMatchVerdictBar_Verdict" xml:space="preserve">
     <value>{0} match</value>
@@ -12351,7 +12366,7 @@
     <value>Show bookmarks from</value>
   </data>
   <data name="BookmarksPanel_Everyone" xml:space="preserve">
-    <value>Everyone · {0}</value>
+    <value>Global · {0}</value>
   </data>
   <data name="BookmarksPanel_Mine" xml:space="preserve">
     <value>Mine · {0}</value>
@@ -12387,7 +12402,7 @@
     <value>Couldn’t delete · Try again</value>
   </data>
   <data name="BookmarksPanel_EmptyEveryone" xml:space="preserve">
-    <value>No bookmarks for this title yet</value>
+    <value>No Global bookmarks on this title yet</value>
   </data>
   <data name="BookmarksPanel_EmptyMine" xml:space="preserve">
     <value>No bookmarks of yours yet</value>
@@ -13486,5 +13501,116 @@
   </data>
   <data name="ReaderFrame_TryAgain" xml:space="preserve">
     <value>Try again</value>
+  </data>
+  <data name="NeedsReviewReason_LowConfidence" xml:space="preserve">
+    <value>Close match, but Library is not sure.</value>
+  </data>
+  <data name="NeedsReviewReason_RetailMatchFailed" xml:space="preserve">
+    <value>Library searched and found nothing close enough.</value>
+  </data>
+  <data name="NeedsReviewReason_RetailMatchAmbiguous" xml:space="preserve">
+    <value>More than one {0} fits this file. Which one is it?</value>
+  </data>
+  <data name="NeedsReviewReason_MovieMatchedAsTv" xml:space="preserve">
+    <value>No film matched, but a TV show has this name and year.</value>
+  </data>
+  <data name="NeedsReviewReason_FromMerge" xml:space="preserve">
+    <value>This came from a folder merge and has no name yet.</value>
+  </data>
+  <data name="NeedsReviewReason_NameCollision" xml:space="preserve">
+    <value>Another file already has this name, so this one kept a numbered name.</value>
+  </data>
+  <data name="NeedsReviewReason_PlaceholderTitle" xml:space="preserve">
+    <value>The file has no title or other details to search with.</value>
+  </data>
+  <data name="NeedsReviewReason_StagedUnidentifiable" xml:space="preserve">
+    <value>There is not enough in this file to tell what it is.</value>
+  </data>
+  <data name="NeedsReviewReason_MultipleQidMatches" xml:space="preserve">
+    <value>Matched, but several Wikidata records fit. You can keep the match as it is.</value>
+  </data>
+  <data name="NeedsReviewReason_MissingQid" xml:space="preserve">
+    <value>Matched, but no Wikidata record was found.</value>
+  </data>
+  <data name="NeedsReviewReason_WikidataBridgeFailed" xml:space="preserve">
+    <value>Matched, but no Wikidata record was found.</value>
+  </data>
+  <data name="NeedsReviewReason_MetadataConflict" xml:space="preserve">
+    <value>Two sources disagree about the details of this {0}.</value>
+  </data>
+  <data name="NeedsReviewReason_AmbiguousMediaType" xml:space="preserve">
+    <value>Library is not sure what kind of file this is.</value>
+  </data>
+  <data name="NeedsReviewReason_RootWatchFolder" xml:space="preserve">
+    <value>Library is not sure what kind of file this is.</value>
+  </data>
+  <data name="NeedsReviewReason_WritebackFailed" xml:space="preserve">
+    <value>Library could not save the new details into the file. The file may be open or read-only.</value>
+  </data>
+  <data name="NeedsReviewReason_MediaInspectionFailed" xml:space="preserve">
+    <value>This file could not be read. It may be damaged or incomplete.</value>
+  </data>
+  <data name="NeedsReviewReason_AmbiguousSeriesMembership" xml:space="preserve">
+    <value>Two Series list this {0}. It is in neither for now.</value>
+  </data>
+  <data name="NeedsReviewReason_BatchEditFailed" xml:space="preserve">
+    <value>A change to several items did not apply to this one. Nothing was changed on it.</value>
+  </data>
+  <data name="NeedsReviewReason_LanguageMismatch" xml:space="preserve">
+    <value>The language in the file is different from the language of this library.</value>
+  </data>
+  <data name="NeedsReviewReason_UserFixMatch" xml:space="preserve">
+    <value>A new match was asked for and is not settled yet.</value>
+  </data>
+  <data name="NeedsReviewReason_Unknown" xml:space="preserve">
+    <value>Library could not work this out by itself.</value>
+  </data>
+  <data name="NeedsReviewReason_File_no_match" xml:space="preserve">
+    <value>Library searched and found nothing close enough.</value>
+  </data>
+  <data name="NeedsReviewReason_File_no_youtube_id" xml:space="preserve">
+    <value>This video has no YouTube ID in its name, so Library cannot look it up.</value>
+  </data>
+  <data name="NeedsReviewReason_File_Unknown" xml:space="preserve">
+    <value>Library could not work this out by itself.</value>
+  </data>
+  <data name="NeedsReviewReason_RetryToday" xml:space="preserve">
+    <value>Tries again today</value>
+  </data>
+  <data name="NeedsReviewReason_RetryTomorrow" xml:space="preserve">
+    <value>Tries again tomorrow</value>
+  </data>
+  <data name="NeedsReviewReason_RetryDays" xml:space="preserve">
+    <value>Tries again in {0} days</value>
+  </data>
+  <data name="NeedsReviewReason_RetryNever" xml:space="preserve">
+    <value>Will not try again by itself</value>
+  </data>
+  <data name="AppReorderBar_Region" xml:space="preserve">
+    <value>Reorder</value>
+  </data>
+  <data name="AppReorderBar_Hint" xml:space="preserve">
+    <value>Drag to reorder</value>
+  </data>
+  <data name="AppReorderBar_Save" xml:space="preserve">
+    <value>Save order</value>
+  </data>
+  <data name="AppReorderBar_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="AppReorderBar_Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="AppReorderBar_LeaveTitle" xml:space="preserve">
+    <value>Save or discard?</value>
+  </data>
+  <data name="AppReorderBar_LeaveMessage" xml:space="preserve">
+    <value>You changed the order but have not saved it.</value>
+  </data>
+  <data name="AppReorderBar_MenuReorder" xml:space="preserve">
+    <value>Reorder</value>
+  </data>
+  <data name="CollectionRuleBuilder_ChoicesCleared" xml:space="preserve">
+    <value>Cleared because they do not apply to the chosen media type: {0}.</value>
   </data>
 </root>

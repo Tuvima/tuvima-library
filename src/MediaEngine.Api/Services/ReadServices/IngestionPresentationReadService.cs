@@ -1329,11 +1329,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private async Task<int> ReadPendingReviewCountAsync(CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
+        // The number the Needs Review list shows: Wikidata-only items (matched, only the Wikidata link missing) are neither listed nor counted.
         return await conn.ExecuteScalarAsync<int>(new CommandDefinition($"""
             SELECT COUNT(*) FROM review_queue
             WHERE status = 'Pending' AND review_ready_at IS NOT NULL
+              AND trigger NOT IN @hidden
               AND {VaultSql.NotVaultEntity("review_queue.entity_id")};
-            """, cancellationToken: ct)).ConfigureAwait(false);
+            """, new { hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() }, cancellationToken: ct)).ConfigureAwait(false);
     }
 
     private static PagedResponse<T> Page<T>(IReadOnlyList<T> items, PagedRequest request)
