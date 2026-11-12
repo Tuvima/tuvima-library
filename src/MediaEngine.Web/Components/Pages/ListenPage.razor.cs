@@ -37,6 +37,7 @@ public partial class ListenPage
     [Inject] private UIOrchestratorService Orchestrator { get; set; } = default!;
     [Inject] private PlaybackSessionController Playback { get; set; } = default!;
     [Inject] private ListenAudioDragService AudioDrag { get; set; } = default!;
+    [Inject] private SongDragDropService SongDrop { get; set; } = default!;
     [Inject] private MediaReactionService Reactions { get; set; } = default!;
     [Inject] private SavedItemService SavedItems { get; set; } = default!;
     [Inject] private IServiceProvider Services { get; set; } = default!;
@@ -129,6 +130,7 @@ public partial class ListenPage
     private bool _activePlaylistSaved;
     private bool _creatingPlaylistInline;
     private string _newPlaylistName = string.Empty;
+    private CarriedSongs? _pendingPlaylistDrop;
     private Guid? _renamingPlaylistId;
     private string _renamePlaylistName = string.Empty;
     private int _listenLoadVersion;

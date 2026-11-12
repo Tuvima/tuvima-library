@@ -122,9 +122,9 @@ public partial class MusicTrackList
         }
     }
 
-    private EventCallback<SongRow> DragStartedCallback => EventCallback.Factory.Create<SongRow>(this, StartDrag);
+    private EventCallback<IReadOnlyList<SongRow>> DragStartedCallback => EventCallback.Factory.Create<IReadOnlyList<SongRow>>(this, StartDrag);
 
-    private EventCallback<SongRow> DragEndedCallback => EventCallback.Factory.Create<SongRow>(this, EndDrag);
+    private EventCallback DragEndedCallback => EventCallback.Factory.Create(this, EndDrag);
 
     protected override void OnInitialized() => Playback.Changed += OnPlaybackChanged;
 
@@ -467,15 +467,22 @@ public partial class MusicTrackList
         }
     }
 
-    private void StartDrag(SongRow row)
+    // The songs being dragged out (every ticked track when a ticked one is dragged) are also offered to the queue panel.
+    private void StartDrag(IReadOnlyList<SongRow> rows)
     {
-        if (ItemFor(row) is { IsOwned: true } item)
+        var items = rows
+            .Select(ItemFor)
+            .OfType<MediaGroupingItemViewModel>()
+            .Where(item => item.IsOwned)
+            .Select(ToQueueItem)
+            .ToList();
+        if (items.Count > 0)
         {
-            AudioDrag.BeginDrag([ToQueueItem(item)]);
+            AudioDrag.BeginDrag(items);
         }
     }
 
-    private void EndDrag(SongRow row) => AudioDrag.Clear();
+    private void EndDrag() => AudioDrag.Clear();
 
     private ListenQueueItem ToQueueItem(MediaGroupingItemViewModel item)
         => new()

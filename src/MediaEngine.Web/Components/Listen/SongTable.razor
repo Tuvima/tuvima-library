@@ -12,7 +12,7 @@
 @if (_notice is not null)
 {
     @* A favorite, delete or status change that did not work: it stays above the songs until the next try or the close button. *@
-    <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="DismissNoticeAsync" data-song-table-notice="true">@_notice</AppAlert>
+    <AppAlert Severity="@_noticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="DismissNoticeAsync" data-song-table-notice="true">@_notice</AppAlert>
 }
 @* A listened or unlistened change, with Undo, in place above the songs because the row's menu has closed. *@
 @if (_undo is not null)
@@ -55,6 +55,8 @@ else
             <div class="song-table"
                  role="table"
                  aria-label="@AriaLabelText"
+                 data-song-drag-out="@(CanDragOut ? "true" : null)"
+                 data-song-drag-label="@DragCountLabel"
                  @ref="_tableRoot">
                 <div class="song-table__head" role="row">
                     @foreach (var layout in _layout)
@@ -166,6 +168,7 @@ else
          role="row"
          id="@RowDomId(row)"
          data-song-row-id="@row.Id"
+         data-song-ticked="@(_selected.Contains(row.Id) ? "true" : null)"
          data-listen-immediate-start="@(row.IsOwned ? "music" : null)"
          data-listen-start-url="@StartUrl(row)"
          tabindex="@(row.IsOwned ? "0" : null)"
@@ -376,15 +379,17 @@ else
                          Disabled="@row.IsUpdatingDetails"
                          OnClick="@(() => EditAsync(row))" />
         }
-        @if (sheet && ReorderEnabled)
+        @if (ReorderEnabled)
         {
-            @if (RowIndex(row) > 0)
+            @* In a playlist's or Favorites' own order only (ReorderEnabled is false while a column sorts the list). The phone sheet leaves the
+               impossible move out; the desktop menu keeps both rows and greys the one that cannot go anywhere. *@
+            @if (!sheet || RowIndex(row) > 0)
             {
-                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveByAsync(row, -1))" />
+                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Disabled="@(RowIndex(row) <= 0)" OnClick="@(() => MoveByAsync(row, -1))" />
             }
-            @if (RowIndex(row) < _shown.Count - 1)
+            @if (!sheet || RowIndex(row) < _shown.Count - 1)
             {
-                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveByAsync(row, 1))" />
+                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Disabled="@(RowIndex(row) >= _shown.Count - 1)" OnClick="@(() => MoveByAsync(row, 1))" />
             }
         }
         @if (RemoveAllowed(row))

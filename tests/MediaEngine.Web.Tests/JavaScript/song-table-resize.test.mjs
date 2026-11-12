@@ -357,7 +357,7 @@ test('Right on a column at its maximum sends nothing, and other keys are left al
 test('the disposer removes every listener', () => {
     const table = makeTable();
     const dispose = wireResize(table.root, makeDotnet().ref);
-    assert.equal(table.listeners.size, 6);
+    assert.equal(table.listeners.size, 7); // the six resize listeners and the song drag-out listener
 
     dispose();
     assert.equal(table.listeners.size, 0);
@@ -367,7 +367,7 @@ test('wiring the same table again replaces the earlier wiring and unwiring remov
     const table = makeTable();
     wireResize(table.root, makeDotnet().ref);
     wireResize(table.root, makeDotnet().ref);
-    assert.equal(table.listeners.size, 6);
+    assert.equal(table.listeners.size, 7); // the six resize listeners and the song drag-out listener
 
     unwireResize(table.root);
     assert.equal(table.listeners.size, 0);

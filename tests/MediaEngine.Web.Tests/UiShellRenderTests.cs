@@ -76,6 +76,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ActivityNotificationQueue>();
         Services.AddSingleton(new DashboardAuthUiOptions(false));
         Services.AddScoped<ListenAudioDragService>();
+        Services.AddScoped<SongDragDropService>();
         Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
         Services.AddScoped<ContextSidebarPreferences>();
         Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());

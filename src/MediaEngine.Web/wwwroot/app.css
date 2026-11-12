@@ -5341,6 +5341,9 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     .libs__table .libs__link { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
+/* Dragging songs onto a playlist (Listen music spec D10): song-table.js adds .is-song-drop-over to the [data-song-drop] target under the pointer, and the picture a ticked row drags with. */
+[data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;border-radius:var(--tl-radius-sm,6px);background:color-mix(in srgb,var(--tl-accent-primary) 22%,transparent)}
+.song-table__drag-picture{padding:6px 12px;border-radius:var(--tl-radius-sm,6px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font:600 14px var(--font-ui,sans-serif)}
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

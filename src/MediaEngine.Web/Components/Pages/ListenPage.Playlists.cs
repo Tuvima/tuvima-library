@@ -147,6 +147,7 @@ public partial class ListenPage
         {
             _creatingPlaylistInline = false;
             _newPlaylistName = string.Empty;
+            _pendingPlaylistDrop = null;
             return;
         }
         if (!string.Equals(args.Key, "Enter", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(_newPlaylistName))
@@ -161,6 +162,21 @@ public partial class ListenPage
             return;
         }
         var name = _newPlaylistName.Trim();
+        if (_pendingPlaylistDrop is { } carried)
+        {
+            // Songs were dropped on New playlist: the playlist is made already holding them, and the sentence goes to their table.
+            var made = await SongDrop.CreatePlaylistAsync(name, carried);
+            if (made.Created)
+            {
+                _pendingPlaylistDrop = null;
+                _creatingPlaylistInline = false;
+                _newPlaylistName = string.Empty;
+                await LoadAsync();
+            }
+
+            return;
+        }
+
         var createdId = await ApiClient.CreateCollectionWithItemsAsync(
             name,
             null,
@@ -405,46 +421,24 @@ public partial class ListenPage
         await AddTracksToPlaylistAsync(works, createdPlaylist);
     }
 
-    private async Task HandlePlaylistDropAsync(Guid? collectionId = null)
+    // Dragged songs dropped on a hand-made playlist in the rail: the add, the skip of songs already there and the sentence come from the one
+    // drop service; the table the songs came from shows the sentence in place.
+    private async Task DropSongsOnPlaylistAsync(ManagedCollectionViewModel playlist)
     {
-        var draggingWorkIds = _draggingTrackIds.Count > 0
-            ? _draggingTrackIds.ToHashSet()
-            : AudioDrag.WorkIds.ToHashSet();
-
-        if (draggingWorkIds.Count == 0)
+        if (AcceptsSongDrops(playlist))
         {
-            return;
+            await SongDrop.DropOnPlaylistAsync(playlist.Id, playlist.Name);
         }
+    }
 
-        var draggedWorks = draggingWorkIds
-            .Select(id => _workLookup.GetValueOrDefault(id))
-            .Where(work => work is not null)
-            .Cast<WorkViewModel>()
-            .ToList();
-
-        if (draggedWorks.Count == 0)
+    // Songs dropped on the Playlists heading (New playlist): they wait while the rail asks for a name, then go into the new playlist.
+    private void DropSongsOnNewPlaylist()
+    {
+        if (SongDrop.Take() is { } carried)
         {
-            _draggingTrackIds.Clear();
-            AudioDrag.Clear();
-            return;
+            _pendingPlaylistDrop = carried;
+            BeginPlaylistInlineCreate();
         }
-
-        _selectedTrackIds = draggingWorkIds;
-        if (collectionId.HasValue)
-        {
-            var collection = PlaylistCollections.FirstOrDefault(item => item.Id == collectionId.Value);
-            if (collection is not null)
-            {
-                await AddTracksToPlaylistAsync(draggedWorks, collection);
-            }
-        }
-        else
-        {
-            await CreatePlaylistAndAddTracksAsync(draggedWorks);
-        }
-
-        _draggingTrackIds.Clear();
-        AudioDrag.Clear();
     }
 
     private static string PlaylistIconFor(ManagedCollectionViewModel collection)
@@ -459,4 +453,8 @@ public partial class ListenPage
 
     private static bool CanAcceptPlaylistItems(ManagedCollectionViewModel collection)
         => string.Equals(collection.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
+
+    // The playlists dragged songs can be dropped on: exactly the ones the Add to playlist list offers (a rule-based or system list never).
+    private static bool AcceptsSongDrops(ManagedCollectionViewModel collection)
+        => CollectionAuthoringRule.IsAddTarget(collection, playlist: true);
 }

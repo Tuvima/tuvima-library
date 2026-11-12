@@ -436,6 +436,7 @@ builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>
 builder.Services.AddScoped<ShellActivityState>();
 builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
+builder.Services.AddScoped<SongDragDropService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
 builder.Services.AddScoped<PlayerPreferenceService>();
