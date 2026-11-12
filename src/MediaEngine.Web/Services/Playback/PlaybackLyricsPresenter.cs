@@ -242,6 +242,10 @@ public sealed partial class PlaybackLyricsPresenter(
                     .DistinctBy(track => track.Id).ToArray();
                 _lyricsLanguage = await ReadLyricsLanguageAsync();
                 _tracksLoaded = true;
+                if (Tracks.Count == 0)
+                {
+                    await FollowPendingLookupAsync(identity, generation);
+                }
             }
             catch (Exception) { if (Current(identity, generation)) { Fail("Lyrics could not be loaded."); _tracksLoaded = true; } }
             finally

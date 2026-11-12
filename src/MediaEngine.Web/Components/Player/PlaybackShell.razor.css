@@ -44,6 +44,8 @@
     height: 60px;
 }
 
+/* The identity block's own limits inside that 60 px row are in PlaybackIdentity.razor.css (music-player-and-listen-fixes D6). */
+
 /* Transport: always centred in the bar. Buttons sit 2 px apart; Play is 48 px, the rest 44 px. */
 .playback-shell__transport {
     align-items: center;

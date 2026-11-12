@@ -28,7 +28,7 @@ public sealed partial class PlaybackLyricsPresenter
     private void ResetLookup()
     {
         _lookupGeneration++;
-        _probed = false; NoSourceOn = false; _actionsLoaded = false; PluginActions = [];
+        _probed = false; NoSourceOn = false; _actionsLoaded = false; PluginActions = []; _pendingAsked = false;
         Lookup = PlaybackLyricsLookupState.Idle;
         Alternatives = null; AlternativesOpen = false; AlternativesLoading = false; Choosing = false;
     }

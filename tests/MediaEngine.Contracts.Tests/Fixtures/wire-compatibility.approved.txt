@@ -1368,6 +1368,11 @@
   input limit | default=50 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   response | shape=56886bf7a96d1d71e665a728830ad7b8a96dc1ead11bcedf07ebfe475ab6dd28
 
+[method] GetPendingTextTrackRefreshAsync
+  input assetId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+  input kind | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  response | shape=3e81d545ea75e1dc99b12660b484f870da5eaccf80223688824bbf5e3dacf8e1
+
 [method] GetPersonAliasesAsync
   input personId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   response | shape=61bc616ba6ecc6976356e6b29528d81f2c96f4c185b3690f83f6ca8191e4d8d6

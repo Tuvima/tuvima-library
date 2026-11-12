@@ -56,7 +56,7 @@ public sealed class TextTrackRefreshOperationWorker(
         }
     }
 
-    private async Task ProcessAsync(MediaOperation operation, CancellationToken ct)
+    internal async Task ProcessAsync(MediaOperation operation, CancellationToken ct)
     {
         if (operation.EntityId is not { } assetId)
         {

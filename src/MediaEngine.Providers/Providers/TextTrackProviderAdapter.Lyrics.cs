@@ -57,6 +57,15 @@ public sealed partial class TextTrackProviderAdapter
         _logger.LogInformation(
             "{Provider} lyrics lookup for \"{Title}\" by \"{Artist}\" ({Length}s): {Outcome}, {Candidates} candidate(s) looked at",
             Name, lookup.Title, lookup.Artist, lookup.DurationSeconds, tally.Outcome, tally.Candidates);
+
+        // A lookup whose requests failed in transport and found nothing says nothing about the song, so it ends as a
+        // retryable failure of the operation (the same signal the subtitle search gives), never as "no lyrics".
+        if (tally.Outcome == LyricsOutcome.SourceUnreachable)
+        {
+            throw new TextTrackLookupException(
+                "ProviderUnavailable", Message(TextTrackMessages.Unreachable, "{display_name} could not be reached."));
+        }
+
         return found;
     }
 
