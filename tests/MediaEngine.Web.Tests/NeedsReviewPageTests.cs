@@ -2122,7 +2122,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task EditNItems_OpensNothing_ForALockedAdministratorWhoDoesNotEnterThePin()
+    public async Task EditNItems_OpensNothing_ForALockedAdministratorWhenNoPinPromptIsAvailable()
     {
         var one = FileRow(Id(1), "One.mkv", workId: Id(91));
         var two = FileRow(Id(2), "Two.mkv", workId: Id(92));

@@ -375,6 +375,13 @@
             return;
         }
 
+        // Pressing the open panel's own button only closes it; that needs no check.
+        if (Active.Panel == kind)
+        {
+            Active.ClosePanel();
+            return;
+        }
+
         // Edit, Match, Move to album and Put in series all open the editor window, so they all need a device and a profile that may edit.
         // An administrator whose settings are locked is asked for the PIN first; closing the prompt stops quietly.
         var gate = await EditorDeviceRule.EnsureMayEditItemsAsync(
@@ -391,12 +398,6 @@
 
         if (Active is null)
         {
-            return;
-        }
-
-        if (Active.Panel == kind)
-        {
-            Active.ClosePanel();
             return;
         }
 

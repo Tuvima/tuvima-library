@@ -65,6 +65,8 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(api);
         Services.AddSingleton(_device);
         Services.AddSingleton(_session);
+        _pin = new PinPrompt(_session);
+        Services.AddSingleton<IAdministratorSurfaceAccessService>(_pin);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UniverseStateContainer>();
@@ -79,6 +81,35 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
     private Task UseDeviceAsync(string formFactor, bool fine = true, bool hover = true) =>
         _device.InitialiseAsync(new DeviceContextSnapshot("web", formFactor, false, FinePointer: fine, Hover: hover));
+
+    private readonly PinPrompt _pin;
+
+    // An administrator whose settings are locked: the Engine still offers Edit on the page, and no "metadata.manage" until the PIN is entered.
+    private void SetLockedAdministrator()
+    {
+        var id = Guid.NewGuid();
+        _session.Set("test-session-token", id, id, Guid.NewGuid(),
+            new DashboardAuthorityResponse(id, id, true, true, 1, 1, true, false, null, 1, [], [], ["administrator.unlock"]));
+    }
+
+    /// <summary>The administrator PIN prompt, hand-written: counts how often it was shown and, when the PIN is "entered", unlocks the session as the Engine would.</summary>
+    private sealed class PinPrompt(DashboardSessionAccessor session) : IAdministratorSurfaceAccessService
+    {
+        public bool Enter { get; set; }
+        public int Asked { get; private set; }
+
+        public Task<bool> EnsureUnlockedAsync(CancellationToken ct = default)
+        {
+            Asked++;
+            if (Enter && session.AccountId is { } id)
+            {
+                session.Set("test-session-token", id, id, Guid.NewGuid(),
+                    new DashboardAuthorityResponse(id, id, true, true, 1, 1, true, true, null, 1, [], [], ["metadata.manage"]));
+            }
+
+            return Task.FromResult(Enter);
+        }
+    }
 
     private void SetAdministrator(bool administrator)
     {
@@ -439,6 +470,66 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         StartEditing(cut);
 
         Assert.Single(_editor.FindAll(".tl-editor-window"));
+    }
+
+    [Theory]
+    [InlineData("desktop")]
+    [InlineData("phone")]
+    public async Task Edit_ForALockedAdministrator_AsksForThePin_AndOpensNothingWhenThePromptIsClosed(string formFactor)
+    {
+        await UseDeviceAsync(formFactor, formFactor == "desktop", formFactor == "desktop");
+        SetLockedAdministrator();
+        var cut = RenderPage();
+
+        cut.Find("button[aria-label='More actions']").Click();
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _pin.Asked));
+        Assert.Empty(_editor.FindAll(".tl-editor-window"));
+        Assert.False(Services.GetRequiredService<EditorHost>().IsOpen);
+    }
+
+    [Fact]
+    public async Task Edit_ForALockedAdministrator_OpensTheEditorOnceThePinIsEntered()
+    {
+        await UseDeviceAsync("desktop");
+        SetLockedAdministrator();
+        _pin.Enter = true;
+        var cut = RenderPage();
+
+        StartEditing(cut);
+
+        Assert.Equal(1, _pin.Asked);
+        Assert.Single(_editor.FindAll(".tl-editor-window"));
+    }
+
+    [Fact]
+    public async Task ARowsOwnEditOnThePage_ForALockedAdministrator_AsksForThePinBeforeAnythingOpens()
+    {
+        await UseDeviceAsync("desktop");
+        SetLockedAdministrator();
+        var cut = RenderPage();
+        var binding = (EditorBinding)typeof(DetailPage)
+            .GetField("_binding", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(cut.Instance)!;
+        var row = new BulkEditRow(Guid.NewGuid(), "Track one", DetailEntityType.Work, null, "Music");
+
+        var opened = await cut.InvokeAsync(() => binding.EditRowAsync!(row));
+
+        Assert.False(opened);
+        Assert.Equal(1, _pin.Asked);
+        Assert.False(Services.GetRequiredService<EditorHost>().IsOpen);
+    }
+
+    [Fact]
+    public async Task AnUnlockedAdministrator_IsNeverAskedForThePin()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var cut = RenderPage();
+
+        StartEditing(cut);
+
+        Assert.Equal(0, _pin.Asked);
     }
 
     [Theory]

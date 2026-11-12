@@ -318,7 +318,8 @@ public partial class SongList
         var launcher = Services.GetRequiredService<ListEditLauncher>();
         if (!await launcher.OpenRowsAsync(rows, "Music", OnEditedAsync))
         {
-            _notice = launcher.LastNotice ?? EditorDeviceRule.ItemMessage;
+            // No line means the administrator PIN prompt was closed: stop quietly.
+            _notice = launcher.LastNotice;
         }
     }
 
