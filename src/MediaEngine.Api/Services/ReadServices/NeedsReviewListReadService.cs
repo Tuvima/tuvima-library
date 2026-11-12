@@ -33,6 +33,11 @@ public sealed class NeedsReviewListReadService(
     // How many provider pictures for choices are fetched at once; each is small, bounded and cached (RetailCandidateArtworkPreview).
     private const int ChoicePictureConcurrency = 6;
 
+    // The list must stay quick however many items wait: one read fetches at most this many pictures and spends at most this long on them.
+    // Pictures left out are simply absent; they are cached once fetched, so a later read picks up where this one stopped.
+    private const int ChoicePictureLimit = 60;
+    private static readonly TimeSpan ChoicePictureBudget = TimeSpan.FromSeconds(4);
+
     private static readonly string[] WikidataTriggers = ["MultipleQidMatches", "QidNoMatch"];
 
     // The notifier's own split (ReviewCountResponse): only a failed retail match counts as "not matched". The list itself no longer has kinds.
@@ -170,24 +175,40 @@ public sealed class NeedsReviewListReadService(
             return;
         }
 
-        var wanted = page.Where(row => pending.ContainsKey(row.Key)).SelectMany(row => pending[row.Key]).ToList();
+        var wanted = page.Where(row => pending.ContainsKey(row.Key)).SelectMany(row => pending[row.Key])
+            .Take(ChoicePictureLimit).ToList();
         if (wanted.Count == 0)
         {
             return;
         }
 
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(ChoicePictureBudget);
         using var gate = new SemaphoreSlim(ChoicePictureConcurrency);
         await Task.WhenAll(wanted.Select(async picture =>
         {
-            await gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await gate.WaitAsync(budget.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Out of time for pictures on this read: the row is shown without one.
+                return;
+            }
+
             try
             {
                 var preview = await RetailCandidateArtworkPreview
-                    .LoadAsync(picture.Provider, picture.SourceUrl, httpFactory, previewCache, ct).ConfigureAwait(false);
+                    .LoadAsync(picture.Provider, picture.SourceUrl, httpFactory, previewCache, budget.Token).ConfigureAwait(false);
                 if (preview is not null)
                 {
                     picture.Apply(preview);
                 }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Out of time for pictures on this read: the row is shown without one.
             }
             finally
             {
