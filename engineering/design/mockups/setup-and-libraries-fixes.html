@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+<title>Setup and Libraries fixes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a single dark review sheet. Each numbered section is one screen of the app drawn at its real size inside a
+   sideways-scrolling frame, with purple numbered markers on the screen and the matching notes directly under it. */
+:root{
+  color-scheme:dark;
+  --page:#101115;--shell:#14151A;--surface:#1A1B21;--raised:#1F2027;--hover:#272830;--menu:#2F3039;
+  --text:#F5F7FB;--text2:#B6C2D6;--muted:#94A3B8;--line:rgba(148,163,184,.16);--line2:rgba(148,163,184,.10);
+  --accent:#8852FC;--ok:#22C55E;--warn:#F59E0B;--bad:#EF4444;
+  --watch:#FB7185;--listen:#FBBF24;--read:#60A5FA;--view:#2DD4BF;--vault:#D6A84F;
+  --movies:#FB7185;--tv:#A78BFA;--music:#FBBF24;--audiobooks:#34D399;--books:#60A5FA;--comics:#22D3EE;--docs:#B6C2D6;
+  --ui:"Inter",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font:14px/1.45 var(--ui);padding-block:28px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:44px}
+h1{font-size:24px;margin:0 0 6px;font-weight:700;text-wrap:balance}
+h2{font-size:18px;margin:0;font-weight:600;text-wrap:balance}
+p{margin:0}.lede{color:var(--text2);max-width:68ch}
+.sec{display:grid;gap:14px;min-width:0}
+.sech{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline}
+.iss{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;padding:14px 4px 6px 14px;min-width:0}
+.pair{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.cap{color:var(--muted);font-size:12px;margin-bottom:8px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.notes{margin:0;padding:0;list-style:none;display:grid;gap:6px;color:var(--text2);max-width:78ch}
+.notes li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px}
+.notes b.n,.mk{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
+.mk{position:absolute;z-index:5;box-shadow:0 0 0 2px var(--page)}
+svg.i{width:24px;height:24px;fill:currentColor;flex:none}svg.s{width:20px;height:20px}svg.xs{width:16px;height:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:6px;border:1px solid var(--line);background:none;color:var(--text);font:600 14px var(--ui);white-space:nowrap;flex:none}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}.btn.t{border-color:transparent;color:var(--text2)}.btn.c{height:36px;padding:0 12px}
+.fld{display:flex;align-items:center;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--raised);color:var(--text);min-width:0}
+.lbl{color:var(--text2);font-size:13px;margin-bottom:4px}
+.hint{color:var(--muted);font-size:13px}
+
+/* window */
+.win{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.5);display:flex;flex-direction:column;flex:none}
+.winh{display:flex;align-items:center;gap:12px;padding:16px 24px;border-bottom:1px solid var(--line2)}
+.winh .eb{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em}.winh .tt{font-size:18px;font-weight:600}
+.winh .x{margin-left:auto;color:var(--muted)}
+.winb{flex:1 1 auto;min-height:0;padding:16px 24px;display:flex;flex-direction:column;gap:12px}
+.winf{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 24px;border-top:1px solid var(--line2)}
+.step{color:var(--muted);font-size:13px}
+
+/* rows of Add library */
+.rows{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;min-height:84px;padding:12px 16px;border:1px solid var(--line);border-radius:8px;background:var(--raised)}
+.row.sel{border-color:var(--accent);background:rgba(136,82,252,.10)}
+.row.off{opacity:.55}
+.row .tile{width:48px;height:48px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.row b{display:block;font-size:15px;font-weight:600}.row span.d{color:var(--text2);font-size:13px}
+.row .chev{color:var(--muted)}
+
+/* folder window */
+.fb{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px}
+.side{display:grid;align-content:start;gap:2px;font-size:13px}
+.side h4{margin:8px 0 4px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.side a{display:flex;align-items:center;gap:10px;height:36px;padding:0 8px;border-radius:6px;color:var(--text2)}
+.side a.on{background:rgba(136,82,252,.16);color:var(--text)}
+.main{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.tb{display:flex;gap:8px;align-items:center}.tb .ib{width:36px;height:36px;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;color:var(--text2)}
+.tb .fld{height:36px;flex:1;color:var(--muted);gap:8px}
+.list{flex:1 1 auto;min-height:0;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column}
+.list .hd{display:grid;grid-template-columns:minmax(0,1fr) 180px 40px;padding:0 12px;height:34px;align-items:center;color:var(--muted);font-size:12px;font-weight:600;background:var(--raised);border-bottom:1px solid var(--line2)}
+.list .r{display:grid;grid-template-columns:minmax(0,1fr) 180px 40px;padding:0 12px;height:40px;align-items:center;border-bottom:1px solid var(--line2);color:var(--text)}
+.list .r span:first-child{display:flex;gap:10px;align-items:center;color:var(--text)}.list .r span{color:var(--muted);font-size:13px}
+.list .r.hl{background:var(--hover)}
+.list .empty{flex:1;display:grid;place-items:center;color:var(--muted);text-align:center;padding:16px}
+.hand{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt{display:flex;gap:10px;align-items:center;height:48px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--raised);min-width:0}
+.opt.sel{border-color:var(--accent);background:rgba(136,82,252,.10)}
+.opt i{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);flex:none}.opt.sel i{border-color:var(--accent);background:radial-gradient(var(--accent) 45%,transparent 50%)}
+.opt span{color:var(--text2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.opt b{font-weight:600;color:var(--text)}
+.msg{display:flex;gap:8px;align-items:center;min-height:24px;color:var(--warn);font-size:13px}
+
+/* pop-up */
+.pop{position:relative;width:440px;max-width:100%;background:var(--menu);border:1px solid var(--line);border-radius:8px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);flex:none}
+.pop ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.pop li{display:flex;align-items:center;gap:6px;padding:4px;border-radius:6px}
+.pop .bd{flex:1;min-width:0;display:grid}.pop .nm{font-weight:600}.pop .nm,.pop .pt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pop .pt{color:var(--text2)}
+.pop .why{color:var(--warn);font-size:12px}
+.ic{position:relative;width:44px;height:44px;flex:none;display:grid;place-items:center;color:var(--muted)}
+.ic.ok{color:var(--ok)}.ic.wn{color:var(--warn)}.ic.mg{color:var(--accent)}
+.tip{position:absolute;top:calc(100% - 4px);left:50%;transform:translateX(-50%);white-space:nowrap;background:#0B0C0F;border:1px solid var(--line);color:var(--text);font-size:12px;padding:4px 8px;border-radius:4px;z-index:4}
+.pop .ft{display:flex;justify-content:flex-end;padding-top:4px}
+.old .tag{padding:2px 10px;border-radius:3px;background:var(--raised);color:var(--text2);font-size:12px;font-weight:600}
+
+/* libraries page */
+.pg{position:relative;width:1100px;background:var(--page);border:1px solid var(--line);border-radius:12px;padding:24px;display:grid;gap:16px;flex:none}
+.pgh{display:flex;justify-content:space-between;align-items:center;gap:16px}.pgh b{font-size:24px;font-weight:700}
+.card{border:1px solid var(--line2);border-radius:8px;padding:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,var(--raised)),var(--raised));display:grid;gap:12px}
+.card h3{margin:0;font-size:16px;font-weight:600}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px}
+.cell{display:grid;gap:2px;justify-items:start}.cell svg{width:32px;height:32px;fill:var(--c);margin-bottom:4px}
+.cell b{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}.cell small{color:var(--muted);font-size:13px}
+.frow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:3px;color:var(--text2);font-weight:500}
+.chip.on{border-color:var(--accent);background:rgba(136,82,252,.14);color:var(--text)}
+table{width:100%;border-collapse:collapse}th{text-align:left;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;padding:8px 12px;border-bottom:1px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
+td .tile{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:8px;margin-right:12px;vertical-align:middle;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:3px;font-size:12px;font-weight:600;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.lnk{color:var(--text);font-weight:500}.st{display:inline-flex;gap:6px;align-items:center}
+.gone td{color:var(--muted);text-decoration:line-through;opacity:.6}
+
+/* settings menu and setup */
+.menu{position:relative;width:300px;background:var(--shell);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:2px;flex:none}
+.menu h4{margin:10px 8px 4px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.menu a{display:flex;align-items:center;gap:12px;height:44px;padding:0 8px;border-radius:6px;color:var(--text2)}.menu a.on{background:rgba(136,82,252,.16);color:var(--text)}
+.pill{margin-left:auto;min-width:24px;height:22px;padding:0 7px;border-radius:3px;background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn);font-size:12px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.setup{position:relative;width:900px;background:var(--page);border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:220px minmax(0,1fr);flex:none}
+.steps{padding:20px 12px;border-right:1px solid var(--line2);display:grid;align-content:start;gap:2px}
+.steps a{display:flex;align-items:center;gap:10px;height:40px;padding:0 8px;border-radius:6px;color:var(--text2)}.steps a.on{background:rgba(136,82,252,.16);color:var(--text)}
+.steps a i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:700;border:1px solid var(--line);color:var(--muted);flex:none}
+.steps a.done i{background:var(--ok);border-color:var(--ok);color:#06210f}
+.steps a small{margin-left:auto;color:var(--muted);font-size:12px}
+.stage{padding:24px;display:grid;gap:14px;align-content:start}.stage h3{margin:0;font-size:20px;font-weight:600}
+.note{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--raised);color:var(--text2)}
+.sfoot{display:flex;justify-content:space-between;gap:8px;margin-top:8px}
+.host{display:flex;align-items:flex-end;gap:8px;width:330px;max-width:100%}
+.strike{color:var(--muted);text-decoration:line-through}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="film" viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></symbol>
+<symbol id="tv" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></symbol>
+<symbol id="head" viewBox="0 0 24 24"><path d="M12 1a9 9 0 0 0-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2c0-3.87 3.13-7 7-7s7 3.13 7 7v2h-4v8h3c1.66 0 3-1.34 3-3v-7a9 9 0 0 0-9-9z"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></symbol>
+<symbol id="img" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></symbol>
+<symbol id="music" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></symbol>
+<symbol id="doc" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></symbol>
+<symbol id="drive" viewBox="0 0 24 24"><path d="M2 20h20v-4H2v4zm2-3h2v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h2v2H4v-2z"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+<symbol id="cam" viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></symbol>
+<symbol id="ok" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></symbol>
+<symbol id="ref" viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
+<symbol id="find" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><path d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.59.22L2.73 8.87a.5.5 0 0 0 .12.61l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.5.5 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+<header>
+  <h1>Setup and Libraries fixes</h1>
+  <p class="lede">Proposed screens for the faults found in the local check of 11 November. Each screen is drawn at its real size, so wide ones scroll sideways. Purple numbers on a screen match the notes under it. Nothing here is built.</p>
+</header>
+
+<section class="sec" id="add-library">
+  <div class="sech"><h2>1. Add library: rows, not tiles</h2><span class="iss">#859 · question 1</span></div>
+  <div class="scroll"><div class="pair">
+    <div class="win" style="width:560px;height:680px">
+      <span class="mk" style="left:-10px;top:104px">1</span><span class="mk" style="left:-10px;top:424px">2</span><span class="mk" style="right:-10px;top:300px">3</span>
+      <div class="winh"><div><div class="tt">Add library</div><div class="step">Step 1 of 3 · Where does it belong?</div></div><svg class="i x"><use href="#x"/></svg></div>
+      <div class="winb"><div class="rows">
+        <div class="row" style="--c:var(--watch)"><span class="tile"><svg class="i"><use href="#tv"/></svg></span><span><b>Watch</b><span class="d">Movies, TV shows and other videos.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+        <div class="row" style="--c:var(--listen)"><span class="tile"><svg class="i"><use href="#head"/></svg></span><span><b>Listen</b><span class="d">Music, audiobooks and other audio.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+        <div class="row" style="--c:var(--read)"><span class="tile"><svg class="i"><use href="#book"/></svg></span><span><b>Read</b><span class="d">Books, comics and other reading.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+        <div class="row" style="--c:var(--view)"><span class="tile"><svg class="i"><use href="#img"/></svg></span><span><b>View</b><span class="d">Your own photos, videos and documents.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+        <div class="row" style="--c:var(--vault)"><span class="tile"><svg class="i"><use href="#lock"/></svg></span><span><b>Vault</b><span class="d">Anything you want hidden. Locked behind its own PIN. Hidden from Kids profiles.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+      </div></div>
+      <div class="winf"><span class="btn t">Cancel</span></div>
+    </div>
+    <div class="win" style="width:560px;height:680px">
+      <span class="mk" style="left:-10px;top:104px">4</span><span class="mk" style="right:-10px;top:120px">5</span>
+      <div class="winh"><div><div class="eb" style="color:var(--watch)">WATCH</div><div class="tt">Add library</div><div class="step">Step 2 of 3 · What is it?</div></div><svg class="i x"><use href="#x"/></svg></div>
+      <div class="winb"><div class="rows">
+        <div class="row off" style="--c:var(--watch);grid-template-columns:48px minmax(0,1fr) auto"><span class="tile"><svg class="i"><use href="#film"/></svg></span><span><b>Movies</b><span class="d">You already have a Movies library.</span></span><span class="btn c" style="opacity:1">Add a folder to Movies instead</span></div>
+        <div class="row" style="--c:var(--watch)"><span class="tile"><svg class="i"><use href="#tv"/></svg></span><span><b>TV Shows</b><span class="d">Series with seasons and episodes. Library looks up posters and details.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+        <div class="row" style="--c:var(--watch)"><span class="tile"><svg class="i"><use href="#play"/></svg></span><span><b>YouTube</b><span class="d">Saved channels and playlists, kept by channel.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+        <div class="row" style="--c:var(--watch)"><span class="tile"><svg class="i"><use href="#cam"/></svg></span><span><b>Videos</b><span class="d">Courses, concerts and anything else. Library keeps your files as they are.</span></span><svg class="i chev"><use href="#chev"/></svg></div>
+      </div></div>
+      <div class="winf"><span class="btn t" style="margin-right:auto">Back</span><span class="btn t">Cancel</span></div>
+    </div>
+  </div></div>
+  <ul class="notes">
+    <li><b class="n">1</b><span>Every choice is one full-width row of the same height: icon on its tinted square in the area's color, the name, and one line saying what belongs there. Nothing to hover, so nothing repeats and nothing can hide behind the window.</span></li>
+    <li><b class="n">2</b><span>Vault is simply the fifth row, shown only when the Vault is on and unlocked. Its line carries what the old (i) said.</span></li>
+    <li><b class="n">3</b><span>No scroll bar. The list scrolls only if it is really longer than the window (for example fifteen kinds).</span></li>
+    <li><b class="n">4</b><span>A kind that already has a library is greyed, with its one action at the end of the row.</span></li>
+    <li><b class="n">5</b><span>The second step uses the same rows. The area you picked shows above the title. The wording of each line comes from the kind list, so a new kind brings its own.</span></li>
+  </ul>
+</section>
+
+<section class="sec" id="folder-window">
+  <div class="sech"><h2>2. The folder window: the list gets the room</h2><span class="iss">#860 · #861</span></div>
+  <div class="scroll">
+    <div class="win" style="width:1100px;height:680px">
+      <span class="mk" style="left:-10px;top:20px">1</span><span class="mk" style="left:-10px;top:112px">2</span><span class="mk" style="left:236px;top:300px">3</span><span class="mk" style="left:-10px;top:520px">4</span><span class="mk" style="left:-10px;top:574px">5</span><span class="mk" style="right:-10px;top:636px">6</span>
+      <div class="winh"><div><div class="eb" style="color:var(--view)">VIEW · PHOTOS AND VIDEOS</div><div class="tt">Add folder</div></div><svg class="i x"><use href="#x"/></svg></div>
+      <div class="winb">
+        <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap"><div style="width:360px"><div class="lbl">Friendly name</div><div class="fld">Phone backups</div></div><span class="hint" style="padding-bottom:12px">Names this folder, not the library.</span></div>
+        <div class="fb">
+          <div class="side">
+            <h4>Media locations</h4><a><svg class="i s"><use href="#folder"/></svg>Media</a>
+            <h4>Drives on this server</h4><a><svg class="i s"><use href="#drive"/></svg>C:</a><a class="on"><svg class="i s"><use href="#drive"/></svg>D:</a><a><svg class="i s"><use href="#drive"/></svg>Z:</a>
+            <a style="margin-top:8px;color:var(--accent)"><svg class="i s"><use href="#edit"/></svg>Type a path...</a>
+          </div>
+          <div class="main">
+            <div class="tb"><span class="ib"><svg class="i s"><use href="#back"/></svg></span><span class="ib"><svg class="i s"><use href="#up"/></svg></span><span class="ib"><svg class="i s"><use href="#ref"/></svg></span><span class="fld"><svg class="i xs"><use href="#find"/></svg>Search folders</span></div>
+            <div class="hint"><b style="color:var(--text)">D:\Pictures</b> · 6 folders inside</div>
+            <div class="list">
+              <div class="hd"><span>Name</span><span>Modified</span><span></span></div>
+              <div class="r hl"><span><svg class="i s" style="color:var(--muted)"><use href="#folder"/></svg>2023</span><span>Jan 4, 2024 9:12 AM</span><svg class="i s" style="color:var(--muted)"><use href="#chev"/></svg></div>
+              <div class="r"><span><svg class="i s" style="color:var(--muted)"><use href="#folder"/></svg>2024</span><span>Jan 2, 2025 6:40 PM</span><svg class="i s" style="color:var(--muted)"><use href="#chev"/></svg></div>
+              <div class="r"><span><svg class="i s" style="color:var(--muted)"><use href="#folder"/></svg>2025</span><span>Nov 9, 2026 8:03 AM</span><svg class="i s" style="color:var(--muted)"><use href="#chev"/></svg></div>
+              <div class="r"><span><svg class="i s" style="color:var(--muted)"><use href="#folder"/></svg>Camera</span><span>Oct 30, 2026 4:51 PM</span><svg class="i s" style="color:var(--muted)"><use href="#chev"/></svg></div>
+              <div class="r"><span><svg class="i s" style="color:var(--muted)"><use href="#folder"/></svg>Phone backups</span><span>Nov 10, 2026 7:15 AM</span><svg class="i s" style="color:var(--muted)"><use href="#chev"/></svg></div>
+              <div class="r"><span><svg class="i s" style="color:var(--muted)"><use href="#folder"/></svg>Scans</span><span>Mar 18, 2025 1:22 PM</span><svg class="i s" style="color:var(--muted)"><use href="#chev"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="hand"><div class="opt sel"><i></i><span><b>Read-only</b> · Library only reads this folder. Your files are never changed.</span></div><div class="opt"><i></i><span><b>Managed</b> · Library keeps this folder tidy: new files are filed and named here.</span></div></div>
+        <div class="msg"><svg class="i xs"><use href="#warn"/></svg>You can't upload photos and videos until you add a Managed folder.</div>
+      </div>
+      <div class="winf"><span class="btn t">Cancel</span><span class="btn p">Add folder</span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b class="n">1</b><span>The header says what you are adding to: the area and kind, then "Add folder". Add library's folder step shows the same line with its step title.</span></li>
+    <li><b class="n">2</b><span>Friendly name stays first, pre-filled from the folder you are inside.</span></li>
+    <li><b class="n">3</b><span>The folder list takes all the height the fixed parts leave, at least five rows in this window. Today it is left about 40 px, which is only its header row: the folders load, but you cannot see them. That is the "drive shows nothing" fault.</span></li>
+    <li><b class="n">4</b><span>Read-only or Managed sits directly under the list as one compact row. The gap is gone.</span></li>
+    <li><b class="n">5</b><span>One message line, always in the same place and never behind the buttons: the upload line, the Managed warning, or the check result after you press Add (Looks right, Heads up, Already used).</span></li>
+    <li><b class="n">6</b><span>The grey "Your files are never changed." line leaves the footer, because the Read-only option already says it.</span></li>
+  </ul>
+  <div class="scroll"><div class="pair">
+    <div><div class="cap">A folder with nothing inside</div>
+      <div class="list" style="width:520px;height:200px"><div class="hd"><span>Name</span><span>Modified</span><span></span></div><div class="empty">This folder has no folders inside.<br>You can still choose it.</div></div></div>
+    <div><div class="cap">A folder Library cannot open</div>
+      <div class="list" style="width:520px;height:200px"><div class="hd"><span>Name</span><span>Modified</span><span></span></div><div class="empty" style="color:var(--warn)">Library can't open this folder.<br><span style="color:var(--muted)">Go back, or check its permissions.</span></div></div></div>
+  </div></div>
+</section>
+
+<section class="sec" id="folders-popup">
+  <div class="sech"><h2>3. Folders pop-up: one line each, icons for status</h2><span class="iss">#857 · #858 · question 2</span></div>
+  <div class="scroll"><div class="pair">
+    <div><div class="cap">Today</div>
+      <div class="pop old" style="width:400px"><ul>
+        <li style="gap:8px"><span class="bd"><span class="nm" style="white-space:normal">Family NAS movies and home videos</span><span class="pt">\\nas-01\media\video\movies</span></span><span class="tag">Read-only</span><span style="color:var(--ok);font-size:12px;width:44px">● Online</span><span class="ic"><svg class="i s"><use href="#copy"/></svg></span></li>
+      </ul></div></div>
+    <div><div class="cap">Proposed</div>
+      <div class="pop"><span class="mk" style="left:-10px;top:14px">1</span><span class="mk" style="left:318px;top:38px">2</span><span class="mk" style="right:84px;top:60px">3</span><span class="mk" style="left:-10px;top:124px">4</span>
+      <ul>
+        <li><span class="ic ok"><svg class="i s"><use href="#ok"/></svg></span><span class="bd"><span class="nm">Family NAS movies and home videos</span><span class="pt">\\nas-01\media\vi…\movies\by-year</span></span><span class="ic"><svg class="i s"><use href="#lock"/></svg></span><span class="ic"><svg class="i s"><use href="#copy"/></svg></span></li>
+        <li><span class="ic ok"><svg class="i s"><use href="#ok"/></svg></span><span class="bd"><span class="nm">4K shelf</span><span class="pt">E:\Library\Movies</span></span><span class="ic mg"><span class="tip">Managed: Library can organize and rename files here</span><svg class="i s"><use href="#edit"/></svg></span><span class="ic"><svg class="i s"><use href="#copy"/></svg></span></li>
+        <li><span class="ic wn"><svg class="i s"><use href="#warn"/></svg></span><span class="bd"><span class="nm">Archive</span><span class="pt">Z:\Archive\Films</span><span class="why">Folder not found. Is the drive connected?</span></span><span class="ic"><svg class="i s"><use href="#lock"/></svg></span><span class="ic"><svg class="i s"><use href="#copy"/></svg></span></li>
+      </ul><div class="ft"><span class="btn t c">Close</span></div></div></div>
+  </div></div>
+  <ul class="notes">
+    <li><b class="n">1</b><span>Green check: Library can reach the folder. It replaces the word "Online".</span></li>
+    <li><b class="n">2</b><span>Name and path are one line each. A long path is shortened in the middle so its end stays readable; pointing at it shows the whole path in a tooltip that wraps and is never cut off (the tooltip itself comes from the shared look plan).</span></li>
+    <li><b class="n">3</b><span>Grey lock means Read-only, purple pencil means Managed. Each icon has a tooltip and a spoken name, so meaning never depends on color.</span></li>
+    <li><b class="n">4</b><span>A folder that cannot be reached swaps the check for an amber triangle, and the reason stays in words under the path.</span></li>
+  </ul>
+</section>
+
+<section class="sec" id="libraries">
+  <div class="sech"><h2>4. Libraries: only what you set up, and the card as approved</h2><span class="iss">#865 · #696 · question 3</span></div>
+  <div class="scroll">
+    <div class="pg">
+      <span class="mk" style="left:-10px;top:92px">1</span><span class="mk" style="left:-10px;top:150px">2</span><span class="mk" style="left:-10px;top:712px">3</span><span class="mk" style="left:-10px;top:762px">4</span><span class="mk" style="left:-10px;top:371px">5</span>
+      <div class="pgh"><div><b>Libraries</b><div class="hint">Your collection and the folders that keep it growing.</div></div><span class="btn p">+ Add library</span></div>
+      <div class="card"><h3>In your collection</h3><div class="cells">
+        <div class="cell" style="--c:var(--movies)"><svg><use href="#film"/></svg><b>1,204</b><small>Movies</small></div>
+        <div class="cell" style="--c:var(--tv)"><svg><use href="#tv"/></svg><b>212</b><small>TV Shows</small></div>
+        <div class="cell" style="--c:var(--music)"><svg><use href="#music"/></svg><b>12,410</b><small>Music</small></div>
+        <div class="cell" style="--c:var(--audiobooks)"><svg><use href="#head"/></svg><b>58</b><small>Audiobooks</small></div>
+        <div class="cell" style="--c:var(--books)"><svg><use href="#book"/></svg><b>642</b><small>Books</small></div>
+        <div class="cell" style="--c:var(--view)"><svg><use href="#img"/></svg><b>8,426</b><small>Photos and videos</small></div>
+      </div></div>
+      <div class="frow"><span class="chip on">All 6</span><span class="chip">Watch 2</span><span class="chip">Listen 2</span><span class="chip">Read 1</span><span class="chip">View 1</span><span class="fld" style="width:220px;height:36px;color:var(--muted);margin-left:auto">Search libraries</span></div>
+      <table>
+        <tr><th>LIBRARY</th><th>AREA</th><th>IN COLLECTION</th><th>FOLDERS</th><th>STATUS</th><th></th></tr>
+        <tr><td><span class="tile" style="--c:var(--muted)"><svg class="i s"><use href="#folder"/></svg></span><b>Import folder</b></td><td><span class="tag" style="--c:var(--muted)">All media</span></td><td style="color:var(--muted)">Nothing waiting</td><td><span class="lnk">Choose a folder</span></td><td><span class="st" style="color:var(--warn)">Not set</span></td><td><span class="btn c">Edit</span></td></tr>
+        <tr><td><span class="tile" style="--c:var(--movies)"><svg class="i s"><use href="#film"/></svg></span><b>Movies</b></td><td><span class="tag" style="--c:var(--watch)">Watch</span></td><td>1,204 movies</td><td><span class="lnk">3 folders ⌄</span></td><td><span class="st"><svg class="i xs" style="color:var(--ok)"><use href="#ok"/></svg>Up to date</span></td><td><span class="btn c">Edit</span></td></tr>
+        <tr><td><span class="tile" style="--c:var(--tv)"><svg class="i s"><use href="#tv"/></svg></span><b>TV Shows</b></td><td><span class="tag" style="--c:var(--watch)">Watch</span></td><td>212 shows</td><td><span class="lnk">1 folder ⌄</span></td><td><span class="st"><svg class="i xs" style="color:var(--ok)"><use href="#ok"/></svg>Up to date</span></td><td><span class="btn c">Edit</span></td></tr>
+        <tr><td><span class="tile" style="--c:var(--music)"><svg class="i s"><use href="#music"/></svg></span><b>Music</b></td><td><span class="tag" style="--c:var(--listen)">Listen</span></td><td>12,410 tracks</td><td><span class="lnk">1 folder ⌄</span></td><td><span class="st"><svg class="i xs" style="color:var(--ok)"><use href="#ok"/></svg>Up to date</span></td><td><span class="btn c">Edit</span></td></tr>
+        <tr><td><span class="tile" style="--c:var(--audiobooks)"><svg class="i s"><use href="#head"/></svg></span><b>Audiobooks</b></td><td><span class="tag" style="--c:var(--listen)">Listen</span></td><td>58 audiobooks</td><td><span class="lnk">1 folder ⌄</span></td><td><span class="st"><svg class="i xs" style="color:var(--ok)"><use href="#ok"/></svg>Up to date</span></td><td><span class="btn c">Edit</span></td></tr>
+        <tr><td><span class="tile" style="--c:var(--books)"><svg class="i s"><use href="#book"/></svg></span><b>Books</b></td><td><span class="tag" style="--c:var(--read)">Read</span></td><td>642 books</td><td><span class="lnk">2 folders ⌄</span></td><td><span class="st"><svg class="i xs" style="color:var(--ok)"><use href="#ok"/></svg>Up to date</span></td><td><span class="btn c">Edit</span></td></tr>
+        <tr><td><span class="tile" style="--c:var(--view)"><svg class="i s"><use href="#img"/></svg></span><b>Photos and videos</b></td><td><span class="tag" style="--c:var(--view)">View</span></td><td>8,426 photos and videos</td><td><span class="lnk">2 folders ⌄</span></td><td><span class="st"><svg class="i xs" style="color:var(--ok)"><use href="#ok"/></svg>Up to date</span></td><td><span class="btn c">Edit</span></td></tr>
+        <tr class="gone"><td colspan="6">Not listed any more: Photos · 0 folders, Personal videos · 0 folders, Documents · 0 folders, Comics · 0 folders</td></tr>
+      </table>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b class="n">1</b><span>The card is a row of equal cells: icon above, then the count, then the kind's name. It wraps to a second row when there are more kinds than fit, and shows two per row on a phone.</span></li>
+    <li><b class="n">2</b><span>Each kind has its own color from the design system: movies, TV, music, audiobooks, books, comics and documents. A kind without one (such as Photos and videos) uses its area's color. The icon on each table row uses the same color as its cell in the card, so Audiobooks is green in both places. The area tag (Watch, Listen, Read, View) keeps the area color.</span></li>
+    <li><b class="n">3</b><span>Photos and Personal videos are one row, "Photos and videos", with one Edit window listing all of its folders. Documents stays its own row once it has a folder.</span></li>
+    <li><b class="n">4</b><span>A library with no folders is not listed, here or in setup. The struck-through line is only to show what disappears; it is not part of the screen. Add library is how a library appears. The chip counts and the card count only what is listed.</span></li>
+    <li><b class="n">5</b><span>The Import folder row is the one exception today: it is always listed, even before a folder is chosen, because this row is where you choose it (question 3).</span></li>
+  </ul>
+</section>
+
+<section class="sec" id="setup">
+  <div class="sech"><h2>5. Setup: the Vault step, and Cancel</h2><span class="iss">#855 · #856 · #854</span></div>
+  <div class="scroll"><div class="pair">
+    <div class="setup">
+      <span class="mk" style="left:-10px;top:150px">1</span><span class="mk" style="left:218px;top:28px">2</span><span class="mk" style="left:218px;top:112px">3</span>
+      <div class="steps">
+        <a class="done"><i>✓</i>Your Library</a><a class="done"><i>✓</i>Your profile</a><a class="done"><i>✓</i>Tools</a>
+        <a class="on done"><i>✓</i>Vault<small>On</small></a><a><i>5</i>Libraries</a><a><i>6</i>Metadata</a><a><i>7</i>All set</a>
+      </div>
+      <div class="stage">
+        <h3>Your Vault is on</h3>
+        <p class="hint">It is locked behind your PIN and hidden from Kids profiles.</p>
+        <div class="note">On the next step, press Add library and choose Vault to add a private library.<br><span class="strike">To add a private library, go back to the Libraries step, press Add library and choose the Vault tab.</span></div>
+        <p class="hint">You can turn the Vault off later in Settings.</p>
+        <div class="sfoot"><span class="btn t">Back</span><span class="btn p">Continue</span></div>
+      </div>
+    </div>
+    <div style="position:relative"><div class="cap">Step 1, Network name</div>
+      <span class="mk" style="right:-10px;top:40px">4</span>
+      <div class="host"><div style="flex:1 1 auto;min-width:0"><div class="lbl">Network name</div><div class="fld">library</div></div><span class="btn">Cancel</span></div>
+    </div>
+  </div></div>
+  <ul class="notes">
+    <li><b class="n">1</b><span>The Vault step stays in the list for the person it is offered to, so Back from Libraries lands on it. It shows "On" or "Skipped" beside its name.</span></li>
+    <li><b class="n">2</b><span>After the Vault is on, coming back shows this screen: no second turn-on and no PIN box. After Not now, coming back shows the offer again, so you can change your mind before finishing.</span></li>
+    <li><b class="n">3</b><span>The note points forward to the next step and says "Vault", matching the row in Add library. The struck-through sentence is today's wording, shown only for comparison.</span></li>
+    <li><b class="n">4</b><span>Cancel keeps its full width at every window size, and stays a plain outlined button. Red is kept for actions that delete something.</span></li>
+  </ul>
+</section>
+
+<section class="sec" id="settings-menu">
+  <div class="sech"><h2>6. Settings menu: review count beside Libraries</h2><span class="iss">#867</span></div>
+  <div class="scroll">
+    <div class="menu">
+      <span class="mk" style="right:-10px;top:150px">1</span>
+      <h4>Personal</h4><a><svg class="i s"><use href="#gear"/></svg>Profile</a><a><svg class="i s"><use href="#lock"/></svg>Security &amp; Devices</a>
+      <h4>Library</h4><a class="on"><svg class="i s"><use href="#folder"/></svg>Libraries<span class="pill">8</span></a><a><svg class="i s"><use href="#play"/></svg>Playback</a>
+      <h4>Server</h4><a><svg class="i s"><use href="#gear"/></svg>General</a><a><svg class="i s"><use href="#drive"/></svg>Tools</a>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b class="n">1</b><span>A small amber count at the end of the Libraries row while items wait in Needs Review. Administrators only. It is the same number as the Needs Review tab and the banner, it disappears at zero, and it reads "99+" above 99. Screen readers hear "Libraries, 8 items need review". The row still opens Libraries.</span></li>
+  </ul>
+</section>
+</div>
+
+</body>
+</html>

@@ -117,7 +117,7 @@
     private string EmbeddedProgressStyle =>
         $"width:{EmbeddedProgressPercent.ToString(CultureInfo.InvariantCulture)}%;";
     private string EmbeddedProgressLabel =>
-        $"{EmbeddedProgressPercent}% {ProgressVerb}";
+        $"{EmbeddedProgressPercent}%";
     private string EmbeddedProgressAriaLabel =>
         string.IsNullOrWhiteSpace(Progress?.Label) ? EmbeddedProgressLabel : Progress.Label;
     private string ProgressVerb => Progress?.Kind switch

@@ -438,3 +438,15 @@
         --lc-content-top: calc(var(--lc-topbar) + var(--tl-safe-area-top, 0px) + 1rem + var(--lc-narrow-h) + 1.25rem);
     }
 }
+/* Issue 889: a soft fade from the hero into the page colour, so the first shelf starts cleanly instead of at a hard edge. */
+.cinematic-hero-carousel::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: clamp(5rem, 14vh, 9rem);
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--tl-bg-root));
+}

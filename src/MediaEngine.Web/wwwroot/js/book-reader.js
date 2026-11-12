@@ -836,9 +836,9 @@ export function setAppearance(options) {
 function fitMargins(state) {
     const fit = () => {
         if (state.disposed || !state.view?.renderer) return;
-        const root = state.host.parentElement;
-        const top = root?.querySelector('.br-bar--top')?.offsetHeight ?? 0;
-        const bottom = root?.querySelector('.br-bar--bottom')?.offsetHeight ?? 0;
+        const root = state.host.closest('.rf-shell') ?? state.host.parentElement;
+        const top = root?.querySelector('.rf-bar--top')?.offsetHeight ?? 0;
+        const bottom = root?.querySelector('.rf-bar--bottom')?.offsetHeight ?? 0;
         const margin = Math.max(48, Math.ceil(Math.max(top, bottom)));
         const value = margin + 'px';
         if (state.view.renderer.getAttribute('margin') !== value) state.view.renderer.setAttribute('margin', value);
@@ -972,7 +972,7 @@ function onKey(state, e) {
     if (e.key === 'Escape') { notify(state, 'OnEscape'); e.preventDefault(); return; }
     // Typing in a note box, or moving between buttons with a remote's arrows, belongs to the control, not the page.
     if (e.target?.closest?.('input, select, textarea, [contenteditable="true"]')) return;
-    if (interactive && e.key.startsWith('Arrow') && e.target.closest?.('.br-bar, .br-panel, .br-float')) return;
+    if (interactive && e.key.startsWith('Arrow') && e.target.closest?.('.rf-bar, .rf-panel, .br-float')) return;
     if (state.paused) return;
     switch (e.key) {
         case 'ArrowLeft': view.goLeft(); break;

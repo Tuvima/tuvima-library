@@ -64,7 +64,7 @@ public sealed class PersonalSettingsSimplificationTests
         var settings = ReadRepoFile("src", "MediaEngine.Web", "Models", "ViewDTOs", "EpubReaderDtos.cs");
 
         Assert.Contains("br-theme-{ThemeClass}", source, StringComparison.Ordinal);
-        Assert.Contains("Reading settings", source, StringComparison.Ordinal);
+        Assert.Contains("ReaderTools.Book", source, StringComparison.Ordinal);
         Assert.Contains("SetThemeAsync", source, StringComparison.Ordinal);
         Assert.Contains("Theme {", settings, StringComparison.Ordinal);
         Assert.Contains("ContentWidth {", settings, StringComparison.Ordinal);

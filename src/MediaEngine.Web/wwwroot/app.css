@@ -2925,8 +2925,6 @@ button.app-menu-item {
     :root:root .browse-filter-sheet__apply,
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
-    :root:root .listen-song-table__favorite-button,
-    :root:root .listen-track-grid__favorite,
     :root:root .listen-rail__more,
     :root:root .listen-rail__item,
     :root:root .tl-series-carousel__arrow,
@@ -3075,7 +3073,6 @@ button.app-menu-item {
 }
 
 /* Tablets: check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle {
     position: relative;
     display: inline-flex;
@@ -3084,7 +3081,6 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
     position: absolute;
     inset: 0;
@@ -3094,7 +3090,6 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input[ty
     opacity: 0;
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle span::before {
     content: "";
     display: inline-block;
@@ -3106,21 +3101,14 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle span::be
     vertical-align: -4px;
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary);
 }
 
-html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
 html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
     outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
-}
-
-/* The queue button's size is forced in AudioItemTable's own styles, so tablets raise it through this value. */
-html[data-form-factor="tablet"] .tl-detail-page {
-    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
 }
 
 /* Page-scoped component rules (a class plus a scope attribute) tie with the :root:root selectors above and are
@@ -3134,9 +3122,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
     :root:root:root .view-tile__select-control,
     :root:root:root .view-date-group__select,
     :root:root:root .listen-button,
-    :root:root:root .listen-detail__edit,
-    :root:root:root .app-overflow-menu__trigger--icon,
-    :root:root:root .listen-song-table__sort-header {
+    :root:root:root .app-overflow-menu__trigger--icon {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
@@ -3166,18 +3152,6 @@ html[data-form-factor="tablet"] .tl-detail-page {
         align-items: center;
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
-    }
-
-    :root:root:root .listen-song-table__meta a {
-        display: inline-flex;
-        align-items: center;
-        min-height: var(--tl-tap-target-min);
-    }
-
-    /* Column resizing is a mouse affordance for the desktop form factor. */
-    :root:root:root .listen-song-table__resizer,
-    :root:root:root .listen-column-resizer {
-        display: none;
     }
 }
 
@@ -3373,25 +3347,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
         box-sizing: border-box;
         padding-right: var(--tl-tap-target-min);
     }
-}
-
-/* The playlist row's play button overlays its artwork (hover or focus reveals it); the scoped page styles cannot reach it. */
-.listen-playlist-track-row__art-play {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: var(--tl-bg-overlay);
-    color: var(--tl-text-primary);
-    opacity: 0;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.listen-playlist-track-row__art:hover .listen-playlist-track-row__art-play,
-.listen-playlist-track-row__art:focus-within .listen-playlist-track-row__art-play {
-    opacity: 1;
 }
 
 /* Browse filter sheet (phones): the Filters button and the sheet's sticky Clear / Show footer. */
@@ -5606,67 +5561,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-source-link {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-/* Details page, phone pass: track lists fit the screen as two-line rows instead of a sideways-scrolling table. */
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio {
-    height: auto;
-    max-height: none;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__table {
-    width: 100%;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row {
-    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
-    grid-template-areas:
-        "ordinal title duration actions"
-        "ordinal status status actions";
-    align-items: center;
-    column-gap: 0.5rem;
-    min-height: 56px;
-    padding-inline: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal {
-    grid-area: ordinal;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal > span:not([class]) {
-    position: static;
-    font-size: var(--tl-font-size-xs);
-    line-height: 1;
-    opacity: 0.7;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__title {
-    grid-area: title;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__duration {
-    grid-area: duration;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__status {
-    grid-area: status;
-    justify-self: start;
-    min-width: 0;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row > .playback-tooltip-owner {
-    grid-area: actions;
-    justify-self: center;
-}
-
 /* Check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
     position: relative;
     display: inline-flex;
@@ -5675,7 +5570,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
     position: absolute;
     inset: 0;
@@ -5685,7 +5579,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[typ
     opacity: 0;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::before {
     content: "";
     display: inline-block;
@@ -5697,21 +5590,14 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::bef
     vertical-align: -4px;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
     outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
-}
-
-/* The queue button's size is forced in AudioItemTable's own styles, so phones raise it through this value. */
-html[data-form-factor="phone"] .tl-detail-page {
-    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
 }
 
 /* Works, tracks and collection rails (person, universe, album): the same peek sizing as Home's shelves. */

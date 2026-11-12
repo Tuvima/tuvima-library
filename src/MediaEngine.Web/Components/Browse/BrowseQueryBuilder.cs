@@ -120,6 +120,21 @@ public static class BrowseQueryBuilder
         _ => ("dateAdded", true),
     };
 
+    /// <summary>The same choice as <see cref="SongTableSort"/>, as the shared song table's own sort state.</summary>
+    public static MediaEngine.Web.Components.Listen.SongSortState SongListSort(string? sort)
+    {
+        var (column, descending) = SongTableSort(sort);
+        var songColumn = column switch
+        {
+            "title" => MediaEngine.Web.Components.Listen.SongColumn.Song,
+            "artist" => MediaEngine.Web.Components.Listen.SongColumn.Artist,
+            "album" => MediaEngine.Web.Components.Listen.SongColumn.Album,
+            "plays" => MediaEngine.Web.Components.Listen.SongColumn.Plays,
+            _ => MediaEngine.Web.Components.Listen.SongColumn.DateAdded,
+        };
+        return new MediaEngine.Web.Components.Listen.SongSortState(songColumn, descending);
+    }
+
     public static IReadOnlyList<(string Value, string Label)> GetSortOptions(string activeTabId, string grouping) =>
         IsSongsList(activeTabId, grouping)
             ? [

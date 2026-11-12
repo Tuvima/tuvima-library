@@ -1583,7 +1583,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{createdId:D}\")", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{playlistId:D}\")", browseSource, StringComparison.Ordinal);
-        Assert.True(legacyMarkup.Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 3);
+        Assert.True(legacyMarkup.Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 2);
         Assert.DoesNotContain("_playlistActionsMenuOpen", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("_playlistActionsCollectionId", legacySource, StringComparison.Ordinal);
         Assert.Contains("@onclick:stopPropagation=\"true\"", menuSource, StringComparison.Ordinal);

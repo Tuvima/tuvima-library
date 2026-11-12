@@ -273,7 +273,7 @@ public sealed class CollectionEndpointRouteTests
         Assert.DoesNotContain("parent_value.key IN ('show_name', 'title')", source, StringComparison.Ordinal);
         Assert.Contains("catalogReadService.ResolveMembershipWorkIdAsync(body.WorkId, ct)", source, StringComparison.Ordinal);
         Assert.Contains("existingDisplayWorkIds.Contains(collectionWorkId)", source, StringComparison.Ordinal);
-        Assert.Contains("GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct)", source, StringComparison.Ordinal);
+        Assert.Contains("GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct, ownedWorkIds)", source, StringComparison.Ordinal);
         Assert.Contains("GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id)", source, StringComparison.Ordinal);
         Assert.Contains("IsGeneratedTvShowContainer", source, StringComparison.Ordinal);
         Assert.Contains("mediaCounts.WatchCount == mediaCounts.TvCount", source, StringComparison.Ordinal);

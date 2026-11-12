@@ -1,0 +1,164 @@
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>My List mockups</title>
+<style>
+/* Layout: a stack of real-size app screens, each in its own sideways-scrolling strip, with numbered notes under it. Single dark look: the app is dark only. */
+:root{color-scheme:dark;--out:#0b0c0f;--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--text:#F7F7FA;--sub:#9EA4BC;--line:#30364A;--accent:#8852FC;--accent2:#A46FFF;--gold:#E7B93C;--mark:#F2C14E;--ui:"Montserrat",system-ui,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{background:var(--out);color:var(--text);font:14px/1.5 system-ui,"Segoe UI",Roboto,sans-serif;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1480px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px;text-wrap:balance}h2{font-size:17px;margin:44px 0 4px;text-wrap:balance}
+.lead{color:var(--sub);max-width:900px;margin:0 0 10px}
+.scroll{overflow-x:auto;padding:12px 2px 10px}
+ol.notes{max-width:920px;color:#d5d7e2;padding-left:26px;margin:8px 0 0}ol.notes li{margin:5px 0}
+.mk{font-style:normal;position:absolute;z-index:9;width:22px;height:22px;border-radius:50%;background:var(--mark);color:#101115;font:700 12px/22px system-ui;text-align:center;box-shadow:0 0 0 2px #101115;top:-10px;right:-10px}
+.rel{position:relative}
+/* app screen */
+.screen{position:relative;background:var(--page);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-family:var(--ui);flex:none}
+.top{height:56px;background:var(--nav);display:flex;align-items:center;gap:28px;padding:0 32px;color:var(--sub);font-size:14px;font-weight:500}
+.top .logo{color:#fff;font-size:18px;font-weight:700;margin-right:8px}.top .on{color:#fff}
+.top .sp{flex:1}.top .ic{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;position:relative}
+.top .tools{display:flex;gap:4px;align-items:center}
+.av{width:32px;height:32px;border-radius:50%;background:#3d6ad6;color:#fff;font:700 13px/32px system-ui;text-align:center}
+svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.f{fill:currentColor;stroke:none}
+.gold{color:var(--gold)}
+.body{padding:28px 32px 0}
+.h{font-size:28px;font-weight:700;line-height:1.2}.cnt{color:var(--sub);margin:2px 0 18px;font-size:14px}
+.bar{display:flex;align-items:center;gap:8px;margin-bottom:20px;min-height:44px}
+.chip{height:36px;padding:0 14px;border-radius:8px;background:var(--card);color:#d5d7e2;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:500;white-space:nowrap;position:relative}
+.chip b{font-weight:500;color:var(--sub)}.chip.on{background:#fff;color:#101115}.chip.on b{color:#55586a}
+.grow{flex:1}
+.sel{height:44px;padding:0 12px 0 14px;border-radius:8px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:10px;font-size:14px;position:relative;white-space:nowrap}
+.btn{height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;position:relative;white-space:nowrap}
+.btn.solid{background:#fff;color:#101115;border-color:#fff}.btn.txt{border-color:transparent}
+.ib{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;position:relative}
+.grid{display:flex;flex-wrap:wrap;gap:16px}
+.t{width:214px;height:321px;border-radius:8px;position:relative;overflow:hidden;flex:none;display:flex;align-items:flex-end;padding:14px;font-weight:700;font-size:20px;line-height:1.15;color:#fff;text-shadow:0 1px 6px #0009}
+.t.sq{width:321px}.t small{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
+.t .dots{position:absolute;top:2px;right:0;width:44px;height:44px;display:grid;place-items:center;filter:drop-shadow(0 1px 3px #000c)}
+.t.hov{outline:2px solid var(--accent);outline-offset:0}
+.t .lab{position:absolute;left:0;bottom:0;background:#101115e6;font-size:12px;font-weight:600;padding:3px 8px;border-top-right-radius:6px;text-shadow:none}
+.t .tick{position:absolute;top:10px;left:10px;width:24px;height:24px;border-radius:6px;border:2px solid #fff;background:#0006}
+.t .tick.on{background:var(--accent);border-color:var(--accent);display:grid;place-items:center}.t .tick svg{width:16px;height:16px;stroke-width:3}
+.t.dim{opacity:.55}
+.over{overflow:visible}
+.menu{position:absolute;background:var(--menu);border-radius:12px;padding:8px 0;width:250px;box-shadow:0 10px 30px #000a;z-index:6;font-size:16px;font-weight:500;text-shadow:none;color:var(--text)}
+.mi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;position:relative}.mi.dim{color:var(--sub)}.mdiv{height:1px;background:var(--line);margin:4px 0}
+.undo{display:inline-flex;align-items:center;gap:14px;color:#d5d7e2;margin:-8px 0 14px;position:relative}.undo u{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.selbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;min-height:44px;font-weight:600}
+.empty{padding:70px 0 90px;text-align:center}.empty .e1{font-size:20px;font-weight:700}.empty .e2{color:var(--sub);margin:6px 0 20px}
+.rowh{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 12px}.rowh b{font-size:20px}.rowh span{color:var(--sub);font-weight:600;position:relative}
+.cont{display:flex;gap:16px}.land{width:330px;flex:none}.land div{height:186px;border-radius:8px;position:relative;overflow:hidden}.land div i{position:absolute;left:0;bottom:0;height:4px;background:var(--accent)}.land p{margin:8px 0 0;font-weight:600}.land p span{display:block;color:var(--sub);font-weight:500;font-size:13px}
+.fade{height:40px;margin-top:-40px;position:relative;background:linear-gradient(#10111500,var(--page))}
+/* hero strips */
+.hero{width:640px;height:150px;border-radius:10px;border:1px solid var(--line);background:linear-gradient(100deg,#101115 30%,#2b3a55);padding:22px 28px;font-family:var(--ui);flex:none;position:relative}
+.hero h3{margin:0 0 14px;font-size:22px}.hrow{display:flex;gap:14px;align-items:center}
+.play{height:48px;width:200px;border-radius:8px;background:#fff;color:#101115;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
+.comp{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:#d5d7e2;width:64px;position:relative}.comp .ib{border:1px solid #ffffff55}
+.pbar{width:640px;height:72px;border-radius:10px;border:1px solid var(--line);background:#000;display:flex;align-items:center;gap:6px;padding:0 18px;font-family:var(--ui);flex:none}
+.pbar .ti{flex:1;font-weight:600}.pbar .ti span{display:block;color:var(--sub);font-weight:500;font-size:12px}
+.strip{display:flex;gap:24px;align-items:flex-start}
+.opt{font-family:var(--ui);border:1px solid var(--line);border-radius:10px;padding:14px 18px;background:var(--page);flex:none}.opt p{margin:0 0 8px;color:var(--sub);font-family:system-ui}.opt .hrow{gap:22px}
+/* phone */
+.phones{display:flex;gap:28px}
+.phone{width:390px;height:860px;border-radius:26px}
+.ptop{height:52px;display:flex;align-items:center;padding:0 8px 0 16px;font-size:18px;font-weight:700}
+.phone .body{padding:4px 16px 0}.phone .h{font-size:24px}.phone .cnt{margin-bottom:12px}
+.phone .bar{overflow:hidden;margin:0 -16px 14px 0;padding-top:8px}.phone .grid{gap:10px}
+.phone .t{width:112px;height:168px;font-size:12px;padding:8px;border-radius:6px}.phone .t.sq{width:168px}.phone .t small{font-size:8px}
+.phone .t .dots{width:36px;height:40px}.phone .t .dots svg{width:18px;height:18px}
+.dock{position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--nav);display:flex;justify-content:space-around;align-items:center;font-size:11px;color:var(--sub);font-weight:600}
+.dock span{display:flex;flex-direction:column;align-items:center;gap:2px}.dock .on{color:#fff}
+.scrim{position:absolute;inset:0;background:#0009;z-index:4}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:16px 16px 0 0;z-index:5;padding:8px 0 20px;font-size:16px;font-weight:500}
+.sheet:before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:#ffffff55;margin:4px auto 10px}
+.sheet h4{margin:0;padding:6px 20px 8px;font-size:16px}.sheet .mi{height:52px;padding:0 20px}
+.t>.mk{top:8px;right:auto;left:8px}.t .dots .mk{top:36px;right:11px}
+.h .mk{right:-30px;top:8px}.undo .mk{right:-30px;top:0}
+.rowh b .mk{right:-30px;top:4px}.rowh span .mk{right:auto;left:-30px;top:0}
+.ptop .mk{top:32px;right:11px}.sheet .mk{right:20px;top:15px}.phone .chip .mk{top:-8px;right:-6px}
+.ph{display:flex;align-items:center;gap:16px;margin-bottom:22px}.ph .av{width:56px;height:56px;font:700 22px/56px system-ui;flex:none}.ph .cnt{margin:0}
+.lnk{color:#d5d7e2;font-weight:600;font-size:14px;height:44px;display:inline-flex;align-items:center;padding:0 10px;position:relative;white-space:nowrap}
+.sech{font-size:20px;font-weight:700;margin:0 0 12px;position:relative;display:inline-block}.cont{margin-bottom:28px}
+.phone .ph{gap:12px;margin-bottom:6px}.phone .ph .av{width:44px;height:44px;font:700 18px/44px system-ui}.plinks{display:flex;margin:0 -10px 10px}.phone .lnk{font-size:13px;padding:0 9px}
+.phone .cont{gap:10px;overflow:hidden;margin:0 -16px 18px 0}.phone .land{width:200px}.phone .land div{height:112px}.phone .land p{font-size:13px}.phone .land p span{font-size:12px}.phone .sech{font-size:17px;margin-bottom:8px}
+.sech .mk{right:-30px;top:2px}.lnk .mk{top:0;right:-6px}
+.psel{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:16px 16px 0 0;padding:14px 16px 18px;display:flex;align-items:center;gap:8px;font-weight:600;z-index:5}.psel .btn{height:44px;padding:0 12px;font-size:13px}.psel .mk{top:0;right:-28px}
+.phone .t .tick{top:6px;left:6px;width:22px;height:22px}
+</style>
+<div class="wrap">
+<h1>My List mockups</h1>
+<p class="lead">Mockups for the My List spec (My Library and My List merged into one page). Every screen is the real layout the build will produce, drawn at its real width; swipe or scroll a screen sideways if it is wider than your window. Yellow numbers match the notes under each screen. Titles and covers are made up.</p>
+<div id="out"></div>
+</div>
+<script>
+const I={
+ search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+ bm:'<svg viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4z"/></svg>',
+ bmf:'<svg class="f" viewBox="0 0 24 24"><path d="M6 3h12v19l-6-4-6 4z"/></svg>',
+ dots:'<svg class="f" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+ hd:'<svg class="f" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+ dn:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+ plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+ chk:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ minus:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>',
+ play:'<svg class="f" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
+ heart:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z"/></svg>',
+ up:'<svg viewBox="0 0 24 24"><path d="M7 11v9H4v-9zM7 11l4-7c1.5 0 2.5 1 2.5 2.5V10H19a2 2 0 012 2.3l-1 6A2 2 0 0118 20H7"/></svg>',
+ sort:'<svg viewBox="0 0 24 24"><path d="M4 7h16M7 12h10M10 17h4"/></svg>',
+ home:'<svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>',
+ lib:'<svg viewBox="0 0 24 24"><path d="M5 4v16M9 4v16M13 5l5 14"/></svg>',
+ restart:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 108-8H7M10 1L7 4l3 3"/></svg>',
+ edit:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+ bin:'<svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>',
+ back:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>'};
+const mk=n=>n?`<i class="mk">${n}</i>`:'';
+const T=[['Movie','The Long Tide','#31506e','#0e1b2c'],['TV show','Harbor Lights','#6a3d5c','#1d1220'],['Book','A Field of Glass','#3f6b4f','#132018'],['Album','Night Drive','#7a4a1f','#24150a',1],['Movie','Paper Kingdom','#7d2f3a','#220d11'],['Audiobook','The Salt Road','#2f5f6b','#0c1c20'],['Comic','Starling #1','#5a4a8a','#17122a'],['Movie','Northern Line','#41506b','#111622'],['Collection','Heist Night','#6b5a2a','#1c170a'],['TV show','Small Hours','#2e4c7a','#0c1424'],['Book','The Orchard Year','#70502f','#1f150b'],['Movie','Glass Harbor','#35635f','#0d1c1a'],['Playlist','Slow Sunday','#5d3a70','#1a1021',1],['Movie','Second Summer','#84552a','#24160a']];
+const tile=(i,o={})=>{const t=T[i];return `<div class="t${t[4]?' sq':''}${o.cls?' '+o.cls:''}" style="background:linear-gradient(160deg,${t[2]},${t[3]})">${o.tick!=null?`<span class="tick${o.tick?' on':''}">${o.tick?I.chk:''}</span>`:`<span class="dots">${I.dots}${mk(o.dm)}</span>`}<span><small>${t[0]}</small>${t[1]}</span>${o.lab?`<span class="lab">${o.lab}</span>`:''}${mk(o.m)}${o.extra||''}</div>`};
+const topbar=(o={})=>`<div class="top"><b class="logo">Library</b><span${o.home?' class="on"':''}>Home</span><span>Read</span><span>Watch</span><span>Listen</span><span>View</span><span>Collections</span><span class="sp"></span><span class="tools"><span class="ic">${I.search}</span><span class="ic${o.open?' gold':''}">${o.open?I.bmf:I.bm}${mk(o.bm)}</span><span class="ic"><span class="av">S</span>${mk(o.av)}</span></span></div>`;
+const chips=(on,m)=>[['All',23],['Movies',9],['TV shows',4],['Books',3],['Comics',1],['Audiobooks',2],['Albums',2],['Collections',1],['Playlists',1]].map((c,i)=>`<span class="chip${i==on?' on':''}">${c[0]} <b>${c[1]}</b>${i==1?mk(m):''}</span>`).join('');
+const tools=(o={})=>`<span class="sel">Date added ${I.dn}${mk(o.s)}</span><span class="btn">Select${mk(o.sel)}</span><span class="ib">${I.hd}${mk(o.pm)}</span>`;
+const CONT=[['Harbor Lights','S1 E4 · The Ferry','#6a3d5c',60],['The Long Tide','2h 04m · 2024','#31506e',35],['The Salt Road','Chapter 12','#2f5f6b',72],['Small Hours','S2 E1 · Arrivals','#2e4c7a',15]];
+const contRow=()=>`<div class="cont">${CONT.map(c=>`<div class="land"><div style="background:linear-gradient(160deg,${c[2]},#0e1016)"><i style="width:${c[3]}%"></i></div><p>${c[0]}<span>${c[1]}</span></p></div>`).join('')}</div>`;
+const LINKS=(a,b)=>`<span class="lnk">Activity${mk(a)}</span><span class="lnk">Liked</span><span class="lnk">Switch profile${mk(b)}</span><span class="lnk">Settings</span>`;
+const head=(c,m,o={})=>`<div class="ph"><span class="av">S</span><div><div class="h rel" style="display:inline-block">My List${mk(m)}</div><div class="cnt">Shy</div></div>${o.phone?'':`<span class="grow"></span>${LINKS(o.a,o.b)}`}</div>${o.phone?`<div class="plinks">${LINKS(o.a,o.b)}</div>`:''}${o.cont?`<div class="sech">Continue${mk(o.c)}</div>${contRow()}`:''}${c?`<div class="cnt" style="margin-bottom:12px">${c}</div>`:''}`;
+const scr=(w,h,inner,cls='')=>`<div class="scroll"><div class="screen ${cls}" style="width:${w}px;height:${h}px">${inner}</div></div>`;
+const sec=(t,lead,html,notes)=>`<h2>${t}</h2><p class="lead">${lead}</p>${html}<ol class="notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ol>`;
+const pick=a=>a.map(x=>typeof x=='number'?tile(x):tile(x[0],x[1])).join('');
+let H='';
+H+=sec('M1 · My List, 1440 wide','Desktop. The one personal page: the top-bar bookmark opens it, and it replaces My Library.',
+ scr(1440,1210,topbar({open:1,bm:1})+`<div class="body">${head('23 titles',2,{cont:1,a:9,b:10,c:11})}<div class="bar">${chips(0,3)}<span class="grow"></span>${tools({s:4,sel:5,pm:6})}</div><div class="grid">${pick([[0,{dm:7}],1,2,[3,{m:8}],4,5,6,7,8,9,10])}</div></div>`),
+ ['The bookmark is gold while My List is open. Pressing it again returns to Home, as today.','The page is called My List and shows whose it is. The count of saved titles sits just above the chips.','Chips narrow the list by kind. Only kinds you have saved appear, each with its count. All is picked by default.','Sort: Date added (newest first, the default), Title, Release year. Your choice is remembered.','Select lets you tick several covers and remove them together (screen M4).','The page menu holds Remove finished (screen M4b).','Every cover keeps its "..." menu, with Remove from My List first (screen M3). No text sits under covers, as everywhere else.','Albums and playlists are square at the same height as posters, the standard mixed-row rule.','Activity opens your full watch, read and listen history. Liked opens the titles you marked Like. Both are the lists that exist today; they are links here so they do not compete with the list.','Switch profile and Settings, as on My Library today (each shows only when it applies to you).','Continue shows what you are part way through, and is hidden when nothing is in progress. Screens M2 to M5 show a profile with nothing in progress.']);
+H+=sec('M2 · A chip picked, 1280 wide','Desktop. Movies only.',
+ scr(1280,820,topbar({open:1})+`<div class="body">${head('9 movies',1)}<div class="bar">${chips(1,2)}<span class="grow"></span>${tools()}</div><div class="grid">${pick([0,4,7,11,13,0,4,7,11])}</div></div>`),
+ ['The count line follows the chip.','The picked chip is the light one. Pressing All shows everything again. The chip is kept in the address, so Back works.']);
+H+=sec('M3 · A cover\'s menu, 1024 wide','Desktop at the narrowest desktop width. The "..." on the second cover has been pressed.',
+ scr(1024,800,topbar({open:1})+`<div class="body">${head('23 titles')}<div class="bar" style="overflow:hidden">${chips(0)}</div><div class="bar" style="margin-top:-10px"><span class="grow"></span>${tools()}</div><div class="grid over">${tile(0)}<div class="rel">${tile(1,{cls:'hov'})}<div class="menu" style="top:44px;left:170px"><div class="mi">${I.minus}Remove from My List${mk(1)}</div><div class="mi">${I.restart}Restart</div><div class="mdiv"></div><div class="mi">${I.edit}Edit</div><div class="mi">${I.bin}Delete${mk(2)}</div></div></div>${pick([2,4,5,6,7,9])}</div></div>`),
+ ['Remove from My List is always the first row.','The other rows are whatever that cover already offers to this person (Restart once started, Edit on a desktop, Delete for administrators). Nothing new is added.','At 1024 wide the chips sit on their own line above Sort, Select and the page menu, so nothing is squeezed.']);
+H+=sec('M3b · Just after removing, 1024 wide','The top of the same page a moment after choosing Remove from My List.',
+ scr(1024,420,topbar({open:1})+`<div class="body">${head('22 titles')}<div class="undo">Removed from My List. <u>Undo</u>${mk(1)}</div><div class="bar" style="overflow:hidden">${chips(0)}</div><div class="bar" style="margin-top:-10px"><span class="grow"></span>${tools()}</div><div class="grid" style="height:120px;overflow:hidden">${pick([0,2,4,5])}</div></div>`),
+ ['No "are you sure". The cover leaves and this line shows for about ten seconds. Undo puts the title back where it was. After several at once it reads "3 titles removed from My List. Undo".']);
+H+=sec('M4 · Select, 1280 wide','Desktop and tablet. The phone version is in M8. Select has been pressed and three covers ticked.',
+ scr(1280,820,topbar({open:1})+`<div class="body">${head('23 titles')}<div class="selbar"><span class="rel">3 selected${mk(1)}</span><span class="grow"></span><span class="btn solid">${I.minus}Remove from My List${mk(2)}</span><span class="btn txt">Cancel${mk(3)}</span></div><div class="grid">${pick([[0,{tick:1}],[1,{tick:0}],[2,{tick:1}],[3,{tick:0}],[4,{tick:1}],[5,{tick:0}],[6,{tick:0}],[7,{tick:0}],[8,{tick:0}]])}</div></div>`),
+ ['While selecting, this bar replaces the chips and Sort. Pressing a cover ticks it instead of opening it.','Removes the ticked titles and shows the Undo line from M3b.','Cancel, or the Escape key, leaves Select without changing anything.']);
+H+=sec('M4b · The page menu, 1280 wide','The "..." at the top right has been pressed.',
+ scr(1280,330,topbar({open:1})+`<div class="body">${head('23 titles')}<div class="bar">${chips(0)}<span class="grow"></span>${tools()}</div><div class="menu" style="top:196px;right:32px"><div class="mi">${I.chk}Remove finished${mk(1)}</div></div></div>`),
+ ['Removes every title on the list you have finished: movies, books, comics and audiobooks you completed, and shows you have fully watched. It shows the Undo line afterwards. When nothing is finished, the row is gray and reads "Nothing finished yet".']);
+H+=sec('M5 · Empty, 1280 wide','A profile that has not saved anything yet.',
+ scr(1280,440,topbar({open:1})+`<div class="body">${head('')}<div class="empty"><div class="e1">Your list is empty</div><div class="e2">Press + on any title to save it for later.</div><span class="btn solid rel">Browse Home${mk(1)}</span></div></div>`),
+ ['One button back to Home. No chips, Sort or Select while the list is empty. The page heading and its links stay.']);
+H+=sec('M6 · Home row, 1440 wide','The top of Home below the hero. The row appears only when the list has something in it.',
+ scr(1440,820,topbar({home:1})+`<div class="body" style="padding-top:6px"><div class="rowh"><b>Continue</b></div><div class="cont">${[['Harbor Lights','S1 E4 · The Ferry','#6a3d5c',60],['The Long Tide','2h 04m · 2024','#31506e',35],['The Salt Road','Chapter 12','#2f5f6b',72],['Small Hours','S2 E1 · Arrivals','#2e4c7a',15]].map(c=>`<div class="land"><div style="background:linear-gradient(160deg,${c[2]},#0e1016)"><i style="width:${c[3]}%"></i></div><p>${c[0]}<span>${c[1]}</span></p></div>`).join('')}</div><div class="rowh"><b class="rel">My List${mk(1)}</b><span>See all${mk(2)}</span></div><div class="grid" style="flex-wrap:nowrap;overflow:hidden">${pick([0,1,2,3,4,5,6])}</div></div>`),
+ ['My List sits directly under Continue, newest first, up to 20 covers.','See all opens the My List page (M1).']);
+H+=sec('M7 · The My List button on titles','One icon everywhere: a plus, which becomes a tick once the title is on your list. Shown on the details page and in the video player.',
+ `<div class="scroll"><div class="strip"><div class="hero"><h3>The Long Tide</h3><div class="hrow"><span class="play">${I.play}Watch</span><span class="comp"><span class="ib">${I.plus}</span>My List${mk(1)}</span><span class="comp"><span class="ib">${I.up}</span>Like</span><span class="comp"><span class="ib">${I.hd}</span>More</span></div></div><div class="hero"><h3>The Long Tide</h3><div class="hrow"><span class="play">${I.play}Watch</span><span class="comp"><span class="ib">${I.chk}</span>My List${mk(2)}</span><span class="comp"><span class="ib">${I.up}</span>Like</span><span class="comp"><span class="ib">${I.hd}</span>More</span></div></div></div></div><div class="scroll"><div class="strip"><div class="pbar"><span class="ti">The Long Tide<span>2024</span></span><span class="ib rel">${I.chk}${mk(3)}</span><span class="ib">${I.hd}</span></div><div class="pbar"><span class="ti">Night Drive · Coastline<span>A song playing</span></span><span class="ib rel">${I.heart}${mk(4)}</span><span class="ib">${I.up}</span><span class="ib">${I.hd}</span></div></div></div><p class="lead" style="margin-top:14px">The three choices for question 2, side by side (not added, then added):</p><div class="scroll"><div class="strip"><div class="opt"><p>A · plus and tick (recommended)</p><div class="hrow"><span class="ib">${I.plus}</span><span class="ib">${I.chk}</span></div></div><div class="opt"><p>B · heart</p><div class="hrow"><span class="ib">${I.heart}</span><span class="ib" style="color:var(--accent2)">${I.heart.replace('<svg','<svg class="f"')}</span></div></div><div class="opt"><p>C · bookmark</p><div class="hrow"><span class="ib">${I.bm}</span><span class="ib">${I.bmf}</span></div></div></div></div>`,
+ ['Not on the list yet: a plus, labeled My List.','On the list: a tick. Pressing it again removes the title. The changed icon is the confirmation; nothing pops up.','The video player uses the same tick or plus for a movie or show. Today it shows a heart here.','A song keeps the heart, because a song goes to Favorites, not My List.']);
+const pt=(a)=>a.map(x=>typeof x=='number'?tile(x):tile(x[0],x[1])).join('');
+const dock=`<div class="dock"><span>${I.home}Home</span><span>${I.search}Search</span><span class="on">${I.bmf}My List</span></div>`;
+const pbody=(m)=>`<div class="ptop"><span class="grow"></span><span class="ib">${I.sort}${mk(m&&2)}</span><span class="ib">${I.hd}${mk(m&&3)}</span></div><div class="body">${head('23 titles',0,{phone:1,cont:1,c:m&&5})}<div class="bar"><span class="chip on">All <b>23</b></span><span class="chip">Movies <b>9</b>${mk(m&&1)}</span><span class="chip">TV shows <b>4</b></span><span class="chip">Books <b>3</b></span></div><div class="grid">${pt([0,1,2,3,4,5,6,7])}</div></div>`;
+H+=sec('M8 · Phone','A 390-wide phone. The third tab at the bottom opens it; the tab is now called My List.',
+ `<div class="scroll"><div class="phones"><div class="screen phone">${pbody(1)}${dock}</div><div class="screen phone">${pbody(0)}<div class="scrim"></div><div class="sheet"><h4>Sort by</h4><div class="mi">${I.chk}Date added${mk(4)}</div><div class="mi"><span style="width:22px"></span>Title</div><div class="mi"><span style="width:22px"></span>Release year</div></div></div><div class="screen phone"><div class="ptop"><span class="grow"></span><span class="ib">${I.sort}</span><span class="ib">${I.hd}</span></div><div class="body">${head('23 titles',0,{phone:1,cont:1})}<div class="bar"><span class="chip on">All <b>23</b></span><span class="chip">Movies <b>9</b></span><span class="chip">TV shows <b>4</b></span><span class="chip">Books <b>3</b></span></div><div class="grid">${pt([[0,{tick:1}],[1,{tick:0}],[2,{tick:1}],[3,{tick:0}],[4,{tick:0}]])}</div></div><div class="psel"><span class="rel">2 selected${mk(6)}</span><span class="grow"></span><span class="btn solid">Remove from My List</span><span class="btn txt">Cancel</span></div></div><div class="screen phone"><div class="ptop"></div><div class="body">${head('',0,{phone:1})}<div class="empty" style="padding-top:110px"><div class="e1">Your list is empty</div><div class="e2">Press + on any title to save it for later.</div><span class="btn solid">Browse Home</span></div></div>${dock}</div></div></div>`,
+ ['Chips scroll sideways. Three covers per row at the phone cover size.','Sort is one button that opens a sheet from the bottom.','The page menu opens as a sheet with two rows: Select and Remove finished. Everything the desktop page can do, the phone can do.','The sheet shows the current sort with a tick.','Continue is a row you swipe sideways; the list follows below it.','Select on a phone (third screen): tap covers to tick them; the bar at the bottom removes the ticked titles or cancels. The Undo line appears afterwards, as on desktop.']);
+document.getElementById('out').innerHTML=H;
+</script>
