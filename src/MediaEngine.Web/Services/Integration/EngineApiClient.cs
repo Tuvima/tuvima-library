@@ -417,14 +417,14 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     }
 
     public async Task<NeedsReviewListAttempt> GetNeedsReviewListAsync(
-        string? kind, string? libraryId, int skip, int take, CancellationToken ct = default)
+        string? libraryId, int skip, int take, bool kept = false, CancellationToken ct = default)
     {
         var query = new Dictionary<string, string?>
         {
             ["skip"] = skip.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["take"] = take.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["kind"] = string.IsNullOrWhiteSpace(kind) ? null : kind,
             ["library"] = string.IsNullOrWhiteSpace(libraryId) ? null : libraryId,
+            ["kept"] = kept ? "true" : null,
         };
         // A failed load is reported, never returned as an empty list.
         var list = await GetAsync<MediaEngine.Contracts.Review.NeedsReviewListDto>("GET /review/queue", "/review/queue", query, ct: ct);
@@ -506,6 +506,21 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "POST /review/{Id}/dismiss failed", id);
+            return false;
+        }
+    }
+
+    public async Task<bool> ReopenReviewItemAsync(Guid id, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.PostAsJsonAsync($"/review/{id}/reopen", new { }, ct);
+            return resp.IsSuccessStatusCode;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /review/{Id}/reopen failed", id);
             return false;
         }
     }

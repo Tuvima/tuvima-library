@@ -237,19 +237,42 @@ public sealed class StageOutcomeFactory
     /// <param name="mediaType">The media type label used in the detail message.</param>
     /// <param name="score">The retail match confidence score.</param>
     /// <param name="ct">Cancellation token.</param>
+    /// <param name="candidates">
+    /// Every candidate the retail stage scored. The top few (up to <see cref="ReviewChoiceCandidates.MaxChoices"/>, best first, none the scorer
+    /// rejected) are kept in the review row's <c>candidates_json</c> so Needs Review can offer them as choices (Needs Review redesign D11).
+    /// A pending row for the same entity is refreshed with them rather than duplicated.
+    /// </param>
+    /// <param name="best">The candidate the stage selected; it is always among the ones kept.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
-    public Task<Guid?> CreateRetailAmbiguousAsync(
+    public async Task<Guid?> CreateRetailAmbiguousAsync(
         Guid entityId,
         string mediaType,
         double score,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IEnumerable<RetailMatchCandidate>? candidates = null,
+        RetailMatchCandidate? best = null)
     {
-        return CreateProvisionalAsync(
+        var candidatesJson = candidates is null && best is null
+            ? null
+            : ReviewChoiceCandidates.ToJson(candidates ?? [], best);
+
+        if (candidatesJson is not null)
+        {
+            var existing = await _reviewRepo.GetByEntityAsync(entityId, ct).ConfigureAwait(false);
+            foreach (var pending in existing.Where(r => r.Status == ReviewStatus.Pending
+                                                        && r.Trigger == ReviewTrigger.RetailMatchAmbiguous))
+            {
+                await _reviewRepo.UpdatePendingCandidatesAsync(pending.Id, candidatesJson, ct).ConfigureAwait(false);
+            }
+        }
+
+        return await CreateProvisionalAsync(
             entityId,
             ReviewTrigger.RetailMatchAmbiguous,
             score,
             $"Retail match found with confidence {score:P0} \u2014 needs confirmation",
-            ct);
+            ct,
+            candidatesJson: candidatesJson).ConfigureAwait(false);
     }
 
     /// <summary>

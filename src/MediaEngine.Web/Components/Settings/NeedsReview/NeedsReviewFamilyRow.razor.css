@@ -1,0 +1,5 @@
+.nr-family { display: block; border-block-start: 1px solid var(--tl-border-default); }
+.nr-family:first-child { border-block-start: 0; }
+.nr-family .nr-row { border-block-start: 0; }
+.nr-family__files { display: block; }
+.nr-family__files .nr-row--child { border-block-start: 1px solid var(--tl-border-default); }

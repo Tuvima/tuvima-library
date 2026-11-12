@@ -561,7 +561,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var unidentified = Row(cut, MoviesId).QuerySelector("a[data-status=not-identified]")!;
         Assert.Equal("12 files not identified", Text(unidentified));
-        Assert.Equal($"/settings/review?library={MoviesId}&show=not-matched", unidentified.GetAttribute("href"));
+        Assert.Equal($"/settings/review?library={MoviesId}", unidentified.GetAttribute("href"));
         var review = Row(cut, MoviesId).QuerySelector("a[data-status=needs-review]")!;
         Assert.Equal("3 need review", Text(review));
         Assert.Equal($"/settings/review?library={MoviesId}", review.GetAttribute("href"));

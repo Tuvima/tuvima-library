@@ -35,6 +35,12 @@ public sealed class ReviewItemDto
     [JsonPropertyName("from_merge")] public bool FromMerge { get; init; }
 }
 
+/// <summary>Body of <c>POST /review/{id}/choose</c>: the id of one of the choices the Needs Review list offered for that row.</summary>
+public sealed class ReviewChooseRequestDto
+{
+    [JsonPropertyName("choice_id")] public string ChoiceId { get; init; } = string.Empty;
+}
+
 public sealed class ReviewResolveRequestDto
 {
     [JsonPropertyName("selected_qid")] public string? SelectedQid { get; init; }

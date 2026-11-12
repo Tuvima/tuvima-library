@@ -1,56 +1,31 @@
-.needs-review-page { display: grid; gap: 1rem; }
-.needs-review-page__search { flex: 1 1 12rem; max-width: 20rem; }
-/* Try again for all / Keep all as they are: two plain text links at the right end of the filter row (the approved mock). */
-.needs-review-page__bulk { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-1); margin-inline-start: auto; color: var(--tl-text-secondary); }
-.review-pinned-empty { display: flex; align-items: center; gap: .65rem; min-height: 3.2rem; padding: .7rem 1rem; color: var(--tl-status-success); border: 1px solid var(--tl-border-default); border-radius: .65rem; background: var(--tl-bg-surface); }
-.review-pinned { overflow-x: auto; border: 1px solid color-mix(in srgb, var(--tl-status-warning) 42%, var(--tl-border-default)); border-radius: .65rem; background: var(--tl-bg-surface); }
+/* The page: a summary sentence, the filters, then the groups (each draws its own list; see NeedsReview/). */
+.needs-review-page { display: block; }
+.needs-review-page__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--tl-space-3); margin-block-end: var(--tl-space-4); }
+.needs-review-page__count { font-size: var(--tl-font-size-lg); font-weight: var(--tl-font-weight-semibold); }
+.needs-review-page__hint { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.needs-review-page__search { flex: 1 1 200px; min-inline-size: 0; max-inline-size: 420px; }
+.needs-review-page__note { display: flex; align-items: center; gap: 10px; margin-block-end: var(--tl-space-3); padding: 10px 14px; border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.needs-review-page__note > :first-child { flex: none; color: var(--tl-status-info); }
+.needs-review-page__note > :last-child { margin-inline-start: auto; white-space: nowrap; }
+.needs-review-page__empty { display: grid; justify-items: center; gap: var(--tl-space-1); padding: 70px var(--tl-space-5); text-align: center; color: var(--tl-text-secondary); }
+.needs-review-page__empty > :first-child { margin-block-end: var(--tl-space-2); color: var(--tl-status-success); }
+.needs-review-page__empty strong { color: var(--tl-text-primary); font-size: var(--tl-font-size-md); font-weight: var(--tl-font-weight-semibold); }
+.needs-review-page__nomatch { display: grid; justify-items: center; gap: var(--tl-space-1); padding: 34px var(--tl-space-5); text-align: center; color: var(--tl-text-secondary); }
+.needs-review-page__nomatch strong { color: var(--tl-text-primary); font-size: var(--tl-font-size-md); font-weight: var(--tl-font-weight-semibold); }
+.needs-review-page__more { display: flex; justify-content: center; margin-block-start: var(--tl-space-4); }
 .review-load-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
-.review-row__badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .2rem; }
-/* The grid: ONE padding rule for header and body cells, so a header's text starts exactly where its column's text starts. The table is
-   fixed-layout (set globally in app.css): Picture, Last tried and Actions have set widths; Item, Why and Best guess share what is left. */
-.needs-review-page .needs-review-table th, .needs-review-page .needs-review-table td { padding: var(--tl-space-2) var(--tl-space-4); text-align: start; vertical-align: middle; }
-.needs-review-page .needs-review-table th:nth-child(1) { width: 4.25rem; }
-.needs-review-page .needs-review-table th:nth-child(5) { width: 7rem; }
-.needs-review-page .needs-review-table th:nth-child(6) { width: 9.5rem; }
-/* The picture: 44 px square, a dark placeholder when the item has none. Its image is a component root, styled from app.css. */
-.needs-review-page .needs-review-table .needs-review-table__thumb-cell { padding-inline-end: 0; }
-.needs-review-page .needs-review-table__thumb { display: block; inline-size: 44px; block-size: 44px; overflow: hidden; border-radius: var(--tl-radius-sm); background: var(--tl-bg-surface-raised); }
-/* Words wrap at spaces; a word breaks only when it is longer than its whole column (never mid-word otherwise). */
-.needs-review-page .needs-review-table td { overflow-wrap: break-word; }
-.needs-review-page .needs-review-table__item, .needs-review-page .needs-review-table__why, .needs-review-page .needs-review-table__guess { min-width: 0; }
-.needs-review-page .needs-review-table__item strong, .needs-review-page .needs-review-table__why strong { display: block; }
-.needs-review-page .needs-review-table__guess-name { margin-inline-end: var(--tl-space-2); }
-.needs-review-page .needs-review-table__none { color: var(--tl-text-secondary); }
-.needs-review-page .needs-review-table small { display: block; color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); }
-.needs-review-page .needs-review-table__why strong { color: var(--tl-status-warning); font-size: var(--tl-type-label-size); }
-/* Item: title, the kind, then ONE line for the folder (the last two folder names; the full path is in the shared tooltip). */
-.needs-review-page .needs-review-table .needs-review-table__path { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.needs-review-page .needs-review-table__tried { color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); }
-.needs-review-page .needs-review-table__tried { white-space: nowrap; }
-.needs-review-page .needs-review-table__actions-row { display: flex; align-items: center; justify-content: flex-end; gap: var(--tl-space-2); }
-.needs-review-page .needs-review-table__suggestion td { padding-top: 0; }
-/* Rows hold a 44 px picture, so they sit on the media step of the row-height ladder (D15.1); every cell shares the row's centre line. */
-html:not([data-form-factor="phone"]) .needs-review-page .needs-review-table tr.needs-review-table__row { height: var(--tl-row-h-media); }
-@media (max-width: 1180px) {
-    .needs-review-page .needs-review-table th, .needs-review-page .needs-review-table td { padding-inline: var(--tl-space-3); }
-    .needs-review-page .needs-review-table th:nth-child(1) { width: 4rem; }
-    .needs-review-page .needs-review-table th:nth-child(5) { width: 6.5rem; }
-    .needs-review-page .needs-review-table th:nth-child(6) { width: 8rem; }
+
+/* Loading: placeholder rows in the shape of the list. */
+.needs-review-page__loading { display: grid; gap: var(--tl-space-4); }
+.needs-review-page__skeleton-list { overflow: hidden; border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); }
+.needs-review-page__skeleton-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: var(--tl-space-3); padding: var(--tl-space-3); border-block-start: 1px solid var(--tl-border-default); }
+.needs-review-page__skeleton-row:first-child { border-block-start: 0; }
+.needs-review-page__skeleton-text { display: grid; gap: 10px; }
+
+@media (max-width: 600px) {
+    /* The action bar is fixed to the bottom of the screen on a phone, so the last rows keep room above it while rows are ticked. */
+    .needs-review-page--selecting { padding-block-end: 160px; }
+    .needs-review-page__search { flex-basis: 100%; max-inline-size: none; }
+    .needs-review-page__note { flex-wrap: wrap; }
+    .needs-review-page__empty { padding-block: var(--tl-space-8); }
 }
-@media (max-width: 840px) { .needs-review-page__search { max-width: none; } }
-/* Phone: AppTable's cards mode stacks each row as a card (no horizontal scroll): picture, item and actions across the top; why, best guess and last tried beneath. */
-html[data-form-factor="phone"] .needs-review-page .needs-review-table tr.needs-review-table__row {
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    grid-template-areas: "thumb item actions" ". why why" ". guess guess" ". tried tried";
-    align-items: start;
-    row-gap: var(--tl-space-2);
-    column-gap: var(--tl-space-3);
-}
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td { padding: 0; }
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__thumb-cell { grid-area: thumb; }
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__item { grid-area: item; }
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__actions { grid-area: actions; justify-self: end; }
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__why { grid-area: why; }
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__guess { grid-area: guess; }
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__tried { grid-area: tried; }
-html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__tried::before { content: attr(data-label) ": "; }

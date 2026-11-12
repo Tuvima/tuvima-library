@@ -142,6 +142,12 @@ public interface IReviewQueueRepository
         return resolved;
     }
 
+    /// <summary>
+    /// Replaces the stored candidates of a review item that is still <c>Pending</c> (a newer retail attempt found a different set of
+    /// possible matches). Does nothing for an item that is no longer pending.
+    /// </summary>
+    Task UpdatePendingCandidatesAsync(Guid id, string? candidatesJson, CancellationToken ct = default);
+
     /// <summary>Deletes review queue entries whose entity_id no longer exists in media_assets.</summary>
     Task<int> PurgeOrphanedAsync(CancellationToken ct = default);
 }

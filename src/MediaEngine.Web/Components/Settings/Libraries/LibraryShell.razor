@@ -108,7 +108,7 @@
                     <div class="libpage__strip-line" data-strip="unidentified">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
                         <span>@L["LibraryShell_CouldNotBeIdentified", LibraryListing.UnidentifiedText(row.Unidentified)]</span>
-                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NotIdentifiedAddress(row.Key)" />
+                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NeedsReviewAddress(row.Key)" />
                     </div>
                 }
                 @if (row.NeedsReview > 0)

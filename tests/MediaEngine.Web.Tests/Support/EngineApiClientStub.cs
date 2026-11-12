@@ -79,6 +79,11 @@ internal class EngineApiClientStub : DispatchProxy
         _handlers[nameof(IEngineApiClient.GetBrowseLibrariesAsync)] =
             _ => Task.FromResult<IReadOnlyList<BrowseLibraryDto>?>(null);
 
+        // Picking a Needs Review choice succeeds by default; a test that needs a refusal registers its own handler (null is a failure).
+        _handlers[nameof(IEngineApiClient.ChooseReviewAsync)] =
+            args => Task.FromResult<MediaEngine.Contracts.Review.ReviewChooseResponse?>(
+                new MediaEngine.Contracts.Review.ReviewChooseResponse(true, (Guid)args![0]!, (string)args[1]!, "retail"));
+
         _handlers[nameof(IEngineApiClient.ToAbsoluteEngineUrl)] =
             args => args?[0]?.ToString() ?? string.Empty;
 
@@ -269,13 +274,19 @@ internal class EngineApiClientStub : DispatchProxy
                 ? list.ContinueWith(task => new ReviewListAttempt(task.Result, null), TaskScheduler.Default)
                 : Task.FromResult(new ReviewListAttempt([], null));
 
-        // By default the merged Needs Review list mirrors the pending lists above (whole queue, or one library's), as review rows. A kind
-        // filter narrows by the same rule the Engine uses: a failed retail match is "not matched", every other trigger is "not sure".
+        // By default the merged Needs Review list mirrors the pending lists above (whole queue, or one library's), as review rows. Each row
+        // lands in the group its trigger names (a film that may be a TV show asks for a choice; a failed write-back is a file problem).
+        // The kept view is empty unless a test sets its own handler.
         _handlers[nameof(IEngineApiClient.GetNeedsReviewListAsync)] =
             args =>
             {
-                var kind = args?[0] as string;
-                var library = args?[1] as string;
+                var library = args?[0] as string;
+                var kept = args?[3] is true;
+                if (kept)
+                {
+                    return Task.FromResult(new NeedsReviewListAttempt(new MediaEngine.Contracts.Review.NeedsReviewListDto { Take = 500 }, null));
+                }
+
                 var pending = string.IsNullOrWhiteSpace(library)
                     ? _handlers[nameof(IEngineApiClient.GetPendingReviewsAttemptAsync)](new object?[] { int.MaxValue, CancellationToken.None })
                     : _handlers.TryGetValue(nameof(IEngineApiClient.GetPendingReviewsForLibraryAttemptAsync), out var forLibrary)
@@ -292,8 +303,14 @@ internal class EngineApiClientStub : DispatchProxy
                     var rows = attempt.Items.Select(item => new MediaEngine.Contracts.Review.NeedsReviewRowDto
                     {
                         Key = $"review:{item.Id:D}",
-                        Kind = item.Trigger == "RetailMatchFailed" ? MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched : MediaEngine.Contracts.Review.NeedsReviewKinds.NotSure,
                         LastTriedAt = item.CreatedAt,
+                        Group = item.Trigger switch
+                        {
+                            "MovieMatchedAsTv" => MediaEngine.Contracts.Review.NeedsReviewGroups.Choose,
+                            "WritebackFailed" or "MediaInspectionFailed" => MediaEngine.Contracts.Review.NeedsReviewGroups.FileProblem,
+                            _ => MediaEngine.Contracts.Review.NeedsReviewGroups.NoMatch,
+                        },
+                        CoverUrl = item.CoverUrl,
                         Review = new MediaEngine.Contracts.Review.ReviewItemDto
                         {
                             Id = item.Id,
@@ -314,13 +331,11 @@ internal class EngineApiClientStub : DispatchProxy
                             FromMerge = item.FromMerge,
                         },
                     }).ToList();
-                    var shown = rows.Where(row => string.IsNullOrWhiteSpace(kind) || kind == "all" || row.Kind == kind).ToList();
                     return new NeedsReviewListAttempt(new MediaEngine.Contracts.Review.NeedsReviewListDto
                     {
-                        Items = shown,
-                        Total = shown.Count,
-                        NotMatchedTotal = rows.Count(row => row.Kind == MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched),
-                        NotSureTotal = rows.Count(row => row.Kind == MediaEngine.Contracts.Review.NeedsReviewKinds.NotSure),
+                        Items = rows,
+                        Total = rows.Count,
+                        GroupTotals = rows.GroupBy(row => row.Group).ToDictionary(group => group.Key, group => group.Count()),
                         Take = 500,
                     }, null);
                 }, TaskScheduler.Default);
