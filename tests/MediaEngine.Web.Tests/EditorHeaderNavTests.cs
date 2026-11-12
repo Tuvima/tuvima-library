@@ -69,6 +69,18 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheHomeButton_IsAnOutlinedButtonInTheNormalIconColor_NotAFilledAccentOne()
+    {
+        var home = Show(EditorHeaderTestData.TvEpisode()).Find(".tl-hnav__home");
+
+        // Editor v6 D18: icons in the editor header are outlines in the normal icon color.
+        Assert.Contains("app-icon-button--outlined", home.ClassList);
+        Assert.DoesNotContain("app-icon-button--filled", home.ClassList);
+        Assert.DoesNotContain("app-tone--primary", home.ClassList);
+        Assert.Contains("tl-icon", home.QuerySelector("svg")!.ClassList);
+    }
+
+    [Fact]
     public void OnTheRoot_TheHomeButtonIsHighlightedAndMarkedCurrent()
     {
         var header = new EditorHeaderDto

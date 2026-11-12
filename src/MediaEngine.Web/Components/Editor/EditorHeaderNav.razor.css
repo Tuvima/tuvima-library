@@ -1,4 +1,4 @@
-/* The nav row of the editor's header (universal editor v5 1a items 2 to 6; mock-up screens A, B, D, K): the accent home button, the Season (or
+/* The nav row of the editor's header (universal editor v5 1a items 2 to 6; mock-up screens A, B, D, K; v6 D18: outlined icons in the normal icon color): the home button, the Season (or
    Section) dropdown and the item dropdown. The lists themselves are drawn in the top layer by AppPopover; their surface is styled globally in
    app.css (.tl-hnav__surface) and their rows here, because the rows are this component's own markup. The triggers and rows are AppRowButtons:
    the shared button draws nothing, and the look below sits on its root element, which carries this component's scope. */
@@ -254,11 +254,6 @@
 .tl-hnav__badge[data-kind="video"] {
     background: var(--tl-status-success-soft);
     color: var(--tl-status-success);
-}
-
-.tl-hnav__badge--accent {
-    background: var(--tl-accent-primary-soft);
-    color: var(--tl-accent-primary-hover);
 }
 
 .tl-hnav__badge--neutral {
