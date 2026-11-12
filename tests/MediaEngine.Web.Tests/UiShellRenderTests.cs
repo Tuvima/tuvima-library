@@ -1692,7 +1692,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("Add group", sharedRuleBuilder);
         Assert.Contains("collection-rule-builder__group", sharedRuleBuilder);
         Assert.Contains("collection-rule-builder__row", sharedRuleBuilder);
-        Assert.Contains("app-dialog-select", sharedRuleBuilder);
+        Assert.Contains("<AppFormRow", sharedRuleBuilder);
     }
 
     [Fact]

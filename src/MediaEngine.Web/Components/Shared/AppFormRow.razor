@@ -19,11 +19,13 @@
     [Parameter] public bool Stack { get; set; }
     /// <summary>When the nearest size container the row sits in is narrower than 1280 px (the editor window is one) the row wraps as whole fields, each keeping a usable width and sharing one control line with its neighbours on the same visual line; wider, it is the grid of <see cref="Columns"/>. Every child of a wrapping row is a field, or a <c>data-form-row-field</c> wrapper (<c>="fit"</c> keeps its own width) with a blank label line above a button, so a button lines up with the controls.</summary>
     [Parameter] public bool Wrap { get; set; }
+    /// <summary>The grid of <see cref="Columns"/> at every width, except that when the nearest size container is narrower than this many pixels (380, 540 or 700; any other value or 0 is off) the row stacks like <see cref="Stack"/>, one field under another. For a row that must stay on one line while its columns keep their minimum widths and has no use for the 12 rem wrap of <see cref="Wrap"/>: choose the first of the three that is at least the sum of the columns' minimums and gaps. Every child is a field, or a <c>data-form-row-field</c> wrapper, or a direct control that sits on the control line.</summary>
+    [Parameter] public int StackBelow { get; set; }
     [Parameter] public string? Class { get; set; }
     /// <summary>Other attributes go on the row's root element, including a <c>style</c> (the columns are set on an inner element, so nothing is replaced).</summary>
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private string RootClass => string.Join(" ", new[] { "app-form-row", Stack ? "app-form-row--stack" : null, Wrap ? "app-form-row--wrap" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string RootClass => string.Join(" ", new[] { "app-form-row", Stack ? "app-form-row--stack" : null, Wrap ? "app-form-row--wrap" : null, StackBelow is 380 or 540 or 700 ? $"app-form-row--stack-below-{StackBelow}" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string? FieldsStyle => string.IsNullOrWhiteSpace(Columns) ? null : $"--tl-form-row-columns: {Columns}";
 }
