@@ -26,6 +26,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     private readonly List<ValidateServerFolderRequest> _validations = [];
     private readonly List<string?> _rescans = [];
     private readonly List<CreateVaultLibraryFromKindRequest> _vaultCreates = [];
+    private readonly List<AddVaultFolderRequest> _vaultFolderAdds = [];
     private ServerFolderValidationResultDto _picked = Folder("E:\\Incoming\\Films");
     private IRenderedComponent<AppDialogHost> _dialogs = null!;
     private string? _created;
@@ -98,6 +99,11 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
             {
                 var request = (CreateVaultLibraryFromKindRequest)args![0]!;
                 _vaultCreates.Add(request);
+                return Task.FromResult<VaultLibraryActionResultDto?>(new VaultLibraryActionResultDto(true, "99999999-9999-4999-8999-999999999999"));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.AddVaultFolderAsync), args =>
+            {
+                _vaultFolderAdds.Add((AddVaultFolderRequest)args![0]!);
                 return Task.FromResult<VaultLibraryActionResultDto?>(new VaultLibraryActionResultDto(true, "99999999-9999-4999-8999-999999999999"));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetNsfwStatusAsync), _ => Task.FromResult(
@@ -216,16 +222,16 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find(".server-folder-picker input");
 
     [Fact]
-    public void PlainVideosOffersManagedAndAKindWithoutItsOwnColourFollowsItsAreaColor()
+    public void PlainVideosOffersManagedAndAKindWithoutItsOwnColorFollowsItsAreaColor()
     {
         var kinds = new LibraryKindCatalog(LibraryKindsTestData.BuiltIn());
         var videos = kinds.Find("other_videos")!;
-        var other = kinds.Find("music")!;
+        var music = kinds.Find("music")!;
 
         Assert.True(LibraryKindLook.ManagedOffered(videos));
-        Assert.True(LibraryKindLook.ManagedOffered(other));
+        Assert.True(LibraryKindLook.ManagedOffered(music));
         Assert.Equal("--tl-area-watch", LibraryKindLook.ColorToken(videos));
-        Assert.Equal("--tl-media-music", LibraryKindLook.ColorToken(other));
+        Assert.Equal("--tl-media-music", LibraryKindLook.ColorToken(music));
     }
 
     [Fact]
@@ -659,15 +665,113 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OpenedForTheVault_AContentTypeThatAlreadyHasAVaultLibraryIsDisabledWithAPlainReason()
+    public async Task OpenedForTheVault_AContentTypeWhoseVaultLibraryHasAFolderIsGreyedWithAPlainReasonAndAddAFolderInstead()
     {
         await SignInAsAdministratorAsync();
-        _configuration.Libraries.Add(new() { Id = Guid.NewGuid().ToString("D"), Name = "Private TV Shows", KindKey = "tv", Area = "watch", Kind = "catalogued", IsVault = true, MediaTypes = ["TV"] });
+        _configuration.Libraries.Add(VaultTv(withFolder: true));
         await OpenAsync(area: "vault", chooseFolder: false);
 
         Assert.True(IsOff(KindRow("TV Shows")));
         Assert.Contains("You already have a Vault-protected TV Shows library.", LineOf(KindRow("TV Shows")), StringComparison.Ordinal);
-        Assert.Null(RowOf(KindRow("TV Shows")).QuerySelector("[data-row-action]"));
+        Assert.Equal("Add a folder to Private TV Shows instead", Text(RowOf(KindRow("TV Shows")).QuerySelector("[data-row-action]")!));
+    }
+
+    [Fact]
+    public async Task OpenedForTheVault_AddAFolderInsteadAddsTheFolderToTheExistingVaultLibraryAndMakesNoSecondOne()
+    {
+        await SignInAsAdministratorAsync();
+        _configuration.Libraries.Add(VaultTv(withFolder: true));
+        await OpenAsync(area: "vault", chooseFolder: false);
+
+        _dialogs.Find("[data-row-action='tv']").Click();
+
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
+        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.FindAll("button").Single(x => Text(x) == "Add folder").HasAttribute("disabled")));
+        _dialogs.FindAll("button").Single(x => Text(x) == "Add folder").Click();
+
+        _dialogs.WaitForAssertion(() => Assert.Single(_vaultFolderAdds));
+        Assert.Equal("tv", _vaultFolderAdds[0].KindKey);
+        Assert.Equal(_picked.Path, _vaultFolderAdds[0].FolderPath);
+        Assert.Empty(_vaultCreates);
+        Assert.Empty(_mutations);
+        Assert.Equal("99999999-9999-4999-8999-999999999999", _created);
+    }
+
+    // An emptied Vault library is not listed (D11), so its kind must still be reachable here: a normal row that puts the folder back into that library.
+    [Fact]
+    public async Task OpenedForTheVault_AContentTypeWhoseOnlyVaultLibraryHasNoFoldersIsAnOrdinaryRowThatAddsTheFolderToIt()
+    {
+        await SignInAsAdministratorAsync();
+        _configuration.Libraries.Add(VaultTv(withFolder: false));
+        await OpenAsync(area: "vault", chooseFolder: false);
+
+        var tv = KindRow("TV Shows");
+        Assert.False(IsOff(tv));
+        Assert.DoesNotContain("already have", LineOf(tv), StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(RowOf(tv).QuerySelector("[data-row-chevron]"));
+        Assert.Null(RowOf(tv).QuerySelector("[data-row-action]"));
+
+        tv.Click();
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
+        Assert.DoesNotContain(_dialogs.FindAll("button"), x => Text(x) == "Add library");
+        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.FindAll("button").Single(x => Text(x) == "Add folder").HasAttribute("disabled")));
+        _dialogs.FindAll("button").Single(x => Text(x) == "Add folder").Click();
+
+        _dialogs.WaitForAssertion(() => Assert.Single(_vaultFolderAdds));
+        Assert.Equal("tv", _vaultFolderAdds[0].KindKey);
+        Assert.Empty(_vaultCreates);
+    }
+
+    private static LibraryFolderDto VaultTv(bool withFolder) => new()
+    {
+        Id = Guid.NewGuid().ToString("D"),
+        Name = "Private TV Shows",
+        KindKey = "tv",
+        Area = "watch",
+        Kind = "catalogued",
+        IsVault = true,
+        MediaTypes = ["TV"],
+        Sources = withFolder ? [new() { Id = "vault-tv", Path = "E:\\Vault\\TV", ManagementMode = "existing_library", AccessMode = "read_only" }] : [],
+    };
+
+    [Fact]
+    public async Task AKindWhoseOnlyLibraryHasNoFoldersIsAnOrdinaryRowAndTheFolderIsSavedIntoThatLibrary()
+    {
+        _configuration.Libraries[0].Sources.Clear();
+        await OpenAsync(chooseFolder: false);
+
+        var movies = KindRow("Movies");
+        Assert.False(IsOff(movies));
+        Assert.NotEqual("You already have a Movies library.", LineOf(movies));
+        Assert.NotNull(RowOf(movies).QuerySelector("[data-row-chevron]"));
+        Assert.Null(RowOf(movies).QuerySelector("[data-row-action]"));
+
+        movies.Click();
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
+        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.FindAll("button").Single(x => Text(x) == "Add folder").HasAttribute("disabled")));
+        _dialogs.FindAll("button").Single(x => Text(x) == "Add folder").Click();
+
+        // The folder joins the library Movies already has, not a second one.
+        _dialogs.WaitForAssertion(() => Assert.Single(_mutations));
+        Assert.Equal("11111111-1111-4111-8111-111111111111", _mutations[0].Library!.Id);
+        Assert.Single(_mutations[0].Library!.Sources);
+    }
+
+    [Fact]
+    public async Task GoingBackToARowStepPutsKeyboardFocusOnItsList()
+    {
+        await OpenAsync(noArea: true, chooseFolder: false);
+        int Focuses() => JSInterop.Invocations.Count(call => call.Identifier.Contains("focus", StringComparison.OrdinalIgnoreCase));
+        AreaRows.Single(x => Text(x).StartsWith("Listen", StringComparison.Ordinal)).Click();
+        KindRow("Music").Click();
+        _dialogs.WaitForElement(".create-library[data-step='3']");
+
+        var before = Focuses();
+        Back();
+        _dialogs.WaitForAssertion(() => Assert.True(Focuses() > before));
+        before = Focuses();
+        Back();
+        _dialogs.WaitForAssertion(() => Assert.True(Focuses() > before));
     }
 
     [Fact]

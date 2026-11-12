@@ -757,7 +757,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     // The tab title names a library and its area only when the page shows them: the older group, type and Vault addresses redirect, so they read as Libraries.
     [Theory]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies - Watch - Library")]
-    [InlineData("view", "photos", "Photos - View - Library")]
+    [InlineData("view", "photos", "Photos and videos - View - Library")]
     [InlineData("import", null, "Libraries - Library")]
     [InlineData("watch", null, "Libraries - Library")]
     [InlineData("watch", "movies", "Libraries - Library")]
@@ -774,7 +774,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Theory]
     [InlineData(null, null, "Libraries", "Libraries", true)]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Libraries|Watch|Movies", false)]
-    [InlineData("view", "photos", "Photos", "Libraries|View|Photos", false)]
+    [InlineData("view", "photos", "Photos and videos", "Libraries|View|Photos and videos", false)]
     public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
     {
         var cut = RenderLibraries(subsection, detail);

@@ -65,6 +65,10 @@ public static class ViewFolderRules
     public static IReadOnlyList<ViewSourceAdminDto> OfRow(IEnumerable<ViewSourceAdminDto> sources, string rowKey) =>
         [.. ContentKindsOf(rowKey).SelectMany(kind => OfKind(sources, kind))];
 
+    /// <summary>True when a folder sits on a View row's page: it belongs to any content kind the row holds (see <see cref="ContentKindsOf"/>), so "Photos and videos" lists both.</summary>
+    public static bool BelongsToRow(ViewSourceAdminDto source, string rowKey) =>
+        ContentKindsOf(rowKey).Any(kind => LibraryRollup.ViewFolderBelongsTo(source, kind));
+
     /// <summary>The folder-list items of a View row's folders.</summary>
     public static IReadOnlyList<FolderListItem> ListItems(IEnumerable<ViewSourceAdminDto> sources, string rowKey) =>
         [.. OfRow(sources, rowKey).Select(source => new FolderListItem(source.Id.ToString("D"), PathOf(source), source.FolderOffline ? "Offline" : null))];

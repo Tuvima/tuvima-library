@@ -652,7 +652,7 @@
     {
         if (!SetupVaultStepRules.NeedsDecision(StepState("vault"), turnedOn: true)) return;
         var status = await ApiClient.DecideSetupStepAsync("vault", "passed", "The Vault was turned on during setup.", _setupSession);
-        if (status is null) return;
+        if (status is null) { ShowStageNotice(L["SetupPage_TheSetupChoiceCouldNot"].Value, AppUiTone.Error); return; }
         _status = status;
         _selectedStep = "vault";
     }

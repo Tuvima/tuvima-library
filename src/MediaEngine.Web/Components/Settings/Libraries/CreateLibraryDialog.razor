@@ -73,13 +73,12 @@
                     <div class="create-library__rows" role="group" aria-label="@L["Common_ContentType"].Value" data-kind-rows tabindex="-1" @ref="_rowsElement">
                         @foreach (var kind in KindsOfArea)
                         {
-                            var availability = AvailabilityOf(kind);
                             <LibraryChoiceRow Key="@kind.Key"
                                               Title="@LabelOf(kind)"
                                               Icon="@kind.Icon"
                                               AreaKey="@kind.Area.ToLowerInvariant()"
-                                              Line="@RowLine(kind, availability.Reason)"
-                                              ActionLabel="@(HasLibrary(kind) ? L["CreateLibrary_AddFolderInstead", LibraryNameOf(kind)].Value : null)"
+                                              Line="@RowLine(kind)"
+                                              ActionLabel="@(HasListedLibrary(kind) ? L["CreateLibrary_AddFolderInstead", LibraryNameOf(kind)].Value : null)"
                                               Selected="@(_returned && kind.Key == _kindKey && CanPick(kind))"
                                               GoesOnWhenChosen="true"
                                               Disabled="@(_saving || !CanPick(kind))"
@@ -321,27 +320,43 @@
     private LibraryTypeOption? Kind => _kindKey is null ? null : KindsOfArea.FirstOrDefault(kind => kind.Key == _kindKey);
 
     // One library per kind (Libraries v3 D17): a kind that already has a library takes the new folder as a second folder of it, so it stays pickable.
-    // A kind that already has a library is greyed with "Add a folder to it instead" (setup and libraries fixes D5): its row cannot be chosen, but its button goes to the folder step for it.
+    // A kind whose library is listed (it has a folder) is greyed with "Add a folder to it instead" (setup and libraries fixes D5): its row cannot be chosen, but its button goes to the folder step for it.
+    // A kind whose only library has no folders is not listed anywhere (D11), so it is a normal row; choosing it saves the folder into that library.
     // A host that names the kind (StartKindKey, as a dropped file does) reaches the folder step the same way, so this is the row rule only.
-    private bool CanPick(LibraryTypeOption kind) => AvailabilityOf(kind).Enabled && !HasLibrary(kind);
+    private bool CanPick(LibraryTypeOption kind) => !HasListedLibrary(kind);
 
-    // The one line of a kind's row: what belongs there, from the kind list (a new kind brings its own); a kind that already has a library says so instead, and a Vault kind that is taken says why.
-    private string RowLine(LibraryTypeOption kind, string? reason) =>
-        reason ?? (HasLibrary(kind) ? L["CreateLibrary_AlreadyHave", LibraryNameOf(kind)].Value : LibraryKindLook.RowLine(kind));
+    // The one line of a kind's row: what belongs there, from the kind list (a new kind brings its own); a kind whose library is listed says so instead, and a Vault kind that is taken says why.
+    private string RowLine(LibraryTypeOption kind) =>
+        !HasListedLibrary(kind)
+            ? LibraryKindLook.RowLine(kind)
+            : _vaultMode
+                ? $"You already have a Vault-protected {LabelOf(kind)} library. Add a folder to it instead."
+                : L["CreateLibrary_AlreadyHave", LibraryNameOf(kind)].Value;
 
-    private (bool Enabled, string? Reason) AvailabilityOf(LibraryTypeOption kind)
+    // The library a kind already has, in the Vault or out of it (each content type has one Vault library beside its ordinary one; the Engine refuses a second);
+    // one that is listed comes first. View's kinds always exist and are not counted as "has a library" here.
+    private LibraryFolderDto? ExistingLibraryOf(LibraryTypeOption kind)
     {
-        // Each content type has one Vault library beside its ordinary one; the Engine refuses a second in any case.
-        if (_vaultMode && Configuration.Libraries.Any(library => library.IsVault && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)))
+        if (_vaultMode)
         {
-            return (false, $"You already have a Vault-protected {LabelOf(kind)} library. Add a folder to it instead.");
+            var vault = Configuration.Libraries.Where(library => library.IsVault && string.Equals(library.KindKey, kind.Key, StringComparison.Ordinal)).ToList();
+            return vault.FirstOrDefault(library => library.Sources.Count > 0) ?? vault.FirstOrDefault();
         }
 
-        return (true, null);
+        if (string.Equals(kind.Area, ViewAreaKey, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var held = LibraryRollup.LibrariesOf(Configuration, kind);
+        return held.FirstOrDefault(library => library.Sources.Count > 0) ?? held.FirstOrDefault();
     }
 
-    // The library an ordinary kind already has; View's kinds always exist and are not counted as "has a library" here.
-    private bool HasLibrary(LibraryTypeOption kind) => !_vaultMode && !string.Equals(kind.Area, ViewAreaKey, StringComparison.Ordinal) && LibraryRollup.LibrariesOf(Configuration, kind).Count > 0;
+    // The folder is saved into this library whether or not it is listed yet.
+    private bool HasLibrary(LibraryTypeOption kind) => ExistingLibraryOf(kind) is not null;
+
+    // Only a library with a folder is listed (D11), so only that one greys the kind out.
+    private bool HasListedLibrary(LibraryTypeOption kind) => ExistingLibraryOf(kind) is { Sources.Count: > 0 };
 
     // A Vault library's folders are added as they are (read-only); a folder Library manages in the Vault is part of the Vault update.
     private bool IsVaultChoice => _vaultMode;
@@ -362,7 +377,6 @@
 
     private bool CanCreate => !_saving
         && Kind is not null
-        && AvailabilityOf(Kind).Enabled
         && FolderUsable;
 
     // Movies, TV Shows and Comics wait for a source that can identify them (Plugins screens v4 D38); the dialog says so before the
@@ -409,7 +423,7 @@
             ?? Areas.FirstOrDefault(group => group.Key == "watch")
             ?? Areas.FirstOrDefault();
         _area = start?.Key ?? "watch";
-        var wanted = KindsOfArea.FirstOrDefault(kind => string.Equals(kind.Key, StartKindKey?.Trim(), StringComparison.OrdinalIgnoreCase) && AvailabilityOf(kind).Enabled);
+        var wanted = KindsOfArea.FirstOrDefault(kind => string.Equals(kind.Key, StartKindKey?.Trim(), StringComparison.OrdinalIgnoreCase) && !(_vaultMode && HasListedLibrary(kind)));
         _kindKey = (wanted ?? KindsOfArea.FirstOrDefault(CanPick))?.Key;
         // A host that already knows the content type (Move to Vault, a dropped file) goes straight to the folder; one that knows the area goes to the type;
         // otherwise the person starts by choosing the area. Back walks the other way.
@@ -509,6 +523,8 @@
         _step = Math.Max(1, _step == 4 ? 3 : _step - 1);
         // Back to a row step shows the earlier choice as the current one; going forward never does.
         _returned = _step < 3;
+        // Back onto a list of rows puts keyboard focus on that list, as moving on to it does.
+        _focusRows = _step < 3;
         _error = null;
         return Task.CompletedTask;
     }
@@ -524,7 +540,7 @@
     // "Add a folder to Movies instead": the kind already has a library, so the dialog goes straight to the folder step for it, where Add folder saves the folder into that library.
     private Task AddFolderInsteadAsync(LibraryTypeOption kind)
     {
-        if (_saving || !AvailabilityOf(kind).Enabled) return Task.CompletedTask;
+        if (_saving) return Task.CompletedTask;
         _kindKey = kind.Key;
         RestartPicker();
         _folder = null;
@@ -565,10 +581,14 @@
     // opened only for someone who sees Vault libraries; otherwise the dialog just closes, so nothing about it shows on the page.
     private async Task CreateVaultAsync(LibraryTypeOption kind, ServerFolderValidationResultDto folder)
     {
-        var created = await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, LibraryNameOf(kind), folder.Path));
+        // A kind that already has a Vault library (even one with no folders) takes the folder through the Vault's own Add folder, the one a Vault library's page uses.
+        var existing = HasLibrary(kind);
+        var created = existing
+            ? await Api.AddVaultFolderAsync(new AddVaultFolderRequest(kind.Key, folder.Path))
+            : await Api.CreateVaultLibraryAsync(new CreateVaultLibraryFromKindRequest(kind.Key, LibraryNameOf(kind), folder.Path));
         if (created is not { Ok: true })
         {
-            _error = Api.LastError ?? "The library could not be created. Check the folder and try again.";
+            _error = Api.LastError ?? (existing ? "The folder could not be added. Check it and try again." : "The library could not be created. Check the folder and try again.");
             return;
         }
 
@@ -679,7 +699,7 @@
                 return;
             }
 
-            var existing = HasLibrary(kind) ? LibraryRollup.LibrariesOf(Configuration, kind).FirstOrDefault() : null;
+            var existing = ExistingLibraryOf(kind);
             var plan = new AddFolderPlan(
                 kind.Key,
                 folder,

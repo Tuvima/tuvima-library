@@ -761,6 +761,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal("2 libraries · 3 folders", Text(cut.Find("[data-libs-footer]")));
     }
 
+    // The Add library dialog reaches such a library: its kind is a normal row there, and the folder is saved into it (CreateLibraryDialogTests).
     [Fact]
     public void ALibraryWithNoFoldersIsAbsentFromTheVaultAreaToo()
     {
@@ -771,6 +772,46 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll("tr[data-area=vault]"));
         Assert.Equal("0", Text(cut.Find(".lib-chip[data-area=vault] .lib-chip__count")));
+    }
+
+    // A View read that failed is not the same as one that has not finished: the rows are listed with an unknown count and "No libraries yet" stays away.
+    [Fact]
+    public void WhenViewsFoldersCouldNotBeReadItsRowsAreListedWithAnUnknownCountAndNoLibrariesYetIsNotShown()
+    {
+        var configuration = new LibrariesConfigurationDto();
+
+        var cut = Render<LibrariesOverview>(parameters => parameters
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, configuration).Add(x => x.ViewFoldersUnreadable, true));
+
+        Assert.Empty(cut.FindAll("[data-empty=none]"));
+        Assert.Equal(["Photos and videos", "Documents"], cut.FindAll("tr[data-area=view] .libs__link").Select(Text).ToArray());
+        Assert.All(cut.FindAll("tr[data-area=view] .libs__folders"), cell => Assert.Equal("—", Text(cell)));
+    }
+
+    [Fact]
+    public void WhileViewsFoldersAreStillBeingReadItsRowsAreNotListedAndNoLibrariesYetDoesNotFlash()
+    {
+        var cut = Render<LibrariesOverview>(parameters => parameters
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, new LibrariesConfigurationDto()));
+
+        Assert.Empty(cut.FindAll("[data-empty=none]"));
+        Assert.Empty(cut.FindAll("tr[data-area=view]"));
+    }
+
+    [Fact]
+    public void ViewRowsAreListedWithNoCountWhenTheReadFailedAndHiddenWhenTheFoldersAreKnownToBeNone()
+    {
+        var kinds = LibraryKindsTestData.Catalog;
+        var configuration = new LibrariesConfigurationDto();
+
+        var failed = LibraryListing.RowsFor(kinds, "view", configuration, null, null, null, showVault: false, viewFoldersUnreadable: true);
+        var loading = LibraryListing.RowsFor(kinds, "view", configuration, null, null, null, showVault: false);
+        var none = LibraryListing.RowsFor(kinds, "view", configuration, null, new Dictionary<string, int> { ["photos"] = 0, ["documents"] = 0 }, null, showVault: false);
+
+        Assert.Equal(2, failed.Count);
+        Assert.All(failed, row => Assert.Null(row.Folders));
+        Assert.Empty(loading);
+        Assert.Empty(none);
     }
 
     [Fact]

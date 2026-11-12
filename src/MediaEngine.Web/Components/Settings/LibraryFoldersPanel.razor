@@ -617,11 +617,18 @@
     {
         var library = Clone(LibraryHolding(source));
         if (library is null || _saving) return;
-        var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Remove this folder?",
-            $"{source.DisplayName()} stops being part of {NameOf(library)}. Your files stay on disk."
-                + (IsVideosSelected ? " To move it to Photos and videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
-            yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
+        // Taking away the library's last folder takes the library off the list (Setup and Libraries fixes D11), so it says so in the Edit window's words.
+        var lastFolder = library.Sources.Count(item => item.Id != source.Id) == 0;
+        var moveHint = IsVideosSelected ? " To move it to Photos and videos, remove it here and add it again there; folders are never moved automatically." : string.Empty;
+        var confirmed = lastFolder
+            ? await DialogService.ShowMessageBoxAsync(
+                L["LibraryEditDialog_LastFolderTitle"].Value,
+                L["LibraryEditDialog_LastFolderBody", NameOf(library)].Value + moveHint,
+                yesText: L["LibraryEditDialog_LastFolderRemove"].Value, cancelText: L["LibraryEditDialog_Keep"].Value, options: AppDialogOptions.DestructiveConfirm)
+            : await DialogService.ShowMessageBoxAsync(
+                "Remove this folder?",
+                $"{source.DisplayName()} stops being part of {NameOf(library)}. Your files stay on disk." + moveHint,
+                yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);
         await SaveAsync(library);

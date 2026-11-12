@@ -9923,6 +9923,9 @@
   <data name="LibraryEditDialog_LibraryLower" xml:space="preserve">
     <value>library</value>
   </data>
+  <data name="LibraryEditDialog_ThisLibrary" xml:space="preserve">
+    <value>This library</value>
+  </data>
   <data name="LibraryEditDialog_LeadImport" xml:space="preserve">
     <value>The landing place for new files of any kind. Files are never changed until Library files them.</value>
   </data>

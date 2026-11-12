@@ -212,7 +212,7 @@ public static class LibraryAddress
         // View keeps its own settings per kind: Libraries > View > Photos. The older group, type and "other" addresses redirect, so they name nothing here.
         if (string.Equals(sub, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase) && kinds.FindViewKind(det) is { } viewKind)
         {
-            return Level(viewKind.Label, libraries, new LibraryCrumb(kinds.TryGetGroup(sub)?.Label ?? "View", LibraryListing.OverviewAddress(sub.ToLowerInvariant())));
+            return Level(LibraryTypeCatalog.AddChoiceLabel(viewKind), libraries, new LibraryCrumb(kinds.TryGetGroup(sub)?.Label ?? "View", LibraryListing.OverviewAddress(sub.ToLowerInvariant())));
         }
 
         return front;

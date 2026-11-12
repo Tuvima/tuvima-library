@@ -103,10 +103,17 @@ public static class LibraryListing
         LibraryOverviewDto? overview,
         IReadOnlyDictionary<string, int>? viewFolders,
         IReadOnlyDictionary<string, string>? issues,
-        bool showVault)
+        bool showVault,
+        bool viewFoldersUnreadable = false)
     {
         if (string.Equals(area, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
         {
+            // The folders could not be read (not "still loading"): nothing is hidden that could not be checked, so every View row is listed with an unknown count.
+            if (viewFolders is null && viewFoldersUnreadable)
+            {
+                return [.. kinds.ViewRowKinds.Select(kind => ViewRowFor(kind, null))];
+            }
+
             // One "Photos and videos" row holds the folders of Photos and Personal videos; a row with no folders (or none known yet) is not listed (D10, D11).
             return [.. kinds.ViewRowKinds
                 .Select(kind => ViewRowFor(kind, ViewFolderCount(kind, viewFolders)))

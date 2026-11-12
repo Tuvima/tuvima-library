@@ -55,6 +55,7 @@
                                    Kinds="@Kinds"
                                    Overview="@_overview"
                                    ViewFolders="@_viewFolders"
+                                   ViewFoldersUnreadable="@_viewFoldersUnreadable"
                                    ViewFolderLists="@_viewFolderLists"
                                    PathIssues="@_pathIssues"
                                    ShowVault="@VaultVisible"
@@ -138,6 +139,8 @@
     private LibraryKindCatalog Kinds => LibraryKinds.Catalog;
     private LibraryOverviewDto? _overview;
     private IReadOnlyDictionary<string, int>? _viewFolders;
+    // True once View's folders were asked for and could not be read; false while still loading, so the overview can tell the two apart.
+    private bool _viewFoldersUnreadable;
     private IReadOnlyDictionary<string, IReadOnlyList<FolderListItem>>? _viewFolderLists;
     // Null until the folder checks finish: no status is claimed before then.
     private IReadOnlyDictionary<string, string>? _pathIssues;
@@ -258,6 +261,7 @@
     private async Task<IReadOnlyDictionary<string, int>?> CountViewFoldersAsync()
     {
         var entries = await ViewFolderRules.LoadAsync(ApiClient, includeProfiles: true);
+        _viewFoldersUnreadable = entries is null;
         if (entries is null)
         {
             _viewFolderLists = null;

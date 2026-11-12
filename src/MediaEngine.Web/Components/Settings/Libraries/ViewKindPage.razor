@@ -90,9 +90,12 @@
     private bool _loading = true;
     private bool _adding;
 
-    private LibraryTypeOption? KindOption => Kinds.FindViewKind(Kind);
+    // The Photos kind is the "Photos and videos" row (Setup and Libraries fixes D10): its page is titled the same and also holds Personal videos folders.
+    private LibraryTypeOption? KindOption => Kinds.FindViewKind(Kind) is { } found && string.Equals(found.Key, LibraryTypeCatalog.PhotosKey, StringComparison.OrdinalIgnoreCase)
+        ? found with { Label = LibraryTypeCatalog.PhotosAndVideosLabel, PluralLabel = LibraryTypeCatalog.PhotosAndVideosLabel }
+        : Kinds.FindViewKind(Kind);
 
-    // The kind's name as it reads in a sentence: "photos", "personal videos", "documents".
+    // The kind's name as it reads in a sentence: "photos and videos", "personal videos", "documents".
     private string KindNoun => (KindOption?.Label ?? Kind).ToLowerInvariant();
 
     private LibraryListRow Row
@@ -131,7 +134,7 @@
     // The same folder is counted once, however many profiles list it.
     private int DistinctFolders() => _reviews.Values
         .SelectMany(review => review.Sources)
-        .Where(source => LibraryRollup.ViewFolderBelongsTo(source, Kind) && !string.IsNullOrWhiteSpace(source.Location))
+        .Where(source => ViewFolderRules.BelongsToRow(source, Kind) && !string.IsNullOrWhiteSpace(source.Location))
         .Select(source => source.Location)
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .Count();

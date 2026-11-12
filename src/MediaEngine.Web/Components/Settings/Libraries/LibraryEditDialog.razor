@@ -478,7 +478,7 @@
 
     private async Task<bool> ConfirmLastFolderAsync() =>
         await AppConfirmDialog.ShowAsync(DialogService, L["LibraryEditDialog_LastFolderTitle"].Value,
-            L["LibraryEditDialog_LastFolderBody", string.IsNullOrWhiteSpace(Library?.Name) ? L["LibraryEditDialog_LibraryLower"].Value : Library!.Name].Value,
+            L["LibraryEditDialog_LastFolderBody", string.IsNullOrWhiteSpace(Library?.Name) ? L["LibraryEditDialog_ThisLibrary"].Value : Library!.Name].Value,
             L["LibraryEditDialog_LastFolderRemove"].Value, L["LibraryEditDialog_Keep"].Value, primaryDestructive: true) == AppConfirmResult.Primary;
 
     private async Task SaveImportAsync()

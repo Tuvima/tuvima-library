@@ -2,7 +2,7 @@
 @using MediaEngine.Web.Services.Formatting
 @inject IStringLocalizer<SharedStrings> L
 
-@* "In your collection" (Libraries and folder picker, item 2): one count per kind of library, each in its kind's one color (LibraryKindLook.ColourStyle, the same as the icon on its row). A kind whose count is not known shows its
+@* "In your collection" (Libraries and folder picker, item 2): one count per kind of library, each in its kind's one color (LibraryKindLook.ColorClass, the same as the icon on its row). A kind whose count is not known shows its
    folder count instead, and a kind with nothing in it is left out. Photos and videos are counted by their folders. *@
 @if (Items.Count > 0)
 {

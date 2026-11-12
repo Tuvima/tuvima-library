@@ -249,6 +249,35 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task RemovingTheLastFolderOfALibraryUsesTheEditWindowsWordsAndAnotherFolderKeepsTheShortQuestion()
+    {
+        var dialogs = Render<AppDialogHost>();
+        _configuration.Libraries[0].Sources.RemoveAll(source => source.Id != "movies-main");
+        var cut = OpenTable();
+
+        await cut.ClickAsync("[data-source='movies-main'] .app-row-menu__trigger");
+        await cut.ClickAsync(page => page.FindAll("[role=menuitem]").First(item => Text(item) == "Remove folder"));
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Remove the last folder?", dialogs.Markup, StringComparison.Ordinal));
+        Assert.Contains("Movies will leave the Libraries list until you add a folder again.", dialogs.Markup, StringComparison.Ordinal);
+        dialogs.FindAll("button").Single(button => Text(button) == "Keep").Click();
+        Assert.Empty(_mutations);
+    }
+
+    [Fact]
+    public async Task RemovingOneOfSeveralFoldersOfALibraryKeepsTheShortQuestion()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = OpenTable();
+
+        await cut.ClickAsync("[data-source='movies-plex'] .app-row-menu__trigger");
+        await cut.ClickAsync(page => page.FindAll("[role=menuitem]").First(item => Text(item) == "Remove folder"));
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Remove this folder?", dialogs.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("Remove the last folder?", dialogs.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PauseScanningInTheMenuTurnsScanningOffForThatFolder()
     {
         var cut = OpenTable();

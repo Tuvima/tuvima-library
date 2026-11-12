@@ -194,6 +194,8 @@
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     /// <summary>View's folder count per kind; null while it is not known.</summary>
     [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
+    /// <summary>True when View's folders were asked for and could not be read (as opposed to still loading): its rows are then listed with an unknown count.</summary>
+    [Parameter] public bool ViewFoldersUnreadable { get; set; }
     /// <summary>View's folders per kind, for the "N folders" list; null while not known.</summary>
     [Parameter] public IReadOnlyDictionary<string, IReadOnlyList<FolderListItem>>? ViewFolderLists { get; set; }
     /// <summary>Folder path to issue; null while the folder checks have not finished (no status is claimed then).</summary>
@@ -289,7 +291,7 @@
 
     private IReadOnlyList<AreaRows> Groups => [.. Areas.Select(area =>
     {
-        var all = LibraryListing.RowsFor(Kinds, area.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault);
+        var all = LibraryListing.RowsFor(Kinds, area.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault, ViewFoldersUnreadable);
         return new AreaRows(area, all, [.. all.Where(Matches)]);
     })];
 
@@ -341,8 +343,8 @@
 
     private bool CanAddLibraryIn(LibraryGroup area) => !ReadOnly;
 
-    // View's folder counts arrive after the first render; until they do, View's rows (and so the empty state) are not known.
-    private bool ViewFoldersKnown => ViewFolders is not null || !Kinds.ViewRowKinds.Any();
+    // View's folder counts arrive after the first render; until they do, View's rows (and so the empty state) are not known. A read that failed lists the rows instead.
+    private bool ViewFoldersKnown => ViewFolders is not null || ViewFoldersUnreadable || !Kinds.ViewRowKinds.Any();
 
     // The one place the add flow is started: the Add library dialog, on the area the person is looking at (Watch when All).
     private Task OpenAddLibraryAsync(string? areaKey) => LibraryAddFlow.OpenAsync(
