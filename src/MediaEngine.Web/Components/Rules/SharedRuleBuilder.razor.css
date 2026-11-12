@@ -51,14 +51,19 @@
     border-radius: var(--tl-control-radius);
     background: color-mix(in srgb, var(--tl-bg-surface) 70%, transparent);
 }
-/* The grip is decoration on the control line; a card narrower than 380 px (the row part stacks it there) has no room for it. */
+/* The grip is decoration on the control line; where the row part stacks a rule (below 540 px of card, 700 px for a between rule) it has no room. */
 .collection-rule-builder__condition-drag { display: flex; align-items: center; justify-content: center; min-height: var(--tl-control-height-md); color: var(--tl-text-muted); font-size: var(--tl-font-size-lg); }
 .collection-rule-builder__no-value { display: flex; align-items: center; min-height: var(--tl-control-height-md); padding: 0 12px; border: 1px dashed var(--tl-divider); border-radius: var(--tl-control-radius); color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 
-@container (max-width: 379px) {
-    .collection-rule-builder__row .collection-rule-builder__drag-cell[data-form-row-field] { display: none; }
+@container (max-width: 539px) {
+    .collection-rule-builder__row .app-form-row--stack-below-540 .collection-rule-builder__drag-cell[data-form-row-field] { display: none; }
     /* On its own line the remove button needs no blank label line above it. */
-    .collection-rule-builder__remove > .app-field__label { display: none; }
+    .collection-rule-builder__row .app-form-row--stack-below-540 .collection-rule-builder__remove > .app-field__label { display: none; }
+}
+
+@container (max-width: 699px) {
+    .collection-rule-builder__row .app-form-row--stack-below-700 .collection-rule-builder__drag-cell[data-form-row-field] { display: none; }
+    .collection-rule-builder__row .app-form-row--stack-below-700 .collection-rule-builder__remove > .app-field__label { display: none; }
 }
 
 .collection-rule-builder__add-condition { margin-top: 8px; }

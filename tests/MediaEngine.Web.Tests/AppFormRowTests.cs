@@ -86,23 +86,29 @@ public sealed class AppFormRowTests : AsyncBunitContext
         Assert.Contains("app-form-row--stack", stacked.Find(".app-form-row").ClassList);
     }
 
-    [Fact]
-    public void StackNarrowAddsItsModifierClass_AndStacksOnlyBelow380InTheRowsOwnSheets()
+    [Theory]
+    [InlineData(380)]
+    [InlineData(540)]
+    [InlineData(700)]
+    public void StackBelowAddsItsModifierClass_AndStacksOnlyBelowThatWidthInTheRowsOwnSheets(int width)
     {
         var plain = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children));
-        var narrow = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children).Add(x => x.StackNarrow, true).Add(x => x.Columns, "1fr 1fr auto"));
+        var narrow = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children).Add(x => x.StackBelow, width).Add(x => x.Columns, "1fr 1fr auto"));
+        var unsupported = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children).Add(x => x.StackBelow, 450));
 
-        Assert.DoesNotContain("app-form-row--stack-narrow", plain.Find(".app-form-row").ClassList);
-        Assert.Contains("app-form-row--stack-narrow", narrow.Find(".app-form-row").ClassList);
+        Assert.DoesNotContain("app-form-row--stack-below-" + width, plain.Find(".app-form-row").ClassList);
+        Assert.DoesNotContain(unsupported.Find(".app-form-row").ClassList, name => name.StartsWith("app-form-row--stack-below", StringComparison.Ordinal));
+        Assert.Contains("app-form-row--stack-below-" + width, narrow.Find(".app-form-row").ClassList);
         Assert.DoesNotContain("app-form-row--wrap", narrow.Find(".app-form-row").ClassList);
         Assert.Contains("--tl-form-row-columns: 1fr 1fr auto", narrow.Find(".app-form-row__fields").GetAttribute("style"));
         var web = WebRoot();
         var scoped = File.ReadAllText(Path.Combine(web, "Components", "Shared", "AppFormRow.razor.css"));
-        Assert.Contains("@container (max-width: 379px)", scoped, StringComparison.Ordinal);
-        Assert.Contains(".app-form-row--stack-narrow .app-form-row__fields", scoped, StringComparison.Ordinal);
+        Assert.Contains($"@container (max-width: {width - 1}px)", scoped, StringComparison.Ordinal);
+        Assert.Contains($".app-form-row--stack-below-{width} .app-form-row__fields", scoped, StringComparison.Ordinal);
         var global = StripComments(File.ReadAllText(Path.Combine(web, "wwwroot", "app.css")));
-        Assert.Contains(".app-form-row--stack-narrow > .app-form-row__fields > *", global, StringComparison.Ordinal);
-        Assert.Matches(@"\.app-form-row--stack-narrow\s*>\s*\.app-form-row__fields\s*>\s*:is\(\.app-field,\s*\[data-form-row-field\]\)\s*\{[^}]*flex-direction:\s*column", global);
+        Assert.Contains($"@container (max-width: {width - 1}px)", global, StringComparison.Ordinal);
+        Assert.Contains($".app-form-row--stack-below-{width} > .app-form-row__fields > *", global, StringComparison.Ordinal);
+        Assert.Matches($@"\.app-form-row--stack-below-{width}\s*>\s*\.app-form-row__fields\s*>\s*:is\(\.app-field,\s*\[data-form-row-field\]\)\s*\{{[^}}]*flex-direction:\s*column", global);
     }
 
     [Fact]

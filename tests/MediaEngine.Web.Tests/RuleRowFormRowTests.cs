@@ -11,7 +11,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// The rule rows of the smart playlist and collection editors are built on the shared form row (Editor v6 D12, WP11): each rule is one
-/// row whose fields share a label line, a control line and a help line, so a label or helper text can never push a neighbour down.
+/// row whose fields share a label line, a control line and a help line, so a label or helper text can never push a neighbor down.
 /// </summary>
 public sealed class RuleRowFormRowTests : AsyncBunitContext
 {
@@ -47,11 +47,11 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
         var cut = RenderRules(layout, new CollectionRulePredicateViewModel { Field = "runtime", Op = "between", Values = ["90", "180"] });
 
         var row = cut.Find("[data-rule-row]");
-        Assert.Contains("app-form-row--stack-narrow", row.ClassList);
+        Assert.Contains("app-form-row--stack-below-700", row.ClassList);
         Assert.DoesNotContain("app-form-row--wrap", row.ClassList);
-        // Field, Condition, From and To each get a column of the row's grid (narrower for From and To), then the remove button's own.
+        // Field, Condition, From and To each get a column of the row's grid with a minimum width (From and To a little narrower), then the remove button's own.
         var columns = row.QuerySelector(".app-form-row__fields")!.GetAttribute("style")!;
-        Assert.Contains("minmax(0, 1fr) minmax(0, 1fr) minmax(0, .9fr) minmax(0, .9fr) auto", columns);
+        Assert.Contains("minmax(8.5rem, 1fr) minmax(9.5rem, 1fr) minmax(8.5rem, .9fr) minmax(8.5rem, .9fr) auto", columns);
         Assert.Equal(layout == RuleBuilderLayout.Groups, columns.Contains("--tl-form-row-columns: auto ", StringComparison.Ordinal));
     }
 
@@ -73,6 +73,18 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
         Assert.Contains("Field", labels);
         Assert.Contains("Condition", labels);
         Assert.Contains("Value", labels);
+    }
+
+    [Fact]
+    public void ASingleValueRule_KeepsMinimumWidthsAndStacksBelow540_ABetweenRuleBelow700()
+    {
+        var single = RenderRules(RuleBuilderLayout.Sentence, new CollectionRulePredicateViewModel { Field = "year", Op = "eq", Value = "2020" });
+        var singleRow = single.Find("[data-rule-row]");
+        Assert.Contains("app-form-row--stack-below-540", singleRow.ClassList);
+        Assert.Contains("minmax(8.5rem, 1fr) minmax(9.5rem, 1fr) minmax(8rem, 1.2fr) auto", singleRow.QuerySelector(".app-form-row__fields")!.GetAttribute("style"));
+
+        var range = RenderRules(RuleBuilderLayout.Sentence, new CollectionRulePredicateViewModel { Field = "runtime", Op = "between", Values = ["90", "180"] });
+        Assert.Contains("app-form-row--stack-below-700", range.Find("[data-rule-row]").ClassList);
     }
 
     [Fact]
@@ -137,11 +149,13 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AHelperLine_OnAFieldBesideTheValuePicker_RendersOnTheHelpLineNotInsideAControlCell()
+    public void AHelperLine_OnARuleRowField_RendersOnTheHelpLineNotInsideAControlCell()
     {
-        // A rule field that has helper text renders it as the field's own help line, the same part every field of the row uses.
+        // No rule field has helper text in production today, so this renders a rule's value field with one, on the row exactly as a rule row is
+        // built (StackBelow and the columns of a single-value rule, a value picker beside it, the remove cell), to prove a helper line has a home.
         var cut = Render<AppFormRow>(parameters => parameters
-            .Add(row => row.Wrap, true)
+            .Add(row => row.Columns, "minmax(8.5rem, 1fr) minmax(9.5rem, 1fr) minmax(8rem, 1.2fr) auto")
+            .Add(row => row.StackBelow, 540)
             .Add(row => row.ChildContent, (RenderFragment)(builder =>
             {
                 builder.OpenComponent<AppTextField>(0);
@@ -152,10 +166,11 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
                 builder.OpenComponent<CollectionRuleValuePicker>(4);
                 builder.AddAttribute(5, "Field", "genre");
                 builder.CloseComponent();
+                builder.AddMarkupContent(6, "<div data-form-row-field=\"fit\"><span class=\"app-field__label\" aria-hidden=\"true\">&nbsp;</span><button type=\"button\">Remove</button></div>");
             })));
 
         var fields = cut.Find(".app-form-row__fields").Children;
-        Assert.Equal(2, fields.Length);
+        Assert.Equal(3, fields.Length);
         var help = fields[0].QuerySelector(".app-field__help");
         Assert.NotNull(help);
         Assert.Same(fields[0], help!.ParentElement);
@@ -163,8 +178,9 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
         // The help is its own line of the field, never inside the element that holds the control.
         var control = fields[0].Children.Single(child => child.QuerySelector("input") is not null || child.TagName == "INPUT");
         Assert.DoesNotContain(help, control.QuerySelectorAll("*"));
-        // The neighbour is a field with no help of its own, so its control line is not pushed.
+        // The neighbors are fields with no help of their own, so their control lines are not pushed.
         Assert.Empty(fields[1].QuerySelectorAll(".app-field__help"));
+        Assert.Empty(fields[2].QuerySelectorAll(".app-field__help"));
     }
 
     [Fact]
@@ -175,7 +191,7 @@ public sealed class RuleRowFormRowTests : AsyncBunitContext
             .Add(component => component.Definition, new CollectionRuleDefinitionViewModel { Groups = [new CollectionRuleGroupViewModel()] }));
 
         var row = cut.Find("[data-order-and-limits] .app-form-row.collection-rule-sentence__order-row");
-        Assert.Contains("app-form-row--stack-narrow", row.ClassList);
+        Assert.Contains("app-form-row--stack-below-540", row.ClassList);
         var children = row.QuerySelector(".app-form-row__fields")!.Children;
         Assert.Equal(3, children.Length);
         Assert.Equal("Order", children[0].QuerySelector(".app-field__label")!.TextContent.Trim());

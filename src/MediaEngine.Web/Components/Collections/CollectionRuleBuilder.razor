@@ -40,7 +40,7 @@
     <section class="collection-rule-sentence__order" aria-label="@L["CollectionRuleBuilder_OrderAndLimits"].Value" data-order-and-limits>
         <span class="collection-rule-sentence__label">@L["CollectionRuleBuilder_OrderAndLimits"]</span>
         @* One row (mock): the order, how many to show, and the Advanced switch, on the shared form row so the switch sits on the control line. "Then by" is part of Advanced. *@
-        <AppFormRow Columns="minmax(0, 24rem) minmax(0, 10rem) auto" StackNarrow="true" Class="collection-rule-sentence__order-row">
+        <AppFormRow Columns="minmax(10rem, 24rem) minmax(7rem, 10rem) auto" StackBelow="540" Class="collection-rule-sentence__order-row">
             <AppSelect T="string" Value="@OrderValue" ValueChanged="OnOrderChangedAsync" Options="@OrderOptions"
                        Label="@L["Common_Order"].Value" Variant="AppVariant.Outlined" />
             <AppSelect T="string" Value="@MaxItems.ToString()" ValueChanged="OnLimitChosenAsync" Options="@LimitOptions"
@@ -64,7 +64,7 @@
             }
             else
             {
-                <AppFormRow Columns="minmax(0, 24rem) auto" StackNarrow="true" Class="collection-rule-sentence__order-row">
+                <AppFormRow Columns="minmax(10rem, 24rem) auto" StackBelow="380" Class="collection-rule-sentence__order-row">
                     <AppSelect T="string" Value="@ThenByValue" ValueChanged="OnThenByChangedAsync" Options="@ThenByOptions"
                                Label="@L["SharedRuleBuilder_ThenBy"].Value" Variant="AppVariant.Outlined" />
                     <div data-form-row-field="fit">

@@ -51,10 +51,26 @@
     }
 }
 
-/* Stack when narrow (StackNarrow): the grid of Columns at every width, but a size container narrower than 380 px (a phone-width card) stacks the
+/* Stack below a width (StackBelow 380, 540 or 700): the grid of Columns at every width, but a size container narrower than that stacks the
    fields one under another, as Stack does (the children's own rules are in wwwroot/app.css). */
 @container (max-width: 379px) {
-    .app-form-row--stack-narrow .app-form-row__fields {
+    .app-form-row--stack-below-380 .app-form-row__fields {
+        display: flex;
+        flex-direction: column;
+        gap: var(--tl-space-3);
+    }
+}
+
+@container (max-width: 539px) {
+    .app-form-row--stack-below-540 .app-form-row__fields {
+        display: flex;
+        flex-direction: column;
+        gap: var(--tl-space-3);
+    }
+}
+
+@container (max-width: 699px) {
+    .app-form-row--stack-below-700 .app-form-row__fields {
         display: flex;
         flex-direction: column;
         gap: var(--tl-space-3);
