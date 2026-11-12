@@ -1,0 +1,12 @@
+/* The tap-to-reveal trigger of the phone editor (v6 D21): a bare button at least 44 px tall that holds a lock and a name, or a shortened path. */
+.tl-tap-reveal {
+    display: inline-flex;
+    min-width: 0;
+}
+
+.tl-tap-reveal__text {
+    margin: 0;
+    padding: var(--tl-space-3) var(--tl-space-4);
+    overflow-wrap: anywhere;
+    font-size: var(--tl-type-body-size);
+}

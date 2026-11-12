@@ -22,7 +22,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     var canEdit = mode.CanEdit && fields.CanEditFields;
     var editable = canEdit ? Rows(fields).Where(IsEditable).ToList() : [];
     var facts = Rows(fields).Where(row => !editable.Contains(row)).ToList();
-    <div class="tl-editor-details-layout">
+    <div class="@(Phone ? "tl-editor-details-layout tl-editor-details-layout--phone tl-editor-touch" : "tl-editor-details-layout")" data-phone="@(Phone ? "true" : null)">
     <div class="tl-editor-details">
         @if (fields.IsReadOnlySeries)
         {
@@ -48,7 +48,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                    side share a top edge whatever a lock, a Revert button or a note does beside or under either. *@
                 @foreach (var row in InRows(editable, honorWide: true))
                 {
-                    <AppFormRow Columns="@ColumnsOf(row)" Message="@RowNotes(fields, session, row)" data-details-row="true">
+                    <AppFormRow Columns="@ColumnsOf(row)" Stack="Phone" Message="@RowNotes(fields, session, row)" data-details-row="true">
                         @foreach (var field in row)
                         {
                             @EditableRow(fields, session, field)
@@ -72,7 +72,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 }
                 @foreach (var row in InRows(facts, honorWide: false))
                 {
-                    <AppFormRow Columns="@ColumnsOf(row)" data-details-row="true">
+                    <AppFormRow Columns="@ColumnsOf(row)" Stack="Phone" data-details-row="true">
                         @foreach (var field in row)
                         {
                             @FactRow(field)
@@ -112,7 +112,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
         @ChildContent
     </div>
-    <EditorQuickFacts Fields="fields" />
+    <EditorQuickFacts Fields="fields" Phone="Phone" />
     </div>
 }
 
@@ -126,6 +126,9 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
     /// <summary>The editor's flow: with it, a Series' members are buttons that open the member's own editor in this window.</summary>
     [Parameter] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a, D21): one column, a reason that opens on a tap, 44 px touch targets, Quick Facts as a closed section.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>Extra read-only content shown under the fields (the Universe's Series list).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -391,12 +394,23 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         <div class="tl-editor-field tl-editor-field--locked" data-form-row-field data-field-key="@field.Key">
             <div class="app-field__label tl-editor-field__label">
                 <span>@field.Label</span>
-                <AppTooltip Text="@why">
-                    <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{field.Label} is locked. {why}")">
+                @if (Phone)
+                {
+                    @* The reason is one tap away, never a hover (v6 D21). *@
+                    <EditorTapReveal Text="@why" Label="@string.Format(L["EditorPhone_WhyLocked"].Value, field.Label)" TriggerClass="tl-editor-field__lock">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" />
                         <small>@SourceName(field)</small>
-                    </span>
-                </AppTooltip>
+                    </EditorTapReveal>
+                }
+                else
+                {
+                    <AppTooltip Text="@why">
+                        <span class="tl-editor-field__lock" tabindex="0" role="img" aria-label="@($"{field.Label} is locked. {why}")">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" />
+                            <small>@SourceName(field)</small>
+                        </span>
+                    </AppTooltip>
+                }
             </div>
             <div class="tl-editor-field__value">@(string.IsNullOrWhiteSpace(field.DisplayValue ?? field.Value) ? "Not set" : field.DisplayValue ?? field.Value)</div>
         </div>

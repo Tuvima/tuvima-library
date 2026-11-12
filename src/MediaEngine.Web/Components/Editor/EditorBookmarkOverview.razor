@@ -12,7 +12,7 @@
    how many bookmarks Everyone sees on it. It follows the header's dropdowns: the show, a season, or the album. The chevron on a row picks
    that episode through the editor's own switch, so its bookmarks open on the same tab and every staged change is kept. Export the show and
    Import for the show sit at the top of the family only. *@
-<div class="tl-bookmarks">
+<div class="@(Phone ? "tl-bookmarks tl-bookmarks--phone tl-editor-touch" : "tl-bookmarks")" data-phone="@(Phone ? "true" : null)">
     @if (_loading)
     {
         <EditorPanelBusy Label="@L["EditorBookmarks_LoadingOverview"].Value" />
@@ -26,7 +26,7 @@
     }
     else if (_showCompare is { } compare)
     {
-        <section class="tl-bookmarks-compare">
+        <section class="@(Phone ? "tl-bookmarks-compare tl-bookmarks--phone" : "tl-bookmarks-compare")">
             <div class="tl-bookmarks__state">
                 <div class="tl-bookmarks__state-copy">
                     <AppButton ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" OnClick="@(() => _showCompare = null)">@L["Common_Back"]</AppButton>
@@ -114,9 +114,17 @@
                             <span class="tl-bookmarks__copy">
                                 <span class="tl-bookmarks__name">@row.Title</span>
                             </span>
+                            @if (Phone)
+                            {
+                                @* No columns on a phone: the counts are one line under the title. *@
+                                <span class="tl-bookmarks__phone-counts">@L["EditorBookmarks_ColEveryone"]: @row.EveryoneCount · @SetLabel(row) · @L["EditorBookmarks_FromProfiles"]: @row.ProfileCount</span>
+                            }
+                            else
+                            {
                             <span class="tl-bookmarks__num" data-col="everyone">@row.EveryoneCount</span>
                             <span class="tl-bookmarks__set" data-col="set">@SetLabel(row)</span>
                             <span class="tl-bookmarks__num" data-col="profiles">@row.ProfileCount</span>
+                            }
                             @if (staged > 0)
                             {
                                 <AppChip Text="@L["EditorBookmarks_StagedCount", staged].Value" Tone="AppUiTone.Warning" />
@@ -149,6 +157,9 @@
 
     /// <summary>True on the show or album itself: Export the show and Import for the show are offered there, once, and not on a season.</summary>
     [Parameter] public bool AtTheTop { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a, D21): one line of counts under the title, the staged mark and the chevron at the right, 44 px targets.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     private PendingEditList Pending => Flow.Session.Pending;
 

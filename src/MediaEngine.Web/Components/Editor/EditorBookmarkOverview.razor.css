@@ -130,3 +130,50 @@ h3 {
     flex: none;
     width: 13rem;
 }
+
+/* The phone arrangement (v6 section 4a, D21): the columns give way to one line of counts under the title, with the staged mark under that and the chevron at the right. */
+.tl-bookmarks--phone .tl-bookmarks__profiles .tl-bookmarks__cols {
+    display: none;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__profiles .tl-bookmarks__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+        "place copy action"
+        ". counts action"
+        ". chip action";
+    align-items: center;
+    column-gap: var(--tl-space-3);
+    row-gap: var(--tl-space-1);
+}
+
+.tl-bookmarks--phone .tl-bookmarks__profiles .tl-bookmarks__place {
+    grid-area: place;
+    min-width: 0;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__profiles .tl-bookmarks__copy {
+    grid-area: copy;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__profiles .tl-bookmarks__name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.tl-bookmarks__phone-counts {
+    grid-area: counts;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-bookmarks--phone .tl-bookmarks__profiles .tl-bookmarks__row > .app-chip {
+    grid-area: chip;
+    justify-self: start;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__profiles .tl-bookmarks__row-action {
+    grid-area: action;
+    margin-left: 0;
+}

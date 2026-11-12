@@ -1,0 +1,46 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Components.Shared
+
+@* A reason or a shortened line that a phone person can reach by a tap (universal editor v6 D21: nothing on a phone depends on hover). The trigger
+   is a button of at least 44 px; a tap opens the text in the app's pop-out, which sits in the browser's top layer (a sheet on a phone) and closes on
+   an outside tap, Escape or the same button again. A computer keeps the hover tooltip in its place; this part is only drawn for the phone
+   arrangement. *@
+<span class="@($"tl-tap-reveal {Class}".Trim())" @ref="_anchor">
+    <AppRowButton Class="@($"tl-tap-reveal__trigger {TriggerClass}".Trim())"
+                  aria-haspopup="dialog"
+                  aria-expanded="@(_open ? "true" : "false")"
+                  aria-label="@Label"
+                  OnClick="Toggle">
+        @ChildContent
+    </AppRowButton>
+    @if (_open)
+    {
+        <AppPopover Open="true" OpenChanged="Changed" Anchor="_anchor" Size="AppPopoutSize.Panel" Role="dialog" AriaLabel="@Label" Class="tl-tap-reveal__surface">
+            <p class="tl-tap-reveal__text" data-testid="tap-reveal-text">@Text</p>
+        </AppPopover>
+    }
+</span>
+
+@code {
+    private ElementReference _anchor;
+    private bool _open;
+
+    /// <summary>What the tap reveals.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>What the trigger is called to a screen reader and on the pop-out.</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    /// <summary>Extra classes for the wrapper around the trigger.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Extra classes for the trigger button.</summary>
+    [Parameter] public string? TriggerClass { get; set; }
+
+    /// <summary>What the trigger shows.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private void Toggle() => _open = !_open;
+
+    private void Changed(bool open) => _open = open;
+}

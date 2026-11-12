@@ -233,6 +233,9 @@ public sealed class ArtworkPickerSession
 
     public bool SavedLoading { get; private set; }
 
+    /// <summary>The last read of the saved pictures did not come back (offline or the Engine did not answer); the phone editor offers Try again.</summary>
+    public bool SavedLoadFailed { get; private set; }
+
     public IReadOnlyList<ArtworkPickerPicture> Saved { get; private set; } = [];
 
     private readonly Dictionary<string, IReadOnlyList<ArtworkPickerPicture>> _bySlot = new(StringComparer.OrdinalIgnoreCase);
@@ -368,6 +371,13 @@ public sealed class ArtworkPickerSession
         await OpenAsync(slot);
     }
 
+    /// <summary>Try again after the saved pictures did not come back: the plain line goes and the read is made again; nothing staged is touched.</summary>
+    public Task RetryLoadSavedAsync()
+    {
+        Message = null;
+        return LoadSavedAsync();
+    }
+
     /// <summary>Lists the pictures already saved for the item and slot.</summary>
     public async Task LoadSavedAsync()
     {
@@ -379,6 +389,7 @@ public sealed class ArtworkPickerSession
         }
 
         SavedLoading = true;
+        SavedLoadFailed = false;
         Changed?.Invoke();
         try
         {
@@ -399,12 +410,14 @@ public sealed class ArtworkPickerSession
             Saved = VersionsOf(workspace, slot);
             if (workspace is null)
             {
+                SavedLoadFailed = true;
                 Message = "Saved pictures could not be loaded.";
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             _logger?.LogWarning(ex, "The saved pictures for {Slot} could not be loaded", slot);
+            SavedLoadFailed = true;
             Message = "Saved pictures could not be loaded.";
         }
         finally

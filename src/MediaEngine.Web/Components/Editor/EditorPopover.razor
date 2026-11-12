@@ -92,12 +92,12 @@
                 {
                     <div data-supporting-file-history="true">
                         <EditorHistoryTool EntityId="@(Guid.TryParse(mode.Fields.SupportingFile.File.Id, out var fileId) ? fileId : Guid.Empty)"
-                                           SupportingFileTitleId="@mode.Fields.SupportingFile.TitleId" />
+                                           SupportingFileTitleId="@mode.Fields.SupportingFile.TitleId" Phone="Phone" />
                     </div>
                 }
                 else if (tool == EditTool.Details)
                 {
-                    <EditorDetailsPanel Mode="mode" Session="flow.Session" Flow="flow">@binding?.DetailsExtra</EditorDetailsPanel>
+                    <EditorDetailsPanel Mode="mode" Session="flow.Session" Flow="flow" Phone="Phone">@binding?.DetailsExtra</EditorDetailsPanel>
                 }
                 else if (tool == EditTool.Match && EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind))
                 {
@@ -120,11 +120,11 @@
                 }
                 else if (tool == EditTool.Bookmarks)
                 {
-                    <EditorBookmarksPanel Flow="flow" HasFamily="@EditorBookmarksPanel.FamilyHoldsTheFiles(Editor.Family.Kind)" />
+                    <EditorBookmarksPanel Flow="flow" HasFamily="@EditorBookmarksPanel.FamilyHoldsTheFiles(Editor.Family.Kind)" Phone="Phone" />
                 }
                 else if (tool == EditTool.History)
                 {
-                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" />
+                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" Phone="Phone" />
                 }
             </ChildContent>
         </EditorPanelHost>
