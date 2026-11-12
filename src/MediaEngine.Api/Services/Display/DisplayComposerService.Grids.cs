@@ -124,6 +124,12 @@ public sealed partial class DisplayComposerService
         CancellationToken ct)
     {
         var definition = DisplayGridCatalog.Find(string.IsNullOrWhiteSpace(lane) ? DisplayGridCatalog.HomeLane : lane, shelfKey);
+        // Home's My List row is a personal-lane grid; "See all" by shelf key (TV, native) reads the full list, not the 20 on Home.
+        if (definition is null && string.IsNullOrWhiteSpace(lane) && string.Equals(shelfKey, HomeMyListShelfKey, StringComparison.OrdinalIgnoreCase))
+        {
+            definition = DisplayGridCatalog.Find(DisplayGridCatalog.PersonalLane, HomeMyListShelfKey);
+        }
+
         if (definition is null)
         {
             return null;
@@ -283,7 +289,7 @@ public sealed partial class DisplayComposerService
                 break;
             case DisplayGridSource.MyList:
             case DisplayGridSource.Liked:
-                cards = await BuildPersonalGridCardsAsync(definition.Source, works, progressByWork, profileId, ct);
+                cards = await BuildPersonalGridCardsAsync(definition.Source, () => Task.FromResult(works), progressByWork, profileId, ct);
                 break;
             default:
                 return null;
@@ -299,7 +305,7 @@ public sealed partial class DisplayComposerService
 
     private async Task<List<GridCard>> BuildPersonalGridCardsAsync(
         DisplayGridSource source,
-        IReadOnlyList<DisplayWorkRow> works,
+        Func<Task<IReadOnlyList<DisplayWorkRow>>> loadWorks,
         IReadOnlyDictionary<Guid, DisplayJourneyRow> progressByWork,
         Guid? profileId,
         CancellationToken ct)
@@ -319,6 +325,8 @@ public sealed partial class DisplayComposerService
             return [];
         }
 
+        // Home asks for the same cards; the catalogue is only read once there is something saved to look up.
+        var works = await loadWorks();
         var mediaIds = entries
             .Where(entry => entry.Kind is not (ProfileEntityKind.Collection or ProfileEntityKind.Playlist))
             .Select(entry => entry.EntityId)
