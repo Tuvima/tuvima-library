@@ -8,12 +8,18 @@ namespace MediaEngine.Api.Services.Details.Internals;
 /// deliberately excluded: an admin-looking surface is not authorization.
 /// <see cref="IsHumanAdministrator"/> is narrower than <see cref="CanManageMetadata"/>: only a signed-in effective administrator, never a
 /// service application or paired app acting with a permission. The Unmatched item routes demand exactly that.
+/// <see cref="OfferMetadataAfterUnlock"/> is display only: a signed-in effective administrator whose administrator PIN is locked is still
+/// shown Edit, Identify and Change thumbnail so the Dashboard can ask for the PIN on tap. It grants nothing: every read of the editable
+/// fields and every save is still refused until the PIN is entered.
 /// </summary>
-internal readonly record struct DetailActionAuthorizationContext(bool CanManageMetadata, bool IsHumanAdministrator = false)
+internal readonly record struct DetailActionAuthorizationContext(
+    bool CanManageMetadata,
+    bool IsHumanAdministrator = false,
+    bool OfferMetadataAfterUnlock = false)
 {
     public bool Allows(string actionKey) => actionKey switch
     {
-        "edit" or "identify" or "change-thumbnail" => CanManageMetadata,
+        "edit" or "identify" or "change-thumbnail" => CanManageMetadata || OfferMetadataAfterUnlock,
         // The Unmatched actions of a single item need an effective administrator in person: the item routes they call refuse anyone else.
         DetailUnmatchedActions.RetryKey or DetailUnmatchedActions.KeepKey or DetailUnmatchedActions.LookUpAgainKey => IsHumanAdministrator,
         _ => false,
@@ -31,7 +37,9 @@ internal static class DetailActionAuthorizationPolicy
         if (authority.PrincipalKind == PrincipalKind.Human)
         {
             var administrator = await MayManageMetadataAsHumanAsync(authority, accounts, ct).ConfigureAwait(false);
-            return new(administrator, administrator);
+            var lockedAdministrator = !administrator
+                && (await accounts.EvaluateAdministratorAsync(authority, requireSurfaceUnlock: false, ct).ConfigureAwait(false)).IsAllowed;
+            return new(administrator, administrator, lockedAdministrator);
         }
 
         if (authority.PrincipalKind is not (PrincipalKind.DelegatedUserClient or PrincipalKind.ServiceApplication))

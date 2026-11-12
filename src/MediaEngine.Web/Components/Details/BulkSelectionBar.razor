@@ -203,7 +203,8 @@
 
     // The buttons that open the editor window (Edit, Match, Move, Put in series) also need a profile the Engine says may edit item details; the rest
     // of the bar (playlists, collections, Delete) keeps its own rules. Unknown means no. The Engine still checks every save.
-    private bool MayEditDetails => Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata == true;
+    // An administrator whose settings are locked is offered them too and is asked for the PIN on tap.
+    private bool MayEditDetails => Services.GetService<DashboardSessionAccessor>()?.CanOfferMetadataEdit == true;
 
     private bool IsBusy => Busy || _deleting || _working || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
 
@@ -367,29 +368,36 @@
     private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     // One panel at a time: pressing the open one again closes it. The device rule is checked here too; a hidden button is never the only protection.
-    private void TogglePanel(BulkPanelKind kind)
+    private async Task TogglePanel(BulkPanelKind kind)
     {
         if (Active is null)
         {
             return;
         }
 
-        if (EditorDeviceRule.TryRefuseItems(Device))
-        {
-            Warn(EditorDeviceRule.ItemMessage);
-            return;
-        }
-
-        // Edit, Match, Move to album and Put in series all open the editor window, so they all need the right to edit.
-        if (!MayEditDetails)
-        {
-            Warn(EditorDeviceRule.ProfileMessage);
-            return;
-        }
-
+        // Pressing the open panel's own button only closes it; that needs no check.
         if (Active.Panel == kind)
         {
             Active.ClosePanel();
+            return;
+        }
+
+        // Edit, Match, Move to album and Put in series all open the editor window, so they all need a device and a profile that may edit.
+        // An administrator whose settings are locked is asked for the PIN first; closing the prompt stops quietly.
+        var gate = await EditorDeviceRule.EnsureMayEditItemsAsync(
+            Device, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>());
+        if (!gate.Allowed)
+        {
+            if (gate.Message is { } refusal)
+            {
+                Warn(refusal);
+            }
+
+            return;
+        }
+
+        if (Active is null)
+        {
             return;
         }
 

@@ -12,6 +12,7 @@ using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Editing;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
@@ -226,6 +227,14 @@ public partial class DetailPage
     private async Task OpenEditorAsync(EditTool? tool = null, string? artworkSlot = null)
     {
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
+        {
+            return;
+        }
+
+        // The Engine offers Edit to an administrator whose settings are locked; the PIN is asked for before the window opens, and
+        // closing the prompt leaves the page as it was.
+        if (!await EditorDeviceRule.EnsureUnlockedForItemAsync(
+                Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>()))
         {
             return;
         }

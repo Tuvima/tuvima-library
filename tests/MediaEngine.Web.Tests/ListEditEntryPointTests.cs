@@ -192,7 +192,7 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
     [Fact]
     public async Task TickedRowsForAProfileThatMayNotEditDetails_OpenNothing_AndSayWhy()
     {
-        Services.AddSingleton(TestSessions.For(kids: false, administrator: true, canManageMetadata: false));
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: false, canManageMetadata: false));
         await UseDevice("desktop");
         var (launcher, host, _) = Parts();
 
@@ -201,6 +201,68 @@ public sealed class ListEditEntryPointTests : AsyncBunitContext
         Assert.False(host.IsOpen);
         Assert.Empty(host.Batch.Rows);
         Assert.Equal(EditorDeviceRule.ProfileMessage, launcher.LastNotice);
+    }
+
+    [Fact]
+    public async Task TickedRowsForALockedAdministrator_AskForThePin_AndOpenOnlyOnceTheEngineSaysYes()
+    {
+        var session = TestSessions.For(kids: false, administrator: true, canManageMetadata: false);
+        var pin = new PinPrompt(session) { Enter = false };
+        Services.AddSingleton(session);
+        Services.AddSingleton<IAdministratorSurfaceAccessService>(pin);
+        await UseDevice("desktop");
+        var (launcher, host, _) = Parts();
+        var rows = new[] { new BulkEditRow(SongId, "Airbag", DetailEntityType.Work, null, "Music") };
+
+        // The prompt is closed: nothing opens and nothing is said.
+        Assert.False(await launcher.OpenRowsAsync(rows, "Music"));
+        Assert.Equal(1, pin.Asked);
+        Assert.False(host.IsOpen);
+        Assert.Null(launcher.LastNotice);
+
+        // The PIN is entered and the Engine now says the profile may edit: the editor opens.
+        pin.Enter = true;
+        Assert.True(await launcher.OpenRowsAsync(rows, "Music"));
+        Assert.Equal(2, pin.Asked);
+        Assert.True(host.IsOpen);
+    }
+
+    [Fact]
+    public async Task ARowsEditForALockedAdministrator_AsksForThePinBeforeTheEditorOpens()
+    {
+        var session = TestSessions.For(kids: false, administrator: true, canManageMetadata: false);
+        var pin = new PinPrompt(session) { Enter = false };
+        Services.AddSingleton(session);
+        Services.AddSingleton<IAdministratorSurfaceAccessService>(pin);
+        await UseDevice("desktop");
+        var (launcher, host, _) = Parts();
+
+        Assert.False(await launcher.OpenAsync(Movie()));
+        Assert.Equal(1, pin.Asked);
+        Assert.False(host.IsOpen);
+
+        pin.Enter = true;
+        Assert.True(await launcher.OpenAsync(Movie()));
+        Assert.True(host.IsOpen);
+    }
+
+    /// <summary>The PIN prompt, hand-written: counts how often it was shown and, when the PIN is "entered", makes the session unlocked as the Engine would.</summary>
+    private sealed class PinPrompt(DashboardSessionAccessor session) : IAdministratorSurfaceAccessService
+    {
+        public bool Enter { get; set; }
+        public int Asked { get; private set; }
+
+        public Task<bool> EnsureUnlockedAsync(CancellationToken ct = default)
+        {
+            Asked++;
+            if (Enter)
+            {
+                var unlocked = TestSessions.For(kids: false, administrator: true);
+                session.Set("token", TestSessions.Account, TestSessions.Profile, Guid.NewGuid(), unlocked.Authority!);
+            }
+
+            return Task.FromResult(Enter);
+        }
     }
 
     [Fact]

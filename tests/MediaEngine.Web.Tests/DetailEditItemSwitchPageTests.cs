@@ -445,7 +445,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     {
         var administrator = Guid.NewGuid();
         Services.GetRequiredService<DashboardSessionAccessor>().Set("test-session-token", administrator, administrator, Guid.NewGuid(),
-            new DashboardAuthorityResponse(administrator, administrator, true, true, 1, 1, true, true, null, 1, [], [], []));
+            new DashboardAuthorityResponse(administrator, administrator, true, true, 1, 1, true, true, null, 1, [], [], ["metadata.manage"]));
         var movie = new DetailPageViewModel
         {
             Id = EditingModeTestData.MovieId.ToString("D"),
@@ -472,7 +472,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     {
         var administrator = Guid.NewGuid();
         Services.GetRequiredService<DashboardSessionAccessor>().Set("test-session-token", administrator, administrator, Guid.NewGuid(),
-            new DashboardAuthorityResponse(administrator, administrator, true, true, 1, 1, true, true, null, 1, [], [], []));
+            new DashboardAuthorityResponse(administrator, administrator, true, true, 1, 1, true, true, null, 1, [], [], ["metadata.manage"]));
         var cut = await StartEditingAsync(EditTrailTestData.EpisodePage());
         var flow = FlowOf(cut);
         flow.Session.Pending.SetField(EpisodeTwo, "description", "A change.");

@@ -131,14 +131,26 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Edit_IsHiddenFromAProfileThatMayNotEditDetails_WhileDeleteStaysWithAdministrators()
+    public async Task Edit_IsHiddenFromAProfileThatMayNotEditDetails()
     {
+        await UseDevice("desktop");
+        SetAdministrator(false, mayEditItems: false);
+
+        var cut = RenderTile(Movie());
+
+        Assert.DoesNotContain("Edit", MenuLabels(cut));
+    }
+
+    [Fact]
+    public async Task Edit_IsStillOfferedToAnAdministratorWhoseSettingsAreLocked_WithDelete()
+    {
+        // Tapping Edit asks a locked administrator for the PIN before anything opens (EditorDeviceRule.EnsureUnlockedForItemAsync).
         await UseDevice("desktop");
         SetAdministrator(true, mayEditItems: false);
 
         var cut = RenderTile(Movie());
 
-        Assert.Equal(["Add to My List", "Restart", "Delete from library…"], MenuLabels(cut));
+        Assert.Equal(["Add to My List", "Restart", "Edit", "Delete from library…"], MenuLabels(cut));
     }
 
     [Fact]

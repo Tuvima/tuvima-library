@@ -84,7 +84,11 @@ public partial class DetailPage
             DeletedWithNotice = notice => InvokeAsync(() => _disposed ? Task.CompletedTask : LeaveOrShowRemovedAsync(notice)),
             MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
             Trail = EditTrail,
-            EditRowAsync = row => RowEditEntry.StartAsync(Editor, _binding, row),
+            // A row's own Edit (a track, an episode): a locked administrator is asked for the PIN before the window opens.
+            EditRowAsync = async row =>
+                await EditorDeviceRule.EnsureUnlockedForItemAsync(
+                    Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>())
+                && await RowEditEntry.StartAsync(Editor, _binding, row),
             UniverseLink = () => Model?.UniverseLink is { Qid.Length: > 0 } link ? new EditorUniverseLink(link.Qid, link.Name) : null,
         };
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;

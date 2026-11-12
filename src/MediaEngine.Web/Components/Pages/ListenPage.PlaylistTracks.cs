@@ -129,7 +129,7 @@ public partial class ListenPage
 
     // Edit opens the universal editor over this page with the song ticked (the table only offers it to a device that may edit items).
     // Edit is offered only to a profile the Engine says may edit item details; the handler asks again, and the Engine answers per song.
-    private bool CanEditSongs => Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata == true;
+    private bool CanEditSongs => Services.GetService<DashboardSessionAccessor>()?.CanOfferMetadataEdit == true;
 
     private Task EditPlaylistRowAsync(SongRow row)
     {

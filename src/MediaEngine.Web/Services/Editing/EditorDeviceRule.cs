@@ -41,16 +41,17 @@ public static class EditorDeviceRule
         device is { IsInitialised: true } && CanEditItems(device.DeviceClass, device.FormFactor);
 
     /// <summary>
-    /// The item rule for a list that offers Edit for several items or without a per-item Engine answer: the device may edit
-    /// (<see cref="CanEditItems(DeviceContextService?)"/>) and the Engine says this profile may edit item details. Unknown means no.
-    /// Read-only information; the Engine still checks every save.
+    /// Whether a list offers Edit (for several items, or without a per-item Engine answer): the device may edit
+    /// (<see cref="CanEditItems(DeviceContextService?)"/>) and the Engine says this profile may edit item details, or could once the
+    /// administrator PIN is entered (<see cref="DashboardSessionAccessor.CanOfferMetadataEdit"/>). Unknown means no. This only decides
+    /// what is shown: the handler behind the button calls <see cref="EnsureMayEditItemsAsync"/>, and the Engine still checks every save.
     /// </summary>
     public static bool CanEditItems(DeviceContextService? device, DashboardSessionAccessor? session) =>
-        CanEditItems(device) && session?.CanManageMetadata == true;
+        CanEditItems(device) && session?.CanOfferMetadataEdit == true;
 
     /// <summary>
-    /// Says why this device or profile may not edit items, or null when it may. Handlers call it first and show the line in place
-    /// (the device line wins when both apply), so a hidden button is never the only protection.
+    /// Says why this device or profile is never offered item editing, or null when it is (the device line wins when both apply). A locked
+    /// administrator is offered it; <see cref="EnsureMayEditItemsAsync"/> asks for the PIN before anything opens.
     /// </summary>
     public static string? ItemRefusal(DeviceContextService? device, DashboardSessionAccessor? session)
     {
@@ -59,7 +60,62 @@ public static class EditorDeviceRule
             return ItemMessage;
         }
 
-        return session?.CanManageMetadata == true ? null : ProfileMessage;
+        return session?.CanOfferMetadataEdit == true ? null : ProfileMessage;
+    }
+
+    /// <summary>
+    /// The check every edit handler runs before it opens anything, so a hidden button is never the only protection. The device must be
+    /// allowed and the Engine must say this profile may edit item details now. An administrator whose settings are locked is asked for the
+    /// PIN first (the same prompt as the Universe pages and the collection builder) and passes only when the Engine then says yes;
+    /// closing the prompt stops quietly (<see cref="ItemEditGate.Message"/> is null). Anyone else is refused with a line.
+    /// </summary>
+    public static async Task<ItemEditGate> EnsureMayEditItemsAsync(
+        DeviceContextService? device,
+        DashboardSessionAccessor? session,
+        IAdministratorSurfaceAccessService? administratorAccess,
+        CancellationToken ct = default)
+    {
+        if (TryRefuseItems(device))
+        {
+            return new(false, ItemMessage);
+        }
+
+        if (session is null)
+        {
+            return new(false, ProfileMessage);
+        }
+
+        if (session.CanManageMetadata)
+        {
+            return new(true, null);
+        }
+
+        if (!session.CanOfferMetadataEdit || administratorAccess is null)
+        {
+            return new(false, ProfileMessage);
+        }
+
+        return await administratorAccess.EnsureUnlockedAsync(ct) && session.CanManageMetadata
+            ? new(true, null)
+            : new(false, null);
+    }
+
+    /// <summary>
+    /// For an item the Engine already answered for (its page or a list row offers Edit): an administrator whose settings are locked is
+    /// asked for the PIN before the editor opens, and passes only when the Engine then says the profile may edit. Everyone else passes
+    /// straight through, because the Engine's per-item answer already decided. False means stop quietly (the prompt was closed).
+    /// </summary>
+    public static async Task<bool> EnsureUnlockedForItemAsync(
+        DashboardSessionAccessor? session,
+        IAdministratorSurfaceAccessService? administratorAccess,
+        CancellationToken ct = default)
+    {
+        if (session is null || session.CanManageMetadata || !session.CanOfferMetadataEdit)
+        {
+            return true;
+        }
+
+        return administratorAccess is not null && await administratorAccess.EnsureUnlockedAsync(ct) && session.CanManageMetadata;
     }
 
     /// <summary>
@@ -85,3 +141,6 @@ public static class EditorDeviceRule
     /// </summary>
     public static bool TryRefuse(DeviceContextService? device) => !CanEdit(device);
 }
+
+/// <summary>The answer of <see cref="EditorDeviceRule.EnsureMayEditItemsAsync"/>: whether editing may open, and the line to show when it may not (null when the PIN prompt was simply closed).</summary>
+public readonly record struct ItemEditGate(bool Allowed, string? Message);

@@ -167,7 +167,7 @@ public sealed class PhoneSongBulkEditTests : AsyncBunitContext
     [Fact]
     public async Task OnAPhone_AProfileThatMayNotEditDetails_GetsNoEditInASongsMenuAndNoMoreButtonWhileSelecting()
     {
-        Services.AddSingleton(TestSessions.For(kids: false, administrator: true, canManageMetadata: false));
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: false, canManageMetadata: false));
         await UsePhoneAsync();
         var tracks = Tracks(3);
         var cut = Render<SongList>(parameters => parameters.Add(list => list.Place, SongTablePlace.Songs).Add(list => list.Tracks, tracks));

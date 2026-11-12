@@ -36,7 +36,7 @@ public partial class SongList
     [Inject] private IServiceProvider Services { get; set; } = default!;
 
     // Edit is offered only to a profile the Engine says may edit item details; the table and each handler below check it again.
-    private bool CanEditSongs => Services.GetService<DashboardSessionAccessor>()?.CanManageMetadata == true;
+    private bool CanEditSongs => Services.GetService<DashboardSessionAccessor>()?.CanOfferMetadataEdit == true;
 
     /// <summary>Songs (the Songs list) or Albums (an album's songs inside the Listen page): each remembers its own columns.</summary>
     [Parameter, EditorRequired] public SongTablePlace Place { get; set; }
@@ -285,6 +285,15 @@ public partial class SongList
         }
         else if (WorkFor(row) is not null)
         {
+            // An administrator whose settings are locked is asked for the PIN before the panel opens (the phone path asks in the launcher).
+            var gate = await EditorDeviceRule.EnsureMayEditItemsAsync(
+                DeviceContext, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>());
+            if (!gate.Allowed)
+            {
+                _notice = gate.Message;
+                return;
+            }
+
             _selectedIds = new HashSet<string>(_selectedIds, StringComparer.Ordinal) { row.Id };
             _openEditPanelAfterRender = true;
         }
@@ -309,7 +318,8 @@ public partial class SongList
         var launcher = Services.GetRequiredService<ListEditLauncher>();
         if (!await launcher.OpenRowsAsync(rows, "Music", OnEditedAsync))
         {
-            _notice = launcher.LastNotice ?? EditorDeviceRule.ItemMessage;
+            // No line means the administrator PIN prompt was closed: stop quietly.
+            _notice = launcher.LastNotice;
         }
     }
 
