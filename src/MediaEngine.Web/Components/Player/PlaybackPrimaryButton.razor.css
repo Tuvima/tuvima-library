@@ -135,8 +135,10 @@
     color: var(--tl-on-scrim) !important;
 }
 
-/* The persistent bar's Play (unified player v2 D6): a 32 px stroke glyph in a 48 px target. No ring, no glow, no lift; the shared hover,
-   pressed, disabled and focus states of the other bar buttons. The button is this component's own child, so these rules need no deep selector. */
+/* The persistent bar's Play (unified player v2 D6; sizes from --playback-play-glyph and --playback-play-target, 40 px in 56 px since
+   video player follow-ups D1). A stroke glyph in a square target. No ring, no glow, no lift; the shared hover,
+   pressed, disabled and focus states of the other bar buttons. The button is drawn by AppNativeButton, a child component,
+   so every rule for it is written after ::deep from this component's own shell (issue 941: without it the rules never applied). */
 .playback-primary-button-shell--bar {
     --playback-primary-size: var(--playback-play-target);
     --playback-primary-icon-size: var(--playback-play-glyph);
@@ -144,7 +146,7 @@
     width: var(--playback-play-target);
 }
 
-.playback-bar-play {
+.playback-primary-button-shell ::deep .playback-bar-play {
     align-items: center;
     background: transparent;
     border: 0;
@@ -157,35 +159,35 @@
     padding: 0;
     transition: background-color 120ms ease;
     width: var(--playback-play-target);
+    --playback-glyph-size: var(--playback-play-glyph);
+    --playback-glyph-stroke: 1.8;
 }
 
-.playback-bar-play:not(:disabled):hover {
+.playback-primary-button-shell ::deep .playback-bar-play:not(:disabled):hover {
     background: var(--playback-state-hover);
 }
 
-.playback-bar-play:not(:disabled):active {
+.playback-primary-button-shell ::deep .playback-bar-play:not(:disabled):active {
     background: var(--playback-state-pressed);
 }
 
-.playback-bar-play:focus-visible {
+.playback-primary-button-shell ::deep .playback-bar-play:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: var(--playback-focus-ring-offset);
 }
 
-.playback-bar-play:disabled {
+.playback-primary-button-shell ::deep .playback-bar-play:disabled {
     cursor: default;
     opacity: var(--playback-state-disabled-opacity);
 }
 
-.playback-bar-play .playback-utility-glyph {
-    flex-basis: var(--playback-play-glyph);
-    height: var(--playback-play-glyph);
-    stroke-width: 1.8;
-    width: var(--playback-play-glyph);
+/* The phone's Play (unified player v2 D26; mockup screen 15): a white disc with a black glyph, 64 px unless the surface sets
+   --playback-primary-size on the shell (the phone's Now playing sets 56 px). The disc is the target; pressed darkens it. */
+.playback-primary-button-shell--phone {
+    --playback-primary-size: 64px;
 }
 
-/* The phone's Play (unified player v2 D26; mockup screen 15): a 64 px white disc with a black glyph. The disc is the target; pressed darkens it. */
-.playback-phone-play {
+.playback-primary-button-shell ::deep .playback-phone-play {
     align-items: center;
     background: var(--playback-text);
     border: 0;
@@ -193,28 +195,38 @@
     color: var(--playback-surface);
     cursor: pointer;
     display: inline-flex;
-    height: 64px;
+    height: var(--playback-primary-size);
     justify-content: center;
     padding: 0;
     transition: background-color 120ms ease;
-    width: 64px;
+    width: var(--playback-primary-size);
+    --playback-glyph-size: var(--playback-play-glyph);
+    --playback-glyph-stroke: 1.8;
 }
 
-.playback-phone-play:not(:disabled):active {
+.playback-primary-button-shell ::deep .playback-phone-play:not(:disabled):active {
     background: color-mix(in srgb, var(--playback-text) 82%, var(--playback-surface));
 }
 
-.playback-phone-play:focus-visible {
+.playback-primary-button-shell ::deep .playback-phone-play:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: var(--playback-focus-ring-offset);
 }
 
-.playback-phone-play:disabled {
+.playback-primary-button-shell ::deep .playback-phone-play:disabled {
     cursor: default;
     opacity: var(--playback-state-disabled-opacity);
 }
 
-.playback-phone-play .playback-utility-glyph {
+/* The glyph is the Play size whatever the surface around it sets for its other glyphs (the bar sizes those by --playback-control-glyph). */
+.playback-primary-button-shell ::deep .playback-bar-play .playback-utility-glyph {
+    flex-basis: var(--playback-play-glyph);
+    height: var(--playback-play-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-play-glyph);
+}
+
+.playback-primary-button-shell ::deep .playback-phone-play .playback-utility-glyph {
     flex-basis: var(--playback-play-glyph);
     height: var(--playback-play-glyph);
     stroke-width: 1.8;

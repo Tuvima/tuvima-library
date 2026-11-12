@@ -12,8 +12,8 @@
 /* Transfer: the collapse button is a PlaybackUtilityGlyph button drawn by AppNativeButton with this class; the 44 px target is the player's own. */
 .playback-full-owner ::deep .playback-full__collapse { display:grid; place-items:center; width:44px; height:44px; min-width:44px; border:0; border-radius:8px; background:transparent; color:var(--playback-text); padding:0; --phone-full-pressed:var(--playback-state-pressed); }
 .playback-full-owner ::deep .playback-full__collapse:focus-visible { outline:var(--playback-focus-ring-width) solid var(--playback-focus-ring); outline-offset:var(--playback-focus-ring-offset); }
-/* One pressed rule for the collapse button and the Play disc; each sets its own --phone-full-pressed (a mix of the player's tokens, so no color of its own). */
-.playback-full-owner ::deep :is(.playback-full__collapse, .playback-phone-play):not(:disabled):active { background:var(--phone-full-pressed); }
+/* The collapse button's pressed state (the Play disc carries its own in PlaybackPrimaryButton). */
+.playback-full-owner ::deep .playback-full__collapse:not(:disabled):active { background:var(--phone-full-pressed); }
 /* The artwork is 260 px with 20 px above and below it, as the mockup draws it; only a window too short for the controls takes room from it (down to 96 px), and it keeps its shape. */
 .playback-full__art { flex:0 1 auto; min-height:96px; display:flex; justify-content:center; align-items:center; margin:var(--playback-full-art-gap) auto; width:100%; overflow:hidden; }
 .playback-full__art img,.playback-full__art-placeholder { display:block; width:auto; height:auto; max-width:min(260px,100%); max-height:min(260px,100%); aspect-ratio:1; object-fit:cover; border-radius:8px; background:var(--playback-track); }
@@ -30,16 +30,10 @@
 .playback-full__actions { flex:none; display:flex; align-items:center; margin-inline:-2px; --playback-control-target:44px; --playback-control-glyph:24px; --playback-icon-button-fill-clip:content-box; --playback-icon-button-fill-inset:2px; }
 .playback-full__actions ::deep .playback-identity-actions { gap:0; }
 .playback-full__timeline { flex:none; margin-top:12px; }
-/* Transfer: the timeline is a PlaybackSeekRail whose slider is drawn by AppRangeSlider. The slider's "player" rule that sets its rail to the 24 px hit height lists Firefox-only
-   pseudo-elements in one selector list, which Chromium drops whole, so the rail stays at its 52 px default and its 4 px line sits 14 px above the times. This sets the 24 px
-   height here, so the line sits level with the times as the mockup draws it. */
-.playback-full__timeline ::deep .playback-range-slider__rail { height:var(--playback-slider-hit); }
 /* Transfer: the transport buttons are sized by --playback-control-target (48 px with 28 px glyphs here, video player follow-ups D1); the Play button is 56 px with the 40 px Play glyph. */
 .playback-full__transport { flex:none; display:flex; align-items:center; justify-content:center; gap:var(--playback-full-transport-gap); margin-top:var(--playback-full-transport-top); --playback-control-target:48px; --playback-control-glyph:28px; --playback-play-target:56px; --playback-play-glyph:40px; }
-/* Transfer: the Play button is a PlaybackPrimaryButton, drawn by AppNativeButton with the class playback-phone-play, which reaches it only through ::deep from here (a white disc with a black glyph, 56 px with the 40 px play glyph as video player follow-ups D1 sets); its shell is the 56 px the disc needs, so the row centers the disc itself. The focus ring is
-   the app's own. */
+/* Transfer: the Play button is a PlaybackPrimaryButton, which draws the white disc itself; here the disc and its shell are 56 px with the 40 px play glyph (video player follow-ups D1), so the row centers the disc. */
 .playback-full__transport ::deep .playback-primary-button-shell--phone { --playback-primary-size:56px; }
-.playback-full__transport ::deep .playback-phone-play { display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; padding:0; border:0; border-radius:50%; background:var(--playback-text); color:var(--playback-surface); cursor:pointer; transition:background-color 120ms ease; --playback-glyph-size:var(--playback-play-glyph); --playback-glyph-stroke:1.8; --phone-full-pressed:color-mix(in srgb, var(--playback-text) 82%, var(--playback-surface)); }
 .playback-full-owner ::deep .playback-tool-row { margin-top:var(--playback-full-tools-gap); --playback-control-target:48px; --playback-control-glyph:28px; }
 /* A window too short for the full stack tightens the spacing; below 600 px tall the mockup's 640 px phone still fits whole. */
 @media (max-height:600px) {

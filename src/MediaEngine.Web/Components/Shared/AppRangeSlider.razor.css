@@ -191,10 +191,18 @@
     width: calc(100% + var(--playback-slider-handle));
 }
 
+/* The engine-specific parts sit in rules of their own: a browser drops a whole selector list when one selector in it is unknown to it
+   (issue 941: with the Firefox parts in the same list, Chrome and Safari dropped the rule and the rail kept its 52 px default). */
 .playback-range-slider--player .playback-range-slider__rail,
-.playback-range-slider--player .playback-range-slider__input,
+.playback-range-slider--player .playback-range-slider__input {
+    height: var(--playback-slider-hit);
+}
+
 .playback-range-slider--player .playback-range-slider__input::-webkit-slider-runnable-track,
-.playback-range-slider--player .playback-range-slider__input::-webkit-slider-thumb,
+.playback-range-slider--player .playback-range-slider__input::-webkit-slider-thumb {
+    height: var(--playback-slider-hit);
+}
+
 .playback-range-slider--player .playback-range-slider__input::-moz-range-track,
 .playback-range-slider--player .playback-range-slider__input::-moz-range-thumb {
     height: var(--playback-slider-hit);

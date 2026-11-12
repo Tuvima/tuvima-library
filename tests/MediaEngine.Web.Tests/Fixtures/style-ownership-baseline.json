@@ -1115,7 +1115,7 @@
     },
     "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor.css": {
       "important": 0,
-      "deep": 9
+      "deep": 7
     },
     "src/MediaEngine.Web/Components/Player/PlaybackIdentityLink.razor.css": {
       "important": 3,
@@ -1211,7 +1211,7 @@
     },
     "src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css": {
       "important": 0,
-      "deep": 14
+      "deep": 9
     },
     "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor.css": {
       "important": 0,
@@ -1583,7 +1583,7 @@
     },
     "src/MediaEngine.Web/Components/Shared/MediaRateControl.razor.css": {
       "important": 0,
-      "deep": 12
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor.css": {
       "important": 3,
@@ -1599,7 +1599,7 @@
     },
     "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css": {
       "important": 1,
-      "deep": 22
+      "deep": 15
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
       "important": 0,
@@ -1611,7 +1611,7 @@
     },
     "src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor.css": {
       "important": 13,
-      "deep": 13
+      "deep": 24
     },
     "src/MediaEngine.Web/Components/Player/PlaybackRelativeSkipButton.razor.css": {
       "important": 3,
@@ -1655,7 +1655,7 @@
     },
     "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor.css": {
       "important": 1,
-      "deep": 8
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor.css": {
       "important": 0,
@@ -1791,7 +1791,7 @@
     },
     "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css": {
       "important": 0,
-      "deep": 3
+      "deep": 13
     },
     "src/MediaEngine.Web/Components/Player/PlaybackRowMenu.razor.css": {
       "important": 0,
@@ -1831,7 +1831,7 @@
     },
     "src/MediaEngine.Web/Components/Player/PlaybackIdentity.razor.css": {
       "important": 0,
-      "deep": 2
+      "deep": 15
     },
     "src/MediaEngine.Web/Components/Editor/EditorHeaderNav.razor.css": {
       "important": 0,
@@ -4499,6 +4499,72 @@
         ".tl-editor-header ::deep .tl-editor-header__img"
       ],
       "reason": "The View editor header (Editor v5 WP14) passes its picture class to the shared image control, so the rule is reached with a deep rule from the header root. The budget comes from the shared media editor shell, which no longer exists."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackToolSheet.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css",
+      "important": 0,
+      "deep": 8,
+      "selectors": [
+        ".playback-panel--sheet ::deep .playback-tool-sheet",
+        ".playback-panel--sheet ::deep .playback-tool-sheet__close"
+      ],
+      "reason": "Issue 941: the phone sheet's surface, handle and Close are drawn by child parts (AppPopout, the handle button, AppNativeButton), so the tool sheet's own rules for them matched nothing. They moved behind the panel's own element, the only scoped ancestor that can reach them."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".playback-panel--sheet ::deep .playback-sheet-list",
+        ".playback-panel--sheet ::deep .playback-tool-sheet--lyrics"
+      ],
+      "reason": "Issue 941: the phone sheet's surface, handle and Close are drawn by child parts (AppPopout, the handle button, AppNativeButton), so the tool sheet's own rules for them matched nothing. They moved behind the panel's own element, the only scoped ancestor that can reach them. The phone player gives up the two workaround rules that covered for the Play button and the timeline."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Player/PlaybackIconButton.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor.css",
+      "important": 0,
+      "deep": 7,
+      "selectors": [
+        ".playback-primary-button-shell ::deep .playback-bar-play",
+        ".playback-primary-button-shell ::deep .playback-bar-play:hover"
+      ],
+      "reason": "Issue 941: the Play button is drawn by AppNativeButton, so the plain '.playback-bar-play' and '.playback-phone-play' rules never applied; they are now written after '::deep' from the button's own shell. The icon button holds unused budget."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/MediaRateControl.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor.css",
+      "important": 0,
+      "deep": 4,
+      "selectors": [
+        ".playback-primary-button-shell ::deep .playback-phone-play",
+        ".playback-primary-button-shell ::deep .playback-phone-play .playback-utility-glyph"
+      ],
+      "reason": "Issue 941: the Play button is drawn by AppNativeButton, so the plain '.playback-bar-play' and '.playback-phone-play' rules never applied; they are now written after '::deep' from the button's own shell. The rate control no longer has deep rules."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Shared/MediaRateControl.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackIdentity.razor.css",
+      "important": 0,
+      "deep": 8,
+      "selectors": [
+        ".playback-identity ::deep .playback-identity__art",
+        ".playback-identity ::deep .playback-identity__art-image"
+      ],
+      "reason": "Issue 941: the bar's clickable cover is an AppNativeButton and its picture is built in code, so neither carries the isolation attribute; the art-box rules are written as a plain and '::deep' pair and the picture rules after '::deep'. The rate control no longer has deep rules."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/PlaybackIdentity.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        ".playback-identity--compact ::deep .playback-identity__art",
+        ".playback-identity ::deep .playback-identity__art--button:focus-visible"
+      ],
+      "reason": "Issue 941: the bar's clickable cover is an AppNativeButton and its picture is built in code, so neither carries the isolation attribute; the art-box rules are written as a plain and '::deep' pair and the picture rules after '::deep'. The Continue section no longer has deep rules."
     }
   ],
   "finalBundleBytes": 1283347,

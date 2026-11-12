@@ -1,3 +1,5 @@
+/* The artwork box is a plain element, or an AppNativeButton when the cover is clickable. A child component never carries this file's isolation
+   attribute, so each rule for the box is written twice: plain, and after ::deep for the button (issue 941). */
 /* The identity zone of the persistent bar (unified player v2 D5; mockup screen 1 marker 4): a 64 px tall artwork slot (video player follow-ups D2), the title and second line, then
    the item's actions. The zone keeps at least 240 px (the phone's collapsed form lets it shrink) and the title takes only the room it needs, so the actions sit right after it as in the mockup, and ends in an
    ellipsis when it must shrink; the actions never shrink, so Favorite, Like, Dislike and More stay visible beside a song title at 1024 wide. */
@@ -12,6 +14,7 @@
     min-width: 0;
 }
 
+.playback-identity ::deep .playback-identity__art,
 .playback-identity__art {
     background: var(--tl-bg-surface-elevated);
     border: 0;
@@ -25,41 +28,46 @@
     width: 64px;
 }
 
+.playback-identity ::deep .playback-identity__art--wide,
 .playback-identity__art--wide {
     width: 114px;
 }
 
 /* A movie's poster, or an episode that has only the show's poster: a 43 x 64 portrait slot, no landscape box. */
+.playback-identity ::deep .playback-identity__art--poster,
 .playback-identity__art--poster {
     width: 43px;
 }
 
+.playback-identity ::deep .playback-identity__art--button,
 .playback-identity__art--button {
     cursor: pointer;
 }
 
+.playback-identity ::deep .playback-identity__art--button:focus-visible,
 .playback-identity__art--button:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: var(--playback-focus-ring-offset);
 }
 
-.playback-identity__art-image,
-.playback-identity__art-placeholder {
+/* The image and the placeholder are drawn from code (a render fragment), so they carry no isolation attribute either: ::deep reaches them. */
+.playback-identity ::deep .playback-identity__art-placeholder,
+.playback-identity ::deep .playback-identity__art-image {
     display: block;
     height: 100%;
     width: 100%;
 }
 
 /* A square cover is drawn whole. An episode still fills the 16:9 slot; a poster fills its portrait slot (cover-fitted, no blurred fill). */
-.playback-identity__art-image {
+.playback-identity ::deep .playback-identity__art-image {
     object-fit: contain;
 }
 
-.playback-identity__art--wide .playback-identity__art-image {
+.playback-identity ::deep .playback-identity__art--wide .playback-identity__art-image {
     object-fit: cover;
 }
 
-.playback-identity__art--poster .playback-identity__art-image {
+.playback-identity ::deep .playback-identity__art--poster .playback-identity__art-image {
     object-fit: cover;
 }
 
@@ -160,15 +168,18 @@
     display: block;
 }
 
+.playback-identity--compact ::deep .playback-identity__art,
 .playback-identity--compact .playback-identity__art {
     height: 44px;
     width: 44px;
 }
 
+.playback-identity--compact ::deep .playback-identity__art--wide,
 .playback-identity--compact .playback-identity__art--wide {
     width: 78px;
 }
 
+.playback-identity--compact ::deep .playback-identity__art--poster,
 .playback-identity--compact .playback-identity__art--poster {
     width: 29px;
 }
