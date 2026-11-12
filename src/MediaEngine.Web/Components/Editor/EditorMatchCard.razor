@@ -54,39 +54,21 @@
                 {
                     <div>
                         <AppButton Label="@(_expanded ? L["EditorMatchCard_ReadLess"].Value : L["EditorMatchCard_ReadMore"].Value)" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
-                                   Size="AppControlSize.Compact" OnClick="ToggleDescription" data-testid="match-card-read-more" />
+                                   Size="AppControlSize.Compact" OnClick="ToggleDescription" aria-expanded="@(_expanded ? "true" : "false")" data-testid="match-card-read-more" />
                     </div>
                 }
+            }
+            @if (CompareBesideCover)
+            {
+                @Compare()
             }
         </div>
     </div>
 
-    <div class="tl-mcard__verdict" data-verdict="@VerdictKey" role="status" data-testid="match-verdict">
-        <AppMaterialIcon Icon="@VerdictIcon" />
-        <span>@VerdictWords</span>
-    </div>
-
-    <table class="tl-mcard__table" data-testid="match-compare">
-        <thead>
-            <tr>
-                <th scope="col">@L["EditorMatchPanel_Field"]</th>
-                <th scope="col">@L["EditorMatchPanel_YourFile"]</th>
-                <th scope="col">@ResultLabel</th>
-                <th scope="col"><span class="sr-only">@L["EditorMatchPanel_Result"]</span></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in Model.Rows)
-            {
-                <tr data-outcome="@row.Outcome" data-field="@row.Field">
-                    <th scope="row">@row.Field</th>
-                    <td class="@Cell(row.YourFile)">@(string.IsNullOrWhiteSpace(row.YourFile) ? L["EditorMatchCard_NotProvided"].Value : row.YourFile)</td>
-                    <td class="@Cell(row.Result)">@(string.IsNullOrWhiteSpace(row.Result) ? L["EditorMatchCard_NotProvided"].Value : row.Result)</td>
-                    <td class="tl-mcard__mark" data-testid="match-compare-mark">@Mark(row.Outcome)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    @if (!CompareBesideCover)
+    {
+        @Compare()
+    }
 
     <div class="tl-mcard__foot">
         <div class="tl-mcard__basis">
@@ -98,7 +80,9 @@
 </section>
 
 @code {
-    private const int ReadMoreAfter = 140;
+    // Read more shows for anything that could run past two lines at the narrowest the text column gets (about 16 characters a line beside a wide
+    // episode picture), so nothing is ever folded away without a way to open it.
+    private const int ReadMoreAfter = 30;
 
     private bool _expanded;
     private string? _shownFor;
@@ -114,6 +98,9 @@
 
     /// <summary>More under the basis note on the left of the foot (the current match says unlocked details update).</summary>
     [Parameter] public RenderFragment? Basis { get; set; }
+
+    /// <summary>True for the current match: the verdict and the table sit in the right column beside the cover. False under a search: they run the full width under it.</summary>
+    [Parameter] public bool CompareBesideCover { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
@@ -156,6 +143,40 @@
             _expanded = false;
         }
     }
+
+    // The verdict in words and the compare table. Under a search it runs the full width under the cover and facts; for the current match it sits in
+    // the right column beside the cover (mock B).
+    private RenderFragment Compare() => __builder =>
+    {
+        <div class="tl-mcard__compare" data-beside="@(CompareBesideCover ? "true" : "false")">
+        <div class="tl-mcard__verdict" data-verdict="@VerdictKey" role="status" data-testid="match-verdict">
+            <AppMaterialIcon Icon="@VerdictIcon" />
+            <span>@VerdictWords</span>
+        </div>
+
+        <table class="tl-mcard__table" data-testid="match-compare">
+            <thead>
+                <tr>
+                    <th scope="col">@L["EditorMatchPanel_Field"]</th>
+                    <th scope="col">@L["EditorMatchPanel_YourFile"]</th>
+                    <th scope="col">@ResultLabel</th>
+                    <th scope="col"><span class="sr-only">@L["EditorMatchPanel_Result"]</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr data-outcome="@row.Outcome" data-field="@row.Field">
+                        <th scope="row">@row.Field</th>
+                        <td class="@Cell(row.YourFile)">@(string.IsNullOrWhiteSpace(row.YourFile) ? L["EditorMatchCard_NotProvided"].Value : row.YourFile)</td>
+                        <td class="@Cell(row.Result)">@(string.IsNullOrWhiteSpace(row.Result) ? L["EditorMatchCard_NotProvided"].Value : row.Result)</td>
+                        <td class="tl-mcard__mark" data-testid="match-compare-mark">@Mark(row.Outcome)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    };
 
     private void ToggleDescription() => _expanded = !_expanded;
 

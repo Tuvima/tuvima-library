@@ -38,7 +38,7 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
 {
     private static readonly string[] LeadingArticles = ["the", "a", "an"];
 
-    // The identifiers a record can carry, the one a person recognises first listed first.
+    // The identifiers a record can carry, the one a person recognizes first listed first.
     private static readonly string[] IdentifierKeys = ["isbn", "imdb_id", "tmdb_id", "isrc", "musicbrainz_id", "youtube_id"];
 
     /// <summary>The verdict for a set of compared facts.</summary>
@@ -94,15 +94,21 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
 
     /// <summary>
     /// True when a result is a collection, box set or omnibus rather than one title (universal editor v6, D6): the provider says so itself
-    /// (<c>is_collection</c>), or the title carries one of <c>collection_title_markers</c> as whole words.
+    /// (<c>is_collection</c>), or the title carries one of <c>collection_title_markers</c> as whole words. A record that has a place in a series
+    /// (<paramref name="seriesNumber"/>) is one numbered title, so "The Mistborn Trilogy, Book 1" is not a collection; the provider's own flag still wins.
     /// </summary>
-    public bool IsCollection(string? title, IReadOnlyDictionary<string, string>? providerFields)
+    public bool IsCollection(string? title, IReadOnlyDictionary<string, string>? providerFields, string? seriesNumber = null)
     {
         if (providerFields is not null
             && providerFields.TryGetValue("is_collection", out var flag)
             && (flag.Equals("true", StringComparison.OrdinalIgnoreCase) || flag == "1"))
         {
             return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(seriesNumber))
+        {
+            return false;
         }
 
         var words = Words(title ?? string.Empty);
@@ -242,9 +248,13 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
                 MatchFactNames.Identifier, EditorMatchEvidenceStates.Differs, miss.Value, recordIds[KeyFor(miss.Kind)], $"{KindWord(miss.Kind)} differs");
         }
 
-        // Nothing to compare: still show what each side does carry (an ISBN the file names, an ISBN the record has) so the compare table can say which side is missing.
+        // Nothing to compare: still show what each side does carry so the compare table can say which side is missing. The two are never of
+        // different kinds side by side (a file's ISRC against a record's MusicBrainz id): a record identifier of the file's own kind would have been
+        // comparable above, so when the file names one the record's side stays empty.
         var fileValue = found.FirstOrDefault(item => item.Kind != EditorMatchIdentifierKinds.EmbeddedTitle)?.Value;
-        var recordValue = IdentifierKeys.Select(key => recordIds.GetValueOrDefault(key)).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        var recordValue = fileValue is not null
+            ? null
+            : IdentifierKeys.Select(key => recordIds.GetValueOrDefault(key)).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
         return new MatchFactCheck(MatchFactNames.Identifier, EditorMatchEvidenceStates.NotChecked, fileValue, recordValue, "Identifier not checked");
     }
 

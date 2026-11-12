@@ -16,8 +16,9 @@ public enum EditorMatchCardArt
 /// <summary>
 /// One row of the card's compare table: the field, what the file says, what the selected result says, and the Engine's outcome
 /// (<see cref="EditorMatchEvidenceStates"/>: agrees is a tick, differs a cross, not checked a dash). The Dashboard never compares anything itself.
+/// <see cref="Fact"/> is the Engine's key for the row, kept so the basis note can word it.
 /// </summary>
-public sealed record EditorMatchCardRow(string Field, string? YourFile, string? Result, string Outcome);
+public sealed record EditorMatchCardRow(string Field, string? YourFile, string? Result, string Outcome, string Fact);
 
 /// <summary>Everything the Match card shows for one result or for the current match, already worded.</summary>
 public sealed record EditorMatchCardModel(
@@ -45,7 +46,8 @@ public static class EditorMatchCardModels
             FieldLabel(reason.Fact, kind, l),
             Value(reason.Fact, reason.YourFile, yours: true, l),
             Value(reason.Fact, reason.Result, yours: false, l),
-            reason.State)).ToList();
+            reason.State,
+            reason.Fact)).ToList();
         return new EditorMatchCardModel(
             shown.Title,
             SeriesLine(shown.SeriesName ?? work.SeriesName, shown.SeriesNumber ?? work.SeriesNumber, kind, " · ", l),
@@ -57,7 +59,7 @@ public static class EditorMatchCardModels
             shown.Description ?? work.Description,
             shown.Verdict,
             rows,
-            BasisNote(rows, l),
+            BasisNote(rows, kind, l),
             []);
     }
 
@@ -69,7 +71,8 @@ public static class EditorMatchCardModels
             FieldLabel(row.Field, kind, l),
             Value(row.Field, row.YourFile, yours: true, l),
             Value(row.Field, row.MatchedRecord, yours: false, l),
-            row.State)).ToList();
+            row.State,
+            row.Field)).ToList();
         var notes = new List<string>();
         if (current.Pinned)
         {
@@ -92,7 +95,7 @@ public static class EditorMatchCardModels
             record.Description,
             current.Verdict ?? EditorMatchVerdicts.Possible,
             rows,
-            BasisNote(rows, l),
+            BasisNote(rows, kind, l),
             notes);
     }
 
@@ -160,7 +163,7 @@ public static class EditorMatchCardModels
         },
         "season_number" => l["EditorMatchPanel_FieldSeason"].Value,
         "episode_number" => l["EditorMatchPanel_FieldEpisode"].Value,
-        _ => fact.Replace('_', ' '),
+        _ => l["EditorMatchCard_FieldOther"].Value,
     };
 
     // A measured length says so, and so does a provider's rounded one.
@@ -179,18 +182,47 @@ public static class EditorMatchCardModels
         };
     }
 
-    // What the verdict rests on: the facts that could be compared. A fact one side did not give is not part of it.
-    private static string BasisNote(IReadOnlyList<EditorMatchCardRow> rows, IStringLocalizer<SharedStrings> l)
+    // What the verdict rests on: the facts that could be compared (a fact one side did not give is not part of it). The identifier comes first,
+    // since it settles most matches, then the rest in the table's order: "Based on the ISBN, title and author."
+    private static string BasisNote(IReadOnlyList<EditorMatchCardRow> rows, string? kind, IStringLocalizer<SharedStrings> l)
     {
-        var compared = rows.Where(row => row.Outcome != EditorMatchEvidenceStates.NotChecked).Select(row => row.Field.ToLowerInvariant()).ToList();
+        var compared = rows.Where(row => row.Outcome != EditorMatchEvidenceStates.NotChecked).ToList();
         if (compared.Count == 0)
         {
             return l["EditorMatchCard_BasisNothing"].Value;
         }
 
-        var list = compared.Count == 1
-            ? compared[0]
-            : string.Join(", ", compared.Take(compared.Count - 1)) + " " + l["EditorMatchCard_And"].Value + " " + compared[^1];
+        var ordered = compared.Where(row => row.Fact == "identifier").Concat(compared.Where(row => row.Fact != "identifier"));
+        var words = ordered.Select(row => BasisWords(row.Fact, kind, l)).Distinct().ToList();
+        var list = words.Count == 1
+            ? words[0]
+            : string.Join(", ", words.Take(words.Count - 1)) + " " + l["EditorMatchCard_And"].Value + " " + words[^1];
         return l["EditorMatchCard_BasedOn", list].Value;
     }
+
+    // A fact as it reads in the middle of a sentence.
+    private static string BasisWords(string fact, string? kind, IStringLocalizer<SharedStrings> l) => fact switch
+    {
+        "title" => l["EditorMatchCard_BasisTitle"].Value,
+        "year" => l["EditorMatchCard_BasisYear"].Value,
+        "runtime" => l["EditorMatchCard_BasisRuntime"].Value,
+        "track_length" => l["EditorMatchCard_BasisLength"].Value,
+        "creator" => kind switch
+        {
+            EditorKinds.Movie or EditorKinds.TvShow or EditorKinds.TvSeason or EditorKinds.TvEpisode => l["EditorMatchCard_BasisDirector"].Value,
+            EditorKinds.Album or EditorKinds.Song => l["EditorMatchCard_BasisArtist"].Value,
+            _ => l["EditorMatchCard_BasisAuthor"].Value,
+        },
+        "identifier" => kind is EditorKinds.Book or EditorKinds.Audiobook ? l["EditorMatchCard_BasisIsbn"].Value : l["EditorMatchCard_BasisIdentifier"].Value,
+        "number" => kind switch
+        {
+            EditorKinds.Comic => l["EditorMatchCard_BasisIssue"].Value,
+            EditorKinds.TvSeason => l["EditorMatchCard_BasisSeason"].Value,
+            EditorKinds.TvEpisode => l["EditorMatchCard_BasisEpisode"].Value,
+            _ => l["EditorMatchCard_BasisNumber"].Value,
+        },
+        "season_number" => l["EditorMatchCard_BasisSeason"].Value,
+        "episode_number" => l["EditorMatchCard_BasisEpisode"].Value,
+        _ => l["EditorMatchCard_BasisOther"].Value,
+    };
 }

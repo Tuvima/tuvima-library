@@ -86,6 +86,18 @@
     display: block;
 }
 
+/* The verdict and the table travel together: full width under a search, in the right column beside the cover for the current match (mock B). */
+.tl-mcard__compare {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.tl-mcard__compare[data-beside="true"] {
+    margin-top: var(--tl-space-3);
+}
+
 .tl-mcard__verdict {
     display: flex;
     align-items: center;

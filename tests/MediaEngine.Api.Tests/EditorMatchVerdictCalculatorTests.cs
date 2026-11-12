@@ -173,6 +173,30 @@ public sealed class EditorMatchVerdictCalculatorTests
         Assert.Equal("9781423103349", onlyTheRecord.Theirs);
     }
 
+    [Fact]
+    public void AnIdentifierTheFileNames_IsNeverShownBesideARecordIdentifierOfAnotherKind()
+    {
+        var check = _calculator.Identifier(
+            [new EditorMatchIdentifierDto { Kind = EditorMatchIdentifierKinds.Isrc, Value = "USRC17607839" }],
+            new Dictionary<string, string> { ["musicbrainz_id"] = "b1a9c0e9-d987-4042-ae91-78d6a3267d69" });
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, check.State);
+        Assert.Equal("USRC17607839", check.Yours);
+        Assert.Null(check.Theirs);
+    }
+
+    [Theory]
+    [InlineData("The Mistborn Trilogy, Book 1", "1", false)]
+    [InlineData("The Collection", null, true)]
+    [InlineData("The Collection", "  ", true)]
+    [InlineData("The Mistborn Trilogy", null, true)]
+    public void ANumberedSeriesEntry_IsNotACollection_WhateverItsTitleSays(string title, string? seriesNumber, bool expected) =>
+        Assert.Equal(expected, _calculator.IsCollection(title, null, seriesNumber));
+
+    [Fact]
+    public void AProviderThatSaysItIsACollection_IsOne_EvenWithASeriesNumber() =>
+        Assert.True(_calculator.IsCollection("Books I to III", new Dictionary<string, string> { ["is_collection"] = "true" }, "1"));
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

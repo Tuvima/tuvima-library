@@ -674,7 +674,7 @@ public sealed class EditorMatchSearchService(
             Description = candidate.Description,
             SourceUrl = SourceUrl(candidate, isTv),
             KindText = KindText(kindId),
-            IsCollection = calculator.IsCollection(candidate.Title, extra),
+            IsCollection = calculator.IsCollection(candidate.Title, extra, SeriesNumber(extra)),
             SeriesName = Extra(extra, MetadataFieldConstants.Series),
             SeriesNumber = SeriesNumber(extra),
             Verdict = calculator.Verdict(checks),

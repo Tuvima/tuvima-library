@@ -11894,7 +11894,7 @@
   <data name="EditorGroupMatchPanel_Summary" xml:space="preserve">
     <value>{0} of {1} line up with {2} by their own numbers.</value>
   </data>
-  <data name="EditorGroupMatchPanel_CheckMatch" xml:space="preserve">
+  <data name="EditorGroupMatchPanel_WeakMatch" xml:space="preserve">
     <value>Weak match</value>
   </data>
   <data name="EditorGroupMatchPanel_Apply" xml:space="preserve">
@@ -13966,5 +13966,59 @@
   </data>
   <data name="EditorMatchResults_Collection" xml:space="preserve">
     <value>Collection</value>
+  </data>
+  <data name="EditorMatchCard_FieldOther" xml:space="preserve">
+    <value>Other detail</value>
+  </data>
+  <data name="EditorMatchCard_BasisIsbn" xml:space="preserve">
+    <value>the ISBN</value>
+  </data>
+  <data name="EditorMatchCard_BasisIdentifier" xml:space="preserve">
+    <value>the identifier</value>
+  </data>
+  <data name="EditorMatchCard_BasisTitle" xml:space="preserve">
+    <value>title</value>
+  </data>
+  <data name="EditorMatchCard_BasisAuthor" xml:space="preserve">
+    <value>author</value>
+  </data>
+  <data name="EditorMatchCard_BasisDirector" xml:space="preserve">
+    <value>director</value>
+  </data>
+  <data name="EditorMatchCard_BasisArtist" xml:space="preserve">
+    <value>artist</value>
+  </data>
+  <data name="EditorMatchCard_BasisYear" xml:space="preserve">
+    <value>year</value>
+  </data>
+  <data name="EditorMatchCard_BasisRuntime" xml:space="preserve">
+    <value>measured length</value>
+  </data>
+  <data name="EditorMatchCard_BasisLength" xml:space="preserve">
+    <value>length</value>
+  </data>
+  <data name="EditorMatchCard_BasisIssue" xml:space="preserve">
+    <value>issue number</value>
+  </data>
+  <data name="EditorMatchCard_BasisNumber" xml:space="preserve">
+    <value>number</value>
+  </data>
+  <data name="EditorMatchCard_BasisSeason" xml:space="preserve">
+    <value>season</value>
+  </data>
+  <data name="EditorMatchCard_BasisEpisode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="EditorMatchCard_BasisOther" xml:space="preserve">
+    <value>other details</value>
+  </data>
+  <data name="EditorMatchResults_VerdictWordStrong" xml:space="preserve">
+    <value>Strong</value>
+  </data>
+  <data name="EditorMatchResults_VerdictWordPossible" xml:space="preserve">
+    <value>Possible</value>
+  </data>
+  <data name="EditorMatchResults_VerdictWordWeak" xml:space="preserve">
+    <value>Weak</value>
   </data>
 </root>

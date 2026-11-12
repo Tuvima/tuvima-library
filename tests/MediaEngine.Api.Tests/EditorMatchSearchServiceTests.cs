@@ -379,6 +379,17 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ANumberedSeriesEntry_WhoseTitleSaysTrilogy_IsNotMarkedACollection()
+    {
+        var entry = await SearchBook(Candidate(
+            "OL4W", "The Mistborn Trilogy, Book 1", "2006", author: "Brandon Sanderson",
+            extra: new() { ["series"] = "Mistborn", ["series_position"] = "1" }));
+
+        Assert.False(entry.IsCollection);
+        Assert.Equal("1", entry.SeriesNumber);
+    }
+
+    [Fact]
     public async Task ASingleBook_IsNotMarkedACollection()
     {
         var single = await SearchBook(Candidate("OL1W", "The Sea of Monsters", "2009", author: "Rick Riordan"));

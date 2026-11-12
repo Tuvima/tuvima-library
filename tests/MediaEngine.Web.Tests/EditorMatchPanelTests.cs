@@ -198,6 +198,20 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheMatchedCard_PutsTheVerdictAndTheTableBesideTheCover_AndTheActionsOnTheLineBelow()
+    {
+        var cut = RenderPanel();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        var card = cut.Find("[data-testid=match-current]");
+        var top = card.QuerySelector(".tl-mcard__top")!;
+        Assert.NotNull(top.QuerySelector("[data-testid=match-verdict]"));
+        Assert.NotNull(top.QuerySelector("[data-testid=match-compare]"));
+        Assert.Null(card.QuerySelector(".tl-mcard__foot [data-testid=match-compare]"));
+        Assert.NotNull(card.QuerySelector(".tl-mcard__foot [data-testid=match-open-source]"));
+    }
+
+    [Fact]
     public void AMatchedItem_ShowsTheSourceSelectorThenTheFileBarThenTheCard_AndNoSearchRowUntilChangeMatch()
     {
         var cut = RenderPanel();
@@ -1018,11 +1032,50 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         var cut = SearchBooks(BookResult("The Sea of Monsters", description: LongDescription));
 
         Assert.Equal("false", cut.Find("[data-testid=match-card-description]").GetAttribute("data-expanded"));
+        Assert.Equal("false", cut.Find("[data-testid=match-card-read-more]").GetAttribute("aria-expanded"));
 
         cut.Find("[data-testid=match-card-read-more]").Click();
 
         Assert.Equal("true", cut.Find("[data-testid=match-card-description]").GetAttribute("data-expanded"));
         Assert.Equal("Read less", cut.Find("[data-testid=match-card-read-more]").TextContent.Trim());
+        Assert.Equal("true", cut.Find("[data-testid=match-card-read-more]").GetAttribute("aria-expanded"));
+    }
+
+    [Fact]
+    public void AnythingThatCouldBeFolded_HasAReadMoreButton()
+    {
+        // Two lines in the narrowest text column (a wide episode picture) hold about 30 characters, so nothing longer is ever folded without a way to open it.
+        var cut = SearchBooks(BookResult("The Sea of Monsters", description: "A boy finds out his school is a trap."));
+
+        Assert.Single(cut.FindAll("[data-testid=match-card-read-more]"));
+    }
+
+    [Fact]
+    public void TheBasisNote_NamesTheIdentifierFirst_ThenTheOtherComparedFactsInTableOrder()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", reasons:
+        [
+            Fact("title", EditorMatchEvidenceStates.Agrees, "The Sea of Monsters", "The Sea of Monsters"),
+            Fact("creator", EditorMatchEvidenceStates.Agrees, "Rick Riordan", "Rick Riordan"),
+            Fact("identifier", EditorMatchEvidenceStates.Agrees, "1423103343", "1423103343"),
+            Fact("year", EditorMatchEvidenceStates.NotChecked, null, "2009"),
+        ]));
+
+        Assert.Equal("Based on the ISBN, title and author.", cut.Find("[data-testid=match-card-basis]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void AFactTheDashboardHasNoWordsFor_ReadsOtherDetail_NeverTheRawKey()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", reasons:
+        [
+            Fact("page_count", EditorMatchEvidenceStates.Agrees, "279", "279"),
+        ]));
+
+        var row = cut.Find("[data-testid=match-compare] tbody tr");
+        Assert.Equal("Other detail", row.QuerySelector("th")!.TextContent.Trim());
+        Assert.DoesNotContain("page", cut.Find("[data-testid=match-compare]").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Based on other details.", cut.Find("[data-testid=match-card-basis]").TextContent.Trim());
     }
 
     [Fact]

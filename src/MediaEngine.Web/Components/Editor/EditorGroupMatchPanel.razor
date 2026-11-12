@@ -10,7 +10,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The group Match (universal editor v5, D36): with several episodes or songs ticked, the person picks one show and season, or one release,
-   once. Every ticked item is lined up with the record that has its own number; the ones that do not fit are listed as "Check match", unticked,
+   once. Every ticked item is lined up with the record that has its own number; the ones that do not fit are listed as "Weak match", unticked,
    and are left out unless the person ticks them. There is no table of every file. Apply stages the match, the move and the file move of each
    ticked item in the pending list, exactly as a single Apply does; Save changes writes them. Nothing is written here. *@
 <section class="tl-bulk__group tl-groupmatch" aria-label="@L["Common_Match"].Value" data-testid="group-match">
@@ -115,14 +115,14 @@
         <p data-testid="group-match-summary">@L["EditorGroupMatchPanel_Summary", _result.Lines.Count - misfits.Count, _result.Lines.Count, _result.TargetLabel]</p>
         @if (misfits.Count > 0)
         {
-            <div role="list" aria-label="@L["EditorGroupMatchPanel_CheckMatch"].Value" data-testid="group-match-misfits">
+            <div role="list" aria-label="@L["EditorGroupMatchPanel_WeakMatch"].Value" data-testid="group-match-misfits">
                 @foreach (var line in misfits)
                 {
                     <div class="tl-groupmatch__misfit" role="listitem" data-testid="group-match-misfit">
                         <AppCheckbox Value="@_ticked.Contains(line.EntityId)" ValueChanged="@(value => Tick(line, value))" Disabled="@(line.Candidate is null)"
                                      Label="@line.Title" />
                         <span class="tl-match__meta">@MisfitLine(line)</span>
-                        @if (line.Candidate is not null) { <AppChip Text="@L["EditorGroupMatchPanel_CheckMatch"].Value" Tone="AppUiTone.Warning" /> }
+                        @if (line.Candidate is not null) { <AppChip Text="@L["EditorGroupMatchPanel_WeakMatch"].Value" Tone="AppUiTone.Warning" /> }
                     </div>
                 }
             </div>

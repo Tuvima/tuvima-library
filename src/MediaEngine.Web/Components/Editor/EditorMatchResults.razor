@@ -211,11 +211,12 @@
             ? string.Join(" · ", new[] { info.Year, info.Format, info.Publisher, info.Language }.Where(part => !string.IsNullOrWhiteSpace(part)))
             : edition.Title;
 
-    internal static string VerdictText(string verdict) => verdict switch
+    // The one word for a verdict ("Strong", "Possible", "Weak"); the verdict bar puts "match" after it.
+    internal static string VerdictText(string verdict, IStringLocalizer<SharedStrings> l) => verdict switch
     {
-        EditorMatchVerdicts.Strong => "Strong",
-        EditorMatchVerdicts.Weak => "Weak",
-        _ => "Possible",
+        EditorMatchVerdicts.Strong => l["EditorMatchResults_VerdictWordStrong"].Value,
+        EditorMatchVerdicts.Weak => l["EditorMatchResults_VerdictWordWeak"].Value,
+        _ => l["EditorMatchResults_VerdictWordPossible"].Value,
     };
 
     internal static AppUiTone VerdictTone(string verdict) => verdict switch

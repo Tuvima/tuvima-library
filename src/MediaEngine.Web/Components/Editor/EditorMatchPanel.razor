@@ -606,7 +606,7 @@
     {
         var record = current.Record!;
         var canChange = CanEdit && Session is { IsActive: true };
-        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind, L)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" data-testid="match-current">
+        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind, L)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" CompareBesideCover="true" data-testid="match-current">
             <Basis><span data-testid="match-why-note">@L["EditorMatchPanel_ChangingKeepsLocked"]</span></Basis>
             <Foot>
                 <div class="tl-matchcard__actions">
