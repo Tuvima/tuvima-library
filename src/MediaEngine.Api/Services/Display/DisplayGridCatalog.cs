@@ -40,7 +40,8 @@ internal sealed record DisplayGridDefinition(
     /// <summary>True when the grid's first rows are what this profile played last, so progress filters add nothing.</summary>
     public bool IsPlayedDefault => DefaultSort == DisplayGridValues.SortPlayed;
 
-    public string Route => DisplayGridCatalog.RouteFor(Lane, ShelfKey);
+    /// <summary>The page behind "See all". My List has its own page; every other grid opens the shared View all grid.</summary>
+    public string Route => Source == DisplayGridSource.MyList ? DisplayGridCatalog.MyListPageRoute : DisplayGridCatalog.RouteFor(Lane, ShelfKey);
 }
 
 /// <summary>The sort, filter and paging choices of one grid request, as the caller sent them.</summary>
@@ -57,6 +58,8 @@ internal static class DisplayGridCatalog
 {
     public const string PersonalLane = "personal";
     public const string HomeLane = "home";
+    /// <summary>The Dashboard page that shows the whole My List (spec my-list); there is no View all grid address for it.</summary>
+    public const string MyListPageRoute = "/my-list";
     private const string AuthorPrefix = "author-";
     private const string GenrePrefix = "genre-";
 
@@ -139,7 +142,7 @@ internal static class DisplayGridCatalog
 
     public static string? NormalizeType(string? type) => NormalizeOneOf(type, "type",
         DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeVideo, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
-        DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection);
+        DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection, DisplayGridValues.TypePlaylist);
 
     public static string? NormalizeFormat(string? format) => NormalizeOneOf(format, "format",
         DisplayGridValues.FormatEpub, DisplayGridValues.FormatPdf, DisplayGridValues.FormatComic,

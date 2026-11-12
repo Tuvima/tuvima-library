@@ -504,7 +504,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         DefaultHttpContext user,
         string method,
         object? routeValues = null,
-        string query = "")
+        string query = "",
+        string? jsonBody = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
         builder.Services.AddAuthorization();
@@ -527,10 +528,25 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             }
         }
 
+        if (jsonBody is not null)
+        {
+            context.Request.ContentType = "application/json";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(jsonBody);
+            context.Request.Body = new MemoryStream(bytes);
+            context.Request.ContentLength = bytes.Length;
+            // A server sets this when a request has a body; a bare DefaultHttpContext does not, and body binding relies on it.
+            context.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>(new RequestWithBody());
+        }
+
         context.Response.Body = new MemoryStream();
         await route.RequestDelegate!(context);
         context.Response.Body.Position = 0;
         return (context.Response.StatusCode, await new StreamReader(context.Response.Body).ReadToEndAsync());
+    }
+
+    private sealed class RequestWithBody : Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature
+    {
+        public bool CanHaveBody => true;
     }
 
     private void ProfileStateServices(IServiceCollection services, DefaultHttpContext context)

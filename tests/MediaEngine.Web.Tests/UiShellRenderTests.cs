@@ -1835,7 +1835,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public async Task MainLayout_TvLibrariesTabLinksToTheLastLibraryAndOpensTheSwitcherOnALibrarySurface()
     {
-        // The Libraries tab belongs to the TV dock now; the phone dock is Home, Search and My Library.
+        // The Libraries tab belongs to the TV dock now; the phone dock is Home, Search and My List.
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
@@ -1995,7 +1995,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
         cut.Render();
 
-        cut.WaitForAssertion(() => Assert.Equal(["/", "/search", "/my-library"],
+        cut.WaitForAssertion(() => Assert.Equal(["/", "/search", "/my-list"],
             cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray()));
     }
 

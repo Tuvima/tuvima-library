@@ -249,7 +249,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         Assert.Equal("Finished", read.QuerySelector("[data-activity-outcome]")!.TextContent);
 
         var myList = cut.Find("[data-activity-row='m']");
-        Assert.Equal("Added to My list", myList.QuerySelector("[data-activity-what]")!.TextContent);
+        Assert.Equal("Added to My List", myList.QuerySelector("[data-activity-what]")!.TextContent);
         Assert.Equal(string.Empty, myList.QuerySelector("[data-activity-how-long]")!.TextContent);
         Assert.Equal(string.Empty, myList.QuerySelector("[data-activity-outcome]")!.TextContent);
     }

@@ -1,0 +1,280 @@
+@page "/my-list"
+@namespace MediaEngine.Web.Components.Pages
+@implements IAsyncDisposable
+
+@inject IEngineApiClient ApiClient
+@inject UIOrchestratorService Orchestrator
+@inject ViewWorkspaceService Workspace
+@inject SavedItemService Saved
+@inject DeviceContextService Device
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ILogger<MyListPage> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+<PageTitle>@L["MyList_Title"]</PageTitle>
+
+@* My List: the one personal page (My List spec D1). The profile header (Activity, Liked, Switch profile, Settings), Downloads in the Tuvima
+   app, Continue, then the saved titles as the standard cover grid, narrowed by kind chips and ordered by one Sort. Select ticks covers to
+   remove them together, the page menu holds Remove finished, and every removal offers Undo for about ten seconds. On a phone Sort and the
+   page menu sit in a row at the top, Select is in the page menu and the Select bar is fixed at the bottom. Kind and sort live in the address
+   (replaced, never pushed). *@
+<div class="@($"my-list-page{(_selecting ? " is-selecting" : string.Empty)}")" data-my-list-page @onkeydown="OnKeyDown">
+    @if (Device.IsPhone && ShowsListControls)
+    {
+        <div class="my-list-phonebar">
+            @if (!_selecting)
+            {
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.FilterList" AriaLabel="@L["Common_Sort"].Value" SheetTitle="@L["Common_SortBy"].Value"
+                                 Class="my-list-phonebar__menu">
+                    @foreach (var choice in SortChoices)
+                    {
+                        var value = choice.Value;
+                        <AppMenuItem Label="@choice.Label" Checked="@(value == CurrentSort)" OnClick="@(() => OnSortChangedAsync(value))" />
+                    }
+                </AppOverflowMenu>
+            }
+            @PageMenu
+        </div>
+    }
+
+    <header class="my-list-header">
+        <div class="my-list-header__identity">
+            @if (_profile is { } profile)
+            {
+                <span class="my-list-header__avatar">
+                    <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
+                </span>
+                <div class="my-list-header__copy">
+                    <h1 class="my-list-header__title">@L["MyList_Title"]</h1>
+                    <p class="my-list-header__name" data-my-list-profile-name>@ProfileName</p>
+                </div>
+            }
+            else if (_headerFailed || _noProfile)
+            {
+                <div class="my-list-header__copy">
+                    <h1 class="my-list-header__title">@L["MyList_Title"]</h1>
+                </div>
+            }
+            else
+            {
+                <span class="my-list-header__avatar"><AppSkeleton Shape="AppSkeletonShape.Circle" Width="100%" Height="100%" /></span>
+                <div class="my-list-header__copy">
+                    <h1 class="my-list-header__title">@L["MyList_Title"]</h1>
+                    <span class="my-list-header__name-skeleton"><AppSkeleton Width="100%" Height="1.25rem" /></span>
+                </div>
+            }
+        </div>
+
+        @if (_profile is not null)
+        {
+            <nav class="my-list-header__links" aria-label="@L["Common_Profile"].Value">
+                <a class="my-list-link" href="@ActivityHref" data-my-list-link="activity">@L["Common_Activity"]</a>
+                <a class="my-list-link" href="@LikedHref" data-my-list-link="liked">@L["MyList_Liked"]</a>
+                @if (ShowsSwitchProfile)
+                {
+                    <a class="my-list-link" href="@ProfilePickerRoute.Path" data-my-list-link="switch-profile">@L["TopBar_SwitchProfile"]</a>
+                }
+                @if (ShowsSettings)
+                {
+                    <a class="my-list-link" href="@ShellDock.SettingsPath" data-my-list-link="settings">@L["Nav_Settings"]</a>
+                }
+            </nav>
+        }
+    </header>
+
+    @if (_headerFailed)
+    {
+        @LoadError(ReloadAllAsync)
+    }
+    else if (_noProfile)
+    {
+        @* No active profile: other personal pages ask for one the same way. *@
+        <AppAlert Severity="AppSeverity.Info" data-my-list-no-profile>
+            <span class="my-list-error">
+                <span>@L["MyList_ChooseProfile"]</span>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Href="@ProfilePickerRoute.Path" Label="@L["MyList_ChooseProfileLink"].Value" />
+            </span>
+        </AppAlert>
+    }
+    else if (_profile is not null)
+    {
+        @if (ShowsDownloads)
+        {
+            <a class="my-list-downloads" href="@ShellDock.DownloadsPath">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />
+                <span class="my-list-downloads__copy">
+                    <strong>@L["Nav_Downloads"]</strong>
+                    <span>@L["MyList_WatchAndListenOffline"]</span>
+                </span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+            </a>
+        }
+
+        @if (_continueLoading)
+        {
+            <div class="my-list-continue my-list-continue--loading" role="status" aria-label="@L["Common_Loading"].Value">
+                <AppSkeleton Width="10rem" Height="1.5rem" />
+                <AppSkeleton Width="100%" Height="calc(var(--home-shelf-height) * .8)" />
+            </div>
+        }
+        else if (_continueShelf.Items.Count > 0)
+        {
+            <div class="my-list-continue" data-my-list-continue>
+                <ContinueAcrossMediaSection Shelf="@_continueShelf" Heading="@L["Common_Continue"].Value" />
+            </div>
+        }
+
+        <section class="my-list-list" aria-label="@L["MyList_Title"].Value" data-my-list-list>
+            @if (ShowsListControls && !_failed)
+            {
+                <p class="my-list-count" role="status" aria-live="polite" data-my-list-count>@CountText</p>
+            }
+
+            @if (_sortNote is not null)
+            {
+                <AppAlert Tone="AppUiTone.Warning" ShowCloseIcon="true" CloseIconClicked="@(() => { _sortNote = null; })" data-my-list-sort-note>@_sortNote</AppAlert>
+            }
+
+            @if (_undoOffer is not null)
+            {
+                <div class="my-list-undo"><AppUndoNote Offer="_undoOffer" OnCleared="ClearUndo" data-my-list-undo /></div>
+            }
+
+            @if (_changeFailed)
+            {
+                <AppAlert Severity="AppSeverity.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => { _changeFailed = false; })" data-my-list-change-failed>@L["MyList_CouldNotChange"]</AppAlert>
+            }
+
+            @if (_failed)
+            {
+                @LoadError(ReloadAsync)
+            }
+            else if (_loading && _tiles.Count == 0)
+            {
+                @* The first read (or a new kind or sort): skeleton covers in the grid's shape; the chips come with the first page. *@
+                @ListControls
+                <div class="my-list-skeleton" role="status" aria-label="@L["Common_Loading"].Value">
+                    @for (var index = 0; index < SkeletonTileCount; index++)
+                    {
+                        <div class="my-list-skeleton__tile"><AppSkeleton Width="100%" Height="100%" /></div>
+                    }
+                </div>
+            }
+            else if (IsEmpty)
+            {
+                <AppEmptyState Title="@L["MyList_EmptyTitle"].Value" Message="@L["MyList_EmptyMessage"].Value" Class="my-list-empty">
+                    <Action><AppButton Href="/" Label="@L["MyList_BrowseHome"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Large" /></Action>
+                </AppEmptyState>
+            }
+            else
+            {
+                @ListControls
+
+                <div class="my-list-grid">
+                    <MediaTileGrid Items="@_tiles"
+                                   SelectionMode="@_selecting"
+                                   IsSelected="@IsTileSelected"
+                                   OnToggle="ToggleTileAsync" />
+                </div>
+
+                @if (_hasMore)
+                {
+                    <div class="my-list-more">
+                        @if (_moreFailed)
+                        {
+                            <p class="my-list-more__error" role="status">@L["ShelfGridPage_CouldnTLoadMoreTitles"]</p>
+                            <AppButton Label="@L["Common_TryAgain"].Value" Size="AppControlSize.Large" Loading="@_loadingMore" OnClick="LoadMoreAsync" />
+                        }
+                        else
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                       Tone="AppUiTone.Primary"
+                                       Size="AppControlSize.Large"
+                                       Label="@L["Common_LoadMore"].Value"
+                                       Loading="@_loadingMore"
+                                       OnClick="LoadMoreAsync" />
+                        }
+                    </div>
+                }
+
+                <div @ref="_sentinel" class="my-list-sentinel" aria-hidden="true"></div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    // "My List could not load" with Try again, in place (the spec's Error row).
+    private RenderFragment LoadError(Func<Task> tryAgain) => @<AppAlert Severity="AppSeverity.Error" data-my-list-error>
+        <span class="my-list-error">
+            <span>@L["MyList_CouldNotLoad"]</span>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Label="@L["Common_TryAgain"].Value" OnClick="tryAgain" />
+        </span>
+    </AppAlert>;
+
+    // The chips row with Sort, Select and the page menu, or the Select bar while selecting.
+    private RenderFragment ListControls => @<text>
+        @if (_page is null)
+        {
+        }
+        else if (_selecting)
+        {
+            <div class="my-list-selbar" role="toolbar" tabindex="-1" aria-label="@L["Common_Select"].Value" data-my-list-selbar>
+                <span class="my-list-selbar__count" role="status" aria-live="polite" data-my-list-selected-count>@L["MyList_SelectedCount", _selected.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)]</span>
+                <span class="my-list-selbar__spacer"></span>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Large"
+                           StartIcon="@AppMaterialIcons.Outlined.RemoveCircleOutline"
+                           Label="@L["MediaTile_RemoveFromMyList"].Value" Disabled="@(_selected.Count == 0)" OnClick="RemoveSelectedAsync" data-my-list-remove-selected />
+                <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Large" Label="@L["MyList_Cancel"].Value" OnClick="LeaveSelect" data-my-list-cancel-select />
+            </div>
+        }
+        else
+        {
+            <div class="my-list-bar">
+                @if (ShowChips)
+                {
+                    <div class="my-list-chips" role="group" aria-label="@L["MyList_KindsLabel"].Value" data-my-list-chips>
+                        <AppToggleChip Class="my-list-chip" Pressed="@(SelectedType is null)" OnClick="@(() => PickKindAsync(null))">@L["MyList_All"] <span class="my-list-chip__count">@AllCount.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)</span></AppToggleChip>
+                        @foreach (var option in KindOptions)
+                        {
+                            var value = option.Value;
+                            <AppToggleChip Class="my-list-chip" Pressed="@IsKindPicked(value)" OnClick="@(() => PickKindAsync(value))">@option.Label <span class="my-list-chip__count">@option.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)</span></AppToggleChip>
+                        }
+                    </div>
+                }
+
+                @if (!Device.IsPhone)
+                {
+                    <div class="my-list-tools">
+                        <div class="my-list-tools__sort">
+                            <AppSelect Label="@L["Common_SortBy"].Value"
+                                       HideLabel="true"
+                                       Size="AppControlSize.Large"
+                                       Value="@CurrentSort"
+                                       ValueChanged="OnSortChangedAsync"
+                                       Options="@SortChoices"
+                                       data-my-list-sort />
+                        </div>
+                        @if (CanSelect)
+                        {
+                            <AppButton Label="@L["Common_Select"].Value" Size="AppControlSize.Large" OnClick="EnterSelect" data-my-list-select />
+                        }
+                        @PageMenu
+                    </div>
+                }
+            </div>
+        }
+    </text>;
+
+    // The page "..." menu: Remove finished everywhere; on a phone it is a sheet that also holds Select.
+    private RenderFragment PageMenu => @<AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["MyList_PageMenu"].Value"
+                                                         SheetTitle="@(Device.IsPhone ? L["MyList_Title"].Value : null)" Class="my-list-page-menu">
+        @if (Device.IsPhone && CanSelect)
+        {
+            <AppMenuItem Label="@L["Common_Select"].Value" Icon="@AppMaterialIcons.Outlined.CheckBoxOutlineBlank" OnClick="EnterSelect" />
+        }
+        <AppMenuItem Label="@(_finishedCount == 0 ? L["MyList_NothingFinished"].Value : L["MyList_RemoveFinished"].Value)"
+                     Icon="@AppMaterialIcons.Outlined.Check" Disabled="@(_finishedCount == 0)" OnClick="RemoveFinishedAsync" />
+    </AppOverflowMenu>;
+}

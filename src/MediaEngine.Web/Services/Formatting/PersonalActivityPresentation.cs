@@ -44,13 +44,13 @@ public static class PersonalActivityPresentation
 
     /// <summary>
     /// The one non-wrapping line under a tile. It starts with a verb so it cannot be read as the length of the item:
-    /// Watched, Read, Listened (audiobooks), Played (music) or Added to My list.
+    /// Watched, Read, Listened (audiobooks), Played (music) or Added to My List.
     /// </summary>
     public static string Caption(PersonalActivityRecentTileDto tile)
     {
         if (string.Equals(tile.Kind, PersonalActivityKindValues.MyList, StringComparison.Ordinal))
         {
-            return "Added to My list";
+            return "Added to My List";
         }
 
         var verb = Verb(tile.Kind);

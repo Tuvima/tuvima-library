@@ -25,6 +25,9 @@ namespace MediaEngine.Web.Components.Pages;
 
 public partial class ListenPage
 {
+    /// <summary>The playlist header's My List button names what pressing it does (My List spec D14).</summary>
+    private string ActivePlaylistSavedLabel => _activePlaylistSaved ? L["MediaTile_RemoveFromMyList"].Value : L["MediaTile_AddToMyList"].Value;
+
     private ManagedCollectionViewModel? ActivePlaylistCollection => CollectionId.HasValue
         ? PlaylistCollections.FirstOrDefault(collection => collection.Id == CollectionId.Value)
         : null;

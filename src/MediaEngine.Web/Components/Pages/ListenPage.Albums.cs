@@ -126,9 +126,9 @@ public partial class ListenPage
                 new DetailAction
                 {
                     Key = "my-list",
-                    Label = _favoriteWorkIds.Contains(id) ? "In My List" : "My List",
-                    Icon = "favorite",
-                    Tooltip = _favoriteWorkIds.Contains(id) ? "Remove from My List" : "Add to My List",
+                    Label = L["TopBar_MyList"].Value,
+                    Icon = _favoriteWorkIds.Contains(id) ? "check" : "add",
+                    Tooltip = _favoriteWorkIds.Contains(id) ? L["MediaTile_RemoveFromMyList"].Value : L["MediaTile_AddToMyList"].Value,
                     DisplayStyle = "icon",
                     IsSelected = _favoriteWorkIds.Contains(id),
                 },

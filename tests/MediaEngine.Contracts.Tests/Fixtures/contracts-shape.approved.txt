@@ -9453,12 +9453,22 @@ MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileSav
   SavedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   Position: System.Int32? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileSavedItemKeyDto
+  EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | nullability=not-null | accessors=get,init
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.ProfileStateMutationDto
   EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | nullability=not-null | accessors=get,init
   EntityId: System.Guid | nullability=not-null | accessors=get,init
   IsSaved: System.Boolean | nullability=not-null | accessors=get,init
   Reaction: MediaEngine.Domain.Enums.ProfileReactionKind? | nullability=nullable | accessors=get,init
   UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.RemoveSavedItemsRequest
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.ProfileState.ProfileSavedItemKeyDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.ProfileState.MediaEngine.Contracts.ProfileState.RestoreSavedItemsRequest
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.ProfileState.ProfileSavedItemDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileOverviewActivityDto
   Id: System.Int64 | nullability=not-null | accessors=get,init
