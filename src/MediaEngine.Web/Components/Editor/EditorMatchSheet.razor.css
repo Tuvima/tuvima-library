@@ -1,0 +1,39 @@
+/* The Match card as a full-height sheet on a phone (universal editor v6 section 4a): the bar with Back, then the card, which scrolls. The native dialog around it
+   is the app's full-screen frame, so the page here is just a column that fills it. */
+.tl-msheet__page {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
+}
+
+.tl-msheet__bar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-height: var(--tl-tap-target-min);
+    padding: calc(env(safe-area-inset-top, 0px) + var(--tl-space-2)) var(--tl-space-3) var(--tl-space-2);
+    border-bottom: 1px solid var(--tl-divider);
+}
+
+.tl-msheet__title {
+    margin: 0;
+    min-width: 0;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
+    overflow-wrap: anywhere;
+}
+
+/* The card is the only thing in the body; it pins its own Apply match to the bottom edge while it scrolls. */
+.tl-msheet__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}

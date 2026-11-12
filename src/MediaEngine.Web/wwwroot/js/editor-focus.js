@@ -58,3 +58,14 @@ export function stopKeyboard() {
     keyboard.root.style.removeProperty('--tl-editor-safe-bottom');
     keyboard = null;
 }
+
+// Match on a phone (universal editor v6, section 4a): after Apply match closes the sheet, the "staged" note is at the top of a tab that may be a long list, so it is scrolled
+// into view and given focus (it is a polite live region, so a screen reader reads it). Returns true once the note exists and has focus.
+export function revealStagedNote() {
+    const note = document.querySelector('.tl-editor-window [data-staged-note]');
+    if (!(note instanceof HTMLElement)) return false;
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    note.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' });
+    note.focus({ preventScroll: true });
+    return document.activeElement === note;
+}

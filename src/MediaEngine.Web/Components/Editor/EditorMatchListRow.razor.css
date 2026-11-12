@@ -99,3 +99,12 @@
     justify-content: center;
     color: var(--tl-accent-primary);
 }
+
+/* On a phone the title and the note under it wrap instead of ending in an ellipsis. */
+.tl-mlrow--phone .tl-mlrow__name,
+.tl-mlrow--phone .tl-mlrow__meta {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+}

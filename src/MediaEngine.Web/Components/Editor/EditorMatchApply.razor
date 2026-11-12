@@ -4,7 +4,7 @@
 @* The foot of the Match card (universal editor v6, D7): Apply match at the bottom right, with Cancel before it when there is a current match to go back
    to, and one line under it saying what Apply does ("Links this book to Apple Books."). Apply is always available once something is chosen; the
    verdict is advice. Apply only stages; Save changes writes. The search, the TV, music and Wikidata flows put it in the card's Foot. *@
-<div class="tl-mapply__buttons">
+<div class="@(IsPhone ? "tl-mapply__buttons tl-mapply__buttons--phone" : "tl-mapply__buttons")">
     @if (ShowCancel)
     {
         <AppButton Label="@(CancelLabel ?? L["EditorMatchResults_Cancel"].Value)" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnCancel" data-testid="@CancelTestId" />
@@ -13,7 +13,7 @@
 </div>
 @if (!string.IsNullOrWhiteSpace(Line))
 {
-    <span class="tl-mapply__line" data-testid="match-apply-line">@Line</span>
+    <span class="@(IsPhone ? "tl-mapply__line tl-mapply__line--phone" : "tl-mapply__line")" data-testid="match-apply-line">@Line</span>
 }
 
 @code {
@@ -36,4 +36,9 @@
     [Parameter] public string ApplyTestId { get; set; } = "match-apply";
 
     [Parameter] public string CancelTestId { get; set; } = "match-cancel";
+
+    [CascadingParameter] public MediaEngine.Web.Services.Editing.EditorWindowLayout? Layout { get; set; }
+
+    // On a phone the buttons share the width equally (as one button when there is no Cancel, it fills the width, as in mock screen H) and the line under them is centered.
+    private bool IsPhone => MediaEngine.Web.Services.Editing.EditorWindowLayout.IsPhone(false, Layout);
 }
