@@ -23,7 +23,7 @@ internal sealed class EditorHeaderTestWorld : IDisposable
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_editor_header_{Guid.NewGuid():N}.db");
 
-    public EditorHeaderTestWorld(string titleFolderName, string accessMode = LibrarySourceAccessModes.Writable)
+    public EditorHeaderTestWorld(string titleFolderName, string accessMode = LibrarySourceAccessModes.Writable, string libraryName = "")
     {
         DapperConfiguration.Configure();
         Database = new DatabaseConnection(_databasePath);
@@ -31,7 +31,7 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         Library = Path.Combine(Path.GetTempPath(), $"tuvima_editor_library_{Guid.NewGuid():N}");
         TitleFolder = Path.Combine(Library, titleFolderName);
         Directory.CreateDirectory(TitleFolder);
-        Folders = new FolderResolverSpy(Library, accessMode);
+        Folders = new FolderResolverSpy(Library, accessMode, libraryName);
         Scanner = new ScannerSpy(new ExtraTitleFolder("lib", TitleFolder));
         Scanner.PerFile = path => OtherTitleFolders.FirstOrDefault(folder => path.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.Ordinal)) is { } own
             ? new ExtraTitleFolder("lib", own)
@@ -187,7 +187,7 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         }
     }
 
-    internal sealed class FolderResolverSpy(string root, string access) : ILibraryFolderResolver
+    internal sealed class FolderResolverSpy(string root, string access, string libraryName = "") : ILibraryFolderResolver
     {
         public LibraryFolderEntry? ResolveById(string libraryId) => null;
 
@@ -198,7 +198,7 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         public ResolvedLibrarySource? ResolveSourceForPath(string absolutePath) =>
             absolutePath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal) || absolutePath == root
                 ? new ResolvedLibrarySource(
-                    new LibraryFolderEntry { Id = "lib" },
+                    new LibraryFolderEntry { Id = "lib", Name = libraryName },
                     new LibrarySourceEntry { Id = "source", Path = root, AccessMode = access })
                 : null;
     }

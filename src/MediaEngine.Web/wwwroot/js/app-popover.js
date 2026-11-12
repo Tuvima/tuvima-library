@@ -23,6 +23,21 @@ export function listWidth(anchorWidth, contentWidth, viewportWidth, cap = listCa
     if (anchorWidth > cap) return Math.min(anchorWidth, room);
     return Math.min(Math.max(anchorWidth, Math.min(contentWidth, cap)), room);
 }
+// A surface that must stay clear of a fixed bar at the bottom of the screen (the Reorder bar, spec editor v6 D23) names the bar's height in
+// --tl-popover-bottom-reserve; without it the whole screen is available, as before.
+export function bottomReserve(surface) {
+    if (typeof getComputedStyle !== 'function') return 0;
+    const style = getComputedStyle(surface);
+    const value = typeof style?.getPropertyValue === 'function' ? parseFloat(style.getPropertyValue('--tl-popover-bottom-reserve')) : 0;
+    return Number.isFinite(value) && value > 0 ? value : 0;
+}
+// The tallest a surface may be: the screen less its edge gaps and any reserve; with a reserve it also stops above that reserve when it opens under
+// its anchor (so its list shrinks and scrolls) unless the anchor is so low that almost nothing is left below it.
+export function maxSurfaceHeight(viewport, edgeGap, reserve, anchorBottom) {
+    const whole = viewport - edgeGap * 2 - reserve;
+    const below = viewport - edgeGap - reserve - anchorBottom;
+    return Math.max(44, reserve > 0 && below >= 120 ? Math.min(whole, below) : whole);
+}
 // The stylesheet states some of these with !important, so the list's own size is written the same way.
 function pin(style, name, value) {
     if (typeof style.setProperty === 'function') style.setProperty(name, value, 'important'); else style[name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
@@ -55,16 +70,18 @@ function position(state) {
         if (listSheet) for (const name of ['border-radius', 'padding-bottom']) surface.style.removeProperty?.(name);
     }
     const box = state.anchor.getBoundingClientRect();
+    const reserve = bottomReserve(surface);
+    const floor = innerHeight - edge - reserve;
     if (listMode) {
         // The height limit goes first so a list that scrolls is measured with its scrollbar.
-        surface.style.maxHeight = `${Math.max(44, innerHeight - edge * 2)}px`;
+        surface.style.maxHeight = `${maxSurfaceHeight(innerHeight, edge, reserve, box.bottom)}px`;
         sizeList(surface, box.width);
     } else {
         surface.style.maxWidth = `${Math.max(0, state.matchWidth ? Math.min(box.width, innerWidth - edge * 2) : innerWidth - edge * 2)}px`;
         if (state.matchWidth) surface.style.width = `${Math.min(box.width, innerWidth - edge * 2)}px`;
     }
     const af = factors(state.anchorOrigin), tf = factors(state.transformOrigin);
-    surface.style.maxHeight = `${Math.max(44, innerHeight - edge * 2)}px`;
+    surface.style.maxHeight = `${maxSurfaceHeight(innerHeight, edge, reserve, box.bottom)}px`;
     const width = surface.getBoundingClientRect().width;
     const height = surface.getBoundingClientRect().height;
     let left = box.left + box.width * af[0] - width * tf[0];
@@ -76,10 +93,10 @@ function position(state) {
         const mirrored = box.left + box.width * (1 - af[0]) - width * (1 - tf[0]);
         if (mirrored >= edge && mirrored + width <= innerWidth - edge) left = mirrored;
     }
-    if (top + height > innerHeight - edge && box.top > innerHeight - box.bottom) top = box.top - height;
-    if (top < edge && box.bottom + height <= innerHeight - edge) top = box.bottom;
+    if (top + height > floor && box.top > innerHeight - box.bottom) top = box.top - height;
+    if (top < edge && box.bottom + height <= floor) top = box.bottom;
     left = Math.max(edge, Math.min(left, innerWidth - width - edge));
-    top = Math.max(edge, Math.min(top, innerHeight - height - edge));
+    top = Math.max(edge, Math.min(top, floor - height));
     Object.assign(surface.style, { position: 'fixed', left: `${left}px`, top: `${top}px`, transform: 'none' });
 }
 function close(state, restoreFocus) {

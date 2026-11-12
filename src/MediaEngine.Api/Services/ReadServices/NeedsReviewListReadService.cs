@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Library;
@@ -6,6 +7,7 @@ using MediaEngine.Contracts.Review;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -23,16 +25,27 @@ public sealed class NeedsReviewListReadService(
     IUnmatchedAssetRepository unmatched,
     IConfigurationLoader configuration,
     IVaultLibraryRepository vault,
-    INeedsReviewRowContextReadService contexts) : INeedsReviewListReadService
+    INeedsReviewRowContextReadService contexts,
+    IHttpClientFactory? httpFactory = null,
+    IMemoryCache? previewCache = null,
+    ILogger<NeedsReviewListReadService>? logger = null) : INeedsReviewListReadService
 {
+    // How many provider pictures for choices are fetched at once; each is small, bounded and cached (RetailCandidateArtworkPreview).
+    private const int ChoicePictureConcurrency = 6;
+
+    // The list must stay quick however many items wait: one read fetches at most this many pictures and spends at most this long on them.
+    // Pictures left out are simply absent; they are cached once fetched, so a later read picks up where this one stopped.
+    private const int ChoicePictureLimit = 60;
+    private static readonly TimeSpan ChoicePictureBudget = TimeSpan.FromSeconds(4);
+
     private static readonly string[] WikidataTriggers = ["MultipleQidMatches", "QidNoMatch"];
 
-    /// <summary>The kind of a review item: only a failed retail match is "not matched"; every other trigger is the Engine being unsure.</summary>
-    public static string KindFor(string? trigger) =>
-        string.Equals(trigger, ReviewTrigger.RetailMatchFailed, StringComparison.Ordinal) ? NeedsReviewKinds.NotMatched : NeedsReviewKinds.NotSure;
+    // The notifier's own split (ReviewCountResponse): only a failed retail match counts as "not matched". The list itself no longer has kinds.
+    private static bool IsFailedRetailMatch(string? trigger) =>
+        string.Equals(trigger, ReviewTrigger.RetailMatchFailed, StringComparison.Ordinal);
 
     public async Task<NeedsReviewListDto> ListAsync(
-        string? kind, string? libraryId, bool includeFiles, int skip, int take, bool keptOnly = false, CancellationToken ct = default)
+        string? libraryId, bool includeFiles, int skip, int take, bool keptOnly = false, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var names = await ListedLibrariesAsync(ct).ConfigureAwait(false);
@@ -77,19 +90,47 @@ public sealed class NeedsReviewListReadService(
         var context = await contexts.ReadAsync(assetIds, workIds, ct).ConfigureAwait(false);
 
         var rows = new List<NeedsReviewRowDto>();
+        var pendingPictures = new Dictionary<string, List<PendingPicture>>(StringComparer.Ordinal);
         foreach (var item in shownReviews)
         {
             var itemLibrary = names.Keys.FirstOrDefault(id => string.Equals(id, item.LibraryId, StringComparison.OrdinalIgnoreCase));
             var itemContext = ContextFor(context, item);
-            var bestGuess = BestGuessFor(item);
+            var options = NeedsReviewChoices.Read(item.Trigger, item.CandidatesJson, item.MediaType, logger);
+            // One retail candidate worth offering is the row's one answer ("Use this"); two or three are choices.
+            var singleRetail = string.Equals(item.Trigger, ReviewTrigger.RetailMatchAmbiguous, StringComparison.Ordinal) && options.Count == 1
+                ? options[0]
+                : null;
+            var bestGuess = singleRetail is null ? BestGuessFor(item) : UseRetailMatch(singleRetail);
+            var choices = singleRetail is null ? options.Select(option => option.ToDto()).ToList() : [];
+            var key = $"review:{item.Id:D}";
+            var pictures = new List<PendingPicture>();
+            if (bestGuess is not null && singleRetail is not null && !string.IsNullOrWhiteSpace(singleRetail.ImageUrl))
+            {
+                pictures.Add(new PendingPicture(singleRetail.ImageProvider, singleRetail.ImageUrl, url => bestGuess.ImageUrl = url));
+            }
+
+            for (var index = 0; index < choices.Count; index++)
+            {
+                var choice = choices[index];
+                if (!string.IsNullOrWhiteSpace(options[index].ImageUrl))
+                {
+                    pictures.Add(new PendingPicture(options[index].ImageProvider, options[index].ImageUrl!, url => choice.ImageUrl = url));
+                }
+            }
+
+            if (pictures.Count > 0)
+            {
+                pendingPictures[key] = pictures;
+            }
+
             rows.Add(new NeedsReviewRowDto
             {
-                Key = $"review:{item.Id:D}",
-                Kind = KindFor(item.Trigger),
+                Key = key,
                 LibraryId = itemLibrary ?? item.LibraryId,
                 LibraryName = itemLibrary is null ? null : names[itemLibrary],
                 LastTriedAt = item.CreatedAt,
                 BestGuess = bestGuess,
+                Choices = choices,
                 Review = item,
                 Group = NeedsReviewGrouping.GroupFor(item.Trigger, bestGuess is not null),
                 CoverUrl = string.IsNullOrWhiteSpace(item.CoverUrl) ? itemContext?.CoverUrl : item.CoverUrl,
@@ -108,22 +149,97 @@ public sealed class NeedsReviewListReadService(
         }
 
         var keptTotal = keptOnly ? rows.Count : await CountKeptAsync(library, includeFiles, names, ct).ConfigureAwait(false);
-        var notMatched = rows.Count(row => row.Kind == NeedsReviewKinds.NotMatched);
-        var filtered = Order(rows.Where(row => KindMatches(kind, row.Kind))).ToList();
+        var filtered = Order(rows).ToList();
         var offset = Math.Max(0, skip);
         var size = Math.Max(1, take);
+        var pageRows = filtered.Skip(offset).Take(size).ToList();
+        await LoadPicturesAsync(pageRows, pendingPictures, ct).ConfigureAwait(false);
         return new NeedsReviewListDto
         {
-            Items = filtered.Skip(offset).Take(size).ToList(),
+            Items = pageRows,
             Total = filtered.Count,
-            NotMatchedTotal = notMatched,
-            NotSureTotal = rows.Count - notMatched,
             GroupTotals = TotalsByGroup(filtered),
             KeptTotal = keptTotal,
             Skip = offset,
             Take = size,
         };
     }
+
+    // A provider's picture never reaches the browser as a link: the Engine fetches the few it needs for the rows on this page (allow-listed
+    // hosts only, small, cached for a while) and hands over a small inline preview. A picture that cannot be fetched is simply absent.
+    private async Task LoadPicturesAsync(
+        IReadOnlyList<NeedsReviewRowDto> page, Dictionary<string, List<PendingPicture>> pending, CancellationToken ct)
+    {
+        if (httpFactory is null || previewCache is null || pending.Count == 0)
+        {
+            return;
+        }
+
+        var wanted = page.Where(row => pending.ContainsKey(row.Key)).SelectMany(row => pending[row.Key])
+            .Take(ChoicePictureLimit).ToList();
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(ChoicePictureBudget);
+        using var gate = new SemaphoreSlim(ChoicePictureConcurrency);
+        await Task.WhenAll(wanted.Select(async picture =>
+        {
+            try
+            {
+                await gate.WaitAsync(budget.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Out of time for pictures on this read: the row is shown without one.
+                return;
+            }
+
+            try
+            {
+                var preview = await RetailCandidateArtworkPreview
+                    .LoadAsync(picture.Provider, picture.SourceUrl, httpFactory, previewCache, budget.Token).ConfigureAwait(false);
+                if (preview is not null)
+                {
+                    picture.Apply(preview);
+                }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Out of time for pictures on this read: the row is shown without one.
+            }
+            finally
+            {
+                gate.Release();
+            }
+        })).ConfigureAwait(false);
+    }
+
+    private sealed record PendingPicture(string? Provider, string SourceUrl, Action<string> Apply);
+
+    // The one retail match the Engine found worth offering: "Use this" applies it through the choose action.
+    private static NeedsReviewBestGuessDto UseRetailMatch(ReviewChoiceOption option) => new()
+    {
+        Action = "use_retail_match",
+        Name = option.Retail?.Title.Trim() ?? option.Title,
+        Year = option.Retail?.Year is { Length: >= 4 } year ? year[..4] : option.Retail?.Year,
+        Source = RetailSourceName(option.Retail?.ProviderName),
+        ChoiceId = option.Id,
+    };
+
+    private static string RetailSourceName(string? provider) => (provider ?? string.Empty).Trim().ToLowerInvariant().Replace('-', '_') switch
+    {
+        "tmdb" => "TMDB",
+        "tvdb" => "TheTVDB",
+        "apple_api" or "apple_music" or "apple_books" => "Apple",
+        "musicbrainz" => "MusicBrainz",
+        "comicvine" or "comic_vine" => "Comic Vine",
+        "openlibrary" or "open_library" => "Open Library",
+        "" => "Provider match",
+        _ => provider!.Trim(),
+    };
 
     public async Task<ReviewCountResponse> CountAsync(bool includeFiles, CancellationToken ct = default)
     {
@@ -134,7 +250,7 @@ public sealed class NeedsReviewListReadService(
         var pending = (await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false))
             .Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger))
             .ToList();
-        var reviewNotMatched = pending.Count(item => KindFor(item.Trigger) == NeedsReviewKinds.NotMatched);
+        var reviewNotMatched = pending.Count(item => IsFailedRetailMatch(item.Trigger));
         var reviewTotal = pending.Count;
         var files = 0;
         if (includeFiles)
@@ -205,16 +321,10 @@ public sealed class NeedsReviewListReadService(
     private static bool IsVaultItem(ReviewItemDto item, IReadOnlySet<string> vaultIds) =>
         !string.IsNullOrWhiteSpace(item.LibraryId) && vaultIds.Any(id => string.Equals(id, item.LibraryId.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    private static bool KindMatches(string? filter, string kind) =>
-        string.IsNullOrWhiteSpace(filter)
-        || string.Equals(filter, "all", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(filter, kind, StringComparison.OrdinalIgnoreCase);
-
     private static NeedsReviewRowDto ToRow(
         UnmatchedAssetListItem file, string libraryId, string libraryName, NeedsReviewRowContext? context, bool kept) => new()
         {
             Key = $"file:{file.Asset.AssetId:D}",
-            Kind = NeedsReviewKinds.NotMatched,
             LibraryId = libraryId,
             LibraryName = libraryName,
             LastTriedAt = file.Asset.LastTriedAt,

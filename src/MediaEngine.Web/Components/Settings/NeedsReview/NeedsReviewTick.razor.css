@@ -1,0 +1,14 @@
+/* The shared check box has no partly ticked look. When some of the rows a box stands for are ticked, a filled accent square with a bar is drawn
+   over the empty box (the shared glyph is a 24 px icon whose box is 18 px, centred); clicks pass through to the real input beneath. */
+.nr-tick { position: relative; display: inline-flex; flex: none; }
+.nr-tick--some::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    inline-size: 18px;
+    block-size: 18px;
+    border-radius: var(--tl-radius-xs, 4px);
+    background: linear-gradient(var(--tl-text-on-accent), var(--tl-text-on-accent)) center / 10px 2px no-repeat, var(--tl-accent-primary);
+    pointer-events: none;
+}

@@ -208,7 +208,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             return false;
         }
 
-        if (_session.HasPendingChanges || _mode.HasUnsavedInput)
+        if (_session.HasUnsavedWork || _mode.HasUnsavedInput)
         {
             if (!await _confirmDiscard())
             {

@@ -327,16 +327,26 @@ public sealed class IngestionQueueProgressDisplayTests : LiveLibraryTestContext
     }
 
     [Theory]
-    [InlineData(1, 0, "120 of 508 done · 1 unmatched")]
-    [InlineData(4, 0, "120 of 508 done · 4 unmatched")]
-    [InlineData(2, 1, "120 of 508 done · 2 unmatched · 1 failed")]
-    public void StatusLine_NamesFilesTheEngineCouldNotMatch_AsUnmatchedNotAsNeedingReview(int unmatched, int failed, string expected)
+    [InlineData(1, 0, "120 of 508 done · 1 needs review")]
+    [InlineData(4, 0, "120 of 508 done · 4 need review")]
+    [InlineData(2, 1, "120 of 508 done · 2 need review · 1 failed")]
+    public void StatusLine_NamesFilesTheEngineCouldNotMatch_AsNeedingReviewNeverAsUnmatched(int unmatched, int failed, string expected)
     {
         var snapshot = Working();
         snapshot.FilesDone = 120;
         snapshot.Outcomes = new IngestionQueueOutcomesDto { Unmatched = unmatched, Failed = failed };
 
         Assert.Equal(expected, IngestionQueueProgressText.StatusLine(snapshot));
+    }
+
+    [Fact]
+    public void StatusLine_CountsItemsToConfirmAndFilesNotMatchedTogether_AsOneNeedsReviewFigure()
+    {
+        var snapshot = Working();
+        snapshot.FilesDone = 120;
+        snapshot.Outcomes = new IngestionQueueOutcomesDto { NeedsReview = 3, Unmatched = 2 };
+
+        Assert.Equal("120 of 508 done · 5 need review", IngestionQueueProgressText.StatusLine(snapshot));
     }
 
     [Fact]

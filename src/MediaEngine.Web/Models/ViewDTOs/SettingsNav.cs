@@ -318,7 +318,7 @@ public static class SettingsNav
         // Library: the media and how it is matched and played. Libraries, Activity, Needs Review, Matching and Rules are the five tabs of one page.
         new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.RecentlyAdded, "library", "library-activity", AppMaterialIcons.Outlined.History, "Activity", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Providers, "library", "matching", AppMaterialIcons.Outlined.AccountTree, "Matching", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.LibraryRules, "library", "rules", AppMaterialIcons.Outlined.Tune, "Rules", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
         new(SettingsSection.Playback, "library", "playback", AppMaterialIcons.Outlined.Stream, "Playback", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),

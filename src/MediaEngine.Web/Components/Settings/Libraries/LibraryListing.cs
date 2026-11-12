@@ -8,7 +8,6 @@ namespace MediaEngine.Web.Components.Settings;
 public enum LibraryStatusKind
 {
     Healthy,
-    NotIdentified,
     NeedsReview,
     Empty,
     FolderOffline,
@@ -23,8 +22,8 @@ public enum LibraryStatusKind
 /// <param name="Access"><c>standard</c>, <c>selected</c> or <c>vault</c>; null for a View kind, which keeps its own per-profile rules.</param>
 /// <param name="Folders">Folder count; null only for a View kind while its folders are not known yet.</param>
 /// <param name="Titles">Titles the Engine counts for the kind; null when not known or when several libraries share the kind (the Engine counts per media type).</param>
-/// <param name="Unidentified">Files in the library the Engine could not identify (its unmatched-files list; opens Needs Review filtered to this library's unmatched files).</param>
-/// <param name="NeedsReview">Identified items waiting in Needs Review (a different list from <paramref name="Unidentified"/>).</param>
+/// <param name="NeedsReview">Everything of this library the Needs Review page lists: items waiting for a decision plus files that could not be
+/// matched (kept ones and Wikidata-only items are not counted, as the page does not show them). One number; the page does not tell the two apart.</param>
 /// <param name="StatusDetail">The words of the folder problem, for the tooltip of a Folder offline status.</param>
 public sealed record LibraryListRow(
     string Key,
@@ -36,7 +35,6 @@ public sealed record LibraryListRow(
     int? Folders,
     int? Titles,
     LibraryStatusKind? Status,
-    int Unidentified,
     int NeedsReview,
     string? StatusDetail,
     string Href)
@@ -179,8 +177,7 @@ public static class LibraryListing
             library.Sources.Count,
             titles,
             status,
-            library.UnmatchedCount,
-            library.ReviewCount,
+            library.UnmatchedCount + library.ReviewCount,
             detail,
             AddressOf(library.Id));
     }
@@ -194,7 +191,7 @@ public static class LibraryListing
     {
         // View's folders are never checked, so only "Empty" can be said for certain.
         LibraryStatusKind? status = folders == 0 ? LibraryStatusKind.Empty : null;
-        return new LibraryListRow(kind.Key, null, kind.Label, kind, LibraryTypeCatalog.ViewArea, null, folders, null, status, 0, 0, null, ViewAddressOf(kind.Key));
+        return new LibraryListRow(kind.Key, null, kind.Label, kind, LibraryTypeCatalog.ViewArea, null, folders, null, status, 0, null, ViewAddressOf(kind.Key));
     }
 
     /// <summary>
@@ -218,13 +215,8 @@ public static class LibraryListing
             return (LibraryStatusKind.FolderOffline, health.Text);
         }
 
-        // Two kinds of attention, never mixed (Libraries redesign D3): files nobody could identify, then identified items to confirm.
-        if (library.UnmatchedCount > 0)
-        {
-            return (LibraryStatusKind.NotIdentified, null);
-        }
-
-        if (library.ReviewCount > 0)
+        // Files that could not be matched and items to confirm are one list now (Needs Review redesign D2), so one status.
+        if (library.UnmatchedCount + library.ReviewCount > 0)
         {
             return (LibraryStatusKind.NeedsReview, null);
         }
@@ -239,7 +231,6 @@ public static class LibraryListing
 
     public static string StatusText(LibraryStatusKind status) => status switch
     {
-        LibraryStatusKind.NotIdentified => "Files not identified",
         LibraryStatusKind.NeedsReview => "Needs review",
         LibraryStatusKind.Empty => "Empty",
         LibraryStatusKind.FolderOffline => "Folder offline",
@@ -250,16 +241,9 @@ public static class LibraryListing
     /// <summary>The values of the overview's status filter (the status words, and "all").</summary>
     public static string FilterValue(LibraryStatusKind status) => status.ToString();
 
-    /// <summary>Needs Review, with the library as the filter (Library pages D17).</summary>
-    /// <summary>Needs Review narrowed to this library's files that could not be matched (universal editor v3 D9); it lists exactly as many rows as the count says.</summary>
-    public static string NotIdentifiedAddress(string libraryId) =>
-        $"{SettingsNav.RouteFor(SettingsSection.Review)}?library={Uri.EscapeDataString(libraryId)}&show=not-matched";
-
-    /// <summary>"12 files not identified" / "1 file not identified".</summary>
-    public static string UnidentifiedText(int count) => count == 1 ? "1 file not identified" : $"{count:N0} files not identified";
-
     /// <summary>"3 need review" / "1 needs review".</summary>
     public static string NeedsReviewText(int count) => count == 1 ? "1 needs review" : $"{count:N0} need review";
 
+    /// <summary>Needs Review, with the library as the filter (Library pages D17).</summary>
     public static string NeedsReviewAddress(string libraryId) => $"{SettingsNav.RouteFor(SettingsSection.Review)}?library={Uri.EscapeDataString(libraryId)}";
 }
