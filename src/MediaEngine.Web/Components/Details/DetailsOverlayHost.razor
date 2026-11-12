@@ -8,9 +8,12 @@
 @inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 
-@* The details overlay frame (spec D1): a modal window over the page the person came from (a bottom sheet on phones).
-   The browser makes everything outside it inert and unreachable, app-dialog.js locks the page scroll, returns focus to
-   the element that opened it, and routes Esc, the backdrop and the sheet's grip to RequestCancel, which asks the guards. *@
+@* The details overlay frame (spec D1): a window the app keeps modal itself, over the page the person came from (a bottom sheet on phones).
+   It is shown non-modal (not with showModal) with its own dimmed backdrop beside it, so the persistent player bar stays usable (music-player-and-listen-fixes D5):
+   app-dialog.js sets inert on the page behind (not on the player bar or the pop-over and dialog hosts), locks the page scroll, returns focus to
+   the element that opened it, tells the window how tall the bar is so it ends above it, and routes Esc, the backdrop and the sheet's grip to
+   RequestCancel, which asks the guards. *@
+<div class="tl-details-overlay__backdrop" data-app-dialog-backdrop aria-hidden="true"></div>
 <AppViewer @ref="_viewer" Native="true" Surface="AppViewerSurface.Page" Class="@RootClass" LabelledBy="@TitleId" data-details-overlay="">
     @if (IsSheet)
     {
@@ -75,7 +78,7 @@
         {
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-dialog.js");
             _self ??= DotNetObjectReference.Create(this);
-            await _module.InvokeVoidAsync("update", _dialog, _self, true, true, true, _frameId, IsSheet);
+            await _module.InvokeVoidAsync("update", _dialog, _self, true, true, true, _frameId, IsSheet, true);
         }
         catch (JSDisconnectedException)
         {

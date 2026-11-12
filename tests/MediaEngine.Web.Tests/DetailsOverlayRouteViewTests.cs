@@ -582,7 +582,36 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
         var dialog = view.Find("dialog[data-details-overlay]");
         Assert.Contains("tl-details-overlay--sheet", dialog.ClassName);
         Assert.Single(view.FindAll("[data-app-dialog-grip]"));
-        view.WaitForAssertion(() => Assert.True((bool)_dialogModule.Invocations.Last(call => call.Identifier == "update").Arguments.Last()!));
+        view.WaitForAssertion(() => Assert.True((bool)_dialogModule.Invocations.Last(call => call.Identifier == "update").Arguments[6]!));
+    }
+
+    [Fact]
+    public void TheOverlay_IsKeptModalByTheAppSoThePlayerBarStaysUsable_WithItsOwnBackdropBesideTheDialog()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+
+        var dialog = view.Find("dialog[data-details-overlay]");
+        Assert.True(dialog.PreviousElementSibling!.HasAttribute("data-app-dialog-backdrop"));
+        Assert.Empty(dialog.QuerySelectorAll("[data-app-dialog-backdrop]"));
+        view.WaitForAssertion(() => Assert.True((bool)_dialogModule.Invocations.Last(call => call.Identifier == "update").Arguments[7]!,
+            "the dialog module is told to show the window non-modal and make the page behind it inert itself"));
+    }
+
+    [Fact]
+    public void TheShellMarksThePlayerBarDockLive_SoTheOverlayLeavesItInteractive()
+    {
+        var layout = File.ReadAllText(Path.Combine(FindWebRoot(), "Shared", "MainLayout.razor"));
+        Assert.Matches(@"<div class=""playback-app-frame__audio-dock""[^>]*data-overlay-live=""player-bar""", layout);
+    }
+
+    private static string FindWebRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+            directory = directory.Parent;
+        return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository root not found."), "src", "MediaEngine.Web");
     }
 
     [Fact]

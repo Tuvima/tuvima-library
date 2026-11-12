@@ -1,3 +1,5 @@
+import { engageInert, trackBar, escapeOwnedAbove, escapeAimedAt } from './app-overlay-live.js';
+
 const states = new Map();
 const frames = new Map();
 const openDialogs = new Set();
@@ -21,8 +23,21 @@ function requestCancel(state) {
             .finally(() => { state.cancelPending = false; });
     } catch (error) { state.cancelPending = false; console.error('Dialog cancellation failed.', error); }
 }
+// A live window (the details overlay) is not browser-modal: it is shown in place with show(), and engage() makes the
+// page behind it inert by hand so the player bar beside it stays usable (app-overlay-live.js).
+function engage(state) {
+    state.inert ??= engageInert(state.dialog);
+    state.bar ??= trackBar(state.dialog);
+}
+function disengage(state) {
+    state.inert?.release(); state.inert = null;
+    state.bar?.release(); state.bar = null;
+}
 function show(state) {
-    state.dialog.showModal();
+    if (state.live) {
+        state.dialog.show();
+        engage(state);
+    } else state.dialog.showModal();
     // Preserve popover top-layer ordering on initial open and recovery.
     for (const popup of state.dialog.querySelectorAll('[popover]:popover-open')) { popup.hidePopover(); popup.showPopover(); }
 }
@@ -49,11 +64,17 @@ function unlock(dialog) {
         savedOverflow = undefined;
     }
 }
-export function update(dialog, dotnet, open, backdrop, escape, frameId, sheet) {
+// The window's own dimmed backdrop element (a live window has no ::backdrop): the previous sibling marked for it.
+function backdropOf(dialog) {
+    const candidate = dialog.previousElementSibling;
+    return candidate?.hasAttribute?.('data-app-dialog-backdrop') ? candidate : null;
+}
+// `live` keeps the window non-modal so the persistent player bar stays usable beside it (spec music-player-and-listen-fixes D5).
+export function update(dialog, dotnet, open, backdrop, escape, frameId, sheet, live) {
     if (!(dialog instanceof HTMLDialogElement)) return;
     let state = states.get(dialog);
     if (!state) {
-        state = { dialog, frameId, dotnet, backdrop, escape, expectedOpen: false, opener: null, pointerOutside: false, cancelPending: false };
+        state = { dialog, frameId, dotnet, backdrop, escape, live: live === true, expectedOpen: false, opener: null, pointerOutside: false, cancelPending: false };
         // Native closure is application-owned. Older engines that lack closedby use
         // keydown prevention plus close-event recovery rather than cancel alone.
         dialog.setAttribute('closedby', 'none');
@@ -113,7 +134,23 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId, sheet) {
         dialog.addEventListener('pointerup', state.gripend);
         dialog.addEventListener('pointercancel', state.gripend);
         dialog.addEventListener('cancel', state.cancel);
-        dialog.addEventListener('keydown', state.keydown, true);
+        if (state.live) {
+            // A non-modal window never gets the browser's Escape handling, and focus may be on the page body, so Escape is read on
+            // the document: it is the window's only when focus is in it (or nowhere) and no menu, panel or dialog above owns it.
+            // Escape inside the player bar or one of its panels is aimed elsewhere and never closes the window.
+            state.docKeydown = event => {
+                if (event.key !== 'Escape' || !escapeAimedAt(dialog, event.target) || escapeOwnedAbove(dialog)) return;
+                state.keydown(event);
+            };
+            document.addEventListener('keydown', state.docKeydown, true);
+            // The backdrop is an element beside the window: a click on it asks to close, and it never scrolls the page under it.
+            state.backdropElement = backdropOf(dialog);
+            state.backdropClick = () => { if (state.backdrop) requestCancel(state); };
+            state.backdropScroll = event => event.preventDefault();
+            state.backdropElement?.addEventListener('click', state.backdropClick);
+            state.backdropElement?.addEventListener('wheel', state.backdropScroll, { passive: false });
+            state.backdropElement?.addEventListener('touchmove', state.backdropScroll, { passive: false });
+        } else dialog.addEventListener('keydown', state.keydown, true);
         dialog.addEventListener('close', state.close);
         dialog.addEventListener('focusin', state.focusin);
         dialog.addEventListener('pointerdown', state.pointerdown);
@@ -139,6 +176,7 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId, sheet) {
         } catch (error) { unlock(dialog); throw error; }
     } else if (!open) {
         if (dialog.open) dialog.close();
+        disengage(state);
         unlock(dialog);
         restore(state);
     }
@@ -160,6 +198,11 @@ function cleanup(state) {
     state.expectedOpen = false;
     dialog.removeEventListener('cancel', state.cancel);
     dialog.removeEventListener('keydown', state.keydown, true);
+    if (state.docKeydown) document.removeEventListener('keydown', state.docKeydown, true);
+    state.backdropElement?.removeEventListener('click', state.backdropClick);
+    state.backdropElement?.removeEventListener('wheel', state.backdropScroll);
+    state.backdropElement?.removeEventListener('touchmove', state.backdropScroll);
+    disengage(state);
     dialog.removeEventListener('close', state.close);
     dialog.removeEventListener('focusin', state.focusin);
     dialog.removeEventListener('pointerdown', state.pointerdown);
