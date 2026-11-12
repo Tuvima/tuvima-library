@@ -1,9 +1,37 @@
 @namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
+
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="@GridClass">
     @foreach (var item in Items)
     {
-        <MediaTile Item="@item" @key="item.RenderKey" />
+        @if (SelectionMode && MediaTileActionTarget.For(item) is { CanSave: true })
+        {
+            @* Select (My List): the cover is a tick target. The tile underneath cannot be reached, so pressing it ticks it instead of opening it. *@
+            var picked = IsSelected?.Invoke(item) == true;
+            <div class="@($"media-tile-pick{(picked ? " is-picked" : string.Empty)}")" @key="item.RenderKey" data-media-tile-pick>
+                <div class="media-tile-pick__tile" inert>
+                    <MediaTile Item="@item" ShowActions="false" />
+                </div>
+                @* A native button (through AppRowButton), so Space ticks the cover instead of scrolling the page. *@
+                <span class="media-tile-pick__hit">
+                    <AppRowButton aria-pressed="@(picked ? "true" : "false")" aria-label="@L["MyList_SelectTitle", item.Title].Value"
+                                  OnClick="@(() => OnToggle.InvokeAsync(item))" />
+                </span>
+                <span class="media-tile-pick__box" aria-hidden="true">
+                    @if (picked)
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Inline16" />
+                    }
+                </span>
+            </div>
+        }
+        else
+        {
+            <MediaTile Item="@item" @key="item.RenderKey" />
+        }
     }
 </div>
 
@@ -16,6 +44,15 @@
     /// </summary>
     [Parameter] public bool SquaresOnly { get; set; }
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>My List's Select: covers that can be saved become tick targets with no "..." and do not open when pressed.</summary>
+    [Parameter] public bool SelectionMode { get; set; }
+
+    /// <summary>Whether a cover is ticked while <see cref="SelectionMode"/> is on.</summary>
+    [Parameter] public Func<MediaTileViewModel, bool>? IsSelected { get; set; }
+
+    /// <summary>Raised when a cover is pressed while <see cref="SelectionMode"/> is on.</summary>
+    [Parameter] public EventCallback<MediaTileViewModel> OnToggle { get; set; }
 
     private string GridClass => $"media-tile-grid {(SquaresOnly ? "media-tile-grid--squares-only" : string.Empty)} {Class}".Trim();
 }

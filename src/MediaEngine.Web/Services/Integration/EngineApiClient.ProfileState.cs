@@ -29,6 +29,28 @@ public sealed partial class EngineApiClient
     public Task<bool> RemoveSavedItemAsync(ProfileEntityKind entityKind, Guid entityId, CancellationToken ct = default) =>
         DeleteAsync("Remove saved profile item", $"/api/v1/profile-state/saved/{entityKind}/{entityId:D}", ct: ct);
 
+    public Task<IReadOnlyList<ProfileSavedItemDto>> GetFinishedSavedItemsAsync(CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<ProfileSavedItemDto>>(
+            "Finished saved profile items",
+            "/api/v1/profile-state/saved/finished",
+            () => [],
+            ct: ct);
+
+    // Null means the call failed (so the page can say My List could not be changed); an empty list means nothing was affected.
+    public Task<IReadOnlyList<ProfileSavedItemDto>?> RemoveSavedItemsAsync(IReadOnlyList<ProfileSavedItemKeyDto> items, CancellationToken ct = default) =>
+        PostAsync<RemoveSavedItemsRequest, IReadOnlyList<ProfileSavedItemDto>>(
+            "Remove saved profile items",
+            "/api/v1/profile-state/saved/remove",
+            new RemoveSavedItemsRequest(items),
+            ct: ct);
+
+    public Task<IReadOnlyList<ProfileSavedItemDto>?> RestoreSavedItemsAsync(IReadOnlyList<ProfileSavedItemDto> items, CancellationToken ct = default) =>
+        PostAsync<RestoreSavedItemsRequest, IReadOnlyList<ProfileSavedItemDto>>(
+            "Restore saved profile items",
+            "/api/v1/profile-state/saved/restore",
+            new RestoreSavedItemsRequest(items),
+            ct: ct);
+
     public Task<IReadOnlyList<ProfileReactionDto>> GetProfileReactionsAsync(CancellationToken ct = default) =>
         GetAsync<IReadOnlyList<ProfileReactionDto>>(
             "Profile reactions",
