@@ -165,10 +165,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("private string AppBarClass => IsCinematicShell", layout);
         Assert.Contains("private string MainContentClass => IsCinematicShell", layout);
         Assert.Contains("main-content-with-topbar--cinematic", layoutStyles);
-        Assert.Contains("layout-shell__appbar--cinematic", layoutStyles);
+        Assert.Contains(".layout-shell__appbar--cinematic.tl-appbar", appStyles);
         Assert.DoesNotContain("body:has(.tl-detail-page) .main-content-with-topbar", appStyles);
         Assert.DoesNotContain("body:has(.tl-detail-page) .layout-shell__appbar,", appStyles);
-        Assert.Contains("backdrop-filter: blur(0.7rem)", layoutStyles);
+        Assert.Contains("backdrop-filter: blur(0.7rem)", appStyles);
         Assert.DoesNotContain("object-position: right top", styles);
         Assert.Contains("tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner", styles);
         Assert.Contains("align-items: center", styles);
