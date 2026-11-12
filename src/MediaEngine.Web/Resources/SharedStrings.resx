@@ -9797,6 +9797,9 @@
   <data name="LibraryFoldersPopover_Online" xml:space="preserve">
     <value>Online</value>
   </data>
+  <data name="LibraryFoldersPopover_NotFound" xml:space="preserve">
+    <value>Folder not found. Is the drive connected?</value>
+  </data>
   <data name="LibraryFoldersPopover_Reachable" xml:space="preserve">
     <value>Library can reach this folder</value>
   </data>

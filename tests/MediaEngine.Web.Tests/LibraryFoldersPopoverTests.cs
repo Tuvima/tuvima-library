@@ -52,7 +52,7 @@ public sealed class LibraryFoldersPopoverTests : AsyncBunitContext
         Assert.Equal("unreachable", icon.GetAttribute("data-folder-status"));
         Assert.Contains("lib-folders__icon--warn", icon.ClassName, StringComparison.Ordinal);
         Assert.Equal("Library can't reach this folder", icon.GetAttribute("aria-label"));
-        Assert.Equal("Folder unavailable", Text(cut.Find("li [data-folder-reason]")));
+        Assert.Equal("Folder not found. Is the drive connected?", Text(cut.Find("li [data-folder-reason]")));
         Assert.Equal("offline", cut.Find("li").GetAttribute("data-state"));
     }
 

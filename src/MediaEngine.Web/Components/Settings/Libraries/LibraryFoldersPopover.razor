@@ -71,7 +71,7 @@
                             </AppTooltip>
                             @if (issue is not null)
                             {
-                                <span class="lib-folders__why" data-folder-reason data-overflow-tooltip="@issue">@issue</span>
+                                <span class="lib-folders__why" data-folder-reason data-overflow-tooltip="@ReasonText(issue)">@ReasonText(issue)</span>
                             }
                         </span>
                         @if (source.Managed is { } managed)
@@ -144,6 +144,14 @@
         if (cut <= 0 || path.Length - cut > PathEndLength) cut = path.Length - PathEndLength;
         return (path[..cut], path[cut..]);
     }
+
+    // The short status word becomes a sentence that says what to try (D4, the folder status mock).
+    private string ReasonText(string issue) => issue switch
+    {
+        LibraryFolderHealth.Unavailable => L["LibraryFoldersPopover_NotFound"].Value,
+        LibraryFolderHealth.NoAccess => L["FolderPicker_CantOpen"].Value,
+        _ => issue,
+    };
 
     private string? IssueFor(FolderListItem source) => source.Issue ?? (PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null);
 
