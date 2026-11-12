@@ -12,8 +12,8 @@ public static class EditorMatchVerdicts
     /// <summary>What says which record this is agrees, but something else differs or too little could be checked.</summary>
     public const string Possible = "possible";
 
-    /// <summary>A fact that says which record this is (the title, the number, an identifier) differs.</summary>
-    public const string Check = "check";
+    /// <summary>A fact that says which record this is (the title, the number, an identifier) differs. Shown as "Weak match" (universal editor v6, D8).</summary>
+    public const string Weak = "weak";
 }
 
 /// <summary>What a provider in the Match tab's dropdown is ready to do.</summary>
@@ -192,16 +192,26 @@ public sealed class EditorMatchSearchRequestDto
     public Dictionary<string, string> Fields { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
-/// <summary>One fact of a verdict: a tick, a cross, or "not checked".</summary>
+/// <summary>One fact the Engine compared, as a row of the compare table: the fact, what the file says, what the result says, and a tick, a cross or "not checked".</summary>
 public sealed class EditorMatchReasonDto
 {
-    /// <summary>The fact: <c>title</c>, <c>year</c>, <c>number</c>, <c>creator</c>, <c>runtime</c>, <c>track_length</c> or <c>identifier</c>.</summary>
+    /// <summary>The fact (the row's field key): <c>title</c>, <c>year</c>, <c>number</c>, <c>creator</c>, <c>runtime</c>, <c>track_length</c> or <c>identifier</c>.</summary>
     [JsonPropertyName("fact")]
     public string Fact { get; init; } = string.Empty;
 
     /// <summary>One of <see cref="EditorMatchEvidenceStates"/>.</summary>
     [JsonPropertyName("state")]
     public string State { get; init; } = EditorMatchEvidenceStates.NotChecked;
+
+    /// <summary>What the file says about this fact, as shown ("1423103343", "1:56:21"); null when the file says nothing. One cell of the compare table (universal editor v6, D9).</summary>
+    [JsonPropertyName("your_file")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? YourFile { get; init; }
+
+    /// <summary>What the result says about this fact, as shown ("116 min"); null when the record says nothing.</summary>
+    [JsonPropertyName("result")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Result { get; init; }
 
     /// <summary>The reason in plain words ("Title matches", "Length differs by 2 s").</summary>
     [JsonPropertyName("text")]
@@ -277,6 +287,20 @@ public sealed class EditorMatchResultDto
     [JsonPropertyName("kind_text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? KindText { get; init; }
+
+    /// <summary>True for a collection, box set or omnibus rather than one title: the list row says "Collection".</summary>
+    [JsonPropertyName("is_collection")]
+    public bool IsCollection { get; init; }
+
+    /// <summary>The series the record belongs to, where the provider gives it ("Percy Jackson and the Olympians"); null otherwise.</summary>
+    [JsonPropertyName("series_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SeriesName { get; init; }
+
+    /// <summary>The record's place in <see cref="SeriesName"/> as written ("2", "2.5"); null when the provider gives none.</summary>
+    [JsonPropertyName("series_number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SeriesNumber { get; init; }
 
     /// <summary>One of <see cref="EditorMatchVerdicts"/>.</summary>
     [JsonPropertyName("verdict")]

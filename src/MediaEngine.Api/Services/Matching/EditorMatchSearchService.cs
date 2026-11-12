@@ -534,7 +534,7 @@ public sealed class EditorMatchSearchService(
             SourceUrl = SourceUrl(candidate, false),
             KindText = "Video",
             Verdict = calculator.Verdict(checks),
-            Reasons = [.. checks.Select(check => new EditorMatchReasonDto { Fact = check.Fact, State = check.State, Text = check.Text, Note = check.Note })],
+            Reasons = ReasonsOf(checks),
         };
         return new EditorMatchSearchResultDto
         {
@@ -618,6 +618,9 @@ public sealed class EditorMatchSearchService(
         Description = source.Description,
         SourceUrl = source.SourceUrl,
         KindText = source.KindText,
+        IsCollection = source.IsCollection,
+        SeriesName = source.SeriesName,
+        SeriesNumber = source.SeriesNumber,
         Verdict = source.Verdict,
         Reasons = source.Reasons,
         Editions = editions ?? [],
@@ -671,8 +674,11 @@ public sealed class EditorMatchSearchService(
             Description = candidate.Description,
             SourceUrl = SourceUrl(candidate, isTv),
             KindText = KindText(kindId),
+            IsCollection = calculator.IsCollection(candidate.Title, extra, SeriesNumber(extra)),
+            SeriesName = Extra(extra, MetadataFieldConstants.Series),
+            SeriesNumber = SeriesNumber(extra),
             Verdict = calculator.Verdict(checks),
-            Reasons = [.. checks.Select(check => new EditorMatchReasonDto { Fact = check.Fact, State = check.State, Text = check.Text, Note = check.Note })],
+            Reasons = ReasonsOf(checks),
             Edition = EditorMatchKinds.HasEditions(kindId)
                 ? new EditorMatchEditionDto
                 {
@@ -762,6 +768,36 @@ public sealed class EditorMatchSearchService(
         }
 
         return ids;
+    }
+
+    // The compare table's rows: each fact with what the file and the record say, so the Dashboard never compares anything itself (v6, D9).
+    private static List<EditorMatchReasonDto> ReasonsOf(IEnumerable<MatchFactCheck> checks) =>
+        [.. checks.Select(check => new EditorMatchReasonDto
+        {
+            Fact = check.Fact,
+            State = check.State,
+            YourFile = string.IsNullOrWhiteSpace(check.Yours) ? null : check.Yours,
+            Result = string.IsNullOrWhiteSpace(check.Theirs) ? null : check.Theirs,
+            Text = check.Text,
+            Note = check.Note,
+        })];
+
+    // The record's place in its series as written: "2" for 2 or 2.0, "2.5" kept.
+    private static string? SeriesNumber(IReadOnlyDictionary<string, string> extra)
+    {
+        foreach (var key in new[] { MetadataFieldConstants.SeriesPosition, "issue_number", "issue" })
+        {
+            if (Extra(extra, key) is not { } text)
+            {
+                continue;
+            }
+
+            return decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+                ? number.ToString("0.##", CultureInfo.InvariantCulture)
+                : text;
+        }
+
+        return null;
     }
 
     private static string? Extra(IReadOnlyDictionary<string, string> extra, string key) =>

@@ -19,7 +19,7 @@ namespace MediaEngine.Api.Tests;
 /// <summary>
 /// The group Match (universal editor v5, D36): one show and season, or one release, is picked once and every ticked item is lined up by its
 /// own number. Items with no number, a number the target lacks, a file name that names another season, or a number another ticked item
-/// already takes come back as "Check match" (not ticked), never silently placed. Real temp data store for the items; hand-written handlers
+/// already takes come back as "Weak match" (not ticked), never silently placed. Real temp data store for the items; hand-written handlers
 /// stand in for TheTVDB and MusicBrainz.
 /// </summary>
 public sealed class EditorGroupMatchServiceTests : IDisposable

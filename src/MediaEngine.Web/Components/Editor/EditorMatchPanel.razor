@@ -594,7 +594,6 @@
             @StagedNote()
             @FileBar()
             @CurrentCard(_current!)
-            @WhyTable(_current!)
         }
         else
         {
@@ -602,94 +601,26 @@
         }
     };
 
+    // The current match (v6 D10): the same card as a chosen search result, filled from the Engine's read of the matched record, with its three actions.
     private RenderFragment CurrentCard(EditorCurrentMatchDto current) => __builder =>
     {
         var record = current.Record!;
-        var idText = string.IsNullOrWhiteSpace(record.ProviderItemId) ? record.ProviderName : $"{record.ProviderName} · {record.ProviderItemId}";
-        <section class="tl-matchcard" aria-label="@L["EditorMatchPanel_CurrentMatch"].Value" data-testid="match-current">
-            @if (!string.IsNullOrWhiteSpace(record.ImageUrl))
-            {
-                <AppImage Src="@record.ImageUrl" Alt="" Width="64" Height="96" ObjectFit="AppObjectFit.Cover" Class="tl-match__art tl-matchcard__art" />
-            }
-            else
-            {
-                <span class="tl-match__art tl-match__art--empty tl-matchcard__art" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
-            }
-            <div class="tl-match__text">
-                <div class="tl-match__title"><span class="tl-match__meta">@L["EditorMatchPanel_CurrentMatch"]</span> <AppChip Text="@L["EditorMatchPanel_Matched"].Value" Tone="AppUiTone.Success" />@if (current.Pinned) { <AppChip Text="@L["EditorMatchPanel_ChosenByYou"].Value" Tone="AppUiTone.Neutral" /> }</div>
-                <div class="tl-matchcard__name">@record.Title</div>
-                <div class="tl-match__meta" data-testid="match-current-id">@idText</div>
-                <div class="tl-match__meta">@string.Join(" · ", new[] { record.Kind, record.Year }.Where(part => !string.IsNullOrWhiteSpace(part)))</div>
-                @if (!string.IsNullOrWhiteSpace(record.Creator))
-                {
-                    <div class="tl-match__meta" data-testid="match-current-creator">@CreatorLine(record)</div>
-                }
-                @if (!string.IsNullOrWhiteSpace(current.Note))
-                {
-                    <div class="tl-match__meta">@current.Note</div>
-                }
-            </div>
-            <div class="tl-matchcard__actions">
-                @if (!string.IsNullOrWhiteSpace(record.SourceUrl))
-                {
-                    <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@record.SourceUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" />
-                }
-                <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
-                           Disabled="@(!CanEdit || Session is not { IsActive: true })" OnClick="RemoveMatch" data-testid="match-remove" />
-                <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Disabled="@(!CanEdit || Session is not { IsActive: true })" OnClick="StartChange" data-testid="match-change" />
-            </div>
-        </section>
-    };
-
-    // "Directed by" belongs to a film; every other kind of record just names its creator.
-    private string CreatorLine(EditorMatchedRecordDto record) =>
-        string.Equals(record.Kind, "Film", StringComparison.OrdinalIgnoreCase) ? L["EditorMatchPanel_DirectedBy", record.Creator!].Value : record.Creator!;
-
-    private RenderFragment WhyTable(EditorCurrentMatchDto current) => __builder =>
-    {
-        var checkedRows = current.Why.Where(row => row.State != EditorMatchEvidenceStates.NotChecked).ToList();
-        var notChecked = current.Why.Where(row => row.State == EditorMatchEvidenceStates.NotChecked).ToList();
-        var rows = checkedRows.Select(row => new EditorEvidenceCard.Row(
-            WhyFieldLabel(row.Field), WhyValue(row, row.YourFile, true), WhyValue(row, row.MatchedRecord, false), row.State,
-            row.Verdict is null ? null : EditorMatchResults.VerdictText(row.Verdict))).ToList();
-        <EditorEvidenceCard Title="@L["EditorMatchPanel_WhyThisMatch"].Value" YourLabel="@L["EditorMatchPanel_YourFile"].Value" OtherLabel="@L["EditorMatchPanel_MatchedRecord"].Value"
-                            Rows="rows" data-testid="match-why">
-            <Header>
-                @if (current.Verdict is { } verdict)
-                {
-                    <AppChip Text="@L["EditorMatchPanel_MatchVerdict", EditorMatchResults.VerdictText(verdict)].Value" Tone="@EditorMatchResults.VerdictTone(verdict)" />
-                }
-            </Header>
-            <Footer>
-                @foreach (var row in notChecked)
-                {
-                    <p class="tl-match__meta tl-matchwhy__footnote" data-testid="match-why-footnote">@L["EditorMatchPanel_NotCheckedNote", WhyFieldLabel(row.Field)]</p>
-                }
-                <p class="tl-match__meta">@L["EditorMatchPanel_ChangingKeepsLocked"]</p>
-            </Footer>
-        </EditorEvidenceCard>
-    };
-
-    // The measured length and the provider's rounded one say so inside their cells.
-    private string WhyValue(EditorMatchEvidenceRowDto row, string? value, bool yours)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "–";
-        }
-
-        return row.Field != "runtime" ? value : yours ? L["EditorMatchPanel_Measured", value].Value : L["EditorMatchPanel_Rounded", value].Value;
-    }
-
-    private string WhyFieldLabel(string field) => field switch
-    {
-        "title" => L["EditorMatchPanel_FieldTitle"].Value,
-        "year" => L["EditorMatchPanel_FieldYear"].Value,
-        "season_number" => L["EditorMatchPanel_FieldSeason"].Value,
-        "episode_number" => L["EditorMatchPanel_FieldEpisode"].Value,
-        "runtime" => L["EditorMatchPanel_FieldRuntime"].Value,
-        _ => field.Replace('_', ' '),
+        var canChange = CanEdit && Session is { IsActive: true };
+        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind, L)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" CompareBesideCover="true" data-testid="match-current">
+            <Basis><span data-testid="match-why-note">@L["EditorMatchPanel_ChangingKeepsLocked"]</span></Basis>
+            <Foot>
+                <div class="tl-matchcard__actions">
+                    @if (!string.IsNullOrWhiteSpace(record.SourceUrl))
+                    {
+                        <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@record.SourceUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-testid="match-open-source" />
+                    }
+                    <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error"
+                               Disabled="@(!canChange)" OnClick="RemoveMatch" data-testid="match-remove" />
+                    <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                               Disabled="@(!canChange)" OnClick="StartChange" data-testid="match-change" />
+                </div>
+            </Foot>
+        </EditorMatchCard>
     };
 
     // The provider dropdown by itself (label above): the TV and music flows put it first in their own row.
@@ -912,7 +843,7 @@
 
             @FileBar()
 
-            <EditorMatchResults Results="@(_found?.Results ?? [])" Evidence="_found?.Evidence ?? _setup?.Evidence"
+            <EditorMatchResults Results="@(_found?.Results ?? [])" Kind="@_kind"
                                 Selected="_selected" SelectedChanged="OnSelectedAsync" Edition="_edition" EditionChanged="OnEditionAsync"
                                 Loading="_searching" Message="@ListMessage" Failed="@(_problem is not null || _found?.FailedProviders.Count > 0)"
                                 OnRetry="StartSearchAsync"

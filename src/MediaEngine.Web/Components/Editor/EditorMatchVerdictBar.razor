@@ -14,7 +14,7 @@
         }
         else if (Result is { } result)
         {
-            <span class="tl-matchbar__chip"><AppChip Text="@L["EditorMatchVerdictBar_Verdict", EditorMatchResults.VerdictText(result.Verdict)].Value" Tone="@EditorMatchResults.VerdictTone(result.Verdict)" /></span>
+            <span class="tl-matchbar__chip"><AppChip Text="@L["EditorMatchVerdictBar_Verdict", EditorMatchResults.VerdictText(result.Verdict, L)].Value" Tone="@EditorMatchResults.VerdictTone(result.Verdict)" /></span>
             @foreach (var reason in result.Reasons)
             {
                 <span class="tl-matchbar__reason" data-state="@reason.State">@Mark(reason.State) @reason.Text</span>

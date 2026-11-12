@@ -143,7 +143,7 @@ public static partial class MetadataEndpoints
             var found = await match.SearchAsync(entityId, request, ct);
             return found is null ? ApiErrors.NotFound("Match search was not found.") : Results.Ok(found);
         }).WithName("SearchEditorMatch")
-          .WithSummary("Searches one provider for the item and judges each result against the file (Strong, Possible or Check). Writes nothing.")
+          .WithSummary("Searches one provider for the item and judges each result against the file (Strong, Possible or Weak). Writes nothing.")
           .Produces<EditorMatchSearchResultDto>(StatusCodes.Status200OK)
           .ProducesProblem(StatusCodes.Status404NotFound)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
