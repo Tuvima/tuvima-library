@@ -364,6 +364,19 @@
                 "fallback_format": { "type": "string" },
                 "instrumental_path": { "type": "string" },
                 "id_path": { "type": "string" },
+                "match": {
+                  "type": "object",
+                  "properties": {
+                    "title_path": { "type": "string", "minLength": 1 },
+                    "artist_path": { "type": "string", "minLength": 1 },
+                    "ignore_case": { "type": "boolean" },
+                    "ignore_punctuation": { "type": "boolean" },
+                    "ignore_bracketed": { "type": "boolean" },
+                    "ignore_diacritics": { "type": "boolean" },
+                    "strip_suffix_patterns": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                  },
+                  "additionalProperties": false
+                },
                 "duration": {
                   "type": "object",
                   "properties": {

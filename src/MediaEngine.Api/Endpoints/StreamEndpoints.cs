@@ -736,6 +736,7 @@ public static class StreamEndpoints
                 or MediaOperationStatus.NoResult
                 or MediaOperationStatus.Blocked
                 or MediaOperationStatus.FailedTerminal
+                or MediaOperationStatus.DeadLettered
                 or MediaOperationStatus.Cancelled;
             return Results.Accepted($"/operations/{operation.Id:D}", new RefreshTextTracksResponse
             {
@@ -753,6 +754,51 @@ public static class StreamEndpoints
         .WithSummary("Queue a durable lyrics or subtitle refresh for one media asset.")
         .Produces<RefreshTextTracksResponse>(StatusCodes.Status202Accepted)
         .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
+        // The narrow read behind "Find lyrics": a profile that may queue a lookup for an asset may ask how that one lookup is going,
+        // without the administrator-only operations list. Only a lyrics or subtitle operation of this very asset is ever answered.
+        group.MapGet("/{assetId:guid}/text-tracks/refresh/{operationId:guid}", async (
+            Guid assetId,
+            Guid operationId,
+            IMediaOperationRepository operationRepo,
+            CancellationToken ct) =>
+        {
+            var progress = await ReadTextTrackRefreshAsync(operationRepo, assetId, operationId, ct);
+            return progress is null
+                ? (IResult)ApiErrors.NotFound($"Text-track operation '{operationId}' not found for asset '{assetId}'.")
+                : Results.Ok(progress);
+        })
+        .WithName("GetAssetTextTrackRefreshStatus")
+        .WithSummary("Read the progress of one queued lyrics or subtitle refresh for one media asset.")
+        .Produces<RefreshTextTracksResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
+        // Whether a lookup (the Library's own automatic one after ingestion, or one a person queued) is still waiting or running for this
+        // asset, so the Lyrics panel can say "Looking for lyrics..." instead of "No lyrics found". Same scope and asset access as the action
+        // that queues a lookup; 204 when nothing is pending.
+        group.MapGet("/{assetId:guid}/text-tracks/refresh", async (
+            Guid assetId,
+            string? kind,
+            IMediaOperationRepository operationRepo,
+            CancellationToken ct) =>
+        {
+            if (!TryParseTextTrackKind(kind, out var textTrackKind))
+            {
+                return ApiErrors.BadRequest("kind must be either 'lyrics' or 'subtitles'.");
+            }
+
+            var pending = await ReadPendingTextTrackRefreshAsync(operationRepo, assetId, textTrackKind, ct);
+            return pending is null ? Results.NoContent() : Results.Ok(pending);
+        })
+        .WithName("GetAssetPendingTextTrackRefresh")
+        .WithSummary("Read the newest unfinished lyrics or subtitle refresh of one media asset, or 204 when there is none.")
+        .Produces<RefreshTextTracksResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireClientScope(ClientApiScopes.PlaybackWrite)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
 
@@ -852,6 +898,70 @@ public static class StreamEndpoints
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.ArtworkRead);
 
         return app;
+    }
+
+    /// <summary>
+    /// How one queued lyrics or subtitle lookup is going, for the asset it was queued for. Null (the route answers 404) when the operation does not
+    /// exist, belongs to another asset, or is not a text-track operation, so the route can never be used to read any other operation.
+    /// </summary>
+    internal static async Task<RefreshTextTracksResponse?> ReadTextTrackRefreshAsync(
+        IMediaOperationRepository operationRepo, Guid assetId, Guid operationId, CancellationToken ct)
+    {
+        var operation = await operationRepo.GetByIdAsync(operationId, ct);
+        if (operation is null || operation.EntityId != assetId)
+        {
+            return null;
+        }
+
+        var type = operation.OperationType == MediaOperationType.TextTrackLyrics ? EnrichmentType.TimedLyrics
+            : operation.OperationType == MediaOperationType.TextTrackSubtitles ? EnrichmentType.Subtitles
+            : (EnrichmentType?)null;
+        if (type is null)
+        {
+            return null;
+        }
+
+        return ToTextTrackRefreshResponse(operation, assetId, type.Value);
+    }
+
+    /// <summary>
+    /// The newest lyrics (or subtitle) lookup of this asset that is still queued or running, or null when none is. Reads the operation queue
+    /// through the repository and answers with the same shape as the status read, so the Dashboard follows it with the same code.
+    /// </summary>
+    internal static async Task<RefreshTextTracksResponse?> ReadPendingTextTrackRefreshAsync(
+        IMediaOperationRepository operationRepo, Guid assetId, TextTrackKind kind, CancellationToken ct)
+    {
+        var operationType = kind == TextTrackKind.Lyrics ? MediaOperationType.TextTrackLyrics : MediaOperationType.TextTrackSubtitles;
+        var operation = await operationRepo.GetNewestUnfinishedByEntityAsync(assetId, operationType, ct);
+        return operation is null
+            ? null
+            : ToTextTrackRefreshResponse(operation, assetId, kind == TextTrackKind.Lyrics ? EnrichmentType.TimedLyrics : EnrichmentType.Subtitles);
+    }
+
+    // The message is the Engine's own wording: a summary the lookup stored, or fixed words. A raw error (which can carry an exception's text)
+    // is never sent to the caller.
+    private static RefreshTextTracksResponse ToTextTrackRefreshResponse(MediaOperation operation, Guid assetId, EnrichmentType type)
+    {
+        var finished = operation.Status is MediaOperationStatus.Succeeded
+            or MediaOperationStatus.NoResult
+            or MediaOperationStatus.Blocked
+            or MediaOperationStatus.FailedTerminal
+            or MediaOperationStatus.Cancelled
+            or MediaOperationStatus.MissingConfirmed
+            or MediaOperationStatus.NotApplicable
+            or MediaOperationStatus.Skipped
+            or MediaOperationStatus.DeadLettered;
+        return new RefreshTextTracksResponse
+        {
+            operation_id = operation.Id,
+            asset_id = assetId,
+            enrichment_type = type.ToString(),
+            refreshed = operation.Status == MediaOperationStatus.Succeeded,
+            status = operation.Status,
+            message = finished
+                ? operation.ResultSummary ?? operation.MissingReason ?? "The text-track refresh finished."
+                : "The text-track refresh is still running.",
+        };
     }
 
     internal static async Task<Guid> ResolveArtworkOwnerEntityIdAsync(

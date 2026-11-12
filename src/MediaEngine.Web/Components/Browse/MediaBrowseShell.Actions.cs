@@ -140,12 +140,17 @@ public partial class MediaBrowseShell
         await PlaySongTracksAsync(tracks, requestedTrackId, "All Songs", shuffle: false);
     }
 
-    private Task BeginSongDragAsync(Guid workId)
+    // The songs being dragged out (every ticked song when a ticked one is dragged) are also offered to the queue panel; dropping them on a
+    // playlist is the song table's and the drop service's.
+    private Task BeginSongDragAsync(IReadOnlyList<Guid> workIds)
     {
-        var track = SongTracks.FirstOrDefault(item => item.Id == workId);
-        if (track is not null)
+        var tracks = workIds
+            .Select(workId => SongTracks.FirstOrDefault(item => item.Id == workId))
+            .OfType<WorkViewModel>()
+            .ToList();
+        if (tracks.Count > 0)
         {
-            AudioDrag.BeginDrag([workId], [ListenQueueItemFactory.Create(track)]);
+            AudioDrag.BeginDrag([.. tracks.Select(track => track.Id)], [.. tracks.Select(ListenQueueItemFactory.Create)]);
         }
 
         return Task.CompletedTask;

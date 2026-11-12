@@ -65,8 +65,32 @@ public static class BulkEditRules
     public static bool AreDeletable(IReadOnlyList<BulkEditRow> rows) =>
         rows.Count > 0 && rows.All(row => IsSelectableKind(row.Kind));
 
-    /// <summary>"Add to collection" is offered when every ticked row is a single title (the rows a collection can hold).</summary>
-    public static bool CanAddToCollection(IReadOnlyList<BulkEditRow> rows) => AreDeletable(rows);
+    /// <summary>
+    /// "Add to collection" is offered when every ticked row is a single title (the rows a collection can hold), or every ticked row is an
+    /// album (Listen music spec D15). Songs go into playlists instead and are never offered it (spec D9), whatever else is ticked with them.
+    /// </summary>
+    public static bool CanAddToCollection(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) =>
+        !rows.Any(row => IsSong(row, pageMediaType)) && (IsAlbumSelection(rows) || AreDeletable(rows));
+
+    /// <summary>
+    /// "Add to playlist" is the Listen kind rule (spec D9, D15), decided here and nowhere else: ticked songs and ticked albums are offered it
+    /// (an album adds all its songs); audiobooks, books, videos and everything else are not.
+    /// </summary>
+    public static bool CanAddToPlaylist(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) =>
+        AllSongs(rows, pageMediaType) || IsAlbumSelection(rows);
+
+    /// <summary>
+    /// True when every ticked row is a song. Ticked songs are played, queued and put in playlists on any desktop or tablet by anyone who may
+    /// play, without the right to edit (spec D9); only Edit, Match and Move need that.
+    /// </summary>
+    public static bool IsSongSelection(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) => AllSongs(rows, pageMediaType);
+
+    /// <summary>True when every ticked row is an album (its songs are added to a playlist, in album order).</summary>
+    public static bool IsAlbumSelection(IReadOnlyList<BulkEditRow> rows) =>
+        rows.Count > 0 && rows.All(row => row.Kind == DetailEntityType.MusicAlbum);
+
+    private static bool IsSong(BulkEditRow row, string? pageMediaType) =>
+        row.Kind == DetailEntityType.Work && string.Equals(row.MediaType ?? pageMediaType, "Music", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>"Add 3 to collection": the ticked-rows bar's button (Collections and lists spec 4a).</summary>
     public static string AddToCollectionLabel(int count) => $"Add {count} to collection";
@@ -267,8 +291,7 @@ public static class BulkEditRules
         && rows.All(row => IsSelectableKind(row.Kind) && string.Equals(row.MediaType ?? pageMediaType, "Videos", StringComparison.OrdinalIgnoreCase));
 
     private static bool AllSongs(IReadOnlyList<BulkEditRow> rows, string? pageMediaType) =>
-        rows.Count > 0
-        && rows.All(row => row.Kind == DetailEntityType.Work && string.Equals(row.MediaType ?? pageMediaType, "Music", StringComparison.OrdinalIgnoreCase));
+        rows.Count > 0 && rows.All(row => IsSong(row, pageMediaType));
 
     private static string? MediaTypeOf(IReadOnlyList<BulkEditRow> rows, string? pageMediaType) =>
         rows.Select(row => row.MediaType).FirstOrDefault(type => !string.IsNullOrWhiteSpace(type)) ?? pageMediaType;

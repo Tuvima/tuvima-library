@@ -58,6 +58,22 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void MusicPage_FollowsTheMockupsOrder_TheTopLineThenTheCoverTitleArtistAndAlbumThenTheTabsAndTheirPanel()
+    {
+        AddServices(Song("Stay a Little Longer", "The Midnight Coast", "Northern Lights", "2026") with { ArtistPersonId = Guid.NewGuid() }, Song("Next song", "The Midnight Coast"));
+
+        var cut = Render<NowPlayingPage>();
+
+        var order = cut.FindAll("[data-now-playing-back], [data-now-playing-close], [data-now-playing-cover], h1, [data-now-playing-artist], [data-now-playing-album], [role='tablist'], [data-now-playing-panel]")
+            .Select(element => element.GetAttribute("role") ?? (element.TagName == "H1" ? "title" : element.Attributes.First(attribute => attribute.Name.StartsWith("data-now-playing-", StringComparison.Ordinal)).Name))
+            .ToArray();
+        Assert.Equal(["data-now-playing-back", "data-now-playing-close", "data-now-playing-cover", "title", "data-now-playing-artist", "data-now-playing-album", "tablist", "tabpanel"], order);
+        // The cover and the facts are the left column and the tabs the right one, so the tabs never sit above the cover.
+        Assert.NotNull(cut.Find(".np__body > .np__facts [data-now-playing-cover]"));
+        Assert.NotNull(cut.Find(".np__body > .np__tabs-column [role='tablist']"));
+    }
+
+    [Fact]
     public async Task MusicPage_HasLyricsQueueAndHistoryTabsInThatOrderAndChoosingOneShowsItsList()
     {
         AddServices(Song("Current", "Artist"), Song("Next", "Artist"));

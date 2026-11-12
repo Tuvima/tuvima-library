@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -107,6 +108,44 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
             status: MediaOperationStatus.Succeeded));
 
         var found = await repo.GetActiveBySourcePathAsync(sourcePath);
+
+        Assert.Null(found);
+    }
+
+    [Theory]
+    [InlineData(MediaOperationStatus.Pending)]
+    [InlineData(MediaOperationStatus.Queued)]
+    [InlineData(MediaOperationStatus.Leased)]
+    [InlineData(MediaOperationStatus.Running)]
+    [InlineData(MediaOperationStatus.RetryWaiting)]
+    [InlineData(MediaOperationStatus.FailedRetryable)]
+    [InlineData(MediaOperationStatus.Interrupted)]
+    [InlineData(MediaOperationStatus.Paused)]
+    public async Task GetNewestUnfinishedByEntityAsync_ReturnsAnOperationThatIsNotInATerminalStatus(string status)
+    {
+        var repo = new MediaOperationRepository(_db);
+        var entityId = Guid.NewGuid();
+        var saved = await repo.EnsureAsync(NewTextTrackLookup(entityId, status));
+
+        var found = await repo.GetNewestUnfinishedByEntityAsync(entityId, MediaOperationType.TextTrackLyrics);
+
+        Assert.Equal(saved.Id, found?.Id);
+    }
+
+    [Theory]
+    [InlineData(MediaOperationStatus.Succeeded)]
+    [InlineData(MediaOperationStatus.NoResult)]
+    [InlineData(MediaOperationStatus.Blocked)]
+    [InlineData(MediaOperationStatus.FailedTerminal)]
+    [InlineData(MediaOperationStatus.DeadLettered)]
+    [InlineData(MediaOperationStatus.Cancelled)]
+    public async Task GetNewestUnfinishedByEntityAsync_IgnoresAnOperationInATerminalStatus(string status)
+    {
+        var repo = new MediaOperationRepository(_db);
+        var entityId = Guid.NewGuid();
+        await repo.EnsureAsync(NewTextTrackLookup(entityId, status));
+
+        var found = await repo.GetNewestUnfinishedByEntityAsync(entityId, MediaOperationType.TextTrackLyrics);
 
         Assert.Null(found);
     }
@@ -350,6 +389,18 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
         Assert.False(updated.Stale);
         Assert.False(updated.NeedsRerun);
     }
+
+    private static MediaOperation NewTextTrackLookup(Guid entityId, string status) => new()
+    {
+        OperationType = MediaOperationType.TextTrackLyrics,
+        OperationKind = MediaOperationKind.TextTrack,
+        EntityId = entityId,
+        EntityKind = EntityType.MediaAsset.ToString(),
+        Status = status,
+        Stage = MediaOperationStage.Queued,
+        QueueName = "text_track",
+        IdempotencyKey = $"lyrics:{Guid.NewGuid():N}",
+    };
 
     private static MediaOperation NewOperation(
         string idempotencyKey,

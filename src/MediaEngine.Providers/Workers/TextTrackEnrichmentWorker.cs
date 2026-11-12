@@ -201,12 +201,19 @@ public sealed partial class TextTrackEnrichmentWorker
         var instrumentalDetected = false;
         var incompatibleSubtitleDetected = false;
         string? incompatibleProviderName = null;
+        TextTrackLookupException? unreachable = null;
         foreach (var provider in availableProviders)
         {
             IReadOnlyList<TextTrackCandidate> candidates;
             try
             {
                 candidates = await provider.SearchAsync(lookup, ct).ConfigureAwait(false);
+            }
+            catch (TextTrackLookupException ex) when (ex.Status == ProviderUnavailableStatus)
+            {
+                // One source being down says nothing about the others: try the rest, and only end as unreachable when none of them answered.
+                unreachable ??= ex;
+                continue;
             }
             catch (TextTrackLookupException ex)
             {
@@ -228,6 +235,12 @@ public sealed partial class TextTrackEnrichmentWorker
                 try
                 {
                     download = await provider.DownloadAsync(candidate, ct).ConfigureAwait(false);
+                }
+                catch (TextTrackLookupException ex) when (ex.Status == ProviderUnavailableStatus)
+                {
+                    // As with the search: a source that went down at the download says nothing about the others, so try the rest.
+                    unreachable ??= ex;
+                    continue;
                 }
                 catch (TextTrackLookupException ex)
                 {
@@ -279,6 +292,12 @@ public sealed partial class TextTrackEnrichmentWorker
         }
 
         var after = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
+        if (unreachable is not null && !importedLocal && !instrumentalDetected && !incompatibleSubtitleDetected)
+        {
+            return new(unreachable.Status, kind, before.Count, after.Count,
+                after.FirstOrDefault(track => track.IsPreferred)?.Id, unreachable.Message);
+        }
+
         return new(
             importedLocal ? "Updated" : incompatibleSubtitleDetected ? "IncompatibleSubtitle" : instrumentalDetected ? "Instrumental" : "NoResult",
             kind,
@@ -536,6 +555,9 @@ public sealed partial class TextTrackEnrichmentWorker
     }
 
     private const string UnknownLanguage = "und";
+
+    // The status a source gives when it could not be reached (the same word the Engine's operation worker reads).
+    private const string ProviderUnavailableStatus = "ProviderUnavailable";
 
     // The file-measured length (AudioProcessor) comes first; "duration" may come from an outside provider.
     private const string DurationSecondsKey = "duration_sec";

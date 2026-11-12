@@ -527,6 +527,24 @@ public sealed class SongTableTests : AsyncBunitContext
     // -- Menu ------------------------------------------------------------------------------------------
 
     [Fact]
+    public async Task TheSongMenu_NeverOffersAddToCollection_BecauseSongsGoIntoPlaylists()
+    {
+        await UseDeviceAsync("desktop");
+        var rows = new List<SongRow> { Row("One", playlist: true) };
+
+        var cut = RenderTable(SongTablePlace.Songs, rows, p => p
+            .Add(t => t.OnPlayNext, Cb<SongRow>(_ => { }))
+            .Add(t => t.OnQueue, Cb<SongRow>(_ => { }))
+            .Add(t => t.CanEdit, true)
+            .Add(t => t.CanDelete, true));
+
+        var items = OpenMenu(cut, RowElement(cut, rows[0]).QuerySelector(".song-table__cell--actions button[aria-haspopup='menu']")!);
+
+        Assert.NotEmpty(items);
+        Assert.DoesNotContain(items, item => item.Contains("collection", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task TheRowMenuHasOneOrderAndLeavesOutWhatDoesNotApply()
     {
         await UseDeviceAsync("desktop");
@@ -622,15 +640,135 @@ public sealed class SongTableTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TicksNeverShowOnAPhoneOrADeviceThatCannotEdit()
+    public async Task TicksShowOnADesktopAndATabletButNeverOnATvAndOnAPhoneOnlyInSelectMode()
     {
+        await UseDeviceAsync("tablet", touch: true, fine: false, hover: false);
+        var tablet = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ShowSelection, true));
+        Assert.Equal(3, tablet.FindAll("input[type='checkbox']").Count);
+
+        await UseDeviceAsync("tv", touch: false, fine: false, hover: false);
+        var tv = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ShowSelection, true));
+        Assert.Empty(tv.FindAll("input[type='checkbox']"));
+
         await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
         var phone = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ShowSelection, true).Add(t => t.CanEdit, true));
         Assert.Empty(phone.FindAll("input[type='checkbox']"));
+        Assert.Empty(phone.FindAll("[data-song-selection-bar]"));
+    }
 
-        await UseDeviceAsync("tablet", touch: true, fine: false, hover: false);
-        var tablet = RenderTable(SongTablePlace.Songs, ThreeSongs(), p => p.Add(t => t.ShowSelection, true).Add(t => t.CanEdit, true));
-        Assert.Empty(tablet.FindAll("input[type='checkbox']"));
+    // -- Select several songs on a phone ---------------------------------------------------------------
+
+    private IRenderedComponent<SongTable> RenderPhoneSelectable(
+        List<SongRow> rows, List<SongPlayRequest>? played = null, List<SongRow>? queued = null, List<IReadOnlySet<string>>? ticks = null) =>
+        RenderTable(SongTablePlace.Songs, rows, p => p
+            .Add(t => t.OnPlay, Cb<SongPlayRequest>(request => played?.Add(request)))
+            .Add(t => t.OnQueue, Cb<SongRow>(row => queued?.Add(row)))
+            .Add(t => t.SelectedIdsChanged, Cb<IReadOnlySet<string>>(set => ticks?.Add(set))));
+
+    private static void ChooseSelect(IRenderedComponent<SongTable> cut, SongRow row)
+    {
+        OpenMenu(cut, RowElement(cut, row).QuerySelector("button[aria-haspopup]")!);
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Select").Click();
+        cut.WaitForElement("[data-song-selection-bar]");
+    }
+
+    private static void TapAndWaitForCount(IRenderedComponent<SongTable> cut, SongRow row, int count)
+    {
+        RowElement(cut, row).Click();
+        cut.WaitForAssertion(() => Assert.Equal($"{count} selected", cut.Find("[data-song-selection-bar] [role='status']").TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheSongSheetOffersSelect_ThatTicksTheSongAndShowsTheBottomBarWithTheCount()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = ThreeSongs();
+        var ticks = new List<IReadOnlySet<string>>();
+        var cut = RenderPhoneSelectable(rows, ticks: ticks);
+        Assert.Empty(cut.FindAll("[data-song-selection-bar]"));
+
+        ChooseSelect(cut, rows[1]);
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-song-selection-bar]")));
+        Assert.Equal("1 selected", cut.Find("[data-song-selection-bar] [role='status']").TextContent.Trim());
+        Assert.Equal(3, cut.FindAll(".song-table__ptick").Count);
+        Assert.Equal([rows[1].Id], ticks[^1]);
+        Assert.Contains("is-selecting", cut.Find(".song-table--phone").ClassName);
+        Assert.Equal(
+            ["Play", "Add to queue", "Add to playlist"],
+            cut.FindAll("[data-song-selection-bar] .song-selection-bar__action").Select(button => button.TextContent.Trim()));
+        Assert.DoesNotContain(cut.FindAll("[data-song-selection-bar] button"), button => button.TextContent.Contains("Edit", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task OnAPhone_InSelectMode_ATapTicksTheRowInsteadOfPlayingIt_AndTapAgainUnticks()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = ThreeSongs();
+        var played = new List<SongPlayRequest>();
+        var cut = RenderPhoneSelectable(rows, played);
+        ChooseSelect(cut, rows[0]);
+
+        RowElement(cut, rows[2]).Click();
+        cut.WaitForAssertion(() => Assert.Equal("2 selected", cut.Find("[data-song-selection-bar] [role='status']").TextContent.Trim()));
+        RowElement(cut, rows[2]).Click();
+        cut.WaitForAssertion(() => Assert.Equal("1 selected", cut.Find("[data-song-selection-bar] [role='status']").TextContent.Trim()));
+
+        Assert.Empty(played);
+    }
+
+    [Fact]
+    public async Task OnAPhone_PlayAndAddToQueueSendTheTickedSongsInListOrder()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = ThreeSongs();
+        var played = new List<SongPlayRequest>();
+        var queued = new List<SongRow>();
+        var cut = RenderPhoneSelectable(rows, played, queued);
+        // Ticked out of order: Gamma first, then Beta.
+        ChooseSelect(cut, rows[2]);
+        TapAndWaitForCount(cut, rows[0], 2);
+        var shown = cut.FindAll(".song-table__ptitle-text").Select(title => title.TextContent.Trim()).ToList();
+        var expected = shown.Where(title => title is "Beta" or "Gamma").ToList();
+
+        cut.FindAll(".song-selection-bar__action").Single(button => button.TextContent.Trim() == "Play").Click();
+        cut.FindAll(".song-selection-bar__action").Single(button => button.TextContent.Trim() == "Add to queue").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, queued.Count));
+        var request = Assert.Single(played);
+        Assert.Equal(expected, request.Rows.Select(row => row.Title));
+        Assert.Equal(expected[0], request.Start.Title);
+        Assert.Equal(expected, queued.Select(row => row.Title));
+    }
+
+    [Fact]
+    public async Task OnAPhone_Done_LeavesSelectModeAndDropsTheTicks()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = ThreeSongs();
+        var ticks = new List<IReadOnlySet<string>>();
+        var cut = RenderPhoneSelectable(rows, ticks: ticks);
+        ChooseSelect(cut, rows[0]);
+        TapAndWaitForCount(cut, rows[1], 2);
+
+        cut.Find(".song-selection-bar__done").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-song-selection-bar]")));
+        Assert.Empty(cut.FindAll(".song-table__ptick"));
+        Assert.Empty(ticks[^1]);
+        Assert.DoesNotContain("is-selecting", cut.Find(".song-table--phone").ClassName);
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheSheetOfAnUnplayableListHasNoSelect()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = ThreeSongs();
+        var cut = RenderTable(SongTablePlace.Songs, rows, p => p.Add(t => t.OnQueue, Cb<SongRow>(_ => { })));
+
+        var items = OpenMenu(cut, RowElement(cut, rows[0]).QuerySelector("button[aria-haspopup]")!);
+
+        Assert.DoesNotContain("Select", items);
     }
 
     // -- Playlist order --------------------------------------------------------------------------------

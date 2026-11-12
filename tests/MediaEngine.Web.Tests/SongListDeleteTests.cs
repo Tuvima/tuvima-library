@@ -165,7 +165,7 @@ public sealed class SongListDeleteTests : AsyncBunitContext
         Checkboxes(cut)[0].Change(true);
 
         Assert.Equal(3, Checkboxes(cut).Count);
-        Assert.Equal(["Edit", "Match", "Move to album", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Play", "Add to queue", "Add to playlist", "Edit", "Match", "Move to album", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
         Assert.Empty(cut.FindAll($"{Bar} button[aria-label='More actions']"));
         Assert.DoesNotContain(OpenRowMenuItems(cut, 0), IsDelete);
         Assert.DoesNotContain("Delete from library", cut.Markup.Replace("Delete from library…", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
@@ -184,11 +184,8 @@ public sealed class SongListDeleteTests : AsyncBunitContext
 
     [Theory]
     [InlineData("phone", true, true, true)]
-    [InlineData("tablet", true, false, true)]
-    [InlineData("tablet", true, true, false)]
-    [InlineData("desktop", true, false, false)]
     [InlineData("tv", false, false, false)]
-    public async Task AnAdministratorOnAPhoneTabletOrTouchOnlyDeviceSeesNeitherTheCheckboxNorTheDeleteIcon(string formFactor, bool touch, bool fine, bool hover)
+    public async Task AnAdministratorOnAPhoneOrTvSeesNeitherTheCheckboxNorTheDeleteIcon(string formFactor, bool touch, bool fine, bool hover)
     {
         await UseDeviceAsync(formFactor, touch, fine, hover);
         SetAdministrator(true);
@@ -198,6 +195,60 @@ public sealed class SongListDeleteTests : AsyncBunitContext
         Assert.Empty(Checkboxes(cut));
         Assert.DoesNotContain("Delete from library", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("checkbox", cut.Markup, StringComparison.Ordinal);
+    }
+
+    // Ticked songs play, queue and go in playlists on any desktop or tablet (spec D9); Edit and Delete still need a desktop that may edit.
+    [Theory]
+    [InlineData("tablet", true, false, true)]
+    [InlineData("tablet", true, true, false)]
+    [InlineData("desktop", true, false, false)]
+    public async Task AnAdministratorOnATabletOrTouchOnlyDeviceSeesTheCheckboxesButNoEditAndNoDelete(string formFactor, bool touch, bool fine, bool hover)
+    {
+        await UseDeviceAsync(formFactor, touch, fine, hover);
+        SetAdministrator(true);
+
+        var cut = RenderTable(Songs(3));
+        Checkboxes(cut)[0].Change(true);
+
+        Assert.Equal(3, Checkboxes(cut).Count);
+        Assert.Equal(["Play", "Add to queue", "Add to playlist", "Clear"], cut.FindAll($"{Bar} button").Select(button => button.TextContent.Trim()));
+        Assert.DoesNotContain("Delete from library", cut.Markup, StringComparison.Ordinal);
+    }
+
+    // The bar's Play replaces the queue with the ticked songs in the order the list shows them and starts the first; Add to queue appends
+    // them in the same order (spec D9). Both use the calls a row makes.
+    [Fact]
+    public async Task PlayAndAddToQueueOnTheBarSendTheTickedSongsInListOrder()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(false);
+        var songs = Songs(3);
+        var played = new List<(IReadOnlyList<string> Titles, Guid? Start)>();
+        var queued = new List<string>();
+        var cut = Render<SongList>(parameters => parameters
+            .Add(list => list.Place, SongTablePlace.Songs)
+            .Add(list => list.Tracks, songs)
+            .Add(list => list.OnQueueRequested, work =>
+            {
+                queued.Add(work.CanonicalValues.Single(value => value.Key == "title").Value);
+                return Task.CompletedTask;
+            })
+            .Add(list => list.OnPlayRequested, (works, start, _, _) =>
+            {
+                played.Add(([.. works.Select(work => work.CanonicalValues.Single(value => value.Key == "title").Value)], start));
+                return Task.CompletedTask;
+            }));
+        // Ticked out of order: Song 3 first, then Song 1.
+        Checkboxes(cut)[2].Change(true);
+        Checkboxes(cut)[0].Change(true);
+
+        cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Play").Click();
+        cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Add to queue").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(["Song 1", "Song 3"], queued));
+        var request = Assert.Single(played);
+        Assert.Equal(["Song 1", "Song 3"], request.Titles);
+        Assert.Null(request.Start);
     }
 
     // -- One song ------------------------------------------------------------------------------
@@ -252,7 +303,7 @@ public sealed class SongListDeleteTests : AsyncBunitContext
 
         var bar = cut.Find(Bar);
         Assert.Contains("3 selected", bar.TextContent);
-        Assert.Equal(["Edit", "Move to album", "More actions", "Clear"], bar.QuerySelectorAll("button:not([hidden])")
+        Assert.Equal(["Play", "Add to queue", "Add to playlist", "Edit", "Move to album", "More actions", "Clear"], bar.QuerySelectorAll("button:not([hidden])")
             .Select(button => button.GetAttribute("aria-label") ?? button.TextContent.Trim())
             .Where(label => label.Length > 0));
 

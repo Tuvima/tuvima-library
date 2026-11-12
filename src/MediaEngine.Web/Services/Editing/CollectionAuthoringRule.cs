@@ -33,11 +33,12 @@ public static class CollectionAuthoringRule
 
     /// <summary>
     /// The hand-picked collections and playlists the "Add to collection" list offers: exactly the ones the Engine says the caller may
-    /// edit (their own; for an administrator, everything they manage), of the kind the menu is for.
+    /// edit (their own; for an administrator, everything they manage), of the kind the menu is for. A rule-based (smart) list fills itself, so it is never a target.
     /// </summary>
     public static bool IsAddTarget(ManagedCollectionDto collection, bool playlist) =>
         collection.CanEdit
         && collection.IsEnabled
         && string.Equals(collection.Resolution, "materialized", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(collection.MembershipMode, "Smart", StringComparison.OrdinalIgnoreCase)
         && string.Equals(collection.CollectionType, playlist ? "Playlist" : "Custom", StringComparison.OrdinalIgnoreCase);
 }

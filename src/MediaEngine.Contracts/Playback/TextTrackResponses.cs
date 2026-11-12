@@ -51,7 +51,8 @@ public sealed record PreferredTextTrackResponse
 }
 
 /// <summary>
-/// Response for <c>POST /stream/{assetId}/text-tracks/refresh</c>. Property names (including
+/// Response for <c>POST /stream/{assetId}/text-tracks/refresh</c> and for <c>GET /stream/{assetId}/text-tracks/refresh/{operationId}</c>
+/// (the progress of that one queued lookup). Property names (including
 /// snake_case spelling) retain the original fields and add an explicit, truthful outcome
 /// so editor clients can distinguish an update from an empty provider result.
 /// </summary>

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Storage.Configuration;
 
@@ -150,6 +151,68 @@ public sealed class ProviderTextTrackValidationTests
 
         Assert.Contains(errors, error => error.Contains("lyrics.sources must list at least one source", StringComparison.Ordinal));
         Assert.Contains(errors, error => error.Contains("lyrics.duration needs 0 <= full_within_seconds", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void LyricsMatchRules_WithValidPathsAndPatterns_HaveNoErrors()
+    {
+        var errors = Errors("lrclib", config =>
+        {
+            var match = config.TextTrack!.Search.Lyrics.Match;
+            match.TitlePath = "meta.title";
+            match.StripSuffixPatterns.Add(@"\s+-\s+demo\b.*$");
+        });
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void LyricsMatchPattern_ThatDoesNotCompile_IsReported()
+    {
+        var errors = Errors("lrclib", config => config.TextTrack!.Search.Lyrics.Match.StripSuffixPatterns.Add("(unclosed"));
+
+        Assert.Contains(errors, error => error.Contains(
+            "text_track.search.lyrics.match.strip_suffix_patterns has a pattern that is not a valid regular expression: (unclosed",
+            StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void LyricsMatchPaths_ThatAreEmpty_AreReported()
+    {
+        var errors = Errors("lrclib", config =>
+        {
+            config.TextTrack!.Search.Lyrics.Match.TitlePath = "";
+            config.TextTrack.Search.Lyrics.Match.ArtistPath = " ";
+        });
+
+        Assert.Contains("text_track.search.lyrics.match.title_path is required.", errors);
+        Assert.Contains("text_track.search.lyrics.match.artist_path is required.", errors);
+    }
+
+    [Fact]
+    public void LyricsMatchBlock_WithAnUnknownKey_IsReported()
+    {
+        var json = JsonSerializer.Serialize(Shipped("lrclib"), s_json)
+            .Replace("\"ignore_bracketed\"", "\"ignore_brackets\"", StringComparison.Ordinal);
+        var config = JsonSerializer.Deserialize<ProviderConfiguration>(json, s_json)!;
+
+        var errors = JsonConfigValidator.Validate(config, "providers/lrclib.json");
+
+        Assert.Contains("text_track.search.lyrics.match.ignore_brackets is not a known property.", errors);
+    }
+
+    [Fact]
+    public void LyricsMatchBlock_ThatIsNull_IsTreatedAsAbsentAndDoesNotCrashTheValidator()
+    {
+        var node = JsonNode.Parse(JsonSerializer.Serialize(Shipped("lrclib"), s_json))!;
+        node["text_track"]!["search"]!["lyrics"]!["match"] = null;
+        var config = JsonSerializer.Deserialize<ProviderConfiguration>(node.ToJsonString(), s_json)!;
+
+        var errors = JsonConfigValidator.Validate(config, "providers/lrclib.json");
+
+        // The plain rule applies, exactly as for a file with no match block: the default paths are used and nothing is reported.
+        Assert.NotNull(config.TextTrack!.Search.Lyrics.Match);
+        Assert.Empty(errors);
     }
 
     [Fact]

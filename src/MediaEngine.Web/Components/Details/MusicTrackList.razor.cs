@@ -99,8 +99,9 @@ public partial class MusicTrackList
 
     private const string RowMediaType = "Music";
 
-    // Ticks are for a page the person may edit; the table also needs a desktop that may edit before it draws them.
-    private bool SelectionShown => Editor is { CanEdit: true } && BatchSelection is not null;
+    // Ticks are for every album page, not only one the person may edit: ticked songs are played, queued and put in playlists by anyone
+    // (Listen music spec D9). The bar then shows Edit only where the page and device allow it.
+    private bool SelectionShown => BatchSelection is not null;
 
     private bool CanEditRows => Editor is { CanEdit: true, EditRowAsync: not null };
 
@@ -121,9 +122,9 @@ public partial class MusicTrackList
         }
     }
 
-    private EventCallback<SongRow> DragStartedCallback => EventCallback.Factory.Create<SongRow>(this, StartDrag);
+    private EventCallback<IReadOnlyList<SongRow>> DragStartedCallback => EventCallback.Factory.Create<IReadOnlyList<SongRow>>(this, StartDrag);
 
-    private EventCallback<SongRow> DragEndedCallback => EventCallback.Factory.Create<SongRow>(this, EndDrag);
+    private EventCallback DragEndedCallback => EventCallback.Factory.Create(this, EndDrag);
 
     protected override void OnInitialized() => Playback.Changed += OnPlaybackChanged;
 
@@ -282,7 +283,7 @@ public partial class MusicTrackList
     // The ticked rows the table shows are the page's selection, so the bar above the rows and the ticks always agree.
     private void RebuildSelected()
     {
-        if (BatchSelection is null || Editor is not { CanEdit: true })
+        if (BatchSelection is null)
         {
             _selectedIds = new HashSet<string>();
             return;
@@ -298,13 +299,17 @@ public partial class MusicTrackList
 
     private Task OnSelectedIdsChangedAsync(IReadOnlySet<string> selected)
     {
-        if (BatchSelection is null || Editor is not { CanEdit: true })
+        if (BatchSelection is null)
         {
             return Task.CompletedTask;
         }
 
-        // The ticks belong to this page's editor binding, so the bar's Edit opens the pop-over for this page.
-        EditorHost.Bind(Editor);
+        // The ticks belong to this page's editor binding, so the bar's Edit opens the pop-over for this page (only a page that may be edited has one).
+        if (Editor is { CanEdit: true })
+        {
+            EditorHost.Bind(Editor);
+        }
+
         var ticked = BatchSelection.Ids.ToHashSet();
         foreach (var row in _rows)
         {
@@ -342,6 +347,26 @@ public partial class MusicTrackList
         var index = Math.Max(0, playable.FindIndex(item => ReferenceEquals(item, start)));
         await Playback.ReplaceQueueItemsAsync(playable.Select(ToQueueItem), index, AlbumTitle, shuffle: false);
     }
+
+    // The bar's Play and Add to queue for ticked tracks: the same calls the rows make, with the tracks in the order the table shows them.
+    private EventCallback<IReadOnlyList<BulkEditRow>> PlayTickedCallback(IReadOnlyList<SongRow> ticked)
+        => EventCallback.Factory.Create<IReadOnlyList<BulkEditRow>>(this, async _ =>
+        {
+            var owned = ticked.Where(row => row.IsOwned).ToList();
+            if (owned.Count > 0)
+            {
+                await PlayAsync(new SongPlayRequest(owned, owned[0]));
+            }
+        });
+
+    private EventCallback<IReadOnlyList<BulkEditRow>> QueueTickedCallback(IReadOnlyList<SongRow> ticked)
+        => EventCallback.Factory.Create<IReadOnlyList<BulkEditRow>>(this, async _ =>
+        {
+            foreach (var row in ticked)
+            {
+                await QueueAsync(row);
+            }
+        });
 
     private async Task PlayNextAsync(SongRow row)
     {
@@ -442,15 +467,22 @@ public partial class MusicTrackList
         }
     }
 
-    private void StartDrag(SongRow row)
+    // The songs being dragged out (every ticked track when a ticked one is dragged) are also offered to the queue panel.
+    private void StartDrag(IReadOnlyList<SongRow> rows)
     {
-        if (ItemFor(row) is { IsOwned: true } item)
+        var items = rows
+            .Select(ItemFor)
+            .OfType<MediaGroupingItemViewModel>()
+            .Where(item => item.IsOwned)
+            .Select(ToQueueItem)
+            .ToList();
+        if (items.Count > 0)
         {
-            AudioDrag.BeginDrag([ToQueueItem(item)]);
+            AudioDrag.BeginDrag(items);
         }
     }
 
-    private void EndDrag(SongRow row) => AudioDrag.Clear();
+    private void EndDrag() => AudioDrag.Clear();
 
     private ListenQueueItem ToQueueItem(MediaGroupingItemViewModel item)
         => new()

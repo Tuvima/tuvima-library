@@ -22,6 +22,7 @@
 @inject ILogger<MainLayout> Logger
 @inject IEngineApiClient EngineApi
 @implements IAsyncDisposable
+@implements IDetailsOverlayOutletLayout
 
 @using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.Search
@@ -32,6 +33,7 @@
 @using MediaEngine.Web.Components.Player
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Contracts.Authentication
@@ -53,7 +55,9 @@
     <UniversalSearchOverlay @ref="_searchOverlay" Closed="RestoreSearchFocusAsync" />
 }
 
-<a class="skip-to-content" href="#main-content">@L["Layout_SkipToContent"]</a>
+@* While a details window is open the page behind it (this link and the main region it targets) is inert, so the link is also taken out of the tab order and
+   the accessibility tree rather than left pointing at something that cannot take focus; the window's own content is where focus belongs. *@
+<a class="skip-to-content" href="#main-content" tabindex="@(DetailsWindowOpen ? "-1" : null)" aria-hidden="@(DetailsWindowOpen ? "true" : null)">@L["Layout_SkipToContent"]</a>
 
 <AppCssElement Tag="div" Class="@AccentScopeClass" @onclick="CloseOpenShellMenus">
 <div class="playback-app-frame">
@@ -184,7 +188,7 @@
 
     @if (ShouldShowEngineStatusBanner)
     {
-        <div class="layout-shell__engine-banner" role="status" aria-live="polite">
+        <div class="layout-shell__engine-banner" role="status" aria-live="polite" data-overlay-live="banner">
             <AppMaterialIcon Icon="@GetEngineStatusIcon()" Size="AppIconSize.Control20" />
             <span>@GetEngineStatusBannerText()</span>
             @if (Orchestrator.EngineConnectionState == EngineConnectionState.LiveUpdatesDisconnected)
@@ -202,7 +206,7 @@
     @if (_layoutNotice is not null)
     {
         @* Something the whole shell has to say (playback stopped because its title was deleted, an action that needs a password): in place under the bar until closed. *@
-        <div class="layout-shell__engine-banner" role="status" aria-live="polite" data-layout-notice>
+        <div class="layout-shell__engine-banner" role="status" aria-live="polite" data-layout-notice data-overlay-live="banner">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Info" Size="AppIconSize.Control20" />
             <span>@_layoutNotice</span>
             @if (_layoutNoticeNeedsPassword)
@@ -235,7 +239,11 @@
     </div>
 </AppLayout>
 
-<div class="playback-app-frame__audio-dock" @ref="_audioDockRef">
+@* The details window is drawn here, beside the page box and the player bar and never inside the page box (music-player-and-listen-fixes D5): that box is a size
+   container with hidden overflow, and whether a browser makes such a box the containing block of the fixed window inside it differs by engine and version. *@
+<DetailsOverlayOutlet />
+
+<div class="playback-app-frame__audio-dock" @ref="_audioDockRef" data-overlay-live="player-bar">
     <ListenNowPlayingBar />
 </div>
 
@@ -316,6 +324,8 @@
     private string _avatarInitial = string.Empty;
     private string _currentPath = "/";
     private bool _overlayWasOpen;
+
+    private bool DetailsWindowOpen => Overlay?.IsOpen == true;
 
     /// <summary>The details overlay state, cascaded by the route view; null where the layout is rendered outside it.</summary>
     [CascadingParameter] private DetailsOverlayState? Overlay { get; set; }

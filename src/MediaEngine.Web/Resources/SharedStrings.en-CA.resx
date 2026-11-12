@@ -128,6 +128,9 @@
   <data name="SongsHeader_Favorites" xml:space="preserve">
     <value>Favourites</value>
   </data>
+  <data name="ListenPage_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favourites</value>
+  </data>
   <data name="PlaybackInformation_Color" xml:space="preserve">
     <value>Colour</value>
   </data>

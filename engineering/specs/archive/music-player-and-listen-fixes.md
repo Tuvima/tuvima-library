@@ -1,6 +1,6 @@
 # Spec: Music player and Listen fixes
 
-> **Status:** In progress (Locked by Shy 2026-11-11, 8:00 PM Central; build started the same day) · **Version:** 1 · **Last updated:** 2026-11-12 · **Related docs:** [Unified player v2](archive/unified-player-v2.md) (Built; this amends D5 and D24) · [One song table and one reader frame](archive/music-table-and-reader-frame.md) (Built; this amends D4) · [Music player, queue, lyrics and Songs list](music-player-and-queue.md) (Built; this amends the lyrics lookup) · [Collections and lists](archive/collections-and-lists.md) (Built; this amends the Add to collection rule for songs) · Mockup [`../design/mockups/unified-player-v2.html`](../design/mockups/unified-player-v2.html) · Issues #886, #887, #893, #894, #895
+> **Status:** Built, awaiting your Local checks (Locked by Shy 2026-11-11; built 2026-11-12 in PRs 914 and 940; Local checks L1 to L7 are in `engineering/validation/batch.md`) · **Version:** 1 · **Last updated:** 2026-11-12 · **Related docs:** [Unified player v2](unified-player-v2.md) (Built; this amends D5 and D24) · [One song table and one reader frame](music-table-and-reader-frame.md) (Built; this amends D4) · [Music player, queue, lyrics and Songs list](../music-player-and-queue.md) (Built; this amends the lyrics lookup) · [Collections and lists](collections-and-lists.md) (Built; this amends the Add to collection rule for songs) · Mockup [`../design/mockups/unified-player-v2.html`](../../design/mockups/unified-player-v2.html) · Issues #886, #887, #893, #894, #895
 
 ## 1. Goal
 
@@ -186,3 +186,17 @@ The queue, audiobook chapters, the video player, the heart and Like/Dislike rule
 ## Plain English summary
 
 Lyrics fail because of how Library asks the lyrics source, not because of the source; that is fixed and logged. The player bar was hidden because the album window switches off everything behind it; the bar will sit in front and work. The music bar gets the video bar's exact size, Now playing is brought back to the mock, columns resize properly, ticked songs go to playlists by menu or by dragging on a desktop and by menu on a phone, and Favorites opens as a playlist inside Listen that can be put in any order.
+
+## Build notes (2026-11-12)
+
+What was built differs from the text above in these places. None changes a decision Shy made; each is listed so the Local check knows what to expect.
+
+- **Bar height (D6).** The video player follow-ups that merged during this build made the bar's row 72 px and said the same sizes apply to music and audiobooks. The music and audiobook bar follows that: 28 px timeline plus a 72 px row (100 px), a 64 px cover slot, on desktop and tablet. D6's goal, one bar size for music, audiobooks and video, is met; the 88 px and 56 px numbers in D6 are out of date.
+- **Phones (D6).** The phone keeps its compact mini-player (the video phone bar is a different, taller layout). Equal heights apply to desktop and tablet.
+- **Now playing (D7).** Type sizes and weights come from the Look v3.1 type jobs; spacing and line heights follow the mock. The phone transport uses the video follow-ups sizes (48 px buttons, 56 px Play). The mock's "Following playback" line under lyrics and its 10 and 30 second skips for music are not built (the first is not an existing feature, the second contradicts unified player v2 D3).
+- **Favorites (section 5).** No new data store step was needed: `profile_saved_items.position` already existed and now holds the hand-made order. Favorites reorders at once (no Reorder mode with Save order, which main added for hand-made playlists during this build).
+- **Albums (D15).** No list can tick albums today, so "ticked albums offer Add to playlist" has its rule and tests but cannot be reached yet.
+- **Columns (D8).** The Song column can grow to 1200 px. A resized column keeps its width and a filler takes the spare room.
+- **Lyrics (D2 to D4).** The match rules gained an "ignore accents" switch. An unreachable lyrics source is retried three times in total (15 minutes, then 2 hours), then left until Find lyrics is pressed or a rescan runs. Three Engine actions were added: two reads of a lookup's status and the Favorites move.
+- **Details window (D5).** The window is drawn through an outlet in the layout so it never sits inside the page's clipped box. The video restore pill stays dimmed behind an open window, as before.
+- **Found, not fixed (outside this spec).** Two older style faults in shared player parts: the Play button's own style rules in the bar never reach the button, and the slider rail height rule is dropped by Chrome and Safari. Both are filed as a GitHub issue for the players thread.

@@ -436,6 +436,7 @@ builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>
 builder.Services.AddScoped<ShellActivityState>();
 builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
+builder.Services.AddScoped<SongDragDropService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
 builder.Services.AddScoped<PlayerPreferenceService>();
@@ -448,6 +449,7 @@ builder.Services.AddScoped<NowPlayingLauncher>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
 builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
 builder.Services.AddScoped<DetailsOverlayState>();
+builder.Services.AddScoped<DetailsOverlayOutletState>();
 builder.Services.AddScoped<DetailPreviewState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).
