@@ -30,31 +30,16 @@
 
     @if (!Loading && Results.Count > 0)
     {
-        <div class="tl-matchres__body">
-            <div class="tl-matchres__listwrap">
-                <div class="tl-matchres__heading">
-                    <h4 class="tl-matchres__title">@L["EditorMatchResults_SearchResults"]</h4>
-                    <span class="tl-matchres__meta" data-testid="match-count">@(Results.Count == 1 ? L["EditorMatchResults_CountOne"].Value : L["EditorMatchResults_Count", Results.Count].Value)</span>
-                </div>
-                <div class="tl-matchres__list" role="list" aria-label="@L["EditorMatchResults_SearchResults"].Value">
+        <EditorMatchSplit TestId="match-split" ShowCard="@(Selected is not null)">
+            <List>
+                <EditorMatchList Heading="@L["EditorMatchResults_SearchResults"].Value" Count="@(Results.Count == 1 ? L["EditorMatchResults_CountOne"].Value : L["EditorMatchResults_Count", Results.Count].Value)">
                     @foreach (var result in Visible)
                     {
-                        var active = ReferenceEquals(result, Selected);
-                        @* The whole row is the button; the tick marks the chosen one. *@
-                        <div class="@(active ? "tl-matchres__row is-active" : "tl-matchres__row")" role="listitem">
-                            <AppRowButton aria-pressed="@(active ? "true" : "false")" data-testid="match-result" OnClick="@(() => SelectedChanged.InvokeAsync(result))">
-                                <span class="tl-matchres__inner">
-                                    @Art(result)
-                                    <span class="tl-matchres__text">
-                                        <span class="tl-matchres__name">@result.Title</span>
-                                        <span class="tl-matchres__meta" data-testid="match-result-meta">@Line(result)</span>
-                                    </span>
-                                    @Tick(active)
-                                </span>
-                            </AppRowButton>
-                        </div>
+                        var current = result;
+                        <EditorMatchListRow Title="@result.Title" Meta="@Line(result)" ArtShape="@Shape(result)" ImageUrl="@result.ImageUrl" Selected="@ReferenceEquals(result, Selected)"
+                                            OnClick="@(() => SelectedChanged.InvokeAsync(current))" data-testid="match-result" />
                     }
-                </div>
+                </EditorMatchList>
                 @if (Hidden > 0)
                 {
                     <div>
@@ -62,46 +47,32 @@
                                    ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="ShowAll" data-testid="match-show-more" />
                     </div>
                 }
-            </div>
-
-            @if (Selected is { } selected)
-            {
-                var shown = Edition ?? selected;
-                <div class="tl-matchres__cardwrap">
+            </List>
+            <Card>
+                @if (Selected is { } selected)
+                {
+                    var shown = Edition ?? selected;
                     <EditorMatchCard Model="@EditorMatchCardModels.ForResult(shown, selected, Kind, L)" ResultLabel="@L["EditorMatchResults_SelectedResult"].Value" data-testid="match-preview">
                         <Foot>
-                            <div class="tl-matchres__buttons">
-                                @if (ShowCancel)
-                                {
-                                    <AppButton Label="@L["EditorMatchResults_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnCancel" data-testid="match-cancel" />
-                                }
-                                <AppButton Label="@L["EditorMatchResults_ApplyMatch"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApply)" OnClick="OnApply" data-testid="match-apply" />
-                            </div>
-                            <span class="tl-matchres__meta" data-testid="match-apply-line">@EditorMatchCardModels.ApplyLine(Kind, shown.ProviderName, L)</span>
+                            <EditorMatchApply ShowCancel="ShowCancel" CanApply="CanApply" OnApply="OnApply" OnCancel="OnCancel" Line="@EditorMatchCardModels.ApplyLine(Kind, shown.ProviderName, L)" />
                         </Foot>
                     </EditorMatchCard>
-                </div>
-            }
-        </div>
+                }
+            </Card>
+        </EditorMatchSplit>
 
         @if (Selected is { Editions.Count: > 0 } work)
         {
-            <div class="tl-matchres__wide" role="list" aria-label="@L["EditorMatchResults_Editions"].Value" data-testid="match-editions">
-                <h3 class="tl-matchres__title">@L["EditorMatchResults_EditionsAndReleases"]</h3>
-                @foreach (var edition in work.Editions)
-                {
-                    var picked = ReferenceEquals(edition, Edition);
-                    <div class="@(picked ? "tl-matchres__row is-active" : "tl-matchres__row")" role="listitem">
-                        <AppRowButton aria-pressed="@(picked ? "true" : "false")" OnClick="@(() => EditionChanged.InvokeAsync(edition))">
-                            <span class="tl-matchres__inner">
-                                <span class="tl-matchres__text">
-                                    <span class="tl-matchres__name"><span>@EditionLine(edition)</span> @if (edition.IsSuggested) { <AppChip Text="@L["EditorMatchResults_ClosestToYourFile"].Value" Tone="AppUiTone.Success" /> }</span>
-                                </span>
-                                @Tick(picked)
-                            </span>
-                        </AppRowButton>
-                    </div>
-                }
+            <div class="tl-matchres__wide" data-testid="match-editions">
+                <EditorMatchList Heading="@L["EditorMatchResults_EditionsAndReleases"].Value">
+                    @foreach (var edition in work.Editions)
+                    {
+                        var picked = ReferenceEquals(edition, Edition);
+                        var current = edition;
+                        <EditorMatchListRow Title="@EditionLine(edition)" Meta="@(edition.IsSuggested ? L["EditorMatchResults_ClosestToYourFile"].Value : null)" Selected="picked"
+                                            OnClick="@(() => EditionChanged.InvokeAsync(current))" />
+                    }
+                </EditorMatchList>
             </div>
         }
     }
@@ -172,32 +143,7 @@
 
     private void ShowAll() => _all = true;
 
-    private RenderFragment Art(EditorMatchResultDto result) => __builder =>
-    {
-        var shape = EditorMatchCardModels.ArtFor(result.KindText, Kind).ToString().ToLowerInvariant();
-        if (!string.IsNullOrWhiteSpace(result.ImageUrl))
-        {
-            <span class="tl-matchres__art" data-art="@shape"><AppImage Src="@result.ImageUrl" Alt="" Width="@ArtWidth(shape)" Height="@ArtHeight(shape)" ObjectFit="AppObjectFit.Cover" /></span>
-        }
-        else
-        {
-            <span class="tl-matchres__art tl-matchres__art--empty" data-art="@shape" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
-        }
-    };
-
-    private static int ArtWidth(string shape) => shape switch { "wide" => 64, "square" => 44, _ => 32 };
-
-    private static int ArtHeight(string shape) => shape switch { "wide" => 36, "square" => 44, _ => 48 };
-
-    private RenderFragment Tick(bool shown) => __builder =>
-    {
-        <span class="tl-matchres__tick" aria-hidden="true">
-            @if (shown)
-            {
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" />
-            }
-        </span>
-    };
+    private string Shape(EditorMatchResultDto result) => EditorMatchCardModels.ArtFor(result.KindText, Kind).ToString().ToLowerInvariant();
 
     // Creator · year · series and number; a collection or box set says "Collection" in the series place.
     private string Line(EditorMatchResultDto result) =>

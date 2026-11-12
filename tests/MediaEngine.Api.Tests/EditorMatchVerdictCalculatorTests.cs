@@ -145,6 +145,69 @@ public sealed class EditorMatchVerdictCalculatorTests
         }
     }
 
+    // ── The episode and song rows (v6 D9) ─────────────────────────────────────
+
+    [Fact]
+    public void AnEpisode_AtTheSameSeasonAndEpisode_Agrees_AndSaysBothInWords()
+    {
+        var slot = _calculator.SeasonAndEpisode(2, 3, 2, 3);
+
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, slot.State);
+        Assert.Equal("Season 2, Episode 3", slot.Yours);
+        Assert.Equal("Season 2, Episode 3", slot.Theirs);
+    }
+
+    [Theory]
+    [InlineData(2, 3, 2, 4)]
+    [InlineData(2, 3, 3, 3)]
+    public void AnEpisode_AtAnotherSeasonOrEpisode_Differs(int yoursSeason, int yoursEpisode, int theirsSeason, int theirsEpisode) =>
+        Assert.Equal(EditorMatchEvidenceStates.Differs, _calculator.SeasonAndEpisode(yoursSeason, yoursEpisode, theirsSeason, theirsEpisode).State);
+
+    [Fact]
+    public void AnEpisode_WhoseFileNamesNoSeason_IsJudgedOnTheEpisodeNumber_AndTheSeasonIsLeftOutOfWhatIsShown()
+    {
+        var slot = _calculator.SeasonAndEpisode(null, 3, 2, 3);
+
+        Assert.Equal(EditorMatchEvidenceStates.Agrees, slot.State);
+        Assert.Equal("Episode 3", slot.Yours);
+        Assert.Equal("Season 2, Episode 3", slot.Theirs);
+    }
+
+    [Fact]
+    public void AnEpisode_WhoseFileNamesNoEpisode_IsNotChecked_AndNeverCountsAgainstTheMatch()
+    {
+        var slot = _calculator.SeasonAndEpisode(2, null, 2, 3);
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, slot.State);
+        Assert.Equal(EditorMatchVerdicts.Strong, _calculator.Verdict([_calculator.Title("Static", "Static"), _calculator.Runtime(2820, 47), slot]));
+    }
+
+    [Theory]
+    [InlineData("The Last Signal", "The Last Signal", EditorMatchEvidenceStates.Agrees)]
+    [InlineData("Last Signal", "The Last Signal", EditorMatchEvidenceStates.Agrees)]
+    [InlineData("The Last Signal", "Static Noise", EditorMatchEvidenceStates.Differs)]
+    [InlineData(null, "The Last Signal", EditorMatchEvidenceStates.NotChecked)]
+    [InlineData("The Last Signal", "", EditorMatchEvidenceStates.NotChecked)]
+    public void TheShowOfAnEpisode_AndTheAlbumOfASong_AreComparedLikeATitle_AndAMissingSideIsNotChecked(string? yours, string theirs, string expected)
+    {
+        Assert.Equal(expected, _calculator.Named(MatchFactNames.Show, "Show", yours, theirs).State);
+        Assert.Equal(expected, _calculator.Named(MatchFactNames.Album, "Album", yours, theirs).State);
+    }
+
+    [Fact]
+    public void TheShippedFacts_ForAnEpisodeAndASong_AreTheOnesTheSpecNames()
+    {
+        var settings = new MatchVerdictSettings();
+        var scoring = JsonSerializer.Deserialize<ScoringSettings>(File.ReadAllText(Path.Combine(FindRepoRoot(), "config", "scoring.json")),
+            new JsonSerializerOptions { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })!;
+
+        foreach (var shipped in new[] { settings, scoring.MatchVerdict })
+        {
+            Assert.Equal(["show", "number", "title", "runtime"], shipped.FactsFor("tv_episode"));
+            Assert.Equal(["creator", "album", "title", "track_length", "identifier"], shipped.FactsFor("song"));
+        }
+    }
+
     [Theory]
     [InlineData("Percy Jackson: The Complete Series", true)]
     [InlineData("The Hobbit Collection", true)]

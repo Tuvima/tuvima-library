@@ -134,6 +134,25 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheSearchRow_IsTheSharedFormRow_WithLabeledBoxes_AndASearchButtonThatCarriesItsWord()
+    {
+        _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, Results = [Result("Q1", "Heat"), Result("Q2", "Heat (1986)")] };
+        var cut = RenderWikidataSide();
+
+        var row = cut.Find("[data-testid=match-row]");
+        Assert.True(row.HasAttribute("data-form-row"));
+        Assert.Equal(2, row.QuerySelectorAll(".app-field__label").Count(label => !label.HasAttribute("aria-hidden")));
+        var button = cut.Find("[data-testid=wikidata-search-button]");
+        Assert.Equal("Search", button.TextContent.Trim());
+
+        button.Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=wikidata-result]").Count));
+        Assert.Equal("Heat", Assert.Single(_searches).Query);
+        Assert.Contains("2 results from Wikidata", cut.Find("[data-testid=match-row-message]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ThePastedQid_ResolvesDirectlyToItsItem_AndSearchesNoWords()
     {
         _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, FromPaste = true, Results = [Result("Q123", "Heat (film)")] };
@@ -149,7 +168,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AResult_IsTextOnly_WithItsTypeAndFact_AndTheEvidenceTicksCrossesAndNotChecked()
+    public void AResult_IsATextRowWithNoPill_AndTheSharedCardShowsTheEvidenceAsTicksCrossesAndDashes()
     {
         _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, Results = [Result("Q123", "Heat")] };
         var cut = RenderWikidataSide();
@@ -159,12 +178,16 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
         var result = cut.Find("[data-testid=wikidata-result]");
         Assert.Empty(result.QuerySelectorAll("img"));
-        Assert.Equal("1995 crime film", cut.Find("[data-testid=wikidata-result-description]").TextContent.Trim());
-        Assert.Equal("film", cut.Find("[data-testid=wikidata-result-type]").TextContent.Trim());
-        var evidence = cut.Find("[data-testid=wikidata-evidence]");
-        Assert.Contains("Alignment evidence", evidence.TextContent, StringComparison.Ordinal);
-        Assert.Contains("✓", evidence.TextContent, StringComparison.Ordinal);
-        Assert.Contains("IMDb was not checked", cut.Find("[data-testid=wikidata-not-checked]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(result.QuerySelectorAll(".app-chip"));
+        Assert.Equal("1995 crime film · film", cut.Find("[data-testid=wikidata-result-description]").TextContent.Trim());
+        Assert.Equal("Q123", cut.Find("[data-testid=match-row-trailing]").TextContent.Trim());
+        var card = cut.Find("[data-testid=wikidata-evidence]");
+        Assert.Empty(card.QuerySelectorAll("[data-testid=match-verdict]"));
+        Assert.Single(card.QuerySelectorAll("[data-mark=agrees]"));
+        Assert.Single(card.QuerySelectorAll("[data-mark=unknown]"));
+        Assert.Contains("IMDb", card.QuerySelector("[data-testid=match-compare]")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Wikidata", card.QuerySelector("[data-testid=match-card-provider]")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Q123", card.QuerySelector("[data-testid=match-card-provider]")!.TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -283,22 +306,23 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=wikidata-result]").Count));
 
         var rows = cut.FindAll("[data-testid=wikidata-result]");
-        Assert.Equal("true", rows[0].GetAttribute("aria-selected"));
-        Assert.Equal("false", rows[1].GetAttribute("aria-selected"));
-        Assert.Equal("0", rows[1].GetAttribute("tabindex"));
+        Assert.Equal("true", rows[0].GetAttribute("aria-pressed"));
+        Assert.Equal("false", rows[1].GetAttribute("aria-pressed"));
+        Assert.All(rows, row => Assert.Equal("BUTTON", row.TagName));
         Assert.Single(cut.FindAll("[data-testid=wikidata-evidence]"));
-        Assert.Empty(cut.FindAll("[data-testid=wikidata-result] button"));
+        Assert.Contains("Heat", cut.Find("[data-testid=match-card-title]").TextContent, StringComparison.Ordinal);
 
         rows[1].Click();
 
         rows = cut.FindAll("[data-testid=wikidata-result]");
-        Assert.Equal("false", rows[0].GetAttribute("aria-selected"));
-        Assert.Equal("true", rows[1].GetAttribute("aria-selected"));
+        Assert.Equal("false", rows[0].GetAttribute("aria-pressed"));
+        Assert.Equal("true", rows[1].GetAttribute("aria-pressed"));
         Assert.Single(cut.FindAll("[data-testid=wikidata-evidence]"));
+        Assert.Equal("Heat (1986)", cut.Find("[data-testid=match-card-title]").TextContent.Trim());
 
-        rows[0].KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+        rows[0].Click();
 
-        Assert.Equal("true", cut.FindAll("[data-testid=wikidata-result]")[0].GetAttribute("aria-selected"));
+        Assert.Equal("true", cut.FindAll("[data-testid=wikidata-result]")[0].GetAttribute("aria-pressed"));
     }
 
     [Fact]

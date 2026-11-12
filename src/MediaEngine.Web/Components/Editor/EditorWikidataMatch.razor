@@ -7,27 +7,23 @@
 @inject IEngineApiClient Api
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Match tab's Wikidata side (universal editor v5, 3c, mockup G5). The first row is the same row the provider side uses: "Search Wikidata", "Paste
-   a Wikidata link or QID" and an icon-only Search, (the source selector is drawn above it by the Match tab). Nothing is searched when the tab opens; a search runs when a
-   person types or pastes or presses Search. Results are text only. A pasted link or QID resolves straight to its item. The Engine says whether a
-   result is the item itself or its parent; a parent is shown for context and cannot be applied. The identity card shows what the item is linked to
-   now (read by its stored QID). Apply, Change match and Remove match only stage a change; Save changes writes it. The link and the provider match
-   never change each other: when they disagree the tab shows one amber line and changes neither. *@
+@* The Match tab's Wikidata side (universal editor v5, 3c, mockup G5; v6 WP6). The first row is the same shared row every Match step uses: "Search
+   Wikidata", "Paste a Wikidata link or QID" and a labeled Search (the Media providers / Wikidata tabs are drawn above it by the Match tab), then the
+   "Your file" bar the tab hands in. Nothing is searched when the tab opens; a search runs when a person types or pastes and leaves the box, or presses
+   Search. Results are a text-only list on the left and the same card as every other Match step on the right. A pasted link or QID resolves straight to
+   its item. The Engine says whether a result is the item itself or its parent; a parent is shown for context and cannot be applied. The identity card
+   shows what the item is linked to now (read by its stored QID). Apply, Change match and Remove match only stage a change; Save changes writes it. The
+   link and the provider match never change each other: when they disagree the tab shows one amber line and changes neither. *@
 <div class="tl-wikidata" data-testid="wikidata-match">
-    <EditorMatchRow>
-        <Start>
-            <div class="tl-wikidata__field">
-                <AppTextField Label="@L["EditorWikidata_SearchLabel"].Value" Value="@_query" ValueChanged="OnQueryChangedAsync" Immediate="false"
-                              aria-label="@L["EditorWikidata_SearchLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-query" />
-            </div>
-            <div class="tl-wikidata__field">
-                <AppTextField Label="@L["EditorWikidata_PasteLabel"].Value" Value="@_paste" ValueChanged="OnPasteChangedAsync" Immediate="false"
-                              aria-label="@L["EditorWikidata_PasteLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-paste" />
-            </div>
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(!CanSearch || _searching)" OnClick="SearchAsync" data-testid="wikidata-search-button" />
-        </Start>
-    </EditorMatchRow>
+    <EditorMatchSearchRow Columns="minmax(12rem, 1.6fr) minmax(12rem, 1.6fr) auto" Message="@RowMessage" SearchDisabled="@(!CanSearch || _searching)" OnSearch="SearchAsync"
+                          ButtonTestId="wikidata-search-button">
+        <AppTextField Label="@L["EditorWikidata_SearchLabel"].Value" Value="@_query" ValueChanged="OnQueryChangedAsync" Immediate="false"
+                      aria-label="@L["EditorWikidata_SearchLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-query" />
+        <AppTextField Label="@L["EditorWikidata_PasteLabel"].Value" Value="@_paste" ValueChanged="OnPasteChangedAsync" Immediate="false"
+                      aria-label="@L["EditorWikidata_PasteLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-paste" />
+    </EditorMatchSearchRow>
+
+    @Lead
 
     @if (_loading)
     {
@@ -87,6 +83,9 @@
 
     [Parameter] public string? ProviderYear { get; set; }
 
+    /// <summary>What the Match tab shows under the row: the "Your file" bar.</summary>
+    [Parameter] public RenderFragment? Lead { get; set; }
+
     /// <summary>What follows the Wikidata side (the Universe link).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -104,6 +103,21 @@
 
     // What the item is linked to once the staged changes are saved.
     private string? EffectiveQid => StagedLink?.TargetId ?? (StagedRemoval is not null ? null : _identity?.Qid);
+
+    // After a search the row's message line says how many items came back and from whom (mock A).
+    private string? RowMessage
+    {
+        get
+        {
+            if (_searching || _found is not { Results.Count: > 0 } found)
+            {
+                return null;
+            }
+
+            var from = L["EditorMatchPanel_Wikidata"].Value;
+            return found.Results.Count == 1 ? L["EditorMatchPanel_ResultOneFrom", from].Value : L["EditorMatchPanel_ResultsFrom", found.Results.Count, from].Value;
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -488,6 +502,7 @@
         }
     };
 
+    // The results: a text-only list on the left and the shared card for the chosen item on the right.
     private RenderFragment ResultsSection() => __builder =>
     {
         if (_searching)
@@ -519,104 +534,61 @@
         }
 
         var selected = Selected;
-        <AppTable Hover="true" Dense="true" data-testid="wikidata-results">
-            <thead>
-                <tr>
-                    <th scope="col">@L["EditorWikidata_ColumnLabel"]</th>
-                    <th scope="col">@L["EditorWikidata_ColumnDescription"]</th>
-                    <th scope="col">@L["EditorWikidata_ColumnType"]</th>
-                    <th scope="col">@L["EditorWikidata_ColumnQid"]</th>
-                    <th scope="col"><span class="sr-only">@L["EditorMatchPanel_Result"]</span></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var result in _found.Results)
+        <EditorMatchSplit TestId="wikidata-split" ShowCard="@(selected is not null)">
+            <List>
+                <EditorMatchList Heading="@L["EditorWikidata_Results"].Value" Count="@CountText(_found.Results.Count)" TestId="wikidata-results">
+                    @foreach (var result in _found.Results)
+                    {
+                        var current = result;
+                        <EditorMatchListRow Title="@result.Label" Meta="@ResultMeta(result)" Trailing="@result.Qid" Selected="@(result.Qid == _selectedQid)" MetaTestId="wikidata-result-description"
+                                            data-relation="@result.Relation" data-qid="@result.Qid" data-testid="wikidata-result" OnClick="@(() => Select(current))" />
+                    }
+                </EditorMatchList>
+            </List>
+            <Card>
+                @if (selected is not null)
                 {
-                    var isSelected = result.Qid == _selectedQid;
-                    var current = result;
-                    <tr class="tl-wikidata__row" tabindex="0" aria-selected="@(isSelected ? "true" : "false")" data-selected="@(isSelected ? "true" : "false")"
-                        data-relation="@result.Relation" data-qid="@result.Qid" data-testid="wikidata-result"
-                        @onclick="@(() => Select(current))" @onkeydown="@(args => OnRowKey(args, current))">
-                        <td>
-                            <b>@result.Label</b>
-                            @if (result.Relation == EditorWikidataRelations.Parent)
-                            {
-                                <AppChip Text="@L["EditorWikidata_ParentChip", ParentWord, ItemWord].Value" Tone="AppUiTone.Warning" />
-                            }
-                        </td>
-                        <td data-testid="wikidata-result-description">@result.Description</td>
-                        <td data-testid="wikidata-result-type">@result.Type</td>
-                        <td>
-                            @if (!string.IsNullOrWhiteSpace(result.Url))
-                            {
-                                <a href="@result.Url" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">@result.Qid</a>
-                            }
-                            else
-                            {
-                                @result.Qid
-                            }
-                        </td>
-                        <td class="tl-wikidata__fit" data-state="@FitState(result)">@FitMark(result)</td>
-                    </tr>
+                    @CardPart(selected)
                 }
-            </tbody>
-        </AppTable>
-        if (selected is not null)
-        {
-            @EvidenceCard(selected)
-        }
-
-        <div class="tl-wikidata__actions">
-            <AppButton Label="@L["EditorWikidata_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="CancelChange" data-testid="wikidata-cancel" />
-            <AppButton Label="@L["EditorWikidata_ApplyIdentity"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                       Disabled="@(!CanStage || selected is not { CanApply: true })" OnClick="ApplySelected" data-testid="wikidata-apply" />
-        </div>
+            </Card>
+        </EditorMatchSplit>
     };
 
-    // One card for the selected row, looking like the provider side's "Why this match".
-    private RenderFragment EvidenceCard(EditorWikidataResultDto result) => __builder =>
+    private string CountText(int count) => count == 1 ? L["EditorMatchResults_CountOne"].Value : L["EditorMatchResults_Count", count].Value;
+
+    // One text line: "Parent: show, not this episode" for a parent, then what Wikidata says the item is.
+    private string ResultMeta(EditorWikidataResultDto result) => string.Join(" · ", new[]
     {
-        var checkedRows = result.Evidence.Where(row => row.State != EditorWikidataEvidenceStates.NotChecked)
-            .Select(row => new EditorEvidenceCard.Row(EvidenceFact(row), row.Yours, row.Wikidata, row.State)).ToList();
-        var skipped = result.Evidence.Where(row => row.State == EditorWikidataEvidenceStates.NotChecked).ToList();
-        <EditorEvidenceCard Title="@L["EditorWikidata_AlignmentEvidence"].Value" YourLabel="@L["EditorWikidata_YourItem"].Value" OtherLabel="@L["EditorMatchPanel_Wikidata"].Value"
-                            Rows="checkedRows" data-testid="wikidata-evidence">
-            <Footer>
-                @foreach (var row in skipped)
-                {
-                    <p class="tl-wikidata__note" data-testid="wikidata-not-checked">@L["EditorWikidata_NotCheckedNote", EvidenceFact(row)]</p>
-                }
+        result.Relation == EditorWikidataRelations.Parent ? L["EditorWikidata_ParentChip", ParentWord, ItemWord].Value : null,
+        result.Description,
+        result.Type,
+    }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    // The card for the chosen item: the same card as every other Match step. Wikidata gives no verdict, only the compare table, so the card says none.
+    private RenderFragment CardPart(EditorWikidataResultDto result) => __builder =>
+    {
+        var rows = result.Evidence.Select(row => new EditorMatchCardRow(EvidenceFact(row), row.Yours, row.Wikidata, row.State, row.Fact)).ToList();
+        var provider = WithLabel(L["EditorMatchPanel_Wikidata"].Value, result.Qid);
+        var model = new EditorMatchCardModel(
+            result.Label, null, EditorMatchCardModels.Join(result.Type, result.Year), null, EditorMatchCardArt.Portrait, provider, result.Url, result.Description,
+            null, rows, EditorMatchCardModels.BasisNote(rows, Kind, L), []);
+        <EditorMatchCard Model="@model" ResultLabel="@L["EditorMatchPanel_Wikidata"].Value" data-testid="wikidata-evidence">
+            <Basis>
                 @if (!result.CanApply)
                 {
                     <p class="tl-wikidata__reason" data-testid="wikidata-reason">@ReasonText(result)</p>
                 }
-            </Footer>
-        </EditorEvidenceCard>
+            </Basis>
+            <Foot>
+                <EditorMatchApply ShowCancel="true" CanApply="@(CanStage && result.CanApply)" OnApply="ApplySelected" OnCancel="CancelChange"
+                                  ApplyLabel="@L["EditorWikidata_ApplyIdentity"].Value" CancelLabel="@L["EditorWikidata_Cancel"].Value"
+                                  ApplyTestId="wikidata-apply" CancelTestId="wikidata-cancel"
+                                  Line="@EditorMatchCardModels.ApplyLine(Kind, L["EditorMatchPanel_Wikidata"].Value, L)" />
+            </Foot>
+        </EditorMatchCard>
     };
 
     private void Select(EditorWikidataResultDto result) => _selectedQid = result.Qid;
-
-    private void OnRowKey(KeyboardEventArgs args, EditorWikidataResultDto result)
-    {
-        if (args.Key is "Enter" or " ")
-        {
-            Select(result);
-        }
-    }
-
-    // A tick when the evidence agrees and nothing differs; a dash for a parent (shown for context only); nothing otherwise.
-    private static string FitState(EditorWikidataResultDto result) => result.Relation == EditorWikidataRelations.Parent
-        ? "parent"
-        : result.Evidence.Any(row => row.State == EditorWikidataEvidenceStates.Differs) ? "differs"
-        : result.Evidence.Any(row => row.State == EditorWikidataEvidenceStates.Agrees) ? "agrees" : "unknown";
-
-    private static string FitMark(EditorWikidataResultDto result) => FitState(result) switch
-    {
-        "agrees" => "✓",
-        "differs" => "✕",
-        "parent" => "–",
-        _ => string.Empty,
-    };
 
     public void Dispose()
     {

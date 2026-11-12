@@ -37,8 +37,11 @@ internal static class EditorMatchRule
     /// <summary>Every key that decides <see cref="FindProviderSource"/>.</summary>
     public static readonly IReadOnlyList<string> ProviderMatchKeys = [.. ProviderIdKeys, .. IsbnKeys];
 
-    /// <summary>The keys the family dropdown has always counted as "carries an identity": the provider ones, two older spellings and the Wikidata id.</summary>
-    public static readonly IReadOnlyList<string> IdentityKeys = [.. ProviderIdKeys, "comicvine_issue_id", "openlibrary_work_id", BridgeIdKeys.WikidataQid];
+    /// <summary>
+    /// The keys the family dropdown and the owned-file lists count as "carries an identity": the provider ones, two older spellings, an episode's
+    /// TMDB id (stored by older matches; it names the episode without making a provider source) and the Wikidata id.
+    /// </summary>
+    public static readonly IReadOnlyList<string> IdentityKeys = [.. ProviderIdKeys, "comicvine_issue_id", "openlibrary_work_id", BridgeIdKeys.TmdbEpisodeId, BridgeIdKeys.WikidataQid];
 
     /// <summary>A container (a show, a season, an album) has no file of its own: the asset a launch carries there is some child's.</summary>
     public static bool IsContainer(string? workKind) => string.Equals(workKind, ContainerWorkKind, StringComparison.OrdinalIgnoreCase);

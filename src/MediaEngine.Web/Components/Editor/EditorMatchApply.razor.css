@@ -1,0 +1,12 @@
+/* The foot of the Match card: Cancel and Apply match side by side, and the line saying what Apply does under them. */
+.tl-mapply__buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--tl-space-3);
+}
+
+.tl-mapply__line {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: var(--tl-type-secondary-weight);
+}

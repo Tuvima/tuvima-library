@@ -1,0 +1,28 @@
+/* The list on the left and the card on the right. The editor's style sheets answer to the screen breakpoint, never to a container query: the window is
+   never wider than 1280, so a container query could not tell. On a screen of 1180 or less the card moves under the list. */
+.tl-msplit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--tl-space-6);
+}
+
+.tl-msplit__list {
+    display: flex;
+    flex: 1 1 22rem;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+    min-width: 0;
+}
+
+.tl-msplit__card {
+    min-width: 0;
+    flex: 1.12 1 26rem;
+}
+
+@media (max-width: 1180px) {
+    .tl-msplit__list,
+    .tl-msplit__card {
+        flex: 1 1 100%;
+    }
+}

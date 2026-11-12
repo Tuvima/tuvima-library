@@ -645,12 +645,24 @@ public sealed class EditorMatchSearchService(
             {
                 MatchFactNames.Title => calculator.Title(yourTitle.Use ? yourTitle.Title : YourTitle(kindId, fields, evidence), candidate.Title),
                 MatchFactNames.Year => calculator.Year(fields.GetValueOrDefault(EditorMatchFieldIds.Year) ?? evidence.Year, candidate.Year),
+                MatchFactNames.Number when kindId == EditorKinds.TvEpisode => calculator.SeasonAndEpisode(
+                    evidence.Season, evidence.Number, IntOf(candidate.RequiredFields, MetadataFieldConstants.SeasonNumber), Number(extra)),
                 MatchFactNames.Number => calculator.Number(
                     kindId == EditorKinds.Comic && int.TryParse(fields.GetValueOrDefault(EditorMatchFieldIds.Issue), NumberStyles.Integer, CultureInfo.InvariantCulture, out var issue)
                         ? issue
                         : evidence.Number,
                     Number(extra),
                     kindId == EditorKinds.Comic ? "Issue" : kindId == EditorKinds.TvSeason ? "Season" : "Episode"),
+                // An episode's show and a song's album: what the file says (a typed box, else what the Engine read from the name, tags and folders)
+                // against what the record carries. A side that has nothing leaves the row unknown, never against the match.
+                MatchFactNames.Show => calculator.Named(
+                    MatchFactNames.Show, "Show",
+                    fields.GetValueOrDefault(EditorMatchFieldIds.Show) ?? (read.Fields.TryGetValue(EditorMatchFieldIds.Show, out var fileShow) ? fileShow.Value : evidence.FileTitle),
+                    candidate.RequiredFields.GetValueOrDefault(MetadataFieldConstants.ShowName)),
+                MatchFactNames.Album => calculator.Named(
+                    MatchFactNames.Album, "Album",
+                    fields.GetValueOrDefault(EditorMatchFieldIds.Album) ?? (read.Fields.TryGetValue(EditorMatchFieldIds.Album, out var fileAlbum) ? fileAlbum.Value : null),
+                    candidate.RequiredFields.GetValueOrDefault(MetadataFieldConstants.Album) ?? Extra(extra, MetadataFieldConstants.Album)),
                 MatchFactNames.Creator => calculator.Creator(
                     fields.GetValueOrDefault(EditorMatchFieldIds.Author) ?? fields.GetValueOrDefault(EditorMatchFieldIds.AuthorOrNarrator)
                         ?? fields.GetValueOrDefault(EditorMatchFieldIds.Artist) ?? evidence.Creator,
@@ -802,6 +814,9 @@ public sealed class EditorMatchSearchService(
 
     private static string? Extra(IReadOnlyDictionary<string, string> extra, string key) =>
         extra.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
+
+    private static int? IntOf(IReadOnlyDictionary<string, string> values, string key) =>
+        values.TryGetValue(key, out var text) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) ? number : null;
 
     private static int? Number(IReadOnlyDictionary<string, string> extra)
     {

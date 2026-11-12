@@ -9,40 +9,44 @@
 @inject ILogger<EditorGroupMatchPanel> Logger
 @inject IStringLocalizer<SharedStrings> L
 
-@* The group Match (universal editor v5, D36): with several episodes or songs ticked, the person picks one show and season, or one release,
-   once. Every ticked item is lined up with the record that has its own number; the ones that do not fit are listed as "Weak match", unticked,
-   and are left out unless the person ticks them. There is no table of every file. Apply stages the match, the move and the file move of each
-   ticked item in the pending list, exactly as a single Apply does; Save changes writes them. Nothing is written here. *@
+@* The group Match (universal editor v5, D36; v6 WP6): with several episodes or songs ticked, the person picks one show and season, or one release,
+   once. The search is the same shared row every Match step uses and the shows and releases are the same list rows. Every ticked item is lined up with
+   the record that has its own number; the ones that do not fit are listed as "Weak match", unticked, and are left out unless the person ticks them.
+   There is no table of every file. Apply stages the match, the move and the file move of each ticked item in the pending list, exactly as a single
+   Apply does; Save changes writes them. Nothing is written here. *@
 <section class="tl-bulk__group tl-groupmatch" aria-label="@L["Common_Match"].Value" data-testid="group-match">
     <h3 class="tl-editor-details__heading">@L["EditorGroupMatchPanel_Heading", Rows.Count, Noun]</h3>
 
     @if (_result is null)
     {
-        @if (IsEpisodes)
+        @if (IsEpisodes && _show is not null)
         {
-            <div class="tl-groupmatch__search">
-                <div class="tl-groupmatch__field">
-                    <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_showText" ValueChanged="@(value => _showText = value ?? string.Empty)" Immediate="true"
-                                  OnKeyDown="OnKey" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="group-match-show" />
-                </div>
-                <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_showText))" OnClick="SearchAsync" data-testid="group-match-search" />
-            </div>
+            @* The chosen show, read-only, with Change show on the control line beside it. *@
+            <AppFormRow Columns="minmax(0, 1fr) auto" Wrap="true" ReserveMessage="true" data-testid="group-match-picked">
+                <ChildContent>
+                    <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_show.Name" ReadOnly="true" aria-label="@L["EditorTvMatchFlow_Show"].Value" />
+                    <div data-form-row-field="fit">
+                        <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+                        <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="ChangeShow" />
+                    </div>
+                </ChildContent>
+            </AppFormRow>
+        }
+        else if (IsEpisodes)
+        {
+            <EditorMatchSearchRow Columns="minmax(12rem, 1fr) auto" SearchDisabled="@(_busy || string.IsNullOrWhiteSpace(_showText))" OnSearch="SearchAsync" ButtonTestId="group-match-search">
+                <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_showText" ValueChanged="@(value => _showText = value ?? string.Empty)" Immediate="true"
+                              OnKeyDown="OnKey" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="group-match-show" />
+            </EditorMatchSearchRow>
         }
         else
         {
-            <div class="tl-groupmatch__search">
-                <div class="tl-groupmatch__field">
-                    <AppTextField Label="@L["EditorMusicMatchFlow_Artist"].Value" Value="@_artist" ValueChanged="@(value => _artist = value ?? string.Empty)" Immediate="true"
-                                  OnKeyDown="OnKey" aria-label="@L["EditorMusicMatchFlow_Artist"].Value" data-testid="group-match-artist" />
-                </div>
-                <div class="tl-groupmatch__field">
-                    <AppTextField Label="@L["EditorMusicMatchFlow_Album"].Value" Value="@_album" ValueChanged="@(value => _album = value ?? string.Empty)" Immediate="true"
-                                  OnKeyDown="OnKey" aria-label="@L["EditorMusicMatchFlow_Album"].Value" data-testid="group-match-album" />
-                </div>
-                <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_album))" OnClick="SearchAsync" data-testid="group-match-search" />
-            </div>
+            <EditorMatchSearchRow Columns="minmax(9rem, 1fr) minmax(9rem, 1fr) auto" SearchDisabled="@(_busy || string.IsNullOrWhiteSpace(_album))" OnSearch="SearchAsync" ButtonTestId="group-match-search">
+                <AppTextField Label="@L["EditorMusicMatchFlow_Artist"].Value" Value="@_artist" ValueChanged="@(value => _artist = value ?? string.Empty)" Immediate="true"
+                              OnKeyDown="OnKey" aria-label="@L["EditorMusicMatchFlow_Artist"].Value" data-testid="group-match-artist" />
+                <AppTextField Label="@L["EditorMusicMatchFlow_Album"].Value" Value="@_album" ValueChanged="@(value => _album = value ?? string.Empty)" Immediate="true"
+                              OnKeyDown="OnKey" aria-label="@L["EditorMusicMatchFlow_Album"].Value" data-testid="group-match-album" />
+            </EditorMatchSearchRow>
         }
 
         @if (_busy)
@@ -59,48 +63,33 @@
         {
             @if (_show is null)
             {
-                <div class="tl-match__results" role="list" aria-label="@L["EditorTvMatchFlow_Shows"].Value" data-testid="group-match-shows">
-                    @foreach (var show in _shows)
-                    {
-                        <div role="listitem">
-                            <AppRowButton Class="tl-match__row" OnClick="@(() => ChooseShowAsync(show))">
-                                <span class="tl-match__text">
-                                    <span class="tl-match__title"><span>@show.Name</span></span>
-                                    <span class="tl-match__meta">@show.Year</span>
-                                </span>
-                            </AppRowButton>
-                        </div>
-                    }
-                </div>
-            }
-            else
-            {
-                <div class="tl-groupmatch__picked" data-testid="group-match-picked">
-                    <span class="tl-match__title"><span>@_show.Name</span></span>
-                    <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="ChangeShow" />
-                </div>
-                @if (_seasons.Count > 0)
+                @if (_shows.Count > 0)
                 {
-                    <AppSelect Value="@_season" ValueChanged="@(value => _season = value)" Options="@SeasonOptions" Label="@L["EditorTvMatchFlow_SeasonLabel"].Value" data-testid="group-match-season" />
+                    <EditorMatchList Heading="@L["EditorTvMatchFlow_Shows"].Value" Count="@CountText(_shows.Count)" TestId="group-match-shows">
+                        @foreach (var show in _shows)
+                        {
+                            var current = show;
+                            <EditorMatchListRow Title="@show.Name" Meta="@show.Year" ArtShape="portrait" ImageUrl="@show.ImageUrl" data-testid="group-match-show-row"
+                                                OnClick="@(() => ChooseShowAsync(current))" />
+                        }
+                    </EditorMatchList>
                 }
+            }
+            else if (_seasons.Count > 0)
+            {
+                <AppSelect Value="@_season" ValueChanged="@(value => _season = value)" Options="@SeasonOptions" Label="@L["EditorTvMatchFlow_SeasonLabel"].Value" data-testid="group-match-season" />
             }
         }
-        else
+        else if (_releases.Count > 0)
         {
-            <div class="tl-match__results" role="list" aria-label="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" data-testid="group-match-releases">
+            <EditorMatchList Heading="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" Count="@CountText(_releases.Count)" TestId="group-match-releases">
                 @foreach (var release in _releases)
                 {
-                    var active = _release?.ReleaseId == release.ReleaseId;
-                    <div role="listitem">
-                        <AppRowButton Class="@(active ? "tl-match__row is-active" : "tl-match__row")" aria-pressed="@(active ? "true" : "false")" OnClick="@(() => _release = release)">
-                            <span class="tl-match__text">
-                                <span class="tl-match__title"><span>@release.Title</span>@if (release.IsCurrent) { <span class="tl-groupmatch__tag">@L["EditorMusicMatchFlow_CurrentRelease"]</span> }@if (release.IsSuggested) { <span class="tl-groupmatch__tag">@L["EditorMusicMatchFlow_Suggested"]</span> }</span>
-                                <span class="tl-match__meta">@string.Join(" · ", new[] { release.Artist, release.Year, release.Format, release.TrackCount > 0 ? L["EditorMusicMatchFlow_TrackCount", release.TrackCount].Value : null }.Where(part => !string.IsNullOrWhiteSpace(part)))</span>
-                            </span>
-                        </AppRowButton>
-                    </div>
+                    var current = release;
+                    <EditorMatchListRow Title="@release.Title" Meta="@ReleaseMeta(release)" ArtShape="square" ImageUrl="@release.ImageUrl" Selected="@(_release?.ReleaseId == release.ReleaseId)"
+                                        data-testid="group-match-release" OnClick="@(() => _release = current)" />
                 }
-            </div>
+            </EditorMatchList>
         }
 
         <div class="tl-groupmatch__actions">
@@ -121,7 +110,7 @@
                     <div class="tl-groupmatch__misfit" role="listitem" data-testid="group-match-misfit">
                         <AppCheckbox Value="@_ticked.Contains(line.EntityId)" ValueChanged="@(value => Tick(line, value))" Disabled="@(line.Candidate is null)"
                                      Label="@line.Title" />
-                        <span class="tl-match__meta">@MisfitLine(line)</span>
+                        <span class="tl-groupmatch__meta">@MisfitLine(line)</span>
                         @if (line.Candidate is not null) { <AppChip Text="@L["EditorGroupMatchPanel_WeakMatch"].Value" Tone="AppUiTone.Warning" /> }
                     </div>
                 }
@@ -171,6 +160,19 @@
     private bool IsEpisodes => BulkEditRules.KindOf(Rows, MediaType) == BulkItemKind.Episode;
 
     private string Noun => BulkEditRules.Noun(Rows, MediaType);
+
+    private string CountText(int count) => count == 1 ? L["EditorMatchResults_CountOne"].Value : L["EditorMatchResults_Count", count].Value;
+
+    // "Artist · 2018 · CD · 11 tracks", then a plain note when it is the release the items are on or the one that fits them best.
+    private string ReleaseMeta(EditorMusicReleaseDto release) => string.Join(" · ", new[]
+    {
+        release.Artist,
+        release.Year,
+        release.Format,
+        release.TrackCount > 0 ? (release.TrackCount == 1 ? L["EditorMusicMatchFlow_TrackCountOne"].Value : L["EditorMusicMatchFlow_TrackCount", release.TrackCount].Value) : null,
+        release.IsCurrent ? L["EditorMusicMatchFlow_CurrentRelease"].Value : null,
+        release.IsSuggested ? L["EditorMusicMatchFlow_Suggested"].Value : null,
+    }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private bool CanLineUp => IsEpisodes ? _show is not null && _season is not null : _release is not null;
 

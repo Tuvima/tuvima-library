@@ -178,4 +178,26 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("The provider does not have that.", cut.Find("[data-testid=group-match-message]").TextContent.Trim()));
     }
+
+    [Fact]
+    public void TheShowSearch_IsTheSharedFormRow_AndTheShowsAreTheSameListRowsAsEveryOtherMatchStep()
+    {
+        IReadOnlyList<BulkEditRow> rows = [.. Ids.Select((id, index) => new BulkEditRow(id, $"s02e0{index + 1}.mkv", DetailEntityType.TvEpisode, Guid.NewGuid(), "TV"))];
+        var cut = Render<EditorGroupMatchPanel>(parameters => parameters
+            .Add(panel => panel.Rows, rows)
+            .Add(panel => panel.MediaType, "TV")
+            .Add(panel => panel.Pending, _pending)
+            .Add(panel => panel.CanChange, true));
+        cut.WaitForAssertion(() => Assert.Equal("The Last Signal", cut.Find("input[aria-label='Show']").GetAttribute("value")));
+
+        var row = cut.Find("[data-testid=match-row]");
+        Assert.True(row.HasAttribute("data-form-row"));
+        Assert.Equal("Search", cut.Find("[data-testid=group-match-search]").TextContent.Trim());
+
+        cut.Find("[data-testid=group-match-search]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=group-match-show-row]")));
+
+        Assert.All(cut.FindAll("[data-testid=group-match-show-row]"), show => Assert.Empty(show.QuerySelectorAll(".app-chip")));
+        Assert.NotEmpty(cut.FindAll("[data-testid=group-match-shows] .tl-mlist__title"));
+    }
 }

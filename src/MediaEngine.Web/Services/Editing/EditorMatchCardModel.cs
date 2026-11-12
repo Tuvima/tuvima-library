@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Contracts.Matching;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Resources;
 using Microsoft.Extensions.Localization;
@@ -20,7 +21,10 @@ public enum EditorMatchCardArt
 /// </summary>
 public sealed record EditorMatchCardRow(string Field, string? YourFile, string? Result, string Outcome, string Fact);
 
-/// <summary>Everything the Match card shows for one result or for the current match, already worded.</summary>
+/// <summary>
+/// Everything the Match card shows for one result or for the current match, already worded. <see cref="Verdict"/> is null when the Engine sent
+/// none (a Wikidata result has an evidence table but no verdict); the card then says nothing about one.
+/// </summary>
 public sealed record EditorMatchCardModel(
     string Title,
     string? SeriesLine,
@@ -30,7 +34,7 @@ public sealed record EditorMatchCardModel(
     string ProviderName,
     string? SourceUrl,
     string? Description,
-    string Verdict,
+    string? Verdict,
     IReadOnlyList<EditorMatchCardRow> Rows,
     string BasisNote,
     IReadOnlyList<string> Notes);
@@ -61,6 +65,22 @@ public static class EditorMatchCardModels
             rows,
             BasisNote(rows, kind, l),
             []);
+    }
+
+    /// <summary>
+    /// The card for a record the person picked in the TV or music flow and the Engine judged: the same card as a search result, with the provider's
+    /// own name (not its id) and, where the judged answer carries no picture or description, the ones the picked record itself brought.
+    /// </summary>
+    public static EditorMatchCardModel ForPick(
+        EditorMatchResultDto judged, ItemCanonicalRetailCandidateDto candidate, string? kind, string providerName, IStringLocalizer<SharedStrings> l)
+    {
+        var model = ForResult(judged, judged, kind, l);
+        return model with
+        {
+            ImageUrl = model.ImageUrl ?? candidate.CoverUrl,
+            Description = model.Description ?? candidate.Description,
+            ProviderName = providerName,
+        };
     }
 
     /// <summary>The card for the item's current match: the same card, filled from the Engine's read of the matched record and its "why" rows.</summary>
@@ -147,6 +167,8 @@ public static class EditorMatchCardModels
         "year" => l["EditorMatchPanel_FieldYear"].Value,
         "runtime" => l["EditorMatchPanel_FieldRuntime"].Value,
         "track_length" => l["EditorMatchCard_FieldLength"].Value,
+        "show" => l["EditorMatchCard_FieldShow"].Value,
+        "album" => l["EditorMatchCard_FieldAlbum"].Value,
         "creator" => kind switch
         {
             EditorKinds.Movie or EditorKinds.TvShow or EditorKinds.TvSeason or EditorKinds.TvEpisode => l["EditorMatchCard_FieldDirector"].Value,
@@ -158,7 +180,7 @@ public static class EditorMatchCardModels
         {
             EditorKinds.Comic => l["EditorMatchCard_FieldIssue"].Value,
             EditorKinds.TvSeason => l["EditorMatchPanel_FieldSeason"].Value,
-            EditorKinds.TvEpisode => l["EditorMatchPanel_FieldEpisode"].Value,
+            EditorKinds.TvEpisode => l["EditorMatchCard_FieldSeasonAndEpisode"].Value,
             _ => l["EditorMatchCard_FieldNumber"].Value,
         },
         "season_number" => l["EditorMatchPanel_FieldSeason"].Value,
@@ -184,7 +206,7 @@ public static class EditorMatchCardModels
 
     // What the verdict rests on: the facts that could be compared (a fact one side did not give is not part of it). The identifier comes first,
     // since it settles most matches, then the rest in the table's order: "Based on the ISBN, title and author."
-    private static string BasisNote(IReadOnlyList<EditorMatchCardRow> rows, string? kind, IStringLocalizer<SharedStrings> l)
+    internal static string BasisNote(IReadOnlyList<EditorMatchCardRow> rows, string? kind, IStringLocalizer<SharedStrings> l)
     {
         var compared = rows.Where(row => row.Outcome != EditorMatchEvidenceStates.NotChecked).ToList();
         if (compared.Count == 0)
@@ -207,6 +229,8 @@ public static class EditorMatchCardModels
         "year" => l["EditorMatchCard_BasisYear"].Value,
         "runtime" => l["EditorMatchCard_BasisRuntime"].Value,
         "track_length" => l["EditorMatchCard_BasisLength"].Value,
+        "show" => l["EditorMatchCard_BasisShow"].Value,
+        "album" => l["EditorMatchCard_BasisAlbum"].Value,
         "creator" => kind switch
         {
             EditorKinds.Movie or EditorKinds.TvShow or EditorKinds.TvSeason or EditorKinds.TvEpisode => l["EditorMatchCard_BasisDirector"].Value,
@@ -218,7 +242,7 @@ public static class EditorMatchCardModels
         {
             EditorKinds.Comic => l["EditorMatchCard_BasisIssue"].Value,
             EditorKinds.TvSeason => l["EditorMatchCard_BasisSeason"].Value,
-            EditorKinds.TvEpisode => l["EditorMatchCard_BasisEpisode"].Value,
+            EditorKinds.TvEpisode => l["EditorMatchCard_BasisSeasonAndEpisode"].Value,
             _ => l["EditorMatchCard_BasisNumber"].Value,
         },
         "season_number" => l["EditorMatchCard_BasisSeason"].Value,

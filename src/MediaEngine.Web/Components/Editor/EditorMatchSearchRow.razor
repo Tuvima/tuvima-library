@@ -1,0 +1,40 @@
+@namespace MediaEngine.Web.Components.Editor
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one search row of the Match tab (universal editor v6, D3 and D12): the fields of the flow, each with its label above, then a Search button with
+   the word on it, all on the shared form row, so every control sits on one line at one height. What is wrong with the row, or how many results came
+   back, goes on the row's message line under the whole row, never beside a control. The plain search, the TV, music and Wikidata flows and the group
+   Match all draw their row here, so the four can never drift apart. Nothing is searched here: the button and Enter raise OnSearch and the flow decides. *@
+<AppFormRow Columns="@Columns" Wrap="true" ReserveMessage="true" data-testid="@RowTestId">
+    <ChildContent>
+        @ChildContent
+        @* The button joins the row's three lines as a field with a blank label, so it sits on the control line of every visual line when the row wraps. *@
+        <div data-form-row-field="fit">
+            <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+            <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@SearchDisabled" OnClick="OnSearch" data-testid="@ButtonTestId" />
+        </div>
+    </ChildContent>
+    <Message><span data-testid="@MessageTestId">@Message</span></Message>
+</AppFormRow>
+
+@code {
+    /// <summary>The flow's fields in order (labeled text boxes and selects). The Search button follows them.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The grid columns of the row when it is wide enough to be one line, one entry per field and a last one for the button (for example "220px 1fr auto").</summary>
+    [Parameter] public string? Columns { get; set; }
+
+    /// <summary>The sentence for the message line: a provider that needs a key, how many results came back. Null leaves the line empty (it keeps its height).</summary>
+    [Parameter] public string? Message { get; set; }
+
+    [Parameter] public bool SearchDisabled { get; set; }
+
+    [Parameter] public EventCallback OnSearch { get; set; }
+
+    [Parameter] public string RowTestId { get; set; } = "match-row";
+
+    [Parameter] public string ButtonTestId { get; set; } = "match-search-button";
+
+    [Parameter] public string MessageTestId { get; set; } = "match-row-message";
+}

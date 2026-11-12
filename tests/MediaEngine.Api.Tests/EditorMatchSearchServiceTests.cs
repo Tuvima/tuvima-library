@@ -678,9 +678,9 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
 
     // ── Judging a pick made in the TV or music flow ──────────────────────────
 
-    private static EditorMatchLocalRead EpisodeRead(string? episodeTitle, int number, double? measuredSeconds) => new(
+    private static EditorMatchLocalRead EpisodeRead(string? episodeTitle, int number, double? measuredSeconds, int? season = null) => new(
         Guid.NewGuid(), Guid.NewGuid(), "TV", "/tv/The Last Signal/Season 02/The.Last.Signal.S02E03.mkv", "The.Last.Signal.S02E03.mkv",
-        new EditorMatchLocalEvidenceDto { FileTitle = "The Last Signal", EpisodeTitle = episodeTitle, Number = number, MeasuredSeconds = measuredSeconds, MeasuredText = "45:52" },
+        new EditorMatchLocalEvidenceDto { FileTitle = "The Last Signal", EpisodeTitle = episodeTitle, Number = number, Season = season, MeasuredSeconds = measuredSeconds, MeasuredText = "45:52" },
         new Dictionary<string, (string Value, string From)>());
 
     [Fact]
@@ -711,6 +711,112 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
 
         Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "runtime").State);
         Assert.Equal("e23", judged.Candidate.ProviderItemId);
+    }
+
+    [Fact]
+    public void AnEpisodePick_ComparesShowSeasonAndEpisodeTitleAndRuntime_InThatOrder_WithWhatEachSideSays()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, 2752, season: 2);
+        var pick = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e23", 2, 3, "Echoes in the Dark", "2021-01-18", null, null, 46);
+
+        var judged = Service().JudgeRead(EditorKinds.TvEpisode, pick, read);
+
+        Assert.Equal(["show", "number", "title", "runtime"], judged.Reasons.Select(reason => reason.Fact));
+        Assert.All(judged.Reasons, reason => Assert.Equal(EditorMatchEvidenceStates.Agrees, reason.State));
+        var slot = judged.Reasons[1];
+        Assert.Equal("Season 2, Episode 3", slot.YourFile);
+        Assert.Equal("Season 2, Episode 3", slot.Result);
+        Assert.Equal("The Last Signal", judged.Reasons[0].Result);
+    }
+
+    [Fact]
+    public void AnEpisodePick_OfAnotherSeason_DisagreesOnTheSeasonAndEpisodeRow_AndReadsWeak()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, 2752, season: 2);
+        var pick = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e33", 3, 3, "Echoes in the Dark", "2022-01-18", null, null, 46);
+
+        var judged = Service().JudgeRead(EditorKinds.TvEpisode, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "number").State);
+        Assert.Equal(EditorMatchVerdicts.Weak, judged.Verdict);
+    }
+
+    [Fact]
+    public void AnEpisodePick_WhoseFileHasNoSeasonAndNoLength_LeavesThoseRowsUnknown_AndStillReadsStrong()
+    {
+        var read = EpisodeRead("Echoes in the Dark", 3, null);
+        var pick = EditorMatchCandidates.ForTvEpisode("100", "The Last Signal", "e23", 2, 3, "Echoes in the Dark", "2021-01-18", null, null, 46);
+
+        var judged = Service().JudgeRead(EditorKinds.TvEpisode, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, Assert.Single(judged.Reasons, reason => reason.Fact == "runtime").State);
+        Assert.Equal("Episode 3", Assert.Single(judged.Reasons, reason => reason.Fact == "number").YourFile);
+        Assert.Equal(EditorMatchVerdicts.Strong, judged.Verdict);
+    }
+
+    private static EditorMatchLocalRead SongRead(string title, string artist, string album, double? measuredSeconds) => new(
+        Guid.NewGuid(), Guid.NewGuid(), "Music", "/music/Harbor Lights/Shoreline/04 - Low Tide.flac", "04 - Low Tide.flac",
+        new EditorMatchLocalEvidenceDto { FileTitle = title, Creator = artist, Number = 4, MeasuredSeconds = measuredSeconds },
+        new Dictionary<string, (string Value, string From)>
+        {
+            [EditorMatchFieldIds.Artist] = (artist, EditorMatchFieldSources.Tags),
+            [EditorMatchFieldIds.Album] = (album, EditorMatchFieldSources.Tags),
+            [EditorMatchFieldIds.Song] = (title, EditorMatchFieldSources.Tags),
+        });
+
+    [Fact]
+    public void ASongPick_ComparesArtistAlbumTitleAndLength_InThatOrder_AndAgreesWhenTheyDo()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 222, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(["creator", "album", "title", "track_length", "identifier"], judged.Reasons.Select(reason => reason.Fact));
+        Assert.All(judged.Reasons.Take(4), reason => Assert.Equal(EditorMatchEvidenceStates.Agrees, reason.State));
+        Assert.Equal("Shoreline", judged.Reasons[1].YourFile);
+        Assert.Equal("Shoreline", judged.Reasons[1].Result);
+        Assert.Equal(EditorMatchVerdicts.Strong, judged.Verdict);
+    }
+
+    [Fact]
+    public void ASongPick_OnAnotherAlbum_DisagreesOnTheAlbumRow_AndReadsPossible_NotWeak()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-2", "rg-2", "Greatest Hits", "Harbor Lights", "2019", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 222, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "album").State);
+        Assert.Equal(EditorMatchVerdicts.Possible, judged.Verdict);
+    }
+
+    [Fact]
+    public void ASongPick_WhoseLengthDiffersByMoreThanThreeSeconds_IsFlaggedOnTheLengthRow_AndReadsPossible()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 227, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.Differs, Assert.Single(judged.Reasons, reason => reason.Fact == "track_length").State);
+        Assert.Equal(EditorMatchVerdicts.Possible, judged.Verdict);
+    }
+
+    [Fact]
+    public void ASongPick_WhenTheFileHasNoAlbumOrLength_LeavesThoseRowsUnknown_AndNeverCountsThemAgainstIt()
+    {
+        var read = new EditorMatchLocalRead(
+            Guid.NewGuid(), Guid.NewGuid(), "Music", "/music/04 - Low Tide.flac", "04 - Low Tide.flac",
+            new EditorMatchLocalEvidenceDto { FileTitle = "Low Tide", Creator = "Harbor Lights" },
+            new Dictionary<string, (string Value, string From)>());
+        var pick = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-1", "Low Tide", "Harbor Lights", 1, 4, 222, null);
+
+        var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
+
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, Assert.Single(judged.Reasons, reason => reason.Fact == "album").State);
+        Assert.Equal(EditorMatchEvidenceStates.NotChecked, Assert.Single(judged.Reasons, reason => reason.Fact == "track_length").State);
+        Assert.Equal(EditorMatchVerdicts.Strong, judged.Verdict);
     }
 
     private EditorMatchSearchService Service(IEditorMatchCandidateSearch? candidates = null, IVideoIdentifyWriter? videos = null)
