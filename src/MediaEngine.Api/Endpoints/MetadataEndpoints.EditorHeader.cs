@@ -100,6 +100,29 @@ public static partial class MetadataEndpoints
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
 
+        group.MapPost("/{entityId:guid}/video-series-placement", async (
+            Guid entityId,
+            EditorVideoSeriesPlacementRequestDto request,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.EditSession.IVideoSeriesPlacement placement,
+            CancellationToken ct) =>
+        {
+            var plan = await placement.PlanAsync(entityId, request.TargetId, request.Token, ct);
+            return plan is null
+                ? ApiErrors.NotFound("That is not a video.")
+                : Results.Ok(new EditorVideoSeriesPlacementDto
+                {
+                    Managed = plan.Managed,
+                    FromPath = plan.FromPath,
+                    ToPath = plan.ToPath,
+                    Reason = plan.Reason,
+                });
+        }).WithName("GetEditorVideoSeriesPlacement")
+          .WithSummary("Where a video's file goes when it joins a series: the series' folder in a Managed folder, nowhere in a Read-only one. Reads only.")
+          .Produces<EditorVideoSeriesPlacementDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
         group.MapPost("/{entityId:guid}/match-search", async (
             Guid entityId, EditorMatchSearchRequestDto request, EditorMatchSearchService match, CancellationToken ct) =>
         {

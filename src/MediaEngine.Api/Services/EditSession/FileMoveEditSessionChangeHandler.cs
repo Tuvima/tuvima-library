@@ -16,6 +16,11 @@ namespace MediaEngine.Api.Services.EditSession;
 /// <i>when this runs</i> (after a staged relationship change was saved), the change needs no destination of its own;
 /// <see cref="EditSessionChange.Token"/>, when the Dashboard sends one from its move preview, is not required and is ignored.
 /// </para>
+/// <para>
+/// A move that carries <see cref="EditSessionVideo.MovesWithSeriesToken"/> belongs to a series change of a video (editor v6, D24). A video's
+/// folder is its series, which no naming template computes, so the series change moves the file itself, first, and puts it back if anything
+/// fails. This change is what lets Review and the footer say so; it has nothing left to do and never asks the naming policy to move the file.
+/// </para>
 /// </summary>
 public sealed class FileMoveEditSessionChangeHandler(
     ILibraryMoveRepository moveItems,
@@ -25,6 +30,11 @@ public sealed class FileMoveEditSessionChangeHandler(
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (string.Equals(change.Token, EditSessionVideo.MovesWithSeriesToken, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
         var assets = await AssetsOfAsync(change.EntityId, ct).ConfigureAwait(false);
         if (assets is null)
         {
@@ -58,6 +68,11 @@ public sealed class FileMoveEditSessionChangeHandler(
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (string.Equals(change.Token, EditSessionVideo.MovesWithSeriesToken, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
         var assets = await AssetsOfAsync(change.EntityId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(EditSessionReasons.Gone);
 

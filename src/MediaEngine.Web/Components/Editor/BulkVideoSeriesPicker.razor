@@ -8,7 +8,8 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* "Put in a series" for several ticked videos (universal editor v3.1, D9): the same chooser as one video, applied to each. It only stages one
-   change per video; Review changes lists them all and flags any that cannot join. Nothing here moves a file. *@
+   change per video, and in a Managed folder the file move that goes with it (universal editor v6, D24: the same rule as one video, one move per
+   file); Review changes lists them all and flags any that cannot join. Nothing is written here. *@
 <section class="tl-bulk__group" aria-label="@BulkEditRules.PutInSeriesLabel" data-testid="bulk-video-series">
     <p class="tl-bulk__note">@L["BulkVideoSeries_Intro", Rows.Count]</p>
     @if (_loading)
@@ -112,7 +113,27 @@
 
         var target = Guid.TryParse(_choice, out var id) ? _targets.FirstOrDefault(candidate => candidate.Id == id) : null;
         BulkEditStager.PutInSeries(Pending, Rows, target?.Id, target is null ? _name : null, target?.Title ?? _name.Trim());
+        await StageMovesAsync(target?.Id.ToString(), target is null ? EditSessionVideo.NewSeriesToken(_name) : null);
         await OnDone.InvokeAsync();
+    }
+
+    // One file move for each video whose file sits in a Managed folder; the Engine says where each goes, and asks again at Save.
+    private async Task StageMovesAsync(string? targetId, string? token)
+    {
+        foreach (var row in Rows)
+        {
+            EditorVideoSeriesPlacementDto? placement = null;
+            try
+            {
+                placement = await Api.GetVideoSeriesPlacementAsync(row.Id, targetId, token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Logger.LogWarning(ex, "Where the file of video {EntityId} goes with its series could not be read", row.Id);
+            }
+
+            EditorVideoSeriesStaging.StageMove(Pending, row.Id, placement);
+        }
     }
 
     private Task Cancel() => OnDone.InvokeAsync();

@@ -392,6 +392,57 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheFoldersView_AtTheItemsFolder_HasNoPathLineAndNoUpArrow()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Steph Curry Teaches Shooting",
+            Total = 1,
+            Entries = [new EditorFolderEntryDto { Name = "Season 02", Path = "Season 02", IsFolder = true }],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.Empty(cut.FindAll("[data-testid=file-browser-path]"));
+        Assert.Empty(cut.FindAll("[data-folder-up]"));
+        Assert.Empty(cut.FindAll("[data-testid=file-browser-crumbs]"));
+        Assert.DoesNotContain("/media/", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheFoldersView_InsideASubFolder_ShowsTheWayBackAtTheTop_StartingAtTheItemsOwnFolder()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Steph Curry Teaches Shooting",
+            Total = 1,
+            Entries = [new EditorFolderEntryDto { Name = "Season 02", Path = "Season 02", IsFolder = true }],
+        };
+        var (state, cut) = await OpenAsync(EditorBrowserView.Folders);
+        var root = _tree;
+
+        // The Engine answers with the folder it opened.
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Steph Curry Teaches Shooting",
+            Folder = "Season 02",
+            Total = 1,
+            Entries = [new EditorFolderEntryDto { Name = "Lesson 01.mkv", Path = "Season 02/Lesson 01.mkv", State = EditorFolderEntryStates.Main, ItemId = Guid.NewGuid() }],
+        };
+        await cut.InvokeAsync(() => state.OpenFolderAsync("Season 02", 0));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=file-browser-crumbs]")));
+        Assert.Equal("Steph Curry Teaches Shooting", cut.Find("[data-crumb='']").TextContent.Trim());
+        Assert.Equal("Season 02", cut.Find("[data-crumb-current]").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-folder-up]"));
+
+        _tree = root;
+        cut.Find("[data-crumb='']").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid=file-browser-crumbs]")));
+        Assert.Equal(string.Empty, state.Folder);
+    }
+
+    [Fact]
     public async Task TheArrowKeysMoveTheHighlight_SpaceTicksTheRow_AndEnterOpensItsPreview()
     {
         var (state, cut) = await OpenAsync();

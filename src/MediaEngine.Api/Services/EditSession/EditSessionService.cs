@@ -30,7 +30,8 @@ public sealed class EditSessionService(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(refusals);
 
-        var checks = await CheckAllAsync(request.Changes, refusals, ct).ConfigureAwait(false);
+        var follows = FilesThatFollow(request.Changes);
+        var checks = await CheckAllAsync(request.Changes, refusals, follows, ct).ConfigureAwait(false);
         var valid = checks.All(check => check.Reason is null);
         if (request.PreviewOnly || !valid)
         {
@@ -48,7 +49,7 @@ public sealed class EditSessionService(
             };
         }
 
-        var applied = await ApplyAsync(request.Changes, ct).ConfigureAwait(false);
+        var applied = await ApplyAsync(request.Changes, follows, ct).ConfigureAwait(false);
         await QueueFilesAsync(request, applied).ConfigureAwait(false);
         return applied;
     }
@@ -74,16 +75,26 @@ public sealed class EditSessionService(
         }
     }
 
+    // The items whose file moves with their series change (universal editor v6, D24): the ones the save also holds a file move for that
+    // says so. Only these items' series changes may move a file.
+    private static HashSet<Guid> FilesThatFollow(IReadOnlyList<EditSessionChange> changes) =>
+        changes
+            .Where(change => change.Kind == EditSessionChangeKinds.FileMove
+                             && string.Equals(change.Token, EditSessionVideo.MovesWithSeriesToken, StringComparison.Ordinal))
+            .Select(change => change.EntityId)
+            .ToHashSet();
+
     private async Task<List<(EditSessionChange Change, string? Reason)>> CheckAllAsync(
         IReadOnlyList<EditSessionChange> changes,
         IReadOnlyDictionary<Guid, string> refusals,
+        HashSet<Guid> follows,
         CancellationToken ct)
     {
         var results = new List<(EditSessionChange, string?)>(changes.Count);
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var change in changes)
         {
-            results.Add((change, await CheckOneAsync(change, ids, refusals, ct).ConfigureAwait(false)));
+            results.Add((change, await CheckOneAsync(change, ids, refusals, follows, ct).ConfigureAwait(false)));
         }
 
         return results;
@@ -93,6 +104,7 @@ public sealed class EditSessionService(
         EditSessionChange change,
         HashSet<string> ids,
         IReadOnlyDictionary<Guid, string> refusals,
+        HashSet<Guid> follows,
         CancellationToken ct)
     {
         if (!ids.Add(change.Id))
@@ -122,7 +134,9 @@ public sealed class EditSessionService(
 
         try
         {
-            return await handler.CheckAsync(change, ct).ConfigureAwait(false);
+            return handler is IFileFollowingEditSessionChangeHandler following
+                ? await following.CheckAsync(change, follows.Contains(change.EntityId), ct).ConfigureAwait(false)
+                : await handler.CheckAsync(change, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -131,7 +145,7 @@ public sealed class EditSessionService(
         }
     }
 
-    private async Task<EditSessionResult> ApplyAsync(IReadOnlyList<EditSessionChange> changes, CancellationToken ct)
+    private async Task<EditSessionResult> ApplyAsync(IReadOnlyList<EditSessionChange> changes, HashSet<Guid> follows, CancellationToken ct)
     {
         // Changes that can be put back go first and an identity change goes last: it cannot be undone (see the identity handler), so by
         // the time it runs everything before it is already saved, and if it fails those are undone. OrderBy is stable, so the
@@ -162,7 +176,10 @@ public sealed class EditSessionService(
         {
             try
             {
-                var undo = await _handlers[change.Kind].ApplyAsync(change, CancellationToken.None).ConfigureAwait(false);
+                var handler = _handlers[change.Kind];
+                var undo = handler is IFileFollowingEditSessionChangeHandler following
+                    ? await following.ApplyAsync(change, follows.Contains(change.EntityId), CancellationToken.None).ConfigureAwait(false)
+                    : await handler.ApplyAsync(change, CancellationToken.None).ConfigureAwait(false);
                 outcomes[change.Id] = Result(change, EditSessionChangeStatuses.Ok, null);
                 if (undo is not null)
                 {

@@ -13,6 +13,13 @@ public static class EditSessionVideo
     /// <summary>The token of a video that leaves its series.</summary>
     public const string NoSeriesToken = "none";
 
+    /// <summary>
+    /// The token of a <see cref="EditSessionChangeKinds.FileMove"/> change that belongs to a series change (universal editor v6, D24): it
+    /// only lets Review and the footer say the file will move. The series change itself moves the file, first, and puts everything back if
+    /// anything fails; this change then has nothing left to do.
+    /// </summary>
+    public const string MovesWithSeriesToken = "with_series";
+
     private const string NewPrefix = "new:";
 
     /// <summary>The longest name a new series may have.</summary>

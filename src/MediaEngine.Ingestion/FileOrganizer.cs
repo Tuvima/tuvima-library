@@ -524,6 +524,15 @@ public sealed class FileOrganizer : IFileOrganizer
     /// </summary>
     private static string Sanitize(string value)
     {
+        return SanitizeSegment(value);
+    }
+
+    /// <summary>
+    /// The same cleaning the organiser gives every path segment, for a folder name made from a person's words (a new series' folder).
+    /// Empty when nothing usable is left.
+    /// </summary>
+    public static string SanitizeSegment(string value)
+    {
         if (string.IsNullOrWhiteSpace(value))
         {
             return string.Empty;
