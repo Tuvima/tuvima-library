@@ -3338,6 +3338,15 @@
   <data name="Common_RemoveCondition" xml:space="preserve">
     <value>Remove condition</value>
   </data>
+  <data name="SharedRuleBuilder_NoValueNeeded" xml:space="preserve">
+    <value>No value needed</value>
+  </data>
+  <data name="SharedRuleBuilder_RemoveRule" xml:space="preserve">
+    <value>Remove rule</value>
+  </data>
+  <data name="SharedRuleBuilder_RemoveException" xml:space="preserve">
+    <value>Remove exception</value>
+  </data>
   <data name="SharedRuleBuilder_RemoveSecondarySort" xml:space="preserve">
     <value>Remove secondary sort</value>
   </data>

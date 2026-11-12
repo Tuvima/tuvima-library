@@ -1,9 +1,6 @@
 .collection-rule-sentence { display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; }
 .collection-rule-sentence__label { color: var(--tl-text-muted); font-size: var(--tl-type-caption-size); letter-spacing: .04em;}
-.collection-rule-sentence__order { display: flex; flex-direction: column; gap: 8px; }
-.collection-rule-sentence__order-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.collection-rule-sentence__order-select { flex: 1 1 240px; max-width: 360px; }
-.collection-rule-sentence__max { flex: 0 1 160px; min-width: 140px; }
+/* The order row is on the shared form row; this section is the size container it stacks by. */
+.collection-rule-sentence__order { display: flex; flex-direction: column; gap: 8px; container-type: inline-size; }
 .collection-rule-sentence__then { align-self: flex-start; }
-.collection-rule-sentence__advanced { flex: 0 0 auto; }
 .collection-rule-sentence__hint { color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); }
