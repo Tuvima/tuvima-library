@@ -6,7 +6,7 @@ namespace MediaEngine.Web.Tests;
 public sealed class ViewActionPolicyTests
 {
     private static ViewActionContext Desktop(ViewItemOwnership ownership) =>
-        new(ownership, CanEdit: true, FileMissing: false, CanTrash: true, IsArchived: false, IsTrashed: false, IsHidden: false);
+        new(ownership, CanEdit: true, FileMissing: false, CanTrash: true, IsArchived: false, IsTrashed: false, IsHidden: false, DeviceMayEditItems: true);
 
     [Fact]
     public void OwnPhoto_OnDesktop_OffersEverything()

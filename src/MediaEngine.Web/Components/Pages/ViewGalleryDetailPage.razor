@@ -370,7 +370,7 @@
         // Move to Trash is offered only where the device may edit items (never a TV), and never for an item in a read-only folder.
         if (EditorDeviceRule.TryRefuseItems(DeviceContext))
         {
-            _deviceNotice = EditorDeviceRule.ItemMessage;
+            Ribbon.Add(EditorDeviceRule.ItemMessage, AppSeverity.Warning);
             return;
         }
 

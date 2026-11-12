@@ -80,18 +80,13 @@ public sealed class ViewEditorGuardrailTests
     }
 
     [Fact]
-    public void EveryViewSurfaceThatAsksThePolicyTellsItWhetherTheDeviceMayEditItems_AndEveryTrashHandlerChecksTheDevice()
+    public void EveryViewSurfaceThatAsksThePolicyPassesTheDeviceRule()
     {
-        // Move to Trash is offered only where EditorDeviceRule.CanEditItems is true (never a TV); the policy needs the answer and each handler asks again.
+        // Move to Trash is offered only where EditorDeviceRule.CanEditItems is true (never a TV). The policy field has no default, so a caller cannot forget it;
+        // this checks the value each caller passes. The Trash handlers' refusal on a TV is covered at runtime in ViewEmptyTrashTests (ViewPage, People, Places, Gallery, Documents).
         foreach (var file in new[] { "ViewPage", "ViewPeoplePage", "ViewImmersiveViewer" })
         {
             Assert.Contains("DeviceMayEditItems: EditorHost.CanEdit", Web($"Components/Pages/{file}.razor"), StringComparison.Ordinal);
-        }
-
-        foreach (var file in new[] { "ViewPage", "ViewPeoplePage", "ViewPlacesPage", "ViewGalleryDetailPage", "ViewDocumentsPage" })
-        {
-            var source = Web($"Components/Pages/{file}.razor");
-            Assert.True(source.Contains("EditorDeviceRule.ItemMessage", StringComparison.Ordinal), $"{file} must refuse Trash with EditorDeviceRule.ItemMessage.");
         }
     }
 

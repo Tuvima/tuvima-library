@@ -39,8 +39,8 @@ public readonly record struct ViewActionContext(
     bool IsArchived,
     bool IsTrashed,
     bool IsHidden,
-    bool DownloadAllowed = true,
-    bool DeviceMayEditItems = true);
+    bool DeviceMayEditItems,
+    bool DownloadAllowed = true);
 
 /// <summary>
 /// The one rule for which actions an item offers (spec view-section D5). The selection bar, the tile menu and the viewer all ask here, so they
