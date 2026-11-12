@@ -2,6 +2,8 @@
 
 > **Status:** Built, awaiting Local checks (Locked by Shy 2026-11-03: "Agree on all"; built 2026-11-03) · **Version:** 1 · **Last updated:** 2026-11-03 (drag and drop added) · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
 
+> **Version note (2026-11-12):** [universal-editor-v6](archive/universal-editor-v6-match-and-aligned-rows.md) (section 9) changes D3 "Series and order changes never move files": a series change now moves the file in a Managed folder, with an amber warning, and never in a Read-only folder (D24 there). Order is unchanged. It also replaces the "editing is desktop-only" rule wherever this spec states it or hides an edit action on phones: item editing works on desktop, tablet and phone (`EditorDeviceRule.CanEditItems`), the Engine's permission check still decides who may edit, and TVs do not edit. Settings and Vault tools stay desktop-only. The Locked body below is unchanged.
+
 > **Version note (2026-11-10):** parts superseded by [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): ordering and sections move from the Contents tab to the item dropdown's Reorder mode and the supporting-files browser (Q4).
 
 ## 1. Goal
