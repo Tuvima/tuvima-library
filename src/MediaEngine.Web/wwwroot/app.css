@@ -555,9 +555,12 @@ body {
 
 /* AppDialogShell supplies the visible modal surface. Keep the the shared UI layer host
    geometry-only so it cannot add a second border or scrolling container. */
-.tl-dialog.app-dialog-host {
+.tl-dialog.app-dialog-host:where(:not(.tl-fbrowser-host--phone, .tl-hnav__surface--phone, .view-hnav__surface--phone)) {
     width: fit-content !important;
     max-width: calc(100vw - 32px) !important;
+}
+
+.tl-dialog.app-dialog-host {
     overflow: visible !important;
     border: 0 !important;
     background: transparent !important;
@@ -3860,8 +3863,8 @@ input[type="reset"],
     }
 }
 
-.tl-dialog,
-.app-dialog-shell {
+.tl-dialog:where(:not(.tl-fbrowser-host--phone)),
+.app-dialog-shell:where(:not(.tl-fbrowser-host--phone .app-dialog-shell)) {
     max-height: calc(100dvh - var(--tl-safe-area-top) - var(--tl-safe-area-bottom) - 1rem) !important;
 }
 
@@ -5350,7 +5353,13 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .tl-hnav__sheet .tl-hnav__search{padding:var(--tl-space-1) 0}
 /* The sheet's search box: its 44 px is the field's inside, so the border box is 46 and the typed-in part is the full 44 (and 16 px text from the phone window). */
 .tl-hnav__sheet .tl-hnav__search .app-search-field{--app-control-height:calc(var(--tl-tap-target-min) + 2px)}
-.tl-hnav__surface--phone{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
+.tl-hnav__surface--phone,.view-hnav__surface--phone{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
+/* Reorder mode in the phone sheet (v6 4a): the shared Reorder bar is fixed to the screen's bottom everywhere else, but the sheet is moved by its drag (a transform), so a fixed box is
+   measured against the sheet itself and laid over the end of the list. Here it is the last thing in the list's panel and sticks to the bottom of the sheet's scrolling part, edge to edge:
+   the list always ends above it, so the last row can be reached, and the sheet's own bottom padding (the safe area) keeps it clear of the home indicator. */
+.tl-hnav__surface--phone.tl-hnav__surface--reordering .app-reorder-bar{position:sticky;bottom:0;inset-inline:auto;margin:0 calc(var(--tl-space-2) * -1) calc((var(--tl-space-2) + var(--tl-space-3)) * -1)}
+/* The list gives up the height the sheet's frame, title and the bar need (21rem), so on a short phone the sheet still fits the screen and the bar ends it, not cut off by the sheet's own limit. */
+.tl-hnav__surface--phone.tl-hnav__surface--reordering .tl-hnav__scroll{max-height:min(32rem,62vh,calc(100dvh - var(--tl-safe-area-top) - var(--tl-safe-area-bottom) - 21rem))}
 /* The tabs of the editor on a phone (v6 D21, WP15): the root of Details, Artwork, History and Bookmarks carries .tl-editor-touch, which makes every compact button and icon button
    in it a 44 px touch target. The lock beside a label and Revert are the same size; the label line wraps when a long name and its tools do not fit one line. */
 .tl-editor-touch :is(.app-button,.app-icon-button).app-control--compact{--app-control-height:var(--tl-control-height-md)}
@@ -5386,6 +5395,70 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .view-edit-body--phone .view-edit-contents__tile>.app-button{width:100%;height:auto;padding:0}
 .tl-editor-popover__editing{flex:1 1 auto;min-width:0;overflow:hidden;color:var(--tl-text-secondary);text-overflow:ellipsis;white-space:nowrap}.tl-editor-window__main{display:flex;flex:1 1 auto;min-height:0}.tl-editor-window__content{display:flex;flex:1 1 auto;flex-direction:column;min-width:0;min-height:0}.tl-editor-window__tabs{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;padding:0}.tl-editor-window__tabs>.tl-tabs-toolbar{flex:0 0 auto;padding:0 var(--tl-space-4)}.tl-editor-window__tabs>.tl-tabs-panels{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}.tl-editor-window__tabs .tl-tab-panel{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;outline:0}.tl-editor-window__tabs .tl-tab-panel[hidden]{display:none}.tl-editor-window__close{position:absolute;top:1.125rem;right:1.25rem;z-index:3}.tl-editor-window--framed>.tl-editor-header{padding-right:4.5rem}.tl-editor-window__where{display:flex;align-items:center;gap:var(--tl-space-3);min-width:0;padding-left:.875rem;border-left:1px solid var(--tl-divider);color:var(--tl-text-secondary);line-height:1.25}.tl-editor-window__where-icon{flex:0 0 auto}.tl-editor-window__where-text{display:flex;flex-direction:column;min-width:0}.tl-editor-window__where strong{color:var(--tl-text-primary);font-size:.8125rem}.tl-editor-window__where small{color:var(--tl-text-muted);font-size:.8125rem}.tl-editor-window__where--warn{color:var(--tl-status-warning)}.tl-editor-window__where--warn strong{color:var(--tl-status-warning)}.tl-editor-window--framed .tl-editor-window__changes{margin-left:auto}.tl-editor-window--framed .tl-editor-window__actions{margin-left:0}.tl-editor-window__footer{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:var(--tl-space-3);min-height:4rem;padding:var(--tl-space-2) var(--tl-space-5);border-top:1px solid var(--tl-divider);background:color-mix(in srgb,var(--tl-bg-root) 70%,var(--tl-bg-surface))}.tl-editor-window__notice{flex:0 0 auto;padding:var(--tl-space-2) var(--tl-space-4) 0}.tl-editor-window__notice ul{margin:var(--tl-space-1) 0 0;padding-left:1.25rem}.tl-editor-window__footer-start{display:flex;flex:0 0 auto;margin-right:var(--tl-space-2)}.tl-editor-window__changes{color:var(--tl-text-secondary);font-size:var(--tl-font-size-sm)}.tl-editor-window__actions{display:flex;gap:var(--tl-space-2);margin-left:auto}html:has(.tl-editor-window),body:has(.tl-editor-window){overflow:hidden}@media (max-width:1180px){.tl-editor-panel{width:100vw;height:100dvh;border:0;border-radius:0}}
 .app-step-indicator{display:flex;flex-wrap:wrap;gap:var(--tl-space-4);margin:0;padding:0;list-style:none}.app-step-indicator__step{display:flex;align-items:center;gap:var(--tl-space-2);color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}.app-step-indicator__step.is-active{color:var(--tl-text-primary);font-weight:var(--tl-font-weight-semibold)}.app-step-indicator__number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:1.5rem;height:1.5rem;border-radius:50%;border:1px solid currentColor;font-size:var(--tl-font-size-xs,.75rem)}.app-step-indicator__step.is-active .app-step-indicator__number{background:var(--tl-accent-primary);border-color:var(--tl-accent-primary);color:var(--tl-text-on-accent)}
+/* The supporting-files browser on a phone (universal editor v6 section 4a, D19 to D21, WP17). The dialog sets .tl-fbrowser-host--phone and the body
+   .tl-fbrowser--phone for a phone or a tablet in portrait. The window is full screen with the safe areas kept clear; the left list is not drawn (its
+   choices are in the Filters sheet); a row is a card of the name with one line under it and its "..." at the right; every control is at least 44 px. */
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone{--tl-field-text-size:var(--tl-font-size-md);width:100vw;max-width:none;height:100dvh;max-height:100dvh;margin:0;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);box-sizing:border-box}
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone>.app-native-dialog__grip{display:none}
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone>.tl-dialog-content{height:100%}
+dialog.tl-dialog.app-dialog-host.app-browser-host.tl-fbrowser-host--phone .app-dialog-shell{height:100%;max-height:none;border:0;border-radius:0}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2);padding:var(--tl-space-2) var(--tl-space-4) max(var(--tl-space-2),var(--tl-editor-safe-bottom))}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer>.tl-fbrowser__pager{grid-column:1/-1;justify-content:space-between}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer>.tl-button{min-width:0;min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-host--phone .app-dialog-shell__footer>[data-browser-close]:last-child{grid-column:1/-1}
+:root .tl-fbrowser--phone .app-browser{gap:var(--tl-space-2);min-height:0;padding:var(--tl-space-3) var(--tl-space-4)}
+:root .tl-fbrowser--phone .app-browser__body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0}
+:root .tl-fbrowser--phone .app-browser__side{display:none}
+:root .tl-fbrowser--phone .app-browser__search{flex:1 1 100%;min-width:0}
+:root .tl-fbrowser--phone .tl-button,.tl-fbrowser--phone .app-checkbox{min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-host--phone .app-search-field,:root .tl-fbrowser-host--phone .app-field{--app-control-height:calc(var(--tl-tap-target-min) + 2px)}
+:root .tl-fbrowser--phone .app-checkbox__control{width:var(--tl-tap-target-min);height:var(--tl-tap-target-min)}
+:root .tl-fbrowser--phone .app-browser__table,.tl-fbrowser--phone .app-browser__table tbody{display:block}
+:root .tl-fbrowser--phone .app-browser__table thead{display:none}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;border-bottom:1px solid var(--tl-border-default)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>td{height:auto;min-width:0;min-height:3.5rem;padding:0 var(--tl-space-1);border-bottom:0}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__tick{grid-column:1;width:auto}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__tick:not(:has(*)){display:none}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__namecell{grid-column:2;max-width:none;padding-inline:var(--tl-space-2)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-item>.app-browser-item__menu{grid-column:3;width:auto;padding:0}
+:root .tl-fbrowser--phone .app-browser-item__text b,.tl-fbrowser--phone .app-browser-item__text small{overflow:visible;overflow-wrap:anywhere;text-overflow:clip;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border-bottom:1px solid var(--tl-border-default)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>td{height:auto;min-width:0;min-height:0;padding:var(--tl-space-1) var(--tl-space-2);border-bottom:0}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>.app-browser-folder__namecell{grid-column:1;max-width:none;min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>.app-browser-folder__middle{grid-column:1/-1;width:auto;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder--folder>.app-browser-folder__middle{display:none}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder>.app-browser-folder__end{grid-column:1/-1;width:auto;text-align:start;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder--folder>.app-browser-folder__end{grid-column:2;grid-row:1}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-folder--file>.app-browser-folder__end{display:flex;flex-wrap:wrap;gap:var(--tl-space-2)}
+:root .tl-fbrowser--phone .app-browser-folder__text{overflow:visible;overflow-wrap:anywhere;text-overflow:clip;white-space:normal}
+:root .tl-fbrowser--phone .app-browser__table tr.app-browser-detail,.tl-fbrowser--phone .app-browser__table tr.app-browser-detail>td{display:block;min-width:0}
+:root .tl-fbrowser--phone .app-icon-button{min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-filters .app-browser-side-item{min-height:var(--tl-tap-target-min)}
+:root .tl-fbrowser-filters .app-browser-side-section{display:grid;gap:var(--tl-space-1)}
+:root .tl-fbbulk--phone [data-bulk="clear"]{grid-column:2;order:-1;justify-self:end;width:auto}
+:root .tl-fbbulk--phone [data-bulk="delete"]{grid-column:1/-1}
+:root .tl-fbbulk--phone .tl-button,:root .tl-fbbulk--phone .app-overflow-menu,:root .tl-fbbulk--phone .app-overflow-menu__trigger{width:100%;min-width:0;min-height:var(--tl-tap-target-min)}
+:root .tl-fbbulk--phone [data-bulk="clear"].tl-button{width:auto}
+:root .tl-fbbulk--phone .app-overflow-menu__trigger>svg:first-child{display:none}
+:root .tl-fbbulk--phone .app-overflow-menu__trigger{justify-content:space-between;gap:var(--tl-space-1);padding-inline:var(--tl-space-3)}
+:root .tl-fbrowser-host--phone .app-dialog-shell__icon{display:none}
+/* Editing several items on a phone (universal editor v6 WP17): the selection bar, the "Edit N items" window and the group Match. Buttons and the
+   small tools on each field are full 44 px touch targets; the field tools wrap under the label instead of squeezing it. */
+:root .tl-batch--phone .tl-batch__bar{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--tl-space-2);padding:var(--tl-space-3)}
+:root .tl-batch--phone .tl-batch__actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2)}
+:root .tl-batch--phone .tl-batch__actions>.tl-button,:root .tl-batch--phone .tl-batch__actions>.app-overflow-menu,:root .tl-batch--phone .tl-batch__actions>.app-overflow-menu .app-overflow-menu__trigger{width:100%;min-width:0;min-height:var(--tl-tap-target-min)}
+:root .tl-bulk--phone{padding:var(--tl-space-2) 0}
+:root .tl-bulk--phone .tl-editor-field__label{flex-wrap:wrap;row-gap:var(--tl-space-1)}
+:root .tl-bulk--phone .tl-editor-field__tools{flex-wrap:wrap;justify-content:flex-end}
+:root .tl-bulk--phone .tl-editor-field__tools .tl-button,:root .tl-bulk--phone .tl-editor-field__tools .tl-icon-button,:root .tl-bulk--phone .tl-bulk__actions .tl-button,:root .tl-bulk--phone .tl-editor-field__reset,:root .tl-bulk--phone .tl-bulk__cover,:root .tl-bulk--phone .tl-bulk__retry .tl-button{min-height:var(--tl-tap-target-min);min-width:var(--tl-tap-target-min)}
+:root .tl-bulk--phone .tl-bulk__items .app-chip,:root .tl-bulk--phone .tl-bulk__chips .app-chip{min-height:var(--tl-tap-target-min);max-width:100%}
+:root .tl-bulk--phone .tl-bulk__items .app-chip__remove,:root .tl-bulk--phone .tl-bulk__chips .app-chip__remove{min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min)}
+:root .tl-bulk--phone .tl-bulk__items{max-height:12rem}
+:root .tl-bulk--phone .tl-bulk__items>[role="listitem"]{display:flex;min-width:0;max-width:100%}
+:root .tl-bulk--phone .tl-bulk__items .app-chip{min-width:0}
+:root .tl-bulk--phone .tl-file-upload label{display:inline-flex;align-items:center;min-height:var(--tl-tap-target-min);padding-inline:var(--tl-space-3)}
+:root .tl-bulk--phone .app-tag-input input,:root .tl-bulk--phone .app-tag-input button{height:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min)}
+:root .tl-bulk--phone .app-tag-input input{font-size:var(--tl-font-size-md)}
 /* The page behind the pop-over is locked (editor v3 D8): the details overlay's own scroller is the bar that stayed visible beside the dimmed page. */
 body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-window) [data-detail-origin-scroll]{overflow:hidden;overscroll-behavior:none}
 /* The photos, videos, documents and galleries editor (spec photos-documents-editor): the shared editor window with its own tool bodies. */

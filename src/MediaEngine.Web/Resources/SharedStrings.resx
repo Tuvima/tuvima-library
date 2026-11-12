@@ -12191,6 +12191,24 @@
   <data name="EditorBrowser_Search" xml:space="preserve">
     <value>Search places</value>
   </data>
+  <data name="EditorBrowser_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="EditorBrowser_FiltersCount" xml:space="preserve">
+    <value>Filters ({0})</value>
+  </data>
+  <data name="EditorBrowser_BackToFiles" xml:space="preserve">
+    <value>Back to supporting files</value>
+  </data>
+  <data name="EditorReorder_MenuUp" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="EditorReorder_MenuDown" xml:space="preserve">
+    <value>Move down</value>
+  </data>
+  <data name="EditorVideoSeries_OrderReadFailed" xml:space="preserve">
+    <value>The order of these videos could not be read.</value>
+  </data>
   <data name="EditorWikidata_SearchLabel" xml:space="preserve">
     <value>Search Wikidata</value>
   </data>

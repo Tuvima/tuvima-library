@@ -209,7 +209,7 @@ public sealed class BulkEditFields
                     }
                     else
                     {
-                        error = outcome.Message ?? "Couldn't load the fields. Close this and try again.";
+                        error = outcome.Message ?? "Couldn't load the fields. Try again.";
                     }
                 }
             }

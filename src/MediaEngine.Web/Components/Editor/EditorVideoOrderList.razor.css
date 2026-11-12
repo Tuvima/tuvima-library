@@ -71,6 +71,8 @@
     display: inline-flex;
     cursor: grab;
     opacity: 0.7;
+    /* The handle only (never the row): a finger on it drags the video instead of scrolling the page, in every arrangement that offers touch drag. */
+    touch-action: none;
 }
 
 .tl-vorder__position {
@@ -97,4 +99,42 @@
 .tl-vorder__empty p {
     margin: 0;
     font-size: var(--tl-font-size-sm);
+}
+
+/* The phone arrangement (universal editor v6, D21): rows at least 44 px, a handle a finger can hold (touch-action: none so the page does not scroll
+   under the drag), the row's "..." in place of the two arrows, and a long title that wraps instead of being cut short. */
+.tl-vorder--phone .tl-vorder__row {
+    min-height: var(--tl-tap-target-min);
+    padding: var(--tl-space-1) var(--tl-space-1) var(--tl-space-1) var(--tl-space-1);
+    font-size: var(--tl-font-size-md);
+}
+
+.tl-vorder--phone .tl-vorder__grip {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: var(--tl-tap-target-min);
+    height: var(--tl-tap-target-min);
+    opacity: 1;
+}
+
+.tl-vorder--phone .tl-vorder__title {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+}
+
+.tl-vorder--phone .tl-vorder__sort .tl-button {
+    min-height: var(--tl-tap-target-min);
+}
+
+.tl-vorder__failed {
+    display: grid;
+    gap: var(--tl-space-2);
+    justify-items: start;
+}
+
+.tl-vorder--phone .tl-vorder__row.is-dragging {
+    background: var(--tl-bg-surface-elevated);
 }

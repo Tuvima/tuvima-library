@@ -27,3 +27,30 @@
     gap: var(--tl-space-2);
     align-items: center;
 }
+
+/* The phone arrangement: the bar sits at the bottom of the list, above the footer (which keeps the safe area clear). The count and Clear share the first
+   line and the actions go two to a line (the buttons' own rules are in wwwroot/app.css, since a button does not carry this file's scope). */
+.tl-fbbulk--phone {
+    display: grid;
+    grid-auto-flow: row dense;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: none;
+    max-height: 60dvh;
+    overflow-y: auto;
+}
+
+.tl-fbbulk--phone .tl-fbbulk__count {
+    grid-column: 1;
+    order: -2;
+    margin: 0;
+}
+
+.tl-fbbulk--phone .tl-fbbulk__note,
+.tl-fbbulk--phone .tl-fbbulk__ask {
+    grid-column: 1 / -1;
+}
+
+.tl-fbbulk--phone .tl-fbbulk__slot {
+    display: block;
+    min-width: 0;
+}

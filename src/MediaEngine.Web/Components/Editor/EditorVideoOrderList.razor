@@ -17,7 +17,7 @@
    arrangement is held here until the shared Reorder bar's Save order calls CommitAsync, so Cancel leaves nothing staged (v6 D23). *@
 @if (_editor.HasSomethingToOrder)
 {
-    <section class="tl-vorder" data-testid="video-order-section" @ref="_root">
+    <section class="@(IsPhone ? "tl-vorder tl-vorder--phone" : "tl-vorder")" data-testid="video-order-section" @ref="_root">
         @* Move up and Move down are said aloud ("Moved Lesson 3 to position 2") so the order can be followed without seeing the list. *@
         <div class="sr-only" role="status" aria-live="polite" data-testid="video-order-announce">@_announcement</div>
         @if (!Compact)
@@ -61,13 +61,30 @@
                         var row = list.Current[rowIndex];
                         var ri = rowIndex;
                         <li class="tl-vorder__row" data-vo-list="@li" data-vo-row="@ri" data-vo-title="@row.Title" @key="row.Id">
-                            <AppTooltip Text="@L["EditorVideoSeries_DragToReorder", row.Title].Value">
+                            @if (IsPhone)
+                            {
+                                @* A finger drags by the handle (touch-action: none, pointer events in video-order-drag.js); there is no hover, so no tooltip on it. *@
                                 <span class="tl-vorder__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" aria-hidden="true">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
                                 </span>
-                            </AppTooltip>
+                            }
+                            else
+                            {
+                                <AppTooltip Text="@L["EditorVideoSeries_DragToReorder", row.Title].Value">
+                                    <span class="tl-vorder__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" aria-hidden="true">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
+                                    </span>
+                                </AppTooltip>
+                            }
                             <span class="tl-vorder__position" aria-label="@L["EditorVideoSeries_Position", ri + 1].Value">@(ri + 1)</span>
-                            <span class="tl-vorder__title" data-overflow-tooltip="@row.Title">@row.Title</span>
+                            <span class="tl-vorder__title" data-overflow-tooltip="@(IsPhone ? null : row.Title)">@row.Title</span>
+                            @if (IsPhone)
+                            {
+                                @* The other way to move a video: the row's "..." opens Move up and Move down as a sheet. *@
+                                <AppRowMenu AriaLabel="@string.Format(L["EditorBrowser_ActionsFor"].Value, row.Title)" Title="@row.Title" Items="@MoveItems(li, ri)" />
+                            }
+                            else
+                            {
                             <span class="tl-vorder__arrows">
                                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Size="AppControlSize.Compact" Tooltip="@L["EditorVideoSeries_MoveUp", row.Title].Value"
                                                AriaLabel="@L["EditorVideoSeries_MoveUp", row.Title].Value" Disabled="@(!CanChange || !_editor.CanMoveUp(li, ri))"
@@ -76,6 +93,7 @@
                                                AriaLabel="@L["EditorVideoSeries_MoveDown", row.Title].Value" Disabled="@(!CanChange || !_editor.CanMoveDown(li, ri))"
                                                OnClick="@(() => NudgeAsync(li, ri, 1))" />
                             </span>
+                            }
                         </li>
                     }
                 </ol>
@@ -97,6 +115,14 @@
         }
     </section>
 }
+else if (_loadFailed)
+{
+    @* The Engine could not be reached: the plain line and Try again; anything already staged stays staged. *@
+    <div class="tl-vorder__failed" data-testid="video-order-failed">
+        <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorVideoSeries_OrderReadFailed"]</AppAlert>
+        <AppButton Label="@L["EditorVideoSeries_TryAgain"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="RetryAsync" data-testid="video-order-retry" />
+    </div>
+}
 else if (_loaded && HoldChanges)
 {
     <div class="tl-vorder__empty" data-testid="video-order-empty">
@@ -106,6 +132,7 @@ else if (_loaded && HoldChanges)
 
 @code {
     private readonly VideoOrderEditor _editor = new();
+    private bool _loadFailed;
     private ElementReference _root;
     private Guid _loadedFor;
     private bool _loaded;
@@ -116,6 +143,14 @@ else if (_loaded && HoldChanges)
     // Reorder mode: the "Rename the files" choices made but not yet staged, by list.
     private readonly Dictionary<Guid, bool> _renameHeld = [];
     private bool _lastDirty;
+
+    /// <summary>The arrangement the editor window is drawn in (cascaded from the window).</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    /// <summary>The phone arrangement for a list drawn outside the editor window (the browser's Folders and files view): drag by the handle, or Move up and Move down in the row's "...".</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(Phone, Layout);
 
     /// <summary>An item of the series (the series itself, a section or one video); the Engine reads the series' lists from it.</summary>
     [Parameter, EditorRequired] public Guid EntityId { get; set; }
@@ -197,6 +232,7 @@ else if (_loaded && HoldChanges)
         var id = EntityId;
         _loadedFor = id;
         _loaded = false;
+        _loadFailed = false;
         if (id == Guid.Empty)
         {
             _editor.Load(null);
@@ -239,6 +275,7 @@ else if (_loaded && HoldChanges)
             _editor.Load(null);
             // Forget that this item was loaded, so the next time the list is shown it reads again instead of staying blank.
             _loadedFor = Guid.Empty;
+            _loadFailed = true;
         }
     }
 
@@ -264,6 +301,18 @@ else if (_loaded && HoldChanges)
     }
 
     private string _announcement = string.Empty;
+
+    private Task RetryAsync()
+    {
+        _loadedFor = Guid.Empty;
+        return OnParametersSetAsync();
+    }
+
+    private IReadOnlyList<AppRowMenuItem> MoveItems(int list, int index) =>
+    [
+        new AppRowMenuItem { Label = L["EditorReorder_MenuUp"].Value, Icon = AppMaterialIcons.Outlined.ArrowUpward, Disabled = !CanChange || !_editor.CanMoveUp(list, index), OnClick = EventCallback.Factory.Create(this, () => NudgeAsync(list, index, -1)) },
+        new AppRowMenuItem { Label = L["EditorReorder_MenuDown"].Value, Icon = AppMaterialIcons.Outlined.ArrowDownward, Disabled = !CanChange || !_editor.CanMoveDown(list, index), OnClick = EventCallback.Factory.Create(this, () => NudgeAsync(list, index, 1)) },
+    ];
 
     private Task NudgeAsync(int list, int index, int step)
     {

@@ -66,3 +66,7 @@
 .is-quiet {
     color: var(--tl-text-secondary);
 }
+
+.app-browser-item > .app-browser-item__namecell.is-activatable {
+    cursor: pointer;
+}

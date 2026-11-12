@@ -5,18 +5,23 @@
 @using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject IAppDialogService Dialogs
+@inject DeviceContextService Device
 @inject IStringLocalizer<SharedStrings> L
 
 @* The supporting-files browser (universal editor v5 WP8, screen E): "All supporting files" and the folder button open it over the editor. A dialog
    whose body is the shared browser frame (D32, WP8a): search and two filters on top, the left list (Where, groups, the switch to Folders and files),
    the table with ticks and the bulk bar, and a footer with paging, Close and Edit selected. The "Folders and files" view is the same frame with
    folder rows (EditorFileBrowserFolders). It answers with what the editor should do next; the ticks and filters stay in the editor's
-   EditorFileBrowserState, so "Back to the list" finds them again. *@
+   EditorFileBrowserState, so "Back to the list" finds them again.
+
+   On a phone (universal editor v6 section 4a, D19 to D21) it is a full-screen window: the search box at the top with a Filters button and a Select
+   button under it, the filters (Where, Type, the groups and the switch to Folders and files) in a bottom sheet, rows that are the name with one line
+   under it and a "..." sheet, and, once Select is on, ticks and the bulk actions in a bar at the bottom. Same state, same handlers, same staging. *@
 <AppDialogShell Title="@L["EditorBrowser_Title"].Value"
                 Subtitle="@EditorFileBrowserRules.Subtitle(L, State.TitleName, State.List?.TotalAll ?? 0, State.MediaType)"
                 Icon="@AppMaterialIcons.Outlined.Collections"
                 Size="Large"
-                HostClass="@AppBrowserFrame.HostClass"
+                HostClass="@(Phone ? $"{AppBrowserFrame.HostClass} tl-fbrowser-host--phone" : AppBrowserFrame.HostClass)"
                 OnClose="@(() => Finish(EditorFileBrowserOutcome.Closed))">
     <ChildContent>
         @if (_deleteNotice is not null)
@@ -24,10 +29,10 @@
             @* Some files could not be deleted: the reason stays at the top of the browser until the next try or the close button. *@
             <AppAlert Severity="AppSeverity.Error" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _deleteNotice = null)" data-file-browser-delete-notice="true">@_deleteNotice</AppAlert>
         }
-        <div class="tl-fbrowser" data-testid="file-browser" data-view="@State.View.ToString().ToLowerInvariant()">
+        <div class="@(Phone ? "tl-fbrowser tl-fbrowser--phone" : "tl-fbrowser")" data-testid="file-browser" data-view="@State.View.ToString().ToLowerInvariant()">
             @if (State.View == EditorBrowserView.Folders)
             {
-                <EditorFileBrowserFolders State="State" Session="Session" Subject="Subject" Family="Family" IsVideoSeries="IsVideoSeries" CanEdit="CanEdit" OnChoose="Finish" />
+                <EditorFileBrowserFolders State="State" Session="Session" Subject="Subject" Family="Family" IsVideoSeries="IsVideoSeries" CanEdit="CanEdit" Phone="Phone" OnChoose="Finish" />
             }
             else
             {
@@ -49,16 +54,38 @@
                                  OnToggleRow="@(ReadOnly ? default : EventCallback.Factory.Create<int>(this, ToggleHighlighted))"
                                  ShowState="ShowState">
                     <ToolbarEnd>
-                        <div class="tl-fbrowser__select">
-                            <AppSelect T="string" Value="@State.Where" ValueChanged="@(value => State.SetWhereAsync(value))" Options="@WhereChoices"
-                                       AriaLabel="@L["EditorBrowser_Where"].Value" />
-                        </div>
-                        <div class="tl-fbrowser__select">
-                            <AppSelect T="string" Value="@(State.TypeFilter ?? EditorFileBrowserRules.AllTypes)" ValueChanged="@(value => State.SetTypeAsync(value))" Options="@TypeChoices"
-                                       AriaLabel="@L["EditorBrowser_Type"].Value" />
-                        </div>
+                        @if (Phone)
+                        {
+                            @* Filters open a sheet; Select turns ticking on (and, pressed again as Done, off with the ticks cleared). Each is a full 44 px button. *@
+                            <div class="tl-fbrowser__phonebar">
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.Tune"
+                                           Label="@FiltersLabel" aria-haspopup="dialog" data-testid="file-browser-filters-button" OnClick="OpenFilters" />
+                                @if (!ReadOnly)
+                                {
+                                    <AppButton ButtonStyle="@(Selecting ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="@(Selecting ? AppUiTone.Primary : AppUiTone.Neutral)"
+                                               StartIcon="@AppMaterialIcons.Outlined.CheckCircle" Label="@(Selecting ? L["Common_Done"].Value : L["EditorBrowser_Select"].Value)"
+                                               aria-pressed="@(Selecting ? "true" : "false")" data-testid="file-browser-select" OnClick="ToggleSelect" />
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="tl-fbrowser__select">
+                                <AppSelect T="string" Value="@State.Where" ValueChanged="@(value => State.SetWhereAsync(value))" Options="@WhereChoices"
+                                           AriaLabel="@L["EditorBrowser_Where"].Value" />
+                            </div>
+                            <div class="tl-fbrowser__select">
+                                <AppSelect T="string" Value="@(State.TypeFilter ?? EditorFileBrowserRules.AllTypes)" ValueChanged="@(value => State.SetTypeAsync(value))" Options="@TypeChoices"
+                                           AriaLabel="@L["EditorBrowser_Type"].Value" />
+                            </div>
+                        }
                     </ToolbarEnd>
-                    <Sidebar><EditorFileBrowserSidebar State="State" ReadOnly="ReadOnly" /></Sidebar>
+                    <Sidebar>
+                        @if (!Phone)
+                        {
+                            <EditorFileBrowserSidebar State="State" ReadOnly="ReadOnly" />
+                        }
+                    </Sidebar>
                     <InsideContent>
                         @if (State.List is { Total: > 0 })
                         {
@@ -67,7 +94,8 @@
                     </InsideContent>
                     <Columns><EditorFileBrowserColumns State="State" ReadOnly="ReadOnly" /></Columns>
                     <Rows>
-                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" ReadOnly="ReadOnly" Highlight="_highlight" IdPrefix="@RowIdPrefix" OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
+                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" ReadOnly="ReadOnly" Highlight="_highlight" IdPrefix="@RowIdPrefix" Phone="Phone" Selecting="Selecting"
+                                          OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
                     </Rows>
                     <StateContent>
                         @if (State.Error is { } error && State.List is null)
@@ -107,17 +135,36 @@
                             </div>
                         }
 
-                        @if (!ReadOnly)
+                        @if (!ReadOnly && (!Phone || Selecting))
                         {
-                            <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" OnDelete="DeleteTickedAsync" />
+                            <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" Phone="Phone" OnDelete="DeleteTickedAsync" />
                         }
                     </AfterContent>
                 </AppBrowserFrame>
+
+                @if (Phone && _filtersOpen)
+                {
+                    @* The filters as a bottom sheet (the app's phone sheet, as the row menus use): Where and Type as dropdowns, then the groups and the switch to
+                       Folders and files. A choice applies at once; the sheet closes with its X, Done, a swipe down or Escape. *@
+                    <AppDialogFrame Open="true" Title="@L["EditorBrowser_Filters"].Value" DialogOptions="_sheetOptions" Class="tl-fbrowser-filters" OnCancel="@CloseFilters">
+                        <div class="tl-fbrowser__filters" role="group" aria-label="@L["EditorBrowser_Filters"].Value" data-testid="file-browser-filters-sheet">
+                            <AppSelect T="string" Value="@State.Where" ValueChanged="@(value => State.SetWhereAsync(value))" Options="@WhereChoices"
+                                       Label="@L["EditorBrowser_Where"].Value" />
+                            <AppSelect T="string" Value="@(State.TypeFilter ?? EditorFileBrowserRules.AllTypes)" ValueChanged="@(value => State.SetTypeAsync(value))" Options="@TypeChoices"
+                                       Label="@L["EditorBrowser_Type"].Value" />
+                            <EditorFileBrowserSidebar State="State" ReadOnly="ReadOnly" OmitWhere="true" />
+                            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Label="@L["Common_Done"].Value" data-testid="file-browser-filters-done" OnClick="CloseFilters" />
+                        </div>
+                    </AppDialogFrame>
+                }
             }
         </div>
     </ChildContent>
     <FooterContent>
-        <span class="tl-fbrowser__hint">@(State.View == EditorBrowserView.Files ? L["EditorBrowser_UngroupedHint"].Value : L["EditorBrowser_FoldersHint"].Value)</span>
+        @if (!Phone)
+        {
+            <span class="tl-fbrowser__hint">@(State.View == EditorBrowserView.Files ? L["EditorBrowser_UngroupedHint"].Value : L["EditorBrowser_FoldersHint"].Value)</span>
+        }
         @if (State.View == EditorBrowserView.Files && State.List is { PageCount: > 1 } list)
         {
             <div class="tl-fbrowser__pager" role="navigation" aria-label="@L["EditorBrowser_Pages"].Value" data-testid="file-browser-pager">
@@ -142,7 +189,49 @@
 @code {
     private const string RowIdPrefix = "efb-row";
 
+    private static readonly AppDialogOptions _sheetOptions = new() { Sheet = AppDialogSheetMode.PhoneAndTablet, CloseButton = true, BackdropClick = true, CloseOnEscapeKey = true };
+
     private int _highlight;
+    private bool _selecting;
+    private bool _filtersOpen;
+
+    /// <summary>The phone arrangement. Left unset, the device decides (a phone or a tablet form factor, as for the editor window); a test sets it.</summary>
+    [Parameter] public bool? PhoneArrangement { get; set; }
+
+    private bool Phone => PhoneArrangement ?? EditorPhoneArrangement.Applies(Device);
+
+    // "Filters" with how many of Where, Type and Group are narrowing the list.
+    private string FiltersLabel
+    {
+        get
+        {
+            var active = (State.Where != SupportingFileListDefaults.WhereAll ? 1 : 0)
+                + (State.TypeFilter is not null && State.TypeFilter != EditorFileBrowserRules.AllTypes ? 1 : 0)
+                + (State.Group != SupportingFileListDefaults.GroupAll ? 1 : 0);
+            return active == 0 ? L["EditorBrowser_Filters"].Value : string.Format(L["EditorBrowser_FiltersCount"].Value, active);
+        }
+    }
+
+    private void OpenFilters() => _filtersOpen = true;
+
+    private void CloseFilters() => _filtersOpen = false;
+
+    // Ticks that are kept (Folders view and back, a tablet turned) keep Select on, so Edit selected never acts on ticks nobody can see.
+    private bool Selecting => _selecting || State.Ticked.Count > 0;
+
+    // Select turns ticking on; Done turns it off and leaves nothing ticked behind.
+    private void ToggleSelect()
+    {
+        if (Selecting)
+        {
+            _selecting = false;
+            State.ClearTicks();
+        }
+        else
+        {
+            _selecting = true;
+        }
+    }
 
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
 
@@ -195,7 +284,8 @@
 
     private void ToggleHighlighted(int index)
     {
-        if (index >= 0 && index < State.Rows.Count)
+        // On a phone a row ticks only while Select is on (the tick boxes are not drawn otherwise).
+        if (index >= 0 && index < State.Rows.Count && (!Phone || Selecting))
         {
             State.Toggle(State.Rows[index]);
         }
@@ -221,14 +311,31 @@
 
     private string? _deleteNotice;
 
-    protected override void OnInitialized() => State.Changed += OnChanged;
+    protected override void OnInitialized()
+    {
+        State.Changed += OnChanged;
+        Device.OnChanged += OnDeviceChanged;
+    }
 
-    // A new page or filter is a new list: the highlight stays on a row that still exists.
+    // A new page or filter is a new list: the highlight stays on a row that still exists. The Folders and files view replaces the Files view, so the
+    // filters sheet (which belongs to the Files view) goes with it.
     private void OnChanged()
     {
         _highlight = Math.Clamp(_highlight, 0, Math.Max(0, State.Rows.Count - 1));
+        if (State.View != EditorBrowserView.Files)
+        {
+            _filtersOpen = false;
+        }
+
         _ = InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose() => State.Changed -= OnChanged;
+    // The window crossed a form-factor width (a tablet turned): the browser is drawn again in the other arrangement, with its ticks kept.
+    private void OnDeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        State.Changed -= OnChanged;
+        Device.OnChanged -= OnDeviceChanged;
+    }
 }
