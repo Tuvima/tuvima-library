@@ -518,10 +518,21 @@ public sealed class CollectionBrowseReadService(
         string field,
         string? query,
         int limit,
+        CancellationToken ct) =>
+        GetFieldValuesAsync(field, query, limit, null, ct);
+
+    public Task<IReadOnlyList<string>> GetFieldValuesAsync(
+        string field,
+        string? query,
+        int limit,
+        IReadOnlyList<string>? mediaTypes,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var take = Math.Clamp(limit, 1, 500);
+        var types = NormalizeMediaTypes(mediaTypes);
+        // Only the titles of the chosen media types count, so a music playlist is never offered a film genre.
+        var typeClause = types.Length == 0 ? string.Empty : MediaTypeClause;
         using var conn = db.CreateConnection();
         var sql = string.Equals(field, "media_type", StringComparison.OrdinalIgnoreCase)
             ? $"""
@@ -541,11 +552,13 @@ public sealed class CollectionBrowseReadService(
                   FROM canonical_values
                   WHERE key = @Field
                     AND {VaultSql.NotVaultAnyEntity("canonical_values.entity_id")}
+                    {typeClause}
                   UNION ALL
                   SELECT value
                   FROM canonical_value_arrays
                   WHERE key = @Field
                     AND {VaultSql.NotVaultAnyEntity("canonical_value_arrays.entity_id")}
+                    {typeClause}
               )
               WHERE NULLIF(value, '') IS NOT NULL
                 AND (@Query IS NULL OR value LIKE @Query COLLATE NOCASE)
@@ -554,18 +567,28 @@ public sealed class CollectionBrowseReadService(
               """;
         var rows = conn.Query<string>(new CommandDefinition(
             sql,
-            new { Field = field, Query = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%", Limit = take },
+            new { Field = field, Query = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%", Limit = take, Types = types },
             cancellationToken: ct));
         return Task.FromResult<IReadOnlyList<string>>(rows.AsList());
     }
+
+    public Task<IReadOnlyList<CollectionRuleValueDto>> GetEntityFieldValuesAsync(
+        string field,
+        string? query,
+        int limit,
+        CancellationToken ct) =>
+        GetEntityFieldValuesAsync(field, query, limit, null, ct);
 
     public async Task<IReadOnlyList<CollectionRuleValueDto>> GetEntityFieldValuesAsync(
         string field,
         string? query,
         int limit,
+        IReadOnlyList<string>? mediaTypes,
         CancellationToken ct)
     {
         var take = Math.Clamp(limit, 1, 500);
+        var types = NormalizeMediaTypes(mediaTypes);
+        var typeClause = types.Length == 0 ? string.Empty : MediaTypeClause;
         using var conn = db.CreateConnection();
         var sql = field.ToLowerInvariant() switch
         {
@@ -615,6 +638,7 @@ public sealed class CollectionBrowseReadService(
             FROM canonical_value_arrays
             WHERE key = @Field
               AND {VaultSql.NotVaultAnyEntity("canonical_value_arrays.entity_id")}
+              {typeClause}
               AND NULLIF(value_qid, '') IS NOT NULL
               AND NULLIF(value, '') IS NOT NULL
             GROUP BY value_qid
@@ -627,12 +651,25 @@ public sealed class CollectionBrowseReadService(
         };
         var rows = await conn.QueryAsync<CollectionRuleValueRow>(new CommandDefinition(
             sql,
-            new { Field = field, Query = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%", Limit = take },
+            new { Field = field, Query = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%", Limit = take, Types = types },
             cancellationToken: ct)).ConfigureAwait(false);
         return rows
             .Select(row => new CollectionRuleValueDto(row.Value, row.Label, checked((int)row.LocalCount), RuleOptionGroup(field)))
             .ToList();
     }
+
+    // Values hang on a Work, its editions or its media assets; a value belongs to a media type when any of them is a title of that type.
+    private const string MediaTypeClause = """
+        AND (
+            -- readiness: narrows a rule editor's value list to the chosen types, it lists no titles
+            entity_id IN (SELECT id FROM works WHERE media_type IN @Types)
+            OR entity_id IN (SELECT e.id FROM editions e INNER JOIN works w ON w.id = e.work_id WHERE w.media_type IN @Types)
+            OR entity_id IN (SELECT ma.id FROM media_assets ma INNER JOIN editions e ON e.id = ma.edition_id INNER JOIN works w ON w.id = e.work_id WHERE w.media_type IN @Types)
+        )
+        """;
+
+    private static string[] NormalizeMediaTypes(IReadOnlyList<string>? mediaTypes) =>
+        (mediaTypes ?? []).Where(type => !string.IsNullOrWhiteSpace(type)).Select(type => type.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
     private static string RuleOptionGroup(string field) => field.ToLowerInvariant() switch
     {

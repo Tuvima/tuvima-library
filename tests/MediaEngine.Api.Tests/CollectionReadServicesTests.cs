@@ -1463,6 +1463,29 @@ public sealed class CollectionReadServicesTests : IDisposable
     }
 
     [Fact]
+    public async Task FieldValues_CanBeNarrowedToTheChosenMediaTypes()
+    {
+        var movieId = Guid.NewGuid();
+        var musicId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO works (id, media_type, work_kind) VALUES (@MovieId, 'Movies', 'standalone'), (@MusicId, 'Music', 'standalone');
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
+                VALUES (@MovieId, 'genre', 0, 'Narrow Western'), (@MusicId, 'genre', 0, 'Narrow Jazz');
+                """,
+                new { MovieId = movieId, MusicId = musicId });
+        }
+
+        var everything = await _browse.GetFieldValuesAsync("genre", "Narrow", 500, null, CancellationToken.None);
+        var musicOnly = await _browse.GetFieldValuesAsync("genre", "Narrow", 500, ["Music"], CancellationToken.None);
+
+        Assert.Contains("Narrow Western", everything);
+        Assert.Equal(["Narrow Jazz"], musicOnly);
+    }
+
+    [Fact]
     public async Task BrowseReads_ObserveCallerCancellation()
     {
         using var cancellation = new CancellationTokenSource();

@@ -1,0 +1,113 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.AspNetCore.Components.Routing
+@inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
+
+@* The bar of a Reorder mode (spec: Collections and View fixes, #877). A list that can be reordered enters the mode from its "..." menu,
+   changes only its own staged copy while the person drags or uses Move up / Move down, and calls on this bar to settle it: Save order sends
+   the staged order to the caller (which writes it, or holds it for its own Save), Cancel throws it away, and Escape cancels. It sits at the
+   bottom of the screen above the phone dock with 44 px buttons, so a phone reorders exactly like a computer. Leaving the page with an
+   unsaved order asks "Save or discard?". Nothing is drawn while the mode is off. *@
+@if (Active)
+{
+    <NavigationLock ConfirmExternalNavigation="@Dirty" OnBeforeInternalNavigation="ConfirmLeaveAsync" />
+    <div class="app-reorder-bar" role="region" aria-label="@L["AppReorderBar_Region"].Value" data-reorder-bar @onkeydown="HandleKeyAsync" @ref="_bar" tabindex="-1">
+        <span class="app-reorder-bar__message">@(Message ?? L["AppReorderBar_Hint"].Value)</span>
+        <div class="app-reorder-bar__buttons">
+            <AppButton Label="@L["AppReorderBar_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="CancelAsync" data-reorder-cancel="true" />
+            <AppButton Label="@L["AppReorderBar_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Loading="@Busy" Disabled="@(Busy || !Dirty)" OnClick="SaveAsync" data-reorder-save="true" />
+        </div>
+    </div>
+}
+
+@code {
+    private ElementReference _bar;
+    private bool _wasActive;
+
+    /// <summary>True while the list is in Reorder mode.</summary>
+    [Parameter] public bool Active { get; set; }
+
+    /// <summary>True once the staged order differs from the saved one; Save order is off until then.</summary>
+    [Parameter] public bool Dirty { get; set; }
+
+    /// <summary>True while the order is being written: both buttons wait.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>The line on the left; "Drag to reorder" when empty.</summary>
+    [Parameter] public string? Message { get; set; }
+
+    /// <summary>Save order: hands the staged order to the caller, which answers whether it was accepted. On false the caller has already shown why; the caller decides whether the mode stays open.</summary>
+    [Parameter, EditorRequired] public Func<Task<bool>> OnSave { get; set; } = () => Task.FromResult(true);
+
+    /// <summary>Cancel, Escape, or "Discard" when leaving: the caller throws its staged order away and leaves the mode.</summary>
+    [Parameter, EditorRequired] public EventCallback OnCancel { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Entering the mode puts the focus on the bar so Escape and Tab work at once.
+        if (Active && !_wasActive)
+        {
+            try
+            {
+                await _bar.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // The bar was removed again before the focus call ran (a quick Cancel); there is nothing to focus.
+            }
+        }
+
+        _wasActive = Active;
+    }
+
+    private async Task HandleKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape" && !Busy)
+        {
+            await CancelAsync();
+        }
+    }
+
+    private Task CancelAsync() => OnCancel.InvokeAsync();
+
+    private async Task SaveAsync()
+    {
+        if (!Busy)
+        {
+            await OnSave();
+        }
+    }
+
+    private async Task ConfirmLeaveAsync(LocationChangingContext context)
+    {
+        if (!Active || !Dirty)
+        {
+            return;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            L["AppReorderBar_LeaveTitle"].Value,
+            L["AppReorderBar_LeaveMessage"].Value,
+            primaryLabel: L["AppReorderBar_Save"].Value,
+            secondaryLabel: L["AppReorderBar_Discard"].Value);
+        if (answer == AppConfirmResult.Primary)
+        {
+            if (!await OnSave())
+            {
+                context.PreventNavigation();
+            }
+
+            return;
+        }
+
+        if (answer == AppConfirmResult.Secondary)
+        {
+            await OnCancel.InvokeAsync();
+            return;
+        }
+
+        context.PreventNavigation();
+    }
+}
