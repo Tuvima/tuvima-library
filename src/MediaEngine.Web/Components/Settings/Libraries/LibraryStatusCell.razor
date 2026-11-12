@@ -2,8 +2,8 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* A library's status in words (Libraries redesign D3): Healthy, Empty, Scanning, Folder offline (the warning's words open as a tooltip), or an amber
-   count that names its kind and goes exactly there: "12 files not identified" opens Needs Review filtered to this library's unmatched files, "3 need review" opens Needs
-   Review for the library. A library can have both; each is its own link, never mixed. Nothing is claimed while the status is not known. *@
+   count: "3 need review" opens Needs Review for the library. The count is what that page lists for the library (Needs Review redesign D2: one
+   name, one list). Nothing is claimed while the status is not known. *@
 @if (Row.Status is not { } status)
 {
     <span class="lib-status lib-status--muted" data-status="unknown" aria-label="@L["LibraryStatusCell_NoStatusToShow"].Value">—</span>
@@ -15,16 +15,8 @@ else
         case LibraryStatusKind.Healthy:
             <span class="lib-status" data-status="healthy"><LibraryHealthIcon Health="@LibraryHealth.Ok" />@L["Ingestion_HealthHealthy"]</span>
             break;
-        case LibraryStatusKind.NotIdentified:
         case LibraryStatusKind.NeedsReview:
             <span class="lib-status-group">
-                @if (Row.Unidentified > 0)
-                {
-                    <a class="lib-status lib-status--warning" data-status="not-identified" href="@LibraryListing.NeedsReviewAddress(Row.Key)" @onclick:stopPropagation="true"
-                       aria-label="@($"{LibraryListing.UnidentifiedText(Row.Unidentified)}. Open the files that were not identified in {Row.Name} in Needs Review")">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />@LibraryListing.UnidentifiedText(Row.Unidentified)
-                    </a>
-                }
                 @if (Row.NeedsReview > 0)
                 {
                     <a class="lib-status lib-status--warning" data-status="needs-review" href="@LibraryListing.NeedsReviewAddress(Row.Key)" @onclick:stopPropagation="true"

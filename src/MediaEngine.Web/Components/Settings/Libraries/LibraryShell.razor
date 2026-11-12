@@ -89,7 +89,7 @@
         }
 
         @* The attention strip (Libraries redesign D4): only when there is something to do, one sentence and one button each. *@
-        @if (!IsVault && (row.Unidentified > 0 || row.NeedsReview > 0 || row.Status == LibraryStatusKind.FolderOffline))
+        @if (!IsVault && (row.NeedsReview > 0 || row.Status == LibraryStatusKind.FolderOffline))
         {
             <div class="libpage__strip" role="status" data-testid="library-attention">
                 @if (row.Status == LibraryStatusKind.FolderOffline)
@@ -101,14 +101,6 @@
                         {
                             <AppButton Label="@L["Common_CheckAgain"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Changed.InvokeAsync())" />
                         }
-                    </div>
-                }
-                @if (row.Unidentified > 0)
-                {
-                    <div class="libpage__strip-line" data-strip="unidentified">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
-                        <span>@L["LibraryShell_CouldNotBeIdentified", LibraryListing.UnidentifiedText(row.Unidentified)]</span>
-                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NeedsReviewAddress(row.Key)" />
                     </div>
                 }
                 @if (row.NeedsReview > 0)

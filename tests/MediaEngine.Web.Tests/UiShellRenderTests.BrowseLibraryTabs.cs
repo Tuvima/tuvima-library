@@ -232,7 +232,7 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() => Assert.NotEmpty(_browseCalls));
         Assert.Null(_browseCalls[0][BrowseUnmatchedArgument]);
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Unmatched").Click();
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Needs review").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -254,9 +254,9 @@ public sealed partial class UiShellRenderTests
         {
             Assert.Equal(true, _browseCalls[0][BrowseUnmatchedArgument]);
             Assert.Equal(LecturesLibrary, _browseCalls[0][BrowseLibraryIdArgument]);
-            Assert.Contains("Nothing unmatched here.", cut.Markup);
+            Assert.Contains("Nothing needs review here.", cut.Markup);
         });
-        Assert.Equal("true", cut.FindAll("button[aria-pressed]").Single(button => button.TextContent.Trim() == "Unmatched").GetAttribute("aria-pressed"));
+        Assert.Equal("true", cut.FindAll("button[aria-pressed]").Single(button => button.TextContent.Trim() == "Needs review").GetAttribute("aria-pressed"));
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public sealed partial class UiShellRenderTests
         var cut = RenderLanePage<WatchPage>("/watch/movies?unmatched=true", "movies");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(_browseCalls));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Unmatched");
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Needs review");
         Assert.Null(_browseCalls[0][BrowseUnmatchedArgument]);
     }
 
@@ -390,9 +390,9 @@ public sealed partial class UiShellRenderTests
         UseBrowseLibraries(WatchLibraries());
         var navigation = (Bunit.TestDoubles.BunitNavigationManager)Services.GetRequiredService<NavigationManager>();
         var cut = RenderLanePage<WatchPage>($"/watch/videos?library={LecturesLibrary:D}&unmatched=true", "videos");
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Remove Unmatched filter']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Remove Needs review filter']")));
 
-        cut.Find("button[aria-label='Remove Unmatched filter']").Click();
+        cut.Find("button[aria-label='Remove Needs review filter']").Click();
 
         cut.WaitForAssertion(() =>
         {
