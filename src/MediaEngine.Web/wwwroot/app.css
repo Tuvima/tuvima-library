@@ -3597,6 +3597,53 @@ input[type="reset"],
     box-shadow: none !important;
 }
 
+/* Details overlay window (spec D1, music-player-and-listen-fixes D5): global because AppViewer renders the dialog, so the host's scoped styles cannot reach it.
+   Fixed over the screen at the modal layer, above its backdrop (--tl-z-details-backdrop) and clear of the player bar: the window ends above the bar by
+   --tl-overlay-bar-inset, which app-dialog.js publishes. DetailsOverlayHost is drawn outside the shell's clipping content box (DetailsOverlayPortal). */
+.tl-details-overlay {
+    position: fixed;
+    inset: 5vh 0 auto 0;
+    inset: 5dvh 0 auto 0;
+    z-index: var(--tl-z-modal, 1400);
+    box-sizing: border-box;
+    width: 90vw;
+    max-width: none;
+    height: calc(90vh - var(--tl-overlay-bar-inset, 0px));
+    height: calc(90dvh - var(--tl-overlay-bar-inset, 0px));
+    max-height: none;
+    margin: 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: var(--tl-bg-root);
+    color: var(--tl-text-primary);
+    box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.6);
+    /* Makes the window the containing block for anything the page fixes in place (its loading bar), so it stays inside. */
+    contain: layout;
+}
+
+.tl-details-overlay--sheet {
+    width: 100%;
+    inset: auto 0 var(--tl-overlay-bar-inset, 0px) 0;
+    height: calc(92vh - var(--tl-overlay-bar-inset, 0px));
+    height: calc(92dvh - var(--tl-overlay-bar-inset, 0px));
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+    transform: translateY(var(--sheet-drag, 0px));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .tl-details-overlay--sheet[open] {
+        animation: tl-details-overlay-sheet-up 0.22s ease-out;
+    }
+}
+
+@keyframes tl-details-overlay-sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(var(--sheet-drag, 0px)); }
+}
+
 /* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach.
    The page's scroll bar (8-12px) runs down the window's right edge inside the frame, so the button sits 1.5rem in to keep a clear
    gap from it (B29). The phone sheet keeps 0.75rem: its scroll bars overlay the page and its grip sits further in. */

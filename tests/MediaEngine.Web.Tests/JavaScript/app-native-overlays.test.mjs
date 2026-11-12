@@ -221,6 +221,28 @@ test('parent popover yields child-dialog Escape and restores its own trigger on 
     popovers.detach(surface);
 });
 
+test('a menu opened from outside any dialog closes on a click into a live window, but not on a click into a dialog it opened', () => {
+    const trigger = new Element(), marker = new Element(), surface = new Element(), inLive = new Element(), inNested = new Element();
+    const live = new Dialog(), nested = new Dialog();
+    live.open = nested.open = true; live.setAttribute('data-overlay-window', ''); live.append(inLive); nested.append(inNested);
+    const popupOwner = owner(); popovers.update(marker, surface, trigger, popupOwner, true, 'BottomLeft', 'TopLeft', false, false, 'bar-menu');
+    document.emit('pointerdown', { target: inNested });
+    assert.deepEqual(popupOwner.calls, [], 'a dialog the menu opened keeps the menu');
+    document.emit('pointerdown', { target: inLive });
+    assert.deepEqual(popupOwner.calls, ['Dismiss'], 'a click into the live window is an ordinary outside click');
+    popovers.detach(surface);
+});
+
+test('Escape closes a menu opened from outside the window even when focus has moved into a live window', () => {
+    const trigger = new Element(), marker = new Element(), surface = new Element(), inLive = new Element(), live = new Dialog();
+    live.open = true; live.setAttribute('data-overlay-window', ''); live.append(inLive);
+    const popupOwner = owner(); popovers.update(marker, surface, trigger, popupOwner, true, 'BottomLeft', 'TopLeft', false, false, 'bar-menu-key');
+    const key = escape(inLive, { stopImmediatePropagation() { this.stopped = true; } });
+    document.emit('keydown', key);
+    assert.equal(key.stopped, true); assert.deepEqual(popupOwner.calls, ['Dismiss']);
+    popovers.detach(surface);
+});
+
 test('removed popup releases document Escape handling even when .NET disposal has no element', () => {
     const trigger = new Element(), marker = new Element(), surface = new Element(), popupOwner = owner();
     popovers.update(marker, surface, trigger, popupOwner, true, 'BottomLeft', 'TopLeft', false, false, 'removed-popup');

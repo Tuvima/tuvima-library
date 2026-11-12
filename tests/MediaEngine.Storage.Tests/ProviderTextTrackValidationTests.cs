@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Storage.Configuration;
 
@@ -198,6 +199,20 @@ public sealed class ProviderTextTrackValidationTests
         var errors = JsonConfigValidator.Validate(config, "providers/lrclib.json");
 
         Assert.Contains("text_track.search.lyrics.match.ignore_brackets is not a known property.", errors);
+    }
+
+    [Fact]
+    public void LyricsMatchBlock_ThatIsNull_IsTreatedAsAbsentAndDoesNotCrashTheValidator()
+    {
+        var node = JsonNode.Parse(JsonSerializer.Serialize(Shipped("lrclib"), s_json))!;
+        node["text_track"]!["search"]!["lyrics"]!["match"] = null;
+        var config = JsonSerializer.Deserialize<ProviderConfiguration>(node.ToJsonString(), s_json)!;
+
+        var errors = JsonConfigValidator.Validate(config, "providers/lrclib.json");
+
+        // The plain rule applies, exactly as for a file with no match block: the default paths are used and nothing is reported.
+        Assert.NotNull(config.TextTrack!.Search.Lyrics.Match);
+        Assert.Empty(errors);
     }
 
     [Fact]

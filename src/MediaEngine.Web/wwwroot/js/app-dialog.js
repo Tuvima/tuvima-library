@@ -78,6 +78,8 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId, sheet, l
         // Native closure is application-owned. Older engines that lack closedby use
         // keydown prevention plus close-event recovery rather than cancel alone.
         dialog.setAttribute('closedby', 'none');
+        // Tells the pop-over script this window is not a dialog a menu opened (a click into it closes a menu from the player bar).
+        if (state.live) dialog.setAttribute('data-overlay-window', '');
         state.keydown = event => {
             if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || !topmost(dialog)) return;
             if (dialog.querySelector('.tl-popover-open:not([hidden])')) return;
@@ -173,7 +175,7 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId, sheet, l
         lock(dialog);
         try {
             show(state);
-        } catch (error) { unlock(dialog); throw error; }
+        } catch (error) { disengage(state); unlock(dialog); throw error; }
     } else if (!open) {
         if (dialog.open) dialog.close();
         disengage(state);

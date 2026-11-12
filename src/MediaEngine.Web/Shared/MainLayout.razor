@@ -184,7 +184,7 @@
 
     @if (ShouldShowEngineStatusBanner)
     {
-        <div class="layout-shell__engine-banner" role="status" aria-live="polite">
+        <div class="layout-shell__engine-banner" role="status" aria-live="polite" data-overlay-live="banner">
             <AppMaterialIcon Icon="@GetEngineStatusIcon()" Size="AppIconSize.Control20" />
             <span>@GetEngineStatusBannerText()</span>
             @if (Orchestrator.EngineConnectionState == EngineConnectionState.LiveUpdatesDisconnected)
@@ -202,7 +202,7 @@
     @if (_layoutNotice is not null)
     {
         @* Something the whole shell has to say (playback stopped because its title was deleted, an action that needs a password): in place under the bar until closed. *@
-        <div class="layout-shell__engine-banner" role="status" aria-live="polite" data-layout-notice>
+        <div class="layout-shell__engine-banner" role="status" aria-live="polite" data-layout-notice data-overlay-live="banner">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Info" Size="AppIconSize.Control20" />
             <span>@_layoutNotice</span>
             @if (_layoutNoticeNeedsPassword)
