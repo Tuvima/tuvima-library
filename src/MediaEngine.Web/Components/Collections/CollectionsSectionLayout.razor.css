@@ -38,7 +38,7 @@
 
 .collections-section ::deep .collections-results-heading h1{
     margin: 0;
-    font-size: clamp(1.6rem, 1.7vw + 1rem, 2.65rem);
+    font-size: var(--tl-type-page-title-size);
     line-height: 1.04;
 }
 
@@ -46,7 +46,7 @@
     max-width: 760px;
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-body-size);
     line-height: 1.55;
 }
 
@@ -143,8 +143,8 @@
 .collections-section ::deep .browse-shell__sort-label,
 .collections-section ::deep .browse-shell__display-label {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.08em;
     line-height: 1;
 }
@@ -220,8 +220,8 @@
 .collections-section ::deep .collections-result-count {
     flex: 0 0 auto;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .collections-section ::deep .collections-filter-summary .app-active-filter-summary {

@@ -11,9 +11,9 @@ public sealed class LookRatchetGuardrailTests
 {
     private const int RoundedEndCeiling = 0;
     private const int NativeControlCeiling = 276;
-    private const int AdHocFontSizeCeiling = 40;
+    private const int AdHocFontSizeCeiling = 39;
     private const int HandTypedHexCeiling = 498;
-    private const int OffScaleFontSizeCeiling = 85;
+    private const int OffScaleFontSizeCeiling = 81;
     private const int ForcedOverrideCeiling = 1040;
     private const int HandTypedLayerCeiling = 271;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.

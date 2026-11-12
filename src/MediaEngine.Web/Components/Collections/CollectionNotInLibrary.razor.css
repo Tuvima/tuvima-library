@@ -8,14 +8,14 @@
 .collection-missing__heading {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
 }
 
 .collection-missing__note {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .collection-missing__grid {
@@ -56,7 +56,7 @@
 
 .collection-missing__year {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 /* Empty today; a later integration puts one action here. */
