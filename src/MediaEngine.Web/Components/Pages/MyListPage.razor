@@ -23,14 +23,17 @@
     @if (Device.IsPhone && ShowsListControls)
     {
         <div class="my-list-phonebar">
-            <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.FilterList" AriaLabel="@L["Common_Sort"].Value" SheetTitle="@L["Common_SortBy"].Value"
-                             Class="my-list-phonebar__menu">
-                @foreach (var choice in SortChoices)
-                {
-                    var value = choice.Value;
-                    <AppMenuItem Label="@choice.Label" Checked="@(value == CurrentSort)" OnClick="@(() => OnSortChangedAsync(value))" />
-                }
-            </AppOverflowMenu>
+            @if (!_selecting)
+            {
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.FilterList" AriaLabel="@L["Common_Sort"].Value" SheetTitle="@L["Common_SortBy"].Value"
+                                 Class="my-list-phonebar__menu">
+                    @foreach (var choice in SortChoices)
+                    {
+                        var value = choice.Value;
+                        <AppMenuItem Label="@choice.Label" Checked="@(value == CurrentSort)" OnClick="@(() => OnSortChangedAsync(value))" />
+                    }
+                </AppOverflowMenu>
+            }
             @PageMenu
         </div>
     }
@@ -45,6 +48,12 @@
                 <div class="my-list-header__copy">
                     <h1 class="my-list-header__title">@L["MyList_Title"]</h1>
                     <p class="my-list-header__name" data-my-list-profile-name>@ProfileName</p>
+                </div>
+            }
+            else if (_headerFailed || _noProfile)
+            {
+                <div class="my-list-header__copy">
+                    <h1 class="my-list-header__title">@L["MyList_Title"]</h1>
                 </div>
             }
             else
@@ -77,6 +86,16 @@
     @if (_headerFailed)
     {
         @LoadError(ReloadAllAsync)
+    }
+    else if (_noProfile)
+    {
+        @* No active profile: other personal pages ask for one the same way. *@
+        <AppAlert Severity="AppSeverity.Info" data-my-list-no-profile>
+            <span class="my-list-error">
+                <span>@L["MyList_ChooseProfile"]</span>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Href="@ProfilePickerRoute.Path" Label="@L["MyList_ChooseProfileLink"].Value" />
+            </span>
+        </AppAlert>
     }
     else if (_profile is not null)
     {
@@ -201,7 +220,7 @@
         }
         else if (_selecting)
         {
-            <div class="my-list-selbar" role="toolbar" aria-label="@L["Common_Select"].Value" data-my-list-selbar>
+            <div class="my-list-selbar" role="toolbar" tabindex="-1" aria-label="@L["Common_Select"].Value" data-my-list-selbar>
                 <span class="my-list-selbar__count" role="status" aria-live="polite" data-my-list-selected-count>@L["MyList_SelectedCount", _selected.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)]</span>
                 <span class="my-list-selbar__spacer"></span>
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Large"
@@ -237,7 +256,10 @@
                                        Options="@SortChoices"
                                        data-my-list-sort />
                         </div>
-                        <AppButton Label="@L["Common_Select"].Value" Size="AppControlSize.Large" OnClick="EnterSelect" data-my-list-select />
+                        @if (CanSelect)
+                        {
+                            <AppButton Label="@L["Common_Select"].Value" Size="AppControlSize.Large" OnClick="EnterSelect" data-my-list-select />
+                        }
                         @PageMenu
                     </div>
                 }
@@ -248,7 +270,7 @@
     // The page "..." menu: Remove finished everywhere; on a phone it is a sheet that also holds Select.
     private RenderFragment PageMenu => @<AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["MyList_PageMenu"].Value"
                                                          SheetTitle="@(Device.IsPhone ? L["MyList_Title"].Value : null)" Class="my-list-page-menu">
-        @if (Device.IsPhone)
+        @if (Device.IsPhone && CanSelect)
         {
             <AppMenuItem Label="@L["Common_Select"].Value" Icon="@AppMaterialIcons.Outlined.CheckBoxOutlineBlank" OnClick="EnterSelect" />
         }

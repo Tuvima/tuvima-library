@@ -6,6 +6,9 @@ namespace MediaEngine.Web.Services.Playback;
 
 public sealed record SavedItemMembership(ProfileEntityKind EntityKind, Guid EntityId, bool IsSaved);
 
+/// <summary>What a bulk remove or restore really did: the titles it changed, and whether any call to the Engine failed along the way.</summary>
+public sealed record SavedItemsBatchResult(IReadOnlyList<ProfileSavedItemDto> Done, bool Failed);
+
 public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessionAccessor? session = null)
 {
     private readonly object _cacheGate = new();
@@ -13,6 +16,15 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
     private Task<IReadOnlyList<ProfileSavedItemDto>>? _cachedList;
 
     public event Action? Changed;
+
+    /// <summary>
+    /// Raised when a save or removal made from a cover or button could not be done, so a page that shows My List can say so in place
+    /// (spec my-list: "My List could not be changed. Try again."). Listeners must not treat it as a change to the list.
+    /// </summary>
+    public event Action? ChangeFailed;
+
+    /// <summary>Tells listeners that a save or removal failed (see <see cref="ChangeFailed"/>).</summary>
+    public void ReportChangeFailed() => ChangeFailed?.Invoke();
 
     /// <summary>
     /// One Engine call per profile per circuit: Home, hero slides and detail pages all ask "is this saved?",
@@ -48,6 +60,23 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// A fresh read of the saved list straight from the Engine, or null when the call failed. <see cref="GetListAsync"/> cannot tell a failed
+    /// read from an empty list, so a page that compares lists (My List's Undo for a cover's own removal) must use this one.
+    /// </summary>
+    public async Task<IReadOnlyList<ProfileSavedItemDto>?> TryGetListAsync(CancellationToken ct = default)
+    {
+        var result = await apiClient.GetSavedItemsAsync(ct);
+        return apiClient.LastError is null ? result : null;
+    }
+
+    /// <summary>The saved titles this profile has finished (what "Remove finished" would take), or null when the Engine call failed.</summary>
+    public async Task<IReadOnlyList<ProfileSavedItemDto>?> TryGetFinishedAsync(CancellationToken ct = default)
+    {
+        var result = await apiClient.GetFinishedSavedItemsAsync(ct);
+        return apiClient.LastError is null ? result : null;
     }
 
     private void InvalidateList()
@@ -89,54 +118,57 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
     }
 
     /// <summary>
-    /// Takes several titles off My List at once (Select, Remove finished). Returns what was really removed, with each saved date, so
-    /// <see cref="RestoreManyAsync"/> can put them back in the same order; null when nothing could be removed. The cached list is dropped
-    /// and <see cref="Changed"/> raised, so every Add to My List button shows the right state.
+    /// Takes several titles off My List at once (Select, Remove finished), 500 to a call. <see cref="SavedItemsBatchResult.Done"/> is what was
+    /// really removed, with each saved date, so <see cref="RestoreManyAsync"/> can put them back in the same order; <see cref="SavedItemsBatchResult.Failed"/>
+    /// is true when any call failed, including a later one after earlier ones went through. The cached list is dropped and <see cref="Changed"/>
+    /// raised whenever something changed, so every Add to My List button shows the right state.
     /// </summary>
-    public async Task<IReadOnlyList<ProfileSavedItemDto>?> RemoveManyAsync(IReadOnlyList<ProfileSavedItemKeyDto> items, CancellationToken ct = default)
+    public async Task<SavedItemsBatchResult> RemoveManyAsync(IReadOnlyList<ProfileSavedItemKeyDto> items, CancellationToken ct = default)
     {
         var removed = new List<ProfileSavedItemDto>();
+        var failed = false;
         foreach (var batch in items.Chunk(RemoveSavedItemsRequest.MaxItems))
         {
             if (await apiClient.RemoveSavedItemsAsync(batch, ct) is not { } done)
             {
+                failed = true;
                 break;
             }
 
             removed.AddRange(done);
         }
 
-        if (removed.Count == 0)
+        if (removed.Count > 0)
         {
-            return null;
+            InvalidateList();
+            Changed?.Invoke();
         }
 
-        InvalidateList();
-        Changed?.Invoke();
-        return removed;
+        return new(removed, failed);
     }
 
-    /// <summary>Puts titles back on My List with their original saved dates (Undo). Returns what was restored; null when nothing could be.</summary>
-    public async Task<IReadOnlyList<ProfileSavedItemDto>?> RestoreManyAsync(IReadOnlyList<ProfileSavedItemDto> items, CancellationToken ct = default)
+    /// <summary>Puts titles back on My List with their original saved dates (Undo); reports what was restored and whether any call failed, like <see cref="RemoveManyAsync"/>.</summary>
+    public async Task<SavedItemsBatchResult> RestoreManyAsync(IReadOnlyList<ProfileSavedItemDto> items, CancellationToken ct = default)
     {
         var restored = new List<ProfileSavedItemDto>();
+        var failed = false;
         foreach (var batch in items.Chunk(RestoreSavedItemsRequest.MaxItems))
         {
             if (await apiClient.RestoreSavedItemsAsync(batch, ct) is not { } done)
             {
+                failed = true;
                 break;
             }
 
             restored.AddRange(done);
         }
 
-        if (restored.Count == 0)
+        if (restored.Count > 0)
         {
-            return null;
+            InvalidateList();
+            Changed?.Invoke();
         }
 
-        InvalidateList();
-        Changed?.Invoke();
-        return restored;
+        return new(restored, failed);
     }
 }

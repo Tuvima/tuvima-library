@@ -45,6 +45,7 @@ public partial class MyListPage
     private ProfileViewModel? _profile;
     private int _profileCount;
     private bool _headerFailed;
+    private bool _noProfile;
     private bool _continueLoading = true;
     private MediaTileShelfViewModel _continueShelf = new() { Key = "continue", Title = string.Empty };
     private int _chromeVersion;
@@ -68,11 +69,12 @@ public partial class MyListPage
     private string? _sortNote;
     private int? _finishedCount;
     private CancellationTokenSource? _cts;
+    private IJSObjectReference? _focusModule;
 
     private ElementReference _sentinel;
     private GridLoadMoreObserver<MyListPage>? _observer;
 
-    private string ProfileName => string.IsNullOrWhiteSpace(_profile?.DisplayName) ? "Profile" : _profile!.DisplayName.Trim();
+    private string ProfileName => string.IsNullOrWhiteSpace(_profile?.DisplayName) ? L["Common_Profile"].Value : _profile!.DisplayName.Trim();
     private bool IsKids => _profile?.IsRestricted == true;
     private bool ShowsSettings => ShellNavigation.ShowsSettings(IsKids);
     private bool ShowsSwitchProfile => ShellNavigation.ShowsSwitchProfile(_profileCount);
@@ -93,6 +95,7 @@ public partial class MyListPage
         Orchestrator.OnProfileChanged += OnProfileChanged;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         Saved.Changed += OnSavedChanged;
+        Saved.ChangeFailed += OnSavedChangeFailed;
         Device.OnChanged += OnDeviceChanged;
     }
 
@@ -116,6 +119,12 @@ public partial class MyListPage
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_focusRequest is { } selector)
+        {
+            _focusRequest = null;
+            await FocusAsync(selector);
+        }
+
         if (!_observeRequested)
         {
             return;
@@ -130,16 +139,21 @@ public partial class MyListPage
     private async Task LoadChromeAsync()
     {
         var version = ++_chromeVersion;
+
+        // The saved list is read first and alongside the header, so a title taken off by a cover's own menu while the page is still
+        // loading can later be told from the ones that stayed (and still gets Undo).
+        _baselineKnown = false;
+        _knownSaved = [];
+        _startingSaved = ReadStartingSavedAsync(version);
+
         _profile = null;
         _headerFailed = false;
+        _noProfile = false;
         _continueLoading = true;
         _continueShelf = EmptyContinue();
         await InvokeAsync(StateHasChanged);
 
-        // The saved list is read now, so a title taken off by a cover's own menu can later be told from the ones that stayed.
-        var saved = ReadSavedAsync();
-        await Task.WhenAll(LoadHeaderAsync(version), LoadContinueAsync(version));
-        _knownSaved = await saved;
+        await Task.WhenAll(_startingSaved, LoadHeaderAsync(version), LoadContinueAsync(version));
     }
 
     private async Task LoadHeaderAsync(int version)
@@ -155,7 +169,8 @@ public partial class MyListPage
 
             _profile = profile;
             _profileCount = profiles.Count;
-            _headerFailed = profile is null;
+            // Nobody is signed in as a profile: not a failure, the page asks for one to be chosen.
+            _noProfile = profile is null;
         }
         catch (Exception ex)
         {
@@ -238,8 +253,8 @@ public partial class MyListPage
         ApiClient.GetDisplayGridAsync(Lane, ShelfKey, SortQuery, TypeQuery, null, null, null, offset, limit, ct);
 
     /// <summary>
-    /// Reads the first page. A silent read (after a removal or Undo) keeps the covers on screen until the new ones arrive and asks for as many
-    /// as are already shown (up to the page limit), so the list does not jump to the top.
+    /// Reads the first page. A silent read (after a removal or Undo) keeps the covers on screen until the new ones arrive and reads page by page
+    /// until as many covers as were already shown are back (or the list ends), so a person scrolled far down does not lose their place.
     /// </summary>
     private async Task LoadFirstPageAsync(bool silent = false)
     {
@@ -247,9 +262,8 @@ public partial class MyListPage
         _cts?.Dispose();
         var cts = _cts = new CancellationTokenSource();
         var version = ++_version;
-        var limit = silent
-            ? Math.Clamp(_tiles.Count, DisplayGridValues.DefaultPageSize, DisplayGridValues.MaxPageSize)
-            : DisplayGridValues.DefaultPageSize;
+        var shownBefore = silent ? _tiles.Count : 0;
+        var limit = Math.Clamp(shownBefore, DisplayGridValues.DefaultPageSize, DisplayGridValues.MaxPageSize);
 
         if (!silent)
         {
@@ -289,7 +303,29 @@ public partial class MyListPage
             return;
         }
 
-        _page = page;
+        // Further pages, only to get back as many covers as were on screen. One that fails is left for the person's own Load more.
+        var pages = new List<DisplayGridPageDto> { page };
+        var collected = page.Items.Count;
+        var last = page;
+        while (collected < shownBefore && last.HasMore && last.Items.Count > 0)
+        {
+            var next = await ReadAsync(collected, Math.Clamp(shownBefore - collected, 1, DisplayGridValues.MaxPageSize), cts.Token);
+            if (version != _version)
+            {
+                return;
+            }
+
+            if (next.Page is not { } more)
+            {
+                break;
+            }
+
+            pages.Add(more);
+            collected += more.Items.Count;
+            last = more;
+        }
+
+        _page = last.TotalCount == page.TotalCount ? page : page with { TotalCount = last.TotalCount };
         if (silent)
         {
             _tiles.Clear();
@@ -305,7 +341,11 @@ public partial class MyListPage
         }
 
         _loading = false;
-        Append(page);
+        foreach (var each in pages)
+        {
+            Append(each);
+        }
+
         PruneSelection();
         _observeRequested = true;
         if (page.TotalCount > 0)
@@ -379,18 +419,12 @@ public partial class MyListPage
     // What "Remove finished" would take; read after each list read so the page menu already says "Nothing finished yet" when it is true.
     private async Task RefreshFinishedAsync(int version)
     {
-        try
+        // A read that failed leaves the count unknown: the menu row stays on (not "Nothing finished yet") and pressing it says so if it fails again.
+        var finished = await Saved.TryGetFinishedAsync();
+        if (finished is not null && version == _version)
         {
-            var finished = await ApiClient.GetFinishedSavedItemsAsync();
-            if (version == _version)
-            {
-                _finishedCount = finished.Count;
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            Logger.LogWarning(ex, "Could not read which titles on My List are finished.");
+            _finishedCount = finished.Count;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -529,6 +563,7 @@ public partial class MyListPage
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Saved.Changed -= OnSavedChanged;
+        Saved.ChangeFailed -= OnSavedChangeFailed;
         Device.OnChanged -= OnDeviceChanged;
         _chromeVersion++;
         _version++;
@@ -537,6 +572,18 @@ public partial class MyListPage
         if (_observer is not null)
         {
             await _observer.DisposeAsync();
+        }
+
+        if (_focusModule is not null)
+        {
+            try
+            {
+                await _focusModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is already gone, so the browser has dropped the module with it.
+            }
         }
     }
 }
