@@ -1,6 +1,6 @@
 # Global bookmarks: promote and find bookmarks (every media type)
 
-> **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; stage 3 PDFs and comics built 2026-11-10 with the PDF and comic reader) · **Version:** 5 DRAFT (awaiting Shy's OK; v4 stays as locked) · **Last updated:** 2026-11-11 · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
+> **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; stage 3 PDFs and comics built 2026-11-10 with the PDF and comic reader) · **Version:** 5 (Shy chose Global starts empty, 2026-11-12; built in the same change) · **Last updated:** 2026-11-11 · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
 
 > **Version note (2026-11-10):** parts superseded by [universal-editor-v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) (section 9): D2 (Everyone's), D3 (Promote, now staged inside the editor), D4 and D6 to D9 (Find bookmarks, compare, Export) move from the player to the editor's Bookmarks tab for administrators (D37, WP15), "Global" is now "Everyone's", and a title gains a definitive set that Everyone's pools from the profiles until one exists; the store, closeness config and merge rule stay.
 
@@ -127,8 +127,8 @@ Everyone bookmarks for themselves. An admin can see everyone's bookmarks in the 
 - **V5-D5. Who edits what.** A person can rename, change and delete their own bookmarks from any view (Mine or Global). Global rows are read-only for everyone except administrators.
 - **V5-D6. Import.** An administrator's import of a bookmark set (editor Bookmarks tab) lands in Global by default, with an option to import into Mine. Anyone else's import always goes to their own Mine.
 
-**Proposed default for one thing Shy has not decided (please confirm or change):**
-- **V5-D7. Global holds only what an administrator put there.** Today, until an administrator curates a title, "Everyone" shows all profiles' bookmarks pooled. With Mine as the default that pooling is surprising (a person sees others' notes they never chose), so Global starts empty and shows nothing until an administrator adds, imports or promotes bookmarks. The "start over from profiles" action becomes "Clear Global". Alternative: keep pooling until curated.
+**Decided (Shy, 2026-11-12, card answer A):**
+- **V5-D7. Global holds only what an administrator put there.** Today, until an administrator curates a title, "Everyone" shows all profiles' bookmarks pooled. With Mine as the default that pooling is surprising (a person sees others' notes they never chose), so Global starts empty and shows nothing until an administrator adds, imports or promotes bookmarks. The "start over from profiles" action becomes "Clear Global". 
 
 **What changes for people:**
 - The bookmark panel opens on Mine; a Mine | Global choice shows only on movies, episodes and videos with a Global set or for administrators.
