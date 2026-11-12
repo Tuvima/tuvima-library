@@ -479,3 +479,101 @@
     gap: var(--tl-space-1);
     min-width: 0;
 }
+
+/* ---- The phone arrangement (v6 section 4a, D21) ------------------------------------------------------------ */
+
+.tl-art-picker__add-flow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+}
+
+/* The window's body already pads the sides on a phone. */
+.tl-art-picker--phone .tl-art-picker__body {
+    padding: var(--tl-space-2) 0 var(--tl-space-4);
+}
+
+.tl-art-picker--phone .tl-art-picker__face--role {
+    min-height: var(--tl-tap-target-min);
+}
+
+/* The actions are two to a row, each a 44 px button. */
+.tl-art-picker--phone .tl-art-picker__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--tl-space-2);
+}
+
+.tl-art-picker--phone .tl-art-picker__actions-sep {
+    display: none;
+}
+
+.tl-art-picker--phone .tl-art-picker__action {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+}
+
+.tl-art-picker--phone .tl-art-picker__stage {
+    height: min(22rem, 40vh);
+}
+
+/* The saved versions: two pictures per row, each at its role's real shape. */
+.tl-art-picker--phone .tl-art-picker__strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--tl-space-3);
+}
+
+.tl-art-picker--phone .tl-art-picker__face--version {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+}
+
+.tl-art-picker--phone .tl-art-picker__strip--portrait .tl-art-picker__face--version { aspect-ratio: 2 / 3; height: auto; }
+.tl-art-picker--phone .tl-art-picker__strip--landscape .tl-art-picker__face--version { aspect-ratio: 16 / 9; height: auto; }
+.tl-art-picker--phone .tl-art-picker__strip--wide .tl-art-picker__face--version { aspect-ratio: 5 / 2; height: auto; }
+.tl-art-picker--phone .tl-art-picker__strip--square .tl-art-picker__face--version { aspect-ratio: 1 / 1; height: auto; }
+
+.tl-art-picker--phone .tl-art-picker__face--add {
+    min-height: var(--tl-tap-target-min);
+}
+
+/* Add artwork is a full-screen step over the window, with a bar that has the way back; the pictures and sources scroll under it. */
+.tl-art-picker__add-panel--step {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    gap: 0;
+    background: var(--tl-bg-surface);
+}
+
+.tl-art-picker__step-bar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    min-height: var(--tl-editor-phone-header, 4rem);
+    padding: 0 var(--tl-space-4) 0 var(--tl-space-2);
+    border-bottom: 1px solid var(--tl-divider);
+}
+
+.tl-art-picker__step-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    min-height: 0;
+    padding: var(--tl-space-3) var(--tl-space-4) max(var(--tl-space-4), env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.tl-art-picker__phone-sources {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--tl-space-2);
+}
+

@@ -21,7 +21,8 @@
     var tabs = picker.Tabs;
     var preferred = picker.PreferredVersion(slot);
     var label = ArtworkPickerRules.LabelFor(slot, CoverLabel(picker));
-    <section class="tl-art-picker"
+    <section class="@(Phone ? "tl-art-picker tl-art-picker--phone tl-editor-touch" : "tl-art-picker")"
+             data-phone="@(Phone ? "true" : null)"
              role="region"
              aria-label="@L["EditorArtworkTool_Artwork"].Value">
         <div class="tl-art-picker__body">
@@ -46,6 +47,12 @@
             @if (!string.IsNullOrWhiteSpace(picker.Message))
             {
                 <AppAlert Severity="AppSeverity.Warning" Dense="true" Class="tl-art-picker__message">@picker.Message</AppAlert>
+                @if (Phone && picker.SavedLoadFailed)
+                {
+                    @* Offline or the Engine did not answer (v6 section 4a): the same plain line, then Try again. Nothing staged is lost. *@
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="tl-art-picker__retry" Disabled="@picker.Busy"
+                               data-artwork-retry="true" OnClick="@(() => picker.RetryLoadSavedAsync())">@L["Common_TryAgain"]</AppButton>
+                }
             }
 
             @if (_adding)
@@ -107,6 +114,9 @@
     [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
 
     [Parameter, EditorRequired] public ArtworkPickerSession? Picker { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a, D21): two pictures per row, 44 px targets, the picker as a full-screen step, photos and camera as sources.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -397,26 +407,63 @@
         var shape = ArtworkPickerRules.ShapeFor(slot, picker.MediaType);
         var shapeClass = ShapeClass(slot, picker);
         var providers = Mode?.Fields.ProvidersAvailable != false;
-        <div class="tl-art-picker__add-panel">
+        <div class="@(Phone ? "tl-art-picker__add-panel tl-art-picker__add-panel--step" : "tl-art-picker__add-panel")" data-artwork-step="@(Phone ? "true" : null)">
+            @if (Phone)
+            {
+                @* On a phone the picker is a full-screen step with a way back (v6 section 4a). *@
+                <div class="tl-art-picker__step-bar">
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack"
+                                   Tooltip="@L["Common_Back"].Value"
+                                   AriaLabel="@($"Back to {label}")"
+                                   Class="tl-art-picker__back"
+                                   OnClick="EndAdd" />
+                    <strong>@($"Add a {label.ToLowerInvariant()}")</strong>
+                </div>
+            }
+            <div class="@(Phone ? "tl-art-picker__step-body" : "tl-art-picker__add-flow")">
             <div class="tl-art-picker__add-head">
-                <strong>@($"Add a {label.ToLowerInvariant()}")</strong>
+                @if (!Phone)
+                {
+                    <strong>@($"Add a {label.ToLowerInvariant()}")</strong>
+                }
                 <span class="tl-art-picker__muted">@label · @ShapeText(shape)</span>
                 <AppSegmentedControl Class="tl-art-picker__sources"
                                      AriaLabel="@L["EditorArtworkTool_WhereToFindArtwork"].Value"
                                      Options="@(providers ? Sources : SourcesWithoutProviders)"
                                      Value="@_source"
                                      ValueChanged="SelectSourceAsync" />
-                <AppButton ButtonStyle="AppButtonStyle.Text"
-                           Tone="AppUiTone.Neutral"
-                           StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
-                           Class="tl-art-picker__back"
-                           OnClick="EndAdd">
-                    @($"Back to {label}")
-                </AppButton>
+                @if (!Phone)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               Tone="AppUiTone.Neutral"
+                               StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
+                               Class="tl-art-picker__back"
+                               OnClick="EndAdd">
+                        @($"Back to {label}")
+                    </AppButton>
+                }
             </div>
 
             @switch (_source)
             {
+                case SourceUpload when Phone:
+                    @* The phone's own photos or its camera, through the same upload as on a computer (same types and size limit). *@
+                    <p class="tl-art-picker__hint">@L["EditorArtworkTool_ChooseAJPEGOrPNG"]</p>
+                    <div class="tl-art-picker__phone-sources">
+                        <AppFileUpload T="IBrowserFile" Accept="image/jpeg,image/png" FilesChanged="UploadAsync" Disabled="@picker.Busy" data-artwork-photos="true">
+                            <CustomContent Context="upload">
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.PhotoLibrary" Disabled="@picker.Busy"
+                                           OnClick="@(() => upload.OpenFilePickerAsync())">@L["EditorPhone_ArtworkChoosePhoto"]</AppButton>
+                            </CustomContent>
+                        </AppFileUpload>
+                        <AppFileUpload T="IBrowserFile" Accept="image/jpeg,image/png" FilesChanged="UploadAsync" Disabled="@picker.Busy" capture="environment" data-artwork-camera="true">
+                            <CustomContent Context="upload">
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.PhotoCamera" Disabled="@picker.Busy"
+                                           OnClick="@(() => upload.OpenFilePickerAsync())">@L["EditorPhone_ArtworkTakePhoto"]</AppButton>
+                            </CustomContent>
+                        </AppFileUpload>
+                    </div>
+                    break;
                 case SourceUpload:
                     <p class="tl-art-picker__hint">@L["EditorArtworkTool_ChooseAJPEGOrPNG"]</p>
                     <AppFileUpload T="IBrowserFile" Accept="image/jpeg,image/png" FilesChanged="UploadAsync" Disabled="@picker.Busy" />
@@ -453,6 +500,7 @@
             }
 
             @SelectedCard(picker, slot, label, shapeClass)
+            </div>
         </div>
     };
 

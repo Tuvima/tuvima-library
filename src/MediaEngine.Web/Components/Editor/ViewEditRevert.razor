@@ -3,12 +3,20 @@
 
 @* The revert arrow of the photos, videos and documents editor (spec photos-documents-editor, D3): shown beside a field only once it has a staged
    change, and puts the field back to what it said when the editor opened. Nothing is saved either way; the change list in Review shows it. *@
-@if (Show)
+@if (Show && EditorWindowLayout.IsPhone(false, Layout))
+{
+    @* A phone has no hover: the revert is a button that says so, not an arrow named by a tooltip (v6 D21). *@
+    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay"
+               aria-label="@($"{L["ViewEdit_Revert"].Value}: {Field}")" OnClick="OnRevert">@L["EditorDetailsPanel_Revert"]</AppButton>
+}
+else if (Show)
 {
     <AppIconButton Icon="@AppMaterialIcons.Outlined.Replay" Tooltip="@L["ViewEdit_Revert"].Value" AriaLabel="@($"{L["ViewEdit_Revert"].Value}: {Field}")" OnClick="OnRevert" />
 }
 
 @code {
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
     [Parameter] public bool Show { get; set; }
 
     /// <summary>The field's name, read out to screen readers with the arrow.</summary>

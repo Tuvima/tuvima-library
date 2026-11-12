@@ -24,8 +24,9 @@
     var tool = session.Tools.Contains(session.Tool) ? session.Tool : ViewEditTool.Details;
     <NavigationLock ConfirmExternalNavigation="@session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
     <AppDialogFrame Open="true" Title="@Header(session)" DialogOptions="_options" OnCancel="@(() => session.LeaveAsync())" Class="tl-editor-dialog">
-        <CascadingValue Value="@EditorWindowLayout.For(Device)">
+        <CascadingValue Value="Layout">
         <EditorWindowChrome Framed="@(!_reviewing)"
+                            Phone="Phone"
                             Title="@L["ViewEdit_ReviewChanges"].Value"
                             CloseName="@Header(session)"
                             ShowTabs="@(!_reviewing)"
@@ -34,7 +35,7 @@
                             TabsDisabled="@(session.Saving || session.Switching)"
                             OnTab="@(key => { if (Enum.TryParse<ViewEditTool>(key, out var picked)) { session.SelectTool(picked); } return Task.CompletedTask; })"
                             ShowFooter="@(!_reviewing)"
-                            FooterStart="@(CanDelete(session) ? DeleteButton(session) : null)"
+                            FooterStart="@(!Phone && CanDelete(session) ? DeleteButton(session) : null)"
                             ChangeCount="session.ChangeCount"
                             Saving="session.Saving"
                             OnClose="@(() => session.LeaveAsync())"
@@ -42,7 +43,7 @@
                             OnSave="OpenReviewAsync">
             <ItemHeader>
                 @* The gallery is the family: the header draws its home button and the dropdown of its photos (screen L). *@
-                <ViewEditHeader Session="session" />
+                <ViewEditHeader Session="session" Phone="Phone" PhoneMenuItems="@DeleteMenu(session)" />
             </ItemHeader>
             <Notice>
                 @if (!_reviewing && (!string.IsNullOrWhiteSpace(session.Message) || !string.IsNullOrWhiteSpace(_deleteNote)))
@@ -65,11 +66,11 @@
             <Body>
                 @if (_reviewing)
                 {
-                    <ReviewChangesView Source="session" OnOutcome="OnReviewOutcome" />
+                    <ReviewChangesView Source="session" OnOutcome="OnReviewOutcome" Phone="Phone" />
                 }
                 else
                 {
-                    <div class="view-edit-body">
+                    <div class="@(Phone ? "view-edit-body view-edit-body--phone tl-editor-touch" : "view-edit-body")" data-phone="@(Phone ? "true" : null)">
                         <div class="view-edit-body__main">
                             @switch (tool)
                             {
@@ -95,7 +96,7 @@
                         </div>
                         @if (!session.IsGallery)
                         {
-                            <ViewEditQuickFacts Items="stage.Items" />
+                            <ViewEditQuickFacts Items="stage.Items" Phone="Phone" />
                         }
                     </div>
                 }
@@ -111,6 +112,14 @@
     private string? _deleteNote;
     private ViewEditSession? _bound;
 
+    /// <summary>Draws the window in the phone arrangement (true) or the desktop one (false) whatever the device says; left unset, the device's form factor decides.</summary>
+    [Parameter] public bool? PhoneArrangement { get; set; }
+
+    // The phone arrangement (v6 section 4a), the same as the library editor's.
+    private bool Phone => PhoneArrangement ?? EditorPhoneArrangement.Applies(Device);
+
+    private EditorWindowLayout Layout => Phone ? EditorWindowLayout.PhoneSheet : EditorWindowLayout.Desktop;
+
     protected override void OnInitialized()
     {
         Host.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
@@ -124,6 +133,22 @@
         Device.OnChanged -= OnChanged;
         Host.ConfirmDiscard = null;
     }
+
+    // Delete in the header's "..." on a phone (v6 D22): the same confirmation and the same happening-at-once as the footer button.
+    private IReadOnlyList<AppRowMenuItem>? DeleteMenu(ViewEditSession session) =>
+        Phone && CanDelete(session)
+            ?
+            [
+                new AppRowMenuItem
+                {
+                    Label = L["ViewEdit_Delete"].Value,
+                    Icon = AppMaterialIcons.Outlined.Delete,
+                    Destructive = true,
+                    Disabled = _deleting || session.Saving || session.Switching,
+                    OnClick = EventCallback.Factory.Create(this, DeleteAsync),
+                },
+            ]
+            : null;
 
     protected override void OnParametersSet()
     {

@@ -132,3 +132,73 @@ h3 {
     padding: var(--tl-space-3);
     color: var(--tl-text-muted);
 }
+
+/* The phone arrangement (v6 section 4a, D21): each row is the picture of its moment, the time over the name, and the "..." at the right. Without pictures
+   (a book, an audiobook) it is the time over the name and the "...". While a name or time is being typed the text field takes the whole row. */
+.tl-bookmarks--phone .tl-bookmarks__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+        "frame place action"
+        "frame copy action"
+        "frame chip action";
+    align-items: center;
+    column-gap: var(--tl-space-3);
+    row-gap: var(--tl-space-1);
+}
+
+.tl-bookmarks--phone .tl-bookmarks__row:not(:has(.tl-bookmarks__frame)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "place action"
+        "copy action"
+        "chip action";
+}
+
+.tl-bookmarks--phone .tl-bookmarks__row[data-editing="true"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+        "frame place"
+        "copy copy";
+}
+
+.tl-bookmarks--phone .tl-bookmarks__row[data-editing="true"]:not(:has(.tl-bookmarks__frame)) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "place"
+        "copy";
+}
+
+.tl-bookmarks--phone .tl-bookmarks__frame {
+    grid-area: frame;
+    width: 5rem;
+    height: 3.125rem;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__place {
+    grid-area: place;
+    min-width: 0;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__copy {
+    grid-area: copy;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__row > .app-chip {
+    grid-area: chip;
+    justify-self: start;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__row-action {
+    grid-area: action;
+    margin-left: 0;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__edit-actions {
+    flex-wrap: wrap;
+}
+
+.tl-bookmarks--phone .tl-bookmarks__name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

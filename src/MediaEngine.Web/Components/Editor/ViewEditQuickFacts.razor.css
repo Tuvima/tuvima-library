@@ -1,0 +1,34 @@
+/* The phone arrangement (v6 section 4a): Quick Facts is a section under the form, closed until it is tapped; the heading is one 44 px button. */
+.tl-quick-facts--phone {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--tl-space-1) var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+}
+
+.tl-quick-facts--phone .tl-quick-facts__title {
+    margin: 0;
+}
+
+.tl-quick-facts--phone .tl-quick-facts__row {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    padding: var(--tl-space-2) 0;
+    border-top: 1px solid var(--tl-divider);
+}
+
+.tl-quick-facts--phone .tl-quick-facts__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.tl-quick-facts--phone .tl-quick-facts__note {
+    padding: var(--tl-space-2) 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+}

@@ -8,7 +8,7 @@
 
 @* The History tool of the universal editor window (v2 spec D3, D5): what happened to this item, newest first, grouped by day, with a
    filter by kind of activity. It is read-only; nothing here is staged or saved. It reads again whenever the item being edited changes. *@
-<div class="tl-history">
+<div class="@(Phone ? "tl-history tl-history--phone tl-editor-touch" : "tl-history")" data-phone="@(Phone ? "true" : null)">
     <div class="tl-history__toolbar">
         <small>@L["EditorHistoryTool_WhatHasHappenedToThis"]</small>
         <AppSelect T="string"
@@ -25,6 +25,12 @@
     else if (!string.IsNullOrWhiteSpace(_error))
     {
         <div class="tl-history__empty" role="alert">@_error</div>
+        @if (Phone)
+        {
+            @* Offline or the Engine did not answer (v6 section 4a): the plain line and Try again; nothing staged is lost. *@
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="tl-history__retry" data-history-retry="true"
+                       OnClick="RetryAsync">@L["Common_TryAgain"]</AppButton>
+        }
     }
     else if (Visible.Count == 0)
     {
@@ -43,6 +49,33 @@
                     @foreach (var entry in day)
                     {
                         var look = AppHistoryPresentation.For(entry.EventType, entry.Category);
+                        if (Phone)
+                        {
+                            @* A list; an entry's details open on a tap (v6 section 4a, D21). *@
+                            var open = _opened.Contains(entry);
+                            <div class="tl-history__row tl-history__row--phone" data-open="@(open ? "true" : "false")">
+                                <AppRowButton Class="tl-history__tap" aria-expanded="@(open ? "true" : "false")" data-history-entry="true" OnClick="@(() => Toggle(entry))">
+                                    <span class="tl-history__time">@entry.OccurredAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)</span>
+                                    <span class="tl-history__icon @look.ToneClass" aria-hidden="true">
+                                        <AppMaterialIcon Icon="@look.Icon" Size="AppIconSize.Control20" />
+                                    </span>
+                                    <span class="tl-history__title">@entry.Label</span>
+                                    <AppMaterialIcon Icon="@(open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppIconSize.Control20" />
+                                </AppRowButton>
+                                @if (open)
+                                {
+                                    <div class="tl-history__more" data-history-details="true">
+                                        @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                                        {
+                                            <div class="tl-history__detail">@entry.Detail</div>
+                                        }
+                                        <div class="tl-history__actor">by @entry.ActorLabel</div>
+                                    </div>
+                                }
+                            </div>
+                            continue;
+                        }
+
                         <div class="tl-history__row">
                             <span class="tl-history__time">@entry.OccurredAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)</span>
                             <span class="tl-history__icon @look.ToneClass" aria-hidden="true">
@@ -74,6 +107,7 @@
         new("file", "Files and processing"),
     ];
 
+    private readonly HashSet<LibraryItemHistoryDto> _opened = [];
     private List<LibraryItemHistoryDto> _all = [];
     private Guid _loadedFor;
     private Guid _loadedForTitle;
@@ -83,6 +117,9 @@
 
     /// <summary>The item being edited now; the history is read again when it changes.</summary>
     [Parameter, EditorRequired] public Guid EntityId { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a, D21): a list whose entries open their details on a tap, with 44 px targets and Try again.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>The item is a Universe or one of its things, whose history is what was changed in the editor (read from its own Engine connection point).</summary>
     [Parameter] public bool ForUniverse { get; set; }
@@ -112,6 +149,22 @@
 
     private void OnFilterChanged(string value) => _filter = value;
 
+    private void Toggle(LibraryItemHistoryDto entry)
+    {
+        if (!_opened.Remove(entry))
+        {
+            _opened.Add(entry);
+        }
+    }
+
+    // Try again after the history did not come back: the same read, made again.
+    private Task RetryAsync()
+    {
+        _loadedFor = Guid.Empty;
+        _loadedForTitle = Guid.Empty;
+        return OnParametersSetAsync();
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         if (EntityId == _loadedFor && SupportingFileTitleId == _loadedForTitle)
@@ -122,6 +175,7 @@
         _loadedFor = EntityId;
         _loadedForTitle = SupportingFileTitleId;
         _all = [];
+        _opened.Clear();
         _error = null;
         if (EntityId == Guid.Empty)
         {
