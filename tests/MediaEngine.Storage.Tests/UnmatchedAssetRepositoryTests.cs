@@ -125,6 +125,54 @@ public sealed class UnmatchedAssetRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Unkeep_ClearsTheKeptMarkAndSchedulesTheNextRetry_WithoutMakingTheItemDueNow()
+    {
+        var asset = AddAsset("movies", "Dune.mkv");
+        await _unmatched.MarkUnmatchedAsync(asset, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await _unmatched.KeepAsIsAsync(asset, Now);
+
+        var done = await _unmatched.UnkeepAsync(asset, Now.AddDays(10));
+
+        Assert.True(done);
+        var row = await _unmatched.GetAsync(asset);
+        Assert.False(row!.KeptAsIs);
+        Assert.Null(row.KeptAt);
+        Assert.Equal(Now.AddDays(10), row.NextRetryAt);
+        Assert.Empty(await _unmatched.ListDueAsync(Now.AddDays(1), 10));
+        Assert.Equal(1, (await _unmatched.CountByLibraryAsync())["movies"]);
+    }
+
+    [Fact]
+    public async Task Unkeep_AnItemThatIsNotKeptOrNotUnmatched_ChangesNothing()
+    {
+        var open = AddAsset("movies", "Open.mkv");
+        await _unmatched.MarkUnmatchedAsync(open, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+
+        Assert.False(await _unmatched.UnkeepAsync(open, Now.AddDays(30)));
+        Assert.False(await _unmatched.UnkeepAsync(Guid.NewGuid(), Now.AddDays(30)));
+        Assert.Equal(Now.AddDays(7), (await _unmatched.GetAsync(open))!.NextRetryAt);
+    }
+
+    [Fact]
+    public async Task CountKeptByLibrary_CountsOnlyKeptItems_PerLibrary()
+    {
+        var kept = AddAsset("movies", "Kept.mkv");
+        var open = AddAsset("movies", "Open.mkv");
+        var keptShow = AddAsset("tv", "Show.mkv");
+        foreach (var (asset, library) in new[] { (kept, "movies"), (open, "movies"), (keptShow, "tv") })
+        {
+            await _unmatched.MarkUnmatchedAsync(asset, library, UnmatchedReasons.NoMatch, Now, Now);
+        }
+
+        await _unmatched.KeepAsIsAsync(kept, Now);
+        await _unmatched.KeepAsIsAsync(keptShow, Now);
+
+        var counts = await _unmatched.CountKeptByLibraryAsync();
+        Assert.Equal(1, counts["movies"]);
+        Assert.Equal(1, counts["tv"]);
+    }
+
+    [Fact]
     public async Task MakeDue_AKeptItem_IsNotMadeDue()
     {
         var asset = AddAsset("movies", "Dune.mkv");

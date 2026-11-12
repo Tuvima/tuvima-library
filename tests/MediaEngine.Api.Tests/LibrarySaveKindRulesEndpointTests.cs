@@ -518,6 +518,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         public Task<MediaEngine.Contracts.Review.ReviewItemDto?> GetByIdAsync(Guid id, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<int> GetPendingCountAsync(CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaEngine.Application.ReadModels.ReviewReasonCount>> GetPendingReasonCountsAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Contracts.Review.ReviewItemDto>> GetKeptAsync(int limit, string? libraryId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> GetKeptCountAsync(string? libraryId, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private sealed class UnmatchedCountsSpy : IUnmatchedAssetRepository
@@ -533,6 +535,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         public Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> KeepAsIsAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<int> KeepAllAsIsAsync(string libraryId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> UnkeepAsync(Guid assetId, DateTimeOffset nextRetryAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyDictionary<string, int>> CountKeptByLibraryAsync(CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> LookUpAgainAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> MakeDueAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<int> MakeAllDueAsync(string? libraryId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();

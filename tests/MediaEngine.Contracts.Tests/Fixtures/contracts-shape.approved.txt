@@ -10000,6 +10000,8 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewBestGuessDt
   Source: System.String | nullability=nullable | accessors=get,init
   ImageUrl: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewGroups
+
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewKinds
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewListDto
@@ -10007,6 +10009,8 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewListDto
   Total: System.Int32 | nullability=not-null | accessors=get,init
   NotMatchedTotal: System.Int32 | nullability=not-null | accessors=get,init
   NotSureTotal: System.Int32 | nullability=not-null | accessors=get,init
+  GroupTotals: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
+  KeptTotal: System.Int32 | nullability=not-null | accessors=get,init
   Skip: System.Int32 | nullability=not-null | accessors=get,init
   Take: System.Int32 | nullability=not-null | accessors=get,init
 
@@ -10019,6 +10023,14 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewRowDto
   BestGuess: MediaEngine.Contracts.Review.NeedsReviewBestGuessDto | nullability=nullable | accessors=get,init
   Review: MediaEngine.Contracts.Review.ReviewItemDto | nullability=nullable | accessors=get,init
   Unmatched: MediaEngine.Contracts.Library.UnmatchedItemDto | nullability=nullable | accessors=get,init
+  Group: System.String | nullability=not-null | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  FamilyKey: System.String | nullability=nullable | accessors=get,init
+  FamilyTitle: System.String | nullability=nullable | accessors=get,init
+  FamilyWorkId: System.Guid? | nullability=nullable | accessors=get,init
+  FamilyCoverUrl: System.String | nullability=nullable | accessors=get,init
+  NextRetryAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  Kept: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewCountResponse
   PendingCount: System.Int32 | nullability=not-null | accessors=get,init
@@ -10063,6 +10075,10 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewMoveToTvResponse
   season_number: System.Int32 | nullability=not-null | accessors=get,init
   episode_numbers: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init
   placement_reason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewReopenResponse
+  reopened: System.Boolean | nullability=not-null | accessors=get,init
+  review_item_id: System.Guid | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewResolveRequestDto
   SelectedQid: System.String | nullability=nullable | accessors=get,init
