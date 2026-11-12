@@ -10416,7 +10416,7 @@
     <value>Custom appearance</value>
   </data>
   <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
-    <value>Font, colors and opacity</value>
+    <value>Font, size, colors and opacity</value>
   </data>
   <data name="SubtitleAppearance_Reset" xml:space="preserve">
     <value>Reset to default</value>

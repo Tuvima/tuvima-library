@@ -136,6 +136,30 @@ public sealed class VideoOverlayTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[data-rating-card]"));
     }
 
+    [Fact]
+    public void RatingCard_IsLargeEnoughToReadFromAcrossTheRoom()
+    {
+        // Video player follow-ups D3: 28 px bold beside a 5 x 40 px mark; 20 px on a phone.
+        var css = LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/VideoRatingCard.razor.css"));
+
+        Assert.Contains("font-size: 28px;", css, StringComparison.Ordinal);
+        Assert.Contains("font-weight: 700;", css, StringComparison.Ordinal);
+        Assert.Contains("height: 40px;", css, StringComparison.Ordinal);
+        var phone = css[css.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
+        Assert.Contains("font-size: 20px;", phone, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new DirectoryNotFoundException("The repository root was not found.");
+    }
+
     [Theory]
     [InlineData("15")]
     [InlineData("12A")]

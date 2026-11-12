@@ -1,6 +1,6 @@
 # Spec: Video player follow-ups
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-11 (locked by Shy) · **Related docs:** [Unified player v2](archive/unified-player-v2.md) (this spec amends its D5, D6, D9, D10, D12, D13, D14 and D25 where stated) · [Player controls v3](player-controls-v3.md) · [Global bookmarks](global-bookmarks.md) · [Design system](../design/design-system.md) · Mockups: [`../design/mockups/video-player-followups.html`](../design/mockups/video-player-followups.html) · Issues: #882, #883, #884, #888
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-11-12 (locked by Shy 2026-11-11; build started) · **Related docs:** [Unified player v2](archive/unified-player-v2.md) (this spec amends its D5, D6, D9, D10, D12, D13, D14 and D25 where stated) · [Player controls v3](player-controls-v3.md) · [Global bookmarks](global-bookmarks.md) · [Design system](../design/design-system.md) · Mockups: [`../design/mockups/video-player-followups.html`](../design/mockups/video-player-followups.html) · Issues: #882, #883, #884, #888
 
 ## 1. Goal
 

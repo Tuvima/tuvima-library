@@ -192,12 +192,13 @@
     --player-track: var(--tl-bg-surface-hover);
     --player-text: #F7F7FA;
     --player-text-secondary: var(--tl-text-secondary);
-    /* One size and state set for every playback button (unified player v2 D6): 24 px glyph in a 44 px target, Play 32 px in a 48 px target,
-       bar title 16 px. Hover is a translucent white (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
-    --playback-control-target: 44px;
-    --playback-control-glyph: 24px;
-    --playback-play-target: 48px;
-    --playback-play-glyph: 32px;
+    /* One size and state set for every playback button (unified player v2 D6, sizes raised by video player follow-ups D1): 28 px glyph in a 48 px target,
+       Play 40 px in a 56 px target, bar title 16 px. The phone's collapsed bar pins its own 44 / 24 (PlaybackShell). Hover is a translucent white
+       (8% on the bar, 12% over video), pressed 16%, disabled 38%; selected uses --tl-accent-primary-soft. */
+    --playback-control-target: 48px;
+    --playback-control-glyph: 28px;
+    --playback-play-target: 56px;
+    --playback-play-glyph: 40px;
     --playback-title-size: 16px;
     --playback-badge-size: 9px;
     --playback-state-hover: rgba(255, 255, 255, 0.08);

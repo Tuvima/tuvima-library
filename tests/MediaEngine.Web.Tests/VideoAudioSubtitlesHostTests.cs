@@ -129,9 +129,10 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("Large", cut.Find("section.video-playback-host").GetAttribute("data-subtitle-size")));
         Assert.Equal("large", cut.Find("[data-sav-preset][aria-checked='true']").GetAttribute("data-sav-preset"));
-        await cut.Find(".sav__row:not(.sav__row--first) .app-segmented-control__item:first-child").ClickAsync();
+        await cut.Find(".sav__row .app-segmented-control__item:first-child").ClickAsync();
         cut.WaitForAssertion(() => Assert.Equal("false", cut.Find("section.video-playback-host").GetAttribute("data-subtitle-background")));
-        Assert.Empty(cut.FindAll("[data-sav-preset][aria-checked='true']"));
+        // Background is its own choice (follow-ups D8): the ticked style stays ticked.
+        Assert.Equal("large", cut.Find("[data-sav-preset][aria-checked='true']").GetAttribute("data-sav-preset"));
     }
 
     [Fact]

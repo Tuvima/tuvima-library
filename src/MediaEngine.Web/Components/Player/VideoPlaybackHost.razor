@@ -24,7 +24,7 @@
          data-subtitle-size="@SubtitleSizeValue" data-subtitle-background="@SubtitleBackgroundValue"
          data-subtitle-font="@SubtitleFontValue" data-subtitle-shadow="@SubtitleShadowValue"
          data-subtitle-color="@SubtitleColorValue" data-subtitle-text-opacity="@SubtitleTextOpacityValue"
-         data-subtitle-bg-color="@SubtitleBackgroundColorValue" data-subtitle-bg-opacity="@SubtitleBackgroundOpacityValue"
+         data-subtitle-bg-color="@SubtitleBackgroundColorValue" data-subtitle-bg-opacity="@SubtitleBackgroundOpacityValue" data-subtitle-contrast="@(SubtitleStyleCss.IsHighContrast(_profileSubtitles) ? "true" : "false")"
          aria-label="@(Playback.IsVideoMode ? "Video player" : null)"
          aria-hidden="@(Playback.IsVideoMode ? "false" : "true")"
          tabindex="-1" @onkeydown="HandleVideoKeyDown">

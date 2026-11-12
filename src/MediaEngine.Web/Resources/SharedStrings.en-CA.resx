@@ -108,7 +108,7 @@
     <value>Background colour</value>
   </data>
   <data name="SubtitleAppearance_CustomSub" xml:space="preserve">
-    <value>Font, colours and opacity</value>
+    <value>Font, size, colours and opacity</value>
   </data>
   <data name="PlaybackIdentity_AddSongToFavorites" xml:space="preserve">
     <value>Add song to Favourites</value>

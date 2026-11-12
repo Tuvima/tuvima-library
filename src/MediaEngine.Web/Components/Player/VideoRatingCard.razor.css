@@ -5,21 +5,23 @@
     left: 8%;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 14px;
     opacity: 0;
     pointer-events: none;
 }
 
 .video-rating-card i {
-    width: 4px;
-    height: 28px;
-    border-radius: 2px;
+    width: 5px;
+    height: 40px;
+    border-radius: 3px;
     background: var(--tl-accent-primary);
 }
 
 .video-rating-card strong {
     color: var(--playback-text);
-    font-size: var(--tl-font-size-md);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
 }
 
 .video-rating-card[data-paused="true"] {
@@ -29,6 +31,17 @@
 
 .video-rating-card[data-paused="false"] {
     animation: video-rating-intro 6s ease both;
+}
+
+/* A phone keeps the rating readable without crowding the header (video player follow-ups D3). */
+@media (max-width: 600px) {
+    .video-rating-card strong {
+        font-size: 20px;
+    }
+
+    .video-rating-card i {
+        height: 28px;
+    }
 }
 
 @keyframes video-rating-intro {

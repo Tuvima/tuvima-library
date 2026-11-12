@@ -4355,7 +4355,11 @@ input[type="reset"],
 .video-playback-host[data-subtitle-font="Serif"] { --tl-subtitle-font: Georgia, "Times New Roman", serif; }
 .video-playback-host[data-subtitle-font="Mono"] { --tl-subtitle-font: ui-monospace, Consolas, "Courier New", monospace; }
 .video-playback-host[data-subtitle-shadow="true"] { --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
-.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
+/* Follow-ups D8: High contrast is bold white text. With a box the box is solid black (bg opacity 100); with Background None or Shadow it has no box and a heavy black outline instead.
+   VideoPlaybackHost sets data-subtitle-contrast from SubtitleStyleCss.IsHighContrast; the outline value is SubtitleStyleCss.HighContrastOutline, the same one the preview strip uses. */
+.video-playback-host[data-subtitle-contrast="true"] { --tl-subtitle-weight: 700; }
+.video-playback-host[data-subtitle-contrast="true"][data-subtitle-background="false"] { --tl-subtitle-shadow: -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black, 2px 2px 0 black, 0 -2px 0 black, 0 2px 0 black, -2px 0 0 black, 2px 0 0 black, 0 0 4px black; }
+.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); font-weight: var(--tl-subtitle-weight, normal); text-shadow: var(--tl-subtitle-shadow); }
 /* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions. (Audio and Subtitles moved to the Audio & subtitles panel.) */
 .player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
