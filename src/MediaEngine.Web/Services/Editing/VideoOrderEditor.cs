@@ -52,6 +52,7 @@ public sealed class VideoOrderList
 public sealed class VideoOrderEditor
 {
     private readonly List<VideoOrderList> _lists = [];
+    private Dictionary<Guid, IReadOnlyList<Guid>> _baseline = [];
 
     /// <summary>The lists in the order shown: one for a series without sections, one per section otherwise.</summary>
     public IReadOnlyList<VideoOrderList> Lists => _lists;
@@ -208,6 +209,19 @@ public sealed class VideoOrderEditor
             }
         }
     }
+
+    /// <summary>
+    /// Remembers the arrangement as it is now (after the lists were read and any earlier staging was shown again), so Reorder mode can tell
+    /// whether the person has changed anything since it began: Save order stays off until they have.
+    /// </summary>
+    public void MarkBaseline()
+    {
+        _baseline = _lists.ToDictionary(list => list.ParentId, list => (IReadOnlyList<Guid>)[.. list.Current.Select(row => row.Id)]);
+    }
+
+    /// <summary>True when any list reads differently from the arrangement remembered by <see cref="MarkBaseline"/>.</summary>
+    public bool DiffersFromBaseline =>
+        _lists.Any(list => !_baseline.TryGetValue(list.ParentId, out var ids) || !list.Current.Select(row => row.Id).SequenceEqual(ids));
 
     /// <summary>Puts every list back as it was saved.</summary>
     public void Reset()
