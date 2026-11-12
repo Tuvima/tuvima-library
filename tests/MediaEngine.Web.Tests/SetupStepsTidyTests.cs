@@ -409,4 +409,20 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
             Credentials = [new ProviderCredentialFieldDto { Key = "api_key", Label = "Key", Required = true, Configured = configured }],
         },
     };
+
+    [Fact]
+    public void NetworkNameCancel_KeepsItsOwnWidth_BesideTheField()
+    {
+        // #854: the field and Cancel are child components, so the row's rules must reach them through ::deep.
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(dir);
+        var css = File.ReadAllText(Path.Combine(dir.FullName, "src", "MediaEngine.Web", "Components", "Setup", "SetupWelcomeStage.razor.css"));
+        Assert.Contains(".setup-server-form__host ::deep > :first-child { flex: 1 1 auto; min-width: 0; }", css, StringComparison.Ordinal);
+        Assert.Contains(".setup-server-form__host ::deep > :not(:first-child) { flex: none; }", css, StringComparison.Ordinal);
+    }
 }

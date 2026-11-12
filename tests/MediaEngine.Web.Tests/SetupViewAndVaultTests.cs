@@ -471,9 +471,9 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.Equal([RightPin], _unlocks);
         Assert.DoesNotContain(nameof(IEngineApiClient.SetNsfwNavigationAsync), _stub.Calls);
         Assert.False(Services.GetRequiredService<NsfwModeState>().ShowInNavigation);
-        // The Vault step has no add controls of its own: private libraries are added from the one Add library list (Vault tab).
+        // The Vault step has no add controls of its own: private libraries are added from the one Add library list (the Vault row).
         Assert.Empty(cut.FindAll(".setup-area"));
-        Assert.Contains("Vault tab", Text(cut.Find("[data-vault-note]")), StringComparison.Ordinal);
+        Assert.Equal("On the next step, press Add library and choose Vault to add a private library.", Text(cut.Find("[data-vault-note]")));
         Assert.Equal(["Not now", "Continue"], cut.FindAll("footer button").Select(Text).ToArray());
         Assert.Contains("stays out of the menu", cut.Markup, StringComparison.Ordinal);
 

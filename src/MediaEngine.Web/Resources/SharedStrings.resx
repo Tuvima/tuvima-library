@@ -9999,7 +9999,7 @@
     <value>The folder could not be added. Check it and try again.</value>
   </data>
   <data name="SetupVaultOffer_AddFromLibraries" xml:space="preserve">
-    <value>To add a private library, go back to the Libraries step, press Add library and choose the Vault tab.</value>
+    <value>On the next step, press Add library and choose Vault to add a private library.</value>
   </data>
   <data name="MediaBrowseShell_Folders" xml:space="preserve">
     <value>Folders</value>
