@@ -10,6 +10,9 @@
 //   labelWraps     a toolbar, footer or segmented label wraps onto a second line
 //   rowHeight      a single-line row is off the 44 / 56 / 64 ladder (a settings row whose label wraps is allowed to grow)
 //   textOnControl  helper, status, error or result text sits above or below a control inside a column of a multi-item row
+//                  (allowed: the shared form row's own message line, and a field's help inside a multi-item .app-form-row, where it
+//                  sits on the shared help line)
+//   formRow        the controls of one shared .app-form-row (Editor v6 D12) do not share one top and one height
 () => {
     const TOLERANCE = 2;
     const LADDER = [44, 56, 64];
@@ -37,9 +40,15 @@
         const s = style(el), fontSize = parseFloat(s.fontSize) || 14, lh = parseFloat(s.lineHeight);
         return Number.isFinite(lh) ? lh : fontSize * 1.3;
     };
+    const items = row => [...row.children].filter(visible);
+    // The shared form row (AppFormRow) gives helper text two homes: its own message line, and each field's help on the shared help line.
+    const isFormRowText = text => {
+        if (text.closest('.app-form-row__message')) return true;
+        const formRow = text.matches('.app-field__help') ? text.closest('.app-form-row') : null;
+        return !!formRow && items(formRow).filter(k => !k.matches('.app-form-row__message')).length >= 2;
+    };
     const failures = [];
     const fail = (rule, el, detail) => failures.push({ rule, element: describe(el), detail });
-    const items = row => [...row.children].filter(visible);
     const firstControl = el => (el.matches(CONTROL_SELECTOR) ? el : el.querySelector(CONTROL_SELECTOR));
     const isControl = el => el.matches(CONTROL_SELECTOR) || !!el.querySelector(CONTROL_SELECTOR);
 
@@ -80,9 +89,28 @@
             const c = control.getBoundingClientRect();
             for (const text of kid.querySelectorAll(HELPER_SELECTOR)) {
                 if (!visible(text) || text.contains(control) || control.contains(text) || !(text.textContent || '').trim()) continue;
+                if (isFormRowText(text)) continue;
                 const t = text.getBoundingClientRect();
                 if (t.bottom <= c.top + 1 || t.top >= c.bottom - 1) fail('textOnControl', text, 'status or helper text sits above or below a control inside the row; give it its own full-width line under the row');
             }
+        }
+    }
+
+    // formRow: in one shared form row the control of every column (not the message line) has the same top and height. A field's control is
+    // its first input, select or button; a bare control or a wrapper such as a segmented control is measured as itself.
+    const formRows = [...document.querySelectorAll('.app-form-row')].filter(visible);
+    for (const row of formRows) {
+        if (row.matches('.app-form-row--stack')) continue;
+        const controls = items(row)
+            .filter(kid => !kid.matches('.app-form-row__message'))
+            .map(kid => (kid.matches('.app-field') ? firstControl(kid) : kid))
+            .filter(c => c && visible(c));
+        if (controls.length < 2) continue;
+        const first = controls[0].getBoundingClientRect();
+        for (const c of controls.slice(1)) {
+            const r = c.getBoundingClientRect();
+            if (Math.abs(r.top - first.top) > TOLERANCE) fail('formRow', c, `control top is ${Math.abs(r.top - first.top).toFixed(1)} px off the first control of the form row`);
+            else if (Math.abs(r.height - first.height) > TOLERANCE) fail('formRow', c, `control height is ${Math.round(r.height)} px, the first control of the form row is ${Math.round(first.height)} px`);
         }
     }
 

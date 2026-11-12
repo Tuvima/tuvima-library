@@ -1,0 +1,38 @@
+/* The shared form row (Editor v6 D12): three lines for the whole row. Line 1 holds the labels, line 2 the controls, line 3 each field's own help.
+   Every child field joins these lines through a subgrid, so a label or help text on one field can never push a neighbour's control.
+   The children are other components' roots, so their placement rules (grid-template-rows: subgrid and the line each part sits on) are in
+   wwwroot/app.css under "Shared form row". Row-level helper, status and error text goes on the message line under the row. */
+.app-form-row {
+    display: grid;
+    grid-template-columns: var(--tl-form-row-columns, repeat(auto-fit, minmax(0, 1fr)));
+    grid-template-rows: auto minmax(var(--tl-control-height-md), auto) auto;
+    column-gap: var(--tl-space-3);
+    row-gap: 0;
+    min-width: 0;
+}
+
+/* The row's own message: full width, under the three lines, in the helper text style. */
+.app-form-row__message {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    box-sizing: content-box;
+    padding-block-start: var(--tl-space-1);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-secondary);
+    line-height: 1.4;
+}
+
+.app-form-row__message--reserved {
+    min-height: calc(var(--tl-font-size-secondary) * 1.4);
+}
+
+/* Stacked: one column, each child's label, control and help in order, children one under another. */
+.app-form-row--stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+}
+
+.app-form-row--stack > .app-form-row__message {
+    padding-block-start: 0;
+}

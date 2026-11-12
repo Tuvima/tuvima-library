@@ -460,6 +460,16 @@
                 <AppTextField Label="Sort title" Value="Dune Part One" HelpText="Used only for ordering" />
                 <AppNumericField Label="Year" Value="2021" />
             </div>
+            <AppFormRow Columns="220px 1.3fr 1fr 220px auto" data-testid="preview-alignment-formrow">
+                <ChildContent>
+                    <AppSelect T="string" Label="Provider" Value="all" Options="@ProviderRowOptions" />
+                    <AppTextField Label="Title" Value="Dune Part One" />
+                    <AppTextField Label="Sort title" Value="Dune Part One" HelpText="Used only for ordering" />
+                    <AppTextField Label="ISBN (optional)" Value="" />
+                    <AppButton Label="Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
+                </ChildContent>
+                <Message>10 results</Message>
+            </AppFormRow>
             <div data-testid="preview-alignment-footer"><AppActionBar Align="AppHorizontalAlignment.End">
                 <AppButton Label="Reset" ButtonStyle="AppButtonStyle.Text" Class="app-footer-start" />
                 <AppButton Label="Delete" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Outlined" />

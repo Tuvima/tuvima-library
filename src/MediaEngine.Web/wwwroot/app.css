@@ -1237,6 +1237,52 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     font-size: var(--tl-font-size-secondary);
 }
 
+/* Shared form row (Editor v6 D12): the children of an AppFormRow are other components' roots, so their placement on the row's three lines
+   (label, control, help) is global here; the row itself, its message line and its stacked form live in AppFormRow.razor.css. */
+.app-form-row > :is(.app-field, [data-form-row-field]) {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 3;
+    row-gap: 0;
+    min-width: 0;
+}
+
+.app-form-row > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label) {
+    grid-row: 1;
+    padding-block-end: var(--tl-field-label-gap, 6px);
+}
+
+.app-form-row > :is(.app-field, [data-form-row-field]) > :not(.app-field__label, label, .app-field__help) {
+    grid-row: 2;
+    min-width: 0;
+}
+
+.app-form-row > :is(.app-field, [data-form-row-field]) > .app-field__help {
+    grid-row: 3;
+    padding-block-start: var(--tl-space-1);
+}
+
+/* Anything that is not a field (a button, an icon button, a segmented control, any marked element) sits on the control line. */
+.app-form-row > :is(button, .app-button, .app-icon-button, .app-segmented-control, [data-form-row-control]) {
+    grid-row: 2;
+    align-self: center;
+    min-width: 0;
+}
+
+/* Stacked: one column, each child's label, control and help in order, children one under another. */
+.app-form-row--stack > :is(.app-field, [data-form-row-field]) {
+    display: flex;
+    flex-direction: column;
+}
+
+.app-form-row--stack > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label) {
+    padding-block-end: 0;
+}
+
+.app-form-row--stack > :is(button, .app-button, .app-icon-button, .app-segmented-control, [data-form-row-control]) {
+    align-self: flex-start;
+}
+
 .app-control.app-control--compact,
 .app-field.app-control--compact,
 .app-control--compact .app-control,

@@ -174,3 +174,50 @@ test('a form field label above its field is allowed inside a column of a row', (
     const report = audit(row);
     assert.equal(report.passed, true, JSON.stringify(report.failures));
 });
+
+// The shared form row (Editor v6 D12): a grid with a label line, a control line and a message line.
+const formRow = ({ controlTops = [22, 22, 22], heights = [44, 44, 44], withMessage = true, display = 'grid', helpOn = -1 } = {}) => {
+    const row = new El('div', { classes: ['app-form-row'], attrs: { 'data-alignment-row': '', 'data-form-row': '' }, rect: rect(0, 0, 900, 110), style: { display } });
+    controlTops.forEach((top, index) => {
+        const left = index * 300;
+        const field = row.add(new El('div', { classes: ['app-field'], rect: rect(left, 0, 280, 90), style: { display: 'grid' } }));
+        field.add(new El('label', { classes: ['app-field__label'], rect: rect(left, 0, 100, 16), text: 'Label' }));
+        field.add(new El('input', { rect: rect(left, top, 280, heights[index]) }));
+        if (index === helpOn) field.add(new El('div', { classes: ['app-field__help'], rect: rect(left, top + heights[index] + 4, 200, 18), text: 'Used only for ordering' }));
+    });
+    if (withMessage) row.add(new El('div', { classes: ['app-form-row__message'], attrs: { 'data-control-text': '', role: 'status' }, rect: rect(0, 92, 900, 18), text: '10 results' }));
+    return row;
+};
+
+test('a form row whose controls share one top and height passes, with a help line under one field and a message line', () => {
+    const report = audit(formRow({ helpOn: 1 }));
+    assert.equal(report.passed, true, JSON.stringify(report.failures));
+});
+
+test('a form row with one control lower than its neighbours fails the form row check', () => {
+    const report = audit(formRow({ controlTops: [22, 40, 22] }));
+    assert.equal(report.passed, false);
+    assert.equal(report.counts.formRow, 1);
+});
+
+test('a form row with one control of a different height fails the form row check', () => {
+    const report = audit(formRow({ heights: [44, 36, 44] }));
+    assert.equal(report.passed, false);
+    assert.equal(report.counts.formRow, 1);
+});
+
+test('the form row message line and a field help line in a multi-item form row are not reported as text on a control', () => {
+    // Forced through the flex-row path so the text-on-control check actually looks at the row's columns.
+    const report = audit(formRow({ display: 'flex', helpOn: 0 }));
+    assert.equal(report.counts.textOnControl, undefined, JSON.stringify(report.failures));
+});
+
+test('helper text inside a column of an ordinary alignment row is still reported as text on a control', () => {
+    const row = new El('div', { attrs: { 'data-alignment-row': '' }, rect: rect(0, 0, 600, 80), style: flex });
+    const column = row.add(new El('div', { rect: rect(0, 0, 280, 80), style: { display: 'flex', flexDirection: 'column' } }));
+    column.add(new El('input', { rect: rect(0, 0, 280, 44) }));
+    column.add(new El('div', { classes: ['app-field__help'], rect: rect(0, 50, 200, 18), text: 'Not found' }));
+    row.add(new El('input', { rect: rect(300, 0, 280, 44) }));
+    const report = audit(row);
+    assert.ok(report.counts.textOnControl >= 1, JSON.stringify(report.counts));
+});
