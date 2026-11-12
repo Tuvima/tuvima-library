@@ -66,6 +66,9 @@ public partial class CollectionEditorShell
         }
     }
 
+    // An existing collection's item order is staged until the editor's own Save changes (no write per click); this holds the staged order of item ids.
+    private List<Guid>? _stagedItemOrder;
+
     private async Task LoadManualItemsAsync()
     {
         _loadingManualItems = true;
@@ -98,6 +101,17 @@ public partial class CollectionEditorShell
                     SortOrder = item.SortOrder,
                 })
                 .ToList();
+
+            // An item added or removed while an order was staged keeps that order: staged ids first, anything new after them.
+            if (_stagedItemOrder is { } staged)
+            {
+                var position = staged.Select((id, index) => (id, index)).ToDictionary(pair => pair.id, pair => pair.index);
+                _manualItems = _manualItems
+                    .OrderBy(item => position.GetValueOrDefault(item.Id, int.MaxValue))
+                    .Select((item, order) => item with { SortOrder = order + 1 })
+                    .ToList();
+                _stagedItemOrder = _manualItems.Select(item => item.Id).ToList();
+            }
         }
         catch (Exception ex)
         {
@@ -194,23 +208,15 @@ public partial class CollectionEditorShell
 
         if (EditingCollection is not null && !_storedRuleDriven)
         {
-            var itemIds = _manualItems
+            // Staged: the new order is written by Save changes with the rest of the editor, and Discard throws it away.
+            _stagedItemOrder = _manualItems
                 .OrderBy(existing => existing.SortOrder)
                 .Select(existing => existing.Id)
                 .Where(id => id != Guid.Empty)
                 .ToList();
-            var ok = await ApiClient.ReorderCollectionItemsAsync(EditingCollection.Id, itemIds, Request.ActiveProfileId);
-            if (!ok)
-            {
-                ShowNotice(L["CollectionEditorShell_FailedToReorderTheCollection"].Value, AppUiTone.Error);
-                await LoadManualItemsAsync();
-                return;
-            }
         }
-        else
-        {
-            MarkDirty();
-        }
+
+        MarkDirty();
 
         StateHasChanged();
     }

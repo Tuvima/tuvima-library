@@ -320,7 +320,7 @@ public static class PlayerEndpoints
             return Results.Created($"/player/audiobooks/{workId:D}/bookmarks/{bookmark.Id:D}", bookmark);
         })
         .WithName("CreateAudiobookBookmark")
-        .WithSummary("Save the current playback position of a video or audiobook as the profile's own bookmark. Everyone's bookmarks are made in the editor, so isGlobal is refused.")
+        .WithSummary("Save the current playback position of a video or audiobook as the profile's own bookmark. Global bookmarks are made in the editor, so isGlobal is refused.")
         .Produces<AudiobookBookmarkDto>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireClientScope(ClientApiScopes.ProgressWrite);

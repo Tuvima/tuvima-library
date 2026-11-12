@@ -520,7 +520,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
                 EditSessionChangeKinds.ChildRematch => "Seasons and episodes",
                 EditSessionChangeKinds.ThingAdd => "New item",
                 EditSessionChangeKinds.SupportingFiles => "Supporting file",
-                EditSessionChangeKinds.Bookmarks => "Everyone's bookmarks",
+                EditSessionChangeKinds.Bookmarks => "Global bookmarks",
                 _ => "Details",
             };
         }

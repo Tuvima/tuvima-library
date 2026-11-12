@@ -29,8 +29,8 @@ public sealed record PlaybackRailBookmark(Guid Id, double Seconds, bool IsGlobal
     /// <summary>The Everyone list: the bookmarks the Engine says are in the title's Everyone set.</summary>
     public static IReadOnlyList<PlaybackRailBookmark> EveryoneOf(IEnumerable<PlaybackRailBookmark> all) => all.Where(bookmark => bookmark.InEveryone).ToList();
 
-    /// <summary>True when the profile's remembered choice is Mine; anything else (the default, <c>All</c>) is Everyone.</summary>
-    public static bool IsMineChoice(string? choice) => string.Equals(choice, PlaybackPreferenceValues.Mine, StringComparison.Ordinal);
+    /// <summary>True unless the profile explicitly chose Global (<c>All</c>): Mine is the default (global bookmarks v5 D1).</summary>
+    public static bool IsMineChoice(string? choice) => !string.Equals(choice, PlaybackPreferenceValues.All, StringComparison.Ordinal);
 
     /// <summary>The markers for the list the panel shows: Mine or Everyone, as the profile chose (D21: the markers follow the choice shown).</summary>
     public static IReadOnlyList<PlaybackRailBookmark> ForChoice(IEnumerable<PlaybackRailBookmark> all, string? choice) =>

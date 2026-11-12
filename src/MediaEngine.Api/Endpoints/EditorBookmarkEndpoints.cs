@@ -25,7 +25,7 @@ public static class EditorBookmarkEndpoints
         group.MapGet("/titles/{workId:guid}", async (Guid workId, EditorBookmarksService bookmarks, CancellationToken ct) =>
             Results.Ok(await bookmarks.ReadAsync(workId, ct)))
         .WithName("GetEditorBookmarks")
-        .WithSummary("A title's Everyone's bookmarks and every profile's bookmarks beside them, for the editor's Bookmarks tab. Administrators only; never a Vault title.")
+        .WithSummary("A title's Global bookmarks and every profile's bookmarks beside them, for the editor's Bookmarks tab. Administrators only; never a Vault title.")
         .Produces<EditorBookmarksDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
@@ -44,7 +44,7 @@ public static class EditorBookmarkEndpoints
             }
         })
         .WithName("CompareEditorBookmarkFile")
-        .WithSummary("Reads a bookmark file and lays each bookmark beside the nearest one in the title's Everyone's list. Changes nothing.")
+        .WithSummary("Reads a bookmark file and lays each bookmark beside the nearest one in the title's Global list. Changes nothing.")
         .Produces<BookmarkSetCompareDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -63,7 +63,7 @@ public static class EditorBookmarkEndpoints
             }
         })
         .WithName("ExportEditorBookmarks")
-        .WithSummary("Saves a title's Everyone's bookmarks as a bookmark file (never anyone's personal ones).")
+        .WithSummary("Saves a title's Global bookmarks as a bookmark file (never anyone's personal ones).")
         .Produces<BookmarkPackFileDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -91,7 +91,7 @@ public static class EditorBookmarkEndpoints
             }
         })
         .WithName("ExportEditorShowBookmarks")
-        .WithSummary("Saves the Everyone's bookmarks of a whole show as one file, each episode named by season and episode number.")
+        .WithSummary("Saves the Global bookmarks of a whole show as one file, each episode named by season and episode number.")
         .Produces<BookmarkPackFileDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)

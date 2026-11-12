@@ -39,6 +39,15 @@ public interface IUnmatchedAssetRepository
     /// <summary>Keep as is: stops the item's retries and takes it out of the count and filter. Returns false when the asset is not Unmatched.</summary>
     Task<bool> KeepAsIsAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default);
 
+    /// <summary>
+    /// Puts a kept item back (Needs Review "Put back"): clears the kept mark and schedules its next retry at <paramref name="nextRetryAt"/>
+    /// without making it due now, so no lookup is forced. Returns false when the asset is not Unmatched or is not kept.
+    /// </summary>
+    Task<bool> UnkeepAsync(Guid assetId, DateTimeOffset nextRetryAt, CancellationToken ct = default);
+
+    /// <summary>Each library's kept-as-is count. A library with none is absent.</summary>
+    Task<IReadOnlyDictionary<string, int>> CountKeptByLibraryAsync(CancellationToken ct = default);
+
     /// <summary>Keep all Unmatched as they are, for one library. Returns how many items were kept.</summary>
     Task<int> KeepAllAsIsAsync(string libraryId, DateTimeOffset now, CancellationToken ct = default);
 

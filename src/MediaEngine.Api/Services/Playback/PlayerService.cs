@@ -1097,6 +1097,12 @@ public sealed class PlayerService
         CancellationToken ct = default)
     {
         var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
+        var workAssets = (await _scope.AssetsAsync(ct)).Where(row => row.WorkId == workId).ToList();
+        if (workAssets.Count > 0 && workAssets.All(row => row.MediaType == "Music"))
+        {
+            return [];
+        }
+
         var visible = await VisibleBookmarks.ReadAsync(normalizedProfile, workId, await _scope.AssetIdsAsync(ct), ct);
         IReadOnlyList<AudiobookBookmarkDto> saved = [.. visible.Select(entry => ToPlayerBookmark(entry))];
         return _frames?.Decorate(saved) ?? saved;
@@ -1198,6 +1204,12 @@ public sealed class PlayerService
 
         var normalizedProfile = await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
         await _scope.RequireAssetAsync(normalizedRequest!.AssetId, ct, workId);
+        if ((await _scope.RequireAssetContextAsync(normalizedRequest.AssetId, ct)).MediaType == "Music")
+        {
+            // Music has no bookmarks at all (global bookmarks v5 D4).
+            throw new ArgumentException("Music has no bookmarks.", nameof(request));
+        }
+
         var created = await _bookmarks.CreateAsync(normalizedProfile, workId, normalizedRequest, ct);
         if (_frames is not null)
         {
@@ -1251,8 +1263,8 @@ public sealed class PlayerService
 
         if (request.IsGlobal)
         {
-            // The player only reads Everyone's list (unified player v2 D22); an administrator makes it in the editor's Bookmarks tab.
-            validationError = "A bookmark made in the player is always your own. Everyone's bookmarks are made in the editor's Bookmarks tab.";
+            // The player only reads Global list (unified player v2 D22); an administrator makes it in the editor's Bookmarks tab.
+            validationError = "A bookmark made in the player is always your own. Global bookmarks are made in the editor's Bookmarks tab.";
             return false;
         }
 

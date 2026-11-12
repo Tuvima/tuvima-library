@@ -129,6 +129,11 @@ public sealed class ViewEditorV5FrameTests : AsyncBunitContext
         Assert.NotEmpty(header.FindAll(".view-hnav__home"));
         Assert.Contains("3 of 12", header.Find("#view-hnav-item").TextContent);
         Assert.Equal("Go to gallery Lisbon 2026", header.Find(".view-hnav__home").GetAttribute("aria-label"));
+        // Editor v6 D18: the home button is an outlined button in the normal icon color, not a filled accent tile.
+        var home = header.Find(".view-hnav__home");
+        Assert.Contains("app-icon-button--outlined", home.ClassList);
+        Assert.DoesNotContain("app-icon-button--filled", home.ClassList);
+        Assert.DoesNotContain("app-tone--primary", home.ClassList);
         Assert.Empty(header.FindAll("[data-level='Season']"));
     }
 
