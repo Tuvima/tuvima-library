@@ -5209,6 +5209,13 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     box-shadow: var(--tl-shadow-lg) !important;
     font-family: var(--font-ui);
 }
+/* Where the builder is its phone sheet (under 1024 px): the panel stays inside the screen and its search, rows and Done are 44 px. */
+@media (max-width: 1023px) {
+    .tl-popover.collection-rule-value-picker__surface { max-width: calc(100vw - var(--tl-space-4)); }
+    .tl-popover.collection-rule-value-picker__surface .collection-rule-value-picker__search,
+    .tl-popover.collection-rule-value-picker__surface .collection-rule-value-picker__select-all,
+    .tl-popover.collection-rule-value-picker__surface footer .app-button { min-height: var(--tl-tap-target-min); }
+}
 
 /* Tag editor suggestions (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
 .tl-popover.sme-tag-editor__suggestions-surface {
@@ -5349,6 +5356,36 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .sme-shell.collection-editor-workspace--phone .collection-editor-footer-actions>*{width:100%;min-width:0;min-height:var(--tl-tap-target-min)}
 .sme-shell.collection-editor-workspace--phone .collection-editor-footer-actions>:only-child{grid-column:1/-1}
 .sme-shell.collection-editor-workspace--phone .app-checkbox{min-height:var(--tl-tap-target-min)}
+/* Inside the builder (editor v6 L19): one column, nothing wider than the screen, every touch target 44 px, no drag. */
+.sme-shell.collection-editor-workspace--phone .app-icon-button,
+.sme-shell.collection-editor-workspace--phone .app-button{min-width:var(--tl-tap-target-min);min-height:var(--tl-tap-target-min)}
+.sme-shell.collection-editor-workspace--phone .collection-editor-grid,
+.sme-shell.collection-editor-workspace--phone .collection-editor-details-grid,
+.sme-shell.collection-editor-workspace--phone .collection-editor-artwork-grid{grid-template-columns:minmax(0,1fr);min-height:0}
+.sme-shell.collection-editor-workspace--phone .collection-editor-identity-list>div{grid-template-columns:var(--tl-space-6) minmax(0,.8fr) minmax(0,1fr)}
+.sme-shell.collection-editor-workspace--phone .collection-editor-system-list>div{grid-template-columns:minmax(0,.8fr) minmax(0,1fr)}
+.sme-shell.collection-editor-workspace--phone .collection-flow__covers{grid-template-columns:repeat(3,minmax(0,1fr))}
+.sme-shell.collection-editor-workspace--phone .collection-flow__ways,
+.sme-shell.collection-editor-workspace--phone .collection-flow__options,
+.sme-shell.collection-editor-workspace--phone .collection-packs__grid,
+.sme-shell.collection-editor-workspace--phone .collection-personal-media__gallery-list,
+.sme-shell.collection-editor-workspace--phone .collection-editor-draft-role-overview{grid-template-columns:minmax(0,1fr)}
+.sme-shell.collection-editor-workspace--phone .collection-personal-media__gallery,
+.sme-shell.collection-editor-workspace--phone .collection-personal-media__smart-toggle button{min-height:var(--tl-tap-target-min)}
+.sme-shell.collection-editor-workspace--phone .collection-personal-media__smart-toggle{flex-wrap:wrap}
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__group-header{grid-template-columns:minmax(0,1fr) auto auto}
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__group-mode{grid-column:1/-1;grid-row:2}
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__group-move{display:flex}
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__group-mode button,
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__join button{min-height:var(--tl-tap-target-min)}
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__join{flex-wrap:wrap;justify-content:center}
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__actions{align-items:stretch}
+.sme-shell.collection-editor-workspace--phone .collection-rule-builder__picker-families button{min-height:var(--tl-tap-target-min)}
+.sme-shell.collection-editor-workspace--phone .collection-editor-item-row,
+.sme-shell.collection-editor-workspace--phone .collection-editor-preview-item{flex-wrap:wrap;min-width:0}
+.sme-shell.collection-editor-workspace--phone .collection-editor-item-copy,
+.sme-shell.collection-editor-workspace--phone .collection-editor-preview-copy{flex:1 1 7rem;min-width:0}
+.sme-shell.collection-editor-workspace--phone .collection-editor-preview-type{flex:0 1 auto;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* The phone header's whole line is one button that opens the navigation sheet; the line is its positioning box. */
 .tl-hnav__phonetap{position:absolute;inset:0;z-index:1;width:100%;min-height:var(--tl-tap-target-min);border-radius:var(--tl-radius-md);background:transparent;color:inherit}
 .tl-hnav__phonetap.is-open{background:var(--tl-bg-surface-hover)}

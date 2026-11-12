@@ -338,6 +338,7 @@
     private RenderFragment RenderRulesWithPreview() => @<div class="collection-flow__cols">
         <div class="collection-flow__rules">
             <CollectionRuleBuilder @ref="_ruleBuilder"
+                                   MoveButtons="@Phone"
                                    Definition="@_ruleDefinition"
                                    DefinitionChanged="OnRuleDefinitionChanged"
                                    SortField="@_sortField"

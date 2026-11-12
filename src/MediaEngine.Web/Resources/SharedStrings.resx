@@ -3329,6 +3329,15 @@
   <data name="SharedRuleBuilder_RemoveRuleGroup" xml:space="preserve">
     <value>Remove rule group</value>
   </data>
+  <data name="SharedRuleBuilder_MoveGroup" xml:space="preserve">
+    <value>Move rule group</value>
+  </data>
+  <data name="SharedRuleBuilder_MoveGroupUp" xml:space="preserve">
+    <value>Move rule group up</value>
+  </data>
+  <data name="SharedRuleBuilder_MoveGroupDown" xml:space="preserve">
+    <value>Move rule group down</value>
+  </data>
   <data name="Common_Field" xml:space="preserve">
     <value>Field</value>
   </data>

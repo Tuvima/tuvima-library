@@ -50,14 +50,14 @@ public sealed class CollectionEditorPhoneTests : AsyncBunitContext
         _device = Services.GetRequiredService<DeviceContextService>();
     }
 
-    private static CollectionEditorLaunchRequest ExistingCollection(string collectionType = "Custom") => new()
+    private static CollectionEditorLaunchRequest ExistingCollection(string collectionType = "Custom", string membershipMode = "Manual") => new()
     {
         EditingCollection = new CollectionListItemViewModel
         {
             Id = CollectionId,
             Name = "Weekend picks",
             CollectionType = collectionType,
-            MembershipMode = "Manual",
+            MembershipMode = membershipMode,
             OwnerKind = "Library",
             Audience = "Everyone",
         },
@@ -242,6 +242,18 @@ public sealed class CollectionEditorPhoneTests : AsyncBunitContext
 
         var desktop = RenderEditor(ExistingCollection(), phone: false);
         Assert.Null(desktop.Find(".collection-editor-body").GetAttribute("role"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TheRuleBuilderDrawsMoveButtonsForItsGroupsOnlyOnAPhone(bool phone)
+    {
+        var editor = RenderEditor(ExistingCollection(membershipMode: "Smart"), phone);
+        editor.FindAll("[role=tab], .collection-editor-rail button").Single(tab => tab.TextContent.Trim() == "Contents").Click();
+
+        editor.WaitForAssertion(() => Assert.Single(editor.FindComponents<CollectionRuleBuilder>()));
+        Assert.Equal(phone, editor.FindComponent<CollectionRuleBuilder>().Instance.MoveButtons);
     }
 
     [Fact]
