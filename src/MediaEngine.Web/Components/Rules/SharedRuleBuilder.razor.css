@@ -59,7 +59,7 @@
 .collection-rule-builder__add-condition { margin-top: 8px; }
 .collection-rule-builder ::deep .collection-rule-builder__add-group { align-self: flex-start; width: auto; min-width: 150px; }
 
-.collection-rule-builder__picker { position: relative; margin-top: 10px; padding: 20px 24px 24px; border: 1px solid var(--tl-divider); border-radius: var(--tl-radius-lg); background: color-mix(in srgb, var(--tl-bg-surface-raised) 90%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, white 3%, transparent); }
+.collection-rule-builder__picker { position: relative; margin-top: 10px; padding: 20px 24px 24px; border: 1px solid var(--tl-divider); border-radius: var(--tl-radius-lg); background: color-mix(in srgb, var(--tl-bg-surface-raised) 90%, transparent); box-shadow: inset 0 1px 0 var(--tl-wash-light-1); }
 .collection-rule-builder__picker::before { position: absolute; top: -7px; left: 36px; width: 12px; height: 12px; border-top: 1px solid var(--tl-accent-primary-border); border-left: 1px solid var(--tl-accent-primary-border); background: var(--tl-bg-surface-raised); content: ""; transform: rotate(45deg); }
 .collection-rule-builder__picker-title { display: flex; align-items: center; min-height: 28px; margin-bottom: 12px; }
 .collection-rule-builder__picker-title strong { font-size: var(--tl-font-size-md); }
@@ -71,7 +71,7 @@
 .collection-rule-builder__picker-families ::deep button.is-selected { border-color: var(--tl-accent-primary-border); color: var(--rule-accent); background: var(--rule-soft); }
 .collection-rule-builder__picker-families ::deep .tl-icon-root { font-size: var(--tl-icon-size-md); }
 .collection-rule-builder__picker-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
-::deep .collection-rule-builder__picker-option { display: grid; width: 100%; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 76px; padding: 12px 16px; border: 1px solid var(--tl-divider); border-radius: var(--tl-control-radius); background: color-mix(in srgb, var(--tl-bg-surface) 72%, transparent); color: var(--tl-text-primary); text-align: left; box-shadow: inset 0 1px 0 color-mix(in srgb, white 3%, transparent); }
+::deep .collection-rule-builder__picker-option { display: grid; width: 100%; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 76px; padding: 12px 16px; border: 1px solid var(--tl-divider); border-radius: var(--tl-control-radius); background: color-mix(in srgb, var(--tl-bg-surface) 72%, transparent); color: var(--tl-text-primary); text-align: left; box-shadow: inset 0 1px 0 var(--tl-wash-light-1); }
 ::deep .collection-rule-builder__picker-option:hover, ::deep .collection-rule-builder__picker-option:focus-visible { border-color: var(--tl-accent-primary-border); outline: 0; background: var(--rule-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tl-accent-primary) 12%, transparent); }
 ::deep .collection-rule-builder__picker-option .tl-icon-root { color: var(--tl-text-secondary); font-size: var(--tl-icon-size-md); }
 ::deep .collection-rule-builder__picker-option > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }

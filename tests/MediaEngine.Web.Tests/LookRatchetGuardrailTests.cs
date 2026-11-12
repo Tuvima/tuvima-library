@@ -12,7 +12,7 @@ public sealed class LookRatchetGuardrailTests
     private const int RoundedEndCeiling = 0;
     private const int NativeControlCeiling = 276;
     private const int AdHocFontSizeCeiling = 69;
-    private const int HandTypedHexCeiling = 512;
+    private const int HandTypedHexCeiling = 498;
     private const int OffScaleFontSizeCeiling = 174;
     private const int ForcedOverrideCeiling = 1062;
     private const int HandTypedLayerCeiling = 271;
@@ -92,6 +92,71 @@ public sealed class LookRatchetGuardrailTests
             .Sum(f => Regex.Matches(f.Text, @"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])").Count);
         Assert.True(count <= HandTypedHexCeiling, $"Hand-typed hex colors rose to {count} (ceiling {HandTypedHexCeiling}). Colors live in tuvima.tokens.css; ask for a token or an icon tone.");
     }
+
+    // Look v3.1 D7: folders whose component styles hold no hand-typed color at all (hex, rgb(), rgba(), hsl(), hsla(), or a named color,
+    // including a var() fallback). Folders are relative to src/MediaEngine.Web; add a folder here once its styles are on the shared colors.
+    private static readonly string[] ColorLockedFolders =
+    [
+        "Components/Collections",
+        "Components/Rules",
+    ];
+
+    // The written list of real exceptions to the zero lock above (D7): colors taken from a cover's artwork, charts, subtitle color choices,
+    // the map, avatars and the readers' page themes. Keyed by a file path or a path prefix under src/MediaEngine.Web, each with its reason.
+    private static readonly Dictionary<string, string> ColorLockExceptions = new(StringComparer.Ordinal)
+    {
+        ["Components/View/ViewMap.razor.css"] = "The map draws its own base, labels and hotspots on top of map tiles, so its colors are the map's, not the app's.",
+        ["Components/Player/SubtitleAppearanceView.razor.css"] = "Shows the viewer's subtitle color choices, which are literal colors the viewer picks.",
+    };
+
+    private static readonly Regex AnyHandTypedColor = new(
+        @"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])"
+        + @"|(?<![\w-])(?:rgb|rgba|hsl|hsla)\("
+        + @"|(?<![\w.#-])(?:white|black|red|green|blue|gray|grey|silver|purple|orange|yellow|pink|navy|teal|gold|maroon|lime|aqua|cyan|magenta|brown)(?![\w-])",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static List<string> HandTypedColors(string css) =>
+        AnyHandTypedColor.Matches(Regex.Replace(css, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline)).Select(m => m.Value).ToList();
+
+    [Fact]
+    public void LockedFoldersHoldNoHandTypedColorInAnyForm()
+    {
+        var offenders = WebFiles(".css")
+            .Where(f => f.Relative.EndsWith(".razor.css", StringComparison.Ordinal))
+            .Where(f => ColorLockedFolders.Any(folder => f.Relative.StartsWith(folder + "/", StringComparison.Ordinal)))
+            .Where(f => !ColorLockExceptions.Keys.Any(path => f.Relative.StartsWith(path, StringComparison.Ordinal)))
+            .Select(f => (f.Relative, Colors: HandTypedColors(f.Text)))
+            .Where(f => f.Colors.Count > 0)
+            .Select(f => $"{f.Relative} ({f.Colors.Count}, first {f.Colors[0]})")
+            .ToList();
+        Assert.True(offenders.Count == 0, "Hand-typed colors in a locked folder; use a --tl-* color, or a wash/scrim step (--tl-wash-light-*, --tl-scrim-dark-*): " + string.Join("; ", offenders));
+    }
+
+    [Fact]
+    public void TheColorLockCoversTheFoldersItNamesAndTheExceptionsAreReal()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        Assert.All(ColorLockedFolders, folder => Assert.True(
+            Directory.EnumerateFiles(Path.Combine(web, folder), "*.razor.css").Any(), $"Locked folder {folder} has no component styles."));
+        Assert.Contains("Components/Collections", ColorLockedFolders);
+        Assert.Contains("Components/Rules", ColorLockedFolders);
+        Assert.All(ColorLockExceptions, pair =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(pair.Value));
+            Assert.True(File.Exists(Path.Combine(web, pair.Key)) || Directory.Exists(Path.Combine(web, pair.Key)), $"Exception {pair.Key} names a path that does not exist.");
+        });
+    }
+
+    [Theory]
+    [InlineData("a{color:#fff}", 1)]
+    [InlineData("a{color:var(--tl-text-primary, #A78BFA)}", 1)]
+    [InlineData("a{border:1px solid rgba(255,255,255,.1)}", 1)]
+    [InlineData("a{background:hsl(10 20% 30%)}", 1)]
+    [InlineData("a{background:color-mix(in srgb, white 3%, transparent)}", 1)]
+    [InlineData("a{white-space:nowrap;color:var(--tl-text-primary);background:var(--tl-wash-light-1)}", 0)]
+    [InlineData("/* was #fff */ .red-flag{color:currentColor;background:transparent}", 0)]
+    public void TheColorLockSeesEveryFormOfHandTypedColor(string css, int expected) =>
+        Assert.Equal(expected, HandTypedColors(css).Count);
 
     [Fact]
     public void OffScaleFontSizesOnlyGoDown()

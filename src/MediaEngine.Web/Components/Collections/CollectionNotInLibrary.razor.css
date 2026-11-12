@@ -39,9 +39,9 @@
     display: grid;
     place-items: center;
     aspect-ratio: 2 / 3;
-    border: 1px dashed rgba(148, 163, 184, 0.34);
+    border: 1px dashed color-mix(in srgb, var(--tl-text-muted) 34%, transparent);
     border-radius: var(--tl-radius-lg);
-    background: rgba(148, 163, 184, 0.08);
+    background: color-mix(in srgb, var(--tl-text-muted) 8%, transparent);
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-hero);
 }

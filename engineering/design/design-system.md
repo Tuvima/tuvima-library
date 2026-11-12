@@ -55,6 +55,24 @@ Surface tokens are the only backgrounds in the Dashboard. Purple appears only as
 | Strong border | `--tl-border-strong` | `rgba(182, 194, 214, 0.46)` | Outlined buttons |
 | Divider | `--tl-divider` | `rgba(148, 163, 184, 0.10)` | Dividers inside a surface |
 
+### Washes and scrims
+
+A short named set replaces every hand-typed black or white alpha (Look v3.1 D7): a white wash lightens a surface for hover fills and hairlines, a black scrim dims what is under it. Pick the nearest step; do not type a new alpha.
+
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| Wash 1 | `--tl-wash-light-1` | `rgba(255, 255, 255, 0.03)` | Faintest white wash: inset highlights, the quietest hover fill |
+| Wash 2 | `--tl-wash-light-2` | `rgba(255, 255, 255, 0.05)` | Row and rail hover fills, soft hairlines |
+| Wash 3 | `--tl-wash-light-3` | `rgba(255, 255, 255, 0.08)` | Hover fills on cards and chips, hairlines on artwork |
+| Wash 4 | `--tl-wash-light-4` | `rgba(255, 255, 255, 0.12)` | Stronger hairlines and pressed fills |
+| Wash 5 | `--tl-wash-light-5` | `rgba(255, 255, 255, 0.18)` | Strongest white wash: outlines over artwork |
+| Scrim 1 | `--tl-scrim-dark-1` | `rgba(0, 0, 0, 0.2)` | Lightest black dimming: recessed panels and rails |
+| Scrim 2 | `--tl-scrim-dark-2` | `rgba(0, 0, 0, 0.3)` | Light dimming over artwork, soft shadows |
+| Scrim 3 | `--tl-scrim-dark-3` | `rgba(0, 0, 0, 0.4)` | Medium dimming, shadows under covers |
+| Scrim 4 | `--tl-scrim-dark-4` | `rgba(0, 0, 0, 0.5)` | Wells behind artwork previews |
+| Scrim 5 | `--tl-scrim-dark-5` | `rgba(0, 0, 0, 0.6)` | Heavy dimming behind text over artwork |
+| Scrim 6 | `--tl-scrim-dark-6` | `rgba(0, 0, 0, 0.7)` | Deepest dimming: footers and bars over artwork |
+
 ### Accent and Vault gold
 
 | Role | Token | Value | Used for |
