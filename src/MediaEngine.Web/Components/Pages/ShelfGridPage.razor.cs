@@ -114,6 +114,10 @@ public partial class ShelfGridPage
         await SyncObserverAsync();
     }
 
+    private bool IsRemovedMyListGrid =>
+        string.Equals(Lane, "personal", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(ShelfKey, DisplayGridValues.RememberMyList, StringComparison.OrdinalIgnoreCase);
+
     private Task ReloadAsync() => LoadFirstPageAsync();
 
     private async Task LoadFirstPageAsync()
@@ -138,6 +142,14 @@ public partial class ShelfGridPage
         _notFound = false;
         _moreFailed = false;
         _hasMore = false;
+
+        if (IsRemovedMyListGrid)
+        {
+            // My List has its own page (/my-list); its old View all address no longer exists (My List spec D13), and nothing redirects.
+            _loading = false;
+            _notFound = true;
+            return;
+        }
 
         var result = await ApiClient.GetDisplayGridAsync(
             Lane, ShelfKey, Clean(SortQuery), Clean(TypeQuery), Clean(GenreQuery), Clean(FormatQuery), Clean(StatusQuery),
@@ -191,6 +203,14 @@ public partial class ShelfGridPage
         _loadingMore = true;
         _moreFailed = false;
         StateHasChanged();
+
+        if (IsRemovedMyListGrid)
+        {
+            // My List has its own page (/my-list); its old View all address no longer exists (My List spec D13), and nothing redirects.
+            _loading = false;
+            _notFound = true;
+            return;
+        }
 
         var result = await ApiClient.GetDisplayGridAsync(
             Lane, ShelfKey, Clean(SortQuery), Clean(TypeQuery), Clean(GenreQuery), Clean(FormatQuery), Clean(StatusQuery),

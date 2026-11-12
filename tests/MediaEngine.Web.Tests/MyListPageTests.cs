@@ -39,6 +39,7 @@ public sealed class MyListPageTests : AsyncBunitContext
     private bool _coverRemoveFails;
     private bool _secondBatchFails;
     private string? _lastError;
+    private string? _lastFailedEndpoint;
     private DisplayPageDto? _continue;
     private TaskCompletionSource? _gridGate;
     private TaskCompletionSource? _continueGate;
@@ -65,6 +66,7 @@ public sealed class MyListPageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), _ => ReadContinueAsync());
             // What the real client records when a call fails: the page tells a failed read from an empty list by it.
             stub.SetHandler("get_" + nameof(IEngineApiClient.LastError), _ => _lastError);
+            stub.SetHandler("get_" + nameof(IEngineApiClient.LastFailedEndpoint), _ => _lastFailedEndpoint);
             stub.SetHandler(nameof(IEngineApiClient.SetDisplayGridSortAsync), args =>
             {
                 _sortSaves.Add(((string)args![0]!, (string)args[1]!));
@@ -831,6 +833,7 @@ public sealed class MyListPageTests : AsyncBunitContext
         var cut = await RenderPageAsync();
         var saved = Services.GetRequiredService<SavedItemService>();
 
+        _lastFailedEndpoint = "Saved profile items";
         _lastError = "The Engine did not answer.";
         await cut.InvokeAsync(() => saved.ToggleAsync(ProfileEntityKind.Movie, Id(2)));
         await Task.Delay(200);
@@ -845,9 +848,27 @@ public sealed class MyListPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AnOlderFailureOfSomeOtherEngineCallDoesNotCountAsAFailedSavedListRead()
+    {
+        // The client remembers the last call that failed anywhere in the session. A missing cover earlier must not stop Undo or Remove finished.
+        Seed(3);
+        _lastError = "HTTP 404";
+        _lastFailedEndpoint = "Artwork";
+        var cut = await RenderPageAsync();
+        var saved = Services.GetRequiredService<SavedItemService>();
+
+        Assert.Equal(["Nothing finished yet"], MenuRows(cut));
+
+        await cut.InvokeAsync(() => saved.ToggleAsync(ProfileEntityKind.Movie, Id(2)));
+
+        cut.WaitForAssertion(() => Assert.Contains("Removed from My List.", UndoText(cut), StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task WhenTheFinishedTitlesCannotBeReadRemoveFinishedStaysOnAndPressingItSaysSoInPlace()
     {
         Seed(3);
+        _lastFailedEndpoint = "Finished saved profile items";
         _lastError = "The Engine did not answer.";
         var cut = await RenderPageAsync();
 

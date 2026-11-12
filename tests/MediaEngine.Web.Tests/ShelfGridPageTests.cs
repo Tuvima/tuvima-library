@@ -343,6 +343,22 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheOldMyListGridAddressNoLongerOpensAndNeverAsksTheEngine()
+    {
+        // My List spec D13: My List lives at /my-list; its old View all address is gone and nothing redirects.
+        await UseAsync("desktop");
+        Nav.NavigateTo("/all/personal/my-list");
+
+        var cut = Render<RoutedPageHost<ShelfGridPage>>(parameters => parameters
+            .Add(host => host.PageParameters, new Dictionary<string, object?> { [nameof(ShelfGridPage.Lane)] = "personal", [nameof(ShelfGridPage.ShelfKey)] = "my-list" }))
+            .FindComponent<ShelfGridPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("This list isn't available", cut.Markup));
+        Assert.Empty(_gridCalls);
+        Assert.EndsWith("/all/personal/my-list", Nav.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ANotFoundGridShowsTheUnavailableStateWithALinkHome()
     {
         await UseAsync("desktop");

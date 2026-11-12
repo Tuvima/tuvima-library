@@ -288,11 +288,24 @@ public partial class MyListPage
         try
         {
             _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/my-list-focus.js");
+            if (_disposed)
+            {
+                // The page closed while the helper was loading: let it go rather than keep it.
+                await _focusModule.DisposeAsync();
+                _focusModule = null;
+                return;
+            }
+
             await _focusModule.InvokeVoidAsync("focusFirst", selector);
         }
         catch (JSDisconnectedException)
         {
             // The browser tab closed while focus was moving; there is nothing left to focus.
+        }
+        catch (Exception ex) when (ex is JSException or TaskCanceledException)
+        {
+            // Moving focus is a convenience: if the helper cannot load or answer, the page still works, so it must not end the session.
+            Logger.LogDebug(ex, "My List could not move keyboard focus to {Selector}", selector);
         }
     }
 }

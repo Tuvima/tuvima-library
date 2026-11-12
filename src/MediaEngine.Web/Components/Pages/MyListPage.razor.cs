@@ -44,6 +44,7 @@ public partial class MyListPage
 
     private ProfileViewModel? _profile;
     private int _profileCount;
+    private bool _disposed;
     private bool _headerFailed;
     private bool _noProfile;
     private bool _continueLoading = true;
@@ -560,6 +561,7 @@ public partial class MyListPage
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Saved.Changed -= OnSavedChanged;

@@ -69,15 +69,23 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
     public async Task<IReadOnlyList<ProfileSavedItemDto>?> TryGetListAsync(CancellationToken ct = default)
     {
         var result = await apiClient.GetSavedItemsAsync(ct);
-        return apiClient.LastError is null ? result : null;
+        return ReadFailed(SavedItemsRead) ? null : result;
     }
 
     /// <summary>The saved titles this profile has finished (what "Remove finished" would take), or null when the Engine call failed.</summary>
     public async Task<IReadOnlyList<ProfileSavedItemDto>?> TryGetFinishedAsync(CancellationToken ct = default)
     {
         var result = await apiClient.GetFinishedSavedItemsAsync(ct);
-        return apiClient.LastError is null ? result : null;
+        return ReadFailed(FinishedSavedItemsRead) ? null : result;
     }
+
+    // The client remembers the last call that failed anywhere in this session, so "did this read fail" must ask about this read by name:
+    // an older failure of some other call (a missing cover, a failed Continue read) says nothing about the saved list.
+    private const string SavedItemsRead = "Saved profile items";
+    private const string FinishedSavedItemsRead = "Finished saved profile items";
+
+    private bool ReadFailed(string read) =>
+        apiClient.LastError is not null && string.Equals(apiClient.LastFailedEndpoint, read, StringComparison.Ordinal);
 
     private void InvalidateList()
     {
