@@ -67,20 +67,34 @@
     color: var(--tl-text-primary);
 }
 
+/* The handle sits across the column edge: 12 px wide, from 4 px inside the cell to the middle of the 8 px gap and beyond, over the sort
+   button beside it. The browser handles the drag (song-table.js), so it must not scroll or select anything itself. */
 .song-table__resizer {
     position: absolute;
     top: 0;
-    right: -6px;
+    right: -8px;
     bottom: 0;
-    width: 10px;
+    z-index: 1;
+    width: 12px;
     cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* While a handle is held, the whole table shows the resize cursor and selects nothing. */
+.song-table.is-resizing,
+.song-table.is-resizing * {
+    cursor: col-resize;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .song-table__resizer::after {
     content: "";
     position: absolute;
     top: 10px;
-    right: 4px;
+    right: 5px;
     bottom: 10px;
     width: 1px;
     background: var(--tl-border-default);
@@ -161,6 +175,13 @@
 .song-table__cell--actions {
     justify-content: flex-end;
     gap: 4px;
+}
+
+/* The empty cell that takes the spare width before the actions column once Song has a fixed width. It is in the grid only then: the
+   wrapper's --song-table-filler is block while its track exists and none otherwise, so no cell is left without a track. */
+.song-table__head-cell.song-table__filler,
+.song-table__cell.song-table__filler {
+    display: var(--song-table-filler, none);
 }
 
 .song-table__meta {
