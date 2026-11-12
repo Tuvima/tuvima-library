@@ -8,8 +8,8 @@
     gap: 18px;
     min-height: 62px;
     padding: 8px clamp(20px, 2.2vw, 40px);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-    background: rgba(5, 9, 17, 0.88);
+    border-bottom: 1px solid var(--tl-border-subtle);
+    background: color-mix(in srgb, var(--tl-bg-root) 88%, transparent);
     backdrop-filter: blur(18px);
 }
 

@@ -2,8 +2,8 @@
 .view-discovery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 1.5rem; }
 ::deep .view-discovery-card { display: grid; justify-items: center; gap: .35rem; text-align: center; border: 0; background: transparent; color: inherit; padding: .5rem; cursor: pointer; }
 ::deep .view-discovery-card:focus-visible { outline: 2px solid var(--tl-accent-primary-hover); border-radius: .5rem; }
-.view-discovery-card img { width: 8rem; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: rgba(148,163,184,.1); border: 2px solid rgba(167,139,250,.28); }
-.view-discovery-card span, .view-discovery-card small { color: rgba(203,213,225,.66); }
+.view-discovery-card img { width: 8rem; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: var(--tl-border-subtle); border: 2px solid color-mix(in srgb, var(--tl-accent-primary-hover) 28%, transparent); }
+.view-discovery-card span, .view-discovery-card small { color: var(--tl-text-secondary); }
 
 @media (max-width: 640px) {
     .view-discovery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

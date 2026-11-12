@@ -1,5 +1,5 @@
 .playback-range-slider {
-    --playback-range-accent: var(--playback-accent, #8852FC);
+    --playback-range-accent: var(--playback-accent, var(--tl-accent-primary));
     --playback-range-thumb-size: 30px;
     --playback-range-track-height: 4px;
     --playback-range-track-inset: calc(var(--playback-range-thumb-size) / 2);
@@ -25,7 +25,7 @@
 }
 
 .playback-range-slider__track {
-    background: var(--playback-track, #30364A);
+    background: var(--playback-track, var(--tl-bg-surface-elevated));
     border-radius: var(--tl-radius-round);
     height: var(--playback-range-track-height);
     left: 0;
@@ -276,7 +276,7 @@
 
 .playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__track {
     bottom: 0;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--tl-viewer-black) 45%, transparent);
     height: auto;
     left: calc(50% - var(--playback-slider-rail-height) / 2);
     right: auto;
@@ -293,7 +293,7 @@
 
 .playback-range-slider--player.playback-range-slider--vertical .playback-range-slider__thumb {
     bottom: 0;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 1px 4px var(--tl-scrim-dark-5);
     left: 50%;
     top: auto;
     transform: translate(-50%, 50%);

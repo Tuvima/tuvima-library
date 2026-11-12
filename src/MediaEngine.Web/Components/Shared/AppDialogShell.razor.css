@@ -8,7 +8,7 @@
     border-radius: var(--tl-window-radius, 12px);
     border: 1px solid var(--tl-border-subtle);
     background: var(--tl-bg-surface-raised);
-    color: var(--tl-text-primary, rgba(255, 255, 255, 0.92));
+    color: var(--tl-text-primary);
 }
 
 /* Inside the shared Window frame the frame owns the width (S 480, M 640, L 900), so the card simply fills it. */

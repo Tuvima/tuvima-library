@@ -4,12 +4,12 @@
     height: 100%;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: 0.75rem;
     background:
-        linear-gradient(110deg, rgba(7, 13, 23, 0.88), rgba(25, 22, 50, 0.78)),
+        linear-gradient(110deg, color-mix(in srgb, var(--tl-bg-root) 88%, transparent), color-mix(in srgb, var(--tl-bg-surface) 78%, transparent)),
         color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 7%, transparent);
-    box-shadow: 0 1.1rem 3rem rgba(0, 0, 0, 0.22);
+    box-shadow: 0 1.1rem 3rem var(--tl-scrim-dark-1);
 }
 
 .tl-embedded-audio__toolbar {
@@ -20,8 +20,8 @@
     flex: 0 0 auto;
     min-height: 3rem;
     padding: 0.4rem 0.9rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(10, 14, 25, 0.62);
+    border-bottom: 1px solid var(--tl-wash-light-3);
+    background: var(--tl-scrim-dark-5);
     backdrop-filter: blur(14px);
     /* Match the scroller's reserved scrollbar space so the toolbar ends where the rows end. */
     padding-inline-end: calc(0.9rem + 10px);
@@ -55,8 +55,8 @@
     align-items: center;
     min-height: var(--tl-list-row-height-compact, 2.7rem);
     padding: 0 0.65rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
-    color: rgba(245, 247, 252, 0.84);
+    border-bottom: 1px solid var(--tl-wash-light-2);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-secondary-size);
 }
 
@@ -72,7 +72,7 @@
     background: linear-gradient(
         90deg,
         color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 22%, transparent),
-        rgba(255, 255, 255, 0.025));
+        var(--tl-wash-light-1));
 }
 
 /* Play button (or the playing indicator) and the track number each have their own column, so "10" and the name never touch
@@ -87,7 +87,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--tl-text-secondary);
     font-variant-numeric: tabular-nums;
 }
 
@@ -100,7 +100,7 @@
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--tl-text-primary);
 }
 
 ::deep .tl-embedded-audio__row-play:hover,
@@ -135,13 +135,13 @@
     height: 1rem;
     place-items: center;
     border-radius: 0.15rem;
-    background: rgba(255, 255, 255, 0.18);
+    background: var(--tl-wash-light-5);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
 }
 
 .tl-embedded-audio__duration {
-    color: rgba(255, 255, 255, 0.66);
+    color: var(--tl-text-secondary);
     font-variant-numeric: tabular-nums;
     text-align: right;
 }
@@ -180,7 +180,7 @@
     min-height: 3.4rem;
     padding: 0 0.9rem;
     border: 0;
-    border-bottom: 1px solid rgba(255,255,255,0.075);
+    border-bottom: 1px solid var(--tl-wash-light-3);
     background: transparent;
     color: inherit;
     text-align: left;
@@ -196,7 +196,7 @@
 
 :where(.tl-detail-page) .tl-detail-track-empty {
     padding: 1rem 1.2rem 1.2rem;
-    color: rgba(246, 240, 232, 0.58);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-body-size);
 }
 
@@ -217,12 +217,12 @@
     height: 100%;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: 0.75rem;
     background:
-        linear-gradient(110deg, rgba(7, 13, 23, 0.88), rgba(25, 22, 50, 0.78)),
+        linear-gradient(110deg, color-mix(in srgb, var(--tl-bg-root) 88%, transparent), color-mix(in srgb, var(--tl-bg-surface) 78%, transparent)),
         color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 7%, transparent);
-    box-shadow: 0 1.1rem 3rem rgba(0, 0, 0, 0.22);
+    box-shadow: 0 1.1rem 3rem var(--tl-scrim-dark-1);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__toolbar {
@@ -233,8 +233,8 @@
     flex: 0 0 auto;
     min-height: 3rem;
     padding: 0.4rem 0.9rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(10, 14, 25, 0.62);
+    border-bottom: 1px solid var(--tl-wash-light-3);
+    background: var(--tl-scrim-dark-5);
     backdrop-filter: blur(14px);
 }
 
@@ -257,20 +257,20 @@
     align-items: center;
     min-height: 2.7rem;
     padding: 0 0.65rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
-    color: rgba(245, 247, 252, 0.84);
+    border-bottom: 1px solid var(--tl-wash-light-2);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-caption-size);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__row.is-playing {
-    background: linear-gradient(90deg, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 22%, transparent), rgba(255, 255, 255, 0.025));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 22%, transparent), var(--tl-wash-light-1));
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__ordinal {
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--tl-text-secondary);
 }
 
 :where(.tl-detail-page) :where(.tl-embedded-audio) ::deep .tl-detail-stage--with-primary .tl-embedded-audio__row-play {
@@ -282,7 +282,7 @@
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--tl-text-primary);
 }
 
 :where(.tl-detail-page) :where(.tl-embedded-audio) ::deep .tl-detail-stage--with-primary .tl-embedded-audio__row-play:hover,
@@ -317,13 +317,13 @@
     width: 1rem;
     height: 1rem;
     border-radius: 0.15rem;
-    background: rgba(255, 255, 255, 0.18);
+    background: var(--tl-wash-light-5);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__duration {
-    color: rgba(255, 255, 255, 0.66);
+    color: var(--tl-text-secondary);
     font-variant-numeric: tabular-nums;
     text-align: right;
 }
@@ -369,7 +369,7 @@
 .tl-audio-item-table__group-row th,
 .tl-audio-item-table__group-heading {
     padding: 0.55rem 0.65rem 0.3rem;
-    color: var(--tl-text-secondary, rgba(245, 247, 252, 0.68));
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.08em;
@@ -377,7 +377,7 @@
 }
 
 .tl-audio-item-table__group-heading {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+    border-bottom: 1px solid var(--tl-wash-light-2);
 }
 
 /* A ticked row: tinted with a bar at its start, so it stays visible among the rows. */

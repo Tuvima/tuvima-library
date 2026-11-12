@@ -110,7 +110,7 @@
 .network-settings ::deep .network-advanced-card summary strong { color: var(--tl-text-primary); font-size: var(--tl-type-label-size); }
 .network-settings ::deep .network-advanced-card summary small { color: var(--tl-text-muted); font-size: var(--tl-type-caption-size); }
 .network-settings ::deep .network-advanced-card[open] summary > .tl-icon-root:last-child { transform: rotate(90deg); }
-.network-settings ::deep .network-advanced-card__icon { display: inline-grid; width: 34px; height: 34px; place-items: center; border-radius: 8px; background: rgba(255,255,255,.06); }
+.network-settings ::deep .network-advanced-card__icon { display: inline-grid; width: 34px; height: 34px; place-items: center; border-radius: 8px; background: var(--tl-wash-light-2); }
 .network-settings ::deep .network-advanced-card__body { padding: 14px 0 0 46px; }
 .network-settings ::deep .network-advanced-fields { display: grid; gap: 12px; }
 .network-settings ::deep .network-advanced-warning { margin-top: 8px; }

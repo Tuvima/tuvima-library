@@ -54,7 +54,7 @@
     padding: .65rem;
     overflow-wrap: anywhere;
     border-radius: var(--tl-radius-sm);
-    background: rgb(0 0 0 / 28%);
+    background: var(--tl-scrim-dark-2);
     user-select: all;
 }
 

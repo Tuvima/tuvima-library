@@ -17,20 +17,20 @@
     align-items: center;
     gap: 0.45rem;
     padding: 0.55rem 0.72rem;
-    border: 1px solid rgba(246, 240, 232, 0.12);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: 0.45rem;
-    background: rgba(246, 240, 232, 0.055);
-    color: rgba(246, 240, 232, 0.9);
+    background: var(--tl-wash-light-2);
+    color: var(--tl-text-primary);
     text-decoration: none;
 }
 
 :where(.tl-detail-page) .tl-source-link:hover {
-    border-color: rgba(246, 240, 232, 0.24);
-    background: rgba(246, 240, 232, 0.085);
+    border-color: color-mix(in srgb, var(--tl-text-primary) 24%, transparent);
+    background: var(--tl-wash-light-3);
 }
 
 :where(.tl-detail-page) .tl-source-link small {
-    color: rgba(246, 240, 232, 0.52);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-caption-size);
 }
 
@@ -44,7 +44,7 @@
 
 :where(.tl-detail-page) .tl-file-facts__note {
     margin: 0;
-    color: rgba(246, 240, 232, 0.62);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-body-size);
     overflow-wrap: anywhere;
 }
@@ -55,7 +55,7 @@
 }
 
 :where(.tl-detail-page) .tl-file-facts__block + .tl-file-facts__block {
-    border-top: 1px solid rgba(246, 240, 232, 0.1);
+    border-top: 1px solid var(--tl-wash-light-4);
 }
 
 :where(.tl-detail-page) .tl-file-facts__title {
@@ -86,7 +86,7 @@
 }
 
 :where(.tl-detail-page) .tl-file-facts__list dt {
-    color: rgba(246, 240, 232, 0.55);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-secondary-size);
     overflow-wrap: anywhere;
 }
@@ -118,13 +118,13 @@
 
 :where(.tl-detail-page) .tl-item-history__when,
 :where(.tl-detail-page) .tl-item-history__who {
-    color: rgba(246, 240, 232, 0.55);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-secondary-size);
 }
 
 :where(.tl-detail-page) .tl-item-history__detail {
     grid-column: 2;
-    color: rgba(246, 240, 232, 0.7);
+    color: var(--tl-text-secondary);
     overflow-wrap: anywhere;
 }
 

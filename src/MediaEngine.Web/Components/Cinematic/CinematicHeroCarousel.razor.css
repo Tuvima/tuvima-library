@@ -69,10 +69,10 @@
     right: calc(var(--tl-safe-area-right, 0px) + 4.75rem);
     max-width: calc(100% - 6rem);
     padding: 0.48rem 0.72rem;
-    border: 1px solid rgba(255, 255, 255, 0.13);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: var(--tl-radius-pill);
-    background: rgba(5, 7, 12, 0.46);
-    color: rgba(248, 250, 252, 0.82);
+    background: color-mix(in srgb, var(--tl-bg-root) 46%, transparent);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.11em;
@@ -145,7 +145,7 @@
 }
 
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__timeline-item:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline: 2px solid var(--tl-text-primary);
     outline-offset: 1px;
 }
 
@@ -155,13 +155,13 @@
     height: 0.22rem;
     overflow: hidden;
     border-radius: var(--tl-radius-round);
-    background: rgba(226, 232, 240, 0.3);
-    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+    background: color-mix(in srgb, var(--tl-text-primary) 30%, transparent);
+    box-shadow: 0 1px 8px var(--tl-scrim-dark-2);
 }
 
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__timeline-item:hover .cinematic-hero-carousel__dash,
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__timeline-item:focus-visible .cinematic-hero-carousel__dash {
-    background: rgba(226, 232, 240, 0.52);
+    background: color-mix(in srgb, var(--tl-text-primary) 52%, transparent);
 }
 
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__timeline-item.is-active .cinematic-hero-carousel__dash {
@@ -174,7 +174,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--tl-accent-primary) 65%, white);
+    background: color-mix(in srgb, var(--tl-accent-primary) 65%, var(--tl-text-primary));
     transform: scaleX(0);
     transform-origin: left center;
     animation: cinematic-hero-dash-fill var(--cinematic-hero-rotation-duration, 8000ms) linear forwards;
@@ -215,10 +215,10 @@
     display: grid;
     place-items: center;
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid var(--tl-wash-light-5);
     border-radius: var(--tl-control-radius);
-    background: rgba(5, 7, 12, 0.58);
-    color: rgba(248, 250, 252, 0.9);
+    background: color-mix(in srgb, var(--tl-bg-root) 58%, transparent);
+    color: var(--tl-text-primary);
     cursor: pointer;
     backdrop-filter: blur(0.75rem);
     pointer-events: auto;
@@ -240,8 +240,8 @@
 
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__control:hover,
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__control:focus-visible {
-    border-color: rgba(255, 255, 255, 0.42);
-    background: rgba(20, 23, 31, 0.84);
+    border-color: color-mix(in srgb, var(--tl-text-primary) 42%, transparent);
+    background: color-mix(in srgb, var(--tl-bg-surface) 84%, transparent);
     color: var(--tl-text-on-accent);
 }
 ::deep .cinematic-hero__track-preview {
@@ -249,20 +249,20 @@
     width: min(32.5rem, 100%);
     margin-top: 0.2rem;
     padding-top: 0.7rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.13);
+    border-top: 1px solid var(--tl-wash-light-4);
 }
 
 ::deep .cinematic-hero__track-preview-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: rgba(248, 250, 252, 0.9);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-label-size);
     font-weight: var(--tl-type-label-weight);
 }
 
 ::deep .cinematic-hero__track-preview-heading small {
-    color: rgba(203, 213, 225, 0.58);
+    color: var(--tl-text-muted);
     font-weight: 600;
 }
 
@@ -279,7 +279,7 @@
     display: grid;
     grid-template-columns: 1.5rem minmax(0, 1fr);
     gap: 0.45rem;
-    color: rgba(226, 232, 240, 0.74);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-caption-size);
 }
 
@@ -426,7 +426,7 @@
 
 /* The "Recently added music" slide: eight covers in a grid on the right of the hero (Home, detail and tiles spec D4). */
 .cinematic-hero-carousel__collage { position: absolute; top: 50%; right: clamp(1.5rem, 5vw, 4rem); z-index: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: min(46%, 34rem); transform: translateY(-50%); pointer-events: none; }
-.cinematic-hero-carousel__collage img { display: block; width: 100%; aspect-ratio: 1; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
+.cinematic-hero-carousel__collage img { display: block; width: 100%; aspect-ratio: 1; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px color-mix(in srgb, var(--tl-scrim-dark-6) 64%, transparent); }
 
 /* A cover-led book, comic or audiobook hero on a narrow stage: the hero grows to its content, the large cover sits above the text, and the
    text starts below it (issue 709). The cover itself is placed by HeroBackdrop.razor.css from --lc-narrow-h. */

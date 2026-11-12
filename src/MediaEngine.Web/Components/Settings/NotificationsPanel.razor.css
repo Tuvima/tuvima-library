@@ -52,7 +52,7 @@
     padding: 1px 8px;
     border-radius: var(--tl-radius-pill);
     font-size: var(--tl-type-caption-size);
-    background: var(--tl-bg-surface-raised, rgba(127, 127, 127, 0.2));
+    background: var(--tl-bg-surface-raised);
 }
 
 .notifications-page__channels {
