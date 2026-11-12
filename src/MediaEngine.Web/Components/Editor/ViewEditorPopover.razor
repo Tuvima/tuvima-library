@@ -5,14 +5,13 @@
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Theming
 @using Microsoft.AspNetCore.Components.Routing
-@implements IAsyncDisposable
+@implements IDisposable
 @inject ViewEditorHost Host
 @inject ViewRibbonState Ribbon
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
-@inject IStringLocalizer<SharedStrings> L
 @inject DeviceContextService Device
-@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 
 @* The pop-over of the photos, videos, documents and galleries editor (spec photos-documents-editor D1), drawn once by the app layout so Edit opens
    it over any page. It draws no frame of its own: it hands the shared window (EditorWindowChrome) its rail, header, tabs and body, so it looks and
@@ -25,6 +24,7 @@
     var tool = session.Tools.Contains(session.Tool) ? session.Tool : ViewEditTool.Details;
     <NavigationLock ConfirmExternalNavigation="@session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
     <AppDialogFrame Open="true" Title="@Header(session)" DialogOptions="_options" OnCancel="@(() => session.LeaveAsync())" Class="tl-editor-dialog">
+        <CascadingValue Value="Layout">
         <EditorWindowChrome Framed="@(!_reviewing)"
                             Phone="Phone"
                             Title="@L["ViewEdit_ReviewChanges"].Value"
@@ -102,6 +102,7 @@
                 }
             </Body>
         </EditorWindowChrome>
+        </CascadingValue>
     </AppDialogFrame>
 }
 
@@ -111,12 +112,13 @@
     private string? _deleteNote;
     private ViewEditSession? _bound;
 
-    // The phone arrangement (v6 section 4a), the same as the library editor's: a phone or a tablet says so by its form factor, and the browser says so for a
-    // window no wider than a tablet (editor-focus.js, which also keeps the window above the on-screen keyboard).
-    private bool _narrow, _watching, _layoutUnavailable, _disposed;
-    private IJSObjectReference? _focusModule;
-    private DotNetObjectReference<ViewEditorPopover>? _self;
-    private bool Phone => EditorPhoneArrangement.Applies(Device, _narrow);
+    /// <summary>Draws the window in the phone arrangement (true) or the desktop one (false) whatever the device says; left unset, the device's form factor decides.</summary>
+    [Parameter] public bool? PhoneArrangement { get; set; }
+
+    // The phone arrangement (v6 section 4a), the same as the library editor's.
+    private bool Phone => PhoneArrangement ?? EditorPhoneArrangement.Applies(Device);
+
+    private EditorWindowLayout Layout => Phone ? EditorWindowLayout.PhoneSheet : EditorWindowLayout.Desktop;
 
     protected override void OnInitialized()
     {
@@ -125,77 +127,11 @@
         Device.OnChanged += OnChanged;
     }
 
-    /// <summary>The browser's answer when the window crosses the tablet width (see <see cref="EditorPhoneArrangement.NarrowWindowQuery"/>).</summary>
-    [JSInvokable]
-    public Task NarrowWindowChanged(bool narrow) => InvokeAsync(() =>
+    public void Dispose()
     {
-        if (_narrow != narrow)
-        {
-            _narrow = narrow;
-            StateHasChanged();
-        }
-    });
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        var open = Host.Session is not null;
-        if (_disposed || _layoutUnavailable || open == _watching)
-        {
-            return;
-        }
-
-        try
-        {
-            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
-            if (open)
-            {
-                _watching = true;
-                _self ??= DotNetObjectReference.Create(this);
-                var narrow = await _focusModule.InvokeAsync<bool>("watchLayout", _self, EditorPhoneArrangement.NarrowWindowQuery);
-                if (narrow != _narrow)
-                {
-                    _narrow = narrow;
-                    StateHasChanged();
-                }
-            }
-            else
-            {
-                _watching = false;
-                _narrow = false;
-                await _focusModule.InvokeVoidAsync("stopLayout");
-            }
-        }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
-        {
-            // No script support here (a test host, a closing circuit): the device's form factor still decides, and the window is usable without the keyboard fit.
-            _layoutUnavailable = true;
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _disposed = true;
         Host.Changed -= OnChanged;
         Device.OnChanged -= OnChanged;
         Host.ConfirmDiscard = null;
-        if (_focusModule is not null)
-        {
-            try
-            {
-                if (_watching)
-                {
-                    await _focusModule.InvokeVoidAsync("stopLayout");
-                }
-
-                await _focusModule.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-                // The circuit ended first; the browser already dropped its listeners with the page.
-            }
-        }
-
-        _self?.Dispose();
     }
 
     // Delete in the header's "..." on a phone (v6 D22): the same confirmation and the same happening-at-once as the footer button.

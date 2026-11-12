@@ -53,16 +53,6 @@
     white-space: nowrap;
 }
 
-.tl-matchrow__provider {
-    flex: 0 1 14rem;
-    min-width: 0;
-}
-
-.tl-matchrow__field {
-    flex: 1 1 10rem;
-    min-width: 0;
-}
-
 /* The current match's three actions, at the bottom right of its card. */
 .tl-matchcard__actions {
     display: flex;

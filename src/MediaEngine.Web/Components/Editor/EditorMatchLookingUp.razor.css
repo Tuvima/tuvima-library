@@ -1,0 +1,13 @@
+/* The "Looking up…" row: the placeholder bar, then the words in the quiet secondary type. */
+.tl-mlookup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    width: 100%;
+}
+
+.tl-mlookup__text {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: var(--tl-type-secondary-weight);
+}

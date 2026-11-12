@@ -42,9 +42,7 @@ public sealed class ViewEditorPhoneTests : AsyncBunitContext
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var host = Services.GetRequiredService<ViewEditorHost>();
         Assert.True(await host.OpenItemsAsync([Photo()], null));
-        var popover = Render<ViewEditorPopover>();
-        await popover.InvokeAsync(() => popover.Instance.NarrowWindowChanged(narrow));
-        return popover;
+        return Render<ViewEditorPopover>(parameters => parameters.Add(popover => popover.PhoneArrangement, narrow));
     }
 
     [Fact]

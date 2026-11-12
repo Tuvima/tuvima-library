@@ -14,6 +14,12 @@ public static class MatchFactNames
     public const string Runtime = "runtime";
     public const string TrackLength = "track_length";
     public const string Identifier = "identifier";
+
+    /// <summary>The show an episode belongs to (v6 D9: an episode compares Show, Season and episode, Title and Runtime).</summary>
+    public const string Show = "show";
+
+    /// <summary>The album a song is on (v6 D9: a song compares Artist, Album, Title and Length).</summary>
+    public const string Album = "album";
 }
 
 /// <summary>One fact set beside the file: a tick, a cross, or "not checked", with the reason in plain words.</summary>
@@ -133,6 +139,9 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
     /// <summary>The facts the kind compares, from the configuration.</summary>
     public IReadOnlyList<string> FactsFor(string? kind) => settings.FactsFor(kind);
 
+    /// <summary>False for a fact that only counts toward the verdict and is not a row of the compare table.</summary>
+    public bool IsDrawn(string? kind, string fact) => settings.IsDrawn(kind, fact);
+
     public MatchFactCheck Title(string? yours, string? theirs)
     {
         if (IsBlank(yours) || IsBlank(theirs))
@@ -170,6 +179,46 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
             ? new MatchFactCheck(MatchFactNames.Number, EditorMatchEvidenceStates.Agrees, Show(yours), Show(theirs), $"{word} matches")
             : new MatchFactCheck(MatchFactNames.Number, EditorMatchEvidenceStates.Differs, Show(yours), Show(theirs), $"{word} differs ({yours} and {theirs})");
     }
+
+    /// <summary>
+    /// An episode's place in its show (v6 D9, "Season and episode"): the season and the episode number of the file against the record's. A season
+    /// one side does not know is left out of the comparison and out of what is shown; with no episode number on either side the fact is not checked.
+    /// </summary>
+    public MatchFactCheck SeasonAndEpisode(int? yoursSeason, int? yoursEpisode, int? theirsSeason, int? theirsEpisode)
+    {
+        var yours = SlotText(yoursSeason, yoursEpisode);
+        var theirs = SlotText(theirsSeason, theirsEpisode);
+        if (yoursEpisode is null || theirsEpisode is null)
+        {
+            return new MatchFactCheck(MatchFactNames.Number, EditorMatchEvidenceStates.NotChecked, yours, theirs, "Season and episode not checked");
+        }
+
+        var seasonsDiffer = yoursSeason is not null && theirsSeason is not null && yoursSeason != theirsSeason;
+        return !seasonsDiffer && yoursEpisode == theirsEpisode
+            ? new MatchFactCheck(MatchFactNames.Number, EditorMatchEvidenceStates.Agrees, yours, theirs, "Season and episode match")
+            : new MatchFactCheck(MatchFactNames.Number, EditorMatchEvidenceStates.Differs, yours, theirs, $"Season and episode differ ({yours} and {theirs})");
+    }
+
+    /// <summary>The show an episode is in, or the album a song is on, set beside the record's: the same words by the same rule as a title.</summary>
+    public MatchFactCheck Named(string fact, string word, string? yours, string? theirs)
+    {
+        if (IsBlank(yours) || IsBlank(theirs))
+        {
+            return NotChecked(fact, word, yours, theirs);
+        }
+
+        return SameTitle(yours!, theirs!)
+            ? new MatchFactCheck(fact, EditorMatchEvidenceStates.Agrees, yours, theirs, $"{word} matches")
+            : new MatchFactCheck(fact, EditorMatchEvidenceStates.Differs, yours, theirs, $"{word} differs");
+    }
+
+    private static string? SlotText(int? season, int? episode) => (season, episode) switch
+    {
+        (null, null) => null,
+        (null, { } e) => $"Episode {e.ToString(CultureInfo.InvariantCulture)}",
+        ({ } s, null) => $"Season {s.ToString(CultureInfo.InvariantCulture)}",
+        ({ } s, { } e) => $"Season {s.ToString(CultureInfo.InvariantCulture)}, Episode {e.ToString(CultureInfo.InvariantCulture)}",
+    };
 
     public MatchFactCheck Creator(string? yours, string? theirs)
     {

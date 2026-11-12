@@ -3338,6 +3338,15 @@
   <data name="Common_RemoveCondition" xml:space="preserve">
     <value>Remove condition</value>
   </data>
+  <data name="SharedRuleBuilder_NoValueNeeded" xml:space="preserve">
+    <value>No value needed</value>
+  </data>
+  <data name="SharedRuleBuilder_RemoveRule" xml:space="preserve">
+    <value>Remove rule</value>
+  </data>
+  <data name="SharedRuleBuilder_RemoveException" xml:space="preserve">
+    <value>Remove exception</value>
+  </data>
   <data name="SharedRuleBuilder_RemoveSecondarySort" xml:space="preserve">
     <value>Remove secondary sort</value>
   </data>
@@ -10550,9 +10559,6 @@
   <data name="EditorMatchResults_SelectedResult" xml:space="preserve">
     <value>Selected result</value>
   </data>
-  <data name="EditorMatchResults_Editions" xml:space="preserve">
-    <value>Editions</value>
-  </data>
   <data name="EditorMatchResults_EditionsAndReleases" xml:space="preserve">
     <value>Editions and releases</value>
   </data>
@@ -11657,12 +11663,6 @@
   <data name="EditorBookmarks_SetPooledStaged" xml:space="preserve">
     <value>Not set yet (staged)</value>
   </data>
-  <data name="EditorMatchVerdictBar_Verdict" xml:space="preserve">
-    <value>{0} match</value>
-  </data>
-  <data name="EditorMatchVerdictBar_LengthLine" xml:space="preserve">
-    <value>Your file: {0} · Provider: {1}</value>
-  </data>
   <data name="EditorTvMatchFlow_Show" xml:space="preserve">
     <value>Show</value>
   </data>
@@ -11696,12 +11696,6 @@
   <data name="EditorTvMatchFlow_NoEpisodes" xml:space="preserve">
     <value>The provider lists no episodes for this season.</value>
   </data>
-  <data name="EditorTvMatchFlow_SeasonCount" xml:space="preserve">
-    <value>{0} seasons</value>
-  </data>
-  <data name="EditorTvMatchFlow_SeasonCountOne" xml:space="preserve">
-    <value>1 season</value>
-  </data>
   <data name="EditorTvMatchFlow_Specials" xml:space="preserve">
     <value>Specials</value>
   </data>
@@ -11726,21 +11720,6 @@
   <data name="EditorTvMatchFlow_ChooseAnEpisode" xml:space="preserve">
     <value>Choose an episode</value>
   </data>
-  <data name="EditorTvMatchFlow_ColEpisode" xml:space="preserve">
-    <value>Episode</value>
-  </data>
-  <data name="EditorTvMatchFlow_ColTitle" xml:space="preserve">
-    <value>Title</value>
-  </data>
-  <data name="EditorTvMatchFlow_ColAired" xml:space="preserve">
-    <value>Air date</value>
-  </data>
-  <data name="EditorTvMatchFlow_ColRuntime" xml:space="preserve">
-    <value>Runtime</value>
-  </data>
-  <data name="EditorTvMatchFlow_ColChosen" xml:space="preserve">
-    <value>Chosen</value>
-  </data>
   <data name="EditorTvMatchFlow_EpisodeRow" xml:space="preserve">
     <value>Episode {0}, {1}</value>
   </data>
@@ -11756,32 +11735,11 @@
   <data name="EditorMusicMatchFlow_Song" xml:space="preserve">
     <value>Song</value>
   </data>
-  <data name="EditorMusicMatchFlow_AlbumsAndReleases" xml:space="preserve">
-    <value>Albums and releases</value>
-  </data>
   <data name="EditorMusicMatchFlow_CurrentRelease" xml:space="preserve">
     <value>current</value>
   </data>
   <data name="EditorMusicMatchFlow_Suggested" xml:space="preserve">
     <value>suggested</value>
-  </data>
-  <data name="EditorMusicMatchFlow_DiscsAndTracks" xml:space="preserve">
-    <value>Discs and tracks of {0}</value>
-  </data>
-  <data name="EditorMusicMatchFlow_ColNumber" xml:space="preserve">
-    <value>#</value>
-  </data>
-  <data name="EditorMusicMatchFlow_ColTrack" xml:space="preserve">
-    <value>Track</value>
-  </data>
-  <data name="EditorMusicMatchFlow_ColRecording" xml:space="preserve">
-    <value>Recording</value>
-  </data>
-  <data name="EditorMusicMatchFlow_ColLength" xml:space="preserve">
-    <value>Length</value>
-  </data>
-  <data name="EditorMusicMatchFlow_ColChosen" xml:space="preserve">
-    <value>Chosen</value>
   </data>
   <data name="EditorMusicMatchFlow_TrackRow" xml:space="preserve">
     <value>Track {0}, {1}</value>
@@ -11797,6 +11755,15 @@
   </data>
   <data name="EditorMusicMatchFlow_TrackCount" xml:space="preserve">
     <value>{0} tracks</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Releases" xml:space="preserve">
+    <value>Releases</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Tracks" xml:space="preserve">
+    <value>Tracks</value>
+  </data>
+  <data name="EditorMusicMatchFlow_TrackCountOne" xml:space="preserve">
+    <value>1 track</value>
   </data>
   <data name="EditorGroupMatchPanel_Heading" xml:space="preserve">
     <value>Match {0} {1}</value>
@@ -12236,9 +12203,6 @@
   <data name="EditorWikidata_Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
-  <data name="EditorWikidata_Searching" xml:space="preserve">
-    <value>Searching Wikidata</value>
-  </data>
   <data name="EditorWikidata_SearchHint" xml:space="preserve">
     <value>Search Wikidata or paste a link above to choose another item.</value>
   </data>
@@ -12323,26 +12287,8 @@
   <data name="EditorWikidata_ApplyIdentity" xml:space="preserve">
     <value>Apply identity</value>
   </data>
-  <data name="EditorWikidata_ColumnLabel" xml:space="preserve">
-    <value>Label</value>
-  </data>
-  <data name="EditorWikidata_ColumnDescription" xml:space="preserve">
-    <value>Description</value>
-  </data>
-  <data name="EditorWikidata_ColumnType" xml:space="preserve">
-    <value>Type</value>
-  </data>
-  <data name="EditorWikidata_ColumnQid" xml:space="preserve">
-    <value>QID</value>
-  </data>
-  <data name="EditorWikidata_AlignmentEvidence" xml:space="preserve">
-    <value>Alignment evidence</value>
-  </data>
-  <data name="EditorWikidata_YourItem" xml:space="preserve">
-    <value>Your item</value>
-  </data>
-  <data name="EditorWikidata_NotCheckedNote" xml:space="preserve">
-    <value>{0} was not checked.</value>
+  <data name="EditorWikidata_Results" xml:space="preserve">
+    <value>Wikidata results</value>
   </data>
   <data name="EditorWikidata_ItemIssue" xml:space="preserve">
     <value>issue</value>
@@ -14275,5 +14221,26 @@
   </data>
   <data name="NeedsReviewRow_FailChoose" xml:space="preserve">
     <value>{0} could not be changed.</value>
+  </data>
+  <data name="EditorMatchCard_FieldShow" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="EditorMatchCard_FieldAlbum" xml:space="preserve">
+    <value>Album</value>
+  </data>
+  <data name="EditorMatchCard_FieldSeasonAndEpisode" xml:space="preserve">
+    <value>Season and episode</value>
+  </data>
+  <data name="EditorMatchCard_BasisShow" xml:space="preserve">
+    <value>show</value>
+  </data>
+  <data name="EditorMatchCard_BasisAlbum" xml:space="preserve">
+    <value>album</value>
+  </data>
+  <data name="EditorMatchCard_BasisSeasonAndEpisode" xml:space="preserve">
+    <value>season and episode</value>
+  </data>
+  <data name="EditorMusicMatchFlow_DiscTrack" xml:space="preserve">
+    <value>Disc {0}, Track {1}</value>
   </data>
 </root>

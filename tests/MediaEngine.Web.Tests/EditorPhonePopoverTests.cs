@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Web.Components.Editor;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -13,9 +14,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The editor's window on a phone (universal editor v6 section 4a, D22): the phone arrangement is told by the browser (a narrow window) or the
-/// device, the footer then holds the write-back line and Discard and Save changes side by side, and Delete moves from the footer into the header's
-/// "..." menu with its confirmation unchanged. The device here is a desktop that may edit: whether a phone may open the editor is another packet's.
+/// The editor's window on a phone (universal editor v6 section 4a, D22): the phone arrangement is the device's form factor (a phone or a tablet; the
+/// tests ask for it with the window's PhoneArrangement setting, because a phone may not open the editor yet, which is another packet's), the footer
+/// then holds the write-back line and Discard and Save changes side by side, and Delete moves from the footer into the header's "..." menu with its
+/// confirmation unchanged.
 /// </summary>
 public sealed class EditorPhonePopoverTests : AsyncBunitContext
 {
@@ -25,16 +27,20 @@ public sealed class EditorPhonePopoverTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly DashboardSessionAccessor _session = new();
     private readonly BunitJSModuleInterop _focusModule;
+    private readonly TaskCompletionSource _saveGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private IRenderedComponent<EditorPopover> _popover = default!;
+    private IRenderedComponent<AppDialogHost> _dialogs = default!;
 
     public EditorPhonePopoverTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         _focusModule = JSInterop.SetupModule("./js/editor-focus.js");
+        _focusModule.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddNativeUiServices();
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
+            stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args => SaveAfterTheGateAsync((EditSessionRequest)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.GetSupportingFileEditorAsync), _ => Task.FromResult<EditorSupportingFileDto?>(SupportingFileEditorTestData.File()));
             stub.SetHandler(nameof(IEngineApiClient.GetExtraAsync), _ => Task.FromResult<ExtraViewDto?>(new ExtraViewDto
             {
@@ -48,10 +54,27 @@ public sealed class EditorPhonePopoverTests : AsyncBunitContext
         Services.AddSingleton(_session);
     }
 
-    private async Task<EditorHost> OpenFileAsync(bool narrowWindow)
+    private async Task<LibraryBatchEditOutcome<EditSessionResult>> SaveAfterTheGateAsync(EditSessionRequest request)
     {
-        _focusModule.Setup<bool>("watchLayout", _ => true).SetResult(narrowWindow);
-        _popover = Render<EditorPopover>();
+        // A preview (Review changes) answers at once; the real save waits until the test lets it through.
+        if (!request.PreviewOnly)
+        {
+            await _saveGate.Task;
+        }
+
+        return LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+        {
+            PreviewOnly = request.PreviewOnly,
+            Valid = true,
+            DataSaved = !request.PreviewOnly,
+            Changes = request.Changes.Select(change => new EditSessionChangeResult { Id = change.Id, Kind = change.Kind, EntityId = change.EntityId, Status = EditSessionChangeStatuses.Ok }).ToList(),
+        });
+    }
+
+    private async Task<EditorHost> OpenFileAsync(bool phone)
+    {
+        _popover = Render<EditorPopover>(parameters => parameters.Add(popover => popover.PhoneArrangement, phone));
+        _dialogs = Render<AppDialogHost>();
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var id = Guid.NewGuid();
         _session.Set("test-session-token", id, id, Guid.NewGuid(),
@@ -74,7 +97,7 @@ public sealed class EditorPhonePopoverTests : AsyncBunitContext
     [Fact]
     public async Task OnAPhone_TheFooterHasNoDelete_AndTheHeadersMoreMenuHasIt()
     {
-        await OpenFileAsync(narrowWindow: true);
+        await OpenFileAsync(phone: true);
 
         _popover.WaitForAssertion(() => Assert.Single(_popover.FindAll(".tl-editor-window--phone")));
         Assert.Empty(_popover.FindAll(".tl-editor-window__footer .tl-editor-window__delete, .tl-editor-window__footer-start"));
@@ -87,7 +110,7 @@ public sealed class EditorPhonePopoverTests : AsyncBunitContext
     [Fact]
     public async Task OnAPhone_TheFooterIsTheWriteBackLineThenDiscardAndSaveChangesSideBySide()
     {
-        await OpenFileAsync(narrowWindow: true);
+        await OpenFileAsync(phone: true);
 
         _popover.WaitForAssertion(() => Assert.Single(_popover.FindAll(".tl-editor-window--phone")));
         var footer = _popover.Find(".tl-editor-window__footer");
@@ -99,7 +122,7 @@ public sealed class EditorPhonePopoverTests : AsyncBunitContext
     [Fact]
     public async Task OnADesktop_DeleteStaysInTheFooter_AndTheHeaderHasNoMoreMenu()
     {
-        await OpenFileAsync(narrowWindow: false);
+        await OpenFileAsync(phone: false);
 
         Assert.Single(_popover.FindAll(".tl-editor-window__footer .tl-editor-window__delete"));
         Assert.Empty(_popover.FindAll(".tl-editor-window--phone, [data-testid=phone-header]"));
@@ -107,15 +130,83 @@ public sealed class EditorPhonePopoverTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task WhenTheWindowIsNoLongerNarrow_ThePopoverGoesBackToTheDesktopArrangement()
+    public async Task WhenTheDeviceCrossesToADesktopFormFactor_ThePopoverGoesBackToTheDesktopArrangement()
     {
-        await OpenFileAsync(narrowWindow: true);
+        var host = await OpenFileAsync(phone: true);
         _popover.WaitForAssertion(() => Assert.Single(_popover.FindAll(".tl-editor-window--phone")));
 
-        await _popover.InvokeAsync(() => _popover.Instance.NarrowWindowChanged(false));
+        _popover.Render(parameters => parameters.Add(popover => popover.PhoneArrangement, false));
 
         _popover.WaitForAssertion(() => Assert.Empty(_popover.FindAll(".tl-editor-window--phone")));
         Assert.Single(_popover.FindAll(".tl-editor-window__footer .tl-editor-window__delete"));
+        Assert.True(host.IsOpen);
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheKeyboardFitIsStartedWhileTheWindowIsOpen_AndStoppedWhenTheArrangementIsLeft()
+    {
+        await OpenFileAsync(phone: true);
+        _popover.WaitForAssertion(() => _focusModule.VerifyInvoke("watchKeyboard"));
+
+        _popover.Render(parameters => parameters.Add(popover => popover.PhoneArrangement, false));
+
+        _popover.WaitForAssertion(() => _focusModule.VerifyInvoke("stopKeyboard"));
+    }
+
+    [Fact]
+    public async Task OnADesktop_NoKeyboardScriptIsStarted()
+    {
+        await OpenFileAsync(phone: false);
+
+        Assert.DoesNotContain(_focusModule.Invocations, call => call.Identifier == "watchKeyboard");
+    }
+
+    [Fact]
+    public async Task OnAPhone_ChoosingDeleteInTheHeadersMenu_AsksTheSameQuestionAsTheDesktopButtonDoes()
+    {
+        var host = await OpenFileAsync(phone: true);
+        _popover.WaitForAssertion(() => Assert.Single(_popover.FindAll(".tl-editor-window--phone")));
+        _popover.Find("[data-testid=phone-header] .app-overflow-menu__trigger, [data-testid=phone-header] .app-row-menu__trigger").Click();
+
+        _popover.WaitForElement(".app-menu-item").Click();
+
+        _dialogs.WaitForAssertion(() => Assert.Contains("Delete", _dialogs.FindAll("footer button").Last().TextContent, StringComparison.Ordinal));
+        // Keeping the file ends the question: nothing was deleted and the window is still open.
+        _dialogs.FindAll("footer button").First().Click();
+        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll("footer button")));
+        Assert.True(host.IsOpen);
+    }
+
+    [Fact]
+    public async Task OnAPhone_DeleteInTheHeadersMenuIsDisabledWhileASaveIsRunning()
+    {
+        var host = await OpenFileAsync(phone: true);
+        _popover.WaitForAssertion(() => Assert.Single(_popover.FindAll(".tl-editor-window--phone")));
+        host.Session.Pending.SetField(TitleId, "title", "A new title");
+        var saving = _popover.InvokeAsync(() => host.Flow.SaveAsync());
+        _popover.WaitForAssertion(() => Assert.True(host.Flow.Saving));
+
+        _popover.Find("[data-testid=phone-header] .app-overflow-menu__trigger, [data-testid=phone-header] .app-row-menu__trigger").Click();
+
+        var item = _popover.WaitForElement(".app-menu-item");
+        Assert.True(item.HasAttribute("disabled") || item.GetAttribute("aria-disabled") == "true");
+        _saveGate.SetResult();
+        await saving;
+    }
+
+    [Fact]
+    public async Task WhenTheArrangementCrosses_TheStagedChangesAndTheOpenFileAreKept()
+    {
+        var host = await OpenFileAsync(phone: false);
+        host.Session.Pending.SetField(TitleId, "title", "A new title");
+        _popover.WaitForAssertion(() => Assert.True(host.Session.HasPendingChanges));
+
+        _popover.Render(parameters => parameters.Add(popover => popover.PhoneArrangement, true));
+
+        _popover.WaitForAssertion(() => Assert.Single(_popover.FindAll(".tl-editor-window--phone")));
+        Assert.Single(_popover.FindAll("[data-supporting-file]"));
+        Assert.Equal(1, host.Session.Pending.ChangeCount);
+        Assert.True(host.IsOpen);
     }
 
     [Theory]
@@ -128,7 +219,8 @@ public sealed class EditorPhonePopoverTests : AsyncBunitContext
         await _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, true));
 
         Assert.Equal(expected, EditorPhoneArrangement.Applies(_device));
-        Assert.True(EditorPhoneArrangement.Applies(_device, narrowWindow: true));
+        Assert.Equal(expected, EditorWindowLayout.For(_device).Phone);
         Assert.False(EditorPhoneArrangement.Applies(null));
+        Assert.False(EditorWindowLayout.For(null).Phone);
     }
 }

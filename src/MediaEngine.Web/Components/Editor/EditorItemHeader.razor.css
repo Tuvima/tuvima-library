@@ -294,12 +294,6 @@
     text-overflow: ellipsis;
 }
 
-.tl-editor-header__selects--phone {
-    flex: 1 0 100%;
-    min-width: 0;
-    padding-top: 0;
-}
-
 /* "Editing N files" on a phone: the same header, with a small cover and room for the Close button; the file chips wrap. */
 .tl-editor-window--phone .tl-editor-header[data-kind="files"] {
     gap: var(--tl-space-3);

@@ -20,7 +20,7 @@
 {
     var pending = PendingByItem();
     var busy = Flow?.Switching == true;
-    @if (Phone)
+    @if (IsPhone)
     {
         @RenderPhone(header, pending, busy)
     }
@@ -158,6 +158,9 @@
     private bool _disposed;
     private bool _reordering;
     private bool _reorderingSections;
+    private bool _firstSet = true;
+    // An arrangement the header list that came before this one held (see ResumeHeldOrder); the lists put it back once they have read the videos.
+    private HeldVideoOrder? _resume;
     // Reorder mode: the list that holds the new order, and whether it differs yet from the order the mode began with (Save order waits for it).
     private EditorVideoOrderList? _orderList;
     private bool _orderDirty;
@@ -183,6 +186,11 @@
 
     /// <summary>The phone arrangement (v6 section 4a): no row of controls; one button that covers the header's line and opens everything as a bottom sheet.</summary>
     [Parameter] public bool Phone { get; set; }
+
+    /// <summary>The arrangement the window is drawn in (cascaded from the editor window); the <c>Phone</c> parameter still works on its own.</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(Phone, Layout);
 
     /// <summary>The name of the line the phone button covers (the item's title), for its accessible name.</summary>
     [Parameter] public string? PhoneLabel { get; set; }
@@ -266,6 +274,12 @@
                             HostClass="@SurfaceClass("tl-hnav__surface tl-hnav__surface--phone", _reordering || _reorderingSections)"
                             OnClose="ClosePhone">
                 <div class="tl-hnav__sheet" role="group" aria-label="@L["EditorNav_Label"].Value" data-testid="phone-nav-sheet" @onkeydown="OnKeyDown">
+                    @if (!string.IsNullOrWhiteSpace(PhoneLabel))
+                    {
+                        @* The header's line cuts a long title short; here it is read in full. *@
+                        <p class="tl-hnav__sheettitle" data-testid="phone-nav-title">@PhoneLabel</p>
+                    }
+
                     @if (header.ShowHome && header.HomeId is { } homeId && !_reordering && !_reorderingSections)
                     {
                         <ul class="tl-hnav__options">
@@ -389,7 +403,7 @@
         var files = header.Level.SupportingFiles;
         var inline = files.Files;
         var word = EditorNavText.ChooseWord(header);
-            <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
+            <div class="tl-hnav__panel" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(_open == Open.Phone)">
               @if (_reordering && EditorNavText.CanReorder(header))
               {
                 <div class="tl-hnav__heading">@L["EditorReorder_Heading"] @(string.IsNullOrWhiteSpace(header.Level.LevelTitle) ? string.Empty : "· " + header.Level.LevelTitle)</div>
@@ -403,6 +417,7 @@
                                           Compact="true"
                                           ShowSort="false"
                                           HoldChanges="true"
+                                          Resume="_resume"
                                           OnDirtyChanged="OrderDirtyChanged"
                                           OnOrderChanged="FollowOrder" />
                 </div>
@@ -585,7 +600,7 @@
     // The list of the Season (or Section) dropdown, with Reorder sections: shared by its popover and by the phone sheet.
     private RenderFragment SecondPanel(EditorHeaderDto header, EditorHeaderSecondLevelDto second, Dictionary<Guid, int> pending) => __builder =>
     {
-                        <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
+                        <div class="tl-hnav__panel" @onkeydown="OnKeyDown" @onkeydown:stopPropagation="@(_open == Open.Phone)">
                             @if (_reorderingSections && EditorNavText.CanReorder(header))
                             {
                                 <div class="tl-hnav__heading">@L["EditorReorder_SectionsHeading"]</div>
@@ -599,6 +614,7 @@
                                                           Compact="true"
                                                           ShowSort="false"
                                                           HoldChanges="true"
+                                                          Resume="_resume"
                                                           OnDirtyChanged="OrderDirtyChanged"
                                                           OnOrderChanged="FollowSectionOrder" />
                                 </div>
@@ -664,6 +680,8 @@
 
     protected override void OnParametersSet()
     {
+        var firstSet = _firstSet;
+        _firstSet = false;
         if (!ReferenceEquals(_flow, Flow))
         {
             if (_flow is not null)
@@ -686,7 +704,15 @@
             _shown = Header;
             _open = Open.None;
             _phoneSecondOpen = false;
-            EndReordering();
+            if (firstSet)
+            {
+                ClearReordering();
+            }
+            else
+            {
+                EndReordering();
+            }
+
             _sectionOrder = Header is { } shownHeader && Flow?.Session.Pending.FindVideoOrder(shownHeader.Root.Id) is { } stagedSections ? stagedSections.OrderedIds : [];
             _query = null;
             _reads?.Cancel();
@@ -822,7 +848,7 @@
                 ids.Add("tl-hnav-reorder-sections");
             }
         }
-        else if ((_open is Open.Item or Open.Phone) && _reordering)
+        else if ((_open is Open.Item or Open.Phone) && (_reordering || _reorderingSections))
         {
             return ids;
         }
@@ -833,9 +859,17 @@
                 ids.Add("tl-hnav-home");
             }
 
-            if (_open == Open.Phone && header.SecondLevel is { Entries.Count: > 0 })
+            if (_open == Open.Phone && header.SecondLevel is { Entries.Count: > 0 } second)
             {
                 ids.Add("tl-hnav-second");
+                if (_phoneSecondOpen)
+                {
+                    ids.AddRange(OrderedSections(second).Select(entry => OptionId(entry.Id)));
+                    if (EditorNavText.CanReorder(header) && second.Entries.Count >= 2)
+                    {
+                        ids.Add("tl-hnav-reorder-sections");
+                    }
+                }
             }
 
             ids.AddRange(_items.Select(item => OptionId(item.Id)));
@@ -960,11 +994,18 @@
 
     private void EndReordering()
     {
+        ClearReordering();
+        Flow?.Session.SetHeldOrder(false);
+    }
+
+    // The mode's own state, without telling the session: a header drawn again by a change of arrangement starts here and keeps the session's held flag.
+    private void ClearReordering()
+    {
         _reordering = false;
         _reorderingSections = false;
         _orderDirty = false;
         _saveFailed = false;
-        Flow?.Session.SetHeldOrder(false);
+        _resume = null;
     }
 
     // The arrangement that Save order has not staged yet counts as unsaved work for the editor's own leave question (the bar's own guard is off here),
@@ -1101,6 +1142,11 @@
             return;
         }
 
+        if (firstRender)
+        {
+            ResumeHeldOrder();
+        }
+
         try
         {
             if (_focusPending && _focusId is { } focus)
@@ -1115,6 +1161,33 @@
         {
             // The circuit ended; there is nothing left to focus or observe.
         }
+    }
+
+    // The window crossed 1024 wide while an order was being arranged, so the header was drawn again in its other arrangement and the list that held the
+    // order left it in the session: this header opens in the same mode on the same list (the sheet on a phone, the dropdown elsewhere) and the list puts the
+    // arrangement back when it has read the videos. The list that was open closing is fine; the arrangement is not lost.
+    private void ResumeHeldOrder()
+    {
+        if (Flow?.Session.TakeStashedOrder() is not { } held)
+        {
+            return;
+        }
+
+        if (Header is not { } header || !EditorNavText.CanReorder(header))
+        {
+            Flow.Session.SetHeldOrder(false);
+            return;
+        }
+
+        _resume = held;
+        _reordering = !held.SectionsMode;
+        _reorderingSections = held.SectionsMode;
+        _orderDirty = true;
+        _saveFailed = false;
+        _cursor = null;
+        _open = IsPhone ? Open.Phone : held.SectionsMode ? Open.Second : Open.Item;
+        Flow.Session.SetHeldOrder(true);
+        StateHasChanged();
     }
 
     // The "Showing n of N" row is watched so the next page comes in as it scrolls near; the row is also a button for keyboards and when scripts are off.
@@ -1158,7 +1231,8 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        Flow?.Session.SetHeldOrder(false);
+        // A held order is not cleared here: the header may only be drawn again in its other arrangement, and the list has left the order in the session for the
+        // next one (EditorVideoOrderList.DisposeAsync). Closing the editor ends the session, which clears it.
         _reads?.Cancel();
         _reads?.Dispose();
         if (_flow is not null)

@@ -1299,6 +1299,13 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     justify-self: start;
 }
 
+/* The same wrapper inside a field (a blank label line above an icon button, as the playlist rule rows have for Remove): it holds the button on the
+   field's control line instead of leaving it without a box. */
+.app-form-row__fields > [data-form-row-field] > .playback-tooltip-owner {
+    display: flex;
+    align-items: center;
+}
+
 .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
     display: grid;
     grid-template-rows: subgrid;
@@ -1386,6 +1393,70 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 
 .app-form-row--stack > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
     display: none;
+}
+
+/* Stack below a width (AppFormRow StackBelow 380, 540 or 700): under it the children stack exactly as in a stacked row. */
+@container (max-width: 379px) {
+    .app-form-row--stack-below-380 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-380 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
+}
+
+@container (max-width: 539px) {
+    .app-form-row--stack-below-540 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-540 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
+}
+
+@container (max-width: 699px) {
+    .app-form-row--stack-below-700 > .app-form-row__fields > * {
+        align-self: flex-start;
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        row-gap: var(--tl-field-label-gap, 6px);
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > :is(.app-field, [data-form-row-field]) > :is(.app-field__label, label, .app-field__help) {
+        padding-block: 0;
+    }
+
+    .app-form-row--stack-below-700 > .app-form-row__fields > .app-select--intrinsic > .app-select__width-label {
+        display: none;
+    }
 }
 
 .app-control.app-control--compact,
@@ -5249,14 +5320,13 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 /* The editor on a phone (universal editor v6 section 4a, D19 to D22). The pop-over sets .tl-editor-window--phone for a phone, a portrait tablet and a window no wider
    than a tablet. The window is a full-screen sheet (Close at the top right, no swipe that discards), its height takes off the on-screen keyboard (--tl-editor-keyboard,
    set by editor-focus.js) so the footer stays above it, the footer is the write-back line and then Discard and Save changes side by side, and every control is 44 px. */
-.tl-editor-panel.tl-editor-window--phone{--tl-editor-phone-header:4rem;top:0;left:0;width:100%;max-width:100%;height:calc(100dvh - var(--tl-editor-keyboard,0px));transform:none;border:0;border-radius:0}
+.tl-editor-panel.tl-editor-window--phone{--tl-field-text-size:var(--tl-font-size-md);top:0;left:0;width:100%;max-width:100%;height:calc(100dvh - var(--tl-editor-keyboard,0px));padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);transform:none;border:0;border-radius:0}
 html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
-.tl-editor-window--phone .tl-editor-window__close{top:calc((var(--tl-editor-phone-header) - var(--tl-tap-target-min)) / 2);right:var(--tl-space-2);width:var(--tl-tap-target-min);height:var(--tl-tap-target-min)}
+.tl-editor-window--phone .tl-editor-window__close{top:calc(env(safe-area-inset-top,0px) + (var(--tl-editor-phone-header) - var(--tl-tap-target-min)) / 2);right:calc(env(safe-area-inset-right,0px) + var(--tl-space-2));width:var(--tl-tap-target-min);height:var(--tl-tap-target-min)}
 .tl-editor-window--phone .tl-editor-window__main,.tl-editor-window--phone .tl-editor-window__content,.tl-editor-window--phone .tl-editor-window__tabs{min-width:0;max-width:100%}
 .tl-editor-window--phone .tl-editor-window__tabs>.tl-tabs-toolbar{padding:0 var(--tl-space-2);overflow-x:auto}
 .tl-editor-window--phone .tl-editor-panel__body{padding:var(--tl-space-3) var(--tl-space-4)}
-.tl-editor-window--phone :is(input,textarea,select,[contenteditable="true"]){font-size:var(--tl-font-size-md)}
-.tl-editor-window--phone .tl-editor-window__footer{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;gap:var(--tl-space-2);min-height:0;padding:var(--tl-space-2) var(--tl-space-4) max(var(--tl-space-2),env(safe-area-inset-bottom,0px))}
+.tl-editor-window--phone .tl-editor-window__footer{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;gap:var(--tl-space-2);min-height:0;padding:var(--tl-space-2) var(--tl-space-4) max(var(--tl-space-2),var(--tl-editor-safe-bottom))}
 .tl-editor-window--phone .tl-editor-window__where{padding-left:0;border-left:0}
 .tl-editor-window--phone .tl-editor-window__changes{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .tl-editor-window--phone .tl-editor-window__actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2);width:100%;margin:0}
@@ -5264,7 +5334,7 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .tl-editor-window--phone .tl-editor-window__actions>:only-child{grid-column:1/-1}
 .tl-editor-window--phone .tl-editor-window__notice{padding:var(--tl-space-2) var(--tl-space-4) 0}
 .review-changes--phone{padding:var(--tl-space-4) var(--tl-space-4) 0}
-.review-changes--phone .review-changes__footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2);padding-bottom:max(var(--tl-space-3),env(safe-area-inset-bottom,0px))}
+.review-changes--phone .review-changes__footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tl-space-2);padding-bottom:max(var(--tl-space-3),var(--tl-editor-safe-bottom))}
 .review-changes--phone .review-changes__footer>*{min-width:0;min-height:var(--tl-tap-target-min)}
 .review-changes--phone .review-changes__footer>:only-child{grid-column:1/-1}
 .review-changes--phone .review-changes__actions{flex-wrap:wrap}
@@ -5275,6 +5345,14 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 /* The Season or Section choice reads as a dropdown row inside the sheet and opens its list under itself. */
 .tl-hnav__surface .tl-hnav__option--choice{margin:var(--tl-space-1) 0;border:1px solid var(--tl-border-strong)}
 .tl-hnav__surface .tl-hnav__option--choice.is-open{border-color:var(--tl-accent-primary)}
+.tl-hnav__sheet{box-sizing:border-box;padding:0 var(--tl-space-2) var(--tl-space-3)}
+.tl-hnav__sheettitle{margin:0 0 var(--tl-space-2);padding:0 var(--tl-space-2);color:var(--tl-text-primary);font-weight:var(--tl-type-heading-weight);overflow-wrap:anywhere}
+.tl-hnav__sheetkinds{display:flex;flex-direction:column;gap:var(--tl-space-1)}
+.tl-hnav__sheet .tl-hnav__panel{padding:0}
+.tl-hnav__sheet .tl-hnav__scroll{max-height:none;overflow:visible}
+.tl-hnav__sheet .tl-hnav__search{padding:var(--tl-space-1) 0}
+/* The sheet's search box: its 44 px is the field's inside, so the border box is 46 and the typed-in part is the full 44 (and 16 px text from the phone window). */
+.tl-hnav__sheet .tl-hnav__search .app-search-field{--app-control-height:calc(var(--tl-tap-target-min) + 2px)}
 .tl-hnav__surface--phone{--tl-popout-row:var(--tl-menu-sheet-row-height,52px);--tl-menu-item-height:var(--tl-menu-sheet-row-height,52px);--tl-menu-row-height:var(--tl-menu-sheet-row-height,52px)}
 /* The tabs of the editor on a phone (v6 D21, WP15): the root of Details, Artwork, History and Bookmarks carries .tl-editor-touch, which makes every compact button and icon button
    in it a 44 px touch target. The lock beside a label and Revert are the same size; the label line wraps when a long name and its tools do not fit one line. */

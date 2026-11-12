@@ -59,7 +59,7 @@
                                Tooltip="@GroupLabel" AriaLabel="@GroupLabel" data-files-batch-home="true" OnClick="OnGroupHome" />
                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
                            data-files-batch-back="true" OnClick="OnGroupBack">@L["EditorFilesBatch_Back"]</AppButton>
-                @if (Phone && PhoneMenuItems is { Count: > 0 })
+                @if (IsPhone && PhoneMenuItems is { Count: > 0 })
                 {
                     <AppRowMenu AriaLabel="@L["Common_MoreActions"].Value" Items="PhoneMenuItems" Class="tl-editor-header__more" />
                 }
@@ -115,7 +115,7 @@ else if (Flow?.Session.ActiveItem is { } active)
     // The show's tile already carries its picture, so a show's seasons and episodes draw no second picture beside it; every other family keeps the item's own.
     var showCover = header is not null || !(HasFamily && Family.Kind == EditorFamilyKind.Show);
     var kindKey = header?.Kind ?? string.Empty;
-    if (Phone)
+    if (IsPhone)
     {
         @* The phone arrangement (v6 section 4a, D20 to D22): always the one-line form, a small cover, the title and the state. Tapping the line opens the
            navigation as a bottom sheet (EditorHeaderNav). Delete is in the "..." at the right; the close button of the window sits over the corner. *@
@@ -178,15 +178,36 @@ else if (Flow?.Session.ActiveItem is { } active)
                 {
                     <EditorHeaderNav Header="header" Flow="Flow" Hooks="Hooks" CanMatch="@fields.CanMatch" Phone="true" PhoneLabel="@title" />
                 }
+                else if (HasFamily && Selects is not null)
+                {
+                    @* A Universe is the same one line; its kinds (and the Universe tile's name) are in the sheet the line opens, not in a second row. *@
+                    <AppRowButton id="tl-universe-phone"
+                                  Class="@(_universeSheet ? "tl-hnav__phonetap is-open" : "tl-hnav__phonetap")"
+                                  aria-haspopup="dialog"
+                                  aria-expanded="@(_universeSheet ? "true" : "false")"
+                                  aria-label="@string.Format(L["EditorPhone_OpenNavigation"].Value, title)"
+                                  data-testid="phone-universe-tap"
+                                  OnClick="@(() => _universeSheet = !_universeSheet)" />
+                    @if (_universeSheet)
+                    {
+                        <AppDialogShell Framed="true"
+                                        Visible="true"
+                                        Title="@L["EditorNav_Label"].Value"
+                                        Size="Small"
+                                        FrameOptions="_sheetOptions"
+                                        HostClass="tl-hnav__surface tl-hnav__surface--phone"
+                                        OnClose="@(() => _universeSheet = false)">
+                            <div class="tl-hnav__sheet" role="group" aria-label="@L["EditorNav_Label"].Value" data-testid="phone-universe-sheet">
+                                <p class="tl-hnav__sheettitle">@title</p>
+                                <div class="tl-hnav__sheetkinds">@Selects</div>
+                            </div>
+                        </AppDialogShell>
+                    }
+                }
             </div>
             @if (PhoneMenuItems is { Count: > 0 })
             {
                 <AppRowMenu AriaLabel="@L["Common_MoreActions"].Value" Items="PhoneMenuItems" Class="tl-editor-header__more" />
-            }
-
-            @if (HasFamily && header is null && Selects is not null)
-            {
-                <div class="tl-editor-header__selects tl-editor-header__selects--phone">@Selects</div>
             }
         </header>
     }
@@ -322,6 +343,9 @@ else if (Flow?.Session.ActiveItem is { } active)
 @code {
     private EditSessionFlow? _flow;
     private ItemFieldEditSession? _fields;
+    // A Universe on a phone: its kinds are in a sheet the one-line header opens.
+    private bool _universeSheet;
+    private static readonly AppDialogOptions _sheetOptions = new() { Sheet = AppDialogSheetMode.PhoneAndTablet, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
 
     [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
 
@@ -352,6 +376,11 @@ else if (Flow?.Session.ActiveItem is { } active)
 
     /// <summary>The phone arrangement (v6 section 4a): the header is always the one line, and tapping it opens the navigation as a bottom sheet.</summary>
     [Parameter] public bool Phone { get; set; }
+
+    /// <summary>The arrangement the window is drawn in (cascaded from the editor window); the <c>Phone</c> parameter still works on its own.</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(Phone, Layout);
 
     /// <summary>What the phone header's "..." menu holds (Delete, per D22); empty or null draws no "..." button.</summary>
     [Parameter] public IReadOnlyList<AppRowMenuItem>? PhoneMenuItems { get; set; }

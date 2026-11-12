@@ -10,6 +10,12 @@ public enum VideoSortBy
     DateAdded,
 }
 
+/// <summary>
+/// An arrangement held in a header list's Reorder mode and not yet staged (v6 D23): each list's videos in the order the person has put them (a section's
+/// videos, or the series' sections when <paramref name="SectionsMode"/>), and the "Rename the files" choices made but not yet staged.
+/// </summary>
+public sealed record HeldVideoOrder(bool SectionsMode, IReadOnlyList<KeyValuePair<Guid, IReadOnlyList<Guid>>> Lists, IReadOnlyDictionary<Guid, bool> Renames);
+
 /// <summary>One video in an order list.</summary>
 public sealed record VideoOrderRow(Guid Id, string Title, string FileName, string? AddedAt);
 
@@ -222,6 +228,61 @@ public sealed class VideoOrderEditor
     /// <summary>True when any list reads differently from the arrangement remembered by <see cref="MarkBaseline"/>.</summary>
     public bool DiffersFromBaseline =>
         _lists.Any(list => !_baseline.TryGetValue(list.ParentId, out var ids) || !list.Current.Select(row => row.Id).SequenceEqual(ids));
+
+    /// <summary>Each list's videos in the order they are in now, as the held arrangement of Reorder mode.</summary>
+    public IReadOnlyList<KeyValuePair<Guid, IReadOnlyList<Guid>>> Arrangement =>
+        [.. _lists.Select(list => new KeyValuePair<Guid, IReadOnlyList<Guid>>(list.ParentId, [.. list.Current.Select(row => row.Id)]))];
+
+    /// <summary>
+    /// Puts the lists in a held arrangement again (a video moved into another section comes back in it first). Lists and videos the arrangement
+    /// does not know stay where they are, after the ones it names.
+    /// </summary>
+    public void Apply(IReadOnlyList<KeyValuePair<Guid, IReadOnlyList<Guid>>> arrangement)
+    {
+        ArgumentNullException.ThrowIfNull(arrangement);
+        var rows = new Dictionary<Guid, VideoOrderRow>();
+        var homes = new Dictionary<Guid, int>();
+        for (var at = 0; at < _lists.Count; at++)
+        {
+            foreach (var row in _lists[at].Current)
+            {
+                rows[row.Id] = row;
+                homes[row.Id] = at;
+            }
+        }
+
+        var placed = new HashSet<Guid>();
+        var arranged = new Dictionary<int, List<VideoOrderRow>>();
+        foreach (var (parentId, ids) in arrangement)
+        {
+            var at = IndexOfList(parentId);
+            if (at < 0)
+            {
+                continue;
+            }
+
+            arranged[at] = [.. ids.Where(id => rows.ContainsKey(id) && placed.Add(id)).Select(id => rows[id])];
+        }
+
+        foreach (var (id, row) in rows)
+        {
+            if (placed.Add(id))
+            {
+                if (!arranged.TryGetValue(homes[id], out var home))
+                {
+                    continue;
+                }
+
+                home.Add(row);
+            }
+        }
+
+        foreach (var (at, ordered) in arranged)
+        {
+            _lists[at].Current.Clear();
+            _lists[at].Current.AddRange(ordered);
+        }
+    }
 
     /// <summary>Puts every list back as it was saved.</summary>
     public void Reset()

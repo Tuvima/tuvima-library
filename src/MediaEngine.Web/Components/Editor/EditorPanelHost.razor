@@ -31,7 +31,7 @@
     var tabs = railTools.Select(entry => new EditorWindowChrome.Tab(entry.Item1.ToString(), entry.Item2, entry.Item3)).ToList();
     var title = _reviewing ? "Review changes" : TitleOverride ?? TitleFor(shown);
     <EditorWindowChrome Framed="framed"
-                        Phone="Phone"
+                        Phone="IsPhone"
                         ItemHeader="ItemHeader"
                         FooterStart="@(_reviewing ? null : FooterStart)"
                         Title="@title"
@@ -85,7 +85,7 @@
         <Body>
             @if (_reviewing)
             {
-                <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" Phone="Phone" />
+                <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" Phone="IsPhone" />
             }
             else if (shown == EditTool.Artwork && Picker is not null)
             {
@@ -121,6 +121,11 @@
     [Parameter] public bool Phone { get; set; }
 
     private bool _filesHistory;
+
+    /// <summary>The arrangement the window is drawn in (cascaded from the editor window); the <c>Phone</c> parameter still works on its own.</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(Phone, Layout);
 
     private Task PickTab(string key, EditTool shown, EditSessionFlow flow)
     {

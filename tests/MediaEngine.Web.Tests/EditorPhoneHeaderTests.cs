@@ -210,13 +210,110 @@ public sealed class EditorPhoneHeaderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(1, deleted));
     }
 
+    [Fact]
+    public async Task OnAPhone_ArrowDownInTheSheetMovesExactlyOneRow_AndRunsOnceNotOncePerHandler()
+    {
+        var (flow, fields) = await StartAsync();
+        var cut = RenderHeader(flow, fields, phone: true);
+        cut.Find("#tl-hnav-phone").Click();
+        cut.Find("#tl-hnav-home").TriggerEvent("onfocusin", new Microsoft.AspNetCore.Components.Web.FocusEventArgs());
+
+        cut.Find("#tl-hnav-home").KeyDown(Key.Down);
+
+        // Home, then the Season row: not the first episode, which is where a key heard by the row's panel and by the sheet both would land.
+        Assert.Equal("tl-hnav-second", FocusedId());
+    }
+
+    [Fact]
+    public async Task OnAPhone_ArrowDownInAnEpisodeListMovesExactlyOneEpisode()
+    {
+        var (flow, fields) = await StartAsync();
+        var cut = RenderHeader(flow, fields, phone: true);
+        cut.Find("#tl-hnav-phone").Click();
+        var episodes = cut.FindAll(".tl-hnav__option[data-state]");
+        episodes[0].TriggerEvent("onfocusin", new Microsoft.AspNetCore.Components.Web.FocusEventArgs());
+
+        episodes[0].KeyDown(Key.Down);
+
+        Assert.Equal(episodes[1].Id, FocusedId());
+    }
+
+    [Fact]
+    public async Task OnAPhone_ArrowDownFromTheSeasonRowReachesTheSeasonRowsOnceItIsOpen()
+    {
+        var (flow, fields) = await StartAsync();
+        var cut = RenderHeader(flow, fields, phone: true);
+        cut.Find("#tl-hnav-phone").Click();
+        cut.Find("[data-testid=phone-nav-second]").Click();
+        cut.Find("#tl-hnav-second").TriggerEvent("onfocusin", new Microsoft.AspNetCore.Components.Web.FocusEventArgs());
+        var seasons = cut.FindAll("[role=listbox][aria-label=Season] .tl-hnav__option");
+
+        cut.Find("#tl-hnav-second").KeyDown(Key.Down);
+        Assert.Equal(seasons[0].Id, FocusedId());
+        seasons[0].KeyDown(Key.Down);
+
+        Assert.Equal(seasons[1].Id, FocusedId());
+    }
+
+    [Fact]
+    public async Task OnAPhone_TheSheetReadsTheTitleInFullAtTheTop_WhateverTheLineCutsShort()
+    {
+        var (flow, fields) = await StartAsync();
+        var cut = RenderHeader(flow, fields, phone: true);
+
+        cut.Find("#tl-hnav-phone").Click();
+
+        Assert.Equal("Echoes in the Dark", cut.Find("[data-testid=phone-nav-title]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task WhenTheWindowSaysPhoneByCascade_TheHeaderIsTheOneLineWithoutAPhoneParameter()
+    {
+        var (flow, fields) = await StartAsync();
+        RenderTree.Add<Microsoft.AspNetCore.Components.CascadingValue<EditorWindowLayout>>(parameters => parameters.Add(host => host.Value, EditorWindowLayout.PhoneSheet));
+
+        var cut = RenderHeader(flow, fields, phone: false);
+
+        Assert.NotNull(cut.Find("[data-testid=phone-header]"));
+        Assert.NotNull(cut.Find("#tl-hnav-phone"));
+    }
+
+    [Fact]
+    public async Task OnAPhone_AUniverseGetsTheSameOneLineHeader_WithItsKindsInTheSheetInsteadOfASecondRow()
+    {
+        _withHeader = false;
+        var (flow, fields) = await StartAsync();
+        var cut = Render<EditorItemHeader>(parameters => parameters
+            .Add(header => header.Flow, flow)
+            .Add(header => header.Fields, fields)
+            .Add(header => header.Family, new EditorFamilyState(Services.GetRequiredService<IEngineApiClient>(), NullLogger.Instance))
+            .Add(header => header.Phone, true)
+            .Add(header => header.HasFamily, true)
+            .Add(header => header.Selects, "<nav class=\"kinds-under-test\">Characters</nav>"));
+
+        Assert.NotNull(cut.Find("[data-testid=phone-header]"));
+        Assert.Empty(cut.FindAll(".tl-editor-header__selects, .kinds-under-test"));
+        Assert.Empty(cut.FindAll("[data-testid=phone-universe-sheet]"));
+
+        cut.Find("#tl-universe-phone").Click();
+
+        var sheet = cut.Find("[data-testid=phone-universe-sheet]");
+        Assert.NotNull(sheet.QuerySelector(".kinds-under-test"));
+        Assert.Equal("Echoes in the Dark", sheet.QuerySelector(".tl-hnav__sheettitle")!.TextContent.Trim());
+    }
+
+    // The id the arrow keys last asked the browser to focus.
+    private string FocusedId() => (string)JSInterop.Invocations["tuvimaFocusById"].Last().Arguments[0]!;
+
+    private bool _withHeader = true;
+
     private MediaEditorContextDto Context() => new()
     {
         LaunchEntityId = EpisodeId,
         MediaType = "TV",
         InitialScope = "episode",
         AvailableTabs = ["details", "artwork", "links", "history"],
-        Header = _header,
+        Header = _withHeader ? _header : null,
         Scopes =
         [
             new MediaEditorScopeDto
