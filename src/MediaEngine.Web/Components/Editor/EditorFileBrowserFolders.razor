@@ -11,19 +11,23 @@
    (an episode, an Extra of a kind and place, another title, or ignored), which stages its answer for Review. On a Videos series the series order
    sits above the tree. It never leaves the title's folder: the Engine answers only for folders inside it. Inside a sub-folder the path at the top
    (the title's own folder, then each folder down to this one) is how you go back; at the title's own folder there is no path line and no up arrow
-   (universal editor v6, D16). *@
+   (universal editor v6, D16). The frame's toolbar (and with it the up arrow) is off, but Backspace and Alt+Up still go up one level, never above
+   the title's own folder. The Read-only badge is kept: it sits where the path is, and alone at the title's own folder. *@
 <AppBrowserFrame Kind="folders"
                  SidebarLabel="@L["EditorBrowser_Filters"].Value"
                  SidebarTestId="file-browser-sidebar"
                  ListLabel="@L["EditorBrowser_FoldersAndFiles"].Value"
                  ListTestId="file-browser-folders"
+                 OnUp="UpAsync"
+                 CanGoUp="@(State.Tree?.ParentFolder is not null)"
+                 ShowToolbar="false"
                  Busy="State.TreeLoading"
                  IdPrefix="@RowIdPrefix"
                  RowCount="State.FolderEntries.Count"
                  Highlight="_highlight"
                  HighlightChanged="@(index => _highlight = index)"
                  OnOpenRow="OpenHighlightedAsync"
-                 InsideContent="@(InSubFolder ? PathAtTop : null)"
+                 InsideContent="@(InSubFolder || IsReadOnlyFolder ? PathAtTop : null)"
                  ShowState="@(State.TreeError is not null || State.FolderEntries.Count == 0)">
     <Sidebar><EditorFileBrowserSidebar State="State" /></Sidebar>
     <TopContent>
@@ -136,31 +140,39 @@
 
     private bool InSubFolder => !string.IsNullOrEmpty(State.Folder);
 
+    private bool IsReadOnlyFolder => State.Tree is { ReadOnly: true };
+
+    // Backspace and Alt+Up: one level up, and the Engine never answers above the title's own folder (its parent is then null).
+    private Task UpAsync() => State.Tree?.ParentFolder is { } parent ? State.OpenFolderAsync(parent, 0) : Task.CompletedTask;
+
     // The path at the top, only inside a sub-folder: the title's own folder is always the first part, so the path never goes above it, and every
     // part but the last takes you back to that folder.
     private RenderFragment PathAtTop => __builder =>
     {
         var parts = State.Folder.Split('/', StringSplitOptions.RemoveEmptyEntries);
         <div class="tl-fbfolders__crumbs" data-testid="file-browser-crumbs">
-            <AppBreadcrumbs>
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-crumb=""
-                           OnClick="@(() => State.OpenFolderAsync(string.Empty, 0))">@(State.Tree?.RootName ?? State.TitleName)</AppButton>
-                @for (var index = 0; index < parts.Length; index++)
-                {
-                    var folder = string.Join('/', parts.Take(index + 1));
-                    <span aria-hidden="true">/</span>
-                    @if (index == parts.Length - 1)
+            @if (InSubFolder)
+            {
+                <AppBreadcrumbs>
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-crumb=""
+                               OnClick="@(() => State.OpenFolderAsync(string.Empty, 0))">@(State.Tree?.RootName ?? State.TitleName)</AppButton>
+                    @for (var index = 0; index < parts.Length; index++)
                     {
-                        <span aria-current="page" data-crumb-current="true">@parts[index]</span>
+                        var folder = string.Join('/', parts.Take(index + 1));
+                        <span aria-hidden="true">/</span>
+                        @if (index == parts.Length - 1)
+                        {
+                            <span aria-current="page" data-crumb-current="true">@parts[index]</span>
+                        }
+                        else
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-crumb="@folder"
+                                       OnClick="@(() => State.OpenFolderAsync(folder, 0))">@parts[index]</AppButton>
+                        }
                     }
-                    else
-                    {
-                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-crumb="@folder"
-                                   OnClick="@(() => State.OpenFolderAsync(folder, 0))">@parts[index]</AppButton>
-                    }
-                }
-            </AppBreadcrumbs>
-            @if (State.Tree is { ReadOnly: true })
+                </AppBreadcrumbs>
+            }
+            @if (IsReadOnlyFolder)
             {
                 <AppStatusBadge Tone="AppUiTone.Neutral" Text="@L["EditorBrowser_ReadOnly"].Value" />
             }
