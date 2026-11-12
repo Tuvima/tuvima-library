@@ -32,17 +32,13 @@
     display: none;
 }
 
+/* The button inside stretches to fill this layer (a grid item), so no rule has to reach into the shared button. */
 .media-tile-pick__hit {
     position: absolute;
     inset: 0;
     z-index: 1;
+    display: grid;
     border-radius: var(--tl-radius-md);
-    cursor: pointer;
-}
-
-.media-tile-pick__hit:focus-visible {
-    outline: 2px solid var(--tl-accent-primary);
-    outline-offset: 2px;
 }
 
 .media-tile-pick__box {

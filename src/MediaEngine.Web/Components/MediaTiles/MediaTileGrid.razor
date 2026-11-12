@@ -2,6 +2,8 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.MediaTiles
 
+@inject IStringLocalizer<SharedStrings> L
+
 <div class="@GridClass">
     @foreach (var item in Items)
     {
@@ -13,8 +15,11 @@
                 <div class="media-tile-pick__tile" inert>
                     <MediaTile Item="@item" ShowActions="false" />
                 </div>
-                <div class="media-tile-pick__hit" role="checkbox" tabindex="0" aria-checked="@(picked ? "true" : "false")" aria-label="@item.Title"
-                     @onclick="@(() => OnToggle.InvokeAsync(item))" @onkeydown="@(e => KeyAsync(e, item))"></div>
+                @* A native button (through AppRowButton), so Space ticks the cover instead of scrolling the page. *@
+                <span class="media-tile-pick__hit">
+                    <AppRowButton aria-pressed="@(picked ? "true" : "false")" aria-label="@L["MyList_SelectTitle", item.Title].Value"
+                                  OnClick="@(() => OnToggle.InvokeAsync(item))" />
+                </span>
                 <span class="media-tile-pick__box" aria-hidden="true">
                     @if (picked)
                     {
@@ -48,9 +53,6 @@
 
     /// <summary>Raised when a cover is pressed while <see cref="SelectionMode"/> is on.</summary>
     [Parameter] public EventCallback<MediaTileViewModel> OnToggle { get; set; }
-
-    private Task KeyAsync(KeyboardEventArgs e, MediaTileViewModel item) =>
-        e.Key is " " or "Enter" ? OnToggle.InvokeAsync(item) : Task.CompletedTask;
 
     private string GridClass => $"media-tile-grid {(SquaresOnly ? "media-tile-grid--squares-only" : string.Empty)} {Class}".Trim();
 }

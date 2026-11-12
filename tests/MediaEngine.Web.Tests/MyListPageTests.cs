@@ -36,6 +36,12 @@ public sealed class MyListPageTests : AsyncBunitContext
     private bool _gridFails;
     private bool _removeFails;
     private bool _restoreFails;
+    private bool _coverRemoveFails;
+    private bool _secondBatchFails;
+    private string? _lastError;
+    private DisplayPageDto? _continue;
+    private TaskCompletionSource? _gridGate;
+    private TaskCompletionSource? _continueGate;
     private IEngineApiClient _api = null!;
 
     private sealed record GridCall(string? Sort, string? Type, int Offset, int Limit);
@@ -54,8 +60,11 @@ public sealed class MyListPageTests : AsyncBunitContext
         _api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(_profiles));
-            stub.SetHandler(nameof(IEngineApiClient.GetDisplayGridAsync), args => Task.FromResult(ReadGrid(
-                new GridCall((string?)args![2], (string?)args[3], (int)args[7]!, (int)args[8]!))));
+            stub.SetHandler(nameof(IEngineApiClient.GetDisplayGridAsync), args => ReadGridAsync(
+                new GridCall((string?)args![2], (string?)args[3], (int)args[7]!, (int)args[8]!)));
+            stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), _ => ReadContinueAsync());
+            // What the real client records when a call fails: the page tells a failed read from an empty list by it.
+            stub.SetHandler("get_" + nameof(IEngineApiClient.LastError), _ => _lastError);
             stub.SetHandler(nameof(IEngineApiClient.SetDisplayGridSortAsync), args =>
             {
                 _sortSaves.Add(((string)args![0]!, (string)args[1]!));
@@ -69,6 +78,11 @@ public sealed class MyListPageTests : AsyncBunitContext
                 .FirstOrDefault(item => item.EntityKind == (ProfileEntityKind)args![0]! && item.EntityId == (Guid)args[1]!)));
             stub.SetHandler(nameof(IEngineApiClient.RemoveSavedItemAsync), args =>
             {
+                if (_coverRemoveFails)
+                {
+                    return Task.FromResult(false);
+                }
+
                 foreach (var row in _rows.Where(row => row.Kind == (ProfileEntityKind)args![0]! && row.Id == (Guid)args[1]!).ToList())
                 {
                     _taken[row.Id] = row;
@@ -120,6 +134,26 @@ public sealed class MyListPageTests : AsyncBunitContext
 
     private List<ProfileSavedItemDto> Saved() => [.. _rows.Select(row => new ProfileSavedItemDto(row.Kind, row.Id, row.SavedAt, null))];
 
+    private async Task<DisplayPageDto?> ReadContinueAsync()
+    {
+        if (_continueGate is not null)
+        {
+            await _continueGate.Task;
+        }
+
+        return _continue;
+    }
+
+    private async Task<DisplayGridLoadResult> ReadGridAsync(GridCall call)
+    {
+        if (_gridGate is not null)
+        {
+            await _gridGate.Task;
+        }
+
+        return ReadGrid(call);
+    }
+
     private DisplayGridLoadResult ReadGrid(GridCall call)
     {
         _gridCalls.Add(call);
@@ -152,7 +186,7 @@ public sealed class MyListPageTests : AsyncBunitContext
     private IReadOnlyList<ProfileSavedItemDto>? Remove(IReadOnlyList<ProfileSavedItemKeyDto> keys)
     {
         _removeCalls.Add(keys);
-        if (_removeFails)
+        if (_removeFails || (_secondBatchFails && _removeCalls.Count > 1))
         {
             return null;
         }
@@ -193,12 +227,20 @@ public sealed class MyListPageTests : AsyncBunitContext
 
     private BunitNavigationManager Nav => (BunitNavigationManager)Services.GetRequiredService<NavigationManager>();
 
-    private async Task<IRenderedComponent<MyListPage>> RenderPageAsync(string url = "/my-list", string formFactor = "desktop")
+    private async Task<IRenderedComponent<MyListPage>> RenderPageAsync(
+        string url = "/my-list", string formFactor = "desktop", DownloadsTabMode? downloads = null, bool settle = true)
     {
         await UseAsync(formFactor);
         Nav.NavigateTo(url);
-        var cut = Render<RoutedPageHost<MyListPage>>().FindComponent<MyListPage>();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".my-list-skeleton")), TimeSpan.FromSeconds(15));
+        var parameters = downloads is { } mode
+            ? new Dictionary<string, object?> { [nameof(MyListPage.DownloadsMode)] = mode }
+            : null;
+        var cut = Render<RoutedPageHost<MyListPage>>(p => p.Add(host => host.PageParameters, parameters)).FindComponent<MyListPage>();
+        if (settle)
+        {
+            cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".my-list-skeleton")), TimeSpan.FromSeconds(15));
+        }
+
         return cut;
     }
 
@@ -404,7 +446,7 @@ public sealed class MyListPageTests : AsyncBunitContext
     private static void EnterSelect(IRenderedComponent<MyListPage> cut) => cut.Find("[data-my-list-select]").Click();
 
     private static void Tick(IRenderedComponent<MyListPage> cut, string title) =>
-        cut.FindAll("[data-media-tile-pick] [role=checkbox]").Single(button => button.GetAttribute("aria-label") == title).Click();
+        cut.FindAll("[data-media-tile-pick] button").Single(button => button.GetAttribute("aria-label") == $"Select {title}").Click();
 
     [Fact]
     public async Task SelectShowsTheBarWithTheCountAndRemoveStaysOffUntilSomethingIsTicked()
@@ -668,5 +710,315 @@ public sealed class MyListPageTests : AsyncBunitContext
         cut.Find("[data-my-list-remove-selected]").Click();
         cut.WaitForAssertion(() => Assert.Equal(["Film 1", "Film 3"], Titles(cut)));
         Assert.Contains("Removed from My List.", UndoText(cut), StringComparison.Ordinal);
+    }
+
+    // -- the other rows of the states table ------------------------------------------------------------------------------------
+
+    private static DisplayCardDto ContinueCard(string title, bool started) =>
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, "Movie", "work", title, null, [], Art(), "portrait", "default", "caption", "bottom",
+            started ? new DisplayProgressDto(40, "40%", Now.AddMinutes(-5), null) : null,
+            [], new(true, false, false, false), Now.AddDays(-30))
+        { ContinuationState = started ? DisplayContinuationState.InProgress : DisplayContinuationState.Unstarted };
+
+    private static DisplayPageDto ContinuePage(params DisplayCardDto[] cards) =>
+        new("page", "Page", null, null, [new DisplayShelfDto("shelf", "Shelf", null, cards, null)], cards);
+
+    private static void WaitForContinue(IRenderedComponent<MyListPage> cut) =>
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".my-list-continue--loading")), TimeSpan.FromSeconds(15));
+
+    [Fact]
+    public async Task WhileTheFirstPageIsOnItsWayTheHeadingStaysAndSkeletonCoversShowInTheGridsShape()
+    {
+        Seed(3);
+        _gridGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cut = await RenderPageAsync(settle: false);
+
+        cut.WaitForAssertion(() => Assert.Equal(12, cut.FindAll(".my-list-skeleton__tile").Count));
+        Assert.Equal("My List", cut.Find("h1").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-my-list-chips]"));
+        Assert.Empty(cut.FindAll("article.media-tile"));
+
+        _gridGate.SetResult();
+
+        cut.WaitForAssertion(() => Assert.Equal(3, Titles(cut).Length));
+        Assert.Empty(cut.FindAll(".my-list-skeleton"));
+    }
+
+    [Fact]
+    public async Task ContinueShowsAboveTheListWhenSomethingIsInProgress()
+    {
+        Seed(2);
+        _continue = ContinuePage(ContinueCard("Arrival", started: true));
+        var cut = await RenderPageAsync();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-my-list-continue]")));
+        Assert.Contains("Continue", cut.Find("[data-my-list-continue]").TextContent, StringComparison.Ordinal);
+        Assert.Equal(["Film 1", "Film 2"], Titles(cut).Where(title => title.StartsWith("Film", StringComparison.Ordinal)).ToArray());
+    }
+
+    [Fact]
+    public async Task ContinueIsHiddenWhenNothingHasBeenStarted()
+    {
+        Seed(2);
+        _continue = ContinuePage(ContinueCard("Fresh", started: false));
+        var cut = await RenderPageAsync();
+
+        WaitForContinue(cut);
+        Assert.Empty(cut.FindAll("[data-my-list-continue]"));
+        Assert.Equal(2, Titles(cut).Length);
+    }
+
+    [Fact]
+    public async Task TheDownloadsCardIsNotShownInTheBrowser()
+    {
+        Seed(2);
+        var cut = await RenderPageAsync();
+
+        WaitForContinue(cut);
+        Assert.Empty(cut.FindAll(".my-list-downloads"));
+    }
+
+    [Fact]
+    public async Task TheDownloadsCardShowsInTheTuvimaApp()
+    {
+        Seed(2);
+        var cut = await RenderPageAsync(downloads: DownloadsTabMode.Available);
+
+        var card = cut.Find(".my-list-downloads");
+        Assert.Equal(ShellDock.DownloadsPath, card.GetAttribute("href"));
+        Assert.Contains("Downloads", card.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WithNoActiveProfileThePageAsksToChooseOneAndLinksToThePicker()
+    {
+        Seed(2);
+        _profiles = [];
+        var cut = await RenderPageAsync(settle: false);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-my-list-no-profile]")));
+        var notice = cut.Find("[data-my-list-no-profile]");
+        Assert.Contains("Choose a profile to see its My List.", notice.TextContent, StringComparison.Ordinal);
+        Assert.Equal(ProfilePickerRoute.Path, notice.QuerySelector("a")!.GetAttribute("href"));
+        Assert.DoesNotContain("My List could not load", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal("My List", cut.Find("h1").TextContent.Trim());
+        Assert.Empty(cut.FindAll("article.media-tile"));
+    }
+
+    [Fact]
+    public async Task AFailedRemovalFromACoversOwnMenuSaysMyListCouldNotBeChangedAndKeepsTheCover()
+    {
+        Seed(2);
+        _coverRemoveFails = true;
+        var cut = await RenderPageAsync();
+        cut.Find("button[aria-label='More actions']").Click();
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Remove from My List"));
+
+        cut.FindAll("[role='menuitem']").First(item => item.TextContent.Trim() == "Remove from My List").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("My List could not be changed. Try again.", cut.Find("[data-my-list-change-failed]").TextContent, StringComparison.Ordinal));
+        Assert.Equal(2, Titles(cut).Length);
+        Assert.Empty(cut.FindAll("[data-undo-note-line]"));
+    }
+
+    // -- review fixes ----------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task WhenTheSavedListCannotBeReadARemovalElsewhereIsNotAnnouncedAndTheEarlierListStaysTheBaseline()
+    {
+        Seed(3);
+        var cut = await RenderPageAsync();
+        var saved = Services.GetRequiredService<SavedItemService>();
+
+        _lastError = "The Engine did not answer.";
+        await cut.InvokeAsync(() => saved.ToggleAsync(ProfileEntityKind.Movie, Id(2)));
+        await Task.Delay(200);
+
+        Assert.Empty(cut.FindAll("[data-undo-note-line]"));
+
+        // Once the Engine answers again, the comparison is made against the list from before the failure: both titles that left show.
+        _lastError = null;
+        await cut.InvokeAsync(() => saved.ToggleAsync(ProfileEntityKind.Movie, Id(3)));
+
+        cut.WaitForAssertion(() => Assert.Contains("2 titles removed from My List.", UndoText(cut), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task WhenTheFinishedTitlesCannotBeReadRemoveFinishedStaysOnAndPressingItSaysSoInPlace()
+    {
+        Seed(3);
+        _lastError = "The Engine did not answer.";
+        var cut = await RenderPageAsync();
+
+        Assert.Equal(["Remove finished"], MenuRows(cut));
+        Assert.False(cut.Find(".app-menu-item").HasAttribute("disabled"));
+
+        cut.Find(".app-menu-item").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("My List could not be changed. Try again.", cut.Find("[data-my-list-change-failed]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(_removeCalls);
+        Assert.Equal(3, Titles(cut).Length);
+    }
+
+    [Fact]
+    public async Task OnATvThereIsNoSelectButtonButSortStays()
+    {
+        Seed(3);
+        var cut = await RenderPageAsync(formFactor: "tv");
+
+        Assert.Empty(cut.FindAll("[data-my-list-select]"));
+        Assert.NotEmpty(cut.FindAll("[data-my-list-sort]"));
+        Assert.Equal(3, Titles(cut).Length);
+    }
+
+    [Fact]
+    public async Task WhileSelectingEachCoverIsANativeButtonThatSaysItsTitleAndWhetherItIsPicked()
+    {
+        Seed(2);
+        var cut = await RenderPageAsync();
+        EnterSelect(cut);
+
+        var pick = cut.FindAll("[data-media-tile-pick] button").First();
+        Assert.Equal("button", pick.GetAttribute("type"));
+        Assert.Equal("Select Film 1", pick.GetAttribute("aria-label"));
+        Assert.Equal("false", pick.GetAttribute("aria-pressed"));
+        Assert.Empty(cut.FindAll("[data-media-tile-pick] [role=checkbox]"));
+
+        pick.Click();
+
+        Assert.Equal("true", cut.FindAll("[data-media-tile-pick] button").First().GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public async Task OpeningSelectMovesFocusIntoTheSelectBarAndClosingItReturnsFocusToTheSelectButton()
+    {
+        Seed(3);
+        var focus = JSInterop.SetupModule("./js/my-list-focus.js");
+        focus.Mode = JSRuntimeMode.Loose;
+        var cut = await RenderPageAsync();
+
+        EnterSelect(cut);
+
+        cut.WaitForAssertion(() => Assert.Contains(focus.Invocations["focusFirst"], call => (string?)call.Arguments[0] == "[data-my-list-selbar]"));
+        Assert.Equal("-1", cut.Find("[data-my-list-selbar]").GetAttribute("tabindex"));
+
+        cut.Find("[data-my-list-cancel-select]").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(focus.Invocations["focusFirst"], call => (string?)call.Arguments[0] == "[data-my-list-select]"));
+    }
+
+    [Fact]
+    public async Task OnAPhoneClosingSelectReturnsFocusToThePageMenuButton()
+    {
+        Seed(3);
+        var focus = JSInterop.SetupModule("./js/my-list-focus.js");
+        focus.Mode = JSRuntimeMode.Loose;
+        var cut = await RenderPageAsync(formFactor: "phone");
+        cut.Find(".my-list-phonebar button[aria-label='More actions for My List']").Click();
+        cut.Find("dialog").QuerySelectorAll(".app-menu-item")[0].Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-my-list-selbar]")));
+
+        cut.Find("[data-my-list-cancel-select]").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(focus.Invocations["focusFirst"],
+            call => (string?)call.Arguments[0] == ".my-list-phonebar .my-list-page-menu .app-overflow-menu__trigger"));
+    }
+
+    [Fact]
+    public async Task EscapeLeavesSelectWhileFocusIsOnACoverInTheGrid()
+    {
+        Seed(3);
+        var cut = await RenderPageAsync();
+        EnterSelect(cut);
+
+        cut.FindAll("[data-media-tile-pick] button").First().KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+        Assert.Empty(cut.FindAll("[data-my-list-selbar]"));
+        Assert.NotEmpty(cut.FindAll("[data-my-list-select]"));
+    }
+
+    [Fact]
+    public async Task OnAPhoneSortIsHiddenWhileSelectingAndComesBackAfter()
+    {
+        Seed(3);
+        var cut = await RenderPageAsync(formFactor: "phone");
+        Assert.NotEmpty(cut.FindAll(".my-list-phonebar button[aria-label='Sort']"));
+        cut.Find(".my-list-phonebar button[aria-label='More actions for My List']").Click();
+        cut.Find("dialog").QuerySelectorAll(".app-menu-item")[0].Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-my-list-selbar]")));
+
+        Assert.Empty(cut.FindAll(".my-list-phonebar button[aria-label='Sort']"));
+
+        cut.Find("[data-my-list-cancel-select]").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".my-list-phonebar button[aria-label='Sort']")));
+    }
+
+    [Fact]
+    public async Task RefreshingAfterARemovalKeepsAsManyCoversAsWereOnScreen()
+    {
+        Seed(144);
+        var cut = await RenderPageAsync();
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Load more").Click();
+        cut.WaitForAssertion(() => Assert.Equal(96, Titles(cut).Length));
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Load more").Click();
+        cut.WaitForAssertion(() => Assert.Equal(144, Titles(cut).Length));
+        _gridCalls.Clear();
+        EnterSelect(cut);
+        Tick(cut, "Film 1");
+
+        cut.Find("[data-my-list-remove-selected]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(143, Titles(cut).Length));
+        Assert.All(_gridCalls, call => Assert.True(call.Limit <= DisplayGridValues.MaxPageSize));
+        Assert.Equal("143 titles", Count(cut));
+    }
+
+    [Fact]
+    public async Task ATitleTakenOffByACoversMenuWhileThePageIsStillLoadingStillGetsUndo()
+    {
+        Seed(3);
+        _continueGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cut = await RenderPageAsync(settle: false);
+        cut.WaitForAssertion(() => Assert.Equal(3, Titles(cut).Length));
+        var saved = Services.GetRequiredService<SavedItemService>();
+
+        await cut.InvokeAsync(() => saved.ToggleAsync(ProfileEntityKind.Movie, Id(2)));
+
+        cut.WaitForAssertion(() => Assert.Contains("Removed from My List.", UndoText(cut), StringComparison.Ordinal));
+        _continueGate.SetResult();
+        cut.WaitForAssertion(() => Assert.Equal(["Film 1", "Film 3"], Titles(cut)));
+    }
+
+    [Fact]
+    public async Task WhenALaterBatchFailsTheTitlesThatWereRemovedStillOfferUndoBesideTheFailureAlert()
+    {
+        Seed(501);
+        _finished = [.. _rows.Select(row => new ProfileSavedItemDto(row.Kind, row.Id, row.SavedAt, null))];
+        _secondBatchFails = true;
+        var cut = await RenderPageAsync();
+        MenuRows(cut);
+
+        cut.Find(".app-menu-item").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-my-list-change-failed]")));
+        Assert.Equal(2, _removeCalls.Count);
+        Assert.Contains("500 titles removed from My List.", UndoText(cut), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BulkRemovalReportsFailureWhenALaterBatchFailsAndStillReturnsWhatChanged()
+    {
+        Seed(501);
+        _secondBatchFails = true;
+        var saved = new SavedItemService(_api);
+        var changed = 0;
+        saved.Changed += () => changed++;
+
+        var result = await saved.RemoveManyAsync([.. _rows.Select(row => new ProfileSavedItemKeyDto(row.Kind, row.Id))]);
+
+        Assert.True(result.Failed);
+        Assert.Equal(500, result.Done.Count);
+        Assert.Equal(1, changed);
     }
 }

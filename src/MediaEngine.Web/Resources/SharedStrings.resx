@@ -13568,4 +13568,13 @@
   <data name="MyList_BrowseHome" xml:space="preserve">
     <value>Browse Home</value>
   </data>
+  <data name="MyList_ChooseProfile" xml:space="preserve">
+    <value>Choose a profile to see its My List.</value>
+  </data>
+  <data name="MyList_ChooseProfileLink" xml:space="preserve">
+    <value>Choose a profile</value>
+  </data>
+  <data name="MyList_SelectTitle" xml:space="preserve">
+    <value>Select {0}</value>
+  </data>
 </root>
