@@ -44,7 +44,7 @@ public readonly record struct ViewActionContext(
 
 /// <summary>
 /// The one rule for which actions an item offers (spec view-section D5). The selection bar, the tile menu and the viewer all ask here, so they
-/// never differ. Phones never get Edit or Trash (D11); Edit also needs a desktop with a fine pointer; an item in a read-only folder never goes to
+/// never differ. Phones never get Trash (D11); Edit is offered wherever the device may edit items (desktop, tablet or phone); an item in a read-only folder never goes to
 /// Trash; Restore replaces Archive and Trash for an archived or trashed item.
 /// </summary>
 public static class ViewActionPolicy
@@ -76,7 +76,7 @@ public static class ViewActionPolicy
             return actions | ViewActions.Restore;
         }
 
-        if (c.CanEdit && !c.IsPhone && live)
+        if (c.CanEdit && live)
         {
             actions |= ViewActions.Edit;
         }

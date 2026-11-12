@@ -38,7 +38,7 @@ public static class EditorSupportingFileFlow
         };
     }
 
-    /// <summary>True when the footer offers Delete for the supporting file being edited: an administrator on a desktop, with the file loaded and no several-items panel open.</summary>
+    /// <summary>True when the footer offers Delete for the supporting file being edited: an administrator on a device that may edit items, with the file loaded and no several-items panel open.</summary>
     public static bool CanDelete(EditorHost editor, DeviceContextService? device, DashboardSessionAccessor? session)
     {
         ArgumentNullException.ThrowIfNull(editor);

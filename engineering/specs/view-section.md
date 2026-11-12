@@ -2,6 +2,8 @@
 
 > **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-06 · **Related docs:** [Photos and documents editor](photos-documents-editor.md) · [Look pass v2](look-pass-v2.md) · mockup `engineering/design/mockups/view-section/view-section.html`
 
+> **Version note (2026-11-12):** [universal-editor-v6](archive/universal-editor-v6-match-and-aligned-rows.md) (section 9) replaces the "editing is desktop-only" rule wherever this spec states it or hides an edit action on phones: item editing works on desktop, tablet and phone (`EditorDeviceRule.CanEditItems`), the Engine's permission check still decides who may edit, and TVs do not edit. Settings and Vault tools stay desktop-only. The Locked body below is unchanged.
+
 ## 1. Goal
 
 Make View (Photos, Galleries, Documents, People, Places) follow the same rules as the rest of the app, give it one clear way to say whose library you are in, and add two ways to find photos: a **Recently added** pill and an **On this day** memories strip. Cleanup ships first so the new features land on a clean base.

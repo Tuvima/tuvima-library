@@ -22,7 +22,7 @@ public static class MediaLaneConfigurationBuilder
 
     /// <summary>
     /// The Collections group of the Watch and Read rails: a link to every collection, and a "+" that opens the New collection flow.
-    /// Only drawn where the person can create (an administrator on a desktop).
+    /// Only drawn where the person can create (an administrator on a desktop, tablet or phone).
     /// </summary>
     public static MediaSectionNavigationGroup BuildCollectionsGroup(string area) =>
         new("Collections",

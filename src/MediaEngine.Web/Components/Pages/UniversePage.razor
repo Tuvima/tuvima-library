@@ -123,7 +123,7 @@
     private bool IsAdministrator => _isAdministrator;
 
     // Desktop administrators who may edit this Universe: the same checks the explorer makes, and the Engine decides again.
-    private bool CanShowEdit => IsAdministrator && DeviceContext.CanEdit && _canEditUniverse;
+    private bool CanShowEdit => IsAdministrator && DeviceContext.CanEditItems && _canEditUniverse;
 
     private string CurrentQid => _state.Page?.Detail.Qid ?? Qid;
 
@@ -222,8 +222,8 @@
             return;
         }
 
-        // Administrators on a desktop may edit; the Engine decides again when the editor loads and for every save.
-        _canEditUniverse = DeviceContext.CanEdit;
+        // Administrators on a desktop, tablet or phone may edit (EditorDeviceRule.CanEditItems); the Engine decides again when the editor loads and for every save.
+        _canEditUniverse = DeviceContext.CanEditItems;
         _binding.HasPermission = _canEditUniverse;
 
         // An unreadable plugin list hides the line (the client logs it); an empty list means there is nothing to say.
@@ -247,9 +247,9 @@
         }
 
         // Every edit handler asks the device rule again; a hidden button is never the only protection.
-        if (EditorDeviceRule.TryRefuse(DeviceContext))
+        if (EditorDeviceRule.TryRefuseItems(DeviceContext))
         {
-            _editNotice = EditorDeviceRule.Message;
+            _editNotice = EditorDeviceRule.ItemMessage;
             _editNoticeIsError = false;
             return;
         }

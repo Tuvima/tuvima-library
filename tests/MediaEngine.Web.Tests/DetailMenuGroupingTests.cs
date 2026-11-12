@@ -10,7 +10,7 @@ public sealed class DetailMenuGroupingTests
         new() { Key = key, Label = key, IsDestructive = destructive };
 
     private static string[] Keys(IEnumerable<DetailMenuEntry> entries) =>
-        entries.Select(entry => entry.Action?.Key ?? "<note>").ToArray();
+        entries.Select(entry => entry.Action.Key).ToArray();
 
     [Fact]
     public void Arrange_OrdersPlaybackThenVisibilityThenUtilitiesThenEditThenDestructive()
@@ -73,17 +73,6 @@ public sealed class DetailMenuGroupingTests
         var entries = DetailMenuGrouping.Arrange([Action("add-queue"), Action("add-playlist"), Action("play-next")]);
 
         Assert.Equal(["add-queue", "add-playlist", "play-next"], Keys(entries));
-    }
-
-    [Fact]
-    public void Arrange_PlacesTheQuietNoteWhereEditWouldBeBeforeTheDestructiveGroup()
-    {
-        var entries = DetailMenuGrouping.Arrange([Action("delete", destructive: true), Action("add-queue")], note: "Edit on a computer");
-
-        Assert.Equal(["add-queue", "<note>", "delete"], Keys(entries));
-        Assert.Equal("Edit on a computer", entries[1].Note);
-        Assert.True(entries[1].DividerBefore);
-        Assert.True(entries[2].DividerBefore);
     }
 
     [Fact]

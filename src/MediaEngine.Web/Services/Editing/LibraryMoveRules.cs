@@ -16,9 +16,9 @@ public static class LibraryMoveRules
         !string.IsNullOrWhiteSpace(scopeId) && !ContainerScopes.Contains(scopeId.Trim());
 
     /// <summary>
-    /// The Move entry is shown for one title, in the editor, on a device that may edit. Structural editing is desktop-only, so a tablet
-    /// or phone never sees it (the Engine still decides who may move).
+    /// The Move entry is shown for one title, in the editor, on a device that may edit items (desktop, tablet or phone; never a TV)
+    /// (the Engine still decides who may move).
     /// </summary>
     public static bool CanShowMove(DeviceContextService? device, string? scopeId, Guid itemId) =>
-        EditorDeviceRule.CanEdit(device) && IsMovableScope(scopeId) && itemId != Guid.Empty;
+        EditorDeviceRule.CanEditItems(device) && IsMovableScope(scopeId) && itemId != Guid.Empty;
 }

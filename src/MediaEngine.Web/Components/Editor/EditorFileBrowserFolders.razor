@@ -147,7 +147,7 @@
     /// <summary>The phone arrangement: no left list (the way back to the supporting files is a button), and each file's actions sit under its name.</summary>
     [Parameter] public bool Phone { get; set; }
 
-    /// <summary>False outside a desktop editing session: the answers and the order are shown but not changeable.</summary>
+    /// <summary>False outside an editing session: the answers and the order are shown but not changeable.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
     private bool Editable => CanEdit && Session is { IsActive: true };

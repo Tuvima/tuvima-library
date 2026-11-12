@@ -222,6 +222,9 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     private Task UsePhoneAsync() =>
         Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
 
+    private Task UseTvAsync() =>
+        Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("television", "tv", false, FinePointer: true, Hover: true));
+
     private IRenderedComponent<NeedsReviewPageContent> RenderLoaded(int expectedRows = 1, Action<ComponentParameterCollectionBuilder<NeedsReviewPageContent>>? parameters = null)
     {
         var cut = parameters is null ? Render<NeedsReviewPageContent>() : Render(parameters);
@@ -988,11 +991,11 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OffTheDesktop_NoRowCarriesFix_AndNothingOpens()
+    public async Task OnATv_NoRowCarriesFix_AndNothingOpens()
     {
         var row = ReviewRow(Id(1), "Cibola Burn", trigger: "RetailMatchFailed");
         Register(() => Page([row]));
-        await UsePhoneAsync();
+        await UseTvAsync();
         var before = Services.GetRequiredService<NavigationManager>().Uri;
         var cut = RenderLoaded();
 
@@ -1626,8 +1629,8 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(BarSelector)));
 
-        // A phone may not edit or delete; the item has no suggestion and nothing an Engine action can try again.
-        Assert.Equal(["Keep as they are", "Clear selection"], BarLabels(cut));
+        // A phone may edit; the item has no suggestion and nothing an Engine action can try again, and nothing here can be deleted.
+        Assert.Equal(["Keep as they are", "Edit 1 item", "Clear selection"], BarLabels(cut));
         Assert.DoesNotContain(cut.FindAll($"{BarSelector} button"), button => button.HasAttribute("disabled"));
     }
 
@@ -1818,7 +1821,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_TheRowSheetListsTryAgainKeepShowInActivityAndSelect_InThatOrder_AndOtherSizesHaveNoSelectItem()
+    public async Task OnAPhone_TheRowSheetListsFixTryAgainKeepShowInActivityAndSelect_InThatOrder_AndOtherSizesHaveNoSelectItem()
     {
         var file = FileRow(Id(1), "Mystery.2019.mkv", workId: Id(9));
         Register(() => Page([file]));
@@ -1828,7 +1831,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         cut.Find($"{RowSelector(file)} .app-row-menu__trigger").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
 
-        Assert.Equal(["Try again", "Keep as it is", "Show in Activity", "Select"], cut.FindAll("button.app-menu-item").Select(button => button.TextContent.Trim()).ToArray());
+        Assert.Equal(["Fix", "Try again", "Keep as it is", "Show in Activity", "Select"], cut.FindAll("button.app-menu-item").Select(button => button.TextContent.Trim()).Take(5).ToArray());
     }
 
     [Fact]
@@ -2051,6 +2054,30 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task EditNItems_OnAPhone_OpensTheEditorThroughTheSameHandler()
+    {
+        var one = FileRow(Id(1), "One.mkv", workId: Id(91));
+        var two = FileRow(Id(2), "Two.mkv", workId: Id(92));
+        Register(() => Page([one, two]));
+        await UsePhoneAsync();
+        var popover = Render<MediaEngine.Web.Components.Editor.EditorPopover>();
+        var cut = RenderLoaded(2);
+        // On a phone the tick boxes appear once Select in a row's sheet ticks that row.
+        cut.Find($"{RowSelector(one)} .app-row-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.app-menu-item")));
+        cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == "Select").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(BarSelector)));
+        Tick(cut, two);
+        Assert.Contains("Edit 2 items", BarLabels(cut));
+
+        PressBar(cut, "needs-review-bar-edit");
+
+        var host = Services.GetRequiredService<EditorHost>();
+        popover.WaitForAssertion(() => Assert.True(host.IsOpen));
+        Assert.Equal(2, host.Batch.Ids.Count);
+    }
+
+    [Fact]
     public async Task EditNItems_IsRefusedByTheHandler_OnADeviceThatMayNotEdit_NotOnlyHiddenFromTheBar()
     {
         var one = FileRow(Id(1), "One.mkv", workId: Id(91));
@@ -2061,7 +2088,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         var cut = RenderLoaded(2);
         Tick(cut, one, two);
         Assert.Contains("Edit 2 items", BarLabels(cut));
-        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync(new DeviceContextSnapshot("television", "tv", false));
         var handler = typeof(NeedsReviewPageContent).GetMethod("BarEditAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
 
         await cut.InvokeAsync(() => (Task)handler.Invoke(cut.Instance, null)!);

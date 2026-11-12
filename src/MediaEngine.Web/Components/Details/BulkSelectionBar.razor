@@ -191,7 +191,7 @@
     private bool Phone => EditorPhoneArrangement.Applies(Device);
 
     // On a detail page the bar needs the Engine's edit answer for that page; on a list it only needs a device that may edit.
-    private bool IsAvailable => Binding is not null ? Binding.CanEdit : EditorDeviceRule.CanEdit(Device);
+    private bool IsAvailable => Binding is not null ? Binding.CanEdit : EditorDeviceRule.CanEditItems(Device);
 
     private bool IsBusy => Busy || _deleting || _working || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
 
@@ -219,9 +219,9 @@
             return;
         }
 
-        if (EditorDeviceRule.TryRefuse(Device))
+        if (EditorDeviceRule.TryRefuseItems(Device))
         {
-            Warn(EditorDeviceRule.Message);
+            Warn(EditorDeviceRule.ItemMessage);
             return;
         }
 
@@ -358,9 +358,9 @@
             return;
         }
 
-        if (EditorDeviceRule.TryRefuse(Device))
+        if (EditorDeviceRule.TryRefuseItems(Device))
         {
-            Warn(EditorDeviceRule.Message);
+            Warn(EditorDeviceRule.ItemMessage);
             return;
         }
 

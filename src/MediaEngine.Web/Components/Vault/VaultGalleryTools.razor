@@ -5,12 +5,13 @@
 @inject IEngineApiClient ApiClient
 @inject NsfwModeState Nsfw
 @inject GalleryEditorLauncherService GalleryEditor
+@inject DeviceContextService Device
 @inject IStringLocalizer<SharedStrings> L
 
 @* The buttons of the Vault's Images view (Videos spec D44): make a gallery, look for new images (administrators), and, on the page of a
    hand-made or rule gallery, change it. A folder gallery has no Edit: it appears by itself and follows the folder. The editor is View's
-   Gallery editor opened in its Vault mode, so it saves Vault galleries only. Editing is for a desktop pointer; the launcher refuses
-   everywhere else. On a gallery's page the gallery's name heads the list. *@
+   Gallery editor opened in its Vault mode, so it saves Vault galleries only. The Vault tools are desktop-only (EditorDeviceRule.CanEdit): the buttons ask the
+   rule before the launcher is called, and say "Edit on a computer" everywhere else. On a gallery's page the gallery's name heads the list. *@
 @if (_gallery is not null && !Nsfw.Preferences.TitlesHiddenUntilPointed)
 {
     <h2>@_gallery.Name</h2>
@@ -81,6 +82,12 @@
     private async Task NewAsync()
     {
         _deviceNotice = null;
+        if (EditorDeviceRule.TryRefuse(Device))
+        {
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
+
         var launch = await GalleryEditor.TryOpenAsync(new GalleryEditorLaunchRequest { Vault = true });
         if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
         {
@@ -105,6 +112,12 @@
         }
 
         _deviceNotice = null;
+        if (EditorDeviceRule.TryRefuse(Device))
+        {
+            _deviceNotice = EditorDeviceRule.Message;
+            return;
+        }
+
         var launch = await GalleryEditor.TryOpenAsync(new GalleryEditorLaunchRequest { Vault = true, EditingVaultGallery = gallery });
         if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
         {

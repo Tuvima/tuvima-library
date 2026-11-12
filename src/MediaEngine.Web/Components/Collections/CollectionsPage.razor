@@ -29,7 +29,7 @@
         <Actions>
             @if (CanCreateCollections)
             {
-                @if (DeviceContext.CanEdit)
+                @if (DeviceContext.CanEditItems)
                 {
                     <AppButton ButtonStyle="AppButtonStyle.Filled"
                                Tone="AppUiTone.Primary"
@@ -1151,8 +1151,8 @@
         var launch = await CollectionEditorLauncher.TryOpenAsync(request);
         if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
         {
-            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
-            _createNotice = EditorDeviceRule.Message;
+            // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
+            _createNotice = EditorDeviceRule.ItemMessage;
             _createNoticeTone = AppUiTone.Info;
             return;
         }

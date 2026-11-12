@@ -323,10 +323,10 @@ public sealed class UniversePageTests : AsyncBunitContext
     [Theory]
     [InlineData("web", "desktop", true, true)]
     [InlineData("web", "desktop", false, false)]
-    [InlineData("web", "tablet", true, false)]
-    [InlineData("mobile", "phone", true, false)]
+    [InlineData("web", "tablet", true, true)]
+    [InlineData("mobile", "phone", true, true)]
     [InlineData("television", "tv", true, false)]
-    public async Task TheEditButton_IsOnlyForDesktopAdministrators(
+    public async Task TheEditButton_IsOnlyForAdministratorsOnADesktopTabletOrPhone(
         string deviceClass, string formFactor, bool administrator, bool expected)
     {
         await UseDeviceAsync(deviceClass, formFactor);

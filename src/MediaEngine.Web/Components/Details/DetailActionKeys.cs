@@ -44,7 +44,7 @@ public static class DetailActionKeys
 
     /// <summary>
     /// Added by the Dashboard itself to a single title's "..." menu for a profile that may make collections (every adult profile,
-    /// on a desktop); never sent by the Engine. <c>DetailPage</c> opens the "Add to collection" list.
+    /// on a desktop, tablet or phone); never sent by the Engine. <c>DetailPage</c> opens the "Add to collection" list.
     /// </summary>
     public const string AddToCollection = "add-collection";
 

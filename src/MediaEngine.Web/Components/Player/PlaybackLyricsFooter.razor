@@ -10,7 +10,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The lyrics footer (unified player v2 D17; mockup screen 7): where the lyrics came from ("Synced lyrics · Local file", "Unsynced lyrics · LRCLIB") at the
-   left and the "..." menu at the right, with Find another, Add a lyrics file and About lyrics sources. Administrators on a desktop also get Edit lyrics,
+   left and the "..." menu at the right, with Find another, Add a lyrics file and About lyrics sources. Administrators on a desktop, tablet or phone also get Edit lyrics,
    and a song with lyrics gets "This one is wrong", under a hairline. The lyrics panel puts this in its fixed footer; the Now playing page places it
    under the lyrics. *@
 <div class="playback-lyrics-footer" data-playback-lyrics-footer>
@@ -50,7 +50,7 @@
 
     [CascadingParameter] public PlaybackPanelNavigator? Navigator { get; set; }
 
-    private bool CanManageLyrics => EditorDeviceRule.CanEdit(DeviceContext) && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    private bool CanManageLyrics => EditorDeviceRule.CanEditItems(DeviceContext) && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
 
     private IReadOnlyList<PlaybackLyricsMenuItem> Items
     {

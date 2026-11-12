@@ -363,9 +363,9 @@ else
     private void CancelSelection() { ClearSelection(); _selectMode = false; }
     // Only computers open the Gallery editor, so the bar's "New Gallery" item is withheld elsewhere; adding to an existing Gallery stays.
     // The viewer's Gallery list offers New gallery on a computer, starting with the photo on screen; it closes the viewer so the new Gallery's name can be typed.
-    private EventCallback CreateActiveGalleryCallback => DeviceContext.CanEdit && Workspace.ScopeKind == ViewScopeKind.Mine ? EventCallback.Factory.Create(this, CreateActiveGalleryAsync) : default;
+    private EventCallback CreateActiveGalleryCallback => DeviceContext.CanEditItems && Workspace.ScopeKind == ViewScopeKind.Mine ? EventCallback.Factory.Create(this, CreateActiveGalleryAsync) : default;
     private async Task CreateActiveGalleryAsync() { if (_viewSectionShell is null || _activeItem is null) return; var id = _activeItem.Id; CloseItem(); await _viewSectionShell.BeginManualGalleryCreateAsync([id]); }
-    private EventCallback CreateGalleryCallback => DeviceContext.CanEdit ? EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync) : default;
+    private EventCallback CreateGalleryCallback => DeviceContext.CanEditItems ? EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync) : default;
     // The bar offers an action only when the one shared rule (ViewActionPolicy) allows it for every selected photo that is loaded; Trash needs just one trashable photo, since the Engine skips the rest.
     private ViewActions SelectedActions => _page is null || _selected.Count == 0 ? ViewActions.None
         : _page.Items.Where(item => _selected.Contains(item.Id)).Select(ActionsFor).DefaultIfEmpty(ViewActions.None).Aggregate((a, b) => a & b);

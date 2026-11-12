@@ -115,8 +115,8 @@
 
     /// <summary>Set when the viewer was opened from a gallery: Edit then shows "Gallery > Photo" in the editor's rail so the person can step through the gallery's photos.</summary>
     [Parameter] public ViewEditGalleryRail? EditRail { get; set; }
-    // Editing is desktop-only (EditorDeviceRule): phones and tablets only view photo details.
-    private bool CanEditHere => CanEdit && DeviceContext.CanEdit && !Item.FileMissing;
+    // Editing works on a desktop, tablet or phone (EditorDeviceRule.CanEditItems); only a television just views photo details.
+    private bool CanEditHere => CanEdit && DeviceContext.CanEditItems && !Item.FileMissing;
     [Parameter] public bool CanManage { get; set; }
 
     /// <summary>The actions this item offers, from the one shared rule (ViewActionPolicy). Left unset, the viewer works it out from CanManage.</summary>

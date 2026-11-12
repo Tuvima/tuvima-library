@@ -31,8 +31,8 @@ public sealed class EditorBinding
     /// <summary>Why Edit is unavailable right now, for the disabled entry's tooltip.</summary>
     public string? UnavailableReason { get; set; }
 
-    /// <summary>Permission and a device that is allowed to edit (desktop form factor, fine hover-capable pointer).</summary>
-    public bool CanEdit => HasPermission && EditorDeviceRule.CanEdit(_device);
+    /// <summary>Permission and a device that is allowed to edit items (desktop, tablet or phone).</summary>
+    public bool CanEdit => HasPermission && EditorDeviceRule.CanEditItems(_device);
 
     /// <summary>True on pages whose items keep a change history (not the Universe pages): only then does the pop-over offer History.</summary>
     public bool ShowHistory { get; set; }

@@ -127,7 +127,7 @@ public partial class ListenPage
     private Task ToggleFavoritePlaylistRowAsync(SongRow row)
         => PlaylistWorkFor(row) is { } work ? ToggleFavoriteAsync(work) : Task.CompletedTask;
 
-    // Edit opens the universal editor over this page with the song ticked (the table only offers it to a desktop that may edit).
+    // Edit opens the universal editor over this page with the song ticked (the table only offers it to a device that may edit items).
     private Task EditPlaylistRowAsync(SongRow row)
         => PlaylistWorkFor(row) is { } work ? EditTrackAsync(work) : Task.CompletedTask;
 

@@ -1,43 +1,33 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 
+@* The rows are menu items: the caller's role="menu" container (a popover, or the phone sheet) holds them. *@
 @foreach (var entry in Entries)
 {
-    @if (entry.Action is { } action)
+    var action = entry.Action;
+    @if (action.IsDisabled && !string.IsNullOrWhiteSpace(action.Tooltip))
     {
-        @if (action.IsDisabled && !string.IsNullOrWhiteSpace(action.Tooltip))
-        {
-            @* A disabled entry says why, as a quiet second line, instead of only greying out. *@
-            <AppMenuItem Icon="@HeroActionRow.IconFor(action)"
-                         Class="tl-detail-menu-item"
-                         DividerBefore="@entry.DividerBefore"
-                         Disabled="true"
-                         Tone="@ToneFor(action)">
-                <span class="tl-detail-menu-item__text">
-                    <span>@action.Label</span>
-                    <span class="tl-detail-menu-item__reason">@action.Tooltip</span>
-                </span>
-            </AppMenuItem>
-        }
-        else
-        {
-            <AppMenuItem Label="@action.Label"
-                         Icon="@HeroActionRow.IconFor(action)"
-                         Class="tl-detail-menu-item"
-                         DividerBefore="@entry.DividerBefore"
-                         Disabled="@action.IsDisabled"
-                         Tone="@ToneFor(action)"
-                         OnClick="@(() => SelectAsync(action))" />
-        }
+        @* A disabled entry says why, as a quiet second line, instead of only greying out. *@
+        <AppMenuItem Icon="@HeroActionRow.IconFor(action)"
+                     Class="tl-detail-menu-item"
+                     DividerBefore="@entry.DividerBefore"
+                     Disabled="true"
+                     Tone="@ToneFor(action)">
+            <span class="tl-detail-menu-item__text">
+                <span>@action.Label</span>
+                <span class="tl-detail-menu-item__reason">@action.Tooltip</span>
+            </span>
+        </AppMenuItem>
     }
     else
     {
-        @if (entry.DividerBefore)
-        {
-            <hr class="app-menu-divider" />
-        }
-        @* Inside role="menu" only menu items are allowed; the note is presentational. *@
-        <p class="tl-detail-menu-note" role="none">@entry.Note</p>
+        <AppMenuItem Label="@action.Label"
+                     Icon="@HeroActionRow.IconFor(action)"
+                     Class="tl-detail-menu-item"
+                     DividerBefore="@entry.DividerBefore"
+                     Disabled="@action.IsDisabled"
+                     Tone="@ToneFor(action)"
+                     OnClick="@(() => SelectAsync(action))" />
     }
 }
 
@@ -45,13 +35,10 @@
     [Parameter] public IReadOnlyList<DetailAction> Actions { get; set; } = [];
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
 
-    /// <summary>A quiet, non-interactive line that stands where Edit would be (for example "Edit on a computer").</summary>
-    [Parameter] public string? Note { get; set; }
-
     /// <summary>True when the caller already put the rows in the order it wants (a cover's menu); they are neither regrouped nor divided.</summary>
     [Parameter] public bool KeepOrder { get; set; }
 
-    private IReadOnlyList<DetailMenuEntry> Entries => DetailMenuGrouping.Arrange(Actions, Note, KeepOrder);
+    private IReadOnlyList<DetailMenuEntry> Entries => DetailMenuGrouping.Arrange(Actions, KeepOrder);
 
     private static AppUiTone ToneFor(DetailAction action) =>
         DetailMenuGrouping.IsDestructive(action) ? AppUiTone.Error : AppUiTone.Neutral;

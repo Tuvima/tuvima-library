@@ -102,6 +102,25 @@ public sealed class PhoneSongSelectionTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OnAPhone_TickedSongsDrawOnlyTheBottomBar_NotTheListsOwnBulkBar()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
+        var rows = Songs();
+        RenderFragment<IReadOnlyList<SongRow>> bulk = _ => builder => builder.AddMarkupContent(0, "<div data-list-bulk-bar=\"true\"></div>");
+        var cut = Render<SongTable>(parameters => parameters
+            .Add(table => table.Place, SongTablePlace.Songs)
+            .Add(table => table.Rows, rows)
+            .Add(table => table.ShowSelection, true)
+            .Add(table => table.BulkContent, bulk)
+            .Add(table => table.OnPlay, EventCallback.Factory.Create<SongPlayRequest>(this, _ => { })));
+
+        ChooseSelect(cut, rows[0]);
+
+        Assert.Single(cut.FindAll("[data-song-selection-bar]"));
+        Assert.Empty(cut.FindAll("[data-list-bulk-bar]"));
+    }
+
+    [Fact]
     public async Task OnAPhone_TheBarsStatusLineIsAlwaysInThePage_AndEmptyUntilThereIsANotice()
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
