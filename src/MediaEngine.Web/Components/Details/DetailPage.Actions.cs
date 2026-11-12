@@ -281,9 +281,9 @@ public partial class DetailPage
             if (action.Key == DetailActionKeys.UnmatchedKeep
                 && await AppConfirmDialog.ShowAsync(
                     Dialogs,
-                    "Keep as is?",
+                    "Keep as it is?",
                     "Stop trying to match this? It stays out of Needs Review until you show kept items again. You can look it up again later.",
-                    "Keep as is",
+                    "Keep as it is",
                     "Cancel") != AppConfirmResult.Primary)
             {
                 return;
