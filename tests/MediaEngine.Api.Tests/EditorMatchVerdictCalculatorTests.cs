@@ -205,6 +205,9 @@ public sealed class EditorMatchVerdictCalculatorTests
         {
             Assert.Equal(["show", "number", "title", "runtime"], shipped.FactsFor("tv_episode"));
             Assert.Equal(["creator", "album", "title", "track_length", "identifier"], shipped.FactsFor("song"));
+            Assert.False(shipped.IsDrawn("song", "identifier"));
+            Assert.True(shipped.IsDrawn("book", "identifier"));
+            Assert.True(shipped.IsDrawn("song", "album"));
         }
     }
 

@@ -230,8 +230,9 @@ public sealed class EditorMusicMatchFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=music-flow-track-pick]")));
 
         Assert.Equal(2, cut.FindAll("[data-testid=music-flow-releases] [data-testid=music-flow-release]").Count);
-        var discs = cut.FindAll("[data-testid=music-flow-tracks] .tl-mlist__title").Select(title => title.TextContent.Trim()).ToList();
-        Assert.Equal(["Disc 1", "Disc 2"], discs);
+        Assert.Equal("Releases", cut.Find("[data-testid=music-flow-releases] .tl-mlist__title").TextContent.Trim());
+        Assert.Equal(["Tracks", "Tracks"], cut.FindAll("[data-testid=music-flow-tracks] .tl-mlist__title").Select(title => title.TextContent.Trim()).ToList());
+        Assert.Equal(["Disc 1", "Disc 2"], cut.FindAll("[data-testid=music-flow-tracks] .tl-mlist__count").Select(count => count.TextContent.Trim()).ToList());
         Assert.Equal(3, cut.FindAll("[data-testid=music-flow-track-pick]").Count);
     }
 

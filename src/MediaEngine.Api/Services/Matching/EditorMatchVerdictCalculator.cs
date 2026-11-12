@@ -139,6 +139,9 @@ public sealed class EditorMatchVerdictCalculator(MatchVerdictSettings settings)
     /// <summary>The facts the kind compares, from the configuration.</summary>
     public IReadOnlyList<string> FactsFor(string? kind) => settings.FactsFor(kind);
 
+    /// <summary>False for a fact that only counts toward the verdict and is not a row of the compare table.</summary>
+    public bool IsDrawn(string? kind, string fact) => settings.IsDrawn(kind, fact);
+
     public MatchFactCheck Title(string? yours, string? theirs)
     {
         if (IsBlank(yours) || IsBlank(theirs))

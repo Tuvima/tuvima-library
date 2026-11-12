@@ -11720,17 +11720,11 @@
   <data name="EditorMusicMatchFlow_Song" xml:space="preserve">
     <value>Song</value>
   </data>
-  <data name="EditorMusicMatchFlow_AlbumsAndReleases" xml:space="preserve">
-    <value>Albums and releases</value>
-  </data>
   <data name="EditorMusicMatchFlow_CurrentRelease" xml:space="preserve">
     <value>current</value>
   </data>
   <data name="EditorMusicMatchFlow_Suggested" xml:space="preserve">
     <value>suggested</value>
-  </data>
-  <data name="EditorMusicMatchFlow_DiscsAndTracks" xml:space="preserve">
-    <value>Discs and tracks of {0}</value>
   </data>
   <data name="EditorMusicMatchFlow_TrackRow" xml:space="preserve">
     <value>Track {0}, {1}</value>
@@ -11746,6 +11740,12 @@
   </data>
   <data name="EditorMusicMatchFlow_TrackCount" xml:space="preserve">
     <value>{0} tracks</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Releases" xml:space="preserve">
+    <value>Releases</value>
+  </data>
+  <data name="EditorMusicMatchFlow_Tracks" xml:space="preserve">
+    <value>Tracks</value>
   </data>
   <data name="EditorMusicMatchFlow_TrackCountOne" xml:space="preserve">
     <value>1 track</value>
@@ -12187,9 +12187,6 @@
   </data>
   <data name="EditorWikidata_Cancel" xml:space="preserve">
     <value>Cancel</value>
-  </data>
-  <data name="EditorWikidata_Searching" xml:space="preserve">
-    <value>Searching Wikidata</value>
   </data>
   <data name="EditorWikidata_SearchHint" xml:space="preserve">
     <value>Search Wikidata or paste a link above to choose another item.</value>

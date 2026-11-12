@@ -32,7 +32,7 @@
 
     @if (_releasesLoading)
     {
-        <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
+        <EditorMatchLookingUp />
     }
     else if (!string.IsNullOrWhiteSpace(_releasesMessage))
     {
@@ -43,7 +43,7 @@
     {
         <EditorMatchSplit TestId="music-flow-split" ShowCard="@(_candidate is not null)">
             <List>
-                <EditorMatchList Heading="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" Count="@CountText(_releases.Count)" TestId="music-flow-releases">
+                <EditorMatchList Heading="@L["EditorMusicMatchFlow_Releases"].Value" Count="@CountText(_releases.Count)" TestId="music-flow-releases">
                     @foreach (var release in _releases)
                     {
                         var current = release;
@@ -54,7 +54,7 @@
 
                 @if (_tracksLoading)
                 {
-                    <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+                    <EditorMatchLookingUp Width="60%" />
                 }
                 else if (_tracksProblem is not null)
                 {
@@ -144,18 +144,19 @@
     {
         get
         {
-            if (_releases.Count == 0 || ProviderDisplay(null) is not { } from)
+            if (_releases.Count == 0)
             {
                 return null;
             }
 
+            var from = ProviderDisplay(EditorMatchCandidates.MusicBrainzName);
             return _releases.Count == 1 ? L["EditorMatchPanel_ResultOneFrom", from].Value : L["EditorMatchPanel_ResultsFrom", _releases.Count, from].Value;
         }
     }
 
-    private string? ProviderDisplay(string? name) =>
-        (name is null ? null : Providers.FirstOrDefault(provider => string.Equals(provider.Name, name, StringComparison.OrdinalIgnoreCase))?.DisplayName)
-        ?? (name is null ? (Providers.FirstOrDefault(provider => provider.IsDefault) ?? Providers.FirstOrDefault())?.DisplayName : name);
+    // The provider a name stands for, as the Engine offered it ("MusicBrainz"). The music search reads MusicBrainz only, so the count names that provider.
+    private string ProviderDisplay(string name) =>
+        Providers.FirstOrDefault(provider => string.Equals(provider.Name, name, StringComparison.OrdinalIgnoreCase))?.DisplayName ?? name;
 
     private string CountText(int count) => count == 1 ? L["EditorMatchResults_CountOne"].Value : L["EditorMatchResults_Count", count].Value;
 
@@ -362,18 +363,16 @@
     private string NumberText(EditorMusicTrackDto track, bool manyDiscs) =>
         manyDiscs ? $"{track.Disc.ToString(CultureInfo.InvariantCulture)}·{track.Track.ToString(CultureInfo.InvariantCulture)}" : track.Track.ToString(CultureInfo.InvariantCulture);
 
-    // The release's tracks under the releases: one list for a single disc, one list per disc when there are several (or a disc has its own title).
+    // The release's tracks under the releases: one "Tracks" list per disc, the disc named at the right of its heading.
     private RenderFragment TracksPart() => __builder =>
     {
         var manyDiscs = _tracks!.Discs.Count > 1;
         <div class="tl-musicflow__tracks" data-testid="music-flow-tracks">
             @foreach (var disc in _tracks.Discs)
             {
-                var named = manyDiscs || !string.IsNullOrWhiteSpace(disc.Title);
-                var heading = named
-                    ? (string.IsNullOrWhiteSpace(disc.Title) ? L["EditorMusicMatchFlow_Disc", disc.Number].Value : L["EditorMusicMatchFlow_DiscTitled", disc.Number, disc.Title].Value)
-                    : L["EditorMusicMatchFlow_DiscsAndTracks", _release!.Title].Value;
-                <EditorMatchList Heading="@heading" Count="@CountTracks(disc.Tracks.Count)">
+                // Mock D: "Tracks", with the disc at the right of the heading.
+                var discName = string.IsNullOrWhiteSpace(disc.Title) ? L["EditorMusicMatchFlow_Disc", disc.Number].Value : L["EditorMusicMatchFlow_DiscTitled", disc.Number, disc.Title].Value;
+                <EditorMatchList Heading="@L["EditorMusicMatchFlow_Tracks"].Value" Count="@discName">
                     @foreach (var track in disc.Tracks)
                     {
                         var current = track;
@@ -395,7 +394,7 @@
     {
         if (_judging || _judged is null || _candidate is null)
         {
-            <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
+            <EditorMatchLookingUp />
         }
         else
         {
@@ -418,7 +417,7 @@
     // The song's card names its album and its place on it (mock D): "Shoreline · Disc 1, Track 4".
     private EditorMatchCardModel CardModel(EditorMatchResultDto judged, ItemCanonicalRetailCandidateDto candidate)
     {
-        var model = EditorMatchCardModels.ForPick(judged, candidate, EditorKinds.Song, ProviderDisplay(candidate.ProviderName) ?? candidate.ProviderName, L);
+        var model = EditorMatchCardModels.ForPick(judged, candidate, EditorKinds.Song, ProviderDisplay(candidate.ProviderName), L);
         return _pickedTrack is { } track && _release is { } release
             ? model with { SeriesLine = EditorMatchCardModels.Join(release.Title, L["EditorMusicMatchFlow_DiscTrack", track.Disc, track.Track].Value) }
             : model;

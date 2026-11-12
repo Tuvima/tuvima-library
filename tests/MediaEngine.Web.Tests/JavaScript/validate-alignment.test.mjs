@@ -151,8 +151,8 @@ test('text placed under one button of a row lifts that button off the row axis a
     assert.ok(report.counts.controlOffset >= 1, JSON.stringify(report.counts));
 });
 
-test('the Match row with the dropdown, an icon Search and the segmented control on one centre line passes', () => {
-    const row = new El('div', { classes: ['tl-match__matchrow'], rect: rect(0, 0, 900, 44), style: flex });
+test('a filter bar with a dropdown, an icon button and the segmented control on one centre line passes', () => {
+    const row = new El('div', { classes: ['app-filter-bar'], rect: rect(0, 0, 900, 44), style: flex });
     const start = row.add(new El('div', { rect: rect(0, 4, 300, 36), style: flex }));
     start.add(new El('button', { rect: rect(0, 4, 200, 36), text: 'TheTVDB' }));
     start.add(new El('button', { rect: rect(208, 4, 36, 36), attrs: { 'aria-label': 'Search' } }));

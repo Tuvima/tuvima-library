@@ -690,7 +690,7 @@ public sealed class EditorMatchSearchService(
             SeriesName = Extra(extra, MetadataFieldConstants.Series),
             SeriesNumber = SeriesNumber(extra),
             Verdict = calculator.Verdict(checks),
-            Reasons = ReasonsOf(checks),
+            Reasons = ReasonsOf(checks.Where(check => calculator.IsDrawn(kindId, check.Fact))),
             Edition = EditorMatchKinds.HasEditions(kindId)
                 ? new EditorMatchEditionDto
                 {

@@ -51,7 +51,7 @@
 
         @if (_busy)
         {
-            <div role="status" aria-busy="true"><AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" /></div>
+            <EditorMatchLookingUp />
         }
 
         @if (!string.IsNullOrWhiteSpace(_message))
@@ -82,7 +82,7 @@
         }
         else if (_releases.Count > 0)
         {
-            <EditorMatchList Heading="@L["EditorMusicMatchFlow_AlbumsAndReleases"].Value" Count="@CountText(_releases.Count)" TestId="group-match-releases">
+            <EditorMatchList Heading="@L["EditorMusicMatchFlow_Releases"].Value" Count="@CountText(_releases.Count)" TestId="group-match-releases">
                 @foreach (var release in _releases)
                 {
                     var current = release;

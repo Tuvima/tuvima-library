@@ -772,11 +772,39 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
 
         var judged = Service().JudgeRead(EditorKinds.Song, pick, read);
 
-        Assert.Equal(["creator", "album", "title", "track_length", "identifier"], judged.Reasons.Select(reason => reason.Fact));
-        Assert.All(judged.Reasons.Take(4), reason => Assert.Equal(EditorMatchEvidenceStates.Agrees, reason.State));
+        Assert.Equal(["creator", "album", "title", "track_length"], judged.Reasons.Select(reason => reason.Fact));
+        Assert.All(judged.Reasons, reason => Assert.Equal(EditorMatchEvidenceStates.Agrees, reason.State));
         Assert.Equal("Shoreline", judged.Reasons[1].YourFile);
         Assert.Equal("Shoreline", judged.Reasons[1].Result);
         Assert.Equal(EditorMatchVerdicts.Strong, judged.Verdict);
+    }
+
+    [Fact]
+    public void ASongsIdentifier_StillCountsTowardTheVerdict_ButIsNeverDrawnAsARow()
+    {
+        var read = SongRead("Low Tide", "Harbor Lights", "Shoreline", 221);
+        read = read with
+        {
+            Evidence = new EditorMatchLocalEvidenceDto
+            {
+                FileTitle = "Low Tide",
+                Creator = "Harbor Lights",
+                Number = 4,
+                MeasuredSeconds = 221,
+                Identifiers = [new EditorMatchIdentifierDto { Kind = EditorMatchIdentifierKinds.Isrc, Value = "USX9P1800001" }],
+            },
+        };
+        var other = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-9", "A Different Song", "Harbor Lights", 1, 4, 222, null);
+        var sameRecording = EditorMatchCandidates.ForMusicTrack("rel-1", "rg-1", "Shoreline", "Harbor Lights", "2018", true, "rec-9", "A Different Song", "Harbor Lights", 1, 4, 222, null);
+        sameRecording.ExtraFields["isrc"] = "USX9P1800001";
+
+        var withoutTheId = Service().JudgeRead(EditorKinds.Song, other, read);
+        var withTheId = Service().JudgeRead(EditorKinds.Song, sameRecording, read);
+
+        Assert.Equal(EditorMatchVerdicts.Weak, withoutTheId.Verdict);
+        Assert.Equal(EditorMatchVerdicts.Possible, withTheId.Verdict);
+        Assert.DoesNotContain(withTheId.Reasons, reason => reason.Fact == "identifier");
+        Assert.DoesNotContain(withoutTheId.Reasons, reason => reason.Fact == "identifier");
     }
 
     [Fact]

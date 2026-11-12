@@ -114,6 +114,13 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         return cut;
     }
 
+    // Typing only keeps the words; the search runs when the person presses the Search button.
+    private static void Search(IRenderedComponent<EditorMatchPanel> cut, string box, string words)
+    {
+        cut.Find($"input[aria-label='{box}']").Input(words);
+        cut.Find("[data-testid=wikidata-search-button]").Click();
+    }
+
     [Fact]
     public void TheWikidataSide_ReadsTheStoredLink_AndSearchesNothingOnOpen()
     {
@@ -153,12 +160,32 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Typing_OrPasting_StartsNoSearch_UntilSearchOrEnterIsPressed()
+    {
+        _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, Results = [Result("Q1", "Heat")] };
+        var cut = RenderWikidataSide();
+
+        cut.Find("input[aria-label='Search Wikidata']").Input("Heat");
+        cut.Find("input[aria-label='Search Wikidata']").Change("Heat");
+        cut.Find("input[aria-label='Paste a Wikidata link or QID']").Input("Q1");
+        cut.Find("input[aria-label='Paste a Wikidata link or QID']").Change("Q1");
+
+        Assert.Empty(_searches);
+        Assert.Empty(cut.FindAll("[data-testid=wikidata-result]"));
+
+        cut.Find("input[aria-label='Paste a Wikidata link or QID']").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
+        Assert.Equal("Q1", Assert.Single(_searches).Paste);
+    }
+
+    [Fact]
     public void ThePastedQid_ResolvesDirectlyToItsItem_AndSearchesNoWords()
     {
         _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, FromPaste = true, Results = [Result("Q123", "Heat (film)")] };
         var cut = RenderWikidataSide();
 
-        cut.Find("input[aria-label='Paste a Wikidata link or QID']").Change("https://www.wikidata.org/wiki/Q123");
+        Search(cut, "Paste a Wikidata link or QID", "https://www.wikidata.org/wiki/Q123");
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
         var request = Assert.Single(_searches);
@@ -173,7 +200,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, Results = [Result("Q123", "Heat")] };
         var cut = RenderWikidataSide();
 
-        cut.Find("input[aria-label='Search Wikidata']").Change("Heat");
+        Search(cut, "Search Wikidata", "Heat");
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
         var result = cut.Find("[data-testid=wikidata-result]");
@@ -201,7 +228,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
         };
         var cut = RenderWikidataSide();
 
-        cut.Find("input[aria-label='Search Wikidata']").Change("The Wire");
+        Search(cut, "Search Wikidata", "The Wire");
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
         Assert.Contains("Parent: the show, not this episode", cut.Find("[data-testid=wikidata-result]").TextContent, StringComparison.Ordinal);
@@ -217,7 +244,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
     {
         _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, Results = [Result("Q123", "Heat (film)")] };
         var cut = RenderWikidataSide();
-        cut.Find("input[aria-label='Search Wikidata']").Change("Heat");
+        Search(cut, "Search Wikidata", "Heat");
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
 
         cut.Find("[data-testid=wikidata-apply]").Click();
@@ -302,7 +329,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
             Results = [Result("Q1", "Heat"), Result("Q2", "Heat (1986)")],
         };
         var cut = RenderWikidataSide();
-        cut.Find("input[aria-label='Search Wikidata']").Change("Heat");
+        Search(cut, "Search Wikidata", "Heat");
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=wikidata-result]").Count));
 
         var rows = cut.FindAll("[data-testid=wikidata-result]");
@@ -339,7 +366,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
             ],
         };
         var cut = RenderWikidataSide();
-        cut.Find("input[aria-label='Search Wikidata']").Change("Wire");
+        Search(cut, "Search Wikidata", "Wire");
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=wikidata-result]").Count));
         Assert.False(cut.Find("[data-testid=wikidata-apply]").HasAttribute("disabled"));
 
@@ -361,7 +388,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
     {
         _answer = new EditorWikidataSearchResultDto { EntityId = ItemId, Results = [Result("Q1", "Heat")] };
         var cut = RenderWikidataSide();
-        cut.Find("input[aria-label='Search Wikidata']").Change("Heat");
+        Search(cut, "Search Wikidata", "Heat");
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
 
         cut.Find("[data-testid=wikidata-cancel]").Click();
@@ -380,7 +407,7 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
             Results = [Result("Q900", "Saga", EditorWikidataRelations.Parent, canApply: false, reason: EditorWikidataMessageCodes.ParentNotAllowed)],
         };
         var cut = RenderWikidataSide();
-        cut.Find("input[aria-label='Search Wikidata']").Change("Saga");
+        Search(cut, "Search Wikidata", "Saga");
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=wikidata-result]")));
 
         Assert.Contains("Parent: the series, not this issue", cut.Find("[data-testid=wikidata-result]").TextContent, StringComparison.Ordinal);

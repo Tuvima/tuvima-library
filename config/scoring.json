@@ -11,6 +11,9 @@
     "identity_facts": ["title", "number", "identifier"],
     "runtime_tolerance_minutes": 2,
     "track_length_tolerance_seconds": 3,
+    "verdict_only_facts": {
+      "song": ["identifier"]
+    },
     "collection_title_markers": ["box set", "boxed set", "boxset", "collection", "complete series", "omnibus", "trilogy"],
     "evidence_facts": {
       "movie": ["title", "year", "runtime", "identifier"],

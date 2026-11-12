@@ -12,10 +12,7 @@
 <div class="tl-matchres" data-testid="match-results">
     @if (Loading)
     {
-        <div class="tl-matchres__wide" role="status" aria-busy="true" data-testid="match-looking-up">
-            <AppSkeleton Shape="AppSkeletonShape.Text" Width="40%" />
-            <span class="tl-matchres__meta">@L["EditorMatchResults_LookingUp"]</span>
-        </div>
+        <div class="tl-matchres__wide"><EditorMatchLookingUp /></div>
     }
     else if (!string.IsNullOrWhiteSpace(Message))
     {

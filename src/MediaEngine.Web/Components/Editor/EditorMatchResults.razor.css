@@ -10,12 +10,6 @@
     width: 100%;
 }
 
-.tl-matchres__meta {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-secondary-size);
-    font-weight: var(--tl-type-secondary-weight);
-}
-
 /* A line about a provider that did not answer, with its Try again button at the end. */
 .tl-matchres__message {
     display: flex;

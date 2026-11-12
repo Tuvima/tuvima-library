@@ -9,17 +9,17 @@
 
 @* The Match tab's Wikidata side (universal editor v5, 3c, mockup G5; v6 WP6). The first row is the same shared row every Match step uses: "Search
    Wikidata", "Paste a Wikidata link or QID" and a labeled Search (the Media providers / Wikidata tabs are drawn above it by the Match tab), then the
-   "Your file" bar the tab hands in. Nothing is searched when the tab opens; a search runs when a person types or pastes and leaves the box, or presses
-   Search. Results are a text-only list on the left and the same card as every other Match step on the right. A pasted link or QID resolves straight to
+   "Your file" bar the tab hands in. Nothing is searched when the tab opens or while a person types or pastes; a search runs on the Search button or
+   Enter only (D3), and the boxes only keep what was typed. Results are a text-only list on the left and the same card as every other Match step on the right. A pasted link or QID resolves straight to
    its item. The Engine says whether a result is the item itself or its parent; a parent is shown for context and cannot be applied. The identity card
    shows what the item is linked to now (read by its stored QID). Apply, Change match and Remove match only stage a change; Save changes writes it. The
    link and the provider match never change each other: when they disagree the tab shows one amber line and changes neither. *@
 <div class="tl-wikidata" data-testid="wikidata-match">
     <EditorMatchSearchRow Columns="minmax(12rem, 1.6fr) minmax(12rem, 1.6fr) auto" Message="@RowMessage" SearchDisabled="@(!CanSearch || _searching)" OnSearch="SearchAsync"
                           ButtonTestId="wikidata-search-button">
-        <AppTextField Label="@L["EditorWikidata_SearchLabel"].Value" Value="@_query" ValueChanged="OnQueryChangedAsync" Immediate="false"
+        <AppTextField Label="@L["EditorWikidata_SearchLabel"].Value" Value="@_query" ValueChanged="OnQueryChanged" Immediate="true" OnKeyDown="OnSearchKey"
                       aria-label="@L["EditorWikidata_SearchLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-query" />
-        <AppTextField Label="@L["EditorWikidata_PasteLabel"].Value" Value="@_paste" ValueChanged="OnPasteChangedAsync" Immediate="false"
+        <AppTextField Label="@L["EditorWikidata_PasteLabel"].Value" Value="@_paste" ValueChanged="OnPasteChanged" Immediate="true" OnKeyDown="OnSearchKey"
                       aria-label="@L["EditorWikidata_PasteLabel"].Value" Disabled="@(!CanSearch || _searching)" data-testid="wikidata-paste" />
     </EditorMatchSearchRow>
 
@@ -231,25 +231,26 @@
         }
     }
 
-    private async Task OnQueryChangedAsync(string? value)
+    // Typing or pasting only keeps the text (the other box is cleared, so one of them is searched). Nothing is searched until Search or Enter.
+    private void OnQueryChanged(string? value)
     {
         _query = value?.Trim() ?? string.Empty;
-        _paste = string.Empty;
         if (_query.Length > 0)
         {
-            await SearchAsync();
+            _paste = string.Empty;
         }
     }
 
-    private async Task OnPasteChangedAsync(string? value)
+    private void OnPasteChanged(string? value)
     {
         _paste = value?.Trim() ?? string.Empty;
         if (_paste.Length > 0)
         {
             _query = string.Empty;
-            await SearchAsync();
         }
     }
+
+    private Task OnSearchKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
 
     private async Task SearchAsync()
     {
@@ -507,7 +508,7 @@
     {
         if (_searching)
         {
-            <div aria-busy="true" aria-label="@L["EditorWikidata_Searching"].Value" data-testid="wikidata-searching"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+            <EditorMatchLookingUp Width="60%" TestId="wikidata-searching" />
             return;
         }
 

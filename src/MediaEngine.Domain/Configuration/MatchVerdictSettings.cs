@@ -53,11 +53,25 @@ public sealed class MatchVerdictSettings
     };
 
     /// <summary>
+    /// Facts a kind judges but does not draw as a row of the compare table (universal editor v6, D9: a song's table is Artist, Album, Title and Length). They
+    /// still count toward the verdict, so an agreeing ISRC or MusicBrainz id keeps its effect. Keyed by the editor's kind.
+    /// </summary>
+    [JsonPropertyName("verdict_only_facts")]
+    public Dictionary<string, List<string>> VerdictOnlyFacts { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["song"] = ["identifier"],
+    };
+
+    /// <summary>
     /// Words that mark a result as a collection, box set or omnibus rather than one title (universal editor v6, D6): the list row then says
     /// "Collection". A provider that says so itself (an <c>is_collection</c> field) does not need them. Matched as whole words, any case.
     /// </summary>
     [JsonPropertyName("collection_title_markers")]
     public List<string> CollectionTitleMarkers { get; set; } = ["box set", "boxed set", "boxset", "collection", "complete series", "omnibus", "trilogy"];
+
+    /// <summary>True when a fact is drawn as a row of the compare table for the kind (false for a fact that only counts toward the verdict).</summary>
+    public bool IsDrawn(string? kind, string fact) =>
+        string.IsNullOrWhiteSpace(kind) || !VerdictOnlyFacts.TryGetValue(kind, out var hidden) || !hidden.Contains(fact, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The facts compared for a kind; the title and year when the kind is not listed.</summary>
     public IReadOnlyList<string> FactsFor(string? kind) =>

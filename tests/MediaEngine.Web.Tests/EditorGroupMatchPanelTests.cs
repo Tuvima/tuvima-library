@@ -23,6 +23,7 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
     private readonly PendingEditList _pending = new();
     private EditorGroupMatchRequestDto? _request;
     private bool _emptyLineUp;
+    private bool _thirdNamesAnotherSeason;
 
     public EditorGroupMatchPanelTests()
     {
@@ -60,10 +61,16 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
                     [
                         Line(0, fits: true),
                         Line(1, fits: true),
-                        new EditorGroupMatchLineDto
-                        {
-                            EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "9", Fits = false, NoteCode = EditorMatchMessageCodes.NoNumber, Verdict = EditorMatchVerdicts.Weak,
-                        },
+                        _thirdNamesAnotherSeason
+                            ? new EditorGroupMatchLineDto
+                            {
+                                EntityId = Ids[2], Title = "s01e03.mkv", NumberText = "S01E03", TargetTitle = "Episode 3", Fits = false, NoteCode = EditorMatchMessageCodes.OtherSeason, NoteValue = "1",
+                                Verdict = EditorMatchVerdicts.Weak, Candidate = Line(2, fits: true).Candidate, Placement = Line(2, fits: true).Placement,
+                            }
+                            : new EditorGroupMatchLineDto
+                            {
+                                EntityId = Ids[2], Title = "bonus-feature.mkv", NumberText = "9", Fits = false, NoteCode = EditorMatchMessageCodes.NoNumber, Verdict = EditorMatchVerdicts.Weak,
+                            },
                     ],
                 });
             });
@@ -121,7 +128,7 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OnlyTheMisfits_AreListed_AsCheckMatch_AndAreNotTicked()
+    public void OnlyTheMisfits_AreListed_AsWeakMatch_AndAreNotTicked()
     {
         var cut = Open();
 
@@ -199,5 +206,24 @@ public sealed class EditorGroupMatchPanelTests : AsyncBunitContext
 
         Assert.All(cut.FindAll("[data-testid=group-match-show-row]"), show => Assert.Empty(show.QuerySelectorAll(".app-chip")));
         Assert.NotEmpty(cut.FindAll("[data-testid=group-match-shows] .tl-mlist__title"));
+    }
+
+    [Fact]
+    public void AFileThatNamesAnotherSeasonThanThePickedOne_IsListedAsAWeakMatch_UntickedWithTheSeasonItNames_AndStagesOnlyWhenTheItemTicksIt()
+    {
+        _thirdNamesAnotherSeason = true;
+        var cut = Open();
+
+        // The picked season (2) travels with the request, so the Engine compares the file's season as well as its episode number.
+        Assert.Equal(2, _request!.SeasonNumber);
+        var misfit = Assert.Single(cut.FindAll("[data-testid=group-match-misfit]"));
+        Assert.Contains("The file name says season 1.", misfit.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Weak match", misfit.TextContent, StringComparison.Ordinal);
+        Assert.False(misfit.QuerySelector("input[type=checkbox]")!.HasAttribute("checked"));
+        Assert.Contains("Apply match to 2", cut.Find("[data-testid=group-match-apply]").TextContent, StringComparison.Ordinal);
+
+        misfit.QuerySelector("input[type=checkbox]")!.Change(true);
+
+        Assert.Contains("Apply match to 3", cut.Find("[data-testid=group-match-apply]").TextContent, StringComparison.Ordinal);
     }
 }

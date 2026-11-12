@@ -39,7 +39,7 @@ internal static class EditorMatchRule
 
     /// <summary>
     /// The keys the family dropdown and the owned-file lists count as "carries an identity": the provider ones, two older spellings, an episode's
-    /// TMDB id (stored by older matches; it names the episode without making a provider source) and the Wikidata id.
+    /// TMDB id (the TMDB provider and the episode crosswalk write it; it names the episode without making a provider source) and the Wikidata id.
     /// </summary>
     public static readonly IReadOnlyList<string> IdentityKeys = [.. ProviderIdKeys, "comicvine_issue_id", "openlibrary_work_id", BridgeIdKeys.TmdbEpisodeId, BridgeIdKeys.WikidataQid];
 
