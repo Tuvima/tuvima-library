@@ -22,11 +22,15 @@
         @if (IsEpisodes && _show is not null)
         {
             @* The chosen show, read-only, with Change show on the control line beside it. *@
-            <AppFormRow Columns="minmax(0, 1fr) auto" Wrap="true" ReserveMessage="true" data-testid="group-match-picked">
+            @* On a phone the name and the button stack: the name keeps the full width and the button sits under it, with no blank label line above it. *@
+            <AppFormRow Columns="minmax(0, 1fr) auto" Wrap="true" Stack="@IsPhone" ReserveMessage="@(!IsPhone)" data-testid="group-match-picked">
                 <ChildContent>
                     <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@_show.Name" ReadOnly="true" aria-label="@L["EditorTvMatchFlow_Show"].Value" />
                     <div data-form-row-field="fit">
-                        <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+                        @if (!IsPhone)
+                        {
+                            <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+                        }
                         <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="ChangeShow" />
                     </div>
                 </ChildContent>
@@ -141,6 +145,11 @@
     private EditorMusicReleaseDto? _release;
     private EditorGroupMatchDto? _result;
     private readonly HashSet<Guid> _ticked = [];
+
+    /// <summary>The editor window's layout, when the panel sits in one; a phone window stacks the picked show and its button.</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
 
     /// <summary>The ticked episodes or songs.</summary>
     [Parameter, EditorRequired] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];

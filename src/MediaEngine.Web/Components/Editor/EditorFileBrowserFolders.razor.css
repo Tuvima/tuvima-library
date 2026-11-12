@@ -31,3 +31,8 @@
     display: flex;
     justify-content: center;
 }
+
+.tl-fbfolders__back {
+    display: flex;
+    justify-content: flex-start;
+}

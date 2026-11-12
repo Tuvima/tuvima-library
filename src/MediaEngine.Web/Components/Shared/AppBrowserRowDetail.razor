@@ -3,7 +3,7 @@
 @* A row of the shared browser frame that spans the whole list: a panel opened under a row (the "What is this file?" question). The list's keys
    are not taken from inside it, so typing in a field here never moves the highlighted row. *@
 <tr role="row" class="app-browser-detail" @attributes="AdditionalAttributes">
-    <td role="gridcell" colspan="@Span" @onkeydown:stopPropagation="true" @onclick:stopPropagation="true">@ChildContent</td>
+    <td role="gridcell" colspan="@Span" tabindex="@(FocusOnOpen ? "-1" : null)" @ref="_cell" @onkeydown:stopPropagation="true" @onclick:stopPropagation="true">@ChildContent</td>
 </tr>
 
 @code {
@@ -11,6 +11,36 @@
     [Parameter] public int Span { get; set; } = 3;
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Brings the panel into view when it opens (a phone, where the row it opened under may be at the bottom of a long list). Off, nothing moves.</summary>
+    [Parameter] public bool FocusOnOpen { get; set; }
+
+    private ElementReference _cell;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !FocusOnOpen)
+        {
+            return;
+        }
+
+        try
+        {
+            await _cell.FocusAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            // The panel was closed again before the focus call ran; there is nothing to bring into view.
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the panel was opening; nothing to restore.
+        }
+        catch (JSException)
+        {
+            // Bringing the panel into view is a convenience; the element may have gone away between the render and this call.
+        }
+    }
 
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 }

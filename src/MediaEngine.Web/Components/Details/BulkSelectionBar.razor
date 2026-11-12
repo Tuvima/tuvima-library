@@ -28,7 +28,8 @@
     var busy = IsBusy;
     var editable = IsAvailable;
     var songs = SongActionsShown(selection);
-    <section class="tl-batch" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
+    @* On a phone the bar is one column: the count, then the actions two to a row at full 44 px height (the arrangement only; the device rule below still decides who may edit). *@
+    <section class="@(Phone ? "tl-batch tl-batch--phone" : "tl-batch")" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
         <div class="tl-batch__bar" role="toolbar" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
             <span class="tl-batch__count" role="status">@BulkEditRules.SelectedLabel(selection.Count)</span>
             <span class="tl-batch__actions">
@@ -186,6 +187,8 @@
     [Parameter] public EventCallback<IReadOnlyList<BulkEditRow>> OnQueue { get; set; }
 
     private BulkEditSelection? Active => Selection ?? CascadedSelection;
+
+    private bool Phone => EditorPhoneArrangement.Applies(Device);
 
     // On a detail page the bar needs the Engine's edit answer for that page; on a list it only needs a device that may edit.
     private bool IsAvailable => Binding is not null ? Binding.CanEdit : EditorDeviceRule.CanEdit(Device);
