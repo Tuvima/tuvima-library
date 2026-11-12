@@ -4,9 +4,11 @@
 @using MediaEngine.Web.Services.Playback
 @inject IStringLocalizer<SharedStrings> L
 
-@* Custom appearance, one level deeper than Subtitle appearance (unified player v2 D13): the full set of choices the player has always had, font,
-   shadow, text color and opacity, background color and opacity. Each change applies to the playing video at once and is saved on the profile. *@
+@* Custom appearance, one level deeper than Subtitle appearance (unified player v2 D13): the full set of choices the player has always had, text size,
+   font, shadow, text color and opacity, background color and opacity. Each change applies to the playing video at once and is saved on the profile. *@
 <div class="player-settings-menu" data-subtitle-custom-appearance>
+    <PlayerSettingsChoiceGroup Title="@L["Common_TextSize"].Value" Options="@SizeOptions" Current="@SubtitleAppearance.SizeChoice(Look)"
+                               ValueSelected="@(value => ChangeAsync(look => look.SubtitleSize = value))" />
     <PlayerSettingsChoiceGroup Title="@L["PlayerSettings_Font"].Value" Options="@FontOptions" Current="@(Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault)"
                                ValueSelected="@(value => ChangeAsync(look => look.SubtitleFont = value))" />
     <PlayerSettingsChoiceGroup Title="@L["PlayerSettings_Shadow"].Value" Options="@OnOffOptions" Current="@(Look?.SubtitleShadow == true ? "on" : "off")"
@@ -34,6 +36,7 @@
         if (percent > 0) look.SubtitleBackgroundOpacity = percent;
     });
 
+    private IReadOnlyList<(string Label, string Value)> SizeOptions => [(L["PlayerSettings_Small"].Value, PlaybackPreferenceValues.Small), (L["PlayerSettings_Medium"].Value, PlaybackPreferenceValues.Medium), (L["PlayerSettings_Large"].Value, PlaybackPreferenceValues.Large)];
     private IReadOnlyList<(string Label, string Value)> FontOptions => [(L["PlayerSettings_Default"].Value, PlaybackPreferenceValues.FontDefault), (L["PlayerSettings_Serif"].Value, PlaybackPreferenceValues.FontSerif), (L["PlayerSettings_Mono"].Value, PlaybackPreferenceValues.FontMono)];
     private IReadOnlyList<(string Label, string Value)> OnOffOptions => [(L["Common_Off"].Value, "off"), (L["PlayerSettings_On"].Value, "on")];
     private IReadOnlyList<(string Label, string Value)> ColourOptions => [

@@ -1,6 +1,7 @@
 /* Mockup screen 4, in the 400 px panel with no body padding: a 140 px preview strip over a still (8 px margin, 6 px radius), the uppercase "Style"
-   label (.mh), three preset tiles (.sty: 8 px gaps, 10 px padding, "Aa" 22 / 700 with the name at 13 px), Text size and Background rows (.kv: 15 px
-   text, a segmented control at the right), a hairline, and the Custom appearance row (.pr). */
+   label (.mh), three preset tiles (.sty: 8 px gaps, 10 px padding, "Aa" 22 / 700 with the name at 13 px; follow-ups D7: each tile is a column, the sample on
+   the first line and the name on the second, all three the same width and 84 px tall), the Background row (.kv: 15 px text, a segmented control at the
+   right), a hairline, and the Custom appearance row (.pr). Text size now lives in Custom appearance. */
 .sav {
     padding-bottom: 4px;
 }
@@ -45,8 +46,15 @@
     box-sizing: border-box;
     color: var(--playback-text);
     cursor: pointer;
-    flex: 1;
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    height: 84px;
+    align-items: center;
+    justify-content: center;
     min-width: 0;
+    overflow: hidden;
     padding: 10px;
     position: relative;
     text-align: center;
@@ -72,7 +80,7 @@
 
 .sav__aa {
     display: block;
-    font: 700 22px/1.45 var(--font-ui);
+    font: 700 22px/1.2 var(--font-ui);
 }
 
 .sav__tile--large .sav__aa {
@@ -83,6 +91,10 @@
     color: var(--playback-text-secondary);
     display: block;
     font: 400 13px/1.45 var(--font-ui);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sav__tick {

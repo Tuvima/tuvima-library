@@ -250,15 +250,15 @@ public sealed class PlaybackPrimitiveTests
         var audioHideRule = global[..global.IndexOf(".playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar", StringComparison.Ordinal)];
         Assert.Matches(@"@media\s*\(max-width:\s*720px\)\s*\{\s*$", audioHideRule);
         Assert.Contains("@media (max-width: 840px)", frame); // Global navigation retains its own breakpoint.
-        // Every transport and tool target of the dock is 44 px (one token), the phone's tool row never gives a tool less, and the phone's transport is 52 px (unified player v2 A12, D26).
+        // Every transport and tool target of the dock is 48 px (one token, video player follow-ups D1), the phone's tool row never gives a tool less, and the phone's expanded transport is 48 px (unified player v2 A12, D26).
         var tokens = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/tuvima.tokens.css"));
-        Assert.Contains("--playback-control-target: 44px;", tokens);
+        Assert.Contains("--playback-control-target: 48px;", tokens);
         var toolRow = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackToolRow.razor.css"));
         var slotRule = toolRow.Split(".playback-tool-row__slot {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("min-height: var(--playback-control-target);", slotRule);
         Assert.Contains("min-width: var(--playback-control-target);", slotRule);
         var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackFullPlayer.razor.css"));
-        Assert.Contains("--playback-control-target:52px;", full);
+        Assert.Contains("--playback-control-target:48px;", full);
     }
 
     [Fact]

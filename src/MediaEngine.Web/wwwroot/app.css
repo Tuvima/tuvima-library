@@ -4528,7 +4528,11 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .video-playback-host[data-subtitle-font="Serif"] { --tl-subtitle-font: Georgia, "Times New Roman", serif; }
 .video-playback-host[data-subtitle-font="Mono"] { --tl-subtitle-font: ui-monospace, Consolas, "Courier New", monospace; }
 .video-playback-host[data-subtitle-shadow="true"] { --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
-.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
+/* Follow-ups D8: High contrast is bold white text. With a box the box is solid black (bg opacity 100); with Background None or Shadow it has no box and a heavy black outline instead.
+   VideoPlaybackHost sets data-subtitle-contrast from SubtitleStyleCss.IsHighContrast; the outline value is SubtitleStyleCss.HighContrastOutline, the same one the preview strip uses. */
+.video-playback-host[data-subtitle-contrast="true"] { --tl-subtitle-weight: 700; }
+.video-playback-host[data-subtitle-contrast="true"][data-subtitle-background="false"] { --tl-subtitle-shadow: -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black, 2px 2px 0 black, 0 -2px 0 black, 0 2px 0 black, -2px 0 0 black, 2px 0 0 black, 0 0 4px black; }
+.video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); font-weight: var(--tl-subtitle-weight, normal); text-shadow: var(--tl-subtitle-shadow); }
 /* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions. (Audio and Subtitles moved to the Audio & subtitles panel.) */
 .player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
@@ -4583,18 +4587,19 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .merge-folder__option:disabled { cursor: wait; opacity: .65; }
 
-/* Kind options and treatment choices (Change kind, file-drop dialog): AppNativeButton roots, so their styles live here. */
-.lib-choice__kind-option, .lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
-.lib-choice__kind-option:hover, .lib-choice__kind-option:focus-visible, .lib-choice__kind-option.is-selected,
+/* Treatment choices (the file-drop dialog's "Which library?"): AppNativeButton roots, so their styles live here. */
+.lib-choice__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
 .lib-choice__choice:hover, .lib-choice__choice:focus-visible, .lib-choice__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
-/* The kind cards and the "Which library?" choices are shared by the file-drop and Change kind dialogs, so their layout lives here too. */
-.lib-choice__kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.lib-choice__kind, .lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* Equal-width kind cards with left-aligned content: the Metadata cell has a fixed width, so cards do not resize with their provider icons. */
-.lib-choice__kind .lib-choice__kind-option { flex: 1 1 0; justify-content: flex-start; }
-.lib-choice__kind .lib-meta { min-width: 112px; justify-content: flex-end; }
-.lib-choice__kind > .lib-peek { display: flex; flex: 1 1 0; min-width: 0; }
-.lib-choice__kind > .lib-peek > .lib-choice__kind-option { flex: 1 1 auto; }
+/* The file-drop dialog's kind rows (LibraryChoiceRow) stack full width; the "Which library?" choices share this layout. */
+.lib-choice__kinds { display: grid; gap: var(--tl-space-2); }
+.lib-choice__option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The pick button of a LibraryChoiceRow (Add library's area and kind rows, the file-drop kinds): an AppNativeButton root, so its styles live here. The row's own border carries the look. */
+.lib-row__pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: var(--tl-space-4); width: 100%; min-height: 84px; box-sizing: border-box; padding: var(--tl-space-3) var(--tl-space-4); color: var(--tl-text-primary); font: inherit; text-align: left; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.lib-row__pick--chevron { grid-template-columns: 48px minmax(0, 1fr) auto; }
+.lib-row__pick:hover { background: var(--tl-accent-primary-soft); }
+.lib-row__pick:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
+.lib-row.is-disabled .lib-row__pick { cursor: default; opacity: 0.55; }
+.lib-row.is-disabled .lib-row__pick:hover { background: transparent; }
 
 .lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: var(--tl-font-size-dialog-title); }
 .lib-choice__options { display: grid; gap: 10px; }
@@ -4651,8 +4656,21 @@ button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; borde
 a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 600; white-space: nowrap; }
 /* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
 .needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
+/* One colour per library kind (setup and libraries fixes D12), chosen in LibraryKindLook.ColorClass; the card cell and the row icon both read --lib-kind-color. */
+.lib-kind-color--movies { --lib-kind-color: var(--tl-media-movies); }
+.lib-kind-color--tv { --lib-kind-color: var(--tl-media-tv); }
+.lib-kind-color--music { --lib-kind-color: var(--tl-media-music); }
+.lib-kind-color--audiobooks { --lib-kind-color: var(--tl-media-audiobooks); }
+.lib-kind-color--books { --lib-kind-color: var(--tl-media-books); }
+.lib-kind-color--comics { --lib-kind-color: var(--tl-media-comics); }
+.lib-kind-color--documents { --lib-kind-color: var(--tl-media-document); }
+.lib-kind-color--area-watch { --lib-kind-color: var(--tl-area-watch); }
+.lib-kind-color--area-listen { --lib-kind-color: var(--tl-area-listen); }
+.lib-kind-color--area-read { --lib-kind-color: var(--tl-area-read); }
+.lib-kind-color--area-view { --lib-kind-color: var(--tl-area-view); }
+.lib-kind-color--area-vault { --lib-kind-color: var(--tl-area-vault); }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
-.lib-kind-tile--lookup { color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
+.lib-kind-tile--lookup { color: var(--lib-kind-color, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-kind-color, var(--tl-accent-primary)) 16%, transparent); }
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .lib-meta__icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
 .lib-meta__icon--plain { min-width: var(--tl-control-height-compact); min-height: var(--tl-control-height-compact); color: var(--tl-text-muted); font-size: var(--tl-icon-size-sm); }
