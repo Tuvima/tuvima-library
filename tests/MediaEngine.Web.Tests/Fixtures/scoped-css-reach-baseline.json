@@ -139,13 +139,6 @@
       "listen-rail__more",
       "listen-rail__section-toggle"
     ],
-    "src/MediaEngine.Web/Components/Pages/MyLibrary.razor": [
-      "my-library-header__action-skeleton",
-      "my-library-header__avatar",
-      "my-library-header__name-skeleton",
-      "my-library-skeleton__tile",
-      "my-library-skeleton__title"
-    ],
     "src/MediaEngine.Web/Components/Pages/PluginPage.razor": [
       "plugin-page__guide-slot",
       "plugin-page__guide-tick"

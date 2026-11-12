@@ -28,7 +28,7 @@ public sealed class UIShellSettings
 
     /// <summary>
     /// Tab names displayed on the TV dock. Default: Home, Libraries, Search, Downloads and Settings. Read, Watch, Listen, View and Collections remain valid names.
-    /// The phone dock does not read this list: it is always Home, Search and My Library.
+    /// The phone dock does not read this list: it is always Home, Search and My List.
     /// Automotive restricts this to <c>["Collections", "Listen"]</c>.
     /// </summary>
     [JsonPropertyName("intent_dock_items")]

@@ -176,6 +176,11 @@
                 // The menu row now reads Add to or Remove from My List; that is the confirmation.
                 _isSaved = membership.IsSaved;
             }
+            else
+            {
+                // The button keeps its old state; a page that shows My List says so in place.
+                _saved.ReportChangeFailed();
+            }
         }
         finally
         {

@@ -36,7 +36,7 @@ public readonly record struct LibrarySurface(string Key, string Path, string Lab
 /// <summary>
 /// The dock catalog for the phone and TV shell: which tabs exist, which are kept for a Kids profile,
 /// and which surfaces count as "a library" for the TV dock's Libraries tab.
-/// The phone dock is fixed at <see cref="PhoneDockItems"/> (Home, Search, My Library); the configured
+/// The phone dock is fixed at <see cref="PhoneDockItems"/> (Home, Search, My List); the configured
 /// <c>shell.intent_dock_items</c> list drives the TV dock. Old intents (Read, Watch, Listen, View, Collections)
 /// stay in the catalog so settings saved before the five-tab dock still resolve.
 /// </summary>
@@ -46,15 +46,15 @@ public static class ShellDock
     public const DownloadsTabMode DownloadsMode = DownloadsTabMode.ExplainNativeApp;
 
     public const string DownloadsPath = "/downloads";
-    /// <summary>My Library is the personal page: profile, Downloads, Continue, My List, History and Liked.</summary>
-    public const string MyLibraryPath = "/my-library";
-    /// <summary>The personal grids that sit behind My Library's See All links (My List, Liked, Favorites and the rest) keep the My Library tab selected.</summary>
+    /// <summary>My List is the personal page: profile, Downloads, Continue and the saved titles, with links to Activity and Liked.</summary>
+    public const string MyListPath = "/my-list";
+    /// <summary>The personal shelves and grids that sit behind See All links (Liked, Favorites and the rest) keep the My List tab selected.</summary>
     public const string PersonalGridsPath = "/for-me";
     public const string SettingsPath = "/settings";
     public const string DefaultLibraryPath = "/watch";
 
     /// <summary>The phone dock: always these three tabs, for every profile including Kids.</summary>
-    public static readonly string[] PhoneDockItems = ["Home", "Search", "MyLibrary"];
+    public static readonly string[] PhoneDockItems = ["Home", "Search", "MyList"];
 
     /// <summary>Browser storage key prefix for the last library surface a profile used.</summary>
     public const string LastLibraryStorageKeyPrefix = "tuvima.last-library.v1.";
@@ -74,7 +74,7 @@ public static class ShellDock
     // The Kids shell keeps only the lanes a child needs.
     internal static readonly string[] KidsLibraryPaths = ["/watch", "/listen", "/read"];
     // Settings saved before the five-tab dock can still list the three lanes a child had, so those stay allowed.
-    private static readonly string[] KidsDockKeys = ["Home", "Libraries", "Search", "MyLibrary", "Downloads", "Watch", "Listen", "Read"];
+    private static readonly string[] KidsDockKeys = ["Home", "Libraries", "Search", "MyList", "Downloads", "Watch", "Listen", "Read"];
 
     private static readonly IReadOnlyDictionary<string, ShellDockEntry> Catalog =
         new Dictionary<string, ShellDockEntry>(StringComparer.OrdinalIgnoreCase)
@@ -82,7 +82,7 @@ public static class ShellDock
             ["Home"] = new("Home", "/", "Nav_Home", AppMaterialIcons.Outlined.Home),
             ["Libraries"] = new("Libraries", DefaultLibraryPath, "Nav_Libraries", AppMaterialIcons.Outlined.LibraryBooks, ShellDockKind.Libraries),
             ["Search"] = new("Search", "/search", "Nav_Search", AppMaterialIcons.Outlined.Search, ShellDockKind.Search),
-            ["MyLibrary"] = new("MyLibrary", MyLibraryPath, "Nav_MyLibrary", AppMaterialIcons.Outlined.LibraryBooks),
+            ["MyList"] = new("MyList", MyListPath, "Nav_MyList", AppMaterialIcons.Outlined.BookmarkBorder),
             ["Downloads"] = new("Downloads", DownloadsPath, "Nav_Downloads", AppMaterialIcons.Outlined.Download),
             ["Settings"] = new("Settings", SettingsPath, "Nav_Settings", AppMaterialIcons.Outlined.Settings),
             ["Read"] = new("Read", "/read", "Nav_Read", AppMaterialIcons.Outlined.MenuBook),
@@ -115,7 +115,7 @@ public static class ShellDock
         return entries;
     }
 
-    /// <summary>The phone dock tabs: Home, Search and My Library, the same for adults and Kids.</summary>
+    /// <summary>The phone dock tabs: Home, Search and My List, the same for adults and Kids.</summary>
     public static IReadOnlyList<ShellDockEntry> ResolvePhone(bool isKids) => Resolve(PhoneDockItems, isKids);
 
     /// <summary>True when the phone top bar shows its Downloads icon: only where downloads work (the Tuvima app), never in the browser.</summary>

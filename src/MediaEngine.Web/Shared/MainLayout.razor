@@ -140,7 +140,7 @@
                     <AppNativeButton Type="button"
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
-                                     OnClick="@(_ => OpenMyLibrary())">
+                                     OnClick="@(_ => OpenMyList())">
                         <AppMaterialIcon Icon="@(IsMyListOpen ? AppMaterialIcons.Filled.Bookmark : AppMaterialIcons.Outlined.BookmarkBorder)"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
@@ -369,7 +369,7 @@
     private bool ShowVaultArea => !_isKids && Nsfw.ShowInNavigation;
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
-    // The phone dock is fixed (Home, Search, My Library); the configured list drives the TV dock.
+    // The phone dock is fixed (Home, Search, My List); the configured list drives the TV dock.
     private IReadOnlyList<ShellDockEntry> IntentDockEntries => IsPhoneShell
         ? ShellDock.ResolvePhone(_isKids)
         : ShellDock.Resolve(DeviceContext.Settings.Shell.IntentDockItems, _isKids);
@@ -664,9 +664,9 @@
 
     // The top bar button is a bookmark, gold while My List is open; clicking it again closes the list and returns Home
     // (Home, detail and tiles spec D6).
-    private bool IsMyListOpen => Nav.ToBaseRelativePath(Nav.Uri).StartsWith(ShellDock.MyLibraryPath.TrimStart('/'), StringComparison.OrdinalIgnoreCase);
+    private bool IsMyListOpen => Nav.ToBaseRelativePath(Nav.Uri).StartsWith(ShellDock.MyListPath.TrimStart('/'), StringComparison.OrdinalIgnoreCase);
 
-    private void OpenMyLibrary() => Nav.NavigateTo(IsMyListOpen ? "/" : ShellDock.MyLibraryPath);
+    private void OpenMyList() => Nav.NavigateTo(IsMyListOpen ? "/" : ShellDock.MyListPath);
 
     private void OpenSearch() => _searchOverlay?.Open();
 
@@ -1063,10 +1063,10 @@
         ? AppMaterialIcons.Outlined.Sync
         : AppMaterialIcons.Filled.ErrorOutline;
 
-    // My Library stays selected on the personal grids behind its See All links (/for-me).
+    // My List stays selected on the personal shelves behind their See All links (/for-me).
     private bool IsDockEntryActive(ShellDockEntry entry) =>
         IsNavActive(ShellDock.PathOnly(entry.Path))
-        || (entry.Key == "MyLibrary" && IsNavActive(ShellDock.PersonalGridsPath));
+        || (entry.Key == "MyList" && IsNavActive(ShellDock.PersonalGridsPath));
 
     private bool IsNavActive(string path) =>
         _currentPath.Equals(path, StringComparison.OrdinalIgnoreCase)

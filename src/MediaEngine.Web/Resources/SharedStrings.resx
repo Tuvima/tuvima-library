@@ -134,8 +134,8 @@
   <data name="Nav_Downloads" xml:space="preserve">
     <value>Downloads</value>
   </data>
-  <data name="Nav_MyLibrary" xml:space="preserve">
-    <value>My Library</value>
+  <data name="Nav_MyList" xml:space="preserve">
+    <value>My List</value>
   </data>
   <data name="Nav_Menu" xml:space="preserve">
     <value>Menu</value>
@@ -2063,9 +2063,6 @@
   <data name="ForMe_SortForMeItems" xml:space="preserve">
     <value>Sort For Me items</value>
   </data>
-  <data name="ForMe_OpenFavoritesPlaylist" xml:space="preserve">
-    <value>Open Favorites playlist</value>
-  </data>
   <data name="LibraryBrowsePage_YourLibraryIsBeingPrepared" xml:space="preserve">
     <value>Your library is being prepared</value>
   </data>
@@ -2280,15 +2277,12 @@
     <value>My activity</value>
   </data>
   <data name="MyActivity_EverythingYouHaveWatchedListened" xml:space="preserve">
-    <value>Everything you have watched, listened to and read, and what you added to My list.</value>
+    <value>Everything you have watched, listened to and read, and what you added to My List.</value>
   </data>
-  <data name="Common_BackToMyLibrary" xml:space="preserve">
-    <value>Back to My Library</value>
+  <data name="Common_BackToMyList" xml:space="preserve">
+    <value>Back to My List</value>
   </data>
-  <data name="MyLibrary_MyLibraryLibrary" xml:space="preserve">
-    <value>My Library - Library</value>
-  </data>
-  <data name="MyLibrary_WatchAndListenOffline" xml:space="preserve">
+  <data name="MyList_WatchAndListenOffline" xml:space="preserve">
     <value>Watch and listen offline</value>
   </data>
   <data name="Common_RecentActivity" xml:space="preserve">
@@ -2297,23 +2291,8 @@
   <data name="Common_SeeAll" xml:space="preserve">
     <value>See all</value>
   </data>
-  <data name="MyLibrary_MyLibraryCouldNotLoad" xml:space="preserve">
-    <value>My Library could not load</value>
-  </data>
-  <data name="MyLibrary_TheDashboardCouldNotRead" xml:space="preserve">
-    <value>The Dashboard could not read this profile.</value>
-  </data>
   <data name="Common_Continue" xml:space="preserve">
     <value>Continue</value>
-  </data>
-  <data name="MyLibrary_AddTitlesWithTheMy" xml:space="preserve">
-    <value>Add titles with the My List heart</value>
-  </data>
-  <data name="MyLibrary_SomeOfMyLibraryCould" xml:space="preserve">
-    <value>Some of My Library could not load</value>
-  </data>
-  <data name="MyLibrary_TheRestIsShownTry" xml:space="preserve">
-    <value>The rest is shown. Try again to fill in the missing rows.</value>
   </data>
   <data name="Common_Activity" xml:space="preserve">
     <value>Activity</value>
@@ -13639,6 +13618,132 @@
   </data>
   <data name="ReaderFrame_TryAgain" xml:space="preserve">
     <value>Try again</value>
+  </data>
+  <data name="MyList_Title" xml:space="preserve">
+    <value>My List</value>
+  </data>
+  <data name="MyList_Liked" xml:space="preserve">
+    <value>Liked</value>
+  </data>
+  <data name="MyList_CouldNotLoad" xml:space="preserve">
+    <value>My List could not load</value>
+  </data>
+  <data name="MyList_CountTitle" xml:space="preserve">
+    <value>{0} title</value>
+  </data>
+  <data name="MyList_CountTitles" xml:space="preserve">
+    <value>{0} titles</value>
+  </data>
+  <data name="MyList_Count_movie" xml:space="preserve">
+    <value>{0} movies</value>
+  </data>
+  <data name="MyList_Count_movie_one" xml:space="preserve">
+    <value>{0} movie</value>
+  </data>
+  <data name="MyList_Count_tv" xml:space="preserve">
+    <value>{0} TV shows</value>
+  </data>
+  <data name="MyList_Count_tv_one" xml:space="preserve">
+    <value>{0} TV show</value>
+  </data>
+  <data name="MyList_Count_video" xml:space="preserve">
+    <value>{0} videos</value>
+  </data>
+  <data name="MyList_Count_video_one" xml:space="preserve">
+    <value>{0} video</value>
+  </data>
+  <data name="MyList_Count_book" xml:space="preserve">
+    <value>{0} books</value>
+  </data>
+  <data name="MyList_Count_book_one" xml:space="preserve">
+    <value>{0} book</value>
+  </data>
+  <data name="MyList_Count_comic" xml:space="preserve">
+    <value>{0} comics</value>
+  </data>
+  <data name="MyList_Count_comic_one" xml:space="preserve">
+    <value>{0} comic</value>
+  </data>
+  <data name="MyList_Count_audiobook" xml:space="preserve">
+    <value>{0} audiobooks</value>
+  </data>
+  <data name="MyList_Count_audiobook_one" xml:space="preserve">
+    <value>{0} audiobook</value>
+  </data>
+  <data name="MyList_Count_music" xml:space="preserve">
+    <value>{0} albums</value>
+  </data>
+  <data name="MyList_Count_music_one" xml:space="preserve">
+    <value>{0} album</value>
+  </data>
+  <data name="MyList_Count_playlist" xml:space="preserve">
+    <value>{0} playlists</value>
+  </data>
+  <data name="MyList_Count_playlist_one" xml:space="preserve">
+    <value>{0} playlist</value>
+  </data>
+  <data name="MyList_Count_collection" xml:space="preserve">
+    <value>{0} collections</value>
+  </data>
+  <data name="MyList_Count_collection_one" xml:space="preserve">
+    <value>{0} collection</value>
+  </data>
+  <data name="MyList_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="MyList_KindsLabel" xml:space="preserve">
+    <value>Filter by kind</value>
+  </data>
+  <data name="MyList_SortAdded" xml:space="preserve">
+    <value>Date added</value>
+  </data>
+  <data name="MyList_SortTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="MyList_SortYear" xml:space="preserve">
+    <value>Release year</value>
+  </data>
+  <data name="MyList_SelectedCount" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="MyList_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="MyList_PageMenu" xml:space="preserve">
+    <value>More actions for My List</value>
+  </data>
+  <data name="MyList_RemoveFinished" xml:space="preserve">
+    <value>Remove finished</value>
+  </data>
+  <data name="MyList_NothingFinished" xml:space="preserve">
+    <value>Nothing finished yet</value>
+  </data>
+  <data name="MyList_RemovedOne" xml:space="preserve">
+    <value>Removed from My List.</value>
+  </data>
+  <data name="MyList_RemovedMany" xml:space="preserve">
+    <value>{0} titles removed from My List.</value>
+  </data>
+  <data name="MyList_CouldNotChange" xml:space="preserve">
+    <value>My List could not be changed. Try again.</value>
+  </data>
+  <data name="MyList_EmptyTitle" xml:space="preserve">
+    <value>Your list is empty</value>
+  </data>
+  <data name="MyList_EmptyMessage" xml:space="preserve">
+    <value>Press + on any title to save it for later.</value>
+  </data>
+  <data name="MyList_BrowseHome" xml:space="preserve">
+    <value>Browse Home</value>
+  </data>
+  <data name="MyList_ChooseProfile" xml:space="preserve">
+    <value>Choose a profile to see its My List.</value>
+  </data>
+  <data name="MyList_ChooseProfileLink" xml:space="preserve">
+    <value>Choose a profile</value>
+  </data>
+  <data name="MyList_SelectTitle" xml:space="preserve">
+    <value>Select {0}</value>
   </data>
   <data name="NeedsReviewReason_LowConfidence" xml:space="preserve">
     <value>Close match, but Library is not sure.</value>

@@ -493,6 +493,45 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button[aria-label='Remove from My List']").GetAttribute("aria-pressed")));
     }
 
+    [Theory]
+    [InlineData(PlaybackBarMedia.Audiobook)]
+    [InlineData(PlaybackBarMedia.Movie)]
+    public void MyListInThePlayersIsAPlusUntilTheTitleIsSaved(PlaybackBarMedia media)
+    {
+        // My List spec D8 and D15: one icon for saving a title everywhere; the heart is only a song's Favorite.
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, media).Add(a => a.Item, Item(media))
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        Assert.Equal("Add", cut.Find("button[aria-label='Add to My List'] svg").GetAttribute("data-playback-glyph"));
+        Assert.Empty(cut.FindAll("svg[data-playback-glyph='Favorite']"));
+    }
+
+    [Theory]
+    [InlineData(PlaybackBarMedia.Audiobook, ProfileEntityKind.Audiobook)]
+    [InlineData(PlaybackBarMedia.Movie, ProfileEntityKind.Movie)]
+    public void MyListInThePlayersIsATickOnceTheTitleIsSaved_NeverAHeart(PlaybackBarMedia media, ProfileEntityKind kind)
+    {
+        var item = Item(media);
+        _saved.Add((kind, media == PlaybackBarMedia.Audiobook ? item.AudiobookWorkId ?? item.WorkId : item.WorkId));
+
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, media).Add(a => a.Item, item)
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        cut.WaitForAssertion(() => Assert.Equal("Check", cut.Find("button[aria-label='Remove from My List'] svg").GetAttribute("data-playback-glyph")));
+        Assert.Empty(cut.FindAll("svg[data-playback-glyph='Favorite']"));
+    }
+
+    [Fact]
+    public void ASongsFavoriteInThePlayersKeepsTheHeart()
+    {
+        var song = Item(PlaybackBarMedia.Music);
+
+        var cut = Render<PlaybackIdentityActions>(p => p.Add(a => a.Media, PlaybackBarMedia.Music).Add(a => a.Item, song)
+            .Add(a => a.Snapshot, new ListenPlaybackSnapshot { ProfileId = Profile }));
+
+        Assert.Equal("Favorite", cut.Find("button[aria-label='Add song to Favorites'] svg").GetAttribute("data-playback-glyph"));
+    }
+
     // ---- D23: the item actions menu -----------------------------------------------------------------------------------------------------
 
     private async Task<IReadOnlyList<(string Key, string Label, bool DividerBefore)>> OpenMenuAsync(PlaybackBarMedia media, bool withShow = true)
