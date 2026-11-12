@@ -170,9 +170,11 @@ public sealed class QuickHydrationWorker
     /// Once a song is identified, asks for its lyrics in the background: one durable request per song, picked up by the
     /// text-track worker within the source's rate limit and cached. The request is the Library's own (no person asked),
     /// the lookup reads the lyrics that come with the file first, and a song with no lyrics simply ends as "no result".
-    /// A failure here never fails hydration.
+    /// A failure here never fails hydration. The request has one fixed key per song, so a lookup that gave up because its source could not be
+    /// reached (dead-lettered) is never replaced by a new row; each later pass over the song (a rescan) puts that one row back in the queue
+    /// for one more try, so lyrics are found once the source is back. A lookup that is still open is left alone.
     /// </summary>
-    private async Task QueueLyricsAsync(IdentityJob job, CancellationToken ct)
+    internal async Task QueueLyricsAsync(IdentityJob job, CancellationToken ct)
     {
         if (_operations is null || !string.Equals(job.MediaType, nameof(MediaType.Music), StringComparison.OrdinalIgnoreCase))
         {
@@ -181,7 +183,7 @@ public sealed class QuickHydrationWorker
 
         try
         {
-            await _operations.EnsureAsync(new MediaOperation
+            var request = await _operations.EnsureAsync(new MediaOperation
             {
                 OperationType = MediaOperationType.TextTrackLyrics,
                 OperationKind = MediaOperationKind.TextTrack,
@@ -194,6 +196,11 @@ public sealed class QuickHydrationWorker
                 CapabilityVersion = "1",
                 IdempotencyKey = $"auto-text-track:{job.EntityId:D}:Lyrics",
             }, ct).ConfigureAwait(false);
+
+            if (request.Status == MediaOperationStatus.DeadLettered)
+            {
+                await _operations.RequeueAsync(request.Id, ct).ConfigureAwait(false);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

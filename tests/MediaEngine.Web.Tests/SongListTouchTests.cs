@@ -109,14 +109,14 @@ public sealed class SongListTouchTests : AsyncBunitContext
     {
         await UseAsync("desktop", touch: false);
         var tracks = Tracks(2);
-        var started = new List<Guid>();
+        var started = new List<IReadOnlyList<Guid>>();
         var ended = 0;
         var cut = Render<SongList>(parameters => parameters
             .Add(list => list.Place, SongTablePlace.Songs)
             .Add(list => list.Tracks, tracks)
-            .Add(list => list.OnDragStarted, id =>
+            .Add(list => list.OnDragStarted, ids =>
             {
-                started.Add(id);
+                started.Add(ids);
                 return Task.CompletedTask;
             })
             .Add(list => list.OnDragEnded, () =>
@@ -130,7 +130,7 @@ public sealed class SongListTouchTests : AsyncBunitContext
         row.DragEnd();
 
         // Both songs tie on date added, so the list falls back to title order: the second row is Track 2.
-        Assert.Equal([tracks[1].Id], started);
+        Assert.Equal([tracks[1].Id], Assert.Single(started));
         Assert.Equal(1, ended);
     }
 

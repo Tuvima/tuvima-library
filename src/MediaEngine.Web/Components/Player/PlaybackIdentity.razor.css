@@ -107,6 +107,24 @@
     white-space: nowrap;
 }
 
+/* In the music and audiobook bar (the dock, not the phone's compact bar and not the video bar) the identity sits in a row pinned to 72 px (PlaybackShell), so it is kept
+   inside it and never spills into the timeline above or the screen edge below. The title (16 px, 1.45) and one secondary line (13 px, 1.45) take 42 px. A receiver line
+   ("Playing on ...") or an error line is more important than the secondary line (artist, album), so when either is present the secondary line is dropped instead of the block
+   overflowing: the title, the receiver line and the error line (13 px at 1.35) take 58 px. Nothing is clipped, so a focus ring is never cut off. */
+.playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity,
+.playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity__text {
+    max-height: 72px;
+}
+
+.playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity__text:has(.playback-identity__remote, .playback-identity__error) .playback-identity__secondary {
+    display: none;
+}
+
+.playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity__text:has(.playback-identity__remote, .playback-identity__error) .playback-identity__remote,
+.playback-shell--surface-dock:not(.playback-shell--compact) .playback-identity__text:has(.playback-identity__remote, .playback-identity__error) .playback-identity__error {
+    line-height: 1.35;
+}
+
 .playback-identity__actions {
     align-items: center;
     display: flex;

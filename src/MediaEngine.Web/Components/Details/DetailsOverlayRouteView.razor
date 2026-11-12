@@ -4,24 +4,23 @@
 @using RouteData = Microsoft.AspNetCore.Components.RouteData
 @inject DetailsOverlayState Overlay
 @inject NavigationManager Nav
+@inject IServiceProvider Services
 @implements IDisposable
 
 @* The route view for the whole Dashboard (spec D1). It renders a routed page in its own layout exactly as RouteView does,
    and when the address is a detail address it renders the page the person came from under it, in the same place in the
-   render tree so Blazor keeps that page's instance (its state and scroll), with the detail page over it in the overlay. *@
+   render tree so Blazor keeps that page's instance (its state and scroll), with the detail page over it in the overlay.
+   The window is drawn by the layout's DetailsOverlayOutlet, outside the box that holds the page (music-player-and-listen-fixes D5), when the page's layout
+   has one (IDetailsOverlayOutletLayout); any other layout draws it here, beside the page, as before. *@
 <FocusOnNavigate RouteData="_pageData" Selector="h1" />
 <CascadingValue Value="Overlay" IsFixed="true">
     <LayoutView Layout="_layout">
         <CascadingValue Name="@RoutedPageQuery.CascadingName" Value="_pageUri">
             @RenderPage(_pageData)
         </CascadingValue>
-        @if (_overlayData is not null)
+        @if (_overlayWindow is not null && !UsesOutlet)
         {
-            <DetailsOverlayHost>
-                <CascadingValue Name="@RoutedPageQuery.CascadingName" Value="_overlayUri">
-                    @RenderPage(_overlayData)
-                </CascadingValue>
-            </DetailsOverlayHost>
+            @_overlayWindow
         }
     </LayoutView>
 </CascadingValue>
@@ -41,17 +40,31 @@
     private string _pageUri = "/";
     private RouteData? _overlayData;
     private string _overlayUri = "/";
+    private RenderFragment? _overlayWindow;
+    private DetailsOverlayOutletState? _outlet;
     private Type? _layout;
     private RouteData? _homeData;
     private string _routeDataUri = "/";
 
-    protected override void OnInitialized() => Overlay.Changed += OnOverlayChanged;
+    protected override void OnInitialized()
+    {
+        // Optional: a host without the outlet service draws the window beside the page.
+        _outlet = Services.GetService(typeof(DetailsOverlayOutletState)) as DetailsOverlayOutletState;
+        Overlay.Changed += OnOverlayChanged;
+    }
 
     protected override void OnParametersSet()
     {
         _routeDataUri = Overlay.ToAppPath(Nav.Uri);
         Recompute();
+        PublishWindow();
     }
+
+    private bool UsesOutlet =>
+        _outlet is not null && _layout is not null && typeof(IDetailsOverlayOutletLayout).IsAssignableFrom(_layout);
+
+    // Hands the open window to the layout's outlet (or takes it back when none is open or the layout has no outlet).
+    private void PublishWindow() => _outlet?.Show(UsesOutlet ? _overlayWindow : null);
 
     // The overlay worked out the address after this view rendered for it (the state is normally ahead of the Router,
     // but nothing here depends on that): render again with the settled answer. When the Router has not yet handed this
@@ -60,11 +73,16 @@
     {
         if (_pageData is not null && string.Equals(_routeDataUri, Overlay.ToAppPath(Nav.Uri), StringComparison.Ordinal) && Recompute())
         {
+            PublishWindow();
             StateHasChanged();
         }
     });
 
-    public void Dispose() => Overlay.Changed -= OnOverlayChanged;
+    public void Dispose()
+    {
+        Overlay.Changed -= OnOverlayChanged;
+        _outlet?.Show(null);
+    }
 
     // Returns whether what is shown changed. While the overlay's answer is for another address the view keeps what it
     // shows (never tearing the page under the overlay down on a stale answer) and waits for Changed.
@@ -108,8 +126,29 @@
         }
 
         _layout = LayoutOf(_pageData);
-        return !ReferenceEquals(shownPage, _pageData) || !ReferenceEquals(shownOverlay, _overlayData) || shownOverlayUri != _overlayUri;
+        var overlayChanged = !ReferenceEquals(shownOverlay, _overlayData) || shownOverlayUri != _overlayUri;
+        if (overlayChanged)
+        {
+            // A new window fragment only when what it shows changed, so the host (and the page in it) is kept across unrelated renders.
+            _overlayWindow = _overlayData is null ? null : OverlayWindow(_overlayData, _overlayUri);
+        }
+
+        return !ReferenceEquals(shownPage, _pageData) || overlayChanged;
     }
+
+    private RenderFragment OverlayWindow(RouteData data, string uri) => builder =>
+    {
+        builder.OpenComponent<DetailsOverlayHost>(0);
+        builder.AddAttribute(1, nameof(DetailsOverlayHost.ChildContent), (RenderFragment)(content =>
+        {
+            content.OpenComponent<CascadingValue<string>>(0);
+            content.AddComponentParameter(1, nameof(CascadingValue<string>.Name), RoutedPageQuery.CascadingName);
+            content.AddComponentParameter(2, nameof(CascadingValue<string>.Value), uri);
+            content.AddComponentParameter(3, nameof(CascadingValue<string>.ChildContent), RenderPage(data));
+            content.CloseComponent();
+        }));
+        builder.CloseComponent();
+    };
 
     protected override void OnAfterRender(bool firstRender)
     {

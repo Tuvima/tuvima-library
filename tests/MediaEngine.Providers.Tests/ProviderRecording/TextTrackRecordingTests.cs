@@ -327,7 +327,7 @@ public sealed class TextTrackRecordingTests
     }
 
     [Fact]
-    public async Task LrclibNotFoundOrUnavailable_ReturnsNothing()
+    public async Task LrclibNotFound_ReturnsNothing_AndAServerError_IsAProviderUnavailableFailure()
     {
         var lines = new List<string>();
         var requests = new List<string>();

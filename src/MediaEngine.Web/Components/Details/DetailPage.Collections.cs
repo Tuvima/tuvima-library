@@ -39,6 +39,9 @@ public partial class DetailPage
         && !_removed
         && Guid.TryParse(Model.Id, out _)
         && LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType)
+        // A song goes into a playlist, never a collection (Listen music spec D9).
+        && !(Model.EntityType == DetailEntityType.Work
+            && string.Equals(ResolveEditorMediaType(Model.EntityType, Model.PresentationContext), "Music", StringComparison.OrdinalIgnoreCase))
         && EditorDeviceRule.CanEdit(DeviceContext)
         && Services.GetService<DashboardSessionAccessor>() is { } session
         && CollectionAuthoringRule.CanCreate(session);

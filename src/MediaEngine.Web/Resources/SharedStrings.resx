@@ -1584,7 +1584,7 @@
     <value>Open Plugins</value>
   </data>
   <data name="PlaybackLyrics_NoLyricsFoundForThis" xml:space="preserve">
-    <value>No lyrics found for this song.</value>
+    <value>No lyrics found</value>
   </data>
   <data name="PlaybackLyrics_LyricsOptions" xml:space="preserve">
     <value>Lyrics options</value>
@@ -7631,9 +7631,6 @@
   <data name="Common_TheSpoilerSettingCouldNot" xml:space="preserve">
     <value>The spoiler setting could not be saved.</value>
   </data>
-  <data name="ListenBrowsePage_ThoseSongsAreAlreadyIn" xml:space="preserve">
-    <value>Those songs are already in the playlist or could not be added.</value>
-  </data>
   <data name="ListenBrowsePage_ThePlaylistCouldNotBe" xml:space="preserve">
     <value>The Playlist could not be created.</value>
   </data>
@@ -10613,6 +10610,12 @@
   <data name="PlaybackLyrics_FindLyrics" xml:space="preserve">
     <value>Find lyrics</value>
   </data>
+  <data name="PlaybackLyrics_StillLooking" xml:space="preserve">
+    <value>Still looking. Lyrics will appear when they are found.</value>
+  </data>
+  <data name="PlaybackLyrics_CouldNotBeLookedUp" xml:space="preserve">
+    <value>Lyrics could not be looked up right now</value>
+  </data>
   <data name="PlaybackLyrics_AddFile" xml:space="preserve">
     <value>Add a lyrics file</value>
   </data>
@@ -13433,6 +13436,9 @@
   <data name="SongTable_ResizeColumn" xml:space="preserve">
     <value>Resize {0} column</value>
   </data>
+  <data name="SongTable_DragCount" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
   <data name="SongTable_SelectRow" xml:space="preserve">
     <value>Select {0}</value>
   </data>
@@ -13771,6 +13777,57 @@
   </data>
   <data name="CollectionRuleBuilder_ChoicesCleared" xml:space="preserve">
     <value>Cleared because they do not apply to the chosen media type: {0}.</value>
+  </data>
+  <data name="PlaylistMembership_NewPlaylist" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="PlaylistMembership_ChooseExisting" xml:space="preserve">
+    <value>Choose an existing playlist</value>
+  </data>
+  <data name="PlaylistMembership_NoSongs" xml:space="preserve">
+    <value>There are no songs to add.</value>
+  </data>
+  <data name="PlaylistMembership_OneAdded" xml:space="preserve">
+    <value>1 song added to {0}</value>
+  </data>
+  <data name="PlaylistMembership_ManyAdded" xml:space="preserve">
+    <value>{0} songs added to {1}</value>
+  </data>
+  <data name="PlaylistMembership_SomeAlreadyThere" xml:space="preserve">
+    <value>{0} added, {1} already there</value>
+  </data>
+  <data name="PlaylistMembership_AllAlreadyThere" xml:space="preserve">
+    <value>Those songs are already in {0}.</value>
+  </data>
+  <data name="PlaylistMembership_SomeFailed" xml:space="preserve">
+    <value>{0} added, {1} could not be added</value>
+  </data>
+  <data name="PlaylistMembership_AddFailed" xml:space="preserve">
+    <value>The songs could not be added to {0}.</value>
+  </data>
+  <data name="PlaylistMembership_CreateFailed" xml:space="preserve">
+    <value>The playlist could not be created.</value>
+  </data>
+  <data name="SongTable_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="SongSelectionBar_Label" xml:space="preserve">
+    <value>Selected songs</value>
+  </data>
+  <data name="SongSelectionBar_Count" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="ListenPage_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favorites</value>
+  </data>
+  <data name="ListenPage_FavoritesEmpty" xml:space="preserve">
+    <value>Songs you heart appear here.</value>
+  </data>
+  <data name="ListenPage_FavoritesOneSong" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="ListenPage_FavoritesSongCount" xml:space="preserve">
+    <value>{0} songs</value>
   </data>
   <data name="EditorMatchCard_PositionIssue" xml:space="preserve">
     <value>Issue {0}</value>

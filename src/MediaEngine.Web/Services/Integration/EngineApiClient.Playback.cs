@@ -361,7 +361,7 @@ public sealed partial class EngineApiClient
     public Task<string?> GetTextTrackContentAsync(Guid assetId, Guid trackId, CancellationToken ct = default) =>
         GetRawTextAsync("GET /stream/{assetId}/text-tracks/{trackId}", $"/stream/{assetId:D}/text-tracks/{trackId:D}", ct);
 
-    public async Task<RefreshTextTracksResponse?> RefreshTextTracksAsync(Guid assetId, string kind, CancellationToken ct = default)
+    public async Task<RefreshTextTracksResponse?> QueueTextTrackRefreshAsync(Guid assetId, string kind, CancellationToken ct = default)
     {
         try
         {
@@ -375,7 +375,58 @@ public sealed partial class EngineApiClient
                 return null;
             }
 
-            var queued = await response.Content.ReadFromJsonAsync<RefreshTextTracksResponse>(cancellationToken: ct);
+            return await response.Content.ReadFromJsonAsync<RefreshTextTracksResponse>(cancellationToken: ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /stream/{AssetId}/text-tracks/refresh failed", assetId);
+            return null;
+        }
+    }
+
+    public async Task<RefreshTextTracksResponse?> GetTextTrackRefreshStatusAsync(Guid assetId, Guid operationId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<RefreshTextTracksResponse>(
+                $"/stream/{assetId:D}/text-tracks/refresh/{operationId:D}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /stream/{AssetId}/text-tracks/refresh/{OperationId} failed", assetId, operationId);
+            return null;
+        }
+    }
+
+    public async Task<RefreshTextTracksResponse?> GetPendingTextTrackRefreshAsync(Guid assetId, string kind, CancellationToken ct = default)
+    {
+        // 204 (nothing is waiting or running for this asset) has no body, so the shared raw read answers it with an empty string.
+        var body = await GetRawTextAsync(
+            "GET /stream/{assetId}/text-tracks/refresh",
+            $"/stream/{assetId:D}/text-tracks/refresh?kind={Uri.EscapeDataString(kind)}", ct);
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<RefreshTextTracksResponse>(body, JsonSerializerOptions.Web);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "GET /stream/{AssetId}/text-tracks/refresh returned an unreadable answer", assetId);
+            return null;
+        }
+    }
+
+    public async Task<RefreshTextTracksResponse?> RefreshTextTracksAsync(Guid assetId, string kind, CancellationToken ct = default)
+    {
+        try
+        {
+            var queued = await QueueTextTrackRefreshAsync(assetId, kind, ct);
             if (queued?.operation_id is not { } operationId)
             {
                 return queued;

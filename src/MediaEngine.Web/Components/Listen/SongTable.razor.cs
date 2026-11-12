@@ -57,7 +57,9 @@ public partial class SongTable
     private DotNetObjectReference<SongTable>? _self;
     private string? _wiredRootId;
 
-    private SongRow? _draggingOut;
+    private IReadOnlyList<SongRow>? _draggingOut;
+    private AppSeverity _noticeSeverity = AppSeverity.Warning;
+    private SongDragDropService? _dropService;
     private string? _dragKey;
     private string? _focusRowKey;
     private string? _dropBeforeKey;
@@ -158,16 +160,26 @@ public partial class SongTable
     /// <summary>Remove this song from the playlist (playlist only).</summary>
     [Parameter] public EventCallback<SongRow> OnRemoveFromPlaylist { get; set; }
 
+    /// <summary>The words for the row action that takes a song out of the list; left empty it reads "Remove from playlist". Favorites says "Remove from Favorites".</summary>
+    [Parameter] public string? RemoveLabel { get; set; }
+
+    /// <summary>
+    /// The list has an order of its own (Favorites) and its headers may also sort it. Reordering by hand is offered only while the list
+    /// is in its own order, not while a column sorts it. Playlist only.
+    /// </summary>
+    [Parameter] public bool SortableOwnOrder { get; set; }
+
     /// <summary>A playlist row moved; the host saves the order and hands back the reordered rows.</summary>
     [Parameter] public EventCallback<SongReorderRequest> OnReorder { get; set; }
 
     /// <summary>
-    /// A song row is being dragged out of the table (for example onto a playlist in the side rail). Outside a playlist, setting this makes
-    /// owned rows draggable on a pointer device; a playlist's rows drag to reorder instead.
+    /// Songs are being dragged out of the table: the dragged row, or every ticked row (in list order) when the dragged row is ticked. The
+    /// table itself carries them to a playlist (<see cref="SongDragDropService"/>); this lets a host also use them, for example to drop them
+    /// on the queue. A playlist's own rows still drag to reorder inside the table.
     /// </summary>
-    [Parameter] public EventCallback<SongRow> OnDragOutStarted { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<SongRow>> OnDragOutStarted { get; set; }
 
-    [Parameter] public EventCallback<SongRow> OnDragOutEnded { get; set; }
+    [Parameter] public EventCallback OnDragOutEnded { get; set; }
 
     /// <summary>
     /// On a phone, group the list under letter headings and show the A to Z jump strip while it is sorted by Song or Artist (the phone
@@ -179,18 +191,32 @@ public partial class SongTable
 
     private string AriaLabelText => string.IsNullOrWhiteSpace(AriaLabel) ? L["Common_Songs"].Value : AriaLabel;
 
-    // Tick boxes and the bulk bar are for a desktop that may edit; the Engine decides who really may (the host's panel says so when it refuses).
-    private bool TickShown => ShowSelection && !DeviceContext.IsPhone && DeviceContext.CanEdit;
+    // Tick boxes and the host's bar are for a desktop or tablet whose host wants them (ticked songs play, queue and go in playlists without
+    // any right to edit; the host's bar offers Edit only where editing is allowed). A phone ticks only in select mode, with its own bar.
+    private bool TickShown => IsPhoneList ? SelectModeOn : ShowSelection && (DeviceContext.IsDesktop || DeviceContext.IsTablet);
+
+    // Select mode (Listen music spec D12): chosen from a song's "..." sheet on a phone; rows then tick when tapped and a bottom bar appears.
+    private bool _selectMode;
+
+    private bool SelectModeOn => _selectMode && IsPhoneList;
+
+    private bool SelectModeAvailable => IsPhoneList && OnPlay.HasDelegate;
 
     private bool ShowEmpty => !IsLoading && _shown.Count == 0 && EmptyContent is not null;
 
-    private bool ReorderEnabled => Place == SongTablePlace.Playlist && CanReorder && OnReorder.HasDelegate;
+    private bool OwnOrderSortable => Place == SongTablePlace.Playlist && SortableOwnOrder;
+
+    private bool ReorderEnabled => Place == SongTablePlace.Playlist && CanReorder && OnReorder.HasDelegate && (!OwnOrderSortable || _sort.Column is null);
 
     // Drag is a mouse affordance; touch screens and phones move rows from the "..." menu or the keyboard.
     private bool CanDrag => ReorderEnabled && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
 
-    // Dragging a song out to somewhere else (a playlist in the rail) is also a mouse affordance.
-    private bool CanDragOut => Place != SongTablePlace.Playlist && OnDragOutStarted.HasDelegate && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
+    // Dragging songs out to somewhere else (a playlist in the rail or a playlist tile) is also a mouse affordance. A playlist's rows reorder
+    // inside the table and are carried out when the drag leaves it: a drop on a row or the end zone reorders, a drop on a playlist adds.
+    private bool CanDragOut => (OnDragOutStarted.HasDelegate || _dropService is not null) && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
+
+    // "3 songs" for the drag picture when a ticked row carries more than one song; the browser script reads it from the table.
+    private string? DragCountLabel => CanDragOut && TickedPlayable.Count > 1 ? L["SongTable_DragCount", TickedPlayable.Count].Value : null;
 
     private bool LettersShown => PhoneLetterIndex && IsPhoneList && SongTableSort.ShowsLetters(Place, _sort);
 
@@ -206,6 +232,12 @@ public partial class SongTable
     protected override void OnInitialized()
     {
         DeviceContext.OnChanged += DeviceChanged;
+        _dropService = Services.GetService<SongDragDropService>();
+        if (_dropService is not null)
+        {
+            _dropService.NoticeRaised += OnDropNotice;
+        }
+
         _placeShown = Place;
         _sort = SongTableSort.DefaultFor(Place);
     }
@@ -222,6 +254,12 @@ public partial class SongTable
             _shownKey = null;
         }
 
+        if (_selectMode && !IsPhoneList)
+        {
+            // The window became wider than a phone: select mode belongs to the phone list only.
+            _selectMode = false;
+        }
+
         if (Sort is { } requested && requested != _hostSort)
         {
             _sort = requested;
@@ -232,6 +270,7 @@ public partial class SongTable
         {
             _hostNotice = Notice;
             _notice = Notice;
+            _noticeSeverity = AppSeverity.Warning;
         }
 
         if (!ReferenceEquals(Undo, _hostUndo))
@@ -251,8 +290,14 @@ public partial class SongTable
 
         if (_selected.Count > 0)
         {
+            // A search or filter that hides ticked songs drops their ticks (as the bulk lists elsewhere do), so what the bar counts is what
+            // Play, Add to queue and Add to playlist use. The host is told, so it does not bring them back when the search is cleared.
             var present = Rows.Select(row => row.Id).ToHashSet(StringComparer.Ordinal);
-            _selected.RemoveWhere(id => !present.Contains(id));
+            if (_selected.RemoveWhere(id => !present.Contains(id)) > 0 && SelectedIdsChanged.HasDelegate)
+            {
+                var kept = _selected.ToHashSet(StringComparer.Ordinal);
+                _ = InvokeAsync(() => SelectedIdsChanged.InvokeAsync(kept));
+            }
         }
 
         UpdateLayout();
@@ -268,6 +313,12 @@ public partial class SongTable
     public async ValueTask DisposeAsync()
     {
         DeviceContext.OnChanged -= DeviceChanged;
+        if (_dropService is not null)
+        {
+            _dropService.NoticeRaised -= OnDropNotice;
+            _dropService.End(this);
+        }
+
         await UnwireResizeAsync();
         if (_resizeModule is not null)
         {
@@ -280,6 +331,19 @@ public partial class SongTable
     }
 
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // What a drop of this table's songs said ("3 songs added to Road trip"): shown in place above the table, like the selection bar's sentence.
+    private void OnDropNotice(SongDropNotice drop)
+    {
+        if (!ReferenceEquals(drop.Owner, this))
+        {
+            return;
+        }
+
+        _notice = drop.Notice.Message;
+        _noticeSeverity = drop.Notice.Severity;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     // ---- Rows, sort and layout ---------------------------------------------------------------------------------
 
@@ -296,9 +360,9 @@ public partial class SongTable
             return;
         }
 
-        _shown = Place == SongTablePlace.Playlist
+        _shown = Place == SongTablePlace.Playlist && !OwnOrderSortable
             ? [.. Rows]
-            : [.. SongTableSort.Sort(Rows, Place, _sort, FavoriteIds)];
+            : [.. SongTableSort.Sort(Rows, Place, _sort, FavoriteIds, OwnOrderSortable)];
         _shownKey = key;
 
         _positions = new Dictionary<string, int>(_shown.Count, StringComparer.Ordinal);
@@ -465,7 +529,7 @@ public partial class SongTable
 
     private async Task ToggleSortAsync(SongColumn column)
     {
-        var next = SongTableSort.Click(Place, _sort, column);
+        var next = SongTableSort.Click(Place, _sort, column, OwnOrderSortable);
         if (next == _sort)
         {
             return;
@@ -514,6 +578,11 @@ public partial class SongTable
         if (IsCurrent(row))
         {
             classes.Add("is-playing");
+        }
+
+        if (SelectModeOn && _selected.Contains(row.Id))
+        {
+            classes.Add("is-selected");
         }
 
         if (!row.IsOwned)
@@ -739,6 +808,62 @@ public partial class SongTable
 
     // ---- Selection and notices -----------------------------------------------------------------------------------
 
+    // "Select" in the phone sheet: this song is ticked and the list goes into select mode.
+    private async Task BeginSelectAsync(SongRow row)
+    {
+        if (!SelectModeAvailable || !row.IsOwned)
+        {
+            return;
+        }
+
+        _selectMode = true;
+        await SetSelectedAsync(row.Id, true);
+    }
+
+    // Done: the ticks are dropped and the bar goes away.
+    private async Task EndSelectAsync()
+    {
+        _selectMode = false;
+        if (_selected.Count > 0)
+        {
+            _selected.Clear();
+            await SelectedIdsChanged.InvokeAsync(new HashSet<string>(StringComparer.Ordinal));
+        }
+    }
+
+    // A tap on a phone row plays it, or ticks it while the list is in select mode.
+    private Task ActivateRowAsync(SongRow row)
+    {
+        if (!SelectModeOn)
+        {
+            return PlayAsync(row);
+        }
+
+        return row.IsOwned ? SetSelectedAsync(row.Id, !_selected.Contains(row.Id)) : Task.CompletedTask;
+    }
+
+    // The ticked songs that can play, in the order the list shows them.
+    private IReadOnlyList<SongRow> TickedPlayable => [.. SelectedRows.Where(row => row.IsOwned)];
+
+    private IReadOnlyList<Guid> TickedWorkIds => [.. TickedPlayable.Select(row => row.WorkId).OfType<Guid>().Where(id => id != Guid.Empty)];
+
+    private async Task PlayTickedAsync()
+    {
+        var rows = TickedPlayable;
+        if (rows.Count > 0)
+        {
+            await OnPlay.InvokeAsync(new SongPlayRequest(rows, rows[0]));
+        }
+    }
+
+    private async Task QueueTickedAsync()
+    {
+        foreach (var row in TickedPlayable)
+        {
+            await OnQueue.InvokeAsync(row);
+        }
+    }
+
     private async Task SetSelectedAsync(string id, bool selected)
     {
         if (selected)
@@ -756,6 +881,7 @@ public partial class SongTable
     private Task ShowNotice(string message)
     {
         _notice = message;
+        _noticeSeverity = AppSeverity.Warning;
         return Task.CompletedTask;
     }
 
@@ -882,7 +1008,7 @@ public partial class SongTable
 
         if (args.Key is "Enter" or " ")
         {
-            await PlayAsync(row);
+            await ActivateRowAsync(row);
         }
     }
 
@@ -944,10 +1070,14 @@ public partial class SongTable
             _dropBeforeKey = null;
             _dropAtEnd = false;
         }
-        else if (CanDragOut && row.IsOwned)
+
+        if (CanDragOut && row.IsOwned)
         {
-            _draggingOut = row;
-            await OnDragOutStarted.InvokeAsync(row);
+            // A ticked song carries every ticked song, in the order the list shows them; an unticked song carries just itself.
+            IReadOnlyList<SongRow> carried = _selected.Contains(row.Id) ? TickedPlayable : [row];
+            _draggingOut = carried;
+            _dropService?.Begin(this, [.. carried.Select(song => song.WorkId).OfType<Guid>()]);
+            await OnDragOutStarted.InvokeAsync(carried);
         }
     }
 
@@ -984,12 +1114,17 @@ public partial class SongTable
     private async Task DragEndAsync()
     {
         DragEnd();
-        if (_draggingOut is { } row)
+        if (_draggingOut is not null)
         {
             _draggingOut = null;
-            await OnDragOutEnded.InvokeAsync(row);
+            _dropService?.End(this);
+            await OnDragOutEnded.InvokeAsync();
         }
     }
+
+    /// <summary>The browser script reports that a drag has ended, for the case where the row's own dragend never arrived (a recycled row).</summary>
+    [JSInvokable]
+    public Task DragOutFinished() => InvokeAsync(DragEndAsync);
 
     private async Task DropAsync(SongRow target)
     {

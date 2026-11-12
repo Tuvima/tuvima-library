@@ -14,7 +14,8 @@
 @* The lyrics themselves (unified player v2 D17; mockup screen 7), without any panel around them, so the lyrics panel and the Now playing page place
    the same part. Five states: Synced (the current line bold with a purple edge, the list follows the song, a hand scroll shows "Resume following"
    with "Select a line to jump to that moment" and selecting a timed line jumps there), Unsynced (plain scrolling text), Loading, Unavailable (one line
-   with "Find lyrics" and "Add a lyrics file") and Error (the message with "Try again"). The identity row (small art, song, artist) is for hosts that do
+   with "Find lyrics" and "Add a lyrics file"; "Still looking" while a queued lookup is slow), Unreachable ("Lyrics could not be looked up right now"
+   with "Try again", which asks again) and Error (the message with "Try again"). The identity row (small art, song, artist) is for hosts that do
    not already show the song; the footer (source and the "..." menu) is PlaybackLyricsFooter, drawn here unless the panel supplies its own. *@
 <div class="playback-lyrics" @ref="_root" role="region" data-playback-lyrics data-lyrics-view="@View" aria-label="@L["Common_Lyrics"].Value">
     @if (ShowIdentity && CurrentItem is { } item)
@@ -60,6 +61,12 @@
                         <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="Presenter.RetryAsync" />
                     </div>
                     break;
+                case "unreachable":
+                    <div class="playback-lyrics__state" data-lyrics-state="unreachable">
+                        <p class="playback-lyrics__message" role="alert">@L["PlaybackLyrics_CouldNotBeLookedUp"]</p>
+                        <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="Presenter.RefreshAsync" />
+                    </div>
+                    break;
                 case "unavailable":
                     <div class="playback-lyrics__state" data-lyrics-state="@(Presenter.NoSourceOn ? "no-source" : "unavailable")">
                         @if (Presenter.NoSourceOn)
@@ -70,12 +77,12 @@
                         }
                         else
                         {
-                            <p class="playback-lyrics__message">@L["PlaybackLyrics_NoLyricsFoundForThis"]</p>
+                            <p class="playback-lyrics__message">@(StillLooking ? L["PlaybackLyrics_StillLooking"] : L["PlaybackLyrics_NoLyricsFoundForThis"])</p>
                         }
                         <div class="playback-lyrics__actions">
                             @if (Presenter.Offers("find_lyrics") && !Presenter.NoSourceOn)
                             {
-                                <AppButton Label="@L["PlaybackLyrics_FindLyrics"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Presenter.Refreshing" OnClick="Presenter.RefreshAsync" />
+                                <AppButton Label="@L["PlaybackLyrics_FindLyrics"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(Presenter.Refreshing || StillLooking)" OnClick="Presenter.RefreshAsync" />
                             }
                             <AppButton Label="@L["PlaybackLyrics_AddFile"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Presenter.Refreshing" OnClick="OpenFilePickerAsync" />
                         </div>
@@ -169,12 +176,16 @@
     private ListenQueueItem? CurrentItem => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
     private bool HasLines => View is "synced" or "unsynced";
 
+    // The queued lookup is still going after 30 seconds: the empty state says so, and Find lyrics waits for it.
+    private bool StillLooking => Presenter.Lookup == PlaybackLyricsLookupState.StillLooking;
+
     // Which of the five states (or the two lists that replace the lines for a moment) the panel is in.
     private string View => Presenter.AlternativesOpen ? "alternatives"
         : _aboutOpen ? "about"
         : Presenter.Loading || Presenter.Refreshing ? "loading"
         : Presenter.Lines.Count > 0 ? (Presenter.IsSynced ? "synced" : "unsynced")
         : Presenter.LoadFailed ? "error"
+        : Presenter.Lookup == PlaybackLyricsLookupState.Unreachable ? "unreachable"
         : "unavailable";
 
     protected override void OnInitialized() => Presenter.Changed += Changed;

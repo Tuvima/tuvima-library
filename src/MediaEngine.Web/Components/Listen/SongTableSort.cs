@@ -18,14 +18,15 @@ public static class SongTableSort
     };
 
     /// <summary>
-    /// True when the header sorts. A playlist's headers never sort (sorting would fight drag order). The # column sorts only on an album
-    /// page, where it is the track number; in a list of songs it is just a position.
+    /// True when the header sorts. A playlist's headers never sort (sorting would fight drag order) unless the list asks for it with
+    /// <paramref name="ownOrderSortable"/> (Favorites: any column can sort it, and a third click returns to its own order). The # column
+    /// sorts only on an album page, where it is the track number; in a list of songs it is just a position.
     /// </summary>
-    public static bool IsSortable(SongTablePlace place, SongColumn column)
+    public static bool IsSortable(SongTablePlace place, SongColumn column, bool ownOrderSortable = false)
     {
         if (place == SongTablePlace.Playlist)
         {
-            return false;
+            return ownOrderSortable && column is not (SongColumn.Tick or SongColumn.Number or SongColumn.Status);
         }
 
         return column switch
@@ -42,13 +43,19 @@ public static class SongTableSort
 
     /// <summary>
     /// What a click on a header does. A new column sorts ascending (descending for <see cref="StartsDescending"/> columns); the sorted
-    /// column flips direction. A header that does not sort leaves the state as it was.
+    /// column flips direction. A header that does not sort leaves the state as it was. In a list with its own order
+    /// (<paramref name="ownOrderSortable"/>) a click on the column already shown in its second direction goes back to that own order.
     /// </summary>
-    public static SongSortState Click(SongTablePlace place, SongSortState current, SongColumn clicked)
+    public static SongSortState Click(SongTablePlace place, SongSortState current, SongColumn clicked, bool ownOrderSortable = false)
     {
-        if (!IsSortable(place, clicked))
+        if (!IsSortable(place, clicked, ownOrderSortable))
         {
             return current;
+        }
+
+        if (ownOrderSortable && place == SongTablePlace.Playlist && current.Column == clicked && current.Descending != StartsDescending(clicked))
+        {
+            return new SongSortState(null, false);
         }
 
         return current.Column == clicked
@@ -58,21 +65,23 @@ public static class SongTableSort
 
     /// <summary>
     /// The rows in the order the table shows them. A playlist is returned as given. On an album page the numbered tracks are sorted by
-    /// the chosen column and the Unnumbered group always follows them, by title, whatever the sort.
+    /// the chosen column and the Unnumbered group always follows them, by title, whatever the sort. A list with its own order that can
+    /// also be sorted (<paramref name="ownOrderSortable"/>) is returned as given until a column is chosen.
     /// </summary>
     /// <param name="favoriteIds">The ids (<see cref="SongRow.Id"/>) the person has saved to Favorites; used when sorting by Favorite.</param>
     public static IReadOnlyList<SongRow> Sort(
         IEnumerable<SongRow> rows,
         SongTablePlace place,
         SongSortState state,
-        IReadOnlySet<string>? favoriteIds = null)
+        IReadOnlySet<string>? favoriteIds = null,
+        bool ownOrderSortable = false)
     {
         ArgumentNullException.ThrowIfNull(rows);
         var all = rows.ToList();
 
         if (place == SongTablePlace.Playlist)
         {
-            return all;
+            return ownOrderSortable ? SortRows(all, state, favoriteIds) : all;
         }
 
         if (place != SongTablePlace.AlbumPage)

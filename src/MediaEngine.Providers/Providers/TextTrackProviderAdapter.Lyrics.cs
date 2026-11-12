@@ -10,6 +10,41 @@ namespace MediaEngine.Providers.Providers;
 
 public sealed partial class TextTrackProviderAdapter
 {
+    private LyricsTitleMatcher? _lyricsMatcher;
+
+    private LyricsTitleMatcher LyricsMatcher =>
+        _lyricsMatcher ??= new LyricsTitleMatcher(_text.Search.Lyrics.Match, _logger, Name);
+
+    /// <summary>What one lyrics lookup came to, for the single line it writes to the log.</summary>
+    private enum LyricsOutcome
+    {
+        Found,
+        Instrumental,
+        NoMatch,
+        LengthTooDifferent,
+        SourceUnreachable,
+        MissingDetails,
+    }
+
+    /// <summary>Counts kept while a lookup runs so its outcome can be named.</summary>
+    private sealed class LyricsTally
+    {
+        public LyricsOutcome Outcome { get; set; } = LyricsOutcome.NoMatch;
+
+        public int Candidates { get; set; }
+
+        public int TitleMatches { get; set; }
+
+        public int LengthRejected { get; set; }
+
+        public int Requests { get; set; }
+
+        public int Failures { get; set; }
+    }
+
+    /// <summary>A fetched answer; <see cref="Failed"/> separates "the source could not be reached" from "no answer for this song".</summary>
+    private readonly record struct LyricsAnswer(string? Json, bool Failed);
+
     private async Task<IReadOnlyList<TextTrackCandidate>> SearchLyricsAsync(TextTrackLookup lookup, CancellationToken ct)
     {
         if (!IsEnabled || !CanHandle(lookup.MediaType))
@@ -17,9 +52,29 @@ public sealed partial class TextTrackProviderAdapter
             return [];
         }
 
+        var tally = new LyricsTally();
+        var found = await FindLyricsAsync(lookup, tally, ct).ConfigureAwait(false);
+        _logger.LogInformation(
+            "{Provider} lyrics lookup for \"{Title}\" by \"{Artist}\" ({Length}s): {Outcome}, {Candidates} candidate(s) looked at",
+            Name, lookup.Title, lookup.Artist, lookup.DurationSeconds, tally.Outcome, tally.Candidates);
+
+        // A lookup whose requests failed in transport and found nothing says nothing about the song, so it ends as a
+        // retryable failure of the operation (the same signal the subtitle search gives), never as "no lyrics".
+        if (tally.Outcome == LyricsOutcome.SourceUnreachable)
+        {
+            throw new TextTrackLookupException(
+                "ProviderUnavailable", Message(TextTrackMessages.Unreachable, "{display_name} could not be reached."));
+        }
+
+        return found;
+    }
+
+    private async Task<IReadOnlyList<TextTrackCandidate>> FindLyricsAsync(TextTrackLookup lookup, LyricsTally tally, CancellationToken ct)
+    {
         var values = LookupValues(lookup);
         if (_text.Search.Needs.Any(need => !values.ContainsKey(need)))
         {
+            tally.Outcome = LyricsOutcome.MissingDetails;
             return [];
         }
 
@@ -34,7 +89,14 @@ public sealed partial class TextTrackProviderAdapter
         foreach (var request in MatchingRequests(lookup.MediaType, values))
         {
             var candidateUrl = baseUrl + BuildPath(request, values);
-            var json = await GetJsonAsync(candidateUrl, ct).ConfigureAwait(false);
+            var answer = await GetJsonAsync(candidateUrl, ct).ConfigureAwait(false);
+            tally.Requests++;
+            if (answer.Failed)
+            {
+                tally.Failures++;
+            }
+
+            var json = answer.Json;
             if (string.IsNullOrWhiteSpace(json))
             {
                 continue;
@@ -51,9 +113,17 @@ public sealed partial class TextTrackProviderAdapter
                 continue;
             }
 
-            var picked = parsed.RootElement.ValueKind == JsonValueKind.Array
-                ? PickBestListEntry(parsed.RootElement, lookup, rules)
-                : parsed.RootElement;
+            JsonElement? picked;
+            if (parsed.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                picked = PickBestListEntry(parsed.RootElement, lookup, rules, tally);
+            }
+            else
+            {
+                tally.Candidates++;
+                picked = parsed.RootElement;
+            }
+
             if (picked is { } element && HasLyricsOrInstrumental(element, rules))
             {
                 doc = parsed;
@@ -67,6 +137,12 @@ public sealed partial class TextTrackProviderAdapter
 
         if (doc is null || url is null)
         {
+            tally.Outcome = tally.Requests == 0 ? LyricsOutcome.MissingDetails
+                : tally.Failures == tally.Requests ? LyricsOutcome.SourceUnreachable
+                // A request failed in transport and nothing that did answer matched the title: the miss may be the failure's, so it is not reported as "no match".
+                : tally.Failures > 0 && tally.TitleMatches == 0 ? LyricsOutcome.SourceUnreachable
+                : tally.TitleMatches > 0 && tally.LengthRejected >= tally.TitleMatches ? LyricsOutcome.LengthTooDifferent
+                : LyricsOutcome.NoMatch;
             return [];
         }
 
@@ -90,8 +166,11 @@ public sealed partial class TextTrackProviderAdapter
         var strict = string.Equals(format, duration.StrictFormat, StringComparison.OrdinalIgnoreCase);
         if (strict && durationScore is < 0)
         {
+            tally.Outcome = LyricsOutcome.LengthTooDifferent;
             return [];
         }
+
+        tally.Outcome = instrumental ? LyricsOutcome.Instrumental : LyricsOutcome.Found;
 
         var confidence = durationScore.HasValue
             ? strict ? Math.Max(0, durationScore.Value) : Math.Max(duration.LenientFloor, durationScore.Value)
@@ -130,40 +209,55 @@ public sealed partial class TextTrackProviderAdapter
     /// From a list of search hits, the one whose title matches and whose length is closest to the song's; hits whose
     /// length is beyond the rejection limit are skipped. <c>null</c> when none is good enough.
     /// </summary>
-    private JsonElement? PickBestListEntry(JsonElement list, TextTrackLookup lookup, TextTrackLyricsConfiguration rules)
+    private JsonElement? PickBestListEntry(
+        JsonElement list, TextTrackLookup lookup, TextTrackLyricsConfiguration rules, LyricsTally tally)
     {
+        var matcher = LyricsMatcher;
+        var match = rules.Match;
         JsonElement? best = null;
         var bestScore = double.MinValue;
         foreach (var entry in list.EnumerateArray())
         {
+            tally.Candidates++;
             if (!HasLyricsOrInstrumental(entry, rules))
             {
                 continue;
             }
 
             var score = 0d;
-            if (!string.IsNullOrWhiteSpace(lookup.Title) && entry.TryGetProperty("trackName", out var name)
+            var titled = false;
+            if (!string.IsNullOrWhiteSpace(lookup.Title) && TryPath(entry, match.TitlePath, out var name)
                 && name.ValueKind == JsonValueKind.String)
             {
-                var found = name.GetString() ?? string.Empty;
-                if (!string.Equals(found.Trim(), lookup.Title.Trim(), StringComparison.OrdinalIgnoreCase))
+                if (!matcher.Matches(name.GetString(), lookup.Title))
                 {
                     continue;
                 }
 
+                titled = true;
                 score += 1;
             }
 
-            if (!string.IsNullOrWhiteSpace(lookup.Artist) && entry.TryGetProperty("artistName", out var artist)
+            if (!string.IsNullOrWhiteSpace(lookup.Artist) && TryPath(entry, match.ArtistPath, out var artist)
                 && artist.ValueKind == JsonValueKind.String
-                && string.Equals(artist.GetString()?.Trim(), lookup.Artist.Trim(), StringComparison.OrdinalIgnoreCase))
+                && matcher.Matches(artist.GetString(), lookup.Artist))
             {
                 score += 1;
+            }
+
+            if (titled)
+            {
+                tally.TitleMatches++;
             }
 
             var duration = ScoreDuration(entry, lookup.DurationSeconds);
             if (duration is < 0)
             {
+                if (titled)
+                {
+                    tally.LengthRejected++;
+                }
+
                 continue;
             }
 
@@ -179,7 +273,7 @@ public sealed partial class TextTrackProviderAdapter
     }
 
     /// <summary>Fetches the answer, remembering it when the file asks for the shared response cache.</summary>
-    private async Task<string?> GetJsonAsync(string url, CancellationToken ct)
+    private async Task<LyricsAnswer> GetJsonAsync(string url, CancellationToken ct)
     {
         var queryHash = ComputeHash(url);
         var cacheKey = $"{Name}:{queryHash}";
@@ -189,13 +283,13 @@ public sealed partial class TextTrackProviderAdapter
             var cached = await _cache!.FindAsync(cacheKey, ct).ConfigureAwait(false);
             if (cached is not null)
             {
-                return cached.ResponseJson;
+                return new LyricsAnswer(cached.ResponseJson, false);
             }
         }
 
         if (_health.IsDown(Name))
         {
-            return null;
+            return new LyricsAnswer(null, true);
         }
 
         try
@@ -218,7 +312,7 @@ public sealed partial class TextTrackProviderAdapter
                 {
                     _logger.LogDebug("{Provider} had no lyrics for the request (HTTP {Status})", Name, (int)status);
                     await _health.ReportSuccessAsync(Name, ct).ConfigureAwait(false);
-                    return null;
+                    return new LyricsAnswer(null, false);
                 }
 
                 throw new HttpRequestException($"HTTP {(int)status}", null, status);
@@ -231,7 +325,7 @@ public sealed partial class TextTrackProviderAdapter
             }
 
             await _health.ReportSuccessAsync(Name, ct).ConfigureAwait(false);
-            return json;
+            return new LyricsAnswer(json, false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -241,7 +335,7 @@ public sealed partial class TextTrackProviderAdapter
         {
             _logger.LogWarning(ex, "{Provider} lyrics lookup failed", Name);
             await _health.ReportFailureAsync(Name, ex.Message, ct).ConfigureAwait(false);
-            return null;
+            return new LyricsAnswer(null, true);
         }
     }
 

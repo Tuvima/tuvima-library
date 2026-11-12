@@ -121,13 +121,17 @@ export function update(marker, surface, anchor, dotnet, open, anchorOrigin, tran
             if (opened.at(-1) === state && isSheetBackdropPress(surface, event)) { close(state, false); return; }
             if (opened.at(-1) !== state || surface.contains(event.target) || state.anchor?.contains(event.target)) return;
             // Descendant dialogs belong to this popup's journey and must not dismiss its ancestor accidentally.
-            if (event.target.closest?.('dialog[open]') && !state.anchor?.closest('dialog[open]')?.contains(event.target)) return;
+            // The one exception is a live (non-modal) window such as the details overlay: it is not a dialog this popup opened, so a click
+            // into it, from a menu on the player bar beside it, is an ordinary outside click.
+            const targetDialog = event.target.closest?.('dialog[open]');
+            if (targetDialog && !targetDialog.hasAttribute('data-overlay-window') && !state.anchor?.closest('dialog[open]')?.contains(event.target)) return;
             close(state, false);
         };
         state.key = event => {
             if (event.key !== 'Escape' || opened.at(-1) !== state) return;
             const targetDialog = event.target?.closest?.('dialog[open]');
-            if (targetDialog && targetDialog !== state.anchor?.closest?.('dialog[open]') && !surface.contains(event.target)) return;
+            // A live window is not a dialog this popup opened: with a menu open, Escape closes the menu first wherever focus is.
+            if (targetDialog && !targetDialog.hasAttribute('data-overlay-window') && targetDialog !== state.anchor?.closest?.('dialog[open]') && !surface.contains(event.target)) return;
             event.preventDefault(); event.stopImmediatePropagation(); close(state, true);
         };
         states.set(surface, state);

@@ -9,16 +9,22 @@
    no editor of its own here: the list hands over the rows it has ticked, the bar below them is the shared selection bar, and its Edit,
    Match or Move open the one pop-over (EditorHost, drawn by the layout) over the list, which stages and saves through the same pending
    list, check and Review as everywhere else. The list's own filters, sort and scroll are never touched: after a save the list is only
-   asked to reload. Nothing renders on a device that may not edit. *@
+   asked to reload. Nothing renders on a device that may not edit, except for ticked songs: those get Play, Add to queue and Add to
+   playlist from a bar of their own on any desktop or tablet (Listen music spec D9), with no editor behind it. *@
 @if (_canEdit && ReferenceEquals(Editor.Binding, _binding))
 {
-    <BulkSelectionBar Selection="Editor.Batch" Busy="Editor.Flow.Saving" OnDeleted="OnDeletedAsync" />
+    <BulkSelectionBar Selection="Editor.Batch" Busy="Editor.Flow.Saving" OnDeleted="OnDeletedAsync" OnPlay="OnPlay" OnQueue="OnQueue" />
+}
+else if (!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(_playOnly.Rows, MediaType))
+{
+    <BulkSelectionBar Selection="_playOnly" OnPlay="OnPlay" OnQueue="OnQueue" OnCleared="OnCleared" />
 }
 
 @code {
     private EditorBinding _binding = default!;
     private bool _canEdit;
     private bool _disposed;
+    private readonly BulkEditSelection _playOnly = new();
 
     /// <summary>The rows the list has ticked, in the order it shows them.</summary>
     [Parameter] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];
@@ -35,6 +41,12 @@
     /// <summary>Raised after the bar deleted the ticked rows: the list drops them.</summary>
     [Parameter] public EventCallback<IReadOnlyList<Guid>> OnDeleted { get; set; }
 
+    /// <summary>Play the ticked songs (the host replaces its queue with them in list order). Songs only; without it the bar shows no Play.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<BulkEditRow>> OnPlay { get; set; }
+
+    /// <summary>Add the ticked songs to the queue. Songs only; without it the bar shows no Add to queue.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<BulkEditRow>> OnQueue { get; set; }
+
     protected override void OnInitialized()
     {
         _binding = Launcher.BindRows(MediaType, () => Rows, AfterSavedAsync);
@@ -48,6 +60,9 @@
     protected override void OnParametersSet()
     {
         _canEdit = EditorDeviceRule.CanEdit(Device);
+        // A device that may not edit still shows ticked songs: they get their own bar, with no editor behind it.
+        _playOnly.MediaType = MediaType;
+        _playOnly.Replace(!_canEdit && !Device.IsPhone && BulkEditRules.IsSongSelection(Rows, MediaType) ? Rows : []);
         _binding.BulkMediaType = MediaType;
         _binding.EntityId = Rows.FirstOrDefault()?.Id ?? Guid.Empty;
         if (_canEdit && Rows.Count > 0)

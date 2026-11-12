@@ -1,14 +1,18 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.MediaTiles
 @inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
+@inject IServiceProvider Services
 
 @* The square tile for a playlist, so playlists sit beside albums in Listen. A playlist's own cover (chosen
    artwork, or the Engine's 2x2 mosaic of album covers) fills the square; without one, the member covers are
    laid out as a 2x2 mosaic. The name is on the art, the top-left slot is left for New (D10), the count is the bottom label and "..." sits
    top right like every cover (D3). *@
-<article class="media-square-tile" aria-label="@Item.Title">
+<article class="media-square-tile" aria-label="@Item.Title"
+         data-song-drop="@(Item.AcceptsSongDrops ? "playlist" : null)"
+         @ondrop="DropSongsAsync">
     <a class="media-square-tile__link"
        href="@Url"
        aria-label="@L["MediaGroupTile_Label", Item.Title, L["MediaSquareTile_Playlist"]]"
@@ -62,6 +66,15 @@
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .Take(4)
         .ToList();
+
+    // Songs dragged out of a song table and dropped on a hand-made playlist's tile. The tile never takes a drop for a rule-based playlist.
+    private async Task DropSongsAsync()
+    {
+        if (Item.AcceptsSongDrops && Item.CollectionId is { } playlistId && Services.GetService<SongDragDropService>() is { } drops)
+        {
+            await drops.DropOnPlaylistAsync(playlistId, Item.Title);
+        }
+    }
 
     private Task OpenAsync(MouseEventArgs _)
     {

@@ -143,7 +143,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         var cut = await OpenAsync(Api([], findLyrics: true));
         cut.WaitForAssertion(() => Assert.Equal("unavailable", View(cut)));
 
-        Assert.Equal("No lyrics found for this song.", cut.Find("[data-lyrics-state=unavailable] .playback-lyrics__message").TextContent.Trim());
+        Assert.Equal("No lyrics found", cut.Find("[data-lyrics-state=unavailable] .playback-lyrics__message").TextContent.Trim());
         var actions = cut.FindAll("[data-lyrics-state=unavailable] button").Select(button => button.TextContent.Trim()).ToArray();
         Assert.Equal(["Find lyrics", "Add a lyrics file"], actions);
         Assert.Empty(cut.FindAll("[data-lyrics-chip]"));
@@ -614,7 +614,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([Track(_track, "local", userOwned: true)]));
             stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), _ => Task.FromResult<string?>("[00:01.00]Words"));
-            stub.SetHandler(nameof(IEngineApiClient.RefreshTextTracksAsync), _ => search.Task);
+            stub.SetHandler(nameof(IEngineApiClient.QueueTextTrackRefreshAsync), _ => search.Task);
         });
         var cut = await OpenAsync(api);
         cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
@@ -627,7 +627,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         Assert.NotEmpty(presenter.Lines);
         Assert.Empty(cut.FindAll("[data-lyrics-chip]"));
 
-        search.SetResult(new RefreshTextTracksResponse());
+        search.SetResult(new RefreshTextTracksResponse { status = "succeeded" });
         await refresh;
 
         cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));

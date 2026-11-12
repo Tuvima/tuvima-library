@@ -97,6 +97,234 @@ public sealed class ProfileStateRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void FreshSchema_KeepsASavedPositionOnEverySavedItem_SoFavoritesCanBeOrderedByHand()
+    {
+        using var connection = _database.CreateConnection();
+        var nullablePosition = connection.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM pragma_table_info('profile_saved_items') WHERE name = 'position' AND \"notnull\" = 0;");
+
+        Assert.Equal(1, nullablePosition);
+    }
+
+    [Fact]
+    public async Task Favorites_WithNoSavedPosition_ListNewestHeartedFirst()
+    {
+        var profileId = SeedProfile("Listener");
+        var oldest = SeedWork("Music");
+        var middle = SeedWork("Music");
+        var newest = SeedWork("Music");
+        SeedHeartWithoutPosition(profileId, oldest, "2026-01-01T00:00:00.0000000+00:00");
+        SeedHeartWithoutPosition(profileId, newest, "2026-03-01T00:00:00.0000000+00:00");
+        SeedHeartWithoutPosition(profileId, middle, "2026-02-01T00:00:00.0000000+00:00");
+
+        Assert.Equal([newest, middle, oldest], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task ASongHeartedNow_GoesToTheTopOfFavorites_AboveOlderHeartsWithAndWithoutAPosition()
+    {
+        var profileId = SeedProfile("Listener");
+        var legacy = SeedWork("Music");
+        var second = SeedWork("Music");
+        var first = SeedWork("Music");
+        var third = SeedWork("Music");
+        SeedHeartWithoutPosition(profileId, legacy, "2026-01-01T00:00:00.0000000+00:00");
+
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, second);
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, first);
+        Assert.Equal([first, second, legacy], await FavoriteOrderAsync(profileId));
+
+        await _repository.MoveSavedItemAsync(profileId, ProfileEntityKind.Song, legacy, 0);
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, third);
+        Assert.Equal([third, legacy, first, second], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task HeartingASongThatIsAlreadyAFavorite_KeepsItsPlace()
+    {
+        var profileId = SeedProfile("Listener");
+        var songs = new[] { SeedWork("Music"), SeedWork("Music"), SeedWork("Music") };
+        foreach (var song in songs)
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, songs[0]);
+
+        Assert.Equal([songs[2], songs[1], songs[0]], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task MovingAFavorite_SavesTheNewOrder_AndEveryLaterReadSeesIt()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c, d) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { d, c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemAsync(profileId, ProfileEntityKind.Song, d, 0));
+        Assert.Equal([d, a, b, c], await FavoriteOrderAsync(profileId));
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemAsync(profileId, ProfileEntityKind.Song, a, 3));
+        Assert.Equal([d, b, c, a], await FavoriteOrderAsync(profileId));
+
+        using var reopened = new DatabaseConnection(_databasePath);
+        Assert.Equal([d, b, c, a], (await new ProfileStateRepository(reopened).GetSavedItemsAsync(profileId, ProfileEntityKind.Song)).Select(item => item.EntityId));
+    }
+
+    [Fact]
+    public async Task MovingAFavoriteToAPlaceThatDoesNotExist_ChangesNothing()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b) = (SeedWork("Music"), SeedWork("Music"));
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, b);
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, a);
+
+        Assert.Equal(SavedItemMoveResult.IndexOutOfRange, await _repository.MoveSavedItemAsync(profileId, ProfileEntityKind.Song, a, 2));
+        Assert.Equal(SavedItemMoveResult.IndexOutOfRange, await _repository.MoveSavedItemAsync(profileId, ProfileEntityKind.Song, a, -1));
+        Assert.Equal([a, b], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task MovingASongThatIsNotAFavorite_IsRefused_EvenWhenAnotherProfileHeartedIt()
+    {
+        var owner = SeedProfile("Owner");
+        var other = SeedProfile("Other");
+        var shared = SeedWork("Music");
+        var own = SeedWork("Music");
+        await _repository.SaveItemAsync(owner, ProfileEntityKind.Song, shared);
+        await _repository.SaveItemAsync(other, ProfileEntityKind.Song, own);
+        await _repository.SaveItemAsync(other, ProfileEntityKind.Song, SeedWork("Music"));
+
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemAsync(other, ProfileEntityKind.Song, shared, 0));
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemAsync(other, ProfileEntityKind.Movie, own, 0));
+    }
+
+    [Fact]
+    public async Task OneProfilesFavoritesOrder_DoesNotTouchAnotherProfilesOrMyList()
+    {
+        var first = SeedProfile("First");
+        var second = SeedProfile("Second");
+        var (a, b, c) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        var film = SeedWork("Movies");
+        foreach (var profile in new[] { first, second })
+        {
+            foreach (var song in new[] { c, b, a })
+            {
+                await _repository.SaveItemAsync(profile, ProfileEntityKind.Song, song);
+            }
+        }
+
+        await _repository.SaveItemAsync(first, ProfileEntityKind.Movie, film);
+
+        await _repository.MoveSavedItemAsync(first, ProfileEntityKind.Song, c, 0);
+
+        Assert.Equal([c, a, b], await FavoriteOrderAsync(first));
+        Assert.Equal([a, b, c], await FavoriteOrderAsync(second));
+        var myList = await _repository.GetSavedItemsAsync(first, ProfileEntityKind.Movie);
+        Assert.Equal(film, Assert.Single(myList).EntityId);
+        Assert.Null(myList[0].Position);
+    }
+
+    [Fact]
+    public async Task ASongThatIsNoLongerAFavorite_LeavesTheOrderAndTheRestKeepTheirPlaces()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        await _repository.MoveSavedItemAsync(profileId, ProfileEntityKind.Song, c, 0);
+        await _repository.RemoveSavedItemAsync(profileId, ProfileEntityKind.Song, a);
+
+        Assert.Equal([c, b], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task MovingAFavoriteBeforeANamedFavorite_PutsItDirectlyBeforeIt_AndSavesTheWholeOrder()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c, d) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { d, c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, d, b));
+        Assert.Equal([a, d, b, c], await FavoriteOrderAsync(profileId));
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, c, a));
+        Assert.Equal([c, a, d, b], await FavoriteOrderAsync(profileId));
+
+        using var reopened = new DatabaseConnection(_databasePath);
+        Assert.Equal([c, a, d, b], (await new ProfileStateRepository(reopened).GetSavedItemsAsync(profileId, ProfileEntityKind.Song)).Select(item => item.EntityId));
+    }
+
+    [Fact]
+    public async Task MovingAFavoriteBeforeNoOne_PutsItLast()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        Assert.Equal(SavedItemMoveResult.Moved, await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, a, null));
+
+        Assert.Equal([b, c, a], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task TheNeighbourIsFoundInTheCurrentList_SoASongHeartedAfterThePageReadItCannotShiftTheTarget()
+    {
+        var profileId = SeedProfile("Listener");
+        var (a, b, c, late) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        foreach (var song in new[] { c, b, a })
+        {
+            await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, song);
+        }
+
+        // The page read [a, b, c]; a heart lands before the move arrives. Moving c before b still means "directly before b".
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Song, late);
+        await _repository.MoveSavedItemBeforeAsync(profileId, ProfileEntityKind.Song, c, b);
+
+        Assert.Equal([late, a, c, b], await FavoriteOrderAsync(profileId));
+    }
+
+    [Fact]
+    public async Task MovingBeforeAFavoriteTheProfileDoesNotHave_ChangesNothing_EvenWhenAnotherProfileHeartedIt()
+    {
+        var owner = SeedProfile("Owner");
+        var other = SeedProfile("Other");
+        var (mine, theirs, shared) = (SeedWork("Music"), SeedWork("Music"), SeedWork("Music"));
+        await _repository.SaveItemAsync(owner, ProfileEntityKind.Song, mine);
+        await _repository.SaveItemAsync(owner, ProfileEntityKind.Song, theirs);
+        await _repository.SaveItemAsync(other, ProfileEntityKind.Song, shared);
+        await _repository.SaveItemAsync(owner, ProfileEntityKind.Song, SeedWork("Music"));
+        var before = await FavoriteOrderAsync(owner);
+
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemBeforeAsync(owner, ProfileEntityKind.Song, mine, shared));
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemBeforeAsync(owner, ProfileEntityKind.Song, shared, mine));
+        Assert.Equal(SavedItemMoveResult.NotSaved, await _repository.MoveSavedItemBeforeAsync(owner, ProfileEntityKind.Movie, mine, theirs));
+
+        Assert.Equal(before, await FavoriteOrderAsync(owner));
+    }
+
+    private async Task<List<Guid>> FavoriteOrderAsync(Guid profileId)
+        => (await _repository.GetSavedItemsAsync(profileId, ProfileEntityKind.Song)).Select(item => item.EntityId).ToList();
+
+    private void SeedHeartWithoutPosition(Guid profileId, Guid songId, string savedAt)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO profile_saved_items(profile_id, entity_kind, entity_id, saved_at, position) VALUES (@profileId, 'Song', @songId, @savedAt, NULL);",
+            new { profileId, songId, savedAt });
+    }
+
+    [Fact]
     public async Task RemoveSavedItems_ReturnsTheOriginalsSkipsUnsavedItemsAndLeavesAnotherProfilesListAlone()
     {
         var profileId = SeedProfile("First");

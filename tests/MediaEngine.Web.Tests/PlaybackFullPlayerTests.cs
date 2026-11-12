@@ -86,6 +86,25 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Music_StacksTheMockupsPartsFromTheTop_TopLineArtworkTitleLineTimelineTransportThenTools()
+    {
+        var snapshot = Snapshot();
+        var cut = RenderPlayer(snapshot with { SourceLabel = "Northern Lights", Queue = [snapshot.Queue[0] with { Subtitle = "The Midnight Coast" }, snapshot.Queue[1]] }, more: p => p.Add(x => x.IsFavorite, false));
+
+        var order = cut.FindAll("[data-playback-full-collapse], [data-playback-full-from], .playback-item-more, [data-playback-full-art], .playback-full__title, .playback-full__secondary, [data-playback-full-actions], [data-playback-full-timeline], [data-playback-full-transport], [data-playback-tool-row]")
+            .Select(element => element.GetAttribute("class")?.Split(' ').FirstOrDefault(name => name is "playback-item-more" or "playback-full__title" or "playback-full__secondary")
+                ?? element.Attributes.First(attribute => attribute.Name.StartsWith("data-playback-", StringComparison.Ordinal) && attribute.Name != "data-playback-tooltip").Name)
+            .ToArray();
+        Assert.Equal(
+        [
+            "data-playback-full-collapse", "data-playback-full-from", "playback-item-more", "data-playback-full-art", "playback-full__title", "playback-full__secondary",
+            "data-playback-full-actions", "data-playback-full-timeline", "data-playback-full-transport", "data-playback-tool-row",
+        ], order);
+        // Favorite, Like and Dislike sit at the right end of the title line, after the title and the artist, not under them.
+        Assert.NotNull(cut.Find("[data-playback-full-identity] > .playback-full__text + [data-playback-full-actions]"));
+    }
+
+    [Fact]
     public void Audiobook_TitleLineHasFavoriteOnly()
     {
         var cut = RenderPlayer(BookSnapshot());

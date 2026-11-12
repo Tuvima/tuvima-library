@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1555; api=0; web-client=56
+# scopes: contracts=1556; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11098,6 +11098,11 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | json=entityKind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EntityId: System.Guid | json=entityId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.ProfileState.ProfileSavedItemMoveRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ToIndex: System.Int32? | json=toIndex | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BeforeEntityId: System.Guid? | json=beforeEntityId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.ProfileState.ProfileStateMutationDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -3483,6 +3483,64 @@ html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:fo
     background: transparent;
 }
 
+/* The buttons of the phone bar for ticked songs (Listen music spec D12). They are first-party buttons drawn by AppNativeButton, so
+   their rules live here beside the other phone selection bar; the bar itself is styled by its component. */
+.song-selection-bar .song-selection-bar__done {
+    flex: 0 0 auto;
+    min-width: var(--tl-tap-target-min, 44px);
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: 0 0.75rem;
+    color: var(--tl-accent-primary-hover, var(--tl-text-primary));
+    font: inherit;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+    border-radius: 0.6rem;
+    cursor: pointer;
+}
+
+.song-selection-bar .song-selection-bar__action {
+    display: inline-flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 0;
+    min-height: max(var(--tl-tap-target-min, 44px), 3rem);
+    padding: 0.25rem;
+    color: var(--tl-text-primary);
+    font: inherit;
+    font-size: var(--tl-font-size-xs);
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 0.6rem;
+    cursor: pointer;
+}
+
+.song-selection-bar .song-selection-bar__action span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-selection-bar .song-selection-bar__action:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.song-selection-bar .song-selection-bar__action:focus-visible,
+.song-selection-bar .song-selection-bar__done:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.song-selection-bar .song-selection-bar__action:active:not(:disabled),
+.song-selection-bar .song-selection-bar__done:active {
+    background: var(--tl-bg-surface-hover);
+}
+
 /* Photo date headings on touch or narrow windows: the "select all on this day" control sits in the heading row
    instead of hanging in the page gutter, where a 44px target would run off the screen edge. */
 @media (hover: none), (max-width: 1023px) {
@@ -3780,19 +3838,30 @@ input[type="reset"],
     box-shadow: none !important;
 }
 
-/* The details window (Look v3.1 D5, Details overlay D1; issue 875). On a tablet or desktop a title's details float over the page
-   the person came from: 90 % of the screen's width and height, never wider than 1440 px, never closer than 32 px to an edge,
-   16 px corners, the page dimmed behind it. On a phone it is a bottom sheet about 92 % tall with a grip. Global because the shared
-   Viewer part renders the <dialog>; the selector outranks the Viewer's full-screen :where() rule on purpose: the details window
-   is a Window, not a full-screen Viewer. */
+/* The details window (Look v3.1 D5, Details overlay D1; issue 875; music-player-and-listen-fixes D5). On a tablet or desktop a title's details
+   float over the page the person came from: 90 % of the screen's width and height, never wider than 1440 px, never closer than 32 px to an edge,
+   16 px corners, the page dimmed behind it. On a phone it is a bottom sheet about 92 % tall with a grip. Global because the shared Viewer part
+   renders the <dialog>; the selector outranks the Viewer's full-screen :where() rule on purpose: the details window is a Window, not a full-screen Viewer.
+   The app keeps the window modal itself (app-dialog.js shows the dialog non-modal), so the persistent player bar stays usable beside it: it is fixed over the
+   screen at the modal layer, above its own dimmed backdrop element (--tl-z-details-backdrop, in DetailsOverlayHost's styles) and clear of the bar. app-dialog.js
+   publishes --tl-overlay-bar-inset (how far the bar reaches up from the bottom of the screen; 0 when no bar is showing); the window is centred in the space
+   above it and never taller than that space. The layout's DetailsOverlayOutlet draws the host outside the shell's clipping content box
+   (.playback-app-frame__content, a size container), so the window is placed against the screen whatever a browser does with containment there.
+   The class rule below places it (fixed, layer, clear of the bar); the dialog rule after it is the window's size and look. */
+.tl-details-overlay {
+    position: fixed;
+    inset: 0 0 var(--tl-overlay-bar-inset, 0px) 0;
+    z-index: var(--tl-z-modal, 1400);
+    max-height: calc(100vh - var(--tl-overlay-bar-inset, 0px) - 2 * var(--tl-window-details-margin));
+    max-height: calc(100dvh - var(--tl-overlay-bar-inset, 0px) - 2 * var(--tl-window-details-margin));
+}
+
 dialog.tl-details-overlay {
     box-sizing: border-box;
-    inset: 0;
     width: min(90vw, var(--tl-window-details-max), calc(100vw - 2 * var(--tl-window-details-margin)));
     max-width: none;
     height: min(90vh, calc(100vh - 2 * var(--tl-window-details-margin)));
     height: min(90dvh, calc(100dvh - 2 * var(--tl-window-details-margin)));
-    max-height: none;
     margin: auto;
     padding: 0;
     border: 0;
@@ -3805,6 +3874,8 @@ dialog.tl-details-overlay {
     contain: layout;
 }
 
+/* The window is shown non-modal (see above), so the browser draws no ::backdrop; the host's own backdrop element dims the page. This keeps the
+   dim the same if a browser ever shows the dialog modal. */
 dialog.tl-details-overlay::backdrop {
     background: var(--tl-scrim-soft-strong);
 }
@@ -3813,6 +3884,8 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     width: 100%;
     height: 92vh;
     height: 92dvh;
+    max-height: calc(100vh - var(--tl-overlay-bar-inset, 0px));
+    max-height: calc(100dvh - var(--tl-overlay-bar-inset, 0px));
     margin: auto 0 0;
     border-radius: var(--tl-sheet-radius) var(--tl-sheet-radius) 0 0;
     transform: translateY(var(--sheet-drag, 0px));
@@ -5535,6 +5608,9 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     .libs__table .libs__link { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
+/* Dragging songs onto a playlist (Listen music spec D10): song-table.js adds .is-song-drop-over to the [data-song-drop] target under the pointer, and the picture a ticked row drags with. */
+[data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;border-radius:var(--tl-radius-sm,6px);background:color-mix(in srgb,var(--tl-accent-primary) 22%,transparent)}
+.song-table__drag-picture{padding:6px 12px;border-radius:var(--tl-radius-sm,6px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-family:var(--font-ui,sans-serif);font-size:var(--tl-type-control-size);font-weight:600}
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

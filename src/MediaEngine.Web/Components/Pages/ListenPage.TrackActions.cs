@@ -164,11 +164,11 @@ public partial class ListenPage
         await ToggleFavoriteAsync(target);
     }
 
-    private Task OnTrackDragStarted(Guid entityId)
+    // The list tells which songs are being dragged (every ticked song when a ticked one is dragged); the playlist drop itself is the song
+    // table's and the drop service's. This only lets the queue panel take the same songs.
+    private Task OnTrackDragStarted(IReadOnlyList<Guid> entityIds)
     {
-        _draggingTrackIds = _selectedTrackIds.Contains(entityId)
-            ? _selectedTrackIds.ToHashSet()
-            : [entityId];
+        _draggingTrackIds = entityIds.ToHashSet();
 
         var draggingItems = CurrentTrackSurfaceTracks
             .Where(work => _draggingTrackIds.Contains(work.Id))
