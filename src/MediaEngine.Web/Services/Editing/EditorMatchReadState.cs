@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Localization;
 using MediaEngine.Web.Resources;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Services.Editing;
 
