@@ -139,7 +139,7 @@ internal static class DisplayGridCatalog
 
     public static string? NormalizeType(string? type) => NormalizeOneOf(type, "type",
         DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeVideo, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
-        DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection);
+        DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection, DisplayGridValues.TypePlaylist);
 
     public static string? NormalizeFormat(string? format) => NormalizeOneOf(format, "format",
         DisplayGridValues.FormatEpub, DisplayGridValues.FormatPdf, DisplayGridValues.FormatComic,
