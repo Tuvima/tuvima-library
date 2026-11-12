@@ -435,7 +435,7 @@ public sealed class SongTableTests : AsyncBunitContext
         Assert.Equal(
             ["number", "song", "artist", "album", "dateAdded", "plays", "favorite", "time"],
             handles.Select(handle => handle.GetAttribute("data-column")));
-        Assert.All(handles, handle => Assert.Equal(SongTableColumns.MaxWidth.ToString(System.Globalization.CultureInfo.InvariantCulture), handle.GetAttribute("data-max")));
+        Assert.All(handles, handle => Assert.Equal(handle.GetAttribute("data-column") == "song" ? "1200" : "560", handle.GetAttribute("data-max")));
         Assert.Equal("40", handles[0].GetAttribute("data-min"));
         Assert.Equal("64", cut.Find("[aria-label='Resize Artist column']").GetAttribute("data-min"));
         Assert.Empty(cut.FindAll(".song-table__head-cell--tick .song-table__resizer"));

@@ -141,7 +141,7 @@ else
                           tabindex="0"
                           data-column="@SongTableColumns.KeyOf(column)"
                           data-min="@SongTableColumns.MinWidth(column)"
-                          data-max="@SongTableColumns.MaxWidth"
+                          data-max="@SongTableColumns.MaxWidthFor(column)"
                           @onclick:stopPropagation="true"
                           @onkeydown:stopPropagation="true"
                           @onkeydown="@((KeyboardEventArgs args) => ResizeByKeyboardAsync(column, args))"></span>
