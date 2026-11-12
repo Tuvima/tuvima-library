@@ -13,8 +13,8 @@
 .browse-multi-select__label {
     margin-left: 2px;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1;
 }
 
@@ -36,8 +36,8 @@
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-primary);
     font: inherit;
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     text-align: left;
     cursor: pointer;
 }

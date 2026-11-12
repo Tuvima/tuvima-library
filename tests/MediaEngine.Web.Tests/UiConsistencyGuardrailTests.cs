@@ -153,7 +153,7 @@ public sealed partial class UiConsistencyGuardrailTests
         foreach (var (path, selector) in scopedControlRules)
         {
             var rule = CssRule(Read(path), selector);
-            Assert.Contains("font-weight: var(--tl-control-font-weight)", rule, StringComparison.Ordinal);
+            Assert.Contains("font-weight: var(--tl-type-control-weight)", rule, StringComparison.Ordinal);
             Assert.DoesNotContain("font-weight: 700", rule, StringComparison.Ordinal);
         }
     }

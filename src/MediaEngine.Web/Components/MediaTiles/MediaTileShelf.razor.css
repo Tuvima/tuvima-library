@@ -28,8 +28,8 @@
     .media-tile-shelf-title {
         margin: 0;
         font-family: var(--font-reader);
-        font-size: clamp(1.4rem, 2vw, 2rem);
-        font-weight: 600;
+        font-size: var(--tl-type-heading-size);
+        font-weight: var(--tl-type-heading-weight);
         line-height: 1;
         color: rgba(248, 250, 252, 0.96);
     }
@@ -37,7 +37,7 @@
     .media-tile-shelf-subtitle {
         margin: 0;
         font-family: var(--font-ui);
-        font-size: var(--tl-font-size-sm);
+        font-size: var(--tl-type-body-size);
         line-height: 1.5;
         color: rgba(148, 163, 184, 0.88);
     }
@@ -45,7 +45,7 @@
     .media-tile-shelf-empty {
         margin: 0;
         font-family: var(--font-ui);
-        font-size: var(--tl-font-size-body);
+        font-size: var(--tl-type-body-size);
         line-height: var(--tl-line-height-body);
         color: var(--tl-text-secondary);
     }
@@ -54,8 +54,8 @@
         color: rgba(248, 250, 252, 0.8);
         text-decoration: none;
         font-family: var(--font-ui);
-        font-size: var(--tl-font-size-xs);
-        font-weight: 600;
+        font-size: var(--tl-type-overline-size);
+        font-weight: var(--tl-type-overline-weight);
         letter-spacing: 0.14em;
         white-space: nowrap;
     }
@@ -124,8 +124,8 @@
     color: rgba(248, 250, 252, 0.88);
     text-decoration: none;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.14em;
     border-radius: var(--tl-radius-md);
     border: 1px solid rgba(255, 255, 255, 0.12);

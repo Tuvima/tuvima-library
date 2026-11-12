@@ -33,15 +33,15 @@
 
 .view-content-page__eyebrow {
     color: var(--tl-accent-primary);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .view-content-page__identity h1 {
     margin: 5px 0 7px;
     font-family: inherit;
-    font-size: var(--tl-font-size-title);
-    font-weight: 700;
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     line-height: 1.05;
     letter-spacing: -0.035em;
 }
@@ -66,7 +66,7 @@
     gap: 7px;
     min-width: 164px;
     color: var(--tl-text-primary, rgba(241, 245, 249, 0.92));
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-label-size);
 }
 
 @media (max-width: 900px) {

@@ -59,8 +59,8 @@
 .media-section-shell__rail-label {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: normal;
 }
 
@@ -184,7 +184,7 @@
     padding: 6px 10px;
     border-radius: calc(var(--tl-radius-md) - 2px);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .media-section-shell__rail-child-marker {
@@ -293,7 +293,7 @@
     grid-template-columns: 20px minmax(0, 1fr) auto;
     min-height: 44px;
     padding: 6px 7px;
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 
@@ -316,8 +316,8 @@
 .media-section-shell__swipe-actions ::deep button {
     border: 0;
     color: var(--tl-text-on-accent);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .media-section-shell__swipe-actions ::deep .is-rename { background: var(--tl-bg-surface-elevated); }
@@ -339,7 +339,7 @@
 
 .media-section-shell__rail-meta {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 /* Attention dot for a row that needs a look (for example Security before a password exists); the row name carries the meaning. */
@@ -361,8 +361,8 @@
     border-radius: var(--tl-radius-round, 999px);
     color: var(--tl-text-primary);
     background: color-mix(in srgb, var(--tl-accent-primary) 28%, var(--tl-bg-surface-raised));
-    font-size: var(--tl-font-size-xs);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     line-height: 1;
 }
 
@@ -427,7 +427,7 @@
 
 .media-section-shell__tree-label {
     overflow: hidden;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-control-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -440,8 +440,8 @@
 
 .media-section-shell__tree-attention-label {
     color: var(--tl-status-danger);
-    font-size: var(--tl-font-size-xs);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
 }
 
 .media-section-shell__tree-row:hover,
@@ -500,12 +500,12 @@
 }
 
 .media-section-shell__tree--flat .media-section-shell__tree-label {
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-menu-size);
 }
 
 .media-section-shell__rail-group.is-flat .media-section-shell__rail-label {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-control-size);
 }
 
 .media-section-shell__content {
@@ -582,8 +582,8 @@
     .media-section-shell__mobile-nav-label {
         padding: 0.45rem 0.7rem 0.25rem;
         color: var(--tl-text-muted);
-        font-size: var(--tl-font-size-xs);
-        font-weight: 600;
+        font-size: var(--tl-type-overline-size);
+        font-weight: var(--tl-type-overline-weight);
         letter-spacing: normal;
     }
 

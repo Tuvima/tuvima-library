@@ -19,8 +19,8 @@
 .empty-shelf-state h2 {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .empty-shelf-state p {

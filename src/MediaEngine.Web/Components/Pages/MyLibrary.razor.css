@@ -56,8 +56,8 @@
 
 .my-library-header__title {
     margin: 0;
-    font-size: var(--tl-font-size-xl);
-    font-weight: var(--tl-font-weight-bold);
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     line-height: var(--tl-line-height-tight);
 }
 
@@ -65,7 +65,7 @@
     margin: 0;
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-body);
+    font-size: var(--tl-type-body-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -99,8 +99,8 @@
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-round, 999px);
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-body);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     text-decoration: none;
     background: var(--tl-bg-surface);
 }
@@ -138,7 +138,7 @@
 
 .my-library-downloads__copy span {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* Sections. Loading and loaded share one slot height. */
@@ -192,8 +192,8 @@
 .my-library-activity__title {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg, 1.25rem);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
 }
 
 .my-library-activity__see-all {

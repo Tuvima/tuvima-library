@@ -45,7 +45,7 @@
     display: grid;
     gap: 0.85rem;
     color: rgba(234, 238, 247, 0.78);
-    font-size: clamp(0.88rem, 0.92vw, 1rem);
+    font-size: var(--tl-type-body-size);
     line-height: 1.62;
 }
 
@@ -109,7 +109,7 @@
 }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 
 }
 
@@ -214,14 +214,14 @@
     }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
-        font-size: var(--tl-font-size-secondary);
-        font-weight: 600;
+        font-size: var(--tl-type-label-size);
+        font-weight: var(--tl-type-label-weight);
     }
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
         margin-top: 0.18rem;
         color: rgba(225, 231, 241, 0.58);
-        font-size: var(--tl-font-size-xs);
+        font-size: var(--tl-type-caption-size);
     }
 
 }
@@ -299,8 +299,8 @@
 
 :where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
     overflow: hidden;
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -309,7 +309,7 @@
     margin-top: 0.15rem;
     overflow: hidden;
     color: rgba(225, 231, 241, 0.57);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -330,14 +330,14 @@
 
 :where(.tl-detail-page) .tl-overview-facts dt {
     color: rgba(226, 232, 240, 0.48);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     letter-spacing: 0.08em;
 }
 
 :where(.tl-detail-page) .tl-overview-facts dd {
     margin: 0;
     color: rgba(248, 250, 252, 0.84);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     white-space: pre-line;
 }
 
@@ -348,7 +348,7 @@
 :where(.tl-detail-page) .tl-overview-linked-people h3 {
     margin: 0 0 0.55rem;
     color: rgba(226, 232, 240, 0.58);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     letter-spacing: 0.08em;
 }
 
@@ -393,8 +393,8 @@
 .tl-overview-credit-group h3 {
     margin: 0;
     color: #efc77a;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
     line-height: 1;
 }
@@ -462,14 +462,14 @@
 }
 
 .tl-overview-credit-rows ::deep .tl-credit-card__name {
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .tl-overview-credit-rows ::deep .tl-credit-card__role {
     margin-top: 0.18rem;
     color: rgba(225, 231, 241, 0.58);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 /* The overview is a peek, not a claim of billing order. Keep every person at

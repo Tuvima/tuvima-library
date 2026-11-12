@@ -25,7 +25,7 @@
     border: 1px solid rgba(214, 222, 237, 0.2);
     border-radius: 0.4rem;
     color: rgba(214, 222, 237, 0.78);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     line-height: 1.2;
     text-decoration: none;
 }

@@ -7,7 +7,7 @@
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-md);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .vault-hidden-reminder__text {

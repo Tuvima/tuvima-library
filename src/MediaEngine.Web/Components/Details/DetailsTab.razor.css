@@ -31,7 +31,7 @@
 
 :where(.tl-detail-page) .tl-source-link small {
     color: rgba(246, 240, 232, 0.52);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 /* File facts: a compact two-column list on every device. Long values wrap
@@ -45,7 +45,7 @@
 :where(.tl-detail-page) .tl-file-facts__note {
     margin: 0;
     color: rgba(246, 240, 232, 0.62);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
     overflow-wrap: anywhere;
 }
 
@@ -60,8 +60,8 @@
 
 :where(.tl-detail-page) .tl-file-facts__title {
     margin: 0 0 0.35rem;
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     overflow-wrap: anywhere;
 }
 
@@ -87,15 +87,15 @@
 
 :where(.tl-detail-page) .tl-file-facts__list dt {
     color: rgba(246, 240, 232, 0.55);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     overflow-wrap: anywhere;
 }
 
 :where(.tl-detail-page) .tl-file-facts__list dd {
     margin: 0;
     min-width: 0;
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -113,13 +113,13 @@
     grid-template-columns: 9.5rem minmax(0, 1fr) auto;
     gap: 0.15rem 0.9rem;
     min-width: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 :where(.tl-detail-page) .tl-item-history__when,
 :where(.tl-detail-page) .tl-item-history__who {
     color: rgba(246, 240, 232, 0.55);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 :where(.tl-detail-page) .tl-item-history__detail {

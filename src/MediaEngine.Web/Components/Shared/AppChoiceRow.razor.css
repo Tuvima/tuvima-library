@@ -49,7 +49,7 @@
 
 .app-choice-row__copy span {
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* With an icon the row is icon tile, copy, radio. */

@@ -7,8 +7,8 @@
 .listen-rail__label {
     margin: 0 0 10px 12px;
     color: rgba(255, 255, 255, 0.42);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
 }
 

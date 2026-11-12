@@ -27,8 +27,8 @@
     min-height: var(--tl-tap-target-min, 2.75rem);
     padding: 0 var(--tl-space-3) 0 var(--tl-space-1);
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
 }
 
 .app-collapsible-row__title {
@@ -40,8 +40,8 @@
 .app-collapsible-row__summary {
     flex: 0 0 auto;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 500;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
     white-space: nowrap;
 }
 

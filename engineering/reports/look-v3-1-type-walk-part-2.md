@@ -1,0 +1,246 @@
+# Look v3.1 type walk, part 2
+
+## Part 2: Home, browse, the details page and pages
+
+Scope: `Browse/`, `Cinematic/`, `MediaTiles/`, `MediaHub/`, `Details/` (not `HeroActionRow*`) and `Pages/` (not View, Vault, Search, DesignSystemPreview, Setup, the readers and the watch player), under `src/MediaEngine.Web/Components/`. Every `.razor` and `.razor.css` file is listed. A job is named by its token pair `--tl-type-<job>-size` and `-weight`; text typed into a field or chosen in a dropdown uses `--tl-field-text-size` (Body on tablet and desktop, 16 px on a phone, D9).
+
+- `Browse/AppActiveFilterSummary.razor`: already right
+- `Browse/AppActiveFilterSummary.razor.css`: changed: 2 to control
+- `Browse/AppBrowseModeSelector.razor`: already right
+- `Browse/AppQuickFilterToggle.razor`: already right
+- `Browse/AppQuickFilterToggle.razor.css`: changed: 1 to control, 1 to caption
+- `Browse/AppTimelineResults.razor`: already right
+- `Browse/AppTimelineResults.razor.css`: changed: 1 to heading, 1 to secondary, 1 to caption
+- `Browse/BrowseFilterSheet.razor`: already right
+- `Browse/BrowseMultiSelect.razor`: already right
+- `Browse/BrowseMultiSelect.razor.css`: changed: 2 to control
+- `Browse/BrowseShellStyles.razor`: already right
+- `Browse/BrowseShellStyles.razor.css`: changed: 1 to overline, 4 to control, 1 to heading
+- `Browse/CompactContinueStrip.razor`: already right
+- `Browse/CompactContinueStrip.razor.css`: changed: 1 to subheading, 4 to caption
+- `Browse/MediaBrowseShell.razor`: already right
+- `Browse/MediaBrowseShell.razor.css`: changed: 1 to overline, 8 to control, 2 to label, 2 to field text, 1 to caption, 1 to heading
+- `Cinematic/CinematicHeroCarousel.razor`: already right
+- `Cinematic/CinematicHeroCarousel.razor.css`: changed: 1 to overline, 1 to label, 1 to caption
+- `Cinematic/CinematicHeroSurface.razor`: already right
+- `Cinematic/CinematicHeroSurface.razor.css`: already right
+- `Cinematic/PhoneHeroCard.razor`: already right
+- `Cinematic/PhoneHeroCard.razor.css`: changed: 1 to control, 1 to caption, 1 to body
+- `Cinematic/SurfaceNavigationBar.razor`: already right
+- `Cinematic/SurfaceNavigationBar.razor.css`: already right
+- `Cinematic/SurfaceTabBar.razor`: already right
+- `Cinematic/SurfaceTabBar.razor.css`: already right
+- `Details/AudioItemTable.razor`: already right
+- `Details/AudioItemTable.razor.css`: changed: 1 to secondary, 3 to overline, 1 to body, 1 to caption
+- `Details/AudiobookTracksContent.razor`: already right
+- `Details/AudiobookTracksContent.razor.css`: changed: 1 to overline, 1 to body
+- `Details/BulkListEntry.razor`: already right
+- `Details/BulkSelectionBar.razor`: already right
+- `Details/CastCharacterPairCard.razor`: already right
+- `Details/ContributorsSection.razor`: already right
+- `Details/CreditGroupSection.razor`: already right
+- `Details/CreditGroupSection.razor.css`: changed: 2 to overline, 1 to label
+- `Details/DescriptionAttribution.razor`: already right
+- `Details/DescriptionAttribution.razor.css`: changed: 1 to caption
+- `Details/DetailAiResults.razor`: already right
+- `Details/DetailAiResults.razor.css`: changed: 2 to body
+- `Details/DetailHero.razor`: already right
+- `Details/DetailHero.razor.css`: changed: 3 to subheading, 4 to overline, 1 to body, 2 to control, 1 to label, 1 to caption
+- `Details/DetailHeroContent.razor`: already right
+- `Details/DetailHeroContent.razor.css`: changed: 4 to subheading, 4 to body, 2 to control, 1 to label
+- `Details/DetailHeroSkeleton.razor`: already right
+- `Details/DetailHeroSkeleton.razor.css`: already right
+- `Details/DetailPage.razor`: already right
+- `Details/DetailPage.razor.css`: changed: 1 to control, 4 to caption, 1 to heading, 3 to overline, 1 to secondary, 3 to subheading
+- `Details/DetailPrimaryModule.razor`: already right
+- `Details/DetailPrimaryModule.razor.css`: changed: 10 to caption, 2 to label, 1 to overline, 1 to control, 1 to subheading, 1 to secondary
+- `Details/DetailRouteHost.razor`: already right
+- `Details/DetailRouteHost.razor.css`: already right
+- `Details/DetailRowSelectBox.razor`: already right
+- `Details/DetailRowSelectBox.razor.css`: already right
+- `Details/DetailTabs.razor`: already right
+- `Details/DetailsOverlayHost.razor`: already right
+- `Details/DetailsOverlayHost.razor.css`: already right
+- `Details/DetailsOverlayRouteView.razor`: already right
+- `Details/DetailsTab.razor`: already right
+- `Details/DetailsTab.razor.css`: changed: 1 to caption, 2 to body, 2 to control, 2 to secondary
+- `Details/ExtraViewerContent.razor`: already right
+- `Details/ExtraViewerContent.razor.css`: changed: 1 to control, 1 to secondary
+- `Details/ExtrasSection.razor`: already right
+- `Details/ExtrasSection.razor.css`: changed: 4 to overline, 1 to control, 1 to caption
+- `Details/GeneratedIdentity.razor`: already right
+- `Details/GeneratedIdentity.razor.css`: already right
+- `Details/HeroBackdrop.razor`: already right
+- `Details/HeroBackdrop.razor.css`: changed: 1 to subheading
+- `Details/HeroGenreList.razor`: already right
+- `Details/HeroGenreList.razor.css`: changed: 2 to control
+- `Details/HeroMetadataPills.razor`: already right
+- `Details/HeroMetadataPills.razor.css`: changed: 1 to subheading
+- `Details/ManageActionsMenu.razor`: already right
+- `Details/MediaMembershipDialog.razor`: already right
+- `Details/MusicAlbumOverviewContent.razor`: already right
+- `Details/MusicAlbumOverviewContent.razor.css`: changed: 1 to heading, 1 to body
+- `Details/MusicAlbumSeriesRail.razor`: already right
+- `Details/MusicAlbumSeriesRail.razor.css`: already right
+- `Details/MusicTrackList.razor`: already right
+- `Details/MusicTrackList.razor.css`: changed: 2 to body
+- `Details/NotMatchedTag.razor`: already right
+- `Details/NotMatchedTag.razor.css`: already right
+- `Details/OverflowActionMenu.razor`: already right
+- `Details/OverviewTab.razor`: already right
+- `Details/OverviewTab.razor.css`: changed: 1 to body, 2 to secondary, 2 to label, 5 to caption, 1 to control, 1 to overline
+- `Details/PeopleTab.razor`: already right
+- `Details/PeopleTab.razor.css`: already right
+- `Details/PersonAvatar.razor`: already right
+- `Details/PersonAvatar.razor.css`: already right
+- `Details/PersonCreditCard.razor`: already right
+- `Details/PersonCreditCard.razor.css`: changed: 1 to label, 5 to caption, 2 to secondary
+- `Details/PersonalHistoryDialog.razor`: already right
+- `Details/PersonalStatusMenuItems.razor`: already right
+- `Details/RemovedItemNotice.razor`: already right
+- `Details/RemovedItemNotice.razor.css`: changed: 1 to page-title, 2 to body
+- `Details/SameFileChip.razor`: already right
+- `Details/SequenceEntryContent.razor`: already right
+- `Details/SequenceEntryContent.razor.css`: changed: 2 to control, 10 to caption, 3 to label, 3 to overline, 6 to body, 2 to subheading, 2 to heading
+- `Details/SequenceItemFiles.razor`: already right
+- `Details/SequenceItemFiles.razor.css`: changed: 1 to caption
+- `Details/SequencePlacementPanel.razor`: already right
+- `Details/SequencePlacementPanel.razor.css`: changed: 1 to secondary, 6 to control, 6 to overline, 1 to field text, 11 to caption, 3 to subheading, 1 to body, 2 to heading, 1 to label
+- `Details/UniverseGalaxyLink.razor`: already right
+- `Details/UniverseGalaxyLink.razor.css`: changed: 1 to secondary
+- `MediaHub/EmptyShelfState.razor`: already right
+- `MediaHub/EmptyShelfState.razor.css`: changed: 1 to subheading
+- `MediaHub/LibrarySectionHeader.razor`: already right
+- `MediaHub/LibrarySectionHeader.razor.css`: already right
+- `MediaHub/LibraryStorageSummary.razor`: already right
+- `MediaHub/LibraryStorageSummary.razor.css`: changed: 1 to overline, 1 to caption
+- `MediaHub/MediaHubPage.razor`: already right
+- `MediaHub/MediaHubPage.razor.css`: changed: 1 to overline, 1 to body
+- `MediaHub/MediaSectionShell.razor`: already right
+- `MediaHub/MediaSectionShell.razor.css`: changed: 5 to overline, 2 to secondary, 1 to caption, 2 to control, 1 to menu
+- `MediaHub/MediaShelf.razor`: already right
+- `MediaHub/MediaShelf.razor.css`: already right
+- `MediaHub/ShelfHeader.razor`: already right
+- `MediaHub/ShelfHeader.razor.css`: changed: 1 to heading, 1 to secondary, 1 to caption, 1 to overline
+- `MediaTiles/ContinueAcrossMediaSection.razor`: already right
+- `MediaTiles/ContinueAcrossMediaSection.razor.css`: changed: 1 to heading
+- `MediaTiles/ContinueLandscapeTile.razor`: already right
+- `MediaTiles/ContinueLandscapeTile.razor.css`: changed: 1 to subheading, 1 to secondary
+- `MediaTiles/ContinueWatchingOrListeningTile.razor`: already right
+- `MediaTiles/LaneMenu.razor`: already right
+- `MediaTiles/MediaShelfScroller.razor`: already right
+- `MediaTiles/MediaShelfScroller.razor.css`: already right
+- `MediaTiles/MediaSquareTile.razor`: already right
+- `MediaTiles/MediaSquareTile.razor.css`: changed: 1 to subheading
+- `MediaTiles/MediaTile.razor`: already right
+- `MediaTiles/MediaTile.razor.css`: changed: 2 to overline, 2 to subheading, 1 to body, 1 to caption, 3 to secondary
+- `MediaTiles/MediaTileActions.razor`: already right
+- `MediaTiles/MediaTileGrid.razor`: already right
+- `MediaTiles/MediaTileGrid.razor.css`: already right
+- `MediaTiles/MediaTileShelf.razor`: already right
+- `MediaTiles/MediaTileShelf.razor.css`: changed: 2 to body, 2 to overline
+- `MediaTiles/PersonTile.razor`: already right
+- `MediaTiles/PersonTile.razor.css`: already right
+- `MediaTiles/PersonTileGrid.razor`: already right
+- `MediaTiles/PersonTileGrid.razor.css`: already right
+- `MediaTiles/PickUpCard.razor`: already right
+- `MediaTiles/PickUpCard.razor.css`: changed: 2 to caption
+- `MediaTiles/RecentMediaFeed.razor`: already right
+- `MediaTiles/RecentMediaFeed.razor.css`: already right
+- `MediaTiles/RecentMediaFilters.razor`: already right
+- `MediaTiles/RecentMediaFilters.razor.css`: already right
+- `Pages/ChronicleExplorer.razor`: already right
+- `Pages/ChronicleExplorer.razor.css`: changed: 1 to caption, 1 to overline
+- `Pages/Collections.razor`: already right
+- `Pages/CompanionPage.razor`: already right
+- `Pages/CompanionPage.razor.css`: changed: 1 to body
+- `Pages/DownloadsPage.razor`: already right
+- `Pages/Error.razor`: already right
+- `Pages/ExtraViewerPage.razor`: already right
+- `Pages/ExtraViewerPage.razor.css`: changed: 1 to heading, 1 to secondary, 1 to control
+- `Pages/ForMe.razor`: already right
+- `Pages/ForMe.razor.css`: changed: 1 to overline, 1 to heading
+- `Pages/LibraryBrowsePage.razor`: already right
+- `Pages/LibraryBrowsePage.razor.css`: changed: 1 to heading, 1 to subheading
+- `Pages/ListenBrowsePage.razor`: already right
+- `Pages/ListenPage.razor`: already right
+- `Pages/ListenPage.razor.css`: changed: 5 to overline, 3 to field text, 4 to control, 1 to heading, 1 to body, 1 to subheading, 2 to secondary
+- `Pages/MediaLanePage.razor`: already right
+- `Pages/MyActivity.razor`: already right
+- `Pages/MyActivity.razor.css`: changed: 1 to page-title
+- `Pages/MyLibrary.razor`: already right
+- `Pages/MyLibrary.razor.css`: changed: 1 to page-title, 1 to body, 1 to control, 1 to secondary, 1 to heading
+- `Pages/MyProfile.razor`: already right
+- `Pages/MyProfile.razor.css`: changed: 1 to page-title
+- `Pages/NotFound.razor`: already right
+- `Pages/NowPlayingPage.razor`: already right
+- `Pages/NowPlayingPage.razor.css`: changed: 1 to control, 1 to heading, 3 to body, 2 to secondary
+- `Pages/PluginPage.razor`: already right
+- `Pages/PluginPage.razor.css`: changed: 1 to page-title, 4 to body
+- `Pages/ProfilePickerPage.razor`: already right
+- `Pages/ProfilePickerPage.razor.css`: changed: 1 to subheading, 1 to caption, 1 to body
+- `Pages/ReadPage.razor`: already right
+- `Pages/RecentlyAddedPage.razor`: already right
+- `Pages/RecentlyAddedPage.razor.css`: already right
+- `Pages/RecycleBinPage.razor`: already right
+- `Pages/RecycleBinPage.razor.css`: already right
+- `Pages/Settings.razor`: already right
+- `Pages/Settings.razor.css`: changed: 1 to subheading, 1 to control, 3 to field text, 5 to body, 1 to label
+- `Pages/ShelfGridPage.razor`: already right
+- `Pages/ShelfGridPage.razor.css`: changed: 1 to page-title, 3 to body
+- `Pages/UnifiedDetailPage.razor`: already right
+- `Pages/UniversePage.razor`: already right
+- `Pages/UniversePage.razor.css`: already right
+- `Pages/UniverseThingPage.razor`: already right
+- `Pages/UniverseThingPage.razor.css`: already right
+- `Pages/WatchPage.razor`: already right
+
+## Left on purpose: allowed exceptions (icons, glyphs, initials)
+
+- Every `font-size: var(--tl-icon-size-*)` on an icon element (Browse, MediaTiles, MediaHub, Details, Pages), and `.tl-icon-root` rules in `Browse/CompactContinueStrip.razor.css:16`, `MediaHub/MediaSectionShell.razor.css:168` (rail chevron), `:198`, `Details/OverviewTab.razor.css:277` (the `>` glyph).
+- `Details/PersonAvatar.razor.css:12` and `:18` (avatar initials).
+- `Details/GeneratedIdentity.razor.css:14` (monogram on a generated cover, 32 to 64 px, a glyph and not reading text).
+- `MediaTiles/MediaSquareTile.razor.css:58` (32 px fallback letter), `MediaTiles/MediaTile.razor.css:74` (44 px) and `:92` (36 px) placeholder glyphs, `:50` (the episode number on a stand-in tile, a fluid glyph sized as a percentage).
+- Inline `tl-u-font-size-*px` classes in `MediaBrowseShell.razor`, `MediaTile.razor` and `ListenPage.razor` are all on `AppMaterialIcon`; no inline `style="font-size"` exists in these folders.
+
+## Left unchanged: hero titles (D8 says the Hero job is the only place a size scales, but following it changes the rendered size)
+
+- Hero title clamps: `Details/DetailHeroContent.razor.css` lines 33, 234, 268, 305, 375, 380, 391, 402, 477, 491, 498, 524, 534, 540, 546, 561, 567, 723, 750, 759, 764, 798, 896, 906, 912, 958 (details hero and person hero titles, 34 to 144 px at 375 to 1920 px wide); `Cinematic/CinematicHeroCarousel.razor.css:104` (40, 58, 76 px) and `:340` (32 to 48 px); `Cinematic/CinematicHeroSurface.razor.css:283` and `:290` (42 to 58 px). Making `var(--tl-type-hero-size)` the upper bound would cap them at 32 px.
+- `Details/DetailHeroSkeleton.razor.css:159` (28 to 44 px; mirrors the hero title).
+
+## Left unchanged: unclear job or more than 4 px away (file:line, old size at 375/1280/1920 px, candidate jobs)
+
+- `Browse/AppTimelineResults.razor.css:80` year heading, 22/26/27 px: heading or page-title.
+- `Browse/MediaBrowseShell.razor.css:67` and `Browse/BrowseShellStyles.razor.css:70` browse page title, 25/31/32 px (600 weight): page-title (24, 28 on wide screens per D8) or hero.
+- `Browse/MediaBrowseShell.razor.css:420` result summary h2, 22/26/29 px: heading.
+- `Cinematic/CinematicHeroSurface.razor.css:248` details title bar title, 13 px bold: label or subheading.
+- `Cinematic/PhoneHeroCard.razor.css:162` phone Home hero title, 24 px: hero (32) would be +8.
+- `MediaTiles/RecentMediaFeed.razor.css:4`, `MediaTiles/MediaTileShelf.razor.css:31` shelf titles, 22/26/32 px: heading (20), 6 px smaller at 1280.
+- `MediaHub/MediaHubPage.razor.css:32` page title h1, 32/45/51 px: page-title or hero.
+- `Details/AudiobookTracksContent.razor.css:30` section h2, 23/26/32 px: heading.
+- `Details/SequencePlacementPanel.razor.css:41`, `:270` series title h2, 32 to 74 px; `:355` position number, 35 to 53 px: hero or glyph.
+- `Details/SequencePlacementPanel.razor.css:551` series picker value at 20 px: field text (14) is 6 px smaller, heading keeps the size.
+- `Details/DetailHeroContent.razor.css:278` (19/26/30 px, 600) and `:432` (17/23/25 px, 600) hero subtitle: heading or subheading.
+- `Pages/ProfilePickerPage.razor.css:2` page title, 27/42/42 px: page-title or hero.
+- `Pages/ForMe.razor.css:20` page title h1, 36/64/64 px: page-title or hero.
+
+## Choices worth a look
+
+- 14 px rules that were 600 or 700 weight moved to Control (500), and 13 px 600 rules to Label (500); a few 12 px 500 rules to Caption (400). About 40 rules lost 100 to 200 of weight this way.
+- Dropdown values, typed text and the Settings canvas fields use `--tl-field-text-size` (14 on tablet and desktop, 16 on phone) and keep their existing weight.
+- Side-menu rows in `MediaHub/MediaSectionShell.razor.css` stayed at their 14 px (Control) rather than Menu (16), and the flat tree label at 16 moved to Menu.
+- `Details/DetailPage.razor.css` section heading h2 (was 16) moved to Heading (20), exactly 4 px.
+- `Pages/Settings.razor.css` canvas base moved from 16 to Body (14).
+- `Pages/LibraryBrowsePage.razor.css` empty-state title (24/600) moved to Heading (20/600); `Pages/ForMe.razor.css` view heading h2 (24) moved to Heading (20).
+- Tile titles in `MediaTile.razor.css` (video collection, was 20) moved to Subheading (16).
+- `MediaBrowseShell.razor.css` tab weight now names `--tl-type-control-weight` (same 500).
+
+## Titles decided after the walk
+
+The "unclear" sizes above now name their job (D8); all are listed for the visual review because the size moves by more than 4 px on wide screens.
+
+- Page titles (browse page title, the media hub page title, For Me, Who's watching): Page title.
+- Shelf titles on Home and the shelf grids, Recently added, the timeline year heading, the browse result summary, the audiobook tracks heading and the hero subtitles on a details page: Heading.
+- The details title bar title: label.
+- The series picker value in the sequence panel: Heading size, 20 px, unchanged.
+- Left scaling with the screen, as D8 allows for a hero title only: the details and person hero titles, the Home hero titles (carousel, surface, phone card), the skeleton that mirrors them, and the series title and position number in the sequence panel, which sit in the details hero.
