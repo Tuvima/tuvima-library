@@ -246,7 +246,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
     private static bool IsShort(MediaEditorDetailsFieldPresentation field) =>
         !field.IsChips
-        && (field.InputKind?.ToLowerInvariant() is "choice" or "date" or "number" or "rating" || Baseline(field).Length <= 12);
+        && (field.InputKind?.ToLowerInvariant() is "choice" or "date" or "number" or "rating");
 
     // Fields are laid out two to a row, the way a two-column grid would place them; a wide field (title, description, chips) takes a row of its own.
     private static List<List<MediaEditorDetailsFieldPresentation>> InRows(IEnumerable<MediaEditorDetailsFieldPresentation> fields, bool honorWide)
