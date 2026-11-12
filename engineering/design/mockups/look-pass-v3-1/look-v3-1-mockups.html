@@ -1,0 +1,366 @@
+<title>Look v3.1 mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column of numbered screens; each screen is the real UI in the app's own dark look, with small numbered markers and the notes underneath. */
+:root{
+  color-scheme:dark;
+  --page:#101115; --nav:#14151A; --card:#1A1B21; --hover:#272830; --menu:#2F3039;
+  --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.18);
+  --text:#F2F2F5; --text2:#B4B6C2; --text3:#8A8D9B;
+  --purple:#8852FC; --purple-text:#A46FFF; --purple-soft:rgba(136,82,252,.16);
+  --red:#E5484D; --amber:#E0A23A; --note:#0C0D10;
+  --old-navy:#0B1220; --old-slate:rgba(148,163,184,.18); --old-violet:rgba(76,29,149,.35);
+  --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font:400 14px/1.5 var(--ui);padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1{font:700 24px/1.25 var(--ui);margin:0 0 6px;text-wrap:balance}
+h2{font:600 20px/1.3 var(--ui);margin:0 0 4px}
+.lede{color:var(--text2);max-width:68ch;margin:0}
+.sub{color:var(--text2);margin:0 0 14px;max-width:72ch}
+section{display:flex;flex-direction:column}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.stage{background:var(--note);border:1px solid var(--line);border-radius:12px;padding:20px;min-width:0;position:relative;overflow:hidden}
+.tag{font:600 12px/1 var(--ui);color:var(--text3);margin:0 0 14px}
+.tag.after{color:var(--purple-text)}
+.m{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--purple);color:#fff;font:600 11px/1 var(--ui);font-style:normal;flex:none;vertical-align:middle;margin:0 4px}
+ol.notes{margin:14px 0 0;padding-left:22px;color:var(--text2);max-width:80ch}
+ol.notes li{margin:3px 0}
+ol.notes b{color:var(--text);font-weight:600}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.s20{width:20px;height:20px}
+svg.i.s16{width:16px;height:16px}
+.scroll{overflow-x:auto}
+
+/* shared mock parts */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.label{font:500 13px/1.3 var(--ui);color:var(--text2)}
+.input,.select{height:44px;border:1px solid var(--line-strong);border-radius:8px;background:var(--card);color:var(--text);display:flex;align-items:center;padding:0 14px;gap:8px;min-width:0}
+.select span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{height:44px;padding:0 20px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--text);font:500 14px/1 var(--ui);display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:default}
+.btn.primary{background:var(--purple);border-color:var(--purple);color:#fff}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn.danger-out{border-color:var(--red);color:#FF8589}
+.btn:focus-visible{outline:2px solid var(--purple-text);outline-offset:2px}
+
+/* 1 type */
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form .full{grid-column:1/-1}
+.old .tabs-old{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.old .tabs-old b{font:500 20px/1 var(--ui);padding:12px 16px;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap}
+.old .tabs-old b.on{color:var(--text);border-color:var(--purple)}
+.old .input,.old .select{font-size:16px}
+.old .wtitle{font:600 24px/1.25 var(--ui);margin:0 0 12px}
+.new .wtitle{font:600 20px/1.3 var(--ui);margin:0 0 12px}
+.new .input,.new .select{font-size:14px}
+.tabs{display:flex;gap:28px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{display:inline-flex;align-items:center;gap:8px;height:48px;font:500 14px/1 var(--ui);color:var(--text3);border-bottom:3px solid transparent;white-space:nowrap;flex:none}
+.tab.on{color:var(--text);border-color:var(--purple)}
+.tab.on svg{color:var(--purple-text)}
+.tab.adv{margin-left:auto;color:var(--amber)}
+table.scale{width:100%;border-collapse:collapse;min-width:640px}
+table.scale th{font:600 12px/1.3 var(--ui);color:var(--text3);text-align:left;padding:8px 12px;border-bottom:1px solid var(--line)}
+table.scale td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle;color:var(--text2);font-size:13px}
+table.scale td:first-child{color:var(--text);white-space:nowrap}
+table.scale .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* 2 dropdown */
+.dd{position:relative;width:260px;max-width:100%}
+.list{margin-top:6px;background:var(--menu);border:1px solid var(--line-strong);border-radius:8px;padding:6px;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+.opt{min-height:44px;display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:6px;font-size:14px}
+.opt.sel{background:var(--purple-soft)}
+.opt .ck{margin-left:auto;color:var(--purple-text)}
+.old .list{width:190px}.old .opt{font-size:16px}
+.new .list{width:max-content;min-width:100%;max-width:min(480px,calc(100vw - 80px))}
+.new .opt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 3 dialog */
+.scrim{background:rgba(0,0,0,.45);border-radius:8px;padding:28px 12px;display:grid;place-items:center}
+.dlg{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.old .dlg .h{padding:16px 20px 12px;border-bottom:1px solid var(--line);font:600 20px/1.25 var(--ui)}
+.old .dlg .b{padding:12px 20px;font-size:16px}
+.old .dlg .f{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.new .dlg{padding:28px}
+.new .dlg .h{font:600 20px/1.3 var(--ui)}
+.new .dlg .b{margin-top:8px;color:var(--text2);font-size:14px}
+.new .dlg .f{margin-top:28px;display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+
+/* 4 tabs + phone */
+.phone{width:300px;max-width:100%;border:1px solid var(--line-strong);border-radius:24px;padding:14px 0 14px 14px;background:var(--page);position:relative}
+.phone .tabs{margin:0;gap:24px;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent)}
+.pagehead{font:700 24px/1.25 var(--ui);margin:0 0 4px}
+
+/* 5 menu */
+.menu{background:var(--menu);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.5);display:inline-block;max-width:100%}
+.mi{display:flex;align-items:center;font:500 16px/1.2 var(--ui);white-space:nowrap;border-radius:6px}
+.mi svg{color:var(--text2)}
+.mi.red,.mi.red svg{color:#FF8589}
+.old .menu{width:230px}.old .mi{height:44px;padding:0 12px;gap:10px;overflow:hidden}
+.old .mi span{overflow:hidden;text-overflow:ellipsis}
+.new .menu{padding:8px;min-width:240px}.new .mi{height:48px;padding:0 12px;gap:12px}
+.new .mi.hov{background:rgba(255,255,255,.06)}
+.sep{height:1px;background:var(--line);margin:8px 4px}
+
+/* 6 details window */
+.screen{aspect-ratio:16/9;max-width:100%;background:var(--page);border:1px solid var(--line-strong);border-radius:8px;position:relative;overflow:hidden}
+.screen .bar{height:7%;background:var(--nav);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:3%;padding:0 3%;font:600 clamp(8px,1.2vw,12px)/1 var(--ui);color:var(--text3)}
+.screen .bar b{color:var(--text)}
+.screen .tiles{display:grid;grid-template-columns:repeat(8,1fr);gap:1.4%;padding:2.5% 3%}
+.screen .tiles i{aspect-ratio:2/3;background:#3a3c48;border-radius:4px}
+.screen .dim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.screen .win{position:absolute;inset:7% 6%;background:linear-gradient(180deg,#23242c 0,var(--page) 55%);border:1px solid var(--line-strong);border-radius:clamp(6px,1.1vw,14px);box-shadow:0 20px 60px rgba(0,0,0,.6);padding:4% 4% 0;display:flex;flex-direction:column;gap:3%}
+.screen .win.full{inset:0;border-radius:0;border:0}
+.screen .win .t{font:700 clamp(12px,2.4vw,26px)/1.1 var(--ui)}
+.screen .win .meta{color:var(--text2);font-size:clamp(8px,1.1vw,12px)}
+.screen .win .play{align-self:flex-start;background:#fff;color:#111;border-radius:6px;font:600 clamp(8px,1.1vw,12px)/1 var(--ui);padding:1.4% 3%}
+.screen .x{position:absolute;top:3%;right:2.5%;width:clamp(16px,2.6vw,30px);aspect-ratio:1;border-radius:50%;background:rgba(0,0,0,.4);border:1px solid var(--line-strong);display:grid;place-items:center;color:var(--text)}
+.screen .x svg{width:55%;height:55%}
+.screen .mk{position:absolute}
+
+/* 7 collections */
+.coll{display:flex;flex-direction:column;gap:14px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--line-strong);font:500 13px/1 var(--ui);display:inline-flex;align-items:center;gap:6px;color:var(--text2)}
+.chip.on{background:var(--purple-soft);border-color:transparent;color:var(--purple-text)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.cc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.cc i{display:block;aspect-ratio:16/10;border-radius:6px;background:var(--hover)}
+.cc b{font:500 14px/1.3 var(--ui)}.cc small{color:var(--text3);font-size:12px}
+.old.collbox{background:var(--old-navy);border-color:var(--old-slate)}
+.old .cc{background:rgba(12,26,44,.54);border-color:var(--old-slate)}
+.old .cc i{background:var(--old-violet)}
+.old .chip{border-color:var(--old-slate)}
+.old .chip.on{background:var(--old-violet);color:#C4B5FD}
+.rule{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:8px;align-items:center}
+.rule .select{font-size:14px}
+@media (max-width:560px){.form{grid-template-columns:1fr}.rule{grid-template-columns:1fr 1fr}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.600-7 10-7 10z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.700 0l3-3a4 4 0 0 0-5.700-5.700l-1 1"/><path d="M14 10a4 4 0 0 0-5.700 0l-3 3a4 4 0 0 0 5.700 5.700l1-1"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></symbol>
+<symbol id="doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M10 12h6M10 16h6"/></symbol>
+<symbol id="img" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.600"/><path d="M4 18l5-5 4 4 3-3 4 4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.500-4.500"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="list" viewBox="0 0 24 24"><path d="M4 7h10M4 12h10M4 17h6"/><path d="M17 14v6M14 17h6"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.600 5.600l2.100 2.100M16.300 16.300l2.100 2.100M5.600 18.400l2.100-2.100M16.300 7.700l2.100-2.100"/></symbol>
+<symbol id="film" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4"/></symbol>
+<symbol id="note" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.500" cy="18" r="2.500"/><circle cx="16.500" cy="16" r="2.500"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+<header>
+  <h1>Look v3.1: shared controls and one type scale</h1>
+  <p class="lede">Each screen below is drawn as Library will show it. The purple numbers are markers only; what each one points at is explained under the screen. "Today" panels are drawn from the current code.</p>
+</header>
+
+<section>
+  <h2>1. Text sizes in a form</h2>
+  <p class="sub">The same editor form twice. Heights and spacing are identical; only the text sizes differ.</p>
+  <div class="pair">
+    <div class="stage old">
+      <p class="tag">Today</p>
+      <p class="wtitle">Dune <i class="m">1</i></p>
+      <div class="tabs-old scroll"><b class="on">Details</b><b>Artwork</b><b>Match <i class="m">2</i></b><b>History</b></div>
+      <div class="form">
+        <div class="field full"><span class="label">Title</span><div class="input">Dune <i class="m">3</i></div></div>
+        <div class="field"><span class="label">Author</span><div class="input">Frank Herbert</div></div>
+        <div class="field"><span class="label">Language</span><div class="select"><span>English</span><svg class="i"><use href="#chev"/></svg></div></div>
+        <div class="full" style="display:flex;justify-content:flex-end;gap:8px"><span class="btn">Discard</span><span class="btn primary">Save changes <i class="m">4</i></span></div>
+      </div>
+    </div>
+    <div class="stage new">
+      <p class="tag after">After</p>
+      <p class="wtitle">Dune <i class="m">1</i></p>
+      <div class="tabs"><span class="tab on"><svg class="i s20"><use href="#doc"/></svg>Details</span><span class="tab"><svg class="i s20"><use href="#img"/></svg>Artwork</span><span class="tab"><svg class="i s20"><use href="#search"/></svg>Match <i class="m">2</i></span><span class="tab"><svg class="i s20"><use href="#clock"/></svg>History</span></div>
+      <div class="form">
+        <div class="field full"><label class="label" for="t1">Title</label><div class="input" id="t1">Dune <i class="m">3</i></div></div>
+        <div class="field"><span class="label">Author</span><div class="input">Frank Herbert</div></div>
+        <div class="field"><span class="label">Language</span><div class="select"><span>English</span><svg class="i"><use href="#chev"/></svg></div></div>
+        <div class="full" style="display:flex;justify-content:flex-end;gap:8px"><span class="btn">Discard</span><span class="btn primary">Save changes <i class="m">4</i></span></div>
+      </div>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Window title.</b> Today the editor's title is 24 px while every other window is 20 px. After: 20 px everywhere.</li>
+    <li><b>Tab labels.</b> Today 20 px, larger than the headings below them. After: 14 px with an icon (see screen 4).</li>
+    <li><b>Text in fields and dropdowns.</b> Today 16 px. After: 14 px on tablet and desktop, the same as body text. On a phone it stays 16 px, because phones zoom the page when a smaller field is tapped.</li>
+    <li><b>Buttons.</b> Already 14 px; unchanged. Today they look small only because the fields beside them are larger.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>2. The type scale and the job of each size</h2>
+  <p class="sub">The seven sizes do not change. What is new is that each has named jobs, so a screen picks a job and never a number.</p>
+  <div class="stage scroll">
+    <table class="scale">
+      <thead><tr><th>Step</th><th>Size / weight</th><th>Looks like</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td>Hero</td><td class="num">32 / 700</td><td style="font:700 32px/1.1 var(--ui);color:var(--text)">Dune</td><td>The title in a details hero and the Home hero</td></tr>
+        <tr><td>Page title</td><td class="num">24 / 700</td><td style="font:700 24px/1.2 var(--ui);color:var(--text)">Libraries</td><td>The one title of a page (28 on wide screens)</td></tr>
+        <tr><td>Heading</td><td class="num">20 / 600</td><td style="font:600 20px/1.3 var(--ui);color:var(--text)">Discard changes?</td><td>Every window title; section and shelf headings</td></tr>
+        <tr><td>Subheading</td><td class="num">16 / 600</td><td style="font:600 16px/1.3 var(--ui);color:var(--text)">Search results</td><td>Group headings in Settings; card and panel headings</td></tr>
+        <tr><td>Menu</td><td class="num">16 / 500</td><td style="font:500 16px/1.3 var(--ui);color:var(--text)">Add to collection</td><td>Rows in pop-up menus and side menus</td></tr>
+        <tr><td>Control</td><td class="num">14 / 500</td><td style="font:500 14px/1.3 var(--ui);color:var(--text)">Save changes</td><td>Buttons, tab labels, dropdowns and their options, chips, a row's title</td></tr>
+        <tr><td>Body</td><td class="num">14 / 400</td><td style="font:400 14px/1.4 var(--ui);color:var(--text)">Your edits will be lost.</td><td>Descriptions, dialog messages, table cells, text typed into a field</td></tr>
+        <tr><td>Secondary</td><td class="num">13 / 400–500</td><td style="font:400 13px/1.4 var(--ui)">Frank Herbert · 1965</td><td>Field labels, helper and message lines, meta lines, counts, tooltips</td></tr>
+        <tr><td>Caption</td><td class="num">12 / 400–600</td><td style="font:400 12px/1.4 var(--ui)">EPUB · 2 h ago</td><td>Badges, pills, time stamps, table column headings</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>3. Dropdown lists (issue 900)</h2>
+  <div class="pair">
+    <div class="stage old">
+      <p class="tag">Today</p>
+      <div class="dd"><div class="select" style="font-size:16px"><span>Season 1</span><svg class="i"><use href="#chev"/></svg></div>
+        <div class="list"><div class="opt sel">Season 1</div><div class="opt">Season 2: The Long Night of the Machines <i class="m">1</i></div><div class="opt">Specials</div></div></div>
+    </div>
+    <div class="stage new">
+      <p class="tag after">After</p>
+      <div class="dd"><div class="select" style="font-size:14px"><span>Season 1</span><svg class="i"><use href="#chev"/></svg></div>
+        <div class="list"><div class="opt sel"><span>Season 1</span><svg class="i s20 ck"><use href="#check"/></svg> <i class="m">3</i></div><div class="opt"><span>Season 2: The Long Night of the Machines</span> <i class="m">2</i></div><div class="opt"><span>Specials</span></div></div></div>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Today.</b> The list is narrower than the dropdown, so a long option wraps onto two lines.</li>
+    <li><b>After.</b> The list is at least as wide as the dropdown and grows to fit its longest option (up to 480 px or the window edge). Each option stays on one line; one that still cannot fit is shortened and shows its full text when hovered.</li>
+    <li><b>Chosen option.</b> A check at the right and a soft purple wash. Options are 14 px, the same as the dropdown, so the value does not change size when chosen.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>4. Tab rows (issue 896, decided A)</h2>
+  <div class="stage new">
+    <p class="pagehead">Profile</p>
+    <div class="tabs" style="margin-top:8px">
+      <span class="tab on"><svg class="i s20"><use href="#grid"/></svg>Overview <i class="m">1</i></span>
+      <span class="tab"><svg class="i s20"><use href="#pulse"/></svg>Activity <i class="m">2</i></span>
+      <span class="tab"><svg class="i s20"><use href="#heart"/></svg>Taste</span>
+      <span class="tab"><svg class="i s20"><use href="#link"/></svg>Linked accounts</span>
+      <span class="tab"><svg class="i s20"><use href="#down"/></svg>Import</span>
+      <span class="tab adv"><svg class="i s20"><use href="#gear"/></svg>Advanced <i class="m">4</i></span>
+    </div>
+    <p class="tag" style="margin-top:8px">Phone</p>
+    <div class="phone">
+      <div class="tabs">
+        <span class="tab on"><svg class="i s20"><use href="#grid"/></svg>Overview</span>
+        <span class="tab"><svg class="i s20"><use href="#pulse"/></svg>Activity</span>
+        <span class="tab"><svg class="i s20"><use href="#heart"/></svg>Taste</span>
+        <span class="tab"><svg class="i s20"><use href="#link"/></svg>Linked accounts</span>
+      </div>
+      <i class="m" style="position:absolute;right:8px;top:4px">3</i>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Active tab.</b> Bright label, purple icon, a 3 px purple underline. One thin divider runs under the whole row.</li>
+    <li><b>Every tab.</b> A small outline icon, then the label; 48 px tall with 28 px between tabs. Used by Settings, profile, Libraries, Activity, the editor, the details page, the collection editor and Vault.</li>
+    <li><b>Phone.</b> The row scrolls sideways and fades at the cut edge, so it is clear there is more.</li>
+    <li><b>Advanced.</b> Stays amber and last, as today.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>5. Pop-up menus (issue 896, decided A)</h2>
+  <div class="pair">
+    <div class="stage old">
+      <p class="tag">Today</p>
+      <div class="menu"><div class="mi"><svg class="i"><use href="#pen"/></svg><span>Edit</span></div><div class="mi"><svg class="i"><use href="#plus"/></svg><span>Add to My List</span></div><div class="mi"><svg class="i"><use href="#list"/></svg><span>Add to collection or playlist</span> <i class="m">1</i></div><div class="mi"><svg class="i"><use href="#folder"/></svg><span>Show in folder</span></div><div class="mi red"><svg class="i"><use href="#trash"/></svg><span>Delete</span></div></div>
+    </div>
+    <div class="stage new">
+      <p class="tag after">After</p>
+      <div class="menu"><div class="mi"><svg class="i"><use href="#pen"/></svg><span>Edit</span></div><div class="mi hov"><svg class="i"><use href="#plus"/></svg><span>Add to My List</span> <i class="m">2</i></div><div class="mi"><svg class="i"><use href="#list"/></svg><span>Add to collection or playlist</span> <i class="m">3</i></div><div class="mi"><svg class="i"><use href="#folder"/></svg><span>Show in folder</span></div><div class="sep"></div><div class="mi red"><svg class="i"><use href="#trash"/></svg><span>Delete</span> <i class="m">4</i></div></div>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Today.</b> Rows are 44 px in a fixed-width box, so longer labels are cut.</li>
+    <li><b>Rows.</b> 48 px tall, icon then label, a neutral grey when hovered. Text stays 16 px.</li>
+    <li><b>Width.</b> At least 240 px, growing with the longest label up to 360 px.</li>
+    <li><b>Groups.</b> A thin line with space around it separates a destructive action from the rest.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>6. Dialogs (issue 901)</h2>
+  <div class="pair">
+    <div class="stage old">
+      <p class="tag">Today</p>
+      <div class="scrim"><div class="dlg"><div class="h">Discard changes? <i class="m">1</i></div><div class="b">Your edits to this item will be lost.</div><div class="f"><span class="btn danger-out">Discard changes</span><span class="btn primary">Keep editing</span></div></div></div>
+    </div>
+    <div class="stage new">
+      <p class="tag after">After</p>
+      <div class="scrim"><div class="dlg"><div class="h">Discard changes? <i class="m">2</i></div><div class="b">Your edits to this item will be lost.</div><div class="f"><span class="btn">Keep editing <i class="m">3</i></span><span class="btn danger">Discard changes <i class="m">4</i></span></div></div></div>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Today.</b> A line under the title and another above the buttons, tight padding, 16 px message text, a purple safe button and an outlined red one.</li>
+    <li><b>The box.</b> No lines inside. 28 px padding all round. Title, then the message 8 px under it in muted 14 px, then 28 px before the buttons.</li>
+    <li><b>Safe choice.</b> A neutral outlined button.</li>
+    <li><b>Destructive choice.</b> Solid red, last on the right, 12 px from its neighbour. A confirmation that destroys nothing has a purple button here instead. On a phone the same box is a bottom sheet with the buttons stacked full width.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>7. The details window (issue 875)</h2>
+  <div class="pair">
+    <div class="stage">
+      <p class="tag">Today, 1440 wide</p>
+      <div class="screen"><div class="bar"><b>Library</b><span>Watch</span><span>Listen</span><span>Read</span></div><div class="tiles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="win full"><div class="t">Arrival</div><div class="meta">2016 · 1 h 56 m · Science fiction</div><div class="play">▶ Play</div></div><span class="x"><svg class="i"><use href="#x"/></svg></span>
+        <i class="m mk" style="left:46%;top:60%">1</i></div>
+    </div>
+    <div class="stage">
+      <p class="tag after">After, 1440 wide</p>
+      <div class="screen"><div class="bar"><b>Library</b><span>Watch</span><span>Listen</span><span>Read</span></div><div class="tiles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="dim"></div>
+        <div class="win"><div class="t">Arrival</div><div class="meta">2016 · 1 h 56 m · Science fiction</div><div class="play">▶ Play</div><span class="x" style="top:4%;right:2.5%"><svg class="i"><use href="#x"/></svg></span></div>
+        <i class="m mk" style="left:1%;top:46%">2</i><i class="m mk" style="left:46%;top:60%">3</i></div>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Today.</b> The details fill the whole screen, so the page you came from is gone.</li>
+    <li><b>The page stays visible.</b> Dimmed, with at least 32 px showing on every side. Pressing it, Back, the close button or Esc returns to it.</li>
+    <li><b>The window.</b> 90 % of the screen's width and height, never wider than 1440 px, rounded corners. On a phone it is the bottom sheet, as today.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>8. Collections and the smart playlist editor (issue 903)</h2>
+  <div class="pair">
+    <div class="stage old collbox">
+      <p class="tag">Today (old navy and slate) <i class="m">1</i></p>
+      <div class="coll"><div class="chips"><span class="chip on">All</span><span class="chip">Series</span><span class="chip">Universes</span><span class="chip">Playlists</span></div>
+      <div class="cards"><div class="cc"><i></i><b>Dune Novels</b><small>Series · 6 books</small></div><div class="cc"><i></i><b>Road trip</b><small>Playlist · 42 songs</small></div><div class="cc"><i></i><b>The Expanse</b><small>Universe</small></div></div></div>
+    </div>
+    <div class="stage new">
+      <p class="tag after">After</p>
+      <div class="coll"><div class="chips"><span class="chip on">All <i class="m">2</i></span><span class="chip"><svg class="i s16"><use href="#book"/></svg>Series</span><span class="chip">Universes</span><span class="chip"><svg class="i s16"><use href="#note"/></svg>Playlists</span></div>
+      <div class="cards"><div class="cc"><i></i><b>Dune Novels</b><small>Series · 6 books</small></div><div class="cc"><i></i><b>Road trip</b><small>Playlist · 42 songs</small></div><div class="cc"><i></i><b>The Expanse</b><small>Universe</small></div></div>
+      <div class="rule"><div class="select"><span>Genre</span><svg class="i"><use href="#chev"/></svg></div><div class="select"><span>is</span><svg class="i"><use href="#chev"/></svg></div><div class="select"><span>Jazz</span><svg class="i"><use href="#chev"/></svg></div><span class="btn" style="padding:0 12px" aria-label="Remove rule"><svg class="i s20"><use href="#x"/></svg></span> </div>
+      <div><i class="m">3</i></div></div>
+    </div>
+  </div>
+  <ol class="notes">
+    <li><b>Today.</b> Collections, the collection editor and the playlist rules keep 68 hand-typed colors from the old palette.</li>
+    <li><b>After.</b> The same page grey, card grey, borders and purple as Settings and Home; purple only on what is selected.</li>
+    <li><b>Playlist rules.</b> The rule row uses the shared dropdowns and colors. Lining its controls up on one line is the shared form row from the Editor plan, not this one.</li>
+  </ol>
+</section>
+</div>
