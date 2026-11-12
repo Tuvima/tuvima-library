@@ -35,6 +35,7 @@ class Element {
         if (selector === '.tl-popover-open:not([hidden])') return all.filter(e => e.attributes.has('class-open') && !e.attributes.has('hidden'));
         if (selector === 'dialog[open]') return all.filter(e => e instanceof Dialog && e.open);
         if (selector === '[data-overlay-live="player-bar"]') return all.filter(e => e.attributes.get('data-overlay-live') === 'player-bar');
+        if (selector === '[data-overlay-live="search"]') return all.filter(e => e.attributes.get('data-overlay-live') === 'search');
         return [];
     }
     setAttribute(name, value) { this.attributes.set(name, value); }
@@ -183,6 +184,40 @@ test('Escape does not close the window while a menu, a player panel or another d
     confirm.open = false;
     document.emit('keydown', press(ui.inside)); assert.deepEqual(dotnet.calls, ['RequestCancel']);
     dialogs.detach('live-6');
+});
+
+test('with the search overlay open above the window Escape is search\'s, and search and the banners are not made inert', async () => {
+    const ui = layout(); const dotnet = owner();
+    dialogs.update(ui.overlay, dotnet, true, true, true, 'live-search', false, true);
+    const search = ui.body.append(new Element('DIV', { 'data-overlay-live': 'search' }));
+    const banner = ui.shell.append(new Element('DIV', { 'data-overlay-live': 'banner' }));
+    mutate();
+    assert.ok(!search.hasAttribute('inert')); assert.ok(!banner.hasAttribute('inert'));
+    document.emit('keydown', press(document.body)); assert.deepEqual(dotnet.calls, [], 'search owns the key');
+    document.emit('keydown', press(ui.inside)); assert.deepEqual(dotnet.calls, []);
+    ui.body.children.splice(ui.body.children.indexOf(search), 1);
+    document.emit('keydown', press(ui.inside)); assert.deepEqual(dotnet.calls, ['RequestCancel'], 'once search is closed the key is the window\'s again');
+    await settle();
+    dialogs.detach('live-search');
+});
+
+test('a window that fails while opening releases the inert marks as well as the scroll lock', () => {
+    const ui = layout(); ui.dock.getBoundingClientRect = () => { throw new Error('layout failed'); };
+    assert.throws(() => dialogs.update(ui.overlay, owner(), true, true, true, 'live-fail', false, true), /layout failed/);
+    for (const element of [ui.topNav, ui.underlay, ui.intentDock, ui.skip]) assert.ok(!element.hasAttribute('inert'), element.tagName);
+    assert.equal(document.documentElement.style.overflow, 'auto', 'the scroll lock is released');
+    dialogs.detach('live-fail');
+});
+
+test('a live window marks itself so a menu opened from the player bar treats a click into it as an outside click', () => {
+    const ui = layout();
+    dialogs.update(ui.overlay, owner(), true, true, true, 'live-mark', false, true);
+    assert.ok(ui.overlay.hasAttribute('data-overlay-window'));
+    dialogs.detach('live-mark');
+    const modal = layout();
+    dialogs.update(modal.overlay, owner(), true, true, true, 'modal-mark');
+    assert.ok(!modal.overlay.hasAttribute('data-overlay-window'));
+    dialogs.detach('modal-mark');
 });
 
 test('a click on the backdrop element asks to close; the window stops listening when it is detached', () => {

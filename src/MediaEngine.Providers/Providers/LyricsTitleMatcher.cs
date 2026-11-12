@@ -80,11 +80,21 @@ internal sealed class LyricsTitleMatcher
         return value.Trim();
     }
 
-    /// <summary>True when both texts reduce to the same non-empty plain form.</summary>
+    /// <summary>
+    /// True when both texts reduce to the same non-empty plain form. A title the rules reduce to nothing (such as "(Untitled)",
+    /// which is all brackets) is compared as it was written, ignoring capitals, so it can still match itself.
+    /// </summary>
     public bool Matches(string? found, string? wanted)
     {
         var left = Normalize(found);
-        return left.Length > 0 && string.Equals(left, Normalize(wanted), StringComparison.Ordinal);
+        var right = Normalize(wanted);
+        if (left.Length == 0 || right.Length == 0)
+        {
+            var plainFound = (found ?? string.Empty).Trim();
+            return plainFound.Length > 0 && string.Equals(plainFound, (wanted ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(left, right, StringComparison.Ordinal);
     }
 
     private static string FoldDiacritics(string value)
