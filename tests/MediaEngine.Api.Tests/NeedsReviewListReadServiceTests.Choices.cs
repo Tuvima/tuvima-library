@@ -276,6 +276,25 @@ public sealed partial class NeedsReviewListReadServiceTests
     }
 
     [Fact]
+    public async Task TwoChoicesPressedAtOnce_ApplyOnlyTheFirst_AndTheSecondIsToldTheItemIsNoLongerWaiting()
+    {
+        var (review, _, _) = SeedChoiceItem("Movies", ReviewTrigger.RetailMatchAmbiguous,
+            RetailJson(("Dune", "2021", "438631", 0.78), ("Dune", "1984-12-14", "841", 0.71)));
+        var (service, applier, _) = NewChooseService();
+        applier.Hold = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var choices = (await RowOfAsync(review)).Choices;
+
+        var first = service.ChooseAsync(review, choices[0].Id, "user");
+        var second = service.ChooseAsync(review, choices[1].Id, "user");
+        applier.Hold.SetResult();
+        var results = await Task.WhenAll(first, second);
+
+        Assert.Single(applier.Retail);
+        Assert.Single(results, result => result.Outcome == ReviewChooseOutcome.Chosen);
+        Assert.Single(results, result => result.Outcome == ReviewChooseOutcome.NotPending);
+    }
+
+    [Fact]
     public async Task PickingTheOneCandidateOfAReadyRow_AppliesItThroughTheSameAction()
     {
         var (review, _, _) = SeedChoiceItem("Movies", ReviewTrigger.RetailMatchAmbiguous, RetailJson(("Dune", "2021", "438631", 0.78)));
@@ -415,10 +434,18 @@ public sealed partial class NeedsReviewListReadServiceTests
         public List<(Guid EntityId, Guid CollectionId)> Series { get; } = [];
         public List<(Guid EntityId, MediaType Type)> Types { get; } = [];
 
-        public Task<ReviewChoiceApplyResult> ApplyRetailMatchAsync(Guid entityId, ReplaceRetailMatchRequestDto request, CancellationToken ct)
+        /// <summary>When set, a retail write waits for this before it answers, so a test can press twice at once.</summary>
+        public TaskCompletionSource? Hold { get; set; }
+
+        public async Task<ReviewChoiceApplyResult> ApplyRetailMatchAsync(Guid entityId, ReplaceRetailMatchRequestDto request, CancellationToken ct)
         {
             Retail.Add((entityId, request));
-            return Task.FromResult(Result);
+            if (Hold is { } hold)
+            {
+                await hold.Task.WaitAsync(ct);
+            }
+
+            return Result;
         }
 
         public Task<ReviewChoiceApplyResult> PlaceOnSeriesAsync(Guid entityId, Guid collectionId, CancellationToken ct)

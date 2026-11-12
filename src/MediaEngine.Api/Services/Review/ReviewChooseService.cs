@@ -22,7 +22,25 @@ public sealed class ReviewChooseService(
     IEventPublisher publisher,
     ILogger<ReviewChooseService> logger) : IReviewChooseService
 {
+    // One choice at a time per review item: a second press (a double tap, or a phone and a computer at once) waits, then finds the item no
+    // longer pending and is refused, so a choice is never applied twice. The Engine is one process, so a lock in memory is enough.
+    private static readonly SemaphoreSlim[] Gates = [.. Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1))];
+
     public async Task<ReviewChooseResult> ChooseAsync(Guid reviewItemId, string choiceId, string resolvedBy, CancellationToken ct = default)
+    {
+        var gate = Gates[(reviewItemId.GetHashCode() & int.MaxValue) % Gates.Length];
+        await gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await ChooseLockedAsync(reviewItemId, choiceId, resolvedBy, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<ReviewChooseResult> ChooseLockedAsync(Guid reviewItemId, string choiceId, string resolvedBy, CancellationToken ct)
     {
         // Read the way the Needs Review list reads, so the choices offered here are exactly the ones the list showed.
         var item = await reviewReads.GetByIdAsync(reviewItemId, ct).ConfigureAwait(false);

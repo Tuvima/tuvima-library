@@ -18,7 +18,8 @@ public sealed class ReviewChoiceApplier(
 {
     public async Task<ReviewChoiceApplyResult> ApplyRetailMatchAsync(Guid entityId, ReplaceRetailMatchRequestDto request, CancellationToken ct)
     {
-        var result = await retailMatch.ReplaceAsync(entityId, request, ct).ConfigureAwait(false);
+        // The same write as saving a match in the editor: the match is replaced, and nothing is moved to another parent by one click.
+        var result = await retailMatch.ReplaceWithoutMovingAsync(entityId, request, ct).ConfigureAwait(false);
         var status = (result as IStatusCodeHttpResult)?.StatusCode ?? StatusCodes.Status200OK;
         if (status is >= 200 and < 300)
         {
