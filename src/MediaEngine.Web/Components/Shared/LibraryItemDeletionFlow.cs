@@ -22,6 +22,9 @@ public enum LibraryItemDeletionFlowOutcome
 /// <summary>How a run ended, and the line the caller shows in place (an alert) when there is one: files left on disk, or titles already gone.</summary>
 public readonly record struct LibraryItemDeletionFlowResult(LibraryItemDeletionFlowOutcome Outcome, string? Notice = null);
 
+/// <summary>The answer of <see cref="LibraryItemDeletionFlow.EnsureMayDeleteAsync"/>: whether Delete may go on to its question, and the line to show when it may not (null when the PIN prompt was simply closed).</summary>
+public readonly record struct LibraryDeleteGate(bool Allowed, string? Message);
+
 /// <summary>
 /// The caller's side of Delete from library, shared by the detail page and the Listen song table: who may start it, opening the
 /// confirmation dialog, and the notice afterwards (handed back to the caller to show in place; nothing is drawn over the page). The Engine still decides on every call; this only keeps the button honest.
@@ -53,6 +56,42 @@ public static class LibraryItemDeletionFlow
 
         return session?.Authority?.EffectiveAdministrator == true ? null : LibraryItemDeletionText.Forbidden;
     }
+
+    /// <summary>
+    /// The check every Delete handler runs before it asks "are you sure". The device and the person must be allowed
+    /// (<see cref="Refusal"/>), and the administrator settings must be unlocked, because the Engine deletes only for an administrator
+    /// whose PIN (where one is set) has been entered. A locked administrator is asked for the PIN first, with the same prompt as Edit;
+    /// closing it stops quietly (<see cref="LibraryDeleteGate.Message"/> is null). Nothing here allows a delete: the Engine decides again.
+    /// </summary>
+    public static async Task<LibraryDeleteGate> EnsureMayDeleteAsync(
+        DeviceContextService? device,
+        DashboardSessionAccessor? session,
+        IAdministratorSurfaceAccessService? administratorAccess,
+        CancellationToken ct = default)
+    {
+        if (Refusal(device, session) is { } refusal)
+        {
+            return new(false, refusal);
+        }
+
+        if (IsUnlocked(session))
+        {
+            return new(true, null);
+        }
+
+        if (administratorAccess is null)
+        {
+            return new(false, LibraryItemDeletionText.Forbidden);
+        }
+
+        return await administratorAccess.EnsureUnlockedAsync(ct) && IsUnlocked(session)
+            ? new(true, null)
+            : new(false, null);
+    }
+
+    private static bool IsUnlocked(DashboardSessionAccessor? session) =>
+        session?.Authority is { EffectiveAdministrator: true, AdministratorSurfaceUnlocked: true } authority
+        && (authority.AdministratorUnlockExpiresAt is null || authority.AdministratorUnlockExpiresAt > DateTimeOffset.UtcNow);
 
     /// <summary>
     /// The line to show in place after a delete, or null when there is nothing to add: the titles already being gone, or files that

@@ -435,9 +435,15 @@
             return;
         }
 
-        if (LibraryItemDeletionFlow.Refusal(Device, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        var deleteGate = await LibraryItemDeletionFlow.EnsureMayDeleteAsync(Device, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>());
+        if (!deleteGate.Allowed)
         {
-            Warn(refusal);
+            if (deleteGate.Message is { } refusal)
+            {
+                Warn(refusal);
+            }
+
             return;
         }
 

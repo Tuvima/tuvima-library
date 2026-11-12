@@ -713,7 +713,18 @@
     private async Task DeleteAsync(NeedsReviewRowDto row)
     {
         if (row.Unmatched is not { WorkId: { } workId } file || !CanAct(row)) return;
-        if (LibraryItemDeletionFlow.Refusal(Device, Session) is { } refusal) { _model.Fail(row, refusal); return; }
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        var deleteGate = await LibraryItemDeletionFlow.EnsureMayDeleteAsync(Device, Session, Services.GetService<IAdministratorSurfaceAccessService>());
+        if (!deleteGate.Allowed)
+        {
+            if (deleteGate.Message is { } refusal)
+            {
+                _model.Fail(row, refusal);
+            }
+
+            return;
+        }
+
         _model.SetBusy(row, true);
         try
         {
@@ -1044,9 +1055,15 @@
             return;
         }
 
-        if (LibraryItemDeletionFlow.Refusal(Device, Session) is { } refusal)
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        var deleteGate = await LibraryItemDeletionFlow.EnsureMayDeleteAsync(Device, Session, Services.GetService<IAdministratorSurfaceAccessService>());
+        if (!deleteGate.Allowed)
         {
-            _actionError = refusal;
+            if (deleteGate.Message is { } refusal)
+            {
+                _actionError = refusal;
+            }
+
             return;
         }
 

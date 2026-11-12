@@ -52,7 +52,8 @@ public static class EditorDeleteFlow
         EditorHost editor,
         IAppDialogService dialogs,
         DeviceContextService? device,
-        DashboardSessionAccessor? session)
+        DashboardSessionAccessor? session,
+        IAdministratorSurfaceAccessService? administratorAccess = null)
     {
         ArgumentNullException.ThrowIfNull(editor);
         ArgumentNullException.ThrowIfNull(dialogs);
@@ -61,9 +62,11 @@ public static class EditorDeleteFlow
             return EditorDeleteResult.Nothing;
         }
 
-        if (LibraryItemDeletionFlow.Refusal(device, session) is { } refusal)
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        var deleteGate = await LibraryItemDeletionFlow.EnsureMayDeleteAsync(device, session, administratorAccess);
+        if (!deleteGate.Allowed)
         {
-            return EditorDeleteResult.Failed(refusal);
+            return deleteGate.Message is { } refusal ? EditorDeleteResult.Failed(refusal) : EditorDeleteResult.Nothing;
         }
 
         var answer = await AppConfirmDialog.ShowAsync(
@@ -105,7 +108,8 @@ public static class EditorDeleteFlow
         EditorHost editor,
         IAppDialogService dialogs,
         DeviceContextService? device,
-        DashboardSessionAccessor? session)
+        DashboardSessionAccessor? session,
+        IAdministratorSurfaceAccessService? administratorAccess = null)
     {
         ArgumentNullException.ThrowIfNull(editor);
         ArgumentNullException.ThrowIfNull(dialogs);
@@ -114,9 +118,11 @@ public static class EditorDeleteFlow
             return EditorDeleteResult.Nothing;
         }
 
-        if (LibraryItemDeletionFlow.Refusal(device, session) is { } refusal)
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        var deleteGate = await LibraryItemDeletionFlow.EnsureMayDeleteAsync(device, session, administratorAccess);
+        if (!deleteGate.Allowed)
         {
-            return EditorDeleteResult.Failed(refusal);
+            return deleteGate.Message is { } refusal ? EditorDeleteResult.Failed(refusal) : EditorDeleteResult.Nothing;
         }
 
         using var deleting = editor.MarkDeleting();

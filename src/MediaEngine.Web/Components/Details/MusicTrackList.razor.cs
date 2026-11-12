@@ -441,9 +441,15 @@ public partial class MusicTrackList
         }
 
         // The menu item only shows to an administrator on a device that may edit items; a handler never trusts that.
-        if (LibraryItemDeletionFlow.Refusal(DeviceContext, Services.GetService<DashboardSessionAccessor>()) is { } refusal)
+        // A locked administrator is asked for the PIN before the question; closing the prompt stops quietly.
+        var deleteGate = await LibraryItemDeletionFlow.EnsureMayDeleteAsync(DeviceContext, Services.GetService<DashboardSessionAccessor>(), Services.GetService<IAdministratorSurfaceAccessService>());
+        if (!deleteGate.Allowed)
         {
-            _notice = refusal;
+            if (deleteGate.Message is { } refusal)
+            {
+                _notice = refusal;
+            }
+
             return;
         }
 
