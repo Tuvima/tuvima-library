@@ -311,10 +311,14 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
 
         Assert.Equal("Folders", Text(cut.Find(".app-overflow-menu__trigger")));
         cut.Find(".app-overflow-menu__trigger").Click();
+        // The menu opens and closes on a later render, so wait for its rows before picking one.
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[role='menuitemcheckbox']").Count));
         cut.FindAll("[role='menuitemcheckbox']")[2].Click();
         cut.WaitForAssertion(() => Assert.Equal([camera.Id], picked.ToArray()));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[role='menuitemcheckbox']")));
 
         cut.Find(".app-overflow-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[role='menuitemcheckbox']").Count));
         cut.FindAll("[role='menuitemcheckbox']")[0].Click();
         cut.WaitForAssertion(() => Assert.Equal([camera.Id, null], picked.ToArray()));
         cut.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations.ToArray(), call => call.Identifier == "localStorage.setItem"));

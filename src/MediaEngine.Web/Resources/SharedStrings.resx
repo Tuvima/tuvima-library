@@ -13778,6 +13778,15 @@
   <data name="PlaylistMembership_ChooseExisting" xml:space="preserve">
     <value>Choose an existing playlist</value>
   </data>
+  <data name="PlaylistMembership_TooManyAlbums" xml:space="preserve">
+    <value>Pick up to {0} albums at a time</value>
+  </data>
+  <data name="PlaylistMembership_OneAlbumUnreadable" xml:space="preserve">
+    <value>1 album could not be read.</value>
+  </data>
+  <data name="PlaylistMembership_ManyAlbumsUnreadable" xml:space="preserve">
+    <value>{0} albums could not be read.</value>
+  </data>
   <data name="PlaylistMembership_NoSongs" xml:space="preserve">
     <value>There are no songs to add.</value>
   </data>
@@ -13810,6 +13819,9 @@
   </data>
   <data name="SongSelectionBar_Count" xml:space="preserve">
     <value>{0} selected</value>
+  </data>
+  <data name="SongSelectionBar_AlbumsLabel" xml:space="preserve">
+    <value>Selected albums</value>
   </data>
   <data name="ListenPage_RemoveFromFavorites" xml:space="preserve">
     <value>Remove from Favorites</value>

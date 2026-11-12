@@ -189,6 +189,7 @@ public partial class MediaBrowseShell
         _selectedThemes.UnionWith(state.Themes ?? []);
         var query = System.Web.HttpUtility.ParseQueryString(new Uri(address).Query);
         _requestedTrackId = Guid.TryParse(query["track"], out var trackId) ? trackId : null;
+        DropAlbumSelectionWhenLeft();
         ClearActiveGroupState();
     }
 

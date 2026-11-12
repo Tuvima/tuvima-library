@@ -26,8 +26,28 @@ public static class PlaylistMembershipFlow
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(rows);
-        var songIds = await PlaylistMembership.ResolveSongIdsAsync(services.GetRequiredService<IEngineApiClient>(), rows);
-        return await RunForSongsAsync(services, songIds, label);
+        var strings = services.GetRequiredService<IStringLocalizer<SharedStrings>>();
+        if (BulkEditRules.TooManyAlbums(rows))
+        {
+            return new PlaylistFlowNotice(strings["PlaylistMembership_TooManyAlbums", BulkEditRules.MaxAlbumsPerAdd].Value, AppSeverity.Warning);
+        }
+
+        var resolved = await PlaylistMembership.ResolveAsync(services.GetRequiredService<IEngineApiClient>(), rows);
+        var notice = await RunForSongsAsync(services, resolved.SongIds, label);
+
+        // An album the Engine could not read is told, never dropped silently: the sentence says what went in, then what did not.
+        if (notice is null || resolved.UnreadableAlbums == 0)
+        {
+            return notice;
+        }
+
+        var unreadable = resolved.UnreadableAlbums == 1
+            ? strings["PlaylistMembership_OneAlbumUnreadable"].Value
+            : strings["PlaylistMembership_ManyAlbumsUnreadable", resolved.UnreadableAlbums].Value;
+        var told = notice.Message.EndsWith('.') ? notice.Message : notice.Message + ".";
+        return new PlaylistFlowNotice(
+            $"{told} {unreadable}",
+            notice.Severity == AppSeverity.Error ? AppSeverity.Error : AppSeverity.Warning);
     }
 
     /// <summary>The same flow for songs already known by their ids (the phone's bottom bar). On a phone the list is a bottom sheet.</summary>

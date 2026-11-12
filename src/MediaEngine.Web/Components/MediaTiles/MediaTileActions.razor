@@ -54,9 +54,13 @@
     /// <summary>Raised when "Remove from Continue" is chosen; the tile hides itself and tells the Engine.</summary>
     [Parameter] public EventCallback OnRemoveFromContinue { get; set; }
 
+    /// <summary>Set by a list that lets its covers be ticked (the Listen Albums list): on a phone the menu then holds "Select".</summary>
+    [CascadingParameter] public MediaTileSelectionOffer? SelectionOffer { get; set; }
+
     private const string OpenUniverseKey = "open-universe";
     private const string GoToKey = "go-to";
     private const string RemoveFromContinueKey = "remove-from-continue";
+    private const string SelectKey = "select";
 
     private string ListLabel => _isSaved ? L["MediaTile_RemoveFromMyList"].Value : L["MediaTile_AddToMyList"].Value;
 
@@ -79,6 +83,12 @@
                     Label = ListLabel,
                     Icon = _isSaved ? "playlist_add_check" : "playlist_add",
                 });
+            }
+
+            // Several covers at once on a phone: this cover is ticked and the list goes into select mode (a desktop or tablet has the list's Select button).
+            if (DeviceContext.IsPhone && SelectionOffer?.Applies(Item) == true)
+            {
+                actions.Add(new DetailAction { Key = SelectKey, Label = L["Common_Select"].Value, Icon = "check_circle" });
             }
 
             // A Series, collection, Universe or playlist is not started or restarted as a whole (the same targets cannot be deleted from the cover).
@@ -212,6 +222,16 @@
         if (action.Key == RemoveFromContinueKey)
         {
             await OnRemoveFromContinue.InvokeAsync();
+            return;
+        }
+
+        if (action.Key == SelectKey)
+        {
+            if (SelectionOffer is { } offer)
+            {
+                await offer.BeginAsync(Item);
+            }
+
             return;
         }
 

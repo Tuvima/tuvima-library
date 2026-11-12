@@ -23,6 +23,12 @@ public static class BulkEditRules
     public static bool IsSelectableKind(DetailEntityType kind) => LibraryItemDeletionFlow.IsSingleTitle(kind);
 
     /// <summary>
+    /// The one place an album can be ticked: the Listen Albums list, so a whole album can go into a playlist (Listen music spec D15). Every
+    /// other list, and every action that edits, moves, matches or deletes, still uses <see cref="IsSelectableKind"/>, which refuses albums.
+    /// </summary>
+    public static bool IsPlaylistSelectableKind(DetailEntityType kind) => kind == DetailEntityType.MusicAlbum;
+
+    /// <summary>
     /// Move is offered when every ticked row is the same kind of single title: the destination picker only offers places that accept
     /// that kind (D15), so a mixed selection has no one right answer.
     /// </summary>
@@ -70,7 +76,25 @@ public static class BulkEditRules
     /// album (Listen music spec D15). Songs go into playlists instead and are never offered it (spec D9), whatever else is ticked with them.
     /// </summary>
     public static bool CanAddToCollection(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) =>
-        !rows.Any(row => IsSong(row, pageMediaType)) && (IsAlbumSelection(rows) || AreDeletable(rows));
+        !rows.Any(row => IsSong(row, pageMediaType)) && ((IsAlbumSelection(rows) && rows.All(HasCollectionWork)) || AreDeletable(rows));
+
+    /// <summary>
+    /// An album from the Listen Albums list stands in a collection by its root work; one that has none is only a group of songs, so Add to
+    /// collection is not offered for a selection that holds it. An album row from anywhere else already carries the id a collection takes.
+    /// </summary>
+    public static bool HasCollectionWork(BulkEditRow row) =>
+        !row.FromAlbumsList || row.RootWorkId is { } work && work != Guid.Empty;
+
+    /// <summary>The id a collection stores for this ticked row.</summary>
+    public static Guid CollectionWorkId(BulkEditRow row) =>
+        row.FromAlbumsList && row.RootWorkId is { } work && work != Guid.Empty ? work : row.Id;
+
+    /// <summary>The most albums one Add to playlist takes: each is read from the Engine, which can fetch a track list from a provider.</summary>
+    public const int MaxAlbumsPerAdd = 20;
+
+    /// <summary>True when more albums are ticked than one Add to playlist takes; the bar then says so and turns the button off.</summary>
+    public static bool TooManyAlbums(IReadOnlyList<BulkEditRow> rows) =>
+        IsAlbumSelection(rows) && rows.Count > MaxAlbumsPerAdd;
 
     /// <summary>
     /// "Add to playlist" is the Listen kind rule (spec D9, D15), decided here and nowhere else: ticked songs and ticked albums are offered it

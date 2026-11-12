@@ -6,14 +6,15 @@
 @* The phone's bar for ticked songs (Listen music spec D12). A phone ticks songs after Select in a song's "..." sheet; this bar then sits at
    the bottom of the screen above the player bar and the bottom navigation, with the count and Done on top and Play, Add to queue and Add
    to playlist in one row of 44 px buttons. Add to playlist opens the same playlist list as the desktop bar, as a bottom sheet, and says how
-   many songs went in on a line of this bar (no toast). There is no Edit here and no dragging on a phone. *@
-<section class="song-selection-bar" role="toolbar" aria-label="@L["SongSelectionBar_Label"].Value" data-song-selection-bar="true">
+   many songs went in on a line of this bar (no toast). There is no Edit here and no dragging on a phone. The Listen Albums list uses the same
+   bar for ticked albums (spec D15): it is given the album rows instead of song ids, shows only Add to playlist, and adds every song on them. *@
+<section class="song-selection-bar" role="toolbar" aria-label="@L[AlbumRows is null ? "SongSelectionBar_Label" : "SongSelectionBar_AlbumsLabel"].Value" data-song-selection-bar="true">
     <div class="song-selection-bar__head">
         <strong class="song-selection-bar__count" role="status" aria-live="polite">@L["SongSelectionBar_Count", Count].Value</strong>
         <AppNativeButton Type="button" Class="song-selection-bar__done" OnClick="@(_ => OnDone.InvokeAsync())">@L["Common_Done"].Value</AppNativeButton>
     </div>
     @* Always in the page, empty until there is something to say, so a screen reader that is already watching it announces the text when it appears. *@
-    <p class="@NoticeClass" role="status" data-song-selection-notice="true">@_notice</p>
+    <p class="@NoticeClass" role="status" data-song-selection-notice="true">@(_notice ?? TooManyAlbumsNotice)</p>
     <div class="song-selection-bar__actions">
         @if (CanPlay)
         {
@@ -29,7 +30,7 @@
                 <span>@L["Common_AddToQueue"].Value</span>
             </AppNativeButton>
         }
-        <AppNativeButton Type="button" Class="song-selection-bar__action" Disabled="@(Count == 0 || _busy)" OnClick="@(_ => AddToPlaylistAsync())">
+        <AppNativeButton Type="button" Class="song-selection-bar__action" Disabled="@(Count == 0 || _busy || TooManyAlbums)" OnClick="@(_ => AddToPlaylistAsync())">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" />
             <span>@L["Common_AddToPlaylist"].Value</span>
         </AppNativeButton>
@@ -43,6 +44,9 @@
 
     /// <summary>The ticked songs' work ids, in the order the list shows them.</summary>
     [Parameter, EditorRequired] public IReadOnlyList<Guid> WorkIds { get; set; } = [];
+
+    /// <summary>The ticked albums of the Listen Albums list, when this bar is for albums: Add to playlist adds every song on them (spec D15).</summary>
+    [Parameter] public IReadOnlyList<BulkEditRow>? AlbumRows { get; set; }
 
     /// <summary>How many songs are ticked (the same as <see cref="WorkIds"/> unless a ticked row has no work yet).</summary>
     [Parameter] public int Count { get; set; }
@@ -60,6 +64,11 @@
     /// <summary>Leave select mode: the ticks are dropped and the bar goes away.</summary>
     [Parameter] public EventCallback OnDone { get; set; }
 
+    // More albums than one Add to playlist takes: the bar says so in its own line and the button is off.
+    private bool TooManyAlbums => AlbumRows is not null && BulkEditRules.TooManyAlbums(AlbumRows);
+
+    private string? TooManyAlbumsNotice => TooManyAlbums ? L["PlaylistMembership_TooManyAlbums", BulkEditRules.MaxAlbumsPerAdd].Value : null;
+
     private string NoticeClass => _noticeSeverity switch
     {
         AppSeverity.Error => "song-selection-bar__notice song-selection-bar__notice--error",
@@ -71,7 +80,7 @@
     // second list or add the songs twice.
     private async Task PlayAsync()
     {
-        if (_busy || WorkIds.Count == 0)
+        if (_busy || Count == 0)
         {
             return;
         }
@@ -90,7 +99,7 @@
 
     private async Task QueueAsync()
     {
-        if (_busy || WorkIds.Count == 0)
+        if (_busy || Count == 0)
         {
             return;
         }
@@ -109,7 +118,7 @@
 
     private async Task AddToPlaylistAsync()
     {
-        if (_busy || WorkIds.Count == 0)
+        if (_busy || Count == 0 || TooManyAlbums)
         {
             return;
         }
@@ -118,7 +127,9 @@
         _notice = null;
         try
         {
-            var notice = await PlaylistMembershipFlow.RunForSongsAsync(Services, WorkIds, L["Common_AddToPlaylist"].Value);
+            var notice = AlbumRows is null
+                ? await PlaylistMembershipFlow.RunForSongsAsync(Services, WorkIds, L["Common_AddToPlaylist"].Value)
+                : await PlaylistMembershipFlow.RunAsync(Services, AlbumRows, L["Common_AddToPlaylist"].Value);
             if (notice is not null)
             {
                 _notice = notice.Message;

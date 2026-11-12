@@ -97,6 +97,7 @@ public partial class MediaBrowseShell
         _selectedYears.Clear();
         _selectedVibes.Clear();
         _selectedThemes.Clear();
+        DropAlbumSelectionWhenLeft();
         ClearActiveGroupState();
         await NavigateAndReloadAsync();
     }
@@ -110,6 +111,7 @@ public partial class MediaBrowseShell
 
         _grouping = grouping;
         _layout = ResolveLayout(null, CurrentTab, _grouping);
+        DropAlbumSelectionWhenLeft();
         _sortBy = ResolveSort(null);
         ClearActiveGroupState();
         await NavigateAndReloadAsync();
@@ -124,6 +126,8 @@ public partial class MediaBrowseShell
 
         _layout = layout;
         _selectedItems.Clear();
+        _albumTicksHeld = false;
+        DropAlbumSelectionWhenLeft();
         await NavigateAndReloadAsync(reloadData: true);
     }
 
