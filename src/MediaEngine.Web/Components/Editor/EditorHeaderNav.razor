@@ -20,6 +20,12 @@
 {
     var pending = PendingByItem();
     var busy = Flow?.Switching == true;
+    @if (Phone)
+    {
+        @RenderPhone(header, pending, busy)
+    }
+    else
+    {
     <div class="@(Compact ? "tl-hnav tl-hnav--compact" : "tl-hnav")" role="group" aria-label="@L["EditorNav_Label"].Value" aria-busy="@(busy ? "true" : null)">
         @if (header.ShowHome && header.HomeId is { } homeId)
         {
@@ -66,78 +72,7 @@
                 @if (_open == Open.Second)
                 {
                     <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Second))" Class="@SurfaceClass("tl-hnav__surface tl-hnav__surface--second", _reorderingSections)">
-                        <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
-                            @if (_reorderingSections && EditorNavText.CanReorder(header))
-                            {
-                                <div class="tl-hnav__heading">@L["EditorReorder_SectionsHeading"]</div>
-                                <div class="tl-hnav__scroll tl-hnav__reorder" data-testid="reorder-sections">
-                                    <EditorVideoOrderList @ref="_orderList"
-                                                          EntityId="header.Root.Id"
-                                                          SeriesTitle="@header.Root.Title"
-                                                          Session="Flow?.Session"
-                                                          CanEdit="@(Flow?.Session.IsActive == true)"
-                                                          SectionsMode="true"
-                                                          Compact="true"
-                                                          ShowSort="false"
-                                                          HoldChanges="true"
-                                                          OnDirtyChanged="OrderDirtyChanged"
-                                                          OnOrderChanged="FollowSectionOrder" />
-                                </div>
-                                @if (_saveFailed)
-                                {
-                                    <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorReorder_SaveFailed"]</AppAlert>
-                                }
-                                <AppReorderBar Active="true" Dirty="@_orderDirty" GuardLeaving="false" OnSave="SaveOrderAsync" OnCancel="CancelReordering" />
-                            }
-                            else
-                            {
-                            <ul class="tl-hnav__options" role="listbox" aria-label="@second.Label">
-                                @foreach (var entry in OrderedSections(second))
-                                {
-                                    var selected = entry.Id == second.CurrentId;
-                                    var waiting = pending.GetValueOrDefault(entry.Id);
-                                    <li @key="@($"entry{entry.Id:N}")" role="none">
-                                        <AppRowButton
-                                                   id="@OptionId(entry.Id)"
-                                                   role="option"
-                                                   @onfocusin="@(() => _cursor = OptionId(entry.Id))"
-                                                   Class="@(selected ? "tl-hnav__option is-selected" : "tl-hnav__option")"
-                                                   aria-selected="@(selected ? "true" : "false")"
-                                                   OnClick="() => GoAsync(entry.Id, entry.Title, matched: true)">
-                                            <span class="tl-hnav__text">
-                                                <b>@entry.Title</b>
-                                                @if (EditorNavText.EntryLine(entry, EditorNavText.ChooseWord(header)) is { Length: > 0 } line)
-                                                {
-                                                    <small>@line</small>
-                                                }
-                                            </span>
-                                            @if (waiting > 0)
-                                            {
-                                                <span class="tl-hnav__waiting">@Waiting(waiting)</span>
-                                            }
-                                        </AppRowButton>
-                                    </li>
-                                }
-                            </ul>
-                            @if (EditorNavText.CanReorder(header) && second.Entries.Count >= 2)
-                            {
-                                <ul class="tl-hnav__options tl-hnav__options--tail">
-                                    <li>
-                                        <AppRowButton id="tl-hnav-reorder-sections"
-                                                      @onfocusin="@(() => _cursor = "tl-hnav-reorder-sections")"
-                                                      Class="tl-hnav__option tl-hnav__option--plain"
-                                                      OnClick="StartReorderingSections">
-                                            <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" Size="AppIconSize.Control20" /></span>
-                                            <span class="tl-hnav__text">
-                                                <b>@L["EditorReorder_SectionsRow"]</b>
-                                            </span>
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
-                                        </AppRowButton>
-                                    </li>
-                                </ul>
-                            }
-                            }
-                        </div>
+                        @SecondPanel(header, second, pending)
                     </AppPopover>
                 }
             </div>
@@ -192,6 +127,7 @@
             </div>
         }
     </div>
+    }
 }
 
 @code {
@@ -200,6 +136,7 @@
         None,
         Second,
         Item,
+        Phone,
     }
 
     private const string ObserverModule = "./js/load-more-observer.js";
@@ -209,6 +146,8 @@
     private EditorHeaderDto? _shown;
     private EditSessionFlow? _flow;
     private Open _open = Open.None;
+    // On a phone the Season or Section choice opens inside the sheet, under its row, instead of in a popover of its own.
+    private bool _phoneSecondOpen;
     private string? _query;
     private int _total;
     private bool _hasMore;
@@ -241,6 +180,12 @@
 
     /// <summary>The Match tab's one-line header: the same controls on one line with smaller dropdowns.</summary>
     [Parameter] public bool Compact { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a): no row of controls; one button that covers the header's line and opens everything as a bottom sheet.</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    /// <summary>The name of the line the phone button covers (the item's title), for its accessible name.</summary>
+    [Parameter] public string? PhoneLabel { get; set; }
 
     private static string OptionId(Guid id) => $"tl-hnav-option-{id:N}";
 
@@ -299,12 +244,151 @@
         </span>
     };
 
+    // The phone arrangement (v6 section 4a, D20): the whole header line is one button. It opens a bottom sheet (the app's phone sheet, the dialog
+    // frame in sheet mode) holding Home, the Season or Section choice, the item list with its pictures, the supporting files and the folder button:
+    // the same rows and handlers as the dropdowns, so a choice made here is made exactly as it is on a computer.
+    private RenderFragment RenderPhone(EditorHeaderDto header, Dictionary<Guid, int> pending, bool busy) => __builder =>
+    {
+        <AppRowButton id="tl-hnav-phone"
+                      Class="@(_open == Open.Phone ? "tl-hnav__phonetap is-open" : "tl-hnav__phonetap")"
+                      aria-haspopup="dialog"
+                      aria-expanded="@(_open == Open.Phone ? "true" : "false")"
+                      aria-label="@string.Format(L["EditorPhone_OpenNavigation"].Value, PhoneLabel)"
+                      Disabled="@busy"
+                      OnClick="TogglePhone" />
+        @if (_open == Open.Phone)
+        {
+            <AppDialogShell Framed="true"
+                            Visible="true"
+                            Title="@L["EditorNav_Label"].Value"
+                            Size="Small"
+                            FrameOptions="_sheetOptions"
+                            HostClass="@SurfaceClass("tl-hnav__surface tl-hnav__surface--phone", _reordering || _reorderingSections)"
+                            OnClose="ClosePhone">
+                <div class="tl-hnav__sheet" role="group" aria-label="@L["EditorNav_Label"].Value" data-testid="phone-nav-sheet" @onkeydown="OnKeyDown">
+                    @if (header.ShowHome && header.HomeId is { } homeId && !_reordering && !_reorderingSections)
+                    {
+                        <ul class="tl-hnav__options">
+                            <li>
+                                <AppRowButton id="tl-hnav-home"
+                                              @onfocusin="@(() => _cursor = "tl-hnav-home")"
+                                              Class="@(header.HomeIsCurrent ? "tl-hnav__option tl-hnav__home is-selected is-current" : "tl-hnav__option tl-hnav__home")"
+                                              aria-label="@HomeName(header)"
+                                              aria-current="@(header.HomeIsCurrent ? "true" : null)"
+                                              data-testid="phone-nav-home"
+                                              OnClick="() => GoAsync(homeId, header.Root.Title, matched: true)">
+                                    <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Home" Size="AppIconSize.Control20" /></span>
+                                    <span class="tl-hnav__text">
+                                        <b>@header.Root.Title</b>
+                                    </span>
+                                    @if (pending.GetValueOrDefault(homeId) > 0 && !header.HomeIsCurrent)
+                                    {
+                                        <span class="tl-hnav__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value"></span>
+                                    }
+                                </AppRowButton>
+                            </li>
+                        </ul>
+                    }
+
+                    @if (header.SecondLevel is { Entries.Count: > 0 } second && !_reordering)
+                    {
+                        var currentEntry = second.Entries.FirstOrDefault(entry => entry.Id == second.CurrentId);
+                        <AppRowButton id="tl-hnav-second"
+                                      @onfocusin="@(() => _cursor = "tl-hnav-second")"
+                                      Class="@(_phoneSecondOpen ? "tl-hnav__option tl-hnav__option--choice is-open" : "tl-hnav__option tl-hnav__option--choice")"
+                                      aria-expanded="@(_phoneSecondOpen ? "true" : "false")"
+                                      data-level="@second.Label"
+                                      data-testid="phone-nav-second"
+                                      OnClick="TogglePhoneSecond">
+                            <span class="tl-hnav__text">
+                                <small>@second.Label</small>
+                                <span class="@(currentEntry is null ? "tl-hnav__placeholder" : null)">@(currentEntry?.Title ?? string.Format(L["EditorNav_Choose"].Value, second.Label.ToLowerInvariant()))</span>
+                            </span>
+                            @if (currentEntry is not null && pending.GetValueOrDefault(currentEntry.Id) > 0)
+                            {
+                                <span class="tl-hnav__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value"></span>
+                            }
+                            <AppMaterialIcon Icon="@(_phoneSecondOpen ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppIconSize.Control20" />
+                        </AppRowButton>
+                        @if (_phoneSecondOpen || _reorderingSections)
+                        {
+                            @SecondPanel(header, second, pending)
+                        }
+                    }
+
+                    @if (header.ShowItemDropdown && !_reorderingSections)
+                    {
+                        @ItemPanelBody(header, pending)
+                    }
+                    else if (!header.ShowItemDropdown && header.FolderButton is { } folder && !_reorderingSections)
+                    {
+                        @* No item list (a title with a Season choice only): the folder button still ends the sheet. *@
+                        <ul class="tl-hnav__options tl-hnav__options--tail">
+                            <li>
+                                <AppRowButton id="tl-hnav-folder"
+                                              @onfocusin="@(() => _cursor = "tl-hnav-folder")"
+                                              Class="tl-hnav__option tl-hnav__option--plain"
+                                              OnClick="() => OpenFolderAsync(header)">
+                                    <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" /></span>
+                                    <span class="tl-hnav__text">
+                                        <b>@L["EditorNav_Browse"]</b>
+                                        <small>@folder.PathLabel</small>
+                                    </span>
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+                                </AppRowButton>
+                            </li>
+                        </ul>
+                    }
+                </div>
+            </AppDialogShell>
+        }
+    };
+
+    private static readonly AppDialogOptions _sheetOptions = new() { Sheet = AppDialogSheetMode.PhoneAndTablet, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
+
+    private void TogglePhone()
+    {
+        EndReordering();
+        CloseSearch();
+        _phoneSecondOpen = false;
+        _open = _open == Open.Phone ? Open.None : Open.Phone;
+    }
+
+    private void TogglePhoneSecond()
+    {
+        if (_reorderingSections)
+        {
+            return;
+        }
+
+        _phoneSecondOpen = !_phoneSecondOpen;
+    }
+
+    // The sheet closes (backdrop, swipe down, Escape): nothing was changed by looking, and an unsaved arrangement is thrown away like the dropdown's.
+    private void ClosePhone()
+    {
+        if (_open == Open.Phone)
+        {
+            _open = Open.None;
+            _phoneSecondOpen = false;
+            EndReordering();
+            CloseSearch();
+        }
+    }
+
     private RenderFragment RenderItemPanel(EditorHeaderDto header, Dictionary<Guid, int> pending) => __builder =>
+    {
+        <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Item))" Class="@SurfaceClass("tl-hnav__surface tl-hnav__surface--item", _reordering)">
+            @ItemPanelBody(header, pending)
+        </AppPopover>
+    };
+
+    // The item list with its search, supporting files, "All supporting files", the folder button and Reorder videos: shared by its popover and by the phone sheet.
+    private RenderFragment ItemPanelBody(EditorHeaderDto header, Dictionary<Guid, int> pending) => __builder =>
     {
         var files = header.Level.SupportingFiles;
         var inline = files.Files;
         var word = EditorNavText.ChooseWord(header);
-        <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Item))" Class="@SurfaceClass("tl-hnav__surface tl-hnav__surface--item", _reordering)">
             <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
               @if (_reordering && EditorNavText.CanReorder(header))
               {
@@ -496,7 +580,83 @@
                 }
               }
             </div>
-        </AppPopover>
+    };
+
+    // The list of the Season (or Section) dropdown, with Reorder sections: shared by its popover and by the phone sheet.
+    private RenderFragment SecondPanel(EditorHeaderDto header, EditorHeaderSecondLevelDto second, Dictionary<Guid, int> pending) => __builder =>
+    {
+                        <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
+                            @if (_reorderingSections && EditorNavText.CanReorder(header))
+                            {
+                                <div class="tl-hnav__heading">@L["EditorReorder_SectionsHeading"]</div>
+                                <div class="tl-hnav__scroll tl-hnav__reorder" data-testid="reorder-sections">
+                                    <EditorVideoOrderList @ref="_orderList"
+                                                          EntityId="header.Root.Id"
+                                                          SeriesTitle="@header.Root.Title"
+                                                          Session="Flow?.Session"
+                                                          CanEdit="@(Flow?.Session.IsActive == true)"
+                                                          SectionsMode="true"
+                                                          Compact="true"
+                                                          ShowSort="false"
+                                                          HoldChanges="true"
+                                                          OnDirtyChanged="OrderDirtyChanged"
+                                                          OnOrderChanged="FollowSectionOrder" />
+                                </div>
+                                @if (_saveFailed)
+                                {
+                                    <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorReorder_SaveFailed"]</AppAlert>
+                                }
+                                <AppReorderBar Active="true" Dirty="@_orderDirty" GuardLeaving="false" OnSave="SaveOrderAsync" OnCancel="CancelReordering" />
+                            }
+                            else
+                            {
+                            <ul class="tl-hnav__options" role="listbox" aria-label="@second.Label">
+                                @foreach (var entry in OrderedSections(second))
+                                {
+                                    var selected = entry.Id == second.CurrentId;
+                                    var waiting = pending.GetValueOrDefault(entry.Id);
+                                    <li @key="@($"entry{entry.Id:N}")" role="none">
+                                        <AppRowButton
+                                                   id="@OptionId(entry.Id)"
+                                                   role="option"
+                                                   @onfocusin="@(() => _cursor = OptionId(entry.Id))"
+                                                   Class="@(selected ? "tl-hnav__option is-selected" : "tl-hnav__option")"
+                                                   aria-selected="@(selected ? "true" : "false")"
+                                                   OnClick="() => GoAsync(entry.Id, entry.Title, matched: true)">
+                                            <span class="tl-hnav__text">
+                                                <b>@entry.Title</b>
+                                                @if (EditorNavText.EntryLine(entry, EditorNavText.ChooseWord(header)) is { Length: > 0 } line)
+                                                {
+                                                    <small>@line</small>
+                                                }
+                                            </span>
+                                            @if (waiting > 0)
+                                            {
+                                                <span class="tl-hnav__waiting">@Waiting(waiting)</span>
+                                            }
+                                        </AppRowButton>
+                                    </li>
+                                }
+                            </ul>
+                            @if (EditorNavText.CanReorder(header) && second.Entries.Count >= 2)
+                            {
+                                <ul class="tl-hnav__options tl-hnav__options--tail">
+                                    <li>
+                                        <AppRowButton id="tl-hnav-reorder-sections"
+                                                      @onfocusin="@(() => _cursor = "tl-hnav-reorder-sections")"
+                                                      Class="tl-hnav__option tl-hnav__option--plain"
+                                                      OnClick="StartReorderingSections">
+                                            <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" Size="AppIconSize.Control20" /></span>
+                                            <span class="tl-hnav__text">
+                                                <b>@L["EditorReorder_SectionsRow"]</b>
+                                            </span>
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+                                        </AppRowButton>
+                                    </li>
+                                </ul>
+                            }
+                            }
+                        </div>
     };
 
     // The "(N)" of "All supporting files (N)": every file of the title, which is what the browser opens on.
@@ -525,6 +685,7 @@
             // A new header means a different item or level: the first page comes with it, and an open list is closed.
             _shown = Header;
             _open = Open.None;
+            _phoneSecondOpen = false;
             EndReordering();
             _sectionOrder = Header is { } shownHeader && Flow?.Session.Pending.FindVideoOrder(shownHeader.Root.Id) is { } stagedSections ? stagedSections.OrderedIds : [];
             _query = null;
@@ -607,8 +768,9 @@
     {
         if (args.Key == "Escape")
         {
-            _focusId = _open == Open.Second ? "tl-hnav-second" : "tl-hnav-item";
+            _focusId = _open == Open.Second ? "tl-hnav-second" : _open == Open.Phone ? "tl-hnav-phone" : "tl-hnav-item";
             _open = Open.None;
+            _phoneSecondOpen = false;
             EndReordering();
             CloseSearch();
             _focusPending = true;
@@ -660,12 +822,22 @@
                 ids.Add("tl-hnav-reorder-sections");
             }
         }
-        else if (_open == Open.Item && _reordering)
+        else if ((_open is Open.Item or Open.Phone) && _reordering)
         {
             return ids;
         }
-        else if (_open == Open.Item)
+        else if (_open is Open.Item or Open.Phone)
         {
+            if (_open == Open.Phone && header.ShowHome && header.HomeId is not null)
+            {
+                ids.Add("tl-hnav-home");
+            }
+
+            if (_open == Open.Phone && header.SecondLevel is { Entries.Count: > 0 })
+            {
+                ids.Add("tl-hnav-second");
+            }
+
             ids.AddRange(_items.Select(item => OptionId(item.Id)));
             ids.AddRange(header.Level.SupportingFiles.Files.Select(file => OptionId(file.Id)));
             if (header.Level.SupportingFiles.ShowAll)
@@ -754,6 +926,7 @@
     private async Task GoAsync(Guid id, string title, bool matched)
     {
         _open = Open.None;
+        _phoneSecondOpen = false;
         CloseSearch();
         if (Flow is null || id == Guid.Empty)
         {
@@ -947,7 +1120,7 @@
     // The "Showing n of N" row is watched so the next page comes in as it scrolls near; the row is also a button for keyboards and when scripts are off.
     private async Task SyncObserverAsync()
     {
-        var wanted = _open == Open.Item && _hasMore;
+        var wanted = (_open is Open.Item or Open.Phone) && _hasMore;
         if (!wanted)
         {
             await StopObservingAsync();

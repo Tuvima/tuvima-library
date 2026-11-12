@@ -10,7 +10,7 @@
    (Edit) or taken out of the list (the row's menu). A row the Engine refuses shows its plain reason and blocks Save until it is fixed or
    removed. After a save that only partly went through it stays, shows every row's result and says what was saved. How the person left it is
    raised as an outcome. *@
-<div class="review-changes review-changes--page">
+<div class="@(Phone ? "review-changes review-changes--page review-changes--phone" : "review-changes review-changes--page")" data-phone="@(Phone ? "true" : null)">
     <header class="review-changes__heading">
         @if (Subtitle is not null)
         {
@@ -104,7 +104,11 @@
     else
     {
         <AppButton Label="@L["ReviewChangesView_BackToEditing"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="BackAsync" />
-        <AppButton Label="@L["ReviewChangesView_DiscardChanges"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DiscardAsync" />
+        @if (!Phone)
+        {
+            @* On a phone the step offers Back and Save changes; Discard is the editor's own footer button, one step back. *@
+            <AppButton Label="@L["ReviewChangesView_DiscardChanges"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DiscardAsync" />
+        }
         <AppButton Label="@SaveLabel"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
@@ -129,6 +133,9 @@
 
     /// <summary>Raised when the person leaves Review: back to editing, to a tool, discarded, or saved.</summary>
     [Parameter] public EventCallback<ReviewChangesOutcome> OnOutcome { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a): a full-screen step with every change listed and Back and Save changes side by side at the foot.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     /// <summary>True while a save is running, so a host can refuse to close.</summary>
     public bool IsSaving => _saving;

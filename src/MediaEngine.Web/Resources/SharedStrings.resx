@@ -9224,6 +9224,9 @@
   <data name="EditorNav_Browse" xml:space="preserve">
     <value>Browse files and folders</value>
   </data>
+  <data name="EditorPhone_OpenNavigation" xml:space="preserve">
+    <value>Move around this title: {0}</value>
+  </data>
   <data name="EditorFooter_WriteBackOffTitle" xml:space="preserve">
     <value>File write-back off</value>
   </data>

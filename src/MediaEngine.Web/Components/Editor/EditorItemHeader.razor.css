@@ -243,3 +243,70 @@
         -webkit-box-orient: vertical;
     }
 }
+
+/* The phone arrangement (v6 section 4a, D20 to D22): always the one line, a small cover, the title and the state. Tapping the line opens the navigation sheet
+   (a button laid over the line by EditorHeaderNav); the "..." with Delete sits at its right and the window's Close over the corner, so room is kept for it. */
+.tl-editor-header--phone {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-height: var(--tl-editor-phone-header, 4rem);
+    padding: var(--tl-space-2) calc(var(--tl-tap-target-min) + var(--tl-space-4)) var(--tl-space-2) var(--tl-space-4);
+}
+
+.tl-editor-header__phoneline {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    min-height: var(--tl-tap-target-min);
+}
+
+.tl-editor-header--phone .tl-editor-header__minicover {
+    width: 1.75rem;
+    height: 2.625rem;
+}
+
+.tl-editor-header__phonetext {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tl-editor-header__title--phone {
+    display: block;
+    margin: 0;
+    overflow: hidden;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-heading-weight);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -webkit-line-clamp: unset;
+}
+
+.tl-editor-header--phone .tl-editor-header__state {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tl-editor-header__selects--phone {
+    flex: 1 0 100%;
+    min-width: 0;
+    padding-top: 0;
+}
+
+/* "Editing N files" on a phone: the same header, with a small cover and room for the Close button; the file chips wrap. */
+.tl-editor-window--phone .tl-editor-header[data-kind="files"] {
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3) calc(var(--tl-tap-target-min) + var(--tl-space-4)) var(--tl-space-3) var(--tl-space-4);
+}
+
+.tl-editor-window--phone .tl-editor-header[data-kind="files"] .tl-editor-header__cover {
+    width: 3rem;
+    height: 4.5rem;
+}

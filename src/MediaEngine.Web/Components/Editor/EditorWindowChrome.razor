@@ -5,8 +5,9 @@
    (which holds the way around the family), the tab bar, one scroll area for the tool, and the fixed footer: Delete at the left, the file status
    text, the unsaved count, Discard and Save changes (primary last), always in the same places. It knows nothing about what is being edited, so the library editor (EditorPanelHost) and the
    View editor (photos, videos, documents, galleries) draw exactly the same window and a guardrail can insist that nothing draws its own. *@
-<div class="@(Framed ? "tl-editor-panel tl-editor-window tl-editor-window--framed" : "tl-editor-panel tl-editor-window")"
-     data-tool="@ActiveKey.ToLowerInvariant()">
+<div class="@RootClass"
+     data-tool="@ActiveKey.ToLowerInvariant()"
+     data-phone="@(Phone ? "true" : null)">
     @if (Framed)
     {
         @ItemHeader
@@ -178,6 +179,11 @@
     [Parameter] public EventCallback OnDiscard { get; set; }
 
     [Parameter] public EventCallback OnSave { get; set; }
+
+    /// <summary>The phone arrangement (v6 D19 to D22, section 4a): a full-screen sheet whose footer holds the write-back line and then Discard and Save changes side by side. Delete is not in the footer then; the header's "..." holds it.</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    private string RootClass => (Framed ? "tl-editor-panel tl-editor-window tl-editor-window--framed" : "tl-editor-panel tl-editor-window") + (Phone ? " tl-editor-window--phone" : string.Empty);
 
     private Task OnTabIndex(int index) =>
         index >= 0 && index < Tabs.Count && Tabs[index].Key != ActiveKey ? OnTab.InvokeAsync(Tabs[index].Key) : Task.CompletedTask;

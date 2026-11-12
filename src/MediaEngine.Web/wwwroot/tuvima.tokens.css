@@ -31,6 +31,8 @@
     --tl-safe-area-left: env(safe-area-inset-left, 0px);
     --tl-touch-target-min: 48px;
     --tl-tap-target-min: 44px;
+    /* How much of the window the on-screen keyboard covers; editor-focus.js sets it on the root while the editor is open on a narrow window, and the editor takes it off its height. */
+    --tl-editor-keyboard: 0px;
     --tl-bottom-dock-height: 0px;
     --tl-audio-dock-height: 0px;
 

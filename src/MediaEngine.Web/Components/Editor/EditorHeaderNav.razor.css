@@ -260,3 +260,23 @@
         flex: 1 1 18rem;
     }
 }
+
+/* The phone navigation sheet (v6 section 4a): Home, the Season or Section choice, the item list with its pictures, the supporting files and the folder button.
+   The dropdowns' own rows are reused; the sheet scrolls as a whole instead of the list scrolling inside it. */
+.tl-hnav__sheet {
+    box-sizing: border-box;
+    padding: 0 var(--tl-space-2) var(--tl-space-3);
+}
+
+.tl-hnav__sheet .tl-hnav__panel {
+    padding: 0;
+}
+
+.tl-hnav__sheet .tl-hnav__scroll {
+    max-height: none;
+    overflow: visible;
+}
+
+.tl-hnav__sheet .tl-hnav__search {
+    padding: var(--tl-space-1) 0;
+}

@@ -31,6 +31,7 @@
     var tabs = railTools.Select(entry => new EditorWindowChrome.Tab(entry.Item1.ToString(), entry.Item2, entry.Item3)).ToList();
     var title = _reviewing ? "Review changes" : TitleOverride ?? TitleFor(shown);
     <EditorWindowChrome Framed="framed"
+                        Phone="Phone"
                         ItemHeader="ItemHeader"
                         FooterStart="@(_reviewing ? null : FooterStart)"
                         Title="@title"
@@ -84,7 +85,7 @@
         <Body>
             @if (_reviewing)
             {
-                <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" />
+                <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" Phone="Phone" />
             }
             else if (shown == EditTool.Artwork && Picker is not null)
             {
@@ -115,6 +116,9 @@
 
     /// <summary>Text after the unsaved count in the footer ("· 2 files").</summary>
     [Parameter] public string? ChangeSuffix { get; set; }
+
+    /// <summary>The phone arrangement (section 4a): the frame and Review changes are drawn for a phone or a portrait tablet.</summary>
+    [Parameter] public bool Phone { get; set; }
 
     private bool _filesHistory;
 

@@ -5,7 +5,7 @@
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @using Microsoft.AspNetCore.Components.Routing
-@implements IDisposable
+@implements IAsyncDisposable
 @inject EditorHost Editor
 @inject IAppDialogService Dialogs
 @inject DeviceContextService Device
@@ -34,6 +34,7 @@
                     Class="tl-editor-dialog">
         <EditorPanelHost Mode="mode"
                          Flow="flow"
+                         Phone="Phone"
                          Picker="Editor.Picker"
                          TitleOverride="@(BulkPanelTitle ?? FilesBatchTitle)"
                          FilesBatch="@Editor.FileBatch.IsOpen"
@@ -43,7 +44,7 @@
                          ActionNoticeIsError="_actionNoticeIsError"
                          ActionNoticeDismissed="@(() => _actionNotice = null)"
                          ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
-                         FooterStart="@(Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode) : null)">
+                         FooterStart="@FooterStartFragment(flow, mode)">
             <HeaderContent>
                 @if (Editor.FileBatch.IsOpen)
                 {
@@ -139,6 +140,7 @@
                           Compact="@(flow.Session.ActiveTool == EditTool.Match)" MatchRead="_matchRead"
                           UniverseName="@Editor.Universe.UniverseName"
                           HasFamily="@Editor.Universe.Visible"
+                          Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"
                           Hooks="Editor.HeaderHooks">
             <Tile>
                 @if (Editor.Universe.Visible)
@@ -159,6 +161,7 @@
     private RenderFragment FilesBatchHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family"
+                          Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"
                           GroupRows="Editor.FileBatch.Rows"
                           GroupLabel="@Editor.FileBatch.TitleName"
                           GroupTitle="@EditorFileBrowserRules.EditingTitle(L, Editor.FileBatch.Rows.Count)"
@@ -201,6 +204,44 @@
         var root = Editor.Mode.Fields.Header?.Root.Id ?? Editor.FileBatch.TitleId;
         Editor.FileBatch.Close();
         await Editor.Flow.SwitchToAsync(root);
+    }
+
+    // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). On a phone the footer holds only Discard and Save changes
+    // and Delete is in the header's "..." menu (v6 D22); the same three ways to delete, the same confirmation.
+    private RenderFragment? FooterStartFragment(EditSessionFlow flow, EditingModeContext mode) =>
+        Phone ? null
+        : Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode)
+        : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode)
+        : null;
+
+    private IReadOnlyList<AppRowMenuItem>? DeleteMenu(EditSessionFlow flow, EditingModeContext mode)
+    {
+        if (!Phone)
+        {
+            return null;
+        }
+
+        Func<Task>? delete = Editor.FileBatch.IsOpen
+            ? DeleteFilesAsync
+            : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile)
+                ? () => CanDeleteFile ? DeleteFileAsync() : CanDeleteThing ? DeleteThingAsync() : DeleteActiveAsync()
+                : null;
+        if (delete is null)
+        {
+            return null;
+        }
+
+        return
+        [
+            new AppRowMenuItem
+            {
+                Label = L["EditorFooter_Delete"].Value,
+                Icon = AppMaterialIcons.Outlined.Delete,
+                Destructive = true,
+                Disabled = flow.Saving || flow.Switching || (Editor.FileBatch.IsOpen && !mode.CanEdit),
+                OnClick = EventCallback.Factory.Create(this, delete),
+            },
+        ];
     }
 
     // Delete sits bottom-left of the footer as a red button that always says "Delete" (v5 D29). It asks once, naming the item and what goes with
@@ -342,8 +383,15 @@
         _ => null,
     };
 
+    // The phone arrangement (v6 section 4a): a phone or a tablet says so by its form factor (known before the first draw), and the browser says so for a
+    // window no wider than a tablet; the same width the form factor is read from, so the two agree and a narrow desktop window gets it too.
+    private bool _narrow;
+    private DotNetObjectReference<EditorPopover>? _self;
+    private bool Phone => EditorPhoneArrangement.Applies(Device, _narrow);
+
     protected override void OnInitialized()
     {
+        Device.OnChanged += DeviceChanged;
         Editor.AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs);
         Editor.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
         Editor.HeaderHooks.OpenSupportingFiles = request => OpenBrowserAsync(EditorBrowserView.Files);
@@ -429,13 +477,35 @@
         await OpenBrowserAsync(EditorBrowserView.Files);
     }
 
-    public void Dispose()
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        Device.OnChanged -= DeviceChanged;
         Editor.Changed -= OnChanged;
         Editor.AskSaveOrDiscard = null;
         Editor.ConfirmDiscard = null;
         Editor.HeaderHooks.OpenSupportingFiles = null;
         Editor.HeaderHooks.OpenFolders = null;
+        if (_focusModule is not null)
+        {
+            try
+            {
+                if (_watching)
+                {
+                    await _focusModule.InvokeVoidAsync("stopLayout");
+                }
+
+                await _focusModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended first; the browser already dropped its listeners with the page.
+            }
+        }
+
+        _self?.Dispose();
     }
 
     private bool _wasOpen;
@@ -476,11 +546,63 @@
 
     private int _focusTries;
     private IJSObjectReference? _focusModule;
+    private bool _watching;
+    private bool _layoutUnavailable;
+    private bool _disposed;
+
+    /// <summary>The browser's answer when the window crosses the tablet width (see <see cref="EditorPhoneArrangement.NarrowWindowQuery"/>).</summary>
+    [JSInvokable]
+    public Task NarrowWindowChanged(bool narrow) => InvokeAsync(() =>
+    {
+        if (_narrow != narrow)
+        {
+            _narrow = narrow;
+            StateHasChanged();
+        }
+    });
+
+    // While the window is open the browser tells it when the window is narrow and keeps its height above the on-screen keyboard (editor-focus.js). Without
+    // scripts (a test host, a closing circuit) the device's form factor still decides the arrangement.
+    private async Task SyncLayoutAsync()
+    {
+        if (_disposed || _layoutUnavailable || Editor.IsOpen == _watching)
+        {
+            return;
+        }
+
+        try
+        {
+            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            if (Editor.IsOpen)
+            {
+                _watching = true;
+                _self ??= DotNetObjectReference.Create(this);
+                var narrow = await _focusModule.InvokeAsync<bool>("watchLayout", _self, EditorPhoneArrangement.NarrowWindowQuery);
+                if (narrow != _narrow)
+                {
+                    _narrow = narrow;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                _watching = false;
+                _narrow = false;
+                await _focusModule.InvokeVoidAsync("stopLayout");
+            }
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // No script support here (a test host, a closing circuit): the device's form factor still decides, and the window is usable without the keyboard fit.
+            _layoutUnavailable = true;
+        }
+    }
 
     // The player's lyrics button asks for the Lyrics field: once the pop-over has drawn the fields, the cursor goes there. A field the
     // item does not show (or a page without scripts) is not an error; the request is dropped after a few tries.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await SyncLayoutAsync();
         if (Editor.FocusField is not { } key || !Editor.IsOpen)
         {
             _focusTries = 0;

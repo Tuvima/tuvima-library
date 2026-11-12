@@ -59,6 +59,10 @@
                                Tooltip="@GroupLabel" AriaLabel="@GroupLabel" data-files-batch-home="true" OnClick="OnGroupHome" />
                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
                            data-files-batch-back="true" OnClick="OnGroupBack">@L["EditorFilesBatch_Back"]</AppButton>
+                @if (Phone && PhoneMenuItems is { Count: > 0 })
+                {
+                    <AppRowMenu AriaLabel="@L["Common_MoreActions"].Value" Items="PhoneMenuItems" Class="tl-editor-header__more" />
+                }
             </div>
         </div>
     </header>
@@ -111,7 +115,82 @@ else if (Flow?.Session.ActiveItem is { } active)
     // The show's tile already carries its picture, so a show's seasons and episodes draw no second picture beside it; every other family keeps the item's own.
     var showCover = header is not null || !(HasFamily && Family.Kind == EditorFamilyKind.Show);
     var kindKey = header?.Kind ?? string.Empty;
-    if (Compact && !isUniverse && file is null)
+    if (Phone)
+    {
+        @* The phone arrangement (v6 section 4a, D20 to D22): always the one-line form, a small cover, the title and the state. Tapping the line opens the
+           navigation as a bottom sheet (EditorHeaderNav). Delete is in the "..." at the right; the close button of the window sits over the corner. *@
+        var phoneRead = MatchRead is { } phoneReported && phoneReported.EntityId == active.EntityId ? phoneReported : null;
+        var phoneMatched = phoneRead is not null ? phoneRead.Matched : !Unmatched;
+        var phoneOnMatch = Compact && !isUniverse && file is null;
+        var phoneShowsMatch = file is null && showState;
+        var phoneState = file is not null
+            ? L["EditorSupportingFile_Chip"].Value
+            : !phoneShowsMatch
+                ? label
+                : !phoneMatched
+                    ? L["EditorMatchPanel_StateUnmatched"].Value
+                    : string.IsNullOrWhiteSpace(phoneRead?.ProviderName) ? L["EditorMatchPanel_StateMatched"].Value : L["EditorMatchPanel_StateMatchedTo", phoneRead!.ProviderName!].Value;
+        <header class="tl-editor-header tl-editor-header--phone" data-kind="@kindKey" data-gradient="@(wash is null ? "none" : "cover")"
+                data-testid="phone-header" aria-busy="@(fields.Loading ? "true" : null)">
+            @if (wash is not null)
+            {
+                <AppWash Class="tl-editor-header__wash" PrimaryHex="@wash.Primary" SecondaryHex="@wash.Secondary"
+                         PrimaryPercent="@palette.PrimaryPercent" SecondaryPercent="@palette.SecondaryPercent" />
+            }
+
+            <div class="tl-editor-header__phoneline">
+                <div class="tl-editor-header__minicover" aria-hidden="true">
+                    @if (!string.IsNullOrWhiteSpace(image))
+                    {
+                        <AppImage Src="@image" Alt="" DrawnPx="100" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppIconSize.Control20" />
+                    }
+                </div>
+                <div class="tl-editor-header__phonetext">
+                    @if (phoneOnMatch)
+                    {
+                        <h2 id="tl-editor-panel-title" class="tl-editor-header__title tl-editor-header__title--phone" tabindex="-1" data-testid="phone-header-title"><span>@L["EditorMatchPanel_MatchKind", EditorMatchKindWords.For(header?.Kind, L)]</span><span class="sr-only">: @title</span></h2>
+                    }
+                    else
+                    {
+                        <h2 id="tl-editor-panel-title" class="tl-editor-header__title tl-editor-header__title--phone" tabindex="-1" data-testid="phone-header-title">@title</h2>
+                    }
+
+                    @if (fields.Loading && !fields.Loaded)
+                    {
+                        <AppSkeleton Height="1rem" Width="8rem" />
+                    }
+                    else
+                    {
+                        <span class="tl-editor-header__state" data-testid="phone-header-state" data-state="@(phoneShowsMatch ? (phoneMatched ? "matched" : "unmatched") : "plain")">
+                            @if (phoneShowsMatch)
+                            {
+                                <span class="@(phoneMatched ? "tl-editor-header__dot tl-editor-header__dot--ok" : "tl-editor-header__dot")" aria-hidden="true"></span>
+                            }
+                            @phoneState
+                        </span>
+                    }
+                </div>
+                @if (header is not null)
+                {
+                    <EditorHeaderNav Header="header" Flow="Flow" Hooks="Hooks" CanMatch="@fields.CanMatch" Phone="true" PhoneLabel="@title" />
+                }
+            </div>
+            @if (PhoneMenuItems is { Count: > 0 })
+            {
+                <AppRowMenu AriaLabel="@L["Common_MoreActions"].Value" Items="PhoneMenuItems" Class="tl-editor-header__more" />
+            }
+
+            @if (HasFamily && header is null && Selects is not null)
+            {
+                <div class="tl-editor-header__selects tl-editor-header__selects--phone">@Selects</div>
+            }
+        </header>
+    }
+    else if (Compact && !isUniverse && file is null)
     {
         @* One line (v6 D2): the Match tab's state is the Engine's read as soon as the tab has it, else the page's answer. *@
         var read = MatchRead is { } reported && reported.EntityId == active.EntityId ? reported : null;
@@ -270,6 +349,12 @@ else if (Flow?.Session.ActiveItem is { } active)
 
     /// <summary>What the Match tab has read from the Engine about the item's match; when it is about the item being edited it decides the state shown on the one-line header.</summary>
     [Parameter] public EditorMatchReadState? MatchRead { get; set; }
+
+    /// <summary>The phone arrangement (v6 section 4a): the header is always the one line, and tapping it opens the navigation as a bottom sheet.</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    /// <summary>What the phone header's "..." menu holds (Delete, per D22); empty or null draws no "..." button.</summary>
+    [Parameter] public IReadOnlyList<AppRowMenuItem>? PhoneMenuItems { get; set; }
 
     /// <summary>"Editing N files": the files being edited together. When set, the header shows the group form instead of one item.</summary>
     [Parameter] public IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileRowDto>? GroupRows { get; set; }
