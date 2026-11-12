@@ -78,7 +78,7 @@
 
 .listen-kicker,
 .listen-rail__label {
-    color: var(--tl-text-disabled);
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
 }

@@ -378,3 +378,11 @@ Smaller shared parts:
 - The top bar over a hero fades from the 70% black scrim to the 20% scrim (was 68% and 34% of a near-black navy).
 - The phone bottom bar's shadow is the 20% black scrim (was 28%); the side drawer's shadow is the 40% scrim, and its backdrop the 70% scrim (was 72%).
 - Table row hover and list row hover are the 5% white wash (were 4%); striped rows the 3% wash (2.5%); the alert close button's hover the 8% wash.
+
+## After the final review
+
+- The favorite heart in the library table, when on, is the lighter purple accent (the sweep had first used a status color; it was a pink-red before). The Like state is purple everywhere.
+- The Listen rail's section labels are the muted text color (white at 42% before).
+- The readers' menus, side panel and thumbnails use the shared colors: the side panel's dim is the 40% black scrim (was 35%), panel shadows the 20% scrim (were 30 to 35%), the thumbnail strip's shadow the 70% scrim (was 65%), picture placeholders the 5% white wash (were 6%), and the selection menu's background is 94% of the page background (was a dark navy). Page themes (paper, night, sepia), highlight colors and the bookmark mark are unchanged.
+- The step indicator's active number and the bulk selection bar lost their typed fallbacks; they look the same.
+- Recovery codes are 14 px (were 15 px).

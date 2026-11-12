@@ -429,7 +429,7 @@
     }
 
     .vmt-favorite-button.is-active {
-        color: var(--tl-status-unmatched);
+        color: var(--tl-accent-primary-hover);
     }
 
 

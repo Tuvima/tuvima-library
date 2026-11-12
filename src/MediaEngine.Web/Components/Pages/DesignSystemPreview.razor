@@ -492,6 +492,7 @@
                 <AppButton Label="Discard dialog" OnClick="@(() => _discardOpen = true)" data-testid="preview-discard-dialog" />
                 <AppButton Label="Plain confirmation" OnClick="@(() => _confirmOpen = true)" data-testid="preview-plain-confirm" />
                 <AppRowMenu AriaLabel="Actions for the sample item" Title="Sample item" Items="@RowMenuItems" />
+                <AppRowMenu AriaLabel="Actions with long labels" Title="Long labels" Items="@LongRowMenuItems" />
             </div>
             <div class="design-system-preview__form-grid">
                 <AppSelect T="string" Label="Short dropdown, long options" Value="s01" Options="@LongOptions" />
@@ -686,6 +687,13 @@
         new() { Label = "Add to a series", Icon = AppMaterialIcons.Outlined.Add },
         new() { Label = "Unavailable action", Icon = AppMaterialIcons.Outlined.Block, Disabled = true },
         new() { Label = "Remove from library", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true },
+    ];
+    // Look v3.1 D3: a menu grows to fit a long label up to 360 px, then the label shortens with an ellipsis.
+    private static readonly IReadOnlyList<AppRowMenuItem> LongRowMenuItems =
+    [
+        new() { Label = "Add to a collection or playlist", Icon = AppMaterialIcons.Outlined.Add },
+        new() { Label = "A very long label that is longer than the widest menu allows and so ends in an ellipsis", Icon = AppMaterialIcons.Outlined.Info },
+        new() { Label = "Remove", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true },
     ];
     private sealed record PhoneTableRow(string Title, string Format, string Size);
     private static readonly IReadOnlyList<AppSelectOption> SeriesSetOptions = [

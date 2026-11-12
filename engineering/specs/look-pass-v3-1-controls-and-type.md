@@ -192,6 +192,15 @@ Waves: 1 = WP1, WP2, WP3 · 2 = WP4, WP5, WP6, WP7 · 3 = WP8, WP9 · 4 = WP11 �
 - **G3.** Look v3 D7 says "16 px for controls, menus and rows", but buttons were built at 14 px and tabs at 20 px. *Decision (Shy, 2026-11-12): change the spec; D8 to D10.*
 - **G4.** One-shared-look set tab labels "one step up" (20 px). *Decision (Shy, issue 896 and 2026-11-12): replaced by D1 and D8 (14 px with an icon).*
 
+### Amendments recorded during the build (2026-11-12)
+
+- **A1 (Shy, 2026-11-12, answer A).** The artwork role pickers (the editor's Artwork tab and the collection editor) stay as picture cards. They are not tab rows, so D1 does not apply to them.
+- **A2 (WP7).** The hover card on the Libraries page was removed by the Setup and Libraries build before this packet started, and info tips already used the shared tooltip. WP7 became a check that fails any hover surface layered by number (`OneTopLayerGuardrailTests`).
+- **A3 (D4).** The solid red of the destructive button is a new token, `--tl-status-danger-solid` (#DC2626), so white text on it passes contrast.
+- **A4 (D11).** The written list of places that may still write a text size by hand is in `LookRatchetGuardrailTests`: hero titles, the players and their panels, the editor until Universal editor v6, subtitle cues, the map, icons and artwork stand-ins.
+- **A5 (D7, WP11).** The editor window's colors (`Components/Editor` and the editor block of the global sheet) are swept after the Universal editor v6 build has merged; until then they are a written, temporary exception in the color check. The hero's artwork-color variables keep a typed near-black and off-white default. The readers' page themes, highlight colors and bookmark mark, the map, and the literal black subtitle outline are the standing exceptions.
+- **A6 (D7).** The My List button in the top bar, while its page is open, is purple (it was yellow), because selected things are purple everywhere.
+
 ## Plain English summary
 
 Seven small annoyances from the local check share one cause: the shared building blocks each had a gap. This plan closes them once, in the shared parts, so every screen is fixed together. Dropdown lists will always be at least as wide as their dropdown. Every confirmation becomes one roomy box with a neutral safe button and a solid red destructive one. Every tab row gets an icon beside each label and a clear purple underline, and pop-up menus get taller rows and grow to fit their words. A title's details float over the page again instead of covering it. Hover text always appears in front. Collections takes the same colors as everything else, and so does the rest of the app: every color left over from older designs is replaced by one from the shared set, with a check that keeps it that way. Text sizes keep the same seven steps, but each now has a named job, and form text comes down to the same size as body text, which is what made the editor and Match feel oversized. Nothing changes in what Library stores or does; this is how it looks and feels.
