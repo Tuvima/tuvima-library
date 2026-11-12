@@ -881,7 +881,6 @@
         try
         {
             await work();
-            await Orchestrator.RefreshReviewCountAsync();
         }
         finally
         {
@@ -889,6 +888,8 @@
             _barBusy = false;
             if (!_disposed)
             {
+                // One count refresh for the whole run, also when the run stopped part way.
+                await Orchestrator.RefreshReviewCountAsync();
                 PruneSelection();
                 _focusAfterBarGone |= hadSelection && _selection.Count == 0;
                 StateHasChanged();
