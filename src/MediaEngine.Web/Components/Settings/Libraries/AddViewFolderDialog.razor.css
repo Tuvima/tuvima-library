@@ -1,11 +1,14 @@
 /* The same screen as the second step of Add library: one width, a caption above each field, plain visible sentences instead of "i" buttons. */
+/* The folder window's body is a fixed-height scroller: this column fills it, so the folder list takes the height the other parts leave (D6). */
 .add-view-folder {
-    display: grid;
-    gap: var(--tl-space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
-    padding-block: var(--tl-space-3) var(--tl-space-4);
+    min-height: 100%;
+    padding-block: 2px;
 }
 
 .add-view-folder__section {
@@ -24,6 +27,14 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-sm);
+}
+
+/* "You can't upload ... until you add a Managed folder." carries the warning icon of the mock. */
+.add-view-folder__line--note {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    color: var(--tl-status-warning);
 }
 
 .add-view-folder__check {
@@ -59,6 +70,4 @@
     white-space: nowrap;
 }
 
-.add-view-folder__picker { display: grid; gap: var(--tl-space-3); }
-
-.add-view-folder__footer-line { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.add-view-folder__picker { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--tl-space-3); }

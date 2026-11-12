@@ -13,13 +13,13 @@
                                OnClick="@(() => StepSelected.InvokeAsync(step))">
                 <span aria-hidden="true">@StepMarker(step, state)</span>
                 <small>@Friendly(step)</small>
-                @if (state == "deferred")
+                @if (step == "vault")
+                {
+                    <em>@L[VaultLabelKey(state)]</em>
+                }
+                else if (state == "deferred")
                 {
                     <em>@L["SetupStepper_Later"]</em>
-                }
-                else if (step == "vault")
-                {
-                    <em>@L["SetupStepper_Optional"]</em>
                 }
             </AppNativeButton>
         </li>
@@ -33,14 +33,22 @@
     [Parameter] public EventCallback<string> StepSelected { get; set; }
 
     /// <summary>
-    /// The Vault is an optional entry: offered only to the first administrator on a desktop or tablet, and gone for good after
-    /// Not now. Every other entry is exactly one of the Engine's step keys, in the Engine's order; nothing is mapped, split or hidden.
+    /// The Vault is an optional entry: offered only to the first administrator on a desktop or tablet. Once it is offered it stays in the
+    /// list for the rest of setup, marked On after it was turned on and Skipped after Not now (setup fixes D3). Every other entry is exactly one
+    /// of the Engine's step keys, in the Engine's order; nothing is mapped, split or hidden.
     /// </summary>
     [Parameter] public bool ShowVault { get; set; }
 
-    private IEnumerable<string> DisplayKeys => SetupWorkflow.StepKeys.Where(key => key != "vault" || (ShowVault && StateFor(key) != "deferred"));
+    private IEnumerable<string> DisplayKeys => SetupWorkflow.StepKeys.Where(key => key != "vault" || ShowVault);
 
     private static string DisplayKey(string key) => key;
+
+    private static string VaultLabelKey(string state) => state switch
+    {
+        "passed" => "SetupStepper_On",
+        "deferred" => "SetupStepper_Skipped",
+        _ => "SetupStepper_Optional",
+    };
 
     private string StateFor(string key) => Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
 

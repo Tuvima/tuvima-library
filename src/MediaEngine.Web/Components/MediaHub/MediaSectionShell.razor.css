@@ -479,6 +479,18 @@
     color: var(--tl-status-warning);
 }
 
+/* The review count beside Libraries in the Settings menu: a small amber square-cornered pill, 22px tall, at the row's end. */
+.media-section-shell__tree-badge .media-section-shell__rail-meta--notification {
+    min-width: 24px;
+    height: 22px;
+    padding: 0 7px;
+    border-color: transparent;
+    border-radius: 3px;
+    background: var(--tl-status-warning-soft);
+    color: var(--tl-status-warning);
+    font-variant-numeric: tabular-nums;
+}
+
 /* Settings' larger menu text needs a wider column so labels such as "Network & Remote Access" are not cut off. */
 .media-section-shell--flat {
     grid-template-columns: 296px minmax(0, 1fr);

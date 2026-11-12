@@ -22,8 +22,8 @@
         @if (_showHostField)
         {
             <div class="setup-server-form__host">
-                <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="@NetworkNameRules.DefaultLabel" data-testid="setup-network-name-field" />
-                <AppButton Label="@L["SetupWelcomeStage_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" OnClick="CancelHostField" data-testid="setup-network-name-cancel" />
+                <div class="setup-server-form__host-field"><AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="@NetworkNameRules.DefaultLabel" data-testid="setup-network-name-field" /></div>
+                <div class="setup-server-form__host-action"><AppButton Label="@L["SetupWelcomeStage_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" OnClick="CancelHostField" data-testid="setup-network-name-cancel" /></div>
             </div>
         }
     </div>

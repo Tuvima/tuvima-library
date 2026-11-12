@@ -280,7 +280,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     // "other" addresses redirect, so they describe nothing here.
     [Theory]
     [InlineData(null, null, "Libraries", "")]
-    [InlineData("view", "photos", "Photos", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Photos")]
+    [InlineData("view", "photos", "Photos and videos", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Photos and videos")]
     [InlineData("view", "personal_videos", "Personal videos", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Personal videos")]
     [InlineData("view", "documents", "Documents", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Documents")]
     [InlineData("view", "podcasts", "Libraries", "")]
@@ -435,7 +435,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
         var rows = page.FindAll(".view-source-row");
         var skipped = rows[0].QuerySelector("small")!;
         Assert.Equal("12 files skipped", Text(skipped));
-        Assert.Equal("These files aren't photos, so this folder leaves them out. They stay where they are.",
+        Assert.Equal("These files aren't photos and videos, so this folder leaves them out. They stay where they are.",
             skipped.ParentElement!.GetAttribute("data-playback-tooltip"));
         Assert.DoesNotContain("skipped", Text(rows[1]), StringComparison.Ordinal);
     }
@@ -546,10 +546,73 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
 
         page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
         Assert.Equal(["Folders", "Access", "File handling", "Activity"], page.FindAll("[role=tab]").Select(Text).ToArray());
-        Assert.Equal("Photos", Text(page.Find(".libpage__type")));
+        Assert.Equal("Photos and videos", Text(page.Find(".libpage__type")));
         Assert.Equal("Per profile", Text(page.Find(".libpage__access")));
         Assert.DoesNotContain("Include subfolders", page.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Add library", page.Markup, StringComparison.Ordinal);
+    }
+
+    // Setup and Libraries fixes D10: the merged "Photos and videos" row opens a page that is titled the same and holds Personal videos folders too.
+    [Fact]
+    public void ThePhotosAndVideosPageIsTitledForBothKindsAndListsTheirFoldersTogether()
+    {
+        _personalSpace = TestSpace;
+        _viewSources =
+        [
+            ViewSource("D:\\Pictures", "Pictures", "photos"),
+            ViewSource("C:\\Clips", "Clips", "personal_videos"),
+            ViewSource("C:\\Paperwork", "Paperwork", "documents"),
+        ];
+        var page = Open("view", "photos");
+
+        page.WaitForAssertion(() => Assert.Equal(["Pictures", "Clips"], page.FindAll(".view-source-row strong").Select(Text).ToArray()));
+        Assert.Equal("Photos and videos", Text(page.Find(".libpage__type")));
+        Assert.Equal("2 folders", Text(page.Find(".libpage__counts")));
+    }
+
+    [Fact]
+    public void ThePersonalVideosAddressStillOpensAndListsOnlyPersonalVideosFolders()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos"), ViewSource("C:\\Clips", "Clips", "personal_videos")];
+        var page = Open("view", "personal_videos");
+
+        page.WaitForAssertion(() => Assert.Equal(["Clips"], page.FindAll(".view-source-row strong").Select(Text).ToArray()));
+        Assert.Equal("1 folder", Text(page.Find(".libpage__counts")));
+    }
+
+    [Fact]
+    public void DetachingTheLastFolderOfPhotosAndVideosUsesTheEditWindowsWordsAndKeepChangesNothing()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos")];
+        var dialogs = Render<MediaEngine.Web.Components.Shared.AppDialogHost>();
+        var page = Open("view", "photos");
+        page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
+
+        page.Find("button[aria-label='Detach Pictures']").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Remove the last folder?", dialogs.Markup, StringComparison.Ordinal));
+        Assert.Contains("Photos and videos will leave the Libraries list", dialogs.Markup, StringComparison.Ordinal);
+        Assert.Contains("Remove folder", dialogs.FindAll("button").Select(Text));
+        dialogs.FindAll("button").Single(button => Text(button) == "Keep").Click();
+        dialogs.WaitForAssertion(() => Assert.DoesNotContain("Remove the last folder?", dialogs.Markup, StringComparison.Ordinal));
+        Assert.Single(page.FindAll(".view-source-row"));
+    }
+
+    [Fact]
+    public void DetachingOneOfSeveralFoldersKeepsTheShortQuestion()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos"), ViewSource("C:\\Clips", "Clips", "personal_videos")];
+        var dialogs = Render<MediaEngine.Web.Components.Shared.AppDialogHost>();
+        var page = Open("view", "photos");
+        page.WaitForAssertion(() => Assert.Equal(2, page.FindAll(".view-source-row").Count));
+
+        page.Find("button[aria-label='Detach Pictures']").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Detach folder?", dialogs.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("Remove the last folder?", dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
