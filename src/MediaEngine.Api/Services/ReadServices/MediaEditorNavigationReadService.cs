@@ -275,13 +275,17 @@ public sealed class MediaEditorNavigationReadService(
             Nodes: nodes);
     }
 
+    // The keys the Match tab's own read counts as a provider match (EditorCurrentMatchService), plus the keys this read has always counted.
     private static readonly string[] NavigatorIdentityKeys =
     [
-        "tmdb_id", "tvdb_id", "musicbrainz_release_id", "musicbrainz_recording_id",
+        .. EditSession.EditorCurrentMatchService.ProviderIdKeys,
         "comicvine_issue_id", "openlibrary_work_id", "wikidata_qid",
     ];
 
-    // The works in the tree that carry a provider identity of their own.
+    // The works in the tree that carry a provider identity of their own. A fact about a file (a film's or book's id, an episode's id) is stored on
+    // the file's media asset, not on the Work, so a file-level work also counts the ids of its representative asset (the same rule the Match
+    // tab's read uses: the Work's own values first, the asset's filling what the Work lacks; never for a parent such as a show, season or album,
+    // whose representative asset is some child's file).
     private static HashSet<Guid> QueryNavigatorMatchedIds(SqliteConnection conn, IReadOnlyList<NavigatorTreeRow> rows)
     {
         var hexes = rows.Select(row => row.WorkId.ToString("N")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -290,11 +294,38 @@ public sealed class MediaEditorNavigationReadService(
             return [];
         }
 
-        return conn.Query<Guid>("""
+        var matched = conn.Query<Guid>("""
             SELECT DISTINCT cv.entity_id FROM canonical_values cv
             WHERE LOWER(HEX(cv.entity_id)) IN @hexes
               AND cv.key IN @keys AND NULLIF(cv.value, '') IS NOT NULL;
             """, new { hexes, keys = NavigatorIdentityKeys }).ToHashSet();
+
+        var fileHexes = rows
+            .Where(row => !string.Equals(row.WorkKind, "parent", StringComparison.OrdinalIgnoreCase) && !matched.Contains(row.WorkId))
+            .Select(row => row.WorkId.ToString("N"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (fileHexes.Length == 0)
+        {
+            return matched;
+        }
+
+        foreach (var workId in conn.Query<Guid>("""
+            SELECT DISTINCT e.work_id
+            FROM editions e
+            INNER JOIN media_assets ma ON ma.edition_id = e.id
+            INNER JOIN canonical_values cv ON cv.entity_id = ma.id
+            WHERE LOWER(HEX(e.work_id)) IN @hexes
+              AND ma.id = (SELECT MIN(first_asset.id) FROM media_assets first_asset
+                           INNER JOIN editions first_edition ON first_edition.id = first_asset.edition_id
+                           WHERE first_edition.work_id = e.work_id)
+              AND cv.key IN @keys AND NULLIF(cv.value, '') IS NOT NULL;
+            """, new { hexes = fileHexes, keys = NavigatorIdentityKeys }))
+        {
+            matched.Add(workId);
+        }
+
+        return matched;
     }
 
     // A node is matched when it, or the show / album / series it sits under, carries a provider identity (a season rarely has its own).

@@ -2,14 +2,17 @@ using System.Net;
 using Dapper;
 using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Matching;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Intelligence;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -134,6 +137,108 @@ public sealed class EditorCurrentMatchIngestedItemTests : IDisposable
 
         Assert.Equal(EditorCurrentMatchStates.NotMatched, match!.State);
     }
+
+    [Fact]
+    public async Task AfterAMatchRemoval_TheItemReadsNotMatched_ButKeepsItsWikidataId()
+    {
+        var movie = _world.Work("Movies", "standalone", "Arrival");
+        var asset = _world.File(movie, "Arrival (2016).mkv");
+        await IngestAsync(asset, WellKnownProviders.Tmdb,
+            (MetadataFieldConstants.Title, "Arrival"), (BridgeIdKeys.TmdbId, "329865"), (BridgeIdKeys.WikidataQid, "Q20814705"));
+        Assert.Equal(EditorCurrentMatchStates.Matched, (await Service().ReadAsync(movie))!.State);
+
+        var removal = new EditSessionService([new MatchRemovalEditSessionChangeHandler(RemovalScopes())], NullLogger<EditSessionService>.Instance);
+        var saved = await removal.RunAsync(new EditSessionRequest
+        {
+            Changes = [new EditSessionChange { Id = "remove", Kind = EditSessionChangeKinds.MatchRemoval, EntityId = movie }],
+        }, new Dictionary<Guid, string>());
+
+        Assert.True(saved.DataSaved);
+        var match = await Service().ReadAsync(movie);
+        Assert.Equal(EditorCurrentMatchStates.NotMatched, match!.State);
+        Assert.Null(match.Record);
+    }
+
+    [Fact]
+    public async Task ABookWithAnEpubAndAnAudiobook_ShowsTheWorksMatch_WhicheverFileComesFirst()
+    {
+        var book = _world.Work("Books", "standalone", "Dune");
+        var epub = _world.File(book, "Dune.epub");
+        var audiobook = _world.File(book, "Dune.m4b");
+        _world.Canonical(book, BridgeIdKeys.AppleBooksId, "work-level-id");
+        _world.Canonical(epub, BridgeIdKeys.AppleBooksId, "epub-id");
+        _world.Canonical(audiobook, BridgeIdKeys.AppleBooksId, "audiobook-id");
+
+        var match = await Service().ReadAsync(book);
+
+        Assert.Equal(EditorCurrentMatchStates.Matched, match!.State);
+        Assert.Equal("apple_books", match.Record!.ProviderId);
+        Assert.Equal("work-level-id", match.Record.ProviderItemId);
+    }
+
+    [Fact]
+    public async Task ABookInsideASeries_ThatIngestionMatched_ReadsMatchedInTheNavigationRead()
+    {
+        var series = _world.Work("Books", "parent", "Dune Chronicles");
+        var matchedBook = _world.Work("Books", "standalone", "Dune", series, 1);
+        var unmatchedBook = _world.Work("Books", "standalone", "Dune Messiah", series, 2);
+        var asset = _world.File(matchedBook, "Dune.epub");
+        _world.File(unmatchedBook, "Dune Messiah.epub");
+        await IngestAsync(asset, WellKnownProviders.AppleApi,
+            (MetadataFieldConstants.Title, "Dune"), (BridgeIdKeys.AppleBooksId, "1234567890"));
+
+        var nodes = (await Navigation().GetNavigatorAsync(matchedBook, CancellationToken.None))!.Nodes;
+
+        Assert.NotEqual("unmatched", Assert.Single(nodes, node => node.NodeId == matchedBook).MatchState);
+        Assert.Equal("unmatched", Assert.Single(nodes, node => node.NodeId == unmatchedBook).MatchState);
+    }
+
+    [Fact]
+    public async Task AMovieIngestionMatched_ReadsMatchedInTheNavigationRead_AndAnUnmatchedOneStaysUnmatched()
+    {
+        var matchedMovie = _world.Work("Movies", "standalone", "Arrival");
+        await IngestAsync(_world.File(matchedMovie, "Arrival (2016).mkv"), WellKnownProviders.Tmdb,
+            (MetadataFieldConstants.Title, "Arrival"), (BridgeIdKeys.TmdbId, "329865"));
+        var unmatchedMovie = _world.Work("Movies", "standalone", "Home Video");
+        _world.File(unmatchedMovie, "Home Video.mkv");
+
+        var matched = (await Navigation().GetNavigatorAsync(matchedMovie, CancellationToken.None))!.Nodes;
+        var unmatched = (await Navigation().GetNavigatorAsync(unmatchedMovie, CancellationToken.None))!.Nodes;
+
+        Assert.NotEqual("unmatched", Assert.Single(matched, node => node.NodeId == matchedMovie).MatchState);
+        Assert.Equal("unmatched", Assert.Single(unmatched, node => node.NodeId == unmatchedMovie).MatchState);
+    }
+
+    [Fact]
+    public async Task AnEpisodeIngestionMatched_ReadsMatchedInTheNavigationRead_WithoutMatchingItsSiblingsOrItsShow()
+    {
+        var show = _world.Work("TV", "parent", "Severance");
+        var season = _world.Work("TV", "parent", "Season 1", show, 1);
+        var matchedEpisode = _world.Work("TV", "child", "Good News About Hell", season, 1);
+        var unmatchedEpisode = _world.Work("TV", "child", "Half Loop", season, 2);
+        await IngestAsync(_world.File(matchedEpisode, "Severance S01E01.mkv"), WellKnownProviders.Tvdb,
+            (MetadataFieldConstants.Title, "Good News About Hell"), (BridgeIdKeys.TvdbEpisodeId, "8000001"));
+        _world.File(unmatchedEpisode, "Severance S01E02.mkv");
+
+        var nodes = (await Navigation().GetNavigatorAsync(matchedEpisode, CancellationToken.None))!.Nodes;
+
+        Assert.NotEqual("unmatched", Assert.Single(nodes, node => node.NodeId == matchedEpisode).MatchState);
+        Assert.Equal("unmatched", Assert.Single(nodes, node => node.NodeId == unmatchedEpisode).MatchState);
+        Assert.Equal("unmatched", Assert.Single(nodes, node => node.NodeId == show).MatchState);
+    }
+
+    private MediaEditorNavigationReadService Navigation() =>
+        new(_world.Database, null!, new HierarchyAlignmentService(_world.Database, null!));
+
+    private IServiceScopeFactory RemovalScopes() => new ServiceCollection()
+        .AddSingleton<IMetadataEditorRepository>(new MetadataEditorRepository(_world.Database))
+        .AddSingleton<ICanonicalValueRepository>(new CanonicalValueRepository(_world.Database))
+        .AddSingleton<IMetadataClaimRepository>(new MetadataClaimRepository(_world.Database))
+        .AddSingleton<IBridgeIdRepository>(new BridgeIdRepository(_world.Database))
+        .AddSingleton<IWorkRepository>(new WorkRepository(_world.Database))
+        .AddSingleton<ISystemActivityRepository>(new SystemActivityRepository(_world.Database))
+        .BuildServiceProvider()
+        .GetRequiredService<IServiceScopeFactory>();
 
     // Records a match the way the retail match worker does: the lineage of the file's asset, then the lineage-aware persist and score.
     private async Task IngestAsync(Guid assetId, Guid providerId, params (string Key, string Value)[] facts)

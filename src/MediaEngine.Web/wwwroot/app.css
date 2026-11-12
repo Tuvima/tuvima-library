@@ -1296,6 +1296,26 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
     grid-area: 3 / 1;
 }
 
+/* Wrapping (AppFormRow Wrap): on a window narrower than the 1180 breakpoint the row wraps as whole fields. Each child keeps at least a usable width, so a
+   field never shrinks mid-word; a child that is a field keeps its own label, control and help lines, and a button sits on the bottom (control) line of its line. */
+@media (max-width: 1180px) {
+    .app-form-row--wrap > .app-form-row__fields > * {
+        flex: 1 1 12rem;
+        grid-row: auto;
+    }
+
+    .app-form-row--wrap > .app-form-row__fields > :last-child:not(.app-field, [data-form-row-field]) {
+        flex: 0 0 auto;
+    }
+}
+
+@media (max-width: 600px) {
+    .app-form-row--wrap > .app-form-row__fields > *,
+    .app-form-row--wrap > .app-form-row__fields > :last-child:not(.app-field, [data-form-row-field]) {
+        flex: 1 1 100%;
+    }
+}
+
 /* Stacked: one column, each child's label, control and help in order (with the normal label gap), children one under another. */
 .app-form-row--stack > .app-form-row__fields > * {
     align-self: flex-start;
@@ -1535,6 +1555,22 @@ input.app-control.tl-input-slot,
 
 .app-select__option-icon {
     margin-right: var(--tl-space-2);
+}
+
+/* An option's mark (AppSelectOption.Mark): a short text in a small rounded square, before the name; also drawn on the closed control. */
+.app-select__mark {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: var(--tl-space-2);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-caption);
+    font-weight: var(--tl-font-weight-semibold);
 }
 
 .app-button--outlined {

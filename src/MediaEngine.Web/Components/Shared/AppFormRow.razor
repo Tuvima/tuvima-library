@@ -17,11 +17,13 @@
     [Parameter] public bool ReserveMessage { get; set; }
     /// <summary>One column: each child's label, control and help stack in order, children one under another.</summary>
     [Parameter] public bool Stack { get; set; }
+    /// <summary>Below the 1180 px breakpoint the row wraps as whole fields (each keeps a usable width, a trailing button stays at the end of its line); wider, it is the grid of <see cref="Columns"/>.</summary>
+    [Parameter] public bool Wrap { get; set; }
     [Parameter] public string? Class { get; set; }
     /// <summary>Other attributes go on the row's root element, including a <c>style</c> (the columns are set on an inner element, so nothing is replaced).</summary>
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private string RootClass => string.Join(" ", new[] { "app-form-row", Stack ? "app-form-row--stack" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string RootClass => string.Join(" ", new[] { "app-form-row", Stack ? "app-form-row--stack" : null, Wrap ? "app-form-row--wrap" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string? FieldsStyle => string.IsNullOrWhiteSpace(Columns) ? null : $"--tl-form-row-columns: {Columns}";
 }

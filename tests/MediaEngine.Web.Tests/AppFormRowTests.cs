@@ -87,6 +87,24 @@ public sealed class AppFormRowTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WrapAddsTheWrapModifierClass_AndTheWrapRulesLiveInTheRowsOwnSheetsBelowThe1180Breakpoint()
+    {
+        var plain = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children));
+        var wrapping = Render<AppFormRow>(p => p.Add(x => x.ChildContent, Children).Add(x => x.Wrap, true).Add(x => x.Columns, "220px 1fr auto"));
+
+        Assert.DoesNotContain("app-form-row--wrap", plain.Find(".app-form-row").ClassList);
+        Assert.Contains("app-form-row--wrap", wrapping.Find(".app-form-row").ClassList);
+        // Wide, it is still the grid of Columns; the wrapping only starts below the breakpoint.
+        Assert.Contains("--tl-form-row-columns: 220px 1fr auto", wrapping.Find(".app-form-row__fields").GetAttribute("style"));
+        var web = WebRoot();
+        var scoped = File.ReadAllText(Path.Combine(web, "Components", "Shared", "AppFormRow.razor.css"));
+        Assert.Contains("@media (max-width: 1180px)", scoped, StringComparison.Ordinal);
+        Assert.Contains(".app-form-row--wrap .app-form-row__fields", scoped, StringComparison.Ordinal);
+        var global = File.ReadAllText(Path.Combine(web, "wwwroot", "app.css"));
+        Assert.Contains(".app-form-row--wrap > .app-form-row__fields > *", global, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheRowRootIsMarkedAsAnAlignmentRowAndKeepsCallerClassStyleAndAttributes()
     {
         var cut = Render<AppFormRow>(p => p

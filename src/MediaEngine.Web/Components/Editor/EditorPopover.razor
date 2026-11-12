@@ -113,6 +113,7 @@
                                       Session="flow.Session"
                                       CanEdit="@mode.CanEdit"
                                       IsUnmatched="@IsActiveUnmatched"
+                                      OnMatchState="@(state => _matchRead = state)"
                                       Universe="@binding?.UniverseLink?.Invoke()"
                                       OnOpenUniverse="OpenUniverseAsync" />
                 }
@@ -135,6 +136,7 @@
         @* The way around the family (home, Season or Section, item) sits in the header's nav row and is read from the Engine's header (v5 D1). A
            Universe keeps its own tile and kind dropdowns. *@
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
+                          Compact="@(flow.Session.ActiveTool == EditTool.Match)" MatchRead="_matchRead"
                           UniverseName="@Editor.Universe.UniverseName"
                           HasFamily="@Editor.Universe.Visible"
                           Hooks="Editor.HeaderHooks">
@@ -213,6 +215,9 @@
     };
 
     private bool _deleting;
+
+    // What the Match tab read from the Engine about the active item's match; the one-line header on the Match tab says the same thing.
+    private EditorMatchReadState? _matchRead;
 
     // What the last Delete had to say (a refusal, a failure, a file that stayed on disk): shown at the top of the window until dismissed or the next try.
     private string? _actionNotice;

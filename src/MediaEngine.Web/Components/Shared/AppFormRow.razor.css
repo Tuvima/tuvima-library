@@ -39,3 +39,13 @@
     flex-direction: column;
     gap: var(--tl-space-3);
 }
+
+/* Wrap: below the 1180 breakpoint (the window fills the screen) the fields flow onto further lines as whole fields instead of sharing one grid line. */
+@media (max-width: 1180px) {
+    .app-form-row--wrap .app-form-row__fields {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: var(--tl-space-3);
+    }
+}

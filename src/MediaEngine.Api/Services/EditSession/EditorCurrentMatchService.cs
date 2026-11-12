@@ -32,6 +32,17 @@ public sealed class EditorCurrentMatchService(
 {
     private const string TvdbProvider = "tvdb";
 
+    /// <summary>
+    /// The identifier keys that make an item matched to a provider's record (not an ISBN alone, which can come from the file's own tags).
+    /// The navigation read uses the same list, so the family dropdowns and the Match tab agree on what "matched" means.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> ProviderIdKeys =
+    [
+        BridgeIdKeys.TvdbEpisodeId, BridgeIdKeys.TvdbSeasonId, BridgeIdKeys.TvdbId, BridgeIdKeys.TmdbId,
+        BridgeIdKeys.MusicBrainzReleaseGroupId, BridgeIdKeys.MusicBrainzRecordingId, BridgeIdKeys.MusicBrainzReleaseId,
+        BridgeIdKeys.ComicVineId, BridgeIdKeys.OpenLibraryId, BridgeIdKeys.AppleBooksId,
+    ];
+
     private sealed record Source(
         string ProviderId, string ProviderName, string ItemId, string Kind, string? Url, bool CanLookUp);
 

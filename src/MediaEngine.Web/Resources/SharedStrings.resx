@@ -11093,9 +11093,6 @@
   <data name="EditorMatchPanel_StateOff" xml:space="preserve">
     <value>Off</value>
   </data>
-  <data name="EditorMatchPanel_StateReady" xml:space="preserve">
-    <value>Ready</value>
-  </data>
   <data name="EditorMatchPanel_Optional" xml:space="preserve">
     <value>optional</value>
   </data>
@@ -11198,9 +11195,6 @@
   <data name="EditorMatchPanel_MatchKind" xml:space="preserve">
     <value>Match {0}</value>
   </data>
-  <data name="EditorMatchPanel_YourFileLine" xml:space="preserve">
-    <value>Your file: {0}</value>
-  </data>
   <data name="EditorMatchPanel_NeedsKeySentence" xml:space="preserve">
     <value>{0} needs a key before it can be searched. Add it in Settings, or choose another provider.</value>
   </data>
@@ -11209,6 +11203,39 @@
   </data>
   <data name="EditorMatchPanel_ChooseProvider" xml:space="preserve">
     <value>Choose a provider to search.</value>
+  </data>
+  <data name="EditorMatchPanel_OptionalLabel" xml:space="preserve">
+    <value>{0} (optional)</value>
+  </data>
+  <data name="EditorMatchPanel_StateUnmatched" xml:space="preserve">
+    <value>Unmatched</value>
+  </data>
+  <data name="EditorMatchPanel_StateMatchedTo" xml:space="preserve">
+    <value>Matched to {0}</value>
+  </data>
+  <data name="EditorMatchPanel_StateMatched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
+  <data name="EditorMatchPanel_NothingFoundWithIsbn" xml:space="preserve">
+    <value>Nothing found for that. Try fewer words or the ISBN.</value>
+  </data>
+  <data name="EditorMatchPanel_NothingFound" xml:space="preserve">
+    <value>Nothing found for that. Try fewer words.</value>
+  </data>
+  <data name="EditorMatchPanel_ProviderDidNotAnswer" xml:space="preserve">
+    <value>{0} did not answer.</value>
+  </data>
+  <data name="EditorMatchPanel_FileEmbeddedTitle" xml:space="preserve">
+    <value>Embedded title: {0}</value>
+  </data>
+  <data name="EditorMatchPanel_FileFromName" xml:space="preserve">
+    <value>Read from the file name: {0}</value>
+  </data>
+  <data name="EditorMatchPanel_FileSeasonEpisode" xml:space="preserve">
+    <value>Season {0}, Episode {1}</value>
+  </data>
+  <data name="EditorMatchPanel_FileNothingRead" xml:space="preserve">
+    <value>Nothing read from the file yet</value>
   </data>
   <data name="EditorMatchPanel_KindMovie" xml:space="preserve">
     <value>movie</value>

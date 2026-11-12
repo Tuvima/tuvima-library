@@ -311,7 +311,7 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheShowBoxes_SitInTheMatchTabsOneFirstRow_BesideTheProviderAndTheSourceSwitch()
+    public void TheShowBoxes_SitInTheMatchTabsOneFirstRow_BesideTheProvider_AndTheSourceSelectorIsOnItsOwnLine()
     {
         var cut = RenderPanel(EpisodeSubject());
 
@@ -320,7 +320,8 @@ public sealed class EditorTvMatchFlowTests : AsyncBunitContext
         Assert.NotNull(row.QuerySelector("[data-testid=tv-flow-show]"));
         Assert.NotNull(row.QuerySelector("[data-testid=tv-flow-year]"));
         Assert.NotNull(row.QuerySelector("[data-testid=tv-flow-search]"));
-        Assert.NotNull(row.QuerySelector("[role=radiogroup], [role=group], [role=tablist]"));
+        Assert.Empty(row.QuerySelectorAll("[data-testid=match-source]"));
+        Assert.Single(cut.FindAll("[data-testid=match-source]"));
     }
 
     [Fact]
