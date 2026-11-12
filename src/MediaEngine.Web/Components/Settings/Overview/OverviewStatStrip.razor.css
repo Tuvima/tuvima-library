@@ -43,21 +43,21 @@
 
 .overview-stats__value {
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-xl);
+    font-size: var(--tl-type-page-title-size);
     font-variant-numeric: tabular-nums;
-    font-weight: var(--tl-font-weight-semibold);
+    font-weight: var(--tl-type-page-title-weight);
     line-height: 1.1;
 }
 
 .overview-stats__label {
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: var(--tl-font-weight-medium, 500);
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .overview-stats__note {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 @media (max-width: 840px) {
@@ -77,6 +77,6 @@
     }
 
     .overview-stats__value {
-        font-size: var(--tl-font-size-xl);
+        font-size: var(--tl-type-page-title-size);
     }
 }

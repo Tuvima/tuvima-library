@@ -18,14 +18,14 @@
 
 .playback-tools-status__facts dt {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-label-size);
 }
 
 .playback-tools-status__facts dd {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-dialog-title);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
 }
 
 @media (max-width: 600px) {

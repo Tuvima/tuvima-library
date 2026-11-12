@@ -16,7 +16,7 @@
 .profiles-tab__who { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .profiles-tab__row-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
 .profiles-tab__who .profiles-tab__row-name { flex: none; }
-.profiles-tab__signin { color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); overflow-wrap: anywhere; }
+.profiles-tab__signin { color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); overflow-wrap: anywhere; }
 .profiles-tab__row--add .profiles-tab__row-name { color: var(--tl-text-muted); }
 .profiles-tab__badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 
@@ -28,5 +28,5 @@
 .access-phone-note {
     margin: 0 0 1rem;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }

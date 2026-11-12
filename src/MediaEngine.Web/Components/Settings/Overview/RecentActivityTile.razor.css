@@ -87,7 +87,7 @@
     min-width: 100%;
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -126,7 +126,7 @@
 
 .activity-card__line {
     overflow-wrap: anywhere;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .activity-card__line--muted {

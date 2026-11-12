@@ -84,8 +84,8 @@
     align-items: center;
     gap: 6px;
     color: var(--kind-accent);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .overview-continue__title {
@@ -99,7 +99,7 @@
 .overview-continue__subtitle {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -117,7 +117,7 @@
 
 .overview-continue__percent {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     font-variant-numeric: tabular-nums;
 }
 

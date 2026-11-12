@@ -1,5 +1,5 @@
 .approval-dialog { display: grid; gap: 8px; min-width: 0; }
-.approval-dialog__title { overflow-wrap: anywhere; color: var(--tl-text-primary); font-size: var(--tl-font-size-md); }
-.approval-dialog__heading, .approval-dialog__sends, .approval-dialog__nothing { margin: 0; color: var(--tl-text-primary); font-size: var(--tl-font-size-sm); overflow-wrap: anywhere; }
-.approval-dialog__list, .approval-dialog__notes { margin: 0; padding-left: 18px; overflow-wrap: anywhere; font-size: var(--tl-font-size-sm); }
+.approval-dialog__title { overflow-wrap: anywhere; color: var(--tl-text-primary); font-size: var(--tl-type-subheading-size); }
+.approval-dialog__heading, .approval-dialog__sends, .approval-dialog__nothing { margin: 0; color: var(--tl-text-primary); font-size: var(--tl-type-body-size); overflow-wrap: anywhere; }
+.approval-dialog__list, .approval-dialog__notes { margin: 0; padding-left: 18px; overflow-wrap: anywhere; font-size: var(--tl-type-body-size); }
 .approval-dialog__notes { color: var(--tl-text-muted); }

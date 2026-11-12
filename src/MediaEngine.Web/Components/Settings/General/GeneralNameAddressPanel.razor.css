@@ -47,7 +47,7 @@
 .general-address__fact dt {
     grid-column: 1 / -1;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 .general-address__value {

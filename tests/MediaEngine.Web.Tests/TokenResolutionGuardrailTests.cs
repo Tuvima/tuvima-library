@@ -72,10 +72,12 @@ public sealed class TokenResolutionGuardrailTests
         {
             Assert.Contains("var(--tl-font-size-shelf-title)", File.ReadAllText(Path.Combine(web, file)));
         }
-        foreach (var file in new[] { "Components/Pages/SearchPage.razor.css", "Components/Settings/Frame/SettingsPageFrame.razor.css", "Components/Shared/Shell/SidebarPageHeader.razor.css", "Components/Pages/ViewContentPage.razor.css" })
+        foreach (var file in new[] { "Components/Pages/SearchPage.razor.css", "Components/Shared/Shell/SidebarPageHeader.razor.css", "Components/Pages/ViewContentPage.razor.css" })
         {
             Assert.Contains("var(--tl-font-size-title)", File.ReadAllText(Path.Combine(web, file)));
         }
+        // The Settings frame names the page-title job (24 px, weight 700) instead of the old title step.
+        Assert.Contains("var(--tl-type-page-title-size)", File.ReadAllText(Path.Combine(web, "Components/Settings/Frame/SettingsPageFrame.razor.css")));
     }
 
     [Fact]

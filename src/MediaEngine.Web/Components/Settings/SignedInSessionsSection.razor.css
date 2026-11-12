@@ -50,7 +50,7 @@
 .signed-in-sessions__client,
 .signed-in-sessions__seen {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     overflow-wrap: anywhere;
 }
 
@@ -106,7 +106,7 @@
     border: 1px solid var(--tl-accent-primary);
     border-radius: var(--tl-radius-pill);
     color: var(--tl-accent-primary);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 @media (max-width: 640px) {
