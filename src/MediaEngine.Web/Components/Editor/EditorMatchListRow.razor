@@ -4,7 +4,7 @@
    length at the right and a tick on the chosen row. No pill and no description. The search results, the TV shows and episodes, the music releases
    and tracks, the Wikidata items and the group Match's choices all draw their rows here, so the lists look the same everywhere. The whole row is one
    button; the chosen row is washed with the accent and carries aria-pressed. Any other attribute (a test id) goes on the button. *@
-<div class="@(Selected ? "tl-mlrow is-active" : "tl-mlrow")" role="listitem">
+<div class="@RootClass" role="listitem">
     <AppRowButton aria-pressed="@(Selected ? "true" : "false")" Disabled="@Disabled" OnClick="OnClick" @attributes="AdditionalAttributes">
         <span class="tl-mlrow__inner">
             @if (!string.IsNullOrWhiteSpace(Number))
@@ -72,6 +72,11 @@
     [Parameter] public string MetaTestId { get; set; } = "match-result-meta";
 
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [CascadingParameter] public MediaEngine.Web.Services.Editing.EditorWindowLayout? Layout { get; set; }
+
+    // On a phone a long title or note wraps instead of being cut short (nothing there can be read by hovering).
+    private string RootClass => string.Join(' ', new[] { "tl-mlrow", Selected ? "is-active" : null, MediaEngine.Web.Services.Editing.EditorWindowLayout.IsPhone(false, Layout) ? "tl-mlrow--phone" : null }.Where(part => part is not null));
 
     private int ArtWidth => ArtShape switch { "wide" => 64, "square" => 44, _ => 32 };
 

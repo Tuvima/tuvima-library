@@ -207,3 +207,74 @@
     gap: var(--tl-space-2);
     margin-inline-start: auto;
 }
+
+/* On a phone (universal editor v6 section 4a): the compare table runs under the cover and facts, never beside them; a wide episode picture sits above its text; cells wrap
+   (no column is hidden, nothing scrolls sideways); the actions stack at the full width, 44 px tall. */
+.tl-mcard--phone {
+    padding: var(--tl-space-4);
+}
+
+.tl-mcard--phone .tl-mcard__top {
+    gap: var(--tl-space-4);
+}
+
+.tl-mcard--phone .tl-mcard__cover {
+    width: 112px;
+    height: 168px;
+}
+
+.tl-mcard--phone[data-art="square"] .tl-mcard__cover {
+    width: 128px;
+    height: 128px;
+}
+
+.tl-mcard--phone[data-art="wide"] .tl-mcard__top {
+    flex-direction: column;
+}
+
+.tl-mcard--phone[data-art="wide"] .tl-mcard__cover {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+}
+
+.tl-mcard--phone .tl-mcard__table th[scope="col"],
+.tl-mcard--phone .tl-mcard__table th[scope="row"],
+.tl-mcard--phone .tl-mcard__table td {
+    padding: var(--tl-space-2) var(--tl-space-1);
+}
+
+.tl-mcard--phone .tl-mcard__foot {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.tl-mcard--phone .tl-mcard__actions {
+    flex: 0 0 auto;
+    align-items: stretch;
+    margin-inline-start: 0;
+}
+
+/* In the sheet the card has no frame of its own; the sheet body scrolls and Apply match stays at the bottom edge under the thumb. */
+.tl-mcard--sheet {
+    flex: 1 0 auto;
+    padding-block-end: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.tl-mcard--sheet .tl-mcard__foot {
+    display: contents;
+}
+
+.tl-mcard--sheet .tl-mcard__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-block-start: auto;
+    margin-inline: calc(-1 * var(--tl-space-4));
+    padding: var(--tl-space-3) var(--tl-space-4) max(var(--tl-space-3), var(--tl-editor-safe-bottom));
+    border-top: 1px solid var(--tl-divider);
+    background: var(--tl-bg-surface);
+}

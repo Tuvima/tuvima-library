@@ -1,18 +1,23 @@
 @namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Services.Editing
 @inject IStringLocalizer<SharedStrings> L
 
 @* The one search row of the Match tab (universal editor v6, D3 and D12): the fields of the flow, each with its label above, then a Search button with
    the word on it, all on the shared form row, so every control sits on one line at one height. What is wrong with the row, or how many results came
    back, goes on the row's message line under the whole row, never beside a control. The plain search, the TV, music and Wikidata flows and the group
-   Match all draw their row here, so the four can never drift apart. Nothing is searched here: the button and Enter raise OnSearch and the flow decides. *@
-<AppFormRow Columns="@Columns" Wrap="true" ReserveMessage="true" data-testid="@RowTestId">
+   Match all draw their row here, so the four can never drift apart. Nothing is searched here: the button and Enter raise OnSearch and the flow decides.
+   On a phone (section 4a) the row is stacked: the provider, each field and then Search, one per line, Search at the full width and 44 px tall. *@
+<AppFormRow Columns="@Columns" Wrap="@(!IsPhone)" Stack="@IsPhone" ReserveMessage="true" data-testid="@RowTestId">
     <ChildContent>
         @ChildContent
         @* The button joins the row's three lines as a field with a blank label, so it sits on the control line of every visual line when the row wraps. *@
         <div data-form-row-field="fit">
-            <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+            @if (!IsPhone)
+            {
+                <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+            }
             <AppButton Label="@L["EditorMatchPanel_Search"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                       Disabled="@SearchDisabled" OnClick="OnSearch" data-testid="@ButtonTestId" />
+                       Disabled="@SearchDisabled" FullWidth="@IsPhone" OnClick="OnSearch" data-testid="@ButtonTestId" />
         </div>
     </ChildContent>
     <Message><span data-testid="@MessageTestId">@Message</span></Message>
@@ -37,4 +42,8 @@
     [Parameter] public string ButtonTestId { get; set; } = "match-search-button";
 
     [Parameter] public string MessageTestId { get; set; } = "match-row-message";
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
 }

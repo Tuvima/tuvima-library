@@ -11744,6 +11744,9 @@
   <data name="EditorMusicMatchFlow_TrackCount" xml:space="preserve">
     <value>{0} tracks</value>
   </data>
+  <data name="EditorMusicMatchFlow_AllReleases" xml:space="preserve">
+    <value>All releases</value>
+  </data>
   <data name="EditorMusicMatchFlow_Releases" xml:space="preserve">
     <value>Releases</value>
   </data>

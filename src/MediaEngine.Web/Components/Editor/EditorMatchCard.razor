@@ -7,7 +7,7 @@
    cover to compare with your own, the title, the series and number, the creator and year, a link to the provider, two lines of description with
    Read more, the verdict in words, the compare table (Field, Your file, the other side) and a basis note. The caller fills the foot: Apply match
    under a search, Open source / Remove match / Change match for a match. Every comparison comes from the Engine; this part only draws it. *@
-<section class="tl-mcard" aria-label="@Model.Title" data-art="@ArtName" @attributes="AdditionalAttributes">
+<section class="@RootClass" aria-label="@Model.Title" data-art="@ArtName" @attributes="AdditionalAttributes">
     <div class="tl-mcard__top">
         <div class="tl-mcard__cover" data-testid="match-card-cover">
             @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
@@ -39,7 +39,7 @@
                     @if (!string.IsNullOrWhiteSpace(Model.SourceUrl))
                     {
                         <AppButton Label="@Model.ProviderName" Href="@Model.SourceUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Text"
-                                   Tone="AppUiTone.Primary" Size="AppControlSize.Compact" />
+                                   Tone="AppUiTone.Primary" Size="@ControlSize" />
                     }
                     else
                     {
@@ -54,21 +54,23 @@
                 {
                     <div>
                         <AppButton Label="@(_expanded ? L["EditorMatchCard_ReadLess"].Value : L["EditorMatchCard_ReadMore"].Value)" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
-                                   Size="AppControlSize.Compact" OnClick="ToggleDescription" aria-expanded="@(_expanded ? "true" : "false")" data-testid="match-card-read-more" />
+                                   Size="@ControlSize" OnClick="ToggleDescription" aria-expanded="@(_expanded ? "true" : "false")" data-testid="match-card-read-more" />
                     </div>
                 }
             }
-            @if (CompareBesideCover)
+            @if (CompareBesideCover && !IsPhone)
             {
                 @Compare()
             }
         </div>
     </div>
 
-    @if (!CompareBesideCover)
+    @if (!CompareBesideCover || IsPhone)
     {
         @Compare()
     }
+
+    @Extra
 
     <div class="tl-mcard__foot">
         <div class="tl-mcard__basis">
@@ -102,7 +104,22 @@
     /// <summary>True for the current match: the verdict and the table sit in the right column beside the cover. False under a search: they run the full width under it.</summary>
     [Parameter] public bool CompareBesideCover { get; set; }
 
+    /// <summary>More that belongs with the card, drawn under the table and above the foot (on a phone, the editions of a work, so Apply match stays the last thing).</summary>
+    [Parameter] public RenderFragment? Extra { get; set; }
+
     [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    /// <summary>True when the card is drawn in the phone's full-height sheet (EditorMatchSheet): it loses its own frame and pins Apply match to the bottom.</summary>
+    [CascadingParameter(Name = EditorMatchSheet.InSheetName)] public bool InSheet { get; set; }
+
+    // On a phone the compare table runs under the cover (never beside it), the buttons are 44 px and the actions stack.
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    private AppControlSize ControlSize => IsPhone ? AppControlSize.Normal : AppControlSize.Compact;
+
+    private string RootClass => string.Join(' ', new[] { "tl-mcard", IsPhone ? "tl-mcard--phone" : null, InSheet ? "tl-mcard--sheet" : null }.Where(part => part is not null));
 
     private string ArtName => Model.Art.ToString().ToLowerInvariant();
 
@@ -148,7 +165,7 @@
     // the right column beside the cover (mock B).
     private RenderFragment Compare() => __builder =>
     {
-        <div class="tl-mcard__compare" data-beside="@(CompareBesideCover ? "true" : "false")">
+        <div class="tl-mcard__compare" data-beside="@(CompareBesideCover && !IsPhone ? "true" : "false")">
         @* The verdict is the Engine's; a result it gave none for (a Wikidata item) has only the table. *@
         @if (!string.IsNullOrWhiteSpace(Model.Verdict))
         {

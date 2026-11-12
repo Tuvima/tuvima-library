@@ -1,0 +1,34 @@
+@namespace MediaEngine.Web.Components.Editor
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match card as a full-height sheet on a phone (universal editor v6 section 4a, D20 and D21; mock screen H, screen 2). Tapping a row of a Match list
+   opens the card for it here instead of beside the list: a bar with Back and "Selected result", then the card, which scrolls, with Apply match fixed at
+   the bottom under the thumb (the card pins its own actions while it is in a sheet). Back, Escape and swiping the sheet down all return to the list with
+   the tick kept; nothing is chosen or staged by leaving. The sheet is the app's native dialog frame, so the page behind the editor window stays still. *@
+<AppDialogFrame Open="true" Title="@Title" DialogOptions="_options" Class="tl-msheet" OnCancel="OnBack">
+    <div class="tl-msheet__page" data-testid="match-sheet">
+        <div class="tl-msheet__bar">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" AriaLabel="@L["Common_GoBack"].Value" OnClick="OnBack" data-testid="match-sheet-back" />
+            <h3 class="tl-msheet__title" data-testid="match-sheet-title">@Title</h3>
+        </div>
+        <div class="tl-msheet__body">
+            <CascadingValue Name="@InSheetName" Value="true" IsFixed="true">@ChildContent</CascadingValue>
+        </div>
+    </div>
+</AppDialogFrame>
+
+@code {
+    /// <summary>The name of the cascading value that tells a card it is drawn in this sheet (so it pins Apply match and drops its own frame).</summary>
+    internal const string InSheetName = "EditorMatchSheet";
+
+    private static readonly AppDialogOptions _options = new() { FullScreen = true, NoHeader = true, BackdropClick = false, CloseOnEscapeKey = true };
+
+    /// <summary>The words in the bar: "Selected result".</summary>
+    [Parameter] public string Title { get; set; } = string.Empty;
+
+    /// <summary>Raised by Back, Escape and a swipe down: the sheet closes and the list shows again.</summary>
+    [Parameter] public EventCallback OnBack { get; set; }
+
+    /// <summary>The card (and anything that belongs with it, such as the editions).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

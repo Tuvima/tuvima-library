@@ -19,9 +19,11 @@
    runtime, then air order; an anime's absolute number is shown as the provider's season and episode). A show page needs only the show. A search never
    runs on opening for an item that is not matched yet: the boxes are filled and the person presses Search. The pick is judged by the Engine and the
    card shows its verdict in words and its compare table; Apply match is always available. Choosing only hands the pick up; staging, the move and the
-   show re-match belong to the Match tab. *@
+   show re-match belong to the Match tab. On a phone (section 4a) each step is one screen: the shows (search row and list), then the season and its
+   episodes under the chosen show (Change show goes back), with the card of a tapped show or episode as a full-height sheet whose Back returns to the
+   list with the tick kept. A show page needs only the shows screen: tapping a show opens its sheet. *@
 <div class="tl-tvflow" data-testid="tv-flow" data-scope="@(NeedsEpisode ? "episode" : "show")">
-    @if (_show is null)
+    @if (ShowsStep)
     {
         <EditorMatchSearchRow Columns="@RowColumns" Message="@RowMessage" SearchDisabled="@(_showsLoading || string.IsNullOrWhiteSpace(_showText))" OnSearch="SearchAsync"
                               ButtonTestId="tv-flow-search">
@@ -35,13 +37,16 @@
     else
     {
         @* The chosen show, read-only, with Change show on the control line beside it (mock C). *@
-        <AppFormRow Columns="minmax(0, 1fr) auto" Wrap="true" ReserveMessage="true" data-testid="tv-flow-card">
+        <AppFormRow Columns="minmax(0, 1fr) auto" Wrap="@(!IsPhone)" Stack="@IsPhone" ReserveMessage="@(!IsPhone)" data-testid="tv-flow-card">
             <ChildContent>
                 <AppTextField Label="@L["EditorTvMatchFlow_Show"].Value" Value="@ChosenShowText()" ReadOnly="true" aria-label="@L["EditorTvMatchFlow_Show"].Value" data-testid="tv-flow-chosen-show" />
                 <div data-form-row-field="fit">
-                    <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+                    @if (!IsPhone)
+                    {
+                        <span class="app-field__label" aria-hidden="true">&nbsp;</span>
+                    }
                     <AppButton Label="@L["EditorTvMatchFlow_ChangeShow"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
-                               OnClick="ChangeShow" data-testid="tv-flow-change-show" />
+                               FullWidth="@IsPhone" OnClick="ChangeShow" data-testid="tv-flow-change-show" />
                 </div>
             </ChildContent>
         </AppFormRow>
@@ -49,7 +54,7 @@
 
     @Lead
 
-    @if (_show is null)
+    @if (ShowsStep)
     {
         @if (_showsLoading)
         {
@@ -66,9 +71,15 @@
                 {
                     var current = show;
                     <EditorMatchListRow Title="@show.Name" Meta="@ShowMeta(show)" ArtShape="portrait" ImageUrl="@show.ImageUrl" data-testid="tv-flow-show-row"
-                                        OnClick="@(() => ChooseShowAsync(current))" />
+                                        Selected="@(IsPhone && !NeedsEpisode && _show?.SeriesId == show.SeriesId)"
+                                        OnClick="@(() => ChooseShowAsync(current, openSheet: IsPhone && !NeedsEpisode))" />
                 }
             </EditorMatchList>
+        }
+
+        @if (IsPhone && !NeedsEpisode && _sheet && _candidate is not null)
+        {
+            <EditorMatchSheet Title="@L["EditorMatchResults_SelectedResult"].Value" OnBack="CloseSheet">@CardPart()</EditorMatchSheet>
         }
 
         @if (ShowCancel)
@@ -78,7 +89,7 @@
     }
     else if (NeedsEpisode)
     {
-        <EditorMatchSplit TestId="tv-flow-split" ShowCard="@(_candidate is not null)">
+        <EditorMatchSplit TestId="tv-flow-split" ShowCard="@(_candidate is not null)" SheetOpen="_sheet" OnSheetClose="CloseSheet">
             <List>@EpisodePart()</List>
             <Card>@CardPart()</Card>
         </EditorMatchSplit>
@@ -119,6 +130,9 @@
     private EditorMatchResultDto? _judged;
     private bool _judging;
 
+    // On a phone: the card of the tapped show or episode is open as a sheet.
+    private bool _sheet;
+
     /// <summary>What the Match tab puts first in the row: the provider dropdown.</summary>
     [Parameter] public RenderFragment? RowStart { get; set; }
 
@@ -150,6 +164,15 @@
     [Parameter] public EventCallback<ItemCanonicalRetailCandidateDto> OnApplyMatch { get; set; }
 
     [Parameter] public EventCallback OnCancel { get; set; }
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    // The first screen: finding the show. A show page on a phone stays on it (the chosen show is ticked in the list and its card is a sheet).
+    private bool ShowsStep => _show is null || (IsPhone && !NeedsEpisode);
+
+    private void CloseSheet() => _sheet = false;
 
     private bool NeedsEpisode => Subject is not null && EditorTvMatchCandidates.NeedsEpisode(Subject.ScopeId);
 
@@ -254,6 +277,7 @@
 
     private void ClearPick()
     {
+        _sheet = false;
         _picked = null;
         _suggestion = null;
         _candidate = null;
@@ -328,7 +352,7 @@
             ? shows
             : [.. shows.OrderBy(show => string.Equals(show.Year, _yearText.Trim(), StringComparison.Ordinal) ? 0 : 1)];
 
-    private async Task ChooseShowAsync(TvMatchBrowserShowDto show)
+    private async Task ChooseShowAsync(TvMatchBrowserShowDto show, bool openSheet = false)
     {
         if (Subject is null)
         {
@@ -341,6 +365,7 @@
         _episodes = [];
         _episodesProblem = null;
         ClearPick();
+        _sheet = openSheet;
         _episodesLoading = NeedsEpisode;
         StateHasChanged();
         try
@@ -519,7 +544,19 @@
         }
     }
 
-    private Task ApplyAsync() => _candidate is null ? Task.CompletedTask : OnApplyMatch.InvokeAsync(_candidate);
+    // Apply match stages the pick and leaves the sheet; the tab shows its note.
+    private Task ApplyAsync()
+    {
+        _sheet = false;
+        return _candidate is null ? Task.CompletedTask : OnApplyMatch.InvokeAsync(_candidate);
+    }
+
+    // A tap on an episode picks it and, on a phone, opens its card as a sheet.
+    private Task TapEpisodeAsync(TvMatchBrowserEpisodeDto episode)
+    {
+        _sheet = IsPhone;
+        return PickEpisodeAsync(episode);
+    }
 
     private IReadOnlyList<AppSelectOption> SeasonOptions =>
     [
@@ -554,7 +591,7 @@
     {
         if (_seasons is { Seasons.Count: > 0 })
         {
-            <AppFormRow Columns="12rem" Wrap="true">
+            <AppFormRow Columns="12rem" Wrap="@(!IsPhone)" Stack="@IsPhone">
                 <AppSelect Value="@(_seasonNumber?.ToString(CultureInfo.InvariantCulture))" ValueChanged="OnSeasonChangedAsync" Options="@SeasonOptions"
                            Label="@L["EditorTvMatchFlow_SeasonLabel"].Value" data-testid="tv-flow-season" />
             </AppFormRow>
@@ -582,7 +619,7 @@
                                         Trailing="@(episode.RuntimeMinutes is > 0 ? L["EditorTvMatchFlow_Minutes", episode.RuntimeMinutes.Value].Value : null)"
                                         Selected="active" MetaTestId="@(suggested.Length > 0 ? "tv-flow-suggested" : "tv-flow-episode-meta")"
                                         aria-label="@L["EditorTvMatchFlow_EpisodeRow", slot, episode.Title].Value" data-testid="tv-flow-episode-pick"
-                                        data-number="@episode.EpisodeNumber" OnClick="@(() => PickEpisodeAsync(current))" />
+                                        data-number="@episode.EpisodeNumber" OnClick="@(() => TapEpisodeAsync(current))" />
                 }
             </EditorMatchList>
         }

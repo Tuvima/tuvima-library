@@ -8,7 +8,9 @@
    then "Show N more results". On the right the card for the chosen result (EditorMatchCard): the large cover, the facts, the verdict in words, the
    compare table the Engine supplied, and Apply match with one line saying what it does. A book's, comic's or audiobook's editions sit under both.
    Apply match is always available once a result is chosen, even for a Weak match: the verdict is advice. Nothing is searched and nothing is
-   saved here; the panel owns both. The results and the "Looking up" line sit on a full-width row of their own. *@
+   saved here; the panel owns both. The results and the "Looking up" line sit on a full-width row of their own. On a phone (section 4a) the list fills the
+   width and tapping a row opens the card as a full-height sheet, with the editions under the table and Apply match fixed at the bottom; Back returns
+   to the list with the tick kept, and Apply match closes the sheet. *@
 <div class="tl-matchres" data-testid="match-results">
     @if (Loading)
     {
@@ -16,7 +18,7 @@
     }
     else if (!string.IsNullOrWhiteSpace(Message))
     {
-        <div class="tl-matchres__wide tl-matchres__message" data-testid="match-message">
+        <div class="@(IsPhone ? "tl-matchres__wide tl-matchres__message tl-matchres__message--phone" : "tl-matchres__wide tl-matchres__message")" data-testid="match-message">
             <AppAlert Severity="@(Failed ? AppSeverity.Warning : AppSeverity.Info)" Dense="true">@Message</AppAlert>
             @if (Failed && OnRetry.HasDelegate)
             {
@@ -27,14 +29,14 @@
 
     @if (!Loading && Results.Count > 0)
     {
-        <EditorMatchSplit TestId="match-split" ShowCard="@(Selected is not null)">
+        <EditorMatchSplit TestId="match-split" ShowCard="@(Selected is not null)" SheetOpen="_sheet" OnSheetClose="CloseSheet">
             <List>
                 <EditorMatchList Heading="@L["EditorMatchResults_SearchResults"].Value" Count="@(Results.Count == 1 ? L["EditorMatchResults_CountOne"].Value : L["EditorMatchResults_Count", Results.Count].Value)">
                     @foreach (var result in Visible)
                     {
                         var current = result;
                         <EditorMatchListRow Title="@result.Title" Meta="@Line(result)" ArtShape="@Shape(result)" ImageUrl="@result.ImageUrl" Selected="@ReferenceEquals(result, Selected)"
-                                            OnClick="@(() => SelectedChanged.InvokeAsync(current))" data-testid="match-result" />
+                                            OnClick="@(() => TapAsync(current))" data-testid="match-result" />
                     }
                 </EditorMatchList>
                 @if (Hidden > 0)
@@ -50,27 +52,23 @@
                 {
                     var shown = Edition ?? selected;
                     <EditorMatchCard Model="@EditorMatchCardModels.ForResult(shown, selected, Kind, L)" ResultLabel="@L["EditorMatchResults_SelectedResult"].Value" data-testid="match-preview">
+                        <Extra>
+                            @if (IsPhone)
+                            {
+                                @EditionsList(selected)
+                            }
+                        </Extra>
                         <Foot>
-                            <EditorMatchApply ShowCancel="ShowCancel" CanApply="CanApply" OnApply="OnApply" OnCancel="OnCancel" Line="@EditorMatchCardModels.ApplyLine(Kind, shown.ProviderName, L)" />
+                            <EditorMatchApply ShowCancel="ShowCancel" CanApply="CanApply" OnApply="ApplyAsync" OnCancel="OnCancel" Line="@EditorMatchCardModels.ApplyLine(Kind, shown.ProviderName, L)" />
                         </Foot>
                     </EditorMatchCard>
                 }
             </Card>
         </EditorMatchSplit>
 
-        @if (Selected is { Editions.Count: > 0 } work)
+        @if (!IsPhone && Selected is { Editions.Count: > 0 } work)
         {
-            <div class="tl-matchres__wide" data-testid="match-editions">
-                <EditorMatchList Heading="@L["EditorMatchResults_EditionsAndReleases"].Value">
-                    @foreach (var edition in work.Editions)
-                    {
-                        var picked = ReferenceEquals(edition, Edition);
-                        var current = edition;
-                        <EditorMatchListRow Title="@EditionLine(edition)" Meta="@(edition.IsSuggested ? L["EditorMatchResults_ClosestToYourFile"].Value : null)" Selected="picked"
-                                            OnClick="@(() => EditionChanged.InvokeAsync(current))" />
-                    }
-                </EditorMatchList>
-            </div>
+            @EditionsList(work)
         }
     }
     else if (!Loading && ShowCancel)
@@ -82,6 +80,10 @@
 </div>
 
 @code {
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool _sheet;
+
     /// <summary>How many rows show before "Show N more results".</summary>
     internal const int FirstRows = 6;
 
@@ -124,6 +126,45 @@
 
     [Parameter] public EventCallback OnCancel { get; set; }
 
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    // A tap chooses the row; on a phone it also opens the card's sheet (the first result is chosen for the person after a search, but its sheet waits for a tap).
+    private async Task TapAsync(EditorMatchResultDto result)
+    {
+        await SelectedChanged.InvokeAsync(result);
+        _sheet = IsPhone;
+    }
+
+    private void CloseSheet() => _sheet = false;
+
+    // Apply match stages the pick and leaves the sheet; the tab shows its note.
+    private async Task ApplyAsync()
+    {
+        _sheet = false;
+        await OnApply.InvokeAsync();
+    }
+
+    // A book's, comic's or audiobook's editions: under both columns on a computer, inside the card's sheet on a phone.
+    private RenderFragment EditionsList(EditorMatchResultDto work) => __builder =>
+    {
+        if (work.Editions.Count == 0)
+        {
+            return;
+        }
+
+        <div class="tl-matchres__wide" data-testid="match-editions">
+            <EditorMatchList Heading="@L["EditorMatchResults_EditionsAndReleases"].Value">
+                @foreach (var edition in work.Editions)
+                {
+                    var picked = ReferenceEquals(edition, Edition);
+                    var current = edition;
+                    <EditorMatchListRow Title="@EditionLine(edition)" Meta="@(edition.IsSuggested ? L["EditorMatchResults_ClosestToYourFile"].Value : null)" Selected="picked"
+                                        OnClick="@(() => EditionChanged.InvokeAsync(current))" />
+                }
+            </EditorMatchList>
+        </div>
+    };
+
     private IEnumerable<EditorMatchResultDto> Visible => _all ? Results : Results.Take(FirstRows);
 
     private int Hidden => _all ? 0 : Math.Max(0, Results.Count - FirstRows);
@@ -135,6 +176,7 @@
         {
             _listed = Results;
             _all = false;
+            _sheet = false;
         }
     }
 

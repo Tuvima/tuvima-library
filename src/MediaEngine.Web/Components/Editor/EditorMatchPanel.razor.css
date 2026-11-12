@@ -68,3 +68,37 @@
     flex-direction: column;
     gap: var(--tl-space-3);
 }
+
+/* On a phone (universal editor v6 section 4a): "Your file" wraps onto two lines (the caption, then the name and what the file says), and the current match's
+   actions stack at the full width, 44 px tall. */
+.tl-matchfile--phone {
+    flex-wrap: wrap;
+    gap: var(--tl-space-1) var(--tl-space-3);
+    padding: var(--tl-space-3);
+}
+
+.tl-matchfile--phone .tl-matchfile__cap {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+}
+
+.tl-matchfile--phone .tl-matchfile__text {
+    flex: 1 1 100%;
+}
+
+.tl-matchfile--phone .tl-matchfile__name,
+.tl-matchfile--phone .tl-matchfile__facts {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.tl-matchcard__actions--phone {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* On a phone the window's body already pads the sides, so the tab does not add a second inset: the fields, the list and the card get the full width. */
+.tl-match--phone {
+    padding: 0;
+}

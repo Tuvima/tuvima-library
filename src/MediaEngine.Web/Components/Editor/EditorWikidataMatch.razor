@@ -13,7 +13,8 @@
    Enter only (D3), and the boxes only keep what was typed. Results are a text-only list on the left and the same card as every other Match step on the right. A pasted link or QID resolves straight to
    its item. The Engine says whether a result is the item itself or its parent; a parent is shown for context and cannot be applied. The identity card
    shows what the item is linked to now (read by its stored QID). Apply, Change match and Remove match only stage a change; Save changes writes it. The
-   link and the provider match never change each other: when they disagree the tab shows one amber line and changes neither. *@
+   link and the provider match never change each other: when they disagree the tab shows one amber line and changes neither. On a phone (section 4a) the
+   search row is stacked and tapping a result opens its card as a full-height sheet; Back returns to the list with the tick kept. *@
 <div class="tl-wikidata" data-testid="wikidata-match">
     <EditorMatchSearchRow Columns="minmax(12rem, 1.6fr) minmax(12rem, 1.6fr) auto" Message="@RowMessage" SearchDisabled="@(!CanSearch || _searching)" OnSearch="SearchAsync"
                           ButtonTestId="wikidata-search-button">
@@ -50,6 +51,7 @@
     private bool _searching;
     private bool _changing;
     private string? _selectedQid;
+    private bool _sheet;
     private string _query = string.Empty;
     private string _paste = string.Empty;
     private EditorWikidataIdentityDto? _identity;
@@ -88,6 +90,13 @@
 
     /// <summary>What follows the Wikidata side (the Universe link).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    // 44 px on a phone; the compact size on a computer.
+    private AppControlSize ControlSize => IsPhone ? AppControlSize.Normal : AppControlSize.Compact;
 
     private bool CanSearch => CanEdit && Subject is not null;
 
@@ -266,6 +275,7 @@
         _problem = null;
         _found = null;
         _selectedQid = null;
+        _sheet = false;
         _changing = true;
         StateHasChanged();
         try
@@ -325,6 +335,7 @@
         _hadStaged = StagedLink is not null;
         _found = null;
         _selectedQid = null;
+        _sheet = false;
         _changing = false;
         _query = string.Empty;
         _paste = string.Empty;
@@ -362,6 +373,7 @@
         _changing = false;
         _found = null;
         _selectedQid = null;
+        _sheet = false;
         _problem = null;
     }
 
@@ -470,11 +482,11 @@
                 <div class="tl-wikidata__actions">
                     @if (!staged && !string.IsNullOrWhiteSpace(_identity?.Url))
                     {
-                        <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@_identity!.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" />
+                        <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@_identity!.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="@ControlSize" />
                     }
-                    <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
+                    <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="@ControlSize"
                                Disabled="@(!CanStage)" OnClick="Remove" data-testid="wikidata-remove" />
-                    <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                    <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="@ControlSize"
                                Disabled="@(!CanStage)" OnClick="StartChange" data-testid="wikidata-change" />
                 </div>
             }
@@ -535,7 +547,7 @@
         }
 
         var selected = Selected;
-        <EditorMatchSplit TestId="wikidata-split" ShowCard="@(selected is not null)">
+        <EditorMatchSplit TestId="wikidata-split" ShowCard="@(selected is not null)" SheetOpen="_sheet" OnSheetClose="CloseSheet">
             <List>
                 <EditorMatchList Heading="@L["EditorWikidata_Results"].Value" Count="@CountText(_found.Results.Count)" TestId="wikidata-results">
                     @foreach (var result in _found.Results)
@@ -589,7 +601,14 @@
         </EditorMatchCard>
     };
 
-    private void Select(EditorWikidataResultDto result) => _selectedQid = result.Qid;
+    // A tap chooses the item and, on a phone, opens its card as a sheet (the first result is chosen after a search, but its sheet waits for a tap).
+    private void Select(EditorWikidataResultDto result)
+    {
+        _selectedQid = result.Qid;
+        _sheet = IsPhone;
+    }
+
+    private void CloseSheet() => _sheet = false;
 
     public void Dispose()
     {

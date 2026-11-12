@@ -16,16 +16,21 @@
    label" and a note when it is the current or the closest one) and, under them, the chosen release's discs and tracks, with the track that fits the
    file already chosen. The card shows the picked track, the Engine's verdict in words and its compare table. A pick that would move the song to
    another album says so in an amber note beside Apply match. Nothing runs on opening: the boxes are filled and the person presses Search. Choosing
-   only hands the pick up; the match, the album move and the file move are staged by the Match tab and written on Save changes. *@
+   only hands the pick up; the match, the album move and the file move are staged by the Match tab and written on Save changes. On a phone (section 4a)
+   each step is one screen: the search and the releases, then (once a release is tapped) that release's tracks with a way back to the releases, and the
+   card of a tapped track as a full-height sheet whose Back returns to the track list with the tick kept. *@
 <div class="tl-musicflow" data-testid="music-flow">
-    <EditorMatchSearchRow Columns="@RowColumns" Message="@RowMessage" SearchDisabled="@(_releasesLoading || !HasWords)" OnSearch="SearchAsync" ButtonTestId="music-flow-search">
-        @RowStart
-        @foreach (var box in Boxes)
-        {
-            <AppTextField Label="@box.Label" Value="@box.Get()" ValueChanged="@(value => box.Set(value ?? string.Empty))" Immediate="true" OnKeyDown="OnSearchKey"
-                          aria-label="@box.Label" data-testid="@("music-flow-" + box.Key)" />
-        }
-    </EditorMatchSearchRow>
+    @if (!TracksStep)
+    {
+        <EditorMatchSearchRow Columns="@RowColumns" Message="@RowMessage" SearchDisabled="@(_releasesLoading || !HasWords)" OnSearch="SearchAsync" ButtonTestId="music-flow-search">
+            @RowStart
+            @foreach (var box in Boxes)
+            {
+                <AppTextField Label="@box.Label" Value="@box.Get()" ValueChanged="@(value => box.Set(value ?? string.Empty))" Immediate="true" OnKeyDown="OnSearchKey"
+                              aria-label="@box.Label" data-testid="@("music-flow-" + box.Key)" />
+            }
+        </EditorMatchSearchRow>
+    }
 
     @Lead
 
@@ -40,18 +45,34 @@
 
     @if (!_releasesLoading && _releases.Count > 0)
     {
-        <EditorMatchSplit TestId="music-flow-split" ShowCard="@(_candidate is not null)">
+        <EditorMatchSplit TestId="music-flow-split" ShowCard="@(_candidate is not null)" SheetOpen="_sheet" OnSheetClose="CloseSheet">
             <List>
-                <EditorMatchList Heading="@L["EditorMusicMatchFlow_Releases"].Value" Count="@CountText(_releases.Count)" TestId="music-flow-releases">
-                    @foreach (var release in _releases)
-                    {
-                        var current = release;
-                        <EditorMatchListRow Title="@release.Title" Meta="@ReleaseMeta(release)" ArtShape="square" ImageUrl="@release.ImageUrl" Selected="@(_release?.ReleaseId == release.ReleaseId)"
-                                            data-testid="music-flow-release" OnClick="@(() => ChooseReleaseAsync(current))" />
-                    }
-                </EditorMatchList>
+                @if (TracksStep)
+                {
+                    @* The second screen on a phone: a way back to the releases, which release this is, then its tracks. *@
+                    <div class="tl-musicflow__back" data-testid="music-flow-release-bar">
+                        <AppButton Label="@L["EditorMusicMatchFlow_AllReleases"].Value" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
+                                   OnClick="BackToReleases" data-testid="music-flow-back" />
+                        <span class="tl-musicflow__release" data-testid="music-flow-release-name">@(EditorMatchCardModels.Join(_release!.Title, ReleaseMeta(_release)))</span>
+                    </div>
+                }
+                else
+                {
+                    <EditorMatchList Heading="@L["EditorMusicMatchFlow_Releases"].Value" Count="@CountText(_releases.Count)" TestId="music-flow-releases">
+                        @foreach (var release in _releases)
+                        {
+                            var current = release;
+                            <EditorMatchListRow Title="@release.Title" Meta="@ReleaseMeta(release)" ArtShape="square" ImageUrl="@release.ImageUrl" Selected="@(_release?.ReleaseId == release.ReleaseId)"
+                                                data-testid="music-flow-release" OnClick="@(() => TapReleaseAsync(current))" />
+                        }
+                    </EditorMatchList>
+                }
 
-                @if (_tracksLoading)
+                @if (IsPhone && !TracksStep)
+                {
+                    @* The tracks wait for a tap on a release. *@
+                }
+                else if (_tracksLoading)
                 {
                     <EditorMatchLookingUp Width="60%" />
                 }
@@ -97,6 +118,10 @@
     private EditorMatchPlacementDto? _placement;
     private bool _judging;
 
+    // On a phone: the second screen (the chosen release's tracks) is showing, and the card of a tapped track is open as a sheet.
+    private bool _tracksScreen;
+    private bool _sheet;
+
     /// <summary>What the Match tab puts first in the row: the provider dropdown.</summary>
     [Parameter] public RenderFragment? RowStart { get; set; }
 
@@ -125,6 +150,34 @@
     [Parameter] public EventCallback<ItemCanonicalRetailCandidateDto> OnApplyMatch { get; set; }
 
     [Parameter] public EventCallback OnCancel { get; set; }
+
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    private bool TracksStep => IsPhone && _tracksScreen && _release is not null;
+
+    private void CloseSheet() => _sheet = false;
+
+    // A tap on a release picks it and, on a phone, goes on to its tracks (the second screen).
+    private Task TapReleaseAsync(EditorMusicReleaseDto release)
+    {
+        _tracksScreen = IsPhone;
+        return ChooseReleaseAsync(release);
+    }
+
+    private void BackToReleases()
+    {
+        _tracksScreen = false;
+        _sheet = false;
+    }
+
+    // A tap on a track picks it and, on a phone, opens its card as a sheet.
+    private Task TapTrackAsync(EditorMusicTrackDto track)
+    {
+        _sheet = IsPhone;
+        return PickTrackAsync(track);
+    }
 
     private IReadOnlyList<Box> Boxes =>
     [
@@ -174,6 +227,7 @@
         _releasesMessage = null;
         _release = null;
         _tracks = null;
+        _tracksScreen = false;
         ClearPick();
     }
 
@@ -183,6 +237,7 @@
 
     private void ClearPick()
     {
+        _sheet = false;
         _pickedTrack = null;
         _candidate = null;
         _judged = null;
@@ -212,6 +267,7 @@
         _release = null;
         _tracks = null;
         _tracksProblem = null;
+        _tracksScreen = false;
         ClearPick();
         StateHasChanged();
         EditorMusicReleasesDto? found = null;
@@ -338,7 +394,12 @@
         }
     }
 
-    private Task ApplyAsync() => _candidate is null ? Task.CompletedTask : OnApplyMatch.InvokeAsync(_candidate);
+    // Apply match stages the pick and leaves the sheet; the tab shows its note.
+    private Task ApplyAsync()
+    {
+        _sheet = false;
+        return _candidate is null ? Task.CompletedTask : OnApplyMatch.InvokeAsync(_candidate);
+    }
 
     // "2018 · CD · 11 tracks · label", then a plain note when it is the release the song is on or the one that fits the file best.
     private string ReleaseMeta(EditorMusicReleaseDto release) => string.Join(" · ", new[]
@@ -378,7 +439,7 @@
                         <EditorMatchListRow Title="@track.Title" Number="@NumberText(track, manyDiscs)" Meta="@TrackMeta(track)" Trailing="@track.LengthText"
                                             Selected="@ReferenceEquals(_pickedTrack, track)" MetaTestId="music-flow-track-meta"
                                             aria-label="@L["EditorMusicMatchFlow_TrackRow", NumberText(track, manyDiscs), track.Title].Value" data-testid="music-flow-track-pick"
-                                            data-disc="@track.Disc" data-track="@track.Track" OnClick="@(() => PickTrackAsync(current))" />
+                                            data-disc="@track.Disc" data-track="@track.Track" OnClick="@(() => TapTrackAsync(current))" />
                     }
                 </EditorMatchList>
             }

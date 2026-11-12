@@ -18,10 +18,11 @@
    the kind, a labeled Search), the "Your file" bar and the results. Nothing is searched until Search or Enter: typing, or changing the provider,
    never searches. Apply match only stages the choice in the pending list (Review shows it, with the move it brings when the match names another
    place); Save changes writes it. Remove match stages a removal the same way. The Engine decides the kind of item, the providers and the boxes;
-   the Dashboard only renders what match-setup returns. *@
+   the Dashboard only renders what match-setup returns. On a phone (section 4a) the same steps are drawn for touch: the search row stacked, the "Your
+   file" bar on two lines, a result's card as a full-height sheet, and the current match's actions stacked at the full width. *@
 @if (Subject is not null)
 {
-    <div class="tl-match" data-testid="match-panel" data-expected="@(IsUnmatched ? "unmatched" : "matched")">
+    <div class="@(IsPhone ? "tl-match tl-match--phone" : "tl-match")" data-testid="match-panel" data-expected="@(IsUnmatched ? "unmatched" : "matched")">
         @if (!CanEdit)
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorMatchPanel_YouCanLookAtMatches"]</AppAlert>
@@ -114,6 +115,12 @@
     [Parameter] public EventCallback<EditorMatchReadState?> OnMatchState { get; set; }
 
     // The Engine's own read decides as soon as it has loaded (v6 D10); the page's answer (IsUnmatched) is only what is expected while it loads.
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    private AppControlSize ControlSize => IsPhone ? AppControlSize.Normal : AppControlSize.Compact;
+
     private bool IsMatched => !RemovalStaged && _current is { State: EditorCurrentMatchStates.Matched, Record: not null };
 
     private bool RemovalStaged => Session is not null && Subject is not null
@@ -609,7 +616,7 @@
         <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind, L)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" CompareBesideCover="true" data-testid="match-current">
             <Basis><span data-testid="match-why-note">@L["EditorMatchPanel_ChangingKeepsLocked"]</span></Basis>
             <Foot>
-                <div class="tl-matchcard__actions">
+                <div class="@(IsPhone ? "tl-matchcard__actions tl-matchcard__actions--phone" : "tl-matchcard__actions")">
                     @if (!string.IsNullOrWhiteSpace(record.SourceUrl))
                     {
                         <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@record.SourceUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-testid="match-open-source" />
@@ -737,7 +744,7 @@
             return;
         }
 
-        <div class="tl-matchfile" data-testid="match-your-file">
+        <div class="@(IsPhone ? "tl-matchfile tl-matchfile--phone" : "tl-matchfile")" data-testid="match-your-file">
             <span class="tl-matchfile__icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertDriveFile" Size="AppIconSize.Row24" /></span>
             <span class="tl-matchfile__cap">@L["EditorMatchPanel_YourFile"]</span>
             <div class="tl-matchfile__text">
@@ -868,7 +875,7 @@
                     <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" /></span>
                 }
                 <div class="tl-match__text"><div class="tl-match__title"><span>@universe.Name</span></div></div>
-                <AppButton Label="@L["EditorMatchPanel_OpenUniverse"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                <AppButton Label="@L["EditorMatchPanel_OpenUniverse"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="@ControlSize"
                            OnClick="@(() => OnOpenUniverse.InvokeAsync(universe))" />
             </div>
         </section>
