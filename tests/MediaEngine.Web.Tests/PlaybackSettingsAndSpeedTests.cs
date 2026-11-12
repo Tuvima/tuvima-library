@@ -346,8 +346,19 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
         Connection = new() { ConnectionPath = PlaybackConnectionPaths.Local, EstimatedBandwidthMbps = 85 },
         Technical = new()
         {
-            Container = "mkv", FileName = "Dune Part One (2021).mkv", FileSizeBytes = 4_800_000_000, VideoCodec = "hevc", VideoProfile = "Main 10",
-            Width = 3840, Height = 2160, FrameRate = 23.976, ColorFormat = "HDR10", AudioCodec = "eac3", SampleRateHz = 48000, AudioBitrateKbps = 640, Channels = 6,
+            Container = "mkv",
+            FileName = "Dune Part One (2021).mkv",
+            FileSizeBytes = 4_800_000_000,
+            VideoCodec = "hevc",
+            VideoProfile = "Main 10",
+            Width = 3840,
+            Height = 2160,
+            FrameRate = 23.976,
+            ColorFormat = "HDR10",
+            AudioCodec = "eac3",
+            SampleRateHz = 48000,
+            AudioBitrateKbps = 640,
+            Channels = 6,
         },
         AudioTracks =
         [
@@ -428,8 +439,21 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
             MediaType = "Music",
             SourceExtension = ".flac",
             SourceBitrateKbps = 1021,
-            Technical = new() { Container = "flac", FileName = "01 Opening.flac", FileSizeBytes = 31_000_000, AudioCodec = "flac", SampleRateHz = 44100, BitDepth = 16, Channels = 2,
-                VideoCodec = "mjpeg", Width = 600, Height = 600, FrameRate = 1, ColorFormat = "SDR" },
+            Technical = new()
+            {
+                Container = "flac",
+                FileName = "01 Opening.flac",
+                FileSizeBytes = 31_000_000,
+                AudioCodec = "flac",
+                SampleRateHz = 44100,
+                BitDepth = 16,
+                Channels = 2,
+                VideoCodec = "mjpeg",
+                Width = 600,
+                Height = 600,
+                FrameRate = 1,
+                ColorFormat = "SDR"
+            },
             AudioTracks = [new() { Index = 0, Language = "en", Codec = "flac", Channels = 2, IsDefault = true }],
             Connection = new() { ConnectionPath = PlaybackConnectionPaths.RemoteDirect },
         };
@@ -539,7 +563,9 @@ public sealed class PlaybackSettingsAndSpeedTests : AsyncBunitContext
     {
         var playback = ArrangePlayingWithoutManifest(new PlaybackManifestDto
         {
-            AssetId = Guid.NewGuid(), MediaType = "Music", Technical = new() { Container = "mp3", FileName = "Opening.mp3", AudioCodec = "mp3" },
+            AssetId = Guid.NewGuid(),
+            MediaType = "Music",
+            Technical = new() { Container = "mp3", FileName = "Opening.mp3", AudioCodec = "mp3" },
         });
         var cut = RenderSettings(PlaybackBarMedia.Music, manifest: playback.CurrentManifest);
         await OpenAsync(cut.FindComponent<PlaybackPanel>());

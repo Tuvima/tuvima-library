@@ -35,4 +35,11 @@ public sealed record PlaybackRailBookmark(Guid Id, double Seconds, bool IsGlobal
     /// <summary>The markers for the list the panel shows: Mine or Everyone, as the profile chose (D21: the markers follow the choice shown).</summary>
     public static IReadOnlyList<PlaybackRailBookmark> ForChoice(IEnumerable<PlaybackRailBookmark> all, string? choice) =>
         IsMineChoice(choice) ? MineOf(all) : EveryoneOf(all);
+
+    /// <summary>
+    /// The dots the video bar draws now that they are on by default (video player follow-ups D4): the profile's own bookmarks, unless
+    /// the profile itself picked another list. A profile that never chose is stored as <c>All</c>, and must not see anyone else's dots.
+    /// </summary>
+    public static IReadOnlyList<PlaybackRailBookmark> ForBar(IEnumerable<PlaybackRailBookmark> all, string? choice) =>
+        string.IsNullOrEmpty(choice) || string.Equals(choice, PlaybackPreferenceValues.All, StringComparison.Ordinal) ? MineOf(all) : ForChoice(all, choice);
 }

@@ -114,7 +114,8 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
 
     public Task ChangeLanguageAsync(string language)
     {
-        if (string.IsNullOrWhiteSpace(language) || string.Equals(language, Language, StringComparison.OrdinalIgnoreCase))
+        // A download in flight finishes in the language it was found in; changing now would drop its result.
+        if (ChoosingSourceId is not null || string.IsNullOrWhiteSpace(language) || string.Equals(language, Language, StringComparison.OrdinalIgnoreCase))
         {
             return Task.CompletedTask;
         }

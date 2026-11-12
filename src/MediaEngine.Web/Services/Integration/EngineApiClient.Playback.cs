@@ -478,6 +478,11 @@ public sealed partial class EngineApiClient
                 $"/stream/{assetId:D}/text-tracks/alternatives?{query}", ct);
         }
         catch (OperationCanceledException) { return null; }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            // The profile may not search: say so in place of "could not be completed" (video player follow-ups D11).
+            return new() { asset_id = assetId, kind = kind, status = "NotAllowed" };
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET text track alternatives failed for {AssetId}", assetId);

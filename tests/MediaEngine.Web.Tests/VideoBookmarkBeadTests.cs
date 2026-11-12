@@ -50,6 +50,17 @@ public sealed class VideoBookmarkBeadCardTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ADefaultProfile_SeesOnlyItsOwnBeads_NeverSomeoneElses()
+    {
+        var mine = new PlaybackRailBookmark(Guid.NewGuid(), 60, false, "Mine", null, IsYours: true, InEveryone: true);
+        var shared = new PlaybackRailBookmark(Guid.NewGuid(), 120, true, "Shared", null, OwnerName: "Alex", IsYours: false, InEveryone: true);
+
+        Assert.Equal([mine], PlaybackRailBookmark.ForBar([mine, shared], PlaybackPreferenceValues.All));
+        Assert.Equal([mine], PlaybackRailBookmark.ForBar([mine, shared], null));
+        Assert.Equal([mine], PlaybackRailBookmark.ForBar([mine, shared], PlaybackPreferenceValues.Mine));
+    }
+
+    [Fact]
     public void TheHoverCard_NamesTheBookmarkByItsNote_WhenItHasNoLabel()
     {
         var bookmark = new PlaybackRailBookmark(Guid.NewGuid(), 60, false, "The reveal", null, IsYours: true);
@@ -115,7 +126,11 @@ public sealed class VideoBookmarkBeadCardTests : AsyncBunitContext
     private static string RepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
         return directory?.FullName ?? throw new DirectoryNotFoundException("The repository root was not found.");
     }
 }
@@ -142,8 +157,16 @@ public sealed class VideoBookmarkBeadHostTests : AsyncBunitContext
         var preferences = new Preferences(settings);
         var bookmark = new AudiobookBookmarkDto
         {
-            Id = Guid.NewGuid(), ProfileId = settings.ProfileId, WorkId = workId, AssetId = assetId, PositionSeconds = 300, DurationSeconds = 600,
-            Note = "The reveal", IsYours = true, InEveryone = true, CreatedAt = new DateTimeOffset(2026, 11, 12, 12, 0, 0, TimeSpan.Zero),
+            Id = Guid.NewGuid(),
+            ProfileId = settings.ProfileId,
+            WorkId = workId,
+            AssetId = assetId,
+            PositionSeconds = 300,
+            DurationSeconds = 600,
+            Note = "The reveal",
+            IsYours = true,
+            InEveryone = true,
+            CreatedAt = new DateTimeOffset(2026, 11, 12, 12, 0, 0, TimeSpan.Zero),
         };
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
             Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([bookmark]))));

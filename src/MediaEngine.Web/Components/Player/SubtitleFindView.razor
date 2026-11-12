@@ -23,7 +23,7 @@
                 <span class="sfv__count" role="status" data-sfv-head data-subtitles-state="@(Presenter.Loading ? "searching" : null)">@HeadText</span>
                 <span class="sfv__lang" data-sfv-language>
                     <span class="sfv__lang-value" aria-hidden="true">@Presenter.Language<span class="sfv__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronDown" /></span></span>
-                    <AppNativeSelect Class="sfv__select" Value="@Presenter.Language" OnChange="ChooseLanguageAsync" aria-label="@L["SubtitleFind_Language"].Value">
+                    <AppNativeSelect Class="sfv__select" Value="@Presenter.Language" OnChange="ChooseLanguageAsync" Disabled="@(Presenter.ChoosingSourceId is not null)" aria-label="@L["SubtitleFind_Language"].Value">
                         @foreach (var language in Presenter.Languages)
                         {
                             <option value="@language">@language</option>

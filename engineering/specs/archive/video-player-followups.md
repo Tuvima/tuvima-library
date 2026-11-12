@@ -1,6 +1,6 @@
 # Spec: Video player follow-ups
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-11-12 (locked by Shy 2026-11-11; build started) · **Related docs:** [Unified player v2](archive/unified-player-v2.md) (this spec amends its D5, D6, D9, D10, D12, D13, D14 and D25 where stated) · [Player controls v3](player-controls-v3.md) · [Global bookmarks](global-bookmarks.md) · [Design system](../design/design-system.md) · Mockups: [`../design/mockups/video-player-followups.html`](../design/mockups/video-player-followups.html) · Issues: #882, #883, #884, #888
+> **Status:** Built · **Version:** 1 · **Last updated:** 2026-11-12 (locked by Shy 2026-11-11; built 2026-11-12, awaiting Local checks in [the batch list](../../validation/batch.md)) · **Related docs:** [Unified player v2](unified-player-v2.md) (this spec amends its D5, D6, D9, D10, D12, D13, D14 and D25 where stated) · [Player controls v3](../player-controls-v3.md) · [Global bookmarks](../global-bookmarks.md) · [Design system](../../design/design-system.md) · Mockups: [`../design/mockups/video-player-followups.html`](../../design/mockups/video-player-followups.html) · Issues: #882, #883, #884, #888
 
 ## 1. Goal
 
@@ -164,6 +164,24 @@ Fix what the local check of 11 November found in the video player: controls and 
 - **Built differently:** v2 D12 said Find subtitles would nest the existing "Find another subtitles" list. What was built is a single button that picks one result. D9 restores the list. Shy chose the list (D16).
 - **Built differently:** v2 D10 chose a horizontal volume slider over v3's vertical one. The local check prefers vertical; D5 records the change.
 - **Not confirmed:** why Playback information showed nothing (D15) and which language the subtitle search used (D10).
+
+## 10. Build notes (added when built, 2026-11-12)
+
+- **D3 rating weight.** The rating is 28 px at weight 600, not 700. The type rules keep 700 for page and hero titles, and the guard test counts every use. The size is what makes it readable.
+- **D6 full name.** The full track name appears when you point at a shortened row. It does not appear on keyboard focus, because the shared overflow tooltip only works on hover.
+- **D9 footer.** The video player has no subtitle file import, so "Add a subtitle file" is not offered and the "nothing found" sentence does not mention it. The "applies to everyone" line sits under the result list.
+- **D9 release tags.** "Same release" is shown when the source's match score is 0.9 or higher. That score is mostly the release name overlap, with a small bonus for format and a small penalty for hearing-impaired files, so it is a strong hint and not a guarantee.
+- **D10 confirmed.** Before this build the search used the title's own language, or English when none was stored, never the profile's. A language name the source did not know became "unknown" and found nothing. The search now uses the profile's subtitle language and says so when a language is not supported.
+- **D15 findings.** Two real ways to an empty panel were found and fixed: music and audiobooks that play from a direct address never asked for the details, and the video player could open the panel before the details arrived (it now says "Loading details…"). A video whose details request returns nothing is still possible; L8 checks it.
+- **D13 video profile.** The profile (for example "Main 10") is read when a file is scanned, so it appears for files scanned after this build.
+- **D4 pulse.** The one-time pulse on a new bookmark is on the video timeline only; music and audiobooks show the dot without it.
+- **D4 whose dots.** Until the Global bookmarks work makes Mine the stored default, a profile that never chose a list sees only its own dots on the bar, so nobody else's dots appear uninvited.
+- **D4 existing profiles.** Dots are on for new profiles and for profiles that never saved a playback setting. A profile that saved any playback setting before this build has "off" stored and keeps it until it switches Show on timeline on. No conversion of old settings is made (pre-release rule); a fresh local check starts with dots on.
+- **D1 phone.** The phone's full-screen Now playing keeps its existing 64 px Play disc, which is already larger than D1's 56.
+- **D10 language list.** The subtitle source's language list was extended so every language the player offers can be searched. The codes for the added languages could not be tried against the live source from the cloud; L7 with a second language covers it.
+- **D11 not allowed.** A profile without the right to change playback gets "Your profile cannot search for subtitles", and is not told about a source's key or health.
+- **Not seen rendered in the cloud:** the bar at 1024 wide, the volume slider inside the real bar and in fullscreen, and Play's exact centring. L1 and L4 cover them.
+- **Left for another thread:** comments in the audio bar that still say bookmark dots are off by default (the Global bookmarks work edits that file).
 
 ## Plain English summary
 

@@ -430,7 +430,7 @@ public static class StreamEndpoints
 
             if (!IsValidSearchLanguage(language))
             {
-                return ApiErrors.BadRequest("language must be a language name or code (letters, spaces and hyphens, at most 40 characters).");
+                return ApiErrors.BadRequest("language must be a language name or code (letters, spaces, hyphens and brackets, at most 40 characters).");
             }
 
             var requester = PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct));
@@ -508,7 +508,7 @@ public static class StreamEndpoints
 
             if (!IsValidSearchLanguage(request.language))
             {
-                return ApiErrors.BadRequest("language must be a language name or code (letters, spaces and hyphens, at most 40 characters).");
+                return ApiErrors.BadRequest("language must be a language name or code (letters, spaces, hyphens and brackets, at most 40 characters).");
             }
 
             var authority = await authorityResolver.ResolveAsync(http, ct);
@@ -878,7 +878,7 @@ public static class StreamEndpoints
     /// <summary>A language to search in is optional; when given it is a name or a code: letters, spaces and hyphens, at most 40 characters.</summary>
     private static bool IsValidSearchLanguage(string? value) =>
         string.IsNullOrWhiteSpace(value)
-        || (value.Length <= 40 && value.All(character => char.IsLetter(character) || character is ' ' or '-'));
+        || (value.Length <= 40 && value.All(character => char.IsLetter(character) || character is ' ' or '-' or '(' or ')'));
 
     private static bool TryParseTextTrackKind(string? value, out TextTrackKind kind)
     {

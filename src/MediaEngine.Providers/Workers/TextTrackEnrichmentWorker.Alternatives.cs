@@ -434,6 +434,25 @@ public sealed partial class TextTrackEnrichmentWorker
                 // Subtitles say why: a missing or refused key, or a source that is switched on but down (lyrics keep "no source").
                 ITextTrackProvider? Match(string status) =>
                     matching.FirstOrDefault(provider => string.Equals(provider.GetAvailability(mediaType).Status, status, StringComparison.OrdinalIgnoreCase));
+                // A profile that may not use a source is not told about that source's key or health.
+                if (_accessGate is not null && matching.Count > 0)
+                {
+                    var anyAllowed = false;
+                    foreach (var provider in matching)
+                    {
+                        if (await _accessGate.CheckAsync(new PluginAccessQuery(provider.Name, requester, asset.LibraryId, asset.Id), ct).ConfigureAwait(false) == PluginAccessOutcome.Allowed)
+                        {
+                            anyAllowed = true;
+                            break;
+                        }
+                    }
+
+                    if (!anyAllowed)
+                    {
+                        return Fail("NotAllowed", $"No {kind.ToString().ToLowerInvariant()} source can be used for this item.");
+                    }
+                }
+
                 if (Match("AuthenticationRequired") is { } keyless)
                 {
                     return Fail("SourceKeyRequired", $"{keyless.DisplayName} needs an API key.", keyless.DisplayName);
