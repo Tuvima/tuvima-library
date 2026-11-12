@@ -216,7 +216,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find(".server-folder-picker input");
 
     [Fact]
-    public void PlainVideosOffersManagedAndEveryKindFollowsItsAreaColor()
+    public void PlainVideosOffersManagedAndAKindWithoutItsOwnColourFollowsItsAreaColor()
     {
         var kinds = new LibraryKindCatalog(LibraryKindsTestData.BuiltIn());
         var videos = kinds.Find("other_videos")!;
@@ -224,8 +224,8 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         Assert.True(LibraryKindLook.ManagedOffered(videos));
         Assert.True(LibraryKindLook.ManagedOffered(other));
-        Assert.Contains("lib-area--watch", LibraryKindLook.TileClass(videos), StringComparison.Ordinal);
-        Assert.Contains("lib-area--listen", LibraryKindLook.TileClass(other), StringComparison.Ordinal);
+        Assert.Equal("--tl-area-watch", LibraryKindLook.ColourToken(videos));
+        Assert.Equal("--tl-media-music", LibraryKindLook.ColourToken(other));
     }
 
     [Fact]

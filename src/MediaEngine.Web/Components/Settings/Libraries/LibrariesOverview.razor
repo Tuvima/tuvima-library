@@ -119,7 +119,7 @@
                 <tr @key="row.Key" class="@RowClass(row)" data-library="@row.Key" data-area="@AreaKeyOf(row)" data-new="@(row.Key == _newLibraryId ? "true" : null)" @onclick="@(() => OpenRow(row))">
                     <td data-card-role="title">
                         <span class="libs__name">
-                            <span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
+                            <span class="lib-kind-tile lib-kind-tile--lookup @LibraryKindLook.ColourClass(row.Type)" data-kind-icon="@row.Type.Key"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
                             <span class="libs__title">
                                 <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
                             </span>

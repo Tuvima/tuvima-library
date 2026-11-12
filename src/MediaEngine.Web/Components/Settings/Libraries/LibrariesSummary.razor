@@ -2,7 +2,7 @@
 @using MediaEngine.Web.Services.Formatting
 @inject IStringLocalizer<SharedStrings> L
 
-@* "In your collection" (Libraries and folder picker, item 2): one count per kind of library, each in its area's color. A kind whose count is not known shows its
+@* "In your collection" (Libraries and folder picker, item 2): one count per kind of library, each in its kind's one color (LibraryKindLook.ColourStyle, the same as the icon on its row). A kind whose count is not known shows its
    folder count instead, and a kind with nothing in it is left out. Photos and videos are counted by their folders. *@
 @if (Items.Count > 0)
 {
@@ -11,8 +11,8 @@
         <ul class="lib-summary__list">
             @foreach (var item in Items)
             {
-                <li class="lib-summary__item lib-area--@item.Area" data-kind="@item.Key">
-                    <span class="lib-summary__icon"><AppMaterialIcon Icon="@item.Icon" /></span>
+                <li class="lib-summary__item @item.Colour" data-kind="@item.Key">
+                    <span class="lib-summary__icon"><AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Tile32" /></span>
                     <span class="lib-summary__count">@DisplayFormat.FormatCount(item.Count)</span>
                     <span class="lib-summary__label">@item.Label</span>
                 </li>
@@ -24,12 +24,12 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<LibraryListRow> Rows { get; set; } = [];
 
-    private sealed record Item(string Key, string Area, string Icon, string Label, int Count);
+    private sealed record Item(string Key, string Colour, string Icon, string Label, int Count);
 
     // Titles when the Engine counts them for the kind, else folders ("2 folders"); rows with nothing in them are left out.
     private IReadOnlyList<Item> Items => [.. Rows
         .Select(row => row.Titles is { } titles
-            ? new Item(row.Key, row.Area.ToLowerInvariant(), row.Type.Icon, row.Type.PluralLabel, titles)
-            : new Item(row.Key, row.Area.ToLowerInvariant(), row.Type.Icon, L["LibrariesSummary_KindFolders", row.Type.PluralLabel].Value, row.Folders ?? 0))
+            ? new Item(row.Key, LibraryKindLook.ColourClass(row.Type), row.Type.Icon, row.Type.PluralLabel, titles)
+            : new Item(row.Key, LibraryKindLook.ColourClass(row.Type), row.Type.Icon, L["LibrariesSummary_KindFolders", row.Type.PluralLabel].Value, row.Folders ?? 0))
         .Where(item => item.Count > 0)];
 }

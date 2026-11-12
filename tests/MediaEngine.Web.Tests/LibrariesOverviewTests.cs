@@ -1108,4 +1108,172 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Null(LibraryListing.StatusOf(library, 5, null).Status);
         Assert.Equal(LibraryStatusKind.Empty, LibraryListing.StatusOf(new LibraryFolderDto(), null, null).Status);
     }
+
+    // D12: one colour per kind, shared by the card cell and the row icon.
+    // The kind's colour class an element carries (lib-kind-colour--*); the class is the only thing the card cell and the row icon take their colour from.
+    private static string ColourClassOf(AngleSharp.Dom.IElement element) =>
+        Assert.Single(element.ClassList, name => name.StartsWith("lib-kind-colour--", StringComparison.Ordinal));
+
+    private static (LibraryKindCatalog Catalog, LibrariesConfigurationDto Configuration, IReadOnlyList<ViewSourceAdminDto> ViewFolders) EveryKindEverywhere()
+    {
+        // Every kind the Engine offers, plus one a plugin adds (Podcasts), each with a folder so each is listed.
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+        var configuration = new LibrariesConfigurationDto();
+        foreach (var type in catalog.Types)
+        {
+            configuration.Libraries.Add(new()
+            {
+                Id = Guid.NewGuid().ToString(), Name = type.Label, KindKey = type.Key, Area = type.Area, Kind = "catalogued", MediaTypes = [.. type.MediaTypes],
+                Sources = [new() { Id = $"{type.Key}-folder", Path = $"E:\\{type.Key}", ManagementMode = "existing_library", AccessMode = "read_only" }],
+            });
+        }
+
+        IReadOnlyList<ViewSourceAdminDto> viewFolders =
+        [
+            ViewFolder("Pictures", "D:\\Pictures", "photos"),
+            ViewFolder("Clips", "D:\\Clips", "personal_videos"),
+            ViewFolder("Paperwork", "D:\\Paperwork", "documents"),
+        ];
+        return (catalog, configuration, viewFolders);
+    }
+
+    private static IReadOnlyList<LibraryListRow> RowsOf(LibraryKindCatalog catalog, LibrariesConfigurationDto configuration)
+    {
+        var viewCounts = new Dictionary<string, int> { ["photos"] = 1, ["personal_videos"] = 1, ["documents"] = 1 };
+        return [.. new[] { "watch", "listen", "read", "view" }.SelectMany(area => LibraryListing.RowsFor(catalog, area, configuration, null, viewCounts, null, showVault: false))];
+    }
+
+    [Fact]
+    public void EveryKindHasTheSameColourOnItsCardCellAndItsSetupRowIcon()
+    {
+        var (catalog, configuration, viewFolders) = EveryKindEverywhere();
+        var rows = RowsOf(catalog, configuration);
+        Assert.Contains(rows, row => row.Key == "photos" && row.Name == "Photos and videos");
+        Assert.Contains(rows, row => row.Type.Key == "podcasts");
+        Assert.Contains(rows, row => row.Type.Key == "youtube");
+
+        var card = Render<LibrariesSummary>(parameters => parameters.Add(x => x.Rows, rows));
+        var table = Render<SetupLibrariesTable>(parameters => parameters.Add(x => x.Configuration, configuration).Add(x => x.Kinds, catalog).Add(x => x.ViewFolders, viewFolders));
+
+        foreach (var row in rows)
+        {
+            var cell = card.Find($"[data-lib-summary] [data-kind='{row.Key}']");
+            var icon = table.Find($"tr[data-library='{row.Key}'] .lib-kind-tile");
+            Assert.Equal(LibraryKindLook.ColourClass(row.Type), ColourClassOf(cell));
+            Assert.Equal(ColourClassOf(cell), ColourClassOf(icon));
+        }
+    }
+
+    [Fact]
+    public void EveryKindHasTheSameColourOnItsCardCellAndItsLibrariesRowIcon()
+    {
+        var (catalog, configuration, _) = EveryKindEverywhere();
+        _kinds = LibraryKindsTestData.All(LibraryKindsTestData.Podcasts());
+        _configuration = configuration;
+        _overview = null; // no title counts known, so each kind's cell shows its folder count
+        var cut = OpenAndSettle();
+
+        // The Vault kind (Adult content) is not listed here, so it is not in the rows either.
+        var listed = RowsOf(catalog, configuration).Where(row => row.Library is not null).ToList();
+        Assert.True(listed.Count >= 10);
+        foreach (var row in listed)
+        {
+            var cell = cut.Find($"[data-lib-summary] [data-kind='{row.Key}']");
+            var icon = Row(cut, row.Key).QuerySelector(".lib-kind-tile")!;
+            Assert.Equal(LibraryKindLook.ColourClass(row.Type), ColourClassOf(cell));
+            Assert.Equal(ColourClassOf(cell), ColourClassOf(icon));
+        }
+    }
+
+    [Fact]
+    public void AudiobooksIsTheAudiobooksColourOnTheCardAndOnTheRow()
+    {
+        var cut = OpenAndSettle();
+
+        var cell = cut.Find($"[data-lib-summary] [data-kind='{AudiobooksId}']");
+        var icon = Row(cut, AudiobooksId).QuerySelector(".lib-kind-tile")!;
+        Assert.Equal("lib-kind-colour--audiobooks", ColourClassOf(cell));
+        Assert.Equal("lib-kind-colour--audiobooks", ColourClassOf(icon));
+        Assert.Equal("lib-kind-colour--movies", ColourClassOf(cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']")));
+    }
+
+    [Theory]
+    [InlineData("movies", "--tl-media-movies")]
+    [InlineData("tv", "--tl-media-tv")]
+    [InlineData("music", "--tl-media-music")]
+    [InlineData("audiobooks", "--tl-media-audiobooks")]
+    [InlineData("books", "--tl-media-books")]
+    [InlineData("comics", "--tl-media-comics")]
+    [InlineData("documents", "--tl-media-document")]
+    [InlineData("youtube", "--tl-area-watch")]
+    [InlineData("other_videos", "--tl-area-watch")]
+    [InlineData("other_audio", "--tl-area-listen")]
+    [InlineData("other_reading", "--tl-area-read")]
+    [InlineData("photos", "--tl-area-view")]
+    [InlineData("podcasts", "--tl-area-listen")]
+    public void AKindUsesItsOwnMediaColourAndAKindWithoutOneUsesItsAreasColour(string key, string token)
+    {
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+
+        Assert.Equal(token, LibraryKindLook.ColourToken(catalog.Find(key)!));
+    }
+
+    [Fact]
+    public void TheDesignSystemDefinesEveryColourTokenAKindCanUse()
+    {
+        var tokens = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css"));
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+
+        foreach (var token in catalog.Types.Concat(catalog.ViewKinds).Select(LibraryKindLook.ColourToken).Distinct())
+        {
+            Assert.Contains($"{token}:", tokens, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void EveryKindColourClassSetsTheKindColourToItsDesignSystemToken()
+    {
+        var app = File.ReadAllText(Path.Combine(RepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var catalog = new LibraryKindCatalog(LibraryKindsTestData.All(LibraryKindsTestData.Podcasts()));
+
+        foreach (var type in catalog.Types.Concat(catalog.ViewKinds))
+        {
+            var rule = $".{LibraryKindLook.ColourClass(type)} {{ --lib-kind-colour: var({LibraryKindLook.ColourToken(type)}); }}";
+            Assert.Contains(rule, app, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void ACardCellShowsTheIconThenTheCountThenTheKindName()
+    {
+        var cut = OpenAndSettle();
+
+        var cell = cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']");
+        Assert.Equal(["lib-summary__icon", "lib-summary__count", "lib-summary__label"], cell.Children.Select(child => child.ClassName ?? string.Empty).ToArray());
+        Assert.NotNull(cell.Children[0].QuerySelector("svg"));
+        Assert.Equal("1,284", Text(cell.Children[1]));
+        Assert.Equal("Movies", Text(cell.Children[2]));
+    }
+
+    [Fact]
+    public void TheAreaTagOnARowKeepsTheAreaColourNotTheKindColour()
+    {
+        var cut = OpenAndSettle();
+
+        var tag = Row(cut, AudiobooksId).QuerySelector("[data-area-tag]")!;
+        Assert.Contains("lib-area--listen", tag.ClassName, StringComparison.Ordinal);
+        Assert.DoesNotContain(tag.ClassList, name => name.StartsWith("lib-kind-colour--", StringComparison.Ordinal));
+        Assert.Contains("lib-area--watch", Row(cut, MoviesId).QuerySelector("[data-area-tag]")!.ClassName, StringComparison.Ordinal);
+    }
+
+    private static string RepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
+    }
 }
