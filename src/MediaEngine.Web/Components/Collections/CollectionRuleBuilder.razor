@@ -185,15 +185,26 @@
             if (field is null || condition.Field == CollectionRuleSentence.MediaField) continue;
             if (!field.AppliesToAny(scope))
             {
+                // The rule belongs to another media type: drop it, so it is neither shown under the wrong field nor saved.
                 changed.Add(field.Label);
+                foreach (var group in Definition.Groups)
+                    group.Conditions.Remove(condition);
                 continue;
             }
 
             if (field.ValueProvider.Kind != RuleValueProviderKind.CollectionLibrary || field.ValueProvider.ResolvesEntities) continue;
             var chosen = condition.Values is { Length: > 0 } ? condition.Values : string.IsNullOrWhiteSpace(condition.Value) ? [] : [condition.Value];
             if (chosen.Length == 0) continue;
-            var offered = await ApiClient.GetCollectionFieldValuesAsync(condition.Field, null, 500, default, scope);
-            var kept = chosen.Where(value => offered.Contains(value, StringComparer.OrdinalIgnoreCase)).ToArray();
+            // Ask about each chosen value on its own: a long list cannot push a valid choice out of view.
+            var keptValues = new List<string>();
+            foreach (var value in chosen)
+            {
+                var offered = await ApiClient.GetCollectionFieldValuesAsync(condition.Field, value, 50, default, scope);
+                if (offered.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    keptValues.Add(value);
+            }
+
+            var kept = keptValues.ToArray();
             if (kept.Length == chosen.Length) continue;
             changed.Add(field.Label);
             if (kept.Length == 0)

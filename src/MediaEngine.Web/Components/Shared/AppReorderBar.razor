@@ -37,7 +37,7 @@
     /// <summary>The line on the left; "Drag to reorder" when empty.</summary>
     [Parameter] public string? Message { get; set; }
 
-    /// <summary>Save order: hands the staged order to the caller, which answers whether it was accepted. On false the mode stays open.</summary>
+    /// <summary>Save order: hands the staged order to the caller, which answers whether it was accepted. On false the caller has already shown why; the caller decides whether the mode stays open.</summary>
     [Parameter, EditorRequired] public Func<Task<bool>> OnSave { get; set; } = () => Task.FromResult(true);
 
     /// <summary>Cancel, Escape, or "Discard" when leaving: the caller throws its staged order away and leaves the mode.</summary>

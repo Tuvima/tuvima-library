@@ -532,7 +532,7 @@ public sealed class CollectionBrowseReadService(
         var take = Math.Clamp(limit, 1, 500);
         var types = NormalizeMediaTypes(mediaTypes);
         // Only the titles of the chosen media types count, so a music playlist is never offered a film genre.
-        var typeClause = types.Length == 0 ? string.Empty : "AND entity_id IN (SELECT id FROM works WHERE media_type IN @Types -- readiness: narrows a rule editor's value list to the chosen types, it lists no titles\n)";
+        var typeClause = types.Length == 0 ? string.Empty : MediaTypeClause;
         using var conn = db.CreateConnection();
         var sql = string.Equals(field, "media_type", StringComparison.OrdinalIgnoreCase)
             ? $"""
@@ -588,7 +588,7 @@ public sealed class CollectionBrowseReadService(
     {
         var take = Math.Clamp(limit, 1, 500);
         var types = NormalizeMediaTypes(mediaTypes);
-        var typeClause = types.Length == 0 ? string.Empty : "AND entity_id IN (SELECT id FROM works WHERE media_type IN @Types -- readiness: narrows a rule editor's value list to the chosen types, it lists no titles\n)";
+        var typeClause = types.Length == 0 ? string.Empty : MediaTypeClause;
         using var conn = db.CreateConnection();
         var sql = field.ToLowerInvariant() switch
         {
@@ -657,6 +657,16 @@ public sealed class CollectionBrowseReadService(
             .Select(row => new CollectionRuleValueDto(row.Value, row.Label, checked((int)row.LocalCount), RuleOptionGroup(field)))
             .ToList();
     }
+
+    // Values hang on a Work, its editions or its media assets; a value belongs to a media type when any of them is a title of that type.
+    private const string MediaTypeClause = """
+        AND (
+            -- readiness: narrows a rule editor's value list to the chosen types, it lists no titles
+            entity_id IN (SELECT id FROM works WHERE media_type IN @Types)
+            OR entity_id IN (SELECT e.id FROM editions e INNER JOIN works w ON w.id = e.work_id WHERE w.media_type IN @Types)
+            OR entity_id IN (SELECT ma.id FROM media_assets ma INNER JOIN editions e ON e.id = ma.edition_id INNER JOIN works w ON w.id = e.work_id WHERE w.media_type IN @Types)
+        )
+        """;
 
     private static string[] NormalizeMediaTypes(IReadOnlyList<string>? mediaTypes) =>
         (mediaTypes ?? []).Where(type => !string.IsNullOrWhiteSpace(type)).Select(type => type.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();

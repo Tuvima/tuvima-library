@@ -8,7 +8,7 @@
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="@ShellCssClass">
+<div class="@ShellCssClass" @onkeydown="HandleShellKey">
     @if (ShowMobileNavigation)
     {
     <nav class="media-section-shell__mobile-nav" aria-label="@($"{Title} mobile navigation")">
@@ -179,11 +179,11 @@
                                                  @ondrop:preventDefault="@(child.DropTarget is not null || _reorderingItem is not null)"
                                                  @ondrop="@(() => DropOnManagedItemAsync(child))">
                                                 <div class="media-section-shell__swipe-actions" aria-hidden="@(_swipedRoute == child.Route ? "false" : "true")">
-                                                    @if (management.CanRename)
+                                                    @if (management.CanRename && !InReorder(management))
                                                     {
                                                         <AppNativeButton Type="button" Class="is-rename" AriaLabel="@($"Rename {child.Label}")" OnClick="@(_ => BeginRename(child))">@L["Common_Rename"]</AppNativeButton>
                                                     }
-                                                    @if (management.CanDelete)
+                                                    @if (management.CanDelete && !InReorder(management))
                                                     {
                                                         <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {child.Label}")" OnClick="@(_ => BeginDelete(child))">@L["Common_Delete"]</AppNativeButton>
                                                     }
@@ -230,7 +230,7 @@
                                                             }
                                                         </a>
                                                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {child.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
-                                                            @if (management.CanRename)
+                                                            @if (management.CanRename && !InReorder(management))
                                                             {
                                                                 <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
                                                             }
@@ -243,7 +243,7 @@
                                                                 <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
                                                                 <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
                                                             }
-                                                            @if (management.CanDelete)
+                                                            @if (management.CanDelete && !InReorder(management))
                                                             {
                                                                 <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(child))" />
                                                             }
@@ -289,11 +289,11 @@
                              @ondrop:preventDefault="@(item.DropTarget is not null || _reorderingItem is not null)"
                              @ondrop="@(() => DropOnManagedItemAsync(item))">
                             <div class="media-section-shell__swipe-actions" aria-hidden="@(_swipedRoute == item.Route ? "false" : "true")">
-                                @if (management.CanRename)
+                                @if (management.CanRename && !InReorder(management))
                                 {
                                     <AppNativeButton Type="button" Class="is-rename" AriaLabel="@($"Rename {item.Label}")" OnClick="@(_ => BeginRename(item))">@L["Common_Rename"]</AppNativeButton>
                                 }
-                                @if (management.CanDelete)
+                                @if (management.CanDelete && !InReorder(management))
                                 {
                                     <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {item.Label}")" OnClick="@(_ => BeginDelete(item))">@L["Common_Delete"]</AppNativeButton>
                                 }
@@ -340,7 +340,7 @@
                                         }
                                     </a>
                                     <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {item.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
-                                        @if (management.CanRename)
+                                        @if (management.CanRename && !InReorder(management))
                                         {
                                             <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
                                         }
@@ -353,7 +353,7 @@
                                             <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
                                             <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
                                         }
-                                        @if (management.CanDelete)
+                                        @if (management.CanDelete && !InReorder(management))
                                         {
                                             <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(item))" />
                                         }
@@ -1120,6 +1120,12 @@
         _stagedOrder = [.. _savedOrder];
     }
 
+    private void HandleShellKey(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape" && _reorderKind is not null && !_reorderBusy)
+            CancelReorder();
+    }
+
     private void CancelReorder()
     {
         _reorderKind = null;
@@ -1136,7 +1142,7 @@
         var slots = items.Select((item, index) => (item, index)).Where(pair => pair.item.Management?.ContainerKind == _reorderKind).Select(pair => pair.index).ToList();
         if (slots.Count < 2)
             return items;
-        var byId = slots.Select(index => items[index]).ToDictionary(item => item.Management!.ContainerId);
+        var byId = slots.Select(index => items[index]).GroupBy(item => item.Management!.ContainerId).ToDictionary(group => group.Key, group => group.First());
         var inOrder = _stagedOrder.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
         if (inOrder.Count != slots.Count)
             return items;
@@ -1184,9 +1190,10 @@
         {
             var kind = _reorderKind;
             var itemsById = ManagedItems(kind).GroupBy(item => item.Management!.ContainerId).ToDictionary(group => group.Key, group => group.First());
-            var current = new List<Guid>(_savedOrder);
-            var target = new List<Guid>(_stagedOrder);
-            for (var i = 0; i < target.Count; i++)
+            // Rows deleted or added elsewhere while the mode was open are left out, so the replay only touches rows that still exist.
+            var current = _savedOrder.Where(itemsById.ContainsKey).ToList();
+            var target = _stagedOrder.Where(itemsById.ContainsKey).ToList();
+            for (var i = 0; i < Math.Min(target.Count, current.Count); i++)
             {
                 if (current[i] == target[i])
                     continue;
