@@ -182,6 +182,30 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
             new { assetId, now = Format(now) }) > 0);
     }
 
+    public Task<bool> UnkeepAsync(Guid assetId, DateTimeOffset nextRetryAt, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        return Task.FromResult(connection.Execute("""
+            UPDATE unmatched_assets
+            SET kept_as_is = 0,
+                kept_at = NULL,
+                next_retry_at = @nextRetryAt
+            WHERE asset_id = @assetId AND kept_as_is = 1;
+            """,
+            new { assetId, nextRetryAt = Format(nextRetryAt) }) > 0);
+    }
+
+    public Task<IReadOnlyDictionary<string, int>> CountKeptByLibraryAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var counts = connection.Query<CountRow>(
+            $"SELECT {CurrentLibrary} AS LibraryId, COUNT(*) AS Total FROM unmatched_assets WHERE kept_as_is = 1 GROUP BY {CurrentLibrary};");
+        return Task.FromResult<IReadOnlyDictionary<string, int>>(
+            counts.ToDictionary(count => count.LibraryId, count => count.Total, StringComparer.OrdinalIgnoreCase));
+    }
+
     public Task<int> KeepAllAsIsAsync(string libraryId, DateTimeOffset now, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryId);

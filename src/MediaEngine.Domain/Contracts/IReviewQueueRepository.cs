@@ -97,6 +97,13 @@ public interface IReviewQueueRepository
     Task<int> DismissAllByEntityAsync(Guid entityId, CancellationToken ct = default);
 
     /// <summary>
+    /// Puts back an item a person kept with Keep as it is (<see cref="Constants.ReviewStatus.KeptByUser"/>): it becomes <c>Pending</c> again
+    /// and its resolved time and resolver are cleared. Returns false when the item is not a person-kept one (missing, pending, resolved, or
+    /// dismissed by the Engine).
+    /// </summary>
+    Task<bool> ReopenKeptAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
     /// Resolves all <c>Pending</c> review items for a given entity by setting
     /// their status to <c>Resolved</c>. Called by <c>AutoOrganizeService</c> when
     /// a file is successfully promoted from staging to the library — the review

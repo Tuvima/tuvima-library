@@ -412,6 +412,30 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
     }
 
     /// <inheritdoc/>
+    public Task<bool> ReopenKeptAsync(Guid id, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var rows = conn.Execute("""
+            UPDATE review_queue
+            SET    status      = @pending,
+                   resolved_at = NULL,
+                   resolved_by = NULL
+            WHERE  id          = @id
+              AND  status      = @dismissed
+              AND  resolved_by = @kept
+            """, new
+        {
+            id,
+            pending = ReviewStatus.Pending,
+            dismissed = ReviewStatus.Dismissed,
+            kept = ReviewStatus.KeptByUser,
+        });
+
+        return Task.FromResult(rows > 0);
+    }
+
+    /// <inheritdoc/>
     public Task<int> ResolveAllByEntityAsync(Guid entityId, string resolvedBy = "system:auto-organize", CancellationToken ct = default)
     {
         using var conn = _db.CreateConnection();
