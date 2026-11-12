@@ -3569,6 +3569,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFileFactsDto
   Folder: System.String | nullability=nullable | accessors=get,init
   ReadOnly: System.Boolean | nullability=not-null | accessors=get,init
   IsMissing: System.Boolean | nullability=not-null | accessors=get,init
+  LibraryFolderName: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFileGuessDto
   ExtraKind: System.String | nullability=not-null | accessors=get,set

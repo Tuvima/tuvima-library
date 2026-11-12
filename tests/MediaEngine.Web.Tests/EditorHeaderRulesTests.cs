@@ -239,7 +239,7 @@ public sealed class EditorHeaderRulesTests
         Assert.Equal("Matched with TheTVDB", model.Facts.Single(fact => fact.Key == "match_state").Value);
         Assert.Equal("1080p", model.Facts.Single(fact => fact.Key == "file_quality").Value);
         Assert.Equal("MKV", model.Facts.Single(fact => fact.Key == "container").Value);
-        Assert.Equal("Season 02", model.Facts.Single(fact => fact.Key == "folder").Value);
+        Assert.DoesNotContain(model.Facts, fact => fact.Key == "folder");
         Assert.Equal("238", model.Facts.Single(fact => fact.Key == "supporting_file_count").Value);
     }
 
@@ -279,7 +279,7 @@ public sealed class EditorHeaderRulesTests
     }
 
     [Fact]
-    public void AFileInAReadOnlyFolder_CarriesTheReadOnlyNote()
+    public void AFileInAReadOnlyFolder_AddsNoPill_BecauseTheFooterLineSaysIt()
     {
         var header = new EditorHeaderDto
         {
@@ -291,7 +291,61 @@ public sealed class EditorHeaderRulesTests
 
         var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
 
-        Assert.Contains(EditorQuickFactsBuilder.ReadOnlyFolderNote, model.Notes);
+        Assert.Empty(model.Notes);
+    }
+
+    [Fact]
+    public void TheFilePath_IsNotAFact_ItIsTheModelsOwnLineForTheFootOfThePanel()
+    {
+        var header = new EditorHeaderDto
+        {
+            Kind = EditorKindNames.Movie,
+            Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
+            FileFacts = new EditorFileFactsDto { Container = "MKV", Folder = "/media/Movies/Dune (2021)", FileName = "Dune (2021).mkv", LibraryFolderName = "Movies" },
+            Config = EditorHeaderTestData.Config(EditorKindNames.Movie),
+        };
+
+        var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
+
+        // The Folder fact is the library folder's name only; the path lives on its own line.
+        var folder = model.Facts.Single(fact => fact.Key == "folder");
+        Assert.Equal("Movies", folder.Value);
+        Assert.Equal("Folder", folder.Label);
+        Assert.DoesNotContain(model.Facts, fact => fact.Value.Contains('/', StringComparison.Ordinal));
+        Assert.Equal("/media/Movies/Dune (2021)/Dune (2021).mkv", model.FilePath);
+    }
+
+    [Fact]
+    public void WithoutALibraryFolderName_TheFolderFactIsLeftOut_AndTheFolderPathIsNeverUsedInItsPlace()
+    {
+        var header = new EditorHeaderDto
+        {
+            Kind = EditorKindNames.Movie,
+            Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
+            FileFacts = new EditorFileFactsDto { Container = "MKV", Folder = "/outside/Dune (2021)", FileName = "Dune (2021).mkv" },
+            Config = EditorHeaderTestData.Config(EditorKindNames.Movie),
+        };
+
+        var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
+
+        Assert.DoesNotContain(model.Facts, fact => fact.Key == "folder");
+        Assert.Equal("/outside/Dune (2021)/Dune (2021).mkv", model.FilePath);
+    }
+
+    [Fact]
+    public void TheFolderFact_IsOnlyShownWhenTheKindsQuickFactsListAsksForIt()
+    {
+        var header = new EditorHeaderDto
+        {
+            Kind = EditorKindNames.Movie,
+            Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
+            FileFacts = new EditorFileFactsDto { Container = "MKV", LibraryFolderName = "Movies" },
+            Config = new EditorHeaderConfigDto { Kind = EditorKindNames.Movie, QuickFacts = ["container"] },
+        };
+
+        var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
+
+        Assert.Equal(["container"], model.Facts.Select(fact => fact.Key));
     }
 
     [Fact]
