@@ -84,6 +84,35 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
+    public async Task ViewerAccess_PeopleReads_AreTheSameWhetherTheCreditsAreSharedOrReadEachTime()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var shared = CreditPerson("Shared Performer", "QSHARED", shape.Normal, shape.Secret);
+        var vaultOnly = CreditPerson("Vault Only Performer", "QVAULTONLY", shape.Secret);
+        var session = NewVaultSession(shape.Account);
+        await UnlockVaultAsync(session);
+        var viewer = await ViewerAccessFor(VaultContext(shape.Account, session)).GetCatalogueAsync();
+        var direct = PeopleScope();
+        var cached = new PersonAssetScopeReadService(
+            new PersonRepository(_database),
+            _database,
+            new MediaEngine.Api.Services.Display.SharedListCache(new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())));
+
+        Assert.Equal(
+            (await direct.GetCanonicalPersonIdsAsync(viewer, default)).Order(),
+            (await cached.GetCanonicalPersonIdsAsync(viewer, default)).Order());
+        // Written out by hand, so a mistake common to both paths would still show: the person on an ordinary film is named, the person
+        // only on the Vault title is not, and one role is counted once.
+        var cachedIds = await cached.GetCanonicalPersonIdsAsync(viewer, default);
+        Assert.Contains(shared, cachedIds);
+        Assert.DoesNotContain(vaultOnly, cachedIds);
+        Assert.Equal(1, (await cached.GetCanonicalRoleCountsAsync(viewer, default)).Values.Sum());
+        Assert.Equal(
+            (await direct.GetCanonicalRoleCountsAsync(viewer, default)).OrderBy(pair => pair.Key),
+            (await cached.GetCanonicalRoleCountsAsync(viewer, default)).OrderBy(pair => pair.Key));
+    }
+
+    [Fact]
     public async Task ViewerAccess_AHiddenLibrary_AddsNothingToAProfilesPeopleCounts_ButStillCountsForAnotherProfile()
     {
         var hiddenLibrary = Guid.NewGuid();

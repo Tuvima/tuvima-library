@@ -31,8 +31,14 @@ public interface ICollectionBrowseReadService
         Guid? viewerProfileId = null);
     int CountRuleMatches(CollectionRuleDefinition definition, string? query = null, Guid? viewerProfileId = null);
     Task<IReadOnlyList<string>> GetFieldValuesAsync(string field, string? query, int limit, CancellationToken ct);
+    /// <summary>The same distinct values, limited to those used by titles of the given media types (null or empty means every type).</summary>
+    Task<IReadOnlyList<string>> GetFieldValuesAsync(string field, string? query, int limit, IReadOnlyList<string>? mediaTypes, CancellationToken ct)
+        => GetFieldValuesAsync(field, query, limit, ct);
     Task<IReadOnlyList<CollectionRuleValueDto>> GetEntityFieldValuesAsync(string field, string? query, int limit, CancellationToken ct)
         => Task.FromResult<IReadOnlyList<CollectionRuleValueDto>>([]);
+    /// <summary>The same entity values, limited to those used by titles of the given media types (null or empty means every type).</summary>
+    Task<IReadOnlyList<CollectionRuleValueDto>> GetEntityFieldValuesAsync(string field, string? query, int limit, IReadOnlyList<string>? mediaTypes, CancellationToken ct)
+        => GetEntityFieldValuesAsync(field, query, limit, ct);
     Task<List<ContentGroupDto>> GetSystemViewGroupsAsync(
         string? mediaType,
         string? groupField,
