@@ -115,6 +115,29 @@
     --tl-font-weight-medium: 500;
     --tl-font-weight-semibold: 600;
     --tl-font-weight-bold: 700;
+    /* The type scale's jobs (look-pass v3.1 D8): a part names a job, never a number. Written as literals so a test can assert them. */
+    --tl-type-hero-size: 32px;
+    --tl-type-hero-weight: 700;
+    --tl-type-page-title-size: 24px;
+    --tl-type-page-title-weight: 700;
+    --tl-type-heading-size: 20px;
+    --tl-type-heading-weight: 600;
+    --tl-type-subheading-size: 16px;
+    --tl-type-subheading-weight: 600;
+    --tl-type-menu-size: 16px;
+    --tl-type-menu-weight: 500;
+    --tl-type-control-size: 14px;
+    --tl-type-control-weight: 500;
+    --tl-type-body-size: 14px;
+    --tl-type-body-weight: 400;
+    --tl-type-secondary-size: 13px;
+    --tl-type-secondary-weight: 400;
+    --tl-type-label-size: 13px;
+    --tl-type-label-weight: 500;
+    --tl-type-caption-size: 12px;
+    --tl-type-caption-weight: 400;
+    --tl-type-overline-size: 12px;
+    --tl-type-overline-weight: 600;
     --tl-line-height-tight: 1.25;
     --tl-line-height-body: 1.5;
     --tl-line-height-relaxed: 1.625;
@@ -363,6 +386,10 @@
     --tl-window-l: 900px;
     --tl-window-xl: 1200px;
     --tl-window-radius: 12px;
+    /* The details window (Look v3.1 D5): 90 % of the screen, never wider than 1440 px, never closer than 32 px to an edge. */
+    --tl-window-details-max: 1440px;
+    --tl-window-details-margin: 32px;
+    --tl-window-details-radius: 16px;
     --tl-sheet-radius: 16px;
     --tl-popout-menu: 272px;
     --tl-popout-panel: 400px;
@@ -457,6 +484,18 @@
     --tl-gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
     --tl-gradient-info: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
     --tl-gradient-surface: linear-gradient(180deg, var(--tl-bg-surface-raised) 0%, var(--tl-bg-surface) 100%);
+}
+
+/* Text typed into a field and a dropdown's chosen value: the Body job on tablet and desktop, 16 px on a phone so the page does not
+   zoom when a field is tapped (look-pass v3.1 D9). */
+:root {
+    --tl-field-text-size: var(--tl-type-body-size);
+}
+
+@media (max-width: 600px) {
+    :root {
+        --tl-field-text-size: var(--tl-font-size-md);
+    }
 }
 
 @media (max-width: 840px) {

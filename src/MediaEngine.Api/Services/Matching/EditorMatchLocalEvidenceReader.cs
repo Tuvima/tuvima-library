@@ -327,7 +327,7 @@ public sealed partial class EditorMatchLocalEvidenceReader(
         text is not null && IsbnPattern().Match(text) is { Success: true } hit ? IsbnOf(hit.Value) : null;
 
     // Digits only, and only when they make a 10 or 13 digit ISBN.
-    private static string? IsbnOf(string? text)
+    internal static string? IsbnOf(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {

@@ -206,13 +206,14 @@ public sealed class EditorBookmarkStagingTests
     }
 
     [Fact]
-    public void AStagedStartOver_ReadsPooledAgain_ListingEveryProfilesBookmark()
+    public void AStagedClearGlobal_EmptiesGlobal_AndLeavesEveryProfilesBookmarks()
     {
         var view = EditorBookmarkProjection.Apply(Loaded(EditorBookmarkStates.Definitive), [Op(EditorBookmarkOpKinds.StartOver, opId: "s")]);
 
         Assert.Equal(EditorBookmarkStates.Pooled, view.State);
         Assert.True(view.StateStaged);
-        Assert.Equal(2, view.Everyone.Count);
+        Assert.Empty(view.Everyone);
+        Assert.Equal(2, view.FromProfiles.Count);
     }
 
     // ---------------------------------------------------------------- the pending list
@@ -221,7 +222,7 @@ public sealed class EditorBookmarkStagingTests
     public void TheBookmarksChange_CountsOneThingPerOperation_AndRidesInTheSaveRequest()
     {
         var pending = new PendingEditList();
-        pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Add, Twist), "Added to Everyone's: 51:40 The twist");
+        pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Add, Twist), "Added to Global: 51:40 The twist");
         pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Rename, Opening, name: "Cold open"), "Renamed 12:04 to Cold open");
 
         Assert.Equal(2, pending.ChangeCount);
@@ -249,10 +250,10 @@ public sealed class EditorBookmarkStagingTests
     public void ACancelledOperation_TakesItsReviewLineWithIt()
     {
         var pending = new PendingEditList();
-        pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Add, Twist), "Added to Everyone's: 51:40 The twist");
+        pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Add, Twist), "Added to Global: 51:40 The twist");
         pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Rename, Opening, name: "Cold open"), "Renamed 12:04 to Cold open");
 
-        pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Remove, Twist), "Removed from Everyone's: 51:40 The twist");
+        pending.StageBookmarkOp(WorkId, Op(EditorBookmarkOpKinds.Remove, Twist), "Removed from Global: 51:40 The twist");
 
         var rows = EditReviewRows.Build(pending, _ => "Dune", null);
         var row = Assert.Single(rows);
@@ -292,8 +293,8 @@ public sealed class EditorBookmarkStagingTests
             Assert.False(string.IsNullOrWhiteSpace(row.FieldKey));
             Assert.Equal(EditReviewRows.EveryoneAsItIsNow, row.Before);
         });
-        Assert.Equal("Added to Everyone's: 51:40 The twist", rows[0].After);
-        Assert.Equal("Removed from Everyone's: 12:04 Opening", rows[1].After);
+        Assert.Equal("Added to Global: 51:40 The twist", rows[0].After);
+        Assert.Equal("Removed from Global: 12:04 Opening", rows[1].After);
         Assert.Equal("Renamed to Cold open", rows[2].After);
         Assert.Equal("Bookmarks", EditReviewRows.GroupTitle(EditReviewGroup.Bookmarks));
     }
@@ -307,7 +308,7 @@ public sealed class EditorBookmarkStagingTests
 
         var row = Assert.Single(EditReviewRows.Build(pending, _ => "Dune: Part One", null));
 
-        Assert.Equal("Started over from profiles", row.After);
+        Assert.Equal("Cleared Global", row.After);
         Assert.NotNull(row.Warning);
     }
 

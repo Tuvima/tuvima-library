@@ -60,7 +60,7 @@
                     {
                         <AppMaterialIcon Icon="@option.Icon" Size="AppIconSize.Control20" Class="app-select__option-icon" />
                     }
-                    @option.Label
+                    <span class="tl-list-item__label" data-overflow-tooltip="@option.Label">@option.Label</span>
                     @if (NormalizedAppearance == "playback-flat")
                     {
                         <span class="app-select__selected-check" aria-hidden="true">✓</span>

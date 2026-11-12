@@ -14,13 +14,13 @@ public sealed class AudiobookBarMarkersTests
         var saved = new[] { Bookmark(100, inEveryone: true), Bookmark(500, isGlobal: true, inEveryone: true) };
 
         Assert.Empty(AudiobookBarMarkers.ForBar(saved, show: false, choice: null, duration: 1000, scope: null));
-        var shown = AudiobookBarMarkers.ForBar(saved, show: true, choice: null, duration: 1000, scope: null);
+        var shown = AudiobookBarMarkers.ForBar(saved, show: true, choice: PlaybackPreferenceValues.All, duration: 1000, scope: null);
         Assert.Equal([100d, 500d], shown.Select(marker => marker.Seconds));
         Assert.True(shown[1].IsGlobal);
     }
 
     [Fact]
-    public void BarMarkers_FollowTheListThePanelShows_EveryoneByDefaultOrMine()
+    public void BarMarkers_FollowTheListThePanelShows_MineByDefaultOrGlobal()
     {
         var saved = new[]
         {
@@ -30,7 +30,7 @@ public sealed class AudiobookBarMarkersTests
         };
 
         Assert.Equal([100d, 300d], AudiobookBarMarkers.ForBar(saved, true, PlaybackPreferenceValues.All, 1000, null).Select(marker => marker.Seconds));
-        Assert.Equal([100d, 300d], AudiobookBarMarkers.ForBar(saved, true, null, 1000, null).Select(marker => marker.Seconds));
+        Assert.Equal([200d, 300d], AudiobookBarMarkers.ForBar(saved, true, null, 1000, null).Select(marker => marker.Seconds));
         Assert.Equal([200d, 300d], AudiobookBarMarkers.ForBar(saved, true, PlaybackPreferenceValues.Mine, 1000, null).Select(marker => marker.Seconds));
     }
 
@@ -40,7 +40,7 @@ public sealed class AudiobookBarMarkersTests
         var saved = new[] { Bookmark(100, inEveryone: true), Bookmark(450, inEveryone: true), Bookmark(900, inEveryone: true) };
         var chapter = new AudiobookChapterWindow(2, 3, "Two", Start: 400, End: 800);
 
-        var shown = AudiobookBarMarkers.ForBar(saved, show: true, choice: null, duration: 1000, scope: chapter);
+        var shown = AudiobookBarMarkers.ForBar(saved, show: true, choice: PlaybackPreferenceValues.All, duration: 1000, scope: chapter);
 
         var marker = Assert.Single(shown);
         Assert.Equal(50d, marker.Seconds);

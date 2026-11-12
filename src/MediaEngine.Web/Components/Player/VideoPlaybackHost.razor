@@ -234,7 +234,7 @@
     private IReadOnlyList<PlaybackRailBookmark> _savedRail = [];
     private Task? _railBookmarksLoad;
     private bool ShowBookmarksOnBar => _profileSettings?.General.ShowBookmarksOnBar == true;
-    private string BookmarkFilter => _profileSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
+    private string BookmarkFilter => _profileSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.Mine;
     private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];

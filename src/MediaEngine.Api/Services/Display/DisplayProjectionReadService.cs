@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.Collections;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Display;
 
@@ -7,12 +8,14 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
 {
     private const int HomeProjectionLimit = 1_000;
     private static readonly TimeSpan ProjectionCacheDuration = TimeSpan.FromSeconds(30);
+
     private readonly DisplayWorkProjectionReader _works;
     private readonly DisplayVisibleWorkReader _visibleWorks;
     private readonly DisplayJourneyProjectionReader _journey;
     private readonly DisplayFavoriteProjectionReader _favorites;
     private readonly DisplayHomeCollectionProjectionReader _homeCollections;
     private readonly IMemoryCache _cache;
+    private readonly SharedListCache _shared;
 
     public DisplayProjectionReadService(
         DisplayWorkProjectionReader works,
@@ -20,7 +23,9 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
         DisplayJourneyProjectionReader journey,
         DisplayFavoriteProjectionReader favorites,
         DisplayHomeCollectionProjectionReader homeCollections,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        ILogger<DisplayProjectionReadService>? logger = null,
+        TimeProvider? time = null)
     {
         _works = works;
         _visibleWorks = visibleWorks;
@@ -28,45 +33,37 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
         _favorites = favorites;
         _homeCollections = homeCollections;
         _cache = cache;
+        _shared = new SharedListCache(cache, logger, time);
     }
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct)
     {
-        const string cacheKey = "display:works:all";
-        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<DisplayWorkRow>? cached) && cached is not null)
-        {
-            return cached;
-        }
-
-        var rows = await _works.LoadAsync(ct);
-        _cache.Set(cacheKey, rows, ProjectionCacheDuration);
-        return rows;
+        return await _shared.GetAsync("display:works:all", () => _works.LoadAsync(CancellationToken.None), ct);
     }
+
 
     public async Task<IReadOnlyList<DisplayVisibleWorkRow>> LoadVisibleWorkRowsAsync(CancellationToken ct)
     {
-        const string cacheKey = "display:visible-work-rows";
-        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<DisplayVisibleWorkRow>? cached) && cached is not null)
-        {
-            return cached;
-        }
-
-        var rows = await _visibleWorks.LoadAsync(ct);
-        _cache.Set(cacheKey, rows, ProjectionCacheDuration);
-        return rows;
+        return (await LoadVisibleSnapshotAsync(ct)).Rows;
     }
+
+    // The rows and the ids built from them are one entry, so they are always the same age and can never disagree (the access
+    // checks compare their counts).
+    private Task<VisibleSnapshot> LoadVisibleSnapshotAsync(CancellationToken ct) =>
+        _shared.GetAsync(
+            "display:visible-work-snapshot",
+            async () =>
+            {
+                var rows = await _visibleWorks.LoadAsync(CancellationToken.None);
+                return new VisibleSnapshot(rows, rows.Select(row => row.WorkId).ToHashSet());
+            },
+            ct);
+
+    private sealed record VisibleSnapshot(IReadOnlyList<DisplayVisibleWorkRow> Rows, IReadOnlySet<Guid> Ids);
 
     public async Task<IReadOnlySet<Guid>> LoadVisibleWorkIdsAsync(CancellationToken ct)
     {
-        const string cacheKey = "display:visible-work-ids";
-        if (_cache.TryGetValue(cacheKey, out IReadOnlySet<Guid>? cached) && cached is not null)
-        {
-            return cached;
-        }
-
-        var ids = (await LoadVisibleWorkRowsAsync(ct)).Select(row => row.WorkId).ToHashSet();
-        _cache.Set(cacheKey, ids, ProjectionCacheDuration);
-        return ids;
+        return (await LoadVisibleSnapshotAsync(ct)).Ids;
     }
 
     public Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) =>
@@ -74,15 +71,7 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct)
     {
-        const string cacheKey = "display:works:home";
-        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<DisplayWorkRow>? cached) && cached is not null)
-        {
-            return cached;
-        }
-
-        var rows = await _works.LoadAsync(ct, HomeProjectionLimit);
-        _cache.Set(cacheKey, rows, ProjectionCacheDuration);
-        return rows;
+        return await _shared.GetAsync("display:works:home", () => _works.LoadAsync(CancellationToken.None, HomeProjectionLimit), ct);
     }
 
     public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) =>

@@ -429,11 +429,40 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
         Assert.Equal(1, _stub.Calls.Count(call => call == nameof(IEngineApiClient.GetLibraryItemDetailAsync)));
     }
 
+    [Fact]
+    public async Task ASeriesShowsSeriesFactsInAboutThisAndNoTypeOrStatusRows()
+    {
+        await UseAsync("desktop");
+        var model = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.BookSeries,
+            SequencePlacement = new SequencePlacementViewModel
+            {
+                ItemPluralLabel = "Books",
+                TotalKnownItems = 9,
+                OrderedItems =
+                [
+                    new SequenceItemViewModel { Id = Guid.NewGuid().ToString("D"), Title = "One", PublicationDate = "2011", IsOwned = true },
+                    new SequenceItemViewModel { Id = Guid.NewGuid().ToString("D"), Title = "Two", PublicationDate = "2021", IsOwned = false },
+                ],
+            },
+        };
+
+        var cut = RenderTab(model);
+
+        var text = cut.Find(".tl-file-facts__list").TextContent;
+        Assert.Contains("1 of 9 books", text);
+        Assert.Contains("2011", text);
+        Assert.Contains("2021", text);
+        Assert.Empty(cut.FindAll(".tl-detail-dl"));
+        Assert.DoesNotContain("BookSeries", cut.Markup);
+        Assert.DoesNotContain("Open an item inside it", cut.Markup);
+    }
+
     [Theory]
     [InlineData(DetailEntityType.TvShow)]
     [InlineData(DetailEntityType.TvSeason)]
     [InlineData(DetailEntityType.MusicAlbum)]
-    [InlineData(DetailEntityType.BookSeries)]
     [InlineData(DetailEntityType.Collection)]
     public async Task GroupingsOwnNoFileSoTheyPointToTheItemsInside(DetailEntityType type)
     {

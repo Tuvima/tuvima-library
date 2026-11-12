@@ -40,7 +40,7 @@ public sealed class ReaderBookmarkSetService
     public static string ChapterStartLocator(int chapter) => $"epubcfi(/6/{(chapter + 1) * 2}!)";
 
     /// <summary>
-    /// The editor's Import for a book (universal editor v5 D37): a bookmark file beside the book's Everyone's list instead of the person's own
+    /// The editor's Import for a book (universal editor v5 D37): a bookmark file beside the book's Global list instead of the person's own
     /// bookmarks. Changes nothing; the editor stages what the administrator takes and writes it on Save changes. The caller has already
     /// checked that the person is an administrator.
     /// </summary>
@@ -49,7 +49,7 @@ public sealed class ReaderBookmarkSetService
         PrepareAsync(assetId, request, everyone, ct);
 
     /// <summary>
-    /// The editor's Export for a book: the book's Everyone's list, definitive or pooled, as one bookmark file (places and names, never anyone's
+    /// The editor's Export for a book: the book's Global list, definitive or pooled, as one bookmark file (places and names, never anyone's
     /// personal bookmarks). The caller has already checked that the person is an administrator.
     /// </summary>
     public async Task<BookmarkPackFileDto> ExportEveryoneAsync(Guid assetId, IReadOnlyList<ReaderBookmark> everyone, CancellationToken ct = default)
@@ -67,7 +67,7 @@ public sealed class ReaderBookmarkSetService
             .ToList();
         if (chosen.Count == 0)
         {
-            throw new BookmarkPackInvalidException("This book has no Everyone's bookmarks to export yet.");
+            throw new BookmarkPackInvalidException("This book has no Global bookmarks to export yet.");
         }
 
         var recognition = await _recognition.GetRecognitionAsync(assetId, ct);
