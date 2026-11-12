@@ -128,7 +128,7 @@ One interface typeface, **Inter** (variable, SIL OFL 1.1, self-hosted woff2), so
 | 12 caption | `--tl-font-size-xs` | `12px` | Captions, metadata, the tile text floor |
 | 13 secondary | `--tl-font-size-secondary` | `13px` | Helper lines, form labels, tooltips |
 | 14 body | `--tl-font-size-body` | `var(--tl-font-size-sm)` | Body copy |
-| 16 controls | `--tl-font-size-md` | `16px` | Controls, menus, rows |
+| 16 menu and subheading | `--tl-font-size-md` | `16px` | Pop-up menu rows, subheadings, text typed into a field on a phone |
 | 20 section | `--tl-font-size-dialog-title` | `20px` | Section and shelf titles, window titles |
 | 24 page title | `--tl-font-size-title` | `24px` | Page titles (28 at 1180 px and wider) |
 | 32 hero | `--tl-font-size-hero` | `32px` | Hero titles |
@@ -139,6 +139,34 @@ One interface typeface, **Inter** (variable, SIL OFL 1.1, self-hosted woff2), so
 | Medium | `--tl-font-weight-medium` | `500` | Labels, menu rows, chips |
 | Semibold | `--tl-font-weight-semibold` | `600` | Group headings, card and row titles |
 | Bold | `--tl-font-weight-bold` | `700` | Page and hero titles only |
+
+Each size has named jobs, and a part picks a job, never a number (look-pass v3.1 D8). Every job has one size token and one weight token. Control text is 14 px on tablet and desktop (buttons, tabs, dropdown values and options, text typed into a field); text typed into a field is 16 px under 600 px so a phone does not zoom the page, through `--tl-field-text-size`. Pop-up menu rows stay at the Menu job (16 px). A check (`LookRatchetGuardrailTests.OffScaleFontSizesOnlyGoDown`) fails any new size written in rem, em, pixels or `clamp()` outside the hero.
+
+| Job | Token | Value | Used for |
+|---|---|---|---|
+| Hero size | `--tl-type-hero-size` | `32px` | The title in a details hero and the Home hero (the only place a size may scale with the screen) |
+| Hero weight | `--tl-type-hero-weight` | `700` | Weight of the hero job |
+| Page title size | `--tl-type-page-title-size` | `24px` | The one title of a page (28 at 1180 px and wider) |
+| Page title weight | `--tl-type-page-title-weight` | `700` | Weight of the page title job |
+| Heading size | `--tl-type-heading-size` | `20px` | Every window title, including the editor's; section and shelf headings |
+| Heading weight | `--tl-type-heading-weight` | `600` | Weight of the heading job |
+| Subheading size | `--tl-type-subheading-size` | `16px` | Group headings in Settings, card and panel headings, a card's title |
+| Subheading weight | `--tl-type-subheading-weight` | `600` | Weight of the subheading job |
+| Menu size | `--tl-type-menu-size` | `16px` | Rows in pop-up menus and side menus |
+| Menu weight | `--tl-type-menu-weight` | `500` | Weight of the menu job |
+| Control size | `--tl-type-control-size` | `14px` | Buttons, tab labels, dropdown values and their options, chips, a row's title in a list or table |
+| Control weight | `--tl-type-control-weight` | `500` | Weight of the control job |
+| Body size | `--tl-type-body-size` | `14px` | Reading text: descriptions, dialog messages, table cells, text typed into a field |
+| Body weight | `--tl-type-body-weight` | `400` | Weight of the body job |
+| Secondary size | `--tl-type-secondary-size` | `13px` | Helper and message lines, meta lines (author, year), counts, tooltips |
+| Secondary weight | `--tl-type-secondary-weight` | `400` | Weight of the secondary job |
+| Label size | `--tl-type-label-size` | `13px` | Field labels |
+| Label weight | `--tl-type-label-weight` | `500` | Weight of the label job |
+| Caption size | `--tl-type-caption-size` | `12px` | Badges, pills, time stamps, table column headings, small captions |
+| Caption weight | `--tl-type-caption-weight` | `400` | Weight of the caption job |
+| Overline size | `--tl-type-overline-size` | `12px` | Overlines above a title |
+| Overline weight | `--tl-type-overline-weight` | `600` | Weight of the overline job |
+| Field text | `--tl-field-text-size` | `var(--tl-type-body-size)` | Text typed into a field and a dropdown's chosen value (16 px under 600 px) |
 
 Buttons and other controls are Medium (`--tl-control-font-weight` is 500); text inputs are Regular (400), the body weight. Line heights 1.2 / 1.3 / 1.5 (`--tl-line-height-title`, `-heading`, `-body`). No uppercase labels; if a page needs an overline it is 12 / 600 with 0.06em spacing.
 

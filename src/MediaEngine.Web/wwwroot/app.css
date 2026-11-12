@@ -166,7 +166,7 @@ body {
     background: var(--tl-bg-root) !important;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: 14px;
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
     letter-spacing: 0;
 }
@@ -197,7 +197,7 @@ body {
 }
 
 /* The one tab: flat, transparent, 2px accent underline on the active tab. AppTabs and AppCountTabs both render it, so
-   no page defines its own tab style (spec: one-shared-look). Labels sit one step up the type scale (D8). */
+   no page defines its own tab style (spec: one-shared-look). Labels use the Control job (look-pass v3.1 D8). */
 .tl-tabs-toolbar {
     display: flex;
     flex-wrap: nowrap;
@@ -230,8 +230,8 @@ body {
     background: transparent;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-lg); /* one step up the type scale (D8) */
-    font-weight: var(--tl-control-font-weight);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-control-font-weight); /* the Control job's weight (500) */
     line-height: var(--tl-control-line-height);
     letter-spacing: var(--tl-control-letter-spacing);
     text-decoration: none;
@@ -330,7 +330,7 @@ body {
 .app-dialog-field input,
 .app-dialog-field .tl-input-slot,
 .settings-admin-panel .tl-input-slot {
-    font-size: var(--tl-font-size-sm) !important;
+    font-size: var(--tl-field-text-size) !important;
 }
 
 .app-dialog-textarea textarea,
@@ -678,7 +678,7 @@ code{
 
 /* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
    touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
-.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-xs)); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
+.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:var(--tl-type-secondary-size); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
 .media-tile-label--status { top:0; left:0; border-bottom-right-radius:var(--tl-radius-md); }
 .media-tile-label--bottom { bottom:0; left:0; border-top-right-radius:var(--tl-radius-md); }
 
@@ -2256,14 +2256,14 @@ input.app-control.tl-input-slot,
 
 .tl-u-font-size-32px { font-size: var(--tl-font-size-hero) !important; }
 .tl-u-font-size-36px { font-size: var(--tl-font-size-hero) !important; }
-.tl-u-font-size-3rem { font-size: 3rem !important; }
+.tl-u-font-size-3rem { font-size: var(--tl-icon-size-xl) !important; }
 
 .tl-u-font-size-42px { font-size: 42px !important; }
 .tl-u-font-size-44px { font-size: 44px !important; }
-.tl-u-font-size-48px { font-size: 48px !important; }
+.tl-u-font-size-48px { font-size: var(--tl-icon-size-xl) !important; }
 .tl-u-font-size-52px { font-size: 52px !important; }
 .tl-u-font-size-56px { font-size: 56px !important; }
-.tl-u-font-size-64px { font-size: 64px !important; }
+.tl-u-font-size-64px { font-size: var(--tl-icon-size-2xl) !important; }
 
 .tl-u-font-weight-600 { font-weight: 600 !important; }
 .tl-u-font-weight-700 { font-weight: 600 !important; }
@@ -2610,6 +2610,13 @@ input.app-control.tl-input-slot,
     box-shadow: none !important;
     transition: color var(--tl-motion-duration-fast) var(--tl-motion-ease-standard),
                 background var(--tl-motion-duration-fast) var(--tl-motion-ease-standard);
+}
+
+/* A dropdown's options are the Control job (14 px), the same as its chosen value; pop-up menu rows above stay at the Menu job
+   (look-pass v3.1 D10). Placed after the shared row rule so it wins at equal weight. */
+.tl-select-options .tl-list-item {
+    font-size: var(--tl-type-control-size) !important;
+    font-weight: var(--tl-type-control-weight) !important;
 }
 
 button.app-menu-item {
@@ -4176,7 +4183,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 }
 
 .layout-kids .layout-shell__nav-link {
-    font-size: var(--tl-font-size-md, 1rem);
+    font-size: var(--tl-font-size-md);
     min-height: 48px;
     padding-inline: 18px;
 }
@@ -5103,7 +5110,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 /* The quiet facts in the side column of a plugin or integration page (Plugins and Integrations screens v6 D60). Global because the
    facts are drawn by the page that owns them, not by the column component. */
 .app-detail-columns__side dl { margin: 0; }
-.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs, .75rem); letter-spacing: .08em;}
+.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); letter-spacing: .08em;}
 .app-detail-columns__side dd { margin: 2px 0 6px; color: var(--tl-text-primary); overflow-wrap: anywhere; }
 /* MapLibre builds these class names itself, so no component names them: keep the controls above the phone docks. */
 html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-left,
