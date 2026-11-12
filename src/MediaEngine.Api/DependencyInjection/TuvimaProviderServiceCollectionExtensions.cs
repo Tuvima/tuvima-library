@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Review;
 using MediaEngine.Domain.Configuration;
@@ -53,6 +54,9 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<IImageEnrichmentService>(sp => sp.GetRequiredService<ImageEnrichmentService>());
         services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();
         services.AddSingleton<IReviewMoveToTvService, ReviewMoveToTvService>();
+        services.AddScoped<MediaTypeReclassifyService>();
+        services.AddScoped<IReviewChoiceApplier, ReviewChoiceApplier>();
+        services.AddScoped<IReviewChooseService, ReviewChooseService>();
         services.AddSingleton<DeferredEnrichmentService>();
         services.AddSingleton<IDeferredEnrichmentService>(sp =>
             sp.GetRequiredService<DeferredEnrichmentService>());

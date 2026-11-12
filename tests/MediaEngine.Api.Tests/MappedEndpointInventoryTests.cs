@@ -39,7 +39,7 @@ public sealed class MappedEndpointInventoryTests
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
             [ApplicationPermissionIds.ReviewRead] = ["GetPendingReviews", "GetReviewCount", "GetReviewItem"],
-            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "ReopenReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv"],
+            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "ReopenReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv", "ChooseReviewItem"],
             [ApplicationPermissionIds.ProvidersStatusRead] = ["GetProviderHealth", "GetProviderIcon"],
             [ApplicationPermissionIds.ProvidersConfigRead] = ["GetProviderStatus", "GetProviderCatalogue", "GetStashBoxSettings"],
             [ApplicationPermissionIds.ProvidersConfigWrite] = ["UpdateProvider", "TestProviderCredentials", "SaveProviderCredentials", "RemoveProviderCredentials", "TestProvider", "SampleProvider", "UpdateProviderConfig", "DeleteProvider", "UploadProviderIcon", "AddStashBoxServer", "RemoveStashBoxServer", "SetStashBoxServerOrder", "SaveStashBoxServerKey", "RemoveStashBoxServerKey", "TestStashBoxConnection", "SetStashBoxFingerprintPermission"],
@@ -525,6 +525,10 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<TimelineRecorder>();
         builder.Services.AddSingleton<MediaEngine.Providers.Services.SeriesPlacementChoiceService>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not resolve collection placement."));
+        builder.Services.AddSingleton<MediaEngine.Api.Services.Metadata.MediaTypeReclassifyService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not resolve the media type change."));
+        builder.Services.AddSingleton<MediaEngine.Api.Services.Review.IReviewChooseService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not resolve the review choice."));
         builder.Services.AddSingleton<Tuvima.Wikidata.WikidataReconciler>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not resolve external reconciliation."));
         builder.Services.AddScoped<DashboardAuthorityProjector>();

@@ -652,7 +652,7 @@ public sealed partial class RetailMatchWorker
             await _jobRepo.SetSelectedCandidateAsync(job.Id, candidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatchedNeedsReview, ct: ct);
             await _outcomeFactory.CreateRetailAmbiguousAsync(
-                job.EntityId, job.MediaType, decision.FinalScore, ct);
+                job.EntityId, job.MediaType, decision.FinalScore, ct, [candidate], candidate);
             await _timeline.RecordRetailMatchedAsync(
                 job.EntityId, "apple_api", 1, ct);
 

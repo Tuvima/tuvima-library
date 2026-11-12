@@ -79,6 +79,11 @@ internal class EngineApiClientStub : DispatchProxy
         _handlers[nameof(IEngineApiClient.GetBrowseLibrariesAsync)] =
             _ => Task.FromResult<IReadOnlyList<BrowseLibraryDto>?>(null);
 
+        // Picking a Needs Review choice succeeds by default; a test that needs a refusal registers its own handler (null is a failure).
+        _handlers[nameof(IEngineApiClient.ChooseReviewAsync)] =
+            args => Task.FromResult<MediaEngine.Contracts.Review.ReviewChooseResponse?>(
+                new MediaEngine.Contracts.Review.ReviewChooseResponse(true, (Guid)args![0]!, (string)args[1]!, "retail"));
+
         _handlers[nameof(IEngineApiClient.ToAbsoluteEngineUrl)] =
             args => args?[0]?.ToString() ?? string.Empty;
 

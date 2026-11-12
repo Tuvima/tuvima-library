@@ -19,7 +19,7 @@ namespace MediaEngine.Api.Tests;
 /// temporary SQLite data store, and check the two promises the product makes: the library page's "N files not identified" opens a list that
 /// holds exactly N, and the Settings notifier count is the number of rows the list holds.
 /// </summary>
-public sealed class NeedsReviewListReadServiceTests : IDisposable
+public sealed partial class NeedsReviewListReadServiceTests : IDisposable
 {
     private readonly string _dbPath;
     private readonly DatabaseConnection _db;
