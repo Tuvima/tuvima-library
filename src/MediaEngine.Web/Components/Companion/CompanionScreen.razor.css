@@ -41,14 +41,14 @@
 .companion__position,
 .companion__mode {
     margin: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     color: var(--tl-text-secondary);
 }
 
 .companion__title {
     margin: 0;
-    font-size: var(--tl-font-size-dialog-title);
-    font-weight: 700;
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     line-height: 1.2;
     overflow-wrap: anywhere;
     color: var(--tl-text-primary);
@@ -88,15 +88,15 @@
 
 .companion__section-title {
     margin: 0;
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
     color: var(--tl-text-primary);
 }
 
 .companion__text,
 .companion__previously-label {
     margin: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
     line-height: 1.5;
     color: var(--tl-text-primary);
     overflow-wrap: anywhere;
@@ -114,7 +114,7 @@
 .companion__empty,
 .companion__note {
     margin: 0;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
     color: var(--tl-text-secondary);
 }
 
@@ -146,7 +146,7 @@
 }
 
 .companion__character-detail {
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
     color: var(--tl-text-secondary);
 }
 
@@ -199,6 +199,6 @@
     }
 
     .companion__title {
-        font-size: var(--tl-font-size-xl);
+        font-size: var(--tl-type-page-title-size);
     }
 }

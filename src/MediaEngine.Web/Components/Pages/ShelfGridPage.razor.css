@@ -23,8 +23,8 @@
 .shelf-grid-page__title {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: clamp(1.35rem, 2vw, 1.8rem);
-    font-weight: var(--tl-font-weight-bold);
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     line-height: var(--tl-line-height-tight);
 }
 
@@ -36,7 +36,7 @@
 .shelf-grid-page__subtitle {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-body);
+    font-size: var(--tl-type-body-size);
 }
 
 /* Always present so the count is announced when it changes; it holds its height while it is empty. */
@@ -44,7 +44,7 @@
     margin: 0;
     min-height: 1.25rem;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .shelf-grid-page__filters {
@@ -121,7 +121,7 @@
 .shelf-grid-page__more-error {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 /* The scroll trigger: no height of its own, it only marks where the grid ends. */

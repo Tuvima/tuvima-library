@@ -11,10 +11,9 @@ public sealed class LookRatchetGuardrailTests
 {
     private const int RoundedEndCeiling = 0;
     private const int NativeControlCeiling = 276;
-    private const int AdHocFontSizeCeiling = 69;
-    private const int HandTypedHexCeiling = 512;
-    private const int OffScaleFontSizeCeiling = 174;
-    private const int ForcedOverrideCeiling = 1062;
+    private const int AdHocFontSizeCeiling = 39;
+    private const int HandTypedHexCeiling = 498;
+    private const int ForcedOverrideCeiling = 1040;
     private const int HandTypedLayerCeiling = 271;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
     private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
@@ -93,17 +92,119 @@ public sealed class LookRatchetGuardrailTests
         Assert.True(count <= HandTypedHexCeiling, $"Hand-typed hex colors rose to {count} (ceiling {HandTypedHexCeiling}). Colors live in tuvima.tokens.css; ask for a token or an icon tone.");
     }
 
-    [Fact]
-    public void OffScaleFontSizesOnlyGoDown()
+    // Look v3.1 D7: folders whose component styles hold no hand-typed color at all (hex, rgb(), rgba(), hsl(), hsla(), or a named color,
+    // including a var() fallback). Folders are relative to src/MediaEngine.Web; add a folder here once its styles are on the shared colors.
+    private static readonly string[] ColorLockedFolders =
+    [
+        "Components/Collections",
+        "Components/Rules",
+    ];
+
+    // The written list of real exceptions to the zero lock above (D7): colors taken from a cover's artwork, charts, subtitle color choices,
+    // the map, avatars and the readers' page themes. Keyed by a file path or a path prefix under src/MediaEngine.Web, each with its reason.
+    private static readonly Dictionary<string, string> ColorLockExceptions = new(StringComparer.Ordinal)
     {
-        // Look pass v3.1 D8 and D11: a style names a step or a job (a --tl-* token) or inherits, never a number, a fraction of the
-        // base size or a fluid size. Counted over the component styles and the shared sheets; the readers' stylesheets under
-        // wwwroot/css/ are left out (book text and page backgrounds are theirs). Icon and hero sizes still written by hand are in the count.
-        var count = WebFiles(".css")
+        ["Components/View/ViewMap.razor.css"] = "The map draws its own base, labels and hotspots on top of map tiles, so its colors are the map's, not the app's.",
+        ["Components/Player/SubtitleAppearanceView.razor.css"] = "Shows the viewer's subtitle color choices, which are literal colors the viewer picks.",
+    };
+
+    private static readonly Regex AnyHandTypedColor = new(
+        @"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])"
+        + @"|(?<![\w-])(?:rgb|rgba|hsl|hsla)\("
+        + @"|(?<![\w.#-])(?:white|black|red|green|blue|gray|grey|silver|purple|orange|yellow|pink|navy|teal|gold|maroon|lime|aqua|cyan|magenta|brown)(?![\w-])",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static List<string> HandTypedColors(string css) =>
+        AnyHandTypedColor.Matches(Regex.Replace(css, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline)).Select(m => m.Value).ToList();
+
+    [Fact]
+    public void LockedFoldersHoldNoHandTypedColorInAnyForm()
+    {
+        var offenders = WebFiles(".css")
+            .Where(f => f.Relative.EndsWith(".razor.css", StringComparison.Ordinal))
+            .Where(f => ColorLockedFolders.Any(folder => f.Relative.StartsWith(folder + "/", StringComparison.Ordinal)))
+            .Where(f => !ColorLockExceptions.Keys.Any(path => f.Relative.StartsWith(path, StringComparison.Ordinal)))
+            .Select(f => (f.Relative, Colors: HandTypedColors(f.Text)))
+            .Where(f => f.Colors.Count > 0)
+            .Select(f => $"{f.Relative} ({f.Colors.Count}, first {f.Colors[0]})")
+            .ToList();
+        Assert.True(offenders.Count == 0, "Hand-typed colors in a locked folder; use a --tl-* color, or a wash/scrim step (--tl-wash-light-*, --tl-scrim-dark-*): " + string.Join("; ", offenders));
+    }
+
+    [Fact]
+    public void TheColorLockCoversTheFoldersItNamesAndTheExceptionsAreReal()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        Assert.All(ColorLockedFolders, folder => Assert.True(
+            Directory.EnumerateFiles(Path.Combine(web, folder), "*.razor.css").Any(), $"Locked folder {folder} has no component styles."));
+        Assert.Contains("Components/Collections", ColorLockedFolders);
+        Assert.Contains("Components/Rules", ColorLockedFolders);
+        Assert.All(ColorLockExceptions, pair =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(pair.Value));
+            Assert.True(File.Exists(Path.Combine(web, pair.Key)) || Directory.Exists(Path.Combine(web, pair.Key)), $"Exception {pair.Key} names a path that does not exist.");
+        });
+    }
+
+    [Theory]
+    [InlineData("a{color:#fff}", 1)]
+    [InlineData("a{color:var(--tl-text-primary, #A78BFA)}", 1)]
+    [InlineData("a{border:1px solid rgba(255,255,255,.1)}", 1)]
+    [InlineData("a{background:hsl(10 20% 30%)}", 1)]
+    [InlineData("a{background:color-mix(in srgb, white 3%, transparent)}", 1)]
+    [InlineData("a{white-space:nowrap;color:var(--tl-text-primary);background:var(--tl-wash-light-1)}", 0)]
+    [InlineData("/* was #fff */ .red-flag{color:currentColor;background:transparent}", 0)]
+    public void TheColorLockSeesEveryFormOfHandTypedColor(string css, int expected) =>
+        Assert.Equal(expected, HandTypedColors(css).Count);
+
+    // Look pass v3.1 D11: the written list of places that may still write a text size by hand, each with how many and why.
+    // A key is a file or a folder prefix under src/MediaEngine.Web; a folder's number is the total for the folder.
+    private static readonly Dictionary<string, (int Max, string Reason)> OffScaleFontSizeAllowlist = new(StringComparer.Ordinal)
+    {
+        ["Components/Details/DetailHeroContent.razor.css"] = (26, "The details hero: its title and facts scale with the screen (D8 hero)."),
+        ["Components/Details/DetailHeroSkeleton.razor.css"] = (1, "The loading stand-in for the details hero title scales with it."),
+        ["Components/Details/SequencePlacementPanel.razor.css"] = (3, "The series hero title and position number scale with the screen (D8 hero)."),
+        ["Components/Details/GeneratedIdentity.razor.css"] = (1, "The letter drawn on a generated cover scales with the cover; it is artwork, not text."),
+        ["Components/Cinematic/"] = (4, "The hero carousel: its title scales with the screen (D8 hero)."),
+        ["Components/Player/"] = (19, "The players set their own sizes over video and on TV screens; outside this walk (D12)."),
+        ["Components/Editor/"] = (4, "The editor window's screens belong to the Universal editor v6 build (D12)."),
+        ["Components/MediaTiles/MediaTile.razor.css"] = (3, "A stand-in number and two icons that scale with the tile; they are artwork stand-ins."),
+        ["Components/Shared/MediaViewerShell.razor.css"] = (2, "Subtitle cues scale with the video."),
+        ["Components/Shared/MediaArtworkGroupPreview.razor.css"] = (1, "A fallback icon that scales with its picture."),
+        ["Components/Shared/AppRangeSlider.razor.css"] = (1, "A size of zero hides a label that screen readers still read."),
+        ["Components/View/ViewMap.razor.css"] = (1, "Map labels scale with the map."),
+        ["Components/View/ViewPlaceStoryPanel.razor.css"] = (1, "An icon size."),
+        ["Components/Pages/ViewPlacesPage.razor.css"] = (1, "An icon size on the map toolbar."),
+        ["Components/Navigation/SystemActivityIndicator.razor.css"] = (1, "The activity glyph's size, set by a variable."),
+        ["wwwroot/app.css"] = (11, "Four large icon helper classes, the Settings card sizes set by a variable, the reading sample, the TV base size, the phone hero title and the editor window's lines."),
+    };
+
+    private static readonly Regex OffScaleFontSize = new(@"(?<![\w-])font-size:\s*(?!var\(--tl-|inherit)[^;}\s][^;}]*", RegexOptions.Compiled);
+
+    [Fact]
+    public void NoTextSizeIsWrittenByHandOutsideTheWrittenList()
+    {
+        // Look pass v3.1 D8 and D11: a style names a job or a step (a --tl-* token) or inherits, never a number, a fraction of the
+        // base size or a fluid size. Checked over the component styles and the shared sheets; the readers' stylesheets under
+        // wwwroot/css/ are left out (book text is theirs). Anything else is zero unless the list above names it.
+        var counts = WebFiles(".css")
             .Where(f => f.Relative.StartsWith("Components/", StringComparison.Ordinal)
                 || (f.Relative.StartsWith("wwwroot/", StringComparison.Ordinal) && f.Relative.IndexOf('/', "wwwroot/".Length) < 0))
-            .Sum(f => Regex.Matches(f.Text, @"(?<![\w-])font-size:\s*(?!var\(--tl-|inherit)[^;}\s][^;}]*").Count);
-        Assert.True(count <= OffScaleFontSizeCeiling, $"Off-scale font sizes rose to {count} (ceiling {OffScaleFontSizeCeiling}). Name a type job (--tl-type-<job>-size) or a step (--tl-font-size-*) instead of a number, rem, em or clamp().");
+            .Select(f => (f.Relative, Count: OffScaleFontSize.Matches(f.Text).Count))
+            .Where(f => f.Count > 0)
+            .ToList();
+        var offenders = counts
+            .Where(f => !OffScaleFontSizeAllowlist.Keys.Any(key => f.Relative.StartsWith(key, StringComparison.Ordinal)))
+            .Select(f => $"{f.Relative} ({f.Count})")
+            .ToList();
+        Assert.True(offenders.Count == 0, "Text sizes written by hand; name a type job (--tl-type-<job>-size) instead of a number, rem, em or clamp(): " + string.Join("; ", offenders));
+        Assert.All(OffScaleFontSizeAllowlist, pair =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(pair.Value.Reason));
+            var total = counts.Where(f => f.Relative.StartsWith(pair.Key, StringComparison.Ordinal)).Sum(f => f.Count);
+            Assert.True(total <= pair.Value.Max, $"{pair.Key} has {total} hand-written text sizes, the list allows {pair.Value.Max} ({pair.Value.Reason}).");
+            Assert.True(total > 0, $"{pair.Key} no longer writes a text size by hand; remove it from the list.");
+        });
     }
 
     [Fact]

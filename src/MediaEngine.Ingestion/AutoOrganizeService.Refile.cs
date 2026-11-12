@@ -99,6 +99,132 @@ public sealed partial class AutoOrganizeService
     }
 
     /// <inheritdoc/>
+    public async Task<AssetRefilePlan> PlanMoveToFolderAsync(Guid assetId, string targetFolder, CancellationToken ct = default)
+    {
+        var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+        if (asset is null)
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.Unavailable, string.Empty, "The file is no longer in the library.");
+        }
+
+        var current = asset.FilePathRoot;
+        if (string.IsNullOrWhiteSpace(current) || !File.Exists(current))
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.Unavailable, current ?? string.Empty, "The file is not on disk.");
+        }
+
+        var resolved = _importFolders?.IsInImportFolder(current) == true ? null : _libraryResolver?.ResolveSourceForPath(current);
+        if (resolved is null)
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.Unavailable, current, "The file is not in a library folder.");
+        }
+
+        if (!resolved.Source.IsManaged)
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.AsIs, current, "The file is in a Read-only folder, so it is only ever read.");
+        }
+
+        if (!resolved.Source.IsWritable)
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.ReadOnly, current, "The file is in a read-only folder.");
+        }
+
+        if (string.IsNullOrWhiteSpace(targetFolder))
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.Unavailable, current, "There is no folder to move the file to.");
+        }
+
+        var target = Path.GetFullPath(Path.Combine(targetFolder, Path.GetFileName(current)));
+        if (string.Equals(Path.GetFullPath(current), target, StringComparison.OrdinalIgnoreCase))
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.AlreadyFits, current);
+        }
+
+        if (!StaysInsideRoot(current, target, resolved.Source.Path))
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.Unavailable, current, "That folder is outside the folder the file lives in.");
+        }
+
+        if (!CanMoveBetween(current, target))
+        {
+            return AssetRefilePlan.Of(AssetRefileDisposition.Protected, current, "The file is protected, so it is not touched.");
+        }
+
+        if (File.Exists(target))
+        {
+            return AssetRefilePlan.Of(
+                AssetRefileDisposition.Collision, current, "Another file already has the name this file would take.", target);
+        }
+
+        return AssetRefilePlan.Of(AssetRefileDisposition.Moves, current, targetPath: target);
+    }
+
+    /// <inheritdoc/>
+    public async Task<AssetRefileOutcome> MoveToFolderAsync(Guid assetId, string targetFolder, CancellationToken ct = default)
+    {
+        // The plan is made again from the library as it is now, so a preview that has gone stale cannot move a file anywhere unexpected.
+        var plan = await PlanMoveToFolderAsync(assetId, targetFolder, ct).ConfigureAwait(false);
+        if (plan.Disposition == AssetRefileDisposition.AlreadyFits)
+        {
+            return new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, plan.Disposition, plan.CurrentPath, null);
+        }
+
+        if (plan.Disposition != AssetRefileDisposition.Moves)
+        {
+            await RecordKeptAsync(assetId, plan, ct).ConfigureAwait(false);
+            return new AssetRefileOutcome(AssetRefileOutcomeKind.Kept, plan.Disposition, plan.CurrentPath, plan.Reason);
+        }
+
+        var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+        if (asset is null)
+        {
+            return new AssetRefileOutcome(AssetRefileOutcomeKind.Kept, AssetRefileDisposition.Unavailable, plan.CurrentPath, "The file is no longer in the library.");
+        }
+
+        // The name the person was shown is the name it gets: a name taken since the plan was made refuses the move instead of becoming
+        // "name (2)". A folder this move made for a file that then did not move is not left behind empty.
+        var targetFolderPath = Path.GetDirectoryName(plan.TargetPath!);
+        var folderExisted = targetFolderPath is null || Directory.Exists(targetFolderPath);
+        var relocated = await MoveFiledAssetAsync(asset, assetId, MediaType.Videos, plan.TargetPath!, "after a series change", ct, allowRename: false)
+            .ConfigureAwait(false);
+        if (relocated is null)
+        {
+            TidyFolderMadeForAMove(targetFolderPath, folderExisted);
+            _logger.LogWarning("Series change: {Source} could not be moved to {Dest} for {Id}", plan.CurrentPath, plan.TargetPath, assetId);
+            return File.Exists(plan.TargetPath!)
+                ? new AssetRefileOutcome(
+                    AssetRefileOutcomeKind.Kept, AssetRefileDisposition.Collision, plan.CurrentPath,
+                    $"A file named {Path.GetFileName(plan.CurrentPath)} is already in that folder, so this video cannot move there.")
+                : new AssetRefileOutcome(
+                    AssetRefileOutcomeKind.Failed, AssetRefileDisposition.Moves, plan.CurrentPath, "The file could not be moved (it may be in use).");
+        }
+
+        return new AssetRefileOutcome(AssetRefileOutcomeKind.Moved, AssetRefileDisposition.Moves, relocated, null);
+    }
+
+    // A folder made only for a move that then did not happen is taken away again (only when it is empty, so nothing is ever deleted).
+    private void TidyFolderMadeForAMove(string? folder, bool existedBefore)
+    {
+        if (existedBefore || string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!Directory.EnumerateFileSystemEntries(folder).Any())
+            {
+                Directory.Delete(folder);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // An empty folder that could not be removed is harmless and is noted for the log only.
+            _logger.LogDebug(ex, "The empty folder {Folder} made for a move that did not happen could not be removed", folder);
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default) =>
         RefileCoreAsync(assetId, null, ct);
 

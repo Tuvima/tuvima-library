@@ -18,7 +18,7 @@
 {
     var pending = PendingByItem();
     var busy = Flow?.Switching == true;
-    <div class="tl-hnav" role="group" aria-label="@L["EditorNav_Label"].Value" aria-busy="@(busy ? "true" : null)">
+    <div class="@(Compact ? "tl-hnav tl-hnav--compact" : "tl-hnav")" role="group" aria-label="@L["EditorNav_Label"].Value" aria-busy="@(busy ? "true" : null)">
         @if (header.ShowHome && header.HomeId is { } homeId)
         {
             <div class="tl-hnav__cell">
@@ -226,6 +226,9 @@
 
     /// <summary>The item can be matched, so one that is not matched yet opens on Match, where the search is already filled in (v4.1 D5).</summary>
     [Parameter] public bool CanMatch { get; set; }
+
+    /// <summary>The Match tab's one-line header: the same controls on one line with smaller dropdowns.</summary>
+    [Parameter] public bool Compact { get; set; }
 
     private static string OptionId(Guid id) => $"tl-hnav-option-{id:N}";
 

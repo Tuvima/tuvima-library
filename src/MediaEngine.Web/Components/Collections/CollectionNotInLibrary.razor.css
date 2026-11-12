@@ -8,14 +8,14 @@
 .collection-missing__heading {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
 }
 
 .collection-missing__note {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .collection-missing__grid {
@@ -39,9 +39,9 @@
     display: grid;
     place-items: center;
     aspect-ratio: 2 / 3;
-    border: 1px dashed rgba(148, 163, 184, 0.34);
+    border: 1px dashed color-mix(in srgb, var(--tl-text-muted) 34%, transparent);
     border-radius: var(--tl-radius-lg);
-    background: rgba(148, 163, 184, 0.08);
+    background: color-mix(in srgb, var(--tl-text-muted) 8%, transparent);
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-hero);
 }
@@ -56,7 +56,7 @@
 
 .collection-missing__year {
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
 }
 
 /* Empty today; a later integration puts one action here. */

@@ -31,7 +31,7 @@
     color: var(--tl-accent-primary);
 }
 
-.app-choice-card__text { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); line-height: 1.4; }
+.app-choice-card__text { color: var(--tl-text-secondary); font-size: var(--tl-type-body-size); line-height: 1.4; }
 
 .app-choice-card__badge {
     position: absolute;
@@ -41,6 +41,6 @@
     border: 1px solid var(--tl-divider);
     border-radius: var(--tl-radius-pill);
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     font-style: normal;
 }

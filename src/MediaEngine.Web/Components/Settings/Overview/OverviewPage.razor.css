@@ -49,8 +49,8 @@
     margin: 0;
     overflow: hidden;
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-xl);
-    font-weight: var(--tl-font-weight-semibold);
+    font-size: var(--tl-type-page-title-size);
+    font-weight: var(--tl-type-page-title-weight);
     text-overflow: ellipsis;
     white-space: nowrap;
 }

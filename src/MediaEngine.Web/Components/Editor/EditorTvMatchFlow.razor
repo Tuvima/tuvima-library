@@ -12,7 +12,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Match tab's TV flow (universal editor v5, 3c, mockup G3). Its Show and Year boxes and the icon-only Search sit in the Match tab's first row,
-   between the provider dropdown and the source switch (the tab hands those two in as RowStart and RowEnd). Then the chosen show as a compact card
+   after the provider dropdown (the tab hands that in as RowStart; the source selector is on the tab, above the row). Then the chosen show as a compact card
    with "Change show", and, for an episode, "Choose an episode" with a Season dropdown (Specials is season 0) over a plain table of Episode, Title,
    Air date and Runtime with the episode the file name names pre-selected ("Suggested from filename: S02E03"; a file with no number falls back to
    the nearest runtime, then air order; an anime's absolute number is shown as the provider's season and episode). A show page needs only the
@@ -34,7 +34,6 @@
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="@L["EditorMatchPanel_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Disabled="@(_showsLoading || string.IsNullOrWhiteSpace(_showText))" OnClick="SearchAsync" data-testid="tv-flow-search" />
         </Start>
-        <End>@RowEnd</End>
     </EditorMatchRow>
 
     @Lead
@@ -115,9 +114,6 @@
 
     /// <summary>What the Match tab puts first in the row: the provider dropdown.</summary>
     [Parameter] public RenderFragment? RowStart { get; set; }
-
-    /// <summary>What the Match tab puts last in the row: the source switch.</summary>
-    [Parameter] public RenderFragment? RowEnd { get; set; }
 
     /// <summary>What the Match tab shows under the row: a staged note, the "Not matched yet" tag, the file the Engine read.</summary>
     [Parameter] public RenderFragment? Lead { get; set; }

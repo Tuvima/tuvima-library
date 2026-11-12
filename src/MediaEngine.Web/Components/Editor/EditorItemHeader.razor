@@ -11,7 +11,8 @@
    Season (or Section) dropdown and the item dropdown. What shows in that row is told by the Engine's header (EditorHeaderDto), never decided
    here from the kind. The background is a gradient from the cover's two main colours, darkened into the window surface by the palette config.
    A Universe keeps its own tile and kind dropdowns, and an item the Engine builds no header for (a person, a collection) shows the plain
-   header. Read-only: nothing here is edited or saved. *@
+   header. On the Match tab (v6 D2) the header is one line instead: a small cover, "Match book", a state dot and words, and the same navigation
+   at the right, so the results and the card get the room. Read-only: nothing here is edited or saved. *@
 @if (GroupRows is { Count: > 0 } groupRows)
 {
     @* "Editing N files" (WP8, screen F, D36): the same framed header, in group mode. The label is the title's name, the title says how many
@@ -110,6 +111,46 @@ else if (Flow?.Session.ActiveItem is { } active)
     // The show's tile already carries its picture, so a show's seasons and episodes draw no second picture beside it; every other family keeps the item's own.
     var showCover = header is not null || !(HasFamily && Family.Kind == EditorFamilyKind.Show);
     var kindKey = header?.Kind ?? string.Empty;
+    if (Compact && !isUniverse && file is null)
+    {
+        @* One line (v6 D2): the Match tab's state is the Engine's read as soon as the tab has it, else the page's answer. *@
+        var read = MatchRead is { } reported && reported.EntityId == active.EntityId ? reported : null;
+        var matched = read is not null ? read.Matched : !Unmatched;
+        var stateText = !matched
+            ? L["EditorMatchPanel_StateUnmatched"].Value
+            : string.IsNullOrWhiteSpace(read?.ProviderName) ? L["EditorMatchPanel_StateMatched"].Value : L["EditorMatchPanel_StateMatchedTo", read!.ProviderName!].Value;
+        <header class="tl-editor-header tl-editor-header--compact" data-kind="@kindKey" data-gradient="@(wash is null ? "none" : "cover")"
+                data-testid="match-header" aria-busy="@(fields.Loading ? "true" : null)">
+            @if (wash is not null)
+            {
+                <AppWash Class="tl-editor-header__wash" PrimaryHex="@wash.Primary" SecondaryHex="@wash.Secondary"
+                         PrimaryPercent="@palette.PrimaryPercent" SecondaryPercent="@palette.SecondaryPercent" />
+            }
+
+            <div class="tl-editor-header__minicover" aria-hidden="true">
+                @if (!string.IsNullOrWhiteSpace(image))
+                {
+                    <AppImage Src="@image" Alt="" DrawnPx="100" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+                }
+                else
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppIconSize.Control20" />
+                }
+            </div>
+            <h2 id="tl-editor-panel-title" class="tl-editor-header__title tl-editor-header__title--compact" tabindex="-1" data-testid="match-header-title"><span data-testid="match-header-heading">@L["EditorMatchPanel_MatchKind", EditorMatchKindWords.For(header?.Kind, L)]</span><span class="sr-only" data-testid="match-header-item">: @title</span></h2>
+            <span class="tl-editor-header__state" data-testid="match-header-state" data-state="@(matched ? "matched" : "unmatched")">
+                <span class="@(matched ? "tl-editor-header__dot tl-editor-header__dot--ok" : "tl-editor-header__dot")" aria-hidden="true"></span>@stateText
+            </span>
+            @if (header is not null)
+            {
+                <div class="tl-editor-header__compactnav">
+                    <EditorHeaderNav Header="header" Flow="Flow" Hooks="Hooks" CanMatch="@fields.CanMatch" Compact="true" />
+                </div>
+            }
+        </header>
+    }
+    else
+    {
     <header class="@(HasFamily && header is null ? "tl-editor-header tl-editor-header--family" : "tl-editor-header")"
             data-kind="@kindKey"
             data-gradient="@(wash is null ? "none" : "cover")"
@@ -160,7 +201,7 @@ else if (Flow?.Session.ActiveItem is { } active)
                 else if (showState)
                 {
                     <div class="tl-editor-header__chips">
-                        @if (Unmatched)
+                        @if (MatchRead is { } reportedRead && reportedRead.EntityId == active.EntityId ? !reportedRead.Matched : Unmatched)
                         {
                             <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorFamily_NotMatched"].Value" />
                         }
@@ -196,6 +237,7 @@ else if (Flow?.Session.ActiveItem is { } active)
             </div>
         }
     </header>
+    }
 }
 
 @code {
@@ -222,6 +264,12 @@ else if (Flow?.Session.ActiveItem is { } active)
 
     /// <summary>The item has no match yet (the pop-over knows, from the family and the page).</summary>
     [Parameter] public bool Unmatched { get; set; }
+
+    /// <summary>The Match tab is open: the header is one line (small cover, "Match book", the state, the navigation) instead of the full header.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    /// <summary>What the Match tab has read from the Engine about the item's match; when it is about the item being edited it decides the state shown on the one-line header.</summary>
+    [Parameter] public EditorMatchReadState? MatchRead { get; set; }
 
     /// <summary>"Editing N files": the files being edited together. When set, the header shows the group form instead of one item.</summary>
     [Parameter] public IReadOnlyList<MediaEngine.Contracts.Details.SupportingFileRowDto>? GroupRows { get; set; }

@@ -121,7 +121,7 @@ else
 
     // The text itself is drawn by the shared text field, so the few rules that make it a code view travel as its own style: the mono
     // font and line height the gutter relies on, no wrapping, and no border or scroll bar of its own (the panel scrolls).
-    private const string TextStyle = "font-family: var(--tl-font-mono); font-size: var(--tl-font-size-sm); line-height: 1.5; white-space: pre; overflow-y: hidden; overflow-x: auto; resize: none; border: 0;";
+    private const string TextStyle = "font-family: var(--tl-font-mono); font-size: var(--tl-type-body-size); line-height: 1.5; white-space: pre; overflow-y: hidden; overflow-x: auto; resize: none; border: 0;";
 
     private readonly CancellationTokenSource _disposed = new();
     private CancellationTokenSource? _debounce;

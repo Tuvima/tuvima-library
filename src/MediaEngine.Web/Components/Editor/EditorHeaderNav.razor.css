@@ -10,6 +10,15 @@
     margin-top: 0.875rem;
 }
 
+/* On the Match tab's one-line header (v6 D2): one line, the same controls, smaller dropdowns. */
+.tl-hnav--compact {
+    --tl-hnav-trigger-min: 10rem;
+    --tl-hnav-item-min: 14rem;
+    flex-wrap: nowrap;
+    margin-top: 0;
+    min-width: 0;
+}
+
 .tl-hnav__cell {
     position: relative;
     display: flex;
@@ -35,7 +44,7 @@
 .tl-hnav ::deep .tl-hnav__trigger {
     gap: 0.625rem;
     height: var(--tl-control-height-md);
-    min-width: 12.5rem;
+    min-width: var(--tl-hnav-trigger-min, 12.5rem);
     max-width: 100%;
     padding: 0 0.75rem 0 0.625rem;
     border: 1px solid var(--tl-border-strong);
@@ -45,7 +54,7 @@
 }
 
 .tl-hnav ::deep .tl-hnav__trigger--item {
-    min-width: 26.25rem;
+    min-width: var(--tl-hnav-item-min, 26.25rem);
     padding-left: 0.375rem;
 }
 

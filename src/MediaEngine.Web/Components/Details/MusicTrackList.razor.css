@@ -11,7 +11,7 @@
     min-height: 2.5rem;
     padding-bottom: 0.55rem;
     color: rgba(225, 231, 242, 0.64);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .tl-music-tracks__leading {
@@ -35,5 +35,5 @@
 .tl-detail-track-empty {
     padding: 1rem 0 1.2rem;
     color: rgba(246, 240, 232, 0.58);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }

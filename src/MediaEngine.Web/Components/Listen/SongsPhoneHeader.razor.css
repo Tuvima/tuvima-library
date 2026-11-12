@@ -35,8 +35,8 @@
     border-radius: var(--tl-radius-pill);
     background: var(--tl-accent-primary);
     color: #fff;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     line-height: 18px;
     text-align: center;
 }

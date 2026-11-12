@@ -23,15 +23,15 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: clamp(1.25rem, 1.8vw, 1.7rem);
-    font-weight: 600;
+    font-size: var(--tl-type-heading-size);
+    font-weight: var(--tl-type-heading-weight);
     line-height: 1.15;
 }
 
 .universe-contents__count {
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .universe-contents__order {
@@ -65,8 +65,8 @@
     min-height: 1.2rem;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-secondary);
-    font-weight: 600;
+    font-size: var(--tl-type-label-size);
+    font-weight: var(--tl-type-label-weight);
 }
 
 .universe-contents__picture {
@@ -102,8 +102,8 @@
 .universe-contents__name {
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
     line-height: 1.25;
     overflow-wrap: anywhere;
 }
@@ -114,7 +114,7 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-secondary-size);
 }
 
 /* A tile opens the thing's own page; the link wraps the whole tile and adds nothing to its look. */

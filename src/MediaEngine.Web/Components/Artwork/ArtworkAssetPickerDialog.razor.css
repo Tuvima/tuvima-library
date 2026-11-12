@@ -23,7 +23,7 @@
     gap:.35rem 1rem;
     margin:.25rem 0 .75rem;
     color:var(--tl-text-muted);
-    font-size:var(--tl-font-size-secondary);
+    font-size:var(--tl-type-secondary-size);
 }
 .artwork-picker-dialog__provider-context strong { color:var(--tl-text-primary); }
 @media (max-width: 640px) {

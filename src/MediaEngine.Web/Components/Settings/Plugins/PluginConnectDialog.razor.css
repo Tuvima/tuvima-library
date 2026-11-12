@@ -1,6 +1,6 @@
 .plugin-connect { display: grid; min-width: 0; gap: var(--tl-space-3, 12px); }
 .plugin-connect__test { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-3, 12px); }
-.plugin-connect__status { min-height: 1.4em; font-size: var(--tl-font-size-secondary); line-height: 1.4; }
+.plugin-connect__status { min-height: 1.4em; font-size: var(--tl-type-secondary-size); line-height: 1.4; }
 .plugin-connect__result { display: inline-flex; align-items: center; gap: 6px; }
 .plugin-connect__result--ok { color: var(--tl-status-success, #22c55e); }
 .plugin-connect__result--bad { color: var(--tl-status-error, #ef4444); }

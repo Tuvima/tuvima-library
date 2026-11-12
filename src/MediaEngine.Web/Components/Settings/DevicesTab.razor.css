@@ -24,6 +24,6 @@
 .devices-tab__filter-label {
     flex: 0 0 auto;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
+    font-size: var(--tl-type-label-size);
     white-space: nowrap;
 }

@@ -97,7 +97,7 @@
     flex: none;
     min-width: 0;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }
 
 .app-browser__state {
@@ -121,7 +121,7 @@
 .app-browser__table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 .app-browser__table:focus-visible {

@@ -97,8 +97,8 @@
     align-items: center;
     justify-content: center;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     line-height: 1;
     color: rgba(248, 250, 252, .96);
     background: rgba(2, 6, 16, .72);

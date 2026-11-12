@@ -1,8 +1,8 @@
 .library-storage{display:grid;gap:.7rem;margin-top:auto;padding:1rem;border-top:1px solid rgba(148,163,184,.12)}
 .library-storage__location{display:grid;gap:.4rem}
 .library-storage__location span{display:grid;gap:.15rem;min-width:0}
-.library-storage__location strong{overflow:hidden;text-overflow:ellipsis;color:rgba(226,232,240,.72);font-size:var(--tl-font-size-xs);font-weight:600;white-space:nowrap}
-.library-storage__location small{color:rgba(148,163,184,.74);font-size:var(--tl-font-size-xs)}
+.library-storage__location strong{overflow:hidden;text-overflow:ellipsis;color:rgba(226,232,240,.72);font-size: var(--tl-type-overline-size);font-weight: var(--tl-type-overline-weight);white-space:nowrap}
+.library-storage__location small{color:rgba(148,163,184,.74);font-size: var(--tl-type-caption-size)}
 .library-storage__location progress{width:100%;height:.3rem;overflow:hidden;border:0;border-radius:var(--tl-radius-round);background:rgba(148,163,184,.14);accent-color:var(--tl-accent-primary)}
 .library-storage__location progress::-webkit-progress-bar{background:rgba(148,163,184,.14)}
 .library-storage__location progress::-webkit-progress-value{background:linear-gradient(90deg,var(--tl-accent-primary),var(--tl-accent-primary))}

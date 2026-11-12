@@ -20,8 +20,8 @@
 
 .media-hub__header span {
     color: color-mix(in srgb, var(--tl-accent-primary) 68%, white);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 600;
+    font-size: var(--tl-type-overline-size);
+    font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.13em;
 }
 
@@ -29,14 +29,14 @@
     margin: 5px 0 0;
     color: rgba(248, 250, 252, 0.98);
     font-family: var(--font-ui);
-    font-size: clamp(2rem, 3.5vw, 3.2rem);
+    font-size: var(--tl-type-page-title-size);
     line-height: 1;
 }
 
 .media-hub__header p {
     margin: 9px 0 0;
     color: rgba(203, 213, 225, 0.62);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-body-size);
 }
 
 @media (max-width: 840px) {

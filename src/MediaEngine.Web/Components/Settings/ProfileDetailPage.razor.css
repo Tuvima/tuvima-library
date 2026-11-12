@@ -5,7 +5,7 @@
 .profile-detail__header { display: flex; align-items: center; gap: 16px; }
 .profile-detail__avatar { flex: none; width: 80px; height: 80px; }
 .profile-detail__who { flex: 1; min-width: 0; }
-.profile-detail__name { margin: 0; font-size: var(--tl-font-size-xl); font-weight: 600; overflow-wrap: anywhere; }
+.profile-detail__name { margin: 0; font-size: var(--tl-type-page-title-size); font-weight: var(--tl-type-page-title-weight); overflow-wrap: anywhere; }
 .profile-detail__role { margin: 2px 0 0; color: var(--tl-text-muted); }
 .profile-detail__badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
 .profile-detail__group { display: grid; gap: 8px; }
@@ -22,17 +22,17 @@
 @media (min-width: 641px) {
     .profile-detail__back { display: none; }
     .profile-detail__avatar { width: 96px; height: 96px; }
-    .profile-detail__name { font-size: var(--tl-font-size-xl); }
+    .profile-detail__name { font-size: var(--tl-type-page-title-size); }
 }
 
 @media (min-width: 1600px) {
     .profile-detail__avatar { width: 128px; height: 128px; }
-    .profile-detail__name { font-size: var(--tl-font-size-hero); }
-    .profile-detail__role { font-size: var(--tl-font-size-lg); }
+    .profile-detail__name { font-size: var(--tl-type-hero-size); }
+    .profile-detail__role { font-size: var(--tl-type-heading-size); }
 }
 
 .access-phone-note {
     margin: 0 0 1rem;
     color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-type-secondary-size);
 }

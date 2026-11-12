@@ -3693,6 +3693,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderDto
   FolderButton: MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto | nullability=nullable | accessors=get,init
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | nullability=nullable | accessors=get,init
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | nullability=nullable | accessors=get,init
+  ProviderMatched: System.Boolean | nullability=not-null | accessors=get,init
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
@@ -4070,6 +4071,17 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorUniverseThings
   Offset: System.Int32 | nullability=not-null | accessors=get,init
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
   Things: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorUniverseThingDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementDto
+  Managed: System.Boolean | nullability=not-null | accessors=get,init
+  FromPath: System.String | nullability=nullable | accessors=get,init
+  ToPath: System.String | nullability=nullable | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  Blocked: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorVideoSeriesPlacementRequestDto
+  TargetId: System.String | nullability=nullable | accessors=get,init
+  Token: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorWikidataConflictDto
   Conflict: System.Boolean | nullability=not-null | accessors=get,init
@@ -4888,6 +4900,7 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesStateResponse
   Supported: System.Boolean | nullability=not-null | accessors=get,init
   InSeries: System.Boolean | nullability=not-null | accessors=get,init
   SeriesTitle: System.String | nullability=nullable | accessors=get,init
+  FromFolder: System.Boolean | nullability=not-null | accessors=get,init
   Targets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoSeriesTargetDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesTargetDto

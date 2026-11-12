@@ -81,12 +81,12 @@
 .ingestion-media-list-row__copy small,
 .ingestion-media-list-row__format small,
 .ingestion-media-list-row__step { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ingestion-media-list-row__copy strong { font-size: var(--tl-font-size-sm); }
+.ingestion-media-list-row__copy strong { font-size: var(--tl-type-control-size); }
 .ingestion-media-list-row__copy small,
-.ingestion-media-list-row__format small { min-height: 1.1rem; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
-.ingestion-media-list-row__format strong { display: flex; align-items: center; gap: .42rem; font-size: var(--tl-font-size-secondary); }
+.ingestion-media-list-row__format small { min-height: 1.1rem; color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); }
+.ingestion-media-list-row__format strong { display: flex; align-items: center; gap: .42rem; font-size: var(--tl-type-label-size); }
 .ingestion-media-list-row__format ::deep .tl-icon-root { flex: none; font-size: var(--tl-icon-size-xs); }
-.ingestion-media-list-row__step { min-width: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
+.ingestion-media-list-row__step { min-width: 0; color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); }
 
 .ingestion-media-list-row__status {
     display: flex;
@@ -97,7 +97,7 @@
     max-width: 100%;
     padding: .12rem .55rem;
     color: var(--ingestion-card-accent);
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-type-caption-size);
     background: color-mix(in srgb, var(--ingestion-card-accent) 14%, transparent);
     border-radius: var(--tl-radius-pill);
 }
