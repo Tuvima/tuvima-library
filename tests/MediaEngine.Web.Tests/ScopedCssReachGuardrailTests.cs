@@ -19,6 +19,8 @@ public sealed class ScopedCssReachGuardrailTests
     private static readonly Regex Rule = new(@"([^{}]+)\{");
     private static readonly Regex TagName = new(@"^<([A-Za-z][\w.:]*)");
     private static readonly Regex AttributeName = new(@"([A-Za-z][\w:.-]*)\s*=\s*""");
+    private static readonly Regex CodeBlock = new(@"(?m)^@code\b");
+    private static readonly Regex MemberClass = new(@"\b[A-Za-z]*Class\s*=\s*""@\(?([A-Za-z_]\w*)\)?""");
 
     [Fact]
     public void ScopedStyles_DoNotTargetClassesThatOnlyChildComponentsRender()
@@ -58,6 +60,58 @@ public sealed class ScopedCssReachGuardrailTests
         Assert.Empty(player);
     }
 
+    // A browser drops a whole rule when one selector in its list is unknown to it, so '::-moz-range-track' beside a plain selector removes the rule in Chrome and
+    // Safari, and '::-webkit-slider-thumb' beside one removes it in Firefox (issue 941: the player slider's height rule never applied outside Firefox).
+    [Fact]
+    public void SelectorLists_DoNotMixOneBrowsersPseudoElementsWithOtherSelectors()
+    {
+        var offenders = new List<string>();
+        var web = Path.Combine(RepoRoot, "src", "MediaEngine.Web");
+        foreach (var cssPath in Directory.EnumerateFiles(web, "*.css", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.Ordinal))
+        {
+            var relative = Relative(cssPath);
+            if (relative.Split('/').Any(segment => segment is "bin" or "obj" or "vendor" or "lib") || relative.EndsWith(".min.css", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (Match rule in Rule.Matches(Comments.Replace(File.ReadAllText(cssPath), "")))
+            {
+                var head = rule.Groups[1].Value.Trim();
+                if (head.StartsWith('@') || head.Length == 0)
+                {
+                    continue;
+                }
+
+                var engines = SplitTopLevel(head)
+                    .Select(selector => selector.Contains("::-moz-", StringComparison.Ordinal) ? "moz" : selector.Contains("::-webkit-", StringComparison.Ordinal) ? "webkit" : "any")
+                    .Distinct()
+                    .ToList();
+                if (engines.Count > 1)
+                {
+                    offenders.Add($"{relative}: {Regex.Replace(head, @"\s+", " ")}");
+                }
+            }
+        }
+
+        Assert.True(offenders.Count == 0, "Give each browser's pseudo-elements a rule of their own:" + Environment.NewLine + string.Join(Environment.NewLine, offenders));
+    }
+
+    // Issue 941, pinned: the bar's Play button, the clickable cover and the phone sheet are drawn by child parts, so their rules sit after '::deep'.
+    [Theory]
+    [InlineData("Components/Player/PlaybackPrimaryButton.razor.css", ".playback-primary-button-shell ::deep .playback-bar-play {", ".playback-bar-play")]
+    [InlineData("Components/Player/PlaybackPrimaryButton.razor.css", ".playback-primary-button-shell ::deep .playback-phone-play {", ".playback-phone-play")]
+    [InlineData("Components/Player/PlaybackIdentity.razor.css", ".playback-identity ::deep .playback-identity__art-image", ".playback-identity__art-image")]
+    [InlineData("Components/Player/PlaybackPanel.razor.css", ".playback-panel--sheet ::deep .playback-tool-sheet {", ".playback-tool-sheet")]
+    public void PlayerRulesForChildDrawnElements_AreWrittenAfterDeep(string file, string expected, string neverAtLineStart)
+    {
+        var css = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", file)).Replace("\r\n", "\n");
+
+        Assert.Contains(expected, css, StringComparison.Ordinal);
+        Assert.DoesNotMatch(@"(?m)^\s*" + Regex.Escape(neverAtLineStart) + @"(?![\w-])", css);
+        Assert.DoesNotMatch(@"(?m)^\s*\.playback-tool-sheet\s*[{:\[]", File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components/Player/PlaybackToolSheet.razor.css")));
+    }
+
     private static List<string> Offenders()
     {
         var offenders = new List<string>();
@@ -78,9 +132,17 @@ public sealed class ScopedCssReachGuardrailTests
 
             var razor = File.ReadAllText(razorPath);
             var css = File.ReadAllText(cssPath);
+            // Classes handed to a child component through a member (Class="@ButtonClass"): the name is only in the code block, so the markup scan below
+            // cannot see where it lands (issue 941: '.playback-bar-play' was written as a plain scoped rule and never applied).
+            var fromCode = ClassesHandedToChildrenFromCode(razor);
+            var subjects = UnscopedClasses(css, subjectOnly: true);
+            var codeStart = CodeBlock.Match(razor) is { Success: true } block ? block.Index : razor.Length;
             foreach (var name in UnscopedClasses(css).OrderBy(name => name, StringComparer.Ordinal))
             {
-                var reach = Reach(razor, name);
+                // For those, only a rule whose own target is the class counts ('.root-from-code .own-child' reaches the child, which is the component's own element).
+                var reach = fromCode.TryGetValue(name, out var alsoOnHtml)
+                    ? (OnComponent: subjects.Contains(name), OnHtml: alsoOnHtml || Reach(razor[..codeStart], name).OnHtml)
+                    : Reach(razor, name);
                 // A class used on an HTML element of the component's own markup AND handed to a child component is reached on the first only; it is fine once the
                 // rules are also written after '::deep' (the 'plain rule, .root ::deep plain rule' pair).
                 if (reach.OnComponent && (!reach.OnHtml || !HasDeepRule(css, name)))
@@ -93,7 +155,8 @@ public sealed class ScopedCssReachGuardrailTests
     }
 
     // Class names in the part of each selector before '::deep' (or the whole selector without one): the elements the isolation attribute is required on.
-    private static HashSet<string> UnscopedClasses(string css)
+    // With subjectOnly, just the names in the last compound of that part: the one element the rule (or its '::deep' anchor) has to match.
+    private static HashSet<string> UnscopedClasses(string css, bool subjectOnly = false)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match rule in Rule.Matches(Comments.Replace(css, "")))
@@ -109,9 +172,59 @@ public sealed class ScopedCssReachGuardrailTests
                 var deep = selector.IndexOf("::deep", StringComparison.Ordinal);
                 var scoped = deep < 0 ? selector : selector[..deep];
                 scoped = Attributes.Replace(Functional.Replace(scoped, ""), "");
+                if (subjectOnly)
+                {
+                    scoped = Regex.Split(scoped.Trim(), @"[\s>+~]+").LastOrDefault() ?? "";
+                }
+
                 foreach (Match name in ClassName.Matches(scoped))
                 {
                     names.Add(name.Groups[1].Value);
+                }
+            }
+        }
+        return names;
+    }
+
+    // The class names a component hands to a child through a member of its code block: for each Class-like attribute of a child component whose value is
+    // one identifier (Class="@ButtonClass", TriggerClass="@(RowClass)"), the words of every string literal in that member's expression. The value says whether
+    // the same member is also the class of an HTML element of the component's own markup (class="@ArtworkClass"), which the plain rule does reach.
+    private static Dictionary<string, bool> ClassesHandedToChildrenFromCode(string razor)
+    {
+        var names = new Dictionary<string, bool>(StringComparer.Ordinal);
+        var code = CodeBlock.Match(razor);
+        if (!code.Success)
+        {
+            return names;
+        }
+
+        var markup = razor[..code.Index];
+        var body = razor[code.Index..];
+        foreach (Match use in MemberClass.Matches(markup))
+        {
+            var open = markup.LastIndexOf('<', use.Index);
+            var tag = open < 0 ? Match.Empty : TagName.Match(markup[open..]);
+            if (!tag.Success || !char.IsUpper(tag.Groups[1].Value[0]))
+            {
+                continue;
+            }
+
+            var memberName = Regex.Escape(use.Groups[1].Value);
+            var onHtml = Regex.IsMatch(markup, @"<[a-z][^<>]*\sclass\s*=\s*""@\(?" + memberName + @"\)?""");
+            var member = Regex.Match(body, @"\b" + memberName + @"\s*=>?\s*(?<value>[^;]*);");
+            if (!member.Success)
+            {
+                continue;
+            }
+
+            foreach (Match literal in Regex.Matches(member.Groups["value"].Value, "\"([^\"]*)\""))
+            {
+                foreach (var word in literal.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (Regex.IsMatch(word, @"^-?[A-Za-z_][\w-]*$"))
+                    {
+                        names[word] = onHtml || names.GetValueOrDefault(word);
+                    }
                 }
             }
         }

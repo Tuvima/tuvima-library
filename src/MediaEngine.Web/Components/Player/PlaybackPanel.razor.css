@@ -202,6 +202,72 @@
     background: transparent;
 }
 
+/* The sheet surface (unified player v2 D11): it sits on the bottom edge of the panel, which fills the screen; the header and footer stay put and only the body
+   scrolls. The surface is drawn by AppPopout inside PlaybackToolSheet, and the handle and Close by their own parts, so these rules are written here, after
+   '::deep' behind this panel's own element: as plain rules of PlaybackToolSheet they matched nothing (issue 941). */
+.playback-panel--sheet ::deep .playback-tool-sheet {
+    background: var(--playback-popover-surface);
+    border: solid var(--playback-border);
+    border-radius: 16px 16px 0 0;
+    border-width: 1px 0 0;
+    box-shadow: var(--playback-panel-shadow);
+    color: var(--playback-text);
+    display: flex;
+    flex-direction: column;
+    inset: auto 0 0;
+    max-height: 85svh;
+    overflow: hidden;
+    position: absolute;
+}
+
+.playback-panel--sheet ::deep .playback-tool-sheet:focus { outline: none; }
+.playback-panel--sheet ::deep .playback-tool-sheet:focus-visible { outline: 3px solid var(--playback-focus-ring); outline-offset: -3px; }
+
+/* The Lyrics sheet (unified player v2 D17) has a fixed height. */
+.playback-panel--sheet ::deep .playback-tool-sheet--lyrics {
+    height: 85svh;
+}
+
+.playback-panel--sheet ::deep .playback-tool-sheet__header-icon {
+    --playback-glyph-size: 24px;
+    color: var(--playback-text-secondary);
+    display: grid;
+    height: 28px;
+    place-items: center;
+    width: 28px;
+}
+
+.playback-panel--sheet ::deep .playback-tool-sheet__close {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--tl-control-radius);
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    flex: none;
+    height: 44px;
+    justify-content: center;
+    width: 44px;
+}
+
+.playback-panel--sheet ::deep .playback-tool-sheet__close:hover,
+.playback-panel--sheet ::deep .playback-tool-sheet__close:focus-visible {
+    background: var(--playback-surface-hover);
+    color: var(--playback-text);
+}
+
+.playback-panel--sheet ::deep .playback-tool-sheet__close:focus-visible {
+    outline: 2px solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.playback-panel--sheet ::deep .playback-sheet-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
 .playback-panel__backdrop {
     position: absolute;
     inset: 0;

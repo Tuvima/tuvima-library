@@ -153,15 +153,17 @@ public sealed class NowPlayingMockupStyleTests
     {
         var css = Read(PhoneCss);
         var transport = Rule(css, ".playback-full__transport");
-        var play = Rule(css, ".playback-full__transport ::deep .playback-phone-play");
+        // The disc itself is drawn by PlaybackPrimaryButton, whose rules reach the shared button through ::deep (issue 941); this page only sets its size.
+        var play = Rule(Read("src/MediaEngine.Web/Components/Player/PlaybackPrimaryButton.razor.css"), ".playback-primary-button-shell ::deep .playback-phone-play");
 
         Assert.Contains("gap:var(--playback-full-transport-gap);", transport);
         Assert.Contains("margin-top:var(--playback-full-transport-top);", transport);
         Assert.Contains("--playback-control-target:48px;", transport);
         Assert.Contains("--playback-control-glyph:28px;--playback-play-target:56px;--playback-play-glyph:40px;", transport);
         Assert.Contains("--playback-primary-size:56px;", Rule(css, ".playback-full__transport ::deep .playback-primary-button-shell--phone"));
-        Assert.Contains("width:56px;", play);
-        Assert.Contains("height:56px;", play);
+        Assert.Contains("width:var(--playback-primary-size);", play);
+        Assert.Contains("height:var(--playback-primary-size);", play);
+        Assert.DoesNotContain(".playback-phone-play {", css, StringComparison.Ordinal);
         Assert.Contains("border-radius:50%;", play);
         Assert.Contains("background:var(--playback-text);", play);
         Assert.Contains("--playback-glyph-size:var(--playback-play-glyph);", play);
@@ -173,7 +175,8 @@ public sealed class NowPlayingMockupStyleTests
         var css = Read(PhoneCss);
 
         Assert.Contains("margin-top:12px;", Rule(css, ".playback-full__timeline"));
-        Assert.Contains("height:var(--playback-slider-hit);", Rule(css, ".playback-full__timeline ::deep .playback-range-slider__rail"));
+        // The slider's own "player" rule sets the 24 px rail in every browser now (issue 941), so this page carries no copy of it.
+        Assert.DoesNotContain("playback-range-slider__rail", css, StringComparison.Ordinal);
         Assert.Contains("margin-top:var(--playback-full-tools-gap);", Rule(css, ".playback-full-owner ::deep .playback-tool-row"));
     }
 

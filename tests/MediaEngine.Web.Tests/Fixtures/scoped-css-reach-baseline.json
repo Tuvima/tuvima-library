@@ -1,5 +1,5 @@
 {
-  "reason": "Older rules written before this guardrail existed: each class below is only passed to a child component (Class=...), so the rule can never match. Fix them when the file is next edited and delete the entry; nothing new may be added.",
+  "reason": "Older rules written before this guardrail existed: each class below is only passed to a child component (Class=...), so the rule can never match. Fix them when the file is next edited and delete the entry; nothing new may be added. The entries for the search overlay and the app bar were found when the guardrail learned to follow classes built in the code block (Class=\"@RootClass\", issue 941); they are older rules too.",
   "files": {
     "src/MediaEngine.Web/Components/Browse/AppTimelineResults.razor": [
       "app-timeline__groups"
@@ -181,6 +181,10 @@
       "collection-rule-builder__add-secondary",
       "collection-rule-builder__picker-search"
     ],
+    "src/MediaEngine.Web/Components/Search/UniversalSearchOverlay.razor": [
+      "universal-search-overlay",
+      "universal-search-overlay--phone"
+    ],
     "src/MediaEngine.Web/Components/Settings/ActivityLogPanel.razor": [
       "activity-log__toolbar"
     ],
@@ -288,7 +292,11 @@
       "vault-viewer"
     ],
     "src/MediaEngine.Web/Shared/MainLayout.razor": [
+      "app-bg",
+      "app-bg--cinematic",
       "layout-shell__actions",
+      "layout-shell__appbar",
+      "layout-shell__appbar--cinematic",
       "layout-shell__left-rail"
     ]
   }

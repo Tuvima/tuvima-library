@@ -1,35 +1,6 @@
-.playback-tool-sheet {
-    background: linear-gradient(180deg, var(--playback-surface-elevated), var(--playback-surface));
-    border: 1px solid var(--playback-border);
-    border-radius: var(--playback-tool-radius);
-    box-shadow: 0 24px 70px var(--tl-scrim-dark-4);
-    color: var(--playback-text);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.playback-tool-sheet[role="dialog"]:focus { outline: none; }
-.playback-tool-sheet[role="dialog"]:focus-visible { outline: 3px solid var(--playback-focus-ring); outline-offset: 3px; }
-
-.playback-tool-sheet--panel {
-    max-height: inherit;
-    position: relative;
-    width: 100%;
-    z-index: 5;
-}
-
-.playback-tool-sheet--popup {
-    bottom: 24px;
-    max-height: min(76vh, 720px);
-    position: absolute;
-    right: 24px;
-    width: min(var(--playback-tool-width), calc(100% - 48px));
-    z-index: 3;
-}
-
-
-
+/* The phone sheet of PlaybackPanel (unified player v2 D11). This file styles the parts written in PlaybackToolSheet's own markup: the header, the body
+   and the footer. The sheet surface itself is drawn by AppPopout and the handle and Close by other parts, so none of them carry this file's isolation
+   attribute; their rules live in PlaybackPanel.razor.css, behind the panel's own element (issue 941). */
 .playback-tool-sheet__header {
     align-items: start;
     display: grid;
@@ -57,44 +28,6 @@
     min-width: 0;
 }
 
-.playback-tool-sheet ::deep .playback-tool-sheet__header-icon {
-    --playback-glyph-size: 24px;
-    color: var(--playback-text-secondary);
-    display: grid;
-    height: 28px;
-    place-items: center;
-    width: 28px;
-}
-
-.playback-tool-sheet ::deep .playback-tool-sheet__close {
-    align-items: center;
-    background: transparent;
-    border: 0;
-    border-radius: var(--tl-control-radius);
-    color: var(--playback-text-secondary);
-    cursor: pointer;
-    display: inline-flex;
-    height: 44px;
-    justify-content: center;
-    margin: -8px -8px 0 0;
-    width: 44px;
-}
-
-.playback-tool-sheet ::deep .playback-tool-sheet__close:hover,
-.playback-tool-sheet ::deep .playback-tool-sheet__close:focus-visible {
-    background: var(--playback-surface-hover);
-    color: var(--playback-text);
-}
-
-.playback-tool-sheet ::deep .playback-tool-sheet__close:focus-visible {
-    outline: 2px solid var(--playback-focus-ring);
-    outline-offset: 2px;
-}
-
-.playback-tool-sheet ::deep .playback-tool-sheet__handle {
-    display: none;
-}
-
 .playback-tool-sheet__content {
     display: flex;
     flex: 1;
@@ -103,45 +36,7 @@
     overflow: hidden;
 }
 
-.playback-tool-sheet ::deep .playback-sheet-list {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-}
-
-@keyframes playback-tool-sheet-roll-up {
-    from {
-        opacity: 0.72;
-        transform: translateY(100%);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-
-
 @media (max-width: 720px) {
-    .playback-tool-sheet--panel,
-    .playback-tool-sheet--popup{
-        border-bottom: 0;
-        border-radius: 22px 22px 0 0;
-        bottom: 0;
-        height: auto;
-        left: 0;
-        max-height: 85svh;
-        position: fixed;
-        right: 0;
-        top: auto;
-        width: 100%;
-    }
-
-    .playback-tool-sheet ::deep .playback-tool-sheet__handle {
-        display: block;
-    }
-
     .playback-tool-sheet__header {
         padding-top: 4px;
     }
@@ -153,14 +48,6 @@
     .playback-tool-sheet--framed .playback-tool-sheet__content {
         padding-bottom: max(8px, env(safe-area-inset-bottom));
     }
-}
-
-/* Unified player v2 D11: the phone bottom sheet of PlaybackPanel. Same surface as the desktop panel, a fixed header and footer, and only the body scrolls. */
-.playback-tool-sheet--framed {
-    background: var(--playback-popover-surface);
-    border-radius: 16px 16px 0 0;
-    border-width: 1px 0 0;
-    box-shadow: var(--playback-panel-shadow);
 }
 
 .playback-tool-sheet--framed .playback-tool-sheet__header {
@@ -187,11 +74,7 @@
     overscroll-behavior: contain;
 }
 
-/* The Lyrics sheet (unified player v2 D17): the sheet has a fixed height and the lyrics scroll themselves, so the identity row and footer stay in view. */
-.playback-tool-sheet--framed.playback-tool-sheet--lyrics {
-    height: 85svh;
-}
-
+/* The Lyrics sheet (unified player v2 D17): the lyrics scroll themselves, so the identity row and footer stay in view. */
 .playback-tool-sheet--framed.playback-tool-sheet--lyrics .playback-tool-sheet__content {
     overflow: hidden;
 }
