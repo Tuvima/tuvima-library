@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Contracts.Display
+@using MediaEngine.Domain.Services
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.MediaTiles
@@ -89,6 +90,35 @@ else if (!_removed)
                     <span class="media-tile-standin__tag" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
                 </div>
             }
+            else if (IsVideoCollection)
+            {
+                @* A group of videos (issue 869): a tall dark-purple card, the collection's still wide on a soft copy of itself, the kind, a big title,
+                   the creator, and the count once at the bottom-left beside a round play mark. The New pill and the "..." menu are the shared labels. *@
+                <div class="media-tile-video-collection">
+                    <span class="media-tile-video-collection__layers" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" /></span>
+                    <div class="media-tile-video-collection__art">
+                        @if (!string.IsNullOrWhiteSpace(CardImageUrl))
+                        {
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-video-collection__soft" loading="@CardImageLoading" decoding="async" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-video-collection__still" loading="@CardImageLoading" decoding="async" />
+                        }
+                        else
+                        {
+                            <span class="media-tile-video-collection__still media-tile-video-collection__still--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span>
+                        }
+                    </div>
+                    <span class="media-tile-video-collection__kind">@L["MediaTile_VideoCollection"]</span>
+                    <span class="media-tile-video-collection__title" data-overflow-tooltip="@Item.Title">@Item.Title</span>
+                    @if (!string.IsNullOrWhiteSpace(Item.Creator))
+                    {
+                        <span class="media-tile-video-collection__creator">@Item.Creator</span>
+                    }
+                    <div class="media-tile-video-collection__foot">
+                        <span class="media-tile-video-collection__count"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" aria-hidden="true" />@MediaTileLabels.CountText(Item)</span>
+                        <span class="media-tile-video-collection__play" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" /></span>
+                    </div>
+                </div>
+            }
             else if (IsVideoStill)
             {
                 @* A video's still on top, its name and one detail line below (D7, D16). With no frame at all the top is a plain dark panel with a video icon. *@
@@ -148,7 +178,7 @@ else if (!_removed)
             {
                 <span class="media-tile-label media-tile-label--status">@status</span>
             }
-            @if (BottomLabel is { } bottom)
+            @if (BottomLabel is { } bottom && !IsVideoCollection)
             {
                 <span class="media-tile-label media-tile-label--bottom" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }
@@ -233,6 +263,8 @@ else if (!_removed)
         _ => "is-cover-portrait",
     };
 
+    // A folder of videos is the tall collection card, never the plain still tile (issue 869).
+    private bool IsVideoCollection => IsVideoStill && Item.IsCollection && VideoFolderWording.IsVideoFolderMediaType(Item.MediaKind);
     private bool IsVideoStill => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner;
     private string? VideoDetail => MediaTileLabels.VideoDetail(Item);
     private string? StatusLabel => MediaTileLabels.Status(Item, L["MediaTile_GettingDetails"].Value);
