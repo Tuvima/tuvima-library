@@ -43,7 +43,7 @@
     @if (_open && DeviceContext.IsPhone)
     {
         @* Phones get a bottom sheet with 52px rows instead of a popover (Look pass v2 D5). *@
-        <AppDialogFrame Open="true" Title="@SheetTitle" DialogOptions="SheetOptions" Class="app-menu-sheet" OnCancel="CloseSheetAsync">
+        <AppDialogFrame Open="true" Title="@SheetTitle" DialogOptions="SheetOptions" Class="@(IsListMenu ? "app-menu-sheet app-menu-sheet--list" : "app-menu-sheet")" OnCancel="CloseSheetAsync">
             <CascadingValue Value="@this" IsFixed="true">
                 <div id="@_popoverId" class="app-overflow-menu__content app-menu-sheet__items" role="menu" aria-label="@EffectiveAriaLabel" @onclick="Close">
                     @ChildContent
@@ -54,10 +54,11 @@
     else if (_open)
     {
         <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_trigger" FocusOnOpen="@FocusOnOpen"
-                    Size="@(MatchAnchorWidth ? AppPopoutSize.None : AppPopoutSize.Menu)"
+                    Size="@(MatchAnchorWidth || IsListMenu ? AppPopoutSize.None : AppPopoutSize.Menu)"
                     AnchorOrigin="@AnchorOrigin"
                     TransformOrigin="@TransformOrigin"
                     MatchAnchorWidth="@MatchAnchorWidth"
+                    ListWidth="@IsListMenu"
                     Class="@EffectivePopoverClass">
             <CascadingValue Value="@this" IsFixed="true">
                 <div id="@_popoverId" class="app-overflow-menu__content" role="menu" aria-label="@EffectiveAriaLabel" @onclick="Close">
@@ -104,6 +105,9 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>The menu is a dropdown (it picks a value, such as a folder or a group), so its list follows the shared list width rule (Look v3.1 D3). Action menus leave this off and keep the menu size.</summary>
+    [Parameter] public bool ListWidth { get; set; }
+    private bool IsListMenu => ListWidth;
     private string EffectiveAriaLabel => AriaLabel ?? Label ?? "More actions";
     private string TriggerRootClass =>
         string.Join(" ", new[] { "app-overflow-menu", AppUiMaps.SizeClass(Size), Class }

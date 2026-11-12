@@ -159,7 +159,8 @@
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-type-body-size);
+    font-weight: var(--tl-type-body-weight);
 }
 
 .app-dialog-shell__footer {

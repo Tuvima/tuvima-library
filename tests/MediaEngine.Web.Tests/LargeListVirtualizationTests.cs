@@ -13,7 +13,10 @@ public sealed class LargeListVirtualizationTests
         Assert.Contains("@key=\"RowKey(row)\"", markup, StringComparison.Ordinal);
         Assert.Contains("role=\"separator\"", markup, StringComparison.Ordinal);
         Assert.Contains("aria-orientation=\"vertical\"", markup, StringComparison.Ordinal);
-        Assert.Contains("ResizeByKeyboardAsync", code, StringComparison.Ordinal);
+        // Keyboard resizing lives in the script, which measures the column on screen; the component only applies what it is told.
+        var script = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/wwwroot/js/song-table.js"));
+        Assert.Contains("event.key === 'ArrowRight'", script, StringComparison.Ordinal);
+        Assert.Contains("public async Task<string> ColumnResized", code, StringComparison.Ordinal);
         Assert.Contains("added != default ? added.LocalDateTime.ToString(\"d\", CultureInfo.CurrentCulture) : \"—\"", code, StringComparison.Ordinal);
         Assert.Contains("row.Plays.ToString(CultureInfo.InvariantCulture) : string.Empty", markup, StringComparison.Ordinal);
     }

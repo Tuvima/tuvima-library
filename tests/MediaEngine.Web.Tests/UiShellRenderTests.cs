@@ -1360,7 +1360,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains(">All Playlists<", markup);
             Assert.Contains(">Recently Played<", markup);
             Assert.Contains(">Recently Added<", markup);
-            Assert.Contains("Drag to reorder", markup);
+            Assert.Contains("aria-label=\"Manage ", markup);
             Assert.Empty(cut.FindAll(".listen-now-panel"));
         });
     }

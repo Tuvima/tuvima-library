@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Models;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Persons;
 using MediaEngine.Domain.Contracts;
@@ -159,19 +160,43 @@ public sealed class PersonWorksReadService : IPersonWorksReadService
 
 public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
 {
-    private sealed class RoleCountRow
+    private sealed class CreditRow
     {
+        public Guid PersonId { get; init; }
+        public Guid AssetId { get; init; }
         public string Role { get; init; } = string.Empty;
-        public int Count { get; init; }
     }
+
+    private const string CreditsKey = "person-credits:primary";
 
     private readonly IPersonRepository _personRepo;
     private readonly IDatabaseConnection _db;
+    private readonly SharedListCache? _shared;
 
-    public PersonAssetScopeReadService(IPersonRepository personRepo, IDatabaseConnection db)
+    /// <param name="shared">
+    /// When given, the library's primary credits are read once and shared (reloaded behind the reader when they get old), because the
+    /// People section asks for them in four separate requests and each one scanned the credits view for about a second. Without it
+    /// every call reads the view itself.
+    /// </param>
+    public PersonAssetScopeReadService(IPersonRepository personRepo, IDatabaseConnection db, SharedListCache? shared = null)
     {
         _personRepo = personRepo;
         _db = db;
+        _shared = shared;
+    }
+
+    // Every primary credit of the library, as (person, file, role). Filtering by the viewer's files happens in memory.
+    private async Task<IReadOnlyList<CreditRow>> LoadCreditsAsync(CancellationToken ct)
+    {
+        Task<IReadOnlyList<CreditRow>> Load()
+        {
+            using var connection = _db.CreateConnection();
+            IReadOnlyList<CreditRow> rows = connection.Query<CreditRow>(
+                "SELECT DISTINCT person_id AS PersonId, media_asset_id AS AssetId, role AS Role FROM primary_person_media_credits;").ToList();
+            return Task.FromResult(rows);
+        }
+
+        return _shared is null ? await Load() : await _shared.GetAsync(CreditsKey, Load, ct);
     }
 
     public async Task<IReadOnlyList<PersonSummaryResponse>> GetByCollectionAsync(
@@ -204,10 +229,18 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
         return persons.Where(person => visiblePersonIds.Contains(person.Id)).ToList();
     }
 
-    public Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsAsync(ViewerCatalogue viewer, CancellationToken ct)
+    public async Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsAsync(ViewerCatalogue viewer, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(viewer);
-        return GetCanonicalPersonIdsAsync(viewer.PrimaryAssetIds, ct);
+        ct.ThrowIfCancellationRequested();
+        var assets = NormalizeAssetIds(viewer.PrimaryAssetIds).ToHashSet();
+        if (assets.Count == 0)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var credits = await LoadCreditsAsync(ct);
+        return credits.Where(credit => assets.Contains(credit.AssetId)).Select(credit => credit.PersonId).ToHashSet();
     }
 
     private Task<IReadOnlySet<Guid>> GetCanonicalPersonIdsAsync(
@@ -262,28 +295,21 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
         return Task.FromResult<IReadOnlySet<Guid>>(people.ToHashSet());
     }
 
-    public Task<IReadOnlyDictionary<string, int>> GetCanonicalRoleCountsAsync(ViewerCatalogue viewer, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<string, int>> GetCanonicalRoleCountsAsync(ViewerCatalogue viewer, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(viewer);
         ct.ThrowIfCancellationRequested();
-        var ids = NormalizeAssetIds(viewer.PrimaryAssetIds);
-        if (ids.Length == 0)
+        var assets = NormalizeAssetIds(viewer.PrimaryAssetIds).ToHashSet();
+        if (assets.Count == 0)
         {
-            return Task.FromResult<IReadOnlyDictionary<string, int>>(
-                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+            return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         }
 
-        using var connection = _db.CreateConnection();
-        var rows = connection.Query<RoleCountRow>(
-            """
-            SELECT role AS Role, COUNT(DISTINCT person_id) AS Count
-            FROM primary_person_media_credits
-            WHERE media_asset_id IN @assetIds AND role <> 'Composer'
-            GROUP BY role;
-            """,
-            new { assetIds = ids.Select(GuidSql.ToBlob).ToArray() });
-        return Task.FromResult<IReadOnlyDictionary<string, int>>(
-            rows.ToDictionary(row => row.Role, row => row.Count, StringComparer.OrdinalIgnoreCase));
+        var credits = await LoadCreditsAsync(ct);
+        return credits
+            .Where(credit => assets.Contains(credit.AssetId) && !string.Equals(credit.Role, "Composer", StringComparison.Ordinal))
+            .GroupBy(credit => credit.Role)
+            .ToDictionary(group => group.Key, group => group.Select(credit => credit.PersonId).Distinct().Count(), StringComparer.OrdinalIgnoreCase);
     }
 
     private static Guid[] NormalizeAssetIds(IEnumerable<Guid> assetIds) =>

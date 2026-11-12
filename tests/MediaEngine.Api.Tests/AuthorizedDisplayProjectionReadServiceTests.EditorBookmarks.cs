@@ -14,10 +14,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
-// The editor's Bookmarks tab (universal editor v5 D37, WP15). Only an administrator reads or changes a title's Everyone's bookmarks, the
-// Engine checks it on the read and on the commit, and a Vault title is refused. The first change makes the list a definitive set that the
-// player then shows; Start over pools it again; Change time queues a new picture; and the show's own overview and file are keyed by season
-// and episode number.
+// The editor's Bookmarks tab (universal editor v5 D37, WP15; global bookmarks v5 D1-D7). Only an administrator reads or changes a title's Global
+// bookmarks, the Engine checks it on the read and on the commit, and a Vault title is refused. Global starts empty: the first change marks the
+// set as made and flags nothing, so a bookmark is promoted with Add before it can be renamed or moved; Clear Global unflags everything and
+// leaves every profile's bookmarks; Change time queues a new picture; and the show's own overview and file are keyed by season and episode
+// number. Only movies and TV have a Global set.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
     private sealed record EditorBookmarkKit(
@@ -25,6 +26,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
     private EditorBookmarkKit EditorBookmarksFor(Guid account, Guid? session)
     {
+        // The shared seed names a film "Movie"; the data store holds "Movies", which is what Global bookmarks (movies and TV only) look for.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE works SET media_type = 'Movies' WHERE media_type = 'Movie';");
+        }
+
         var context = VaultContext(account, session);
         var services = new ServiceCollection()
             .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
@@ -52,7 +59,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     private static EditorBookmarkChangeDto ChangeOf(params EditorBookmarkOp[] ops) => new() { Ops = ops };
 
     [Fact]
-    public async Task EditorBookmarks_AnAdministratorAddsAProfilesBookmark_ReviewSeesItAndSaveMakesItTheDefinitiveSetThePlayerShows()
+    public async Task EditorBookmarks_AnAdministratorPromotesAProfilesBookmark_ReviewSeesItAndSaveMakesItTheGlobalSetThePlayerShows()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
@@ -62,10 +69,15 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         var before = await kit.Service.ReadAsync(shape.Normal.WorkId);
         Assert.Equal(EditorBookmarkStates.Pooled, before.State);
+        Assert.Empty(before.Everyone);
         Assert.Equal(2, before.FromProfiles.Count);
         Assert.Equal("Someone else", before.FromProfiles.First(row => row.Id == opening.Id).OwnerName);
 
-        var change = ChangeOf(EditorOp(EditorBookmarkOpKinds.Remove, elsewhere.Id), EditorOp(EditorBookmarkOpKinds.Rename, opening.Id, name: "Opening"));
+        var change = ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, elsewhere.Id),
+            EditorOp(EditorBookmarkOpKinds.Add, opening.Id),
+            EditorOp(EditorBookmarkOpKinds.Remove, elsewhere.Id),
+            EditorOp(EditorBookmarkOpKinds.Rename, opening.Id, name: "Opening"));
         Assert.Null(await kit.Service.CheckAsync(shape.Normal.WorkId, change));
         await kit.Service.ApplyAsync(shape.Normal.WorkId, change);
 
@@ -74,20 +86,22 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var everyone = Assert.Single(after.Everyone);
         Assert.Equal(opening.Id, everyone.Id);
         Assert.Equal("Opening", everyone.Name);
-        // The bookmark that left Everyone's stays with its owner, under Mine.
+        // The bookmark that left Global stays with its owner, under Mine.
         Assert.Contains(await kit.Player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId), row => row.Id == elsewhere.Id && !row.IsGlobal);
         Assert.Contains(await kit.Player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId), row => row.Id == opening.Id && row.IsGlobal);
     }
 
     [Fact]
-    public async Task EditorBookmarks_AddingABookmarkAtTheSameSpotAsOneInEveryones_MergesThem_AndOnlyTheReplacedOnesPictureGoes()
+    public async Task EditorBookmarks_AddingABookmarkAtTheSameSpotAsOneInGlobal_MergesThem_AndOnlyTheReplacedOnesPictureGoes()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         MakeVideo(shape.Normal.AssetId);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
         var ben = AddOtherProfile();
         var standing = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 724);
-        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Rename, standing.Id, name: "Opening")));
+        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, standing.Id),
+            EditorOp(EditorBookmarkOpKinds.Rename, standing.Id, name: "Opening")));
         var sameSpot = await BookmarkOf(ben, shape.Normal.WorkId, shape.Normal.AssetId, 726);
         var untouched = await BookmarkOf(ben, shape.Normal.WorkId, shape.Normal.AssetId, 4000);
         var frames = FrameCache();
@@ -101,7 +115,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         var read = await kit.Service.ReadAsync(shape.Normal.WorkId);
         Assert.Equal(sameSpot.Id, Assert.Single(read.Everyone).Id);
-        // The one at the same spot that was not in Everyone's was replaced and is gone, with its picture; nothing else lost anything.
+        // The one at the same spot that was not in Global was replaced and is gone, with its picture; nothing else lost anything.
         Assert.DoesNotContain(read.FromProfiles, row => row.Id == other.Id);
         Assert.False(frames.Exists(shape.Normal.AssetId, other.Id));
         Assert.True(frames.Exists(shape.Normal.AssetId, untouched.Id));
@@ -110,20 +124,24 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task EditorBookmarks_StartingOver_PoolsEveryProfilesBookmarksAgain()
+    public async Task EditorBookmarks_ClearingGlobal_EmptiesTheSet_AndLeavesEveryProfilesBookmarks()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
         var first = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 300);
-        await BookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 2000);
-        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Remove, first.Id)));
-        Assert.Single((await kit.Service.ReadAsync(shape.Normal.WorkId)).Everyone);
+        var second = await BookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 2000);
+        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, first.Id), EditorOp(EditorBookmarkOpKinds.Add, second.Id)));
+        Assert.Equal(2, (await kit.Service.ReadAsync(shape.Normal.WorkId)).Everyone.Count);
 
         await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.StartOver)));
 
         var read = await kit.Service.ReadAsync(shape.Normal.WorkId);
         Assert.Equal(EditorBookmarkStates.Pooled, read.State);
-        Assert.Equal(2, read.Everyone.Count);
+        Assert.Empty(read.Everyone);
+        // Nobody's bookmark was deleted by clearing.
+        Assert.Equal([first.Id, second.Id], read.FromProfiles.Select(row => row.Id));
+        Assert.DoesNotContain(await StoredBookmarksAsync(shape.Normal.WorkId), row => row.IsGlobal);
     }
 
     [Fact]
@@ -135,7 +153,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var bookmark = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 724);
         FrameCache().Write(shape.Normal.AssetId, bookmark.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
 
-        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.ChangeTime, bookmark.Id, seconds: 1800)));
+        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, bookmark.Id), EditorOp(EditorBookmarkOpKinds.ChangeTime, bookmark.Id, seconds: 1800)));
 
         Assert.False(FrameCache().Exists(shape.Normal.AssetId, bookmark.Id));
         var queued = await new MediaOperationRepository(_database).GetByIdempotencyKeyAsync(BookmarkFrameService.KeyFor(bookmark.Id, 1800));
@@ -152,12 +171,14 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var bookmark = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 724);
 
         var undo = await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, bookmark.Id),
             EditorOp(EditorBookmarkOpKinds.ChangeTime, bookmark.Id, seconds: 1800),
             EditorOp(EditorBookmarkOpKinds.Import, items: [new EditorBookmarkImportItem { PositionSeconds = 60, Name = "Titles" }])));
         await undo(default);
 
         var read = await kit.Service.ReadAsync(shape.Normal.WorkId);
         Assert.Equal(EditorBookmarkStates.Pooled, read.State);
+        Assert.Empty(read.Everyone);
         var only = Assert.Single(read.FromProfiles);
         Assert.Equal(724, only.PositionSeconds);
     }
@@ -170,14 +191,16 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var bookmark = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 724);
 
         await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, bookmark.Id),
             EditorOp(EditorBookmarkOpKinds.Rename, bookmark.Id, name: "Opening"),
             EditorOp(EditorBookmarkOpKinds.ChangeTime, bookmark.Id, seconds: 750),
             EditorOp(EditorBookmarkOpKinds.StartOver)));
 
         var lines = (await kit.Activity.GetRecentAsync(20)).Where(entry => entry.EntityId == shape.Normal.WorkId).Select(entry => entry.Detail).ToList();
+        Assert.Contains(lines, line => line!.Contains("added to Global") && line.Contains("12:04"));
         Assert.Contains(lines, line => line!.Contains("renamed") && line.Contains("12:04"));
         Assert.Contains(lines, line => line!.Contains("moved") && line.Contains("12:30"));
-        Assert.Contains(lines, line => line!.Contains("started over from profiles"));
+        Assert.Contains(lines, line => line!.Contains("Global bookmarks: cleared"));
     }
 
     [Fact]
@@ -193,6 +216,20 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
+    public async Task EditorBookmarks_RenamingAProfilesBookmarkThatWasNeverAddedToGlobal_IsRefusedByTheCheck_AndNothingIsWritten()
+    {
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
+        var bookmark = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 724);
+        var change = ChangeOf(EditorOp(EditorBookmarkOpKinds.Rename, bookmark.Id, name: "Opening"));
+
+        Assert.Equal("A bookmark you renamed is no longer in Global.", await kit.Service.CheckAsync(shape.Normal.WorkId, change));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => kit.Service.ApplyAsync(shape.Normal.WorkId, change));
+        Assert.Equal(EditorBookmarkStates.Pooled, (await kit.Service.ReadAsync(shape.Normal.WorkId)).State);
+        Assert.Null(Assert.Single(await StoredBookmarksAsync(shape.Normal.WorkId)).Label);
+    }
+
+    [Fact]
     public async Task EditorBookmarks_ASaveThroughTheEditSessionHandler_ChecksAndWritesThroughTheService()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
@@ -204,7 +241,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             Id = "c1",
             Kind = EditSessionChangeKinds.Bookmarks,
             EntityId = shape.Normal.WorkId,
-            Bookmarks = ChangeOf(EditorOp(EditorBookmarkOpKinds.Rename, bookmark.Id, name: "Opening")),
+            Bookmarks = ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, bookmark.Id), EditorOp(EditorBookmarkOpKinds.Rename, bookmark.Id, name: "Opening")),
         };
 
         Assert.Equal(EditSessionChangeKinds.Bookmarks, handler.Kind);
@@ -254,18 +291,19 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task EditorBookmarks_Export_IsTheTitlesEveryonesListAsAFile_AndImportLaysItBesideTheList()
+    public async Task EditorBookmarks_Export_IsTheTitlesGlobalListAsAFile_AndImportLaysItBesideTheList()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var mine = await BookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 761);
-        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Rename, mine.Id, name: "The reveal")));
+        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, mine.Id), EditorOp(EditorBookmarkOpKinds.Rename, mine.Id, name: "The reveal")));
         await BookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 4000);
 
         var file = await kit.Service.ExportAsync(shape.Normal.WorkId);
 
-        // Only Everyone's list is in the file, never a bookmark that is not in it.
+        // Only the Global list is in the file, never a bookmark that is not in it.
         Assert.Equal(1, file.BookmarkCount);
         Assert.Equal(BookmarkSetService.ExportedFileName, file.FileName);
         var compare = await kit.Service.CompareAsync(
@@ -308,7 +346,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task EditorBookmarks_TheShowOverview_IsGroupedBySeason_WithWhatEveryoneSeesOnEachEpisode()
+    public async Task EditorBookmarks_TheShowOverview_IsGroupedBySeason_WithWhatGlobalHoldsOnEachEpisode()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
@@ -317,18 +355,22 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await BookmarkOf(VaultProfile, episodes[0].WorkId, episodes[0].AssetId, 100);
         await BookmarkOf(AddOtherProfile(), episodes[0].WorkId, episodes[0].AssetId, 900);
         var third = await BookmarkOf(VaultProfile, episodes[2].WorkId, episodes[2].AssetId, 50);
-        await kit.Service.ApplyAsync(episodes[2].WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Rename, third.Id, name: "Cold open")));
+        await kit.Service.ApplyAsync(episodes[2].WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, third.Id), EditorOp(EditorBookmarkOpKinds.Rename, third.Id, name: "Cold open")));
 
         var result = await overview.OverviewAsync(Guid.NewGuid());
 
         Assert.Equal("The Show", result.RootTitle);
         Assert.Equal(["Season 1", "Season 2"], result.Groups.Select(group => group.Title));
         Assert.Equal(["S1 E1", "S1 E2"], result.Groups[0].Rows.Select(row => row.Code));
-        Assert.Equal([2, 0], result.Groups[0].Rows.Select(row => row.EveryoneCount));
+        // Profiles' bookmarks on the first episode are not pooled into Global: it holds only what was added.
+        Assert.Equal([0, 0], result.Groups[0].Rows.Select(row => row.EveryoneCount));
+        Assert.All(result.Groups[0].Rows, row => Assert.Equal(EditorBookmarkStates.Pooled, row.State));
         var returned = Assert.Single(result.Groups[1].Rows);
         Assert.Equal("S2 E1", returned.Code);
         Assert.Equal(EditorBookmarkStates.Definitive, returned.State);
-        Assert.Equal(3, result.EveryoneTotal);
+        Assert.Equal(1, returned.EveryoneCount);
+        Assert.Equal(1, result.EveryoneTotal);
         Assert.Equal(1, result.DefinitiveCount);
     }
 
@@ -340,8 +382,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (overview, episodes) = await ShowAsync(shape, kit);
         var pilot = await BookmarkOf(VaultProfile, episodes[0].WorkId, episodes[0].AssetId, 100);
         var returned = await BookmarkOf(VaultProfile, episodes[2].WorkId, episodes[2].AssetId, 50);
-        await kit.Service.ApplyAsync(episodes[0].WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Rename, pilot.Id, name: "Pilot scene")));
-        await kit.Service.ApplyAsync(episodes[2].WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Rename, returned.Id, name: "Return scene")));
+        await kit.Service.ApplyAsync(episodes[0].WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, pilot.Id), EditorOp(EditorBookmarkOpKinds.Rename, pilot.Id, name: "Pilot scene")));
+        await kit.Service.ApplyAsync(episodes[2].WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, returned.Id), EditorOp(EditorBookmarkOpKinds.Rename, returned.Id, name: "Return scene")));
 
         var file = await overview.ExportAsync(Guid.NewGuid());
 
@@ -419,22 +463,17 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             });
 
     [Fact]
-    public async Task EditorBookmarks_APooledExport_CarriesTheTimeAndNameOnly_AndADefinitiveSetCarriesItsNamesAndNotes()
+    public async Task EditorBookmarks_AnExportBeforeAnySetIsMade_IsEmpty_AndAGlobalSetCarriesItsNamesAndNotes()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var someone = await PrivateBookmarkOf(AddOtherProfile(), shape.Normal.WorkId, shape.Normal.AssetId, 761);
 
-        // Nobody has curated the list yet: it is every profile's bookmarks pooled, so no note or description of anyone's leaves the library.
-        var pooled = BookmarkPackArchive.Read(Convert.FromBase64String((await kit.Service.ExportAsync(shape.Normal.WorkId)).ContentBase64));
+        // Nobody has made a Global set yet: it is empty, so there is no file, and nothing of anyone's private bookmarks leaves the library.
+        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() => kit.Service.ExportAsync(shape.Normal.WorkId));
 
-        var pooledItem = Assert.Single(pooled.Bookmarks);
-        Assert.Equal(761, pooledItem.Time);
-        Assert.Equal("The reveal", pooledItem.Note);
-        Assert.Null(pooledItem.Description);
-
-        // The administrator's own curated list keeps what they wrote.
+        // The administrator's own Global list keeps what they wrote.
         await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, someone.Id)));
         var definitive = BookmarkPackArchive.Read(Convert.FromBase64String((await kit.Service.ExportAsync(shape.Normal.WorkId)).ContentBase64));
 
@@ -444,7 +483,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task EditorBookmarks_APooledShowExport_CarriesTheTimeAndNameOnly_AndADefinitiveEpisodeKeepsItsNotes()
+    public async Task EditorBookmarks_AShowExportLeavesOutEpisodesWithNoGlobalSet_AndAnEpisodeWithOneKeepsItsNotes()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
@@ -455,10 +494,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         var file = BookmarkShowPackArchive.Read(Convert.FromBase64String((await overview.ExportAsync(Guid.NewGuid())).ContentBase64));
 
-        // The first episode is still pooled; the third was curated.
-        var pooledItem = Assert.Single(file.Episodes.Single(episode => episode.SeasonNumber == 1 && episode.EpisodeNumber == 1).Bookmarks);
-        Assert.Equal("The reveal", pooledItem.Note);
-        Assert.Null(pooledItem.Description);
+        // The first episode has no Global set, so another profile's bookmark on it is not in the file; the third was added.
+        Assert.DoesNotContain(file.Episodes, episode => episode.SeasonNumber == 1 && episode.EpisodeNumber == 1);
         var curatedItem = Assert.Single(file.Episodes.Single(episode => episode.SeasonNumber == 2 && episode.EpisodeNumber == 1).Bookmarks);
         Assert.Equal("The reveal", curatedItem.Note);
         Assert.Equal("my private details", curatedItem.Description);
@@ -474,6 +511,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var framed = await PrivateBookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 761);
         var broken = await PrivateBookmarkOf(VaultProfile, shape.Normal.WorkId, shape.Normal.AssetId, 3000);
+        await kit.Service.ApplyAsync(shape.Normal.WorkId, ChangeOf(
+            EditorOp(EditorBookmarkOpKinds.Add, framed.Id), EditorOp(EditorBookmarkOpKinds.Add, broken.Id)));
         var picture = Jpeg(2000);
         FrameCache().Write(shape.Normal.AssetId, framed.Id, picture);
         FrameCache().Write(shape.Normal.AssetId, broken.Id, [0xFF, 0xD8, 0xFF, 0xD9]);
@@ -502,6 +541,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (overview, episodes) = await ShowAsync(shape, kit);
         MakeVideo(episodes[0].AssetId);
         var bookmark = await PrivateBookmarkOf(VaultProfile, episodes[0].WorkId, episodes[0].AssetId, 100);
+        await kit.Service.ApplyAsync(episodes[0].WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, bookmark.Id)));
         var picture = Jpeg(1500, 0x22);
         FrameCache().Write(episodes[0].AssetId, bookmark.Id, picture);
 
@@ -591,33 +631,28 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task EditorBookmarks_ABook_ImportsPlacesInTheText_ExportsThemAndComparesAFileBesideThem()
+    public async Task EditorBookmarks_ABook_HasNoGlobalSet_SoEveryChangeIsRefused_AndNothingIsWritten()
     {
         var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var kit = EditorBookmarksFor(shape.Account, NewVaultSession(shape.Account));
         var book = await InsertOwnedWorkWithIdAsync(shape.NormalLibrary, "A book", "Books");
-        GiveIds(book.WorkId, ImdbOfTheFilm);
-
-        var before = await kit.Service.ReadAsync(book.WorkId);
-        Assert.True(before.CanExchange);
-        Assert.False(before.HasTimes);
-
-        await kit.Service.ApplyAsync(book.WorkId, ChangeOf(EditorOp(EditorBookmarkOpKinds.Import, items:
+        var place = await BookmarkOf(VaultProfile, book.WorkId, book.AssetId, 3);
+        var imports = ChangeOf(EditorOp(EditorBookmarkOpKinds.Import, items:
         [
             new EditorBookmarkImportItem { PositionSeconds = 3, Locator = Spot(3, 5), ChapterIndex = 3, Name = "The turn" },
-        ])));
+        ]));
+        var add = ChangeOf(EditorOp(EditorBookmarkOpKinds.Add, place.Id));
 
-        var after = await kit.Service.ReadAsync(book.WorkId);
-        var placed = Assert.Single(after.Everyone);
-        Assert.Equal("text", placed.PositionKind);
-        Assert.Equal(3, placed.ChapterIndex);
-        var exported = BookmarkPackArchive.Read(Convert.FromBase64String((await kit.Service.ExportAsync(book.WorkId)).ContentBase64));
-        Assert.Equal(Spot(3, 5), Assert.Single(exported.Bookmarks).Locator);
+        Assert.Equal(EditorBookmarksService.NoGlobal, await kit.Service.CheckAsync(book.WorkId, imports));
+        Assert.Equal(EditorBookmarksService.NoGlobal, await kit.Service.CheckAsync(book.WorkId, add));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => kit.Service.ApplyAsync(book.WorkId, imports));
+        Assert.Equal(EditorBookmarksService.NoGlobal, refused.Message);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => kit.Service.ApplyAsync(book.WorkId, add));
 
-        var compare = await kit.Service.CompareAsync(
-            book.WorkId, new EditorBookmarkCompareRequestDto { ContentBase64 = BookFileOf(ImdbOfTheFilm, null, Place(Spot(3, 5, 40), 3), Place(Spot(20, 1), 20)).ContentBase64 });
-        Assert.Equal([BookmarkClosenessLabels.SameSpot, BookmarkClosenessLabels.New], compare.Rows.Select(row => row.Closeness));
-        await Assert.ThrowsAsync<BookmarkPackInvalidException>(() => kit.Service.CompareAsync(
-            book.WorkId, new EditorBookmarkCompareRequestDto { ContentBase64 = FileOf(ImdbOfTheFilm, 7200, Item(100)).ContentBase64 }));
+        // Nothing was flagged, imported or marked as a made set; the profile's own bookmark is untouched.
+        var read = await kit.Service.ReadAsync(book.WorkId);
+        Assert.Equal(EditorBookmarkStates.Pooled, read.State);
+        Assert.Empty(read.Everyone);
+        Assert.Equal(place.Id, Assert.Single(await StoredBookmarksAsync(book.WorkId)).Id);
     }
 }

@@ -11,14 +11,14 @@ using MediaEngine.Storage.Playback;
 
 namespace MediaEngine.Api.Services.Playback;
 
-/// <summary>The editor's Bookmarks tab was asked for a title in the Vault, which never takes part in Everyone's bookmarks (universal editor v5 D37).</summary>
+/// <summary>The editor's Bookmarks tab was asked for a title in the Vault, which never takes part in Global bookmarks (universal editor v5 D37).</summary>
 public sealed class EditorBookmarkVaultException : Exception;
 
 /// <summary>
-/// The Bookmarks tab of the universal editor (v5 D37, WP15): what an administrator reads to make a title's definitive set of Everyone's
+/// The Bookmarks tab of the universal editor (v5 D37, WP15): what an administrator reads to make a title's definitive set of Global
 /// bookmarks, the check and the one-transaction write of the staged operations, and the title's import and export. Every entry point is
 /// administrators only and refuses a Vault title; the Dashboard hides the tab, and these checks are the ones that count. A bookmark is never
-/// copied: Everyone's set is the rows of the title flagged <c>is_global</c> once it is definitive, and until then every profile's bookmarks
+/// copied: Global set is the rows of the title flagged <c>is_global</c> once it is definitive, and until then every profile's bookmarks
 /// pooled (<see cref="BookmarkPooling"/>).
 /// </summary>
 public sealed class EditorBookmarksService(
@@ -34,7 +34,8 @@ public sealed class EditorBookmarksService(
     ILogger<EditorBookmarksService> logger)
 {
     public const string NothingToChange = "There are no bookmark changes to save.";
-    public const string NotAllowed = "Only an administrator can change a title's Everyone's bookmarks.";
+    public const string NotAllowed = "Only an administrator can change a title's Global bookmarks.";
+    public const string NoGlobal = "Only movies and TV have Global bookmarks. Bookmarks on books and audiobooks stay personal.";
     public const string NoTitle = "This title is no longer in your library.";
     public const string InTheVault = "Bookmarks of a Vault title are not edited here.";
 
@@ -124,6 +125,11 @@ public sealed class EditorBookmarksService(
             var title = await RequireTitleAsync(workId, ct);
             var rows = await repository.GetByWorksAsync([workId], title.AllowedAssets, ct);
             var definitive = (await repository.GetDefinitiveAsync([workId], ct)).Contains(workId);
+            if (change?.Ops.Count > 0 && !AllowsGlobal(title))
+            {
+                return NoGlobal;
+            }
+
             return EditorBookmarkOpRules.Check(change?.Ops ?? [], rows, definitive, SameSpot, hasImportFile: title.Assets.Count > 0);
         }
         catch (PlayerBookmarkAdminDeniedException)
@@ -147,6 +153,11 @@ public sealed class EditorBookmarksService(
     public async Task<Func<CancellationToken, Task>> ApplyAsync(Guid workId, EditorBookmarkChangeDto change, CancellationToken ct = default)
     {
         var title = await RequireTitleAsync(workId, ct);
+        if (change.Ops.Count > 0 && !AllowsGlobal(title))
+        {
+            throw new InvalidOperationException(NoGlobal);
+        }
+
         var ops = change.Ops;
         var importAsset = title.Assets.OrderBy(asset => asset.AssetId).First().AssetId;
         EditorBookmarkCommitOutcome outcome;
@@ -211,7 +222,7 @@ public sealed class EditorBookmarksService(
         };
     }
 
-    /// <summary>The editor's Import: a bookmark file beside the title's Everyone's list, row by row. Changes nothing.</summary>
+    /// <summary>The editor's Import: a bookmark file beside the title's Global list, row by row. Changes nothing.</summary>
     public async Task<BookmarkSetCompareDto> CompareAsync(Guid workId, EditorBookmarkCompareRequestDto request, CancellationToken ct = default)
     {
         var title = await RequireTitleAsync(workId, ct);
@@ -253,7 +264,7 @@ public sealed class EditorBookmarksService(
             ct);
     }
 
-    /// <summary>The editor's Export: the title's Everyone's list as one bookmark file. Never anyone's personal bookmarks.</summary>
+    /// <summary>The editor's Export: the title's Global list as one bookmark file. Never anyone's personal bookmarks.</summary>
     public async Task<BookmarkPackFileDto> ExportAsync(Guid workId, CancellationToken ct = default)
     {
         var title = await RequireTitleAsync(workId, ct);
@@ -284,6 +295,9 @@ public sealed class EditorBookmarksService(
         definitive ? bookmark : bookmark with { Note = null, Description = null };
 
     /// <summary>True when the title's file is a book, whose bookmarks are places in the text rather than times.</summary>
+    /// <summary>Global bookmarks exist for movies and TV only (global bookmarks v5 D3); music has no bookmarks at all (D4).</summary>
+    internal static bool AllowsGlobal(Title title) => title.Assets.Count > 0 && title.Assets.All(asset => asset.MediaType is "Movies" or "TV");
+
     internal static bool IsBook(Title title) => title.Assets.Any(asset => asset.MediaType == "Books");
 
     /// <summary>Refuses a bookmark file that is too large, from its encoded length and before anything is decoded.</summary>
@@ -309,7 +323,7 @@ public sealed class EditorBookmarksService(
         CreatedAt = row.CreatedAt.UtcDateTime,
     };
 
-    /// <summary>A title's Everyone's list in the shape the compare and export code reads, for the administrator already checked by the caller.</summary>
+    /// <summary>A title's Global list in the shape the compare and export code reads, for the administrator already checked by the caller.</summary>
     internal async Task<IReadOnlyList<AudiobookBookmarkDto>> EveryoneAsPlayerAsync(Guid workId, Title title, CancellationToken ct)
     {
         var everyone = await repository.GetEveryoneAsync(workId, title.AllowedAssets, SameSpot, ct);
@@ -321,7 +335,7 @@ public sealed class EditorBookmarksService(
         IReadOnlyCollection<Guid> workIds, Title title, CancellationToken ct) =>
         (await repository.GetByWorksAsync(workIds, title.AllowedAssets, ct), await repository.GetDefinitiveAsync(workIds, ct));
 
-    /// <summary>Everyone's rows of one title out of rows already read.</summary>
+    /// <summary>Global rows of one title out of rows already read.</summary>
     internal IReadOnlyList<EditorBookmarkRow> EveryoneOf(IReadOnlyList<EditorBookmarkRow> rows, bool definitive) =>
         EditorBookmarkRepository.Everyone(rows, definitive, SameSpot);
 
@@ -398,7 +412,7 @@ internal static class EditorBookmarkOpRules
 {
     /// <summary>
     /// Plays the operations over the title's bookmarks without writing, so Review can refuse a change before Save does: every bookmark an
-    /// operation names must exist, Rename and Change time need the bookmark to be in Everyone's by then, a time must be inside the file.
+    /// operation names must exist, Rename and Change time need the bookmark to be in Global by then, a time must be inside the file.
     /// </summary>
     public static string? Check(
         IReadOnlyList<EditorBookmarkOp> ops,
@@ -429,7 +443,7 @@ internal static class EditorBookmarkOpRules
                 return;
             }
 
-            flagged = [.. BookmarkPooling.Merge(rows.Select(row => row.ToCandidate()), sameSpotFor).Select(group => group.Representative.Id)];
+            flagged = [];
             isDefinitive = true;
         }
 
@@ -495,7 +509,7 @@ internal static class EditorBookmarkOpRules
                 case EditorBookmarkOpKinds.Rename:
                     if (!flagged.Contains(id))
                     {
-                        return "A bookmark you renamed is no longer in Everyone's.";
+                        return "A bookmark you renamed is no longer in Global.";
                     }
 
                     if (!AudiobookBookmarkNotePolicy.TryNormalize(op.Name, out _))
@@ -507,7 +521,7 @@ internal static class EditorBookmarkOpRules
                 case EditorBookmarkOpKinds.ChangeTime:
                     if (!flagged.Contains(id))
                     {
-                        return "A bookmark you moved is no longer in Everyone's.";
+                        return "A bookmark you moved is no longer in Global.";
                     }
 
                     if (row.PositionKind != BookmarkPooling.TimeKind)
@@ -535,13 +549,13 @@ internal static class EditorBookmarkOpRules
         var which = row is null ? "a bookmark" : Label(row);
         return op.Kind switch
         {
-            EditorBookmarkOpKinds.Add => $"Everyone's bookmarks: added to Everyone's: {which}.",
-            EditorBookmarkOpKinds.Remove => $"Everyone's bookmarks: removed from Everyone's: {which}.",
-            EditorBookmarkOpKinds.Rename => $"Everyone's bookmarks: renamed {which} to {(string.IsNullOrWhiteSpace(op.Name) ? "no name" : op.Name.Trim())}.",
-            EditorBookmarkOpKinds.ChangeTime => $"Everyone's bookmarks: moved {which} to {Time(op.PositionSeconds ?? 0)}.",
-            EditorBookmarkOpKinds.Import => $"Everyone's bookmarks: imported {op.Items.Count} bookmark{(op.Items.Count == 1 ? string.Empty : "s")} from a file.",
-            EditorBookmarkOpKinds.StartOver => "Everyone's bookmarks: started over from profiles.",
-            _ => "Everyone's bookmarks changed.",
+            EditorBookmarkOpKinds.Add => $"Global bookmarks: added to Global: {which}.",
+            EditorBookmarkOpKinds.Remove => $"Global bookmarks: removed from Global: {which}.",
+            EditorBookmarkOpKinds.Rename => $"Global bookmarks: renamed {which} to {(string.IsNullOrWhiteSpace(op.Name) ? "no name" : op.Name.Trim())}.",
+            EditorBookmarkOpKinds.ChangeTime => $"Global bookmarks: moved {which} to {Time(op.PositionSeconds ?? 0)}.",
+            EditorBookmarkOpKinds.Import => $"Global bookmarks: imported {op.Items.Count} bookmark{(op.Items.Count == 1 ? string.Empty : "s")} from a file.",
+            EditorBookmarkOpKinds.StartOver => "Global bookmarks: cleared.",
+            _ => "Global bookmarks changed.",
         };
     }
 

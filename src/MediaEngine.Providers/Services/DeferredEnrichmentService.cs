@@ -39,6 +39,11 @@ public sealed class DeferredEnrichmentService : BackgroundService, IDeferredEnri
     private readonly IEntityTimelineRepository _timelineRepo;
     private readonly ILogger<DeferredEnrichmentService> _logger;
     private readonly IRecurringTaskRecorder? _recorder;
+    private readonly IEntityAssetRepository? _assets;
+    private readonly IImageEnrichmentService? _images;
+
+    /// <summary>The most TV episodes given another picture pass in one nightly sweep.</summary>
+    private const int EpisodeStillRetryLimit = 100;
 
     // Same key as the maintenance schedule and the Scheduled tasks list (ScheduledTaskKeys.NightlyEnrichmentSweep).
     private const string NightlySweepTaskKey = "pass2_nightly_sweep";
@@ -56,9 +61,13 @@ public sealed class DeferredEnrichmentService : BackgroundService, IDeferredEnri
         IConfigurationLoader config,
         IEntityTimelineRepository timelineRepo,
         ILogger<DeferredEnrichmentService> logger,
-        IRecurringTaskRecorder? recorder = null)
+        IRecurringTaskRecorder? recorder = null,
+        IEntityAssetRepository? assets = null,
+        IImageEnrichmentService? images = null)
     {
         _recorder = recorder;
+        _assets = assets;
+        _images = images;
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _jobRepo = jobRepo ?? throw new ArgumentNullException(nameof(jobRepo));
@@ -242,8 +251,43 @@ public sealed class DeferredEnrichmentService : BackgroundService, IDeferredEnri
             processed, batch.Count);
     }
 
+    /// <summary>
+    /// Gives TV episodes whose picture pass was skipped or failed another go. An episode the provider checked and has
+    /// no picture for carries a mark and is left to the existing 90-day refresh, so this only catches missed passes.
+    /// </summary>
+    private async Task RetryMissedEpisodeStillsAsync(CancellationToken ct)
+    {
+        if (_assets is null || _images is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var assetIds = await _assets.GetTvEpisodeAssetsMissingProviderStillAsync(EpisodeStillRetryLimit, ct).ConfigureAwait(false);
+            if (assetIds.Count == 0)
+            {
+                return;
+            }
+
+            _logger.LogInformation("Nightly sweep: {Count} TV episodes get another picture pass", assetIds.Count);
+            foreach (var assetId in assetIds)
+            {
+                ct.ThrowIfCancellationRequested();
+                await _images.EnrichEpisodeStillsAsync(assetId, ct).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The sweep carries on with its other work; the next night tries again.
+            _logger.LogWarning(ex, "Nightly sweep could not retry missed episode pictures");
+        }
+    }
+
     private async Task ProcessStaleAsync(HydrationSettings settings, CancellationToken ct)
     {
+        await RetryMissedEpisodeStillsAsync(ct).ConfigureAwait(false);
+
         var threshold = TimeSpan.FromHours(Math.Max(settings.Pass2StaleThresholdHours, 1));
         var allStale = await _repo.GetStaleAsync(threshold, settings.Pass2BatchSize, ct).ConfigureAwait(false);
 
