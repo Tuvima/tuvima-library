@@ -17,7 +17,7 @@ public sealed partial class DisplayComposerService
     private static readonly string[] TypeOrder =
     [
         DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeVideo, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
-        DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection,
+        DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection, DisplayGridValues.TypePlaylist,
     ];
 
     private static readonly string[] FormatOrder =
@@ -297,6 +297,30 @@ public sealed partial class DisplayComposerService
         return new GridSource(entries, title, subtitle);
     }
 
+    /// <summary>
+    /// Which of the profile's My List entries are finished, newest saved first: movies, books, comics and audiobooks whose
+    /// progress is complete, and shows where every owned episode is watched (the same rule as the grid's Finished filter).
+    /// Albums, collections and playlists are never finished. It reads the My List grid source, so an entry the profile
+    /// cannot currently see is never counted.
+    /// </summary>
+    public async Task<IReadOnlyList<DisplayGridPersonalEntry>> LoadFinishedSavedAsync(Guid? profileId, CancellationToken ct = default)
+    {
+        var definition = DisplayGridCatalog.Find(DisplayGridCatalog.PersonalLane, "my-list")!;
+        var source = await BuildGridSourceAsync(definition, DisplayGridValues.SortAdded, profileId, ct);
+        if (source is null)
+        {
+            return [];
+        }
+
+        return SortGridEntries(source.Entries.ToList(), DisplayGridValues.SortAdded)
+            .Where(entry => entry.SavedKind is not null && entry.SavedId is not null)
+            .Where(entry => entry.Type is DisplayGridValues.TypeMovie or DisplayGridValues.TypeTv
+                or DisplayGridValues.TypeBook or DisplayGridValues.TypeComic or DisplayGridValues.TypeAudiobook)
+            .Where(entry => entry.Status == DisplayContinuationState.Completed)
+            .Select(entry => new DisplayGridPersonalEntry(entry.SavedKind!.Value, entry.SavedId!.Value, entry.AddedAt))
+            .ToList();
+    }
+
     private async Task<List<GridCard>> BuildPersonalGridCardsAsync(
         DisplayGridSource source,
         IReadOnlyList<DisplayWorkRow> works,
@@ -350,7 +374,7 @@ public sealed partial class DisplayComposerService
                 continue;
             }
 
-            cards.Add(new GridCard(card, false, entry.At));
+            cards.Add(new GridCard(card, false, entry.At, entry.Kind, entry.EntityId));
         }
 
         return cards;
@@ -466,7 +490,7 @@ public sealed partial class DisplayComposerService
         {
             var candidates = counts(DisplayGridValues.FilterType);
             AddGroup(groups, DisplayGridValues.FilterType, "Media type", selection.Type,
-                TypeOrder.Select(type => (type, TypeLabel(type), candidates.Count(entry => entry.Type == type))));
+                TypeOrder.Select(type => (type, TypeLabel(type, definition.Source == DisplayGridSource.MyList), candidates.Count(entry => entry.Type == type))));
         }
 
         // Genre: not on a list that is already one genre.
@@ -500,7 +524,7 @@ public sealed partial class DisplayComposerService
 
         // Progress: not on lists ordered by what was played last, and not where music (which has no progress) is in view.
         var inView = entries.Where(entry => selection.Type is null || entry.Type == selection.Type);
-        if (!definition.IsPlayedDefault && !inView.Any(entry => entry.Type == DisplayGridValues.TypeMusic))
+        if (!definition.IsPlayedDefault && !inView.Any(entry => entry.Type is DisplayGridValues.TypeMusic or DisplayGridValues.TypePlaylist))
         {
             var candidates = counts(DisplayGridValues.FilterStatus);
             AddGroup(groups, DisplayGridValues.FilterStatus, "Progress", selection.Status,
@@ -558,7 +582,12 @@ public sealed partial class DisplayComposerService
         _ => DisplayGridValues.StatusNotStarted,
     };
 
-    private static string TypeOf(DisplayCardDto card) => DisplayMediaRules.NormalizeDisplayKind(card.MediaType) switch
+    // A playlist is its own kind (My List offers a Playlists chip); its card carries the Music media type.
+    private static string TypeOf(DisplayCardDto card) => card.GroupingType == "playlist"
+        ? DisplayGridValues.TypePlaylist
+        : TypeOfKind(DisplayMediaRules.NormalizeDisplayKind(card.MediaType));
+
+    private static string TypeOfKind(string kind) => kind switch
     {
         "Movie" => DisplayGridValues.TypeMovie,
         "TV" => DisplayGridValues.TypeTv,
@@ -570,7 +599,8 @@ public sealed partial class DisplayComposerService
         _ => DisplayGridValues.TypeCollection,
     };
 
-    private static string TypeLabel(string type) => type switch
+    // On My List the music kind is albums only (playlists have their own chip).
+    private static string TypeLabel(string type, bool myList) => type switch
     {
         DisplayGridValues.TypeMovie => "Movies",
         DisplayGridValues.TypeTv => "TV shows",
@@ -578,7 +608,8 @@ public sealed partial class DisplayComposerService
         DisplayGridValues.TypeBook => "Books",
         DisplayGridValues.TypeComic => "Comics",
         DisplayGridValues.TypeAudiobook => "Audiobooks",
-        DisplayGridValues.TypeMusic => "Music",
+        DisplayGridValues.TypeMusic => myList ? "Albums" : "Music",
+        DisplayGridValues.TypePlaylist => "Playlists",
         _ => "Collections",
     };
 
@@ -605,7 +636,9 @@ public sealed partial class DisplayComposerService
 
     /// <param name="FromJourney">True for cards built from play history, whose time stamp is when they were last played.</param>
     /// <param name="At">For personal lists, when the profile saved or liked the item.</param>
-    private sealed record GridCard(DisplayCardDto Card, bool FromJourney, DateTimeOffset? At = null);
+    /// <param name="SavedKind">For My List, the kind the profile saved this card as.</param>
+    /// <param name="SavedId">For My List, the id the profile saved this card under (the card's own id can differ for a show or album root).</param>
+    private sealed record GridCard(DisplayCardDto Card, bool FromJourney, DateTimeOffset? At = null, ProfileEntityKind? SavedKind = null, Guid? SavedId = null);
 
     private sealed record GridEntry(
         DisplayCardDto Card,
@@ -615,7 +648,9 @@ public sealed partial class DisplayComposerService
         DisplayContinuationState Status,
         string SortTitle,
         string Type,
-        IReadOnlySet<string> Formats);
+        IReadOnlySet<string> Formats,
+        ProfileEntityKind? SavedKind = null,
+        Guid? SavedId = null);
 
     private sealed record GridSource(IReadOnlyList<GridEntry> Entries, string Title, string? Subtitle);
 
@@ -680,7 +715,7 @@ public sealed partial class DisplayComposerService
                 played = played is { } known && known > card.SortTimestamp ? known : card.SortTimestamp;
             }
 
-            return new GridEntry(card, workIds, added, played, status, sortTitle, TypeOf(card), NoFormats);
+            return new GridEntry(card, workIds, added, played, status, sortTitle, TypeOf(card), NoFormats, item.SavedKind, item.SavedId);
         }
 
         private DateTimeOffset? LatestPlayed(IEnumerable<Guid> workIds)

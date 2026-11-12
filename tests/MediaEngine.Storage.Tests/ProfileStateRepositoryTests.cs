@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
 
@@ -93,6 +94,73 @@ public sealed class ProfileStateRepositoryTests : IDisposable
 
         var savedColumns = connection.Query<string>("SELECT name FROM pragma_table_info('profile_saved_items');").ToList();
         Assert.DoesNotContain("collection_id", savedColumns, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RemoveSavedItems_ReturnsTheOriginalsSkipsUnsavedItemsAndLeavesAnotherProfilesListAlone()
+    {
+        var profileId = SeedProfile("First");
+        var otherProfile = SeedProfile("Second");
+        var first = SeedWork("Movies");
+        var second = SeedWork("Movies");
+        var notSaved = SeedWork("Movies");
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Movie, first, position: 4);
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Movie, second);
+        await _repository.SaveItemAsync(otherProfile, ProfileEntityKind.Movie, first);
+        var firstSavedAt = DateTimeOffset.Parse("2026-10-01T10:00:00Z");
+        await _repository.RestoreSavedItemsAsync(profileId, [new ProfileSavedRestore(ProfileEntityKind.Movie, first, firstSavedAt, 4)]);
+
+        var removed = await _repository.RemoveSavedItemsAsync(profileId,
+        [
+            new ProfileSavedKey(ProfileEntityKind.Movie, first),
+            new ProfileSavedKey(ProfileEntityKind.Movie, notSaved),
+            new ProfileSavedKey(ProfileEntityKind.Movie, Guid.NewGuid()),
+            new ProfileSavedKey(ProfileEntityKind.Movie, first),
+        ]);
+
+        var item = Assert.Single(removed);
+        Assert.Equal(first, item.EntityId);
+        Assert.Equal(firstSavedAt, item.SavedAt);
+        Assert.Equal(4, item.Position);
+        Assert.Null(await _repository.GetSavedItemAsync(profileId, ProfileEntityKind.Movie, first));
+        Assert.NotNull(await _repository.GetSavedItemAsync(profileId, ProfileEntityKind.Movie, second));
+        Assert.NotNull(await _repository.GetSavedItemAsync(otherProfile, ProfileEntityKind.Movie, first));
+    }
+
+    [Fact]
+    public async Task RestoreSavedItems_KeepsTheGivenSavedDatesAndPositionsAndSkipsTitlesThatNoLongerExist()
+    {
+        var profileId = SeedProfile("First");
+        var otherProfile = SeedProfile("Second");
+        var kept = SeedWork("Movies");
+        var older = DateTimeOffset.Parse("2026-09-01T08:00:00Z");
+
+        var restored = await _repository.RestoreSavedItemsAsync(profileId,
+        [
+            new ProfileSavedRestore(ProfileEntityKind.Movie, kept, older, 7),
+            new ProfileSavedRestore(ProfileEntityKind.Movie, Guid.NewGuid(), older, null),
+        ]);
+
+        var item = Assert.Single(restored);
+        Assert.Equal(kept, item.EntityId);
+        var stored = await _repository.GetSavedItemAsync(profileId, ProfileEntityKind.Movie, kept);
+        Assert.Equal(older, stored!.SavedAt);
+        Assert.Equal(7, stored.Position);
+        Assert.Empty(await _repository.GetSavedItemsAsync(otherProfile));
+    }
+
+    [Fact]
+    public async Task RestoreSavedItems_PutsAnItemSavedAgainInTheMeantimeBackAtItsOriginalDate()
+    {
+        var profileId = SeedProfile("First");
+        var workId = SeedWork("Movies");
+        await _repository.SaveItemAsync(profileId, ProfileEntityKind.Movie, workId);
+        var older = DateTimeOffset.Parse("2026-09-01T08:00:00Z");
+
+        await _repository.RestoreSavedItemsAsync(profileId, [new ProfileSavedRestore(ProfileEntityKind.Movie, workId, older, null)]);
+
+        var stored = Assert.Single(await _repository.GetSavedItemsAsync(profileId));
+        Assert.Equal(older, stored.SavedAt);
     }
 
     private Guid SeedProfile(string name)

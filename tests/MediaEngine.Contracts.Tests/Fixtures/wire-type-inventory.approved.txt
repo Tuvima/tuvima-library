@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1545; api=0; web-client=56
+# scopes: contracts=1548; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11057,6 +11057,11 @@
   SavedAt: System.DateTimeOffset | json=savedAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Position: System.Int32? | json=position | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.ProfileState.ProfileSavedItemKeyDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | json=entityKind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EntityId: System.Guid | json=entityId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.ProfileState.ProfileStateMutationDto
   kind=class | converter=default | number-handling=default | unmapped=default
   EntityKind: MediaEngine.Domain.Enums.ProfileEntityKind | json=entityKind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -11064,6 +11069,14 @@
   IsSaved: System.Boolean | json=isSaved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Reaction: MediaEngine.Domain.Enums.ProfileReactionKind? | json=reaction | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UpdatedAt: System.DateTimeOffset | json=updatedAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.ProfileState.RemoveSavedItemsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.ProfileState.ProfileSavedItemKeyDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.ProfileState.RestoreSavedItemsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.ProfileState.ProfileSavedItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Profiles.ProfileOverviewActivityDto
   kind=class | converter=default | number-handling=default | unmapped=default

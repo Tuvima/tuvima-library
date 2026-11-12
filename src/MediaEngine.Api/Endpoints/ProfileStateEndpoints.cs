@@ -8,6 +8,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.ProfileState;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -33,6 +34,79 @@ public static class ProfileStateEndpoints
         .WithName("GetSavedProfileItems")
         .Produces<IReadOnlyList<ProfileSavedItemDto>>()
         .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        group.MapGet("/saved/finished", async (
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            [FromServices] DisplayComposerService display,
+            CancellationToken ct) =>
+        {
+            var profileId = RequireProfileId(user);
+            // The composer reads the My List grid source, so the profile's own visibility rules decide what can be finished.
+            var finished = await display.LoadFinishedSavedAsync(profileId, ct);
+            var saved = (await repository.GetSavedItemsAsync(profileId, ct))
+                .ToDictionary(item => (item.EntityKind, item.EntityId));
+            return Results.Ok(finished
+                .Where(entry => saved.ContainsKey((entry.Kind, entry.EntityId)))
+                .Select(entry => ToDto(saved[(entry.Kind, entry.EntityId)]))
+                .ToList());
+        })
+        .WithName("GetFinishedSavedProfileItems")
+        .Produces<IReadOnlyList<ProfileSavedItemDto>>()
+        .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        group.MapPost("/saved/remove", async (
+            RemoveSavedItemsRequest request,
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            CancellationToken ct) =>
+        {
+            if (request.Items is null || request.Items.Count > RemoveSavedItemsRequest.MaxItems)
+            {
+                return ApiErrors.BadRequest($"Send between 0 and {RemoveSavedItemsRequest.MaxItems} items to remove.");
+            }
+            var profileId = RequireProfileId(user);
+            // My List holds no songs (those are Favorites), so a song is never removed through this action.
+            var keys = request.Items
+                .Where(item => Enum.IsDefined(item.EntityKind) && item.EntityKind != ProfileEntityKind.Song)
+                .Select(item => new ProfileSavedKey(item.EntityKind, item.EntityId))
+                .Distinct()
+                .ToList();
+            var removed = await repository.RemoveSavedItemsAsync(profileId, keys, ct);
+            return Results.Ok(removed.Select(ToDto).ToList());
+        })
+        .WithName("RemoveSavedProfileItems")
+        .Produces<IReadOnlyList<ProfileSavedItemDto>>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        group.MapPost("/saved/restore", async (
+            RestoreSavedItemsRequest request,
+            ClaimsPrincipal user,
+            IProfileStateRepository repository,
+            ProfileStateAccessService access,
+            CancellationToken ct) =>
+        {
+            if (request.Items is null || request.Items.Count > RestoreSavedItemsRequest.MaxItems)
+            {
+                return ApiErrors.BadRequest($"Send between 0 and {RestoreSavedItemsRequest.MaxItems} items to restore.");
+            }
+            var profileId = RequireProfileId(user);
+            var scope = await access.ResolveAsync(profileId, ct, includeUnmatched: true);
+            // Same check as saving one item; what the profile may not see is skipped, as are songs (not part of My List).
+            var allowed = request.Items
+                .Where(item => Enum.IsDefined(item.EntityKind) && item.EntityKind != ProfileEntityKind.Song)
+                .Where(item => scope.Allows(item.EntityKind, item.EntityId))
+                .DistinctBy(item => (item.EntityKind, item.EntityId))
+                .Select(item => new ProfileSavedRestore(item.EntityKind, item.EntityId, item.SavedAt, item.Position))
+                .ToList();
+            var restored = await repository.RestoreSavedItemsAsync(profileId, allowed, ct);
+            return Results.Ok(restored.Select(ToDto).ToList());
+        })
+        .WithName("RestoreSavedProfileItems")
+        .Produces<IReadOnlyList<ProfileSavedItemDto>>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
 
         group.MapGet("/saved/{entityKind}/{entityId:guid}", async (
             string entityKind,
