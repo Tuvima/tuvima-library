@@ -9990,13 +9990,9 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewBestGuessDt
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewGroups
 
-MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewKinds
-
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewListDto
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Review.NeedsReviewRowDto> | nullability=not-null | accessors=get,init
   Total: System.Int32 | nullability=not-null | accessors=get,init
-  NotMatchedTotal: System.Int32 | nullability=not-null | accessors=get,init
-  NotSureTotal: System.Int32 | nullability=not-null | accessors=get,init
   GroupTotals: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
   KeptTotal: System.Int32 | nullability=not-null | accessors=get,init
   Skip: System.Int32 | nullability=not-null | accessors=get,init
@@ -10004,7 +10000,6 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewListDto
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewRowDto
   Key: System.String | nullability=not-null | accessors=get,init
-  Kind: System.String | nullability=not-null | accessors=get,init
   LibraryId: System.String | nullability=nullable | accessors=get,init
   LibraryName: System.String | nullability=nullable | accessors=get,init
   LastTriedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init

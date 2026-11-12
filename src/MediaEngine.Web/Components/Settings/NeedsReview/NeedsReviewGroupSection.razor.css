@@ -1,0 +1,5 @@
+.nr-section { display: block; margin-block-start: var(--tl-space-5); }
+.nr-section__head { display: flex; align-items: baseline; gap: 10px; padding: 0 var(--tl-space-3) var(--tl-space-2); }
+.nr-section__title { margin: 0; font-size: var(--tl-font-size-md); font-weight: var(--tl-font-weight-semibold); }
+.nr-section__count { color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
+.nr-section__list { overflow: hidden; border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); }

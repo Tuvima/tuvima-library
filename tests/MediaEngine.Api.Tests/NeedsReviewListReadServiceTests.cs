@@ -50,44 +50,25 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task TheListHoldsReviewItemsAndUnmatchedFilesTogether_ByGroupThenNewestFirst_EachWithItsKind()
+    public async Task TheListHoldsReviewItemsAndUnmatchedFilesTogether_ByGroupThenNewestFirst()
     {
         var oldFile = SeedFile("movies", "old.mkv", tried: At(1));
         var unsure = SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(2));
         var newFile = SeedFile("tv", "new.mkv", tried: At(3));
         var failedRetail = SeedReview("movies", ReviewTrigger.RetailMatchFailed, created: At(4));
 
-        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: true, 0, 100);
 
         Assert.Equal(4, list.Total);
         // The choice first, then everything that found no match, newest first.
         Assert.Equal([$"review:{unsure:D}", $"review:{failedRetail:D}", $"file:{newFile:D}", $"file:{oldFile:D}"], list.Items.Select(row => row.Key));
-        Assert.Equal(3, list.NotMatchedTotal);
-        Assert.Equal(1, list.NotSureTotal);
-        Assert.All(list.Items.Where(row => row.Unmatched is not null), row => Assert.Equal(NeedsReviewKinds.NotMatched, row.Kind));
-        Assert.Equal(NeedsReviewKinds.NotSure, list.Items.Single(row => row.Key == $"review:{unsure:D}").Kind);
-        Assert.Equal(NeedsReviewKinds.NotMatched, list.Items.Single(row => row.Key == $"review:{failedRetail:D}").Kind);
+        Assert.Equal(NeedsReviewGroups.Choose, list.Items.Single(row => row.Key == $"review:{unsure:D}").Group);
+        Assert.All(list.Items.Where(row => row.Unmatched is not null), row => Assert.Equal(NeedsReviewGroups.NoMatch, row.Group));
         Assert.Equal("TV", list.Items.Single(row => row.Key == $"file:{newFile:D}").LibraryName);
     }
 
     [Fact]
-    public async Task TheKindFilterNarrowsTheRows_ButTheChipTotalsStayWhole()
-    {
-        SeedFile("movies", "a.mkv", tried: At(1));
-        SeedFile("movies", "b.mkv", tried: At(2));
-        SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(3));
-
-        var notMatched = await _service.ListAsync("not_matched", null, true, 0, 100);
-        var notSure = await _service.ListAsync("not_sure", null, true, 0, 100);
-
-        Assert.Equal(2, notMatched.Total);
-        Assert.All(notMatched.Items, row => Assert.Equal(NeedsReviewKinds.NotMatched, row.Kind));
-        Assert.Equal(1, notSure.Total);
-        Assert.Equal((2, 1), (notSure.NotMatchedTotal, notSure.NotSureTotal));
-    }
-
-    [Fact]
-    public async Task ALibrarysNotIdentifiedCountOpensAListOfExactlyThatManyRows()
+    public async Task ALibrarysFileCountIsTheNumberOfFileRowsItsListHolds_NextToItsReviewItems()
     {
         for (var i = 0; i < 5; i++)
         {
@@ -102,10 +83,10 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(30));
 
         var counts = await _unmatched.CountByLibraryAsync();
-        var list = await _service.ListAsync("not_matched", "movies", true, 0, 100);
+        var list = await _service.ListAsync("movies", true, 0, 100);
 
         Assert.Equal(5, counts["movies"]);
-        Assert.Equal(counts["movies"], list.Total);
+        Assert.Equal(counts["movies"] + 1, list.Total);
         Assert.Equal(counts["movies"], list.Items.Count(row => row.Unmatched is not null));
         Assert.DoesNotContain(list.Items, row => row.Unmatched?.AssetId == kept);
         Assert.All(list.Items, row => Assert.Equal("movies", row.LibraryId, ignoreCase: true));
@@ -122,11 +103,11 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         await _unmatched.KeepAsIsAsync(kept, DateTimeOffset.UtcNow);
 
         var count = await _service.CountAsync(includeFiles: true);
-        var list = await _service.ListAsync(null, null, true, 0, 100);
+        var list = await _service.ListAsync(null, true, 0, 100);
 
         Assert.Equal(list.Total, count.PendingCount);
-        Assert.Equal(list.NotMatchedTotal, count.NotMatchedCount);
-        Assert.Equal(list.NotSureTotal, count.NotSureCount);
+        Assert.Equal(3, count.NotMatchedCount);
+        Assert.Equal(1, count.NotSureCount);
         Assert.Equal(4, count.PendingCount);
     }
 
@@ -136,7 +117,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         SeedFile("movies", "a.mkv", tried: At(1));
         SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(2));
 
-        var list = await _service.ListAsync(null, null, includeFiles: false, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: false, 0, 100);
         var count = await _service.CountAsync(includeFiles: false);
 
         Assert.Single(list.Items);
@@ -157,7 +138,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
             cmd.ExecuteNonQuery();
         }
 
-        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: true, 0, 100);
         var count = await _service.CountAsync(includeFiles: true);
 
         Assert.Single(list.Items);
@@ -182,7 +163,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
             new FixedReviews([ok, vaulted]), _unmatched, new ListLoader(new LibraryFolderConfig { Id = "movies", Name = "Movies" }), new VaultLibraryRepository(_db),
             new NeedsReviewRowContextReadService(_db));
 
-        var list = await service.ListAsync(null, null, includeFiles: false, 0, 100);
+        var list = await service.ListAsync(null, includeFiles: false, 0, 100);
         var count = await service.CountAsync(includeFiles: false);
 
         Assert.Equal([$"review:{ok.Id:D}"], list.Items.Select(row => row.Key));
@@ -211,7 +192,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     {
         SeedFile("movies", "a.mkv", tried: At(1));
 
-        var list = await _service.ListAsync(null, "no-such-library", true, 0, 100);
+        var list = await _service.ListAsync("no-such-library", true, 0, 100);
 
         Assert.Empty(list.Items);
         Assert.Equal(0, list.Total);
@@ -225,8 +206,8 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
             SeedFile("movies", $"m{i}.mkv", tried: At(i));
         }
 
-        var first = await _service.ListAsync(null, null, true, 0, 2);
-        var second = await _service.ListAsync(null, null, true, 2, 2);
+        var first = await _service.ListAsync(null, true, 0, 2);
+        var second = await _service.ListAsync(null, true, 2, 2);
 
         Assert.Equal(5, first.Total);
         Assert.Equal(2, first.Items.Count);
@@ -239,12 +220,11 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     {
         var id = SeedReview("movies", ReviewTrigger.MultipleQidMatches, created: At(1), title: "Arrival");
 
-        var row = (await _service.ListAsync(null, null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
+        var row = (await _service.ListAsync(null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
 
         Assert.NotNull(row.BestGuess);
         Assert.Equal("keep_provider_match", row.BestGuess!.Action);
         Assert.Equal("Arrival", row.BestGuess.Name);
-        Assert.Equal(NeedsReviewKinds.NotSure, row.Kind);
     }
 
     [Fact]
@@ -253,7 +233,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var suggestion = JsonSerializer.Serialize(new[] { new MovieTvSuggestionDto { TmdbTvId = "42", Name = "Chernobyl", FirstAirYear = 2019, Seasons = 1, Episodes = 5 } });
         var id = SeedReview("movies", ReviewTrigger.MovieMatchedAsTv, created: At(1), title: "Chernobyl", candidatesJson: suggestion);
 
-        var row = (await _service.ListAsync(null, null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
+        var row = (await _service.ListAsync(null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
 
         Assert.Equal("move_to_tv", row.BestGuess!.Action);
         Assert.Equal("Chernobyl", row.BestGuess.Name);
@@ -266,7 +246,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(1));
         SeedFile("movies", "a.mkv", tried: At(2));
 
-        var list = await _service.ListAsync(null, null, true, 0, 10);
+        var list = await _service.ListAsync(null, true, 0, 10);
 
         Assert.All(list.Items, row => Assert.Null(row.BestGuess));
     }
@@ -281,7 +261,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var film = SeedReview("movies", ReviewTrigger.RetailMatchAmbiguous, created: At(4));
         var unreadable = SeedReview("movies", ReviewTrigger.MediaInspectionFailed, created: At(5));
 
-        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: true, 0, 100);
 
         Assert.Equal(5, list.Total);
         Assert.Equal(
@@ -354,7 +334,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var late = SeedEpisodeFile("tv", "s01e02.mkv", season, At(5));
         var lone = SeedFile("movies", "lone.mkv", tried: At(3));
 
-        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: true, 0, 100);
 
         // The family sorts by its newest row, so it comes first, and its two rows are neighbours.
         Assert.Equal([$"file:{late:D}", $"file:{early:D}", $"file:{lone:D}"], list.Items.Select(row => row.Key));
@@ -372,7 +352,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var remoteOnly = SeedFile("movies", "remote-only.mkv", tried: At(4));
         SeedPreferredCover(WorkOf(remoteOnly), localPath: null, imageUrl: "https://example.com/poster.jpg");
 
-        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: true, 0, 100);
 
         Assert.Equal($"/stream/{episode:D}/cover", Row(list, episode).CoverUrl);
         Assert.Equal($"/stream/entity/work/{show:D}/cover", Row(list, episode).FamilyCoverUrl);
@@ -390,7 +370,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var several = SeedReview("movies", ReviewTrigger.MultipleQidMatches, created: At(3), title: "Heat");
         var conflict = SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(4));
 
-        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var list = await _service.ListAsync(null, includeFiles: true, 0, 100);
         var count = await _service.CountAsync(includeFiles: true);
 
         Assert.Equal([$"review:{several:D}", $"review:{conflict:D}"], list.Items.Select(row => row.Key));
@@ -407,8 +387,8 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var hidden = SeedReview("movies", ReviewTrigger.MissingQid, created: At(1), title: "Arrival");
         await _reviews.UpdateStatusAsync(hidden, ReviewStatus.Dismissed, ReviewStatus.KeptByUser);
 
-        var kept = await _service.ListAsync(null, null, includeFiles: true, 0, 100, keptOnly: true);
-        var normal = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var kept = await _service.ListAsync(null, includeFiles: true, 0, 100, keptOnly: true);
+        var normal = await _service.ListAsync(null, includeFiles: true, 0, 100);
 
         Assert.Empty(kept.Items);
         Assert.Equal(0, normal.KeptTotal);
@@ -428,8 +408,8 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var skippedUniverse = SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(5));
         await _reviews.UpdateStatusAsync(skippedUniverse, ReviewStatus.Dismissed, "user");
 
-        var normal = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
-        var kept = await _service.ListAsync(null, null, includeFiles: true, 0, 100, keptOnly: true);
+        var normal = await _service.ListAsync(null, includeFiles: true, 0, 100);
+        var kept = await _service.ListAsync(null, includeFiles: true, 0, 100, keptOnly: true);
         var count = await _service.CountAsync(includeFiles: true);
 
         Assert.Equal([$"file:{open:D}"], normal.Items.Select(row => row.Key));
@@ -450,8 +430,8 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         Assert.True(await _unmatched.UnkeepAsync(keptFile, retryAt));
         Assert.False(await _unmatched.UnkeepAsync(open, retryAt));
 
-        var after = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
-        var keptAfter = await _service.ListAsync(null, null, includeFiles: true, 0, 100, keptOnly: true);
+        var after = await _service.ListAsync(null, includeFiles: true, 0, 100);
+        var keptAfter = await _service.ListAsync(null, includeFiles: true, 0, 100, keptOnly: true);
 
         Assert.Equal(3, after.Total);
         Assert.Contains(after.Items, row => row.Key == $"review:{keptReview:D}");
@@ -467,8 +447,8 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var keptFile = SeedFile("movies", "kept.mkv", tried: At(1));
         await _unmatched.KeepAsIsAsync(keptFile, DateTimeOffset.UtcNow);
 
-        var kept = await _service.ListAsync(null, null, includeFiles: false, 0, 100, keptOnly: true);
-        var normal = await _service.ListAsync(null, null, includeFiles: false, 0, 100);
+        var kept = await _service.ListAsync(null, includeFiles: false, 0, 100, keptOnly: true);
+        var normal = await _service.ListAsync(null, includeFiles: false, 0, 100);
 
         Assert.Empty(kept.Items);
         Assert.Equal(0, normal.KeptTotal);
@@ -479,7 +459,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     {
         var id = SeedReview("movies", ReviewTrigger.LowConfidence, created: At(1), title: "Arrival", confidence: 0.62, bridgeIdKey: "tmdb_id");
 
-        var row = (await _service.ListAsync(null, null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
+        var row = (await _service.ListAsync(null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
 
         Assert.Equal("confirm_match", row.BestGuess!.Action);
         Assert.Equal("Arrival", row.BestGuess.Name);
@@ -492,7 +472,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var unlinked = SeedReview("movies", ReviewTrigger.LowConfidence, created: At(1), title: "scan0042", confidence: 0.62);
         var noScore = SeedReview("movies", ReviewTrigger.LowConfidence, created: At(2), title: "Arrival", confidence: 0, bridgeIdKey: "tmdb_id");
 
-        var list = await _service.ListAsync(null, null, true, 0, 10);
+        var list = await _service.ListAsync(null, true, 0, 10);
 
         Assert.All(new[] { unlinked, noScore }, id =>
         {
@@ -508,7 +488,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var suggestion = JsonSerializer.Serialize(new[] { new MovieTvSuggestionDto { TmdbTvId = "42", Name = "Chernobyl", FirstAirYear = 2019 } });
         var id = SeedReview("movies", ReviewTrigger.MovieMatchedAsTv, created: At(1), title: "Chernobyl", candidatesJson: suggestion);
 
-        var row = (await _service.ListAsync(null, null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
+        var row = (await _service.ListAsync(null, true, 0, 10)).Items.Single(r => r.Key == $"review:{id:D}");
 
         Assert.Equal(NeedsReviewGroups.Choose, row.Group);
         Assert.Equal("move_to_tv", row.BestGuess!.Action);
@@ -520,7 +500,7 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
         var file = SeedFile("movies", "a.mkv", tried: At(1));
         var review = SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(2));
 
-        var list = await _service.ListAsync(null, null, true, 0, 10);
+        var list = await _service.ListAsync(null, true, 0, 10);
 
         Assert.Equal(At(1).AddDays(7), Row(list, file).NextRetryAt);
         Assert.Null(list.Items.Single(r => r.Key == $"review:{review:D}").NextRetryAt);

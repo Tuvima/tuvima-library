@@ -1,23 +1,13 @@
 using System.Text.Json;
-using Bunit;
 using MediaEngine.Contracts.Review;
-using MediaEngine.Web.Components.Library;
-using MediaEngine.Web.Components.Settings;
-using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
-using MediaEngine.Web.Services.Integration;
-using MediaEngine.Web.Tests.Support;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// "Found as a TV title": a Movies item that TMDB lists as a short TV series shows a suggestion card in the
-/// Needs Review list with Move to TV, Search again and Keep as unmatched film.
+/// "Found as a TV title": reading and wording the Engine's TV suggestion for a Movies item that TMDB lists as a short TV series.
 /// </summary>
-public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
+public sealed class MovieAsTvSuggestionTests
 {
     private static readonly Guid ReviewId = Guid.Parse("11111111-1111-4111-8111-111111111111");
     private static readonly Guid EntityId = Guid.Parse("22222222-2222-4222-8222-222222222222");
@@ -32,135 +22,6 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         Episodes = 3,
         PosterUrl = "https://image.tmdb.org/t/p/w500/dr.jpg",
     };
-
-    [Fact]
-    public void Card_WordsTheSuggestionAndOffersTheThreeActions()
-    {
-        var cut = Render<MovieAsTvSuggestionCard>(p => p.Add(c => c.Suggestion, DrHorrible()));
-
-        Assert.Contains(
-            "TMDB lists this as the miniseries 'Dr. Horrible's Sing-Along Blog' (2008, 3 parts). Move it to TV?",
-            System.Net.WebUtility.HtmlDecode(cut.Find(".movie-as-tv-card__text").TextContent));
-        Assert.Equal(
-            ["Move to TV", "Search again", "Keep as unmatched film"],
-            cut.FindAll(".movie-as-tv-card__actions button").Select(button => button.TextContent.Trim()).ToArray());
-        Assert.Contains("The file stays where it is; Library files it under TV as a special.", cut.Find(".movie-as-tv-card__primary small").TextContent);
-        Assert.Equal("https://image.tmdb.org/t/p/w500/dr.jpg", cut.Find("img.movie-as-tv-card__poster").GetAttribute("src"));
-    }
-
-    [Fact]
-    public void Card_ActionsRaiseTheirOwnCallbacks_AndAreDisabledWhileBusy()
-    {
-        var calls = new List<string>();
-        var cut = Render<MovieAsTvSuggestionCard>(p => p
-            .Add(c => c.Suggestion, DrHorrible())
-            .Add(c => c.OnMoveToTv, () => calls.Add("move"))
-            .Add(c => c.OnSearchAgain, () => calls.Add("search"))
-            .Add(c => c.OnKeepAsFilm, () => calls.Add("keep")));
-
-        var buttons = cut.FindAll(".movie-as-tv-card__actions button");
-        buttons[0].Click();
-        buttons[1].Click();
-        buttons[2].Click();
-        Assert.Equal(["move", "search", "keep"], calls);
-
-        cut.Render(p => p.Add(c => c.Busy, true));
-        Assert.All(cut.FindAll(".movie-as-tv-card__actions button"), button => Assert.True(button.HasAttribute("disabled")));
-    }
-
-    private void RegisterReviewServices(List<ReviewItemViewModel> reviews, List<Guid>? moved = null, List<Guid>? dismissed = null)
-    {
-        var api = EngineApiClientStub.Create(stub =>
-        {
-            stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAsync), _ => Task.FromResult(reviews));
-            stub.SetHandler(nameof(IEngineApiClient.MoveReviewItemToTvAsync), args =>
-            {
-                moved?.Add((Guid)args![0]!);
-                return Task.FromResult<ReviewMoveToTvResponse?>(
-                    new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library", 1, [1, 2, 3], null));
-            });
-            stub.SetHandler(nameof(IEngineApiClient.DismissReviewItemAsync), args =>
-            {
-                dismissed?.Add((Guid)args![0]!);
-                return Task.FromResult(true);
-            });
-        });
-        // Needs Review is for server administrators only, so the page needs a server administrator's session.
-        var accountId = Guid.Parse("44444444-4444-4444-8444-444444444444");
-        var session = new DashboardSessionAccessor();
-        session.Set("test-session-token", accountId, accountId, Guid.NewGuid(),
-            new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
-                accountId, accountId, true, true, 1, 1, true, true, null, 1, [],
-                ["settings.administration"], ["access.manage"]));
-        Services.AddSingleton(session);
-        Services.AddSingleton(api);
-        Services.AddSingleton(provider => new UIOrchestratorService(
-            api,
-            new UniverseStateContainer(),
-            new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
-            new ConfigurationBuilder().Build(),
-            NullLogger<UIOrchestratorService>.Instance));
-        JSInterop.Mode = JSRuntimeMode.Loose;
-    }
-
-    [Fact]
-    public async Task NeedsReviewRow_ForTheTrigger_ShowsTheCardWithThreeActions_AndOtherTriggersKeepTheReviewButton()
-    {
-        var moved = new List<Guid>();
-        var dismissed = new List<Guid>();
-        var other = Item();
-        other.Id = Guid.Parse("33333333-3333-4333-8333-333333333333");
-        other.Trigger = "RetailMatchFailed";
-        other.CandidatesJson = null;
-        other.EntityTitle = "Plain Film";
-        RegisterReviewServices([Item(), other], moved, dismissed);
-        // Fix is a desktop action (editing is desktop-only).
-        await Services.GetRequiredService<MediaEngine.Web.Services.Theming.DeviceContextService>()
-            .InitialiseAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-
-        var cut = Render<NeedsReviewPageContent>();
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".movie-as-tv-card")));
-        Assert.Equal(
-            ["Move to TV", "Search again", "Keep as unmatched film"],
-            cut.FindAll(".movie-as-tv-card__actions button").Select(button => button.TextContent.Trim()).ToArray());
-
-        var rows = cut.FindAll("tr.needs-review-table__row");
-        Assert.Equal(2, rows.Count);
-        // The card sits in its own row straight under the item it belongs to.
-        var cardRow = cut.Find("tr.needs-review-table__suggestion");
-        var tvRow = rows.Single(row => row.GetAttribute("data-key") == cardRow.GetAttribute("data-key"));
-        var plainRow = rows.Single(row => row != tvRow);
-        // The card replaces the generic Fix button for the TV-title trigger only.
-        Assert.DoesNotContain(tvRow.QuerySelectorAll(".needs-review-table__actions button"), b => b.TextContent.Trim() == "Fix");
-        Assert.Contains(plainRow.QuerySelectorAll(".needs-review-table__actions button"), b => b.TextContent.Trim() == "Fix");
-
-        // The review list re-renders as the page finishes loading; the click is found and made in one step on the renderer thread.
-        await cut.ClickAsync(".movie-as-tv-card__actions button", 0);
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal([ReviewId], moved);
-            Assert.Empty(cut.FindAll(".movie-as-tv-card"));
-        });
-    }
-
-    [Fact]
-    public async Task NeedsReviewRow_KeepAsFilmDismissesTheReviewItem()
-    {
-        var dismissed = new List<Guid>();
-        RegisterReviewServices([Item()], null, dismissed);
-
-        var cut = Render<NeedsReviewPageContent>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".movie-as-tv-card")));
-
-        await cut.ClickAsync(".movie-as-tv-card__actions button", 2);
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal([ReviewId], dismissed);
-            Assert.Empty(cut.FindAll(".movie-as-tv-card"));
-        });
-    }
 
     [Fact]
     public void Reader_ReadsTheEngineSuggestionAndIgnoresMissingOrBrokenCandidates()
@@ -215,25 +76,4 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
             "Moved to TV as a special of 'X'. TMDB lists 7 parts; one file can cover at most 6.",
             MovieTvSuggestionReader.DescribeMove(moved));
     }
-
-    [Fact]
-    public void TheTrigger_IsLabelledFoundAsATvTitle()
-    {
-        Assert.Equal("Found as a TV title", ReviewIssueClassifier.Classify("MovieMatchedAsTv").Label);
-        Assert.Equal(ReviewIssueBucket.ManualReview, ReviewIssueClassifier.Classify("MovieMatchedAsTv").Bucket);
-        Assert.Equal("Found as a TV title", MediaEngine.Web.Components.Library.LibraryHelpers.GetReviewTriggerLabel("MovieMatchedAsTv"));
-    }
-
-    private static ReviewItemViewModel Item() => new()
-    {
-        Id = ReviewId,
-        EntityId = EntityId,
-        EntityType = "MediaAsset",
-        Trigger = "MovieMatchedAsTv",
-        Status = "Pending",
-        MediaType = "Movies",
-        EntityTitle = "Dr. Horrible's Sing-Along Blog",
-        CreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
-        CandidatesJson = JsonSerializer.Serialize(new[] { DrHorrible() }),
-    };
 }

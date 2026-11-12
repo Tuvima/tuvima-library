@@ -8,20 +8,12 @@ namespace MediaEngine.Contracts.Tests;
 public sealed class NeedsReviewListContractTests
 {
     [Fact]
-    public void Kinds_AreTheTwoWordsTheFiltersUse()
-    {
-        Assert.Equal("not_matched", NeedsReviewKinds.NotMatched);
-        Assert.Equal("not_sure", NeedsReviewKinds.NotSure);
-    }
-
-    [Fact]
     public void AnUnmatchedFileRow_UsesSnakeCaseNames_AndCarriesNoReview()
     {
         var asset = Guid.NewGuid();
         var row = new NeedsReviewRowDto
         {
             Key = $"file:{asset:D}",
-            Kind = NeedsReviewKinds.NotMatched,
             LibraryId = "movies",
             LibraryName = "Movies",
             LastTriedAt = new DateTimeOffset(2026, 11, 3, 9, 0, 0, TimeSpan.Zero),
@@ -31,7 +23,7 @@ public sealed class NeedsReviewListContractTests
         var json = JsonSerializer.Serialize(row);
         var back = JsonSerializer.Deserialize<NeedsReviewRowDto>(json)!;
 
-        Assert.StartsWith("{\"key\":\"file:" + asset.ToString("D") + "\",\"kind\":\"not_matched\",\"library_id\":\"movies\",\"library_name\":\"Movies\",\"last_tried_at\":\"2026-11-03T09:00:00+00:00\",\"best_guess\":null,\"review\":null,\"unmatched\":{", json, StringComparison.Ordinal);
+        Assert.StartsWith("{\"key\":\"file:" + asset.ToString("D") + "\",\"library_id\":\"movies\",\"library_name\":\"Movies\",\"last_tried_at\":\"2026-11-03T09:00:00+00:00\",\"best_guess\":null,\"review\":null,\"unmatched\":{", json, StringComparison.Ordinal);
         Assert.Null(back.Review);
         Assert.Equal("a.mkv", back.Unmatched!.FileName);
     }
@@ -45,12 +37,12 @@ public sealed class NeedsReviewListContractTests
     }
 
     [Fact]
-    public void ThePage_CarriesTheTotalsTheFilterChipsShow()
+    public void ThePage_CarriesTheTotalsForItsGroupsAndItsKeptItems()
     {
-        var json = JsonSerializer.Serialize(new NeedsReviewListDto { Total = 3, NotMatchedTotal = 2, NotSureTotal = 1, Skip = 0, Take = 100 });
+        var json = JsonSerializer.Serialize(new NeedsReviewListDto { Total = 3, Skip = 0, Take = 100 });
 
         Assert.Equal(
-            "{\"items\":[],\"total\":3,\"not_matched_total\":2,\"not_sure_total\":1,\"group_totals\":{\"ready\":0,\"choose\":0,\"no_match\":0,\"file_problem\":0},\"kept_total\":0,\"skip\":0,\"take\":100}",
+            "{\"items\":[],\"total\":3,\"group_totals\":{\"ready\":0,\"choose\":0,\"no_match\":0,\"file_problem\":0},\"kept_total\":0,\"skip\":0,\"take\":100}",
             json);
     }
 

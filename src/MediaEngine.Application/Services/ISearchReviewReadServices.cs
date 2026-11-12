@@ -38,15 +38,15 @@ public interface INeedsReviewRowContextReadService
 public interface INeedsReviewListReadService
 {
     /// <summary>
-    /// One page of the Needs Review list: review items and unmatched files merged, newest first. <paramref name="kind"/> is
-    /// <c>null</c>/<c>all</c>, <c>not_matched</c> or <c>not_sure</c>; <paramref name="libraryId"/> narrows to one library.
+    /// One page of the Needs Review list: review items and unmatched files merged, newest first. Rows come grouped by what the
+    /// person must do; <paramref name="libraryId"/> narrows to one library.
     /// <paramref name="includeFiles"/> is false for a caller who may not see the unmatched files (they are an administrator's list).
     /// Wikidata-only items (the provider match stands, only its Wikidata link is missing) are never listed. With
     /// <paramref name="keptOnly"/> the page holds only the items a person kept (Keep as it is), in the same row shape.
     /// </summary>
-    Task<NeedsReviewListDto> ListAsync(string? kind, string? libraryId, bool includeFiles, int skip, int take, bool keptOnly = false, CancellationToken ct = default);
+    Task<NeedsReviewListDto> ListAsync(string? libraryId, bool includeFiles, int skip, int take, bool keptOnly = false, CancellationToken ct = default);
 
-    /// <summary>What the Settings notifier shows: every row the list holds, split by kind.</summary>
+    /// <summary>What the Settings notifier shows: every row the list holds, split into those that failed a retail match and the rest.</summary>
     Task<ReviewCountResponse> CountAsync(bool includeFiles, CancellationToken ct = default);
 }
 
