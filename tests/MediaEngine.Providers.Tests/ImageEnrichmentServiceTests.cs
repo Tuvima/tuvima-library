@@ -501,10 +501,16 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         await SeedCanonicalsAsync(checkedNone, (MetadataFieldConstants.EpisodeStillStandIn, "2027-02-01"));
         await _entityAssets.UpsertAsync(new EntityAsset
         {
-            Id = Guid.NewGuid(), EntityId = hasStill.ToString(), EntityType = "Work",
-            AssetTypeValue = AssetType.EpisodeStill.ToString(), ImageUrl = "https://artworks.thetvdb.com/x.png",
-            SourceProvider = "tvdb", AssetClassValue = "Artwork", StorageLocationValue = "Central",
-            LocalImagePath = Path.Combine(Path.GetTempPath(), "x.jpg"), CreatedAt = DateTimeOffset.UtcNow,
+            Id = Guid.NewGuid(),
+            EntityId = hasStill.ToString(),
+            EntityType = "Work",
+            AssetTypeValue = AssetType.EpisodeStill.ToString(),
+            ImageUrl = "https://artworks.thetvdb.com/x.png",
+            SourceProvider = "tvdb",
+            AssetClassValue = "Artwork",
+            StorageLocationValue = "Central",
+            LocalImagePath = Path.Combine(Path.GetTempPath(), "x.jpg"),
+            CreatedAt = DateTimeOffset.UtcNow,
         });
 
         var ids = await _entityAssets.GetTvEpisodeAssetsMissingProviderStillAsync(50);
