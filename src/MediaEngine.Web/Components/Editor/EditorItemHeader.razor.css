@@ -41,7 +41,7 @@
     border-radius: var(--tl-radius-lg);
     background: var(--tl-bg-surface-hover);
     color: var(--tl-text-muted);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px var(--tl-scrim-dark-4);
 }
 
 .tl-editor-header__cover--landscape {
@@ -69,7 +69,7 @@
 .tl-editor-header__label {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: 0.8125rem;
+    font-size: var(--tl-type-label-size);
     font-weight: var(--tl-font-weight-semibold);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -212,7 +212,7 @@
     border-radius: var(--tl-radius-lg);
     background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
     color: var(--tl-text-primary);
-    font-size: 0.8125rem;
+    font-size: var(--tl-type-label-size);
     font-weight: var(--tl-font-weight-semibold);
     text-decoration: none;
 }
