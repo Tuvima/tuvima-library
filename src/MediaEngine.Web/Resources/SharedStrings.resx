@@ -134,8 +134,8 @@
   <data name="Nav_Downloads" xml:space="preserve">
     <value>Downloads</value>
   </data>
-  <data name="Nav_MyLibrary" xml:space="preserve">
-    <value>My Library</value>
+  <data name="Nav_MyList" xml:space="preserve">
+    <value>My List</value>
   </data>
   <data name="Nav_Menu" xml:space="preserve">
     <value>Menu</value>
@@ -2063,9 +2063,6 @@
   <data name="ForMe_SortForMeItems" xml:space="preserve">
     <value>Sort For Me items</value>
   </data>
-  <data name="ForMe_OpenFavoritesPlaylist" xml:space="preserve">
-    <value>Open Favorites playlist</value>
-  </data>
   <data name="LibraryBrowsePage_YourLibraryIsBeingPrepared" xml:space="preserve">
     <value>Your library is being prepared</value>
   </data>
@@ -2282,13 +2279,10 @@
   <data name="MyActivity_EverythingYouHaveWatchedListened" xml:space="preserve">
     <value>Everything you have watched, listened to and read, and what you added to My list.</value>
   </data>
-  <data name="Common_BackToMyLibrary" xml:space="preserve">
-    <value>Back to My Library</value>
+  <data name="Common_BackToMyList" xml:space="preserve">
+    <value>Back to My List</value>
   </data>
-  <data name="MyLibrary_MyLibraryLibrary" xml:space="preserve">
-    <value>My Library - Library</value>
-  </data>
-  <data name="MyLibrary_WatchAndListenOffline" xml:space="preserve">
+  <data name="MyList_WatchAndListenOffline" xml:space="preserve">
     <value>Watch and listen offline</value>
   </data>
   <data name="Common_RecentActivity" xml:space="preserve">
@@ -2297,23 +2291,8 @@
   <data name="Common_SeeAll" xml:space="preserve">
     <value>See all</value>
   </data>
-  <data name="MyLibrary_MyLibraryCouldNotLoad" xml:space="preserve">
-    <value>My Library could not load</value>
-  </data>
-  <data name="MyLibrary_TheDashboardCouldNotRead" xml:space="preserve">
-    <value>The Dashboard could not read this profile.</value>
-  </data>
   <data name="Common_Continue" xml:space="preserve">
     <value>Continue</value>
-  </data>
-  <data name="MyLibrary_AddTitlesWithTheMy" xml:space="preserve">
-    <value>Add titles with the My List heart</value>
-  </data>
-  <data name="MyLibrary_SomeOfMyLibraryCould" xml:space="preserve">
-    <value>Some of My Library could not load</value>
-  </data>
-  <data name="MyLibrary_TheRestIsShownTry" xml:space="preserve">
-    <value>The rest is shown. Try again to fill in the missing rows.</value>
   </data>
   <data name="Common_Activity" xml:space="preserve">
     <value>Activity</value>

@@ -70,7 +70,7 @@ public sealed partial class DisplayComposerService
             .ToList();
 
     private const string HomeMyListShelfKey = "my-list";
-    private const string HomeMyListRoute = "/my-list";
+    private const string HomeMyListRoute = DisplayGridCatalog.MyListPageRoute;
     private const int HomeMyListMaxCards = 20;
 
     /// <summary>

@@ -79,10 +79,10 @@ public sealed partial class UiShellRenderTests
 
         cut.WaitForAssertion(() =>
         {
-            // Dock: exactly Home, Search, My Library; My Library opens the personal page.
+            // Dock: exactly Home, Search, My List; My List opens the personal page.
             var links = cut.FindAll(".layout-shell__intent-dock-link");
-            Assert.Equal(["/", "/search", "/my-library"], Hrefs(links));
-            Assert.Equal(["Home", "Search", "My Library"], Labels(links));
+            Assert.Equal(["/", "/search", "/my-list"], Hrefs(links));
+            Assert.Equal(["Home", "Search", "My List"], Labels(links));
 
             // Top bar: hamburger on the left, icon-only logo, one Search (the dock tab), no Downloads in the browser.
             var hamburger = Assert.Single(cut.FindAll(".layout-shell__menu-button"));
@@ -133,9 +133,9 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".phone-nav-menu")));
         var destinations = cut.FindAll(".phone-nav-menu__nav ul:first-of-type a");
         var desktop = cut.FindAll(".layout-shell__nav-link");
-        // Home, My Library and Recently added lead; then the very lanes, in the very order, the desktop top bar renders.
-        Assert.Equal(["/", "/my-library", "/recently-added", .. Hrefs(desktop)], Hrefs(destinations));
-        Assert.Equal(["Home", "My Library", "Recently added", .. Labels(desktop).Select(label => label.ToUpperInvariant())],
+        // Home, My List and Recently added lead; then the very lanes, in the very order, the desktop top bar renders.
+        Assert.Equal(["/", "/my-list", "/recently-added", .. Hrefs(desktop)], Hrefs(destinations));
+        Assert.Equal(["Home", "My List", "Recently added", .. Labels(desktop).Select(label => label.ToUpperInvariant())],
             Labels(destinations).Select((label, index) => index < 3 ? label : label.ToUpperInvariant()).ToArray());
         Assert.All(destinations, link => Assert.NotEmpty(link.QuerySelectorAll("svg")));
 
@@ -162,14 +162,14 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() => Assert.Equal(["Watch", "Listen", "Read"], Labels(cut.FindAll(".phone-section-chips__chip"))));
 
         var links = cut.FindAll(".layout-shell__intent-dock-link");
-        Assert.Equal(["/", "/search", "/my-library"], Hrefs(links));
-        Assert.Equal(["Home", "Search", "My Library"], Labels(links));
+        Assert.Equal(["/", "/search", "/my-list"], Hrefs(links));
+        Assert.Equal(["Home", "Search", "My List"], Labels(links));
 
         cut.Find(".layout-shell__menu-button").Click();
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(["Home", "My Library", "Watch", "Listen", "Read"], Labels(cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")));
+            Assert.Equal(["Home", "My List", "Watch", "Listen", "Read"], Labels(cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")));
             Assert.Equal(["Sign out"], AccountRows(cut));
             Assert.DoesNotContain("Settings", cut.Find(".phone-nav-menu").TextContent, StringComparison.Ordinal);
             Assert.DoesNotContain("Recently added", cut.Find(".phone-nav-menu").TextContent, StringComparison.Ordinal);
@@ -252,7 +252,7 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public async Task PhoneMenu_LinksToMyLibraryAndTheDockTabIsSelectedThereAndOnItsGrids()
+    public async Task PhoneMenu_LinksToMyListAndTheDockTabIsSelectedThereAndOnItsGrids()
     {
         var cut = await RenderLayoutAsync(PhoneDevice);
         var nav = Services.GetRequiredService<NavigationManager>();
@@ -261,25 +261,56 @@ public sealed partial class UiShellRenderTests
         // retries if a render replaced it between the find and the click.
         cut.WaitForAssertion(() => cut.Find(".layout-shell__menu-button").Click());
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".phone-nav-menu")));
-        Assert.Equal("/my-library", cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[1].GetAttribute("href"));
+        Assert.Equal("/my-list", cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[1].GetAttribute("href"));
         cut.WaitForAssertion(() => cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[1].Click());
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".phone-nav-menu")));
-        Assert.EndsWith("/my-library", nav.Uri);
+        Assert.EndsWith("/my-list", nav.Uri);
 
-        // The dock's My Library tab is the selected one on the page, and stays selected on the personal grids behind See All.
-        foreach (var path in new[] { "/my-library", "/for-me?view=liked" })
+        // The dock's My List tab is the selected one on the page, and stays selected on the personal grids behind See All.
+        foreach (var path in new[] { "/my-list", "/for-me?view=liked" })
         {
             await cut.InvokeAsync(() => nav.NavigateTo(path));
             cut.WaitForAssertion(() =>
             {
                 var selected = cut.FindAll(".layout-shell__intent-dock-link.is-active");
-                Assert.Equal("My Library", Assert.Single(selected).TextContent.Trim());
+                Assert.Equal("My List", Assert.Single(selected).TextContent.Trim());
                 Assert.Equal("page", selected[0].GetAttribute("aria-current"));
             });
         }
 
         await cut.InvokeAsync(() => nav.NavigateTo("/"));
         cut.WaitForAssertion(() => Assert.Equal("Home", Assert.Single(cut.FindAll(".layout-shell__intent-dock-link.is-active")).TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task TheTopBarBookmarkOpensMyListIsSelectedThereAndGoesBackHomeWhenPressedAgain()
+    {
+        var cut = await RenderLayoutAsync();
+        var nav = Services.GetRequiredService<NavigationManager>();
+        var button = () => cut.Find("button.layout-shell__my-list");
+        Assert.Equal("My List", button().GetAttribute("aria-label"));
+        Assert.DoesNotContain("is-open", cut.Find(".layout-shell__my-list-slot").ClassList);
+
+        button().Click();
+
+        Assert.EndsWith("/my-list", nav.Uri);
+        cut.WaitForAssertion(() => Assert.Contains("is-open", cut.Find(".layout-shell__my-list-slot").ClassList));
+
+        button().Click();
+
+        Assert.Equal(nav.BaseUri, nav.Uri);
+        cut.WaitForAssertion(() => Assert.DoesNotContain("is-open", cut.Find(".layout-shell__my-list-slot").ClassList));
+    }
+
+    [Fact]
+    public async Task ThePhoneDockTabIsMyListWithTheBookmarkAndPointsAtMyList()
+    {
+        var cut = await RenderLayoutAsync(PhoneDevice);
+
+        var tab = cut.FindAll(".layout-shell__intent-dock-link").Last();
+        Assert.Equal("My List", tab.TextContent.Trim());
+        Assert.Equal("/my-list", tab.GetAttribute("href"));
+        Assert.Equal(AppMaterialIcons.Outlined.BookmarkBorder, ShellDock.ResolvePhone(isKids: false).Last().Icon);
     }
 
     [Fact]

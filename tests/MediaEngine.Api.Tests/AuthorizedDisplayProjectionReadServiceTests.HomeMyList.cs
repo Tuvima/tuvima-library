@@ -83,6 +83,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal("Saved book 22", titles[0]);
         Assert.Equal("Saved book 03", titles[^1]);
         Assert.Equal(22, seeAll!.Shelf.Items.Count);
+        // See all is the My List page, never the removed /all/personal/my-list grid address.
+        Assert.Equal("/my-list", seeAll.Shelf.SeeAllRoute);
+        Assert.Equal("/my-list", home.Shelves.Single(shelf => shelf.Key == "my-list").SeeAllRoute);
     }
 
     [Fact]

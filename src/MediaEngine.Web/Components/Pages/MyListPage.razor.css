@@ -69,7 +69,7 @@
 .my-list-header__title {
     margin: 0;
     font-size: var(--my-list-title-size);
-    font-weight: var(--tl-font-weight-semibold);
+    font-weight: var(--tl-font-weight-bold);
     line-height: var(--tl-line-height-tight);
 }
 
