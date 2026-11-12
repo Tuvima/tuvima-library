@@ -2277,7 +2277,7 @@
     <value>My activity</value>
   </data>
   <data name="MyActivity_EverythingYouHaveWatchedListened" xml:space="preserve">
-    <value>Everything you have watched, listened to and read, and what you added to My list.</value>
+    <value>Everything you have watched, listened to and read, and what you added to My List.</value>
   </data>
   <data name="Common_BackToMyList" xml:space="preserve">
     <value>Back to My List</value>

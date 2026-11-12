@@ -73,7 +73,7 @@ public sealed class ActivityListPresentationTests
     [InlineData(PersonalActivityKindValues.Watch, "Watched")]
     [InlineData(PersonalActivityKindValues.Listen, "Listened")]
     [InlineData(PersonalActivityKindValues.Read, "Read")]
-    [InlineData(PersonalActivityKindValues.MyList, "Added to My list")]
+    [InlineData(PersonalActivityKindValues.MyList, "Added to My List")]
     [InlineData(PersonalActivityKindValues.MusicSession, "Played")]
     public void Verb_NamesWhatHappened(string kind, string expected)
     {

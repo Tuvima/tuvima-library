@@ -46,7 +46,7 @@ public sealed class PersonalActivityPresentationTests
     [InlineData(PersonalActivityKindValues.Read, 80 * 60, "Read 1 h 20 m")]
     [InlineData(PersonalActivityKindValues.Listen, 3 * 3600 + 12 * 60, "Listened 3 h 12 m")]
     [InlineData(PersonalActivityKindValues.MusicSession, 65 * 60, "Played 1 h 05 m")]
-    [InlineData(PersonalActivityKindValues.MyList, 0, "Added to My list")]
+    [InlineData(PersonalActivityKindValues.MyList, 0, "Added to My List")]
     public void Caption_StartsWithAVerbSoItIsNotReadAsTheLengthOfTheItem(string kind, long seconds, string expected)
     {
         Assert.Equal(expected, PersonalActivityPresentation.Caption(Tile(kind, seconds)));
