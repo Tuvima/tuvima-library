@@ -180,6 +180,40 @@ public sealed class EditorPhoneBrowserTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TickedFiles_GoToTheFoldersView_AndBack_WithTheTicksAndTheBulkBarStillShown()
+    {
+        _tree = new EditorFolderTreeDto { RootName = "Masterclass", Total = 1, Entries = [new EditorFolderEntryDto { Name = "Lesson 01.mkv", Path = "Lesson 01.mkv", State = EditorFolderEntryStates.Main, ItemId = Guid.NewGuid() }] };
+        var (state, cut) = await OpenAsync();
+        cut.Find("[data-testid=file-browser-select]").Click();
+        foreach (var name in cut.FindAll("[data-file-id] .app-browser-item__namecell"))
+        {
+            name.Click();
+        }
+
+        cut.WaitForAssertion(() => Assert.Equal(3, state.Ticked.Count));
+
+        await cut.InvokeAsync(() => state.ShowFoldersAsync());
+        cut.WaitForElement("[data-testid=file-browser-folders]");
+        await cut.InvokeAsync(() => state.ShowFilesAsync());
+
+        cut.WaitForElement("[data-testid=file-browser-bulk]");
+        Assert.Equal(3, state.Ticked.Count);
+        Assert.Equal("3 selected", cut.Find("[data-testid=file-browser-bulk] .tl-fbbulk__count").TextContent.Trim());
+        Assert.Equal(3, cut.FindAll(".app-browser-item input[type=checkbox]").Count);
+        Assert.Equal("true", cut.Find("[data-testid=file-browser-select]").GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public async Task Space_OnAPhone_DoesNotTickARowWhileSelectIsOff()
+    {
+        var (state, cut) = await OpenAsync();
+
+        cut.Find("[data-frame-list] table").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = " " });
+
+        Assert.Empty(state.Ticked);
+    }
+
+    [Fact]
     public async Task WithoutSelect_TappingARow_OpensTheFileInsteadOfTickingIt()
     {
         var (state, cut) = await OpenAsync();

@@ -62,9 +62,9 @@
                                            Label="@FiltersLabel" aria-haspopup="dialog" data-testid="file-browser-filters-button" OnClick="OpenFilters" />
                                 @if (!ReadOnly)
                                 {
-                                    <AppButton ButtonStyle="@(_selecting ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="@(_selecting ? AppUiTone.Primary : AppUiTone.Neutral)"
-                                               StartIcon="@AppMaterialIcons.Outlined.CheckCircle" Label="@(_selecting ? L["Common_Done"].Value : L["EditorBrowser_Select"].Value)"
-                                               aria-pressed="@(_selecting ? "true" : "false")" data-testid="file-browser-select" OnClick="ToggleSelect" />
+                                    <AppButton ButtonStyle="@(Selecting ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="@(Selecting ? AppUiTone.Primary : AppUiTone.Neutral)"
+                                               StartIcon="@AppMaterialIcons.Outlined.CheckCircle" Label="@(Selecting ? L["Common_Done"].Value : L["EditorBrowser_Select"].Value)"
+                                               aria-pressed="@(Selecting ? "true" : "false")" data-testid="file-browser-select" OnClick="ToggleSelect" />
                                 }
                             </div>
                         }
@@ -94,7 +94,7 @@
                     </InsideContent>
                     <Columns><EditorFileBrowserColumns State="State" ReadOnly="ReadOnly" /></Columns>
                     <Rows>
-                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" ReadOnly="ReadOnly" Highlight="_highlight" IdPrefix="@RowIdPrefix" Phone="Phone" Selecting="_selecting"
+                        <EditorFileBrowserTable State="State" CanEdit="CanEdit" ReadOnly="ReadOnly" Highlight="_highlight" IdPrefix="@RowIdPrefix" Phone="Phone" Selecting="Selecting"
                                           OnChoose="Finish" OnDeleteRow="DeleteRowAsync" />
                     </Rows>
                     <StateContent>
@@ -135,7 +135,7 @@
                             </div>
                         }
 
-                        @if (!ReadOnly && (!Phone || _selecting))
+                        @if (!ReadOnly && (!Phone || Selecting))
                         {
                             <EditorFileBrowserBulkBar State="State" CanEdit="CanEdit" Phone="Phone" OnDelete="DeleteTickedAsync" />
                         }
@@ -216,13 +216,20 @@
 
     private void CloseFilters() => _filtersOpen = false;
 
+    // Ticks that are kept (Folders view and back, a tablet turned) keep Select on, so Edit selected never acts on ticks nobody can see.
+    private bool Selecting => _selecting || State.Ticked.Count > 0;
+
     // Select turns ticking on; Done turns it off and leaves nothing ticked behind.
     private void ToggleSelect()
     {
-        _selecting = !_selecting;
-        if (!_selecting)
+        if (Selecting)
         {
+            _selecting = false;
             State.ClearTicks();
+        }
+        else
+        {
+            _selecting = true;
         }
     }
 
@@ -277,7 +284,8 @@
 
     private void ToggleHighlighted(int index)
     {
-        if (index >= 0 && index < State.Rows.Count)
+        // On a phone a row ticks only while Select is on (the tick boxes are not drawn otherwise).
+        if (index >= 0 && index < State.Rows.Count && (!Phone || Selecting))
         {
             State.Toggle(State.Rows[index]);
         }
@@ -317,7 +325,6 @@
         if (State.View != EditorBrowserView.Files)
         {
             _filtersOpen = false;
-            _selecting = false;
         }
 
         _ = InvokeAsync(StateHasChanged);

@@ -3,7 +3,7 @@
 // the arrow buttons do. A video can also be dropped on a section row of the tree on the left. No library: plain drag events.
 // A finger cannot start an HTML5 drag, so the same handle also drags by pointer events (universal editor v6, D21): pressing the handle with a
 // finger or pen follows the pointer, marks the gap it is over the same way, and releasing there reports the same drop. The handle carries
-// touch-action: none so the page does not scroll under the finger, and the list scrolls itself when the finger nears its edge.
+// touch-action: none so the page does not scroll under the finger, and the list keeps scrolling by a timer while the finger is held at its edge.
 // Rows carry data-vo-list and data-vo-row; the tree's section rows carry data-vo-drop-parent.
 const MIME = 'application/x-tuvima-video';
 let active = null;
@@ -21,6 +21,7 @@ function insertionPoint(row, event) {
 
 const EDGE = 48;
 const SCROLL_STEP = 14;
+const SCROLL_INTERVAL = 30;
 
 // The nearest ancestor that scrolls, so a long list can be dragged past its visible rows.
 function scrollParent(element) {
@@ -45,8 +46,53 @@ export function attach(root, dotnet) {
         return { row: hit?.closest?.('[data-vo-row]') ?? null, parent: hit?.closest?.('[data-vo-drop-parent]') ?? null };
     };
 
+    // The gap (or section row) under the pointer is marked the same way for a move and for the list scrolling under a held finger.
+    const mark = (x, y) => {
+        const { row, parent } = targetUnder({ clientX: x, clientY: y });
+        clearMarks();
+        if (row) {
+            row.classList.add(insertionPoint(row, { clientY: y }) === Number(row.dataset.voRow) ? 'is-drop-before' : 'is-drop-after');
+        } else if (parent) {
+            parent.classList.add('is-drop-parent');
+        }
+    };
+
+    // -1 near the top edge of the scrolling list, 1 near the bottom edge, 0 elsewhere.
+    const edgeDirection = () => {
+        if (!touch?.scroller) return 0;
+        const box = touch.scroller.getBoundingClientRect();
+        if (touch.y < box.top + EDGE) return -1;
+        if (touch.y > box.bottom - EDGE) return 1;
+        return 0;
+    };
+
+    const stopScroll = () => {
+        if (touch?.timer) {
+            clearInterval(touch.timer);
+            touch.timer = null;
+        }
+    };
+
+    // A finger held still at the edge keeps the list scrolling: a timer, not the pointer's moves, drives it.
+    const scrollTick = () => {
+        const direction = edgeDirection();
+        if (!touch || direction === 0) {
+            stopScroll();
+            return;
+        }
+
+        touch.scroller.scrollTop += direction * SCROLL_STEP;
+        mark(touch.x, touch.y);
+    };
+
+    const updateScroll = () => {
+        if (edgeDirection() === 0) stopScroll();
+        else if (!touch.timer) touch.timer = setInterval(scrollTick, SCROLL_INTERVAL);
+    };
+
     const endTouch = () => {
         if (!touch) return;
+        stopScroll();
         const { handle, pointerId } = touch;
         touch = null;
         try { handle.releasePointerCapture?.(pointerId); } catch { /* the capture was already gone */ }
@@ -54,12 +100,25 @@ export function attach(root, dotnet) {
         root.querySelectorAll('.is-dragging').forEach(element => element.classList.remove('is-dragging'));
     };
 
+    // Only the finger that started the drag can cancel it: a second finger's cancel (a palm, a gesture) leaves it going.
+    const onPointerCancel = event => {
+        if (touch && event.pointerId === touch.pointerId) endTouch();
+    };
+
     const onPointerDown = event => {
         if (event.pointerType === 'mouse' || (event.button ?? 0) > 0 || touch) return;
         const handle = event.target.closest?.('[data-vo-handle]');
         const row = handle?.closest('[data-vo-row]');
         if (!handle || !row || handle.getAttribute?.('draggable') === 'false') return;
-        touch = { handle, pointerId: event.pointerId, from: { list: Number(row.dataset.voList), index: Number(row.dataset.voRow) } };
+        touch = {
+            handle,
+            pointerId: event.pointerId,
+            from: { list: Number(row.dataset.voList), index: Number(row.dataset.voRow) },
+            scroller: scrollParent(handle),
+            x: event.clientX ?? 0,
+            y: event.clientY ?? 0,
+            timer: null,
+        };
         try { handle.setPointerCapture?.(event.pointerId); } catch { /* the pointer ended before it could be captured */ }
         row.classList.add('is-dragging');
     };
@@ -67,20 +126,10 @@ export function attach(root, dotnet) {
     const onPointerMove = event => {
         if (!touch || event.pointerId !== touch.pointerId) return;
         event.preventDefault?.();
-        const { row, parent } = targetUnder(event);
-        clearMarks();
-        if (row) {
-            row.classList.add(insertionPoint(row, event) === Number(row.dataset.voRow) ? 'is-drop-before' : 'is-drop-after');
-        } else if (parent) {
-            parent.classList.add('is-drop-parent');
-        }
-
-        const scroller = scrollParent(touch.handle);
-        if (scroller) {
-            const box = scroller.getBoundingClientRect();
-            if (event.clientY < box.top + EDGE) scroller.scrollTop -= SCROLL_STEP;
-            else if (event.clientY > box.bottom - EDGE) scroller.scrollTop += SCROLL_STEP;
-        }
+        touch.x = event.clientX;
+        touch.y = event.clientY;
+        mark(touch.x, touch.y);
+        updateScroll();
     };
 
     const onPointerUp = event => {
@@ -156,13 +205,13 @@ export function attach(root, dotnet) {
     root.addEventListener('pointerdown', onPointerDown);
     root.addEventListener('pointermove', onPointerMove);
     root.addEventListener('pointerup', onPointerUp);
-    root.addEventListener('pointercancel', endTouch);
+    root.addEventListener('pointercancel', onPointerCancel);
     root.__voDetach = () => {
         root.removeEventListener('dragstart', onStart);
         root.removeEventListener('pointerdown', onPointerDown);
         root.removeEventListener('pointermove', onPointerMove);
         root.removeEventListener('pointerup', onPointerUp);
-        root.removeEventListener('pointercancel', endTouch);
+        root.removeEventListener('pointercancel', onPointerCancel);
         endTouch();
         onEnd();
         root.__voAttached = false;

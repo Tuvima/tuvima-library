@@ -555,7 +555,7 @@ body {
 
 /* AppDialogShell supplies the visible modal surface. Keep the the shared UI layer host
    geometry-only so it cannot add a second border or scrolling container. */
-.tl-dialog.app-dialog-host:not(.tl-fbrowser-host--phone) {
+.tl-dialog.app-dialog-host:where(:not(.tl-fbrowser-host--phone, .tl-hnav__surface--phone)) {
     width: fit-content !important;
     max-width: calc(100vw - 32px) !important;
 }
@@ -3863,8 +3863,8 @@ input[type="reset"],
     }
 }
 
-.tl-dialog:not(.tl-fbrowser-host--phone),
-.app-dialog-shell:not(.tl-fbrowser-host--phone .app-dialog-shell) {
+.tl-dialog:where(:not(.tl-fbrowser-host--phone)),
+.app-dialog-shell:where(:not(.tl-fbrowser-host--phone .app-dialog-shell)) {
     max-height: calc(100dvh - var(--tl-safe-area-top) - var(--tl-safe-area-bottom) - 1rem) !important;
 }
 
@@ -6174,4 +6174,3 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
-

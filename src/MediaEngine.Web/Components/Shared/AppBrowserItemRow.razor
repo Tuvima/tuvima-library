@@ -14,7 +14,7 @@
             <AppCheckbox Value="Ticked" ValueChanged="TickChanged" HideLabel="true" Label="@TickLabel" />
         }
     </td>
-    <td role="gridcell" id="@NameCellId" aria-label="@Title" class="@NameCellClass" @onclick="ActivateAsync">
+    <td role="gridcell" id="@NameCellId" aria-label="@Title" class="@NameCellClass" @attributes="NameCellAttributes">
         <div class="app-browser-item__name">
             <span class="app-browser-item__badge" data-type="@BadgeType" aria-hidden="true">@Badge</span>
             <span class="app-browser-item__text">
@@ -76,7 +76,11 @@
 
     private string NameCellClass => OnActivate.HasDelegate ? "app-browser-item__namecell is-activatable" : "app-browser-item__namecell";
 
-    private Task ActivateAsync() => OnActivate.HasDelegate ? OnActivate.InvokeAsync() : Task.CompletedTask;
+    // The tap handler is attached only when the host gave the row something to do, so a desktop click never makes a round trip.
+    private IReadOnlyDictionary<string, object>? NameCellAttributes =>
+        OnActivate.HasDelegate ? new Dictionary<string, object> { ["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, ActivateAsync) } : null;
+
+    private Task ActivateAsync() => OnActivate.InvokeAsync();
 
     private string? NameCellId => string.IsNullOrEmpty(Id) ? null : $"{Id}-name";
 

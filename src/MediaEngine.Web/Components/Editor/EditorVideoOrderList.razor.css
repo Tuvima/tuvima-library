@@ -71,6 +71,8 @@
     display: inline-flex;
     cursor: grab;
     opacity: 0.7;
+    /* The handle only (never the row): a finger on it drags the video instead of scrolling the page, in every arrangement that offers touch drag. */
+    touch-action: none;
 }
 
 .tl-vorder__position {
@@ -113,7 +115,6 @@
     flex: 0 0 auto;
     width: var(--tl-tap-target-min);
     height: var(--tl-tap-target-min);
-    touch-action: none;
     opacity: 1;
 }
 

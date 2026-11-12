@@ -137,3 +137,47 @@ test('detaching removes the pointer listeners too', async () => {
     assert.ok(!listeners.has('pointerup'));
     assert.ok(!listeners.has('pointercancel'));
 });
+
+test('a second finger cancelling does not end the first finger\'s drag', async () => {
+    const { rows, listeners, calls, point } = await setup();
+    listeners.get('pointerdown')(touchDown(handleOf(rows[0])));
+    point(rows[1]);
+    listeners.get('pointermove')({ pointerId: 7, clientX: 10, clientY: 50, preventDefault() {} });
+
+    listeners.get('pointercancel')({ pointerId: 9 });
+
+    assert.ok(rows[0].classes.has('is-dragging'), 'the first finger is still dragging');
+    listeners.get('pointerup')({ pointerId: 7, clientX: 10, clientY: 50 });
+    assert.deepEqual(calls, [['OnDropAsync', 0, 0, 0, 1]]);
+});
+
+test('a finger held still at the list\'s edge keeps the list scrolling, and stops when it leaves the edge or lets go', async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    const { rows, listeners, point } = await setup();
+    const view = { getComputedStyle: () => ({ overflowY: 'auto' }) };
+    const scroller = { scrollHeight: 1000, clientHeight: 200, scrollTop: 100, parentElement: null, getBoundingClientRect: () => ({ top: 0, bottom: 200 }) };
+    const handle = handleOf(rows[0]);
+    handle.ownerDocument = { defaultView: view };
+    handle.parentElement = scroller;
+    listeners.get('pointerdown')(touchDown(handle));
+    point(rows[1]);
+
+    listeners.get('pointermove')({ pointerId: 7, clientX: 10, clientY: 190, preventDefault() {} });
+    const afterMove = scroller.scrollTop;
+    t.mock.timers.tick(30);
+    t.mock.timers.tick(30);
+    assert.ok(scroller.scrollTop > afterMove, 'the list scrolls on the timer while the finger does not move');
+
+    listeners.get('pointermove')({ pointerId: 7, clientX: 10, clientY: 100, preventDefault() {} });
+    const leftEdge = scroller.scrollTop;
+    t.mock.timers.tick(90);
+    assert.equal(scroller.scrollTop, leftEdge, 'it stops once the finger is away from the edge');
+
+    listeners.get('pointermove')({ pointerId: 7, clientX: 10, clientY: 5, preventDefault() {} });
+    t.mock.timers.tick(30);
+    assert.ok(scroller.scrollTop < leftEdge, 'the top edge scrolls up');
+    listeners.get('pointerup')({ pointerId: 7, clientX: 10, clientY: 5 });
+    const atRelease = scroller.scrollTop;
+    t.mock.timers.tick(90);
+    assert.equal(scroller.scrollTop, atRelease, 'letting go ends the scrolling');
+});
