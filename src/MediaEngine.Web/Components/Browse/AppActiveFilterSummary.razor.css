@@ -13,10 +13,10 @@
     align-items: center;
     gap: 7px;
     padding: 0 10px;
-    border: 1px solid rgba(136, 82, 252, 0.48);
+    border: 1px solid color-mix(in srgb, var(--tl-accent-primary) 48%, transparent);
     border-radius: 8px;
-    background: rgba(91, 33, 182, 0.18);
-    color: rgba(231, 223, 255, 0.96);
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-text-primary);
     font: inherit;
     font-size: var(--tl-type-control-size);
     cursor: pointer;
@@ -24,8 +24,8 @@
 
 .app-active-filter-summary ::deep .app-active-filter-summary__chip:hover,
 .app-active-filter-summary ::deep .app-active-filter-summary__chip:focus-visible {
-    border-color: rgba(196, 181, 253, 0.82);
-    background: rgba(109, 40, 217, 0.28);
+    border-color: color-mix(in srgb, var(--tl-accent-primary-hover) 82%, transparent);
+    background: color-mix(in srgb, var(--tl-accent-primary) 28%, transparent);
     outline: none;
 }
 

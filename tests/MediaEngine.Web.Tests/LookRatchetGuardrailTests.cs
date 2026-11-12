@@ -12,7 +12,7 @@ public sealed class LookRatchetGuardrailTests
     private const int RoundedEndCeiling = 0;
     private const int NativeControlCeiling = 276;
     private const int AdHocFontSizeCeiling = 39;
-    private const int HandTypedHexCeiling = 498;
+    private const int HandTypedHexCeiling = 373;
     private const int ForcedOverrideCeiling = 1040;
     private const int HandTypedLayerCeiling = 271;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
@@ -96,8 +96,13 @@ public sealed class LookRatchetGuardrailTests
     // including a var() fallback). Folders are relative to src/MediaEngine.Web; add a folder here once its styles are on the shared colors.
     private static readonly string[] ColorLockedFolders =
     [
+        "Components/Browse",
+        "Components/Cinematic",
         "Components/Collections",
+        "Components/Details",
+        "Components/Pages",
         "Components/Rules",
+        "Components/Search",
     ];
 
     // The written list of real exceptions to the zero lock above (D7): colors taken from a cover's artwork, charts, subtitle color choices,
@@ -108,9 +113,11 @@ public sealed class LookRatchetGuardrailTests
         ["Components/Player/SubtitleAppearanceView.razor.css"] = "Shows the viewer's subtitle color choices, which are literal colors the viewer picks.",
     };
 
+    // A color built from a variable's channels, such as rgba(var(--hero-accent-rgb), .4) or hsl(var(--person-avatar-hue) 40% 30%), is
+    // not hand-typed: the channels come from the item's artwork or the person's name (D7 exceptions), set in code.
     private static readonly Regex AnyHandTypedColor = new(
         @"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])"
-        + @"|(?<![\w-])(?:rgb|rgba|hsl|hsla)\("
+        + @"|(?<![\w-])(?:rgb|rgba|hsl|hsla)\((?!\s*(?:calc\(\s*)?var\(--)"
         + @"|(?<![\w.#-])(?:white|black|red|green|blue|gray|grey|silver|purple|orange|yellow|pink|navy|teal|gold|maroon|lime|aqua|cyan|magenta|brown)(?![\w-])",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
@@ -151,6 +158,7 @@ public sealed class LookRatchetGuardrailTests
     [InlineData("a{color:var(--tl-text-primary, #A78BFA)}", 1)]
     [InlineData("a{border:1px solid rgba(255,255,255,.1)}", 1)]
     [InlineData("a{background:hsl(10 20% 30%)}", 1)]
+    [InlineData("a{background:rgba(var(--hero-accent-rgb), .4);color:hsl(var(--person-avatar-hue) 40% 30%)}", 0)]
     [InlineData("a{background:color-mix(in srgb, white 3%, transparent)}", 1)]
     [InlineData("a{white-space:nowrap;color:var(--tl-text-primary);background:var(--tl-wash-light-1)}", 0)]
     [InlineData("/* was #fff */ .red-flag{color:currentColor;background:transparent}", 0)]

@@ -16,8 +16,8 @@
     min-height: 100dvh;
     min-height: var(--tl-details-page-height, 100dvh);
     background:
-        radial-gradient(circle at 80% 8%, rgba(71, 53, 122, 0.26), transparent 30rem),
-        radial-gradient(circle at 12% 20%, rgba(194, 135, 48, 0.18), transparent 24rem),
+        radial-gradient(circle at 80% 8%, color-mix(in srgb, var(--tl-accent-primary-active) 26%, transparent), transparent 30rem),
+        radial-gradient(circle at 12% 20%, color-mix(in srgb, var(--tl-status-warning) 18%, transparent), transparent 24rem),
         var(--tl-bg-root);
     color: var(--tl-text-primary);
 }

@@ -2,12 +2,12 @@
 .setup-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 32px; }
 .setup-sidebar { position: sticky; top: 32px; display: grid; gap: 28px; }
 .setup-brand { display: flex; align-items: center; gap: 10px; font-size: var(--tl-type-subheading-size); font-weight: 700; }
-.setup-stage { display: grid; min-height: 440px; padding: clamp(22px, 3vw, 34px); border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: color-mix(in srgb, var(--tl-bg-surface-raised) 95%, transparent); box-shadow: 0 18px 52px rgb(0 0 0 / 20%); }
+.setup-stage { display: grid; min-height: 440px; padding: clamp(22px, 3vw, 34px); border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: color-mix(in srgb, var(--tl-bg-surface-raised) 95%, transparent); box-shadow: 0 18px 52px var(--tl-scrim-dark-1); }
 ::deep .setup-stage__footer { display: flex; align-items: center; justify-content: space-between; align-self: end; gap: 16px; margin-top: auto; padding-top: 24px; border-top: 1px solid var(--tl-border-subtle); }
 ::deep .setup-stage__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-left: auto; }
 ::deep .setup-stage-content { display: grid; align-content: start; gap: 20px; min-width: 0; min-height: 100%; }
 ::deep .setup-stage__heading { display: flex; align-items: flex-start; gap: 13px; }
-::deep .setup-stage__heading > .tl-icon-root { flex: 0 0 auto; display: grid; width: var(--tl-icon-size-xl); height: var(--tl-icon-size-xl); margin-top: 1px; padding: 11px; border-radius: 12px; color: white; background: color-mix(in srgb, var(--tl-accent-primary) 76%, var(--tl-bg-surface-elevated)); font-size: var(--tl-icon-size-md); }
+::deep .setup-stage__heading > .tl-icon-root { flex: 0 0 auto; display: grid; width: var(--tl-icon-size-xl); height: var(--tl-icon-size-xl); margin-top: 1px; padding: 11px; border-radius: 12px; color: var(--tl-text-primary); background: color-mix(in srgb, var(--tl-accent-primary) 76%, var(--tl-bg-surface-elevated)); font-size: var(--tl-icon-size-md); }
 ::deep .setup-stage__heading h2, ::deep .setup-stage__heading p, ::deep .setup-restore h3, ::deep .setup-restore p, ::deep .setup-preparing h3, ::deep .setup-preparing p{ margin: 0; }
 ::deep .setup-stage__heading p, ::deep .setup-restore p, ::deep .setup-preparing p{ margin-top: 5px; color: var(--tl-text-muted); line-height: 1.55; }
 ::deep .setup-actions { display: flex; flex-wrap: wrap; gap: 10px; }

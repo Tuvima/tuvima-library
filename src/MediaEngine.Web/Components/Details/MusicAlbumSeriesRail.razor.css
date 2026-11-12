@@ -2,11 +2,11 @@
     display: grid;
     gap: 1.1rem;
     padding: 0 clamp(2rem, 4.5vw, 5.5rem) clamp(3.5rem, 6vw, 6rem);
-    background: #090c12;
+    background: var(--tl-bg-root);
 }
 
 .tl-music-album-series-rail__profile {
-    color: #c8b5f4;
+    color: var(--tl-accent-primary-hover);
     font-weight: 600;
     text-decoration: none;
 }
@@ -25,7 +25,7 @@
     display: grid;
     gap: 0.4rem;
     min-width: 0;
-    color: #f7f3ff;
+    color: var(--tl-text-primary);
     text-decoration: none;
     scroll-snap-align: start;
 }
@@ -35,9 +35,9 @@
     width: 100%;
     aspect-ratio: 1;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--tl-wash-light-4);
     border-radius: 0.55rem;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--tl-wash-light-1);
 }
 
 .tl-music-album-series-rail__art img {
@@ -54,7 +54,7 @@
 }
 
 .tl-music-album-series-rail__album small {
-    color: rgba(231, 232, 241, 0.6);
+    color: var(--tl-text-secondary);
 }
 
 @media (width < 840px) {

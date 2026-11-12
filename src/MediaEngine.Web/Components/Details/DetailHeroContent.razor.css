@@ -37,7 +37,7 @@
     text-align: left;
     text-transform: none;
     text-wrap: balance;
-    text-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.62);
+    text-shadow: 0 1rem 2.5rem var(--tl-scrim-dark-5);
 }
 
 .tl-detail-hero__logo {
@@ -48,13 +48,13 @@
     margin-bottom: 0.55rem;
     object-fit: contain;
     object-position: left center;
-    filter: drop-shadow(0 1rem 2rem rgba(0, 0, 0, 0.48));
+    filter: drop-shadow(0 1rem 2rem var(--tl-scrim-dark-4));
 }
 
 .tl-detail-hero__subtitle {
     width: min(47.5rem, 100%);
     margin: 0;
-    color: rgba(255, 255, 255, 0.78);
+    color: var(--tl-text-primary);
     font-family: var(--media-identity-font-family, var(--font-ui));
     font-size: var(--tl-type-subheading-size);
     font-weight: var(--media-identity-subtitle-weight, 600);
@@ -64,7 +64,7 @@
 .tl-detail-hero__secondary-title-text {
     width: min(47.5rem, 100%);
     margin: 0;
-    color: rgba(255, 255, 255, 0.84);
+    color: var(--tl-text-primary);
     font-family: var(--media-identity-font-family, var(--font-ui));
     font-size: var(--tl-type-body-size);
     font-weight: var(--tl-type-body-weight);
@@ -82,12 +82,12 @@
     width: min(47.5rem, 100%);
     margin-top: 0.25rem;
     padding-top: 0.65rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    border-top: 1px solid var(--tl-wash-light-5);
 }
 
 .tl-detail-hero__synopsis h2 {
     margin: 0 0 0.42rem;
-    color: rgba(255, 255, 255, 0.94);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
@@ -100,7 +100,7 @@
     overflow: hidden;
     max-width: none;
     margin: 0;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--tl-text-secondary);
     font-family: var(--media-identity-font-family, var(--font-ui));
     font-size: var(--tl-type-body-size);
     font-weight: var(--tl-type-body-weight);
@@ -132,7 +132,7 @@
     justify-content: flex-start;
     gap: 0.7rem;
     max-width: none;
-    color: rgba(255, 255, 255, 0.86);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-subheading-size);
     font-weight: var(--tl-type-subheading-weight);
 }
@@ -151,19 +151,19 @@
 }
 
 ::deep .tl-detail-watch-metadata-separator {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--tl-text-muted);
 }
 
 ::deep .tl-detail-watch-metadata-item--classification {
     padding: 0.24rem 0.55rem;
-    border: 1px solid rgba(255, 255, 255, 0.28);
+    border: 1px solid color-mix(in srgb, var(--tl-text-primary) 28%, transparent);
     border-radius: 0.28rem;
-    background: rgba(255, 255, 255, 0.055);
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--tl-wash-light-2);
+    color: var(--tl-text-primary);
 }
 
 :where(.tl-detail-hero__inner:not(.tl-detail-person-hero__content)) ::deep .tl-detail-watch-metadata-item .tl-icon-root {
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-icon-size-xs);
 }
 
@@ -318,7 +318,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero__subtitle,
 :where(.tl-detail-page) .tl-detail-hero__tagline {
-    color: rgba(246, 240, 232, 0.78);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-subheading-size);
     line-height: 1.6;
     max-width: 42rem;
@@ -510,7 +510,7 @@
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__tagline {
     order: 6;
     max-width: min(47.5rem, 62vw);
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-label-size);
     font-weight: var(--tl-type-label-weight);
     line-height: 1.45;
@@ -604,12 +604,12 @@
     width: min(47.5rem, 100%);
     margin-top: 0.25rem;
     padding-top: 0.65rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    border-top: 1px solid var(--tl-wash-light-5);
 }
 
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis h2 {
     margin: 0 0 0.42rem;
-    color: rgba(255, 255, 255, 0.94);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
@@ -622,7 +622,7 @@
     overflow: hidden;
     max-width: none;
     margin: 0;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-body-size);
     font-weight: var(--tl-type-body-weight);
     line-height: 1.45;

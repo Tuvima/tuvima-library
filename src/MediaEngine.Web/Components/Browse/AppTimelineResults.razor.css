@@ -28,7 +28,7 @@
     display: grid;
     gap: 5px;
     padding: 3px 4px 17px;
-    border-bottom: 1px solid color-mix(in srgb, var(--tl-accent-primary) 35%, rgba(128, 146, 180, 0.16));
+    border-bottom: 1px solid color-mix(in srgb, var(--tl-accent-primary) 35%, var(--tl-border-default));
 }
 
 .app-timeline__header small {
@@ -50,16 +50,16 @@
     align-items: center;
     gap: clamp(16px, 2vw, 28px);
     padding: 10px clamp(14px, 1.5vw, 22px);
-    border: 1px solid rgba(128, 146, 180, 0.19);
+    border: 1px solid var(--tl-border-default);
     border-radius: 12px;
-    background: linear-gradient(145deg, rgba(15, 25, 42, 0.74), rgba(8, 15, 28, 0.46));
+    background: linear-gradient(145deg, color-mix(in srgb, var(--tl-bg-surface) 74%, transparent), color-mix(in srgb, var(--tl-bg-root) 46%, transparent));
     scroll-margin-top: 120px;
     transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .app-timeline__year:target,
 .app-timeline__year.is-selected {
-    border-color: color-mix(in srgb, var(--tl-accent-primary) 42%, rgba(128, 146, 180, 0.19));
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 42%, var(--tl-border-default));
 }
 
 .app-timeline__year:target {
@@ -75,7 +75,7 @@
 
 .app-timeline__year-heading h3 {
     margin: 0;
-    color: rgba(248, 250, 252, 0.98);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-heading-size);
     line-height: 1;
@@ -101,14 +101,14 @@
     min-width: 0;
     flex: 0 0 auto;
     align-items: center;
-    color: rgba(242, 245, 251, 0.94);
+    color: var(--tl-text-primary);
     border-radius: 9px;
     text-decoration: none;
 }
 
 .app-timeline__item:hover,
 .app-timeline__item:focus-visible {
-    color: white;
+    color: var(--tl-text-primary);
     outline: none;
 }
 
@@ -120,10 +120,10 @@
     max-height: calc(var(--timeline-artwork-size) * 1.1);
     place-items: center;
     overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.26);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 26%, transparent);
     border-radius: 7px;
-    background: rgba(6, 13, 26, 0.76);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
+    background: color-mix(in srgb, var(--tl-bg-root) 76%, transparent);
+    box-shadow: 0 6px 16px var(--tl-scrim-dark-1);
     transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
@@ -149,13 +149,13 @@
 }
 
 .app-timeline__artwork ::deep .tl-icon-root {
-    color: rgba(167, 182, 207, 0.54);
+    color: var(--tl-text-muted);
     font-size: var(--tl-icon-size-md);
 }
 
 .app-timeline__item:hover .app-timeline__artwork,
 .app-timeline__item:focus-visible .app-timeline__artwork {
-    border-color: color-mix(in srgb, var(--tl-accent-primary) 58%, rgba(148, 163, 184, 0.26));
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 58%, color-mix(in srgb, var(--tl-text-muted) 26%, transparent));
     box-shadow: 0 0 16px color-mix(in srgb, var(--tl-accent-primary) 22%, transparent);
 }
 

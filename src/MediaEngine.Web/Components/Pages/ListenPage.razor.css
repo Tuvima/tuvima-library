@@ -8,7 +8,7 @@
 
 .listen-browse-mode > span,
 .audiobooks-segmented > span {
-    color: rgba(215, 224, 240, 0.72);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.08em;
@@ -27,8 +27,8 @@
 .listen-rail-shell {
     min-width: 0;
     min-height: 0;
-    border-right: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(9, 15, 27, 0.88);
+    border-right: 1px solid var(--tl-border-default);
+    background: color-mix(in srgb, var(--tl-bg-root) 88%, transparent);
     padding: 24px 14px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -41,20 +41,20 @@
     justify-content: center;
     flex-direction: column;
     gap: 12px;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--tl-text-secondary);
 }
 
 .listen-state--error h3,
 .listen-section__header h2,
 .listen-detail__copy h2 {
     margin: 0;
-    color: rgba(255, 255, 255, 0.95);
+    color: var(--tl-text-primary);
 }
 
 .listen-state--error p,
 .listen-detail__copy p,
 .listen-section__summary {
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--tl-text-muted);
     line-height: 1.6;
 }
 
@@ -78,7 +78,7 @@
 
 .listen-kicker,
 .listen-rail__label {
-    color: rgba(255, 255, 255, 0.42);
+    color: var(--tl-text-disabled);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
 }
@@ -100,7 +100,7 @@
     border: 0;
     padding: 8px 12px;
     background: transparent;
-    color: rgba(255, 255, 255, 0.78);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
@@ -122,7 +122,7 @@
     border: 0;
     border-radius: var(--tl-radius-md);
     background: transparent;
-    color: rgba(255, 255, 255, 0.74);
+    color: var(--tl-text-secondary);
     text-align: left;
     cursor: pointer;
     transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
@@ -158,7 +158,7 @@
     border: 1px solid var(--tl-accent-primary);
     border-radius: 5px;
     outline: 0;
-    background: rgba(15, 23, 42, 0.94);
+    background: color-mix(in srgb, var(--tl-bg-surface) 94%, transparent);
     font: inherit;
 }
 
@@ -173,7 +173,7 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: rgba(255, 255, 255, 0.52);
+    color: var(--tl-text-muted);
     cursor: pointer;
 }
 
@@ -181,7 +181,7 @@
 .listen-rail__more:hover,
 .listen-rail__add:hover {
     background: var(--tl-border-default);
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--tl-text-primary);
 }
 
 .listen-rail__drag {
@@ -221,18 +221,18 @@
 
 .listen-rail__item.is-child {
     padding-left: 22px;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--tl-text-muted);
 }
 
 .listen-rail__item:hover,
 .listen-rail__item.is-active{
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(255, 255, 255, 0.96);
+    background: var(--tl-wash-light-3);
+    color: var(--tl-text-primary);
 }
 
 .listen-rail__meta,
 .listen-detail__meta {
-    color: rgba(255, 255, 255, 0.58);
+    color: var(--tl-text-muted);
 }
 
 ::deep .listen-rail__section-toggle {
@@ -244,7 +244,7 @@
     border: 0;
     padding: 8px 12px;
     background: transparent;
-    color: rgba(255, 255, 255, 0.78);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     letter-spacing: 0.12em;
@@ -263,7 +263,7 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: rgba(255, 255, 255, 0.52);
+    color: var(--tl-text-muted);
     cursor: pointer;
 }
 
@@ -271,7 +271,7 @@
 ::deep .listen-rail__more:hover,
 ::deep .listen-rail__add:hover {
     background: var(--tl-border-default);
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--tl-text-primary);
 }
 
 ::deep .listen-rail__more {
@@ -290,7 +290,7 @@
     border-radius: var(--tl-radius-md);
     border: 1px solid var(--tl-border-subtle);
     background: var(--tl-divider);
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--tl-text-primary);
 }
 
 ::deep .listen-filter-input {
@@ -323,7 +323,7 @@
 .listen-empty {
     border-radius: var(--tl-radius-md);
     border: 1px solid var(--tl-border-subtle);
-    background: rgba(12, 14, 22, 0.78);
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
 }
 
 .listen-detail,
@@ -359,12 +359,12 @@
 
 .listen-filter-bar--surface {
     padding: 14px 16px;
-    border: 1px solid rgba(116, 136, 173, 0.2);
+    border: 1px solid var(--tl-border-default);
     border-radius: 12px;
     background:
-        radial-gradient(circle at 16% 0%, rgba(79, 70, 229, 0.07), transparent 34%),
-        linear-gradient(180deg, rgba(12, 21, 39, 0.9), rgba(8, 15, 29, 0.88));
-    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.015);
+        radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--tl-accent-primary) 7%, transparent), transparent 34%),
+        linear-gradient(180deg, color-mix(in srgb, var(--tl-bg-surface) 90%, transparent), color-mix(in srgb, var(--tl-bg-root) 88%, transparent));
+    box-shadow: 0 14px 32px color-mix(in srgb, var(--tl-scrim-dark-6) 19%, transparent), inset 0 1px 0 var(--tl-wash-light-1);
 }
 
 .listen-filter-bar--surface .listen-filter-search {
@@ -389,10 +389,10 @@
     align-items: center;
     gap: 10px;
     padding: 0 14px;
-    border: 1px solid rgba(128, 146, 180, 0.25);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 25%, transparent);
     border-radius: 9px;
-    background: rgba(8, 16, 31, 0.8);
-    color: rgba(203, 213, 225, 0.78);
+    background: color-mix(in srgb, var(--tl-bg-surface) 80%, transparent);
+    color: var(--tl-text-secondary);
     flex: 2 1 300px;
 }
 
@@ -408,13 +408,13 @@
     border: 0;
     outline: 0;
     background: transparent;
-    color: rgba(245, 247, 252, 0.95);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-field-text-size);
 }
 
 .listen-filter-search ::deep .listen-filter-input::placeholder {
-    color: rgba(148, 163, 184, 0.76);
+    color: var(--tl-text-muted);
 }
 
 .listen-filter-field {
@@ -423,7 +423,7 @@
     max-width: 205px;
     grid-template-rows: 1fr;
     gap: 0;
-    color: rgba(215, 224, 240, 0.78);
+    color: var(--tl-text-secondary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
@@ -443,10 +443,10 @@
 .listen-filter-field ::deep .listen-filter-select {
     min-height: 56px;
     padding: 0 42px 0 13px;
-    border-color: rgba(128, 146, 180, 0.25);
+    border-color: color-mix(in srgb, var(--tl-text-muted) 25%, transparent);
     border-radius: 9px;
-    background-color: rgba(8, 16, 31, 0.8);
-    color: rgba(245, 247, 252, 0.95);
+    background-color: color-mix(in srgb, var(--tl-bg-surface) 80%, transparent);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-field-text-size);
     font-weight: 500;
@@ -468,9 +468,9 @@
     gap: 8px;
     margin-left: auto;
     padding: 8px 10px;
-    border-left: 1px solid rgba(128, 146, 180, 0.18);
+    border-left: 1px solid var(--tl-border-default);
     border-radius: 8px;
-    background: rgba(4, 10, 21, 0.34);
+    background: color-mix(in srgb, var(--tl-bg-root) 34%, transparent);
 }
 
 .listen-display-group .listen-filter-field {
@@ -509,7 +509,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.42);
+    color: var(--tl-text-disabled);
 }
 
 .listen-detail__custom-art {
@@ -572,7 +572,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--tl-text-secondary);
 }
 
 .listen-empty > div {
@@ -602,7 +602,7 @@
     display: flex;
     flex-direction: column;
     gap: 22px;
-    color: rgba(241, 245, 249, 0.94);
+    color: var(--tl-text-primary);
 }
 
 .audiobooks-toolbar {
@@ -611,12 +611,12 @@
     align-items: start;
     gap: 10px;
     padding: 14px 16px;
-    border: 1px solid rgba(116, 136, 173, 0.2);
+    border: 1px solid var(--tl-border-default);
     border-radius: 12px;
     background:
-        radial-gradient(circle at 16% 0%, rgba(79, 70, 229, 0.07), transparent 34%),
-        linear-gradient(180deg, rgba(12, 21, 39, 0.9), rgba(8, 15, 29, 0.88));
-    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.015);
+        radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--tl-accent-primary) 7%, transparent), transparent 34%),
+        linear-gradient(180deg, color-mix(in srgb, var(--tl-bg-surface) 90%, transparent), color-mix(in srgb, var(--tl-bg-root) 88%, transparent));
+    box-shadow: 0 14px 32px color-mix(in srgb, var(--tl-scrim-dark-6) 19%, transparent), inset 0 1px 0 var(--tl-wash-light-1);
 }
 
 .audiobooks-search,
@@ -633,10 +633,10 @@
     align-items: center;
     gap: 10px;
     padding: 0 14px;
-    border: 1px solid rgba(120, 139, 171, 0.28);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 28%, transparent);
     border-radius: 9px;
-    background: rgba(8, 16, 31, 0.8);
-    color: rgba(203, 213, 225, 0.78);
+    background: color-mix(in srgb, var(--tl-bg-surface) 80%, transparent);
+    color: var(--tl-text-secondary);
     max-width: none;
 }
 
@@ -646,22 +646,22 @@
     border: 0;
     outline: 0;
     background: transparent;
-    color: rgba(241, 245, 249, 0.94);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-field-text-size);
 }
 
 .audiobooks-search ::deep input::placeholder {
-    color: rgba(148, 163, 184, 0.70);
+    color: var(--tl-text-muted);
 }
 
 .audiobooks-layout-toggle {
     display: grid;
     min-height: 56px;
     padding: 4px;
-    border: 1px solid rgba(120, 139, 171, 0.26);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 26%, transparent);
     border-radius: 9px;
-    background: rgba(7, 14, 27, 0.72);
+    background: color-mix(in srgb, var(--tl-bg-root) 72%, transparent);
 }
 
 .audiobooks-segmented {
@@ -691,9 +691,9 @@
     align-items: center;
     gap: 8px;
     padding: 10px;
-    border-left: 1px solid rgba(128, 146, 180, 0.18);
+    border-left: 1px solid var(--tl-border-default);
     border-radius: 8px;
-    background: rgba(4, 10, 21, 0.34);
+    background: color-mix(in srgb, var(--tl-bg-root) 34%, transparent);
 }
 
 .audiobooks-view-controls {
@@ -721,7 +721,7 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: rgba(203, 213, 225, 0.76);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
     white-space: nowrap;
@@ -729,9 +729,9 @@
 
 .audiobooks-segmented ::deep .audiobooks-tab.is-active,
 .audiobooks-layout-toggle ::deep .audiobooks-layout-toggle__button.is-active {
-    background: linear-gradient(135deg, rgba(124, 92, 255, 0.72), rgba(91, 67, 190, 0.82));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-accent-primary) 72%, transparent), color-mix(in srgb, var(--tl-accent-primary-active) 82%, transparent));
     color: var(--tl-text-on-accent);
-    box-shadow: 0 10px 22px rgba(64, 38, 160, 0.28);
+    box-shadow: 0 10px 22px var(--tl-accent-primary-glow);
 }
 
 .audiobooks-filters {
@@ -746,10 +746,10 @@
 ::deep .audiobooks-select,
 .audiobooks-active-filter {
     min-height: 56px;
-    border: 1px solid rgba(120, 139, 171, 0.26);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 26%, transparent);
     border-radius: 9px;
-    background: rgba(8, 16, 31, 0.8);
-    color: rgba(226, 232, 240, 0.88);
+    background: color-mix(in srgb, var(--tl-bg-surface) 80%, transparent);
+    color: var(--tl-text-primary);
     font-weight: 600;
 }
 
@@ -759,8 +759,8 @@
 }
 
 .audiobooks-filters ::deep .audiobooks-filter.is-active {
-    border-color: rgba(147, 119, 255, 0.70);
-    background: rgba(124, 92, 255, 0.18);
+    border-color: color-mix(in srgb, var(--tl-accent-primary-hover) 70%, transparent);
+    background: var(--tl-accent-primary-soft);
     color: var(--tl-text-on-accent);
 }
 
@@ -774,7 +774,7 @@
     gap: 0;
     min-width: 145px;
     max-width: 190px;
-    color: rgba(215, 224, 240, 0.78);
+    color: var(--tl-text-secondary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
@@ -809,7 +809,7 @@
 .audiobooks-section__header h2,
 .audiobooks-series-card h3{
     margin: 0;
-    color: rgba(255, 255, 255, 0.96);
+    color: var(--tl-text-primary);
 }
 
 .audiobooks-section__header h2 {
@@ -818,17 +818,17 @@
 
 .audiobooks-section__header p {
     margin: 4px 0 0;
-    color: rgba(203, 213, 225, 0.62);
+    color: var(--tl-text-muted);
 }
 
 .audiobooks-empty {
     min-height: 108px;
     display: grid;
     place-items: center;
-    border: 1px solid rgba(120, 139, 171, 0.18);
+    border: 1px solid var(--tl-border-default);
     border-radius: 8px;
-    background: rgba(10, 17, 30, 0.62);
-    color: rgba(203, 213, 225, 0.68);
+    background: color-mix(in srgb, var(--tl-bg-root) 62%, transparent);
+    color: var(--tl-text-secondary);
     font-weight: 600;
 }
 
@@ -841,10 +841,10 @@
 .audiobooks-book-card,
 .audiobooks-series-card{
     min-width: 0;
-    border: 1px solid rgba(120, 139, 171, 0.20);
+    border: 1px solid var(--tl-border-default);
     border-radius: 8px;
-    background: linear-gradient(180deg, rgba(21, 33, 52, 0.88), rgba(12, 20, 35, 0.86));
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.20);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-bg-surface-raised) 88%, transparent), color-mix(in srgb, var(--tl-bg-surface) 86%, transparent));
+    box-shadow: 0 18px 36px var(--tl-scrim-dark-1);
 }
 
 .audiobooks-book-card__cover,
@@ -854,8 +854,8 @@
     justify-content: center;
     overflow: hidden;
     border-radius: 6px;
-    background: rgba(20, 30, 49, 0.92);
-    color: rgba(203, 213, 225, 0.54);
+    background: color-mix(in srgb, var(--tl-bg-surface-raised) 92%, transparent);
+    color: var(--tl-text-muted);
 }
 
 .audiobooks-book-card__cover img,
@@ -875,14 +875,14 @@
 
 .audiobooks-book-card__copy > span,
 .audiobooks-series-card__copy > span{
-    color: rgba(203, 213, 225, 0.68);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-body-size);
     line-height: 1.35;
 }
 
 .audiobooks-card-title {
     min-width: 0;
-    color: rgba(255, 255, 255, 0.96);
+    color: var(--tl-text-primary);
     font-size: var(--tl-type-subheading-size);
     font-weight: var(--tl-type-subheading-weight);
     line-height: 1.25;
@@ -903,13 +903,13 @@
     appearance: none;
     border: 0;
     border-radius: var(--tl-radius-round);
-    background: rgba(120, 139, 171, 0.18);
+    background: var(--tl-border-default);
 }
 
 .audiobooks-progress::-webkit-progress-bar {
     height: 100%;
     border-radius: inherit;
-    background: rgba(120, 139, 171, 0.18);
+    background: var(--tl-border-default);
 }
 
 .audiobooks-progress::-webkit-progress-value {
@@ -927,7 +927,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    color: rgba(226, 232, 240, 0.78);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-secondary-size);
 }
 
@@ -986,8 +986,8 @@
 .audiobooks-book-card__badges span {
     border-radius: 5px;
     padding: 4px 8px;
-    background: rgba(148, 163, 184, 0.16);
-    color: rgba(226, 232, 240, 0.78);
+    background: var(--tl-border-default);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
 }
@@ -1008,11 +1008,11 @@
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: rgba(226, 232, 240, 0.76);
+    color: var(--tl-text-secondary);
 }
 
 ::deep .audiobooks-card-menu:hover {
-    background: rgba(148, 163, 184, 0.14);
+    background: var(--tl-border-default);
     color: var(--tl-text-on-accent);
 }
 
@@ -1045,8 +1045,8 @@
     bottom: 0;
     width: 110px;
     aspect-ratio: 1 / 1.42;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    box-shadow: 0 18px 26px rgba(0, 0, 0, 0.28);
+    border: 1px solid color-mix(in srgb, var(--tl-text-muted) 22%, transparent);
+    box-shadow: 0 18px 26px var(--tl-scrim-dark-2);
 }
 
 .audiobooks-series-card__covers span:nth-child(1) {
@@ -1072,7 +1072,7 @@
     display: -webkit-box;
     margin: 0;
     overflow: hidden;
-    color: rgba(203, 213, 225, 0.68);
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-secondary-size);
     line-height: 1.45;
     -webkit-box-orient: vertical;
@@ -1102,7 +1102,7 @@
 
     .audiobooks-toolbar__display {
         border-left: 0;
-        border-top: 1px solid rgba(128, 146, 180, 0.18);
+        border-top: 1px solid var(--tl-border-default);
     }
 
     .audiobooks-featured-grid {
