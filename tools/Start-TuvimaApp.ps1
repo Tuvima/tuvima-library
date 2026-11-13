@@ -277,8 +277,9 @@ if ($Role -eq "Both") {
         Remove-Item -LiteralPath $engineOut, $engineErr, $dashboardOut, $dashboardErr -Force -ErrorAction SilentlyContinue
 
         $env:ASPNETCORE_URLS = "https://localhost:61494;http://localhost:61495"
+        # The path is quoted so a repo folder with spaces (for example "E:\Source Code") still launches.
         $engineProcess = Start-Process -FilePath "dotnet" `
-            -ArgumentList @($EngineDll) `
+            -ArgumentList @("`"$EngineDll`"") `
             -PassThru `
             -WindowStyle Hidden `
             -RedirectStandardOutput $engineOut `
@@ -292,7 +293,7 @@ if ($Role -eq "Both") {
             $env:TUVIMA_ENGINE_URL = "http://localhost:61495"
             $env:ASPNETCORE_URLS = "http://localhost:5016"
             $dashboardProcess = Start-Process -FilePath "dotnet" `
-                -ArgumentList @($DashboardDll) `
+                -ArgumentList @("`"$DashboardDll`"") `
                 -PassThru `
                 -WindowStyle Hidden `
                 -RedirectStandardOutput $dashboardOut `
