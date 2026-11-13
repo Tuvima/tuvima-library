@@ -72,12 +72,12 @@ $targets = @(
     (Join-Path $dataRoot "hash-cache.db-wal")
 )
 
-# Safety: every target must sit inside a data folder that belongs to the Library.
+# Safety: every target must sit strictly inside a data folder that belongs to the Library.
 foreach ($t in $targets) {
     $full = [System.IO.Path]::GetFullPath($t)
     $inside = $full.StartsWith($dataFolder + "\", [StringComparison]::OrdinalIgnoreCase) -or
               $full.StartsWith($dataRoot + "\", [StringComparison]::OrdinalIgnoreCase)
-    if (-not $inside -or $full.Length -le ($dataFolder.Length + 1)) { throw "Refusing to delete outside the Library data folder: $full" }
+    if (-not $inside) { throw "Refusing to delete outside the Library data folder: $full" }
 }
 
 Write-Host ""
