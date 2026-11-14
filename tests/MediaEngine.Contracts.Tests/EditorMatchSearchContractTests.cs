@@ -183,6 +183,19 @@ public sealed class EditorMatchSearchContractTests
     }
 
     [Fact]
+    public void SearchResult_CarriesThePictureShapeTheProviderSaid_AndLeavesItOutWhenItSaidNone()
+    {
+        var square = new EditorMatchResultDto { Title = "Dune", ImageShape = EditorMatchImageShapes.Square };
+
+        var json = JsonSerializer.Serialize(square);
+        var back = JsonSerializer.Deserialize<EditorMatchResultDto>(json)!;
+
+        Assert.Contains("\"image_shape\":\"square\"", json, StringComparison.Ordinal);
+        Assert.Equal(EditorMatchImageShapes.Square, back.ImageShape);
+        Assert.DoesNotContain("image_shape", JsonSerializer.Serialize(new EditorMatchResultDto { Title = "Heat" }), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AResultWithNoSeries_LeavesTheSeriesFactsOutOfTheJson()
     {
         var json = JsonSerializer.Serialize(new EditorMatchResultDto { Title = "Heat", IsCollection = true });
