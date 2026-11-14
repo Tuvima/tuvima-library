@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Matching;
 using MediaEngine.Domain;
@@ -25,7 +26,8 @@ public sealed class EditorMatchSearchService(
     IEditorConfigurationSource editorConfiguration,
     EditorMatchVerdictCalculator calculator,
     IEditorMatchKindResolver kinds,
-    IVideoIdentifyWriter videos)
+    IVideoIdentifyWriter videos,
+    EditorProviderNames? providerNames = null)
 {
     /// <summary>The sentence shown for an item no provider matches.</summary>
     public const string NoProviderText = "No provider matches this kind of item. The details you enter stand on their own.";
@@ -283,7 +285,7 @@ public sealed class EditorMatchSearchService(
             .Select(info => new EditorMatchProviderDto
             {
                 Name = info.Name,
-                DisplayName = info.DisplayName,
+                DisplayName = providerNames?.ProductName(info.Name, kind) ?? info.DisplayName,
                 State = !info.Enabled ? EditorMatchProviderStates.Off : info.NeedsKey ? EditorMatchProviderStates.NeedsKey : EditorMatchProviderStates.Ready,
                 IsDefault = info == first,
             })
@@ -678,7 +680,7 @@ public sealed class EditorMatchSearchService(
         return new EditorMatchResultDto
         {
             Candidate = candidate,
-            ProviderName = candidate.ProviderName,
+            ProviderName = providerNames?.ProductName(candidate.ProviderName, kindId) ?? providerNames?.ProductName(candidate.ProviderId, kindId) ?? candidate.ProviderName,
             Title = candidate.Title,
             Year = candidate.Year,
             Creator = creator,

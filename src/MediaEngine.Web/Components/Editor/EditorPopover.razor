@@ -140,7 +140,7 @@
         @* The way around the family (home, Season or Section, item) sits in the header's nav row and is read from the Engine's header (v5 D1). A
            Universe keeps its own tile and kind dropdowns. *@
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
-                          Compact="@(flow.Session.ActiveTool == EditTool.Match)" MatchRead="_matchRead"
+                          MatchRead="_matchRead"
                           UniverseName="@Editor.Universe.UniverseName"
                           HasFamily="@Editor.Universe.Visible"
                           Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"

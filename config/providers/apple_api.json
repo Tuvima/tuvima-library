@@ -52,6 +52,9 @@
   "adapter_type": "config_driven",
   "provider_id": "b1000001-e000-4000-8000-000000000001",
   "display_name": "Apple API",
+  "product_name": "Apple Books",
+  "product_name_by_kind": { "album": "Apple Music", "song": "Apple Music" },
+  "product_aliases": ["apple_books", "apple_music"],
   "http_client": {
     "timeout_seconds": 10,
     "user_agent": "Tuvima Library/1.0",

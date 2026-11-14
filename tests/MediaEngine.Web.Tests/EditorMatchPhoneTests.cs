@@ -641,7 +641,7 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
     };
 
     [Fact]
-    public void AMatchedItem_OnAPhone_FitsTheWidth_TheTableUnderTheCover_AndTheThreeActionsStacked()
+    public void AMatchedItem_OnAPhone_FitsTheWidth_TheTableUnderTheCover_TheActionsStacked_AndTheCardEndsWithTheSourceLink()
     {
         _matched = true;
         _setup = BookSetup();
@@ -662,7 +662,12 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
         Assert.NotNull(card.QuerySelector("[data-testid=match-compare]"));
         Assert.Equal(4, card.QuerySelectorAll("[data-testid=match-compare] thead th").Length);
         Assert.Contains("tl-matchcard__actions--phone", card.QuerySelector(".tl-matchcard__actions")!.ClassList);
-        Assert.Equal(["Open source ↗", "Remove match", "Change match"], card.QuerySelectorAll(".tl-matchcard__actions button, .tl-matchcard__actions a").Select(a => a.TextContent.Trim()).ToList());
+        Assert.Equal(["Remove match", "Change match"], card.QuerySelectorAll(".tl-matchcard__actions button, .tl-matchcard__actions a").Select(a => a.TextContent.Trim()).ToList());
+        // The header carries no links on a phone (v7 D14), so the card ends with the item's page at its source: a product name, never the config key.
+        var sourceLink = card.QuerySelector("[data-testid=match-source-links] a")!;
+        Assert.Equal("Apple Books", sourceLink.TextContent.Trim());
+        Assert.Equal("https://books.apple.com/book/395523481", sourceLink.GetAttribute("href"));
+        Assert.DoesNotContain("apple_api", card.TextContent, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("tl-matchfile--phone", cut.Find("[data-testid=match-your-file]").ClassList);
         Assert.Empty(cut.FindAll("[data-testid=match-sheet]"));
     }

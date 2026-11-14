@@ -3713,6 +3713,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderDto
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | nullability=nullable | accessors=get,init
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | nullability=nullable | accessors=get,init
   ProviderMatched: System.Boolean | nullability=not-null | accessors=get,init
+  MatchLinks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchLinkDto> | nullability=not-null | accessors=get,init
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
@@ -3829,6 +3830,13 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchIdentifie
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchIdentifierKinds
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchImageShapes
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchLinkDto
+  Source: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Url: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchLinkSources
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchLocalEvidenceDto
   FileTitle: System.String | nullability=nullable | accessors=get,init
