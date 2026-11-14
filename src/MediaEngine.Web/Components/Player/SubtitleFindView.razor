@@ -21,8 +21,8 @@
         {
             <div class="sfv__head">
                 <span class="sfv__count" role="status" data-sfv-head data-subtitles-state="@(Presenter.Loading ? "searching" : null)">@HeadText</span>
+                @* The one visible language control is the standard app dropdown; no drawn copy of it sits beside it (issue 1002). *@
                 <span class="sfv__lang" data-sfv-language>
-                    <span class="sfv__lang-value" aria-hidden="true">@Presenter.Language<span class="sfv__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronDown" /></span></span>
                     <AppNativeSelect Class="sfv__select" Value="@Presenter.Language" OnChange="ChooseLanguageAsync" Disabled="@(Presenter.ChoosingSourceId is not null)" aria-label="@L["SubtitleFind_Language"].Value">
                         @foreach (var language in Presenter.Languages)
                         {
@@ -44,6 +44,7 @@
         else if (Presenter.Response is { status: "Found", items.Count: > 0 } found)
         {
             var firstFresh = found.items.FirstOrDefault(item => !item.is_current);
+            var mixedLanguages = found.items.Select(item => item.language ?? string.Empty).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
             <ul class="sfv__list" data-sfv-results>
                 @foreach (var item in found.items)
                 {
@@ -52,7 +53,8 @@
                     var busy = Presenter.ChoosingSourceId == result.source_id;
                     <li class="@(result.is_current ? "sfv__res sfv__res--current" : "sfv__res")" data-sfv-result="@result.source_id">
                         <div class="sfv__title">
-                            <span>@LanguageName(result)</span>
+                            <span class="sfv__release" data-overflow-tooltip="@result.release_name">@result.release_name</span>
+                            @if (mixedLanguages) { <span class="sfv__tag" data-sfv-tag="language">@LanguageName(result)</span> }
                             @if (result.is_current) { <span class="sfv__tag sfv__tag--ok" data-sfv-tag="current">@L["SubtitleFind_InUse"]</span> }
                             @if (result.is_hearing_impaired) { <span class="sfv__tag" data-sfv-tag="hearing-impaired">@L["SubtitleFind_HearingImpaired"]</span> }
                             @if (result.confidence >= SameReleaseConfidence) { <span class="sfv__tag sfv__tag--ok" data-sfv-tag="same-release">@L["SubtitleFind_SameRelease"]</span> }
@@ -69,7 +71,6 @@
                                              Disabled="@(Presenter.ChoosingSourceId is not null)" aria-busy="@(busy ? "true" : null)" data-sfv-action="use"
                                              OnClick="@(() => Presenter.ChooseAsync(result))">@L["SubtitleFind_UseThis"]</AppNativeButton>
                         }
-                        <div class="sfv__release" data-overflow-tooltip="@result.release_name">@result.release_name</div>
                         @if (failed)
                         {
                             <p class="sfv__row-error" role="status" data-sfv-row-error>@(Presenter.FailedAction == "remove" ? L["SubtitleFind_CouldNotRemove"].Value : L["SubtitleFind_CouldNotDownload"].Value)</p>

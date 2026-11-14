@@ -3001,6 +3001,13 @@ button.app-menu-item {
 .playback-panel__icon-button:hover { background: var(--playback-state-hover); }
 .playback-panel__icon-button:focus-visible { outline: 2px solid var(--playback-focus-ring); outline-offset: 2px; }
 .playback-panel__dismiss { position: absolute; top: 6px; right: 6px; z-index: 1; }
+/* Audio & subtitles (issue 1003): every choice is its own full-width row, stacked, one list per heading. The row is a grid of the text and a fixed
+   tick column, so the tick keeps the same distance from the text and from the edge on every row. Written here, not only in the component's style,
+   so the rows stack whatever the scoped style reaches (the row is drawn by a shared button). */
+.asv [role="radiogroup"] { display: flex; flex-direction: column; gap: 2px; }
+.asv .asv__row { display: grid; grid-template-columns: minmax(0, 1fr) 24px; column-gap: 12px; align-items: center; width: 100%; box-sizing: border-box; text-align: left; }
+.asv .asv__row .asv__label, .asv .asv__row .asv__sub { grid-column: 1; }
+.asv .asv__row .asv__check { grid-column: 2; grid-row: 1; justify-self: end; }
 .playback-panel__body--padded { padding: 18px; }
 .playback-panel--settings .playback-panel__body { padding: 0; }
 .playback-panel__body .playback-sheet-list { flex: 1; min-height: 0; }
