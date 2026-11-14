@@ -156,6 +156,28 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
 
     internal static readonly TimeSpan IncompleteRecordingHold = TimeSpan.FromMinutes(10);
 
+    // Files that stop being Unmatched when a person matches the book of @EntityId (a file): the book's other files, and files covering it.
+    // A file covering other books as well stays until each of those has a job that got past the retail lookup with a match.
+    private const string UnmatchedClearedByMatchSql = """
+        DELETE FROM unmatched_assets
+        WHERE asset_id IN (
+                SELECT woa.asset_id
+                FROM   work_owned_assets woa
+                WHERE  woa.work_id IN (SELECT work_id FROM work_owned_assets WHERE asset_id = @EntityId))
+          AND NOT EXISTS (
+                SELECT 1
+                FROM   work_owned_assets other
+                WHERE  other.asset_id = unmatched_assets.asset_id
+                  AND  other.is_covered = 1
+                  AND  other.work_id NOT IN (SELECT work_id FROM work_owned_assets WHERE asset_id = @EntityId)
+                  AND  NOT EXISTS (
+                        SELECT 1
+                        FROM   identity_jobs j
+                        JOIN   work_owned_assets own ON own.asset_id = j.entity_id
+                        WHERE  own.work_id = other.work_id
+                          AND  j.state NOT IN ('Queued', 'RetailSearching', 'RetailNoMatch', 'Failed')));
+        """;
+
     public Task<Guid> CreateOrResumeUserResolutionAsync(IdentityJob job, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -164,6 +186,9 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
             innerCt.ThrowIfCancellationRequested();
             // A person choosing the match ends the file's Unmatched state.
             conn.Execute("DELETE FROM unmatched_assets WHERE asset_id = @EntityId;", new { job.EntityId }, tx);
+            // The match belongs to the book, not to the one file it was saved on: every other file of that book, and a folder-level file
+            // covering several books, leave Unmatched too, the folder-level one only once each book it covers has a match.
+            conn.Execute(UnmatchedClearedByMatchSql, new { job.EntityId }, tx);
             var activeJobId = conn.QueryFirstOrDefault<Guid?>("""
                 SELECT id
                 FROM identity_jobs
