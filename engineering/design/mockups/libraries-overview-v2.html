@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Libraries overview v2</title>
+<style>
+:root{color-scheme:dark;--v-bg:#0b0f1a;--v-fg:#e9edf5;--v-mut:#9aa6bb;--v-line:#253047;--v-card:#121829;
+--bg:#070a12;--shell:#0b1020;--surface:#111827;--raised:#151e2f;--hover:#1a2438;--text:#f5f7fb;--text-2:#b6c2d6;--text-3:#94a3b8;--line:#243049;--line-2:#2f3c58;
+--accent:#8852fc;--accent-soft:rgba(136,82,252,.18);--ok:#22c55e;--warn:#F59E0B;--danger:#ef4444;
+--watch:#fb7185;--listen:#fbbf24;--read:#60a5fa;--view:#34d399;--ui:"Segoe UI Variable","Segoe UI",system-ui,sans-serif}
+@media(prefers-color-scheme:light){:root{color-scheme:light;--v-bg:#f3f4f8;--v-fg:#171c2a;--v-mut:#5b6577;--v-line:#d9dde8;--v-card:#fff}}
+*{box-sizing:border-box}body{margin:0;background:var(--v-bg);color:var(--v-fg);font:14px/1.5 var(--ui)}
+.wrap{max-width:1500px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-left))}
+h1{font-size:20px;margin:0}.lead{color:var(--v-mut);max-width:75ch}
+.stage{overflow:hidden;border:1px solid var(--v-line);border-radius:10px;background:var(--bg)}
+.frame{width:1440px;transform-origin:top left;background:var(--bg);color:var(--text);position:relative;min-height:760px}
+.body{display:grid;grid-template-columns:240px 1fr}.smenu{background:var(--shell);border-right:1px solid var(--line);padding:16px 10px;min-height:760px}
+.smenu h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin:14px 8px 6px}
+.smenu div{padding:9px 12px;border-radius:8px;color:var(--text-2);display:flex;align-items:center;gap:8px;position:relative}
+.smenu .on{background:var(--hover);color:var(--text)}.smenu .on:before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--accent)}
+.pill{margin-left:auto;font-size:12px;font-weight:600;color:var(--warn);background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.38);border-radius:999px;padding:0 8px}
+.adot{width:8px;height:8px;border-radius:50%;background:var(--warn);margin-left:auto}
+.page{padding:24px 32px}.crumbs{color:var(--text-3);font-size:13px}.top{display:flex;align-items:flex-start;gap:16px;margin:6px 0 14px}
+.top h2{margin:0;font-size:24px}.top p{margin:2px 0 0;color:var(--text-3)}.top .sp{flex:1}
+.btn{border:1px solid var(--line-2);background:var(--raised);color:var(--text);border-radius:8px;padding:0 14px;height:44px;font:inherit;font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.btn.pri{background:var(--accent);border-color:var(--accent)}.btn.sm{height:36px}
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:14px}.tabs span{padding:10px 2px;color:var(--text-3);display:flex;gap:8px;align-items:center}
+.tabs .on{color:var(--text);border-bottom:2px solid var(--accent)}
+.bar{display:flex;align-items:center;gap:14px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 8px 6px 16px;margin-bottom:18px}
+.bar .g{width:9px;height:9px;border-radius:50%;background:var(--ok)}.bar .div{width:1px;height:20px;background:var(--line-2)}
+.bar a{color:var(--warn);text-decoration:underline}.bar .sp{flex:1}.bar .v{color:var(--text-2);text-decoration:underline}
+.counts{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 8px 16px;margin-bottom:16px}
+.c{text-align:center;flex:1}.c b{display:block;font-size:26px;line-height:1.2}.c small{color:var(--text-3)}.c i{font-style:normal;font-size:20px}
+.chips{display:flex;gap:8px;align-items:center;margin-bottom:12px}.chip{border:1px solid var(--line-2);border-radius:999px;padding:5px 14px}
+.chip.on{background:var(--accent-soft);border-color:var(--accent)}.chips .sp{flex:1}.fld{border:1px solid var(--line-2);border-radius:8px;padding:8px 14px;color:var(--text-3)}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+th{text-align:left;font-size:12px;color:var(--text-3);padding:10px 14px;border-bottom:1px solid var(--line)}td{padding:12px 14px;border-bottom:1px solid var(--line)}
+.st{font-size:13px}.st.ok{color:var(--ok)}.st.w{color:var(--warn)}
+.tag{font-size:12px;padding:1px 8px;border-radius:6px;border:1px solid}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:12px}
+.note{background:var(--v-card);border:1px solid var(--v-line);border-radius:8px;padding:10px 12px}
+.n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;margin-right:6px}
+.mk{position:absolute;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:600}
+</style></head><body><div class="wrap">
+<h1>Settings > Libraries overview, v2 (issue 1006)</h1>
+<p class="lead">Updated from the committed Libraries mocks to match your picture and decisions. Draft: build starts only after you approve it. Status and counts are example values.</p>
+<div class="stage" id="stage"><div class="frame" id="frame"><div class="body">
+<aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage Profiles</div><div>Security &amp; Devices <span class="adot"></span></div>
+<h4>Library</h4><div class="on">Libraries <span class="pill">2</span></div><div>Playback</div><h4>Server</h4><div>General</div><div>Users &amp; Households</div><div>Tools</div></aside>
+<main class="page">
+<div class="crumbs">Settings / Library</div>
+<div class="top"><div><h2>Libraries</h2><p>Manage your libraries and source folders.</p></div><span class="sp"></span><button class="btn pri">+ Add library</button></div>
+<div class="tabs"><span class="on">Libraries</span><span>Activity</span><span>Needs review <span class="pill">2</span></span><span>Matching</span><span>Rules</span></div>
+<div class="bar"><span class="g"></span><span>Up to date · Checked 31 min ago</span><span class="div"></span><a>2 items need review</a><span class="sp"></span><a class="v">View activity</a><span class="div"></span><button class="btn sm">▤ Check folders for changes</button></div>
+<div class="counts">
+<div class="c"><i style="color:var(--watch)">▶</i><b>1,284</b><small>Movies</small></div>
+<div class="c"><i style="color:var(--watch)">▣</i><b>318</b><small>TV shows</small></div>
+<div class="c"><i style="color:var(--watch)">▷</i><b>42</b><small>Videos</small></div>
+<div class="c"><i style="color:var(--listen)">♪</i><b>4,912</b><small>Music</small></div>
+<div class="c"><i style="color:var(--listen)">◖</i><b>96</b><small>Audiobooks</small></div>
+<div class="c"><i style="color:var(--read)">▥</i><b>640</b><small>Books</small></div>
+<div class="c"><i style="color:var(--view)">◉</i><b>1</b><small>Photo &amp; video folder</small></div></div>
+<div class="chips"><span class="chip on">All 7</span><span class="chip" style="color:var(--watch)">Watch 3</span><span class="chip" style="color:var(--listen)">Listen 2</span><span class="chip" style="color:var(--read)">Read 1</span><span class="chip" style="color:var(--view)">View 1</span><span class="sp"></span><span class="fld">⌕ Search libraries</span><span class="fld">All statuses ▾</span></div>
+<table><thead><tr><th>Name</th><th>Area</th><th>Folders</th><th>Titles</th><th>Status</th><th></th></tr></thead><tbody>
+<tr><td>Movies</td><td><span class="tag" style="color:var(--watch)">Watch</span></td><td>2 folders ›</td><td>1,284</td><td class="st ok">Healthy</td><td><button class="btn sm">Edit</button></td></tr>
+<tr><td>TV Shows</td><td><span class="tag" style="color:var(--watch)">Watch</span></td><td>1 folder ›</td><td>318</td><td class="st w">2 need review</td><td><button class="btn sm">Edit</button></td></tr>
+<tr><td>Music</td><td><span class="tag" style="color:var(--listen)">Listen</span></td><td>1 folder ›</td><td>4,912</td><td class="st ok">Healthy</td><td><button class="btn sm">Edit</button></td></tr>
+<tr><td>Books</td><td><span class="tag" style="color:var(--read)">Read</span></td><td>1 folder ›</td><td>640</td><td class="st ok">Healthy</td><td><button class="btn sm">Edit</button></td></tr>
+<tr><td>Photos &amp; videos</td><td><span class="tag" style="color:var(--view)">View</span></td><td>1 folder ›</td><td>18,430</td><td class="st ok">Healthy</td><td><button class="btn sm">Edit</button></td></tr></tbody></table>
+<span class="mk" style="left:300px;top:196px">1</span><span class="mk" style="left:34px;top:268px">2</span><span class="mk" style="left:200px;top:96px">3</span>
+</main></div></div></div>
+<div class="notes">
+<div class="note"><span class="n">1</span><b>One slim status bar</b> replaces the old status line and the "Idle / up to date" card. Green dot, "Up to date · Checked 31 min ago", the amber review link (opens Needs Review), then View activity and Check folders for changes on the right. While working it shows the progress sentence instead. The View activity link is one place, so it can be re-pointed if Library activity moves to Server &gt; General.</div>
+<div class="note"><span class="n">2</span><b>Counts: one full-width row</b>, no card and no "In your collection" heading. Each kind has its icon in its kind color, a big count and its name; "Photo &amp; video folder" counts the View folders. Always spread evenly across the full width (no empty gap on the right).</div>
+<div class="note"><span class="n">3</span><b>Menu pill keeps the review count</b> (2) in the warning color with no shading on the row (decision 1A). The selected row shows only the purple bar. Security &amp; Devices keeps its small dot.</div>
+<div class="note"><span class="n">–</span><b>Phone:</b> the status bar wraps to two lines (status, then actions), counts become a swipeable row of the same cells, chips scroll sideways, the table becomes cards. Same content as desktop.</div>
+<div class="note"><span class="n">–</span><b>Already built on main (PR 987):</b> the old idle progress card is gone and the status line animates while working; this mock keeps that and only restyles it into the single bar.</div>
+</div>
+<script>(function(){var s=document.getElementById('stage'),f=document.getElementById('frame');function fit(){var k=Math.min(1,s.clientWidth/1440);f.style.transform='scale('+k+')';s.style.height=(f.offsetHeight*k)+'px'}addEventListener('resize',fit);fit()})()</script>
+</div></body></html>
