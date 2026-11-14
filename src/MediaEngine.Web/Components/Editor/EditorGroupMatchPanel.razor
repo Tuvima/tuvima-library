@@ -136,6 +136,9 @@
     private string _showText = string.Empty;
     private string _artist = string.Empty;
     private string _album = string.Empty;
+
+    // The providers the Engine offers for the first ticked item, with the names a person knows them by; a staged match's line is worded from these.
+    private IReadOnlyList<EditorMatchProviderDto> _providers = [];
     private int? _contextSeason;
     private IReadOnlyList<TvMatchBrowserShowDto> _shows = [];
     private TvMatchBrowserShowDto? _show;
@@ -211,8 +214,11 @@
         _releases = [];
         _ticked.Clear();
         _message = null;
+        _providers = [];
         try
         {
+            var setup = await Api.GetEditorMatchSetupAsync(first);
+            _providers = setup?.Providers ?? [];
             if (IsEpisodes)
             {
                 var context = await Api.GetEditorMatchContextAsync(first);
@@ -221,7 +227,6 @@
             }
             else
             {
-                var setup = await Api.GetEditorMatchSetupAsync(first);
                 _artist = setup?.Fields.FirstOrDefault(field => field.Key == "artist")?.Value ?? string.Empty;
                 _album = setup?.Fields.FirstOrDefault(field => field.Key == "album")?.Value ?? string.Empty;
             }
@@ -389,13 +394,13 @@
             var subject = new EditorMatchSubject(line.EntityId, mediaType, scope, group, line.Title, null, null, null,
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), []);
             var request = EditorMatchRules.RequestFor(candidate, subject, group);
-            var facts = EditorMatchRules.FactsOf(candidate);
+            var facts = EditorMatchRules.FactsOf(candidate, _providers);
             EditorMatchStaging.Unstage(Pending, EditSessionChangeKinds.MatchRemoval, line.EntityId);
             Pending.SetTarget(
                 EditSessionChangeKinds.Identity,
                 line.EntityId,
                 EditSessionIdentityTarget.Serialize(request),
-                label: $"{facts.Title} ({facts.Provider})",
+                label: EditorMatchRules.StagedLabel(facts),
                 before: line.Title);
             EditorMatchStaging.StageMove(Pending, line.EntityId, line.Placement);
             _ticked.Remove(line.EntityId);

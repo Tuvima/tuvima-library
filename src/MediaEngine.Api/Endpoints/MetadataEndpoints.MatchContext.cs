@@ -131,24 +131,5 @@ public static partial class MetadataEndpoints
           .ProducesProblem(StatusCodes.Status404NotFound)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
-
-        // The saved ribbon's named steps (universal editor v3, D7): the finishing work the Engine does after a match, read from the item's
-        // durable identity job, so it is the same whether the Dashboard watched it happen or came back later.
-        group.MapGet("/{entityId:guid}/follow-up", async (
-            Guid entityId, IItemCanonicalRepository items, IIdentityJobRepository jobs, CancellationToken ct) =>
-        {
-            var context = await items.ResolveWorkAssetContextAsync(entityId, ct);
-            if (context is null)
-            {
-                return ApiErrors.NotFound("Follow-up work was not found.");
-            }
-
-            var job = await jobs.GetByEntityAsync(context.AssetId, ct);
-            return Results.Ok(EditorFollowUpPlan.From(entityId, job));
-        }).WithName("GetEditorFollowUp")
-          .Produces<EditorFollowUpDto>(StatusCodes.Status200OK)
-          .ProducesProblem(StatusCodes.Status404NotFound)
-          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
-          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
     }
 }
