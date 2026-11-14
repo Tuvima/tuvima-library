@@ -118,7 +118,7 @@ public sealed class EditorHeaderRootDto
     /// <summary>The 96 by 144 cover picture; null when the root has none.</summary>
     [JsonPropertyName("cover_url")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? CoverUrl { get; init; }
+    public string? CoverUrl { get; set; }
 }
 
 /// <summary>The cover's three stored colours (as <c>#rrggbb</c>); any of them may be missing.</summary>

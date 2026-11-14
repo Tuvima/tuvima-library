@@ -641,6 +641,8 @@ public sealed class MediaTileComposerServiceTests
         var continueTile = MediaTileComposerService.FromDisplayCard(card, MediaTileContext.ContinueWatching);
         Assert.Equal(MediaTileShape.Landscape, continueTile.Shape);
         Assert.Equal("/background-s.jpg", continueTile.TileImageUrl);
+        // A landscape picture fills the Continue tile; the blurred "contained" backdrop is only for a picture of another shape (issue 1001).
+        Assert.Equal(MediaTileImageFitMode.Fill, continueTile.TileImageFitMode);
         Assert.Equal("/background-m.jpg", mapped.Catalog[0].HoverImageUrl);
         Assert.False(mapped.Catalog[0].IsSettling);
         Assert.True(MediaTileComposerService.FromDisplayCard(card with { IsSettling = true }, MediaTileContext.Default).IsSettling);

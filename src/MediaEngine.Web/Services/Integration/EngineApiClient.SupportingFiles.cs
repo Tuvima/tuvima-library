@@ -6,9 +6,13 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
-    public Task<EditorSupportingFileDto?> GetSupportingFileEditorAsync(Guid titleId, Guid fileId, CancellationToken ct = default) =>
-        GetAsync<EditorSupportingFileDto>(
+    public async Task<EditorSupportingFileDto?> GetSupportingFileEditorAsync(Guid titleId, Guid fileId, CancellationToken ct = default)
+    {
+        var editor = await GetAsync<EditorSupportingFileDto>(
             "GET /metadata/{id}/supporting-files/{fileId}/editor", $"/metadata/{titleId:D}/supporting-files/{fileId:D}/editor", ct: ct);
+        ThroughPictureRoute(editor?.Header);
+        return editor;
+    }
 
     public Task<EditorSuggestDetailsDto?> GetSupportingFileSuggestDetailsAsync(Guid titleId, Guid fileId, CancellationToken ct = default) =>
         GetAsync<EditorSuggestDetailsDto>(
