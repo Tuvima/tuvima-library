@@ -95,6 +95,8 @@ public static class NativeApiForwardPolicy
         Of(Read, $"playback/{Guid}/offline/{Guid}"),
         Of(Read, "playback/encode/jobs"),
         Of(["POST"], $"playback/{Guid}/encode"),
+        // A player reporting it could not play a title in the rung the Engine chose, so the next start uses a heavier one.
+        Of(["POST"], $"playback/{Guid}/failure"),
 
         // Start a cast session for one title: the Engine answers with a one-title secret link for the TV. POST only, no GET.
         Of(["POST"], $"playback/{Guid}/cast"),

@@ -45,11 +45,13 @@ public static class PlaybackEndpoints
             int? latencyMs,
             Guid? roomId,
             string? delivery,
+            string? browser,
             HttpContext httpContext,
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
             NetworkConnectionClassifier classifier,
             PlaybackCapabilitiesService playback,
+            BrowserPlaybackAbilityStore browserAbilities,
             CancellationToken ct) =>
         {
             var connection = classifier.Classify(
@@ -70,6 +72,11 @@ public static class PlaybackEndpoints
                     capabilities = JsonSerializer.Deserialize<ClientCapabilitiesDto>(device.CapabilitiesJson);
                 }
             }
+            else if (profileId is { } browserProfileId)
+            {
+                // The Dashboard's browser is not a paired device: use what it measured about itself this session, if it has reported.
+                capabilities = browserAbilities.TryGet(browserProfileId, browser);
+            }
             var trustedClient = TrustedClient(user, client);
             var forceAdaptive = string.Equals(delivery, "hls", StringComparison.OrdinalIgnoreCase);
             var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId, forceAdaptive);
@@ -88,6 +95,86 @@ public static class PlaybackEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.PlaybackRead)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackRead);
+
+        // The Dashboard's browser reports what it measured about itself, once per session (playback-path spec D12). Paired apps
+        // report through PUT /devices/current/capabilities instead, because they have a device record.
+        group.MapPut("/browser-capabilities", (
+            BrowserCapabilitiesReportDto request,
+            ClaimsPrincipal user,
+            BrowserPlaybackAbilityStore browserAbilities) =>
+        {
+            if (ClaimGuid(user, TuvimaClaimTypes.ActiveProfileId) is not { } profileId)
+            {
+                return ApiErrors.Forbidden("A signed-in profile is required to report what this browser can play.");
+            }
+
+            return browserAbilities.Set(profileId, request.Browser, request.Capabilities)
+                ? Results.NoContent()
+                : ApiErrors.BadRequest("The browser session key is missing or not valid.");
+        })
+        .WithName("ReportBrowserPlaybackCapabilities")
+        .WithSummary("Keep what the Dashboard's browser measured about the video it can play, for this session.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite);
+
+        // A player says it started a title in a rung and could not play it; the next start of that kind of file begins one rung lower
+        // (playback-path spec D13). The Engine looks up the kind of file itself; the player only names the rung it was playing.
+        group.MapPost("/{assetId:guid}/failure", async (
+            Guid assetId,
+            PlaybackFailureReportDto request,
+            ClaimsPrincipal user,
+            ClientAuthorizationService authorization,
+            PlaybackCapabilitiesService playback,
+            BrowserPlaybackAbilityStore browserAbilities,
+            ILogger<PlaybackCapabilitiesService> logger,
+            CancellationToken ct) =>
+        {
+            if (!LearnedPlaybackLimits.IsKnownRung(request.Rung))
+            {
+                return ApiErrors.BadRequest("The rung is not one the Engine knows.");
+            }
+
+            if (await playback.GetStoredFileFactsAsync(assetId, ct) is not { } facts)
+            {
+                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+            }
+
+            if (LearnedPlaybackLimits.KindOf(facts.Extension, facts.Probe) is not { } kind)
+            {
+                // Nothing to remember about a file the Engine has not inspected: the next start decides as before.
+                return Results.NoContent();
+            }
+
+            bool recorded;
+            if (ClaimGuid(user, TuvimaClaimTypes.DeviceId) is { } deviceId)
+            {
+                recorded = await authorization.RecordLearnedLimitAsync(deviceId, request.Rung, kind.VideoCodec, kind.Container, kind.TenBit, ct);
+            }
+            else if (ClaimGuid(user, TuvimaClaimTypes.ActiveProfileId) is { } profileId && request.Browser is { } browser)
+            {
+                recorded = browserAbilities.RecordLearnedLimit(profileId, browser, request.Rung, kind.VideoCodec, kind.Container, kind.TenBit);
+            }
+            else
+            {
+                recorded = false;
+            }
+
+            var said = request.Detail?.Trim() ?? string.Empty;
+            logger.LogInformation(
+                "Playback failed in the {Rung} rung for {Kind}{TenBit} in {Container} (asset {AssetId}); remembered: {Recorded}. Player said: {Detail}",
+                request.Rung, kind.VideoCodec, kind.TenBit ? " 10-bit" : string.Empty, kind.Container, assetId, recorded,
+                said.Length == 0 ? "nothing" : said[..Math.Min(said.Length, 200)]);
+            return Results.NoContent();
+        })
+        .WithName("ReportPlaybackFailure")
+        .WithSummary("Tell the Engine a title could not be played in the rung it chose, so the next start uses a heavier one.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
 
         group.MapPost("/{assetId:guid}/encode", async (
             Guid assetId,

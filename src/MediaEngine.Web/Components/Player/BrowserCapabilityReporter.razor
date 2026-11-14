@@ -1,0 +1,23 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Services.Playback
+@inject BrowserPlaybackCapabilityReporter Reporter
+
+@* Draws nothing. Once the shell knows who is signed in, it has the browser measure what video it can play and tells the Engine, once per
+   session and person (playback-path spec D12). The Engine uses that report in place of its fixed "web" list for this browser's starts. *@
+
+@code {
+    private Guid? _reportedFor;
+
+    /// <summary>The profile signed in on this device; null until the shell has loaded it.</summary>
+    [Parameter] public Guid? ActiveProfileId { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Browser interop only exists after the first render; the reporter measures once and reports again only for another person.
+        if (ActiveProfileId is { } profileId && _reportedFor != profileId)
+        {
+            _reportedFor = profileId;
+            await Reporter.EnsureReportedAsync(profileId);
+        }
+    }
+}

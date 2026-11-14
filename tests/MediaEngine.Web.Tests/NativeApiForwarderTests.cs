@@ -66,6 +66,10 @@ public sealed class NativeApiForwarderTests
     [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/6f0c2a3e-0000-0000-0000-000000000000/preferred", true, NativeApiForwardDecision.Forward)]
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/encode", true, NativeApiForwardDecision.Forward)]
     // Casting: only the phone's POST to start a session. The TV's secret-link routes are not part of /api/v1, and no GET or other write exists.
+    [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/failure", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/failure", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "playback/6f0c2a3e-0000-0000-0000-000000000000/failure", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "playback/browser-capabilities", true, NativeApiForwardDecision.NotFound)]
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast", true, NativeApiForwardDecision.Forward)]
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast", false, NativeApiForwardDecision.Unauthorized)]
     [InlineData("GET", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast", true, NativeApiForwardDecision.NotFound)]

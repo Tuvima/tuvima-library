@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
 @inject DashboardIdentityClient Identity
 @inject IStringLocalizer<SharedStrings> L
 
@@ -56,6 +57,24 @@
                                     <DeviceTypeIcon Kind="@DeviceTypeClassifier.Classify(device.Platform, device.ClientName)" />
                                     <span class="paired-device__text">@device.DeviceName<small>@device.ClientName</small></span>
                                 </span>
+                                @if (DeviceAbilitySummary.Describe(device.Capabilities) is { } abilities)
+                                {
+                                    <div class="paired-device__abilities" data-device-abilities="@device.Id">@abilities</div>
+                                }
+                                @if (ManagesOthers && device.Capabilities?.LearnedLimits is { Count: > 0 } limits)
+                                {
+                                    <div class="paired-device__learned" data-device-learned="@device.Id">
+                                        <span class="paired-device__learned-text">
+                                            @foreach (var limit in limits)
+                                            {
+                                                <span>@L["PairedDevicesSection_Learned", limit.Summary]</span>
+                                            }
+                                        </span>
+                                        <AppButton Label="@L["PairedDevicesSection_ClearLearned"].Value" ButtonStyle="AppButtonStyle.Text"
+                                                   Size="AppControlSize.Compact" Disabled="@(_clearing == device.Id)"
+                                                   OnClick="@(() => ClearLearnedAsync(device))" />
+                                    </div>
+                                }
                             </td>
                             <td>@PlatformLabel(device.Platform)</td>
                             @if (ManagesOthers)
@@ -127,6 +146,7 @@
     private bool _loading = true;
     private bool _loadFailed;
     private bool _signingOut;
+    private Guid? _clearing;
     private string? _failure;
 
     private List<ManagedClientDeviceDto> VisibleDevices => _devices.Where(Filter.Matches).ToList();
@@ -159,6 +179,27 @@
         var result = await Identity.SetManagedDeviceBackupProfileAsync(device.Id, profileId);
         // The selector shows the new choice once the list is read again; only a refusal is told.
         if (!result.Succeeded) _failure = L["PairedDevicesSection_ThatChangeCouldNotBeSaved"].Value;
+        await LoadDevicesAsync();
+    }
+
+    private async Task ClearLearnedAsync(ManagedClientDeviceDto device)
+    {
+        _clearing = device.Id;
+        _failure = null;
+        try
+        {
+            // The learned lines leave once the list is read again; only a refusal is told.
+            var result = await Identity.ClearManagedDeviceLearnedLimitsAsync(device.Id);
+            if (!result.Succeeded)
+            {
+                _failure = L["PairedDevicesSection_CouldNotClearLearned"].Value;
+            }
+        }
+        finally
+        {
+            _clearing = null;
+        }
+
         await LoadDevicesAsync();
     }
 

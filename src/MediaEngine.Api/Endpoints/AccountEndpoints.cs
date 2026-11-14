@@ -62,6 +62,24 @@ public static class AccountEndpoints
         .WithName("RevokeManagedClientDevice")
         .Produces(StatusCodes.Status204NoContent);
 
+        // Forget what the Engine learned this device cannot play (playback-path spec D13); the next start decides from what it reported.
+        devices.MapDelete("/{deviceId:guid}/learned-limits", async (Guid deviceId, HttpContext http,
+            IRequestAuthorityResolver resolver, ISelfServiceAuthorizationService decisions,
+            [FromServices] ManagedClientDeviceService service, CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            return await service.ClearLearnedLimitsAsync(authority, deviceId, ct) switch
+            {
+                ManagedDeviceLimitsOutcome.Cleared => Results.NoContent(),
+                ManagedDeviceLimitsOutcome.Forbidden => ApiErrors.Forbidden("That device belongs to another account."),
+                _ => ApiErrors.NotFound("Device not found or already revoked."),
+            };
+        })
+        .WithName("ClearManagedClientDeviceLearnedLimits")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
         // Which person a phone backs its photos up to: a server administrator, or the household administrator of
         // the phone's household, chooses or clears it without a PIN.
         devices.MapPut("/{deviceId:guid}/backup-profile", async (Guid deviceId, SetManagedDeviceBackupProfileRequest request,

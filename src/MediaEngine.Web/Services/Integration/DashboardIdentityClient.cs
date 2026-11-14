@@ -401,6 +401,10 @@ public sealed partial class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult> RevokeManagedDeviceAsync(Guid deviceId, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Delete, $"/access/devices/{deviceId:D}", ct);
 
+    /// <summary>Forgets what the Engine learned a device cannot play, so its next start decides from what the device reported.</summary>
+    public Task<DashboardAccessMutationResult> ClearManagedDeviceLearnedLimitsAsync(Guid deviceId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, $"/access/devices/{deviceId:D}/learned-limits", ct);
+
     /// <summary>Chooses (or clears, with null) whose photos a phone backs up.</summary>
     public Task<DashboardAccessMutationResult> SetManagedDeviceBackupProfileAsync(Guid deviceId, Guid? profileId, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Put, $"/access/devices/{deviceId:D}/backup-profile",
