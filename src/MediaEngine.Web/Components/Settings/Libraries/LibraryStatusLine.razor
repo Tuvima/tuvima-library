@@ -39,7 +39,7 @@
             <span data-testid="library-status-text">
                 @if (LeadIsLink(queue))
                 {
-                    <AppLink Href="@SettingsNav.RouteFor(SettingsSection.RecentlyAdded)" data-testid="library-status-activity-link">@Lead(text)</AppLink>@(text[Lead(text).Length..])
+                    <AppLink Href="@SettingsNav.RouteFor(SettingsSection.General, SettingsNav.LibraryActivitySubsection)" data-testid="library-status-activity-link">@Lead(text)</AppLink>@(text[Lead(text).Length..])
                 }
                 else
                 {
@@ -58,7 +58,7 @@
             @if (CanOpenActivity)
             {
                 <span class="libs-status__divider" aria-hidden="true"></span>
-                <AppLink Href="@SettingsNav.RouteFor(SettingsSection.RecentlyAdded)" data-testid="library-status-view-activity">@L["LibraryStatusLine_ViewActivity"]</AppLink>
+                <AppLink Href="@SettingsNav.RouteFor(SettingsSection.General, SettingsNav.LibraryActivitySubsection)" data-testid="library-status-view-activity">@L["LibraryStatusLine_ViewActivity"]</AppLink>
             }
         </p>
         <AppButton Label="@L["IngestionScanAction_CheckFoldersForChanges"].Value"

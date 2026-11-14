@@ -538,6 +538,15 @@ public sealed partial class EngineApiClient
         GetAsync<MediaEngine.Contracts.Library.LibraryActivityDto>(
             "GET /library/libraries/{libraryId}/activity", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/activity?take={take}", ct: ct);
 
+    public Task<PlayingNowDto?> GetPlayingNowAsync(CancellationToken ct = default) =>
+        GetAsync<PlayingNowDto>("GET /playback/playing-now", "/playback/playing-now", logAsWarning: false, ct: ct);
+
+    public Task<bool> StopPlayingNowAsync(Guid id, CancellationToken ct = default) =>
+        PostAsync<object?>("POST /playback/playing-now/{id}/stop", $"/playback/playing-now/{id:D}/stop", null, ct: ct);
+
+    public async Task<int?> StopUnwatchedPlayingNowAsync(CancellationToken ct = default) =>
+        (await PostAsync<object?, StopUnwatchedResultDto>("POST /playback/playing-now/stop-unwatched", "/playback/playing-now/stop-unwatched", null, ct: ct))?.Stopped;
+
     public Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default) =>
         GetAsync<IReadOnlyList<LibraryFolderDto>>("GET /settings/vault-libraries", "/settings/vault-libraries", logAsWarning: false, ct: ct);
 

@@ -510,7 +510,7 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         Services.AddSingleton(api); Services.AddSingleton(_playback);
         Services.AddSingleton(new VideoPresentationResolver(api, null!, _playback));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(_playback));
-        Services.AddSingleton(new UniverseStateContainer()); Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton(new UniverseStateContainer()); Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new Preferences());
         Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(new ViewerFixtureJsRuntime());
         Render<AppPopoverHost>();

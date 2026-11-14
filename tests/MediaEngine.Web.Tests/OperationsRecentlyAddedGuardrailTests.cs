@@ -20,7 +20,7 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.Contains("ingestion-media-list-row__identity", card, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row__step", card, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row__details", card, StringComparison.Ordinal);
-        Assert.Contains("<LibraryActivityPage", settings, StringComparison.Ordinal);
+        Assert.Contains("<LibraryActivityPage", Read("src/MediaEngine.Web/Components/Settings/General/GeneralPage.razor"), StringComparison.Ordinal);
         Assert.Contains("<NeedsReviewPageContent", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("<IngestionSettingsTab", settings, StringComparison.Ordinal);
     }

@@ -26,7 +26,7 @@ public sealed class SettingsActivityTabWorkingIconTests : AsyncBunitContext
         Services.AddSingleton(_state);
         Services.AddSingleton(new PlaybackSessionController(null!, api));
         Services.AddSingleton<ActivityNotificationQueue>();
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class SettingsActivityTabWorkingIconTests : AsyncBunitContext
 
     private IRenderedComponent<SettingsPageTabs> RenderTabs()
     {
-        var libraries = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).Single(node => node.Label == "Libraries");
+        var libraries = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).Single(node => node.Label == "General");
         return Render<SettingsPageTabs>(parameters => parameters
             .Add(component => component.Tabs, libraries.Tabs)
             .Add(component => component.Active, libraries.Tabs[0])
@@ -92,5 +92,5 @@ public sealed class SettingsActivityTabWorkingIconTests : AsyncBunitContext
     }
 
     private static AngleSharp.Dom.IElement ActivityTab(IRenderedComponent<SettingsPageTabs> cut) =>
-        cut.FindAll("a.tl-tab").Single(tab => tab.GetAttribute("href") == "/settings/library-activity");
+        cut.FindAll("a.tl-tab").Single(tab => tab.GetAttribute("href") == "/settings/general/library-activity");
 }

@@ -1,6 +1,6 @@
 # Spec: Playing now, and Activity moved into General (Server > General tabs)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-14 · **Related docs:** [Library activity](library-activity.md) (its Activity page moves to General > Library activity) · [Playback path](playback-path.md) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · issues #1005, #1000, #1002, #1003 · Mockups: [playing-now-and-general-tabs.html](../design/mockups/playing-now-and-general-tabs.html)
+> **Status:** Built (awaiting Local checks) · **Version:** 1 · **Last updated:** 2026-11-14 · **Related docs:** [Library activity](library-activity.md) (its Activity page moves to General > Library activity) · [Playback path](playback-path.md) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · issues #1005, #1000, #1002, #1003 · Mockups: [playing-now-and-general-tabs.html](../design/mockups/playing-now-and-general-tabs.html)
 
 ## Product walkthrough (read this first)
 

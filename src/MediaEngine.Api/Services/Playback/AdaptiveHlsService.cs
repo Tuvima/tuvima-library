@@ -33,6 +33,7 @@ public sealed class AdaptiveHlsService
     private readonly EncodeSlotGate _encodeSlots;
     private readonly ConcurrentDictionary<Guid, AdaptiveHlsRunInfo> _runs = new();
     private readonly PlaybackStateRepository? _inspection;
+    private readonly PlaybackActivityRegistry? _activity;
 
     public AdaptiveHlsService(
         AdaptiveHlsPackageRepository packages,
@@ -42,9 +43,12 @@ public sealed class AdaptiveHlsService
         IConfigurationLoader configuration,
         IHostApplicationLifetime lifetime,
         ILogger<AdaptiveHlsService> logger,
-        PlaybackStateRepository? inspection = null)
+        PlaybackStateRepository? inspection = null,
+        PlaybackActivityRegistry? activity = null,
+        EncodeSlotGate? slots = null)
     {
         _inspection = inspection;
+        _activity = activity;
         _packages = packages;
         _assets = assets;
         _textTracks = textTracks;
@@ -53,7 +57,8 @@ public sealed class AdaptiveHlsService
         _lifetime = lifetime;
         _logger = logger;
         // The limit is read each time a start asks for a slot, so changing "Maximum active encodes" applies at once (playback-path D9).
-        _encodeSlots = new EncodeSlotGate(() => Math.Clamp(configuration.LoadTranscoding().MaxConcurrentTranscodes, 1, 8));
+        // One gate for playback and offline encodes, so the Streaming limit covers both (playing-now spec D8).
+        _encodeSlots = slots ?? new EncodeSlotGate(() => Math.Clamp(configuration.LoadTranscoding().MaxConcurrentTranscodes, 1, 8));
     }
 
     public async Task<AdaptiveHlsPreparation> EnsurePackageAsync(
@@ -187,6 +192,7 @@ public sealed class AdaptiveHlsService
 
         _activeReaders.AddOrUpdate(packageId, 1, (_, current) => current + 1);
         Interlocked.Exchange(ref _lastServedTicks, DateTime.UtcNow.Ticks);
+        _activity?.NoteRead(assetId);
         await _packages.TouchAsync(packageId, ct).ConfigureAwait(false);
         try
         {
@@ -233,15 +239,30 @@ public sealed class AdaptiveHlsService
             package.Id,
             _ => new AdaptiveHlsRunInfo { WaitingForSlot = true },
             (_, _) => new AdaptiveHlsRunInfo { WaitingForSlot = true });
-        await _encodeSlots.WaitAsync(ct).ConfigureAwait(false);
-        run.WaitingForSlot = false;
+        // Every encode owns its own cancel handle, so Stop in Playing now ends this one alone (playing-now spec WP1).
         using var preparationCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         ct = preparationCancellation.Token;
+        var tracked = _activity?.BeginEncode(
+            package.Id, PlayingNowKinds.PlaybackEncode, package.AssetId, () => preparationCancellation.CancelAsync());
+        if (tracked is not null)
+        {
+            tracked.Step = EncodeHeaviness.StepFor(plan.Decision.Rung);
+            tracked.Percent = () => RunFor(package.Id, package.RootPath, _configuration.LoadTranscoding().AdaptiveHls.SegmentSeconds)?.PercentPrepared;
+        }
         var staging = package.RootPath;
         Task<(int ExitCode, string Output, string Error)>? firstAudio = null;
         Task<IReadOnlyList<HlsCaption>>? captionTask = null;
+        var slotHeld = false;
         try
         {
+            await _encodeSlots.WaitAsync(ct).ConfigureAwait(false);
+            slotHeld = true;
+            run.WaitingForSlot = false;
+            if (tracked is not null)
+            {
+                tracked.WaitingForSlot = false;
+            }
+
             if (!_ffmpeg.IsAvailable || !_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
             {
                 throw new InvalidOperationException("FFmpeg does not provide the HLS, H.264, and AAC capabilities required for adaptive delivery.");
@@ -279,6 +300,10 @@ public sealed class AdaptiveHlsService
             run.Encoder = encoder;
             run.RanOn = choice.RanOn;
             run.FallbackReason = choice.FallbackReason;
+            if (tracked is not null)
+            {
+                tracked.RanOn = choice.RanOn;
+            }
             _logger.LogInformation(
                 "Play: {Rung}, because {Code}; encoder {Encoder}, runs on {RanOn}{Fallback} (asset {AssetId})",
                 plan.Decision.Rung, plan.Decision.Code, encoder, choice.RanOn,
@@ -317,6 +342,10 @@ public sealed class AdaptiveHlsService
                     encoder = "libx264";
                     run.Encoder = encoder;
                     run.RanOn = PlaybackEncodePlaces.Processor;
+                    if (tracked is not null)
+                    {
+                        tracked.RanOn = PlaybackEncodePlaces.Processor;
+                    }
                     run.FallbackReason = reason;
                     DeleteDirectory(directory);
                     Directory.CreateDirectory(directory);
@@ -373,6 +402,8 @@ public sealed class AdaptiveHlsService
             if (captionTask is not null) { try { await captionTask; } catch (Exception captionError) { _logger.LogDebug(captionError, "Caption preparation stopped"); } }
             DeleteDirectory(staging);
             _runs.TryRemove(package.Id, out _);
+            // A stopped start leaves nothing half-built behind: the streaming copy is only a cache, and the next Play builds it afresh.
+            await _packages.DeleteAsync(package.Id, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -386,7 +417,11 @@ public sealed class AdaptiveHlsService
         finally
         {
             _preparations.TryRemove(package.Id, out _);
-            _encodeSlots.Release();
+            _activity?.EndEncode(package.Id);
+            if (slotHeld)
+            {
+                _encodeSlots.Release();
+            }
         }
     }
 

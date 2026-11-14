@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Playback;
@@ -12,14 +13,23 @@ public sealed class EncodeQueueService : BackgroundService
     private readonly IConfigurationLoader _config;
     private readonly ILogger<EncodeQueueService> _logger;
     private int _encoding;
+    private readonly PlaybackActivityRegistry? _activity;
+    private readonly EncodeSlotGate? _slots;
+    private readonly IProfileRepository? _profiles;
 
     public EncodeQueueService(
         PlaybackStateRepository state,
         IMediaAssetRepository assets,
         IFFmpegService ffmpeg,
         IConfigurationLoader config,
-        ILogger<EncodeQueueService> logger)
+        ILogger<EncodeQueueService> logger,
+        PlaybackActivityRegistry? activity = null,
+        EncodeSlotGate? slots = null,
+        IProfileRepository? profiles = null)
     {
+        _activity = activity;
+        _slots = slots;
+        _profiles = profiles;
         _state = state;
         _assets = assets;
         _ffmpeg = ffmpeg;
@@ -77,10 +87,32 @@ public sealed class EncodeQueueService : BackgroundService
         var args = BuildArguments(asset.FilePathRoot, outputPath, job.ProfileKey);
         _logger.LogInformation("Starting encode job {JobId} for asset {AssetId} with profile {ProfileKey}", job.Id, job.AssetId, job.ProfileKey);
 
+        // Stop in Playing now cancels this one job; it goes back to "cancelled" and can be requested again (playing-now spec WP1, D8).
+        using var stopSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var requestedBy = job.OwnerProfileId is { } owner && _profiles is not null
+            ? (await _profiles.GetByIdAsync(owner, ct))?.DisplayName
+            : null;
+        var tracked = _activity?.BeginEncode(
+            job.Id, PlayingNowKinds.OfflineEncode, job.AssetId, () => stopSource.CancelAsync(),
+            quality: QualityWords(job.ProfileKey), requestedBy: requestedBy, title: "A copy for a phone");
+        var slotHeld = false;
         Interlocked.Exchange(ref _encoding, 1);
         try
         {
-            var result = await _ffmpeg.RunAsync(args, ct);
+            if (_slots is not null)
+            {
+                await _slots.WaitAsync(stopSource.Token);
+                slotHeld = true;
+            }
+
+            if (tracked is not null)
+            {
+                tracked.WaitingForSlot = false;
+                tracked.Step = job.ProfileKey.Equals("audio-mobile", StringComparison.OrdinalIgnoreCase) ? PlayingNowSteps.ConvertingAudio : PlayingNowSteps.EncodingPicture;
+                tracked.Heaviness = null;
+            }
+
+            var result = await _ffmpeg.RunAsync(args, stopSource.Token);
             if (result.ExitCode != 0 || !File.Exists(outputPath))
             {
                 await _state.FailEncodeJobAsync(job.Id, string.IsNullOrWhiteSpace(result.Error) ? "FFmpeg failed." : result.Error, ct);
@@ -103,6 +135,14 @@ public sealed class EncodeQueueService : BackgroundService
                 DateTimeOffset.UtcNow.AddDays(Math.Max(1, _config.LoadTranscoding().VariantRetentionDays)),
                 ct);
         }
+        catch (OperationCanceledException) when (stopSource.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            // Stopped by an administrator: the half-written copy goes, the job is cancelled, nothing else changes.
+            DeleteJobFolder(job, outputPath);
+            await _state.CancelEncodeJobAsync(job.Id, null, null, CancellationToken.None);
+            _logger.LogInformation("Encode job {JobId} was stopped", job.Id);
+            return;
+        }
         catch
         {
             // Interrupted or crashed mid-encode: nothing owns the half-written folder, so remove it before the error moves on.
@@ -112,6 +152,11 @@ public sealed class EncodeQueueService : BackgroundService
         finally
         {
             Interlocked.Exchange(ref _encoding, 0);
+            _activity?.EndEncode(job.Id);
+            if (slotHeld)
+            {
+                _slots!.Release();
+            }
         }
 
         _logger.LogInformation("Completed encode job {JobId} at {OutputPath}", job.Id, outputPath);
@@ -140,6 +185,15 @@ public sealed class EncodeQueueService : BackgroundService
             _logger.LogWarning(ex, "Could not remove the output folder of failed encode job {JobId}", job.Id);
         }
     }
+
+    private static string QualityWords(string profileKey) => profileKey.ToLowerInvariant() switch
+    {
+        "mobile-small" => "Small",
+        "mobile-standard" => "Standard",
+        "audio-mobile" => "Audio",
+        "tv-adaptive-hls" => "TV",
+        _ => profileKey,
+    };
 
     private string ResolveVariantRoot()
     {

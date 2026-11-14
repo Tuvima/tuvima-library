@@ -185,7 +185,7 @@ public sealed class VideoBookmarkBeadHostTests : AsyncBunitContext
         Services.AddSingleton(new VideoPresentationResolver(api, null!, playback, preferences));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
         Services.AddSingleton(new UniverseStateContainer());
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences);
         Render<AppPopoverHost>();
     }

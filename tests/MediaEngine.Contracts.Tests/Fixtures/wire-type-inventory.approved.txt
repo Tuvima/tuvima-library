@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1567; api=0; web-client=56
+# scopes: contracts=1570; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10019,6 +10019,46 @@
   Connection: MediaEngine.Contracts.Playback.PlaybackConnectionContextDto | json=connection | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"profileId":"11111111-2222-3333-4444-555555555555","sessionId":"11111111-2222-3333-4444-555555555555","deviceId":"sample","client":"sample","playbackState":"sample","experience":"sample","stateVersion":7,"currentQueueItemId":"11111111-2222-3333-4444-555555555555","currentItem":null,"queue":[],"positionSeconds":7,"durationSeconds":7,"progressPct":7,"volume":7,"isMuted":true,"playbackRate":7,"shuffleEnabled":true,"repeatMode":"sample","sourceLabel":"sample","createdAt":"2025-01-02T03:04:05+00:00","updatedAt":"2025-01-02T03:04:05+00:00","lastHeartbeatAt":"2025-01-02T03:04:05+00:00","isStale":true,"capabilities":null,"audiobookHistory":[],"warnings":[],"connection":null}
 
+[contracts] MediaEngine.Contracts.Playback.PlayingNowDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Rows: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlayingNowRowDto> | json=rows | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MaxActiveEncodes: System.Int32 | json=maxActiveEncodes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ActiveEncodes: System.Int32 | json=activeEncodes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WatchingCount: System.Int32 | json=watchingCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PreparingCount: System.Int32 | json=preparingCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HeaviestLoad: System.String | json=heaviestLoad | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HeaviestRanOn: System.String | json=heaviestRanOn | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"rows":[],"maxActiveEncodes":7,"activeEncodes":7,"watchingCount":7,"preparingCount":7,"heaviestLoad":"sample","heaviestRanOn":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.PlayingNowRowDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Subtitle: System.String | json=subtitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverUrl: System.String | json=coverUrl | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AccountId: System.String | json=accountId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.String | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DeviceId: System.String | json=deviceId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PersonName: System.String | json=personName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileName: System.String | json=profileName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsKidsProfile: System.Boolean | json=isKidsProfile | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DeviceName: System.String | json=deviceName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Step: System.String | json=step | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PreparingReason: System.String | json=preparingReason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WaitingForSlot: System.Boolean | json=waitingForSlot | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PercentPrepared: System.Int32? | json=percentPrepared | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PositionSeconds: System.Double? | json=positionSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DurationSeconds: System.Double? | json=durationSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Heaviness: System.String | json=heaviness | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RanOn: System.String | json=ranOn | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsWatched: System.Boolean | json=isWatched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StopsInSeconds: System.Int32? | json=stopsInSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OfflineQuality: System.String | json=offlineQuality | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanStop: System.Boolean | json=canStop | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StartedAt: System.DateTimeOffset | json=startedAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","kind":"sample","title":"sample","subtitle":"sample","coverUrl":"sample","accountId":"sample","profileId":"sample","deviceId":"sample","personName":"sample","profileName":"sample","isKidsProfile":true,"deviceName":"sample","step":"sample","preparingReason":"sample","waitingForSlot":true,"percentPrepared":7,"positionSeconds":7,"durationSeconds":7,"heaviness":"sample","ranOn":"sample","isWatched":true,"stopsInSeconds":7,"offlineQuality":"sample","canStop":true,"startedAt":"2025-01-02T03:04:05+00:00"}
+
 [contracts] MediaEngine.Contracts.Playback.PreferredTextTrackResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   asset_id: System.Guid | json=asset_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10106,6 +10146,11 @@
   Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Browser: System.String | json=browser | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","value":"sample","browser":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.StopUnwatchedResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Stopped: System.Int32 | json=stopped | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"stopped":7}
 
 [contracts] MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13478,6 +13523,8 @@
   FfprobeBinaryPath: System.String | json=ffprobe_binary_path | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HardwareAcceleration: System.String | json=hardware_acceleration | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MaxConcurrentTranscodes: System.Int32 | json=max_concurrent_transcodes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GraceSecondsAfterLastViewer: System.Int32 | json=grace_seconds_after_last_viewer | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PausedCountsAsWatchingMinutes: System.Int32 | json=paused_counts_as_watching_minutes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ShadowStorageLimitGb: System.Int32 | json=shadow_storage_limit_gb | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   QualityProfiles: System.Collections.Generic.List<MediaEngine.Contracts.Settings.TranscodingQualityProfile> | json=quality_profiles | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ScheduledEncodesEnabled: System.Boolean | json=scheduled_encodes_enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -13488,7 +13535,7 @@
   DefaultMobileProfile: System.String | json=default_mobile_profile | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AdaptiveHls: MediaEngine.Contracts.Settings.AdaptiveHlsSettings | json=adaptive_hls | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ScrubPreviews: MediaEngine.Contracts.Settings.ScrubPreviewSettings | json=scrub_previews | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"ffmpeg_binary_path":"sample","ffprobe_binary_path":"sample","hardware_acceleration":"sample","max_concurrent_transcodes":7,"shadow_storage_limit_gb":7,"quality_profiles":[],"scheduled_encodes_enabled":true,"maintenance_window":"sample","variant_cache_path":"sample","variant_retention_days":7,"cleanup_lru_enabled":true,"default_mobile_profile":"sample","adaptive_hls":null,"scrub_previews":null}
+  sample={"ffmpeg_binary_path":"sample","ffprobe_binary_path":"sample","hardware_acceleration":"sample","max_concurrent_transcodes":7,"grace_seconds_after_last_viewer":7,"paused_counts_as_watching_minutes":7,"shadow_storage_limit_gb":7,"quality_profiles":[],"scheduled_encodes_enabled":true,"maintenance_window":"sample","variant_cache_path":"sample","variant_retention_days":7,"cleanup_lru_enabled":true,"default_mobile_profile":"sample","adaptive_hls":null,"scrub_previews":null}
 
 [contracts] MediaEngine.Contracts.Settings.UIAppStoreLinksContract
   kind=class | converter=default | number-handling=default | unmapped=default

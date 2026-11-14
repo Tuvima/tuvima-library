@@ -391,7 +391,7 @@ public sealed class IngestionQueueProgressDisplayTests : LiveLibraryTestContext
         var cut = RenderLine(snapshot);
 
         var link = cut.Find("[data-testid='library-status-activity-link']");
-        Assert.Equal("/settings/library-activity", link.GetAttribute("href"));
+        Assert.Equal("/settings/general/library-activity", link.GetAttribute("href"));
         Assert.Equal("Adding", link.TextContent.Trim());
         Assert.Equal("Adding 254 files · about 4 min left", StatusText(cut));
     }

@@ -67,7 +67,7 @@ public sealed class OneActivityEventWordingTests : AsyncBunitContext
             new NoPlaybackPreferences()));
         Services.AddSingleton<ContextSidebarCoordinator>();
         Services.AddSingleton(new PlaybackSessionController(null!, api));
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Render<AppPopoverHost>();
     }
 

@@ -24,7 +24,7 @@ public sealed class SettingsAdvancedTabTests : AsyncBunitContext
         Services.AddSingleton(new UniverseStateContainer());
         Services.AddSingleton(new PlaybackSessionController(null!, api));
         Services.AddSingleton<ActivityNotificationQueue>();
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
     }
 
     [Fact]

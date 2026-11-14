@@ -6,8 +6,11 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
 
@@ -43,32 +46,43 @@ public sealed class GeneralPageTests : AsyncBunitContext
         Services.AddSingleton(new MediaEngine.Domain.Configuration.PasswordResetDeliverySettings { Mode = "Disabled" });
         Services.AddSingleton(new DashboardConfigurationReader(Path.Combine(Path.GetTempPath(), $"tuvima-no-config-{Guid.NewGuid():N}")));
         Services.AddSingleton<PasswordResetEmailSender>();
+        Services.AddSingleton(new UniverseStateContainer());
+        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<PlayingNowState>();
+        Services.AddSingleton(new DashboardSessionAccessor());
+        Services.AddSingleton(provider => new UIOrchestratorService(
+            provider.GetRequiredService<IEngineApiClient>(),
+            provider.GetRequiredService<UniverseStateContainer>(),
+            new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), provider.GetRequiredService<IEngineApiClient>()),
+            new ConfigurationBuilder().Build(),
+            NullLogger<UIOrchestratorService>.Instance));
+        Services.AddSingleton(provider => new IngestionLiveDashboardState(provider.GetRequiredService<IEngineApiClient>(), provider.GetRequiredService<UIOrchestratorService>(), provider.GetRequiredService<UniverseStateContainer>()));
+        Services.AddSingleton<SettingsAttentionState>();
     }
 
     [Fact]
-    public void General_ShowsNameAndAddress_LanguageAndRegion_AndNotifications_InThatOrder_WithNoTabs()
+    public void General_ShowsRightNow_ThenNameAndAddress_ThenLanguageAndRegion_AndNoNotifications()
     {
         var cut = Render<GeneralPage>();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='general-name-address']")));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='notifications-page']")));
         var markup = cut.Find("[data-testid='general-page']").InnerHtml;
         var name = markup.IndexOf("general-name-address", StringComparison.Ordinal);
         var language = markup.IndexOf("Language and region", StringComparison.Ordinal);
-        var notifications = markup.IndexOf("general-notifications-heading", StringComparison.Ordinal);
-        Assert.True(name >= 0 && name < language && language < notifications, "Name and address, then Language and region, then Notifications.");
-        Assert.Empty(cut.FindAll("[role='tablist'], [role='tab']"));
+        Assert.True(name >= 0 && name < language, "Name and address, then Language and region.");
+        Assert.Empty(cut.FindAll("[data-testid='general-notifications']"));
         Assert.Contains("Name and address", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Notifications", cut.Find("#general-notifications-heading").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Notifications_CarriesTheTestEmailThatWasOnSignInMethods()
+    public void Notifications_IsItsOwnTab_AndCarriesTheTestEmailThatWasOnSignInMethods()
     {
-        var cut = Render<GeneralPage>();
+        var cut = Render<GeneralPage>(parameters => parameters.Add(page => page.Subsection, "notifications"));
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='notifications-email-test-send']")));
+        Assert.Contains("Notifications", cut.Find("#general-notifications-heading").TextContent, StringComparison.Ordinal);
         Assert.Contains("Send test email to my account", cut.Find("[data-testid='notifications-email-test-send']").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='general-name-address']"));
     }
 
     [Fact]

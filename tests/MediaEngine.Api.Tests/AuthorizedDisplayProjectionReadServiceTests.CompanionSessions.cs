@@ -60,7 +60,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             new ClientAuthorizationRepository(_database),
             new IdentityRepository(_database),
             PersonalActivityTestKit.CreateRecorder(_database),
-            TimeProvider.System);
+            TimeProvider.System,
+            new PlaybackActivityRegistry(TimeProvider.System),
+            new VaultLibraryRepository(_database));
         var deviceStates = new PlayerDeviceStateRepository(_database);
         var player = new PlayerService(
             new PlayerSessionRepository(_database), null!, _database, new MediaAssetRepository(_database),

@@ -45,6 +45,7 @@ public sealed class VaultRouteInventoryTests
         ("/profiles/", "Profile ids, not catalogue items"),
         ("/settings/tools/", "Tool installers, not catalogue items"),
         ("/operations/", "Gated by VaultOperationGate; a Vault operation answers like a missing one"),
+        ("/playback/playing-now/", "Administrators only; the id is a live encode in the Playing now registry, not an item, and the list masks a Vault title (PlayingNowReadService)"),
     ];
 
     // Exact route patterns, for the few routes whose whole prefix cannot be vouched for: a new route under /works/, /collections/,

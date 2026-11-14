@@ -2,6 +2,7 @@
 @implements IDisposable
 
 @inject ShellActivityState Activity
+@inject PlayingNowState Playing
 @inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
 
@@ -12,7 +13,7 @@
                          AriaLabel="@AriaLabel"
                          OnClick="HandleClick">
             @* The one activity icon the Activity and Libraries progress card also draws (spec library-activity D32). *@
-            <AppSyncActivityIcon Percent="@RingPercent" Working="@Snapshot.IsWorking" Spinning="@RingSpins" Icon="@PrimaryIcon" />
+            <AppSyncActivityIcon Percent="@RingPercent" Working="@Working" Spinning="@RingSpins" Icon="@PrimaryIcon" />
             @if (Snapshot.IsWorking && Snapshot.ActiveCount > 1)
             {
                 <span class="system-activity-indicator__count" aria-hidden="true">@CountLabel</span>
@@ -27,11 +28,18 @@
 
     private ShellActivitySnapshot Snapshot => Activity.Current;
 
+    // The spinner also turns while the Engine prepares a video for someone (spec playing-now-and-general-tabs D16), shown only to someone who can open it.
+    private bool EncodeBusy => CanOpenSystemActivity && Playing.HasEncode;
+
+    private bool Working => Snapshot.IsWorking || EncodeBusy;
+
+    private bool _retained;
+
     // The last library update ended with failures and nobody has opened Activity since: a quiet warning state (never a pop-up), shown only
     // to someone who can open Activity, and never over the working look.
     private bool NeedsAttention => !Snapshot.IsWorking && Snapshot.NeedsAttention && CanOpenSystemActivity;
 
-    private string ButtonClass => Snapshot.IsWorking
+    private string ButtonClass => Working
         ? "system-activity-indicator is-working"
         : NeedsAttention ? "system-activity-indicator is-attention" : "system-activity-indicator is-idle";
     private int? RingPercent => Snapshot.IsWorking ? Snapshot.Primary?.ProgressPercent : null;
@@ -59,9 +67,24 @@
         ? L["SystemActivityIndicator_NeedsAttentionTooltip"].Value
         : SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow);
 
-    private const string ActivityRoute = "/settings/library-activity";
+    // Library work opens Library activity; otherwise the spinner (which also turns for an encode) opens Playing now (spec playing-now-and-general-tabs D16).
+    private const string LibraryActivityRoute = "/settings/general/library-activity";
+    private const string PlayingNowRoute = "/settings/general/playing-now";
 
-    protected override void OnInitialized() => Activity.Changed += OnActivityChanged;
+    protected override void OnInitialized()
+    {
+        Activity.Changed += OnActivityChanged;
+        Playing.Changed += OnActivityChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (CanOpenSystemActivity && !_retained)
+        {
+            _retained = true;
+            Playing.Retain();
+        }
+    }
 
     private void OnActivityChanged() => _ = InvokeAsync(StateHasChanged);
 
@@ -71,9 +94,17 @@
             return Task.CompletedTask;
 
         Activity.AcknowledgeAttention();
-        Nav.NavigateTo(ActivityRoute);
+        Nav.NavigateTo(Snapshot.IsWorking || !Playing.HasLiveWork ? LibraryActivityRoute : PlayingNowRoute);
         return Task.CompletedTask;
     }
 
-    public void Dispose() => Activity.Changed -= OnActivityChanged;
+    public void Dispose()
+    {
+        Activity.Changed -= OnActivityChanged;
+        Playing.Changed -= OnActivityChanged;
+        if (_retained)
+        {
+            Playing.Release();
+        }
+    }
 }

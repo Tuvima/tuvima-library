@@ -115,7 +115,7 @@ public sealed class DeepLinkReloadTests : AsyncBunitContext
         Services.AddSingleton(new VideoPresentationResolver(api, null!, playback));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
         Services.AddSingleton(new UniverseStateContainer());
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Render<AppPopoverHost>();
     }
 

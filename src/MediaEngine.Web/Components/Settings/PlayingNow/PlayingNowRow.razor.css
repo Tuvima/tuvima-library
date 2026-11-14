@@ -1,0 +1,21 @@
+.pnow-row { display: grid; grid-template-columns: 48px minmax(0, 2.2fr) minmax(0, 1.6fr) minmax(0, 1.2fr) auto; align-items: center; gap: var(--tl-space-4); padding: var(--tl-space-3) var(--tl-space-4); border-bottom: 1px solid var(--tl-border-default); }
+.pnow-row:last-child { border-bottom: 0; }
+.pnow-row__cover { display: block; width: 48px; height: 72px; border-radius: var(--tl-radius-sm); overflow: hidden; background: var(--tl-bg-surface); }
+.pnow-row__who, .pnow-row__doing, .pnow-row__load { min-width: 0; display: flex; flex-direction: column; gap: var(--tl-space-1); }
+.pnow-row__title { color: var(--tl-text-primary); font-weight: var(--tl-type-heading-weight); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pnow-row__line, .pnow-row__sub { color: var(--tl-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pnow-row__line.is-countdown { color: var(--tl-accent-primary); }
+.pnow-row__line.is-problem { color: var(--tl-status-danger, var(--tl-text-primary)); }
+.pnow-row__label { color: var(--tl-text-primary); }
+.pnow-row__load { flex-direction: row; align-items: center; flex-wrap: wrap; gap: var(--tl-space-2); }
+.pnow-row__action { display: flex; justify-content: flex-end; min-width: 80px; }
+.pnow-chip { display: inline-flex; align-items: center; padding: 0 var(--tl-space-2); min-height: 24px; border-radius: var(--tl-radius-sm); border: 1px solid var(--tl-border-default); color: var(--tl-text-secondary); white-space: nowrap; }
+.pnow-chip--light { color: var(--tl-text-primary); }
+.pnow-chip--medium { color: var(--tl-text-primary); border-color: var(--tl-accent-primary); }
+.pnow-chip--heavy { color: var(--tl-text-primary); border-color: var(--tl-accent-primary); font-weight: var(--tl-type-label-weight); }
+/* Phone: the rows stack, nothing is hidden, and Stop is a full-width 44 px button under the row (D14). */
+@media (max-width: 600px) {
+    .pnow-row { grid-template-columns: 48px minmax(0, 1fr); row-gap: var(--tl-space-2); }
+    .pnow-row__doing, .pnow-row__load, .pnow-row__action { grid-column: 1 / -1; }
+    .pnow-row__action { justify-content: stretch; }
+}

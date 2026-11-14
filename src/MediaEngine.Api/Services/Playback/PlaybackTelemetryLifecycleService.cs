@@ -16,7 +16,9 @@ public sealed class PlaybackTelemetryLifecycleService(
     IClientAuthorizationRepository clients,
     IIdentityRepository identities,
     PersonalActivityRecorder activity,
-    TimeProvider clock)
+    TimeProvider clock,
+    PlaybackActivityRegistry playing,
+    IVaultLibraryRepository vaultLibraries)
 {
     public async Task<PlaybackTelemetryTransition?> CloseAsync(
         Guid playerSessionId,
@@ -28,6 +30,9 @@ public sealed class PlaybackTelemetryLifecycleService(
         {
             await activity.RecordClosedAsync([transition], ct).ConfigureAwait(false);
         }
+
+        // The session is over, so it no longer counts as someone watching (playing-now spec D6).
+        playing.CloseWatch(playerSessionId);
 
         return transition;
     }
@@ -90,7 +95,46 @@ public sealed class PlaybackTelemetryLifecycleService(
         // The light asset row above carries ids only; a new session's record keeps the title, so it gets the full row.
         var shown = transitions.Any(transition => transition.WasCreated) ? await catalogue.DisplayContextAsync(asset, ct).ConfigureAwait(false) : asset;
         await activity.RecordPlaybackAsync(transitions, shown, clientFacts.Device, ct).ConfigureAwait(false);
+        await NoteWatchAsync(transitions, shown, clientFacts.Device.Name, ct).ConfigureAwait(false);
         return transitions;
+    }
+
+    /// <summary>Tells the live Playing now list about this session. Best effort: it never fails playback.</summary>
+    private async Task NoteWatchAsync(
+        IReadOnlyList<PlaybackTelemetryTransition> transitions,
+        DisplayWorkRow shown,
+        string? deviceName,
+        CancellationToken ct)
+    {
+        if (FeatureFor(shown.MediaType) != AccountFeatureId.Watch)
+        {
+            return;
+        }
+
+        foreach (var transition in transitions)
+        {
+            var session = transition.Session;
+            if (transition.WasIgnored || session.AssetId is not { } assetId)
+            {
+                continue;
+            }
+
+            if (session.State is PlaybackTelemetryStates.Stopped or PlaybackTelemetryStates.Completed)
+            {
+                playing.CloseWatch(session.PlayerSessionId);
+                continue;
+            }
+
+            var isVault = !string.IsNullOrWhiteSpace(shown.LibraryId)
+                && (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(shown.LibraryId);
+            var episode = !string.IsNullOrWhiteSpace(shown.ShowName) && !string.IsNullOrWhiteSpace(shown.SeasonNumber) && !string.IsNullOrWhiteSpace(shown.EpisodeNumber)
+                ? $"{shown.ShowName} · S{shown.SeasonNumber}E{shown.EpisodeNumber}"
+                : null;
+            playing.ObserveWatch(new WatchEntry(
+                session.PlayerSessionId, assetId, session.AccountId, session.ProfileId, session.DeviceId, deviceName,
+                shown.Title, episode, shown.CoverSmallUrl ?? shown.CoverUrl, isVault, session.State,
+                session.LastPositionSeconds, session.DurationSeconds, session.StartedAt, session.LastObservedAt));
+        }
     }
 
     private async Task<(PlaybackClientFacts Facts, Guid? DeviceId, PersonalActivityDevice Device)> ClientFactsAsync(

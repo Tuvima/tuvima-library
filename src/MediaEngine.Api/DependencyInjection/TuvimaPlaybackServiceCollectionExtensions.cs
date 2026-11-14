@@ -26,6 +26,11 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<BrowserPlaybackAbilityRegistryService>();
         // The one "Video quality and devices" list and its saved values (playback-path D15).
         services.AddSingleton<VideoOptionsService>();
+        services.AddSingleton<PlaybackActivityRegistry>();
+        services.AddSingleton<IEncodeLoadSampler, FfmpegProcessLoadSampler>();
+        services.AddSingleton<EncodeSlotGate>(sp => new EncodeSlotGate(() => Math.Clamp(sp.GetRequiredService<IConfigurationLoader>().LoadTranscoding().MaxConcurrentTranscodes, 1, 8)));
+        services.AddSingleton<IPlayingNowNames, PlayingNowNames>();
+        services.AddSingleton<PlayingNowReadService>();
         services.AddSingleton<AdaptiveHlsService>();
         // Scrub previews (Unified player v2 D9a): frames made ahead of time, in the Library's own cache.
         services.AddSingleton<MediaEngine.Processors.VideoFrameExtractor>();

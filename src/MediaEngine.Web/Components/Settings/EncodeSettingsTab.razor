@@ -88,6 +88,8 @@
             <div class="encode-settings__form">
                 <AppSelect T="string" @bind-Value="_defaultProfile" Label="@L["EncodeSettingsTab_PreparedDownloadQuality"].Value" Options="@ProfileOptions" />
                 <AppNumericField @bind-Value="_maxConcurrentJobs" Label="@L["EncodeSettingsTab_MaximumActiveEncodes"].Value" Min="1" Max="4" />
+                <AppNumericField @bind-Value="_graceSeconds" Label="@L["EncodeSettingsTab_StopAfterLastViewer"].Value" Min="10" Max="3600" />
+                <AppNumericField @bind-Value="_pausedMinutes" Label="@L["EncodeSettingsTab_PausedCountsAsWatching"].Value" Min="1" Max="240" />
             </div>
         </SettingsSectionPanel>
 
@@ -143,6 +145,8 @@
     private string? _windowStart;
     private string? _windowEnd;
     private int _maxConcurrentJobs;
+    private int _graceSeconds;
+    private int _pausedMinutes;
     private string _hardwarePreference = string.Empty;
     private string _variantRoot = string.Empty;
     private int _cacheSizeGb;
@@ -263,6 +267,8 @@
         _scheduledEncodesEnabled = settings.ScheduledEncodesEnabled;
         (_windowStart, _windowEnd) = SplitMaintenanceWindow(settings.MaintenanceWindow);
         _maxConcurrentJobs = settings.MaxConcurrentTranscodes;
+        _graceSeconds = settings.GraceSecondsAfterLastViewer;
+        _pausedMinutes = settings.PausedCountsAsWatchingMinutes;
         _hardwarePreference = settings.HardwareAcceleration;
         _variantRoot = settings.VariantCachePath;
         _cacheSizeGb = settings.ShadowStorageLimitGb;
@@ -276,6 +282,8 @@
         settings.ScheduledEncodesEnabled = _scheduledEncodesEnabled;
         settings.MaintenanceWindow = JoinMaintenanceWindow(_windowStart, _windowEnd, settings.MaintenanceWindow);
         settings.MaxConcurrentTranscodes = _maxConcurrentJobs;
+        settings.GraceSecondsAfterLastViewer = _graceSeconds;
+        settings.PausedCountsAsWatchingMinutes = _pausedMinutes;
         settings.HardwareAcceleration = _hardwarePreference;
         settings.VariantCachePath = _variantRoot;
         settings.ShadowStorageLimitGb = _cacheSizeGb;

@@ -68,7 +68,6 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.False(libraries.Exact);
         Assert.Contains("/settings/libraries", libraries.ActiveRoutes!);
         Assert.Contains("/settings/matching", libraries.ActiveRoutes!);
-        Assert.Contains("/settings/library-activity", libraries.ActiveRoutes!);
         Assert.Contains("/settings/review", libraries.ActiveRoutes!);
         Assert.Contains("/settings/rules", libraries.ActiveRoutes!);
 
@@ -303,7 +302,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
     [Theory]
     [InlineData("/settings/matching", "/settings/libraries")]
-    [InlineData("/settings/library-activity", "/settings/libraries")]
+    [InlineData("/settings/general/library-activity", "/settings/general")]
     [InlineData("/settings/security/devices", "/settings/security")]
     [InlineData("/settings/backups/destinations", "/settings/backups")]
     [InlineData("/settings/system/advanced", "/settings/system")]

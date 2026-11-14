@@ -8618,9 +8618,6 @@
   <data name="SettingsLibrariesTabs_Libraries" xml:space="preserve">
     <value>Libraries</value>
   </data>
-  <data name="SettingsLibrariesTabs_Activity" xml:space="preserve">
-    <value>Activity</value>
-  </data>
   <data name="SettingsLibrariesTabs_NeedsReview" xml:space="preserve">
     <value>Needs Review</value>
   </data>
@@ -14464,5 +14461,161 @@
   </data>
   <data name="VideoOptions_CouldNotSave" xml:space="preserve">
     <value>{0} could not be saved.</value>
+  </data>
+  <data name="PlayingNow_People" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="PlayingNow_Device" xml:space="preserve">
+    <value>Device</value>
+  </data>
+  <data name="PlayingNow_AllPeople" xml:space="preserve">
+    <value>All people</value>
+  </data>
+  <data name="PlayingNow_AllDevices" xml:space="preserve">
+    <value>All devices</value>
+  </data>
+  <data name="PlayingNow_Someone" xml:space="preserve">
+    <value>Someone</value>
+  </data>
+  <data name="PlayingNow_Counts" xml:space="preserve">
+    <value>{0} watching · {1} preparing · {2} of {3} encode slots in use</value>
+  </data>
+  <data name="PlayingNow_StopAllUnwatched" xml:space="preserve">
+    <value>Stop all unwatched</value>
+  </data>
+  <data name="PlayingNow_StopAllUnwatchedCount" xml:space="preserve">
+    <value>Stop all unwatched ({0})</value>
+  </data>
+  <data name="PlayingNow_Stop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="PlayingNow_KeepGoing" xml:space="preserve">
+    <value>Keep going</value>
+  </data>
+  <data name="PlayingNow_StopTitle" xml:space="preserve">
+    <value>Stop {0}?</value>
+  </data>
+  <data name="PlayingNow_StopWatched" xml:space="preserve">
+    <value>{0} is watching this{1}. Their video will pause. If they press Play again it will start preparing from the beginning.</value>
+  </data>
+  <data name="PlayingNow_On" xml:space="preserve">
+    <value>on {0}</value>
+  </data>
+  <data name="PlayingNow_PlayingDirectly" xml:space="preserve">
+    <value>Playing directly</value>
+  </data>
+  <data name="PlayingNow_Repackaging" xml:space="preserve">
+    <value>Repackaging</value>
+  </data>
+  <data name="PlayingNow_ConvertingAudio" xml:space="preserve">
+    <value>Converting audio</value>
+  </data>
+  <data name="PlayingNow_EncodingPicture" xml:space="preserve">
+    <value>Encoding picture</value>
+  </data>
+  <data name="PlayingNow_Preparing" xml:space="preserve">
+    <value>Preparing</value>
+  </data>
+  <data name="PlayingNow_WaitingForSlot" xml:space="preserve">
+    <value>Waiting for a free slot</value>
+  </data>
+  <data name="PlayingNow_ReadingTheFile" xml:space="preserve">
+    <value>Reading the file</value>
+  </data>
+  <data name="PlayingNow_SlotsInUse" xml:space="preserve">
+    <value>{0} of {1} in use</value>
+  </data>
+  <data name="PlayingNow_Prepared" xml:space="preserve">
+    <value>{0}% prepared</value>
+  </data>
+  <data name="PlayingNow_Position" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="PlayingNow_NoExtraLoad" xml:space="preserve">
+    <value>No extra load</value>
+  </data>
+  <data name="PlayingNow_Light" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="PlayingNow_Medium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="PlayingNow_Heavy" xml:space="preserve">
+    <value>Heavy</value>
+  </data>
+  <data name="PlayingNow_Processor" xml:space="preserve">
+    <value>Processor</value>
+  </data>
+  <data name="PlayingNow_GraphicsCard" xml:space="preserve">
+    <value>Graphics card</value>
+  </data>
+  <data name="PlayingNow_OnProcessor" xml:space="preserve">
+    <value>on the processor</value>
+  </data>
+  <data name="PlayingNow_OnGraphicsCard" xml:space="preserve">
+    <value>on the graphics card</value>
+  </data>
+  <data name="PlayingNow_NobodyWatching" xml:space="preserve">
+    <value>Nobody watching · stops in {0}</value>
+  </data>
+  <data name="PlayingNow_OfflineLine" xml:space="preserve">
+    <value>Preparing for phones ({0})</value>
+  </data>
+  <data name="PlayingNow_OfflineLineBy" xml:space="preserve">
+    <value>Preparing for phones ({0}) · requested by {1}</value>
+  </data>
+  <data name="PlayingNow_CouldNotStop" xml:space="preserve">
+    <value>Could not stop. Try again.</value>
+  </data>
+  <data name="PlayingNow_KidsProfile" xml:space="preserve">
+    <value>Kids profile</value>
+  </data>
+  <data name="PlayingNow_Loading" xml:space="preserve">
+    <value>Loading what is playing…</value>
+  </data>
+  <data name="PlayingNow_NothingNow" xml:space="preserve">
+    <value>Nothing is playing or being prepared right now.</value>
+  </data>
+  <data name="PlayingNow_NothingForFilter" xml:space="preserve">
+    <value>Nothing playing for {0} right now.</value>
+  </data>
+  <data name="PlayingNow_ClearFilter" xml:space="preserve">
+    <value>Clear filter</value>
+  </data>
+  <data name="PlayingNow_LimitsPrefix" xml:space="preserve">
+    <value>Limits and automatic stopping:</value>
+  </data>
+  <data name="PlayingNow_StreamingLimits" xml:space="preserve">
+    <value>Streaming limits</value>
+  </data>
+  <data name="GeneralRightNow_AddingTitle" xml:space="preserve">
+    <value>Adding to your library</value>
+  </data>
+  <data name="GeneralRightNow_PlayingTitle" xml:space="preserve">
+    <value>Playing now</value>
+  </data>
+  <data name="GeneralRightNow_Idle" xml:space="preserve">
+    <value>Idle</value>
+  </data>
+  <data name="GeneralRightNow_Updating" xml:space="preserve">
+    <value>Updating your library · {0}%</value>
+  </data>
+  <data name="GeneralRightNow_Review" xml:space="preserve">
+    <value>Review {0} items</value>
+  </data>
+  <data name="GeneralRightNow_NothingPlaying" xml:space="preserve">
+    <value>Nothing playing</value>
+  </data>
+  <data name="GeneralRightNow_Watching" xml:space="preserve">
+    <value>{0} watching</value>
+  </data>
+  <data name="GeneralRightNow_Preparing" xml:space="preserve">
+    <value>{0} preparing</value>
+  </data>
+  <data name="EncodeSettingsTab_StopAfterLastViewer" xml:space="preserve">
+    <value>Stop an unwatched encode after (seconds)</value>
+  </data>
+  <data name="EncodeSettingsTab_PausedCountsAsWatching" xml:space="preserve">
+    <value>A paused player counts as watching for (minutes)</value>
   </data>
 </root>

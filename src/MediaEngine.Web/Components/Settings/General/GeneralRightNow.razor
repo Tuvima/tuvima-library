@@ -1,0 +1,84 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Settings.PlayingNow
+@using MediaEngine.Web.Services.Integration
+@inject PlayingNowState Playing
+@inject IngestionLiveDashboardState Dashboard
+@inject SettingsAttentionState Attention
+@inject IStringLocalizer<SharedStrings> L
+@implements IDisposable
+
+@* Right now (spec playing-now-and-general-tabs D19): two small cards at the top of General, each a link to its tab. They use the same numbers as the tabs.
+   Idle is shown calmly, never as a warning. Administrators only, because General is an administrator page. *@
+<div class="gnow" data-testid="general-right-now">
+    <a class="gnow__item" href="@SettingsNav.RouteFor(SettingsSection.General, SettingsNav.LibraryActivitySubsection)" data-testid="right-now-library">
+        <span class="gnow__head"><span class="gnow__dot @(LibraryBusy ? "is-live" : null)" aria-hidden="true"></span>@L["GeneralRightNow_AddingTitle"]</span>
+        <span class="gnow__value">@LibraryLine</span>
+    </a>
+    <a class="gnow__item" href="@SettingsNav.RouteFor(SettingsSection.General, SettingsNav.PlayingNowSubsection)" data-testid="right-now-playing">
+        <span class="gnow__head"><span class="gnow__dot @(PlayingBusy ? "is-live" : null)" aria-hidden="true"></span>@L["GeneralRightNow_PlayingTitle"]</span>
+        <span class="gnow__value">@PlayingLine</span>
+    </a>
+</div>
+
+@code {
+    private bool LibraryBusy => Dashboard.QueueProgress is { State: "working" } || Dashboard.Presentation is { IsRunning: true };
+
+    private bool PlayingBusy => !PlayingNowText.IsIdle(Playing.Current);
+
+    private string LibraryLine
+    {
+        get
+        {
+            if (!LibraryBusy || Dashboard.QueueProgress is null)
+            {
+                return L["GeneralRightNow_Idle"];
+            }
+
+            var line = L["GeneralRightNow_Updating", IngestionQueueProgressText.Percent(Dashboard.QueueProgress)].Value;
+            return Attention.ReviewCount > 0 ? $"{line} · {L["GeneralRightNow_Review", Attention.ReviewCount].Value}" : line;
+        }
+    }
+
+    private string PlayingLine
+    {
+        get
+        {
+            if (Playing.Current is not { Rows.Count: > 0 } list)
+            {
+                return L["GeneralRightNow_NothingPlaying"];
+            }
+
+            var parts = new List<string> { L["GeneralRightNow_Watching", list.WatchingCount].Value };
+            if (list.PreparingCount > 0)
+            {
+                parts.Add(L["GeneralRightNow_Preparing", list.PreparingCount].Value);
+            }
+
+            if (list.HeaviestLoad is { } load)
+            {
+                var place = list.HeaviestRanOn == "Graphics card" ? L["PlayingNow_OnGraphicsCard"].Value : L["PlayingNow_OnProcessor"].Value;
+                parts.Add($"{L[PlayingNowText.HeavinessKey(load)].Value} {place}");
+            }
+
+            return string.Join(" · ", parts);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Playing.Changed += OnChanged;
+        Dashboard.OnChanged += OnChanged;
+        Playing.Retain();
+        await Dashboard.InitializeAsync();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Playing.Changed -= OnChanged;
+        Dashboard.OnChanged -= OnChanged;
+        Playing.Release();
+    }
+}

@@ -72,7 +72,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<PlaybackLyricsPresenter>();
         Services.AddMemoryCache();
         Services.AddScoped<MediaEngine.Web.Services.Integration.ProviderCatalogueService>();
-        Services.AddScoped<ShellActivityState>();
+        Services.AddScoped<ShellActivityState>(); Services.AddScoped<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Services.AddScoped<ActivityNotificationQueue>();
         Services.AddSingleton(new DashboardAuthUiOptions(false));
         Services.AddScoped<ListenAudioDragService>();

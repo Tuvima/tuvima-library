@@ -34,6 +34,8 @@ public static class TranscodingSettingsEndpoints
             // save that carries a stale copy of it must not change it.
             settings.ScrubPreviews = configLoader.LoadTranscoding().ScrubPreviews;
             settings.MaxConcurrentTranscodes = Math.Clamp(settings.MaxConcurrentTranscodes, 1, 8);
+            settings.GraceSecondsAfterLastViewer = Math.Clamp(settings.GraceSecondsAfterLastViewer, 10, 3600);
+            settings.PausedCountsAsWatchingMinutes = Math.Clamp(settings.PausedCountsAsWatchingMinutes, 1, 240);
             settings.ShadowStorageLimitGb = Math.Clamp(settings.ShadowStorageLimitGb, 1, 10_000);
             settings.VariantRetentionDays = Math.Clamp(settings.VariantRetentionDays, 1, 3650);
             settings.HardwareAcceleration = string.IsNullOrWhiteSpace(settings.HardwareAcceleration)
