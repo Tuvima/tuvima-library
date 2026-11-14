@@ -267,7 +267,7 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
         panel.Find("button.tl-editor-window__save").Click();
         panel.WaitForElement(".review-changes");
 
-        panel.Find("[aria-label='Metadata'] .review-changes__actions button").Click();
+        panel.Find(".review-changes__row .review-changes__actions button").Click();
 
         panel.WaitForAssertion(() => Assert.Empty(panel.FindAll(".review-changes")));
         Assert.Equal(EpisodeOne, editor.Session.ActiveItem!.EntityId);
@@ -290,7 +290,7 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
         panel.Find("button.tl-editor-window__save").Click();
         panel.WaitForElement(".review-changes");
 
-        panel.Find("[aria-label='Metadata'] .review-changes__actions button").Click();
+        panel.Find(".review-changes__row .review-changes__actions button").Click();
 
         panel.WaitForAssertion(() => Assert.Empty(panel.FindAll(".review-changes")));
         Assert.Equal(ticked, editor.Session.ActiveItem!.EntityId);

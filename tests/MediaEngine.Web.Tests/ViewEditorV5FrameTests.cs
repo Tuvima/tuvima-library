@@ -226,7 +226,7 @@ public sealed class ViewEditorV5FrameTests : AsyncBunitContext
         Assert.DoesNotContain(_edits, edit => !edit.PreviewOnly);
 
         // Review's own Save button is the one that writes: one check, then one save, and the window closes.
-        var confirm = popover.FindAll("button").First(button => button.TextContent.Contains("Save 1 change", StringComparison.Ordinal));
+        var confirm = popover.FindAll("button").First(button => button.TextContent.Trim() == "Save changes");
         await confirm.ClickAsync();
 
         popover.WaitForAssertion(() => Assert.False(host.IsOpen));

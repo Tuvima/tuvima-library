@@ -305,7 +305,7 @@ public partial class MediaBrowseShell
         }
 
         _awaitingSingleEdit = false;
-        if (closed.Changed)
+        if (closed.Changed && !closed.PageRefreshed)
         {
             _ = InvokeAsync(ReloadAfterBulkSaveAsync);
         }

@@ -285,6 +285,105 @@ public sealed class EditorHostTests
         Assert.Equal(1, refreshes);
     }
 
+    private (IEngineApiClient Api, Func<int> Saves) ArtworkApi(Guid current, Guid chosen)
+    {
+        var saves = 0;
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetUniverseEditorSubjectAsync), _ => Task.FromResult<EditorSubjectDto?>(Subject()));
+            stub.SetHandler(nameof(IEngineApiClient.GetEntityArtworkAsync), _ => Task.FromResult<ArtworkEntityWorkspaceDto?>(
+                new ArtworkEntityWorkspaceDto(Subject().Id, "Collection",
+                [
+                    new ArtworkEntityVariantDto(Guid.NewGuid(), current, "Primary", null, "CoverArt", true, false, "/art/a/large", "/art/a/small", 1000, 1500, "Portrait", "tmdb", null),
+                    new ArtworkEntityVariantDto(Guid.NewGuid(), chosen, "Primary", null, "CoverArt", false, false, "/art/b/large", "/art/b/small", 1000, 1500, "Portrait", "tmdb", null),
+                ])));
+            stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
+            {
+                var request = (EditSessionRequest)args![0]!;
+                saves += request.PreviewOnly ? 0 : 1;
+                return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+                {
+                    PreviewOnly = request.PreviewOnly,
+                    Valid = true,
+                    DataSaved = !request.PreviewOnly,
+                    Changes = request.Changes
+                        .Select(change => new EditSessionChangeResult { Id = change.Id, Kind = change.Kind, EntityId = change.EntityId, Status = EditSessionChangeStatuses.Ok })
+                        .ToList(),
+                }));
+            });
+        });
+        return (api, () => saves);
+    }
+
+    [Fact]
+    public async Task APictureChosenWhereEditingIsNotAllowed_IsRefusedAtTheHandler_AndTheEngineIsNeverAsked()
+    {
+        var current = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+        var chosen = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
+        var (api, saves) = ArtworkApi(current, chosen);
+        var host = await HostAsync(api: api);
+        var binding = Binding();
+        binding.ShowHistory = false;
+        binding.LoadFields = () => host.Mode.Fields.LoadUniverseSubjectAsync("Q1");
+        Assert.True(await host.OpenAsync(binding, Guid.Empty));
+        await host.Picker.OpenAsync("CoverArt");
+        var version = host.Picker.Versions("CoverArt").Single(candidate => candidate.AssetId == chosen);
+
+        // The permission is gone (or the device changed) after the window opened: the handler itself checks, not only the launcher.
+        host.Mode.HasPermission = false;
+
+        Assert.False(await host.Picker.MakePreferredAsync(version));
+        Assert.Equal(0, saves());
+        Assert.Contains("not available", host.Picker.Failure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ClosingAfterAPictureWasChosen_TellsListsThePageIsAlreadyRefreshed_SoItIsReadOncePerClose()
+    {
+        var current = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+        var chosen = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
+        var (api, _) = ArtworkApi(current, chosen);
+        var host = await HostAsync(api: api);
+        var closes = new List<EditorClosedEventArgs>();
+        host.Closed += closes.Add;
+        var binding = Binding();
+        binding.ShowHistory = false;
+        binding.LoadFields = () => host.Mode.Fields.LoadUniverseSubjectAsync("Q1");
+        binding.SectionCommitted = () => Task.CompletedTask;
+        Assert.True(await host.OpenAsync(binding, Guid.Empty));
+        await host.Picker.OpenAsync("CoverArt");
+        Assert.True(await host.Picker.MakePreferredAsync(host.Picker.Versions("CoverArt").Single(version => version.AssetId == chosen)));
+
+        Assert.True(await host.RequestCloseAsync());
+
+        var closed = Assert.Single(closes);
+        Assert.True(closed.Changed);
+        Assert.True(closed.PageRefreshed);
+    }
+
+    [Fact]
+    public async Task ClosingAfterAPictureWasChosen_OnAPageWithNoRefreshOfItsOwn_LeavesTheReloadToTheList()
+    {
+        var current = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+        var chosen = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
+        var (api, _) = ArtworkApi(current, chosen);
+        var host = await HostAsync(api: api);
+        var closes = new List<EditorClosedEventArgs>();
+        host.Closed += closes.Add;
+        var binding = Binding();
+        binding.ShowHistory = false;
+        binding.LoadFields = () => host.Mode.Fields.LoadUniverseSubjectAsync("Q1");
+        Assert.True(await host.OpenAsync(binding, Guid.Empty));
+        await host.Picker.OpenAsync("CoverArt");
+        Assert.True(await host.Picker.MakePreferredAsync(host.Picker.Versions("CoverArt").Single(version => version.AssetId == chosen)));
+
+        Assert.True(await host.RequestCloseAsync());
+
+        var closed = Assert.Single(closes);
+        Assert.True(closed.Changed);
+        Assert.False(closed.PageRefreshed);
+    }
+
     [Fact]
     public async Task ClosingTheWindow_WhenNoPictureWasChosen_DoesNotRefreshThePage()
     {

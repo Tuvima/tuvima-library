@@ -163,18 +163,85 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Review_GroupsChangesAsMetadataIdentityArtworkRelationshipsAndPhysicalFiles()
+    public async Task Review_IsOneFlatListOfLines_AndTheFileMoveIsInsideItsOwnAmberBlock()
     {
         var editor = await StartEditorAsync();
         StageEverything(editor.Session.Pending);
 
         OpenReview(editor);
 
-        Assert.Equal(
-            ["Metadata", "Identity", "Artwork", "Relationships", "Physical files"],
-            _dialogs.FindAll(".review-changes__group").Select(group => group.GetAttribute("aria-label")));
-        Assert.Equal(5, _dialogs.FindAll(".review-changes__row").Count);
-        Assert.Equal("Save 5 changes", SaveButton.TextContent.Trim());
+        Assert.Empty(_dialogs.FindAll(".review-changes__group"));
+        Assert.Equal(["Title", "Match changed", "Cover art", "Moves to"], _dialogs.FindAll(".review-changes__rows:not(.review-changes__rows--files) > .review-changes__row .review-changes__field").Select(field => field.TextContent.Trim()));
+        Assert.Single(_dialogs.FindAll(".review-changes__move .review-changes__row"));
+        Assert.Equal("Save changes", SaveButton.TextContent.Trim());
+        Assert.Contains("5 changes to Dune: Part One", _dialogs.Find(".review-changes__heading").TextContent);
+    }
+
+    [Fact]
+    public async Task EachLine_ShowsTheOldValueStruckThrough_ThenTheNewValue_AndNoBeforeOrAfterLabels()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+
+        OpenReview(editor);
+
+        var row = _dialogs.Find(".review-changes__row");
+        Assert.Equal("S", row.QuerySelector(".review-changes__before")!.TagName);
+        Assert.Equal("Dune: Part One", row.QuerySelector(".review-changes__before")!.TextContent.Trim());
+        Assert.Equal("Dune 2", row.QuerySelector(".review-changes__after")!.TextContent.Trim());
+        Assert.DoesNotContain("Before", row.TextContent);
+        Assert.DoesNotContain("After", row.TextContent);
+    }
+
+    [Fact]
+    public async Task AVideosSeriesChangeAndItsFileMove_ShowThePathsInTheAmberBlock_WithoutSayingMovedToTheSeriesFolderAgain()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetTarget(EditSessionChangeKinds.VideoSeries, MovieId, Guid.NewGuid().ToString("D"), label: "The Expanse");
+        Assert.True(editor.Session.Pending.SetVideoSeriesMove(MovieId, "Movies/Expanse/One.mkv", "Movies/The Expanse/One.mkv"));
+
+        OpenReview(editor);
+
+        var block = _dialogs.Find(".review-changes__move");
+        Assert.Contains("Movies/Expanse/One.mkv → Movies/The Expanse/One.mkv", block.TextContent);
+        Assert.DoesNotContain("Moved to the series folder", block.TextContent);
+        Assert.Equal("The Expanse", _dialogs.Find(".review-changes__rows > .review-changes__row .review-changes__after").TextContent.Trim());
+        Assert.Single(_dialogs.FindAll(".review-changes__move"));
+    }
+
+    [Fact]
+    public async Task WithNoFileToMove_NoAmberBlockIsDrawn()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+
+        OpenReview(editor);
+
+        Assert.Empty(_dialogs.FindAll(".review-changes__move"));
+    }
+
+    [Fact]
+    public async Task ReviewChanges_DrawsNoPictureElements()
+    {
+        var editor = await StartEditorAsync();
+        StageEverything(editor.Session.Pending);
+
+        OpenReview(editor);
+
+        Assert.Empty(_dialogs.FindAll(".review-changes img, .review-changes picture"));
+    }
+
+    [Fact]
+    public async Task TheFooter_IsOneRow_BackAtTheLeftAndDiscardThenSaveAtTheRight()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+
+        OpenReview(editor);
+
+        Assert.Equal(["Back to editing", "Discard", "Save changes"], _dialogs.FindAll(".review-changes__footer button").Select(button => button.TextContent.Trim()));
+        Assert.Contains("app-footer-start", FooterButton("Back to editing").ClassList);
+        Assert.Contains("app-action-bar", _dialogs.Find(".review-changes__footer").ClassList);
     }
 
     [Fact]
@@ -186,13 +253,11 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         OpenReview(editor);
 
         var title = Row($"{editor.Session.Pending.Changes.Single(c => c.Kind == EditSessionChangeKinds.Details).Id}:title");
-        Assert.Contains("Dune: Part One", title.TextContent);
-        Assert.Contains("Before", title.TextContent);
         Assert.Contains("Dune: Part One", title.QuerySelector(".review-changes__before")!.TextContent);
         Assert.Contains("Dune 2", title.QuerySelector(".review-changes__after")!.TextContent);
-        Assert.Contains("Dune (tmdb)", _dialogs.Find("[aria-label='Identity']").TextContent);
-        Assert.Contains("Dune Collection", _dialogs.Find("[aria-label='Relationships']").TextContent);
-        Assert.Contains("Cover art", _dialogs.Find("[aria-label='Artwork']").TextContent);
+        Assert.Contains("Dune (tmdb)", _dialogs.Find(".review-changes__rows").TextContent);
+        Assert.Contains("Dune Collection", _dialogs.Find(".review-changes__rows").TextContent);
+        Assert.Contains("Cover art", _dialogs.Find(".review-changes__rows").TextContent);
     }
 
     [Fact]
@@ -205,18 +270,19 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         OpenReview(editor);
 
         Assert.Equal(2, _dialogs.FindAll(".review-changes__row").Count);
-        Assert.Equal("Save 2 changes", SaveButton.TextContent.Trim());
+        Assert.Contains("2 changes to Dune: Part One", _dialogs.Find(".review-changes__heading").TextContent);
     }
 
     [Fact]
-    public async Task AFileMove_CarriesAnAmberWarning()
+    public async Task AFileMove_CarriesTheOneAmberBlock()
     {
         var editor = await StartEditorAsync();
         editor.Session.Pending.SetTarget(EditSessionChangeKinds.FileMove, MovieId, null);
 
         OpenReview(editor);
 
-        var warning = _dialogs.Find("[aria-label='Physical files'] .review-changes__warning");
+        var warning = _dialogs.Find(".review-changes__move");
+        Assert.Contains("This file will move when you save.", warning.TextContent);
         Assert.Contains("cannot be undone", warning.TextContent);
         Assert.Contains("tl-alert-warning", warning.ClassName + " " + warning.OuterHtml);
     }
@@ -254,15 +320,15 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
         editor.Session.Pending.SetTarget(EditSessionChangeKinds.Relationship, MovieId, Guid.NewGuid().ToString("D"), label: "Dune Collection");
         OpenReview(editor);
-        Assert.Equal("Save 2 changes", SaveButton.TextContent.Trim());
+        Assert.Contains("2 changes", _dialogs.Find(".review-changes__heading").TextContent);
 
-        var relationship = _dialogs.Find("[aria-label='Relationships'] .app-row-menu__trigger");
+        var relationship = _dialogs.Find(".review-changes__row[data-row^='" + editor.Session.Pending.Changes.Single(c => c.Kind == EditSessionChangeKinds.Relationship).Id + "'] .app-row-menu__trigger");
         relationship.Click();
         var remove = FindMenuItem("Remove this change");
         remove.Click();
 
-        _dialogs.WaitForAssertion(() => Assert.Equal("Save 1 change", SaveButton.TextContent.Trim()));
-        Assert.Empty(_dialogs.FindAll("[aria-label='Relationships']"));
+        _dialogs.WaitForAssertion(() => Assert.Contains("1 change to", _dialogs.Find(".review-changes__heading").TextContent));
+        Assert.DoesNotContain("Dune Collection", _dialogs.Find(".review-changes").TextContent);
         Assert.Equal(EditSessionChangeKinds.Details, editor.Session.Pending.Changes.Single().Kind);
         Assert.True(editor.Mode.IsOn);
     }
@@ -290,7 +356,7 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
         OpenReview(editor);
 
-        _dialogs.Find("[aria-label='Artwork'] .review-changes__actions button").Click();
+        _dialogs.Find(".review-changes__row[data-row^='" + editor.Session.Pending.Changes.Single(c => c.Kind == EditSessionChangeKinds.Artwork).Id + "'] .review-changes__actions button").Click();
 
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
         Assert.Equal(EditTool.Artwork, editor.Session.ActiveTool);
@@ -308,9 +374,9 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         editor.Session.SwitchItem([new EditTrailItem(MovieId, "Dune: Part One", "Movie")]);
         editor.Session.Pending.SetField(EpisodeId, "title", "Chani, again");
         OpenReview(editor);
-        Assert.Contains("Chani", _dialogs.Find("[aria-label='Metadata']").TextContent);
+        Assert.Contains("Chani", _dialogs.Find(".review-changes__rows").TextContent);
 
-        _dialogs.Find("[aria-label='Metadata'] .review-changes__actions button").Click();
+        _dialogs.Find(".review-changes__row .review-changes__actions button").Click();
 
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
         Assert.Equal(EpisodeId, editor.Session.ActiveItem!.EntityId);
@@ -328,7 +394,7 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         editor.Session.Pending.SetField(neverOpened, "title", "An episode ticked in a list");
         OpenReview(editor);
 
-        var rows = _dialogs.FindAll("[aria-label='Metadata'] .review-changes__row");
+        var rows = _dialogs.FindAll(".review-changes__rows > .review-changes__row");
         Assert.Equal(2, rows.Count);
         var edits = rows.Select(row => row.QuerySelectorAll(".review-changes__actions button")
             .Count(button => button.TextContent.Trim() == "Edit")).ToList();
@@ -363,7 +429,7 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
         OpenReview(editor);
 
-        FooterButton("Discard changes").Click();
+        FooterButton("Discard").Click();
 
         _dialogs.WaitForAssertion(() => Assert.Single(editor.Asked));
         Assert.NotEmpty(_dialogs.FindAll(".review-changes"));
@@ -378,7 +444,7 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
         OpenReview(editor);
 
-        FooterButton("Discard changes").Click();
+        FooterButton("Discard").Click();
 
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
         Assert.False(editor.Mode.IsOn);
@@ -408,7 +474,7 @@ public sealed class ReviewChangesPageTests : AsyncBunitContext
         FindMenuItem("Remove this change").Click();
 
         _dialogs.WaitForAssertion(() => Assert.False(SaveButton.HasAttribute("disabled")));
-        Assert.Equal("Save 1 change", SaveButton.TextContent.Trim());
+        Assert.Contains("1 change to", _dialogs.Find(".review-changes__heading").TextContent);
     }
 
     [Fact]

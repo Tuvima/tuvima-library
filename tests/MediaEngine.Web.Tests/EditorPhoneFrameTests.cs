@@ -117,7 +117,7 @@ public sealed class EditorPhoneFrameTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_ReviewChangesIsAStepWithBackAndSaveChanges_AndNoDiscardButton()
+    public async Task OnAPhone_ReviewChangesIsAStepWithBackDiscardAndSaveChanges_StackedSoSaveIsFirstOnScreen()
     {
         var (mode, session, flow) = await StartAsync();
         session.Pending.SetField(MovieId, "title", "Dune");
@@ -129,10 +129,9 @@ public sealed class EditorPhoneFrameTests : AsyncBunitContext
         Assert.Equal("true", review.GetAttribute("data-phone"));
         cut.WaitForAssertion(() => Assert.False(cut.Find(".review-changes__footer button:last-child").HasAttribute("disabled")));
         var buttons = cut.FindAll(".review-changes__footer button");
-        Assert.Equal(2, buttons.Count);
-        Assert.Equal("Back to editing", buttons[0].TextContent.Trim());
-        Assert.StartsWith("Save", buttons[1].TextContent.Trim(), StringComparison.Ordinal);
-        Assert.DoesNotContain("Discard", cut.Find(".review-changes__footer").TextContent, StringComparison.Ordinal);
+        // Reading order is Back, Discard, Save; the phone footer is a reversed column, so Save changes is the top button on screen.
+        Assert.Equal(["Back to editing", "Discard", "Save changes"], buttons.Select(button => button.TextContent.Trim()));
+        Assert.Contains("app-footer-start", buttons[0].ClassList);
         // The step lists every change.
         Assert.Single(cut.FindAll(".review-changes__row"));
         // Back returns to the tool with everything still staged.
@@ -159,7 +158,7 @@ public sealed class EditorPhoneFrameTests : AsyncBunitContext
         Assert.Contains("tl-editor-window--phone", cut.Find(".tl-editor-window").ClassList);
         cut.Find("button.tl-editor-window__save").Click();
         cut.WaitForElement(".review-changes--phone");
-        Assert.DoesNotContain("Discard", cut.Find(".review-changes__footer").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Discard", cut.Find(".review-changes__footer").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,6 +206,6 @@ public sealed class EditorPhoneFrameTests : AsyncBunitContext
         cut.WaitForElement(".review-changes--page");
         Assert.Empty(cut.FindAll(".review-changes--phone"));
         Assert.Equal(3, cut.FindAll(".review-changes__footer button").Count);
-        Assert.Contains("Discard changes", cut.Find(".review-changes__footer").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Discard", cut.Find(".review-changes__footer").TextContent, StringComparison.Ordinal);
     }
 }
