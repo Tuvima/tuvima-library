@@ -1237,7 +1237,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         // The Universe page's own read (mapped with the graph actions) and what it adds to the helper-app read.
         builder.Services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
         builder.Services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
-        builder.Services.AddSingleton<IConfigurationLoader>(_ => new LibraryPreferencesLoader(() => _libraryPreferences));
+        builder.Services.AddSingleton<IConfigurationLoader>(_ => new LibraryPreferencesLoader(() => null));
         builder.Services.AddSingleton<IEntityAssetRepository, EntityAssetRepository>();
         builder.Services.AddScoped<UniverseContentsReadService>();
         builder.Services.AddScoped<UniversePageReadService>();

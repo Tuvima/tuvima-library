@@ -14,12 +14,6 @@ public interface IProfileSequencePreferencesRepository
         string containerKey,
         bool showMissing,
         CancellationToken ct = default);
-
-    Task<bool> DeleteAsync(
-        Guid profileId,
-        string mediaType,
-        string containerKey,
-        CancellationToken ct = default);
 }
 
 public sealed record ProfileSequencePreference(

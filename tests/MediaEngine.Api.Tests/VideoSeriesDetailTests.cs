@@ -67,6 +67,33 @@ public sealed class VideoSeriesDetailTests : IDisposable
     }
 
     [Fact]
+    public async Task ACoursePage_NamesEachSectionByItsFolder_InTheEditorsOrder_NeverByTheCollectionTitle()
+    {
+        // Issue 998: every row of the dropdown repeated the collection's name because videos carry a section number, not a name.
+        // The folders are named and ordered as the editor lists them: real order (not alphabetical), each with its own videos.
+        var series = SeedSeries(sections: true, sectionTitles: ["Week 2", "Basics"]);
+
+        var page = await ComposeAsync(series);
+
+        var groups = page!.SequencePlacement!.Groups;
+        Assert.Equal(["Week 2", "Basics"], groups.Select(group => group.Title));
+        Assert.Equal([3, 3], groups.Select(group => group.ItemCount));
+        Assert.Equal(2, groups.Select(group => group.Key).Distinct().Count());
+        Assert.DoesNotContain(groups, group => group.Title == page.Title);
+    }
+
+    [Fact]
+    public async Task ACourseWithSectionsAndALooseVideo_ListsTheLooseVideoAfterTheSectionsAsVideos()
+    {
+        var series = SeedSeries(sections: true, sectionTitles: ["Week 1", "Week 2"]);
+        InsertLesson(series, 1, 9, numbersOnWork: true);
+
+        var page = await ComposeAsync(series);
+
+        Assert.Equal(["Week 1", "Week 2", "Videos"], page!.SequencePlacement!.Groups.Select(group => group.Title));
+    }
+
+    [Fact]
     public async Task ACourseWithLessonsDirectlyInItAndNoOnlineDetailsOpensAsAShowPage()
     {
         var series = SeedSeries(sections: false);
@@ -196,7 +223,7 @@ public sealed class VideoSeriesDetailTests : IDisposable
             Profile.SeedProfileId,
             new DetailActionAuthorizationContext(true, true));
 
-    private Guid SeedSeries(bool sections, bool numbersOnWork = true)
+    private Guid SeedSeries(bool sections, bool numbersOnWork = true, string[]? sectionTitles = null)
     {
         var series = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
@@ -216,6 +243,13 @@ public sealed class VideoSeriesDetailTests : IDisposable
                 connection.Execute(
                     "INSERT INTO works (id, parent_work_id, media_type, work_kind, curator_state, ordinal, ordinal_sort) VALUES (@section, @series, 'Videos', 'parent', 'accepted', @index, @index);",
                     new { section, series, index });
+                if (sectionTitles is not null)
+                {
+                    connection.Execute(
+                        "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@section, 'title', @title, CURRENT_TIMESTAMP);",
+                        new { section, title = sectionTitles[index - 1] });
+                }
+
                 parents.Add(section);
             }
         }

@@ -55,10 +55,36 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
     {
         var cut = RenderPanel(VideoFolderPlacement());
 
-        var select = cut.FindComponents<AppSelect>().Single(candidate => candidate.Instance.Options!.Any(option => option.Label == "Week 1 – Basics"));
-        Assert.Equal(["Week 1 – Basics", "Week 2 – Game play"], select.Instance.Options!.Select(option => option.Label));
+        var select = cut.FindComponents<AppSelect>().Single(candidate => candidate.Instance.Options!.Any(option => option.Label.StartsWith("Week 1", StringComparison.Ordinal)));
+        Assert.Equal(["Week 1 – Basics · 2 videos", "Week 2 – Game play · 2 videos"], select.Instance.Options!.Select(option => option.Label));
         Assert.Equal("Section", select.Instance.AdditionalAttributes?["aria-label"]?.ToString());
         Assert.Equal("Section", cut.Find(".tl-series-detail__control--group .sr-only").TextContent);
+    }
+
+    [Fact]
+    public void TheSectionDropdownListsEachFolderInItsOwnOrderWithItsVideoCount_AndTicksTheCurrentOne()
+    {
+        var placement = VideoFolderPlacement();
+        placement = new SequencePlacementViewModel
+        {
+            ContainerId = placement.ContainerId, SelectedContainerId = placement.SelectedContainerId, ContainerTitle = placement.ContainerTitle,
+            ContainerLabel = placement.ContainerLabel, ItemLabel = placement.ItemLabel, ItemPluralLabel = placement.ItemPluralLabel,
+            GroupLabel = placement.GroupLabel, CurrentGroupKey = "section-parent-child", CurrentItem = placement.Groups[1].Items[0],
+            Groups =
+            [
+                Group("section-intro", "Intro", [Video("5", "section-intro", "Intro", "1", "Welcome")]),
+                Group("section-parent-child", "Week 2 / Game play", [.. placement.Groups[1].Items]),
+                Group(placement.Groups[0].Key, placement.Groups[0].Title, [.. placement.Groups[0].Items]),
+            ],
+        };
+
+        var cut = RenderPanel(placement);
+
+        // The dropdown ticks the folder whose key is its Value (AppSelectItem draws the check). Real order is the order the Engine sent, not alphabetical; a sub-folder reads "Parent / Child"; no row repeats the folder's name.
+        var select = cut.FindComponents<AppSelect>().Single(candidate => candidate.Instance.Options!.Any(option => option.Label.StartsWith("Intro", StringComparison.Ordinal)));
+        Assert.Equal(["Intro · 1 video", "Week 2 / Game play · 2 videos", "Week 1 – Basics · 2 videos"], select.Instance.Options!.Select(option => option.Label));
+        Assert.DoesNotContain(select.Instance.Options!, option => option.Label.StartsWith("Basketball course", StringComparison.Ordinal));
+        Assert.Equal("section-parent-child", select.Instance.Value);
     }
 
     [Fact]

@@ -10819,7 +10819,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryPreferences
   settings: MediaEngine.Contracts.Settings.LibraryPreferencesSettings | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryPreferencesSettings
-  MissingItemDisplay: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.MissingItemDisplayPolicy> | nullability=not-null | accessors=get,set
   ViewModes: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   LaneGroupDisplay: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.LibraryLaneGroupDisplaySettings> | nullability=not-null | accessors=get,set
 
@@ -10875,13 +10874,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MediaTypePipeline
   MaxProviderAttempts: System.Int32 | nullability=not-null | accessors=get,set
   Scoring: MediaEngine.Contracts.Settings.RetailScoringPolicyConfiguration | nullability=not-null | accessors=get,set
   FieldPriorities: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
-
-MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MissingItemDisplayPolicy
-  Enabled: System.Boolean | nullability=not-null | accessors=get,set
-  DefaultVisibility: System.String | nullability=not-null | accessors=get,set
-  Presentation: System.String | nullability=not-null | accessors=get,set
-  PageSize: System.Int32 | nullability=not-null | accessors=get,set
-  DetailHydration: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkAddressDto
   InterfaceId: System.String | nullability=not-null | accessors=get,set
@@ -11310,7 +11302,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SeriesMissingItemP
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
   ContainerKey: System.String | nullability=not-null | accessors=get,init
-  ShowMissing: System.Boolean? | nullability=nullable | accessors=get,init
+  ShowMissing: System.Boolean | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFileEntryDto

@@ -188,6 +188,10 @@ internal sealed partial class DetailCompositionOrchestrator
                        CASE WHEN w.ordinal_sort IS NOT NULL AND ABS(w.ordinal_sort - ROUND(w.ordinal_sort)) > 0.0001 THEN CAST(w.ordinal_sort AS TEXT) END,
                        CASE WHEN w.ordinal IS NOT NULL THEN CAST(w.ordinal AS TEXT) END) AS TEXT) AS PositionLabel,
                    w.ordinal_sort AS PositionSort,
+                   CASE WHEN parent.work_kind = 'parent' AND parent.parent_work_id IS NOT NULL THEN lower(hex(parent.id)) END AS SectionKey,
+                   CASE WHEN parent.work_kind = 'parent' AND parent.parent_work_id IS NOT NULL THEN parent.ordinal END AS SectionOrdinal,
+                   CASE WHEN parent.work_kind = 'parent' AND parent.parent_work_id IS NOT NULL THEN CAST((SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = parent.id AND cv.key = 'title' LIMIT 1) AS TEXT) END AS SectionTitle,
+                   CASE WHEN parent.work_kind = 'parent' AND parent.parent_work_id IS NOT NULL AND grandparent.work_kind = 'parent' AND grandparent.parent_work_id IS NOT NULL THEN CAST((SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = grandparent.id AND cv.key = 'title' LIMIT 1) AS TEXT) END AS SectionParentTitle,
                    CAST(COALESCE(
                        (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = ma.id AND cva.key = 'series_placement' AND cva.value_qid = @placementSeriesQid COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1),
                        (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = w.id AND cva.key = 'series_placement' AND cva.value_qid = @placementSeriesQid COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1)) AS TEXT) AS SeriesPlacementPosition,
@@ -275,7 +279,8 @@ internal sealed partial class DetailCompositionOrchestrator
             var positionSort = SeriesPositionPairs.SortValueOf(row.SeriesPlacementPosition)
                 ?? row.PositionSort
                 ?? TryParseSeriesPositionSort(positionLabel);
-            var group = ResolveSequenceGroup(entityType, row.SeasonLabel, detail.MediaType);
+            var group = ResolveVideoSection(entityType, detail.MediaType, row.SectionKey, row.SectionTitle, row.SectionParentTitle)
+                ?? ResolveSequenceGroup(entityType, row.SeasonLabel, detail.MediaType);
             var artworkKind = entityType == DetailEntityType.TvEpisode ? "background" : "cover";
             return new SequenceItemViewModel
             {
@@ -407,7 +412,11 @@ internal sealed partial class DetailCompositionOrchestrator
         var expectedTotal = expectedTotalCandidate is > 0 && mainSequenceItemCount >= expectedTotalCandidate
             ? expectedTotalCandidate
             : null;
-        var groups = BuildSequenceGroups(items, labels.ItemPluralLabel, expectedTotal);
+        var groups = OrderVideoSections(
+            BuildSequenceGroups(items, labels.ItemPluralLabel, expectedTotal),
+            rows.Where(row => row.SectionKey is not null)
+                .GroupBy(row => $"section-{row.SectionKey}")
+                .ToDictionary(group => group.Key, group => group.Min(row => row.SectionOrdinal ?? int.MaxValue)));
         var currentGroup = currentIsAlsoInThisWorld
             ? null
             : groups.FirstOrDefault(group => string.Equals(group.Key, current.GroupKey ?? "all", StringComparison.OrdinalIgnoreCase));

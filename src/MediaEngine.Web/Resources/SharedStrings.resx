@@ -1413,7 +1413,7 @@
     <value>Artwork unavailable</value>
   </data>
   <data name="Common_NotInLibrary" xml:space="preserve">
-    <value>Not in library</value>
+    <value>Not in your library</value>
   </data>
   <data name="SequenceEntryContent_Completed" xml:space="preserve">
     <value>Completed</value>
@@ -1423,9 +1423,6 @@
   </data>
   <data name="SequencePlacementPanel_ChooseSeries" xml:space="preserve">
     <value>Choose series</value>
-  </data>
-  <data name="SequencePlacementPanel_LoadMoreMissing" xml:space="preserve">
-    <value>Load more missing {0}</value>
   </data>
   <data name="SequencePlacementPanel_MakeDefault" xml:space="preserve">
     <value>Make default</value>
@@ -1456,12 +1453,6 @@
   </data>
   <data name="SequencePlacementPanel_ShowMissing" xml:space="preserve">
     <value>Show missing</value>
-  </data>
-  <data name="SequencePlacementPanel_UseTheConfiguredMediaDefault" xml:space="preserve">
-    <value>Use the configured media default</value>
-  </data>
-  <data name="SequencePlacementPanel_UseMediaDefault" xml:space="preserve">
-    <value>Use media default</value>
   </data>
   <data name="SequencePlacementPanel_OpenThisComicSeriesOn" xml:space="preserve">
     <value>Open this comic series on Comic Vine in a new tab</value>
@@ -7615,9 +7606,6 @@
   </data>
   <data name="SequencePlacementPanel_TheSeriesPreferenceCouldNot" xml:space="preserve">
     <value>The series preference could not be saved.</value>
-  </data>
-  <data name="SequencePlacementPanel_TheSeriesPreferenceCouldNot2" xml:space="preserve">
-    <value>The series preference could not be reset.</value>
   </data>
   <data name="ListenNowPlayingBar_FinishOrCloseTheAudiobook" xml:space="preserve">
     <value>Finish or close the audiobook before adding music to its queue.</value>

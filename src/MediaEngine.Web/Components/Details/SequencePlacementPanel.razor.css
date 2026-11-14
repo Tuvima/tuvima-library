@@ -192,10 +192,6 @@
     min-height: 2.25rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.15rem 0.25rem 0.15rem 0.1rem;
-    border-radius: 0.55rem;
-    background: var(--tl-scrim-dark-4);
 }
 
 :where(.tl-detail-page) .tl-series-missing-preference ::deep .tl-series-show-missing {
@@ -203,10 +199,6 @@
     font-size: var(--tl-type-control-size);
     font-weight: var(--tl-type-control-weight);
     white-space: nowrap;
-}
-
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-missing-preference__reset {
-    color: var(--tl-accent-primary-hover);
 }
 
 :where(.tl-detail-page) .tl-series-control-row {
@@ -793,12 +785,9 @@
 }
 
 .tl-detail-page .tl-series-detail__controls {
-
-    align-items: end;
+    align-items: center;
     gap: clamp(0.75rem, 1.2vw, 1.35rem);
     min-width: 0;
-    padding-bottom: 0.7rem;
-    border-bottom: 1px solid var(--tl-wash-light-3);
 }
 
 .tl-detail-page :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-detail__control {
@@ -855,14 +844,11 @@
     width: 100%;
 }
 
+/* Show missing: one plain check mark with its label, level with the dropdowns (spec details-page-bottom D12). */
 .tl-detail-page .tl-series-detail__missing {
     display: flex;
     align-items: center;
-    min-height: 2.8rem;
-    padding: 0 0.55rem;
-    border: 1px solid var(--tl-wash-light-4);
-    border-radius: 0.5rem;
-    background: var(--tl-wash-light-2);
+    min-height: 2.75rem;
     white-space: nowrap;
 }
 
@@ -878,11 +864,10 @@
     font-size: var(--tl-type-caption-size);
 }
 
+/* The cards start at the row's left edge; the arrows float over their ends (spec details-page-bottom D10). */
 .tl-detail-page .tl-series-detail__carousel {
-    display: grid;
-    grid-template-columns: 2.4rem minmax(0, 1fr) 2.4rem;
-    align-items: center;
-    gap: 0.45rem;
+    position: relative;
+    display: block;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -909,12 +894,22 @@
 }
 
 .tl-detail-page .tl-series-detail ::deep .tl-series-carousel__arrow {
-    position: static;
+    position: absolute;
+    top: 50%;
+    z-index: 2;
     width: 2.75rem !important;
     min-width: 2.75rem !important;
     height: 2.75rem !important;
-    translate: none;
+    translate: 0 -50%;
     box-shadow: none;
+}
+
+.tl-detail-page .tl-series-detail ::deep .tl-series-carousel__arrow--left {
+    left: 0.25rem;
+}
+
+.tl-detail-page .tl-series-detail ::deep .tl-series-carousel__arrow--right {
+    right: 0.25rem;
 }
 
 .tl-detail-page .tl-series-detail ::deep .tl-series-carousel__arrow.is-hidden {
@@ -947,12 +942,6 @@
 .tl-detail-page .tl-series-detail {
         gap: 0.25rem;
         padding-block: 0.35rem 0.2rem;
-    }
-
-.tl-detail-page .tl-series-detail__controls {
-        gap: 0.6rem;
-        min-height: 2.55rem;
-        padding-bottom: 0.3rem;
     }
 
 .tl-detail-page .tl-series-detail__identity {
@@ -1009,8 +998,7 @@
     justify-content: space-between;
     gap: 1rem;
     width: 100%;
-    min-height: 3.25rem;
-    padding: 0 0 0.9rem;
+    min-height: 2.75rem;
 }
 
 .tl-detail-page .tl-series-detail__selectors,
@@ -1040,11 +1028,6 @@
 
 .tl-detail-page .tl-series-detail__select-with-action ::deep .tl-series-detail__select {
     flex: 1 1 auto;
-}
-
-.tl-detail-page .tl-series-detail__missing {
-    min-height: 3rem;
-    height: 3rem;
 }
 
 .tl-detail-page .tl-series-detail__heading {
@@ -1126,11 +1109,6 @@
 @media (min-width: 840px) {
 .tl-detail-page .tl-series-detail__header {
         display: block;
-    }
-
-.tl-detail-page .tl-series-detail__controls {
-        min-height: 3.6rem;
-        padding-bottom: 0.65rem;
     }
 
 .tl-detail-page :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-detail__control--container,
@@ -1227,7 +1205,8 @@
 
 .tl-detail-page .tl-series-detail__utilities {
         width: 100%;
-        justify-content: flex-end;
+        flex-wrap: wrap;
+        justify-content: space-between;
     }
 
 .tl-detail-page :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-detail__control--container,
@@ -1253,18 +1232,8 @@
         height: auto;
         min-height: clamp(21rem, 34svh, 26rem);
         margin: 0;
-        padding:
-            0
-            clamp(3.25rem, 3.5vw, 4.5rem)
-            0.5rem;
+        padding: 0 var(--tl-space-1, 0.25rem) 0.5rem;
         overflow: visible;
-    }
-
-.tl-detail-page__primary-content .tl-series-detail__controls {
-        width: 100%;
-        min-height: 4.6rem;
-        align-items: center;
-        padding-bottom: 0.85rem;
     }
 
 .tl-detail-page__primary-content .tl-series-detail__identity h2 {
@@ -1281,8 +1250,6 @@
     }
 
 .tl-detail-page__primary-content .tl-series-detail__carousel {
-        grid-template-columns: 2.8rem minmax(0, 1fr) 2.8rem;
-        gap: 0.75rem;
         overflow: visible;
     }
 
@@ -1291,7 +1258,7 @@
         gap: clamp(1rem, 1.35vw, 1.65rem);
         height: auto;
         min-height: 0;
-        padding: 0.25rem 0.75rem 0.75rem;
+        padding: 0.25rem 0 0.75rem;
     }
 
 .tl-detail-page__primary-content .tl-series-detail .tl-series-item {
@@ -1304,11 +1271,6 @@
 .tl-detail-page__primary-content .tl-series-detail {
         min-height: 20rem;
         gap: 0.45rem;
-        padding-inline: 2.25rem;
-    }
-
-.tl-detail-page__primary-content .tl-series-detail__controls {
-        min-height: 4rem;
     }
 
 .tl-detail-page__primary-content :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-detail__strip {
@@ -1322,11 +1284,6 @@
 .tl-detail-page__primary-content .tl-series-detail {
         gap: 0.8rem;
         padding-top: 0.25rem;
-    }
-
-.tl-detail-page__primary-content .tl-series-detail__controls {
-        min-height: 3.25rem;
-        padding-bottom: 0.9rem;
     }
 
 .tl-detail-page__primary-content .tl-series-detail__heading {
@@ -1393,32 +1350,18 @@
 .tl-series-detail__ownership {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    min-height: 2.5rem;
-    padding: 0.7rem 0.25rem 0;
-    color: var(--tl-text-muted);
+    gap: 0.75rem;
+    color: var(--tl-text-secondary);
     font-size: var(--tl-type-caption-size);
     font-variant-numeric: tabular-nums;
-}
-
-.tl-series-detail__ownership strong {
-    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 66%, var(--tl-text-primary));
-    font-size: var(--tl-type-label-size);
-    font-weight: var(--tl-type-label-weight);
-}
-
-.tl-series-detail__ownership-separator {
-    width: 1px;
-    height: 0.95rem;
-    background: var(--tl-wash-light-5);
+    white-space: nowrap;
 }
 
 .tl-series-detail__ownership-progress {
     position: relative;
     display: block;
-    width: min(28rem, 34vw);
-    height: 0.35rem;
-    margin-inline: 0.35rem;
+    width: min(8.75rem, 22vw);
+    height: 0.25rem;
     overflow: hidden;
     border-radius: var(--tl-radius-round);
     background: var(--tl-wash-light-5);
@@ -1451,9 +1394,6 @@
 }
 
 .tl-series-detail.tl-series-panel--landscape .tl-series-detail__carousel {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
-    align-items: center;
     min-width: 0;
 }
 .tl-series-detail.tl-series-panel--landscape ::deep .tl-series-carousel__arrow {
@@ -1475,11 +1415,6 @@
 .tl-series-detail__pager-label {
     min-width: 9rem;
     text-align: center;
-}
-
-.tl-series-detail.is-season-container .tl-series-detail__ownership {
-    min-height: 1.65rem;
-    padding-top: 0.15rem;
 }
 
 /* TV season navigation --------------------------------------------------- */
@@ -1519,12 +1454,3 @@
 .sequence-episode-tile ::deep .media-tile-media { height: auto; aspect-ratio: 16 / 9; }
 .sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary); box-shadow: 0 0 22px color-mix(in srgb, var(--tl-accent-primary) 50%, transparent); }
 
-.tl-series-detail__footer-utilities { display:flex; align-items:center; margin-left:auto; }
-.tl-series-detail__ownership .tl-series-detail__missing { min-height:0; height:auto; }
-.tl-series-detail__footer-utilities .tl-series-detail__missing { font-size:inherit; line-height:inherit; }
-@media(width < 840px) { .tl-series-detail__controls { flex-wrap:wrap; } .tl-series-detail__controls .tl-series-detail__jump { width:100%; } .tl-series-detail__footer-utilities { margin-left:0; } }
-
-/* A ticked card (universal editor spec D14): outlined and tinted, so it stays visible among the cards. */
-.tl-series-item.is-selected { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; border-radius: var(--tl-radius-md); background: color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
-
-.tl-series-item[data-tickable="true"] { cursor: pointer; }

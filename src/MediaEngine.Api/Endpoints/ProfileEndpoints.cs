@@ -309,7 +309,7 @@ public static class ProfileEndpoints
                 preference));
         })
         .WithName("GetProfileSeriesMissingItemPreference")
-        .WithSummary("Get an explicit per-series missing-item visibility override. A null value inherits the media configuration default.")
+        .WithSummary("Get the profile's per-series Show missing tick. A series with no stored tick reads as unticked.")
         .Produces<SeriesMissingItemPreferenceDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
@@ -344,39 +344,7 @@ public static class ProfileEndpoints
                 saved.Preference));
         })
         .WithName("SetProfileSeriesMissingItemPreference")
-        .WithSummary("Save an explicit per-series missing-item visibility override for a profile.")
-        .Produces<SeriesMissingItemPreferenceDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireActiveProfile();
-
-        group.MapDelete("/{id:guid}/sequence-preferences/missing-items", async (
-            Guid id,
-            string mediaType,
-            string containerKey,
-            IProfileService profileService,
-            IProfileSequencePreferencesRepository preferences,
-            CancellationToken ct) =>
-        {
-            if (string.IsNullOrWhiteSpace(mediaType) || string.IsNullOrWhiteSpace(containerKey))
-            {
-                return ApiErrors.BadRequest("mediaType and containerKey are required.");
-            }
-
-            if (await profileService.GetProfileAsync(id, ct) is null)
-            {
-                return ApiErrors.NotFound($"Profile '{id}' not found.");
-            }
-
-            await preferences.DeleteAsync(id, mediaType, containerKey, ct);
-            return Results.Ok(ToSeriesMissingItemPreferenceDto(
-                id,
-                mediaType,
-                containerKey,
-                preference: null));
-        })
-        .WithName("ResetProfileSeriesMissingItemPreference")
-        .WithSummary("Remove a per-series override so the series inherits its media configuration default.")
+        .WithSummary("Save the profile's per-series Show missing tick.")
         .Produces<SeriesMissingItemPreferenceDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
@@ -442,7 +410,7 @@ public static class ProfileEndpoints
             ProfileId = profileId,
             MediaType = preference?.MediaType ?? mediaType.Trim().ToLowerInvariant(),
             ContainerKey = preference?.ContainerKey ?? containerKey.Trim().ToLowerInvariant(),
-            ShowMissing = preference?.ShowMissing,
+            ShowMissing = preference?.ShowMissing ?? false,
             UpdatedAt = preference?.UpdatedAt,
         };
 

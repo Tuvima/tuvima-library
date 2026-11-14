@@ -76,7 +76,46 @@
         {
             @JumpPicker
         }
+
+        @* The owned-items bar and Show missing sit at the right end, level with the dropdowns (spec details-page-bottom D10, D12). *@
+        <div class="tl-series-detail__utilities">
+            @if (TotalItems > 0)
+            {
+                <div class="tl-series-detail__ownership" aria-label="@OwnershipSummaryLabel">
+                    @if (ShowCoverageBar)
+                    {
+                        <span class="tl-series-detail__ownership-progress"
+                              role="progressbar"
+                              aria-label="@OwnershipSummaryLabel"
+                              aria-valuemin="0"
+                              aria-valuemax="@TotalItems"
+                              aria-valuenow="@OwnedCount">
+                            <AppCssElement Tag="span"
+                                           Class="tl-series-detail__ownership-progress-fill"
+                                           Css="@OwnershipProgressStyle" />
+                        </span>
+                    }
+                    <span class="tl-series-detail__ownership-text">@OwnershipText</span>
+                </div>
+            }
+            @if (CanShowMissingToggle)
+            {
+                @* One plain check mark; a Series always starts unticked and the tick is kept per profile and Series. *@
+                <div class="tl-series-detail__missing">
+                    <AppCheckbox Value="@_showMissing"
+                                 ValueChanged="ShowMissingChangedAsync"
+                                 Color="AppColor.Primary"
+                                 Dense="true"
+                                 Disabled="@_savingMissingPreference"
+                                 Label="@L["SequencePlacementPanel_ShowMissing"].Value" />
+                </div>
+            }
         </div>
+        </div>
+        @if (_preferenceNotice is not null)
+        {
+            <AppAlert Severity="@_preferenceNoticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _preferenceNotice = null)" data-missing-preference-notice="true">@_preferenceNotice</AppAlert>
+        }
     </header>
     }
 
@@ -97,9 +136,6 @@
     </div>
     }
 
-    @* The ticked rows' bar sits directly above the rows. *@
-    <BulkSelectionBar />
-
     <div class="tl-series-detail__carousel">
         <AppIconButton Class="@LeftArrowClass"
                        Icon="@AppMaterialIcons.Outlined.ChevronLeft"
@@ -117,9 +153,7 @@
             {
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
-                // A tickable card is not a link: the tick box is the card's one control.
-                var tickable = IsTickable(item);
-                var route = tickable ? null : SequenceItemRoute(item);
+                var route = SequenceItemRoute(item);
                 if (route is not null)
                 {
                     <SequenceItemFiles Chips="@ChipsFor(item)">
@@ -138,18 +172,11 @@
                 }
                 else
                 {
-                    @* A tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
-                       title is for after Done (a card has no row menu of its own). *@
+                    @* No tick box on a card (spec details-page-bottom D9): the thin progress line under the picture is the only watched marker. *@
                     <SequenceItemFiles Chips="@ChipsFor(item)">
                         <article class="@SequenceItemClass(item)"
                                  aria-current="@(item.IsCurrent ? "page" : null)"
-                                 aria-label="@SequenceItemAccessibilityLabel(item)"
-                                 data-tickable="@(tickable ? "true" : null)"
-                                 @onclick="@(tickable ? TickFromCard(item) : default)">
-                            @if (tickable)
-                            {
-                                <DetailRowSelectBox ItemId="@TickId(item)" Title="@SequenceItemTitle(item)" Kind="@item.EntityType" Floating="true" />
-                            }
+                                 aria-label="@SequenceItemAccessibilityLabel(item)">
                             <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
                                                   ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
                                                   PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
@@ -210,62 +237,6 @@
         </div>
     }
 
-    @if (HasMoreConfiguredMissingItems)
-    {
-        <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                   OnClick="LoadMoreMissingItems">
-            @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
-        </AppButton>
-    }
-
-    <footer class="tl-series-detail__ownership"
-            aria-label="@OwnershipSummaryLabel">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" />
-        <strong>@OwnedCount owned</strong>
-        @if (ShowCoverageBar)
-        {
-            <span class="tl-series-detail__ownership-separator" aria-hidden="true"></span>
-            <span>@MissingCount missing</span>
-            <span class="tl-series-detail__ownership-progress"
-                  role="progressbar"
-                  aria-label="@OwnershipSummaryLabel"
-                  aria-valuemin="0"
-                  aria-valuemax="@TotalItems"
-                  aria-valuenow="@OwnedCount">
-                <AppCssElement Tag="span"
-                               Class="tl-series-detail__ownership-progress-fill"
-                               Css="@OwnershipProgressStyle" />
-            </span>
-            <span>@TotalItems total</span>
-        }
-            <div class="tl-series-detail__footer-utilities">
-                @if (CanShowMissingToggle)
-                {
-                    <div class="tl-series-detail__missing">
-                        <AppCheckbox
-                                     Value="@_showMissing"
-                                     ValueChanged="ShowMissingChangedAsync"
-                                     Color="AppColor.Primary"
-                                     Dense="true"
-                                     Disabled="@_savingMissingPreference"
-                                     Label="@L["SequencePlacementPanel_ShowMissing"].Value" />
-                        @if (_hasMissingPreferenceOverride)
-                        {
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
-                                           Size="AppControlSize.Compact"
-                                           AriaLabel="@L["SequencePlacementPanel_UseTheConfiguredMediaDefault"].Value"
-                                           Tooltip="@L["SequencePlacementPanel_UseMediaDefault"].Value"
-                                           Disabled="@_savingMissingPreference"
-                                           OnClick="ResetMissingPreferenceAsync" />
-                        }
-                    </div>
-                    @if (_preferenceNotice is not null)
-                    {
-                        <AppAlert Severity="@_preferenceNoticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _preferenceNotice = null)" data-missing-preference-notice="true">@_preferenceNotice</AppAlert>
-                    }
-                }
-            </div>
-    </footer>
 </section>
 }
 else
@@ -337,16 +308,6 @@ else
                                  Dense="true"
                                  Disabled="@_savingMissingPreference"
                                  Label="@L["SequencePlacementPanel_ShowMissing"].Value" />
-                    @if (_hasMissingPreferenceOverride)
-                    {
-                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
-                                       Size="AppControlSize.Compact"
-                                       Class="tl-series-missing-preference__reset"
-                                       AriaLabel="@L["SequencePlacementPanel_UseTheConfiguredMediaDefault"].Value"
-                                       Tooltip="@L["SequencePlacementPanel_UseMediaDefault"].Value"
-                                       Disabled="@_savingMissingPreference"
-                                       OnClick="ResetMissingPreferenceAsync" />
-                    }
                 </div>
                 @if (_preferenceNotice is not null)
                 {
@@ -560,14 +521,6 @@ else
             }
         }
 
-        @if (HasMoreConfiguredMissingItems)
-        {
-            <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                       OnClick="LoadMoreMissingItems">
-                @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
-            </AppButton>
-        }
-
     </div>
     </div>
 </section>
@@ -609,16 +562,12 @@ else
     private bool _hasExpandableSeriesDescription;
     private bool _needsSeriesDescriptionMeasurement = true;
     private bool _showMissing;
-    private bool _configuredShowMissingDefault;
-    private bool _hasMissingPreferenceOverride;
     private bool _savingMissingPreference;
 
     // Why the "Show missing" choice could not be kept; it stays beside the toggle until the next try or the close button.
     private string? _preferenceNotice;
     private AppSeverity _preferenceNoticeSeverity = AppSeverity.Error;
         private Guid? _activeProfileId;
-    private int _visibleMissingLimit;
-    private MissingItemDisplayPolicy? _missingItemPolicy;
     private ElementReference _seriesDescriptionElement;
 
     private bool HasVisibleSibling(SequenceItemViewModel item)
@@ -710,10 +659,14 @@ else
         .Select(group => new AppSelectOption(group.Key, GroupOptionLabel(group)))
         .ToList();
 
-    // A season reads "Season 2 · 13 episodes" so the list says what each choice holds.
+    // A season reads "Season 2 · 13 episodes" so the list says what each choice holds; a folder of videos reads "Week 1 · 12 videos",
+    // as the editor's Section dropdown does (spec details-page-bottom D13). The current choice is ticked by the dropdown itself.
     private string GroupOptionLabel(SequenceGroupViewModel group)
     {
         var count = group.ItemCount > 0 ? group.ItemCount : group.Items.Count;
+        if (IsVideoFolder)
+            return VideoFolderWording.SectionOptionLabel(group.Title, count);
+
         return IsSeasonContainer && count > 0
             ? $"{group.Title} · {count} {(count == 1 ? Placement.ItemLabel.ToLowerInvariant() : Placement.ItemPluralLabel.ToLowerInvariant())}"
             : group.Title;
@@ -799,16 +752,8 @@ else
         }
     }
     private IReadOnlyList<SequenceItemViewModel> ActiveItems => ApplyMissingItemPolicy(GroupItems);
-    private bool CanShowMissingToggle => _missingItemPolicy?.Enabled == true
-        && MissingCount > 0;
-    private bool UsesPagedMissingItems => string.Equals(
-        _missingItemPolicy?.Presentation,
-        "paged",
-        StringComparison.OrdinalIgnoreCase);
-    private bool HasMoreConfiguredMissingItems => CanShowMissingToggle
-        && _showMissing
-        && UsesPagedMissingItems
-        && GroupItems.Count(item => !item.IsOwned) > _visibleMissingLimit;
+    // A Series that is missing some entries offers the Show missing check mark; there is no Library-wide setting behind it.
+    private bool CanShowMissingToggle => MissingCount > 0;
     private bool IsLongSequence => TotalItems >= LongSequenceThreshold;
     private bool ShowJumpSelector => ActiveItems.Count > 10;
     private string? JumpSelectionValue => _jumpSelectionValue;
@@ -879,7 +824,7 @@ else
     private IReadOnlyList<AppSelectOption> ContainerSelectOptions => DistinctAvailableContainers
         .Select(option => new AppSelectOption(option.ContainerId, option.ContainerTitle))
         .ToList();
-    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle
+    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle || TotalItems > 0
         || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector);
 
     // A season's Jump to sizes to the chosen episode; a Series' sizes to its longest entry, so entries never wrap.
@@ -910,6 +855,8 @@ else
             ? ItemNoun.ToLowerInvariant()
             : "owned";
     private string OwnedSummary => $"{OwnedCount} {(OwnedCount == 1 ? ItemNoun : Placement.ItemPluralLabel).ToLowerInvariant()} owned";
+    // "13 of 13 owned" beside the bar; without an authoritative total the plain owned count stands alone.
+    private string OwnershipText => ShowCoverageBar ? $"{OwnedCount} of {TotalItems} owned" : OwnedSummary;
     private string OwnershipSummaryLabel => ShowCoverageBar
         ? $"{OwnedSummary}; {MissingCount} missing; {TotalItems} total"
         : OwnedSummary;
@@ -969,20 +916,7 @@ else
         }
     }
 
-    private LibraryPreferencesSettings? _libraryPreferences;
-    private bool _libraryPreferencesLoaded;
     private readonly Dictionary<string, bool?> _seriesPreferenceCache = new(StringComparer.Ordinal);
-
-    private async Task<LibraryPreferencesSettings?> GetLibraryPreferencesCachedAsync()
-    {
-        if (_libraryPreferencesLoaded)
-            return _libraryPreferences;
-
-        var loaded = await ApiClient.GetLibraryPreferencesAsync();
-        _libraryPreferences = loaded;
-        _libraryPreferencesLoaded = loaded is not null;
-        return loaded;
-    }
 
     private string? SeriesPreferenceCacheKey(string? mediaType, string? containerKey) =>
         _activeProfileId is { } profileId
@@ -1002,7 +936,7 @@ else
 
         var preference = await ApiClient.GetSeriesMissingItemPreferenceAsync(profileId, mediaType!, containerKey!);
         var value = preference?.ShowMissing;
-        // A failed call returns null; caching it would look like "no override" for this panel's lifetime.
+        // A failed call returns null; caching it would look like "unticked" for this panel's lifetime.
         if (preference is not null)
             _seriesPreferenceCache[cacheKey] = value;
         return value;
@@ -1010,7 +944,6 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        HookBatchState();
         var profile = await Orchestrator.GetActiveProfileAsync();
         _activeProfileId = profile?.Id;
         _canCurateSequence = Session.HasNavigation("settings.administration");
@@ -1042,29 +975,10 @@ else
             var preferenceContainerKey = ResolveSeriesPreferenceContainerKey();
             var mediaType = ResolveMediaPolicyKey();
 
-            // The library defaults and the per-series override are independent reads; run them
-            // together and keep the answers for this panel's lifetime so placement/tab changes
-            // on the same details page do not refetch them.
-            var preferencesTask = GetLibraryPreferencesCachedAsync();
-            var seriesPreferenceTask = GetSeriesPreferenceCachedAsync(mediaType, preferenceContainerKey);
-            await Task.WhenAll(preferencesTask, seriesPreferenceTask);
-
-            var preferences = preferencesTask.Result;
-            _missingItemPolicy = preferences is not null
-                && preferences.MissingItemDisplay.TryGetValue(mediaType, out var policy)
-                    ? policy
-                    : null;
-            _configuredShowMissingDefault = SeriesMissingItemVisibility.IsDefaultShown(_missingItemPolicy?.DefaultVisibility);
-            _showMissing = _configuredShowMissingDefault;
-            _hasMissingPreferenceOverride = false;
-
-            if (seriesPreferenceTask.Result is { } showMissing)
-            {
-                _showMissing = showMissing;
-                _hasMissingPreferenceOverride = true;
-            }
-
-            _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
+            // A Series always starts unticked; the profile's own tick for this Series (kept per profile and Series) is the only
+            // thing that turns its missing entries on. The answer is kept for this panel's lifetime so placement/tab changes
+            // on the same details page do not refetch it.
+            _showMissing = await GetSeriesPreferenceCachedAsync(mediaType, preferenceContainerKey) ?? false;
             ResetWindowToCurrentItem();
         }
 
@@ -1124,17 +1038,12 @@ else
             return;
 
         var changed = !string.Equals(SelectedGroupKey, value, StringComparison.OrdinalIgnoreCase);
-        if (changed)
-        {
-            ClearTicksBeforeSwitch();
-        }
 
         // Any window still being fetched belongs to the season being left; its answer must not touch this one.
         _windowRequestId++;
         CancelWindowLoad();
         _loadingWindow = false;
         _selectedGroupKey = value;
-        _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
         _windowFailed = false;
         ResetWindowToCurrentItem();
         // A long show sends only one season's episodes; fetch the first window of the season just chosen.
@@ -1222,7 +1131,6 @@ else
         _preferenceNotice = null;
         var previous = _showMissing;
         _showMissing = value;
-        _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
         ResetWindowToCurrentItem();
 
         var containerKey = ResolveSeriesPreferenceContainerKey();
@@ -1246,7 +1154,7 @@ else
                 mediaType,
                 containerKey,
                 value);
-            if (saved?.ShowMissing is not { } savedValue)
+            if (saved is null)
             {
                 _showMissing = previous;
                 ResetWindowToCurrentItem();
@@ -1255,52 +1163,9 @@ else
                 return;
             }
 
-            _showMissing = savedValue;
-            _hasMissingPreferenceOverride = true;
+            _showMissing = saved.ShowMissing;
             if (SeriesPreferenceCacheKey(mediaType, containerKey) is { } savedKey)
-                _seriesPreferenceCache[savedKey] = savedValue;
-            ResetWindowToCurrentItem();
-        }
-        finally
-        {
-            _savingMissingPreference = false;
-        }
-    }
-
-    private async Task ResetMissingPreferenceAsync()
-    {
-        if (_savingMissingPreference)
-            return;
-
-        var containerKey = ResolveSeriesPreferenceContainerKey();
-        var mediaType = ResolveMediaPolicyKey();
-        if (_activeProfileId is not { } profileId
-            || string.IsNullOrWhiteSpace(containerKey)
-            || string.IsNullOrWhiteSpace(mediaType))
-        {
-            return;
-        }
-
-        _preferenceNotice = null;
-        _savingMissingPreference = true;
-        try
-        {
-            var reset = await ApiClient.ResetSeriesMissingItemPreferenceAsync(
-                profileId,
-                mediaType,
-                containerKey);
-            if (reset is null)
-            {
-                _preferenceNotice = L["SequencePlacementPanel_TheSeriesPreferenceCouldNot2"].Value;
-                _preferenceNoticeSeverity = AppSeverity.Error;
-                return;
-            }
-
-            _hasMissingPreferenceOverride = false;
-            if (SeriesPreferenceCacheKey(mediaType, containerKey) is { } resetKey)
-                _seriesPreferenceCache[resetKey] = null;
-            _showMissing = _configuredShowMissingDefault;
-            _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
+                _seriesPreferenceCache[savedKey] = saved.ShowMissing;
             ResetWindowToCurrentItem();
         }
         finally
@@ -1312,20 +1177,9 @@ else
     private IReadOnlyList<SequenceItemViewModel> ApplyMissingItemPolicy(
         IReadOnlyList<SequenceItemViewModel> source)
     {
-        if (!CanShowMissingToggle || !_showMissing)
-            return source.Where(item => item.IsOwned).ToList();
-
-        if (!UsesPagedMissingItems)
-            return source;
-
-        var missingRemaining = Math.Max(0, _visibleMissingLimit);
-        return source.Where(item => item.IsOwned || missingRemaining-- > 0).ToList();
-    }
-
-    private void LoadMoreMissingItems()
-    {
-        _visibleMissingLimit += _missingItemPolicy?.PageSize ?? 0;
-        ResetWindowToCurrentItem();
+        return CanShowMissingToggle && _showMissing
+            ? source
+            : source.Where(item => item.IsOwned).ToList();
     }
 
     // The key comes from the one shared rule (also used by the Universe page read), so both read the same policy entry.
@@ -1364,11 +1218,6 @@ else
     }
     public async ValueTask DisposeAsync()
     {
-        if (_hookedSelection is not null)
-        {
-            _hookedSelection.Changed -= OnBatchStateChanged;
-        }
-
         CancelWindowLoad();
         if (_episodeReference is null) return;
         try { await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip); }
@@ -1433,10 +1282,6 @@ else
     private Task SelectContainerAsync(SequenceContainerOptionViewModel option)
         => OnContainerSelected.InvokeAsync(option);
 
-    // A season or series switch changes which rows are on screen, so rows ticked in the one being left must not stay ticked out of sight.
-    // Changes already staged stay in the pending list, so nothing typed is lost by clearing the ticks.
-    private void ClearTicksBeforeSwitch() => BatchSelection?.Clear();
-
     private async Task SelectContainerValueAsync(string? containerId)
     {
         var option = DistinctAvailableContainers.FirstOrDefault(candidate =>
@@ -1444,12 +1289,6 @@ else
         if (option is null)
         {
             return;
-        }
-
-        // Another series changes which rows are on screen: ticks from the one being left are cleared.
-        if (!string.Equals(option.ContainerId, SelectedContainerValue, StringComparison.OrdinalIgnoreCase))
-        {
-            ClearTicksBeforeSwitch();
         }
 
         await SelectContainerAsync(option);
@@ -1475,66 +1314,7 @@ else
         => StringHelpers.FirstNonBlank(item.Title, $"{ItemNoun} {SequenceNumber(item)}")!;
 
     private string SequenceItemClass(SequenceItemViewModel item)
-        => $"tl-series-item{(item.IsCurrent ? " is-current" : string.Empty)}{(item.IsOwned ? " is-owned" : " is-missing")}{(!IsTickable(item) && SequenceItemRoute(item) is not null ? " is-clickable" : string.Empty)}{(IsSeasonContainer ? " is-season-episode" : string.Empty)}{(IsTicked(item) ? " is-selected" : string.Empty)}";
-
-    // Details overlay spec D8: an owned single title in the detail page's own list can be ticked.
-    private bool IsTickable(SequenceItemViewModel item)
-        => DetailSurface
-           && !IsVideoFolder // A folder of videos is a plain list: no tick boxes (item 12b).
-           && PageEditor is { CanEdit: true }
-           && BatchSelection is not null
-           && item.IsOwned
-           && TickId(item) != Guid.Empty
-           && BulkEditRules.IsSelectableKind(item.EntityType);
-
-    private bool IsTicked(SequenceItemViewModel item)
-        => IsTickable(item) && BatchSelection!.Contains(TickId(item));
-
-    private EventCallback TickFromCard(SequenceItemViewModel item)
-        => EventCallback.Factory.Create(this, () => ToggleTickFromCard(item));
-
-    private void ToggleTickFromCard(SequenceItemViewModel item)
-    {
-        if (!IsTickable(item) || BatchSelection is null)
-        {
-            return;
-        }
-
-        EditorHostService.Bind(PageEditor!);
-        // A full selection is told by the bar above the rows; the tick simply stays off.
-        BatchSelection.Toggle(new BulkEditRow(TickId(item), SequenceItemTitle(item), item.EntityType, Guid.TryParse(SelectedContainerValue, out var season) ? season : null, "TV"));
-    }
-
-    private static Guid TickId(SequenceItemViewModel item)
-        => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty;
-
-    /// <summary>The detail page this list sits on, which carries the Engine's answer whether the item may be edited. Null outside a detail page.</summary>
-    [CascadingParameter] public EditorBinding? PageEditor { get; set; }
-
-    [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
-
-    [Inject] private EditorHost EditorHostService { get; set; } = default!;
-
-    private BulkEditSelection? _hookedSelection;
-
-    private void HookBatchState()
-    {
-        if (!ReferenceEquals(_hookedSelection, BatchSelection))
-        {
-            if (_hookedSelection is not null)
-            {
-                _hookedSelection.Changed -= OnBatchStateChanged;
-            }
-
-            _hookedSelection = BatchSelection;
-            if (_hookedSelection is not null)
-            {
-                _hookedSelection.Changed += OnBatchStateChanged;
-            }
-        }
-    }
-
-    private void OnBatchStateChanged() => _ = InvokeAsync(StateHasChanged);
+        => $"tl-series-item{(item.IsCurrent ? " is-current" : string.Empty)}{(item.IsOwned ? " is-owned" : " is-missing")}{(SequenceItemRoute(item) is not null ? " is-clickable" : string.Empty)}{(IsSeasonContainer ? " is-season-episode" : string.Empty)}";
 
     private string? SequenceItemRoute(SequenceItemViewModel item)
     {

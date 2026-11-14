@@ -903,57 +903,34 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
-    public void LibraryPreferences_RequireExplicitPolicyForEveryMediaType()
+    public void LibraryPreferencesSchema_HoldsNoGeneralMissingItemsSetting_AndRefusesIt()
     {
-        using var temp = TempConfig.Create();
-        var uiDirectory = System.IO.Path.Combine(temp.Path, "ui");
-        Directory.CreateDirectory(uiDirectory);
-        File.WriteAllText(System.IO.Path.Combine(uiDirectory, "library-preferences.json"), """
-            {
-              "missing_item_display": {
-                "tv": {
-                  "enabled": true,
-                  "default_visibility": "shown",
-                  "presentation": "all",
-                  "page_size": 50,
-                  "detail_hydration": "owned_only"
-                }
-              },
-              "view_modes": {},
-              "lane_group_display": {}
-            }
-            """);
-        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        // The Library's general missing-items setting is gone (spec details-page-bottom D12): a Series starts unticked and the
+        // profile's own tick is the only thing that decides, so the schema neither lists nor allows the retired section.
+        var schemaPath = System.IO.Path.Combine(FindRepoRoot(), "config", "schemas", "ui", "library-preferences.schema.json");
+        using var schema = System.Text.Json.JsonDocument.Parse(File.ReadAllText(schemaPath));
+        var root = schema.RootElement;
 
-        var ex = Assert.Throws<ConfigValidationException>(() =>
-            loader.LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences"));
-
-        Assert.Contains("missing_item_display.comics is required", ex.Message);
-        Assert.Contains("ui/library-preferences.schema.json", ex.SchemaName);
+        Assert.False(root.GetProperty("properties").TryGetProperty("missing_item_display", out _));
+        Assert.DoesNotContain(root.GetProperty("required").EnumerateArray(), item => item.GetString() == "missing_item_display");
+        Assert.False(root.GetProperty("additionalProperties").GetBoolean());
     }
 
     [Fact]
-    public void ShippedLibraryPreferenceDefaults_OfferShowMissingForEveryMediaType_HiddenUntilTicked()
+    public void ShippedLibraryPreferenceDefaults_HoldNoMissingItemsSetting()
     {
         using var temp = TempConfig.Create();
         var uiDirectory = System.IO.Path.Combine(temp.Path, "ui");
         Directory.CreateDirectory(uiDirectory);
-        File.Copy(
-            System.IO.Path.Combine(FindRepoRoot(), "config", "ui", "library-preferences.defaults.json"),
-            System.IO.Path.Combine(uiDirectory, "library-preferences.defaults.json"));
+        var defaults = System.IO.Path.Combine(FindRepoRoot(), "config", "ui", "library-preferences.defaults.json");
+        File.Copy(defaults, System.IO.Path.Combine(uiDirectory, "library-preferences.defaults.json"));
         var loader = new ConfigurationDirectoryLoader(temp.Path);
 
         // With no file of this computer's own, the shipped defaults are what every reader gets.
         var preferences = ((MediaEngine.Domain.Contracts.IConfigurationLoader)loader).LoadLibraryPreferences();
 
         Assert.NotNull(preferences);
-        foreach (var mediaType in Enum.GetValues<MediaEngine.Domain.Enums.MediaType>().Where(type => type != MediaEngine.Domain.Enums.MediaType.Unknown))
-        {
-            var policy = preferences.MissingItemDisplay[mediaType.ToString().ToLowerInvariant()];
-            Assert.True(policy.Enabled);
-            Assert.Equal("hidden", policy.DefaultVisibility);
-        }
-
+        Assert.DoesNotContain("missing_item_display", File.ReadAllText(defaults), StringComparison.Ordinal);
         Assert.Equal("series", preferences.LaneGroupDisplay["watch"].ShelfKey);
     }
 
@@ -967,13 +944,13 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         File.Copy(defaults, System.IO.Path.Combine(uiDirectory, "library-preferences.defaults.json"));
         File.WriteAllText(
             System.IO.Path.Combine(uiDirectory, "library-preferences.json"),
-            File.ReadAllText(defaults).Replace("\"hidden\"", "\"shown\"", StringComparison.Ordinal));
+            File.ReadAllText(defaults).Replace("\"shelf_key\": \"series\"", "\"shelf_key\": \"my-series\"", StringComparison.Ordinal));
         var loader = new ConfigurationDirectoryLoader(temp.Path);
 
         var preferences = ((MediaEngine.Domain.Contracts.IConfigurationLoader)loader).LoadLibraryPreferences();
 
         Assert.NotNull(preferences);
-        Assert.Equal("shown", preferences.MissingItemDisplay["movies"].DefaultVisibility);
+        Assert.Equal("my-series", preferences.LaneGroupDisplay["watch"].ShelfKey);
     }
 
     [Fact]

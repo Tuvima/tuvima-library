@@ -21,7 +21,6 @@ public sealed partial class CollectionClientEndpointsTests
     private const string GraphActions = "/api/v1/graph-actions";
     private const string BetaSeriesQid = "Q9000";
 
-    private LibraryPreferencesSettings? _libraryPreferences;
     private int _projectionLoads;
 
     [Fact]
@@ -113,78 +112,64 @@ public sealed partial class CollectionClientEndpointsTests
     }
 
     [Fact]
-    public async Task MissingEntries_AreOmitted_WhenTheProfileHidesMissingItems()
+    public async Task MissingEntries_AreOmitted_UntilTheProfileTicksShowMissingForTheSeries()
     {
         SeedBetaManifest();
         await using var app = await StartAsync(mapGraphActions: true);
 
-        // The media default hides them: the count is still told, the entries are not listed.
-        _libraryPreferences = BooksShowMissing("hidden");
-        var byDefault = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
-        Assert.False(byDefault["show_missing"]!.GetValue<bool>());
-        Assert.Equal(1, byDefault["missing_count"]!.GetValue<int>());
-        Assert.Empty(byDefault["items"]!.AsArray());
+        // A Series always starts unticked: the count is still told, the entries are not listed.
+        var untouched = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
+        Assert.False(untouched["show_missing"]!.GetValue<bool>());
+        Assert.Equal(1, untouched["missing_count"]!.GetValue<int>());
+        Assert.Empty(untouched["items"]!.AsArray());
 
-        // The default shows them but this profile chose to hide this Series: the person's own choice wins.
-        _libraryPreferences = BooksShowMissing("shown");
-        await new ProfileSequencePreferencesRepository(_database)
-            .SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", BetaSeriesQid, showMissing: false);
-        var overridden = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
-        Assert.False(overridden["show_missing"]!.GetValue<bool>());
-        Assert.Equal(1, overridden["missing_count"]!.GetValue<int>());
-        Assert.Empty(overridden["items"]!.AsArray());
-
-        // A media type whose policy is switched off never shows missing entries, whatever the profile chose.
-        _libraryPreferences = BooksShowMissing("shown", enabled: false);
+        // The profile ticks this Series: its missing entries are listed.
         await new ProfileSequencePreferencesRepository(_database)
             .SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", BetaSeriesQid, showMissing: true);
-        var disabled = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
-        Assert.False(disabled["show_missing"]!.GetValue<bool>());
-        Assert.Empty(disabled["items"]!.AsArray());
+        var ticked = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
+        Assert.True(ticked["show_missing"]!.GetValue<bool>());
+
+        // Unticking again is the profile's own choice too.
+        await new ProfileSequencePreferencesRepository(_database)
+            .SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", BetaSeriesQid, showMissing: false);
+        var unticked = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
+        Assert.False(unticked["show_missing"]!.GetValue<bool>());
+        Assert.Equal(1, unticked["missing_count"]!.GetValue<int>());
+        Assert.Empty(unticked["items"]!.AsArray());
     }
 
     [Fact]
-    public async Task MissingEntries_AreListed_WhenTheProfileShowsMissingItems()
+    public async Task MissingEntries_AreListed_WhenTheProfileTicksShowMissing()
     {
         var (betaOne, _) = SeedBetaManifest();
         await using var app = await StartAsync(mapGraphActions: true);
 
-        _libraryPreferences = BooksShowMissing("shown");
-        var byDefault = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
-        Assert.True(byDefault["show_missing"]!.GetValue<bool>());
-        Assert.Equal(1, byDefault["missing_count"]!.GetValue<int>());
+        await new ProfileSequencePreferencesRepository(_database)
+            .SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", BetaSeriesQid, showMissing: true);
+        var shown = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
+        Assert.True(shown["show_missing"]!.GetValue<bool>());
+        Assert.Equal(1, shown["missing_count"]!.GetValue<int>());
         // Only the main-sequence entry is listed (the supplementary one is not), placed after the work it follows.
-        var item = Assert.Single(byDefault["items"]!.AsArray())!;
+        var item = Assert.Single(shown["items"]!.AsArray())!;
         Assert.Equal("Beta Missing", item["label"]!.GetValue<string>());
         Assert.Equal("2", item["raw_ordinal"]!.GetValue<string>());
         Assert.Equal(2.0, item["parsed_ordinal"]!.GetValue<double>());
         Assert.Equal("Q9002", item["item_qid"]!.GetValue<string>());
         Assert.Equal(betaOne, item["after_work_id"]!.GetValue<Guid>());
-
-        // The default hides them but this profile chose to see this Series' missing entries.
-        _libraryPreferences = BooksShowMissing("hidden");
-        await new ProfileSequencePreferencesRepository(_database)
-            .SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", BetaSeriesQid, showMissing: true);
-        var overridden = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
-        Assert.True(overridden["show_missing"]!.GetValue<bool>());
-        Assert.Single(overridden["items"]!.AsArray());
     }
 
     [Theory]
-    // policy enabled, media default, override by collection id, override by QID, expected
-    [InlineData(true, "shown", null, null, true)]
-    [InlineData(true, "hidden", null, null, false)]
-    [InlineData(false, "shown", null, null, false)]
-    [InlineData(true, "hidden", true, null, true)]
-    [InlineData(true, "shown", false, null, false)]
-    [InlineData(true, "hidden", null, true, true)]
-    [InlineData(true, "shown", null, false, false)]
-    [InlineData(false, "hidden", true, null, false)]
-    // The Series panel keys a local Series' choice by its collection id first: it wins over a choice stored under the QID.
-    [InlineData(true, "hidden", true, false, true)]
-    [InlineData(true, "shown", false, true, false)]
-    public async Task MissingEntries_FollowTheOneSharedRule_ForEveryCombinationOfPolicyDefaultAndOwnChoice(
-        bool policyEnabled, string mediaDefault, bool? byCollectionId, bool? byQid, bool expected)
+    // tick stored under the collection id, tick stored under the QID, expected
+    [InlineData(null, null, false)]
+    [InlineData(true, null, true)]
+    [InlineData(false, null, false)]
+    [InlineData(null, true, true)]
+    [InlineData(null, false, false)]
+    // The Series panel keys a local Series' tick by its collection id first: it wins over a tick stored under the QID.
+    [InlineData(true, false, true)]
+    [InlineData(false, true, false)]
+    public async Task MissingEntries_FollowTheProfilesOwnTick_ForEveryWayItCanBeStored(
+        bool? byCollectionId, bool? byQid, bool expected)
     {
         SeedBetaManifest();
         var preferences = new ProfileSequencePreferencesRepository(_database);
@@ -198,7 +183,6 @@ public sealed partial class CollectionClientEndpointsTests
             await preferences.SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", BetaSeriesQid, qidChoice);
         }
 
-        _libraryPreferences = BooksShowMissing(mediaDefault, policyEnabled);
         await using var app = await StartAsync(mapGraphActions: true);
 
         var missing = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
@@ -585,21 +569,6 @@ public sealed partial class CollectionClientEndpointsTests
 
         public Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) => inner.LoadWorkLibraryRowsAsync(ct);
     }
-
-    private static LibraryPreferencesSettings BooksShowMissing(string defaultVisibility, bool enabled = true) => new()
-    {
-        MissingItemDisplay = new Dictionary<string, MissingItemDisplayPolicy>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["books"] = new MissingItemDisplayPolicy
-            {
-                Enabled = enabled,
-                DefaultVisibility = defaultVisibility,
-                Presentation = "all",
-                PageSize = 50,
-                DetailHydration = "owned_only",
-            },
-        },
-    };
 
     private static JsonNode BetaMissing(JsonObject overview)
     {

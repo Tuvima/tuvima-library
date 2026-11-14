@@ -689,6 +689,24 @@ internal sealed partial class DetailCompositionOrchestrator
             ? FirstText(episodeLabel, positionLabel)
             : positionLabel;
 
+    /// <summary>
+    /// The group a video of a Videos folder belongs to: the folder it sits in, named as the editor names it (its own name, or "Parent / Child"
+    /// for a sub-folder), keyed by that folder so two folders with the same name stay apart. Null when it is not a video of a folder or sits
+    /// straight under the series (spec details-page-bottom D13).
+    /// </summary>
+    internal static (string? Key, string? Title)? ResolveVideoSection(
+        DetailEntityType type, string? mediaType, string? sectionKey, string? sectionTitle, string? sectionParentTitle)
+        => type == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(mediaType) && !string.IsNullOrWhiteSpace(sectionKey)
+            ? ($"section-{sectionKey}", VideoFolderWording.SectionTitle(sectionTitle, sectionParentTitle))
+            : null;
+
+    /// <summary>Puts a folder's sections in the order the editor lists them (each folder's own place), keeping any group with no place after them in the order it came.</summary>
+    internal static IReadOnlyList<SequenceGroupViewModel> OrderVideoSections(
+        IReadOnlyList<SequenceGroupViewModel> groups, IReadOnlyDictionary<string, int> sectionOrdinals)
+        => sectionOrdinals.Count == 0
+            ? groups
+            : groups.OrderBy(group => sectionOrdinals.TryGetValue(group.Key, out var ordinal) ? ordinal : int.MaxValue).ToList();
+
     private static (string? Key, string? Title) ResolveSequenceGroup(DetailEntityType type, string? rawGroup, string? mediaType = null)
     {
         // Other videos have no seasons: a named section stays a section, anything else is a plain list (details page D15).

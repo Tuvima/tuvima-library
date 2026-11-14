@@ -535,8 +535,9 @@ internal sealed partial class DetailCompositionOrchestrator
                 ? StringHelpers.FirstNonBlankOr(string.Empty, NormalizeEpisodeKey(work.Season), "unknown")
                 : null;
             var scopeGroup = ManifestScopeGroup(work.MembershipScope);
-            var groupKey = season is null ? scopeGroup.Key : $"season-{season}";
-            var groupTitle = season is null ? scopeGroup.Title : SeasonDisplayTitle(season);
+            var videoSection = ResolveVideoSection(entityType, work.MediaType, work.SectionKey, work.SectionTitle, work.SectionParentTitle);
+            var groupKey = videoSection?.Key ?? (season is null ? scopeGroup.Key : $"season-{season}");
+            var groupTitle = videoSection?.Title ?? (season is null ? scopeGroup.Title : SeasonDisplayTitle(season));
 
             return new SequenceItemViewModel
             {
@@ -593,10 +594,20 @@ internal sealed partial class DetailCompositionOrchestrator
             .GroupBy(entry => entry.Season!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Max(entry => entry.Value), StringComparer.OrdinalIgnoreCase);
         var isVideoFolder = entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType);
+        // A folder of videos lists its sections in the order the editor does (each folder's own place), then any loose videos as "Videos".
+        var sectionOrdinals = isVideoFolder
+            ? orderedWorks.Where(work => work.SectionKey is not null)
+                .GroupBy(work => $"section-{work.SectionKey}")
+                .ToDictionary(group => group.Key, group => group.Min(work => work.SectionOrdinal ?? int.MaxValue))
+            : [];
+        var looseVideosTitle = sectionOrdinals.Count > 0
+            ? VideoFolderWording.UnnamedSectionTitle
+            : string.IsNullOrWhiteSpace(containerTitle) || VideoFolderWording.UsesTvWording(containerTitle) ? labels.ItemPluralLabel : containerTitle;
         var groups = entityType == DetailEntityType.TvShow
             ? items
                 .GroupBy(item => item.GroupKey ?? "season-1")
-                .OrderBy(group => SeasonSortOrder(group.Key))
+                .OrderBy(group => sectionOrdinals.TryGetValue(group.Key, out var sectionOrdinal) ? sectionOrdinal : int.MaxValue)
+                .ThenBy(group => SeasonSortOrder(group.Key))
                 .Select(group =>
                 {
                     var seasonKey = group.Key.Replace("season-", string.Empty, StringComparison.OrdinalIgnoreCase);
@@ -607,7 +618,9 @@ internal sealed partial class DetailCompositionOrchestrator
                         OwnedCount = group.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                         CompletedCount = group.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                         Key = group.Key,
-                        Title = isVideoFolder ? VideoSectionTitle(group.First().GroupTitle, string.IsNullOrWhiteSpace(containerTitle) || VideoFolderWording.UsesTvWording(containerTitle) ? labels.ItemPluralLabel : containerTitle) : group.First().GroupTitle ?? "Season 1",
+                        Title = isVideoFolder
+                            ? sectionOrdinals.ContainsKey(group.Key) ? group.First().GroupTitle ?? looseVideosTitle : VideoSectionTitle(group.First().GroupTitle, looseVideosTitle)
+                            : group.First().GroupTitle ?? "Season 1",
                         EntityId = presentation?.EntityId,
                         ArtworkSmallUrl = presentation?.ArtworkSmallUrl,
                         ArtworkUrl = presentation?.ArtworkUrl,

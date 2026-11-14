@@ -13,9 +13,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Ticking rows on a show's season list of a page the Engine lets the person edit (universal editor spec D14, v3 WP3): a tickable card ticks anywhere it is clicked
-/// (the box stays the keyboard control), and ticks never stay behind, out of sight, when the person switches to another season or
-/// series. Staged changes live in the page's pending list, so switching asks nothing. The Engine is a hand-written stub.
+/// A show's season list carries no tick boxes and no tick-to-select (spec details-page-bottom D9, issue #984): the thin progress line under
+/// the picture is the only watched marker, even on a page the Engine lets the person edit, and a card is a plain link to its episode.
+/// Choosing several episodes to edit lives in the editor's own list. Switching season or series still just switches. The Engine is a
+/// hand-written stub.
 /// </summary>
 public sealed class BulkSeasonTickTests : AsyncBunitContext
 {
@@ -23,8 +24,6 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
     private static readonly Guid SeasonOneId = Guid.Parse("31000000-0000-0000-0000-000000000001");
     private static readonly Guid SeasonTwoId = Guid.Parse("32000000-0000-0000-0000-000000000002");
     private static readonly string SeriesTwo = "50000000-0000-0000-0000-000000000005";
-    private static readonly Guid FirstOpener = Guid.Parse("41100000-0000-0000-0000-000000000000");
-    private static readonly Guid FirstFinale = Guid.Parse("41200000-0000-0000-0000-000000000000");
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
 
@@ -73,64 +72,50 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
     private static IRenderedComponent<AppSelect> SeasonSelect(IRenderedComponent<SequencePlacementPanel> panel) =>
         panel.FindComponents<AppSelect>().Single(select => select.Instance.Options!.Any(option => option.Label.StartsWith("Season", StringComparison.Ordinal)));
 
-    // -- The card ticks anywhere you click it ---------------------------------------------------
+    // -- No ticks on an episode card (D9) --------------------------------------------------------
 
     [Fact]
-    public async Task ClickingAnywhereOnATickableCard_TicksItAndAgainUnticksIt()
+    public async Task OnAPageThePersonMayEdit_AnEpisodeCardHasNoTickBoxAndNoTickToSelect()
     {
         var page = await StartAsync();
-        var card = page.Panel.FindAll("article[data-tickable='true']").First();
-
-        card.Click();
-
-        Assert.Equal([FirstOpener], page.Selection.Ids);
-        page.Panel.WaitForAssertion(() => Assert.Contains("is-selected", page.Panel.FindAll("article.tl-series-item").First().ClassList));
-
-        page.Panel.FindAll("article[data-tickable='true']").First().Click();
-
-        Assert.Equal(0, page.Selection.Count);
-    }
-
-    [Fact]
-    public async Task TheTickBox_StillTicksOnceAndStaysLabelledForKeyboardAndScreenReaders()
-    {
-        var page = await StartAsync();
-        var box = page.Panel.FindAll("article[data-tickable='true'] input[type=checkbox]").First();
-
-        Assert.Equal("Select First season opener", box.GetAttribute("aria-label"));
-        box.Change(true);
-
-        Assert.Equal([FirstOpener], page.Selection.Ids);
-    }
-
-    [Fact]
-    public async Task OutsideEditingMode_ACardIsNotTickableAndHasNoTickBox()
-    {
-        var page = await StartAsync(editing: false);
 
         Assert.Empty(page.Panel.FindAll("[data-tickable]"));
         Assert.Empty(page.Panel.FindAll(".tl-row-select"));
-        Assert.Equal(0, page.Selection.Count);
-    }
-
-    // -- Ticks do not survive a season switch ---------------------------------------------------
-
-    [Fact]
-    public async Task SwitchingSeason_ClearsTheTicksFromTheSeasonBeingLeft()
-    {
-        var page = await StartAsync();
-        page.Panel.FindAll("article[data-tickable='true']").First().Click();
-        page.Panel.FindAll("article[data-tickable='true']").Last().Click();
-        Assert.Equal([FirstOpener, FirstFinale], page.Selection.Ids);
-
-        SwitchToSeasonTwo(page.Panel);
-
-        page.Panel.WaitForAssertion(() => Assert.Equal("Season 2", ActiveSeason(page.Panel)));
+        Assert.DoesNotContain(page.Panel.FindAll("input[type=checkbox]"), box => box.GetAttribute("aria-label")?.StartsWith("Select ", StringComparison.Ordinal) == true);
+        Assert.Empty(page.Panel.FindAll("[data-bulk-selection-announce]"));
         Assert.Equal(0, page.Selection.Count);
     }
 
     [Fact]
-    public async Task SwitchingSeason_WithNothingTicked_JustSwitches()
+    public async Task ClickingAnEpisodeCard_DoesNotSelectIt()
+    {
+        var page = await StartAsync();
+
+        var cards = page.Panel.FindAll(".tl-series-item");
+        Assert.NotEmpty(cards);
+        foreach (var card in cards)
+        {
+            // A card is a plain link or a plain article: it carries no click handler that could tick it.
+            Assert.Throws<Bunit.MissingEventHandlerException>(() => card.Click());
+        }
+
+        Assert.Equal(0, page.Selection.Count);
+        Assert.Empty(page.Panel.FindAll(".tl-series-item.is-selected"));
+    }
+
+    [Fact]
+    public async Task AnOwnedEpisodeCard_IsAPlainLinkToItsEpisode()
+    {
+        var page = await StartAsync(editing: false);
+
+        Assert.NotEmpty(page.Panel.FindAll("a.tl-series-item"));
+        Assert.Empty(page.Panel.FindAll("[data-tickable]"));
+    }
+
+    // -- Switching still just switches ----------------------------------------------------------
+
+    [Fact]
+    public async Task SwitchingSeason_JustSwitches()
     {
         var page = await StartAsync();
 
@@ -139,20 +124,15 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
         page.Panel.WaitForAssertion(() => Assert.Equal("Season 2", ActiveSeason(page.Panel)));
     }
 
-    // -- Ticks do not survive a series switch ---------------------------------------------------
-
     [Fact]
-    public async Task SwitchingToAnotherSeries_ClearsTheTicksAndChoosesTheOtherSeriesWithoutAsking()
+    public async Task SwitchingToAnotherSeries_ChoosesTheOtherSeriesWithoutAsking()
     {
         var page = await StartAsync(withTwoSeries: true);
-        page.Panel.FindAll("article[data-tickable='true']").First().Click();
-        Assert.Equal([FirstOpener], page.Selection.Ids);
         var select = page.Panel.FindComponents<AppSelect>()
             .Single(candidate => candidate.Instance.Options?.Any(option => option.Value == SeriesTwo) == true);
 
         await page.Panel.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync(SeriesTwo));
 
-        Assert.Equal(0, page.Selection.Count);
         Assert.Equal([SeriesTwo], _containerPicks);
     }
 

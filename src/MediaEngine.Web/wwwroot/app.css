@@ -6102,19 +6102,17 @@ html[data-form-factor="phone"] .tl-detail-page .tl-series-detail.tl-series-panel
     scroll-snap-align: start;
 }
 
-/* Footer: pager, ownership counts and the show-missing control stack and wrap. */
-html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__footer-utilities,
-html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__missing,
+/* The pager wraps; the owned-items bar and Show missing sit in the controls row, which already stacks full width on a phone. */
 html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__pager {
     flex-wrap: wrap;
     width: 100%;
     margin-left: 0;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__footer-utilities {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__utilities {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
 }
 
 /* The show-missing checkbox keeps a 44px tap box on phones: its label and its 42px control both grow to the minimum. */
