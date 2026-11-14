@@ -333,7 +333,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain(".tl-season-browser", styles);
         Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__carousel", styles);
         Assert.Contains("min-height: clamp(24rem, 58svh, 30rem)", styles);
-        Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__ownership", styles);
         Assert.DoesNotContain(".tl-series-detail__edit-season", styles);
     }
 
@@ -774,15 +773,14 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("Label=\"Show missing\"", sequence);
         Assert.Contains("CanShowMissingToggle", sequence);
         Assert.DoesNotContain("ActiveGroup?.HasAuthoritativeTotal == true", sequence);
-        Assert.Contains("MissingItemDisplay", sequence);
-        Assert.Contains("DefaultVisibility", sequence);
+        // No Library-wide missing-items setting and no inherit state (spec details-page-bottom D12): only the profile's own tick.
+        Assert.DoesNotContain("MissingItemDisplay", sequence);
+        Assert.DoesNotContain("DefaultVisibility", sequence);
         Assert.Contains("GetSeriesMissingItemPreferenceAsync", sequence);
         Assert.Contains("SaveSeriesMissingItemPreferenceAsync", sequence);
-        Assert.Contains("ResetSeriesMissingItemPreferenceAsync", sequence);
-        Assert.Contains("tl-series-missing-preference", sequence);
-        Assert.Contains("Use media default", sequence);
-        Assert.Contains("HasMoreConfiguredMissingItems", sequence);
-        Assert.Contains("Load more missing", sequence);
+        Assert.DoesNotContain("ResetSeriesMissingItemPreferenceAsync", sequence);
+        Assert.DoesNotContain("Use media default", sequence);
+        Assert.DoesNotContain("LoadMoreMissingItems", sequence);
         Assert.Contains("if (IsSeasonContainer)", sequence);
         Assert.Contains("grid-template-rows: auto", ReadDetailStyles());
         Assert.Contains("Watch S{season} E{episode}", sequence);

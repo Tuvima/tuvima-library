@@ -83,9 +83,6 @@ public static class JsonConfigValidator
             case PaletteConfiguration palette:
                 ValidatePalette(palette, errors);
                 break;
-            case LibraryPreferencesSettings preferences:
-                ValidateLibraryPreferences(preferences, errors);
-                break;
             case LibrariesConfiguration libraries:
                 ValidateLibraries(libraries, errors, libraryKinds);
                 break;
@@ -1330,51 +1327,6 @@ public static class JsonConfigValidator
         if (palette.EditorHeader.SecondaryPercent is < 0 or > 100)
         {
             errors.Add("editor_header.secondary_percent must be between 0 and 100.");
-        }
-    }
-
-    private static void ValidateLibraryPreferences(LibraryPreferencesSettings preferences, List<string> errors)
-    {
-        var requiredMediaTypes = Enum.GetValues<MediaType>()
-            .Where(mediaType => mediaType != MediaType.Unknown)
-            .Select(mediaType => mediaType.ToString().ToLowerInvariant())
-            .ToArray();
-        var unknown = preferences.MissingItemDisplay.Keys
-            .Except(requiredMediaTypes, StringComparer.OrdinalIgnoreCase)
-            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        foreach (var key in unknown)
-        {
-            errors.Add($"missing_item_display contains unknown media type '{key}'.");
-        }
-
-        foreach (var mediaType in requiredMediaTypes)
-        {
-            if (!preferences.MissingItemDisplay.TryGetValue(mediaType, out var policy))
-            {
-                errors.Add($"missing_item_display.{mediaType} is required.");
-                continue;
-            }
-
-            if (!Allowed(policy.DefaultVisibility, "shown", "hidden"))
-            {
-                errors.Add($"missing_item_display.{mediaType}.default_visibility must be shown or hidden.");
-            }
-
-            if (!Allowed(policy.Presentation, "all", "paged"))
-            {
-                errors.Add($"missing_item_display.{mediaType}.presentation must be all or paged.");
-            }
-
-            if (!Allowed(policy.DetailHydration, "owned_only", "on_demand", "all"))
-            {
-                errors.Add($"missing_item_display.{mediaType}.detail_hydration must be owned_only, on_demand, or all.");
-            }
-
-            if (policy.PageSize is < 1 or > 500)
-            {
-                errors.Add($"missing_item_display.{mediaType}.page_size must be between 1 and 500.");
-            }
         }
     }
 

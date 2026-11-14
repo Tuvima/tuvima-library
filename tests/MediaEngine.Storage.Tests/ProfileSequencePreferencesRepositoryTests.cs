@@ -47,15 +47,19 @@ public sealed class ProfileSequencePreferencesRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteAsync_RemovesOverrideSoConfigurationCanBeInheritedAgain()
+    public async Task SaveAsync_KeepsTheLatestTickPerProfileAndSeries_SoUntickingIsStoredToo()
     {
         var profileId = SeedProfile("Owner");
-        await _repository.SaveAsync(profileId, "books", "Q123", showMissing: false);
+        await _repository.SaveAsync(profileId, "books", "Q123", showMissing: true);
 
-        var deleted = await _repository.DeleteAsync(profileId, "books", "Q123");
+        var unticked = await _repository.SaveAsync(profileId, "books", "Q123", showMissing: false);
 
-        Assert.True(deleted);
-        Assert.Null(await _repository.GetAsync(profileId, "books", "Q123"));
+        Assert.False(unticked.Preference!.ShowMissing);
+        var stored = await _repository.GetAsync(profileId, "books", "Q123");
+        Assert.NotNull(stored);
+        Assert.False(stored!.ShowMissing);
+        using var connection = _database.CreateConnection();
+        Assert.Equal(1, connection.ExecuteScalar<long>("SELECT COUNT(1) FROM profile_sequence_preferences;"));
     }
 
     [Fact]

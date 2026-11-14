@@ -92,7 +92,7 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         Assert.Equal(["Prologue", "Between"], cut.FindAll(".universe-missing__title").Select(title => title.TextContent).ToArray());
         // The number is shown as the source gives it, decimals kept.
         Assert.Equal(["0", "1.5"], cut.FindAll(".universe-missing__ordinal").Select(ordinal => ordinal.TextContent).ToArray());
-        Assert.All(cut.FindAll(".universe-missing__art"), art => Assert.Contains("Not in library", art.TextContent));
+        Assert.All(cut.FindAll(".universe-missing__art"), art => Assert.Contains("Not in your library", art.TextContent));
         Assert.Equal("Prologue, number 0, not in library", cut.FindAll(".universe-missing")[0].GetAttribute("aria-label"));
         Assert.DoesNotContain("missing", cut.Find(".universe-series__summary").TextContent, StringComparison.OrdinalIgnoreCase);
     }
@@ -168,19 +168,22 @@ public sealed class UniverseComponentTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheSeriesPanelAndTheUniversePageReadTheMissingItemsRuleFromTheSamePlace()
+    public void TheSeriesPanelAndTheUniversePageKeyTheProfilesShowMissingTickFromTheSamePlace()
     {
         var repo = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         var panel = File.ReadAllText(Path.Combine(repo, "src", "MediaEngine.Web", "Components", "Details", "SequencePlacementPanel.razor"));
         var page = File.ReadAllText(Path.Combine(repo, "src", "MediaEngine.Api", "Services", "ReadServices", "UniversePageReadService.cs"));
 
         Assert.Contains("SeriesMissingItemVisibility.PolicyKey(", panel, StringComparison.Ordinal);
-        Assert.Contains("SeriesMissingItemVisibility.IsDefaultShown(", panel, StringComparison.Ordinal);
-        Assert.Contains("SeriesMissingItemVisibility.Resolve(", page, StringComparison.Ordinal);
+        Assert.Contains("SeriesMissingItemVisibility.PolicyKey(", page, StringComparison.Ordinal);
         Assert.Contains("SeriesMissingItemVisibility.OverrideKeys(", page, StringComparison.Ordinal);
-        // Neither keeps its own copy of the "shown" default.
-        Assert.DoesNotContain("\"shown\"", panel, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"shown\"", page, StringComparison.Ordinal);
+        // The Library's general missing-items setting is gone (spec details-page-bottom D12): neither reads a policy or a default.
+        foreach (var source in new[] { panel, page })
+        {
+            Assert.DoesNotContain("MissingItemDisplay", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("DefaultVisibility", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("GetLibraryPreferences", source, StringComparison.Ordinal);
+        }
     }
 
     // The cast list -------------------------------------------------------------------------------------------------

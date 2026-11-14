@@ -100,34 +100,6 @@ public sealed class ProfileSequencePreferencesRepository : IProfileSequencePrefe
                 now)));
     }
 
-    public Task<bool> DeleteAsync(
-        Guid profileId,
-        string mediaType,
-        string containerKey,
-        CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        var normalizedMediaType = NormalizeRequired(mediaType, nameof(mediaType));
-        var normalizedContainerKey = NormalizeRequired(containerKey, nameof(containerKey));
-
-        using var connection = _db.CreateConnection();
-        var deleted = connection.Execute(new CommandDefinition(
-            """
-            DELETE FROM profile_sequence_preferences
-            WHERE profile_id = @profileId
-              AND media_type = @mediaType
-              AND container_key = @containerKey;
-            """,
-            new
-            {
-                profileId,
-                mediaType = normalizedMediaType,
-                containerKey = normalizedContainerKey,
-            },
-            cancellationToken: ct));
-        return Task.FromResult(deleted > 0);
-    }
-
     private static string NormalizeRequired(string value, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value))

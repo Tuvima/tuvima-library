@@ -14,7 +14,8 @@ public sealed class SeriesMissingItemPreferenceDto
     public required string ContainerKey { get; init; }
 
     [JsonPropertyName("show_missing")]
-    public bool? ShowMissing { get; init; }
+    /// <summary>The profile's tick for this Series. A Series starts unticked, so no stored tick reads as false.</summary>
+    public bool ShowMissing { get; init; }
 
     [JsonPropertyName("updated_at")]
     public DateTimeOffset? UpdatedAt { get; init; }

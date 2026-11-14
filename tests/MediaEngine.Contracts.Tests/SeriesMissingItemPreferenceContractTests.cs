@@ -6,7 +6,7 @@ namespace MediaEngine.Contracts.Tests;
 public sealed class SeriesMissingItemPreferenceContractTests
 {
     [Fact]
-    public void Response_PreservesNullOverrideForConfigurationInheritance()
+    public void Response_CarriesOnlyTheProfilesTick_WithNoInheritState()
     {
         var profileId = Guid.NewGuid();
         var value = new SeriesMissingItemPreferenceDto
@@ -14,7 +14,7 @@ public sealed class SeriesMissingItemPreferenceContractTests
             ProfileId = profileId,
             MediaType = "movies",
             ContainerKey = "q22092344",
-            ShowMissing = null,
+            ShowMissing = true,
         };
 
         var json = JsonSerializer.Serialize(value);
@@ -24,8 +24,19 @@ public sealed class SeriesMissingItemPreferenceContractTests
         Assert.Equal(profileId, roundTrip!.ProfileId);
         Assert.Equal("movies", roundTrip.MediaType);
         Assert.Equal("q22092344", roundTrip.ContainerKey);
-        Assert.Null(roundTrip.ShowMissing);
-        Assert.Contains("\"show_missing\":null", json, StringComparison.Ordinal);
+        Assert.True(roundTrip.ShowMissing);
+        Assert.Contains("\"show_missing\":true", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Response_ForASeriesWithNoStoredTick_ReadsAsUnticked()
+    {
+        var value = new SeriesMissingItemPreferenceDto { ProfileId = Guid.NewGuid(), MediaType = "books", ContainerKey = "q1" };
+
+        var json = JsonSerializer.Serialize(value);
+
+        Assert.False(value.ShowMissing);
+        Assert.Contains("\"show_missing\":false", json, StringComparison.Ordinal);
     }
 
     [Fact]

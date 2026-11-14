@@ -530,29 +530,22 @@ public partial interface IEngineApiClient
 
     // ── Library Preferences (/settings/ui/library-preferences) ──────────────────
 
-    /// <summary>GET /settings/ui/library-preferences - library display preferences, including per-media missing-item policies.</summary>
+    /// <summary>GET /settings/ui/library-preferences - library display preferences, view modes and lane grouping.</summary>
     Task<LibraryPreferencesSettings?> GetLibraryPreferencesAsync();
 
-    /// <summary>GET the active profile's explicit missing-item override for one series. Null ShowMissing means inherit the media default.</summary>
+    /// <summary>GET the profile's "Show missing" tick for one series. A series with no stored tick reads as unticked.</summary>
     Task<SeriesMissingItemPreferenceDto?> GetSeriesMissingItemPreferenceAsync(
         Guid profileId,
         string mediaType,
         string containerKey,
         CancellationToken ct = default);
 
-    /// <summary>PUT an explicit missing-item visibility override for one profile and series.</summary>
+    /// <summary>PUT the profile's "Show missing" tick for one series.</summary>
     Task<SeriesMissingItemPreferenceDto?> SaveSeriesMissingItemPreferenceAsync(
         Guid profileId,
         string mediaType,
         string containerKey,
         bool showMissing,
-        CancellationToken ct = default);
-
-    /// <summary>DELETE a per-series override so the series inherits its media configuration default.</summary>
-    Task<SeriesMissingItemPreferenceDto?> ResetSeriesMissingItemPreferenceAsync(
-        Guid profileId,
-        string mediaType,
-        string containerKey,
         CancellationToken ct = default);
 
 }
