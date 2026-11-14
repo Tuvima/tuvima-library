@@ -50,6 +50,26 @@ public sealed class VideoFolderWordingTests
     }
 
     [Theory]
+    [InlineData("Week 1", null, "Week 1")]
+    [InlineData("  Week 1  ", "", "Week 1")]
+    [InlineData("Child", "Parent", "Parent / Child")]
+    [InlineData(null, null, "Videos")]
+    [InlineData(" ", null, "Videos")]
+    public void ASectionTitle_IsItsFolderName_AndASubFolderReadsParentSlashChild(string? name, string? parent, string expected)
+    {
+        Assert.Equal(expected, VideoFolderWording.SectionTitle(name, parent));
+        Assert.False(VideoFolderWording.UsesTvWording(VideoFolderWording.SectionTitle(name, parent)));
+    }
+
+    [Theory]
+    [InlineData("Week 1", 12, "Week 1 · 12 videos")]
+    [InlineData("Week 2", 1, "Week 2 · 1 video")]
+    [InlineData("Parent / Child", 3, "Parent / Child · 3 videos")]
+    [InlineData("Empty", 0, "Empty")]
+    public void ASectionOption_NamesTheFolderAndItsVideoCount(string title, int count, string expected)
+        => Assert.Equal(expected, VideoFolderWording.SectionOptionLabel(title, count));
+
+    [Theory]
     [InlineData("Videos", true)]
     [InlineData("Video", true)]
     [InlineData("TV", false)]

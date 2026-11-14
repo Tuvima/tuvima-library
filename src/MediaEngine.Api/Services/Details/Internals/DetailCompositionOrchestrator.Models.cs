@@ -65,6 +65,10 @@ internal sealed partial class DetailCompositionOrchestrator
         /// <summary>The Work's stored position in the Series the page shows (<c>series_placement</c> pair), when it has one.</summary>
         public string? SeriesPlacementPosition { get; init; }
         public string? SeasonLabel { get; init; }
+        public string? SectionKey { get; init; }
+        public string? SectionTitle { get; init; }
+        public int? SectionOrdinal { get; init; }
+        public string? SectionParentTitle { get; init; }
         public string? EpisodeLabel { get; init; }
         public string? ArtworkUrl { get; init; }
         public string? ArtworkState { get; init; }
@@ -181,6 +185,16 @@ internal sealed partial class DetailCompositionOrchestrator
         /// <summary>The retail Series position as the source wrote it ("1.5").</summary>
         public string? RetailSeriesPosition { get; init; }
         public string? DetailRoute { get; init; }
+
+        /// <summary>The folder a video sits in inside its Videos series (the section work), as a stable key; null for a video straight under the series or for any other media.</summary>
+        public string? SectionKey { get; init; }
+        public string? SectionTitle { get; init; }
+
+        /// <summary>The section's own place among its siblings (<c>works.ordinal</c>), the order the editor lists folders in.</summary>
+        public int? SectionOrdinal { get; init; }
+
+        /// <summary>The name of the folder a sub-folder sits in, when that folder is itself a section ("Parent / Child").</summary>
+        public string? SectionParentTitle { get; init; }
 
         public bool IsOwned =>
             HasAsset

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Persons;
 using MediaEngine.Domain;
@@ -43,6 +44,37 @@ public sealed class DetailComposerServiceTests
         var groups = Assert.IsAssignableFrom<IReadOnlyList<SequenceGroupViewModel>>(method.Invoke(null, [normalized, "Season", null]));
         Assert.Equal(1, Assert.Single(groups).OwnedCount); Assert.Equal(1, groups[0].CompletedCount);
     }
+    [Fact]
+    public void AVideoInAFolderIsGroupedByItsFolder_AndASubFolderReadsParentSlashChild()
+    {
+        var plain = DetailCompositionOrchestrator.ResolveVideoSection(DetailEntityType.TvShow, "Videos", "abc", "Week 1", null);
+        var nested = DetailCompositionOrchestrator.ResolveVideoSection(DetailEntityType.TvShow, "Videos", "def", "Drills", "Week 1");
+
+        Assert.Equal(("section-abc", "Week 1"), plain);
+        Assert.Equal(("section-def", "Week 1 / Drills"), nested);
+    }
+
+    [Theory]
+    [InlineData(DetailEntityType.TvShow, "TV", "abc")]
+    [InlineData(DetailEntityType.TvShow, "Videos", null)]
+    [InlineData(DetailEntityType.TvShow, "Videos", " ")]
+    [InlineData(DetailEntityType.BookSeries, "Videos", "abc")]
+    public void OnlyAVideoInsideAFolderOfVideosHasASectionGroup(DetailEntityType type, string mediaType, string? sectionKey)
+        => Assert.Null(DetailCompositionOrchestrator.ResolveVideoSection(type, mediaType, sectionKey, "Week 1", null));
+
+    [Fact]
+    public void TheSectionsOfAFolderFollowTheEditorsOrder_NotTheAlphabet_AndAnyOtherGroupComesLast()
+    {
+        var groups = new[] { "section-b", "section-a", "season-1", "section-c" }
+            .Select(key => new SequenceGroupViewModel { Key = key, Title = key }).ToList();
+        var ordinals = new Dictionary<string, int> { ["section-b"] = 2, ["section-a"] = 1, ["section-c"] = 3 };
+
+        var ordered = DetailCompositionOrchestrator.OrderVideoSections(groups, ordinals);
+
+        Assert.Equal(["section-a", "section-b", "section-c", "season-1"], ordered.Select(group => group.Key));
+        Assert.Same(groups, DetailCompositionOrchestrator.OrderVideoSections(groups, new Dictionary<string, int>()));
+    }
+
     [Theory]
     [InlineData("/watch/player/123", "/watch/player/123?restart=true")]
     [InlineData("/watch/player/123?collectionId=456", "/watch/player/123?collectionId=456&restart=true")]

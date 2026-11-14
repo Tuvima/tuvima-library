@@ -97,6 +97,26 @@ public static class VideoFolderWording
     public static string VideoCount(int count)
         => string.Create(CultureInfo.InvariantCulture, $"{count} {(count == 1 ? "video" : "videos")}");
 
+    /// <summary>
+    /// What a folder is called in the section dropdown, as the editor's Section dropdown names it (spec details-page-bottom D13): its own
+    /// name, or "Parent / Child" when it sits inside another folder. A folder with no name says <see cref="UnnamedSectionTitle"/>.
+    /// </summary>
+    public static string SectionTitle(string? name, string? parentName = null)
+    {
+        var own = name?.Trim();
+        var parent = parentName?.Trim();
+        if (string.IsNullOrEmpty(own))
+        {
+            return string.IsNullOrEmpty(parent) ? UnnamedSectionTitle : parent;
+        }
+
+        return string.IsNullOrEmpty(parent) ? own : $"{parent} / {own}";
+    }
+
+    /// <summary>One row of the section dropdown: the folder's title and how many videos it holds ("Week 1 · 12 videos"); no count is told for an empty folder.</summary>
+    public static string SectionOptionLabel(string title, int videoCount)
+        => videoCount > 0 ? $"{title} · {VideoCount(videoCount)}" : title;
+
     /// <summary>"1 section" or "14 sections".</summary>
     public static string SectionCount(int count)
         => string.Create(CultureInfo.InvariantCulture, $"{count} {(count == 1 ? "section" : "sections")}");
