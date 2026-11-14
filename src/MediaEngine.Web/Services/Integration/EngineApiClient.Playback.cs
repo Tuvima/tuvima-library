@@ -679,6 +679,37 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<GraphicsHardwareDto?> GetPlaybackHardwareAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<GraphicsHardwareDto>("/settings/playback/hardware", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /settings/playback/hardware failed");
+            return null;
+        }
+    }
+
+    public async Task<GraphicsHardwareDto?> TestPlaybackHardwareAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsync("/settings/playback/test-hardware", null, ct);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<GraphicsHardwareDto>(cancellationToken: ct)
+                : null;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /settings/playback/test-hardware failed");
+            return null;
+        }
+    }
+
     public async Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(Guid profileId, CancellationToken ct = default)
     {
         try

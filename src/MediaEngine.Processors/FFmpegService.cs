@@ -188,13 +188,39 @@ public sealed class FFmpegService : IFFmpegService
             Version: null);
         var mode = settings.HardwareAcceleration;
 
-        // Hardware probing starts several processes, so keep the earlier answer while the tool has not moved.
+        // Hardware probing starts several processes, so keep the earlier answer while the tool has not moved. A new copy of FFmpeg
+        // at the same place (an update) counts as moved, so the graphics test runs again after every install (playback-path spec D11).
+        var stamp = available ? BinaryStamp(ffmpeg.Path!) : null;
         var hardware = !available
             ? new HardwareCapabilities()
-            : previous is { IsAvailable: true } && previous.FfmpegPath == ffmpeg.Path && previous.HardwareMode == mode
-                ? previous.Hardware
+            : KeepsHardwareAnswer(previous, ffmpeg.Path, mode, stamp)
+                ? previous!.Hardware
                 : DetectHardware(ffmpeg.Path!, mode);
-        return new FFmpegInstallation(ffmpeg.Path, ffprobe.Path, hardware, mode, detection);
+        return new FFmpegInstallation(ffmpeg.Path, ffprobe.Path, hardware, mode, detection, stamp);
+    }
+
+    /// <summary>Whether the earlier hardware answer still stands: the same FFmpeg file (same place, size and write time) and the same hardware choice.</summary>
+    internal static bool KeepsHardwareAnswer(FFmpegInstallation? previous, string? ffmpegPath, string mode, string? stamp) =>
+        previous is { IsAvailable: true } && previous.FfmpegPath == ffmpegPath && previous.HardwareMode == mode && previous.BinaryStamp == stamp;
+
+    /// <summary>A short fingerprint of the FFmpeg file (its size and last write time) so an update in place is noticed; null when it cannot be read.</summary>
+    internal static string? BinaryStamp(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists ? $"{info.Length}:{info.LastWriteTimeUtc.Ticks}" : null;
+        }
+        catch (IOException)
+        {
+            // A file that cannot be read has no fingerprint; the graphics test then simply runs again next time.
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Same as above: no fingerprint, so the answer is not reused.
+            return null;
+        }
     }
 
     private void LogOutcome(FFmpegInstallation installation)

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Contracts.System;
@@ -55,6 +56,9 @@ public sealed partial class EngineApiClient
 
     public Task<ToolRequirementsDto?> GetSetupToolRequirementsAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<ToolRequirementsDto>(HttpMethod.Get, "/setup/v1/tools", null, setupSession, ct);
+
+    public Task<GraphicsHardwareDto?> TestSetupGraphicsHardwareAsync(string? setupSession, CancellationToken ct = default) =>
+        SetupSendAsync<GraphicsHardwareDto>(HttpMethod.Post, "/setup/v1/tools/graphics-hardware", JsonContent.Create(new { }), setupSession, ct);
 
     public async Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default)
     {

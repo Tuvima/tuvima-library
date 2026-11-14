@@ -153,9 +153,11 @@
 
     private static readonly IReadOnlyList<AppSelectOption> HardwareOptions =
     [
-        new("auto", "Automatic"),
-        new("cpu", "CPU"),
-        new("gpu", "GPU when available"),
+        new("auto", "Automatic (graphics card, then processor)"),
+        new("nvenc", "NVIDIA"),
+        new("quicksync", "Intel Quick Sync"),
+        new("vaapi", "VAAPI"),
+        new("cpu", "Processor only"),
     ];
 
     private IReadOnlyList<AppSelectOption> ProfileOptions =>
@@ -173,7 +175,7 @@
           ?? "One or more required media tools are unavailable.";
 
     private static string DisplayHardware(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "Unavailable" : value == "auto" ? "Automatic" : value;
+        string.IsNullOrWhiteSpace(value) ? "Unavailable" : HardwareOptions.FirstOrDefault(option => option.Value == value)?.Label ?? value;
 
     protected override async Task OnInitializedAsync()
     {

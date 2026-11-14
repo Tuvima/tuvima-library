@@ -107,6 +107,12 @@ public partial interface IEngineApiClient
 
     Task<TranscodingSettings?> SaveTranscodingSettingsAsync(TranscodingSettings settings, CancellationToken ct = default);
 
+    /// <summary>What the Engine's last graphics hardware test found (Settings > Playback > Quality), or null when the Engine could not be reached.</summary>
+    Task<GraphicsHardwareDto?> GetPlaybackHardwareAsync(CancellationToken ct = default);
+
+    /// <summary>The Test hardware button: the Engine tests the graphics encoders again and returns what it found, or null when it could not be reached.</summary>
+    Task<GraphicsHardwareDto?> TestPlaybackHardwareAsync(CancellationToken ct = default);
+
     Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(Guid profileId, CancellationToken ct = default);
 
     Task<UserPlaybackSettingsDto?> UpdatePlaybackSettingsAsync(Guid profileId, UserPlaybackSettingsDto settings, CancellationToken ct = default);

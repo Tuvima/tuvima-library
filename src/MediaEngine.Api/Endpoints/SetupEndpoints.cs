@@ -3,9 +3,11 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Networking;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.Tools;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Contracts.System;
@@ -150,6 +152,21 @@ public static class SetupEndpoints
 
             return Results.Ok(await tools.GetAsync(ct).ConfigureAwait(false));
         }).Produces<ToolRequirementsDto>();
+
+        // The Graphics hardware row on the Tools step (playback-path spec D11): tests the graphics encoders once FFmpeg is ready and returns
+        // what was found. It never blocks the step and changes nothing.
+        group.MapPost("/tools/graphics-hardware", async (
+            HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
+            [FromServices] IFFmpegService ffmpeg, [FromServices] IConfigurationLoader configuration, [FromServices] TimeProvider clock, CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
+            {
+                return Results.Unauthorized();
+            }
+
+            var mode = configuration.LoadTranscoding().HardwareAcceleration;
+            return Results.Ok(await Task.Run(() => GraphicsHardwareReport.Test(ffmpeg, mode, clock), ct).ConfigureAwait(false));
+        }).Produces<GraphicsHardwareDto>();
 
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,

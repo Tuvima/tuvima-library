@@ -57,9 +57,14 @@
     </video>
     @if (Playback.IsVideoMode && Playback.IsVideoExpanded && Playback.CurrentItem is not null)
     {
-        @if (Playback.Phase == PlaybackPhase.Loading || !string.IsNullOrWhiteSpace(Playback.CurrentError))
+        @* While the Engine gets the title ready, or after it could not, the waiting state carries the Engine's own line (spec playback-path D8). *@
+        @if (Playback.CurrentWaiting is { } waiting)
         {
-            <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
+            <VideoPreparingState View="@waiting" Title="@Playback.CurrentItem.Title" OnCancel="ClosePlayerAsync" OnRetry="RetryPreparationAsync" />
+        }
+        else if (Playback.Phase == PlaybackPhase.Loading || !string.IsNullOrWhiteSpace(Playback.CurrentError))
+        {
+            <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? PlaybackWaitingRules.NeutralLine)</div>
         }
         @if (_switchingAudio) { <div class="video-playback-host__status" role="status">@L["VideoPlaybackHost_SwitchingAudio"]</div> }
         @* Unified player v2 D25 (mockup screen 14): the rating card at the top-left (the content rating, never the audience score), and the paused details at
@@ -1526,6 +1531,8 @@
         else if (args.Key.Equals("m", StringComparison.OrdinalIgnoreCase)) await ToggleMuteAsync();
         else if (args.Key.Equals("f", StringComparison.OrdinalIgnoreCase)) await ToggleFullscreenAsync();
     }
+
+    private Task RetryPreparationAsync() => Playback.RetryPreparationAsync(_lifetimeCancellation.Token);
 
     private async Task ClosePlayerAsync()
     {

@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Models;
 using MediaEngine.Processors;
 
 namespace MediaEngine.Processors.Tests;
@@ -25,4 +26,50 @@ public sealed class HardwareProbeTests
         Assert.Contains("format=nv12,hwupload", FFmpegService.BuildProbeArguments("h264_vaapi"));
         Assert.DoesNotContain("format=nv12,hwupload", FFmpegService.BuildProbeArguments("h264_nvenc"));
     }
+
+    // ---- The graphics test runs again after FFmpeg is updated (playback-path spec D11) ----
+
+    [Fact]
+    public void TheEarlierHardwareAnswer_IsKeptWhileTheSameFFmpegFileIsInPlace()
+    {
+        var previous = Installation("tools/ffmpeg", "auto", "100:1");
+
+        Assert.True(FFmpegService.KeepsHardwareAnswer(previous, "tools/ffmpeg", "auto", "100:1"));
+    }
+
+    [Theory]
+    [InlineData("tools/other", "auto", "100:1")]
+    [InlineData("tools/ffmpeg", "cpu", "100:1")]
+    [InlineData("tools/ffmpeg", "auto", "200:2")]
+    public void TheHardwareIsTestedAgain_WhenTheToolMovedTheChoiceChangedOrTheFileWasUpdatedInPlace(string path, string mode, string stamp)
+    {
+        var previous = Installation("tools/ffmpeg", "auto", "100:1");
+
+        Assert.False(FFmpegService.KeepsHardwareAnswer(previous, path, mode, stamp));
+    }
+
+    [Fact]
+    public void AnUpdatedFile_GetsADifferentStampFromTheOldOne()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"tuvima_stamp_{Guid.NewGuid():N}.bin");
+        try
+        {
+            File.WriteAllText(file, "old");
+            var before = FFmpegService.BinaryStamp(file);
+            File.WriteAllText(file, "a longer, newer copy");
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddMinutes(5));
+            var after = FFmpegService.BinaryStamp(file);
+
+            Assert.NotNull(before);
+            Assert.NotEqual(before, after);
+            Assert.Null(FFmpegService.BinaryStamp(file + ".missing"));
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    private static FFmpegInstallation Installation(string path, string mode, string stamp) =>
+        new(path, "tools/ffprobe", new HardwareCapabilities(), mode, FFmpegDetection.NotFound, stamp);
 }
