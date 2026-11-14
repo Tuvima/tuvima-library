@@ -24,6 +24,8 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<PlaybackCapabilitiesService>();
         // What the Dashboard's browsers measured about themselves this session, and what failed for them (playback-path D12, D13).
         services.AddSingleton<BrowserPlaybackAbilityStore>();
+        // The one "Video quality and devices" list and its saved values (playback-path D15).
+        services.AddSingleton<VideoOptionsService>();
         services.AddSingleton<AdaptiveHlsService>();
         // Scrub previews (Unified player v2 D9a): frames made ahead of time, in the Library's own cache.
         services.AddSingleton<MediaEngine.Processors.VideoFrameExtractor>();

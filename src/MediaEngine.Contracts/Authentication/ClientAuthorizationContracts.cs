@@ -211,6 +211,26 @@ public sealed class ClientCapabilitiesDto
     /// value is ignored when it reports, and an administrator clears it on the Devices page.
     /// </summary>
     [JsonPropertyName("learned_limits")] public IReadOnlyList<LearnedPlaybackLimitDto> LearnedLimits { get; init; } = [];
+
+    /// <summary>
+    /// The per-device "Video quality and devices" choices (playback-path spec D15). For a paired app the Engine owns this: an app's own
+    /// value is ignored when it reports, and it changes through the video options action. The Dashboard's browser keeps its own in
+    /// local storage and sends them with its report.
+    /// </summary>
+    [JsonPropertyName("video_options")] public DeviceVideoOptionsDto VideoOptions { get; init; } = new();
+}
+
+/// <summary>The per-device video playback choices (playback-path spec D15). Every value defaults to automatic.</summary>
+public sealed class DeviceVideoOptionsDto
+{
+    /// <summary><c>auto</c> or a picture height cap such as <c>2160</c>, <c>1440</c>, <c>1080</c>, <c>720</c> or <c>480</c>.</summary>
+    [JsonPropertyName("max_resolution")] public string MaxResolution { get; init; } = "auto";
+
+    /// <summary><c>auto</c>, <c>on</c> or <c>off</c>. The player itself applies this; the Engine only keeps and serves it.</summary>
+    [JsonPropertyName("hardware_decoding")] public string HardwareDecoding { get; init; } = "auto";
+
+    /// <summary><c>auto</c>, <c>passthrough</c> or <c>stereo</c>.</summary>
+    [JsonPropertyName("surround_sound")] public string SurroundSound { get; init; } = "auto";
 }
 
 /// <summary>One thing the Engine learned a device cannot play: a kind of file that failed in a rung (playback-path spec D13).</summary>

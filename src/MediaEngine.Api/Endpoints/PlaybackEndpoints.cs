@@ -31,6 +31,26 @@ public static class PlaybackEndpoints
     internal static string? TrustedClient(ClaimsPrincipal user, string? client) =>
         user.FindFirstValue(TuvimaClaimTypes.ClientId) ?? client;
 
+    /// <summary>What the calling device reported: the paired device's record, or this browser's report for the signed-in person.</summary>
+    private static async Task<ClientCapabilitiesDto?> CallerCapabilitiesAsync(
+        ClaimsPrincipal user,
+        string? browser,
+        ClientAuthorizationService authorization,
+        BrowserPlaybackAbilityStore browserAbilities,
+        CancellationToken ct)
+    {
+        if (ClaimGuid(user, TuvimaClaimTypes.DeviceId) is { } deviceId)
+        {
+            return await authorization.GetDeviceAsync(deviceId, ct) is { } device
+                ? ClientAuthorizationService.ReadCapabilities(device)
+                : null;
+        }
+
+        return ClaimGuid(user, TuvimaClaimTypes.ActiveProfileId) is { } profileId
+            ? browserAbilities.TryGet(profileId, browser)
+            : null;
+    }
+
     public static IEndpointRouteBuilder MapPlaybackEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/playback")
@@ -52,6 +72,7 @@ public static class PlaybackEndpoints
             NetworkConnectionClassifier classifier,
             PlaybackCapabilitiesService playback,
             BrowserPlaybackAbilityStore browserAbilities,
+            VideoOptionsService videoOptions,
             CancellationToken ct) =>
         {
             var connection = classifier.Classify(
@@ -79,7 +100,9 @@ public static class PlaybackEndpoints
             }
             var trustedClient = TrustedClient(user, client);
             var forceAdaptive = string.Equals(delivery, "hls", StringComparison.OrdinalIgnoreCase);
-            var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId, forceAdaptive);
+            // This person's and this device's "Video quality and devices" choices decide the rung and the quality (playback-path spec D4, D15).
+            var choices = await videoOptions.ResolveChoicesAsync(profileId, capabilities, ct);
+            var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId, forceAdaptive, choices);
             if (manifest?.DirectStreamUrl is { } streamUrl)
             {
                 manifest = manifest with { DirectStreamUrl = "/api/v1" + streamUrl };
@@ -117,6 +140,102 @@ public static class PlaybackEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite);
+
+        // The "Video quality and devices" list (playback-path spec D15): one list from the Engine, drawn by every client, with this
+        // person's and this device's saved values. The Dashboard's browser names itself with the browser session key.
+        group.MapGet("/video-options", async (
+            string? browser,
+            ClaimsPrincipal user,
+            ClientAuthorizationService authorization,
+            BrowserPlaybackAbilityStore browserAbilities,
+            VideoOptionsService videoOptions,
+            CancellationToken ct) =>
+        {
+            var profileId = ClaimGuid(user, TuvimaClaimTypes.ActiveProfileId);
+            var capabilities = await CallerCapabilitiesAsync(user, browser, authorization, browserAbilities, ct);
+            return Results.Ok(await videoOptions.BuildAsync(profileId, capabilities, ct));
+        })
+        .WithName("GetVideoPlaybackOptions")
+        .WithSummary("Return the Video quality and devices list with this person's and this device's saved values.")
+        .Produces<VideoPlaybackOptionsDto>(StatusCodes.Status200OK)
+        .RequireClientScope(ClientApiScopes.PlaybackRead);
+
+        // Saves one row. A person's row follows them to every device; a device row applies to the calling paired device, or to the browser
+        // named by the session key. Everything defaults to automatic, so clearing a row means choosing Automatic.
+        group.MapPut("/video-options", async (
+            SetVideoOptionRequest request,
+            ClaimsPrincipal user,
+            ClientAuthorizationService authorization,
+            BrowserPlaybackAbilityStore browserAbilities,
+            VideoOptionsService videoOptions,
+            CancellationToken ct) =>
+        {
+            var profileId = ClaimGuid(user, TuvimaClaimTypes.ActiveProfileId);
+            if (VideoOptionCatalog.IsProfileOption(request.Id))
+            {
+                if (profileId is not { } person)
+                {
+                    return ApiErrors.Forbidden("A signed-in profile is required to change this.");
+                }
+
+                return await videoOptions.SaveProfileOptionAsync(person, request.Id, request.Value, ct) switch
+                {
+                    VideoOptionOutcome.Saved => Results.Ok(await videoOptions.BuildAsync(
+                        person, await CallerCapabilitiesAsync(user, request.Browser, authorization, browserAbilities, ct), ct)),
+                    _ => ApiErrors.BadRequest("That is not a choice this option offers."),
+                };
+            }
+
+            if (!VideoOptionCatalog.IsDeviceOption(request.Id))
+            {
+                return ApiErrors.BadRequest("That is not a Video quality and devices option.");
+            }
+
+            var saved = false;
+            ClientCapabilitiesDto? capabilities = null;
+            if (ClaimGuid(user, TuvimaClaimTypes.DeviceId) is { } deviceId)
+            {
+                var device = await authorization.GetDeviceAsync(deviceId, ct);
+                var changed = device is null
+                    ? null
+                    : VideoOptionCatalog.TryApplyDeviceOption(ClientAuthorizationService.ReadCapabilities(device).VideoOptions, request.Id, request.Value);
+                if (changed is null)
+                {
+                    return ApiErrors.BadRequest("That is not a choice this option offers.");
+                }
+
+                saved = await authorization.SetVideoOptionsAsync(deviceId, changed, ct);
+                capabilities = await CallerCapabilitiesAsync(user, request.Browser, authorization, browserAbilities, ct);
+            }
+            else if (profileId is { } browserProfile && request.Browser is { } key)
+            {
+                var current = browserAbilities.TryGet(browserProfile, key);
+                if (current is null)
+                {
+                    return ApiErrors.BadRequest("This browser has not said what it can play yet; try again in a moment.");
+                }
+
+                var changed = VideoOptionCatalog.TryApplyDeviceOption(current.VideoOptions, request.Id, request.Value);
+                if (changed is null)
+                {
+                    return ApiErrors.BadRequest("That is not a choice this option offers.");
+                }
+
+                saved = browserAbilities.SetVideoOptions(browserProfile, key, changed);
+                capabilities = browserAbilities.TryGet(browserProfile, key);
+            }
+
+            return saved
+                ? Results.Ok(await videoOptions.BuildAsync(profileId, capabilities, ct))
+                : ApiErrors.NotFound("This device was not found.");
+        })
+        .WithName("SetVideoPlaybackOption")
+        .WithSummary("Save one Video quality and devices option for this person or this device.")
+        .Produces<VideoPlaybackOptionsDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.PlaybackWrite);
 
         // A player says it started a title in a rung and could not play it; the next start of that kind of file begins one rung lower

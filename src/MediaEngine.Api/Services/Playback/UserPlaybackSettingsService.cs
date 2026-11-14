@@ -321,6 +321,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Listening.AudiobookHistoryActiveSegmentGapSeconds = Math.Clamp(settings.Listening.AudiobookHistoryActiveSegmentGapSeconds, 5, 300);
         settings.Listening.AudiobookHistoryPositionJumpToleranceSeconds = Math.Clamp(settings.Listening.AudiobookHistoryPositionJumpToleranceSeconds, 1, 120);
         settings.Watching.PreferredVideoQuality = NormalizeToken(settings.Watching.PreferredVideoQuality);
+        settings.Watching.MobileDataVideoQuality = NormalizeToken(settings.Watching.MobileDataVideoQuality);
         settings.Listening.DefaultSleepTimer = NormalizeToken(settings.Listening.DefaultSleepTimer);
         settings.Listening.OutputPreference = NormalizeToken(settings.Listening.OutputPreference);
         settings.Listening.SongTableColumns = CleanSongTableColumns(settings.Listening.SongTableColumns);
@@ -388,6 +389,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireAllowed(settings.Listening.ResumeRewindSeconds, ListeningResumeRewindValues, nameof(settings.Listening.ResumeRewindSeconds));
         RequireAllowed(settings.General.SyncFrequencyMinutes, SyncFrequencyValues, nameof(settings.General.SyncFrequencyMinutes));
         RequireAllowed(settings.Watching.PreferredVideoQuality, VideoQualityValues, nameof(settings.Watching.PreferredVideoQuality));
+        RequireAllowed(settings.Watching.MobileDataVideoQuality, VideoQualityValues, nameof(settings.Watching.MobileDataVideoQuality));
         RequireAllowed(settings.Listening.DefaultSleepTimer, SleepTimerValues, nameof(settings.Listening.DefaultSleepTimer));
         RequireAllowed(settings.General.SpoilerLevel, SpoilerLevelValues, nameof(settings.General.SpoilerLevel));
         RequireAllowed(settings.Listening.OutputPreference, OutputValues, nameof(settings.Listening.OutputPreference));

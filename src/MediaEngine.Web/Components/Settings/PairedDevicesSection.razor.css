@@ -37,3 +37,9 @@
     min-width: 0;
     overflow-wrap: anywhere;
 }
+
+.paired-device__video {
+    display: grid;
+    gap: var(--tl-space-2, 8px);
+    margin-top: var(--tl-space-2, 8px);
+}

@@ -33,6 +33,18 @@ public partial interface IEngineApiClient
     Task<bool> ReportBrowserPlaybackCapabilitiesAsync(ClientCapabilitiesDto capabilities, CancellationToken ct = default);
 
     /// <summary>
+    /// GET /api/v1/playback/video-options  -  the "Video quality and devices" list with this person's and this browser's saved values
+    /// (playback-path spec D15). Null when the Engine could not be reached.
+    /// </summary>
+    Task<VideoPlaybackOptionsDto?> GetVideoPlaybackOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// PUT /api/v1/playback/video-options  -  saves one row (a person's row or this browser's device row) and returns the refreshed list.
+    /// Null when the Engine refused or could not be reached.
+    /// </summary>
+    Task<VideoPlaybackOptionsDto?> SetVideoPlaybackOptionAsync(string id, string value, CancellationToken ct = default);
+
+    /// <summary>
     /// POST /api/v1/playback/{assetId}/failure  -  tells the Engine this browser could not play a title in the rung it chose, so the next
     /// start of that kind of file uses a heavier rung (playback-path spec D13). <paramref name="rung"/> is the manifest's playback path rung.
     /// </summary>

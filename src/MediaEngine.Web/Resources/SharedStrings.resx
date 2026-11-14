@@ -14441,4 +14441,28 @@
   <data name="GraphicsHardware_SetupWaiting" xml:space="preserve">
     <value>Checked automatically once FFmpeg is ready</value>
   </data>
+  <data name="VideoOptions_Title" xml:space="preserve">
+    <value>Video quality and devices</value>
+  </data>
+  <data name="VideoOptions_PerProfile" xml:space="preserve">
+    <value>Per profile. Follows you to every device.</value>
+  </data>
+  <data name="VideoOptions_PerDevice" xml:space="preserve">
+    <value>Per device:</value>
+  </data>
+  <data name="VideoOptions_Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="VideoOptions_ThisBrowser" xml:space="preserve">
+    <value>This browser</value>
+  </data>
+  <data name="VideoOptions_PerDeviceDefaults" xml:space="preserve">
+    <value>Per device. Everything defaults to Automatic.</value>
+  </data>
+  <data name="VideoOptions_CouldNotLoad" xml:space="preserve">
+    <value>Video quality options could not be loaded.</value>
+  </data>
+  <data name="VideoOptions_CouldNotSave" xml:space="preserve">
+    <value>{0} could not be saved.</value>
+  </data>
 </root>

@@ -226,16 +226,16 @@ public sealed class ClientAuthorizationService(
         repository.GetDeviceAsync(deviceId, ct);
 
     /// <summary>
-    /// Keeps what a device reported about itself. The limits the Engine learned stay as they were: an app cannot set or clear them
-    /// (an administrator clears them on the Devices page).
+    /// Keeps what a device reported about itself. The limits the Engine learned and the device's video options stay as they were: an app
+    /// cannot set or clear them through a report (an administrator clears the limits on the Devices page; options have their own action).
     /// </summary>
     public async Task<bool> UpdateCapabilitiesAsync(Guid deviceId, ClientCapabilitiesDto capabilities, CancellationToken ct = default)
     {
         var device = await repository.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
-        var learned = device is null ? [] : ReadCapabilities(device).LearnedLimits;
+        var stored = device is null ? null : ReadCapabilities(device);
         return await repository.UpdateCapabilitiesAsync(
             deviceId,
-            JsonSerializer.Serialize(ClientCapabilitiesNormalizer.Normalize(capabilities, learned)),
+            JsonSerializer.Serialize(ClientCapabilitiesNormalizer.Normalize(capabilities, stored?.LearnedLimits, stored?.VideoOptions)),
             timeProvider.GetUtcNow(),
             ct).ConfigureAwait(false);
     }
@@ -256,6 +256,22 @@ public sealed class ClientAuthorizationService(
         return await repository.UpdateCapabilitiesAsync(
             deviceId,
             JsonSerializer.Serialize(ClientCapabilitiesNormalizer.WithLearned(capabilities, learned)),
+            device.LastSeenAt,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Saves a device's per-device video options (playback-path spec D15). The device's last-seen time is left alone.</summary>
+    public async Task<bool> SetVideoOptionsAsync(Guid deviceId, DeviceVideoOptionsDto options, CancellationToken ct = default)
+    {
+        var device = await repository.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive)
+        {
+            return false;
+        }
+
+        return await repository.UpdateCapabilitiesAsync(
+            deviceId,
+            JsonSerializer.Serialize(ClientCapabilitiesNormalizer.WithOptions(ReadCapabilities(device), options)),
             device.LastSeenAt,
             ct).ConfigureAwait(false);
     }

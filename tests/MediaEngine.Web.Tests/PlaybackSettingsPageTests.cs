@@ -99,7 +99,8 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             Assert.DoesNotContain("Subtitle appearance", cut.Markup);
             Assert.DoesNotContain("Text size", cut.Markup);
             Assert.DoesNotContain("Show bookmarks on the bar", cut.Markup);
-            Assert.Equal(4, cut.FindAll(".app-settings-group").Count);
+            // Resume, Bar, Spoilers, Video quality and devices, Subtitles and audio.
+            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);

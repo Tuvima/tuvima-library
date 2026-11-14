@@ -697,7 +697,18 @@ public sealed class WatchingSettingsDto
     public bool ContinueFromCredits { get; set; }
     public bool PreferHeroBanners { get; set; } = true;
     public bool RememberPerTitlePlaybackSpeed { get; set; } = true;
+
+    /// <summary>"Video quality" (playback-path spec D15): <c>Auto</c>, <c>High</c> (Highest), <c>Balanced</c> or <c>DataSaver</c>.</summary>
     public string PreferredVideoQuality { get; set; } = PlaybackPreferenceValues.Auto;
+
+    /// <summary>"Quality on mobile data" (D15): the same four choices, used when the connection is not the home network.</summary>
+    public string MobileDataVideoQuality { get; set; } = PlaybackPreferenceValues.Auto;
+
+    /// <summary>"Convert only when needed" (D15), on by default; off lets the Engine prefer a prepared stream.</summary>
+    public bool ConvertOnlyWhenNeeded { get; set; } = true;
+
+    /// <summary>"Allow HDR" (D15), on by default; off treats HDR as needing a picture conversion.</summary>
+    public bool AllowHdr { get; set; } = true;
 }
 
 public sealed class ListeningSettingsDto

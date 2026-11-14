@@ -26,6 +26,13 @@ public enum ManagedDeviceLimitsOutcome
     Forbidden,
 }
 
+public enum ManagedDeviceAccessOutcome
+{
+    Allowed,
+    NotFound,
+    Forbidden,
+}
+
 /// <summary>
 /// Lists and revokes paired phones and TVs for the Dashboard. A server administrator who has unlocked their
 /// administrator PIN (when they use one) sees every device; a household administrator who has unlocked theirs sees their
@@ -168,6 +175,38 @@ public sealed class ManagedClientDeviceService(
             ct).ConfigureAwait(false);
         return cleared ? ManagedDeviceLimitsOutcome.Cleared : ManagedDeviceLimitsOutcome.NotFound;
     }
+
+    /// <summary>
+    /// Finds a paired device the caller may manage (the same rule as signing it out), for reading and changing its video options
+    /// (playback-path spec D15) from the Devices page.
+    /// </summary>
+    public async Task<(ManagedDeviceAccessOutcome Outcome, ClientDevice? Device)> FindManagedAsync(
+        RequestAuthority authority, Guid deviceId, CancellationToken ct = default)
+    {
+        var device = await devices.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive)
+        {
+            return (ManagedDeviceAccessOutcome.NotFound, null);
+        }
+
+        if (device.AccountId != RequiredAccountId(authority) &&
+            !await IsUnlockedServerAdministratorAsync(authority, ct).ConfigureAwait(false) &&
+            !await IsManagedByHouseholdAdministratorAsync(authority, device.AccountId, ct).ConfigureAwait(false))
+        {
+            return (ManagedDeviceAccessOutcome.Forbidden, null);
+        }
+
+        return (ManagedDeviceAccessOutcome.Allowed, device);
+    }
+
+    /// <summary>Saves a managed device's per-device video options. The last-seen time is kept as it was: choosing an option is not the device being seen.</summary>
+    public Task<bool> SaveVideoOptionsAsync(ClientDevice device, DeviceVideoOptionsDto options, CancellationToken ct = default) =>
+        devices.UpdateCapabilitiesAsync(
+            device.Id,
+            System.Text.Json.JsonSerializer.Serialize(
+                Services.Playback.ClientCapabilitiesNormalizer.WithOptions(ClientAuthorizationService.ReadCapabilities(device), options)),
+            device.LastSeenAt,
+            ct);
 
     /// <summary>
     /// A server administrator whose administrator PIN is unlocked (or who uses none). Until then they are like anyone

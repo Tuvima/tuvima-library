@@ -121,6 +121,44 @@ export function buildReport(measured) {
     };
 }
 
+// The per-device "Video quality and devices" choices of this browser (playback-path spec D15) live in this browser's own storage, because a
+// browser is not a paired device and has no device record on the Engine. They ride along with the report, so a new session or an Engine
+// restart brings them back. Storage can be blocked; then the choices last only until the Engine forgets this browser session.
+const optionsKey = 'tuvima.video.deviceOptions';
+const optionFields = ['max_resolution', 'hardware_decoding', 'surround_sound'];
+
+/** The saved choices of this browser, or the automatic defaults; never throws. */
+export function readVideoOptions(environment = globalThis) {
+    const options = { max_resolution: 'auto', hardware_decoding: 'auto', surround_sound: 'auto' };
+    try {
+        const saved = JSON.parse(environment.localStorage?.getItem(optionsKey) ?? 'null');
+        for (const field of optionFields) {
+            if (typeof saved?.[field] === 'string') {
+                options[field] = saved[field];
+            }
+        }
+    } catch {
+        // Unreadable or blocked storage means nothing was saved: everything stays automatic.
+    }
+
+    return options;
+}
+
+/** Keeps this browser's choices; returns false when storage is blocked. */
+export function saveVideoOptions(options, environment = globalThis) {
+    try {
+        const kept = {};
+        for (const field of optionFields) {
+            kept[field] = typeof options?.[field] === 'string' ? options[field] : 'auto';
+        }
+
+        environment.localStorage.setItem(optionsKey, JSON.stringify(kept));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Asks the browser what it can play. Returns null when the browser has no media capability checks (the Engine then keeps its fixed
  * web list), and never throws.
@@ -171,5 +209,5 @@ export async function measure(environment = globalThis) {
         // A browser that does not know the query has no HDR display to report.
     }
 
-    return buildReport({ video, audio, surround, hdrDisplay, containers, audioContainers });
+    return { ...buildReport({ video, audio, surround, hdrDisplay, containers, audioContainers }), video_options: readVideoOptions(environment) };
 }

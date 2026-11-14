@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
+@using MediaEngine.Contracts.Playback
 @inject DashboardIdentityClient Identity
 @inject IStringLocalizer<SharedStrings> L
 
@@ -106,6 +107,22 @@
                                            Size="AppControlSize.Compact" OnClick="@(() => AskSignOut(device))" />
                             </td>
                         </tr>
+                        @* This device's own rows of Video quality and devices (playback-path spec D15), read from the Engine when opened. *@
+                        <tr data-device-video-row="@device.Id">
+                            <td colspan="@(ManagesOthers ? 7 : 6)">
+                                <div class="paired-device__video">
+                                    <AppButton Label="@L["VideoOptions_Title"].Value" ButtonStyle="AppButtonStyle.Text"
+                                               Size="AppControlSize.Compact" aria-expanded="@(_videoOpen.Contains(device.Id) ? "true" : "false")"
+                                               data-device-video-toggle="@device.Id" OnClick="@(() => ToggleVideo(device.Id))" />
+                                    @if (_videoOpen.Contains(device.Id))
+                                    {
+                                        <VideoOptionsPanel Scope="@VideoOptionScopes.Device" ShowSummary="false"
+                                                           Load="@(() => Identity.GetManagedDeviceVideoOptionsAsync(device.Id))"
+                                                           Save="@((id, value) => SaveVideoOptionAsync(device.Id, id, value))" />
+                                    }
+                                </div>
+                            </td>
+                        </tr>
                     }
                 </tbody>
             </AppTable>
@@ -148,6 +165,7 @@
     private bool _signingOut;
     private Guid? _clearing;
     private string? _failure;
+    private readonly HashSet<Guid> _videoOpen = [];
 
     private List<ManagedClientDeviceDto> VisibleDevices => _devices.Where(Filter.Matches).ToList();
 
@@ -201,6 +219,20 @@
         }
 
         await LoadDevicesAsync();
+    }
+
+    private void ToggleVideo(Guid deviceId)
+    {
+        if (!_videoOpen.Remove(deviceId))
+        {
+            _videoOpen.Add(deviceId);
+        }
+    }
+
+    private async Task<VideoPlaybackOptionsDto?> SaveVideoOptionAsync(Guid deviceId, string id, string value)
+    {
+        var result = await Identity.SetManagedDeviceVideoOptionAsync(deviceId, id, value);
+        return result.Succeeded ? result.Value : null;
     }
 
     private void AskSignOut(ManagedClientDeviceDto device) => _pendingSignOut = device;

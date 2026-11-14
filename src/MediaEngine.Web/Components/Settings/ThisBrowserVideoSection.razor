@@ -1,0 +1,28 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@inject IEngineApiClient ApiClient
+@inject BrowserPlaybackCapabilityReporter Reporter
+@inject DashboardSessionAccessor Session
+@inject IStringLocalizer<SharedStrings> L
+
+@* Settings > Security & Devices > Devices: this browser's own "Video quality and devices" rows (playback-path spec D15). A browser is not a paired
+   device, so it keeps its three choices in its own storage and the Engine serves the same list as for every other app. Check again measures
+   this browser once more and reports it. *@
+<SettingsSectionPanel Title="@L["VideoOptions_ThisBrowser"].Value" Description="@L["VideoOptions_PerDeviceDefaults"].Value">
+    <VideoOptionsPanel Scope="@VideoOptionScopes.Device"
+                       Load="@(() => ApiClient.GetVideoPlaybackOptionsAsync())"
+                       Save="@((id, value) => Reporter.SetVideoOptionAsync(id, value))"
+                       CheckAgain="@CheckAgainAsync" />
+</SettingsSectionPanel>
+
+@code {
+    private async Task CheckAgainAsync()
+    {
+        if (Session.ActiveProfileId is { } profileId)
+        {
+            await Reporter.RecheckAsync(profileId);
+        }
+    }
+}

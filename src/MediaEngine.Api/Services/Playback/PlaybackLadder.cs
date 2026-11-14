@@ -12,6 +12,8 @@ namespace MediaEngine.Api.Services.Playback;
 /// <param name="EncodeReason">The plain reason that goes with <paramref name="ForceEncodePicture"/>.</param>
 /// <param name="MinimumRung">The lightest rung this start may use, when the device has failed a lighter one for this kind of file (playback-path spec D13); null for no limit.</param>
 /// <param name="TenBitVideoCodecs">Video codecs the player reported it plays at 10 bits per color; null when the player did not measure it (a fixed list), so nothing is assumed.</param>
+/// <param name="StereoOnly">True when the device chose "Stereo only" (playback-path spec D15): surround sound is never copied, so the sound is converted.</param>
+/// <param name="StreamableCopyReason">The plain reason that goes with <paramref name="ForceStreamableCopy"/>; null uses the alternate-audio-track wording.</param>
 public sealed record PlaybackLadderInput(
     string Extension,
     PlaybackProfileDto Profile,
@@ -20,7 +22,9 @@ public sealed record PlaybackLadderInput(
     bool ForceEncodePicture = false,
     string? EncodeReason = null,
     string? MinimumRung = null,
-    IReadOnlyList<string>? TenBitVideoCodecs = null);
+    IReadOnlyList<string>? TenBitVideoCodecs = null,
+    bool StereoOnly = false,
+    string? StreamableCopyReason = null);
 
 /// <summary>The ladder's answer for one start (playback-path spec D1 to D3).</summary>
 /// <param name="Rung">One of <see cref="PlaybackRungs"/>.</param>
@@ -73,7 +77,34 @@ public static class PlaybackLadder
         _ => PlaybackRungs.EncodePicture,
     };
 
-    public static PlaybackDecision Decide(PlaybackLadderInput input)
+    public static PlaybackDecision Decide(PlaybackLadderInput input) => ApplyStereoOnly(input, DecideCore(input));
+
+    /// <summary>
+    /// "Stereo only" never copies surround: a start that would have kept multi-channel sound as it is converts the sound instead (or
+    /// encodes the picture when it could not be copied either). Stereo sound is left alone.
+    /// </summary>
+    private static PlaybackDecision ApplyStereoOnly(PlaybackLadderInput input, PlaybackDecision decision)
+    {
+        if (!input.StereoOnly || input.Probe is null || input.Probe.Channels is <= 2)
+        {
+            return decision;
+        }
+
+        const string why = "Stereo only is on for this device";
+        if (decision.Rung is PlaybackRungs.ConvertSound or PlaybackRungs.EncodePicture)
+        {
+            // The sound is already converted here, or the picture is encoded; no sound is copied either way.
+            return decision with { CopyAudioCodecs = [] };
+        }
+
+        var video = PlaybackCapabilitiesService.NormalizeCodecName(input.Probe.VideoCodec);
+        var tenBit = input.Probe.PixelFormat?.Contains("10", StringComparison.Ordinal) == true;
+        return CanCopyPicture(video, tenBit, input.Profile, input.TenBitVideoCodecs)
+            ? new PlaybackDecision(PlaybackRungs.ConvertSound, why, CopyVideo: true, [])
+            : new PlaybackDecision(PlaybackRungs.EncodePicture, why, CopyVideo: false, []);
+    }
+
+    private static PlaybackDecision DecideCore(PlaybackLadderInput input)
     {
         var decision = DecideFirstRung(input);
         if (input.MinimumRung is null || Rank(decision.Rung) >= Rank(input.MinimumRung))
@@ -173,7 +204,7 @@ public static class PlaybackLadder
             if (audioKept)
             {
                 var why = input.ForceStreamableCopy && containerOk
-                    ? "An alternate audio track needs a streamable copy"
+                    ? input.StreamableCopyReason ?? "An alternate audio track needs a streamable copy"
                     : $"{container.ToUpperInvariant()} is not a {player} container";
                 return new PlaybackDecision(PlaybackRungs.Repackage, why, CopyVideo: true, copyAudio);
             }

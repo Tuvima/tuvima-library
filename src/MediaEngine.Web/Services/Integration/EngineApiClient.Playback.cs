@@ -37,6 +37,20 @@ public sealed partial class EngineApiClient
             new BrowserCapabilitiesReportDto { Browser = _browserSessionKey, Capabilities = capabilities },
             ct: ct);
 
+    public Task<VideoPlaybackOptionsDto?> GetVideoPlaybackOptionsAsync(CancellationToken ct = default)
+        => GetAsync<VideoPlaybackOptionsDto>(
+            "GET /playback/video-options",
+            "/api/v1/playback/video-options",
+            new Dictionary<string, string?> { ["browser"] = _browserSessionKey },
+            ct: ct);
+
+    public Task<VideoPlaybackOptionsDto?> SetVideoPlaybackOptionAsync(string id, string value, CancellationToken ct = default)
+        => PutAsync<SetVideoOptionRequest, VideoPlaybackOptionsDto>(
+            "PUT /playback/video-options",
+            "/api/v1/playback/video-options",
+            new SetVideoOptionRequest { Id = id, Value = value, Browser = _browserSessionKey },
+            ct: ct);
+
     public Task<bool> ReportPlaybackFailureAsync(Guid assetId, string rung, string? detail, CancellationToken ct = default)
         => PostAsync(
             "POST /playback/failure",

@@ -228,6 +228,9 @@ public sealed class DevicesPageTests : AsyncBunitContext
         Services.AddNativeUiServices();
         Services.AddSingleton<IHttpClientFactory>(new DevicesClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
+        // The Devices tab also draws this browser's Video quality and devices rows (playback-path spec D15).
+        Services.AddSingleton(EngineApiClientStub.CreateDefault());
+        Services.AddScoped<MediaEngine.Web.Services.Playback.BrowserPlaybackCapabilityReporter>();
         Services.AddSingleton(_session);
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();

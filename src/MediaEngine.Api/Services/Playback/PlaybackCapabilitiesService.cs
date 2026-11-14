@@ -83,7 +83,8 @@ public sealed class PlaybackCapabilitiesService
         PlaybackConnectionContextDto? connection = null,
         ClientCapabilitiesDto? negotiatedCapabilities = null,
         Guid? deviceId = null,
-        bool forceAdaptive = false)
+        bool forceAdaptive = false,
+        PlaybackChoices? choices = null)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -92,7 +93,11 @@ public sealed class PlaybackCapabilitiesService
         }
 
         var normalizedClient = NormalizeClient(client);
+        // The person's and the device's "Video quality and devices" choices (playback-path spec D15); none means every option automatic.
+        choices ??= PlaybackChoices.Automatic;
         var profile = ResolveProfile(normalizedClient, negotiatedCapabilities);
+        // The device's Maximum resolution lowers the player's own limit, so every picture-size decision below uses the lower one.
+        profile = profile with { MaxHeight = PlaybackChoiceRules.CapPlayerHeight(profile.MaxHeight, choices) };
         var extension = Path.GetExtension(asset.FilePathRoot);
         var mediaType = await ResolveMediaTypeAsync(asset, extension, ct);
         var warnings = new List<string>();
@@ -137,6 +142,34 @@ public sealed class PlaybackCapabilitiesService
             warnings.Add(networkReason);
         }
 
+        // Video quality (or Quality on mobile data) caps the picture the same way a remote connection does; the lower cap wins.
+        var isVideoFile = VideoExtensions.Contains(extension);
+        if (isVideoFile && PlaybackChoiceRules.QualityCap(choices, connection, technical.Height) is { } qualityCap)
+        {
+            if (networkCap is null)
+            {
+                recommendedDelivery = PlaybackDeliveryModes.Hls;
+                conversionReason = qualityCap.Reason;
+                warnings.Add(qualityCap.Reason);
+                networkCap = new NetworkCap(qualityCap.Height, null, OfferLowerQuality: false);
+            }
+            else
+            {
+                networkCap = networkCap with { MaxHeight = Math.Min(networkCap.MaxHeight ?? qualityCap.Height, qualityCap.Height) };
+            }
+        }
+
+        // Allow HDR off: an HDR picture is converted (the encode tone-maps it) instead of being played or copied as it is.
+        var hdrOffReason = isVideoFile && !choices.AllowHdr && PlaybackChoiceRules.IsHdr(probe)
+            ? "HDR is turned off for this profile, so the picture is converted"
+            : null;
+        if (hdrOffReason is not null && networkCap is null)
+        {
+            recommendedDelivery = PlaybackDeliveryModes.Hls;
+            conversionReason = hdrOffReason;
+            warnings.Add(hdrOffReason);
+        }
+
         // A viewer's browser cannot switch audio tracks of a direct-play file, so the player asks for the adaptive stream, which carries
         // every audio track as a selectable rendition (video-player-controls-and-bookmarks D10).
         var forceStreamableCopy = false;
@@ -146,6 +179,16 @@ public sealed class PlaybackCapabilitiesService
             recommendedDelivery = PlaybackDeliveryModes.Hls;
             forceStreamableCopy = true;
             conversionReason ??= "The viewer chose an audio track the browser cannot switch itself.";
+        }
+
+        // Convert only when needed off: a video the player could play as it is gets a prepared (copied) stream instead.
+        string? streamableCopyReason = null;
+        if (!choices.ConvertOnlyWhenNeeded && !forceStreamableCopy && recommendedDelivery != PlaybackDeliveryModes.Hls && isVideoFile)
+        {
+            recommendedDelivery = PlaybackDeliveryModes.Hls;
+            forceStreamableCopy = true;
+            streamableCopyReason = "Convert only when needed is off for this profile";
+            conversionReason ??= streamableCopyReason;
         }
 
         // The ladder decides the lightest way to play this title (playback-path D1 to D3); direct play is the first rung.
@@ -158,8 +201,9 @@ public sealed class PlaybackCapabilitiesService
                 : LearnedPlaybackLimits.MinimumRung(negotiatedCapabilities.LearnedLimits, extension, probe);
             var tenBitCodecs = negotiatedCapabilities is { SchemaVersion: >= 2 } ? negotiatedCapabilities.TenBitVideoCodecs : null;
             decision = PlaybackLadder.Decide(new PlaybackLadderInput(
-                extension, profile, probe, forceStreamableCopy, networkCap is not null,
-                networkCap is not null ? conversionReason : null, learnedMinimum, tenBitCodecs));
+                extension, profile, probe, forceStreamableCopy, networkCap is not null || hdrOffReason is not null,
+                networkCap is not null ? conversionReason : hdrOffReason, learnedMinimum, tenBitCodecs,
+                choices.StereoOnly, streamableCopyReason));
             recommendedDelivery = decision.Rung == PlaybackRungs.Direct ? PlaybackDeliveryModes.DirectStream : PlaybackDeliveryModes.Hls;
             if (decision.Rung == PlaybackRungs.Direct)
             {

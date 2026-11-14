@@ -63,6 +63,71 @@ public sealed class BrowserPlaybackCapabilityReporter(IJSRuntime js, IEngineApiC
     }
 
     /// <summary>
+    /// "Check again" (playback-path spec D15): measures this browser once more and reports it, even though it already reported this session.
+    /// </summary>
+    public async Task RecheckAsync(Guid profileId, CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            _measured = false;
+            _reportedFor = null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        await EnsureReportedAsync(profileId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Saves one of this browser's own "Video quality and devices" rows with the Engine and keeps the browser's three choices in its local
+    /// storage, so the next session reports them again. Null when the Engine refused or could not be reached.
+    /// </summary>
+    public async Task<VideoPlaybackOptionsDto?> SetVideoOptionAsync(string id, string value, CancellationToken ct = default)
+    {
+        var list = await api.SetVideoPlaybackOptionAsync(id, value, ct).ConfigureAwait(false);
+        if (list is not null)
+        {
+            await KeepOptionsAsync(list, ct).ConfigureAwait(false);
+        }
+
+        return list;
+    }
+
+    private async Task KeepOptionsAsync(VideoPlaybackOptionsDto list, CancellationToken ct)
+    {
+        string ValueOf(string id) => list.Options.FirstOrDefault(option => option.Id == id)?.Value ?? "auto";
+        var options = new Dictionary<string, string>
+        {
+            ["max_resolution"] = ValueOf(VideoOptionIds.MaxResolution),
+            ["hardware_decoding"] = ValueOf(VideoOptionIds.HardwareDecoding),
+            ["surround_sound"] = ValueOf(VideoOptionIds.SurroundSound),
+        };
+        try
+        {
+            await using var module = await js.InvokeAsync<IJSObjectReference>("import", ct, "./js/playback-capabilities.js").ConfigureAwait(false);
+            if (!await module.InvokeAsync<bool>("saveVideoOptions", ct, options).ConfigureAwait(false))
+            {
+                logger.LogInformation("This browser's storage is blocked, so its video choices last only until the Engine restarts.");
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            logger.LogDebug("The browser went away before its video choices were kept.");
+        }
+        catch (JSException ex)
+        {
+            logger.LogWarning(ex, "This browser could not keep its video choices.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogDebug(ex, "Browser storage is not available yet.");
+        }
+    }
+
+    /// <summary>
     /// Tells the Engine this browser started a title in the manifest's rung and could not play it, so the next start of that kind of file
     /// uses a heavier rung (playback-path spec D13). Nothing is sent for a manifest that carries no playback path.
     /// </summary>

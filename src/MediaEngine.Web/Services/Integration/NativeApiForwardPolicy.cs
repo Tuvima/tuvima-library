@@ -98,6 +98,11 @@ public static class NativeApiForwardPolicy
         // A player reporting it could not play a title in the rung the Engine chose, so the next start uses a heavier one.
         Of(["POST"], $"playback/{Guid}/failure"),
 
+        // The Video quality and devices list (playback-path spec D15): every app reads the same list and saves a row. The Engine takes the
+        // person and the device from the token and checks every value against the list.
+        Of(["GET"], "playback/video-options"),
+        Of(["PUT"], "playback/video-options"),
+
         // Start a cast session for one title: the Engine answers with a one-title secret link for the TV. POST only, no GET.
         Of(["POST"], $"playback/{Guid}/cast"),
         Of(["POST"], $"playback/encode/jobs/{Guid}/cancel"),

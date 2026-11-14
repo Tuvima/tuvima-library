@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildReport, canOpen, measure } from '../../../src/MediaEngine.Web/wwwroot/js/playback-capabilities.js';
+import { buildReport, canOpen, measure, readVideoOptions, saveVideoOptions } from '../../../src/MediaEngine.Web/wwwroot/js/playback-capabilities.js';
 
 // A browser stand-in. `decodes` maps a codec marker found in the content type to what decodingInfo answers for it; `opens` lists the
 // container types a video element says it can open.
@@ -137,4 +137,35 @@ test('buildReport carries nothing but codecs, containers, sizes, HDR and audio c
         'subtitle_formats', 'supports_hdr', 'supports_offline_downloads', 'supports_playback_speed', 'ten_bit_video_codecs', 'video_codecs',
     ]);
     assert.equal(report.max_audio_channels, 6);
+});
+
+// A local storage stand-in.
+function storage(initial = {}, blocked = false) {
+    const data = new Map(Object.entries(initial));
+    return {
+        getItem(key) { if (blocked) { throw new Error('blocked'); } return data.has(key) ? data.get(key) : null; },
+        setItem(key, value) { if (blocked) { throw new Error('blocked'); } data.set(key, value); },
+    };
+}
+
+test('a browser with nothing saved reports every video option as automatic', async () => {
+    const report = await measure({ ...browser({ decodes: { avc1: hardwareH264 }, opens: ['video/mp4'] }), localStorage: storage() });
+
+    assert.deepEqual(report.video_options, { max_resolution: 'auto', hardware_decoding: 'auto', surround_sound: 'auto' });
+});
+
+test('the choices a person made for this browser are saved and come back with the next report', async () => {
+    const localStorage = storage();
+    assert.equal(saveVideoOptions({ max_resolution: '720', surround_sound: 'stereo' }, { localStorage }), true);
+
+    const report = await measure({ ...browser({ decodes: { avc1: hardwareH264 }, opens: ['video/mp4'] }), localStorage });
+
+    assert.deepEqual(report.video_options, { max_resolution: '720', hardware_decoding: 'auto', surround_sound: 'stereo' });
+});
+
+test('blocked storage never throws: choices read as automatic and saving says it did not stick', () => {
+    const environment = { localStorage: storage({}, true) };
+
+    assert.deepEqual(readVideoOptions(environment), { max_resolution: 'auto', hardware_decoding: 'auto', surround_sound: 'auto' });
+    assert.equal(saveVideoOptions({ max_resolution: '480' }, environment), false);
 });

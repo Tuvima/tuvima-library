@@ -30,7 +30,30 @@ public sealed class BrowserPlaybackAbilityStore(TimeProvider timeProvider)
             Prune();
             var key = (profileId, browser);
             var learned = _entries.TryGetValue(key, out var existing) ? existing.Capabilities.LearnedLimits : [];
-            _entries[key] = new Entry(ClientCapabilitiesNormalizer.Normalize(capabilities, learned), timeProvider.GetUtcNow());
+            // The browser keeps its own per-device video options (in local storage) and sends them with its report, so they are taken as sent.
+            _entries[key] = new Entry(
+                ClientCapabilitiesNormalizer.Normalize(capabilities, learned, capabilities.VideoOptions), timeProvider.GetUtcNow());
+            return true;
+        }
+    }
+
+    /// <summary>Changes a browser's per-device video options; false when the key is not valid or the browser has not reported.</summary>
+    public bool SetVideoOptions(Guid profileId, string browser, DeviceVideoOptionsDto options)
+    {
+        if (!IsValidKey(browser))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            if (!_entries.TryGetValue((profileId, browser), out var entry))
+            {
+                return false;
+            }
+
+            _entries[(profileId, browser)] = new Entry(
+                ClientCapabilitiesNormalizer.WithOptions(entry.Capabilities, options), timeProvider.GetUtcNow());
             return true;
         }
     }
