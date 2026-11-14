@@ -68,7 +68,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.False(libraries.Exact);
         Assert.Contains("/settings/libraries", libraries.ActiveRoutes!);
         Assert.Contains("/settings/matching", libraries.ActiveRoutes!);
-                Assert.Contains("/settings/review", libraries.ActiveRoutes!);
+        Assert.Contains("/settings/review", libraries.ActiveRoutes!);
         Assert.Contains("/settings/rules", libraries.ActiveRoutes!);
 
         var profiles = Flatten(groups).Single(row => row.Label == "Manage Profiles");

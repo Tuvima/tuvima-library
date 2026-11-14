@@ -42,7 +42,11 @@ public sealed partial class UiShellRenderTests
             builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), section);
-            if (subsection is not null) builder.AddAttribute(5, nameof(Settings.Subsection), subsection);
+            if (subsection is not null)
+            {
+                builder.AddAttribute(5, nameof(Settings.Subsection), subsection);
+            }
+
             builder.CloseComponent();
         });
         return host.FindComponent<Settings>();
