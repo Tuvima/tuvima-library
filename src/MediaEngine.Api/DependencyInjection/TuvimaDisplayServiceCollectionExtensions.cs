@@ -62,6 +62,8 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DetailComposerService>();
         services.AddSingleton<DetailUnmatchedStateService>();
         services.AddSingleton<DetailExtrasService>();
+        services.AddSingleton<MediaEngine.Storage.YourCopyReadRepository>();
+        services.AddSingleton<DetailYourCopyService>();
         services.AddSingleton<ISupportingFileTitleResolver, SupportingFileTitleResolver>();
         services.AddSingleton<SupportingFileListService>();
         services.AddSingleton<SupportingFileDiskService>();

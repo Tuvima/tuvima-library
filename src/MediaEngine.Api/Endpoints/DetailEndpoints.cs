@@ -35,6 +35,7 @@ public static class DetailEndpoints
             ContributorReadiness readiness,
             DetailUnmatchedStateService unmatchedState,
             DetailExtrasService detailExtras,
+            DetailYourCopyService yourCopy,
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
@@ -89,6 +90,8 @@ public static class DetailEndpoints
                 await unmatchedState.ApplyAsync(detail, authorizedAssetIds, actionAuthorization, ct);
                 // A title's Extras (guidebooks, picture folders, clips) ride on its page, so they carry the page's own access rules.
                 await detailExtras.ApplyAsync(detail, authorizedAssetIds, ct);
+                // The Your copy row: the chips and File details panel of the title's own files (or a show's, album's summary), never for a Kids profile or the Vault.
+                await yourCopy.ApplyAsync(detail, authorizedAssetIds, authorizedWorks, authority.ActiveProfileId, actionAuthorization, ct);
             }
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
                 .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, total {TotalMs:F0} ms",
