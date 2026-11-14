@@ -183,7 +183,7 @@ public sealed class PlaybackMeasuredAbilitiesTests
     [Fact]
     public void ABrowser_UsesItsOwnReport_AndLearnsPerBrowserSession()
     {
-        var store = new BrowserPlaybackAbilityStore(TimeProvider.System);
+        var store = new BrowserPlaybackAbilityRegistryService(TimeProvider.System);
         Assert.Null(store.TryGet(Profile, "abc123"));
 
         Assert.True(store.Set(Profile, "abc123", Measured(["mp4", "mkv"], ["h264", "hevc"], hardware: ["hevc"])));
@@ -201,7 +201,7 @@ public sealed class PlaybackMeasuredAbilitiesTests
     [Fact]
     public void ABrowserKeyThatIsNotPlain_IsRefused()
     {
-        var store = new BrowserPlaybackAbilityStore(TimeProvider.System);
+        var store = new BrowserPlaybackAbilityRegistryService(TimeProvider.System);
 
         Assert.False(store.Set(Profile, "../etc", Measured(["mp4"], ["h264"])));
         Assert.False(store.Set(Profile, string.Empty, Measured(["mp4"], ["h264"])));
@@ -212,7 +212,7 @@ public sealed class PlaybackMeasuredAbilitiesTests
     public void ABrowserEntryNobodyUsesForHours_IsForgotten()
     {
         var clock = new MovableClock(DateTimeOffset.UtcNow);
-        var store = new BrowserPlaybackAbilityStore(clock);
+        var store = new BrowserPlaybackAbilityRegistryService(clock);
         store.Set(Profile, "old", Measured(["mp4"], ["h264"]));
 
         clock.Now += TimeSpan.FromHours(13);

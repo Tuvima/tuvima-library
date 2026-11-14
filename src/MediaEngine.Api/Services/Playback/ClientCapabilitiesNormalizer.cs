@@ -13,25 +13,25 @@ public static class ClientCapabilitiesNormalizer
         ClientCapabilitiesDto source,
         IReadOnlyList<LearnedPlaybackLimitDto>? learned = null,
         DeviceVideoOptionsDto? options = null) => new()
-    {
-        SchemaVersion = Math.Clamp(source.SchemaVersion, 1, 2),
-        Containers = NormalizeValues(source.Containers, 20),
-        VideoCodecs = NormalizeValues(source.VideoCodecs, 20),
-        AudioCodecs = NormalizeValues(source.AudioCodecs, 20),
-        SubtitleFormats = NormalizeValues(source.SubtitleFormats, 20),
-        Protocols = NormalizeValues(source.Protocols, 10),
-        MaxWidth = Clamp(source.MaxWidth, 320, 16384),
-        MaxHeight = Clamp(source.MaxHeight, 240, 8640),
-        MaxBitrateKbps = Clamp(source.MaxBitrateKbps, 64, 500_000),
-        MaxAudioChannels = Clamp(source.MaxAudioChannels, 1, 32),
-        SupportsHdr = source.SupportsHdr,
-        SupportsPlaybackSpeed = source.SupportsPlaybackSpeed,
-        SupportsOfflineDownloads = source.SupportsOfflineDownloads,
-        HardwareDecodeVideoCodecs = NormalizeValues(source.HardwareDecodeVideoCodecs, 20),
-        TenBitVideoCodecs = NormalizeValues(source.TenBitVideoCodecs, 20),
-        LearnedLimits = learned ?? [],
-        VideoOptions = CleanOptions(options),
-    };
+        {
+            SchemaVersion = Math.Clamp(source.SchemaVersion, 1, 2),
+            Containers = NormalizeValues(source.Containers, 20),
+            VideoCodecs = NormalizeValues(source.VideoCodecs, 20),
+            AudioCodecs = NormalizeValues(source.AudioCodecs, 20),
+            SubtitleFormats = NormalizeValues(source.SubtitleFormats, 20),
+            Protocols = NormalizeValues(source.Protocols, 10),
+            MaxWidth = Clamp(source.MaxWidth, 320, 16384),
+            MaxHeight = Clamp(source.MaxHeight, 240, 8640),
+            MaxBitrateKbps = Clamp(source.MaxBitrateKbps, 64, 500_000),
+            MaxAudioChannels = Clamp(source.MaxAudioChannels, 1, 32),
+            SupportsHdr = source.SupportsHdr,
+            SupportsPlaybackSpeed = source.SupportsPlaybackSpeed,
+            SupportsOfflineDownloads = source.SupportsOfflineDownloads,
+            HardwareDecodeVideoCodecs = NormalizeValues(source.HardwareDecodeVideoCodecs, 20),
+            TenBitVideoCodecs = NormalizeValues(source.TenBitVideoCodecs, 20),
+            LearnedLimits = learned ?? [],
+            VideoOptions = CleanOptions(options),
+        };
 
     /// <summary>The same report with a different learned list; the video options stay.</summary>
     public static ClientCapabilitiesDto WithLearned(ClientCapabilitiesDto source, IReadOnlyList<LearnedPlaybackLimitDto> learned) =>

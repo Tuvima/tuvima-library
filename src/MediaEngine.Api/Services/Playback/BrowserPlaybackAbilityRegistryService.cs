@@ -8,7 +8,7 @@ namespace MediaEngine.Api.Services.Playback;
 /// signed-in profile and a random key the browser session makes up. When the Engine restarts the Dashboard reports again at the
 /// next playback start; until then that browser falls back to the fixed web list. Nothing here is written to the data store.
 /// </summary>
-public sealed class BrowserPlaybackAbilityStore(TimeProvider timeProvider)
+public sealed class BrowserPlaybackAbilityRegistryService(TimeProvider timeProvider)
 {
     private const int MaximumEntries = 256;
     private const int MaximumKeyLength = 64;

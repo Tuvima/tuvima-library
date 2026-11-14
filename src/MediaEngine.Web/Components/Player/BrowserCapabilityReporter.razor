@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Player
 @using MediaEngine.Web.Services.Playback
-@inject BrowserPlaybackCapabilityReporter Reporter
+@inject IServiceProvider Services
 
 @* Draws nothing. Once the shell knows who is signed in, it has the browser measure what video it can play and tells the Engine, once per
    session and person (playback-path spec D12). The Engine uses that report in place of its fixed "web" list for this browser's starts. *@
@@ -17,7 +17,11 @@
         if (ActiveProfileId is { } profileId && _reportedFor != profileId)
         {
             _reportedFor = profileId;
-            await Reporter.EnsureReportedAsync(profileId);
+            // The reporter is registered by the app; a host without it (a test shell) simply has nothing to report.
+            if (Services.GetService(typeof(BrowserPlaybackCapabilityReporter)) is BrowserPlaybackCapabilityReporter reporter)
+            {
+                await reporter.EnsureReportedAsync(profileId);
+            }
         }
     }
 }

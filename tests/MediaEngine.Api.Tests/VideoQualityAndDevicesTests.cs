@@ -246,7 +246,7 @@ public sealed class VideoQualityAndDevicesTests : IAsyncLifetime
     [Fact]
     public void TheBrowserStoreKeepsTheOptionsABrowserSendsAndLetsThemBeChanged()
     {
-        var store = new BrowserPlaybackAbilityStore(TimeProvider.System);
+        var store = new BrowserPlaybackAbilityRegistryService(TimeProvider.System);
         var key = "abc123";
         Assert.True(store.Set(_profileId, key, new ClientCapabilitiesDto
         {

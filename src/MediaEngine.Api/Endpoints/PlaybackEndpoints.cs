@@ -36,7 +36,7 @@ public static class PlaybackEndpoints
         ClaimsPrincipal user,
         string? browser,
         ClientAuthorizationService authorization,
-        BrowserPlaybackAbilityStore browserAbilities,
+        BrowserPlaybackAbilityRegistryService browserAbilities,
         CancellationToken ct)
     {
         if (ClaimGuid(user, TuvimaClaimTypes.DeviceId) is { } deviceId)
@@ -71,7 +71,7 @@ public static class PlaybackEndpoints
             ClientAuthorizationService authorization,
             NetworkConnectionClassifier classifier,
             PlaybackCapabilitiesService playback,
-            BrowserPlaybackAbilityStore browserAbilities,
+            BrowserPlaybackAbilityRegistryService browserAbilities,
             VideoOptionsService videoOptions,
             CancellationToken ct) =>
         {
@@ -124,7 +124,7 @@ public static class PlaybackEndpoints
         group.MapPut("/browser-capabilities", (
             BrowserCapabilitiesReportDto request,
             ClaimsPrincipal user,
-            BrowserPlaybackAbilityStore browserAbilities) =>
+            BrowserPlaybackAbilityRegistryService browserAbilities) =>
         {
             if (ClaimGuid(user, TuvimaClaimTypes.ActiveProfileId) is not { } profileId)
             {
@@ -148,7 +148,7 @@ public static class PlaybackEndpoints
             string? browser,
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
-            BrowserPlaybackAbilityStore browserAbilities,
+            BrowserPlaybackAbilityRegistryService browserAbilities,
             VideoOptionsService videoOptions,
             CancellationToken ct) =>
         {
@@ -167,7 +167,7 @@ public static class PlaybackEndpoints
             SetVideoOptionRequest request,
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
-            BrowserPlaybackAbilityStore browserAbilities,
+            BrowserPlaybackAbilityRegistryService browserAbilities,
             VideoOptionsService videoOptions,
             CancellationToken ct) =>
         {
@@ -246,7 +246,7 @@ public static class PlaybackEndpoints
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
             PlaybackCapabilitiesService playback,
-            BrowserPlaybackAbilityStore browserAbilities,
+            BrowserPlaybackAbilityRegistryService browserAbilities,
             ILogger<PlaybackCapabilitiesService> logger,
             CancellationToken ct) =>
         {

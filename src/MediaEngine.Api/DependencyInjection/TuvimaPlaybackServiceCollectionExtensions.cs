@@ -23,7 +23,7 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<AdaptiveHlsPackageRepository>();
         services.AddSingleton<PlaybackCapabilitiesService>();
         // What the Dashboard's browsers measured about themselves this session, and what failed for them (playback-path D12, D13).
-        services.AddSingleton<BrowserPlaybackAbilityStore>();
+        services.AddSingleton<BrowserPlaybackAbilityRegistryService>();
         // The one "Video quality and devices" list and its saved values (playback-path D15).
         services.AddSingleton<VideoOptionsService>();
         services.AddSingleton<AdaptiveHlsService>();

@@ -1,6 +1,6 @@
 # Spec: Fast, hardware-aware playback start (the playback path)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-14 · **Related docs:** [Playing now and General tabs](playing-now-and-general-tabs.md) (shows what this spec decides) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · issue #1004 · Mockups: [playback-path.html](../design/mockups/playback-path.html)
+> **Status:** Built, awaiting Local checks (batch.md, Playback path L1 to L12) · **Version:** 1 · **Last updated:** 2026-11-14 · **Related docs:** [Playing now and General tabs](playing-now-and-general-tabs.md) (shows what this spec decides) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · issue #1004 · Mockups: [playback-path.html](../design/mockups/playback-path.html)
 
 ## Product walkthrough (read this first)
 

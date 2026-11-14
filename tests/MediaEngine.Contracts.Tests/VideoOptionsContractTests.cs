@@ -12,8 +12,14 @@ public sealed class VideoOptionsContractTests
     {
         var row = new VideoOptionDto
         {
-            Id = VideoOptionIds.VideoQuality, Label = "Video quality", Kind = VideoOptionKinds.Choice, Scope = VideoOptionScopes.Profile,
-            Choices = [new VideoOptionChoiceDto { Value = "Auto", Label = "Automatic" }], Value = "Auto", DefaultValue = "Auto", Help = "x",
+            Id = VideoOptionIds.VideoQuality,
+            Label = "Video quality",
+            Kind = VideoOptionKinds.Choice,
+            Scope = VideoOptionScopes.Profile,
+            Choices = [new VideoOptionChoiceDto { Value = "Auto", Label = "Automatic" }],
+            Value = "Auto",
+            DefaultValue = "Auto",
+            Help = "x",
         };
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(new VideoPlaybackOptionsDto { Options = [row], Learned = ["Learned: x"] }));

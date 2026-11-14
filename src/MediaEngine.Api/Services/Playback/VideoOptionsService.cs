@@ -178,16 +178,16 @@ public static class VideoOptionCatalog
 
     private static VideoOptionDto Row(
         string id, string label, string kind, string scope, IReadOnlyList<VideoOptionChoiceDto> choices, string value, string defaultValue, string? help = null) => new()
-    {
-        Id = id,
-        Label = label,
-        Kind = kind,
-        Scope = scope,
-        Choices = choices,
-        Value = value,
-        DefaultValue = defaultValue,
-        Help = help,
-    };
+        {
+            Id = id,
+            Label = label,
+            Kind = kind,
+            Scope = scope,
+            Choices = choices,
+            Value = value,
+            DefaultValue = defaultValue,
+            Help = help,
+        };
 }
 
 /// <summary>
