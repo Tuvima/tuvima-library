@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -24,6 +25,18 @@ public partial interface IEngineApiClient
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false);
+
+    /// <summary>
+    /// PUT /api/v1/playback/browser-capabilities  -  tells the Engine what this browser measured about the video it can play (playback-path spec D12).
+    /// The Engine keeps it for this browser session and uses it in place of the fixed web list. False when the Engine refused or could not be reached.
+    /// </summary>
+    Task<bool> ReportBrowserPlaybackCapabilitiesAsync(ClientCapabilitiesDto capabilities, CancellationToken ct = default);
+
+    /// <summary>
+    /// POST /api/v1/playback/{assetId}/failure  -  tells the Engine this browser could not play a title in the rung it chose, so the next
+    /// start of that kind of file uses a heavier rung (playback-path spec D13). <paramref name="rung"/> is the manifest's playback path rung.
+    /// </summary>
+    Task<bool> ReportPlaybackFailureAsync(Guid assetId, string rung, string? detail, CancellationToken ct = default);
 
     /// <summary>
     /// POST /api/v1/playback/{assetId}/cast  -  asks the Engine for a short-lived, single-title link, bound to the live session or device, that a receiver can play with

@@ -152,9 +152,14 @@ public sealed class PlaybackCapabilitiesService
         PlaybackDecision? decision = null;
         if (VideoExtensions.Contains(extension) && probe?.Height is > 0 && recommendedDelivery is PlaybackDeliveryModes.DirectStream or PlaybackDeliveryModes.Hls)
         {
+            // What the player measured about itself and what it failed on before decide the rung (playback-path D12, D13).
+            var learnedMinimum = negotiatedCapabilities is null
+                ? null
+                : LearnedPlaybackLimits.MinimumRung(negotiatedCapabilities.LearnedLimits, extension, probe);
+            var tenBitCodecs = negotiatedCapabilities is { SchemaVersion: >= 2 } ? negotiatedCapabilities.TenBitVideoCodecs : null;
             decision = PlaybackLadder.Decide(new PlaybackLadderInput(
                 extension, profile, probe, forceStreamableCopy, networkCap is not null,
-                networkCap is not null ? conversionReason : null));
+                networkCap is not null ? conversionReason : null, learnedMinimum, tenBitCodecs));
             recommendedDelivery = decision.Rung == PlaybackRungs.Direct ? PlaybackDeliveryModes.DirectStream : PlaybackDeliveryModes.Hls;
             if (decision.Rung == PlaybackRungs.Direct)
             {
@@ -253,6 +258,29 @@ public sealed class PlaybackCapabilitiesService
             ScrubPreviewIndexUrl = ScrubPreviewIndexUrlFor(assetId, extension),
             PlaybackPath = playbackPath,
         };
+    }
+
+    /// <summary>
+    /// The stored technical facts of a title's file (its extension and inspection), for turning a player's failure report into the kind
+    /// of file to remember. Null when the asset is unknown; the facts are null when ingestion has not inspected the file.
+    /// </summary>
+    public async Task<(string Extension, MediaProbeResult? Probe)?> GetStoredFileFactsAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var asset = await _assets.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+        if (asset is null)
+        {
+            return null;
+        }
+
+        var stored = await _playbackState.GetInspectionMetadataAsync(assetId, BuildSourceHash(asset), ct).ConfigureAwait(false);
+        MediaProbeResult? probe = null;
+        if (!string.IsNullOrWhiteSpace(stored))
+        {
+            try { probe = JsonSerializer.Deserialize<MediaProbeResult>(stored); }
+            catch (JsonException) { probe = null; }
+        }
+
+        return (Path.GetExtension(asset.FilePathRoot), probe);
     }
 
     /// <summary>The address of the file's scrub-preview index, only for a video that has a complete set and while the switch is on.</summary>

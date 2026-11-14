@@ -1,5 +1,6 @@
 using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
@@ -131,6 +132,70 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
 
         Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await _service.RevokeAsync(Member(), memberPhone.DeviceId));
         Assert.Null(await _authorization.ValidateAccessTokenAsync(memberPhone.AccessToken));
+    }
+
+    [Fact]
+    public async Task FailedStart_IsRemembered_OnTheDeviceRecord_AndShownOnTheDevicesList()
+    {
+        var tv = await PairAsync(Account.SeedAccountId, "Living room TV", "television");
+
+        Assert.True(await _authorization.RecordLearnedLimitAsync(tv.DeviceId, PlaybackRungs.Direct, "hevc", "mkv", tenBit: true));
+
+        var device = Assert.Single(await _service.ListAsync(Administrator()));
+        var limit = Assert.Single(device.Capabilities!.LearnedLimits);
+        Assert.Equal("hevc", limit.VideoCodec);
+        Assert.True(limit.TenBit);
+        Assert.Equal(PlaybackRungs.Direct, limit.FailedRung);
+        Assert.Equal("cannot play HEVC 10-bit MKV as it is", limit.Summary);
+    }
+
+    [Fact]
+    public async Task DeviceReportingItsAbilitiesAgain_KeepsWhatTheEngineLearned_AndStoresTheMeasuredFields()
+    {
+        var tv = await PairAsync(Account.SeedAccountId, "Living room TV", "television");
+        await _authorization.RecordLearnedLimitAsync(tv.DeviceId, PlaybackRungs.Direct, "hevc", "mkv", tenBit: true);
+
+        // The app also tries to set its own learned list; the Engine ignores it.
+        Assert.True(await _authorization.UpdateCapabilitiesAsync(tv.DeviceId, new ClientCapabilitiesDto
+        {
+            SchemaVersion = 2,
+            Containers = ["mp4"],
+            VideoCodecs = ["h264", "hevc"],
+            HardwareDecodeVideoCodecs = ["HEVC"],
+            TenBitVideoCodecs = ["hevc"],
+            LearnedLimits = [],
+        }));
+
+        var capabilities = Assert.Single(await _service.ListAsync(Administrator())).Capabilities!;
+        Assert.Equal(2, capabilities.SchemaVersion);
+        Assert.Equal(["hevc"], capabilities.HardwareDecodeVideoCodecs);
+        Assert.Equal(["hevc"], capabilities.TenBitVideoCodecs);
+        Assert.Single(capabilities.LearnedLimits);
+    }
+
+    [Fact]
+    public async Task ClearingLearnedLimits_ForgetsThem_AndKeepsWhenTheDeviceWasLastSeen()
+    {
+        var phone = await PairAsync(OtherAccountId, "Member phone", "mobile");
+        await _authorization.RecordLearnedLimitAsync(phone.DeviceId, PlaybackRungs.Repackage, "hevc", "mkv", tenBit: false);
+        var before = Assert.Single(await _service.ListAsync(Administrator()));
+
+        Assert.Equal(ManagedDeviceLimitsOutcome.Cleared, await _service.ClearLearnedLimitsAsync(Administrator(), phone.DeviceId));
+
+        var after = Assert.Single(await _service.ListAsync(Administrator()));
+        Assert.Empty(after.Capabilities!.LearnedLimits);
+        Assert.Equal(before.LastSeenAt, after.LastSeenAt);
+    }
+
+    [Fact]
+    public async Task StandardUser_CannotClearAnotherAccountsLearnedLimits()
+    {
+        var ownerTv = await PairAsync(Account.SeedAccountId, "Living room TV", "television");
+        await _authorization.RecordLearnedLimitAsync(ownerTv.DeviceId, PlaybackRungs.Direct, "hevc", "mkv", tenBit: false);
+
+        Assert.Equal(ManagedDeviceLimitsOutcome.Forbidden, await _service.ClearLearnedLimitsAsync(Member(), ownerTv.DeviceId));
+
+        Assert.Single((await _service.ListAsync(Administrator())).Single().Capabilities!.LearnedLimits);
     }
 
     public void Dispose()

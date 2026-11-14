@@ -469,6 +469,50 @@ public sealed class DevicesPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Administrator_SeesWhatEachDeviceCanPlayInOneLine_AndWhatTheEngineLearnedItCannot()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(
+                "Plays H.264, HEVC and AV1 in hardware · HDR · up to 4K",
+                cut.Find($"[data-device-abilities='{_handler.TvDevice}']").TextContent.Trim());
+            Assert.Contains("Learned: cannot play HEVC 10-bit MKV as it is", cut.Find($"[data-device-learned='{_handler.TvDevice}']").TextContent, StringComparison.Ordinal);
+        });
+        // A phone that never reported what it plays shows no line, and nothing is invented for it.
+        Assert.Empty(cut.FindAll($"[data-device-abilities='{_handler.AnnaPhone}']"));
+    }
+
+    [Fact]
+    public async Task ClearingWhatWasLearned_AsksTheEngine_AndTheLearnedLineGoes()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+        cut.WaitForElement($"[data-device-learned='{_handler.TvDevice}']");
+
+        var clear = cut.Find($"[data-device-learned='{_handler.TvDevice}'] button");
+        Assert.Equal("Clear", clear.TextContent.Trim());
+        await cut.InvokeAsync(() => clear.Click());
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-device-learned]")));
+        Assert.Contains($"/access/devices/{_handler.TvDevice}/learned-limits", _handler.Deleted);
+        // The measured line stays: only what was learned is forgotten.
+        Assert.NotEmpty(cut.FindAll($"[data-device-abilities='{_handler.TvDevice}']"));
+    }
+
+    [Fact]
+    public void Member_SeesWhatTheirDevicePlays_ButNotTheLearnedLimitsOrAClearButton()
+    {
+        SignIn(DevicesScope.Member);
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForElement($"[data-device-abilities='{_handler.TvDevice}']");
+        Assert.Empty(cut.FindAll("[data-device-learned]"));
+    }
+
+    [Fact]
     public void WhenOnlyThisDeviceIsSignedIn_ShowsTheEmptyState()
     {
         _handler.People = [_handler.OwnerOnlyThisDevice()];
@@ -552,6 +596,7 @@ public sealed class DevicesPageTests : AsyncBunitContext
         public Guid AnnaPhone { get; } = Guid.NewGuid();
         public Guid MaryPhone { get; } = Guid.NewGuid();
         public DevicesScope Scope { get; set; }
+        public bool LearnedCleared { get; set; }
         public HttpStatusCode SessionsStatus { get; set; } = HttpStatusCode.OK;
         public ConcurrentQueue<string> Deleted { get; } = new();
         public ConcurrentQueue<string> Paths { get; } = new();
@@ -581,6 +626,7 @@ public sealed class DevicesPageTests : AsyncBunitContext
             if (request.Method == HttpMethod.Delete)
             {
                 Deleted.Enqueue(path);
+                LearnedCleared |= path.EndsWith("/learned-limits", StringComparison.Ordinal);
                 RemoveEnded(path);
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
             }
@@ -655,7 +701,7 @@ public sealed class DevicesPageTests : AsyncBunitContext
 
         private List<ManagedClientDeviceDto> Devices()
         {
-            var tv = Device(TvDevice, "Living room TV", "television", "Tuvima for Roku", OwnerAccount, OwnerProfile, "Owner", HomeHousehold);
+            var tv = Device(TvDevice, "Living room TV", "television", "Tuvima for Roku", OwnerAccount, OwnerProfile, "Owner", HomeHousehold, TvAbilities());
             var anna = Device(AnnaPhone, "Anna's phone", "mobile", "Tuvima for iOS", AnnaAccount, AnnaProfile, "Anna", HomeHousehold);
             var mary = Device(MaryPhone, "Mary's phone", "mobile", "Tuvima for Android", MaryAccount, MaryProfile, "Mary", CabinHousehold);
             return Scope switch
@@ -675,9 +721,24 @@ public sealed class DevicesPageTests : AsyncBunitContext
             return Scope == DevicesScope.ServerAdministrator ? [owner, anna, ben, mary] : [owner, anna, ben];
         }
 
-        private static ManagedClientDeviceDto Device(Guid id, string name, string platform, string client, Guid account, Guid profile, string profileName, Guid household) =>
+        /// <summary>What the TV measured about itself, and (until an administrator clears it) one thing the Engine learned it cannot play.</summary>
+        private ClientCapabilitiesDto TvAbilities() => new()
+        {
+            SchemaVersion = 2,
+            VideoCodecs = ["h264", "hevc", "av1"],
+            HardwareDecodeVideoCodecs = ["h264", "hevc", "av1"],
+            SupportsHdr = true,
+            MaxHeight = 2160,
+            LearnedLimits = LearnedCleared
+                ? []
+                : [new LearnedPlaybackLimitDto { VideoCodec = "hevc", Container = "mkv", TenBit = true, FailedRung = "direct", Summary = "cannot play HEVC 10-bit MKV as it is" }],
+        };
+
+        private static ManagedClientDeviceDto Device(Guid id, string name, string platform, string client, Guid account, Guid profile, string profileName, Guid household,
+            ClientCapabilitiesDto? capabilities = null) =>
             new()
             {
+                Capabilities = capabilities,
                 Id = id,
                 DeviceName = name,
                 Platform = platform,

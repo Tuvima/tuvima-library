@@ -15,3 +15,25 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-type-caption-size);
 }
+
+.paired-device__abilities {
+    margin-top: var(--tl-space-1, 4px);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
+}
+
+.paired-device__learned {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+    margin-top: var(--tl-space-1, 4px);
+    color: var(--tl-status-warning);
+    font-size: var(--tl-type-caption-size);
+}
+
+.paired-device__learned-text {
+    display: grid;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}

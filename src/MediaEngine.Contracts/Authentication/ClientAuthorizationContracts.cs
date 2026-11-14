@@ -179,8 +179,13 @@ public sealed class SwitchDeviceProfileRequest
     [JsonPropertyName("pin")] public string? Pin { get; init; }
 }
 
+/// <summary>
+/// What a player can decode and report: version 1 is a fixed list the app carries; version 2 is what the player measured on
+/// itself (playback-path spec D12). The Engine tolerates missing version 2 fields, so older apps keep their fixed lists.
+/// </summary>
 public sealed class ClientCapabilitiesDto
 {
+    /// <summary>1 for a fixed list, 2 when the player measured itself and fills the version 2 fields.</summary>
     [JsonPropertyName("schema_version")] public int SchemaVersion { get; init; } = 1;
     [JsonPropertyName("containers")] public IReadOnlyList<string> Containers { get; init; } = [];
     [JsonPropertyName("video_codecs")] public IReadOnlyList<string> VideoCodecs { get; init; } = [];
@@ -194,6 +199,39 @@ public sealed class ClientCapabilitiesDto
     [JsonPropertyName("supports_hdr")] public bool SupportsHdr { get; init; }
     [JsonPropertyName("supports_playback_speed")] public bool SupportsPlaybackSpeed { get; init; }
     [JsonPropertyName("supports_offline_downloads")] public bool SupportsOfflineDownloads { get; init; }
+
+    /// <summary>Version 2. Video codecs the device decodes in hardware (for example <c>hevc</c>); empty when none or not measured.</summary>
+    [JsonPropertyName("hardware_decode_video_codecs")] public IReadOnlyList<string> HardwareDecodeVideoCodecs { get; init; } = [];
+
+    /// <summary>Version 2. Video codecs the device plays at 10 bits per color. Only read when <see cref="SchemaVersion"/> is 2 or more; a version 1 list means "not known".</summary>
+    [JsonPropertyName("ten_bit_video_codecs")] public IReadOnlyList<string> TenBitVideoCodecs { get; init; } = [];
+
+    /// <summary>
+    /// Limits the Engine learned from a failed start on this device (playback-path spec D13). The Engine owns this list: an app's own
+    /// value is ignored when it reports, and an administrator clears it on the Devices page.
+    /// </summary>
+    [JsonPropertyName("learned_limits")] public IReadOnlyList<LearnedPlaybackLimitDto> LearnedLimits { get; init; } = [];
+}
+
+/// <summary>One thing the Engine learned a device cannot play: a kind of file that failed in a rung (playback-path spec D13).</summary>
+public sealed class LearnedPlaybackLimitDto
+{
+    /// <summary>Normalized video codec name, for example <c>hevc</c>.</summary>
+    [JsonPropertyName("video_codec")] public string VideoCodec { get; init; } = string.Empty;
+
+    /// <summary>The file's container, for example <c>mkv</c>.</summary>
+    [JsonPropertyName("container")] public string Container { get; init; } = string.Empty;
+
+    /// <summary>True when the failed file's picture is 10 bits per color.</summary>
+    [JsonPropertyName("ten_bit")] public bool TenBit { get; init; }
+
+    /// <summary>The rung that failed (one of the playback rungs); the next start uses a heavier one.</summary>
+    [JsonPropertyName("failed_rung")] public string FailedRung { get; init; } = string.Empty;
+
+    /// <summary>Plain words for the Devices page, for example "cannot play HEVC 10-bit MKV as it is".</summary>
+    [JsonPropertyName("summary")] public string Summary { get; init; } = string.Empty;
+
+    [JsonPropertyName("learned_at")] public DateTimeOffset LearnedAt { get; init; }
 }
 
 public sealed class TuvimaDiscoveryResponse

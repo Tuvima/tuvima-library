@@ -5936,6 +5936,15 @@
   <data name="PairedDevicesSection_NotChosen" xml:space="preserve">
     <value>Not chosen</value>
   </data>
+  <data name="PairedDevicesSection_Learned" xml:space="preserve">
+    <value>Learned: {0}</value>
+  </data>
+  <data name="PairedDevicesSection_ClearLearned" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="PairedDevicesSection_CouldNotClearLearned" xml:space="preserve">
+    <value>That limit could not be cleared.</value>
+  </data>
   <data name="PairedDevicesSection_ItStopsWorkingStraightAway" xml:space="preserve">
     <value>It stops working straight away. Nothing is deleted from your library.</value>
   </data>
