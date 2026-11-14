@@ -26,23 +26,27 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private readonly IIngestionQueueProgressService? _queue;
     private readonly MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? _personalMedia;
     private readonly IIdentityBypassLibraries? _bypassLibraries;
+    private readonly INeedsReviewListReadService? _needsReview;
 
     public IngestionPresentationReadService(
         IDatabaseConnection db,
         IIngestionQueueProgressService? queue = null,
         MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? personalMedia = null,
-        IIdentityBypassLibraries? bypassLibraries = null)
+        IIdentityBypassLibraries? bypassLibraries = null,
+        INeedsReviewListReadService? needsReview = null)
     {
         _db = db;
         _queue = queue;
         _personalMedia = personalMedia;
         _bypassLibraries = bypassLibraries;
+        _needsReview = needsReview;
     }
 
     public async Task<IngestionPresentationSnapshotDto> GetSnapshotAsync(
         int currentLimit = DefaultCurrentLimit,
         int recentDayLimit = 3,
         int recentItemsPerDay = 9,
+        bool includeUnmatchedFiles = false,
         CancellationToken ct = default)
     {
         currentLimit = Math.Clamp(currentLimit, 1, 20);
@@ -58,12 +62,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             TotalGroups = currentFactsByType.Sum(row => row.TotalGroups),
             ReadyGroups = currentFactsByType.Sum(row => row.ReadyGroups),
             FinishingGroups = currentFactsByType.Sum(row => row.FinishingGroups),
-            ReviewGroups = currentFactsByType.Sum(row => row.ReviewGroups),
         };
         var recentDays = await LoadRecentDaysAsync(recentDayLimit, recentItemsPerDay, ct).ConfigureAwait(false);
         var operationFacts = await ReadCurrentOperationFactsAsync(ct).ConfigureAwait(false);
         var operationFactsByType = await ReadCurrentOperationFactsByTypeAsync(ct).ConfigureAwait(false);
-        var reviewCount = await ReadPendingReviewCountAsync(ct).ConfigureAwait(false);
+        var reviewCount = await ReadNeedReviewCountAsync(includeUnmatchedFiles, ct).ConfigureAwait(false);
 
         var attention = new List<IngestionAttentionItemDto>();
         if (reviewCount > 0)
@@ -126,7 +129,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             LibraryGroups = currentFacts.TotalGroups,
             ReadyGroups = currentFacts.ReadyGroups,
             FinishingGroups = currentFacts.FinishingGroups,
-            ReviewGroups = currentFacts.ReviewGroups,
+            NeedReviewCount = reviewCount,
             ActiveOperations = operationFacts.Active,
             QueuedOperations = operationFacts.Queued,
             RetryWaitingOperations = operationFacts.RetryWaiting,
@@ -164,7 +167,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         {
             var entry = Of(row.MediaType);
             entry.ReadyGroups += row.ReadyGroups;
-            entry.ReviewGroups += row.ReviewGroups;
         }
 
         foreach (var row in operations)
@@ -176,7 +178,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
         return byType.Values
             .Where(entry => entry.MediaType != "Unknown")
-            .Where(entry => entry.ReadyGroups + entry.ReviewGroups + entry.ActiveOperations + entry.QueuedOperations > 0)
+            .Where(entry => entry.ReadyGroups + entry.ActiveOperations + entry.QueuedOperations > 0)
             .OrderBy(entry => entry.MediaType, StringComparer.Ordinal)
             .ToList();
     }
@@ -1219,8 +1221,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             SELECT MediaType,
                    COUNT(*) AS TotalGroups,
                    COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 0 THEN 1 END) AS ReadyGroups,
-                   COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 1 THEN 1 END) AS FinishingGroups,
-                   COUNT(CASE WHEN AnyReview = 1 THEN 1 END) AS ReviewGroups
+                   COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 1 THEN 1 END) AS FinishingGroups
             FROM grouped
             GROUP BY MediaType;
             """, new
@@ -1325,6 +1326,19 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     /// <summary>A queued file nobody has touched for this long no longer holds the whole queue "working"; it is shown as waiting.</summary>
     private static readonly TimeSpan StaleQueuedAfter = TimeSpan.FromMinutes(10);
+
+    // The one "need review" number (spec library-activity D28): worked out by the Needs Review list's own count, so the Activity card, the
+    // Needs Review tab and the administrator banner can never disagree. A host that registers no list service (a bare read-model test) falls
+    // back to the review-queue rows the list is built from.
+    private async Task<int> ReadNeedReviewCountAsync(bool includeUnmatchedFiles, CancellationToken ct)
+    {
+        if (_needsReview is null)
+        {
+            return await ReadPendingReviewCountAsync(ct).ConfigureAwait(false);
+        }
+
+        return (await _needsReview.CountAsync(includeUnmatchedFiles, ct).ConfigureAwait(false)).PendingCount;
+    }
 
     private async Task<int> ReadPendingReviewCountAsync(CancellationToken ct)
     {
@@ -1813,7 +1827,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public int TotalGroups { get; set; }
         public int ReadyGroups { get; set; }
         public int FinishingGroups { get; set; }
-        public int ReviewGroups { get; set; }
     }
 
     private sealed class PresentationOperationRow

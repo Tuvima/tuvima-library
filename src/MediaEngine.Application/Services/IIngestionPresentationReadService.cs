@@ -5,10 +5,15 @@ namespace MediaEngine.Application.Services;
 
 public interface IIngestionPresentationReadService
 {
+    /// <param name="includeUnmatchedFiles">
+    /// True for a caller who may see the files that could not be matched (an administrator), so the one "need review" number
+    /// equals what the Needs Review list holds for that caller.
+    /// </param>
     Task<IngestionPresentationSnapshotDto> GetSnapshotAsync(
         int currentLimit = 12,
         int recentDayLimit = 3,
         int recentItemsPerDay = 9,
+        bool includeUnmatchedFiles = false,
         CancellationToken ct = default);
 
     Task<PagedResponse<IngestionMediaGroupDto>> GetCurrentMediaAsync(
