@@ -1,0 +1,449 @@
+<title>Editor v7 mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a plain review page; each screen is the app drawn at its real size inside its own scroller, with numbered notes under it. Single dark look on purpose: it is the app's own. */
+:root{
+  color-scheme:dark;
+  --page:#101115; --nav:#14151A; --card:#1A1B21; --raised:#1F2027; --hover:#272830; --menu:#2F3039;
+  --text:#F5F7FB; --text2:#B6C2D6; --muted:#94A3B8;
+  --line:rgba(148,163,184,.16); --hair:rgba(148,163,184,.10);
+  --accent:#8852FC; --accent-hi:#A46FFF; --accent-soft:rgba(136,82,252,.16); --accent-line:rgba(136,82,252,.42);
+  --ok:#22C55E; --warn:#F59E0B; --bad:#FF8A8A; --bad-line:rgba(239,68,68,.5);
+  --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+body{background:var(--page);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.45;
+  padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.intro h1{font-size:24px;font-weight:700;margin:0 0 8px}
+.intro p{color:var(--text2);max-width:68ch;margin:0 0 8px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.toc a{color:var(--text2);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px}
+.toc a:hover,.toc a:focus-visible{background:var(--hover);color:var(--text);outline:none}
+section>h2{font-size:20px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+section>.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.scroller{overflow-x:auto;padding-bottom:8px}
+.notes{margin:16px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 32px;max-width:1280px}
+.notes li{display:flex;gap:10px;color:var(--text2);font-size:13px;min-width:0}
+.notes b{color:var(--text);font-weight:600}
+.n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:#F5F7FB;color:#101115;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.mk{position:absolute;z-index:5;box-shadow:0 0 0 2px var(--page)}
+
+/* ---------- the editor window ---------- */
+.win{position:relative;width:1280px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.hd1{display:flex;align-items:center;gap:12px;height:76px;padding:0 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hd1.blue{background:linear-gradient(90deg,#1c2c44 0%,#1b2333 30%,var(--card) 75%)}
+.hd1.red{background:linear-gradient(90deg,#40201f 0%,#2b1c20 30%,var(--card) 75%)}
+.cv{flex:0 0 auto;border-radius:4px;background:linear-gradient(160deg,#5c9a3f,#1f5a3a 55%,#c9a23a);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.cv.b{background:linear-gradient(160deg,#2b6cb0,#14304f 60%,#d9822b)}
+.cv.r{background:linear-gradient(160deg,#b0413e,#3a1620 60%,#e0b05a)}
+.cv.p{background:linear-gradient(160deg,#6d4bb8,#1d1638 60%,#d05a8a)}
+.cv.t{background:linear-gradient(160deg,#1f8a8a,#102a3a 60%,#e0c060)}
+.cv.o{background:linear-gradient(160deg,#d97a2b,#4a1d12 60%,#f0d070)}
+.hd1 .cv{width:36px;height:54px}
+.hd1 h3{font-size:20px;font-weight:600;margin:0}
+.state{display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.dot.ok{background:var(--ok)}
+.grow{flex:1 1 auto}
+.ib{width:44px;height:44px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text2);border:1px solid var(--line);background:transparent}
+.ib.home{color:var(--accent-hi);border-color:var(--accent-line)}
+.ib.plain{border-color:transparent}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.dd{height:44px;min-width:0;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);font-size:14px;font-weight:500;white-space:nowrap}
+.dd .lt{color:var(--muted);font-weight:400}
+.close{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 10px;color:var(--text2);font-weight:500}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);height:48px;align-items:stretch}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:0 14px;color:var(--text2);font-weight:500;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.src{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--page)}
+.src span{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:7px;color:var(--text2);font-weight:500}
+.src span.on{background:var(--accent-soft);color:var(--text)}
+.body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px;position:relative}
+.ft{display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--line);background:var(--raised)}
+.ft .wb{color:var(--muted);font-size:13px}
+.btn{height:44px;padding:0 18px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:500;font-size:14px;border:1px solid var(--line);color:var(--text);background:transparent;white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.red{border-color:var(--bad-line);color:var(--bad)}
+.btn.txt{border-color:transparent;color:var(--text2)}
+.btn.off{opacity:.45}
+
+/* ---------- the shared row: label line, control line, message line ---------- */
+.row{display:grid;gap:6px 12px;align-items:end}
+.row .lb{font-size:13px;font-weight:500;color:var(--text2);align-self:end}
+.row .msg{grid-column:1/-1;font-size:13px;color:var(--muted);min-height:18px}
+.row .msg:empty{display:none}
+.btn,.fld,.dd,.opt{flex-shrink:0}
+.fld{height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld.hint{color:var(--muted)}
+.fld.lock{background:transparent;color:var(--text2);justify-content:space-between}
+.pm{width:20px;height:20px;border-radius:5px;background:#e9edf3;color:#101115;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:0 0 auto}
+
+.filebar{display:flex;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--raised);min-width:0}
+.filebar .cap{font-size:12px;font-weight:600;color:var(--muted);padding-left:16px;border-left:1px solid var(--line);white-space:nowrap}
+.filebar .t1{font-weight:500}
+.filebar .t2{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:24px;align-items:start}
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+.sh h4{font-size:16px;font-weight:600;margin:0}
+.sh span{font-size:13px;color:var(--muted)}
+.list{display:flex;flex-direction:column}
+.rw{display:flex;align-items:center;gap:14px;min-height:64px;padding:8px 12px;border-bottom:1px solid var(--hair);border-left:3px solid transparent;min-width:0}
+.rw.on{background:var(--accent-soft);border:1px solid var(--accent-line);border-left:3px solid var(--accent);border-radius:8px}
+.rw .cv{width:32px;height:48px}
+.rw .cv.sq{width:44px;height:44px}
+.rw .tx{flex:1 1 auto;min-width:0}
+.rw .a{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .num{flex:0 0 auto;width:44px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rw .rt{flex:0 0 auto;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.tick{color:var(--accent-hi);flex:0 0 auto;width:20px}
+.more{display:inline-flex;align-items:center;gap:6px;color:var(--accent-hi);font-weight:500;height:44px;padding:0 12px}
+.cardx{border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;background:var(--card);min-width:0}
+.top{display:flex;gap:20px;min-width:0}
+.top .cv{width:140px;height:210px}
+.top .cv.wide{width:240px;height:135px}
+.top .cv.sq{width:160px;height:160px}
+.top h4{font-size:16px;font-weight:600;margin:0 0 4px}
+.top .m{font-size:13px;color:var(--text2)}
+.lnk{color:var(--accent-hi);font-weight:500;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.desc{color:var(--text2);margin:8px 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.verdict{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ok);padding-top:12px;border-top:1px solid var(--line)}
+.verdict.poss{color:var(--warn)}
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+table.cmp th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.cmp td{padding:9px 8px;border-bottom:1px solid var(--hair);color:var(--text)}
+table.cmp td:first-child{color:var(--text2)}
+table.cmp td.none{color:var(--muted)}
+table.cmp td:last-child{width:28px;text-align:right}
+.yes{color:var(--ok)} .no{color:var(--bad)} .na{color:var(--muted)}
+.apply{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.apply small,.sm{font-size:13px;color:var(--muted)}
+.apply .rt{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted)}
+
+/* details tab */
+.hdfull{display:flex;gap:20px;padding:20px 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hdfull .cv{width:96px;height:144px}
+.hdfull .lab{font-size:13px;color:var(--text2)}
+.hdfull h3{font-size:20px;font-weight:600;margin:2px 0 4px}
+.hdfull .facts{font-size:13px;color:var(--text2);margin-bottom:14px}
+.hdfull .nav{display:flex;gap:8px;align-items:center}
+.det{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px}
+.grp{display:flex;flex-direction:column;gap:14px}
+.qf{border:1px solid var(--accent-line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;align-self:start}
+.qf h4{font-size:16px;font-weight:600;margin:0 0 2px}
+.qf .kv{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.qf .kv span:first-child{color:var(--muted)}
+.qf .path{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--text2);min-width:0}
+.qf .path span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* small panel + phones */
+.panel{position:relative;width:560px;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:16px}
+.panel h4{font-size:20px;font-weight:600;margin:0}
+.panel p{margin:0;color:var(--text2)}
+.opt{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px}
+.opt.on{border-color:var(--accent-line);background:var(--accent-soft)}
+.rad{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);flex:0 0 auto}
+.opt.on .rad{border-color:var(--accent-hi);box-shadow:inset 0 0 0 4px var(--card),inset 0 0 0 9px var(--accent-hi)}
+.phones{display:flex;gap:28px;align-items:flex-start;padding:4px}
+.ph{position:relative;flex:0 0 auto;width:360px;height:740px;background:var(--card);border:1px solid var(--line);border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
+.ph .hd1{height:60px;padding:0 12px 0 16px;gap:10px}
+.ph .hd1 .cv{width:28px;height:42px}
+.ph .hd1 h3{font-size:16px}
+.ph .tabs{padding:0 8px;overflow:hidden}
+.ph .tab{padding:0 12px;white-space:nowrap}
+.ph .body{padding:14px 16px;gap:12px;flex:1 1 auto;overflow:hidden}
+.ph .ft{padding:10px 16px;flex-direction:column;align-items:stretch;gap:8px}
+.ph .ft .two2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ph .fld{font-size:16px}
+.ph .top .cv{width:110px;height:165px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:20px 20px 0 0;padding:10px 0 16px;display:flex;flex-direction:column}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:var(--muted);align-self:center;margin-bottom:10px}
+.sheet .rw{min-height:56px;padding:6px 16px}
+.sheet .rw .cv{width:64px;height:36px}
+.sheet .hdr{font-size:12px;font-weight:600;color:var(--muted);padding:10px 16px 4px}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.stack{display:flex;flex-direction:column;gap:6px}
+/* ---------- v7 additions ---------- */
+.win{height:auto}
+.hx{position:relative;display:flex;gap:20px;padding:20px 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hx.blue{background:linear-gradient(90deg,#1c2c44 0%,#1b2333 30%,var(--card) 75%)}
+.hx.red{background:linear-gradient(90deg,#40201f 0%,#2b1c20 30%,var(--card) 75%)}
+.hx .cv{width:96px;height:144px;flex:0 0 auto}
+.hx .cv.sq{height:96px}
+.hx .lab{font-size:13px;color:var(--text2)}
+.hx h3{font-size:20px;font-weight:600;margin:2px 0 4px}
+.hx .facts{font-size:13px;color:var(--text2);margin-bottom:14px}
+.hx .nv{display:flex;gap:8px;align-items:center}
+.hx .tr{margin-left:auto;display:flex;align-items:flex-start;gap:8px;flex:0 0 auto}
+.lkb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--line);border-radius:8px;color:var(--text);font-size:13px;font-weight:500;white-space:nowrap}
+.lkb svg{width:14px;height:14px;color:var(--text2)}
+.nm{display:inline-flex;align-items:center;height:32px;padding:0 4px;color:var(--muted);font-size:13px;font-weight:500}
+.xx{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 6px;color:var(--text2);font-weight:500}
+.mid{display:flex;align-items:center;gap:8px}
+.rw .cv.s2{width:44px;height:44px}
+.top .cv.s2{width:160px;height:160px}
+.cv.s2.o{background:linear-gradient(160deg,#d97a2b,#4a1d12 60%,#f0d070)}
+.acts2{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-top:12px;border-top:1px solid var(--line)}
+/* artwork */
+.roles{display:flex;gap:8px;flex-wrap:wrap}
+.role{height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-weight:500;font-size:13px}
+.role.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--text)}
+.art{display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:start}
+.pv{width:200px;height:300px;border-radius:8px}
+.vs{display:flex;gap:10px;flex-wrap:wrap}
+.vs .v{width:64px;height:96px;border-radius:6px;border:2px solid transparent;position:relative}
+.vs .v.on{border-color:var(--accent)}
+.vs .v.add{display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);color:var(--text2);background:transparent}
+.ud{display:inline-flex;align-items:center;gap:10px;color:var(--text2);font-size:13px}
+.ud b{color:var(--accent-hi);font-weight:600}
+.kv2{display:flex;gap:24px;font-size:13px;color:var(--muted)}
+.kv2 b{color:var(--text2);font-weight:500}
+/* review */
+.chg{display:grid;grid-template-columns:140px minmax(0,1fr);gap:4px 16px;padding:10px 0;border-bottom:1px solid var(--hair);font-size:14px;align-items:baseline}
+.chg .f{color:var(--muted);font-size:13px}
+.chg .ar{color:var(--muted);padding:0 6px}
+.chg s{color:var(--muted)}
+.mvl{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid rgba(245,158,11,.4);border-radius:8px;background:rgba(245,158,11,.06);font-size:13px;color:var(--text2)}
+.upd{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:14px;background:var(--accent-soft);color:var(--text);font-size:13px;font-weight:500}
+.upd i{width:12px;height:12px;border-radius:50%;border:2px solid var(--accent-hi);border-top-color:transparent;display:inline-block;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.upd.bad{background:rgba(245,158,11,.14)}
+.page{position:relative;width:1280px;background:var(--page);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ph .ud{font-size:12px}
+</style>
+
+<div class="wrap">
+<div class="intro">
+  <h1>Editor v7 mockups</h1>
+  <p>What changes after the bug review of 2026-11-14: one header on every tab, a Match tab that shows just the match, square pictures, an Artwork tab that fits without scrolling and applies at once, a tidy Review changes step, and no "Saved" box. Each screen shows what the app will show. The numbered dots are not part of the app; they point to the notes under each screen.</p>
+  <p><b>What did not change:</b> the v6 screens for TV episodes, songs, Wikidata, the Details rows and the series chooser stay as drawn in <code>editor-v6/editor-v6-mockups.html</code>, except that they now sit under the same full header drawn here. The older drawings in <code>editor-details-revision/</code> (Match &amp; Identity cards with a header "Not matched" chip, the "Why 96%" panel) were already replaced by v6 and stay as history.</p>
+  <p>Covers are colored placeholders. Provider marks are letter badges here.</p>
+  <div class="toc">
+    <a href="#a">A. Match, not matched</a><a href="#b">B. Match, matched</a><a href="#c">C. Audiobook, square pictures</a><a href="#d">D. Header link states</a><a href="#e">E. Artwork</a><a href="#f">F. Review changes</a><a href="#g">G. After Save</a><a href="#h">H. Phone</a>
+  </div>
+</div>
+
+<section id="a"><h2>A. Match tab, item not matched yet</h2><p class="sub">Desktop, 1280 wide. The same header as the Details tab. (Issue 991.)</p>
+<div class="scroller"><div class="win" id="winA"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>The header is the Details header.</b> Same cover, title, facts, Home and item list, on every tab. It no longer shrinks on Match.</span></li>
+<li><span class="n">2</span><span><b>No "Matched" tag.</b> The facts line has no match word. The top right is the only match signal.</span></li>
+<li><span class="n">3</span><span><b>Not matched</b> is a quiet line where the links would be. It carries no button and no color.</span></li>
+<li><span class="n">4</span><span><b>Media providers and Wikidata</b> stay a two-way selector, now at the top of the tab body, not in the header.</span></li>
+<li><span class="n">5</span><span><b>The rest is v6.</b> One search row, Your file, results on the left, the chosen result on the right. In the real window the list and card scroll inside the body; the header and footer stay put.</span></li>
+<li><span class="n">6</span><span><b>Apply match</b> has no explanation line under it any more (issue 992). The basis note and the "Links this book to…" line are gone.</span></li>
+</ol></section>
+
+<section id="b"><h2>B. Match tab, item already matched</h2><p class="sub">Desktop. A movie matched to TMDB. (Issues 991, 992.)</p>
+<div class="scroller"><div class="win" id="winB"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>The links are the match indicator.</b> TMDB and Wikidata, plain text and one small arrow. A link means matched to that source.</span></li>
+<li><span class="n">2</span><span><b>Just the match:</b> cover, title, year, key facts and a short description. No "Strong match", no table of agreement, no "Based on…", no "shown from what Library saved", no provider code name.</span></li>
+<li><span class="n">3</span><span><b>Only two actions, at opposite ends of the row.</b> Remove match on the left, Change match on the right. Open source is gone because the header link does it.</span></li>
+<li><span class="n">4</span><span><b>Change match</b> opens the search row, Your file and results of screen A. The verdict (Strong, Possible, Weak) shows only there, in the results.</span></li>
+</ol></section>
+
+<section id="c"><h2>C. Finding a match for an audiobook</h2><p class="sub">Desktop. Results keep their own shape. (Issue 993.)</p>
+<div class="scroller"><div class="win" id="winC"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Square pictures</b> in the list and the card, because an audiobook cover is square. Books, movies and shows stay portrait; episodes stay wide; albums and songs stay square.</span></li>
+<li><span class="n">2</span><span><b>The shape follows the kind of item,</b> and a provider that says its picture is square wins over the default. A square picture is never cropped or stretched.</span></li>
+<li><span class="n">3</span><span><b>Narrated by</b> is the extra fact for audiobooks in the card. The provider name stays a product name, "Apple Books", never a code name.</span></li>
+</ol></section>
+
+<section id="d"><h2>D. The header's top right, every state</h2><p class="sub">Only the top-right of the header is drawn. Same on every tab. (Issue 991.)</p>
+<div class="scroller"><div class="win" id="winD"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Matched to both:</b> TMDB and Wikidata links.</span></li>
+<li><span class="n">2</span><span><b>Matched, only one has a page:</b> only that link. A source with no page shows nothing at all.</span></li>
+<li><span class="n">3</span><span><b>Not matched:</b> the words "Not matched", nothing else.</span></li>
+<li><span class="n">4</span><span><b>Plain link buttons.</b> The source's name and one small outward arrow, outlined, 32 px tall. No letter badge, no dark pill, no second icon.</span></li>
+</ol></section>
+
+<section id="e"><h2>E. Artwork tab: everything fits</h2><p class="sub">Desktop, 1280 wide, window about 700 high. Nothing scrolls. (Issues 989, 990.)</p>
+<div class="scroller"><div class="win" id="winE"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>The same header,</b> with the same match links.</span></li>
+<li><span class="n">2</span><span><b>A small preview</b> at the role's real shape (here 200 × 300 for a cover), enough to judge a picture. Zoom steps are gone.</span></li>
+<li><span class="n">3</span><span><b>View full size</b> opens the picture large over the window, for anyone who wants it.</span></li>
+<li><span class="n">4</span><span><b>Picking a picture applies it at once.</b> Choose, upload, From URL, From Library and Make preferred all change the item the moment you do it. Nothing waits for Save changes. Earlier pictures stay in the versions row, so going back is picking again; there is no Undo.</span></li>
+<li><span class="n">5</span><span><b>Versions</b> are small thumbnails in one wrapping row. The current one has the purple outline.</span></li>
+<li><span class="n">6</span><span><b>The footer is unchanged,</b> and Save changes stays off because no data has changed. Discard does not touch pictures.</span></li>
+</ol></section>
+
+<section id="f"><h2>F. Review changes</h2><p class="sub">Desktop. Shown after Save changes is pressed. (Issue 994.)</p>
+<div class="scroller"><div class="win" id="winF"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>One line per change:</b> field, old value struck through, new value. The same fact is merged into one line, never repeated.</span></li>
+<li><span class="n">2</span><span><b>No pictures here.</b> Artwork already applied (screen E), so Review lists data only.</span></li>
+<li><span class="n">3</span><span><b>One place for files.</b> If a save moves or renames a file, a single amber block says from and to. It does not appear otherwise.</span></li>
+<li><span class="n">4</span><span><b>One footer row.</b> Back to editing on the left, Discard and Save changes on the right. On a phone they stack in the usual order (screen H).</span></li>
+</ol></section>
+
+<section id="g"><h2>G. After Save: the item shows "Updating"</h2><p class="sub">The window has closed. A details page header (top) and a tile (bottom left, and the failed case bottom right). (Issue 995, option B.)</p>
+<div class="scroller"><div class="page" id="winG"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>No box, no step list.</b> The "Saved 1 change" ribbon, its five ticks and its close button are gone.</span></li>
+<li><span class="n">2</span><span><b>The item shows the app's normal Updating state,</b> the same one it shows while being ingested. It clears when the Engine is done. (The chip here is a stand-in; the build reuses the existing one.)</span></li>
+<li><span class="n">3</span><span><b>If a step fails,</b> the item shows the app's normal warning, and its History says which step. Nothing else appears when all is well.</span></li>
+<li><span class="n">4</span><span><b>"See what changed"</b> is the editor's History tab, as it always was. The ribbon link is gone with the ribbon.</span></li>
+</ol></section>
+
+<section id="h"><h2>H. The same changes on a phone</h2><p class="sub">360 wide. The phone header is one line on every tab, now with only cover and name. Left to right: Match matched, Artwork, Review changes.</p>
+<div class="scroller"><div class="phones" id="phones"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>The phone header is just the cover and the name.</b> No state word and no links (Shy's call). The links sit at the foot of the match card on the Match tab, or "Not matched" there.</span></li>
+<li><span class="n">2</span><span><b>Remove match and Change match</b> sit side by side with a full gap, each 44 px high, under the match.</span></li>
+<li><span class="n">3</span><span><b>Artwork:</b> two small previews per row, the chosen one outlined. Tapping a picture applies it at once. "View full size" opens it large.</span></li>
+<li><span class="n">4</span><span><b>Review changes</b> is the full-screen step with the same compact lines.</span></li>
+<li><span class="n">5</span><span><b>Footer stacks</b> in the usual phone order: Save changes first, then Discard, then Back to editing.</span></li>
+</ol></section>
+</div>
+
+<script>
+const I={
+ search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+ home:'<path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/>',
+ x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ chev:'<path d="M6 9l6 6 6-6"/>',
+ check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+ file:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>',
+ out:'<path d="M9 7h8v8"/><path d="M17 7L7 17"/>',
+ lock:'<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 016 0v3"/>',
+ dots:'<circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/>',
+ folder:'<path d="M3 7h6l2 2h10v10H3z"/>',
+ copy:'<rect x="9" y="9" width="10" height="11" rx="2"/><path d="M6 15V5h9"/>',
+ okc:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+ warn:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2v.3"/>',
+ back:'<path d="M14 6l-6 6 6 6"/>',
+ db:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+ globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.500 0 18M12 3c-3 3.5-3 14.500 0 18"/>'
+};
+const ic=(k,s)=>`<svg class="i" viewBox="0 0 24 24" ${s?`style="${s}"`:''} aria-hidden="true">${I[k]}</svg>`;
+const mk=(n,st)=>`<span class="n mk" style="${st}">${n}</span>`;
+const hd=(o)=>`<div class="hd1 ${o.tone||''}"><span class="cv ${o.cv||''}"></span><h3>${o.title}</h3><span class="state"><span class="dot ${o.ok?'ok':''}"></span>${o.state}</span><span class="grow"></span>${o.nav||''}<span class="ib plain">${ic('dots')}</span><span class="close">${ic('x')}Close</span></div>`;
+const nav=(t)=>`<span class="ib home">${ic('home')}</span><span class="dd" style="width:260px"><span>${t}</span>${ic('chev')}</span>`;
+const tabs=(on,list)=>`<div class="tabs">${(list||['Details','Artwork','Match','Bookmarks','History']).map(t=>`<span class="tab ${t===on?'on':''}">${t}</span>`).join('')}</div>`;
+const src=(w)=>`<div><span class="src"><span class="${w?'':'on'}">${ic('db')}Media providers</span><span class="${w?'on':''}">${ic('globe')}Wikidata</span></span></div>`;
+const ft=(dirty)=>`<div class="ft"><span class="btn red">Delete</span><span class="wb">File write-back off. Edits save in Library. Original files stay unchanged.</span><span class="grow"></span><span class="btn txt">Discard</span><span class="btn pri ${dirty?'':'off'}">Save changes</span></div>`;
+const prov=(l,n)=>`<div class="dd"><span style="display:inline-flex;gap:8px;align-items:center"><span class="pm">${l}</span>${n}</span>${ic('chev')}</div>`;
+const row=(cols,cells,msg)=>`<div class="row" style="grid-template-columns:${cols}">${cells.map(c=>`<span class="lb">${c[0]}</span>`).join('')}${cells.map(c=>c[1]).join('')}<span class="msg">${msg||''}</span></div>`;
+const fld=(v,ph)=>`<div class="fld ${ph?'hint':''}">${v}</div>`;
+const sbtn=`<span class="btn pri">${ic('search')}Search</span>`;
+const filebar=(a,b)=>`<div class="filebar">${ic('file','width:26px;height:26px;color:var(--text2);flex:0 0 auto')}<span class="cap">Your file</span><div style="min-width:0"><div class="t1">${a}</div><div class="t2">${b}</div></div></div>`;
+const r=(o)=>`<div class="rw ${o.on?'on':''}">${o.num?`<span class="num">${o.num}</span>`:''}${o.cv!==undefined?`<span class="cv ${o.cv}"></span>`:''}<div class="tx"><div class="a">${o.a}</div><div class="m">${o.m}</div></div>${o.rt?`<span class="rt">${o.rt}</span>`:''}<span class="tick">${o.on?ic('check'):''}</span></div>`;
+const cmp=(h,rows)=>`<table class="cmp"><tr><th>Field</th><th>Your file</th><th>${h}</th><th></th></tr>${rows.map(x=>`<tr><td>${x[0]}</td><td class="${x[1]?'':'none'}">${x[1]||'Not provided'}</td><td class="${x[2]?'':'none'}">${x[2]||'Not provided'}</td><td>${x[3]==='y'?`<span class="yes">${ic('check')}</span>`:x[3]==='n'?`<span class="no">${ic('x')}</span>`:'<span class="na">&ndash;</span>'}</td></tr>`).join('')}</table>`;
+const verdict=(t,poss)=>`<div class="verdict ${poss?'poss':''}">${ic(poss?'warn':'okc')}${t}</div>`;
+
+I.undo='<path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 010 8h-3"/>';
+I.full='<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>';
+const lkb=(n)=>`<span class="lkb">${n}${ic('out')}</span>`;
+const LK2=lkb('TMDB')+lkb('Wikidata');
+const NM='<span class="nm">Not matched</span>';
+const hx=(o)=>`<div class="hx ${o.tone||''}"><span class="cv ${o.cv||''}"></span><div style="min-width:0"><div class="lab">${o.lab}</div><h3>${o.title}</h3><div class="facts">${o.facts}</div><div class="nv">${o.nav===false?'':`<span class="ib home">${ic('home')}</span><span class="dd" style="width:300px"><span>${o.navt||o.title}</span>${ic('chev')}</span>`}</div></div><div class="tr">${o.links}<span class="ib plain" style="width:32px;height:32px">${ic('dots')}</span><span class="xx">${ic('x')}Close</span></div></div>`;
+const ftr=`<div class="ft"><span class="btn red">Delete</span><span class="wb">File write-back off. Edits save in Library. Original files stay unchanged.</span><span class="grow"></span><span class="btn txt">Discard</span><span class="btn pri off">Save changes</span></div>`;
+const fall=document.getElementById.bind(document);
+
+fall('winA').innerHTML=
+ mk(1,'left:2px;top:8px')+mk(2,'left:350px;top:66px')+mk(3,'left:1070px;top:2px')+
+ hx({lab:'Percy Jackson and the Olympians',title:'The Sea of Monsters',facts:'Rick Riordan · 2009 · 279 pages',links:NM})+
+ tabs('Match')+
+ `<div class="body">`+mk(4,'left:340px;top:18px')+src()+
+ row('220px 1.3fr 1fr 220px auto',[['Provider',prov('A','Apple Books')],['Title',fld('The Sea of Monsters')],['Author',fld('Rick Riordan')],['ISBN (optional)',fld('')],['',sbtn]],'10 results from Apple Books.')+
+ filebar('The Percy Jackson and the Olympians, Book - Rick Riordan.epub','Embedded title: The Sea of Monsters · Rick Riordan · EPUB')+
+ `<div class="two"><div><div class="sh"><h4>Search results</h4><span>10 results</span></div><div class="list">`+
+ r({cv:'',a:'The Sea of Monsters',m:'Rick Riordan · 2009 · Percy Jackson, Book 2',on:1})+
+ r({cv:'t',a:'The Complete Series',m:'Rick Riordan · 2026 · Collection'})+
+ r({cv:'o',a:'Percy Jackson: Books I to III',m:'Rick Riordan · 2014 · Collection'})+
+ r({cv:'r',a:'The Sword of Hades',m:'Rick Riordan · 2023'})+
+ `</div><span class="more">Show 6 more results ${ic('chev')}</span></div>`+
+ `<div class="cardx">`+mk(5,'left:2px;top:270px')+`<div class="top"><span class="cv"></span><div style="min-width:0"><h4>The Sea of Monsters</h4><div class="m">Percy Jackson and the Olympians · Book 2</div><div class="m">Rick Riordan · 2009</div><div style="margin-top:6px"><span class="lnk">Apple Books ${ic('out','width:14px;height:14px')}</span></div><p class="desc">The second book in Rick Riordan's best-selling saga. Percy's seventh-grade year has been surprisingly quiet, until a game of dodgeball turns into a death match.</p><span class="lnk">Read more</span></div></div>`+
+ verdict('Strong match')+
+ cmp('Selected result',[['Title','The Sea of Monsters','The Sea of Monsters','y'],['Author','Rick Riordan','Rick Riordan','y'],['ISBN','1423103343','',''],['Year','','2009','']])+
+ mk(6,'left:1090px;top:770px')+`<div class="apply" style="justify-content:flex-end"><span class="btn pri">Apply match</span></div></div></div></div>`+ftr;
+
+fall('winB').innerHTML=
+ mk(1,'right:230px;top:8px')+
+ hx({tone:'blue',cv:'b',lab:'Movie',title:'Arrival',facts:'Denis Villeneuve · 2016 · 1h 56m',links:LK2,navt:'Arrival'})+
+ tabs('Match')+
+ `<div class="body">`+src()+
+ `<div class="cardx">`+mk(2,'left:2px;top:14px')+`<div class="top"><span class="cv b"></span><div style="min-width:0;flex:1"><h4>Arrival</h4><div class="m">Movie · Denis Villeneuve · 2016 · 1h 56m</div><div class="m">Amy Adams, Jeremy Renner, Forest Whitaker</div><p class="desc" style="margin-top:12px">A linguist is recruited by the military to find a way to communicate with visitors whose ships have landed around the world, before tensions lead to war.</p></div></div>`+
+ mk(3,'left:2px;top:352px')+mk(4,'left:1236px;top:352px')+`<div class="acts2"><span class="btn red">Remove match</span><span class="btn">Change match</span></div></div></div>`+ftr;
+
+fall('winC').innerHTML=
+ hx({cv:'o sq',lab:'Audiobook · Percy Jackson and the Olympians',title:'The Sea of Monsters',facts:'Rick Riordan · narrated by Jesse Bernstein · 2009 · 10h 14m',links:NM})+
+ tabs('Match')+
+ `<div class="body">`+src()+
+ row('220px 1.3fr 1fr 1fr auto',[['Provider',prov('A','Apple Books')],['Title',fld('The Sea of Monsters')],['Author',fld('Rick Riordan')],['Narrator (optional)',fld('')],['',sbtn]],'8 results from Apple Books.')+
+ filebar('Percy Jackson 02 - The Sea of Monsters (Unabridged).m4b','Embedded title: The Sea of Monsters · Rick Riordan · M4B · 10:14:02')+
+ `<div class="two"><div><div class="sh"><h4>Search results</h4><span>8 results</span></div><div class="list">`+mk(1,'left:2px;top:0px')+
+ r({cv:'o s2',a:'The Sea of Monsters (Unabridged)',m:'Rick Riordan · Jesse Bernstein · 2009',on:1})+
+ r({cv:'t s2',a:'Percy Jackson: The Complete Audio Collection',m:'Rick Riordan · Collection'})+
+ r({cv:'p s2',a:'The Lightning Thief (Unabridged)',m:'Rick Riordan · Jesse Bernstein · 2005'})+
+ r({cv:'b s2',a:'The Titan\'s Curse (Unabridged)',m:'Rick Riordan · Jesse Bernstein · 2007'})+
+ `</div></div><div class="cardx">`+mk(2,'left:618px;top:0px')+`<div class="top"><span class="cv o s2"></span><div style="min-width:0"><h4>The Sea of Monsters (Unabridged)</h4><div class="m">Percy Jackson and the Olympians · Book 2</div><div class="m">Rick Riordan · 2009</div>`+mk(3,'left:780px;top:96px')+`<div class="m">Narrated by Jesse Bernstein · 10h 14m</div><div style="margin-top:6px"><span class="lnk">Apple Books ${ic('out','width:14px;height:14px')}</span></div></div></div>`+
+ verdict('Strong match')+cmp('Selected result',[['Title','The Sea of Monsters','The Sea of Monsters','y'],['Author','Rick Riordan','Rick Riordan','y'],['Length','10:14:02 measured','10h 14m','y']])+
+ `<div class="apply" style="justify-content:flex-end"><span class="btn pri">Apply match</span></div></div></div></div>`+ftr;
+
+const strip=(t,l,n,cv)=>`<div class="hx ${t}" style="padding:16px 24px;align-items:center"><span class="cv ${cv}" style="width:48px;height:72px"></span><div style="min-width:0"><div class="lab">${n[0]}</div><h3 style="margin:2px 0 0">${n[1]}</h3></div><div class="tr" style="align-items:center">${l}<span class="ib plain" style="width:32px;height:32px">${ic('dots')}</span><span class="xx">${ic('x')}Close</span></div></div>`;
+fall('winD').innerHTML=
+ mk(1,'left:922px;top:36px')+strip('blue',LK2,['Movie','Arrival'],'b')+
+ mk(2,'left:1014px;top:140px')+strip('',lkb('Wikidata'),['Audiobook','The Sea of Monsters'],'o')+
+ mk(3,'left:1030px;top:244px')+strip('red',NM,['Book','Untitled scan 0042'],'r')+
+ mk(4,'left:1118px;top:36px');
+
+fall('winE').innerHTML=
+ mk(1,'right:300px;top:8px')+
+ hx({lab:'Percy Jackson and the Olympians',title:'The Sea of Monsters',facts:'Rick Riordan · 2009 · 279 pages',links:lkb('Apple Books')+lkb('Wikidata')})+
+ tabs('Artwork',['Details','Artwork','Match','Bookmarks','History'])+
+ `<div class="body"><div class="roles"><span class="role on">Cover</span><span class="role">Background</span><span class="role">Logo</span><span class="role">Banner</span></div>`+
+ `<div class="art">`+mk(2,'left:2px;top:64px')+`<div><span class="cv pv" style="display:block"></span>`+mk(3,'left:2px;top:386px')+`<div style="margin-top:10px"><span class="lnk" style="display:inline-flex;gap:6px;align-items:center">${ic('full','width:16px;height:16px')}View full size</span></div></div>`+
+ `<div style="display:flex;flex-direction:column;gap:16px">`+
+ `<div class="acts">${mk(4,'left:236px;top:64px')}<span class="btn">Upload</span><span class="btn">From URL</span><span class="btn">From Library</span><span class="btn">Make preferred</span></div>`+
+  `<div class="kv2"><span><b>Source</b> Apple Books</span><span><b>Size</b> 1400 × 2100</span><span><b>Format</b> JPEG · 482 KB</span></div>`+
+ `<div style="font-size:12px;font-weight:600;color:var(--muted)">Versions</div>`+
+ `<div class="vs">${mk(5,'left:236px;top:194px')}<span class="cv v on"></span><span class="cv v b"></span><span class="cv v o"></span><span class="cv v p"></span><span class="cv v t"></span><span class="v add">${ic('chev','transform:rotate(-90deg)')}</span></div>`+
+ `</div></div></div>`+mk(6,'left:2px;bottom:6px')+ftr;
+
+fall('winF').innerHTML=
+ `<div class="hx" style="padding:16px 24px;align-items:center"><div style="flex:1"><h3 style="margin:0">Review changes</h3><div class="lab">3 changes to The Sea of Monsters</div></div><span class="xx">${ic('x')}Close</span></div>`+
+ `<div class="body" style="gap:4px;padding-bottom:20px">`+mk(1,'left:2px;top:14px')+
+ `<div class="chg"><span class="f">Title</span><span><s>The Sea of Monsters</s><span class="ar">→</span>Sea of Monsters</span></div>`+
+ `<div class="chg"><span class="f">Sort title</span><span><s>Sea of Monsters, The</s><span class="ar">→</span>Sea of Monsters</span></div>`+
+ `<div class="chg"><span class="f">Match</span><span><s>Apple Books</s><span class="ar">→</span>Wikidata only</span></div>`+
+ mk(2,'left:2px;top:128px')+
+ `<div style="height:12px"></div>`+mk(3,'left:2px;top:178px')+
+ `<div class="mvl">${ic('warn','width:18px;height:18px;flex:0 0 auto;color:var(--warn)')}<div><b style="color:var(--text)">This file will move when you save.</b> Managed folder · Books/Rick Riordan/Percy Jackson/Book 2.epub → Books/Rick Riordan/Sea of Monsters/Book 2.epub</div></div></div>`+
+ mk(4,'left:2px;bottom:6px')+`<div class="ft"><span class="btn txt" style="padding-left:0">${ic('back','width:16px;height:16px')}Back to editing</span><span class="grow"></span><span class="btn txt">Discard</span><span class="btn pri">Save changes</span></div>`;
+
+fall('winG').innerHTML=
+ mk(1,'left:1000px;top:140px')+
+ `<div class="hx" style="padding:28px 32px;min-height:200px"><span class="cv" style="width:120px;height:180px"></span><div><div class="lab">Percy Jackson and the Olympians</div><h3 style="font-size:28px;margin:4px 0 10px">Sea of Monsters</h3><div class="facts">Rick Riordan · 2009 · 279 pages</div>${mk(2,'left:282px;top:142px')}<span class="upd"><i></i>Updating</span></div></div>`+
+ `<div style="display:flex;gap:48px;padding:24px 32px;align-items:flex-start">`+
+ `<div style="width:150px"><span class="cv" style="display:block;width:150px;height:225px;position:relative"><span class="upd" style="position:absolute;left:8px;bottom:8px;background:rgba(16,17,21,.85)"><i></i>Updating</span></span><div style="margin-top:8px;font-weight:500">Sea of Monsters</div><div class="sm">Rick Riordan</div></div>`+
+ `<div style="width:150px">${mk(3,'left:372px;top:470px')}<span class="cv" style="display:block;width:150px;height:225px;position:relative"><span class="upd bad" style="position:absolute;left:8px;bottom:8px;background:rgba(40,28,10,.92)">${ic('warn','width:14px;height:14px;color:var(--warn)')}Needs attention</span></span><div style="margin-top:8px;font-weight:500">Sea of Monsters</div><div class="sm">Rick Riordan</div></div>`+
+ `<div style="max-width:420px;color:var(--text2);font-size:13px">${mk(4,'left:410px;top:282px')}<b style="color:var(--text)">Where to look afterwards.</b> Open Edit, then History: it lists what changed and, if a step failed, which one.</div></div>`;
+
+const lnk2=(n)=>`<span style="color:var(--accent-hi);font-weight:500">${n} ↗</span>`;
+const phh=(t,line)=>`<div class="hd1"><span class="cv"></span><div style="min-width:0"><h3>${t}</h3></div><span class="grow"></span><span class="ib plain">${ic('dots')}</span><span class="ib plain">${ic('x')}</span></div>`;
+const ptab=(on)=>`<div class="tabs">${['Details','Artwork','Match','Bookmarks'].map(t=>`<span class="tab ${t===on?'on':''}">${t}</span>`).join('')}</div>`;
+const pf=(dirty)=>`<div class="ft"><span class="wb" style="font-size:12px">File write-back off. Edits save in Library.</span><div class="two2"><span class="btn">Discard</span><span class="btn pri ${dirty?'':'off'}">Save changes</span></div></div>`;
+const q1=`<div class="ph">`+mk(1,'left:180px;top:20px')+phh('Arrival')+ptab('Match')+`<div class="body">`+
+ `<span class="src" style="align-self:flex-start"><span class="on">Media providers</span><span>Wikidata</span></span>`+
+ `<div class="cardx"><div class="top"><span class="cv b" style="width:96px;height:144px"></span><div style="min-width:0"><h4>Arrival</h4><div class="m">Movie · 2016 · 1h 56m</div><div class="m">Denis Villeneuve</div><p class="desc" style="-webkit-line-clamp:4">A linguist is recruited by the military to find a way to communicate with visitors whose ships have landed around the world.</p><div style="margin-top:8px;display:flex;gap:16px">${lnk2('TMDB')}${lnk2('Wikidata')}</div></div></div>`+
+ mk(2,'left:6px;top:472px')+`<div style="display:flex;justify-content:space-between;gap:12px"><span class="btn red" style="flex:1">Remove match</span><span class="btn" style="flex:1">Change match</span></div></div></div>`+pf()+`</div>`;
+const q2=`<div class="ph">`+phh('The Sea of Monsters')+ptab('Artwork')+`<div class="body" style="gap:10px">`+
+ `<div class="roles"><span class="role on">Cover</span><span class="role">Background</span><span class="role">Logo</span></div>`+
+ `<div style="display:flex;gap:14px"><span class="cv" style="width:110px;height:165px"></span><div style="display:flex;flex-direction:column;gap:8px;min-width:0"><span class="kv2" style="flex-direction:column;gap:2px"><span><b>Apple Books</b></span><span>1400 × 2100 · JPEG</span></span>`+mk(3,'left:134px;top:226px')+`<span class="lnk" style="display:inline-flex;gap:6px;align-items:center;height:44px">${ic('full','width:16px;height:16px')}View full size</span></div></div>`+
+ `<div class="acts"><span class="btn" style="flex:1">Upload</span><span class="btn" style="flex:1">From URL</span></div>`+
+ `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><span class="cv" style="height:130px;border:2px solid var(--accent);border-radius:6px"></span><span class="cv b" style="height:130px;border-radius:6px"></span><span class="cv o" style="height:130px;border-radius:6px"></span><span class="cv p" style="height:130px;border-radius:6px"></span></div></div>`+pf()+`</div>`;
+const q3=`<div class="ph"><div class="hd1" style="background:var(--card)"><span class="ib plain">${ic('back')}</span><h3>Review changes</h3></div><div class="body" style="gap:2px">`+mk(4,'left:6px;top:80px')+
+ `<div class="chg" style="grid-template-columns:1fr"><span class="f">Title</span><span><s>The Sea of Monsters</s> → Sea of Monsters</span></div>`+
+ `<div class="chg" style="grid-template-columns:1fr"><span class="f">Sort title</span><span><s>Sea of Monsters, The</s> → Sea of Monsters</span></div>`+
+ `<div style="height:10px"></div><div class="mvl">${ic('warn','width:18px;height:18px;flex:0 0 auto;color:var(--warn)')}<div><b style="color:var(--text)">This file will move when you save.</b> Books/Rick Riordan/Percy Jackson → Books/Rick Riordan/Sea of Monsters</div></div></div>`+
+ mk(5,'left:6px;bottom:8px')+`<div class="ft" style="gap:8px"><span class="btn pri">Save changes</span><span class="btn">Discard</span><span class="btn txt">Back to editing</span></div></div>`;
+fall('phones').innerHTML=q1+q2+q3;
+</script>
