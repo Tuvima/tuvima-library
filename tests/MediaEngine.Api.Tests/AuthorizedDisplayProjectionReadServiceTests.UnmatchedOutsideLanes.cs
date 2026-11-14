@@ -665,7 +665,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             services =>
             {
                 services.AddSingleton<IDisplayProjectionReadService>(CreateService(context, RealReaders()));
-                foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Api.Services.Details.DetailExtrasService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
+                foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Api.Services.Details.DetailExtrasService), typeof(MediaEngine.Api.Services.Details.DetailYourCopyService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
                 {
                     services.AddSingleton(inferredOnly, _ => null!);
                 }
@@ -708,7 +708,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             services =>
             {
                 services.AddSingleton<IDisplayProjectionReadService>(CreateService(HumanContext(stranger, ProfileOf(stranger)), RealReaders()));
-                foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Api.Services.Details.DetailExtrasService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
+                foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Api.Services.Details.DetailExtrasService), typeof(MediaEngine.Api.Services.Details.DetailYourCopyService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
                 {
                     services.AddSingleton(inferredOnly, _ => null!);
                 }
