@@ -538,7 +538,6 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal(2, inPeriod.LibraryGroups);
         Assert.Equal(1, inPeriod.ReadyGroups);
         Assert.Equal(0, inPeriod.FinishingGroups);
-        Assert.Equal(0, inPeriod.ReviewGroups);
         Assert.Equal(1, outsidePeriod.LibraryGroups);
         Assert.Equal(0, outsidePeriod.ReadyGroups);
         Assert.Equal(0, outsidePeriod.FinishingGroups);
@@ -574,12 +573,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var movies = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Movies");
         var music = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Music");
         Assert.Equal(1, books.ReadyGroups);
-        Assert.Equal(0, books.ReviewGroups);
-        Assert.Equal(1, movies.ReviewGroups);
         Assert.Equal(1, movies.QueuedOperations);
         Assert.Equal(1, music.ActiveOperations);
         Assert.Equal(snapshot.ReadyGroups, snapshot.ByType.Sum(entry => entry.ReadyGroups));
-        Assert.Equal(snapshot.ReviewGroups, snapshot.ByType.Sum(entry => entry.ReviewGroups));
         Assert.Equal(snapshot.ActiveOperations, snapshot.ByType.Sum(entry => entry.ActiveOperations));
         Assert.Equal(snapshot.QueuedOperations, snapshot.ByType.Sum(entry => entry.QueuedOperations));
     }

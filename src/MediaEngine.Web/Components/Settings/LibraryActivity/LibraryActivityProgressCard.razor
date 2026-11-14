@@ -81,7 +81,8 @@ else
     private int? Percent => Queue is null ? null : IngestionQueueProgressText.Percent(Queue, MediaTypes);
 
     private int Ready => Scoped ? PresentationTypes.Sum(entry => entry.ReadyGroups) : Presentation?.ReadyGroups ?? 0;
-    private int ReviewCount => Scoped ? PresentationTypes.Sum(entry => entry.ReviewGroups) : Presentation?.ReviewGroups ?? 0;
+    // The one "need review" number (D28): the Engine counts it as the Needs Review list does, so it is the whole number even with chips picked.
+    private int ReviewCount => Presentation?.NeedReviewCount ?? 0;
     private int Processing => Scoped ? PresentationTypes.Sum(entry => entry.ActiveOperations) : Presentation?.ActiveOperations ?? 0;
     private int Queued => Scoped ? PresentationTypes.Sum(entry => entry.QueuedOperations) : Presentation?.QueuedOperations ?? 0;
 

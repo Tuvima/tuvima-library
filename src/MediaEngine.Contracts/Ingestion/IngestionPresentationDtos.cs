@@ -25,8 +25,13 @@ public sealed class IngestionPresentationSnapshotDto
     [JsonPropertyName("finishing_groups")]
     public int FinishingGroups { get; set; }
 
-    [JsonPropertyName("review_groups")]
-    public int ReviewGroups { get; set; }
+    /// <summary>
+    /// The one "need review" number (spec library-activity D28): everything waiting in Needs Review right now, counted exactly as the
+    /// Needs Review list counts it, for the caller who asked. The Activity card, the Needs Review tab and the administrator banner all
+    /// show it, and it is the whole number whichever library chips are picked.
+    /// </summary>
+    [JsonPropertyName("need_review_count")]
+    public int NeedReviewCount { get; set; }
 
     [JsonPropertyName("active_operations")]
     public int ActiveOperations { get; set; }
@@ -38,8 +43,8 @@ public sealed class IngestionPresentationSnapshotDto
     public int RetryWaitingOperations { get; set; }
 
     /// <summary>
-    /// The same ready, review, active and queued numbers split by media type, so a page filtered to some library areas can add up
-    /// only its own. Types with nothing to report are left out.
+    /// The same ready, active and queued numbers split by media type, so a page filtered to some library areas can add up
+    /// only its own. Types with nothing to report are left out. The need-review number is never split: it is whole.
     /// </summary>
     [JsonPropertyName("by_type")]
     public List<IngestionPresentationTypeDto> ByType { get; set; } = [];
@@ -72,7 +77,7 @@ public sealed class IngestionPresentationSnapshotDto
     public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-/// <summary>One media type's share of the live snapshot's ready, review, active and queued numbers.</summary>
+/// <summary>One media type's share of the live snapshot's ready, active and queued numbers.</summary>
 public sealed class IngestionPresentationTypeDto
 {
     /// <summary>The media type name (for example "Movies"), as in <see cref="IngestionQueueTypeTallyDto.MediaType"/>.</summary>
@@ -81,9 +86,6 @@ public sealed class IngestionPresentationTypeDto
 
     [JsonPropertyName("ready_groups")]
     public int ReadyGroups { get; set; }
-
-    [JsonPropertyName("review_groups")]
-    public int ReviewGroups { get; set; }
 
     [JsonPropertyName("active_operations")]
     public int ActiveOperations { get; set; }

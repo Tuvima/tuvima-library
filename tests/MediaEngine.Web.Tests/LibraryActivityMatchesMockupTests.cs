@@ -287,7 +287,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     {
         var cut = Render<LibraryActivityProgressCard>(parameters => parameters
             .Add(card => card.Queue, new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 4, Progress = 0.4, StartedAt = DateTimeOffset.UtcNow.AddMinutes(-8) })
-            .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, ReviewGroups = 20, ReadyGroups = 920 }));
+            .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 20, ReadyGroups = 920 }));
 
         Assert.Empty(cut.FindAll("[data-testid='activity-progress-started']"));
         Assert.NotNull(cut.Find(".lact-summary__ring"));
