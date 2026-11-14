@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using MediaEngine.Domain;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Services.EditSession;
@@ -16,16 +17,23 @@ internal static class EditorProviderMatchReader
     public readonly record struct Item(Guid WorkId, string WorkKind);
 
     /// <summary>The ids of the given items that are matched to a provider. <paramref name="rootWorkId"/> is the top of their tree (the show); a season or show borrows its id.</summary>
-    public static HashSet<Guid> Read(IDbConnection connection, string mediaType, Guid rootWorkId, IReadOnlyCollection<Item> items)
+    public static HashSet<Guid> Read(IDbConnection connection, string mediaType, Guid rootWorkId, IReadOnlyCollection<Item> items) =>
+        [.. ReadSources(connection, mediaType, rootWorkId, items).Where(pair => pair.Value.Source is not null).Select(pair => pair.Key)];
+
+    /// <summary>What an item is matched to: the provider source by the Match tab's rule, and the Wikidata id the item (or, for a show's child, its show) carries.</summary>
+    public readonly record struct MatchedTo(EditorMatchRule.ProviderSource? Source, string? WikidataQid);
+
+    /// <summary>Per item, the provider source it is matched to (null when none) and its Wikidata id: what the header's links are built from.</summary>
+    public static Dictionary<Guid, MatchedTo> ReadSources(IDbConnection connection, string mediaType, Guid rootWorkId, IReadOnlyCollection<Item> items)
     {
-        var matched = new HashSet<Guid>();
+        var matched = new Dictionary<Guid, MatchedTo>();
         var hexes = items.Select(item => item.WorkId.ToString("N")).Append(rootWorkId.ToString("N")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (items.Count == 0)
         {
             return matched;
         }
 
-        var keys = EditorMatchRule.ProviderMatchKeys;
+        var keys = EditorMatchRule.ProviderMatchKeys.Append(BridgeIdKeys.WikidataQid).ToArray();
         var workValues = ReadKeyValues(connection, hexes, keys);
         var firstFile = connection.Query<FirstFileRow>($"""
             SELECT DISTINCT e.work_id AS WorkId, {EditorFirstFileRule.FirstAssetIdOfWork("e.work_id")} AS AssetId
@@ -43,10 +51,8 @@ internal static class EditorProviderMatchReader
             var asset = !EditorMatchRule.IsContainer(item.WorkKind) && firstFile.TryGetValue(item.WorkId, out var assetId) ? assetValues.GetValueOrDefault(assetId) : null;
             var own = EditorMatchRule.OwnValues(work, asset, item.WorkKind);
             var isEpisode = string.Equals(item.WorkKind, "child", StringComparison.OrdinalIgnoreCase);
-            if (EditorMatchRule.FindProviderSource(mediaType, isTv, isEpisode, own, root) is not null)
-            {
-                matched.Add(item.WorkId);
-            }
+            var qid = EditorMatchRule.Value(own, BridgeIdKeys.WikidataQid) ?? EditorMatchRule.Value(root, BridgeIdKeys.WikidataQid);
+            matched[item.WorkId] = new MatchedTo(EditorMatchRule.FindProviderSource(mediaType, isTv, isEpisode, own, root), qid);
         }
 
         return matched;

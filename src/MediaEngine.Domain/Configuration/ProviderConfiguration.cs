@@ -169,6 +169,21 @@ public sealed class ProviderConfiguration
     [JsonPropertyName("display_name")]
     public string? DisplayName { get; set; }
 
+    /// <summary>
+    /// The name of the source's product as a person knows it ("Apple Books", "TMDB"), shown by the editor on links, in the Match tab and in History.
+    /// Absent means <see cref="DisplayName"/> is already that name. Never the config key (<c>apple_api</c>).
+    /// </summary>
+    [JsonPropertyName("product_name")]
+    public string? ProductName { get; set; }
+
+    /// <summary>The product name for an editor kind (<c>album</c>, <c>song</c>) when it differs from <see cref="ProductName"/> (Apple Music for an album).</summary>
+    [JsonPropertyName("product_name_by_kind")]
+    public Dictionary<string, string>? ProductNameByKind { get; set; }
+
+    /// <summary>Other keys the Engine files this source's identifiers under (<c>apple_books</c> for <c>apple_api</c>), so each resolves to the same product name.</summary>
+    [JsonPropertyName("product_aliases")]
+    public List<string>? ProductAliases { get; set; }
+
     /// <summary>HTTP client configuration for config-driven adapters.</summary>
     [JsonPropertyName("http_client")]
     public HttpClientConfig? HttpClient { get; set; }

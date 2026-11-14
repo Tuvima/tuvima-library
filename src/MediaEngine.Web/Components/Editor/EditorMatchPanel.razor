@@ -629,6 +629,12 @@
         }
         else
         {
+            if (IsPhone && !IsMatched)
+            {
+                @* On a phone the header carries no match words (v7 D14), so an item with no match says so here. *@
+                <p class="tl-match__notmatched" data-testid="match-not-matched">@L["EditorHeader_NotMatched"]</p>
+            }
+
             @SearchSection()
         }
     };
@@ -642,7 +648,7 @@
             <Basis><span data-testid="match-why-note">@L["EditorMatchPanel_ChangingKeepsLocked"]</span></Basis>
             <Foot>
                 <div class="@(IsPhone ? "tl-matchcard__actions tl-matchcard__actions--phone" : "tl-matchcard__actions")">
-                    @if (!string.IsNullOrWhiteSpace(record.SourceUrl))
+                    @if (!IsPhone && !string.IsNullOrWhiteSpace(record.SourceUrl))
                     {
                         <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@record.SourceUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-testid="match-open-source" />
                     }
@@ -651,8 +657,38 @@
                     <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
                                Disabled="@(!canChange)" OnClick="StartChange" data-testid="match-change" />
                 </div>
+                @if (IsPhone)
+                {
+                    @* On a phone the header carries no links (v7 D14): the card ends with the item's pages at the source and at Wikidata, each only when it has one. *@
+                    @SourceLinks(current)
+                }
             </Foot>
         </EditorMatchCard>
+    };
+
+    // The links to the item's pages at its source and at Wikidata (v7 D14): the phone's stand-in for the header's top right. A source with no page shows nothing.
+    private RenderFragment SourceLinks(EditorCurrentMatchDto current) => __builder =>
+    {
+        var sourceUrl = current.Record?.SourceUrl;
+        var hasSource = !string.IsNullOrWhiteSpace(sourceUrl);
+        var hasWikidata = !string.IsNullOrWhiteSpace(current.WikidataUrl);
+        if (!hasSource && !hasWikidata)
+        {
+            return;
+        }
+
+        <div class="tl-match__sourcelinks" data-testid="match-source-links">
+            @if (hasSource)
+            {
+                <AppButton Label="@current.Record!.ProviderName" Href="@sourceUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral" Size="AppControlSize.Normal" data-testid="match-source-link" />
+            }
+            @if (hasWikidata)
+            {
+                <AppButton Label="@L["EditorMatchPanel_Wikidata"].Value" Href="@current.WikidataUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral" Size="AppControlSize.Normal" data-testid="match-wikidata-link" />
+            }
+        </div>
     };
 
     // The provider dropdown by itself (label above): the TV and music flows put it first in their own row, which is the same shared row.

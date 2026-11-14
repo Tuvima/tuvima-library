@@ -28,7 +28,8 @@ public sealed class EditorCurrentMatchService(
     IMemoryCache previews,
     EditorMatchVerdictCalculator calculator,
     ItemQuickFactsService quickFacts,
-    ILogger<EditorCurrentMatchService> logger)
+    ILogger<EditorCurrentMatchService> logger,
+    EditorProviderNames? providerNames = null)
 {
     private const string TvdbProvider = EditorMatchRule.TvdbProvider;
 
@@ -135,6 +136,7 @@ public sealed class EditorCurrentMatchService(
         var imageUrl = MetadataEndpoints.CreateTvdbPreviewUrl(previews, entityId, launch.WorkId, facts.ImageUrl)
             ?? (IsTvdbAddress(facts.ImageUrl) ? null : facts.ImageUrl);
         var why = BuildWhy(isTv, parsed, titleSide, yearSide, facts, scores, measured, recordMinutes);
+        var productName = providerNames?.ProductName(source.ProviderId, source.Kind.ToLowerInvariant()) ?? source.ProviderName;
         var checks = why.Select(Check).ToList();
         return new EditorCurrentMatchDto
         {
@@ -143,7 +145,7 @@ public sealed class EditorCurrentMatchService(
             Record = new EditorMatchedRecordDto
             {
                 ProviderId = source.ProviderId,
-                ProviderName = source.ProviderName,
+                ProviderName = productName,
                 ProviderItemId = source.ItemId,
                 Kind = source.Kind,
                 Title = facts.Title ?? stored.Title ?? string.Empty,

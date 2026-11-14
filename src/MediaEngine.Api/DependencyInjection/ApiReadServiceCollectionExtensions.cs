@@ -110,6 +110,7 @@ public static class ApiReadServiceCollectionExtensions
         // The universal editor's v5 header, current match, document details and folder tree, and the numbers they read (config/editor.json).
         services.AddSingleton<EditorConfigurationProvider>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(sp => sp.GetRequiredService<EditorConfigurationProvider>());
+        services.AddSingleton(sp => new EditorProviderNames(sp.GetRequiredService<MediaEngine.Domain.Contracts.IConfigurationLoader>()));
         services.AddScoped<EditorHeaderReadService>();
         services.AddScoped<IEditorFamilySource>(sp => sp.GetRequiredService<EditorHeaderReadService>());
         services.AddScoped<EditorCurrentMatchService>();

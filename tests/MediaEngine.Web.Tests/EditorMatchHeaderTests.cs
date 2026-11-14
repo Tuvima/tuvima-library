@@ -13,9 +13,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The editor's header on the Match tab (universal editor v6 D2): one line with a small cover, "Match book", a state dot and words, and the same
-/// navigation at the right. The state is the Engine's read of the match as soon as the Match tab has it, else the page's answer. On every other
-/// tab the full header is unchanged. The Engine is a hand-written stub.
+/// The editor's header and the match (universal editor v7 D1 to D3): the header is the same on every tab, the Match tab included; there is no
+/// "Matched" tag and no state dot; at the top right the Engine's match links show as plain outlined buttons (a name and one small arrow), or the
+/// plain words "Not matched" when the item has no match. The Engine is a hand-written stub.
 /// </summary>
 public sealed class EditorMatchHeaderTests : AsyncBunitContext
 {
@@ -23,6 +23,7 @@ public sealed class EditorMatchHeaderTests : AsyncBunitContext
     private static readonly Guid BookId = Guid.Parse("6e000000-0000-0000-0000-0000000000b1");
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
+    private IReadOnlyList<EditorMatchLinkDto> _links = [];
 
     public EditorMatchHeaderTests()
     {
@@ -50,101 +51,128 @@ public sealed class EditorMatchHeaderTests : AsyncBunitContext
         return (flow, fields);
     }
 
-    private IRenderedComponent<EditorItemHeader> RenderHeader(EditSessionFlow flow, ItemFieldEditSession fields, bool compact, bool unmatched, EditorMatchReadState? read = null) =>
+    private IRenderedComponent<EditorItemHeader> RenderHeader(EditSessionFlow flow, ItemFieldEditSession fields, bool unmatched, EditorMatchReadState? read = null) =>
         Render<EditorItemHeader>(parameters => parameters
             .Add(header => header.Flow, flow)
             .Add(header => header.Fields, fields)
             .Add(header => header.Family, new EditorFamilyState(Services.GetRequiredService<IEngineApiClient>(), NullLogger.Instance))
-            .Add(header => header.Compact, compact)
             .Add(header => header.Unmatched, unmatched)
             .Add(header => header.MatchRead, read));
 
     [Fact]
-    public async Task OnTheMatchTab_TheHeaderIsOneLine_WithAMatchKindTitle_AStateDot_AndTheSameNavigation()
+    public async Task TheHeader_IsTheFullHeaderOnEveryTab_WithNoOneLineMatchForm()
     {
         var (flow, fields) = await StartAsync();
 
-        var cut = RenderHeader(flow, fields, compact: true, unmatched: true);
+        var cut = RenderHeader(flow, fields, unmatched: true, read: new EditorMatchReadState(BookId, false, null));
 
-        Assert.Equal("Match book", cut.Find("[data-testid=match-header-heading]").TextContent.Trim());
-        // The window is named by this heading, so it keeps the item's name for a screen reader (hidden to the eye).
-        Assert.Equal("Match book: Dune", cut.Find("[data-testid=match-header-title]").TextContent.Trim());
-        Assert.Contains("sr-only", cut.Find("[data-testid=match-header-item]").ClassList);
-        Assert.Equal("tl-editor-panel-title", cut.Find("[data-testid=match-header-title]").Id);
-        var state = cut.Find("[data-testid=match-header-state]");
-        Assert.Equal("Unmatched", state.TextContent.Trim());
-        Assert.Equal("unmatched", state.GetAttribute("data-state"));
-        Assert.Empty(state.QuerySelectorAll(".tl-editor-header__dot--ok"));
-        Assert.NotNull(state.QuerySelector(".tl-editor-header__dot"));
-        // One line: no label above the title, no facts line, no big cover, but the home button and the item dropdown are there.
-        Assert.Empty(cut.FindAll(".tl-editor-header__label, .tl-editor-header__facts, .tl-editor-header__cover"));
-        Assert.NotNull(cut.Find(".tl-editor-header__minicover"));
-        Assert.NotNull(cut.Find(".tl-hnav--compact"));
+        Assert.Empty(cut.FindAll("[data-testid=match-header], .tl-editor-header--compact, .tl-hnav--compact, .tl-editor-header__minicover"));
+        Assert.NotNull(cut.Find(".tl-editor-header__label"));
+        Assert.NotNull(cut.Find(".tl-editor-header__cover"));
+        Assert.Equal("Dune", cut.Find(".tl-editor-header__title").TextContent.Trim());
         Assert.NotEmpty(cut.FindAll(".tl-hnav__home"));
         Assert.NotEmpty(cut.FindAll("#tl-hnav-item"));
     }
 
     [Fact]
-    public async Task OnEveryOtherTab_TheFullHeaderIsUnchanged()
+    public async Task AMatchedItem_ShowsNoMatchedTagAndNoStateDot()
     {
+        _links = [Link(EditorMatchLinkSources.Provider, "TMDB", "https://www.themoviedb.org/movie/1")];
         var (flow, fields) = await StartAsync();
 
-        var cut = RenderHeader(flow, fields, compact: false, unmatched: true);
+        var cut = RenderHeader(flow, fields, unmatched: false, read: new EditorMatchReadState(BookId, true, "TMDB"));
 
-        Assert.Empty(cut.FindAll("[data-testid=match-header]"));
-        Assert.NotNull(cut.Find(".tl-editor-header__label"));
-        Assert.NotNull(cut.Find(".tl-editor-header__cover"));
-        Assert.Equal("Dune", cut.Find(".tl-editor-header__title").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".tl-hnav--compact"));
+        Assert.Empty(cut.FindAll(".tl-editor-header__chips, .tl-editor-header__state, .tl-editor-header__dot, .tl-editor-header__dot--ok"));
+        Assert.DoesNotContain("Matched", cut.Find(".tl-editor-header").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task TheEnginesReadOfAMatchedItem_SaysMatchedToTheProvider_WithAGreenDot_WhateverThePageFlagSays()
+    public async Task AMatchedItem_ShowsTheEnginesLinksAsPlainOutlinedButtons_WithTheProductNameAndOneArrow()
     {
+        _links =
+        [
+            Link(EditorMatchLinkSources.Provider, "TMDB", "https://www.themoviedb.org/movie/603"),
+            Link(EditorMatchLinkSources.Wikidata, "Wikidata", "https://www.wikidata.org/wiki/Q83495"),
+        ];
         var (flow, fields) = await StartAsync();
 
-        var cut = RenderHeader(flow, fields, compact: true, unmatched: true, new EditorMatchReadState(BookId, true, "Apple Books"));
+        var cut = RenderHeader(flow, fields, unmatched: false, read: new EditorMatchReadState(BookId, true, "TMDB"));
 
-        var state = cut.Find("[data-testid=match-header-state]");
-        Assert.Equal("Matched to Apple Books", state.TextContent.Trim());
-        Assert.Equal("matched", state.GetAttribute("data-state"));
-        Assert.NotNull(state.QuerySelector(".tl-editor-header__dot--ok"));
+        var links = cut.FindAll("[data-testid=header-match-links] a");
+        Assert.Equal(["TMDB", "Wikidata"], links.Select(link => link.TextContent.Trim()).ToArray());
+        Assert.Equal(["https://www.themoviedb.org/movie/603", "https://www.wikidata.org/wiki/Q83495"], links.Select(link => link.GetAttribute("href") ?? string.Empty).ToArray());
+        Assert.All(links, link =>
+        {
+            Assert.Equal("_blank", link.GetAttribute("target"));
+            Assert.Contains("app-button--outlined", link.ClassList);
+            Assert.Contains("tl-editor-header__link", link.ClassList);
+            // One small outward arrow, no letter badge or logo.
+            Assert.Single(link.QuerySelectorAll("svg"));
+            Assert.Empty(link.QuerySelectorAll(".app-provider-logo, .tl-editor-header__link-logo"));
+        });
+        Assert.Empty(cut.FindAll("[data-testid=header-not-matched]"));
+    }
+
+    [Fact]
+    public async Task AMatchedItem_WhoseSourceHasNoPage_ShowsNoLinkForThatSource_AndNoWords()
+    {
+        _links = [Link(EditorMatchLinkSources.Wikidata, "Wikidata", "https://www.wikidata.org/wiki/Q1")];
+        var (flow, fields) = await StartAsync();
+
+        var cut = RenderHeader(flow, fields, unmatched: false, read: new EditorMatchReadState(BookId, true, "ISBN"));
+
+        Assert.Equal(["Wikidata"], cut.FindAll("[data-testid=header-match-links] a").Select(link => link.TextContent.Trim()).ToArray());
+        Assert.Empty(cut.FindAll("[data-testid=header-not-matched]"));
+    }
+
+    [Fact]
+    public async Task AMatchedItem_WithNoPageAtAnySource_ShowsNothingAtTheTopRight()
+    {
+        _links = [];
+        var (flow, fields) = await StartAsync();
+
+        var cut = RenderHeader(flow, fields, unmatched: false, read: new EditorMatchReadState(BookId, true, "ISBN"));
+
+        Assert.Empty(cut.FindAll(".tl-editor-header__links, [data-testid=header-not-matched]"));
+    }
+
+    [Fact]
+    public async Task AnItemWithNoMatch_ShowsThePlainWordsNotMatched_AndNoLinks()
+    {
+        _links = [Link(EditorMatchLinkSources.Wikidata, "Wikidata", "https://www.wikidata.org/wiki/Q1")];
+        var (flow, fields) = await StartAsync();
+
+        var cut = RenderHeader(flow, fields, unmatched: true);
+
+        Assert.Equal("Not matched", cut.Find("[data-testid=header-not-matched]").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-testid=header-match-links], .tl-editor-header__links a, .tl-editor-header__links button"));
     }
 
     [Fact]
     public async Task TheEnginesReadOfAnUnmatchedItem_WinsOverAPageFlagThatSaysMatched()
     {
+        _links = [Link(EditorMatchLinkSources.Provider, "TMDB", "https://www.themoviedb.org/movie/603")];
         var (flow, fields) = await StartAsync();
 
-        var cut = RenderHeader(flow, fields, compact: true, unmatched: false, new EditorMatchReadState(BookId, false, null));
+        var cut = RenderHeader(flow, fields, unmatched: false, read: new EditorMatchReadState(BookId, false, null));
 
-        Assert.Equal("Unmatched", cut.Find("[data-testid=match-header-state]").TextContent.Trim());
+        Assert.Equal("Not matched", cut.Find("[data-testid=header-not-matched]").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-testid=header-match-links]"));
     }
 
     [Fact]
     public async Task AReadAboutAnotherItem_IsIgnored_SoThePageFlagDecidesUntilTheTabHasReadThisOne()
     {
+        _links = [Link(EditorMatchLinkSources.Provider, "TMDB", "https://www.themoviedb.org/movie/603")];
         var (flow, fields) = await StartAsync();
 
-        var cut = RenderHeader(flow, fields, compact: true, unmatched: false, new EditorMatchReadState(SeriesId, false, null));
+        var cut = RenderHeader(flow, fields, unmatched: false, read: new EditorMatchReadState(SeriesId, false, null));
 
-        Assert.Equal("Matched", cut.Find("[data-testid=match-header-state]").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll("[data-testid=header-match-links] a"));
+        Assert.Empty(cut.FindAll("[data-testid=header-not-matched]"));
     }
 
-    [Fact]
-    public async Task OnEveryOtherTab_TheFullHeadersBadgeFollowsTheEnginesRead_NotThePageFlag()
-    {
-        var (flow, fields) = await StartAsync();
-
-        var matched = RenderHeader(flow, fields, compact: false, unmatched: true, new EditorMatchReadState(BookId, true, "TMDB"));
-        var unmatched = RenderHeader(flow, fields, compact: false, unmatched: false, new EditorMatchReadState(BookId, false, null));
-        var noRead = RenderHeader(flow, fields, compact: false, unmatched: true);
-
-        Assert.Contains("matched", matched.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("not matched", matched.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("not matched", unmatched.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("not matched", noRead.Find(".tl-editor-header__chips").TextContent, StringComparison.OrdinalIgnoreCase);
-    }
+    private static EditorMatchLinkDto Link(string source, string name, string url) => new() { Source = source, Name = name, Url = url };
 
     private static EditorHeaderLevelDto Level() => new()
     {
@@ -155,7 +183,7 @@ public sealed class EditorMatchHeaderTests : AsyncBunitContext
         SupportingFiles = new EditorHeaderSupportingFilesDto(),
     };
 
-    private static EditorHeaderDto Header() => new()
+    private EditorHeaderDto Header() => new()
     {
         Kind = EditorKindNames.Book,
         Root = new EditorHeaderRootDto { Id = SeriesId, Title = "Dune Novels", MediaType = "Books" },
@@ -165,10 +193,11 @@ public sealed class EditorMatchHeaderTests : AsyncBunitContext
         HomeId = SeriesId,
         ShowItemDropdown = true,
         Level = Level(),
+        MatchLinks = _links,
         Config = EditorHeaderTestData.Config(EditorKindNames.Book, "details", "artwork", "match", "history"),
     };
 
-    private static MediaEditorContextDto Context() => new()
+    private MediaEditorContextDto Context() => new()
     {
         LaunchEntityId = BookId,
         MediaType = "Books",
