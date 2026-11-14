@@ -4616,6 +4616,7 @@
   Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Creator: System.String | json=creator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Cast: System.Collections.Generic.IReadOnlyList<System.String> | json=cast | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LengthText: System.String | json=length_text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ImageUrl: System.String | json=image_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ImageShape: System.String | json=image_shape | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
@@ -4630,7 +4631,7 @@
   Editions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchResultDto> | json=editions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Edition: MediaEngine.Contracts.Editing.EditorMatchEditionDto | json=edition | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   IsSuggested: System.Boolean | json=is_suggested | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"candidate":null,"provider_name":"sample","title":"sample","year":"sample","creator":"sample","length_text":"sample","image_url":"sample","image_shape":"sample","description":"sample","source_url":"sample","kind_text":"sample","is_collection":true,"series_name":"sample","series_number":"sample","verdict":"sample","reasons":[],"editions":[],"is_suggested":true}
+  sample={"candidate":null,"provider_name":"sample","title":"sample","year":"sample","creator":"sample","cast":[],"length_text":"sample","image_url":"sample","image_shape":"sample","description":"sample","source_url":"sample","kind_text":"sample","is_collection":true,"series_name":"sample","series_number":"sample","verdict":"sample","reasons":[],"editions":[],"is_suggested":true}
 
 [contracts] MediaEngine.Contracts.Editing.EditorMatchSearchRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4676,11 +4677,13 @@
   Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Creator: System.String | json=creator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  LengthText: System.String | json=length_text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Cast: System.Collections.Generic.IReadOnlyList<System.String> | json=cast | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ImageUrl: System.String | json=image_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   SourceUrl: System.String | json=source_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Source: System.String | json=source | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"provider_id":"sample","provider_name":"sample","provider_item_id":"sample","kind":"sample","title":"sample","year":"sample","creator":"sample","image_url":"sample","description":"sample","source_url":"sample","source":"sample"}
+  sample={"provider_id":"sample","provider_name":"sample","provider_item_id":"sample","kind":"sample","title":"sample","year":"sample","creator":"sample","length_text":"sample","cast":[],"image_url":"sample","description":"sample","source_url":"sample","source":"sample"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorMusicDiscDto
   kind=class | converter=default | number-handling=default | unmapped=default

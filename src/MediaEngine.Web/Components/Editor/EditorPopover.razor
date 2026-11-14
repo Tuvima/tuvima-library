@@ -78,7 +78,7 @@
                 else if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
                 {
                     @* Ticked rows are edited together: the panel needs the rows, not the fields of any one item, so a failed read of the first row never blocks it. *@
-                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" OnChooseRows="ChooseRowsAgain" />
+                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" ApplyArtwork="Editor.ApplyBulkArtworkAsync" CanEdit="@mode.CanEdit" OnChooseRows="ChooseRowsAgain" />
                 }
                 else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
                 {

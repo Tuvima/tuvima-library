@@ -57,7 +57,8 @@ public sealed class AssetExportService : IAssetExportService
         string entityId,
         string entityType,
         string assetType,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool replaceExistingFile = false)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -89,7 +90,8 @@ public sealed class AssetExportService : IAssetExportService
             return;
         }
 
-        if (File.Exists(exportPath)
+        if (!replaceExistingFile
+            && File.Exists(exportPath)
             && !assets.Any(asset => asset.IsLocallyExported || asset.IsPreferredExported))
         {
             _logger.LogInformation(

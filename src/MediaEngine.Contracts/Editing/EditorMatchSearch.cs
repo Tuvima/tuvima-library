@@ -272,6 +272,10 @@ public sealed class EditorMatchResultDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Creator { get; init; }
 
+    /// <summary>The record's lead cast, in the provider's billing order (at most <see cref="EditorMatchCast.Limit"/> names); empty when the provider gave none.</summary>
+    [JsonPropertyName("cast")]
+    public IReadOnlyList<string> Cast { get; init; } = [];
+
     /// <summary>The record's length as shown ("108 min", "4:14"); null when the provider gave none.</summary>
     [JsonPropertyName("length_text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

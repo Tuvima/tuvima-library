@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Services;
@@ -44,14 +45,20 @@ internal sealed class ProviderSourceLinkResolver(
                     continue;
                 }
 
+                // People read the product ("Apple Books"), not the Engine's connection name ("Apple API").
+                var sourceName = EditorProviderNames.Resolve(
+                    [provider],
+                    provider.Name,
+                    string.Equals(mediaType, "Music", StringComparison.OrdinalIgnoreCase) ? "album" : null)
+                    ?? provider.DisplayName ?? provider.Name;
                 links.Add(new ExternalSourceLinkViewModel
                 {
                     Key = identifierKey,
                     Label = string.IsNullOrWhiteSpace(linkConfig.Label)
-                        ? $"View on {provider.DisplayName ?? provider.Name}"
+                        ? $"View on {sourceName}"
                         : linkConfig.Label,
                     Url = url,
-                    SourceName = provider.DisplayName ?? provider.Name,
+                    SourceName = sourceName,
                     Tooltip = linkConfig.Tooltip,
                 });
             }

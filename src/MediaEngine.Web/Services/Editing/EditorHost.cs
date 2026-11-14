@@ -778,6 +778,26 @@ public sealed class EditorHost : IDisposable
 
     // A picture chosen in the Artwork tool goes through the same edit session as Save changes (the same check, permission and write-back), at
     // once and on its own list: nothing from the tool is staged for Review.
+    /// <summary>
+    /// "One cover for these songs" (universal editor v7 D9): the album's cover changes at once, like a picture chosen in the Artwork tool.
+    /// The page behind the window refreshes when the window closes.
+    /// </summary>
+    public async Task<EditSessionSaveOutcome> ApplyBulkArtworkAsync(IReadOnlyList<ArtworkChoice> choices)
+    {
+        var outcome = await ApplyArtworkAsync(choices);
+        if (outcome.Saved)
+        {
+            _changedWhileOpen = true;
+            _artworkAppliedWhileOpen = true;
+            foreach (var choice in choices)
+            {
+                _touched.Add(choice.EntityId);
+            }
+        }
+
+        return outcome;
+    }
+
     private Task<EditSessionSaveOutcome> ApplyArtworkAsync(IReadOnlyList<ArtworkChoice> choices)
     {
         // Gated like every other edit handler, not only the launcher: a device or profile that may not edit changes nothing.

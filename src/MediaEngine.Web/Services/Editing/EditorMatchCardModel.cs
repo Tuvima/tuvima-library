@@ -37,7 +37,8 @@ public sealed record EditorMatchCardModel(
     string? Verdict,
     IReadOnlyList<EditorMatchCardRow> Rows,
     string BasisNote,
-    IReadOnlyList<string> Notes);
+    IReadOnlyList<string> Notes,
+    string? CastLine = null);
 
 /// <summary>Builds the card's model from the Engine's search result or its read of the current match, and words the small pieces the list rows share.</summary>
 public static class EditorMatchCardModels
@@ -55,7 +56,7 @@ public static class EditorMatchCardModels
         return new EditorMatchCardModel(
             shown.Title,
             SeriesLine(shown.SeriesName ?? work.SeriesName, shown.SeriesNumber ?? work.SeriesNumber, kind, " · ", l),
-            Join(shown.Creator, shown.Year),
+            Join(shown.Creator, shown.Year, shown.LengthText ?? work.LengthText),
             shown.ImageUrl ?? work.ImageUrl,
             ArtFor(shown.KindText ?? work.KindText, kind, shown.ImageShape ?? work.ImageShape),
             shown.ProviderName,
@@ -64,7 +65,8 @@ public static class EditorMatchCardModels
             shown.Verdict,
             rows,
             BasisNote(rows, kind, l),
-            []);
+            [],
+            CastText(shown.Cast.Count > 0 ? shown.Cast : work.Cast));
     }
 
     /// <summary>
@@ -93,7 +95,7 @@ public static class EditorMatchCardModels
         return new EditorMatchCardModel(
             record.Title,
             null,
-            Join(record.Creator, record.Year),
+            Join(record.Creator, record.Year, record.LengthText),
             record.ImageUrl,
             ArtFor(record.Kind, kind),
             string.Empty,
@@ -102,7 +104,8 @@ public static class EditorMatchCardModels
             null,
             [],
             string.Empty,
-            []);
+            [],
+            CastText(record.Cast));
     }
 
     /// <summary>"Percy Jackson and the Olympians · Book 2" (a list row joins the same two parts with a comma); null when the provider gave no series.</summary>
@@ -126,6 +129,9 @@ public static class EditorMatchCardModels
         };
         return name + separator + position;
     }
+
+    /// <summary>"Lead One, Lead Two, Lead Three, Lead Four": the lead cast on one line; null when the record has none.</summary>
+    public static string? CastText(IReadOnlyList<string> cast) => cast.Count == 0 ? null : string.Join(", ", cast);
 
     /// <summary>"Rick Riordan · 2009": the creator, then the year; either may be missing.</summary>
     public static string? Join(params string?[] parts)

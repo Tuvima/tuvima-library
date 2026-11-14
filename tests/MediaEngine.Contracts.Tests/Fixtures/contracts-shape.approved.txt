@@ -3790,6 +3790,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchCandidate
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchCandidates+Extra
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchCast
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchContextDto
   EntityId: System.Guid | nullability=not-null | accessors=get,set
   MediaType: System.String | nullability=not-null | accessors=get,set
@@ -3895,6 +3897,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchResultDto
   Title: System.String | nullability=not-null | accessors=get,init
   Year: System.String | nullability=nullable | accessors=get,init
   Creator: System.String | nullability=nullable | accessors=get,init
+  Cast: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   LengthText: System.String | nullability=nullable | accessors=get,init
   ImageUrl: System.String | nullability=nullable | accessors=get,init
   ImageShape: System.String | nullability=nullable | accessors=get,init
@@ -3947,6 +3950,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchedRecordD
   Title: System.String | nullability=not-null | accessors=get,init
   Year: System.String | nullability=nullable | accessors=get,init
   Creator: System.String | nullability=nullable | accessors=get,init
+  LengthText: System.String | nullability=nullable | accessors=get,init
+  Cast: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   ImageUrl: System.String | nullability=nullable | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init
   SourceUrl: System.String | nullability=nullable | accessors=get,init
