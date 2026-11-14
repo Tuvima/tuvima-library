@@ -40,21 +40,6 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     /// <summary>Raised after a save that reached the library, so the page can refresh before the editor closes.</summary>
     public Func<Task>? Saved { get; set; }
 
-    /// <summary>What the last successful save wrote, for the confirmation ribbon (universal editor v2, D7); null until a save, and cleared when the ribbon is dismissed or editing starts again.</summary>
-    public EditSaveSummary? LastSave { get; private set; }
-
-    /// <summary>Takes the confirmation away (the person dismissed it, or the time ran out).</summary>
-    public void ClearLastSave()
-    {
-        if (LastSave is null)
-        {
-            return;
-        }
-
-        LastSave = null;
-        Changed?.Invoke();
-    }
-
     public bool Saving { get; private set; }
 
     /// <summary>True while another item's fields are being loaded after the person switched to it (the bar and panel show a busy state).</summary>
@@ -117,7 +102,6 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             if (!_session.IsActive)
             {
-                LastSave = null;
                 _session.Begin(_trail());
             }
         }
@@ -305,13 +289,6 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             return false;
         }
 
-        // Counted before the applied changes leave the list: the ribbon says how many this save wrote.
-        var savedCount = _session.Pending.ChangeCount;
-        var savedItems = _session.Pending.Changes.Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
-        // Only a saved match starts the Engine's finishing work, so only those items have named steps to watch.
-        var matchedItems = _session.Pending.Changes
-            .Where(change => change.Kind is EditSessionChangeKinds.Identity or EditSessionChangeKinds.SiblingMatch or EditSessionChangeKinds.ChildRematch)
-            .Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
         if (Saved is { } refresh)
         {
             await refresh();
@@ -332,7 +309,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         _session.End();
         WriteIntoFiles = null;
         _mode.Leave();
-        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now, savedItems, matchedItems);
+        // No saved box (v7 D12): the window closes and the item shows the app's normal Updating state while the Engine finishes.
         Changed?.Invoke();
         return true;
     }
@@ -545,9 +522,3 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         Changed?.Invoke();
     }
 }
-
-/// <summary>
-/// What a save wrote: how many changes and when, shown in the confirmation ribbon after the window closes, and which items they were on so
-/// the ribbon can say when the Engine's follow-up work for them arrives.
-/// </summary>
-public sealed record EditSaveSummary(int Count, DateTimeOffset At, IReadOnlyList<Guid>? ItemIds = null, IReadOnlyList<Guid>? MatchedItemIds = null);

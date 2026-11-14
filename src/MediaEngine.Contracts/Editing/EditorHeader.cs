@@ -97,9 +97,42 @@ public sealed class EditorHeaderDto
     [JsonPropertyName("provider_matched")]
     public bool ProviderMatched { get; init; }
 
+    /// <summary>
+    /// The links the header shows at its top right (universal editor v7 D2, D3): the item's page at the provider it is matched to and its page at
+    /// Wikidata, each only when that source has a page. Empty when the item is not matched, or matched to a source with no page. Product names only.
+    /// </summary>
+    [JsonPropertyName("match_links")]
+    public IReadOnlyList<EditorMatchLinkDto> MatchLinks { get; init; } = [];
+
     /// <summary>The thresholds and the rules of this kind of item from <c>config/editor.json</c>.</summary>
     [JsonPropertyName("config")]
     public EditorHeaderConfigDto Config { get; init; } = new();
+}
+
+/// <summary>One outward link of the header: a source's product name and the address of the item's page there.</summary>
+public sealed class EditorMatchLinkDto
+{
+    /// <summary>Which source: see <see cref="EditorMatchLinkSources"/>.</summary>
+    [JsonPropertyName("source")]
+    public string Source { get; init; } = EditorMatchLinkSources.Provider;
+
+    /// <summary>The source's product name ("TMDB", "TheTVDB", "Apple Books", "Wikidata"), never its internal key.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>The address of the item's page at the source.</summary>
+    [JsonPropertyName("url")]
+    public string Url { get; init; } = string.Empty;
+}
+
+/// <summary>The sources a header link can point at.</summary>
+public static class EditorMatchLinkSources
+{
+    /// <summary>The retail or catalogue provider the item is matched to.</summary>
+    public const string Provider = "provider";
+
+    /// <summary>Wikidata.</summary>
+    public const string Wikidata = "wikidata";
 }
 
 /// <summary>The root of the family and its cover.</summary>

@@ -1148,13 +1148,7 @@
   <data name="Common_Dismiss" xml:space="preserve">
     <value>Dismiss</value>
   </data>
-  <data name="EditSavedRibbon_SeeWhatChanged" xml:space="preserve">
-    <value>See what changed</value>
-  </data>
-  <data name="EditSavedRibbon_FinishingWork" xml:space="preserve">
-    <value>Finishing work</value>
-  </data>
-  <data name="EditSavedRibbon_DismissTheSavedMessage" xml:space="preserve">
+  <data name="ViewSavedRibbon_DismissTheSavedMessage" xml:space="preserve">
     <value>Dismiss the saved message</value>
   </data>
   <data name="Common_Saved" xml:space="preserve">
@@ -8681,12 +8675,6 @@
   <data name="EditorPopover_EditingItem" xml:space="preserve">
     <value>Editing: {0}</value>
   </data>
-  <data name="EditorFamily_NotMatched" xml:space="preserve">
-    <value>not matched</value>
-  </data>
-  <data name="EditorFamily_Matched" xml:space="preserve">
-    <value>Matched</value>
-  </data>
   <data name="ToolsSummaryLine_Downloading" xml:space="preserve">
     <value>{0} downloading</value>
   </data>
@@ -9379,6 +9367,12 @@
   </data>
   <data name="EditorHeader_OpenAt" xml:space="preserve">
     <value>Open at {0}</value>
+  </data>
+  <data name="EditorFamily_Matched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
+  <data name="EditorHeader_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
   </data>
   <data name="EditorHeader_Close" xml:space="preserve">
     <value>Close the editor</value>
@@ -11369,9 +11363,6 @@
   <data name="EditorMatchPanel_Match" xml:space="preserve">
     <value>Match</value>
   </data>
-  <data name="EditorMatchPanel_MatchKind" xml:space="preserve">
-    <value>Match {0}</value>
-  </data>
   <data name="EditorMatchPanel_NeedsKeySentence" xml:space="preserve">
     <value>{0} needs a key before it can be searched. Add it in Settings, or choose another provider.</value>
   </data>
@@ -11383,15 +11374,6 @@
   </data>
   <data name="EditorMatchPanel_OptionalLabel" xml:space="preserve">
     <value>{0} (optional)</value>
-  </data>
-  <data name="EditorMatchPanel_StateUnmatched" xml:space="preserve">
-    <value>Unmatched</value>
-  </data>
-  <data name="EditorMatchPanel_StateMatchedTo" xml:space="preserve">
-    <value>Matched to {0}</value>
-  </data>
-  <data name="EditorMatchPanel_StateMatched" xml:space="preserve">
-    <value>Matched</value>
   </data>
   <data name="EditorMatchPanel_NothingFoundWithIsbn" xml:space="preserve">
     <value>Nothing found for that. Try fewer words or the ISBN.</value>

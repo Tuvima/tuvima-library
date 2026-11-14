@@ -102,3 +102,17 @@
 .tl-match--phone {
     padding: 0;
 }
+
+/* On a phone the header carries no match links (v7 D14): the card ends with them, side by side, and an item with no match says so above the search. */
+.tl-match__sourcelinks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-3);
+    padding-top: var(--tl-space-3);
+}
+
+.tl-match__notmatched {
+    margin: 0 0 var(--tl-space-3);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+}

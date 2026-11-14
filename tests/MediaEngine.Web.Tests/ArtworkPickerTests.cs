@@ -283,19 +283,78 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.Equal(expected, ArtworkPickerRules.ReachFor(slot, mediaType, subject));
 
     [Fact]
-    public async Task ThePreviewShowsTheReachLine_AndZoomAndFullScreenChangeIt()
+    public async Task ThePreviewShowsTheReachLine_AndHasNoZoomSteps()
     {
         var (_, cut) = await OpenPickerAsync();
 
         Assert.Contains("Only this film's poster changes.", cut.Find(".tl-art-picker__reach").TextContent);
-        Assert.Equal("100%", cut.Find(".tl-art-picker__zoom").TextContent.Trim());
-        cut.Find("button[aria-label='Zoom in']").Click();
-        Assert.Equal("150%", cut.Find(".tl-art-picker__zoom").TextContent.Trim());
-        cut.Find("button[aria-label='Zoom out']").Click();
-        Assert.Equal("100%", cut.Find(".tl-art-picker__zoom").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".tl-art-picker__preview.is-full"));
-        cut.Find("button[aria-label='Full screen']").Click();
-        Assert.Single(cut.FindAll(".tl-art-picker__preview.is-full"));
+        Assert.Empty(cut.FindAll(".tl-art-picker__zoom"));
+        Assert.Empty(cut.FindAll("button[aria-label='Zoom in']"));
+        Assert.Empty(cut.FindAll("button[aria-label='Zoom out']"));
+        Assert.Empty(cut.FindAll("button[aria-label='Full screen']"));
+    }
+
+    [Fact]
+    public async Task ThePreviewIsSmallAtTheRolesRealShape()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        // The poster is a portrait picture; the box has the shape class the stylesheet sizes to about 200 px on its long side.
+        var preview = cut.Find(".tl-art-picker__preview");
+        Assert.Contains("tl-art-picker__preview--portrait", preview.ClassList);
+        Assert.NotNull(preview.QuerySelector("img"));
+    }
+
+    [Fact]
+    public async Task TheVersionsAreOneWrappingRowOfSmallThumbnails_WithAnAddTileAtTheEnd()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var strip = cut.Find(".tl-art-picker__strip");
+        Assert.Contains("tl-art-picker__strip--portrait", strip.ClassList);
+        var tiles = strip.QuerySelectorAll(".tl-art-picker__version").ToList();
+        Assert.Equal(3, tiles.Count);
+        Assert.Contains("tl-art-picker__add-version", tiles.Last().ClassList);
+        Assert.Equal("Add version", tiles.Last().GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public async Task TheActionsAndVersionsSitBesideThePreview_NotBelowIt()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var art = cut.Find(".tl-art-picker__art");
+        var children = art.Children.Select(child => child.ClassList.First()).ToList();
+        Assert.Equal(["tl-art-picker__preview-col", "tl-art-picker__controls"], children);
+        var controls = cut.Find(".tl-art-picker__controls");
+        Assert.NotNull(controls.QuerySelector(".tl-art-picker__actions"));
+        Assert.NotNull(controls.QuerySelector(".tl-art-picker__strip"));
+    }
+
+    [Fact]
+    public async Task ViewFullSizeOpensOneLargePicture_AndCloseBringsTheTabBack()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        Assert.Empty(cut.FindAll(".tl-art-picker__full-viewer"));
+        cut.Find("button.tl-art-picker__fullsize").Click();
+        var full = Assert.Single(cut.FindAll(".tl-art-picker__full-viewer"));
+        Assert.Equal("dialog", full.GetAttribute("role"));
+        Assert.Contains("app-viewer", full.ClassList);
+        Assert.Single(full.QuerySelectorAll("img"));
+        cut.Find(".tl-art-picker__full-viewer button.app-viewer__close").Click();
+        Assert.Empty(cut.FindAll(".tl-art-picker__full-viewer"));
+    }
+
+    [Fact]
+    public async Task WithNoPictureForTheRole_TheEmptyPreviewHasNoViewFullSizeLink()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        cut.FindAll(".tl-art-picker__role").Single(card => card.QuerySelector("strong")!.TextContent.Trim() == "Logo").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__empty")));
+        Assert.Empty(cut.FindAll(".tl-art-picker__fullsize"));
     }
 
     [Fact]
@@ -556,7 +615,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     // -- One row of actions ---------------------------------------------------------------------------------
 
     [Fact]
-    public async Task TheActionsAreOneRowUnderTheRoleTabs_InTheOrderUploadFromUrlLibraryPreferredRemoveRefresh()
+    public async Task TheActionsAreOneRowBesideThePreview_InTheOrderUploadFromUrlLibraryPreferredRemoveRefresh()
     {
         var (_, cut) = await OpenPickerAsync();
 
@@ -564,13 +623,13 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.Equal(
             ["Upload", "From URL", "Choose from Library", "Preferred", "Remove", "Refresh"],
             row.QuerySelectorAll("button").Select(button => button.TextContent.Trim()));
-        // The old stacked column of buttons is gone, and the row sits after the tabs and before the preview.
+        // The old stacked column of buttons is gone, and the row sits after the tabs and beside (after) the preview.
         Assert.Empty(cut.FindAll(".tl-art-picker__side"));
         Assert.Empty(cut.FindAll("button.tl-art-picker__add"));
         Assert.Empty(cut.FindAll("button.tl-art-picker__replace"));
         var html = cut.Markup;
         Assert.True(html.IndexOf("tl-art-picker__levels", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal));
-        Assert.True(html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__preview", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("tl-art-picker__preview", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal));
     }
 
     [Fact]

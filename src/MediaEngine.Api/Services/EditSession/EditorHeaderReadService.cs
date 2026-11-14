@@ -33,7 +33,8 @@ public sealed class EditorHeaderReadService(
     ItemQuickFactsService quickFacts,
     MediaEditorWorkVersionReadRepository versions,
     IExtrasConfigurationSource? extrasRules = null,
-    ILogger<EditorHeaderReadService>? logger = null) : IEditorFamilySource
+    ILogger<EditorHeaderReadService>? logger = null,
+    EditorProviderNames? providerNames = null) : IEditorFamilySource
 {
     // The same threshold the collection rules and the Watch rows use for "watched".
     private const double WatchedProgressPercent = 99.5;
@@ -80,6 +81,7 @@ public sealed class EditorHeaderReadService(
         var level = await BuildLevelAsync(family, levelChoice, support, query: null, offset: 0, profileId, supportingFileId, ct).ConfigureAwait(false);
 
         var cover = await ReadCoverAsync(family.Root.EntityId, current.EntityId, ct).ConfigureAwait(false);
+        var match = ReadMatch(family, kind);
 
         // A movie, a book or a comic under a Series keeps the home button, with the Series as home: the same rule as a book in a Series
         // (spec 3a, "Book or comic in a Series"; L7, "a film series"). Only an item with no family at all has none.
@@ -108,20 +110,50 @@ public sealed class EditorHeaderReadService(
             FolderButton = BuildFolderButton(support, levelChoice),
             Colors = cover.Colors,
             FileFacts = family.Current.IsLeaf || !family.HasFamily ? await ReadFileFactsAsync(current.EntityId, support, ct).ConfigureAwait(false) : null,
-            ProviderMatched = ReadProviderMatched(family),
+            ProviderMatched = match.ProviderMatched,
+            MatchLinks = match.Links,
             Config = BuildConfig(config, kind),
         };
     }
 
-    // Whether the item is matched to a provider by the Match tab's own rule (EditorMatchRule), so the header and the Match tab say the same thing.
-    private bool ReadProviderMatched(Family family)
+    private sealed record MatchRead(bool ProviderMatched, IReadOnlyList<EditorMatchLinkDto> Links);
+
+    // Whether the item is matched to a provider by the Match tab's own rule (EditorMatchRule), so the header and the Match tab say the same thing,
+    // and the links its top right shows (v7 D2, D3): the provider's page and Wikidata's, each only when that source has a page.
+    private MatchRead ReadMatch(Family family, string kind)
     {
         using var connection = db.CreateConnection();
         var workKind = connection.QueryFirstOrDefault<string>("SELECT work_kind FROM works WHERE id = @id;", new { id = family.Current.EntityId }) ?? string.Empty;
-        return EditorProviderMatchReader
-            .Read(connection, family.MediaType, family.Root.EntityId, [new EditorProviderMatchReader.Item(family.Current.EntityId, workKind)])
-            .Contains(family.Current.EntityId);
+        var read = EditorProviderMatchReader
+            .ReadSources(connection, family.MediaType, family.Root.EntityId, [new EditorProviderMatchReader.Item(family.Current.EntityId, workKind)])
+            .GetValueOrDefault(family.Current.EntityId);
+
+        var links = new List<EditorMatchLinkDto>();
+        if (read.Source is { Url: { Length: > 0 } providerUrl } source)
+        {
+            links.Add(new EditorMatchLinkDto
+            {
+                Source = EditorMatchLinkSources.Provider,
+                Name = providerNames?.ProductName(source.ProviderId, kind) ?? source.ProviderName,
+                Url = providerUrl,
+            });
+        }
+
+        if (OutsideLinks.Wikidata(read.WikidataQid) is { } wikidataUrl)
+        {
+            links.Add(new EditorMatchLinkDto
+            {
+                Source = EditorMatchLinkSources.Wikidata,
+                Name = providerNames?.ProductName(WikidataProviderKey) ?? "Wikidata",
+                Url = wikidataUrl,
+            });
+        }
+
+        return new MatchRead(read.Source is not null, links);
     }
+
+    // The config key of the Wikidata source in config/providers/, whose product name labels the header's Wikidata link.
+    private const string WikidataProviderKey = "wikidata_reconciliation";
 
     /// <summary>
     /// One level of the item dropdown: the items of a season, a section or the root (searched and paged), and the supporting files that

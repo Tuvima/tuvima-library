@@ -66,7 +66,7 @@ internal sealed class EditorHeaderTestWorld : IDisposable
 
     public ItemQuickFactsService QuickFacts => new(new ItemQuickFactsRepository(Database), Folders);
 
-    public EditorHeaderReadService Header(IEditorConfigurationSource? config = null, ILogger<EditorHeaderReadService>? logger = null) => new(
+    public EditorHeaderReadService Header(IEditorConfigurationSource? config = null, ILogger<EditorHeaderReadService>? logger = null, EditorProviderNames? providerNames = null) => new(
         Database,
         new MediaEditorNavigationReadService(Database, null!, new HierarchyAlignmentService(Database, null!)),
         Extras,
@@ -76,7 +76,8 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         new ItemQuickFactsService(new ItemQuickFactsRepository(Database), Folders),
         new MediaEditorWorkVersionReadRepository(Database),
         null,
-        logger);
+        logger,
+        providerNames);
 
     public EditorFolderTreeService FolderTree(IEditorConfigurationSource? config = null) => new(
         Header(config),

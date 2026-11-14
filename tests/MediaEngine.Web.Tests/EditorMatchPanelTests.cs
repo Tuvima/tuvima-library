@@ -882,8 +882,10 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
 
     private static EditorMatchResultDto BookResult(
         string title, string verdict = EditorMatchVerdicts.Possible, bool collection = false, string? description = null, string? seriesName = null,
-        string? seriesNumber = null, IReadOnlyList<EditorMatchReasonDto>? reasons = null) => new()
+        string? seriesNumber = null, IReadOnlyList<EditorMatchReasonDto>? reasons = null, string? imageUrl = null, string? imageShape = null) => new()
         {
+            ImageUrl = imageUrl,
+            ImageShape = imageShape,
             Candidate = new ItemCanonicalRetailCandidateDto
             {
                 CandidateId = $"apple:{title}",
@@ -1087,6 +1089,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Theory]
+    [InlineData("audiobook", "Audiobook", EditorMatchCardArt.Square)]
     [InlineData("book", "Book", EditorMatchCardArt.Portrait)]
     [InlineData("movie", "Film", EditorMatchCardArt.Portrait)]
     [InlineData("tv_episode", "Episode", EditorMatchCardArt.Wide)]
@@ -1094,4 +1097,34 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     [InlineData("album", "Album", EditorMatchCardArt.Square)]
     public void TheCardsPictureIsPortraitForBooksAndFilms_WideForEpisodes_AndSquareForMusic(string kind, string recordKind, EditorMatchCardArt expected) =>
         Assert.Equal(expected, EditorMatchCardModels.ArtFor(recordKind, kind));
+
+    [Theory]
+    [InlineData("book", "Book", EditorMatchImageShapes.Square, EditorMatchCardArt.Square)]
+    [InlineData("movie", "Film", EditorMatchImageShapes.Wide, EditorMatchCardArt.Wide)]
+    [InlineData("album", "Album", EditorMatchImageShapes.Wide, EditorMatchCardArt.Wide)]
+    [InlineData("audiobook", "Audiobook", EditorMatchImageShapes.Portrait, EditorMatchCardArt.Square)]
+    [InlineData("movie", "Film", null, EditorMatchCardArt.Portrait)]
+    public void TheProvidersOwnSquareOrWideShape_WinsOverTheKindsShape_AndAPortraitOrNoneLeavesTheKindsShape(
+        string kind, string recordKind, string? providerShape, EditorMatchCardArt expected) =>
+        Assert.Equal(expected, EditorMatchCardModels.ArtFor(recordKind, kind, providerShape));
+
+    [Fact]
+    public void ASearchResultWhoseProviderSaysSquare_IsDrawnSquareInTheListAndOnTheCard_AndNeverCropped()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", imageUrl: "https://example.test/cover.jpg", imageShape: EditorMatchImageShapes.Square));
+
+        Assert.Equal("square", cut.Find("[data-testid=match-result] .tl-mlrow__art").GetAttribute("data-art"));
+        Assert.Equal("square", cut.Find("[data-testid=match-preview]").GetAttribute("data-art"));
+        Assert.Contains("object-fit:contain", cut.Find("[data-testid=match-result] .tl-mlrow__art img").GetAttribute("style"), StringComparison.Ordinal);
+        Assert.Contains("object-fit:contain", cut.Find("[data-testid=match-card-cover] img").GetAttribute("style"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ABookSearchResultWithNoShapeFromTheProvider_IsDrawnPortrait()
+    {
+        var cut = SearchBooks(BookResult("The Sea of Monsters", imageUrl: "https://example.test/cover.jpg"));
+
+        Assert.Equal("portrait", cut.Find("[data-testid=match-result] .tl-mlrow__art").GetAttribute("data-art"));
+        Assert.Equal("portrait", cut.Find("[data-testid=match-preview]").GetAttribute("data-art"));
+    }
 }

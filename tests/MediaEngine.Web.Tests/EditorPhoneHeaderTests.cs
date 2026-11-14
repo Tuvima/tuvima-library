@@ -13,7 +13,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The editor's header on a phone (universal editor v6 section 4a, D20 to D22): always the one line (a small cover, the title, the state), the
+/// The editor's header on a phone (universal editor v6 section 4a, D20 to D22; v7 D14): always the one line (a small cover and the title, no state
+/// line and no match links), the
 /// whole line opens the navigation as a bottom sheet with Home, the Season choice, the episodes with their pictures, the supporting files and the
 /// folder button, and the "..." at its right holds Delete. The Engine's header is test data; the sheet uses the same rows and handlers as the dropdowns.
 /// </summary>
@@ -53,19 +54,18 @@ public sealed class EditorPhoneHeaderTests : AsyncBunitContext
     }
 
     private IRenderedComponent<EditorItemHeader> RenderHeader(EditSessionFlow flow, ItemFieldEditSession fields, bool phone, bool unmatched = false,
-        EditorMatchReadState? read = null, bool compact = false, IReadOnlyList<AppRowMenuItem>? menu = null) =>
+        EditorMatchReadState? read = null, IReadOnlyList<AppRowMenuItem>? menu = null) =>
         Render<EditorItemHeader>(parameters => parameters
             .Add(header => header.Flow, flow)
             .Add(header => header.Fields, fields)
             .Add(header => header.Family, new EditorFamilyState(Services.GetRequiredService<IEngineApiClient>(), NullLogger.Instance))
             .Add(header => header.Phone, phone)
             .Add(header => header.PhoneMenuItems, menu)
-            .Add(header => header.Compact, compact)
             .Add(header => header.Unmatched, unmatched)
             .Add(header => header.MatchRead, read));
 
     [Fact]
-    public async Task OnAPhone_TheHeaderIsAlwaysOneLine_WithASmallCoverTheTitleAndTheState()
+    public async Task OnAPhone_TheHeaderIsAlwaysOneLine_WithASmallCoverAndTheTitleOnly()
     {
         var (flow, fields) = await StartAsync();
 
@@ -75,34 +75,33 @@ public sealed class EditorPhoneHeaderTests : AsyncBunitContext
         Assert.Equal("Echoes in the Dark", cut.Find("[data-testid=phone-header-title]").TextContent.Trim());
         Assert.Equal("tl-editor-panel-title", cut.Find("[data-testid=phone-header-title]").Id);
         Assert.NotNull(header.QuerySelector(".tl-editor-header__minicover"));
-        var state = cut.Find("[data-testid=phone-header-state]");
-        Assert.Equal("Unmatched", state.TextContent.Trim());
-        Assert.Equal("unmatched", state.GetAttribute("data-state"));
-        // No big cover, label, facts line, provider links or row of dropdowns: that is the desktop header.
+        // No state line, no "Not matched", no links, no big cover, label, facts line or row of dropdowns: that is the desktop header.
+        Assert.Empty(cut.FindAll("[data-testid=phone-header-state], .tl-editor-header__state, .tl-editor-header__dot"));
         Assert.Empty(cut.FindAll(".tl-editor-header__cover, .tl-editor-header__label, .tl-editor-header__facts, .tl-editor-header__links, .tl-hnav"));
+        Assert.DoesNotContain("matched", header.TextContent, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task OnAPhone_TheStateSaysMatchedToTheProvider_OnceTheEngineHasReadIt()
+    public async Task OnAPhone_AMatchedItemsHeaderSaysNothingAboutTheMatch_NeitherWordsNorLinks()
     {
+        _header = EditorHeaderTestData.TvEpisode();
         var (flow, fields) = await StartAsync();
 
-        var cut = RenderHeader(flow, fields, phone: true, unmatched: true, read: new EditorMatchReadState(EpisodeId, true, "TheTVDB"));
+        var cut = RenderHeader(flow, fields, phone: true, unmatched: false, read: new EditorMatchReadState(EpisodeId, true, "TheTVDB"));
 
-        var state = cut.Find("[data-testid=phone-header-state]");
-        Assert.Equal("Matched to TheTVDB", state.TextContent.Trim());
-        Assert.Equal("matched", state.GetAttribute("data-state"));
-        Assert.NotNull(state.QuerySelector(".tl-editor-header__dot--ok"));
+        var header = cut.Find("[data-testid=phone-header]");
+        Assert.DoesNotContain("TheTVDB", header.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=header-match-links], [data-testid=header-not-matched]"));
     }
 
     [Fact]
-    public async Task OnAPhoneOnTheMatchTab_TheLineStaysOneLine_AndNamesTheMatch()
+    public async Task OnAPhoneOnTheMatchTab_TheLineIsTheSameLine_NamedByTheItem()
     {
         var (flow, fields) = await StartAsync();
 
-        var cut = RenderHeader(flow, fields, phone: true, compact: true, unmatched: true);
+        var cut = RenderHeader(flow, fields, phone: true, unmatched: true);
 
-        Assert.Equal("Match episode", cut.Find("[data-testid=phone-header-title] > span:first-child").TextContent.Trim());
+        Assert.Equal("Echoes in the Dark", cut.Find("[data-testid=phone-header-title]").TextContent.Trim());
         Assert.Single(cut.FindAll("[data-testid=phone-header]"));
         Assert.Empty(cut.FindAll("[data-testid=match-header]"));
     }

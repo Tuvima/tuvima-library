@@ -16,6 +16,14 @@ public static class EditorMatchVerdicts
     public const string Weak = "weak";
 }
 
+/// <summary>The shape of a search result's picture as <see cref="EditorMatchResultDto.ImageShape"/> says it (universal editor v7, D7). A picture is drawn in its own shape and never cropped or stretched.</summary>
+public static class EditorMatchImageShapes
+{
+    public const string Portrait = "portrait";
+    public const string Square = "square";
+    public const string Wide = "wide";
+}
+
 /// <summary>What a provider in the Match tab's dropdown is ready to do.</summary>
 public static class EditorMatchProviderStates
 {
@@ -273,6 +281,11 @@ public sealed class EditorMatchResultDto
     [JsonPropertyName("image_url")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ImageUrl { get; init; }
+
+    /// <summary>One of <see cref="EditorMatchImageShapes"/> when the provider's own picture is square or wide, which then wins over the kind's usual shape (portrait for books, movies and shows; square for audiobooks, albums and songs; wide for episodes); null when the picture is portrait, absent or not measured, so the Dashboard uses the kind's shape.</summary>
+    [JsonPropertyName("image_shape")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ImageShape { get; init; }
 
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

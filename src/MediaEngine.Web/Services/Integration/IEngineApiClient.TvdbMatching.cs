@@ -41,7 +41,4 @@ public partial interface IEngineApiClient
 
     /// <summary>"Re-match seasons and episodes": how many of the show's episodes the chosen TheTVDB show has a slot for, and how many it lacks. A read.</summary>
     Task<ShowChildRematchPreviewDto?> PreviewShowChildRematchAsync(Guid entityId, string seriesId, CancellationToken ct = default);
-
-    /// <summary>The Engine's finishing work for a saved item by named step (the saved ribbon). A read; null when the Engine could not be reached.</summary>
-    Task<EditorFollowUpDto?> GetEditorFollowUpAsync(Guid entityId, CancellationToken ct = default);
 }

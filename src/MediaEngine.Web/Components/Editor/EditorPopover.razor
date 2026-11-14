@@ -17,9 +17,9 @@
 
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
-   and keeps the page where it was. The page behind is never put into an "editing" state. After Save the slim ribbon proves the save.
+   and keeps the page where it was. The page behind is never put into an "editing" state. After Save the window closes and the item shows the app's normal Updating state
+   (v7 D12); there is no saved ribbon or box.
    Its frame is the v4 one (D2, D3, D16): the item's header (with the item's family, as a tile and dropdowns, inside it), the tab bar and a fixed footer. *@
-<EditSavedRibbon Flow="Editor.Flow" />
 @if (Editor.IsOpen)
 {
     var flow = Editor.Flow;
@@ -145,7 +145,7 @@
         @* The way around the family (home, Season or Section, item) sits in the header's nav row and is read from the Engine's header (v5 D1). A
            Universe keeps its own tile and kind dropdowns. *@
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
-                          Compact="@(flow.Session.ActiveTool == EditTool.Match)" MatchRead="_matchRead"
+                          MatchRead="_matchRead"
                           UniverseName="@Editor.Universe.UniverseName"
                           HasFamily="@Editor.Universe.Visible"
                           Phone="Phone" PhoneMenuItems="@DeleteMenu(flow, mode)"

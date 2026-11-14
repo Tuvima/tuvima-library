@@ -43,6 +43,42 @@ public sealed class EditorHeaderContractTests
     }
 
     [Fact]
+    public void Header_CarriesItsMatchLinks_WithSourceProductNameAndAddress()
+    {
+        var header = new EditorHeaderDto
+        {
+            Kind = "movie",
+            MatchLinks =
+            [
+                new EditorMatchLinkDto { Source = EditorMatchLinkSources.Provider, Name = "TMDB", Url = "https://www.themoviedb.org/movie/329865" },
+                new EditorMatchLinkDto { Source = EditorMatchLinkSources.Wikidata, Name = "Wikidata", Url = "https://www.wikidata.org/wiki/Q20872821" },
+            ],
+        };
+
+        var json = JsonSerializer.Serialize(header);
+        using var document = JsonDocument.Parse(json);
+        var links = document.RootElement.GetProperty("match_links");
+        var back = JsonSerializer.Deserialize<EditorHeaderDto>(json)!;
+
+        Assert.Equal(2, links.GetArrayLength());
+        Assert.Equal("provider", links[0].GetProperty("source").GetString());
+        Assert.Equal("TMDB", links[0].GetProperty("name").GetString());
+        Assert.Equal("https://www.themoviedb.org/movie/329865", links[0].GetProperty("url").GetString());
+        Assert.Equal("wikidata", links[1].GetProperty("source").GetString());
+        Assert.Equal(["TMDB", "Wikidata"], back.MatchLinks.Select(link => link.Name).ToArray());
+    }
+
+    [Fact]
+    public void Header_WithNoMatch_SerializesAnEmptyLinkList_AndReadsOneBackFromAnOlderPayload()
+    {
+        var empty = JsonSerializer.Serialize(new EditorHeaderDto { Kind = "movie" });
+        using var document = JsonDocument.Parse(empty);
+
+        Assert.Equal(0, document.RootElement.GetProperty("match_links").GetArrayLength());
+        Assert.Empty(JsonSerializer.Deserialize<EditorHeaderDto>("{\"kind\":\"movie\"}")!.MatchLinks);
+    }
+
+    [Fact]
     public void HeaderLevel_RoundTrips_WithItsCodesStatesAndSupportingFiles()
     {
         var episode = Guid.NewGuid();
