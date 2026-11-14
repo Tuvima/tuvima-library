@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Logging;
 using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.EditSession;
 
