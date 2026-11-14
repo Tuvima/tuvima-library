@@ -1,0 +1,172 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Playback
+@inject ILogger<VideoOptionsPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* "Video quality and devices" (playback-path spec D15). The Engine owns the list: ids, wording, choices and defaults come from it, so this
+   panel only draws the rows of one layer (the person's, or one device's) and sends a change back. Android, Apple, Roku and TV web read the
+   same list from the same Engine action. Nothing is saved until a row is changed; everything defaults to Automatic. *@
+<div class="video-options" data-video-options="@Scope" aria-busy="@(_loading ? "true" : "false")">
+    @if (_loading)
+    {
+        <AppSkeleton Size="AppControlSize.Compact" />
+    }
+    else if (_options is null)
+    {
+        <AppAlert Tone="AppUiTone.Error" data-video-options-failure>@L["VideoOptions_CouldNotLoad"]</AppAlert>
+    }
+    else
+    {
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-video-options-failure>@_failure</AppAlert>
+        }
+
+        @foreach (var option in Rows)
+        {
+            @switch (option.Kind)
+            {
+                case VideoOptionKinds.Choice:
+                    <AppSettingRow Label="@option.Label" Helper="@option.Help" data-video-option="@option.Id">
+                        <Control>
+                            <AppSelect Native="true" Value="@option.Value" Disabled="@_saving"
+                                       ValueChanged="@(value => ChangeAsync(option, value?.ToString()))"
+                                       aria-label="@option.Label">
+                                @foreach (var choice in option.Choices)
+                                {
+                                    <option value="@choice.Value">@choice.Label</option>
+                                }
+                            </AppSelect>
+                        </Control>
+                    </AppSettingRow>
+                    break;
+                case VideoOptionKinds.Toggle:
+                    <AppSettingRow Label="@option.Label" Helper="@option.Help" data-video-option="@option.Id">
+                        <Control>
+                            <AppSwitchRow T="bool" Value="@(option.Value == "on")" Disabled="@_saving" Color="AppColor.Primary" AriaLabel="@option.Label"
+                                          ValueChanged="@(on => ChangeAsync(option, on ? "on" : "off"))" />
+                        </Control>
+                    </AppSettingRow>
+                    break;
+                case VideoOptionKinds.Summary:
+                    <div class="video-options__summary" data-video-option="@option.Id">
+                        <span class="video-options__summary-label">@option.Label</span>
+                        <span class="video-options__summary-value">@option.Value</span>
+                        @foreach (var learned in _options.Learned)
+                        {
+                            <span class="video-options__learned" data-video-learned>@learned</span>
+                        }
+                    </div>
+                    break;
+                case VideoOptionKinds.Action:
+                    <div class="video-options__action" data-video-option="@option.Id">
+                        <AppButton Label="@option.Label" Size="AppControlSize.Compact" Disabled="@(_saving || _checking)" OnClick="CheckAgainAsync" />
+                        @if (!string.IsNullOrWhiteSpace(option.Help))
+                        {
+                            <span class="video-options__help">@option.Help</span>
+                        }
+                    </div>
+                    break;
+            }
+        }
+    }
+</div>
+
+@code {
+    /// <summary>Which layer of the list this panel draws: <c>profile</c> (follows the person) or <c>device</c> (this screen only).</summary>
+    [Parameter, EditorRequired] public string Scope { get; set; } = VideoOptionScopes.Profile;
+
+    /// <summary>Reads the list with the saved values; null when the Engine could not be reached.</summary>
+    [Parameter, EditorRequired] public Func<Task<VideoPlaybackOptionsDto?>> Load { get; set; } = () => Task.FromResult<VideoPlaybackOptionsDto?>(null);
+
+    /// <summary>Saves one row and returns the refreshed list; null when the Engine refused or could not be reached.</summary>
+    [Parameter, EditorRequired] public Func<string, string, Task<VideoPlaybackOptionsDto?>> Save { get; set; } = (_, _) => Task.FromResult<VideoPlaybackOptionsDto?>(null);
+
+    /// <summary>Re-measures what the device can play. Without it, "Check again" is not drawn (a paired device re-measures itself).</summary>
+    [Parameter] public Func<Task>? CheckAgain { get; set; }
+
+    /// <summary>Draws the "What this device can play" line and what was learned; off where the page already shows them.</summary>
+    [Parameter] public bool ShowSummary { get; set; } = true;
+
+    private VideoPlaybackOptionsDto? _options;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _checking;
+    private string? _failure;
+
+    private IEnumerable<VideoOptionDto> Rows => _options!.Options.Where(option =>
+        option.Scope == Scope
+        && (option.Kind != VideoOptionKinds.Summary || ShowSummary)
+        && (option.Kind != VideoOptionKinds.Action || CheckAgain is not null));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _options = await LoadSafelyAsync();
+        _loading = false;
+    }
+
+    private async Task<VideoPlaybackOptionsDto?> LoadSafelyAsync()
+    {
+        try
+        {
+            return await Load();
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The Video quality and devices list could not be loaded.");
+            return null;
+        }
+    }
+
+    private async Task ChangeAsync(VideoOptionDto option, string? value)
+    {
+        if (string.IsNullOrEmpty(value) || value == option.Value)
+        {
+            return;
+        }
+
+        _failure = null;
+        _saving = true;
+        try
+        {
+            var refreshed = await Save(option.Id, value);
+            if (refreshed is null)
+            {
+                _failure = L["VideoOptions_CouldNotSave", option.Label].Value;
+            }
+            else
+            {
+                _options = refreshed;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The video option {Option} could not be saved.", option.Id);
+            _failure = L["VideoOptions_CouldNotSave", option.Label].Value;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task CheckAgainAsync()
+    {
+        if (CheckAgain is null)
+        {
+            return;
+        }
+
+        _failure = null;
+        _checking = true;
+        try
+        {
+            await CheckAgain();
+            _options = await LoadSafelyAsync() ?? _options;
+        }
+        finally
+        {
+            _checking = false;
+        }
+    }
+}

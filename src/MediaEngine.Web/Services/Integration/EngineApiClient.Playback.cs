@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -25,6 +26,38 @@ public sealed partial class EngineApiClient
     public Task<bool> RemovePlayerQueueItemAsync(Guid queueItemId, PlayerQueueMutationDto request, CancellationToken ct = default)
         => DeleteAsync("DELETE /player/queue/items", $"/api/v1/player/queue/items/{queueItemId:D}?profileId={request.ProfileId:D}&deviceId={Uri.EscapeDataString(request.DeviceId ?? string.Empty)}&client={Uri.EscapeDataString(request.Client ?? "web")}&expectedStateVersion={request.ExpectedStateVersion}&force=false", ct: ct);
 
+    // A random key for this circuit's browser, so the Engine can tell which measured abilities (and learned limits) belong to it. It is
+    // sent with the browser's report, its failure reports and every manifest request; it names no person and no device.
+    private readonly string _browserSessionKey = Guid.NewGuid().ToString("N");
+
+    public Task<bool> ReportBrowserPlaybackCapabilitiesAsync(ClientCapabilitiesDto capabilities, CancellationToken ct = default)
+        => PutAsync(
+            "PUT /playback/browser-capabilities",
+            "/api/v1/playback/browser-capabilities",
+            new BrowserCapabilitiesReportDto { Browser = _browserSessionKey, Capabilities = capabilities },
+            ct: ct);
+
+    public Task<VideoPlaybackOptionsDto?> GetVideoPlaybackOptionsAsync(CancellationToken ct = default)
+        => GetAsync<VideoPlaybackOptionsDto>(
+            "GET /playback/video-options",
+            "/api/v1/playback/video-options",
+            new Dictionary<string, string?> { ["browser"] = _browserSessionKey },
+            ct: ct);
+
+    public Task<VideoPlaybackOptionsDto?> SetVideoPlaybackOptionAsync(string id, string value, CancellationToken ct = default)
+        => PutAsync<SetVideoOptionRequest, VideoPlaybackOptionsDto>(
+            "PUT /playback/video-options",
+            "/api/v1/playback/video-options",
+            new SetVideoOptionRequest { Id = id, Value = value, Browser = _browserSessionKey },
+            ct: ct);
+
+    public Task<bool> ReportPlaybackFailureAsync(Guid assetId, string rung, string? detail, CancellationToken ct = default)
+        => PostAsync(
+            "POST /playback/failure",
+            $"/api/v1/playback/{assetId:D}/failure",
+            new PlaybackFailureReportDto { Rung = rung, Detail = detail, Browser = _browserSessionKey },
+            ct: ct);
+
     public async Task<PlaybackManifestDto?> GetPlaybackManifestAsync(
         Guid assetId,
         string client = "web",
@@ -39,6 +72,7 @@ public sealed partial class EngineApiClient
             var query = new List<string>
             {
                 $"client={Uri.EscapeDataString(string.IsNullOrWhiteSpace(client) ? "web" : client)}",
+                $"browser={_browserSessionKey}",
             };
             if (profileId.HasValue)
             {
@@ -675,6 +709,37 @@ public sealed partial class EngineApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "PUT /settings/transcoding failed");
+            return null;
+        }
+    }
+
+    public async Task<GraphicsHardwareDto?> GetPlaybackHardwareAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<GraphicsHardwareDto>("/settings/playback/hardware", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /settings/playback/hardware failed");
+            return null;
+        }
+    }
+
+    public async Task<GraphicsHardwareDto?> TestPlaybackHardwareAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsync("/settings/playback/test-hardware", null, ct);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<GraphicsHardwareDto>(cancellationToken: ct)
+                : null;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /settings/playback/test-hardware failed");
             return null;
         }
     }

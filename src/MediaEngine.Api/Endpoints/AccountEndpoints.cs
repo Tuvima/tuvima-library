@@ -1,9 +1,11 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
@@ -61,6 +63,84 @@ public static class AccountEndpoints
         })
         .WithName("RevokeManagedClientDevice")
         .Produces(StatusCodes.Status204NoContent);
+
+        // Forget what the Engine learned this device cannot play (playback-path spec D13); the next start decides from what it reported.
+        devices.MapDelete("/{deviceId:guid}/learned-limits", async (Guid deviceId, HttpContext http,
+            IRequestAuthorityResolver resolver, ISelfServiceAuthorizationService decisions,
+            [FromServices] ManagedClientDeviceService service, CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            return await service.ClearLearnedLimitsAsync(authority, deviceId, ct) switch
+            {
+                ManagedDeviceLimitsOutcome.Cleared => Results.NoContent(),
+                ManagedDeviceLimitsOutcome.Forbidden => ApiErrors.Forbidden("That device belongs to another account."),
+                _ => ApiErrors.NotFound("Device not found or already revoked."),
+            };
+        })
+        .WithName("ClearManagedClientDeviceLearnedLimits")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // The Video quality and devices list for a paired device on the Devices page (playback-path spec D15): the same list every
+        // client draws, with that device's saved values and its person's. Anyone who may sign the device out may read and change it.
+        devices.MapGet("/{deviceId:guid}/video-options", async (Guid deviceId, HttpContext http,
+            IRequestAuthorityResolver resolver, ISelfServiceAuthorizationService decisions,
+            [FromServices] ManagedClientDeviceService service, [FromServices] VideoOptionsService videoOptions,
+            CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            var (outcome, device) = await service.FindManagedAsync(authority, deviceId, ct);
+            return outcome switch
+            {
+                ManagedDeviceAccessOutcome.Allowed => Results.Ok(await videoOptions.BuildAsync(
+                    device!.ProfileId, ClientAuthorizationService.ReadCapabilities(device), ct)),
+                ManagedDeviceAccessOutcome.Forbidden => ApiErrors.Forbidden("That device belongs to another account."),
+                _ => ApiErrors.NotFound("Device not found or already revoked."),
+            };
+        })
+        .WithName("GetManagedClientDeviceVideoOptions")
+        .Produces<VideoPlaybackOptionsDto>()
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        devices.MapPut("/{deviceId:guid}/video-options", async (Guid deviceId, SetVideoOptionRequest request, HttpContext http,
+            IRequestAuthorityResolver resolver, ISelfServiceAuthorizationService decisions,
+            [FromServices] ManagedClientDeviceService service, [FromServices] VideoOptionsService videoOptions,
+            CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            var (outcome, device) = await service.FindManagedAsync(authority, deviceId, ct);
+            if (outcome != ManagedDeviceAccessOutcome.Allowed)
+            {
+                return outcome == ManagedDeviceAccessOutcome.Forbidden
+                    ? ApiErrors.Forbidden("That device belongs to another account.")
+                    : ApiErrors.NotFound("Device not found or already revoked.");
+            }
+
+            // Only the device's own rows are changed here; a person's rows are changed in that person's own playback settings.
+            var capabilities = ClientAuthorizationService.ReadCapabilities(device!);
+            var changed = VideoOptionCatalog.IsDeviceOption(request.Id)
+                ? VideoOptionCatalog.TryApplyDeviceOption(capabilities.VideoOptions, request.Id, request.Value)
+                : null;
+            if (changed is null)
+            {
+                return ApiErrors.BadRequest("That is not a choice this option offers.");
+            }
+
+            if (!await service.SaveVideoOptionsAsync(device!, changed, ct))
+            {
+                return ApiErrors.NotFound("Device not found or already revoked.");
+            }
+
+            return Results.Ok(await videoOptions.BuildAsync(
+                device!.ProfileId, ClientCapabilitiesNormalizer.WithOptions(capabilities, changed), ct));
+        })
+        .WithName("SetManagedClientDeviceVideoOption")
+        .Produces<VideoPlaybackOptionsDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         // Which person a phone backs its photos up to: a server administrator, or the household administrator of
         // the phone's household, chooses or clears it without a PIN.

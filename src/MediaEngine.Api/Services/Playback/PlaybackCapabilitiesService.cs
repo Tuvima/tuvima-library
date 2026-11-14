@@ -83,7 +83,8 @@ public sealed class PlaybackCapabilitiesService
         PlaybackConnectionContextDto? connection = null,
         ClientCapabilitiesDto? negotiatedCapabilities = null,
         Guid? deviceId = null,
-        bool forceAdaptive = false)
+        bool forceAdaptive = false,
+        PlaybackChoices? choices = null)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -92,7 +93,11 @@ public sealed class PlaybackCapabilitiesService
         }
 
         var normalizedClient = NormalizeClient(client);
+        // The person's and the device's "Video quality and devices" choices (playback-path spec D15); none means every option automatic.
+        choices ??= PlaybackChoices.Automatic;
         var profile = ResolveProfile(normalizedClient, negotiatedCapabilities);
+        // The device's Maximum resolution lowers the player's own limit, so every picture-size decision below uses the lower one.
+        profile = profile with { MaxHeight = PlaybackChoiceRules.CapPlayerHeight(profile.MaxHeight, choices) };
         var extension = Path.GetExtension(asset.FilePathRoot);
         var mediaType = await ResolveMediaTypeAsync(asset, extension, ct);
         var warnings = new List<string>();
@@ -129,26 +134,88 @@ public sealed class PlaybackCapabilitiesService
             technical.Height,
             sourceBitrateKbps,
             _configuration.LoadNetwork().Streaming,
-            out var networkReason))
+            out var networkReason,
+            out var networkCap))
         {
             recommendedDelivery = PlaybackDeliveryModes.Hls;
             conversionReason = networkReason;
             warnings.Add(networkReason);
         }
 
+        // Video quality (or Quality on mobile data) caps the picture the same way a remote connection does; the lower cap wins.
+        var isVideoFile = VideoExtensions.Contains(extension);
+        if (isVideoFile && PlaybackChoiceRules.QualityCap(choices, connection, technical.Height) is { } qualityCap)
+        {
+            if (networkCap is null)
+            {
+                recommendedDelivery = PlaybackDeliveryModes.Hls;
+                conversionReason = qualityCap.Reason;
+                warnings.Add(qualityCap.Reason);
+                networkCap = new NetworkCap(qualityCap.Height, null, OfferLowerQuality: false);
+            }
+            else
+            {
+                networkCap = networkCap with { MaxHeight = Math.Min(networkCap.MaxHeight ?? qualityCap.Height, qualityCap.Height) };
+            }
+        }
+
+        // Allow HDR off: an HDR picture is converted (the encode tone-maps it) instead of being played or copied as it is.
+        var hdrOffReason = isVideoFile && !choices.AllowHdr && PlaybackChoiceRules.IsHdr(probe)
+            ? "HDR is turned off for this profile, so the picture is converted"
+            : null;
+        if (hdrOffReason is not null && networkCap is null)
+        {
+            recommendedDelivery = PlaybackDeliveryModes.Hls;
+            conversionReason = hdrOffReason;
+            warnings.Add(hdrOffReason);
+        }
+
         // A viewer's browser cannot switch audio tracks of a direct-play file, so the player asks for the adaptive stream, which carries
         // every audio track as a selectable rendition (video-player-controls-and-bookmarks D10).
+        var forceStreamableCopy = false;
         if (forceAdaptive && recommendedDelivery != PlaybackDeliveryModes.Hls
             && !mediaType.Equals("Books", StringComparison.OrdinalIgnoreCase) && !mediaType.Equals("Comics", StringComparison.OrdinalIgnoreCase))
         {
             recommendedDelivery = PlaybackDeliveryModes.Hls;
+            forceStreamableCopy = true;
             conversionReason ??= "The viewer chose an audio track the browser cannot switch itself.";
+        }
+
+        // Convert only when needed off: a video the player could play as it is gets a prepared (copied) stream instead.
+        string? streamableCopyReason = null;
+        if (!choices.ConvertOnlyWhenNeeded && !forceStreamableCopy && recommendedDelivery != PlaybackDeliveryModes.Hls && isVideoFile)
+        {
+            recommendedDelivery = PlaybackDeliveryModes.Hls;
+            forceStreamableCopy = true;
+            streamableCopyReason = "Convert only when needed is off for this profile";
+            conversionReason ??= streamableCopyReason;
+        }
+
+        // The ladder decides the lightest way to play this title (playback-path D1 to D3); direct play is the first rung.
+        PlaybackDecision? decision = null;
+        if (VideoExtensions.Contains(extension) && probe?.Height is > 0 && recommendedDelivery is PlaybackDeliveryModes.DirectStream or PlaybackDeliveryModes.Hls)
+        {
+            // What the player measured about itself and what it failed on before decide the rung (playback-path D12, D13).
+            var learnedMinimum = negotiatedCapabilities is null
+                ? null
+                : LearnedPlaybackLimits.MinimumRung(negotiatedCapabilities.LearnedLimits, extension, probe);
+            var tenBitCodecs = negotiatedCapabilities is { SchemaVersion: >= 2 } ? negotiatedCapabilities.TenBitVideoCodecs : null;
+            decision = PlaybackLadder.Decide(new PlaybackLadderInput(
+                extension, profile, probe, forceStreamableCopy, networkCap is not null || hdrOffReason is not null,
+                networkCap is not null ? conversionReason : hdrOffReason, learnedMinimum, tenBitCodecs,
+                choices.StereoOnly, streamableCopyReason));
+            recommendedDelivery = decision.Rung == PlaybackRungs.Direct ? PlaybackDeliveryModes.DirectStream : PlaybackDeliveryModes.Hls;
+            if (decision.Rung == PlaybackRungs.Direct)
+            {
+                _logger.LogInformation("Play: {Rung}, because {Code} (asset {AssetId})", decision.Rung, decision.Code, assetId);
+            }
         }
 
         var audioTracks = BuildAudioTracks(probe);
         string? hlsUrl = null;
         string? hlsStatus = null;
         DateTimeOffset? hlsExpiresAt = null;
+        PlaybackPathDto? playbackPath = decision is { Rung: PlaybackRungs.Direct } ? PlaybackPathBuilder.ForDirect(decision) : null;
         if (recommendedDelivery == PlaybackDeliveryModes.Hls)
         {
             if (!_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
@@ -158,8 +225,16 @@ public sealed class PlaybackCapabilitiesService
             }
             else
             {
-                var preparation = await _adaptiveHls.EnsurePackageAsync(assetId, sourceHash, audioTracks, ct);
+                var streamDecision = decision ?? new PlaybackDecision(PlaybackRungs.EncodePicture, conversionReason ?? "The player needs a prepared stream", false, []);
+                var maxHeight = profile.MaxHeight;
+                if (networkCap?.MaxHeight is { } cappedHeight)
+                {
+                    maxHeight = maxHeight is { } own ? Math.Min(own, cappedHeight) : cappedHeight;
+                }
+                var plan = new HlsStartPlan(streamDecision, maxHeight, networkCap?.MaxBitrateKbps, networkCap?.OfferLowerQuality ?? false);
+                var preparation = await _adaptiveHls.EnsurePackageAsync(assetId, sourceHash, audioTracks, ct, plan);
                 hlsStatus = preparation.Status;
+                playbackPath = PlaybackPathBuilder.ForStream(streamDecision, preparation.Status, preparation.Run, preparation.Error);
                 if (preparation.Status is "ready" or "streaming")
                 {
                     var request = _httpContextAccessor.HttpContext;
@@ -225,7 +300,31 @@ public sealed class PlaybackCapabilitiesService
             SourceBitrateKbps = sourceBitrateKbps,
             Connection = connection,
             ScrubPreviewIndexUrl = ScrubPreviewIndexUrlFor(assetId, extension),
+            PlaybackPath = playbackPath,
         };
+    }
+
+    /// <summary>
+    /// The stored technical facts of a title's file (its extension and inspection), for turning a player's failure report into the kind
+    /// of file to remember. Null when the asset is unknown; the facts are null when ingestion has not inspected the file.
+    /// </summary>
+    public async Task<(string Extension, MediaProbeResult? Probe)?> GetStoredFileFactsAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var asset = await _assets.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+        if (asset is null)
+        {
+            return null;
+        }
+
+        var stored = await _playbackState.GetInspectionMetadataAsync(assetId, BuildSourceHash(asset), ct).ConfigureAwait(false);
+        MediaProbeResult? probe = null;
+        if (!string.IsNullOrWhiteSpace(stored))
+        {
+            try { probe = JsonSerializer.Deserialize<MediaProbeResult>(stored); }
+            catch (JsonException) { probe = null; }
+        }
+
+        return (Path.GetExtension(asset.FilePathRoot), probe);
     }
 
     /// <summary>The address of the file's scrub-preview index, only for a video that has a complete set and while the switch is on.</summary>
@@ -331,15 +430,20 @@ public sealed class PlaybackCapabilitiesService
         };
     }
 
+    /// <summary>What a remote or slow connection allows: the tallest picture, the most video bitrate, and whether a second lower quality is needed.</summary>
+    private sealed record NetworkCap(int? MaxHeight, int? MaxBitrateKbps, bool OfferLowerQuality);
+
     private static bool ShouldUseAdaptiveRemoteDelivery(
         string mediaType,
         PlaybackConnectionContextDto connection,
         int? sourceHeight,
         int? sourceBitrateKbps,
         NetworkStreamingSettings settings,
-        out string reason)
+        out string reason,
+        out NetworkCap? cap)
     {
         reason = string.Empty;
+        cap = null;
         if (connection.ConnectionPath == PlaybackConnectionPaths.Local
             || mediaType.Equals("Books", StringComparison.OrdinalIgnoreCase)
             || mediaType.Equals("Comics", StringComparison.OrdinalIgnoreCase)
@@ -358,6 +462,7 @@ public sealed class PlaybackCapabilitiesService
         if (maxHeight.HasValue && sourceHeight > maxHeight.Value)
         {
             reason = $"Remote streaming quality is capped at {maxHeight.Value}p for this connection.";
+            cap = new NetworkCap(maxHeight.Value, null, OfferLowerQuality: true);
             return true;
         }
 
@@ -371,12 +476,14 @@ public sealed class PlaybackCapabilitiesService
             && sourceBitrateKbps.Value > estimatedMbps.Value * 800d)
         {
             reason = $"The source bitrate exceeds the protected remote bandwidth budget ({estimatedMbps.Value:0.#} Mbps).";
+            cap = new NetworkCap(null, (int)(estimatedMbps.Value * 800d), OfferLowerQuality: true);
             return true;
         }
 
         if (settings.RemoteQuality == RemoteStreamingQualities.DataSaver && sourceBitrateKbps is > 2_000)
         {
             reason = "Data Saver is enabled for remote streaming.";
+            cap = new NetworkCap(480, null, OfferLowerQuality: false);
             return true;
         }
 
@@ -906,7 +1013,7 @@ public sealed class PlaybackCapabilitiesService
         return result;
     }
 
-    private static string NormalizeCodecName(string? value)
+    internal static string NormalizeCodecName(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {

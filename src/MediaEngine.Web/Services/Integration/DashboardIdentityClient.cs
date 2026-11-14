@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Backups;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Web.Services.Configuration;
 
@@ -400,6 +401,20 @@ public sealed partial class DashboardIdentityClient(
 
     public Task<DashboardAccessMutationResult> RevokeManagedDeviceAsync(Guid deviceId, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Delete, $"/access/devices/{deviceId:D}", ct);
+
+    /// <summary>Forgets what the Engine learned a device cannot play, so its next start decides from what the device reported.</summary>
+    public Task<DashboardAccessMutationResult> ClearManagedDeviceLearnedLimitsAsync(Guid deviceId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, $"/access/devices/{deviceId:D}/learned-limits", ct);
+
+    /// <summary>The Video quality and devices list for a paired device, with that device's saved values (playback-path spec D15).</summary>
+    public Task<VideoPlaybackOptionsDto?> GetManagedDeviceVideoOptionsAsync(Guid deviceId, CancellationToken ct = default) =>
+        GetAsync<VideoPlaybackOptionsDto>($"/access/devices/{deviceId:D}/video-options", ct);
+
+    /// <summary>Saves one of a paired device's own rows (maximum resolution, hardware decoding, surround sound) and returns the refreshed list.</summary>
+    public Task<DashboardAccessMutationResult<VideoPlaybackOptionsDto>> SetManagedDeviceVideoOptionAsync(
+        Guid deviceId, string id, string value, CancellationToken ct = default) =>
+        SendMutationAsync<SetVideoOptionRequest, VideoPlaybackOptionsDto>(
+            HttpMethod.Put, $"/access/devices/{deviceId:D}/video-options", new SetVideoOptionRequest { Id = id, Value = value }, ct);
 
     /// <summary>Chooses (or clears, with null) whose photos a phone backs up.</summary>
     public Task<DashboardAccessMutationResult> SetManagedDeviceBackupProfileAsync(Guid deviceId, Guid? profileId, CancellationToken ct = default) =>

@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
 
@@ -19,6 +20,8 @@ public partial interface IEngineApiClient
 
     /// <summary>The tools list alone, so setup can follow a tool download without repeating the server check.</summary>
     Task<ToolRequirementsDto?> GetSetupToolRequirementsAsync(string? setupSession, CancellationToken ct = default);
+    /// <summary>The Graphics hardware row on the Tools step: tests the graphics encoders once FFmpeg is ready and returns what was found.</summary>
+    Task<GraphicsHardwareDto?> TestSetupGraphicsHardwareAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default);
     Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> GetSetupLibrariesAsync(string? setupSession, CancellationToken ct = default);

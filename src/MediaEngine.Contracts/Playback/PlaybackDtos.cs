@@ -39,6 +39,69 @@ public sealed record PlaybackManifestDto
     /// previews (audio, previews switched off, or not made yet). The sprite sheets it names are served beside it.
     /// </summary>
     public string? ScrubPreviewIndexUrl { get; init; }
+
+    /// <summary>
+    /// How the Engine chose to play this title (playback-path spec D1, D7, D8): the rung of the ladder, the plain reason, the encoder
+    /// and where it runs, and the line a player shows while it waits. Null for books, comics and files with no picture.
+    /// </summary>
+    public PlaybackPathDto? PlaybackPath { get; init; }
+}
+
+/// <summary>The four ways a title can start, lightest first (playback-path spec).</summary>
+public static class PlaybackRungs
+{
+    public const string Direct = "direct";
+    public const string Repackage = "repackage";
+    public const string ConvertSound = "convert-sound";
+    public const string EncodePicture = "encode-picture";
+}
+
+/// <summary>Where a picture encode runs.</summary>
+public static class PlaybackEncodePlaces
+{
+    public const string None = "none";
+    public const string GraphicsCard = "graphics-card";
+    public const string Processor = "processor";
+}
+
+/// <summary>The phases a prepared stream goes through, as a player shows them while it waits.</summary>
+public static class PlaybackPathPhases
+{
+    public const string Ready = "ready";
+    public const string WaitingForSlot = "waiting-for-slot";
+    public const string Working = "working";
+    public const string Failed = "failed";
+}
+
+/// <summary>What the Engine chose for one start and why. The same words feed the player's waiting state and Playing now.</summary>
+public sealed record PlaybackPathDto
+{
+    /// <summary>One of <see cref="PlaybackRungs"/>.</summary>
+    public string Rung { get; init; } = PlaybackRungs.Direct;
+
+    /// <summary>The plain-English reason, for example "MKV is not a browser container; video copied, audio copied".</summary>
+    public string Reason { get; init; } = string.Empty;
+
+    /// <summary>The FFmpeg encoder in use ("h264_nvenc", "libx264"), or "copy" when nothing is re-encoded.</summary>
+    public string Encoder { get; init; } = "copy";
+
+    /// <summary>One of <see cref="PlaybackEncodePlaces"/>.</summary>
+    public string RanOn { get; init; } = PlaybackEncodePlaces.None;
+
+    /// <summary>Why the graphics card was not used when it was expected to be, or null.</summary>
+    public string? FallbackReason { get; init; }
+
+    /// <summary>The line a player shows while waiting (never only "Preparing video…"); empty for direct play.</summary>
+    public string WaitingLabel { get; init; } = string.Empty;
+
+    /// <summary>One of <see cref="PlaybackPathPhases"/>.</summary>
+    public string Phase { get; init; } = PlaybackPathPhases.Ready;
+
+    /// <summary>How much of the title is ready, 0 to 100, once known; null before the first segment.</summary>
+    public int? PercentPrepared { get; init; }
+
+    /// <summary>The Engine's own error text for "Show details" when <see cref="Phase"/> is failed.</summary>
+    public string? FailureDetail { get; init; }
 }
 
 public sealed record PlaybackTechnicalInfoDto
@@ -634,7 +697,18 @@ public sealed class WatchingSettingsDto
     public bool ContinueFromCredits { get; set; }
     public bool PreferHeroBanners { get; set; } = true;
     public bool RememberPerTitlePlaybackSpeed { get; set; } = true;
+
+    /// <summary>"Video quality" (playback-path spec D15): <c>Auto</c>, <c>High</c> (Highest), <c>Balanced</c> or <c>DataSaver</c>.</summary>
     public string PreferredVideoQuality { get; set; } = PlaybackPreferenceValues.Auto;
+
+    /// <summary>"Quality on mobile data" (D15): the same four choices, used when the connection is not the home network.</summary>
+    public string MobileDataVideoQuality { get; set; } = PlaybackPreferenceValues.Auto;
+
+    /// <summary>"Convert only when needed" (D15), on by default; off lets the Engine prefer a prepared stream.</summary>
+    public bool ConvertOnlyWhenNeeded { get; set; } = true;
+
+    /// <summary>"Allow HDR" (D15), on by default; off treats HDR as needing a picture conversion.</summary>
+    public bool AllowHdr { get; set; } = true;
 }
 
 public sealed class ListeningSettingsDto

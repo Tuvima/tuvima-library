@@ -1,5 +1,8 @@
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Playback;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Contracts;
+using Microsoft.AspNetCore.Mvc;
 using ContractTranscodingSettings = MediaEngine.Contracts.Settings.TranscodingSettings;
 
 namespace MediaEngine.Api.Endpoints;
@@ -73,6 +76,27 @@ public static class TranscodingSettingsEndpoints
         .WithName("UpdateTranscodingSettings")
         .WithSummary("Saves playback encode, FFmpeg, and offline variant policy.")
         .Produces<ContractTranscodingSettings>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
+        // What the Engine found when it tested the graphics hardware, without testing again (Settings > Playback > Quality).
+        grp.MapGet("/playback/hardware", ([FromServices] IFFmpegService ffmpeg, IConfigurationLoader configLoader) =>
+            Results.Ok(GraphicsHardwareReport.Current(ffmpeg, configLoader.LoadTranscoding().HardwareAcceleration)))
+        .WithName("GetPlaybackHardware")
+        .WithSummary("Returns what the last graphics hardware test found.")
+        .Produces<GraphicsHardwareDto>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
+        // The Test hardware button: runs the graphics test again right now and returns the new answer.
+        grp.MapPost("/playback/test-hardware", async ([FromServices] IFFmpegService ffmpeg, IConfigurationLoader configLoader, [FromServices] TimeProvider clock, CancellationToken ct) =>
+        {
+            var mode = configLoader.LoadTranscoding().HardwareAcceleration;
+            // The test starts FFmpeg processes, so it runs off the request thread.
+            var answer = await Task.Run(() => GraphicsHardwareReport.Test(ffmpeg, mode, clock), ct).ConfigureAwait(false);
+            return Results.Ok(answer);
+        })
+        .WithName("TestPlaybackHardware")
+        .WithSummary("Tests the graphics hardware again and returns what was found.")
+        .Produces<GraphicsHardwareDto>(StatusCodes.Status200OK)
         .RequireEffectiveAdministrator();
 
         return grp;

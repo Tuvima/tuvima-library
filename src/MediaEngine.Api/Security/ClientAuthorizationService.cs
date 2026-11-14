@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
@@ -224,12 +225,86 @@ public sealed class ClientAuthorizationService(
     public Task<ClientDevice?> GetDeviceAsync(Guid deviceId, CancellationToken ct = default) =>
         repository.GetDeviceAsync(deviceId, ct);
 
-    public Task<bool> UpdateCapabilitiesAsync(Guid deviceId, ClientCapabilitiesDto capabilities, CancellationToken ct = default) =>
-        repository.UpdateCapabilitiesAsync(
+    /// <summary>
+    /// Keeps what a device reported about itself. The limits the Engine learned and the device's video options stay as they were: an app
+    /// cannot set or clear them through a report (an administrator clears the limits on the Devices page; options have their own action).
+    /// </summary>
+    public async Task<bool> UpdateCapabilitiesAsync(Guid deviceId, ClientCapabilitiesDto capabilities, CancellationToken ct = default)
+    {
+        var device = await repository.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        var stored = device is null ? null : ReadCapabilities(device);
+        return await repository.UpdateCapabilitiesAsync(
             deviceId,
-            JsonSerializer.Serialize(NormalizeCapabilities(capabilities)),
+            JsonSerializer.Serialize(ClientCapabilitiesNormalizer.Normalize(capabilities, stored?.LearnedLimits, stored?.VideoOptions)),
             timeProvider.GetUtcNow(),
-            ct);
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Remembers that a device could not play a kind of file in a rung, so its next start of that kind begins one rung lower.</summary>
+    public async Task<bool> RecordLearnedLimitAsync(
+        Guid deviceId, string failedRung, string videoCodec, string container, bool tenBit, CancellationToken ct = default)
+    {
+        var device = await repository.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive)
+        {
+            return false;
+        }
+
+        var capabilities = ReadCapabilities(device);
+        var learned = LearnedPlaybackLimits.Learn(
+            capabilities.LearnedLimits, failedRung, videoCodec, container, tenBit, timeProvider.GetUtcNow());
+        return await repository.UpdateCapabilitiesAsync(
+            deviceId,
+            JsonSerializer.Serialize(ClientCapabilitiesNormalizer.WithLearned(capabilities, learned)),
+            device.LastSeenAt,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Saves a device's per-device video options (playback-path spec D15). The device's last-seen time is left alone.</summary>
+    public async Task<bool> SetVideoOptionsAsync(Guid deviceId, DeviceVideoOptionsDto options, CancellationToken ct = default)
+    {
+        var device = await repository.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive)
+        {
+            return false;
+        }
+
+        return await repository.UpdateCapabilitiesAsync(
+            deviceId,
+            JsonSerializer.Serialize(ClientCapabilitiesNormalizer.WithOptions(ReadCapabilities(device), options)),
+            device.LastSeenAt,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Forgets every limit the Engine learned for a device. The device's last-seen time is left alone.</summary>
+    public async Task<bool> ClearLearnedLimitsAsync(Guid deviceId, CancellationToken ct = default)
+    {
+        var device = await repository.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive)
+        {
+            return false;
+        }
+
+        return await repository.UpdateCapabilitiesAsync(
+            deviceId,
+            JsonSerializer.Serialize(ClientCapabilitiesNormalizer.WithLearned(ReadCapabilities(device), [])),
+            device.LastSeenAt,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>What a device last reported; an empty report when it never has or the stored text cannot be read.</summary>
+    public static ClientCapabilitiesDto ReadCapabilities(ClientDevice device)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ClientCapabilitiesDto>(device.CapabilitiesJson) ?? new ClientCapabilitiesDto();
+        }
+        catch (JsonException)
+        {
+            // A report that cannot be read is treated as "nothing reported", the same as a device that never reported.
+            return new ClientCapabilitiesDto();
+        }
+    }
 
     public Task<bool> RevokeDeviceAsync(Guid deviceId, Guid profileId, CancellationToken ct = default) =>
         repository.RevokeDeviceAsync(deviceId, profileId, timeProvider.GetUtcNow(), "user_revoked", ct);
@@ -547,32 +622,7 @@ public sealed class ClientAuthorizationService(
 
     private static string JoinScopes(IEnumerable<string> scopes) => string.Join(' ', scopes.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
 
-    private static ClientCapabilitiesDto NormalizeCapabilities(ClientCapabilitiesDto source) => new()
-    {
-        SchemaVersion = 1,
-        Containers = NormalizeValues(source.Containers, 20),
-        VideoCodecs = NormalizeValues(source.VideoCodecs, 20),
-        AudioCodecs = NormalizeValues(source.AudioCodecs, 20),
-        SubtitleFormats = NormalizeValues(source.SubtitleFormats, 20),
-        Protocols = NormalizeValues(source.Protocols, 10),
-        MaxWidth = Clamp(source.MaxWidth, 320, 16384),
-        MaxHeight = Clamp(source.MaxHeight, 240, 8640),
-        MaxBitrateKbps = Clamp(source.MaxBitrateKbps, 64, 500_000),
-        MaxAudioChannels = Clamp(source.MaxAudioChannels, 1, 32),
-        SupportsHdr = source.SupportsHdr,
-        SupportsPlaybackSpeed = source.SupportsPlaybackSpeed,
-        SupportsOfflineDownloads = source.SupportsOfflineDownloads,
-    };
-
-    private static IReadOnlyList<string> NormalizeValues(IEnumerable<string> values, int maximum) =>
-        values.Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim().ToLowerInvariant())
-            .Where(value => value.Length <= 40)
-            .Distinct(StringComparer.Ordinal)
-            .Take(maximum)
-            .ToArray();
-
-    private static int? Clamp(int? value, int minimum, int maximum) => value.HasValue ? Math.Clamp(value.Value, minimum, maximum) : null;
+    private static ClientCapabilitiesDto NormalizeCapabilities(ClientCapabilitiesDto source) => ClientCapabilitiesNormalizer.Normalize(source);
 
     private static string NormalizeDeviceClass(string? value)
     {

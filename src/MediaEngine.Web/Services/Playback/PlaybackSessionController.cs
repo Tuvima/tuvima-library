@@ -146,6 +146,8 @@ public sealed partial class PlaybackSessionController
     public ViewPlaybackSessionState? ViewSession { get; private set; }
     public PlaybackPresentationSurface PresentationSurface { get; private set; } = PlaybackPresentationSurface.Docked;
     public string? CurrentError { get; private set; }
+    /// <summary>What the video player draws while the Engine gets a title ready or after it could not (playback-path spec D8); null once playback is under way.</summary>
+    public PlaybackWaitingView? CurrentWaiting { get; private set; }
     public int SkipBackSeconds { get; private set; }
     public int SkipForwardSeconds { get; private set; }
     /// <summary>When false the player shows the next episode at the end but never advances on its own.</summary>
@@ -688,6 +690,7 @@ public sealed partial class PlaybackSessionController
             {
                 CurrentError = null;
             }
+            CurrentWaiting = null;
             NotifyChanged();
             var startRequested = await TryStartCurrentAudioAsync(new(request, requestVersion, subject));
             if (!IsCurrentRequest(request, requestVersion, subject))
@@ -990,6 +993,7 @@ public sealed partial class PlaybackSessionController
             {
                 CurrentError = null;
             }
+            CurrentWaiting = null;
             await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item))
             {
@@ -1096,6 +1100,7 @@ public sealed partial class PlaybackSessionController
             {
                 CurrentError = null;
             }
+            CurrentWaiting = null;
             await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item))
             {
@@ -2394,15 +2399,36 @@ public sealed partial class PlaybackSessionController
         }
     }
 
-    public void MarkCurrentFailed(string message)
+    public void MarkCurrentFailed(string message, PlaybackPathDto? path = null)
     {
         CurrentError = string.IsNullOrWhiteSpace(message)
             ? "Playback failed for this item."
             : message;
+        // A video that fails gets the same failed state however it failed: one sentence, Try again and the text behind Show details.
+        CurrentWaiting = CurrentItem is { } failed && MediaKindClassifier.IsVideo(failed.MediaType)
+            ? PlaybackWaitingRules.ForFailure(path, CurrentError)
+            : null;
         IsPlaying = false;
         NeedsUserGestureToStart = false;
         _stateMachine.SetTransportState(false, false, CurrentError);
         NotifyChanged();
+    }
+
+    /// <summary>
+    /// Try again after a video could not be prepared: forgets the stale manifest and starts the current title over, so the Engine decides afresh
+    /// (playback-path spec section 4, Failed).
+    /// </summary>
+    public Task RetryPreparationAsync(CancellationToken ct = default)
+    {
+        if (!IsVideoMode || CurrentIndex < 0 || CurrentIndex >= _queue.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        _queue[CurrentIndex] = _queue[CurrentIndex] with { Manifest = null, StreamUrl = null };
+        CurrentWaiting = null;
+        CurrentError = null;
+        return PlayIndexAsync(CurrentIndex, ct);
     }
 
     public void MarkNeedsUserGestureToStart()
@@ -2427,6 +2453,7 @@ public sealed partial class PlaybackSessionController
 
         NeedsUserGestureToStart = false;
         CurrentError = null;
+        CurrentWaiting = null;
         IsPlaying = true;
         _stateMachine.SetTransportState(true, false, null);
         NotifyChanged();
@@ -2488,6 +2515,7 @@ public sealed partial class PlaybackSessionController
         IsVideoExpanded = false;
         PresentationSurface = PlaybackPresentationSurface.Docked;
         CurrentError = null;
+        CurrentWaiting = null;
         _savedPlaybackRateInvalid = false;
         _stateMachine.SetIdle();
         PlaybackStartVersion++;
@@ -2676,7 +2704,8 @@ public sealed partial class PlaybackSessionController
         var item = _queue[index];
         if (MediaKindClassifier.IsVideo(item.MediaType) && item.Manifest?.HlsStatus == "preparing" && item.AssetId is { } preparingAsset)
         {
-            CurrentError = "Preparing video… Playback will begin automatically.";
+            CurrentWaiting = PlaybackWaitingRules.ForPreparing(item.Manifest.PlaybackPath);
+            CurrentError = CurrentWaiting.HasLine ? CurrentWaiting.Line : PlaybackWaitingRules.NeutralLine;
             NotifyChanged();
             for (var attempt = 0; attempt < 120 && item.Manifest?.HlsStatus == "preparing"; attempt++)
             {
@@ -2699,7 +2728,11 @@ public sealed partial class PlaybackSessionController
                 }
                 item = item with { Manifest = refreshed };
                 _queue[index] = item;
+                CurrentWaiting = PlaybackWaitingRules.ForPreparing(refreshed.PlaybackPath);
+                CurrentError = CurrentWaiting.HasLine ? CurrentWaiting.Line : PlaybackWaitingRules.NeutralLine;
+                NotifyChanged();
             }
+            CurrentWaiting = null;
             CurrentError = _savedPlaybackRateInvalid
                 ? "The saved playback speed is unsupported. Choose a valid speed before playback can start."
                 : null;
@@ -2710,7 +2743,7 @@ public sealed partial class PlaybackSessionController
         }
         if (item.Manifest?.HlsStatus == "failed")
         {
-            MarkCurrentFailed(item.Manifest.Warnings.FirstOrDefault() ?? "Compatible video preparation failed.");
+            MarkCurrentFailed(item.Manifest.Warnings.FirstOrDefault() ?? "Compatible video preparation failed.", item.Manifest.PlaybackPath);
             return;
         }
         if (MediaKindClassifier.IsVideo(item.MediaType) && item.Manifest is not null)
@@ -2718,7 +2751,7 @@ public sealed partial class PlaybackSessionController
             var manifestStream = SelectManifestStream(item.Manifest);
             if (string.IsNullOrWhiteSpace(manifestStream))
             {
-                MarkCurrentFailed("The Engine has not finished preparing a compatible video stream.");
+                MarkCurrentFailed("The Engine has not finished preparing a compatible video stream.", item.Manifest.PlaybackPath);
                 return;
             }
 

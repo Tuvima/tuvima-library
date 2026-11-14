@@ -885,8 +885,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11); skips and subtitle look moved to the player.
-            Assert.Equal(4, cut.FindAll(".app-settings-group").Count);
+            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11) and Video quality and devices (playback-path D15); skips and subtitle look moved to the player.
+            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
             Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-settings-group__heading"));
             Assert.NotEmpty(cut.FindAll(".app-setting-row"));

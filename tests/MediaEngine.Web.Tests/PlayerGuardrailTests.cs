@@ -145,6 +145,7 @@ public sealed class PlayerGuardrailTests
 
     private static readonly Dictionary<string, string> NonSessionVideoSites = new(StringComparer.Ordinal)
     {
+        ["src/MediaEngine.Web/wwwroot/js/playback-capabilities.js"] = "creates one video element that is never put on the page and only asks it canPlayType, to measure what the browser can open (playback-path spec D12); it plays nothing and joins no playback session",
         ["src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor"] = "plays one extra (a trailer or a bonus clip) in its own viewer with the browser controls; it never joins a playback session",
         ["src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor"] = "the artwork and file preview viewer shows a short clip with browser controls; it never joins a playback session",
     };

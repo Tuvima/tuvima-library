@@ -1,0 +1,35 @@
+.video-options {
+    display: grid;
+    gap: var(--tl-space-2, 8px);
+}
+
+.video-options__summary {
+    display: grid;
+    gap: var(--tl-space-1, 4px);
+    padding-top: var(--tl-space-3, 12px);
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.video-options__summary-label {
+    font-weight: 600;
+}
+
+.video-options__summary-value,
+.video-options__help {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
+    overflow-wrap: anywhere;
+}
+
+.video-options__learned {
+    color: var(--tl-status-warning);
+    font-size: var(--tl-type-caption-size);
+    overflow-wrap: anywhere;
+}
+
+.video-options__action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+}

@@ -11,7 +11,8 @@ internal sealed record FFmpegInstallation(
     string? FfprobePath,
     HardwareCapabilities Hardware,
     string HardwareMode,
-    FFmpegDetection Detection)
+    FFmpegDetection Detection,
+    string? BinaryStamp = null)
 {
     public bool IsAvailable => FfmpegPath is not null && FfprobePath is not null;
 }

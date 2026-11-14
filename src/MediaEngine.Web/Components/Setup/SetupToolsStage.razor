@@ -1,5 +1,8 @@
 @namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Setup
+@using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Shared.Tools
 @inject IStringLocalizer<SharedStrings> L
 
@@ -30,6 +33,19 @@
             @foreach (var tool in Listed)
             {
                 <ToolRequirementRow Tool="@tool" Busy="@Busy" OnInstall="InstallTool" OnRunInstaller="RunInstaller" />
+                @if (tool.Id == ToolRequirementIds.Ffmpeg)
+                {
+                    @* The Graphics hardware row (playback-path spec D11): filled in on its own once FFmpeg is ready, the same words as
+                       Settings > Playback; it never blocks Continue and asks nothing. *@
+                    var hardware = GraphicsHardwareText.ForSetupRow(Graphics, L);
+                    <div class="setup-tools__later" data-tool-id="graphics-hardware" data-state="@(Graphics?.Outcome ?? GraphicsHardwareOutcomes.Unavailable)">
+                        <div>
+                            <strong>@L["GraphicsHardware_Title"]</strong>
+                            <span data-graphics-hardware-line>@hardware.Headline</span>
+                        </div>
+                        <AppStatusBadge Text="@hardware.Badge" Tone="@hardware.Tone" />
+                    </div>
+                }
             }
             @* Local AI is not part of setup; it gets a quiet "Later" row so the list is complete (first-run setup rework, Tools). *@
             <div class="setup-tools__later" data-tool-id="local-ai" data-state="later">
@@ -60,6 +76,8 @@
 
 @code {
     [Parameter] public SetupPreflightDto? Preflight { get; set; }
+    /// <summary>What the Engine found when it tested the graphics hardware, or null before FFmpeg is ready.</summary>
+    [Parameter] public GraphicsHardwareDto? Graphics { get; set; }
     [Parameter] public string? Error { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback Retry { get; set; }

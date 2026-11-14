@@ -79,6 +79,29 @@ public sealed class FFmpegService : IFFmpegService
         }
     }
 
+    public HardwareCapabilities RetestHardware()
+    {
+        lock (_redetectGate)
+        {
+            var previous = Current;
+            if (!previous.IsAvailable || previous.FfmpegPath is null)
+            {
+                return previous.Hardware;
+            }
+
+            var hardware = DetectHardware(previous.FfmpegPath, previous.HardwareMode);
+            Volatile.Write(ref _installation, previous with { Hardware = hardware });
+            _logger.LogInformation(
+                "Hardware test: {Accel} (preferred encoder: {Enc}){Failures}",
+                hardware.DetectedAccelerator ?? "none (software)",
+                hardware.PreferredEncoder,
+                hardware.ProbeFailures.Count == 0
+                    ? string.Empty
+                    : " Failed: " + string.Join("; ", hardware.ProbeFailures.Select(f => $"{f.Key}: {f.Value}")));
+            return hardware;
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
 
     public async Task<MediaProbeResult?> ProbeAsync(string filePath, CancellationToken ct = default)
@@ -165,13 +188,39 @@ public sealed class FFmpegService : IFFmpegService
             Version: null);
         var mode = settings.HardwareAcceleration;
 
-        // Hardware probing starts several processes, so keep the earlier answer while the tool has not moved.
+        // Hardware probing starts several processes, so keep the earlier answer while the tool has not moved. A new copy of FFmpeg
+        // at the same place (an update) counts as moved, so the graphics test runs again after every install (playback-path spec D11).
+        var stamp = available ? BinaryStamp(ffmpeg.Path!) : null;
         var hardware = !available
             ? new HardwareCapabilities()
-            : previous is { IsAvailable: true } && previous.FfmpegPath == ffmpeg.Path && previous.HardwareMode == mode
-                ? previous.Hardware
+            : KeepsHardwareAnswer(previous, ffmpeg.Path, mode, stamp)
+                ? previous!.Hardware
                 : DetectHardware(ffmpeg.Path!, mode);
-        return new FFmpegInstallation(ffmpeg.Path, ffprobe.Path, hardware, mode, detection);
+        return new FFmpegInstallation(ffmpeg.Path, ffprobe.Path, hardware, mode, detection, stamp);
+    }
+
+    /// <summary>Whether the earlier hardware answer still stands: the same FFmpeg file (same place, size and write time) and the same hardware choice.</summary>
+    internal static bool KeepsHardwareAnswer(FFmpegInstallation? previous, string? ffmpegPath, string mode, string? stamp) =>
+        previous is { IsAvailable: true } && previous.FfmpegPath == ffmpegPath && previous.HardwareMode == mode && previous.BinaryStamp == stamp;
+
+    /// <summary>A short fingerprint of the FFmpeg file (its size and last write time) so an update in place is noticed; null when it cannot be read.</summary>
+    internal static string? BinaryStamp(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists ? $"{info.Length}:{info.LastWriteTimeUtc.Ticks}" : null;
+        }
+        catch (IOException)
+        {
+            // A file that cannot be read has no fingerprint; the graphics test then simply runs again next time.
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Same as above: no fingerprint, so the answer is not reused.
+            return null;
+        }
     }
 
     private void LogOutcome(FFmpegInstallation installation)
@@ -292,9 +341,10 @@ public sealed class FFmpegService : IFFmpegService
             bool hasWebVtt = ListsCapability(output, "webvtt");
             bool hasHls = ListsCapability(muxers, "hls");
 
-            hasNvenc = hasNvenc && ProbeEncoder(ffmpegPath, "h264_nvenc");
-            hasQsv = hasQsv && ProbeEncoder(ffmpegPath, "h264_qsv");
-            hasVaapi = hasVaapi && ProbeEncoder(ffmpegPath, "h264_vaapi");
+            var failures = new Dictionary<string, string>();
+            hasNvenc = hasNvenc && ProbeEncoder(ffmpegPath, "h264_nvenc", failures);
+            hasQsv = hasQsv && ProbeEncoder(ffmpegPath, "h264_qsv", failures);
+            hasVaapi = hasVaapi && ProbeEncoder(ffmpegPath, "h264_vaapi", failures);
 
             // If mode is "auto", pick best; if mode is explicit, honour it.
             bool softwareOnly = mode is "none" or "cpu";
@@ -312,6 +362,8 @@ public sealed class FFmpegService : IFFmpegService
                 HasVaapi = hasVaapi,
                 PreferredEncoder = encoder,
                 DetectedAccelerator = accelName,
+                ProbeFailures = failures,
+                GpuName = ReadGpuName(),
                 HasHlsMuxer = hasHls,
                 HasH264Encoder = hasLibx264 || hasNvenc || hasQsv || hasVaapi,
                 HasAacEncoder = hasAac,
@@ -680,7 +732,27 @@ public sealed class FFmpegService : IFFmpegService
         return output;
     }
 
-    private bool ProbeEncoder(string ffmpegPath, string encoder)
+    /// <summary>
+    /// The size of the test picture. NVIDIA's encoder refuses pictures smaller than roughly 145 by 49 pixels, so a tiny
+    /// test frame made every NVIDIA card look unusable; 640 by 360 is accepted by every encoder we use.
+    /// </summary>
+    internal const string ProbeFrameSize = "640x360";
+
+    internal static IReadOnlyList<string> BuildProbeArguments(string encoder)
+    {
+        var arguments = new List<string> { "-hide_banner", "-loglevel", "error" };
+        if (encoder == "h264_vaapi")
+        {
+            arguments.AddRange(["-init_hw_device", "vaapi=va:/dev/dri/renderD128", "-filter_hw_device", "va"]);
+        }
+
+        arguments.AddRange(["-f", "lavfi", "-i", $"color=size={ProbeFrameSize}:rate=1", "-frames:v", "1"]);
+        arguments.AddRange(["-vf", encoder == "h264_vaapi" ? "format=nv12,hwupload" : "format=yuv420p"]);
+        arguments.AddRange(["-c:v", encoder, "-f", "null", "-"]);
+        return arguments;
+    }
+
+    private bool ProbeEncoder(string ffmpegPath, string encoder, IDictionary<string, string> failures)
     {
         try
         {
@@ -691,11 +763,7 @@ public sealed class FFmpegService : IFFmpegService
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
-            foreach (var argument in new[]
-                     {
-                         "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=size=64x64:rate=1",
-                         "-frames:v", "1", "-c:v", encoder, "-f", "null", "-",
-                     })
+            foreach (var argument in BuildProbeArguments(encoder))
             {
                 psi.ArgumentList.Add(argument);
             }
@@ -703,16 +771,69 @@ public sealed class FFmpegService : IFFmpegService
             using var process = Process.Start(psi);
             if (process is null)
             {
+                failures[encoder] = "FFmpeg could not be started for the test.";
                 return false;
             }
 
-            _ = process.StandardOutput.ReadToEnd();
-            _ = process.StandardError.ReadToEnd();
-            return process.WaitForExit(10_000) && process.ExitCode == 0;
-        }
-        catch
-        {
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(15_000))
+            {
+                try { process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) { /* The test already ended on its own. */ }
+                failures[encoder] = "The test did not finish in 15 seconds.";
+                return false;
+            }
+
+            _ = stdout.GetAwaiter().GetResult();
+            var error = stderr.GetAwaiter().GetResult().Trim();
+            if (process.ExitCode == 0)
+            {
+                return true;
+            }
+
+            failures[encoder] = error.Length <= 600 ? error : error[^600..];
+            _logger.LogWarning("The {Encoder} test failed: {Error}", encoder, failures[encoder]);
             return false;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            failures[encoder] = ex.Message;
+            return false;
+        }
+    }
+
+    /// <summary>The graphics card's name from the operating system's own tools, or null when it cannot be read (best effort).</summary>
+    private string? ReadGpuName()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("nvidia-smi", "--query-gpu=name --format=csv,noheader");
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            using var process = Process.Start(psi);
+            if (process is null)
+            {
+                return null;
+            }
+
+            var output = process.StandardOutput.ReadToEnd();
+            _ = process.StandardError.ReadToEnd();
+            if (!process.WaitForExit(5_000) || process.ExitCode != 0)
+            {
+                return null;
+            }
+
+            var name = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            // No NVIDIA tool on this machine: the card's name is simply unknown; encoding still works through FFmpeg.
+            _logger.LogDebug(ex, "The graphics card name could not be read");
+            return null;
         }
     }
 

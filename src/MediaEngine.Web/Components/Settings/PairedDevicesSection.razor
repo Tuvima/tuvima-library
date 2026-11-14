@@ -2,6 +2,8 @@
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Contracts.Playback
 @inject DashboardIdentityClient Identity
 @inject IStringLocalizer<SharedStrings> L
 
@@ -56,6 +58,24 @@
                                     <DeviceTypeIcon Kind="@DeviceTypeClassifier.Classify(device.Platform, device.ClientName)" />
                                     <span class="paired-device__text">@device.DeviceName<small>@device.ClientName</small></span>
                                 </span>
+                                @if (DeviceAbilitySummary.Describe(device.Capabilities) is { } abilities)
+                                {
+                                    <div class="paired-device__abilities" data-device-abilities="@device.Id">@abilities</div>
+                                }
+                                @if (ManagesOthers && device.Capabilities?.LearnedLimits is { Count: > 0 } limits)
+                                {
+                                    <div class="paired-device__learned" data-device-learned="@device.Id">
+                                        <span class="paired-device__learned-text">
+                                            @foreach (var limit in limits)
+                                            {
+                                                <span>@L["PairedDevicesSection_Learned", limit.Summary]</span>
+                                            }
+                                        </span>
+                                        <AppButton Label="@L["PairedDevicesSection_ClearLearned"].Value" ButtonStyle="AppButtonStyle.Text"
+                                                   Size="AppControlSize.Compact" Disabled="@(_clearing == device.Id)"
+                                                   OnClick="@(() => ClearLearnedAsync(device))" />
+                                    </div>
+                                }
                             </td>
                             <td>@PlatformLabel(device.Platform)</td>
                             @if (ManagesOthers)
@@ -85,6 +105,22 @@
                             <td>
                                 <AppButton Label="@L["TopBar_SignOut"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
                                            Size="AppControlSize.Compact" OnClick="@(() => AskSignOut(device))" />
+                            </td>
+                        </tr>
+                        @* This device's own rows of Video quality and devices (playback-path spec D15), read from the Engine when opened. *@
+                        <tr data-device-video-row="@device.Id">
+                            <td colspan="@(ManagesOthers ? 7 : 6)">
+                                <div class="paired-device__video">
+                                    <AppButton Label="@L["VideoOptions_Title"].Value" ButtonStyle="AppButtonStyle.Text"
+                                               Size="AppControlSize.Compact" aria-expanded="@(_videoOpen.Contains(device.Id) ? "true" : "false")"
+                                               data-device-video-toggle="@device.Id" OnClick="@(() => ToggleVideo(device.Id))" />
+                                    @if (_videoOpen.Contains(device.Id))
+                                    {
+                                        <VideoOptionsPanel Scope="@VideoOptionScopes.Device" ShowSummary="false"
+                                                           Load="@(() => Identity.GetManagedDeviceVideoOptionsAsync(device.Id))"
+                                                           Save="@((id, value) => SaveVideoOptionAsync(device.Id, id, value))" />
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }
@@ -127,7 +163,9 @@
     private bool _loading = true;
     private bool _loadFailed;
     private bool _signingOut;
+    private Guid? _clearing;
     private string? _failure;
+    private readonly HashSet<Guid> _videoOpen = [];
 
     private List<ManagedClientDeviceDto> VisibleDevices => _devices.Where(Filter.Matches).ToList();
 
@@ -160,6 +198,41 @@
         // The selector shows the new choice once the list is read again; only a refusal is told.
         if (!result.Succeeded) _failure = L["PairedDevicesSection_ThatChangeCouldNotBeSaved"].Value;
         await LoadDevicesAsync();
+    }
+
+    private async Task ClearLearnedAsync(ManagedClientDeviceDto device)
+    {
+        _clearing = device.Id;
+        _failure = null;
+        try
+        {
+            // The learned lines leave once the list is read again; only a refusal is told.
+            var result = await Identity.ClearManagedDeviceLearnedLimitsAsync(device.Id);
+            if (!result.Succeeded)
+            {
+                _failure = L["PairedDevicesSection_CouldNotClearLearned"].Value;
+            }
+        }
+        finally
+        {
+            _clearing = null;
+        }
+
+        await LoadDevicesAsync();
+    }
+
+    private void ToggleVideo(Guid deviceId)
+    {
+        if (!_videoOpen.Remove(deviceId))
+        {
+            _videoOpen.Add(deviceId);
+        }
+    }
+
+    private async Task<VideoPlaybackOptionsDto?> SaveVideoOptionAsync(Guid deviceId, string id, string value)
+    {
+        var result = await Identity.SetManagedDeviceVideoOptionAsync(deviceId, id, value);
+        return result.Succeeded ? result.Value : null;
     }
 
     private void AskSignOut(ManagedClientDeviceDto device) => _pendingSignOut = device;

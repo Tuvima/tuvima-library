@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -24,6 +25,30 @@ public partial interface IEngineApiClient
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false);
+
+    /// <summary>
+    /// PUT /api/v1/playback/browser-capabilities  -  tells the Engine what this browser measured about the video it can play (playback-path spec D12).
+    /// The Engine keeps it for this browser session and uses it in place of the fixed web list. False when the Engine refused or could not be reached.
+    /// </summary>
+    Task<bool> ReportBrowserPlaybackCapabilitiesAsync(ClientCapabilitiesDto capabilities, CancellationToken ct = default);
+
+    /// <summary>
+    /// GET /api/v1/playback/video-options  -  the "Video quality and devices" list with this person's and this browser's saved values
+    /// (playback-path spec D15). Null when the Engine could not be reached.
+    /// </summary>
+    Task<VideoPlaybackOptionsDto?> GetVideoPlaybackOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// PUT /api/v1/playback/video-options  -  saves one row (a person's row or this browser's device row) and returns the refreshed list.
+    /// Null when the Engine refused or could not be reached.
+    /// </summary>
+    Task<VideoPlaybackOptionsDto?> SetVideoPlaybackOptionAsync(string id, string value, CancellationToken ct = default);
+
+    /// <summary>
+    /// POST /api/v1/playback/{assetId}/failure  -  tells the Engine this browser could not play a title in the rung it chose, so the next
+    /// start of that kind of file uses a heavier rung (playback-path spec D13). <paramref name="rung"/> is the manifest's playback path rung.
+    /// </summary>
+    Task<bool> ReportPlaybackFailureAsync(Guid assetId, string rung, string? detail, CancellationToken ct = default);
 
     /// <summary>
     /// POST /api/v1/playback/{assetId}/cast  -  asks the Engine for a short-lived, single-title link, bound to the live session or device, that a receiver can play with
@@ -106,6 +131,12 @@ public partial interface IEngineApiClient
     Task<TranscodingSettings?> GetTranscodingSettingsAsync(CancellationToken ct = default);
 
     Task<TranscodingSettings?> SaveTranscodingSettingsAsync(TranscodingSettings settings, CancellationToken ct = default);
+
+    /// <summary>What the Engine's last graphics hardware test found (Settings > Playback > Quality), or null when the Engine could not be reached.</summary>
+    Task<GraphicsHardwareDto?> GetPlaybackHardwareAsync(CancellationToken ct = default);
+
+    /// <summary>The Test hardware button: the Engine tests the graphics encoders again and returns what it found, or null when it could not be reached.</summary>
+    Task<GraphicsHardwareDto?> TestPlaybackHardwareAsync(CancellationToken ct = default);
 
     Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(Guid profileId, CancellationToken ct = default);
 

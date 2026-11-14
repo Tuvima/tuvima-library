@@ -19,6 +19,20 @@ public enum ManagedDeviceRevokeOutcome
     Forbidden,
 }
 
+public enum ManagedDeviceLimitsOutcome
+{
+    Cleared,
+    NotFound,
+    Forbidden,
+}
+
+public enum ManagedDeviceAccessOutcome
+{
+    Allowed,
+    NotFound,
+    Forbidden,
+}
+
 /// <summary>
 /// Lists and revokes paired phones and TVs for the Dashboard. A server administrator who has unlocked their
 /// administrator PIN (when they use one) sees every device; a household administrator who has unlocked theirs sees their
@@ -97,6 +111,7 @@ public sealed class ManagedClientDeviceService(
                 BackupProfileId = device.BackupProfileId,
                 HouseholdId = accountProfiles[device.AccountId]?.HouseholdId,
                 BacksUpTo = backupName,
+                Capabilities = ClientAuthorizationService.ReadCapabilities(device),
             });
         }
 
@@ -126,6 +141,72 @@ public sealed class ManagedClientDeviceService(
         await notifier.NotifyDeviceRevokedAsync(deviceId, ct).ConfigureAwait(false);
         return ManagedDeviceRevokeOutcome.Revoked;
     }
+
+    /// <summary>
+    /// Forgets what the Engine learned a device cannot play (playback-path spec D13), under the same rule as signing a device out:
+    /// the device's own account, an unlocked server administrator, or the household administrator who manages that account.
+    /// </summary>
+    public async Task<ManagedDeviceLimitsOutcome> ClearLearnedLimitsAsync(RequestAuthority authority, Guid deviceId, CancellationToken ct = default)
+    {
+        var device = await devices.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive)
+        {
+            return ManagedDeviceLimitsOutcome.NotFound;
+        }
+
+        if (device.AccountId != RequiredAccountId(authority) &&
+            !await IsUnlockedServerAdministratorAsync(authority, ct).ConfigureAwait(false) &&
+            !await IsManagedByHouseholdAdministratorAsync(authority, device.AccountId, ct).ConfigureAwait(false))
+        {
+            return ManagedDeviceLimitsOutcome.Forbidden;
+        }
+
+        var capabilities = ClientAuthorizationService.ReadCapabilities(device);
+        if (capabilities.LearnedLimits.Count == 0)
+        {
+            return ManagedDeviceLimitsOutcome.Cleared;
+        }
+
+        // The last-seen time is kept as it was: clearing a limit is not the device being seen.
+        var cleared = await devices.UpdateCapabilitiesAsync(
+            deviceId,
+            System.Text.Json.JsonSerializer.Serialize(Services.Playback.ClientCapabilitiesNormalizer.WithLearned(capabilities, [])),
+            device.LastSeenAt,
+            ct).ConfigureAwait(false);
+        return cleared ? ManagedDeviceLimitsOutcome.Cleared : ManagedDeviceLimitsOutcome.NotFound;
+    }
+
+    /// <summary>
+    /// Finds a paired device the caller may manage (the same rule as signing it out), for reading and changing its video options
+    /// (playback-path spec D15) from the Devices page.
+    /// </summary>
+    public async Task<(ManagedDeviceAccessOutcome Outcome, ClientDevice? Device)> FindManagedAsync(
+        RequestAuthority authority, Guid deviceId, CancellationToken ct = default)
+    {
+        var device = await devices.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive)
+        {
+            return (ManagedDeviceAccessOutcome.NotFound, null);
+        }
+
+        if (device.AccountId != RequiredAccountId(authority) &&
+            !await IsUnlockedServerAdministratorAsync(authority, ct).ConfigureAwait(false) &&
+            !await IsManagedByHouseholdAdministratorAsync(authority, device.AccountId, ct).ConfigureAwait(false))
+        {
+            return (ManagedDeviceAccessOutcome.Forbidden, null);
+        }
+
+        return (ManagedDeviceAccessOutcome.Allowed, device);
+    }
+
+    /// <summary>Saves a managed device's per-device video options. The last-seen time is kept as it was: choosing an option is not the device being seen.</summary>
+    public Task<bool> SaveVideoOptionsAsync(ClientDevice device, DeviceVideoOptionsDto options, CancellationToken ct = default) =>
+        devices.UpdateCapabilitiesAsync(
+            device.Id,
+            System.Text.Json.JsonSerializer.Serialize(
+                Services.Playback.ClientCapabilitiesNormalizer.WithOptions(ClientAuthorizationService.ReadCapabilities(device), options)),
+            device.LastSeenAt,
+            ct);
 
     /// <summary>
     /// A server administrator whose administrator PIN is unlocked (or who uses none). Until then they are like anyone

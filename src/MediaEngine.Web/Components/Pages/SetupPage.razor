@@ -3,6 +3,7 @@
 @implements IDisposable
 @layout MediaEngine.Web.Shared.SetupWizardLayout
 @using MediaEngine.Contracts.Authentication
+@using MediaEngine.Contracts.Playback
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Setup
@@ -74,7 +75,7 @@
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "tools":
-                    <SetupToolsStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
+                    <SetupToolsStage Preflight="@_preflight" Graphics="@_graphics" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
                                      InstallTool="InstallToolAsync" RunInstaller="RunToolInstallerAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -118,6 +119,9 @@
     private const string SetupSessionKey = "tuvima.setup.session.v2";
     private SetupStatusDto? _status;
     private SetupPreflightDto? _preflight;
+    // The Graphics hardware row on the Tools step (playback-path spec D11): filled in on its own once FFmpeg is ready, never required.
+    private GraphicsHardwareDto? _graphics;
+    private bool _graphicsChecking;
     private string? _preflightError;
     private SetupBackupInspectionDto? _backup;
     private string? _backupError;
@@ -393,6 +397,10 @@
             await RunPreflightAsync();
             return;
         }
+        if (CurrentStep == "tools" && _preflight is { Passed: true } && _graphics is null && !_showRestore && !_busy)
+        {
+            await CheckGraphicsHardwareAsync();
+        }
         if (CurrentStep == "libraries" && _setupLibraries is null)
             _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
         if (CurrentStep == "metadata" && !_providersLoaded && !_busy)
@@ -444,6 +452,8 @@
         _busy = true;
         StateHasChanged();
         _preflightError = null;
+        // Check again also tests the graphics hardware again.
+        _graphics = null;
         try
         {
             _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession);
@@ -461,6 +471,33 @@
             StateHasChanged();
             await FollowToolDownloadsAsync();
         }
+        await CheckGraphicsHardwareAsync();
+    }
+
+    // Once FFmpeg is ready the Engine tests the graphics encoders and the row says what it found. It is skipped while FFmpeg is missing or
+    // still downloading (the row then says it waits) and a failed call just leaves the row waiting; nothing here ever blocks Continue.
+    private async Task CheckGraphicsHardwareAsync()
+    {
+        if (_graphicsChecking || _preflight is not { Passed: true } || !SetupToolRules.IsFfmpegReady(_preflight.Tools))
+        {
+            return;
+        }
+
+        _graphicsChecking = true;
+        try
+        {
+            _graphics = await ApiClient.TestSetupGraphicsHardwareAsync(_setupSession);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "Setup could not test the graphics hardware");
+        }
+        finally
+        {
+            _graphicsChecking = false;
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     // The Tools step is always shown, even when every tool is ready; Continue is what passes it, and a missing tool never blocks it.

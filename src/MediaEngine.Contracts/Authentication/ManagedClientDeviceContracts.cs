@@ -32,6 +32,9 @@ public sealed class ManagedClientDeviceDto
 
     /// <summary>The household the phone's account belongs to; the people it can back up are the ones in it.</summary>
     [JsonPropertyName("household_id")] public Guid? HouseholdId { get; init; }
+
+    /// <summary>What the device reported it can play, with the limits the Engine learned from failed starts. Null for a device that never reported.</summary>
+    [JsonPropertyName("capabilities")] public ClientCapabilitiesDto? Capabilities { get; init; }
 }
 
 /// <summary>An administrator choosing (or clearing, with null) whose photos a phone backs up.</summary>

@@ -301,6 +301,8 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
     services.GetService<ILoggerFactory>(),
     services.GetService<EngineApiFailureState>()));
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
+// What this browser measured about the video it can play, told to the Engine once per session and person (playback-path D12).
+builder.Services.AddScoped<MediaEngine.Web.Services.Playback.BrowserPlaybackCapabilityReporter>();
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
     .AddHttpMessageHandler<EngineBusyBackoffHandler>()

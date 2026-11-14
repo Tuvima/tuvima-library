@@ -1,0 +1,100 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+
+@* Settings > Playback > Quality: what the Engine found about the graphics hardware and whether encoding works, with Test hardware
+   (playback-path spec D6, D11, section 4; mockup screens 2 and 3). A failed test says why in plain words and what Library does instead;
+   FFmpeg's own text sits behind Show details. No card at all is calm, not a warning. *@
+<AppSettingsGroup Heading="@L["GraphicsHardware_Title"].Value" Helper="@L["GraphicsHardware_Helper"].Value" Class="graphics-hardware" data-graphics-hardware>
+    @if (_loading)
+    {
+        <AppProgressBar Indeterminate="true" />
+    }
+    else if (_hardware is null)
+    {
+        <div class="graphics-hardware__row">
+            <p class="graphics-hardware__headline" data-graphics-hardware-headline>@L["GraphicsHardware_Unreachable"]</p>
+            @TestButton
+        </div>
+    }
+    else
+    {
+        var view = GraphicsHardwareText.ForCard(_hardware, L);
+        <div class="graphics-hardware__row">
+            <div class="graphics-hardware__words">
+                <div class="graphics-hardware__head">
+                    <strong class="graphics-hardware__headline" data-graphics-hardware-headline>@view.Headline</strong>
+                    <AppStatusBadge Text="@view.Badge" Tone="@view.Tone" />
+                </div>
+                @foreach (var line in view.Lines)
+                {
+                    <p class="graphics-hardware__line" data-graphics-hardware-line>@line</p>
+                }
+                @if (view.OffersTools || !string.IsNullOrWhiteSpace(view.Detail))
+                {
+                    <p class="graphics-hardware__links">
+                        @if (view.OffersTools)
+                        {
+                            <AppLink Href="/settings/tools">@L["GraphicsHardware_OpenTools"]</AppLink>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(view.Detail))
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text" data-graphics-hardware-details OnClick="ToggleDetails">@(_showDetails ? L["GraphicsHardware_HideDetails"] : L["GraphicsHardware_ShowDetails"])</AppButton>
+                        }
+                    </p>
+                    @if (_showDetails && !string.IsNullOrWhiteSpace(view.Detail))
+                    {
+                        <pre class="graphics-hardware__details" data-graphics-hardware-detail-text>@view.Detail</pre>
+                    }
+                }
+            </div>
+            @TestButton
+        </div>
+    }
+    @if (_testFailed)
+    {
+        <AppAlert Tone="AppUiTone.Error" data-graphics-hardware-error>@L["GraphicsHardware_TestCouldNotRun"]</AppAlert>
+    }
+</AppSettingsGroup>
+
+@code {
+    private GraphicsHardwareDto? _hardware;
+    private bool _loading = true;
+    private bool _testing;
+    private bool _testFailed;
+    private bool _showDetails;
+
+    private RenderFragment TestButton => @<AppButton Label="@TestLabel" ButtonStyle="AppButtonStyle.Outlined"
+                                                     data-graphics-hardware-test Loading="@_testing" Disabled="@_testing" OnClick="TestAsync" />;
+
+    private string TestLabel => _testing
+        ? L["GraphicsHardware_Testing"].Value
+        : _hardware is { Outcome: GraphicsHardwareOutcomes.Failed } ? L["GraphicsHardware_TestAgain"].Value : L["GraphicsHardware_TestButton"].Value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hardware = await ApiClient.GetPlaybackHardwareAsync();
+        _loading = false;
+    }
+
+    private async Task TestAsync()
+    {
+        _testing = true;
+        _testFailed = false;
+        var answer = await ApiClient.TestPlaybackHardwareAsync();
+        _testing = false;
+        if (answer is null)
+        {
+            _testFailed = true;
+            return;
+        }
+
+        _hardware = answer;
+        _showDetails = false;
+    }
+
+    private void ToggleDetails() => _showDetails = !_showDetails;
+}

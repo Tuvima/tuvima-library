@@ -856,6 +856,10 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Client
   SupportsHdr: System.Boolean | nullability=not-null | accessors=get,init
   SupportsPlaybackSpeed: System.Boolean | nullability=not-null | accessors=get,init
   SupportsOfflineDownloads: System.Boolean | nullability=not-null | accessors=get,init
+  HardwareDecodeVideoCodecs: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  TenBitVideoCodecs: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  LearnedLimits: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.LearnedPlaybackLimitDto> | nullability=not-null | accessors=get,init
+  VideoOptions: MediaEngine.Contracts.Authentication.DeviceVideoOptionsDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ClientDeviceDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -992,6 +996,11 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Device
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   RevokedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceVideoOptionsDto
+  MaxResolution: System.String | nullability=not-null | accessors=get,init
+  HardwareDecoding: System.String | nullability=not-null | accessors=get,init
+  SurroundSound: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DisableTwoStepRequest
   Code: System.String | nullability=not-null | accessors=get,init
 
@@ -1054,6 +1063,14 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Interc
   Token: System.String | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LearnedPlaybackLimitDto
+  VideoCodec: System.String | nullability=not-null | accessors=get,init
+  Container: System.String | nullability=not-null | accessors=get,init
+  TenBit: System.Boolean | nullability=not-null | accessors=get,init
+  FailedRung: System.String | nullability=not-null | accessors=get,init
+  Summary: System.String | nullability=not-null | accessors=get,init
+  LearnedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LinkAccountExternalLoginRequest
   TransactionTicket: System.String | nullability=not-null | accessors=get,init
   Email: System.String | nullability=nullable | accessors=get,init
@@ -1089,6 +1106,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   BacksUpTo: System.String | nullability=nullable | accessors=get,init
   BackupProfileId: System.Guid? | nullability=nullable | accessors=get,init
   HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
+  Capabilities: MediaEngine.Contracts.Authentication.ClientCapabilitiesDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedProfileResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -7759,6 +7777,10 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetRequest
   Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | nullability=not-null | accessors=get,init
   Mode: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BrowserCapabilitiesReportDto
+  Browser: System.String | nullability=not-null | accessors=get,init
+  Capabilities: MediaEngine.Contracts.Authentication.ClientCapabilitiesDto | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastReceivers
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastSessionDto
@@ -8051,6 +8073,17 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobDto
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobStatuses
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.GraphicsHardwareDto
+  Outcome: System.String | nullability=not-null | accessors=get,init
+  CardName: System.String | nullability=nullable | accessors=get,init
+  Accelerator: System.String | nullability=nullable | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  Detail: System.String | nullability=nullable | accessors=get,init
+  ProcessorOnlyChosen: System.Boolean | nullability=not-null | accessors=get,init
+  TestedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.GraphicsHardwareOutcomes
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackCommandActions
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackCommandDto
@@ -8213,6 +8246,13 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackDiagnostic
   ActiveJobs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EncodeJobDto> | nullability=not-null | accessors=get,init
   Warnings: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackEncodePlaces
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackFailureReportDto
+  Rung: System.String | nullability=not-null | accessors=get,init
+  Detail: System.String | nullability=nullable | accessors=get,init
+  Browser: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSettingsDto
   ResumePlayback: System.Boolean | nullability=not-null | accessors=get,set
   AskBeforeResuming: System.Boolean | nullability=not-null | accessors=get,set
@@ -8255,6 +8295,20 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackManifestDt
   SourceBitrateKbps: System.Int32? | nullability=nullable | accessors=get,init
   Connection: MediaEngine.Contracts.Playback.PlaybackConnectionContextDto | nullability=not-null | accessors=get,init
   ScrubPreviewIndexUrl: System.String | nullability=nullable | accessors=get,init
+  PlaybackPath: MediaEngine.Contracts.Playback.PlaybackPathDto | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPathDto
+  Rung: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  Encoder: System.String | nullability=not-null | accessors=get,init
+  RanOn: System.String | nullability=not-null | accessors=get,init
+  FallbackReason: System.String | nullability=nullable | accessors=get,init
+  WaitingLabel: System.String | nullability=not-null | accessors=get,init
+  Phase: System.String | nullability=not-null | accessors=get,init
+  PercentPrepared: System.Int32? | nullability=nullable | accessors=get,init
+  FailureDetail: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPathPhases
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPreferenceValues
 
@@ -8277,6 +8331,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackResumeDto
   ProgressPct: System.Double | nullability=not-null | accessors=get,init
   PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
   LastAccessed: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackRungs
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackSegmentDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -8620,6 +8676,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ScrubPreviewStatus
   BytesUsed: System.Int64 | nullability=not-null | accessors=get,init
   FfmpegAvailable: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SetVideoOptionRequest
+  Id: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+  Browser: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   DefaultSubtitleLanguage: System.String | nullability=not-null | accessors=get,set
   AlternateSubtitleLanguages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -8726,6 +8787,31 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UserPlaybackSettin
   ContextSidebars: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Playback.ContextSidebarLayoutDto> | nullability=not-null | accessors=get,set
   UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.VideoOptionChoiceDto
+  Value: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.VideoOptionDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Scope: System.String | nullability=not-null | accessors=get,init
+  Choices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.VideoOptionChoiceDto> | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+  DefaultValue: System.String | nullability=not-null | accessors=get,init
+  Help: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.VideoOptionIds
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.VideoOptionKinds
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.VideoOptionScopes
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.VideoPlaybackOptionsDto
+  Title: System.String | nullability=not-null | accessors=get,init
+  Options: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.VideoOptionDto> | nullability=not-null | accessors=get,init
+  Learned: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.WatchingSettingsDto
   DefaultPlaybackSpeed: System.Decimal | nullability=not-null | accessors=get,set
   SkipBackSeconds: System.Int32 | nullability=not-null | accessors=get,set
@@ -8735,6 +8821,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.WatchingSettingsDt
   PreferHeroBanners: System.Boolean | nullability=not-null | accessors=get,set
   RememberPerTitlePlaybackSpeed: System.Boolean | nullability=not-null | accessors=get,set
   PreferredVideoQuality: System.String | nullability=not-null | accessors=get,set
+  MobileDataVideoQuality: System.String | nullability=not-null | accessors=get,set
+  ConvertOnlyWhenNeeded: System.Boolean | nullability=not-null | accessors=get,set
+  AllowHdr: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.DiscoverUniverseLoreSourcesRequest
   UniverseQid: System.String | nullability=not-null | accessors=get,init

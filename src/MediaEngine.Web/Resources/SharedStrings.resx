@@ -5936,6 +5936,15 @@
   <data name="PairedDevicesSection_NotChosen" xml:space="preserve">
     <value>Not chosen</value>
   </data>
+  <data name="PairedDevicesSection_Learned" xml:space="preserve">
+    <value>Learned: {0}</value>
+  </data>
+  <data name="PairedDevicesSection_ClearLearned" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="PairedDevicesSection_CouldNotClearLearned" xml:space="preserve">
+    <value>That limit could not be cleared.</value>
+  </data>
   <data name="PairedDevicesSection_ItStopsWorkingStraightAway" xml:space="preserve">
     <value>It stops working straight away. Nothing is deleted from your library.</value>
   </data>
@@ -14335,5 +14344,125 @@
   </data>
   <data name="EditorMusicMatchFlow_DiscTrack" xml:space="preserve">
     <value>Disc {0}, Track {1}</value>
+  </data>
+  <data name="VideoPreparing_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="VideoPreparing_ShowDetails" xml:space="preserve">
+    <value>Show details</value>
+  </data>
+  <data name="VideoPreparing_HideDetails" xml:space="preserve">
+    <value>Hide details</value>
+  </data>
+  <data name="VideoPreparing_StartsSoon" xml:space="preserve">
+    <value>Playback starts in a moment</value>
+  </data>
+  <data name="VideoPreparing_PercentPrepared" xml:space="preserve">
+    <value>{0}% prepared</value>
+  </data>
+  <data name="GraphicsHardware_Title" xml:space="preserve">
+    <value>Graphics hardware</value>
+  </data>
+  <data name="GraphicsHardware_Helper" xml:space="preserve">
+    <value>What the Engine found and whether it works.</value>
+  </data>
+  <data name="GraphicsHardware_BadgeWorking" xml:space="preserve">
+    <value>Working</value>
+  </data>
+  <data name="GraphicsHardware_BadgeProcessor" xml:space="preserve">
+    <value>Processor</value>
+  </data>
+  <data name="GraphicsHardware_BadgeUsingProcessor" xml:space="preserve">
+    <value>Using processor</value>
+  </data>
+  <data name="GraphicsHardware_BadgeWaiting" xml:space="preserve">
+    <value>Waiting</value>
+  </data>
+  <data name="GraphicsHardware_Works" xml:space="preserve">
+    <value>{0} · encoding works</value>
+  </data>
+  <data name="GraphicsHardware_TestedJustNow" xml:space="preserve">
+    <value>Tested just now</value>
+  </data>
+  <data name="GraphicsHardware_ProcessorOnly" xml:space="preserve">
+    <value>Hardware acceleration is set to Processor only, so Library uses the processor.</value>
+  </data>
+  <data name="GraphicsHardware_FoundNamed" xml:space="preserve">
+    <value>{0} found</value>
+  </data>
+  <data name="GraphicsHardware_Found" xml:space="preserve">
+    <value>Graphics hardware found</value>
+  </data>
+  <data name="GraphicsHardware_FailedReason" xml:space="preserve">
+    <value>Encoding test failed: {0}</value>
+  </data>
+  <data name="GraphicsHardware_FailedFallback" xml:space="preserve">
+    <value>Library keeps playing on your processor. Update the video tool on the Tools page, then test again.</value>
+  </data>
+  <data name="GraphicsHardware_None" xml:space="preserve">
+    <value>No graphics encoding found. Library uses the processor.</value>
+  </data>
+  <data name="GraphicsHardware_NoneHint" xml:space="preserve">
+    <value>Nothing to fix unless you expect a graphics card here.</value>
+  </data>
+  <data name="GraphicsHardware_Unavailable" xml:space="preserve">
+    <value>FFmpeg is not ready yet, so the graphics hardware could not be tested.</value>
+  </data>
+  <data name="GraphicsHardware_TestButton" xml:space="preserve">
+    <value>Test hardware</value>
+  </data>
+  <data name="GraphicsHardware_TestAgain" xml:space="preserve">
+    <value>Test again</value>
+  </data>
+  <data name="GraphicsHardware_Testing" xml:space="preserve">
+    <value>Testing…</value>
+  </data>
+  <data name="GraphicsHardware_OpenTools" xml:space="preserve">
+    <value>Open Tools</value>
+  </data>
+  <data name="GraphicsHardware_ShowDetails" xml:space="preserve">
+    <value>Show details</value>
+  </data>
+  <data name="GraphicsHardware_HideDetails" xml:space="preserve">
+    <value>Hide details</value>
+  </data>
+  <data name="GraphicsHardware_TestCouldNotRun" xml:space="preserve">
+    <value>The test could not run. Check that the Engine is running, then try again.</value>
+  </data>
+  <data name="GraphicsHardware_Unreachable" xml:space="preserve">
+    <value>The Engine could not be reached, so the graphics hardware answer is unavailable.</value>
+  </data>
+  <data name="GraphicsHardware_SetupNone" xml:space="preserve">
+    <value>No graphics encoding found · Library will use the processor</value>
+  </data>
+  <data name="GraphicsHardware_SetupFailed" xml:space="preserve">
+    <value>Found, but the test failed: {0} Library will use the processor.</value>
+  </data>
+  <data name="GraphicsHardware_SetupWaiting" xml:space="preserve">
+    <value>Checked automatically once FFmpeg is ready</value>
+  </data>
+  <data name="VideoOptions_Title" xml:space="preserve">
+    <value>Video quality and devices</value>
+  </data>
+  <data name="VideoOptions_PerProfile" xml:space="preserve">
+    <value>Per profile. Follows you to every device.</value>
+  </data>
+  <data name="VideoOptions_PerDevice" xml:space="preserve">
+    <value>Per device:</value>
+  </data>
+  <data name="VideoOptions_Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="VideoOptions_ThisBrowser" xml:space="preserve">
+    <value>This browser</value>
+  </data>
+  <data name="VideoOptions_PerDeviceDefaults" xml:space="preserve">
+    <value>Per device. Everything defaults to Automatic.</value>
+  </data>
+  <data name="VideoOptions_CouldNotLoad" xml:space="preserve">
+    <value>Video quality options could not be loaded.</value>
+  </data>
+  <data name="VideoOptions_CouldNotSave" xml:space="preserve">
+    <value>{0} could not be saved.</value>
   </data>
 </root>

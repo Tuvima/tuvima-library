@@ -35,6 +35,7 @@
 /api/v1/pairing/review/* | own-data | Endpoints/ClientAuthorizationEndpoints.cs | a pairing code the caller is approving
 /api/v1/playback/diagnostics | system | Endpoints/PlaybackEndpoints.cs | tool readiness only
 /api/v1/playback/encode/jobs | own-data | Endpoints/PlaybackEndpoints.cs | the caller's own device's offline encode jobs
+/api/v1/playback/video-options | own-data | Endpoints/PlaybackEndpoints.cs | the Video quality and devices list: the caller's own playback choices and own device, no catalogue content
 /api/v1/player/* | catalogue-authorization | Endpoints/PlayerEndpoints.cs | player state and capabilities; every queued item passes the player catalogue scope
 /api/v1/profile-state/* | display-projection | Endpoints/ProfileStateEndpoints.cs | the profile's own reactions and saved items, narrowed to visible works
 /api/v1/progress/* | catalogue-authorization | Endpoints/ProgressEndpoints.cs | the profile's own progress, narrowed by the player catalogue scope

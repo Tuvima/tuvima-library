@@ -1,0 +1,72 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The video player's waiting state (playback-path spec D8, section 4; mockup screen 1): the title, the Engine's own line (never a bare "Preparing
+   video…"), a real percent once the Engine knows it, a Cancel that goes back while the title waits for a slot, and on a failure one sentence, Try again
+   and Show details. Phone and desktop draw the same lines; the buttons are 44 px. *@
+@if (View.Kind == PlaybackWaitingKind.Failed)
+{
+    <div class="video-preparing" role="alert" data-video-preparing="failed">
+        @if (!string.IsNullOrWhiteSpace(Title)) { <strong class="video-preparing__title">@Title</strong> }
+        <div class="video-preparing__line video-preparing__line--failed" data-video-preparing-line>@FailureSentence</div>
+        <div class="video-preparing__actions">
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" data-video-preparing-retry OnClick="Retry">@L["Common_TryAgain"]</AppButton>
+            @if (!string.IsNullOrWhiteSpace(View.Detail))
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" data-video-preparing-details
+                           OnClick="ToggleDetails">@(_showDetails ? L["VideoPreparing_HideDetails"] : L["VideoPreparing_ShowDetails"])</AppButton>
+            }
+        </div>
+        @if (_showDetails && !string.IsNullOrWhiteSpace(View.Detail))
+        {
+            <pre class="video-preparing__details" data-video-preparing-detail-text>@View.Detail</pre>
+        }
+    </div>
+}
+else
+{
+    <div class="video-preparing" role="status" data-video-preparing="@(View.Kind == PlaybackWaitingKind.WaitingForSlot ? "waiting-for-slot" : "working")">
+        @if (!string.IsNullOrWhiteSpace(Title)) { <strong class="video-preparing__title">@Title</strong> }
+        <div class="video-preparing__line" data-video-preparing-line>@WorkingLine</div>
+        @if (View.Percent is { } percent)
+        {
+            <div class="video-preparing__progress"><AppProgressBar Value="percent" Label="@L["VideoPreparing_PercentPrepared", percent].Value" data-video-preparing-percent="@percent" /></div>
+        }
+        else if (View.ExpectSoon)
+        {
+            <div class="video-preparing__note" data-video-preparing-note>@L["VideoPreparing_StartsSoon"]</div>
+        }
+        @if (View.Kind == PlaybackWaitingKind.WaitingForSlot)
+        {
+            <div class="video-preparing__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" data-video-preparing-cancel OnClick="Cancel">@L["VideoPreparing_Cancel"]</AppButton>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _showDetails;
+
+    [Parameter, EditorRequired] public PlaybackWaitingView View { get; set; } = default!;
+    [Parameter] public string? Title { get; set; }
+    /// <summary>Cancel while waiting for a slot: the host goes back to the title.</summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+    /// <summary>Try again after a failure.</summary>
+    [Parameter] public EventCallback OnRetry { get; set; }
+
+    private string WorkingLine => View.HasLine ? View.Line : PlaybackWaitingRules.NeutralLine;
+
+    private string FailureSentence => View.HasLine ? View.Line : PlaybackWaitingRules.NeutralFailure;
+
+    private Task Cancel() => OnCancel.InvokeAsync();
+
+    private Task Retry()
+    {
+        _showDetails = false;
+        return OnRetry.InvokeAsync();
+    }
+
+    private void ToggleDetails() => _showDetails = !_showDetails;
+}

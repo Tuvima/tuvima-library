@@ -87,6 +87,17 @@ else if (_settings is not null)
 </Control>
 </AppSettingRow>
                 </SettingsSectionPanel>
+
+                @* The same list every app draws, from the Engine (playback-path spec D15). These rows follow the person to every device. *@
+                <div id="video-quality" data-playback-section="video-quality">
+                    <SettingsSectionPanel Title="@L["VideoOptions_Title"].Value"
+                                          Description="@L["VideoOptions_PerProfile"].Value">
+                        <VideoOptionsPanel Scope="@VideoOptionScopes.Profile" ShowSummary="false"
+                                           Load="@(() => ApiClient.GetVideoPlaybackOptionsAsync())"
+                                           Save="@((id, value) => ApiClient.SetVideoPlaybackOptionAsync(id, value))" />
+                        <AppText Typo="AppTypo.body2">@L["VideoOptions_PerDevice"] <a href="/settings/security/devices">@L["VideoOptions_Devices"]</a></AppText>
+                    </SettingsSectionPanel>
+                </div>
             }
 
             <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">

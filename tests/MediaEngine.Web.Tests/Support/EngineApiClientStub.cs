@@ -84,6 +84,10 @@ internal class EngineApiClientStub : DispatchProxy
             args => Task.FromResult<MediaEngine.Contracts.Review.ReviewChooseResponse?>(
                 new MediaEngine.Contracts.Review.ReviewChooseResponse(true, (Guid)args![0]!, (string)args[1]!, "retail"));
 
+        // Playback settings draw the Engine's Video quality and devices list; by default it is an empty list (nothing to draw, nothing wrong).
+        _handlers[nameof(IEngineApiClient.GetVideoPlaybackOptionsAsync)] =
+            _ => Task.FromResult<VideoPlaybackOptionsDto?>(new VideoPlaybackOptionsDto());
+
         _handlers[nameof(IEngineApiClient.ToAbsoluteEngineUrl)] =
             args => args?[0]?.ToString() ?? string.Empty;
 
