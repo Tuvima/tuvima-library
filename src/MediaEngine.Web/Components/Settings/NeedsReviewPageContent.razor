@@ -281,7 +281,7 @@
         }
 
         _awaitingFix = false;
-        if (closed.Changed && !_disposed)
+        if (closed.Changed && !closed.PageRefreshed && !_disposed)
         {
             _ = InvokeAsync(async () =>
             {

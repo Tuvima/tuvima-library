@@ -113,7 +113,8 @@ public sealed record EditorUniverseLink(string Qid, string Name, string? ImageUr
 /// <summary>What a list needs to know when the pop-over it opened over itself closes (universal editor v3 WP3).</summary>
 /// <param name="Changed">True when something was saved or committed (a match, a field) while the pop-over was open.</param>
 /// <param name="ItemIds">Every item the pop-over was on or had ticked, so a list can refresh just those rows.</param>
-public sealed record EditorClosedEventArgs(bool Changed, IReadOnlyList<Guid> ItemIds);
+/// <param name="PageRefreshed">True when the host already refreshes the page behind through its binding (a picture was chosen and nothing was saved), so a list that reloads when <paramref name="Changed"/> is true must not reload a second time.</param>
+public sealed record EditorClosedEventArgs(bool Changed, IReadOnlyList<Guid> ItemIds, bool PageRefreshed = false);
 
 /// <summary>
 /// The one universal editor of the Dashboard: the field session, the staged changes, the saver, the artwork picker session and the
@@ -725,6 +726,12 @@ public sealed class EditorHost : IDisposable
     // once and on its own list: nothing from the tool is staged for Review.
     private Task<EditSessionSaveOutcome> ApplyArtworkAsync(IReadOnlyList<ArtworkChoice> choices)
     {
+        // Gated like every other edit handler, not only the launcher: a device or profile that may not edit changes nothing.
+        if (!Mode.CanEdit)
+        {
+            return Task.FromResult(EditSessionSaveOutcome.Unsaved(EditorDeviceRule.ItemMessage));
+        }
+
         var pending = new PendingEditList();
         foreach (var choice in choices)
         {
@@ -855,8 +862,10 @@ public sealed class EditorHost : IDisposable
         {
             // Leaving (Done, a device change, a removed title) ends the ticks and the bulk panel with them.
             _wasOpen = false;
-            var closed = new EditorClosedEventArgs(_changedWhileOpen, [.. _touched]);
+            // A picture chosen with nothing saved refreshes the page through its binding; a list that reloads on a changed close is told, so the
+            // page is read once per close, not twice.
             var refreshForArtwork = _artworkAppliedWhileOpen;
+            var closed = new EditorClosedEventArgs(_changedWhileOpen, [.. _touched], refreshForArtwork && _binding?.SectionCommitted is not null);
             _artworkAppliedWhileOpen = false;
             _touched.Clear();
             Batch.Clear();
