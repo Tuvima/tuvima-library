@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Domain.Services;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -125,6 +126,18 @@ public sealed class YourCopyTests : IDisposable
         Assert.Equal(["Theatrical cut", "Director's cut"], two.Blocks.Select(block => block.Label));
         Assert.Contains("4K", two.Blocks[1].Chips);
         Assert.Null(Assert.Single(one.Blocks).Label);
+    }
+
+    [Fact]
+    public void AFolderOfVideos_CountsVideosNotEpisodes()
+    {
+        var files = Enumerable.Range(1, 3).Select(number => File($"/video/Course/{number:00}.mkv", Film())).ToList();
+        var page = new DetailPageViewModel { EntityType = DetailEntityType.TvShow, Facts = new DetailFactsViewModel { MediaKind = VideoFolderWording.KindLabel } };
+
+        var block = OnlyBlock(YourCopyBuilder.Build(page, files, includeLocation: false));
+
+        Assert.Contains("3 videos", block.Chips);
+        Assert.DoesNotContain(block.Chips, chip => chip.Contains("episode", StringComparison.Ordinal));
     }
 
     [Fact]

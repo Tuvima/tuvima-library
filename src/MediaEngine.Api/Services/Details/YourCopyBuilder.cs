@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Services.Details;
@@ -112,7 +113,7 @@ internal static class YourCopyBuilder
 
         var (chips, groups) = kind switch
         {
-            DetailYourCopyKinds.Video or DetailYourCopyKinds.Show => VideoFacts(kind, files, scanned),
+            DetailYourCopyKinds.Video or DetailYourCopyKinds.Show => VideoFacts(kind, files, scanned, string.Equals(page.Facts?.MediaKind, VideoFolderWording.KindLabel, StringComparison.Ordinal)),
             DetailYourCopyKinds.Audio or DetailYourCopyKinds.Album => AudioFacts(kind, files, scanned),
             _ => BookFacts(kind, files, page),
         };
@@ -135,10 +136,12 @@ internal static class YourCopyBuilder
     private static (IReadOnlyList<string> Chips, IReadOnlyList<DetailYourCopyGroupViewModel> Groups) VideoFacts(
         string kind,
         IReadOnlyList<YourCopyAsset> files,
-        IReadOnlyList<YourCopyAsset> scanned)
+        IReadOnlyList<YourCopyAsset> scanned,
+        bool videoFolder)
     {
         var many = kind == DetailYourCopyKinds.Show || files.Count > 1;
-        var noun = kind == DetailYourCopyKinds.Show ? "episode" : "file";
+        // A folder of videos (a course, a home-movie folder) holds videos, not episodes (spec D13).
+        var noun = kind == DetailYourCopyKinds.Show ? (videoFolder ? "video" : "episode") : "file";
 
         var resolution = Mode(scanned.Select(file => ResolutionLabel(file.Probe)), ResolutionRank);
         var codec = Mode(scanned.Select(file => VideoCodecLabel(file.Probe?.VideoCodec)));
