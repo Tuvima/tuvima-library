@@ -1,7 +1,10 @@
-.lact-working { display: flex; flex-direction: column; gap: var(--tl-space-3); }
+.lact-working { display: flex; flex-direction: column; gap: var(--tl-space-3); --lact-working-tile-w: 107px; --lact-working-gap: var(--tl-space-3); }
 .lact-heading { margin: 0; font-size: var(--tl-type-heading-size); font-weight: var(--tl-type-heading-weight); }
-/* One live row (Shy 10 Nov): the tiles never wrap; a long run scrolls sideways instead of stacking rows. */
-.lact-tiles { display: flex; flex-wrap: nowrap; gap: var(--tl-space-4); overflow-x: auto; padding-bottom: var(--tl-space-2); scroll-snap-type: x proximity; }
-.lact-tiles > * { flex: 0 0 auto; }
+/* One live row that fits the width (D34): the tiles are about half size, never scroll and are never cut off. The page counts how many whole tiles fit
+   (working-now-fit.js reads the tile width and gap from here), and this row is only as tall as one tile, so a tile that did not fit would wrap out of
+   sight rather than show half of itself. Phone: about 3 or 4 smaller tiles. */
+.lact-working__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--lact-working-gap); height: calc(var(--lact-working-tile-w) * 1.5); overflow: hidden; }
+.lact-working__row > * { flex: 0 0 auto; }
+@media (max-width: 600px) { .lact-working { --lact-working-tile-w: 76px; --lact-working-gap: var(--tl-space-2); } }
 .lact-background { margin: 0; color: var(--tl-text-secondary); }
 .lact-background strong { color: var(--tl-text-primary); }

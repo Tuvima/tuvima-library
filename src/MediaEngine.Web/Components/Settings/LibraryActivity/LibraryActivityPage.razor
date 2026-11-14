@@ -42,7 +42,7 @@
                                  MediaTypes="MediaTypes"
                                  LastCompleted="_lastCompleted" />
 
-    <LibraryActivityWorkingNow Items="WorkingItems" Background="BackgroundNames" />
+    <LibraryActivityWorkingNow Items="WorkingItems" Total="WorkingTotal" Background="BackgroundNames" />
 
     <LibraryActivityHistory LibraryIds="LibraryIds"
                             MediaTypes="AreaMediaTypes"
@@ -131,6 +131,11 @@
         => (Dashboard.Presentation?.CurrentMedia ?? [])
             .Where(item => MediaTypes is null || MediaTypes.Contains(item.MediaType))
             .ToList();
+
+    // The heading counts every title in progress, not only the few the Engine lists (D34). With an area chip picked the Engine's count covers all
+    // areas, so the count is the listed titles of that area.
+    private int WorkingTotal
+        => MediaTypes is null ? Math.Max(Dashboard.Presentation?.CurrentMediaTotal ?? 0, WorkingItems.Count) : WorkingItems.Count;
 
     // Follow-up work (preview pictures and similar) is named by the Engine with its count; AI, enrichment and maintenance have no bar of
     // their own and are named here as well (D7, D29). None of it is "working": it never shows in Working now or the card.

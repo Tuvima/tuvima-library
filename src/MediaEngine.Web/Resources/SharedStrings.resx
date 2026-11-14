@@ -10202,8 +10202,11 @@
   <data name="LibraryActivity_WhenAdded" xml:space="preserve">
     <value>When {0} was added</value>
   </data>
-  <data name="LibraryActivity_WorkingNow" xml:space="preserve">
-    <value>Working now</value>
+  <data name="LibraryActivity_WorkingNowOne" xml:space="preserve">
+    <value>Working now · 1 title</value>
+  </data>
+  <data name="LibraryActivity_WorkingNowMany" xml:space="preserve">
+    <value>Working now · {0:N0} titles</value>
   </data>
   <data name="LibraryActivity_InProgress" xml:space="preserve">
     <value>In progress</value>
