@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Constants;
@@ -12,12 +13,14 @@ namespace MediaEngine.Api.Services.EditSession;
 /// <see cref="EditSessionArtworkTargets.None"/> leaves no picture chosen. Pictures the person uploaded, pasted or took from a provider were
 /// stored earlier as unchosen pictures of that item (linked to it, not chosen), so the page does not change until this runs. A picture
 /// that is not one of the item's own is refused, so a saved change can never take another item's picture. Undo puts the previously
-/// chosen picture back.
+/// chosen picture back. For a work the canonical picture values follow the choice (<see cref="ArtworkCanonicalSync"/>): a show's page and
+/// every tile read them, so without that step a show keeps showing the old picture.
 /// </summary>
 public sealed class ArtworkEditSessionChangeHandler(
     ArtworkAssetService artwork,
     IItemCanonicalRepository itemCanonicalRepository,
     ISystemActivityRepository activityRepository,
+    ArtworkCanonicalSync canonicalSync,
     EditSubjectDirectory? subjects = null,
     IEntityTimelineRepository? timeline = null,
     EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
@@ -102,6 +105,9 @@ public sealed class ArtworkEditSessionChangeHandler(
                 ct).ConfigureAwait(false);
         }
 
+        // The page and the tiles read the canonical picture values, so they follow the choice here (a show would otherwise keep its old poster).
+        await canonicalSync.SyncChosenAsync(entityType, change.EntityId, change.Slot, ct).ConfigureAwait(false);
+
         await activityRepository.LogAsync(new SystemActivityEntry
         {
             OccurredAt = DateTimeOffset.UtcNow,
@@ -131,14 +137,17 @@ public sealed class ArtworkEditSessionChangeHandler(
             if (previous is null)
             {
                 await artwork.ClearChosenAsync(entityType, change.EntityId, role, undoCt).ConfigureAwait(false);
-                return;
+            }
+            else
+            {
+                await artwork.LinkAsync(
+                    entityType,
+                    change.EntityId,
+                    new ArtworkLinkRequest(previous.ArtworkAssetId, role, previous.Context, Preferred: true, SourceAssetType: previous.SourceAssetType),
+                    undoCt).ConfigureAwait(false);
             }
 
-            await artwork.LinkAsync(
-                entityType,
-                change.EntityId,
-                new ArtworkLinkRequest(previous.ArtworkAssetId, role, previous.Context, Preferred: true, SourceAssetType: previous.SourceAssetType),
-                undoCt).ConfigureAwait(false);
+            await canonicalSync.SyncChosenAsync(entityType, change.EntityId, change.Slot, undoCt).ConfigureAwait(false);
         };
     }
 

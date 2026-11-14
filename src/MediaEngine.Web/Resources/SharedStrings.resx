@@ -1262,9 +1262,6 @@
   <data name="EditorArtworkTool_FetchAllStills" xml:space="preserve">
     <value>Fetch all stills</value>
   </data>
-  <data name="EditorArtworkTool_UndoThisChoice" xml:space="preserve">
-    <value>Undo this choice</value>
-  </data>
   <data name="EditorArtworkTool_ChooseAJPEGOrPNG" xml:space="preserve">
     <value>Choose a JPEG or PNG from your computer. It is kept aside until you use it.</value>
   </data>

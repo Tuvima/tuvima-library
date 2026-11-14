@@ -15,8 +15,8 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// "Choose from Library" in the Artwork tab (universal editor v4.1 WP3): offered for every kind (a film, an episode, a Universe), it opens the
-/// Library's own picture picker above the editor window, and what is chosen is picked in the tool like an upload: nothing is staged until
-/// "Add version", and nothing is saved until Save changes.
+/// Library's own picture picker above the editor window, and what is chosen is added to the item like an upload and made Preferred at
+/// once (universal editor v7 D9): nothing is staged for Review.
 /// </summary>
 public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
 {
@@ -28,6 +28,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<ArtworkAssetQuery> _queries = [];
     private readonly List<(string EntityType, Guid EntityId, ArtworkLinkRequest Request)> _links = [];
+    private readonly List<EditSessionRequest> _saves = [];
     private ArtworkEntityWorkspaceDto _workspace = default!;
     private IRenderedComponent<AppDialogHost> _dialogs = default!;
     private MediaEditorContextDto? _context;
@@ -58,6 +59,24 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
                 _links.Add(((string)args![0]!, (Guid)args[1]!, (ArtworkLinkRequest)args[2]!));
                 _workspace = Workspace(_entityId, _entityKind, _slot, SavedPicture, LibraryPicture);
                 return Task.FromResult<ArtworkEntityWorkspaceDto?>(_workspace);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
+            {
+                var request = (EditSessionRequest)args![0]!;
+                if (!request.PreviewOnly)
+                {
+                    _saves.Add(request);
+                }
+
+                return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+                {
+                    PreviewOnly = request.PreviewOnly,
+                    Valid = true,
+                    DataSaved = !request.PreviewOnly,
+                    Changes = request.Changes
+                        .Select(change => new EditSessionChangeResult { Id = change.Id, Kind = change.Kind, EntityId = change.EntityId, Status = EditSessionChangeStatuses.Ok })
+                        .ToList(),
+                }));
             });
         }));
         Render<AppPopoverHost>();
@@ -119,8 +138,8 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
         var session = new EditSessionState(new PendingEditList());
         var flow = new EditSessionFlow(session, mode, new EditSessionSaver(api), () => [item], () => Task.FromResult(true));
         Assert.True(await mode.EnterAsync());
-        var preview = new ArtworkEditPreview(session, fields);
-        var picker = new ArtworkPickerSession(api, session, fields, preview);
+        var preview = new ArtworkEditPreview();
+        var picker = new ArtworkPickerSession(api, session, fields, preview, ArtworkChangeSavers.For(api));
         await flow.SelectToolAsync(EditTool.Artwork);
         var cut = Render<EditorArtworkTool>(parameters => parameters
             .Add(tool => tool.Mode, mode)
@@ -209,7 +228,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AChosenLibraryPicture_IsPickedLikeAnUpload_AndOnlyStagedByAddVersion()
+    public async Task AChosenLibraryPicture_IsAddedLikeAnUpload_AndMadePreferredAtOnce()
     {
         var (session, cut) = await OpenFilmAsync();
         cut.Find("button.tl-art-picker__library").Click();
@@ -218,8 +237,8 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
 
         _dialogs.FindAll(".app-dialog-shell__footer button").Last().Click();
 
-        // The picture is linked to the item as an unchosen version (the same as an upload), and picked in the tool.
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__selected")));
+        // The picture is linked to the item as an unchosen version (the same as an upload), then made Preferred through the edit session.
+        cut.WaitForAssertion(() => Assert.Equal(LibraryPicture.ToString("D"), Assert.Single(Assert.Single(_saves).Changes).TargetId));
         var link = Assert.Single(_links);
         Assert.Equal(EditingModeTestData.MovieId, link.EntityId);
         Assert.Equal(LibraryPicture, link.Request.ArtworkAssetId);
@@ -227,10 +246,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
         Assert.Equal("CoverArt", link.Request.SourceAssetType);
         Assert.True(session.Pending.IsEmpty);
         Assert.Empty(_dialogs.FindAll(".artwork-picker-host"));
-
-        cut.Find("button.tl-art-picker__use").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal(LibraryPicture.ToString("D"), Assert.Single(session.Pending.Changes).TargetId));
+        Assert.Empty(cut.FindAll(".tl-art-picker__add-panel"));
     }
 
     [Fact]
@@ -245,6 +261,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__preview")));
         Assert.Empty(cut.FindAll(".tl-art-picker__add-panel"));
         Assert.Empty(_links);
+        Assert.Empty(_saves);
         Assert.True(session.Pending.IsEmpty);
     }
 }

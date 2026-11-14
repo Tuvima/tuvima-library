@@ -354,8 +354,8 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
     {
         var editor = await StartAsync();
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var preview = new ArtworkEditPreview(editor.Session, editor.Fields);
-        var picker = new ArtworkPickerSession(api, editor.Session, editor.Fields, preview);
+        var preview = new ArtworkEditPreview();
+        var picker = new ArtworkPickerSession(api, editor.Session, editor.Fields, preview, ArtworkChangeSavers.For(api));
         await editor.Flow.SelectToolAsync(EditTool.Artwork);
         return Render<EditorArtworkTool>(parameters => parameters
             .Add(tool => tool.Mode, editor.Mode)

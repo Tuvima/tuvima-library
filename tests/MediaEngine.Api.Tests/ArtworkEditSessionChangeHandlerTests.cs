@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.EditSession;
+using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
@@ -33,7 +34,8 @@ public sealed class ArtworkEditSessionChangeHandlerTests : IDisposable
         _handler = new ArtworkEditSessionChangeHandler(
             _artwork,
             new ItemCanonicalRepository(_database, NullLogger<ItemCanonicalRepository>.Instance),
-            new SystemActivityRepository(_database));
+            new SystemActivityRepository(_database),
+            new ArtworkCanonicalSync(new CanonicalValueRepository(_database), new EntityAssetRepository(_database)));
     }
 
     public void Dispose()

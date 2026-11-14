@@ -522,64 +522,13 @@ internal sealed class ArtworkScopeService(
             _ => throw new ArgumentOutOfRangeException(nameof(normalizedAssetType), normalizedAssetType, "Unsupported artwork type."),
         };
 
-    public async Task SyncArtworkCanonicalAsync(
+    // The canonical picture values follow the chosen picture; the editor's immediate artwork change uses the same writer.
+    public Task SyncArtworkCanonicalAsync(
         Guid entityId,
         string assetType,
         EntityAsset? preferredAsset,
-        CancellationToken ct)
-    {
-        var canonicalKey = GetArtworkCanonicalKey(assetType);
-
-        if (preferredAsset is not null && string.Equals(assetType, "EpisodeStill", StringComparison.OrdinalIgnoreCase))
-        {
-            // A real picture (from TheTVDB or chosen by a person) replaces the stand-in with no confirmation.
-            await canonicalRepo.DeleteByKeyAsync(entityId, MetadataFieldConstants.EpisodeStillStandIn, ct);
-        }
-
-        if (preferredAsset is null)
-        {
-            await canonicalRepo.DeleteByKeyAsync(entityId, canonicalKey, ct);
-
-            if (string.Equals(assetType, "CoverArt", StringComparison.OrdinalIgnoreCase))
-            {
-                await canonicalRepo.UpsertBatchAsync(
-                    ArtworkCanonicalHelper.CreateFlags(
-                        entityId,
-                        coverState: "missing",
-                        coverSource: null,
-                        heroState: "missing",
-                        lastScoredAt: DateTimeOffset.UtcNow,
-                        settled: true),
-                    ct);
-            }
-
-            return;
-        }
-
-        var canonicals = ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(
-            entityId,
-            preferredAsset,
-            DateTimeOffset.UtcNow);
-
-        if (string.Equals(assetType, "CoverArt", StringComparison.OrdinalIgnoreCase))
-        {
-            var coverSource = string.Equals(preferredAsset.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
-                ? "manual"
-                : !string.IsNullOrWhiteSpace(preferredAsset.SourceProvider)
-                    ? "provider"
-                    : "stored";
-
-            canonicals.AddRange(ArtworkCanonicalHelper.CreateFlags(
-                entityId,
-                coverState: "present",
-                coverSource: coverSource,
-                heroState: "missing",
-                lastScoredAt: DateTimeOffset.UtcNow,
-                settled: true));
-        }
-
-        await canonicalRepo.UpsertBatchAsync(canonicals, ct);
-    }
+        CancellationToken ct) =>
+        new ArtworkCanonicalSync(canonicalRepo, entityAssetRepo).SyncAsync(entityId, assetType, preferredAsset, ct);
 
     public static string? GetArtworkCanonicalValue(IReadOnlyList<CanonicalValue> canonicals, string assetType)
     {

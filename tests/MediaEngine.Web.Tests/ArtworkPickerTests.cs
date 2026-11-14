@@ -15,9 +15,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The Artwork tool of the universal editor (spec WP6, D8, D9): the floating picker's tabs for each kind of item, picking only previews
-/// and writes nothing, "Use this artwork" stages, "Remove artwork" asks first, and the temporary view for a season poster comes and goes
-/// without making a season page.
+/// The Artwork tool of the universal editor (spec WP6, D8, D9; v7 D9): the picker's tabs for each kind of item, a picture chosen, uploaded,
+/// pasted, taken from a provider or from the Library is the item's Preferred one at once through the Engine's edit session (nothing is staged
+/// for Review, and there is no Undo), a picture change that fails says so on one line with Try again and the previous picture stays, and
+/// "Remove artwork" asks first.
 /// </summary>
 public sealed class ArtworkPickerTests : AsyncBunitContext
 {
@@ -28,6 +29,9 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<(string Name, object?[]? Args)> _writes = [];
+    private readonly List<EditSessionRequest> _requests = [];
+    private Func<EditSessionRequest, LibraryBatchEditOutcome<EditSessionResult>?>? _answer;
+    private TaskCompletionSource? _gate;
     private string? _providerMessage;
     private int _providerAsked;
     private IReadOnlyList<ProviderArtworkCandidateDto>? _providerItems;
@@ -52,6 +56,13 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             ContentType = "image/jpeg",
         }).ToList());
 
+    // The requests that wrote (the check before each save is a preview and writes nothing).
+    private List<EditSessionRequest> Saves => _requests.Where(request => !request.PreviewOnly).ToList();
+
+    // What the Engine's saved pictures read after a choice went through: the chosen version is Preferred, the others keep their order.
+    private void MakeCurrent(Guid asset) =>
+        _workspace = _workspace with { Variants = _workspace.Variants.Select(variant => variant with { IsPreferred = variant.ArtworkAssetId == asset }).ToList() };
+
     private static MediaEditorContextDto SeasonContext() => new()
     {
         LaunchEntityId = MovieId,
@@ -75,7 +86,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     };
 
     [Fact]
-    public async Task FetchAllStills_StagesAStillForEveryEpisode_AndWritesNothingUntilSave()
+    public async Task FetchAllStills_AppliesAStillForEveryEpisodeAtOnce_AndStagesNothing()
     {
         var context = SeasonContext();
         context.Scopes[0].ArtworkSlots = ["SeasonPoster", "EpisodeStill"];
@@ -87,9 +98,10 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         var staged = await harness.Picker.FetchAllStillsAsync();
 
         Assert.Equal(2, staged);
-        Assert.Equal(2, harness.Session.Pending.Changes.Count(change => change.Kind == EditSessionChangeKinds.Artwork));
+        var save = Assert.Single(Saves);
+        Assert.Equal(2, save.Changes.Count(change => change.Kind == EditSessionChangeKinds.Artwork && change.Slot == "EpisodeStill"));
         Assert.Contains("2 episodes", harness.Picker.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain(_writes, write => write.Name == nameof(IEngineApiClient.RunEditSessionAsync));
+        Assert.True(harness.Session.Pending.IsEmpty);
     }
 
     [Fact]
@@ -156,7 +168,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
             {
                 _writes.Add((nameof(IEngineApiClient.RunEditSessionAsync), args));
-                return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult { Valid = true }));
+                return AnswerEditSessionAsync((EditSessionRequest)args![0]!);
             });
         });
 
@@ -167,9 +179,53 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         var flow = new EditSessionFlow(
             session, mode, new EditSessionSaver(api), () => [new EditTrailItem(MovieId, "Dune: Part One", "Movie")], () => Task.FromResult(true));
         Assert.True(await mode.EnterAsync());
-        var preview = new ArtworkEditPreview(session, fields);
-        return new Harness(mode, session, flow, preview, new ArtworkPickerSession(api, session, fields, preview));
+        var preview = new ArtworkEditPreview();
+        return new Harness(mode, session, flow, preview, new ArtworkPickerSession(api, session, fields, preview, ArtworkChangeSavers.For(api)));
     }
+
+    // The Engine's edit session: it answers each change as saved (and moves the Preferred picture), unless the test says otherwise.
+    private async Task<LibraryBatchEditOutcome<EditSessionResult>> AnswerEditSessionAsync(EditSessionRequest request)
+    {
+        _requests.Add(request);
+        if (_gate is { } gate)
+        {
+            await gate.Task;
+        }
+
+        if (_answer?.Invoke(request) is { } answer)
+        {
+            return answer;
+        }
+
+        if (!request.PreviewOnly)
+        {
+            foreach (var change in request.Changes.Where(change => change.Kind == EditSessionChangeKinds.Artwork && Guid.TryParse(change.TargetId, out _)))
+            {
+                MakeCurrent(Guid.Parse(change.TargetId!));
+            }
+        }
+
+        return LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+        {
+            PreviewOnly = request.PreviewOnly,
+            Valid = true,
+            DataSaved = !request.PreviewOnly,
+            Changes = request.Changes
+                .Select(change => new EditSessionChangeResult { Id = change.Id, Kind = change.Kind, EntityId = change.EntityId, Status = EditSessionChangeStatuses.Ok })
+                .ToList(),
+        });
+    }
+
+    // The Engine refuses the picture change with this reason (the check fails, so nothing is written).
+    private static LibraryBatchEditOutcome<EditSessionResult> Refuse(EditSessionRequest request, string reason) =>
+        LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+        {
+            PreviewOnly = request.PreviewOnly,
+            Valid = false,
+            Changes = request.Changes
+                .Select(change => new EditSessionChangeResult { Id = change.Id, Kind = change.Kind, EntityId = change.EntityId, Status = EditSessionChangeStatuses.Invalid, Reason = reason })
+                .ToList(),
+        });
 
     private static ArtworkAssetDto Asset(Guid id) => new(id, $"/art/{id:N}/large", $"/art/{id:N}/small", 1000, 1500, "Portrait", "user_upload", null, []);
 
@@ -370,10 +426,10 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.Contains("MB", facts);
     }
 
-    // -- Clicking a version makes it Preferred; Save writes ---------------------------------------------------
+    // -- Clicking a version makes it Preferred at once ---------------------------------------------------------
 
     [Fact]
-    public async Task ClickingAVersion_MakesItPreferredAndMovesItToTheFront_AndWritesNothing()
+    public async Task ClickingAVersion_MakesItPreferredAtOnce_AndMovesItToTheFront_WithNothingLeftForReview()
     {
         var (harness, cut) = await OpenPickerAsync();
         Assert.Equal("CoverArt", harness.Picker.ActiveSlot);
@@ -382,16 +438,28 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
         cut.WaitForAssertion(() => Assert.Equal([SecondPicture.ToString("N"), FirstPicture.ToString("N")], VersionOrder(cut)));
-        var change = Assert.Single(harness.Session.Pending.Changes);
+        var change = Assert.Single(Assert.Single(Saves).Changes);
         Assert.Equal(EditSessionChangeKinds.Artwork, change.Kind);
         Assert.Equal("CoverArt", change.Slot);
         Assert.Equal(MovieId, change.EntityId);
         Assert.Equal(SecondPicture.ToString("D"), change.TargetId);
-        Assert.Equal($"/art/{SecondPicture:N}/large", harness.Preview.Url("CoverArt"));
-        Assert.Empty(_writes);
+        // Review changes lists no picture lines: nothing from the tool is staged.
+        Assert.True(harness.Session.Pending.IsEmpty);
         Assert.Equal("true", cut.FindAll(".tl-art-picker__version").First().GetAttribute("aria-pressed"));
         Assert.Contains("Preferred", cut.FindAll(".tl-art-picker__version").First().TextContent);
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Set preferred", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task AChangedPicture_HasNoUndo_AndTheEarlierPictureStaysAsAVersion()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+
+        cut.WaitForAssertion(() => Assert.Equal([SecondPicture.ToString("N"), FirstPicture.ToString("N")], VersionOrder(cut)));
+        Assert.Empty(cut.FindAll("button.tl-art-picker__undo"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Undo", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -409,45 +477,81 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ClickingTheSavedPreferredVersionAgain_TakesTheStagedChoiceBack()
+    public async Task ClickingTheVersionThatIsAlreadyPreferred_AsksTheEngineForNothing()
     {
-        var (harness, cut) = await OpenPickerAsync();
-        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
-        cut.WaitForAssertion(() => Assert.False(harness.Session.Pending.IsEmpty));
+        var (_, cut) = await OpenPickerAsync();
 
-        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").First().Click();
 
-        cut.WaitForAssertion(() => Assert.True(harness.Session.Pending.IsEmpty));
+        Assert.Empty(_requests);
         Assert.Equal([FirstPicture.ToString("N"), SecondPicture.ToString("N")], VersionOrder(cut));
     }
 
     [Fact]
-    public async Task UndoThisChoice_TakesTheStagedChangeBackOut()
+    public async Task WhileAPictureIsApplying_ThePreviewShowsABusyState_ThatGoesWhenItIsDone()
     {
-        var (harness, cut) = await OpenPickerAsync();
+        _gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var (_, cut) = await OpenPickerAsync();
+        Assert.Empty(cut.FindAll(".tl-art-picker__preview.is-busy"));
+
         cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
-        cut.WaitForAssertion(() => Assert.False(harness.Session.Pending.IsEmpty));
 
-        cut.Find("button.tl-art-picker__undo").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__preview.is-busy")));
+        Assert.Equal("true", cut.Find(".tl-art-picker__preview").GetAttribute("aria-busy"));
+        Assert.NotEmpty(cut.FindAll(".tl-art-picker__busy"));
 
-        cut.WaitForAssertion(() => Assert.True(harness.Session.Pending.IsEmpty));
-        Assert.Null(harness.Preview.Url("CoverArt"));
+        _gate.SetResult();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-art-picker__preview.is-busy")));
+        Assert.Equal([SecondPicture.ToString("N"), FirstPicture.ToString("N")], VersionOrder(cut));
     }
 
     [Fact]
-    public async Task ChangingRoleWithoutAddingThePick_DropsThePreviewAndStagesNothing()
+    public async Task WhenTheEngineRefusesAPicture_OneLineSaysWhatFailed_ThePreviousPictureStays_AndTryAgainChangesIt()
+    {
+        _answer = request => Refuse(request, "You do not have permission to change this item.");
+        var (harness, cut) = await OpenPickerAsync();
+
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("You do not have permission", cut.Find(".tl-art-picker__failure").TextContent));
+        Assert.Contains("The picture was not changed.", cut.Find(".tl-art-picker__failure").TextContent);
+        Assert.Equal([FirstPicture.ToString("N"), SecondPicture.ToString("N")], VersionOrder(cut));
+        Assert.Empty(Saves);
+        Assert.True(harness.Session.Pending.IsEmpty);
+
+        _answer = null;
+        cut.Find("button.tl-art-picker__try-again").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal([SecondPicture.ToString("N"), FirstPicture.ToString("N")], VersionOrder(cut)));
+        Assert.Empty(cut.FindAll(".tl-art-picker__failure"));
+        Assert.Equal(SecondPicture.ToString("D"), Assert.Single(Assert.Single(Saves).Changes).TargetId);
+    }
+
+    [Fact]
+    public async Task WhenThePersonMayNotChangePictures_OneLineSaysSo_AndThePreviousPictureStays()
+    {
+        _answer = _ => LibraryBatchEditOutcome<EditSessionResult>.Failed(LibraryBatchEditOutcomeStatus.Forbidden, "Only an administrator can change pictures.");
+        var (_, cut) = await OpenPickerAsync();
+
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Only an administrator can change pictures.", cut.Find(".tl-art-picker__failure").TextContent));
+        Assert.Equal([FirstPicture.ToString("N"), SecondPicture.ToString("N")], VersionOrder(cut));
+    }
+
+    [Fact]
+    public async Task APictureThatWentThrough_RaisesAppliedOnce_AndLeavesNoFailureBehind()
     {
         var (harness, cut) = await OpenPickerAsync();
-        OpenAddPanel(cut);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
-        cut.Find(".tl-art-picker__tile").Click();
-        cut.WaitForAssertion(() => Assert.NotNull(harness.Preview.Url("CoverArt")));
+        var applied = 0;
+        harness.Picker.Applied += () => applied++;
 
-        RoleCard(cut, "Logo").Click();
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
-        cut.WaitForAssertion(() => Assert.Null(harness.Preview.Url("CoverArt")));
-        Assert.True(harness.Session.Pending.IsEmpty);
-        Assert.Empty(cut.FindAll(".tl-art-picker__add-panel"));
+        cut.WaitForAssertion(() => Assert.Equal(1, applied));
+        Assert.Null(harness.Picker.Failure);
+        Assert.False(harness.Picker.Applying);
     }
 
     // -- Add artwork: Provider, Upload, Link --------------------------------------------------------------------
@@ -502,67 +606,79 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task APickedProviderPicture_IsOnlyAddedWhenAddVersionIsPressed_ThenBecomesPreferred()
+    public async Task ChoosingAProviderPicture_AddsItAndMakesItPreferredAtOnce_AndClosesTheAddPanel()
     {
         var (harness, cut) = await OpenPickerAsync();
         OpenAddPanel(cut);
         cut.WaitForAssertion(() => Assert.Contains("1000 × 1500", cut.Find(".tl-art-picker__tile").TextContent));
 
         cut.Find(".tl-art-picker__tile").Click();
-        cut.WaitForAssertion(() => Assert.Equal("/thumb/tmdb-1", harness.Preview.Url("CoverArt")));
-        Assert.Empty(_writes);
-        Assert.Contains("Only this film's poster changes.", cut.Find(".tl-art-picker__selected").TextContent);
 
-        cut.Find("button.tl-art-picker__use").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal(ProviderPicture.ToString("D"), Assert.Single(harness.Session.Pending.Changes).TargetId));
-        Assert.Equal([nameof(IEngineApiClient.ImportProviderArtworkAsync)], _writes.Select(write => write.Name));
-    }
-
-    [Fact]
-    public async Task AddingAProviderPictureWithoutMakingItPreferred_StagesNothing()
-    {
-        var (harness, cut) = await OpenPickerAsync();
-        OpenAddPanel(cut);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
-        cut.Find(".tl-art-picker__tile").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__selected input[type='checkbox']")));
-        cut.Find(".tl-art-picker__selected input[type='checkbox']").Change(false);
-
-        cut.Find("button.tl-art-picker__use").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains(_writes, write => write.Name == nameof(IEngineApiClient.ImportProviderArtworkAsync)));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-art-picker__add-panel")));
+        Assert.Equal(
+            [nameof(IEngineApiClient.ImportProviderArtworkAsync)],
+            _writes.Where(write => write.Name != nameof(IEngineApiClient.RunEditSessionAsync)).Select(write => write.Name));
+        Assert.Equal(ProviderPicture.ToString("D"), Assert.Single(Assert.Single(Saves).Changes).TargetId);
         Assert.True(harness.Session.Pending.IsEmpty);
+        Assert.Equal(ProviderPicture.ToString("N"), VersionOrder(cut)[0]);
     }
 
     [Fact]
-    public async Task AnUpload_IsStoredUnchosenAndPickedNotStaged()
+    public async Task AnUpload_IsStoredThenMadePreferredAtOnce_AndNothingIsStaged()
     {
         var (harness, _) = await OpenPickerAsync();
 
         Assert.True(await harness.Picker.UploadAsync(new FakeFile("poster.png", "image/png")));
 
-        var upload = Assert.Single(_writes);
-        Assert.Equal(nameof(IEngineApiClient.UploadCanonicalArtworkAsync), upload.Name);
+        var upload = Assert.Single(_writes, write => write.Name == nameof(IEngineApiClient.UploadCanonicalArtworkAsync));
         Assert.Contains(false, upload.Args!);
-        Assert.True(harness.Picker.HasPick);
+        Assert.Equal(SecondPicture.ToString("D"), Assert.Single(Assert.Single(Saves).Changes).TargetId);
         Assert.True(harness.Session.Pending.IsEmpty);
+        Assert.Null(harness.Picker.Failure);
     }
 
     [Fact]
-    public async Task APastedLink_IsStoredUnchosenAndNeedsAWebAddress()
+    public async Task AnUpload_ThatTheEngineRefusesToChoose_SaysSoAndKeepsThePreviousPicture()
+    {
+        _answer = request => Refuse(request, "That picture is no longer available.");
+        var (harness, _) = await OpenPickerAsync();
+
+        Assert.False(await harness.Picker.UploadAsync(new FakeFile("poster.png", "image/png")));
+
+        Assert.Contains("That picture is no longer available.", harness.Picker.Failure);
+        Assert.True(harness.Picker.CanRetryChange);
+        Assert.Equal(FirstPicture, harness.Picker.PreferredAssetId("CoverArt"));
+        Assert.Empty(Saves);
+    }
+
+    [Fact]
+    public async Task AFileThatIsNotAPicture_IsTurnedAwayWithoutAskingTheEngine()
+    {
+        var (harness, _) = await OpenPickerAsync();
+
+        Assert.False(await harness.Picker.UploadAsync(new FakeFile("notes.txt", "text/plain")));
+
+        Assert.Equal("Choose a JPEG or PNG image.", harness.Picker.Failure);
+        Assert.False(harness.Picker.CanRetryChange);
+        Assert.Empty(_writes);
+    }
+
+    [Fact]
+    public async Task APastedLink_NeedsAWebAddress_ThenIsStoredAndMadePreferredAtOnce()
     {
         var (harness, _) = await OpenPickerAsync();
 
         Assert.False(await harness.Picker.PasteLinkAsync("not a link"));
-        Assert.NotNull(harness.Picker.Message);
+        Assert.NotNull(harness.Picker.Failure);
         Assert.Empty(_writes);
 
         Assert.True(await harness.Picker.PasteLinkAsync("https://example.test/poster.jpg"));
-        var request = Assert.IsType<ArtworkFromUrlRequest>(Assert.Single(_writes).Args![2]);
+        var request = Assert.IsType<ArtworkFromUrlRequest>(Assert.Single(_writes, write => write.Name == nameof(IEngineApiClient.AddArtworkFromUrlAsync)).Args![2]);
         Assert.False(request.Preferred);
         Assert.Equal("CoverArt", request.SourceAssetType);
+        Assert.Equal(SecondPicture.ToString("D"), Assert.Single(Assert.Single(Saves).Changes).TargetId);
         Assert.True(harness.Session.Pending.IsEmpty);
+        Assert.Null(harness.Picker.Failure);
     }
 
     // -- Delete is the one action that happens at once, after asking ---------------------------------------------
@@ -682,22 +798,18 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     // -- What the tool shows ----------------------------------------------------------------------------
 
     [Fact]
-    public async Task APreviewedPicture_ShowsInTheTool_UntilItsChangeIsTakenBack()
+    public void TheTool_ShowsThePictureTheItemHasNow_AndNothingForAChoiceThatWaits()
     {
-        var harness = await StartAsync();
-        await harness.Picker.OpenAsync("Background");
-        Assert.Null(harness.Preview.Url("Background"));
+        var preview = new ArtworkEditPreview();
+        Assert.False(preview.HasCurrent("Background"));
+        Assert.Null(preview.ShownUrl("Background"));
 
-        harness.Preview.Pick("Background", SecondPicture.ToString("D"), "/preview/backdrop");
-        Assert.Equal("/preview/backdrop", harness.Preview.Url("Background"));
+        preview.SetCurrent("Background", "/art/current/large");
+        Assert.True(preview.HasCurrent("Background"));
+        Assert.Equal("/art/current/large", preview.ShownUrl("Background"));
 
-        harness.Session.Pending.SetArtwork(MovieId, "Background", SecondPicture.ToString("D"));
-        harness.Preview.RememberStaged("Background", SecondPicture.ToString("D"), "/preview/backdrop");
-        Assert.False(harness.Preview.HasPick("Background"));
-        Assert.Equal("/preview/backdrop", harness.Preview.Url("Background"));
-
-        harness.Session.Pending.Remove(harness.Session.Pending.Changes.Single().Id);
-        Assert.Null(harness.Preview.Url("Background"));
+        preview.SetCurrent("Background", null);
+        Assert.False(preview.HasCurrent("Background"));
     }
 
     private sealed class FakeFile(string name, string contentType) : IBrowserFile

@@ -56,7 +56,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         var items = new ItemCanonicalRepository(_db, NullLogger<ItemCanonicalRepository>.Instance);
         var activity = new SystemActivityRepository(_db);
         _details = new DetailsEditSessionChangeHandler(items, activity, _subjects);
-        _artworkHandler = new ArtworkEditSessionChangeHandler(_artwork, items, activity, _subjects);
+        _artworkHandler = new ArtworkEditSessionChangeHandler(_artwork, items, activity, new MediaEngine.Api.Services.Metadata.ArtworkCanonicalSync(new CanonicalValueRepository(_db), new EntityAssetRepository(_db)), _subjects);
     }
 
     public void Dispose()

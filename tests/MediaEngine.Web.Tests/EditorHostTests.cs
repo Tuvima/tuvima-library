@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -227,6 +228,79 @@ public sealed class EditorHostTests
 
         Assert.False(host.IsOpen);
         Assert.Null(host.Binding);
+    }
+
+    [Fact]
+    public async Task APictureChosenInTheArtworkTool_RefreshesThePageBehindOnce_WhenTheWindowCloses_AndNotBefore()
+    {
+        var current = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+        var chosen = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
+        var saves = 0;
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetUniverseEditorSubjectAsync), _ => Task.FromResult<EditorSubjectDto?>(Subject()));
+            stub.SetHandler(nameof(IEngineApiClient.GetEntityArtworkAsync), _ => Task.FromResult<ArtworkEntityWorkspaceDto?>(
+                new ArtworkEntityWorkspaceDto(Subject().Id, "Collection",
+                [
+                    new ArtworkEntityVariantDto(Guid.NewGuid(), current, "Primary", null, "CoverArt", true, false, "/art/a/large", "/art/a/small", 1000, 1500, "Portrait", "tmdb", null),
+                    new ArtworkEntityVariantDto(Guid.NewGuid(), chosen, "Primary", null, "CoverArt", false, false, "/art/b/large", "/art/b/small", 1000, 1500, "Portrait", "tmdb", null),
+                ])));
+            stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
+            {
+                var request = (EditSessionRequest)args![0]!;
+                saves += request.PreviewOnly ? 0 : 1;
+                return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+                {
+                    PreviewOnly = request.PreviewOnly,
+                    Valid = true,
+                    DataSaved = !request.PreviewOnly,
+                    Changes = request.Changes
+                        .Select(change => new EditSessionChangeResult { Id = change.Id, Kind = change.Kind, EntityId = change.EntityId, Status = EditSessionChangeStatuses.Ok })
+                        .ToList(),
+                }));
+            });
+        });
+        var host = await HostAsync(api: api);
+        var refreshes = 0;
+        var binding = Binding();
+        binding.ShowHistory = false;
+        binding.LoadFields = () => host.Mode.Fields.LoadUniverseSubjectAsync("Q1");
+        binding.SectionCommitted = () =>
+        {
+            refreshes++;
+            return Task.CompletedTask;
+        };
+        Assert.True(await host.OpenAsync(binding, Guid.Empty));
+        await host.Picker.OpenAsync("CoverArt");
+
+        Assert.True(await host.Picker.MakePreferredAsync(host.Picker.Versions("CoverArt").Single(version => version.AssetId == chosen)));
+
+        // The picture is in the library, nothing is staged for Review, and the page behind the window has not been touched yet.
+        Assert.Equal(1, saves);
+        Assert.True(host.Session.Pending.IsEmpty);
+        Assert.Equal(0, refreshes);
+
+        Assert.True(await host.RequestCloseAsync());
+
+        Assert.Equal(1, refreshes);
+    }
+
+    [Fact]
+    public async Task ClosingTheWindow_WhenNoPictureWasChosen_DoesNotRefreshThePage()
+    {
+        var host = await HostAsync();
+        var refreshes = 0;
+        var binding = Binding();
+        binding.SectionCommitted = () =>
+        {
+            refreshes++;
+            return Task.CompletedTask;
+        };
+        await host.OpenAsync(binding, ItemOne);
+
+        Assert.True(await host.RequestCloseAsync());
+
+        Assert.Equal(0, refreshes);
     }
 
     private static EditorSubjectDto Subject() => new()
