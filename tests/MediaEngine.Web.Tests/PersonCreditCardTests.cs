@@ -27,10 +27,8 @@ public sealed class PersonCreditCardTests : AsyncBunitContext
         Assert.Equal("Paul Atreides", cut.Find(".tl-credit-card__role").TextContent);
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void CastCredit_FaceAsksForTheSmallCopyAndOffersSharperOnesToDenserScreens(bool compact)
+    [Fact]
+    public void CastCredit_FaceAsksForTheSmallCopyAndOffersSharperOnesToDenserScreens()
     {
         var credit = new EntityCreditViewModel
         {
@@ -41,9 +39,7 @@ public sealed class PersonCreditCardTests : AsyncBunitContext
             ImageUrl = "/engine-image/persons/6f6b4d6e-0000-4000-8000-000000000001/headshot?v=abc123",
         };
 
-        var cut = Render<PersonCreditCard>(parameters => parameters
-            .Add(component => component.Credit, credit)
-            .Add(component => component.Compact, compact));
+        var cut = Render<PersonCreditCard>(parameters => parameters.Add(component => component.Credit, credit));
 
         var image = cut.Find(".tl-credit-card__image img");
         Assert.Contains("size=s", image.GetAttribute("src"));
@@ -65,5 +61,27 @@ public sealed class PersonCreditCardTests : AsyncBunitContext
         var cut = Render<PersonCreditCard>(parameters => parameters.Add(component => component.Credit, credit));
 
         Assert.Equal("Director", cut.Find(".tl-credit-card__role").TextContent);
+    }
+
+    // One tile everywhere (details-page-bottom D3): photo, name, role. It has no size or compact variant of its own, so Overview, the Credits tab and
+    // an album's credits all draw the same thing.
+    [Fact]
+    public void TheTile_HasOnePhotoThenTheNameThenTheRole_AndNoSizeVariant()
+    {
+        var credit = new EntityCreditViewModel
+        {
+            EntityId = Guid.NewGuid().ToString("D"),
+            EntityType = RelatedEntityType.Person,
+            DisplayName = "Alex Pettyfer",
+            PrimaryRole = "Actor",
+            CharacterName = "John Smith",
+        };
+
+        var cut = Render<PersonCreditCard>(parameters => parameters.Add(component => component.Credit, credit));
+
+        var children = cut.Find("a.tl-credit-card").Children.Select(child => child.ClassList.First()).ToArray();
+        Assert.Equal(["tl-credit-card__image", "tl-credit-card__body"], children);
+        Assert.DoesNotContain("tl-credit-card--compact", cut.Markup, StringComparison.Ordinal);
+        Assert.Null(typeof(PersonCreditCard).GetProperty("Compact"));
     }
 }

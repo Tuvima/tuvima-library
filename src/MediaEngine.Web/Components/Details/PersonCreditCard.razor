@@ -16,7 +16,6 @@ else
 
 @code {
     [Parameter, EditorRequired] public EntityCreditViewModel Credit { get; set; } = default!;
-    [Parameter] public bool Compact { get; set; }
 
     private RenderFragment CreditContent => @<text>
         <div class="tl-credit-card__image">
@@ -24,7 +23,7 @@ else
                           ImageUrl="@PreferredImageUrl"
                           Initials="@Credit.FallbackInitials"
                           Role="@Credit.PrimaryRole"
-                          Size="@AvatarSize"
+                          Size="sm"
                           DrawnPx="@AvatarDrawnPx" />
         </div>
         <div class="tl-credit-card__body">
@@ -48,17 +47,13 @@ else
             if (Credit.IsUpdatingDetails) classes += " tl-enrichment-pending";
             if (!string.IsNullOrWhiteSpace(Route))
                 classes += " tl-credit-card--link";
-            if (Compact)
-                classes += " tl-credit-card--compact";
             return classes;
         }
     }
 
-    private string AvatarSize => Compact ? "sm" : "md";
-
-    // The card draws the face across its full width (compact up to 8.75rem, full up to about 11rem), so it asks
-    // for the 320 px copy, not the 96 px badge copy the "sm" avatar style would pick on its own.
-    private int AvatarDrawnPx => Compact ? 140 : 176;
+    // One tile everywhere (details-page-bottom D3): a rounded square photo beside the name and the role or character. The photo is drawn
+    // at 72 px at most, so the 140 px copy is sharp on dense screens; only the column count of the list around the tile changes.
+    private const int AvatarDrawnPx = 140;
 
     private string? PreferredImageUrl
         => !string.IsNullOrWhiteSpace(Credit.CharacterName) && !string.IsNullOrWhiteSpace(Credit.CharacterImageUrl)

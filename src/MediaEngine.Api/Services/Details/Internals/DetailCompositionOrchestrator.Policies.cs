@@ -221,7 +221,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static string ToTabLabel(string key, DetailEntityType entityType) => (key, entityType) switch
     {
-        ("people", _) => "Cast",
+        ("people", _) => "Credits",
         ("media", DetailEntityType.MovieSeries) => "Films",
         ("media", _) => "Media in Library",
         ("works", DetailEntityType.BookSeries) => "Books",

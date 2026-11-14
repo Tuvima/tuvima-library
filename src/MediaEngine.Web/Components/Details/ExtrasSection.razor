@@ -2,10 +2,12 @@
 @using MediaEngine.Contracts.Details
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Extras row on a title's page: supporting files found beside it, grouped by the groups a person named (universal editor v5 item 16). Each group
-   shows at most the Engine's cards-per-group, with a "See all" that opens the whole list read-only; a title with no group is one plain row with no
-   headings, as before. A picture folder is one card however many pictures it holds. Every card is a link, so it works with a remote, a keyboard and a
-   finger. On an episode or lesson page the same row lists the files shown alongside it. *@
+@* The Extras row on a title's page, between the top of the page and the tabs (details-page-bottom D11): supporting files found beside it, grouped by the
+   groups a person named (universal editor v5 item 16). Each group has a heading with its count, 16:9 cards with a small kind label and a title, and
+   shows at most the Engine's cards-per-group; "See all N" at the right end of the Extras heading opens the whole list read-only. A title with no group is
+   one plain row with no group headings. A picture folder is one card however many pictures it holds. A document has a paper icon and opens in the
+   Documents reader. Every card is a link, so it works with a remote, a keyboard and a finger. No extras means no row. On an episode or lesson page the
+   same row lists the files shown alongside it. *@
 @if (Cards.Count > 0)
 {
     var groups = ExtrasRowRules.Groups(Cards, CardsPerGroup);
@@ -13,8 +15,7 @@
     <section class="tl-extras" aria-labelledby="tl-extras-heading" data-testid="extras-section">
         <div class="tl-section-heading tl-extras__heading">
             <h2 id="tl-extras-heading">@L["Common_Extras"]</h2>
-            <span class="tl-extras__count">@fileCount</span>
-            @if (OnSeeAll.HasDelegate && ExtrasRowRules.HasHidden(groups))
+            @if (OnSeeAll.HasDelegate)
             {
                 <span class="tl-extras__see-all">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" data-testid="extras-see-all"
@@ -22,9 +23,10 @@
                 </span>
             }
         </div>
+        <div class="tl-extras__groups">
         @foreach (var group in groups)
         {
-            <div class="tl-extras__group" data-testid="extras-group">
+            <div class="tl-extras__group" data-testid="extras-group" data-count="@Math.Min(group.Shown.Count, 4)">
                 @if (group.Name is not null)
                 {
                     <h3 class="tl-extras__group-name" data-testid="extras-group-name">@(group.Name.Length == 0 ? L["ExtrasSection_More"].Value : group.Name)<span class="tl-extras__group-count"> · @group.Total</span></h3>
@@ -47,7 +49,7 @@
                             }
                             else
                             {
-                                <a class="tl-extras-card" href="@ExtrasRowRules.ViewerHref(card.Id)" data-kind="@card.Kind">
+                                <a class="tl-extras-card" href="@ExtrasRowRules.ViewerHref(card.Id)" data-kind="@card.Kind" aria-label="@CardLabel(card)">
                                     <div class="tl-extras-card__art" aria-hidden="true">
                                         @if (card.Kind == DetailExtraCardKinds.Pictures && card.PreviewIds.Count > 0)
                                         {
@@ -63,25 +65,24 @@
                                             <img src="@ThumbnailSrc(card.Id)" alt="" loading="lazy" decoding="async" />
                                             <span class="tl-extras-card__play"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayCircle" Size="AppIconSize.Row24" /></span>
                                         }
-                                        else if (!string.IsNullOrWhiteSpace(card.FileBadge))
-                                        {
-                                            <span class="tl-extras-card__type" data-testid="extras-type">@card.FileBadge</span>
-                                        }
                                         else
                                         {
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppIconSize.Row24" />
+                                            @* A document: a paper icon, and its file type small under it. *@
+                                            <span class="tl-extras-card__paper">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" Size="AppIconSize.Row24" />
+                                                @if (!string.IsNullOrWhiteSpace(card.FileBadge))
+                                                {
+                                                    <span class="tl-extras-card__type" data-testid="extras-type">@card.FileBadge</span>
+                                                }
+                                            </span>
+                                        }
+                                        @if (KindLabel(card) is { } kindLabel)
+                                        {
+                                            <span class="tl-extras-card__badge" data-testid="extras-badge">@kindLabel</span>
                                         }
                                     </div>
                                     <div class="tl-extras-card__text">
                                         <span class="tl-extras-card__title">@card.Title</span>
-                                        @if (!string.IsNullOrWhiteSpace(card.Badge))
-                                        {
-                                            <span class="tl-extras-card__badge" data-testid="extras-badge">@card.Badge</span>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(card.Subtitle))
-                                        {
-                                            <span class="tl-extras-card__subtitle">@card.Subtitle</span>
-                                        }
                                     </div>
                                 </a>
                             }
@@ -90,6 +91,7 @@
                 </ul>
             </div>
         }
+        </div>
     </section>
 }
 
@@ -103,6 +105,14 @@
     [Parameter] public EventCallback OnSeeAll { get; set; }
 
     private IReadOnlyList<DetailExtraCardViewModel> Cards => Extras ?? [];
+
+    // The small label on the card's picture: what it is, with where it belongs when it is not the whole title ("Trailer · Season 1"), else its role.
+    private static string? KindLabel(DetailExtraCardViewModel card)
+        => !string.IsNullOrWhiteSpace(card.Badge) ? card.Badge : string.IsNullOrWhiteSpace(card.RoleLabel) ? null : card.RoleLabel;
+
+    // What a screen reader says for a card: the title, then its note ("PDF, 42 pages", "24 pictures", "2:10") when it has one.
+    private static string CardLabel(DetailExtraCardViewModel card)
+        => string.IsNullOrWhiteSpace(card.Subtitle) ? card.Title : $"{card.Title}, {card.Subtitle}";
 
     private static string ThumbnailSrc(string extraId) => $"/engine-extra/{Uri.EscapeDataString(extraId)}/thumbnail";
 }

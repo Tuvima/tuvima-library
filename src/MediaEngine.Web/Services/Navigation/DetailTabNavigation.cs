@@ -37,7 +37,7 @@ public static class DetailTabNavigation
     {
         return key switch
         {
-            "cast" or "people" or "credits" =>
+            "people" or "credits" =>
                 model.ContributorGroups.Count > 0,
             "tracks" => model.MediaGroups.Any(group =>
                 string.Equals(group.Key, "tracks", StringComparison.OrdinalIgnoreCase)

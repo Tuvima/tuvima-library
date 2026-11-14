@@ -1,37 +1,36 @@
 /* Detail presentation owned by this markup. Retained ::deep rules cross
    an existing shared/C# renderer boundary; the page context excludes other uses. */
-:where(.tl-detail-page) .tl-source-links-panel {
-    margin-top: clamp(0.9rem, 2vw, 1.4rem);
-}
-
-:where(.tl-detail-page) .tl-source-links {
+:where(.tl-detail-page) .tl-source-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.65rem;
+    align-items: center;
+    gap: 0.25rem 1.4rem;
+    min-height: 2.75rem;
+    margin-top: clamp(0.9rem, 2vw, 1.6rem);
+}
+
+:where(.tl-detail-page) .tl-source-row__label {
+    color: var(--tl-text-muted);
 }
 
 :where(.tl-detail-page) .tl-source-link {
-    min-height: 2.75rem;
-    display: inline-grid;
-    grid-template-columns: auto auto auto;
+    min-height: var(--tl-tap-target-min, 44px);
+    display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.55rem 0.72rem;
-    border: 1px solid var(--tl-wash-light-4);
-    border-radius: 0.45rem;
-    background: var(--tl-wash-light-2);
-    color: var(--tl-text-primary);
+    gap: 0.2rem;
+    color: var(--tl-accent-collection-hover);
+    font-weight: 500;
     text-decoration: none;
 }
 
 :where(.tl-detail-page) .tl-source-link:hover {
-    border-color: color-mix(in srgb, var(--tl-text-primary) 24%, transparent);
-    background: var(--tl-wash-light-3);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
 }
 
-:where(.tl-detail-page) .tl-source-link small {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-caption-size);
+/* TV (10-foot): no links to open from a remote. */
+html[data-form-factor="tv"] :where(.tl-detail-page) .tl-source-row {
+    display: none;
 }
 
 /* Series facts: a compact two-column list on every device. Long values wrap

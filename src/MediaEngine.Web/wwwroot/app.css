@@ -3926,8 +3926,9 @@ input[type="reset"],
 }
 
 /* The details window (Look v3.1 D5, Details overlay D1; issue 875; music-player-and-listen-fixes D5). On a tablet or desktop a title's details
-   float over the page the person came from: 90 % of the screen's width and height, never wider than 1440 px, never closer than 32 px to an edge,
-   16 px corners, the page dimmed behind it. On a phone it is a bottom sheet about 92 % tall with a grip. Global because the shared Viewer part
+   float over the page the person came from: 90 % of the screen's width and height, never closer than 32 px to an edge, 16 px corners, the page dimmed
+   behind it. The width is 1440 px at most on a screen up to about 1500 px wide; on a wider screen it follows the window's height (16:9 of it) up to 1920 px,
+   so the page stays visible around it and a landscape hero keeps filling the window (details-page-bottom D17, issue 981). On a phone it is a bottom sheet about 92 % tall with a grip. Global because the shared Viewer part
    renders the <dialog>; the selector outranks the Viewer's full-screen :where() rule on purpose: the details window is a Window, not a full-screen Viewer.
    The app keeps the window modal itself (app-dialog.js shows the dialog non-modal), so the persistent player bar stays usable beside it: it is fixed over the
    screen at the modal layer, above its own dimmed backdrop element (--tl-z-details-backdrop, in DetailsOverlayHost's styles) and clear of the bar. app-dialog.js
@@ -3945,7 +3946,9 @@ input[type="reset"],
 
 dialog.tl-details-overlay {
     box-sizing: border-box;
+    /* The first width is the 1440 px cap for a browser that cannot do the height-following one below it. */
     width: min(90vw, var(--tl-window-details-max), calc(100vw - 2 * var(--tl-window-details-margin)));
+    width: min(90vw, calc(100vw - 2 * var(--tl-window-details-margin)), clamp(var(--tl-window-details-max), calc(min(90dvh, calc(100dvh - 2 * var(--tl-window-details-margin))) * var(--tl-window-details-ratio)), var(--tl-window-details-wide-max)));
     max-width: none;
     height: min(90vh, calc(100vh - 2 * var(--tl-window-details-margin)));
     height: min(90dvh, calc(100dvh - 2 * var(--tl-window-details-margin)));
@@ -6152,25 +6155,16 @@ html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-d
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-/* Credits and people: one column of credit groups, compact square people two to a row. */
+/* Credits and people: one column of credit groups; the credit tile is the same size as everywhere (details-page-bottom D3) and the lists
+   around it stack to one column. */
 html[data-form-factor="phone"] .tl-detail-page .tl-media-overview-credits-list--video,
 html[data-form-factor="phone"] .tl-detail-page .tl-media-overview-credits-list--bookish {
     grid-template-columns: minmax(0, 1fr);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-overview-credit-rows,
 html[data-form-factor="phone"] .tl-detail-page .tl-credit-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-overview-credit-rows .tl-credit-card--compact,
-html[data-form-factor="phone"] .tl-detail-page .tl-overview-credit-rows .tl-credit-card--compact:first-child {
-    display: grid;
     grid-template-columns: minmax(0, 1fr);
-    width: 100%;
-    max-width: none;
+    gap: 0.75rem;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-source-link {

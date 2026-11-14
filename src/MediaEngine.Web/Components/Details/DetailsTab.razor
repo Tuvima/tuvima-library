@@ -59,22 +59,20 @@
 
     @if (Model.SourceLinks.Count > 0)
     {
-        <section class="tl-detail-panel tl-source-links-panel">
-            <div class="tl-section-heading"><h2>@L["Common_Sources"]</h2></div>
-            <div class="tl-source-links">
-                @foreach (var link in Model.SourceLinks)
-                {
-                    <a class="tl-source-link"
-                       href="@link.Url"
-                       target="_blank"
-                       rel="noopener noreferrer">
-                        <AppMaterialIcon Icon="@SourceIcon(link.Key)" Size="AppIconSize.Control20" />
-                        <span>@link.Label</span>
-                        <small>@link.SourceName</small>
-                    </a>
-                }
-            </div>
-        </section>
+        @* The Sources row (details-page-bottom D8): a quiet line of links for this title only, one per site, each opening in a new tab. *@
+        <nav class="tl-source-row" aria-label="@L["Common_Sources"].Value" data-testid="sources-row">
+            <span class="tl-source-row__label">@L["Common_Sources"]</span>
+            @foreach (var link in Model.SourceLinks)
+            {
+                <a class="tl-source-link"
+                   href="@link.Url"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    <span>@link.Label</span>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
+                </a>
+            }
+        </nav>
     }
 </div>
 

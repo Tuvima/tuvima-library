@@ -416,8 +416,11 @@
     --tl-window-l: 900px;
     --tl-window-xl: 1200px;
     --tl-window-radius: 12px;
-    /* The details window (Look v3.1 D5): 90 % of the screen, never wider than 1440 px, never closer than 32 px to an edge. */
+    /* The details window (Look v3.1 D5, details-page-bottom D17): 90 % of the screen, never closer than 32 px to an edge. Its width is 1440 px at most up
+       to about 1500 px of screen width; on a wider screen it follows its own height (16:9 of it) up to 1920 px, with the page visible around it. */
     --tl-window-details-max: 1440px;
+    --tl-window-details-wide-max: 1920px;
+    --tl-window-details-ratio: 1.7778;
     --tl-window-details-margin: 32px;
     --tl-window-details-radius: 16px;
     --tl-sheet-radius: 16px;

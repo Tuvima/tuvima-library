@@ -256,7 +256,7 @@ internal sealed partial class DetailCompositionOrchestrator
             SecondaryTitleTextHasMore = secondaryTitle.HasMore,
             Description = displayDescription ?? longDescription,
             DescriptionAttribution = descriptionAttribution,
-            SourceLinks = BuildExternalSourceLinks(detail.WikidataQid, GetValue(values, "wikipedia_url"), sequencePlacement, values),
+            SourceLinks = BuildExternalSourceLinks(detail.WikidataQid, GetValue(values, "wikipedia_url"), values, entityType),
             Facts = BuildWorkFacts(factsDetail, entityType, factValues, contributorGroups),
             UsesEpisodeArtwork = entityType == DetailEntityType.TvEpisode,
             Artwork = artwork,

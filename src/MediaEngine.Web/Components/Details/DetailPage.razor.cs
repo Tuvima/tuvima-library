@@ -153,6 +153,13 @@ public partial class DetailPage
         HasPrimaryModuleAfterNavigation
         && CurrentActiveTab == "overview";
 
+    // A show's (and a season's) Extras sit under its episodes; every other title's sit above the tabs. Neither is drawn on a TV (details-page-bottom D11).
+    private bool ExtrasBelongUnderEpisodes => Model?.EntityType is DetailEntityType.TvShow or DetailEntityType.TvSeason;
+
+    private bool ShowExtrasAboveTabs => !DeviceContext.IsTv && !ExtrasBelongUnderEpisodes;
+
+    private bool ShowExtrasUnderEpisodes => !DeviceContext.IsTv && ExtrasBelongUnderEpisodes && CurrentActiveTab == "overview";
+
     private string DetailStageClass =>
         $"tl-detail-stage{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--with-primary" : " tl-detail-stage--identity-only")}" +
         $"{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--primary-after-navigation" : string.Empty)}" +
