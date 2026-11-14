@@ -41,6 +41,8 @@ internal sealed class IngestionPipelineContext(IngestionCandidate candidate)
     public ProcessorResult? ProcessorResult { get; set; }
     /// <summary>Sibling cover image (cover.jpg, folder.jpg, …) used only when the file has no embedded cover.</summary>
     public FolderCoverImage? FolderCover { get; set; }
+    /// <summary>True when <see cref="FolderCover"/> is a frame taken from the video itself, which is also kept as the video's own picture.</summary>
+    public bool FolderCoverIsGeneratedFrame { get; set; }
 
     /// <summary>The thumbnail an online lookup returned, used when the video has no picture of its own.</summary>
     public FolderCoverImage? LookupThumbnail { get; set; }

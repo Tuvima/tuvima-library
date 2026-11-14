@@ -43,6 +43,27 @@ public sealed class DisplayJourneyProjectionReaderTests : IDisposable
         Assert.Equal($"/stream/{providerAssetId:D}/cover", Assert.Single(rows, row => row.AssetId == providerAssetId).CoverUrl);
     }
 
+    /// <summary>
+    /// Issue 1001: the Continue card of a video that has its own generated frame carries that frame as its landscape picture (the tile then
+    /// draws it full size), not the folder's portrait cover.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_AVideoWithAGeneratedFrame_CarriesTheFrameAsItsLandscapePicture()
+    {
+        var (workId, assetId) = SeedStartedMovie("Clip.mkv");
+        SetValue(workId, "cover_url", $"/stream/{assetId:D}/cover");
+        var frame = new MediaEngine.Domain.Entities.EntityAsset { Id = Guid.NewGuid(), AssetTypeValue = "EpisodeStill", LocalImagePath = string.Empty };
+        foreach (var value in MediaEngine.Domain.ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(workId, frame, DateTimeOffset.UtcNow))
+        {
+            SetValue(workId, value.Key, value.Value);
+        }
+
+        var rows = await new DisplayJourneyProjectionReader(_db).LoadAsync(_profileId, lane: null, CancellationToken.None);
+
+        var row = Assert.Single(rows);
+        Assert.Contains($"/stream/artwork/{frame.Id:D}", row.BackgroundUrl);
+    }
+
     private (Guid WorkId, Guid AssetId) SeedStartedMovie(string fileName)
     {
         var workId = Guid.NewGuid();

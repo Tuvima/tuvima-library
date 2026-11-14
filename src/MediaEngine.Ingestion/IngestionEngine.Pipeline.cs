@@ -758,6 +758,7 @@ public sealed partial class IngestionEngine
         if (context.FolderCover is null && !hasEmbeddedCover && resolvedMediaType == MediaType.Videos && _videoFrames is not null)
         {
             context.FolderCover = await _videoFrames.GetOrCreateAsync(candidate.Path, ct).ConfigureAwait(false);
+            context.FolderCoverIsGeneratedFrame = context.FolderCover is not null;
         }
 
         if (context.IsVault)
@@ -1200,6 +1201,31 @@ public sealed partial class IngestionEngine
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to persist {CoverSource} cover art for {Path}", coverSource, currentPath);
+            }
+        }
+
+        // A frame taken from the video is also the video's own picture (issue 997), so its details page, rows, editor header, Needs Review
+        // row and Continue tile have one to show; the folder's cover above stays what a collection of videos is drawn with.
+        if (!context.IsVault
+            && context.FolderCoverIsGeneratedFrame
+            && context.FolderCover is { Bytes.Length: > 0 } frame
+            && _writeBackStageDependencies.EntityAssetRepository is { } frameAssets
+            && _writeBackStageDependencies.AssetPathService is { } framePaths
+            && _writeBackStageDependencies.WorkRepository is { } frameWorks)
+        {
+            try
+            {
+                var lineage = await frameWorks.GetLineageByAssetAsync(assetId, ct).ConfigureAwait(false);
+                var ownWorkId = lineage?.TargetForSelfScope ?? Guid.Empty;
+                if (ownWorkId != Guid.Empty)
+                {
+                    await new GeneratedVideoStillWriter(frameAssets, _canonicalRepo, framePaths, _logger)
+                        .SaveAsync(ownWorkId, frame.Bytes, ct).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Video frame step: the frame for {Path} could not be saved as the video's picture", currentPath);
             }
         }
 

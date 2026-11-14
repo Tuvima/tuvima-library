@@ -432,7 +432,31 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             ? ct.IsCancellationRequested
                 ? new NeedsReviewListAttempt(new MediaEngine.Contracts.Review.NeedsReviewListDto(), null)
                 : new NeedsReviewListAttempt(null, LastError ?? "The Engine did not return the review list.")
-            : new NeedsReviewListAttempt(list, null);
+            : new NeedsReviewListAttempt(ThroughPictureRoute(list), null);
+    }
+
+    /// <summary>
+    /// Every picture on a Needs Review row (its own, its family's, the best guess and each choice) is an Engine address; the browser can only
+    /// fetch it through the Dashboard's picture route (issue 988).
+    /// </summary>
+    private MediaEngine.Contracts.Review.NeedsReviewListDto ThroughPictureRoute(MediaEngine.Contracts.Review.NeedsReviewListDto list)
+    {
+        foreach (var row in list.Items)
+        {
+            row.CoverUrl = ProxiedPicture(row.CoverUrl);
+            row.FamilyCoverUrl = ProxiedPicture(row.FamilyCoverUrl);
+            if (row.BestGuess is { } guess)
+            {
+                guess.ImageUrl = ProxiedPicture(guess.ImageUrl);
+            }
+
+            foreach (var choice in row.Choices)
+            {
+                choice.ImageUrl = ProxiedPicture(choice.ImageUrl);
+            }
+        }
+
+        return list;
     }
 
     public async Task<ReviewItemViewModel?> GetReviewItemAsync(

@@ -149,6 +149,55 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
         Assert.NotNull(orchestrator.GetMethod("EnrichTvEpisodeSubsetAsync", nonPublic));
     }
 
+    /// <summary>
+    /// Issue 999: an episode whose only picture is a generated frame (a stored still with no source address and no canonical still value)
+    /// must reach the episode card with a picture address, not the "Artwork unavailable" placeholder.
+    /// </summary>
+    [Fact]
+    public async Task AnEpisodeWithOnlyAGeneratedFrameCarriesThatFrameAsItsPicture()
+    {
+        var show = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO works(id,media_type,work_kind,curator_state) VALUES (@show,'TV','parent','accepted');",
+                new { show });
+        }
+
+        var episode = SeedEpisodes(1, show).Single();
+        using (var connection = _db.CreateConnection())
+        {
+            // A generated frame has no provider picture: no canonical still value anywhere on the episode.
+            connection.Execute("DELETE FROM canonical_values WHERE key = 'episode_still_url';");
+        }
+
+        var composer = new DetailCompositionOrchestrator(_db, null!, null!, null!, null!, null!, null!, null!);
+        var nonPublic = BindingFlags.Instance | BindingFlags.NonPublic;
+        var works = await LoadShowWorksAsync(composer, show);
+        var typed = Activator.CreateInstance(typeof(List<>).MakeGenericType(works[0].GetType()))!;
+        foreach (var work in works)
+        {
+            ((System.Collections.IList)typed).Add(work);
+        }
+
+        var frameId = Guid.NewGuid();
+        var stillRow = typeof(DetailCompositionOrchestrator).GetNestedType("SequenceRow", BindingFlags.NonPublic)!;
+        var row = Activator.CreateInstance(stillRow)!;
+        stillRow.GetProperty("WorkId")!.SetValue(row, episode);
+        stillRow.GetProperty("EpisodeStillAssetId")!.SetValue(row, frameId);
+        var stills = Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(typeof(Guid), stillRow))!;
+        ((System.Collections.IDictionary)stills)[episode] = row;
+
+        var enrich = (Task)typeof(DetailCompositionOrchestrator).GetMethod("EnrichTvEpisodesAsync", nonPublic)!
+            .Invoke(composer, [typed, stills, CancellationToken.None])!;
+        await enrich;
+        var outcome = enrich.GetType().GetProperty("Result")!.GetValue(enrich)!;
+        var enriched = ((System.Collections.IEnumerable)outcome.GetType().GetField("Item1")!.GetValue(outcome)!).Cast<object>().Single();
+
+        Assert.Equal($"/stream/artwork/{frameId:D}", Read<string?>(enriched, "EpisodeStillUrl"));
+        Assert.Equal($"/stream/artwork/{frameId:D}", Read<string?>(enriched, "BackgroundUrl"));
+    }
+
     [Fact]
     public async Task LongShowCarriesOneSeasonWindowWhileEveryOtherPathStillGetsTheWholeList()
     {

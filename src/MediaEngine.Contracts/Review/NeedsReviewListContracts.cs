@@ -131,7 +131,7 @@ public sealed class NeedsReviewRowDto
     /// knows of none; a URL here always serves a picture.
     /// </summary>
     [JsonPropertyName("cover_url")]
-    public string? CoverUrl { get; init; }
+    public string? CoverUrl { get; set; }
 
     /// <summary>The top parent Work's id (<c>D</c> format) when the row's Work sits in a family (episode to season to show, track to album); rows with the same key are one family. Null otherwise.</summary>
     [JsonPropertyName("family_key")]
@@ -147,7 +147,7 @@ public sealed class NeedsReviewRowDto
 
     /// <summary>The family's picture when the Engine knows of one; null otherwise.</summary>
     [JsonPropertyName("family_cover_url")]
-    public string? FamilyCoverUrl { get; init; }
+    public string? FamilyCoverUrl { get; set; }
 
     /// <summary>For a file, when it is next looked up (null once kept as it is); always null for a review item.</summary>
     [JsonPropertyName("next_retry_at")]
