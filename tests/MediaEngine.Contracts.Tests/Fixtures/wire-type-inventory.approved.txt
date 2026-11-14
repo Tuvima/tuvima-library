@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1562; api=0; web-client=56
+# scopes: contracts=1567; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1005,7 +1005,8 @@
   HardwareDecodeVideoCodecs: System.Collections.Generic.IReadOnlyList<System.String> | json=hardware_decode_video_codecs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TenBitVideoCodecs: System.Collections.Generic.IReadOnlyList<System.String> | json=ten_bit_video_codecs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LearnedLimits: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.LearnedPlaybackLimitDto> | json=learned_limits | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"schema_version":7,"containers":[],"video_codecs":[],"audio_codecs":[],"subtitle_formats":[],"protocols":[],"max_width":7,"max_height":7,"max_bitrate_kbps":7,"max_audio_channels":7,"supports_hdr":true,"supports_playback_speed":true,"supports_offline_downloads":true,"hardware_decode_video_codecs":[],"ten_bit_video_codecs":[],"learned_limits":[]}
+  VideoOptions: MediaEngine.Contracts.Authentication.DeviceVideoOptionsDto | json=video_options | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"schema_version":7,"containers":[],"video_codecs":[],"audio_codecs":[],"subtitle_formats":[],"protocols":[],"max_width":7,"max_height":7,"max_bitrate_kbps":7,"max_audio_channels":7,"supports_hdr":true,"supports_playback_speed":true,"supports_offline_downloads":true,"hardware_decode_video_codecs":[],"ten_bit_video_codecs":[],"learned_limits":[],"video_options":null}
 
 [contracts] MediaEngine.Contracts.Authentication.ClientDeviceDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1165,6 +1166,13 @@
   ExpiresAt: System.DateTimeOffset | json=expires_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RevokedAt: System.DateTimeOffset? | json=revoked_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","account_id":"11111111-2222-3333-4444-555555555555","active_profile_id":"11111111-2222-3333-4444-555555555555","device_id":"sample","device_name":"sample","client":"sample","authentication_method":"sample","created_at":"2025-01-02T03:04:05+00:00","last_seen_at":"2025-01-02T03:04:05+00:00","expires_at":"2025-01-02T03:04:05+00:00","revoked_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Authentication.DeviceVideoOptionsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  MaxResolution: System.String | json=max_resolution | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HardwareDecoding: System.String | json=hardware_decoding | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SurroundSound: System.String | json=surround_sound | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"max_resolution":"sample","hardware_decoding":"sample","surround_sound":"sample"}
 
 [contracts] MediaEngine.Contracts.Authentication.DisableTwoStepRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10092,6 +10100,13 @@
   FfmpegAvailable: System.Boolean | json=ffmpegAvailable | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"enabled":true,"bytesUsed":7,"ffmpegAvailable":true}
 
+[contracts] MediaEngine.Contracts.Playback.SetVideoOptionRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Browser: System.String | json=browser | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","value":"sample","browser":"sample"}
+
 [contracts] MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   DefaultSubtitleLanguage: System.String | json=defaultSubtitleLanguage | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10221,6 +10236,31 @@
   UpdatedAt: System.DateTimeOffset | json=updatedAt | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"profileId":"11111111-2222-3333-4444-555555555555","general":null,"watching":null,"listening":null,"reading":null,"subtitles":null,"contextSidebars":{},"updatedAt":"2025-01-02T03:04:05+00:00"}
 
+[contracts] MediaEngine.Contracts.Playback.VideoOptionChoiceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"value":"sample","label":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.VideoOptionDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Scope: System.String | json=scope | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Choices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.VideoOptionChoiceDto> | json=choices | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DefaultValue: System.String | json=default_value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Help: System.String | json=help | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","label":"sample","kind":"sample","scope":"sample","choices":[],"value":"sample","default_value":"sample","help":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.VideoPlaybackOptionsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Options: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.VideoOptionDto> | json=options | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Learned: System.Collections.Generic.IReadOnlyList<System.String> | json=learned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"title":"sample","options":[],"learned":[]}
+
 [contracts] MediaEngine.Contracts.Playback.WatchingSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   DefaultPlaybackSpeed: System.Decimal | json=defaultPlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10231,7 +10271,10 @@
   PreferHeroBanners: System.Boolean | json=preferHeroBanners | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RememberPerTitlePlaybackSpeed: System.Boolean | json=rememberPerTitlePlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PreferredVideoQuality: System.String | json=preferredVideoQuality | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"defaultPlaybackSpeed":7,"skipBackSeconds":7,"skipForwardSeconds":7,"autoplayNextEpisode":true,"continueFromCredits":true,"preferHeroBanners":true,"rememberPerTitlePlaybackSpeed":true,"preferredVideoQuality":"sample"}
+  MobileDataVideoQuality: System.String | json=mobileDataVideoQuality | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ConvertOnlyWhenNeeded: System.Boolean | json=convertOnlyWhenNeeded | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AllowHdr: System.Boolean | json=allowHdr | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"defaultPlaybackSpeed":7,"skipBackSeconds":7,"skipForwardSeconds":7,"autoplayNextEpisode":true,"continueFromCredits":true,"preferHeroBanners":true,"rememberPerTitlePlaybackSpeed":true,"preferredVideoQuality":"sample","mobileDataVideoQuality":"sample","convertOnlyWhenNeeded":true,"allowHdr":true}
 
 [contracts] MediaEngine.Contracts.Plugins.DiscoverUniverseLoreSourcesRequest
   kind=class | converter=default | number-handling=default | unmapped=default
