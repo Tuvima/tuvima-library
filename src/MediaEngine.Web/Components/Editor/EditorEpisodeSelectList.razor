@@ -1,0 +1,127 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* "Select episodes" (spec details-page-bottom D9, decision A): the ticked list of one season's episodes (or one section's videos) that the Season or
+   Section dropdown of the editor's header opens inside the window. It only chooses the rows; "Edit N episodes" hands them to the editor's own several-items
+   panel, whose changes wait for Save changes and Review changes like any other. On a phone the window is already a full-screen sheet and the rows
+   are 48 px tall. *@
+@if (State.Request is { } request)
+{
+    <div class="@(IsPhone ? "tl-epsel tl-epsel--phone" : "tl-epsel")" data-testid="episode-select">
+        <div class="tl-epsel__top">
+            <div class="tl-epsel__lead">
+                <h3 class="tl-epsel__heading" data-testid="episode-select-heading">@request.LevelTitle</h3>
+                <span class="tl-epsel__count" role="status" data-testid="episode-select-count">@string.Format(L["EditorSelect_Count"].Value, State.TickedCount, State.Items.Count)</span>
+            </div>
+            @if (State.Items.Count > 0)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Disabled="@(!CanEdit)"
+                           data-testid="episode-select-all" OnClick="@(() => State.ToggleAll())">@(State.AllTicked ? L["EditorSelect_ClearAll"] : L["EditorSelect_SelectAll"])</AppButton>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(State.Notice))
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true" data-testid="episode-select-notice">@State.Notice</AppAlert>
+        }
+
+        @if (State.Loading && State.Items.Count == 0)
+        {
+            <AppPageState Kind="AppPageStateKind.Loading" Title="@L["EditorSelect_Loading"].Value" />
+        }
+        else if (State.Failed)
+        {
+            <AppAlert Severity="AppSeverity.Error" Dense="true" data-testid="episode-select-failed">@L["EditorSelect_Failed"]</AppAlert>
+            <div class="tl-epsel__retry">
+                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" data-testid="episode-select-retry"
+                           OnClick="@(() => State.RetryAsync())" />
+            </div>
+        }
+        else if (State.Items.Count == 0)
+        {
+            <p class="tl-epsel__note">@L["EditorSelect_Empty"]</p>
+        }
+        else
+        {
+            <ul class="tl-epsel__rows" aria-label="@request.LevelTitle">
+                @foreach (var item in State.Items)
+                {
+                    var id = item.Id;
+                    var ticked = State.IsTicked(id);
+                    <li @key="@id" class="@(ticked ? "tl-epsel__row is-ticked" : "tl-epsel__row")" data-testid="episode-select-row">
+                        <AppCheckbox Value="ticked" ValueChanged="@(_ => State.Toggle(id))" Disabled="@(!CanEdit)" Dense="false" Class="tl-epsel__check"
+                                     Label="@item.Title" HideLabel="true" data-testid="episode-select-tick">
+                            <span class="tl-epsel__still" aria-hidden="true">
+                                @if (!string.IsNullOrWhiteSpace(item.StillUrl))
+                                {
+                                    <AppImage Src="@item.StillUrl" Alt="" Width="88" Height="50" DrawnPx="176" ObjectFit="AppObjectFit.Cover" />
+                                }
+                            </span>
+                            <span class="tl-epsel__text">
+                                <small>@EditorNavText.Code(item)</small>
+                                <b>@item.Title</b>
+                            </span>
+                        </AppCheckbox>
+                    </li>
+                }
+            </ul>
+        }
+
+        <div class="tl-epsel__actions">
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-testid="episode-select-back" OnClick="@(() => OnBack.InvokeAsync())">@L["EditorSelect_Back"]</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanEdit || State.TickedCount == 0)" data-testid="episode-select-edit"
+                       OnClick="@(() => OnEdit.InvokeAsync())">@string.Format(L["EditorSelect_Edit"].Value, State.TickedCount, EditorEpisodeSelectRules.Noun(request, State.TickedCount))</AppButton>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>The ticked list the window holds.</summary>
+    [Parameter, EditorRequired] public EditorEpisodeSelect State { get; set; } = default!;
+
+    /// <summary>False shows the list but ticks nothing (the editor says this profile or device may not edit).</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>"Edit N episodes": the ticked rows go to the several-items panel.</summary>
+    [Parameter] public EventCallback OnEdit { get; set; }
+
+    /// <summary>"Back to the editor": the ticked list closes and the window shows what it showed before.</summary>
+    [Parameter] public EventCallback OnBack { get; set; }
+
+    /// <summary>The editor window's layout; a phone window gets 48 px rows.</summary>
+    [CascadingParameter] public EditorWindowLayout? Layout { get; set; }
+
+    private bool IsPhone => EditorWindowLayout.IsPhone(false, Layout);
+
+    private EditorEpisodeSelect? _subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, State))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+        }
+
+        _subscribed = State;
+        State.Changed += OnChanged;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+        }
+    }
+}

@@ -186,11 +186,14 @@ public sealed class EditorHost : IDisposable
             },
         };
         FileBatch = new EditorFileBatch();
+        EpisodeSelect = new EditorEpisodeSelect(api, logger);
         Picker.EpisodeSource = async () => Session.ActiveItem is { } active
             ? (await Family.LeavesUnderAsync(active.EntityId)).ToList()
             : [];
 
         HeaderHooks.OpenSupportingFile = async fileId => await OpenSupportingFileAsync(fileId);
+        HeaderHooks.CanSelectEpisodes = () => Mode.IsOn && Session.IsActive && Mode.CanEdit;
+        HeaderHooks.OpenEpisodeSelect = request => OpenEpisodeSelectAsync(request);
         Flow.OpenSupportingFile = OpenSupportingFileAsync;
         Mode.Changed += OnModeChanged;
         Session.Changed += OnSessionChanged;
@@ -201,6 +204,7 @@ public sealed class EditorHost : IDisposable
         Universe.Changed += RaiseChanged;
         FileBrowser.Changed += RaiseChanged;
         FileBatch.Changed += RaiseChanged;
+        EpisodeSelect.Changed += RaiseChanged;
         Mode.Fields.Changed += SyncFamily;
     }
 
@@ -288,6 +292,55 @@ public sealed class EditorHost : IDisposable
 
     /// <summary>"Editing N files": the ticked supporting files edited together in the editor window (screen F).</summary>
     public EditorFileBatch FileBatch { get; }
+
+    /// <summary>"Select episodes": the ticked list of one season's episodes (or one section's videos) shown in the window before "Editing N episodes" (spec details-page-bottom D9).</summary>
+    public EditorEpisodeSelect EpisodeSelect { get; }
+
+    /// <summary>The season or section the ticked rows of "Editing N episodes" were chosen from; null when they were ticked anywhere else. It lets the panel offer "Choose episodes" to go back to the list.</summary>
+    public EpisodeSelectRequest? PickedFrom { get; private set; }
+
+    /// <summary>
+    /// "Select episodes" was chosen in the Season (or Section) dropdown: the window shows that season's episodes as a ticked list. Refused (false)
+    /// when the editor is not open, the device may not edit items (a TV, an unknown device), the profile may not edit, or no session is active;
+    /// the dropdown hides the entry in those cases, and this is the check behind it. Rows already ticked stay ticked.
+    /// </summary>
+    public async Task<bool> OpenEpisodeSelectAsync(EpisodeSelectRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (_disposed || !Mode.IsOn || !Session.IsActive || !Mode.CanEdit)
+        {
+            return false;
+        }
+
+        // An open section settles first, as it does before the several-items panel opens.
+        if (Mode.SectionOpen && !await Mode.CloseSectionAsync())
+        {
+            return false;
+        }
+
+        await EpisodeSelect.OpenAsync(request, Batch.Ids);
+        return true;
+    }
+
+    /// <summary>
+    /// "Edit N episodes" in the ticked list: the ticked rows become the editor's several-items selection and its ordinary "Editing N episodes"
+    /// panel opens, which stages into the same pending list; nothing is saved here. False when nothing is ticked or the editor may not edit.
+    /// </summary>
+    public bool EditSelectedEpisodes()
+    {
+        var rows = EpisodeSelect.TickedRows();
+        if (rows.Count == 0 || EpisodeSelect.Request is not { } request || !Mode.IsOn || !Session.IsActive || !Mode.CanEdit)
+        {
+            return false;
+        }
+
+        PickedFrom = request;
+        Batch.MediaType = request.MediaType;
+        Batch.Replace(rows);
+        Batch.OpenPanel(BulkPanelKind.Edit);
+        EpisodeSelect.Close();
+        return true;
+    }
 
     /// <summary>Where the header's supporting-file rows and the folder button lead; the viewer and the folder browser register here when they are built.</summary>
     public EditorHeaderHooks HeaderHooks { get; } = new();
@@ -641,6 +694,7 @@ public sealed class EditorHost : IDisposable
         Batch.Changed -= OnBatchChanged;
         Family.Changed -= RaiseChanged;
         Universe.Changed -= RaiseChanged;
+        EpisodeSelect.Changed -= RaiseChanged;
         Mode.Fields.Changed -= SyncFamily;
         if (_binding is not null)
         {
@@ -829,6 +883,8 @@ public sealed class EditorHost : IDisposable
             _touched.Clear();
             Batch.Clear();
             FileBatch.Close();
+            EpisodeSelect.Close();
+            PickedFrom = null;
             FileBrowser.Reset();
             _bulkWasOpen = false;
             _lastTool = null;

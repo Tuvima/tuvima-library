@@ -38,21 +38,21 @@
                          Flow="flow"
                          Phone="Phone"
                          Picker="Editor.Picker"
-                         TitleOverride="@(BulkPanelTitle ?? FilesBatchTitle)"
+                         TitleOverride="@(EpisodeSelectTitle ?? BulkPanelTitle ?? FilesBatchTitle)"
                          FilesBatch="@Editor.FileBatch.IsOpen"
                          ChangeSuffix="@(Editor.FileBatch.IsOpen ? string.Format(L["EditorFilesBatch_FilesCount"].Value, Editor.FileBatch.Rows.Count) : null)"
                          ShowHistory="@(binding?.ShowHistory == true)"
                          ActionNotice="@_actionNotice"
                          ActionNoticeIsError="_actionNoticeIsError"
                          ActionNoticeDismissed="@(() => _actionNotice = null)"
-                         ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
+                         ItemHeader="@(Editor.FileBatch.IsOpen ? FilesBatchHeaderFragment(flow, mode) : ShowingOneItem ? ItemHeaderFragment(flow, mode) : null)"
                          FooterStart="@FooterStartFragment(flow, mode)">
             <HeaderContent>
                 @if (Editor.FileBatch.IsOpen)
                 {
                     @* The framed header carries Back to the list. *@
                 }
-                else if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
+                else if (ShowingOneItem && Editor.Session.ActiveItem is { } editing)
                 {
                     <span class="tl-editor-popover__editing" data-overflow-tooltip="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
                 }
@@ -70,10 +70,15 @@
                         <EditorFilesBatchPanel State="Editor.FileBrowser" CanEdit="@mode.CanEdit" />
                     }
                 }
+                else if (Editor.EpisodeSelect.IsOpen)
+                {
+                    @* "Select episodes" (details-page-bottom D9): a ticked list of one season's episodes; Edit N hands the ticked rows to the panel below. *@
+                    <EditorEpisodeSelectList State="Editor.EpisodeSelect" CanEdit="@mode.CanEdit" OnEdit="EditSelectedEpisodes" OnBack="@(() => Editor.EpisodeSelect.Close())" />
+                }
                 else if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
                 {
                     @* Ticked rows are edited together: the panel needs the rows, not the fields of any one item, so a failed read of the first row never blocks it. *@
-                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
+                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" OnChooseRows="ChooseRowsAgain" />
                 }
                 else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
                 {
@@ -216,7 +221,7 @@
     private RenderFragment? FooterStartFragment(EditSessionFlow flow, EditingModeContext mode) =>
         Phone ? null
         : Editor.FileBatch.IsOpen ? FilesBatchDeleteFragment(flow, mode)
-        : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode)
+        : ShowingOneItem && (CanDeleteActive || CanDeleteThing || CanDeleteFile) ? DeleteButtonFragment(flow, mode)
         : null;
 
     private IReadOnlyList<AppRowMenuItem>? DeleteMenu(EditSessionFlow flow, EditingModeContext mode)
@@ -228,7 +233,7 @@
 
         Func<Task>? delete = Editor.FileBatch.IsOpen
             ? DeleteFilesAsync
-            : Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing || CanDeleteFile)
+            : ShowingOneItem && (CanDeleteActive || CanDeleteThing || CanDeleteFile)
                 ? () => CanDeleteFile ? DeleteFileAsync() : CanDeleteThing ? DeleteThingAsync() : DeleteActiveAsync()
                 : null;
         if (delete is null)
@@ -372,7 +377,17 @@
 
     private string? FilesBatchTitle => Editor.FileBatch.IsOpen ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count) : null;
 
-    private string DialogLabel => Editor.FileBatch.IsOpen
+    // "Select episodes" / "Select videos": the ticked list that comes before the several-items panel; the plain title bar replaces the header while it shows.
+    private string? EpisodeSelectTitle => Editor.EpisodeSelect is { IsOpen: true, Request: { } request }
+        ? string.Format(L[request.Videos ? "EditorSelect_TitleVideos" : "EditorSelect_TitleEpisodes"].Value, request.LevelTitle)
+        : null;
+
+    // True while the window shows a single item (its header, Delete and tabs), not the ticked list or the several-items panel.
+    private bool ShowingOneItem => Editor.Batch.Panel == BulkPanelKind.None && !Editor.EpisodeSelect.IsOpen;
+
+    private string DialogLabel => Editor.EpisodeSelect.IsOpen
+        ? EpisodeSelectTitle ?? string.Empty
+        : Editor.FileBatch.IsOpen
         ? EditorFileBrowserRules.EditingTitle(L, Editor.FileBrowser.Ticked.Count)
         : Editor.Batch.Panel == BulkPanelKind.None
         ? $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}"
@@ -484,6 +499,20 @@
     {
         Editor.FileBatch.Close();
         await OpenBrowserAsync(EditorBrowserView.Files);
+    }
+
+    // "Edit N episodes": the ticked rows go to the several-items panel (the same one a ticked list opens), which stages into the one pending list.
+    private void EditSelectedEpisodes() => Editor.EditSelectedEpisodes();
+
+    // "Choose episodes" in the several-items panel: back to the ticked list of the same season, with the ticks kept. Only offered for rows that came from it.
+    private EventCallback ChooseRowsAgain => Editor.PickedFrom is null ? default : EventCallback.Factory.Create(this, ChooseRowsAgainAsync);
+
+    private async Task ChooseRowsAgainAsync()
+    {
+        if (Editor.PickedFrom is { } request)
+        {
+            await Editor.OpenEpisodeSelectAsync(request);
+        }
     }
 
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);

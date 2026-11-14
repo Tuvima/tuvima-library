@@ -1,0 +1,132 @@
+/* The ticked list of one season's episodes (or one section's videos) that "Select episodes" opens in the editor window (details-page-bottom D9). The rows
+   keep the header list's look: a still, the code over the title, the same radii and surfaces; the tick is the shared App checkbox. */
+.tl-epsel {
+    display: grid;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-4);
+}
+
+.tl-epsel__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-2);
+}
+
+.tl-epsel__lead {
+    display: grid;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.tl-epsel__heading {
+    margin: 0;
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-medium);
+}
+
+.tl-epsel__count,
+.tl-epsel__note {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-epsel__retry {
+    display: flex;
+}
+
+.tl-epsel__rows {
+    display: grid;
+    gap: var(--tl-space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tl-epsel__row {
+    border: 1px solid transparent;
+    border-radius: var(--tl-radius-sm);
+}
+
+.tl-epsel__row:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-epsel__row.is-ticked {
+    border-color: var(--tl-border-default);
+    background: var(--tl-bg-surface-raised);
+}
+
+/* The whole row is the tick's label, so the row is the target. */
+.tl-epsel__check {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 3.5rem;
+    padding: var(--tl-space-1) var(--tl-space-2);
+    cursor: pointer;
+}
+
+.tl-epsel__still {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 5.5rem;
+    height: 3.125rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-epsel__text {
+    display: grid;
+    min-width: 0;
+    gap: 0.125rem;
+}
+
+.tl-epsel__text > small {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+.tl-epsel__text > b {
+    overflow: hidden;
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Back and Edit N stay in view under a long list. */
+.tl-epsel__actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-elevated);
+}
+
+/* The phone sheet: 48 px rows, and Edit N takes the line over Back. */
+.tl-epsel--phone {
+    padding: var(--tl-space-3);
+}
+
+.tl-epsel--phone .tl-epsel__check {
+    min-height: 3rem;
+}
+
+.tl-epsel--phone .tl-epsel__actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+}

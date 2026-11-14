@@ -654,6 +654,25 @@
                                     </li>
                                 }
                             </ul>
+                            @if (SelectOffer(header) is { } selectRequest)
+                            {
+                                @* Select episodes (details-page-bottom D9): the person's way to edit several episodes of this season (or videos of this section) together. *@
+                                <ul class="tl-hnav__options tl-hnav__options--tail">
+                                    <li>
+                                        <AppRowButton id="tl-hnav-select-episodes"
+                                                      @onfocusin="@(() => _cursor = "tl-hnav-select-episodes")"
+                                                      Class="tl-hnav__option tl-hnav__option--plain"
+                                                      data-testid="select-episodes"
+                                                      OnClick="() => SelectEpisodesAsync(selectRequest)">
+                                            <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAddCheck" Size="AppIconSize.Control20" /></span>
+                                            <span class="tl-hnav__text">
+                                                <b>@(selectRequest.Videos ? L["EditorSelect_EntryVideos"] : L["EditorSelect_EntryEpisodes"])</b>
+                                            </span>
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
+                                        </AppRowButton>
+                                    </li>
+                                </ul>
+                            }
                             @if (EditorNavText.CanReorder(header) && second.Entries.Count >= 2)
                             {
                                 <ul class="tl-hnav__options tl-hnav__options--tail">
@@ -843,6 +862,11 @@
         else if (_open == Open.Second)
         {
             ids.AddRange(OrderedSections(header.SecondLevel).Select(entry => OptionId(entry.Id)));
+            if (SelectOffer(header) is not null)
+            {
+                ids.Add("tl-hnav-select-episodes");
+            }
+
             if (EditorNavText.CanReorder(header) && (header.SecondLevel?.Entries.Count ?? 0) >= 2)
             {
                 ids.Add("tl-hnav-reorder-sections");
@@ -865,6 +889,11 @@
                 if (_phoneSecondOpen)
                 {
                     ids.AddRange(OrderedSections(second).Select(entry => OptionId(entry.Id)));
+                    if (SelectOffer(header) is not null)
+                    {
+                        ids.Add("tl-hnav-select-episodes");
+                    }
+
                     if (EditorNavText.CanReorder(header) && second.Entries.Count >= 2)
                     {
                         ids.Add("tl-hnav-reorder-sections");
@@ -1123,6 +1152,21 @@
         if (Hooks?.OpenSupportingFiles is { } open)
         {
             await open(new EditorSupportingFilesRequest(header.CurrentId, files.ScopeKey));
+        }
+    }
+
+    // "Select episodes" (details-page-bottom D9): offered for the season or section the editor is in when it holds episodes or videos, and only while
+    // the editor says this device and profile may edit items (never a TV). The editor checks again when it is chosen.
+    private EpisodeSelectRequest? SelectOffer(EditorHeaderDto header) =>
+        Hooks is { OpenEpisodeSelect: not null, CanSelectEpisodes: { } canSelect } && canSelect() ? EditorEpisodeSelectRules.Offer(header) : null;
+
+    private async Task SelectEpisodesAsync(EpisodeSelectRequest request)
+    {
+        _open = Open.None;
+        _phoneSecondOpen = false;
+        if (Hooks?.OpenEpisodeSelect is { } open)
+        {
+            await open(request);
         }
     }
 

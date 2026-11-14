@@ -12164,6 +12164,45 @@
   <data name="EditorReorder_SectionsRow" xml:space="preserve">
     <value>Reorder sections</value>
   </data>
+  <data name="EditorSelect_EntryEpisodes" xml:space="preserve">
+    <value>Select episodes</value>
+  </data>
+  <data name="EditorSelect_EntryVideos" xml:space="preserve">
+    <value>Select videos</value>
+  </data>
+  <data name="EditorSelect_TitleEpisodes" xml:space="preserve">
+    <value>Select episodes in {0}</value>
+  </data>
+  <data name="EditorSelect_TitleVideos" xml:space="preserve">
+    <value>Select videos in {0}</value>
+  </data>
+  <data name="EditorSelect_Count" xml:space="preserve">
+    <value>{0} of {1} selected</value>
+  </data>
+  <data name="EditorSelect_SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="EditorSelect_ClearAll" xml:space="preserve">
+    <value>Clear all</value>
+  </data>
+  <data name="EditorSelect_Loading" xml:space="preserve">
+    <value>Reading the list</value>
+  </data>
+  <data name="EditorSelect_Failed" xml:space="preserve">
+    <value>The list could not be read. Nothing was changed.</value>
+  </data>
+  <data name="EditorSelect_Empty" xml:space="preserve">
+    <value>There is nothing here to choose.</value>
+  </data>
+  <data name="EditorSelect_Back" xml:space="preserve">
+    <value>Back to the editor</value>
+  </data>
+  <data name="EditorSelect_Edit" xml:space="preserve">
+    <value>Edit {0} {1}</value>
+  </data>
+  <data name="EditorSelect_ChooseAgain" xml:space="preserve">
+    <value>Change selection</value>
+  </data>
   <data name="EditorBrowser_Showing" xml:space="preserve">
     <value>Showing {0}–{1} of {2}</value>
   </data>
