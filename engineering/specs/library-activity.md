@@ -292,3 +292,5 @@ Why the cloud cannot finish these: a long import of large real videos (the timin
 ### Plain English summary (Version 3)
 
 The Activity page worked on the local check, but it showed too much and some of its numbers disagreed. The "need review" number now comes from one place, so the card, the Needs Review tab and the banner always agree. "Working now" only shows titles that are really being imported, and it empties when the card says the work is done. One import shows as one batch. The chips at the top narrow the whole page, and the extra filter inside each batch goes away. The progress card and the batch rows become the slimmer versions from Shy's two pictures, and the Libraries page uses the same card. The "Working now" row uses smaller covers and shows only as many as fit. The phone gets everything the desktop has.
+
+> **Pointer (2026-11-14):** the Activity page described above moves from the Libraries page to **Server > General > Library activity**, and a Playing now tab joins it. See [Playing now and General tabs](playing-now-and-general-tabs.md). Behaviour on the page is otherwise unchanged.
