@@ -575,6 +575,15 @@ public sealed class EditorMatchedRecordDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Creator { get; init; }
 
+    /// <summary>The record's length as shown ("108 min"); null when the Engine saved none for it.</summary>
+    [JsonPropertyName("length_text")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LengthText { get; init; }
+
+    /// <summary>The record's lead cast as saved when it matched (at most <see cref="EditorMatchCast.Limit"/> names); empty when none was saved.</summary>
+    [JsonPropertyName("cast")]
+    public IReadOnlyList<string> Cast { get; init; } = [];
+
     [JsonPropertyName("image_url")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ImageUrl { get; init; }

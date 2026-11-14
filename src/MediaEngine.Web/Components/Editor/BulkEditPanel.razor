@@ -178,6 +178,9 @@
     /// <summary>The page's pending list: every staged change from this panel lands here.</summary>
     [Parameter, EditorRequired] public PendingEditList Pending { get; set; } = default!;
 
+    /// <summary>Applies a chosen cover to the library at once (the editor's own artwork path); without it no cover is offered a way to change.</summary>
+    [Parameter] public ArtworkChangeSaver? ApplyArtwork { get; set; }
+
     /// <summary>False shows the fields read-only (a library or person that cannot edit); the device rule is checked as well.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
 
@@ -243,7 +246,7 @@
             }
 
             _artworkPending = Pending;
-            _artwork = new BulkArtworkPicker(Api, Pending);
+            _artwork = new BulkArtworkPicker(Api, choices => ApplyArtwork is { } apply ? apply(choices) : Task.FromResult(EditSessionSaveOutcome.Unsaved(EditorDeviceRule.ItemMessage)));
             _artwork.Changed += OnArtworkChanged;
             _artworkTarget = null;
         }
@@ -262,8 +265,6 @@
             await _artwork.UploadAsync(file);
         }
     }
-
-    private void UndoCover() => _artwork.Undo();
 
     // The ticked rows or the panel changed: read the fields of rows not read yet, and fetch the places when Move opens.
     private async Task SyncAsync()
@@ -461,14 +462,14 @@
                     @foreach (var picture in _artwork.Pictures)
                     {
                         var current = picture;
-                        var chosen = _artwork.StagedAssetId is { } staged ? staged == current.AssetId : current.IsCurrent;
+                        var chosen = current.IsCurrent;
                         <AppButton ButtonStyle="AppButtonStyle.Text"
                                    Tone="AppUiTone.Neutral"
                                    Class="tl-bulk__cover"
-                                   Disabled="@(!CanChange)"
+                                   Disabled="@(!CanChange || _artwork.Busy)"
                                    aria-label="@(string.IsNullOrWhiteSpace(current.Caption) ? "Album cover" : current.Caption)"
                                    aria-pressed="@(chosen ? "true" : "false")"
-                                   OnClick="@(() => _artwork.Pick(current))">
+                                   OnClick="@(() => _ = _artwork.PickAsync(current))">
                             <img class="tl-bulk__cover-face"
                                  src="@MediaTileArtworkUrl.ForDrawnSize(current.ThumbnailUrl, 72)"
                                  srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(current.ThumbnailUrl, 72)"
@@ -491,12 +492,6 @@
                 <AppAlert Severity="AppSeverity.Warning" Dense="true">@_artwork.Message</AppAlert>
             }
 
-            @if (_artwork.HasStaged)
-            {
-                <span class="tl-editor-field__note tl-bulk__staged" role="status">The album's cover will change when you save.</span>
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Class="tl-editor-field__reset" OnClick="UndoCover">Undo cover change</AppButton>
-            }
         </section>
     };
 

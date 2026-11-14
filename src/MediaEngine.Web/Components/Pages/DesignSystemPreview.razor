@@ -753,7 +753,7 @@
 
     private static Task<IEnumerable<string>> SearchProvidersAsync(string? value, CancellationToken cancellationToken)
     {
-        string[] providers = ["Apple API", "Comic Vine", "MusicBrainz", "Open Library", "TMDB"];
+        string[] providers = ["Apple Books", "Comic Vine", "MusicBrainz", "Open Library", "TMDB"];
         var result = string.IsNullOrWhiteSpace(value)
             ? providers
             : providers.Where(provider => provider.Contains(value, StringComparison.OrdinalIgnoreCase));

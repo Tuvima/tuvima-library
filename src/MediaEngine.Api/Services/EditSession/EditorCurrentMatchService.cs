@@ -29,7 +29,8 @@ public sealed class EditorCurrentMatchService(
     EditorMatchVerdictCalculator calculator,
     ItemQuickFactsService quickFacts,
     ILogger<EditorCurrentMatchService> logger,
-    EditorProviderNames? providerNames = null)
+    EditorProviderNames? providerNames = null,
+    ICanonicalValueArrayRepository? arrays = null)
 {
     private const string TvdbProvider = EditorMatchRule.TvdbProvider;
 
@@ -138,6 +139,8 @@ public sealed class EditorCurrentMatchService(
         var why = BuildWhy(isTv, parsed, titleSide, yearSide, facts, scores, measured, recordMinutes);
         var productName = providerNames?.ProductName(source.ProviderId, source.Kind.ToLowerInvariant()) ?? source.ProviderName;
         var checks = why.Select(Check).ToList();
+        var lengthText = RuntimeText(Value(own, MetadataFieldConstants.Runtime));
+        var cast = await ReadCastAsync(launch.WorkId, launch.RootWorkId, isTv, ct).ConfigureAwait(false);
         return new EditorCurrentMatchDto
         {
             EntityId = entityId,
@@ -151,6 +154,8 @@ public sealed class EditorCurrentMatchService(
                 Title = facts.Title ?? stored.Title ?? string.Empty,
                 Year = facts.Year,
                 Creator = facts.Creator,
+                LengthText = lengthText,
+                Cast = cast,
                 ImageUrl = imageUrl,
                 Description = facts.Description,
                 SourceUrl = source.Url,
@@ -164,6 +169,29 @@ public sealed class EditorCurrentMatchService(
             FileName = fileName,
             Note = note,
         };
+    }
+
+    // "108 min" from the minutes the Engine saved; null when it saved none.
+    private static string? RuntimeText(string? minutes) =>
+        double.TryParse(minutes, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value >= 1
+            ? $"{Math.Round(value).ToString("0", CultureInfo.InvariantCulture)} min"
+            : null;
+
+    // The lead cast the Engine saved for the item (a show's cast is the show's, so a season or an episode reads its root's when it has none of its own).
+    private async Task<IReadOnlyList<string>> ReadCastAsync(Guid workId, Guid rootWorkId, bool isTv, CancellationToken ct)
+    {
+        if (arrays is null)
+        {
+            return [];
+        }
+
+        var own = await arrays.GetValuesAsync(workId, MetadataFieldConstants.CastMember, ct).ConfigureAwait(false);
+        if (own.Count == 0 && isTv && rootWorkId != Guid.Empty && rootWorkId != workId)
+        {
+            own = await arrays.GetValuesAsync(rootWorkId, MetadataFieldConstants.CastMember, ct).ConfigureAwait(false);
+        }
+
+        return EditorMatchCast.Lead(own.OrderBy(entry => entry.Ordinal).Select(entry => entry.Value));
     }
 
     // What the Engine stored for the item itself. Ingestion keeps a fact about the file (a film's TMDB id, a book's ISBN or store id, an

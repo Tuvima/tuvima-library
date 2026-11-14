@@ -30,6 +30,10 @@
             {
                 <div class="tl-mcard__meta" data-testid="match-card-byline">@Model.Byline</div>
             }
+            @if (!string.IsNullOrWhiteSpace(Model.CastLine))
+            {
+                <div class="tl-mcard__meta" data-testid="match-card-cast">@Model.CastLine</div>
+            }
             @foreach (var note in Model.Notes)
             {
                 <div class="tl-mcard__meta" data-testid="match-card-note">@note</div>

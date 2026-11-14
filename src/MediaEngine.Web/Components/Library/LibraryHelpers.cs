@@ -269,7 +269,7 @@ public static class LibraryHelpers
         "MOVIE" or "MOVIES" => ["TMDB"],
         "TV" => ["TheTVDB", "TMDB"],
         "BOOK" or "BOOKS" or "EPUB" => ["Open Library"],
-        "AUDIOBOOK" or "AUDIOBOOKS" => ["Apple API"],
+        "AUDIOBOOK" or "AUDIOBOOKS" => ["Apple Books"],
         "MUSIC" => ["MusicBrainz"],
         "COMICS" or "COMIC" => [],
         _ => [],

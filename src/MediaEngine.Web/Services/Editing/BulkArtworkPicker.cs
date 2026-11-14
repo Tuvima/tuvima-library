@@ -7,8 +7,9 @@ namespace MediaEngine.Web.Services.Editing;
 /// <summary>
 /// "Set one cover for these 12 songs. It sets the album's cover." (universal editor spec 3c, WP9). Songs of one album share one picture
 /// role, the album's cover, so the choice is staged once on the album, never once per song. The pictures offered are the album's own saved
-/// ones plus whatever the person uploads (stored beside the album, unchosen, like the single Artwork tool); nothing becomes the cover
-/// until Save changes.
+/// ones plus whatever the person uploads. Like the single Artwork tool (universal editor v7 D9) a choice changes the album at once, through
+/// the same edit session as Save changes, and nothing waits in Review; there is no Undo, because the earlier covers stay in the list and
+/// choosing one again reverses the change.
 /// </summary>
 public sealed class BulkArtworkPicker
 {
@@ -20,16 +21,16 @@ public sealed class BulkArtworkPicker
     private const long MaximumUploadBytes = 10 * 1024 * 1024;
 
     private readonly IEngineApiClient _api;
-    private readonly PendingEditList _pending;
+    private readonly ArtworkChangeSaver _apply;
     private Guid _albumId;
     private int _version;
 
-    public BulkArtworkPicker(IEngineApiClient api, PendingEditList pending)
+    public BulkArtworkPicker(IEngineApiClient api, ArtworkChangeSaver apply)
     {
         ArgumentNullException.ThrowIfNull(api);
-        ArgumentNullException.ThrowIfNull(pending);
+        ArgumentNullException.ThrowIfNull(apply);
         _api = api;
-        _pending = pending;
+        _apply = apply;
     }
 
     public event Action? Changed;
@@ -46,11 +47,6 @@ public sealed class BulkArtworkPicker
 
     /// <summary>The album's saved covers, the current one first.</summary>
     public IReadOnlyList<ArtworkPickerPicture> Pictures { get; private set; } = [];
-
-    /// <summary>The picture staged to become the album's cover, or null when none is staged.</summary>
-    public Guid? StagedAssetId => StagedChange() is { TargetId: { } target } && Guid.TryParse(target, out var id) ? id : null;
-
-    public bool HasStaged => StagedChange() is not null;
 
     /// <summary>Reads the album's saved covers. A later call for another album replaces an answer still on its way.</summary>
     public async Task LoadAsync(Guid albumId, CancellationToken ct = default)
@@ -97,41 +93,30 @@ public sealed class BulkArtworkPicker
         }
     }
 
-    /// <summary>Stages the picture as the album's cover. Choosing the cover the album already has takes any staged choice back out.</summary>
-    public void Pick(ArtworkPickerPicture picture)
+    /// <summary>Makes the picture the album's cover at once. The cover the album already has is left as it is; when the change fails the previous cover stays and <see cref="Message"/> says so.</summary>
+    public async Task<bool> PickAsync(ArtworkPickerPicture picture, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(picture);
-        if (_albumId == Guid.Empty)
+        if (_albumId == Guid.Empty || Busy || picture.IsCurrent)
         {
-            return;
+            return false;
         }
 
-        if (picture.IsCurrent)
-        {
-            Undo();
-            return;
-        }
-
-        var current = Pictures.FirstOrDefault(candidate => candidate.IsCurrent);
-        _pending.SetArtwork(
-            _albumId,
-            Slot,
-            picture.AssetId.ToString("D"),
-            label: string.IsNullOrWhiteSpace(picture.Caption) ? "Album cover" : picture.Caption,
-            before: current is null ? EditReviewRows.NotSet : string.IsNullOrWhiteSpace(current.Caption) ? "Current cover" : current.Caption);
+        Busy = true;
+        Message = null;
         Changed?.Invoke();
-    }
-
-    /// <summary>Takes the staged cover back out; the album keeps the cover it has.</summary>
-    public void Undo()
-    {
-        if (StagedChange() is { } change && _pending.Remove(change.Id))
+        try
         {
+            return await ApplyAsync(_albumId, picture.AssetId, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            Busy = false;
             Changed?.Invoke();
         }
     }
 
-    /// <summary>Stores a picture from the person's computer beside the album (unchosen) and stages it as the cover.</summary>
+    /// <summary>Stores a picture from the person's computer beside the album and makes it the album's cover at once.</summary>
     public async Task<bool> UploadAsync(IBrowserFile file, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -163,14 +148,7 @@ public sealed class BulkArtworkPicker
                 return Fail(_api.LastError ?? "That image could not be uploaded.");
             }
 
-            await LoadAsync(_albumId, ct).ConfigureAwait(false);
-            var added = Pictures.FirstOrDefault(picture => picture.AssetId == stored.Id);
-            if (added is not null)
-            {
-                Pick(added);
-            }
-
-            return true;
+            return await ApplyAsync(_albumId, stored.Id, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
@@ -183,13 +161,23 @@ public sealed class BulkArtworkPicker
         }
     }
 
-    private EditSessionChange? StagedChange() =>
-        _albumId == Guid.Empty
-            ? null
-            : _pending.Changes.FirstOrDefault(change =>
-                change.Kind == EditSessionChangeKinds.Artwork
-                && change.EntityId == _albumId
-                && string.Equals(change.Slot, Slot, StringComparison.OrdinalIgnoreCase));
+    // The album is fixed before anything is awaited, so a switch to another album while the change goes through cannot send it elsewhere.
+    private async Task<bool> ApplyAsync(Guid albumId, Guid assetId, CancellationToken ct)
+    {
+        var outcome = await _apply([new ArtworkChoice(albumId, Slot, assetId.ToString("D"))]).ConfigureAwait(false);
+        if (!outcome.Saved)
+        {
+            // Whatever was stored stays among the album's covers; the album keeps the cover it had.
+            await LoadAsync(albumId, ct).ConfigureAwait(false);
+            Message = outcome.Failures.FirstOrDefault()?.Reason is { Length: > 0 } reason ? $"The cover was not changed. {reason}"
+                : outcome.Message is { Length: > 0 } message ? $"The cover was not changed. {message}"
+                : "The cover was not changed.";
+            return false;
+        }
+
+        await LoadAsync(albumId, ct).ConfigureAwait(false);
+        return true;
+    }
 
     private bool Fail(string message)
     {

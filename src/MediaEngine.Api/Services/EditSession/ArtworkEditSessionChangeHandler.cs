@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.EditSession;
 
@@ -23,7 +24,9 @@ public sealed class ArtworkEditSessionChangeHandler(
     ArtworkCanonicalSync canonicalSync,
     EditSubjectDirectory? subjects = null,
     IEntityTimelineRepository? timeline = null,
-    EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
+    EditorSeriesGuard? seriesGuard = null,
+    IAssetExportService? exports = null,
+    ILogger<ArtworkEditSessionChangeHandler>? logger = null) : IEditSessionChangeHandler
 {
     public const string UnknownSlot = "That kind of artwork cannot be changed here.";
     public const string NoTargetPicture = "No picture was chosen.";
@@ -107,6 +110,7 @@ public sealed class ArtworkEditSessionChangeHandler(
 
         // The page and the tiles read the canonical picture values, so they follow the choice here (a show would otherwise keep its old poster).
         await canonicalSync.SyncChosenAsync(entityType, change.EntityId, change.Slot, ct).ConfigureAwait(false);
+        await RefreshFileAsync(entityType, change, replaceExistingFile: true, ct).ConfigureAwait(false);
 
         await activityRepository.LogAsync(new SystemActivityEntry
         {
@@ -148,7 +152,27 @@ public sealed class ArtworkEditSessionChangeHandler(
             }
 
             await canonicalSync.SyncChosenAsync(entityType, change.EntityId, change.Slot, undoCt).ConfigureAwait(false);
+            await RefreshFileAsync(entityType, change, replaceExistingFile: true, undoCt).ConfigureAwait(false);
         };
+    }
+
+    // The picture file beside the video (a show's poster.jpg, a film's poster, fanart or logo) follows the choice where the folder is managed.
+    // The choice is already saved, so a file that cannot be written is logged and never fails the change.
+    private async Task RefreshFileAsync(string entityType, EditSessionChange change, bool replaceExistingFile, CancellationToken ct)
+    {
+        if (exports is null || string.IsNullOrWhiteSpace(change.Slot))
+        {
+            return;
+        }
+
+        try
+        {
+            await exports.ReconcileArtworkAsync(change.EntityId.ToString("D"), entityType, change.Slot.Trim(), ct, replaceExistingFile).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "The picture file for {EntityType} {EntityId} could not be refreshed after an edit", entityType, change.EntityId);
+        }
     }
 
     // A Series (a collection row of one, or the root of a family of books, comics or films) has no picture of its own (D24): its tile is

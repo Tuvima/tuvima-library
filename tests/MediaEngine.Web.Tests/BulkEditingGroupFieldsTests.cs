@@ -29,6 +29,14 @@ public sealed class BulkEditingGroupFieldsTests : AsyncBunitContext
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private ArtworkEntityWorkspaceDto _workspace;
+    private readonly List<ArtworkChoice> _applied = [];
+    private EditSessionSaveOutcome _outcome = EditSessionSaveOutcome.Success;
+
+    private Task<EditSessionSaveOutcome> ApplyArtwork(IReadOnlyList<ArtworkChoice> choices)
+    {
+        _applied.AddRange(choices);
+        return Task.FromResult(_outcome);
+    }
     private readonly List<object?[]> _uploads = [];
 
     public BulkEditingGroupFieldsTests()
@@ -107,7 +115,8 @@ public sealed class BulkEditingGroupFieldsTests : AsyncBunitContext
         var pending = new PendingEditList();
         var panel = Render<BulkEditPanel>(parameters => parameters
             .Add(component => component.Selection, selection)
-            .Add(component => component.Pending, pending));
+            .Add(component => component.Pending, pending)
+            .Add(component => component.ApplyArtwork, ApplyArtwork));
         panel.WaitForElement("[data-field-key='year']");
         return (panel, pending, selection);
     }
@@ -253,7 +262,7 @@ public sealed class BulkEditingGroupFieldsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Panel_ForTwelveSongsOfOneAlbum_ShowsTheCoverChoiceAndStagesItOnceOnTheAlbum()
+    public async Task Panel_ForTwelveSongsOfOneAlbum_ChangesTheAlbumsCoverAtOnce_WithNothingStagedForReview()
     {
         var (panel, pending, _) = await OpenAsync(TwelveSongs());
 
@@ -262,11 +271,16 @@ public sealed class BulkEditingGroupFieldsTests : AsyncBunitContext
 
         panel.FindAll("[data-bulk-artwork] .tl-bulk__cover")[1].Click();
 
-        var change = Assert.Single(pending.Changes, candidate => candidate.Kind == EditSessionChangeKinds.Artwork);
-        Assert.Equal(Album, change.EntityId);
-        Assert.Equal("CoverArt", change.Slot);
-        Assert.Equal(NewCover.ToString("D"), change.TargetId);
-        panel.WaitForAssertion(() => Assert.Contains("The album's cover will change when you save.", panel.Markup, StringComparison.Ordinal));
+        panel.WaitForAssertion(() =>
+        {
+            var choice = Assert.Single(_applied);
+            Assert.Equal(Album, choice.EntityId);
+            Assert.Equal("CoverArt", choice.Slot);
+            Assert.Equal(NewCover.ToString("D"), choice.TargetId);
+        });
+        Assert.DoesNotContain(pending.Changes, candidate => candidate.Kind == EditSessionChangeKinds.Artwork);
+        Assert.DoesNotContain("when you save", panel.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Undo cover change", panel.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -280,29 +294,35 @@ public sealed class BulkEditingGroupFieldsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Picker_ChoosingTheCoverTheAlbumAlreadyHas_TakesTheStagedChoiceBack()
+    public async Task Picker_ChoosingTheCoverTheAlbumAlreadyHas_ChangesNothing()
     {
-        var pending = new PendingEditList();
-        var picker = new BulkArtworkPicker(Services.GetRequiredService<IEngineApiClient>(), pending);
+        var picker = new BulkArtworkPicker(Services.GetRequiredService<IEngineApiClient>(), ApplyArtwork);
         await picker.LoadAsync(Album);
 
-        var current = picker.Pictures.Single(picture => picture.IsCurrent);
-        var other = picker.Pictures.Single(picture => !picture.IsCurrent);
-        picker.Pick(other);
-        Assert.True(picker.HasStaged);
-        Assert.Equal(NewCover, picker.StagedAssetId);
+        var changed = await picker.PickAsync(picker.Pictures.Single(picture => picture.IsCurrent));
 
-        picker.Pick(current);
-
-        Assert.False(picker.HasStaged);
-        Assert.Equal(0, pending.ChangeCount);
+        Assert.False(changed);
+        Assert.Empty(_applied);
     }
 
     [Fact]
-    public async Task Picker_AnUploadedPicture_IsStoredBesideTheAlbumAndStagedAsItsCover()
+    public async Task Picker_WhenTheChangeFails_SaysSoAndTheAlbumKeepsItsCover()
     {
-        var pending = new PendingEditList();
-        var picker = new BulkArtworkPicker(Services.GetRequiredService<IEngineApiClient>(), pending);
+        _outcome = EditSessionSaveOutcome.Unsaved("The Engine did not answer.");
+        var picker = new BulkArtworkPicker(Services.GetRequiredService<IEngineApiClient>(), ApplyArtwork);
+        await picker.LoadAsync(Album);
+
+        var changed = await picker.PickAsync(picker.Pictures.Single(picture => !picture.IsCurrent));
+
+        Assert.False(changed);
+        Assert.Equal("The cover was not changed. The Engine did not answer.", picker.Message);
+        Assert.Equal(CurrentCover, picker.Pictures.Single(picture => picture.IsCurrent).AssetId);
+    }
+
+    [Fact]
+    public async Task Picker_AnUploadedPicture_IsStoredBesideTheAlbumAndMadeItsCoverAtOnce()
+    {
+        var picker = new BulkArtworkPicker(Services.GetRequiredService<IEngineApiClient>(), ApplyArtwork);
         await picker.LoadAsync(Album);
 
         var ok = await picker.UploadAsync(new FakeFile("cover.png", "image/png", 1234));
@@ -310,14 +330,15 @@ public sealed class BulkEditingGroupFieldsTests : AsyncBunitContext
         Assert.True(ok);
         var upload = Assert.Single(_uploads);
         Assert.Equal(Album, upload[1]);
-        Assert.Equal(UploadedCover, picker.StagedAssetId);
-        Assert.Equal(1, pending.ChangeCount);
+        var choice = Assert.Single(_applied);
+        Assert.Equal(Album, choice.EntityId);
+        Assert.Equal(UploadedCover.ToString("D"), choice.TargetId);
     }
 
     [Fact]
     public async Task Picker_APictureThatIsNotJpegOrPng_IsRefusedWithAReason()
     {
-        var picker = new BulkArtworkPicker(Services.GetRequiredService<IEngineApiClient>(), new PendingEditList());
+        var picker = new BulkArtworkPicker(Services.GetRequiredService<IEngineApiClient>(), ApplyArtwork);
         await picker.LoadAsync(Album);
 
         var ok = await picker.UploadAsync(new FakeFile("cover.gif", "image/gif", 10));

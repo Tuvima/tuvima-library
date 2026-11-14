@@ -1900,7 +1900,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     private sealed class StubAssetExportService : IAssetExportService
     {
         public Task ReconcileAllArtworkAsync(CancellationToken ct = default) => Task.CompletedTask;
-        public Task ReconcileArtworkAsync(string entityId, string entityType, string assetType, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReconcileArtworkAsync(string entityId, string entityType, string assetType, CancellationToken ct = default, bool replaceExistingFile = false) => Task.CompletedTask;
         public Task ClearArtworkExportAsync(string entityId, string entityType, string assetType, CancellationToken ct = default) => Task.CompletedTask;
     }
 

@@ -110,6 +110,41 @@ public sealed class ArtworkEditSessionChangeHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task Apply_RefreshesThePictureFileBesideTheVideo_ReplacingOneThatWasAlreadyThere()
+    {
+        var work = await SeedWorkWithChosenPictureAsync();
+        var exports = new SpyExports();
+        var handler = new ArtworkEditSessionChangeHandler(
+            _artwork,
+            new ItemCanonicalRepository(_database, NullLogger<ItemCanonicalRepository>.Instance),
+            new SystemActivityRepository(_database),
+            new ArtworkCanonicalSync(new CanonicalValueRepository(_database), new EntityAssetRepository(_database)),
+            exports: exports);
+
+        var result = await new EditSessionService([handler], NullLogger<EditSessionService>.Instance).RunAsync(
+            Request(previewOnly: false, ArtworkChange("a1", work.Id, "CoverArt", work.OtherAssetId.ToString())), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        var call = Assert.Single(exports.Calls);
+        Assert.Equal((work.Id.ToString("D"), "Work", "CoverArt", true), call);
+    }
+
+    private sealed class SpyExports : MediaEngine.Domain.Contracts.IAssetExportService
+    {
+        public List<(string EntityId, string EntityType, string AssetType, bool Replace)> Calls { get; } = [];
+
+        public Task ReconcileArtworkAsync(string entityId, string entityType, string assetType, CancellationToken ct = default, bool replaceExistingFile = false)
+        {
+            Calls.Add((entityId, entityType, assetType, replaceExistingFile));
+            return Task.CompletedTask;
+        }
+
+        public Task ClearArtworkExportAsync(string entityId, string entityType, string assetType, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task ReconcileAllArtworkAsync(CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task Check_WhenThePictureBelongsToAnotherItem_RefusesItAndChoosesNothing()
     {
         var work = await SeedWorkWithChosenPictureAsync();
