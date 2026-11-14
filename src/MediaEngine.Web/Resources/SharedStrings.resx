@@ -11312,9 +11312,6 @@
   <data name="EditorMatchPanel_Staged" xml:space="preserve">
     <value>Staged: {0}. Nothing is saved until you press Save changes.</value>
   </data>
-  <data name="EditorMatchPanel_ChosenByYou" xml:space="preserve">
-    <value>Chosen by you</value>
-  </data>
   <data name="EditorMatchPanel_OpenSource" xml:space="preserve">
     <value>Open source ↗</value>
   </data>
@@ -11335,9 +11332,6 @@
   </data>
   <data name="EditorMatchPanel_Result" xml:space="preserve">
     <value>Result</value>
-  </data>
-  <data name="EditorMatchPanel_ChangingKeepsLocked" xml:space="preserve">
-    <value>Fields you changed stay yours; the rest update.</value>
   </data>
   <data name="EditorMatchPanel_Measured" xml:space="preserve">
     <value>{0} measured</value>
@@ -11405,38 +11399,11 @@
   <data name="EditorMatchPanel_FileNothingRead" xml:space="preserve">
     <value>Nothing read from the file yet</value>
   </data>
-  <data name="EditorMatchPanel_KindMovie" xml:space="preserve">
-    <value>movie</value>
-  </data>
-  <data name="EditorMatchPanel_KindBook" xml:space="preserve">
-    <value>book</value>
-  </data>
   <data name="EditorMatchPanel_KindAudiobook" xml:space="preserve">
     <value>audiobook</value>
   </data>
   <data name="EditorMatchPanel_KindComic" xml:space="preserve">
     <value>comic</value>
-  </data>
-  <data name="EditorMatchPanel_KindShow" xml:space="preserve">
-    <value>show</value>
-  </data>
-  <data name="EditorMatchPanel_KindSeason" xml:space="preserve">
-    <value>season</value>
-  </data>
-  <data name="EditorMatchPanel_KindEpisode" xml:space="preserve">
-    <value>episode</value>
-  </data>
-  <data name="EditorMatchPanel_KindAlbum" xml:space="preserve">
-    <value>album</value>
-  </data>
-  <data name="EditorMatchPanel_KindSong" xml:space="preserve">
-    <value>song</value>
-  </data>
-  <data name="EditorMatchPanel_KindVideo" xml:space="preserve">
-    <value>video</value>
-  </data>
-  <data name="EditorMatchPanel_KindItem" xml:space="preserve">
-    <value>item</value>
   </data>
   <data name="EditorMatchPanel_Universe" xml:space="preserve">
     <value>Universe</value>
@@ -13945,9 +13912,6 @@
   </data>
   <data name="EditorMatchCard_PositionNumber" xml:space="preserve">
     <value>#{0}</value>
-  </data>
-  <data name="EditorMatchCard_LinksThis" xml:space="preserve">
-    <value>Links this {0} to {1}.</value>
   </data>
   <data name="EditorMatchCard_FieldLength" xml:space="preserve">
     <value>Length</value>

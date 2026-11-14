@@ -624,7 +624,6 @@
         if (!_changing && IsMatched)
         {
             @StagedNote()
-            @FileBar()
             @CurrentCard(_current!)
         }
         else
@@ -639,29 +638,24 @@
         }
     };
 
-    // The current match (v6 D10): the same card as a chosen search result, filled from the Engine's read of the matched record, with its three actions.
+    // The current match (v7 D5): the match itself and two actions, Remove match at the left and Change match at the right. No verdict, table, basis note,
+    // provider line or Open source (the header links do that); the card shows those only on a candidate under a search.
     private RenderFragment CurrentCard(EditorCurrentMatchDto current) => __builder =>
     {
-        var record = current.Record!;
         var canChange = CanEdit && Session is { IsActive: true };
-        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind, L)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" CompareBesideCover="true" data-testid="match-current">
-            <Basis><span data-testid="match-why-note">@L["EditorMatchPanel_ChangingKeepsLocked"]</span></Basis>
-            <Foot>
-                <div class="@(IsPhone ? "tl-matchcard__actions tl-matchcard__actions--phone" : "tl-matchcard__actions")">
-                    @if (!IsPhone && !string.IsNullOrWhiteSpace(record.SourceUrl))
-                    {
-                        <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@record.SourceUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" data-testid="match-open-source" />
-                    }
-                    <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error"
-                               Disabled="@(!canChange)" OnClick="RemoveMatch" data-testid="match-remove" />
-                    <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
-                               Disabled="@(!canChange)" OnClick="StartChange" data-testid="match-change" />
-                </div>
+        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" Plain="true" data-testid="match-current">
+            <Extra>
                 @if (IsPhone)
                 {
                     @* On a phone the header carries no links (v7 D14): the card ends with the item's pages at the source and at Wikidata, each only when it has one. *@
                     @SourceLinks(current)
                 }
+            </Extra>
+            <Foot>
+                <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error"
+                           Disabled="@(!canChange)" OnClick="RemoveMatch" data-testid="match-remove" />
+                <AppButton Label="@L["EditorMatchPanel_ChangeMatch"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                           Disabled="@(!canChange)" OnClick="StartChange" data-testid="match-change" />
             </Foot>
         </EditorMatchCard>
     };

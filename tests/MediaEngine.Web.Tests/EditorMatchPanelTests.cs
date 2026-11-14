@@ -185,34 +185,68 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     };
 
     [Fact]
-    public void AMatchedItem_OpensOnItsMatchAndTheVerdict_AndSearchesNothing()
-    {
-        var cut = RenderPanel();
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
-        Assert.Contains("Heat", cut.Find("[data-testid=match-current]").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Fields you changed stay yours; the rest update.", cut.Find("[data-testid=match-current]").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Strong match", cut.Find("[data-testid=match-current] [data-testid=match-verdict]").TextContent, StringComparison.Ordinal);
-        Assert.Empty(_searches);
-        Assert.Empty(cut.FindAll("[data-testid=match-search]"));
-    }
-
-    [Fact]
-    public void TheMatchedCard_PutsTheVerdictAndTheTableBesideTheCover_AndTheActionsOnTheLineBelow()
+    public void AMatchedItem_OpensOnJustItsMatch_WithNoVerdictTableOrExplanation_AndSearchesNothing()
     {
         var cut = RenderPanel();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
         var card = cut.Find("[data-testid=match-current]");
-        var top = card.QuerySelector(".tl-mcard__top")!;
-        Assert.NotNull(top.QuerySelector("[data-testid=match-verdict]"));
-        Assert.NotNull(top.QuerySelector("[data-testid=match-compare]"));
-        Assert.Null(card.QuerySelector(".tl-mcard__foot [data-testid=match-compare]"));
-        Assert.NotNull(card.QuerySelector(".tl-mcard__foot [data-testid=match-open-source]"));
+        Assert.Contains("Heat", card.TextContent, StringComparison.Ordinal);
+        Assert.Empty(card.QuerySelectorAll("[data-testid=match-verdict], [data-testid=match-compare], [data-testid=match-card-basis], [data-testid=match-why-note]"));
+        Assert.DoesNotContain("Strong match", card.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Based on", card.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Fields you changed stay yours", card.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Links this", card.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("shown from what Library saved", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(_searches);
+        Assert.Empty(cut.FindAll("[data-testid=match-search]"));
+    }
+
+    [Theory]
+    [InlineData("movie", "Film", "Heat", "Michael Mann", "1995", "tmdb", "TMDB")]
+    [InlineData("book", "Book", "The Sea of Monsters", "Rick Riordan", "2006", "apple_api", "Apple Books")]
+    [InlineData("audiobook", "Audiobook", "The Sea of Monsters", "Rick Riordan", "2006", "apple_api", "Apple Books")]
+    [InlineData("tv_episode", "Episode", "Pilot", "Vince Gilligan", "2008", "tvdb", "TheTVDB")]
+    public void AMatchedItemOfAnyKind_ShowsOnlyTheMatchAndTwoActions_WithNoProviderNameOrOpenSource(
+        string kind, string recordKind, string title, string creator, string year, string providerId, string productName)
+    {
+        _setup = _ => Setup(kind, noProvider: false);
+        _current = new EditorCurrentMatchDto
+        {
+            EntityId = MovieId,
+            State = EditorCurrentMatchStates.Matched,
+            Verdict = EditorMatchVerdicts.Strong,
+            Record = new EditorMatchedRecordDto
+            {
+                ProviderId = providerId,
+                ProviderName = productName,
+                ProviderItemId = "949",
+                Kind = recordKind,
+                Title = title,
+                Year = year,
+                Creator = creator,
+                Description = "A short description.",
+                SourceUrl = "https://example.test/949",
+            },
+            Why = [new EditorMatchEvidenceRowDto { Field = "title", YourFile = title, MatchedRecord = title, State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong }],
+            Pinned = true,
+            Note = "Chosen by you",
+        };
+        var cut = RenderPanel();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        var card = cut.Find("[data-testid=match-current]");
+        Assert.Equal(title, card.QuerySelector("[data-testid=match-card-title]")!.TextContent.Trim());
+        Assert.Equal($"{creator} · {year}", card.QuerySelector("[data-testid=match-card-byline]")!.TextContent.Trim());
+        Assert.Equal("A short description.", card.QuerySelector("[data-testid=match-card-description]")!.TextContent.Trim());
+        Assert.Empty(card.QuerySelectorAll("[data-testid=match-verdict], [data-testid=match-compare], [data-testid=match-card-basis], [data-testid=match-card-provider], [data-testid=match-card-note], [data-testid=match-open-source], table"));
+        Assert.Equal(["Remove match", "Change match"], card.QuerySelectorAll(".tl-mcard__foot button, .tl-mcard__foot a").Select(action => action.TextContent.Trim()).ToList());
+        Assert.DoesNotContain(providerId + "_", card.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=match-your-file]"));
     }
 
     [Fact]
-    public void AMatchedItem_ShowsTheSourceSelectorThenTheFileBarThenTheCard_AndNoSearchRowUntilChangeMatch()
+    public void AMatchedItem_ShowsTheSourceSelectorThenTheCard_AndNoSearchRowUntilChangeMatch()
     {
         var cut = RenderPanel();
 
@@ -222,21 +256,20 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Contains("Wikidata", source.TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid=match-row]"));
         Assert.Empty(cut.FindAll("[data-testid=match-search-button]"));
-        // Mock B: the selector, then "Your file", then the card it is matched to.
-        var file = Assert.Single(cut.FindAll("[data-testid=match-your-file]"));
-        Assert.Contains("Heat (1995) 1080p.mkv", file.TextContent, StringComparison.Ordinal);
-        Assert.True(cut.Markup.IndexOf("match-source", StringComparison.Ordinal) < cut.Markup.IndexOf("match-your-file", StringComparison.Ordinal));
-        Assert.True(cut.Markup.IndexOf("match-your-file", StringComparison.Ordinal) < cut.Markup.IndexOf("match-current", StringComparison.Ordinal));
+        // Mock B: the selector, then the card it is matched to; "Your file" belongs to the search.
+        Assert.Empty(cut.FindAll("[data-testid=match-your-file]"));
+        Assert.True(cut.Markup.IndexOf("match-source", StringComparison.Ordinal) < cut.Markup.IndexOf("match-current", StringComparison.Ordinal));
 
         ClickButton(cut, "Change match");
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-row]")));
-        Assert.Single(cut.FindAll("[data-testid=match-your-file]"));
+        var file = Assert.Single(cut.FindAll("[data-testid=match-your-file]"));
+        Assert.Contains("Heat (1995) 1080p.mkv", file.TextContent, StringComparison.Ordinal);
         Assert.Empty(_searches);
     }
 
     [Fact]
-    public void TheCurrentMatch_IsTheSameCardAsAResult_WithItsThreeActions()
+    public void TheCurrentMatch_HasRemoveMatchAtTheLeftAndChangeMatchAtTheRight_InOneRowOfTheCard()
     {
         var cut = RenderPanel();
 
@@ -245,30 +278,27 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Contains("tl-mcard", card.ClassList);
         Assert.Equal("Heat", card.QuerySelector("[data-testid=match-card-title]")!.TextContent.Trim());
         Assert.Equal("Michael Mann · 1995", card.QuerySelector("[data-testid=match-card-byline]")!.TextContent.Trim());
-        Assert.Contains("TMDB", card.QuerySelector("[data-testid=match-card-provider]")!.TextContent, StringComparison.Ordinal);
-        Assert.Equal("Matched record", card.QuerySelectorAll("thead th")[2].TextContent.Trim());
-        var actions = card.QuerySelectorAll(".tl-matchcard__actions button, .tl-matchcard__actions a").Select(action => action.TextContent.Trim()).ToList();
-        Assert.Equal(["Open source ↗", "Remove match", "Change match"], actions);
+        var foot = card.QuerySelector(".tl-mcard__foot--plain")!;
+        Assert.Equal(["Remove match", "Change match"], foot.QuerySelectorAll("button, a").Select(action => action.TextContent.Trim()).ToList());
+        Assert.Equal("match-remove", foot.Children[0].GetAttribute("data-testid"));
+        Assert.Equal("match-change", foot.Children[1].GetAttribute("data-testid"));
     }
 
     [Fact]
-    public void TheCurrentMatchTable_ListsEveryFact_WithADashWhereTheFileSaysNothing_AndLabelsTheRuntimeValues()
+    public void ACandidateUnderASearch_StillShowsTheVerdictAndTheCompareTable()
     {
-        _current = Matched(why:
-        [
-            new EditorMatchEvidenceRowDto { Field = "title", YourFile = "Heat", MatchedRecord = "Heat", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
-            new EditorMatchEvidenceRowDto { Field = "runtime", YourFile = "2:50:00", MatchedRecord = "170 min", State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong },
-            new EditorMatchEvidenceRowDto { Field = "year", MatchedRecord = "1995", State = EditorMatchEvidenceStates.NotChecked },
-        ]);
         var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-current]")));
+        ClickButton(cut, "Change match");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-search]")));
+        SearchFor(cut, "Heat");
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=match-result]").Count));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-compare]")));
-        var rows = cut.FindAll("[data-testid=match-compare] tbody tr");
-        Assert.Equal(3, rows.Count);
-        Assert.Contains("2:50:00 measured", rows[1].TextContent, StringComparison.Ordinal);
-        Assert.Contains("170 min (rounded)", rows[1].TextContent, StringComparison.Ordinal);
-        Assert.Equal("unknown", rows[2].QuerySelector("[data-mark]")!.GetAttribute("data-mark"));
-        Assert.Contains("Not provided", rows[2].TextContent, StringComparison.Ordinal);
+        cut.FindAll("[data-testid=match-result]").First().Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Strong match", cut.Find("[data-testid=match-preview] [data-testid=match-verdict]").TextContent, StringComparison.Ordinal));
+        Assert.NotNull(cut.Find("[data-testid=match-preview] [data-testid=match-compare]"));
+        Assert.NotNull(cut.Find("[data-testid=match-preview] [data-testid=match-card-basis]"));
     }
 
     [Fact]
@@ -1020,11 +1050,12 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheCardSaysWhatApplyMatchDoes_ForTheKindAndTheProvider_AndApplyStaysAvailableForAWeakMatch()
+    public void ApplyMatch_HasNoExplanationLineUnderIt_AndStaysAvailableForAWeakMatch()
     {
         var cut = SearchBooks(BookResult("Weak one", EditorMatchVerdicts.Weak));
 
-        Assert.Equal("Links this book to Apple Books.", cut.Find("[data-testid=match-apply-line]").TextContent.Trim());
+        Assert.Empty(cut.FindAll("[data-testid=match-apply-line]"));
+        Assert.DoesNotContain("Links this", cut.Markup, StringComparison.Ordinal);
         Assert.False(cut.Find("[data-testid=match-apply]").HasAttribute("disabled"));
     }
 

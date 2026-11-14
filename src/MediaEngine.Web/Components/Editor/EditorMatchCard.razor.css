@@ -86,16 +86,12 @@
     display: block;
 }
 
-/* The verdict and the table travel together: full width under a search, in the right column beside the cover for the current match (mock B). */
+/* The verdict and the table travel together, full width under the cover and facts of a search candidate. */
 .tl-mcard__compare {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3);
     min-width: 0;
-}
-
-.tl-mcard__compare[data-beside="true"] {
-    margin-top: var(--tl-space-3);
 }
 
 .tl-mcard__verdict {
@@ -199,6 +195,17 @@
     font-weight: var(--tl-type-secondary-weight);
 }
 
+/* The item's own match (v7 D5): Remove match at the left and Change match at the right of one row, with a divider above. */
+.tl-mcard__foot--plain {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-4);
+    padding-top: var(--tl-space-4);
+    border-top: 1px solid var(--tl-divider);
+}
+
 .tl-mcard__actions {
     display: flex;
     flex: 0 1 auto;
@@ -247,6 +254,16 @@
 .tl-mcard--phone .tl-mcard__foot {
     flex-direction: column;
     align-items: stretch;
+}
+
+/* The two actions share the width side by side, 44 px tall (mock screen H). */
+.tl-mcard--phone .tl-mcard__foot--plain {
+    flex-direction: row;
+    gap: var(--tl-space-3);
+}
+
+.tl-mcard--phone .tl-mcard__foot--plain > * {
+    flex: 1 1 0;
 }
 
 .tl-mcard--phone .tl-mcard__actions {

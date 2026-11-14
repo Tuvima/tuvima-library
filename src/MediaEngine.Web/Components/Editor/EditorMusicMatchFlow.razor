@@ -467,8 +467,7 @@
                     }
                 </Basis>
                 <Foot>
-                    <EditorMatchApply ShowCancel="ShowCancel" CanApply="@(CanApply && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel"
-                                      Line="@EditorMatchCardModels.ApplyLine(MediaEngine.Domain.Configuration.EditorKinds.Song, model.ProviderName, L)" />
+                    <EditorMatchApply ShowCancel="ShowCancel" CanApply="@(CanApply && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel" />
                 </Foot>
             </EditorMatchCard>
         }
