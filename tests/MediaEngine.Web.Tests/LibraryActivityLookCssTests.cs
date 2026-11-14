@@ -19,14 +19,14 @@ public sealed class LibraryActivityLookCssTests
         var toggle = Rule(app, ".lact-box__toggle");
         Assert.Contains("display: grid;", toggle, StringComparison.Ordinal);
         Assert.Contains("text-align: left;", toggle, StringComparison.Ordinal);
-        Assert.Contains("grid-template-areas: \"what covers count status chev\";", toggle, StringComparison.Ordinal);
+        Assert.Contains("grid-template-areas: \"what covers status chev\";", toggle, StringComparison.Ordinal);
         Assert.Contains("align-items: center;", toggle, StringComparison.Ordinal);
         Assert.DoesNotContain("justify-content: center", toggle, StringComparison.Ordinal);
         Assert.DoesNotContain("flex-direction: column", toggle, StringComparison.Ordinal);
 
-        // Narrower windows move the counts under the row, then the covers, rather than squeezing every column.
-        Assert.Contains("grid-template-areas: \"what covers status chev\" \"count count count count\";", app, StringComparison.Ordinal);
-        Assert.Contains("grid-template-areas: \"what status chev\" \"covers covers covers\" \"count count count\";", app, StringComparison.Ordinal);
+        // A phone: the title and counts with the chevron, then the covers with the one status at the right (D35).
+        Assert.Contains("grid-template-areas: \"what chev\" \"covers status\";", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("grid-area: count;", Read(Folder + "LibraryActivityRunEntry.razor.css"), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class LibraryActivityLookCssTests
     {
         var css = Read(Folder + "LibraryActivityRunEntry.razor.css");
 
-        foreach (var area in new[] { "what", "covers", "count", "status", "chev" })
+        foreach (var area in new[] { "what", "covers", "status", "chev" })
         {
             Assert.Contains($"grid-area: {area};", css, StringComparison.Ordinal);
         }
@@ -42,6 +42,26 @@ public sealed class LibraryActivityLookCssTests
         Assert.Contains("width: 30px; height: 44px;", Rule(css, ".lact-cover"), StringComparison.Ordinal);
         Assert.Contains("width: 44px;", Rule(css, ".lact-cover.is-square"), StringComparison.Ordinal);
         Assert.Contains("margin: var(--tl-space-1) 0 var(--tl-space-2) calc(62px + var(--tl-space-4));", Rule(css, ".lact-open"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ARunningBatch_HasAPurpleLeftEdge_AndThePhoneKeepsOnlyTwoCoversWithItsOwnPlus()
+    {
+        var css = Read(Folder + "LibraryActivityRunEntry.razor.css");
+
+        Assert.Contains("border-left: 3px solid var(--tl-accent-primary);", Rule(css, ".lact-entry.is-active .lact-box"), StringComparison.Ordinal);
+        Assert.Contains("color: var(--tl-accent-primary);", Rule(css, ".lact-box__status.lact-status--active"), StringComparison.Ordinal);
+        Assert.Contains("color: var(--tl-status-success);", Rule(css, ".lact-box__status"), StringComparison.Ordinal);
+
+        // Under 600 px the third cover and the desktop "+N" go and the phone's own "+N" appears; above it the phone's is never drawn.
+        Assert.Contains("display: none;", Rule(css, ".lact-cover-more.is-phone-only"), StringComparison.Ordinal);
+        Assert.Contains("@media (max-width: 600px)", css, StringComparison.Ordinal);
+        Assert.Contains(".lact-cover.is-desktop-only, .lact-cover-more.is-desktop-only { display: none; }", css, StringComparison.Ordinal);
+        Assert.Contains(".lact-cover-more.is-phone-only { display: inline-block; }", css, StringComparison.Ordinal);
+
+        // The counts line is one line on a desktop and may wrap to two on narrower windows.
+        Assert.Contains("white-space: nowrap;", Rule(css, ".lact-box__what small"), StringComparison.Ordinal);
+        Assert.Contains("-webkit-line-clamp: 2;", css, StringComparison.Ordinal);
     }
 
     [Fact]

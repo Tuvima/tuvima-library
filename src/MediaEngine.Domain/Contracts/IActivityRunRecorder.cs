@@ -19,4 +19,10 @@ public interface IActivityRunRecorder
 
     /// <summary>Closes every run whose newest item joined more than <paramref name="quiet"/> ago; returns how many closed.</summary>
     Task<int> CloseQuietRunsAsync(TimeSpan quiet, CancellationToken ct = default);
+
+    /// <summary>
+    /// Called once when the Engine starts: whatever the last session left open was cut off by the Engine stopping, so it is completed and
+    /// marked, and reopens if the same work is picked up again shortly after the restart (D30). Returns how many were closed.
+    /// </summary>
+    Task<int> CloseLeftOpenRunsAsync(CancellationToken ct = default);
 }

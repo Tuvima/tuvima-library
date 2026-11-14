@@ -29,7 +29,7 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.DoesNotContain("layout-shell__search-action", phone, StringComparison.Ordinal);
         Assert.DoesNotContain("layout-shell__brand-lockup", phone, StringComparison.Ordinal);
         Assert.Contains(".layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,", phone, StringComparison.Ordinal);
-        Assert.Contains(".system-activity-indicator__ring .tl-progress-circular {\n    width: 32px !important;\n    height: 32px !important;", phone, StringComparison.Ordinal);
+        Assert.Contains(".system-activity-indicator {\n    --sync-icon-ring: 32px;", phone, StringComparison.Ordinal);
         var accountPhone = account[account.IndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
         Assert.Contains("width: 48px;", accountPhone, StringComparison.Ordinal);
         Assert.Contains("height: 48px;", accountPhone, StringComparison.Ordinal);

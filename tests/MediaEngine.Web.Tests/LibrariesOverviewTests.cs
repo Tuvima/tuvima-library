@@ -156,6 +156,34 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     // 1. One table, filtered by area chips (Libraries and folder picker D1): All, Watch, Listen, Read, View, each with a count.
     private static string[] ChipTexts(IRenderedComponent<LibrariesTab> cut) => cut.FindAll(".lib-chip").Select(Text).ToArray();
 
+    // The scan card is the Activity page's own progress card (library-activity D36); View activity is for administrators, the Activity page's readers.
+    [Fact]
+    public void TheOverviewShowsTheSharedProgressCard_WithViewActivityForAnAdministrator_AndNoOldScanCard()
+    {
+        var session = Services.GetRequiredService<DashboardSessionAccessor>();
+        var accountId = Guid.NewGuid();
+        var profileId = Guid.NewGuid();
+        var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
+            accountId, profileId, true, true, 1, 1, true, true, null, 1, [], ["settings.administration"], ["access.manage"]);
+        session.Set("test-session-token", accountId, profileId, Guid.NewGuid(), authority);
+
+        var cut = Open();
+
+        Assert.Empty(cut.FindAll("[data-scan-card], .lib-scan"));
+        var card = cut.Find("[data-testid='activity-up-to-date']");
+        Assert.Contains("Everything is up to date", card.TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/library-activity", card.QuerySelector("a.lact-progress__view")!.GetAttribute("href"));
+    }
+
+    [Fact]
+    public void TheOverviewShowsTheSharedProgressCardWithoutViewActivityForSomeoneWhoCannotOpenActivity()
+    {
+        var cut = Open();
+
+        Assert.NotNull(cut.Find("[data-testid='activity-up-to-date']"));
+        Assert.Empty(cut.FindAll("a.lact-progress__view"));
+    }
+
     [Fact]
     public void TheOverviewShowsAreaChipsWithCountsOverOneTableAndNoRail()
     {

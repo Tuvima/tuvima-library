@@ -3,6 +3,7 @@ using Dapper;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Paging;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -26,23 +27,27 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private readonly IIngestionQueueProgressService? _queue;
     private readonly MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? _personalMedia;
     private readonly IIdentityBypassLibraries? _bypassLibraries;
+    private readonly INeedsReviewListReadService? _needsReview;
 
     public IngestionPresentationReadService(
         IDatabaseConnection db,
         IIngestionQueueProgressService? queue = null,
         MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? personalMedia = null,
-        IIdentityBypassLibraries? bypassLibraries = null)
+        IIdentityBypassLibraries? bypassLibraries = null,
+        INeedsReviewListReadService? needsReview = null)
     {
         _db = db;
         _queue = queue;
         _personalMedia = personalMedia;
         _bypassLibraries = bypassLibraries;
+        _needsReview = needsReview;
     }
 
     public async Task<IngestionPresentationSnapshotDto> GetSnapshotAsync(
         int currentLimit = DefaultCurrentLimit,
         int recentDayLimit = 3,
         int recentItemsPerDay = 9,
+        bool includeUnmatchedFiles = false,
         CancellationToken ct = default)
     {
         currentLimit = Math.Clamp(currentLimit, 1, 20);
@@ -58,12 +63,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             TotalGroups = currentFactsByType.Sum(row => row.TotalGroups),
             ReadyGroups = currentFactsByType.Sum(row => row.ReadyGroups),
             FinishingGroups = currentFactsByType.Sum(row => row.FinishingGroups),
-            ReviewGroups = currentFactsByType.Sum(row => row.ReviewGroups),
         };
         var recentDays = await LoadRecentDaysAsync(recentDayLimit, recentItemsPerDay, ct).ConfigureAwait(false);
         var operationFacts = await ReadCurrentOperationFactsAsync(ct).ConfigureAwait(false);
         var operationFactsByType = await ReadCurrentOperationFactsByTypeAsync(ct).ConfigureAwait(false);
-        var reviewCount = await ReadPendingReviewCountAsync(ct).ConfigureAwait(false);
+        var reviewCount = await ReadNeedReviewCountAsync(includeUnmatchedFiles, ct).ConfigureAwait(false);
 
         var attention = new List<IngestionAttentionItemDto>();
         if (reviewCount > 0)
@@ -115,8 +119,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             });
         }
 
+        // Working means files being added, identified or having details fetched. Titles waiting only for review and follow-up jobs
+        // (preview pictures and similar) do not count: the latter are named as background work instead (spec library-activity D29).
+        var backgroundWork = await ReadBackgroundWorkAsync(ct).ConfigureAwait(false);
         var isRunning = (currentPage.TotalCount ?? current.Count) > 0
-            || operationFacts.Active + operationFacts.Queued + operationFacts.RetryWaiting > 0;
+            || operationFacts.Active + operationFacts.Queued + operationFacts.WorkRetryWaiting > 0;
         return new IngestionPresentationSnapshotDto
         {
             IsRunning = isRunning,
@@ -126,10 +133,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             LibraryGroups = currentFacts.TotalGroups,
             ReadyGroups = currentFacts.ReadyGroups,
             FinishingGroups = currentFacts.FinishingGroups,
-            ReviewGroups = currentFacts.ReviewGroups,
+            NeedReviewCount = reviewCount,
             ActiveOperations = operationFacts.Active,
             QueuedOperations = operationFacts.Queued,
             RetryWaitingOperations = operationFacts.RetryWaiting,
+            BackgroundWork = backgroundWork,
             ByType = BuildByType(currentFactsByType, operationFactsByType),
             StartedAt = queue?.StartedAt,
             LastActivityAt = queue?.LastActivityAt ?? recentDays.FirstOrDefault()?.Items.FirstOrDefault()?.AddedAt,
@@ -164,7 +172,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         {
             var entry = Of(row.MediaType);
             entry.ReadyGroups += row.ReadyGroups;
-            entry.ReviewGroups += row.ReviewGroups;
         }
 
         foreach (var row in operations)
@@ -176,7 +183,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
         return byType.Values
             .Where(entry => entry.MediaType != "Unknown")
-            .Where(entry => entry.ReadyGroups + entry.ReviewGroups + entry.ActiveOperations + entry.QueuedOperations > 0)
+            .Where(entry => entry.ReadyGroups + entry.ActiveOperations + entry.QueuedOperations > 0)
             .OrderBy(entry => entry.MediaType, StringComparer.Ordinal)
             .ToList();
     }
@@ -742,7 +749,10 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var terminalFailure = rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered")
                               || scopedOps.Any(operation => operation.Status is "failed_terminal" or "dead_lettered"
                                   && operation.UpdatedAt >= newestArrival);
-        var hasBackgroundWork = scopedOps.Any(operation => IsActive(operation.Status) && !IsFileIntake(operation.OperationType));
+        // Follow-up jobs (preview pictures and similar) run after a title is usable, so they never make it "finishing" (D29).
+        var hasBackgroundWork = scopedOps.Any(operation => IsActive(operation.Status)
+            && !IsFileIntake(operation.OperationType)
+            && !MediaOperationFollowUp.IsFollowUp(operation.OperationType));
         var intakeComplete = rows.All(row => row.IsReady);
         // A missing media tool is a wait, not a failure: it outranks adding/finishing/ready but never hides review or failed.
         var waitingForTools = rows.Any(row => row.InspectionHoldCount > 0);
@@ -1219,8 +1229,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             SELECT MediaType,
                    COUNT(*) AS TotalGroups,
                    COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 0 THEN 1 END) AS ReadyGroups,
-                   COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 1 THEN 1 END) AS FinishingGroups,
-                   COUNT(CASE WHEN AnyReview = 1 THEN 1 END) AS ReviewGroups
+                   COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 1 THEN 1 END) AS FinishingGroups
             FROM grouped
             GROUP BY MediaType;
             """, new
@@ -1277,10 +1286,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         using var conn = _db.CreateConnection();
         return await conn.QuerySingleAsync<CurrentOperationFacts>(new CommandDefinition($"""
             SELECT
-                COUNT(CASE WHEN status IN ('leased','running','processing','active') THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Active,
-                COUNT(CASE WHEN status IN ('pending','queued') AND updated_at >= @staleBefore THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('Queued','RetailMatched','QidResolved') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Queued,
+                COUNT(CASE WHEN status IN ('leased','running','processing','active') AND operation_type NOT IN ({FollowUpTypesSql}) THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Active,
+                COUNT(CASE WHEN status IN ('pending','queued') AND updated_at >= @staleBefore AND operation_type NOT IN ({FollowUpTypesSql}) THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('Queued','RetailMatched','QidResolved') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Queued,
                 COUNT(CASE WHEN status IN ('pending','queued') AND updated_at < @staleBefore AND operation_type = 'ingestion.file' THEN 1 END) AS Stalled,
                 COUNT(CASE WHEN status IN ('retry_waiting','failed_retryable','interrupted') THEN 1 END) AS RetryWaiting,
+                COUNT(CASE WHEN status IN ('retry_waiting','failed_retryable','interrupted') AND operation_type NOT IN ({FollowUpTypesSql}) THEN 1 END) AS WorkRetryWaiting,
                 COUNT(CASE WHEN status IN ('pending','queued','leased','running','processing','active','retry_waiting','failed_retryable','interrupted')
                              AND (LOWER(operation_type) LIKE '%lyric%' OR LOWER(operation_type) LIKE '%subtitle%' OR LOWER(COALESCE(capability_id,'')) LIKE '%lyric%' OR LOWER(COALESCE(capability_id,'')) LIKE '%subtitle%') THEN 1 END) AS TextTrackWaiting
             FROM media_operations
@@ -1308,6 +1318,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                        CASE WHEN status IN ('pending','queued') AND updated_at >= @staleBefore THEN 1 ELSE 0 END AS IsQueued
                 FROM media_operations
                 WHERE {VaultSql.NotVaultEntity("media_operations.entity_id")}
+                  AND operation_type NOT IN ({FollowUpTypesSql})
                   AND (status IN ('leased','running','processing','active')
                        OR (status IN ('pending','queued') AND updated_at >= @staleBefore))
                 UNION ALL
@@ -1323,8 +1334,48 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             """, new { staleBefore = DateTimeOffset.UtcNow.Subtract(StaleQueuedAfter).ToString("O") }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
     }
 
+    // Follow-up jobs still open (preview pictures and similar), one entry per kind with its plain name and how many things it is for.
+    private async Task<List<IngestionBackgroundWorkDto>> ReadBackgroundWorkAsync(CancellationToken ct)
+    {
+        using var conn = _db.CreateConnection();
+        var rows = (await conn.QueryAsync<BackgroundWorkRow>(new CommandDefinition($"""
+            SELECT operation_type AS OperationType, COUNT(*) AS Total
+            FROM media_operations
+            WHERE operation_type IN ({FollowUpTypesSql})
+              AND status IN ({OpenOperationStatusSql})
+              AND {VaultSql.NotVaultEntity("media_operations.entity_id")}
+            GROUP BY operation_type;
+            """, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+
+        return rows
+            .Select(row => (Row: row, Description: MediaOperationFollowUp.Describe(row.OperationType)))
+            .Where(entry => entry.Description is not null && entry.Row.Total > 0)
+            .Select(entry => new IngestionBackgroundWorkDto
+            {
+                Key = entry.Row.OperationType,
+                Label = entry.Description!.Label,
+                Count = entry.Row.Total,
+                Noun = entry.Row.Total == 1 ? entry.Description.NounOne : entry.Description.NounMany,
+            })
+            .OrderBy(work => work.Label, StringComparer.Ordinal)
+            .ToList();
+    }
+
     /// <summary>A queued file nobody has touched for this long no longer holds the whole queue "working"; it is shown as waiting.</summary>
     private static readonly TimeSpan StaleQueuedAfter = TimeSpan.FromMinutes(10);
+
+    // The one "need review" number (spec library-activity D28): worked out by the Needs Review list's own count, so the Activity card, the
+    // Needs Review tab and the administrator banner can never disagree. A host that registers no list service (a bare read-model test) falls
+    // back to the review-queue rows the list is built from.
+    private async Task<int> ReadNeedReviewCountAsync(bool includeUnmatchedFiles, CancellationToken ct)
+    {
+        if (_needsReview is null)
+        {
+            return await ReadPendingReviewCountAsync(ct).ConfigureAwait(false);
+        }
+
+        return (await _needsReview.CountAsync(includeUnmatchedFiles, ct).ConfigureAwait(false)).PendingCount;
+    }
 
     private async Task<int> ReadPendingReviewCountAsync(CancellationToken ct)
     {
@@ -1565,10 +1616,16 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private const string OpenOperationStatusSql =
         "'pending','queued','leased','running','processing','active','retry_waiting','failed_retryable','interrupted'";
 
-    // A group is in flight when its availability (as BuildGroup works it out) is review, waiting for tools, finishing or
-    // adding, that is anything but Ready or failed, or when one of its files still has an open "ingestion.file" row.
+    // The one rule for "working" (spec library-activity D29): a title is worked on only while its files are being added, identified or
+    // having their details fetched. A title that only waits for a person (review) is not working, and follow-up jobs that run after a
+    // title is usable (preview pictures and similar, MediaOperationFollowUp) never make it so: they are reported as background work.
+    // So a group is in flight when one of its files still has an open "ingestion.file" row, or it has not failed and is waiting for
+    // tools, has identity or detail-fetching work open, or is not Ready and is not simply waiting in review.
     private const string InFlightPredicate =
-        "(AnyReview = 1 OR AnyFileOp = 1 OR (AnyFailed = 0 AND (AnyHold = 1 OR AllReady = 0 OR AnyBackground = 1)))";
+        "(AnyFileOp = 1 OR (AnyFailed = 0 AND (AnyHold = 1 OR AnyBackground = 1 OR (AnyReview = 0 AND AllReady = 0))))";
+
+    // The operation types of follow-up work, as a SQL list. They come from code constants, never from input.
+    private static readonly string FollowUpTypesSql = string.Join(",", MediaOperationFollowUp.OperationTypes.Select(type => $"'{type}'"));
 
     // The live set: one row per file that could belong to a group in flight, grouped by the group's structural identity
     // alone (no intake or run record). A file is only looked at when its Work is not Ready, it became Ready in the active
@@ -1656,9 +1713,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                             THEN 1 ELSE 0 END AS NeedsReview,
                        CASE WHEN EXISTS (SELECT 1 FROM media_inspection_holds mih WHERE mih.asset_id = ll.media_asset_id)
                             THEN 1 ELSE 0 END AS RowHold,
+                       -- Identity and detail-fetching work still open (follow-up jobs such as preview pictures are left out, D29).
                        CASE WHEN EXISTS (SELECT 1 FROM media_operations bo
                                          WHERE bo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
                                            AND bo.operation_type <> 'ingestion.file'
+                                           AND bo.operation_type NOT IN ({FollowUpTypesSql})
                                            AND bo.status IN ({OpenOperationStatusSql}))
                                  OR EXISTS (SELECT 1 FROM identity_jobs bj
                                             WHERE bj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
@@ -1813,7 +1872,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public int TotalGroups { get; set; }
         public int ReadyGroups { get; set; }
         public int FinishingGroups { get; set; }
-        public int ReviewGroups { get; set; }
     }
 
     private sealed class PresentationOperationRow
@@ -1828,5 +1886,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     private sealed class CurrentOperationTypeFacts { public string? MediaType { get; set; } public int Active { get; set; } public int Queued { get; set; } }
 
-    private sealed class CurrentOperationFacts { public int Active { get; set; } public int Queued { get; set; } public int Stalled { get; set; } public int RetryWaiting { get; set; } public int TextTrackWaiting { get; set; } }
+    private sealed class BackgroundWorkRow { public string OperationType { get; set; } = string.Empty; public int Total { get; set; } }
+    private sealed class CurrentOperationFacts { public int Active { get; set; } public int Queued { get; set; } public int Stalled { get; set; } public int RetryWaiting { get; set; } public int WorkRetryWaiting { get; set; } public int TextTrackWaiting { get; set; } }
 }

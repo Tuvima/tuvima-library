@@ -50,56 +50,6 @@ public static class LibraryActivityText
         _ => "Added",
     };
 
-    public static string KindLabel(string kind) => KindVerb(kind);
-
-    /// <summary>The entry's headline: "Added 14 movies" (a removal, which knows no types, reads "Removed 3 items").</summary>
-    public static string Headline(ActivityRunDto run)
-    {
-        var what = run.Kind == ActivityRunKindNames.Removed || run.Counts.Count == 0
-            ? $"{run.ItemCount.ToString("N0", CultureInfo.InvariantCulture)} {Noun(string.Empty, run.ItemCount)}"
-            : Counts(run);
-        return $"{KindVerb(run.Kind)} {what}";
-    }
-
-    private static readonly string[] TypeOrder = ["Movies", "TV", "Music", "Books", "Audiobooks", "Comics", "Videos"];
-
-    /// <summary>"Movies, TV and Music": the kinds a batch touched, in one fixed order, for the small line under its headline.</summary>
-    public static string Kinds(IEnumerable<string> mediaTypes)
-    {
-        var present = mediaTypes.Where(type => !string.IsNullOrEmpty(type)).Distinct(StringComparer.Ordinal)
-            .OrderBy(Rank)
-            .ThenBy(type => type, StringComparer.Ordinal)
-            .ToList();
-        return present.Count switch
-        {
-            0 => string.Empty,
-            1 => present[0],
-            _ => $"{string.Join(", ", present.Take(present.Count - 1))} and {present[^1]}",
-        };
-    }
-
-    private static int Rank(string mediaType)
-    {
-        var index = Array.IndexOf(TypeOrder, mediaType);
-        return index < 0 ? int.MaxValue : index;
-    }
-
-    /// <summary>
-    /// The small line under an entry's headline: what kinds it touched ("Movies, TV and Music"), or why it happened for an update, a fix
-    /// or a removal. A batch with no kinds recorded falls back to its library's name.
-    /// </summary>
-    public static string Subtitle(ActivityRunDto run)
-    {
-        var kinds = Kinds(run.Counts.Select(entry => entry.MediaType));
-        return run.Kind switch
-        {
-            ActivityRunKindNames.Removed => "Manually removed from library",
-            ActivityRunKindNames.Fixed => "Resolved from Needs Review",
-            ActivityRunKindNames.Updated => string.IsNullOrEmpty(kinds) ? "Metadata refresh" : $"Metadata refresh · {kinds}",
-            _ => string.IsNullOrEmpty(kinds) ? run.LibraryName : kinds,
-        };
-    }
-
     /// <summary>One dated marker on a searched title's own timeline: "4 new episodes" for an import, "4 episodes" for an update, fix or removal.</summary>
     public static string MarkerLine(ActivityTitleMarkerDto marker, string mediaType)
         => marker.Kind == ActivityRunKindNames.Added
@@ -108,13 +58,6 @@ public static class LibraryActivityText
 
     /// <summary>"2 titles" beside the History heading while a search is showing.</summary>
     public static string TitlesCount(int count) => $"{count.ToString("N0", CultureInfo.InvariantCulture)} {(count == 1 ? "title" : "titles")}";
-
-    public static string StatusLabel(string status) => status switch
-    {
-        ActivityRunStatusNames.Active => "Active",
-        ActivityRunStatusNames.Failed => "Failed",
-        _ => "Completed",
-    };
 
     public static string MonthHeading(DateTimeOffset when) => when.ToLocalTime().ToString("MMMM yyyy", CultureInfo.InvariantCulture);
 

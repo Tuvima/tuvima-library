@@ -538,11 +538,109 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal(2, inPeriod.LibraryGroups);
         Assert.Equal(1, inPeriod.ReadyGroups);
         Assert.Equal(0, inPeriod.FinishingGroups);
-        Assert.Equal(0, inPeriod.ReviewGroups);
         Assert.Equal(1, outsidePeriod.LibraryGroups);
         Assert.Equal(0, outsidePeriod.ReadyGroups);
         Assert.Equal(0, outsidePeriod.FinishingGroups);
         Assert.Empty(outsidePeriod.CurrentMedia);
+    }
+
+    [Fact]
+    public async Task LiveSnapshot_AFinishedImportWithOneTitleInNeedsReviewAndPreviewPictureJobsOpen_IsNotWorkingAndNamesThePreviewPicturesAsBackgroundWork()
+    {
+        var review = AddStandalone("Movies", "Needs A Look");
+        AddIdentityJob(review, "RetailMatchedNeedsReview", "Movies");
+        AddIntakeOperation(review, "succeeded");
+        AddPendingReview(review);
+        for (var index = 1; index <= 12; index++)
+        {
+            var video = AddStandalone("Movies", $"Finished Video {index}");
+            AddIdentityJob(video, "Ready", "Movies");
+            AddIntakeOperation(video, "succeeded");
+            AddFollowUpOperation(video, "playback.scrub_previews", index <= 3 ? "running" : "queued");
+        }
+
+        // Finished and failed follow-up jobs are not open work.
+        var done = AddStandalone("Movies", "Previews Already Made");
+        AddIdentityJob(done, "Ready", "Movies");
+        AddFollowUpOperation(done, "playback.scrub_previews", "succeeded");
+        AddFollowUpOperation(done, "playback.scrub_previews", "failed_terminal");
+
+        // The active period began before every title finished, so the live numbers cover the whole import.
+        var snapshot = await new IngestionPresentationReadService(_db, new FixedQueueProgress(
+            new IngestionQueueProgressDto { State = "idle", StartedAt = DateTimeOffset.UtcNow.AddHours(-1) })).GetSnapshotAsync();
+
+        Assert.False(snapshot.IsRunning);
+        Assert.Equal("idle", snapshot.Status);
+        Assert.Empty(snapshot.CurrentMedia);
+        Assert.Equal(0, snapshot.CurrentMediaTotal);
+        Assert.Equal(1, snapshot.NeedReviewCount);
+        Assert.Equal(0, snapshot.ActiveOperations);
+        Assert.Equal(0, snapshot.QueuedOperations);
+        Assert.Equal(0, snapshot.FinishingGroups);
+        var background = Assert.Single(snapshot.BackgroundWork);
+        Assert.Equal("playback.scrub_previews", background.Key);
+        Assert.Equal("Making preview pictures", background.Label);
+        Assert.Equal(12, background.Count);
+        Assert.Equal("videos", background.Noun);
+    }
+
+    [Fact]
+    public async Task LiveSnapshot_OnePreviewPictureJob_IsNamedForOneVideo()
+    {
+        var video = AddStandalone("Movies", "Only Video");
+        AddIdentityJob(video, "Ready", "Movies");
+        AddFollowUpOperation(video, "playback.scrub_previews", "queued");
+
+        var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync();
+
+        var background = Assert.Single(snapshot.BackgroundWork);
+        Assert.Equal(1, background.Count);
+        Assert.Equal("video", background.Noun);
+        Assert.False(snapshot.IsRunning);
+    }
+
+    [Fact]
+    public async Task CurrentMedia_ATitleOnlyWaitingForReviewIsNotWorking_ButOneStillHavingItsDetailsFetchedIs()
+    {
+        var waitingForAPerson = AddStandalone("Movies", "Waiting For A Person", ready: false);
+        AddIdentityJob(waitingForAPerson, "RetailMatchedNeedsReview", "Movies");
+        AddPendingReview(waitingForAPerson);
+        var stillFetching = AddStandalone("Movies", "Still Fetching Details", ready: false);
+        AddIdentityJob(stillFetching, "Hydrating", "Movies");
+        AddPendingReview(stillFetching);
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        Assert.Equal(stillFetching, Assert.Single(page.Items).GroupId);
+    }
+
+    [Fact]
+    public async Task CurrentMedia_ATitleWhoseOnlyOpenWorkIsAFollowUpJobIsNotWorking_ButOneWithEnrichmentOpenIs()
+    {
+        var onlyPreviews = AddStandalone("Movies", "Only Previews Left");
+        AddFollowUpOperation(onlyPreviews, "playback.scrub_previews", "running", onAsset: false);
+        var stillEnriching = AddStandalone("Movies", "Still Enriching");
+        AddFollowUpOperation(stillEnriching, "enrichment.people", "running", onAsset: false);
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        Assert.Equal(stillEnriching, Assert.Single(page.Items).GroupId);
+    }
+
+    [Fact]
+    public async Task Snapshot_AReadyTitleWithOnlyFollowUpJobsOpen_IsReadyNotFinishing()
+    {
+        var work = AddStandalone("Movies", "Ready With Previews Pending");
+        AddReadyIdentityJob(work);
+        AddFollowUpOperation(work, "playback.scrub_previews", "queued");
+
+        var snapshot = await new IngestionPresentationReadService(_db, new FixedQueueProgress(
+            new IngestionQueueProgressDto { State = "idle", StartedAt = DateTimeOffset.UtcNow.AddHours(-1) })).GetSnapshotAsync();
+        var item = await AddedItemAsync(work);
+
+        Assert.Equal(1, snapshot.ReadyGroups);
+        Assert.Equal(0, snapshot.FinishingGroups);
+        Assert.Equal("ready", item.Availability);
     }
 
     [Fact]
@@ -574,12 +672,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var movies = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Movies");
         var music = Assert.Single(snapshot.ByType, entry => entry.MediaType == "Music");
         Assert.Equal(1, books.ReadyGroups);
-        Assert.Equal(0, books.ReviewGroups);
-        Assert.Equal(1, movies.ReviewGroups);
         Assert.Equal(1, movies.QueuedOperations);
         Assert.Equal(1, music.ActiveOperations);
         Assert.Equal(snapshot.ReadyGroups, snapshot.ByType.Sum(entry => entry.ReadyGroups));
-        Assert.Equal(snapshot.ReviewGroups, snapshot.ByType.Sum(entry => entry.ReviewGroups));
         Assert.Equal(snapshot.ActiveOperations, snapshot.ByType.Sum(entry => entry.ActiveOperations));
         Assert.Equal(snapshot.QueuedOperations, snapshot.ByType.Sum(entry => entry.QueuedOperations));
     }
@@ -947,8 +1042,10 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var work = AddStandalone("Movies", "Needs A Look", ready: false);
         AddIdentityJob(work, "RetailMatchedNeedsReview", "Movies");
 
-        var item = await CurrentItemAsync(work);
+        // A title that only waits for a person is not in Working now (D29), so it is read as a group by its own id.
+        var item = await new IngestionPresentationReadService(_db).GetMediaGroupAsync(work);
 
+        Assert.NotNull(item);
         Assert.Equal("review", item.Availability);
         Assert.Empty(item.WaitingFor);
     }
@@ -1373,6 +1470,43 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     private void AddReadyIdentityJob(Guid workId) => AddIdentityJob(workId, "Ready", "Books");
+
+    private void AddPendingReview(Guid workId)
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            INSERT INTO review_queue (id, entity_id, entity_type, trigger, status, review_ready_at, created_at)
+            VALUES (@id, @workId, 'Work', 'LowConfidence', 'Pending', @now, @now);
+            """, new { id = Guid.NewGuid(), workId, now });
+    }
+
+    // One work row of the given type on the title's file (or, with onAsset false, on the Work itself).
+    private void AddFollowUpOperation(Guid workId, string operationType, string status, bool onAsset = true)
+    {
+        using var conn = _db.CreateConnection();
+        var entity = onAsset
+            ? conn.QuerySingle<Guid>(
+                "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId;",
+                new { workId })
+            : workId;
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        var kind = operationType.Split('.')[0];
+        conn.Execute("""
+            INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,status,position_key,created_at,updated_at,idempotency_key)
+            VALUES (@id,@operationType,@kind,@entity,@entityKind,@status,1,@now,@now,@key);
+            """, new
+        {
+            id = Guid.NewGuid(),
+            operationType,
+            kind,
+            entity,
+            entityKind = onAsset ? "MediaAsset" : "Work",
+            status,
+            now,
+            key = Guid.NewGuid().ToString(),
+        });
+    }
 
     private void AddIntakeOperation(
         Guid workId,

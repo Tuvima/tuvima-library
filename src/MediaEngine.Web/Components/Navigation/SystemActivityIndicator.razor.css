@@ -17,6 +17,9 @@
     color: var(--tl-status-success);
     background: transparent;
     cursor: pointer;
+    /* The shared activity icon fills the button; its ring, glyph and dot are drawn by AppSyncActivityIcon. */
+    --sync-icon-box: 100%;
+    --sync-icon-glyph: 1.72rem;
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator:hover,
@@ -31,7 +34,7 @@
 
 /* Two states only: blue while the Library works, neutral when it is idle (green means healthy or done only). */
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-working {
-    --system-activity-glyph: 1.4rem;
+    --sync-icon-glyph: 1.4rem;
     color: var(--tl-accent-secondary);
 }
 
@@ -43,57 +46,6 @@
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-attention {
     color: var(--tl-status-warning);
 }
-
-.system-activity-indicator__ring,
-.system-activity-indicator-shell ::deep .system-activity-indicator__center-icon {
-    position: absolute;
-    inset: 50% auto auto 50%;
-    transform: translate(-50%, -50%);
-}
-
-.system-activity-indicator__ring {
-    width: 2.3rem;
-    height: 2.3rem;
-}
-
-.system-activity-indicator__ring.is-animated {
-    animation: system-activity-ring-spin 1.6s linear infinite;
-}
-
-@keyframes system-activity-ring-spin {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-.system-activity-indicator-shell ::deep .system-activity-indicator__ring .tl-progress-circular {
-    color: inherit;
-    width: 2.3rem !important;
-    height: 2.3rem !important;
-}
-
-.system-activity-indicator-shell ::deep .system-activity-indicator__center-icon {
-    width: var(--system-activity-glyph, 1.72rem);
-    height: var(--system-activity-glyph, 1.72rem);
-    font-size: var(--system-activity-glyph, 1.72rem);
-}
-
-.system-activity-indicator__dot {
-    position: absolute;
-    top: 0.55rem;
-    right: 0.6rem;
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: var(--tl-radius-round);
-    background: var(--tl-accent-secondary);
-    animation: system-activity-dot-pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes system-activity-dot-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.45; }
-}
-
-
 
 .system-activity-indicator__count {
     position: absolute;
@@ -111,12 +63,4 @@
     font-size: var(--tl-type-overline-size);
     font-weight: var(--tl-type-overline-weight);
     line-height: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .system-activity-indicator__ring.is-animated,
-    .system-activity-indicator__dot {
-        animation: none;
-    }
-
 }

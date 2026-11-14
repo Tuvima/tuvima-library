@@ -4,6 +4,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Realtime;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Unmatched;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Paging;
@@ -48,15 +49,23 @@ public static class IngestionEndpoints
                        .WithTags("Ingestion");
 
         group.MapGet("/presentation", async (
+            HttpContext http,
+            IRequestAuthorityResolver authorities,
             IIngestionPresentationReadService readService,
             int? currentLimit,
             int? recentDayLimit,
             int? recentItemsPerDay,
-            CancellationToken ct) => Results.Ok(await readService.GetSnapshotAsync(
+            CancellationToken ct) =>
+        {
+            // The one "need review" number counts what the Needs Review list holds for this caller, files included for an administrator.
+            var includeFiles = UnmatchedScope.For(await authorities.ResolveAsync(http, ct)).AllLibraries;
+            return Results.Ok(await readService.GetSnapshotAsync(
                 currentLimit ?? 12,
                 recentDayLimit ?? 3,
                 recentItemsPerDay ?? 9,
-                ct)))
+                includeFiles,
+                ct));
+        })
         .WithName("GetIngestionPresentation")
         .WithSummary("Returns the bounded media-centric Ingestion page projection.")
         .Produces<IngestionPresentationSnapshotDto>(StatusCodes.Status200OK)

@@ -1,31 +1,38 @@
-/* One History entry (mock screens 2 and 3): the date bubble on the line, then a left-aligned row in a bordered box: what it was with a small line under it,
-   up to five small covers with a "+N" chip, the counts, Completed (or Active) and a chevron. The grid itself sits on the shared button's root in app.css. */
+/* One History entry (spec library-activity D33): the date label on the line, then a left-aligned row in a bordered box: the title with one line under it
+   (counts by kind, or "2 added so far"), three small covers with a "+N" chip (two on a phone, none of the chip while running), one status and a chevron.
+   A running batch has a purple left edge. The grid itself sits on the shared button's root in app.css. */
 .lact-entry { position: relative; padding: 5px 0; }
 .lact-entry__row { display: flex; gap: var(--tl-space-4); align-items: center; }
 .lact-bubble { z-index: 1; flex: none; width: 62px; box-sizing: border-box; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); border: 1px solid var(--tl-border-default); text-align: center; padding: 3px 0; font-size: var(--tl-type-overline-size); font-weight: var(--tl-type-overline-weight); }
-.lact-entry.is-active .lact-bubble, .lact-entry.is-active .lact-box { border-color: var(--tl-accent-primary); }
+.lact-entry.is-active .lact-bubble { border-color: var(--tl-accent-primary); }
+.lact-entry.is-active .lact-box { border-left: 3px solid var(--tl-accent-primary); }
 .lact-box { flex: 1; min-width: 0; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); }
 .lact-box__what { grid-area: what; display: flex; flex-direction: column; min-width: 0; text-align: left; }
 .lact-box__what strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lact-box__what small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-muted); font-size: var(--tl-type-caption-size); }
+.lact-box__what small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); }
 .lact-box__covers { grid-area: covers; display: flex; gap: var(--tl-space-1); align-items: center; min-width: 0; }
 .lact-cover { display: inline-block; flex: none; width: 30px; height: 44px; border-radius: var(--tl-radius-sm); overflow: hidden; }
 .lact-cover.is-square { width: 44px; }
+.lact-cover-more.is-phone-only { display: none; }
 .lact-cover-more { padding: 3px var(--tl-space-2); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); font-size: var(--tl-type-caption-size); color: var(--tl-text-secondary); }
-.lact-box__count { grid-area: count; min-width: 0; color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); text-align: left; }
 .lact-box__status { grid-area: status; display: inline-flex; align-items: center; gap: var(--tl-space-1); font-size: var(--tl-type-label-size); font-weight: var(--tl-type-label-weight); color: var(--tl-status-success); }
 .lact-box__status.lact-status--active { color: var(--tl-accent-primary); }
 .lact-box__status.lact-status--failed { color: var(--tl-status-danger); }
 .lact-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .lact-box__chevron { grid-area: chev; display: inline-flex; color: var(--tl-text-muted); }
 .lact-open { margin: var(--tl-space-1) 0 var(--tl-space-2) calc(62px + var(--tl-space-4)); padding: var(--tl-space-3); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); background: var(--tl-bg-root); }
-.lact-kinds { display: flex; flex-wrap: wrap; gap: var(--tl-space-2); margin-bottom: var(--tl-space-3); }
 .lact-empty { margin: 0; color: var(--tl-text-muted); }
 /* Two rows of tiles at a time (321 px each plus the gap); more load as the area scrolls. */
 .lact-scroll { max-height: calc(2 * 321px + var(--tl-space-4)); overflow: auto; }
 .lact-tiles { display: flex; flex-wrap: wrap; gap: var(--tl-space-4); }
 .lact-sentinel { display: flex; justify-content: center; padding: var(--tl-space-2) 0; }
+/* Narrower windows let the counts wrap to two lines instead of squeezing the covers. */
+@media (max-width: 1180px) {
+    .lact-box__what small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
 @media (max-width: 600px) {
+    .lact-cover.is-desktop-only, .lact-cover-more.is-desktop-only { display: none; }
+    .lact-cover-more.is-phone-only { display: inline-block; }
     .lact-entry__row { gap: var(--tl-space-2); }
     .lact-bubble { width: 52px; }
     .lact-open { margin-left: 0; }

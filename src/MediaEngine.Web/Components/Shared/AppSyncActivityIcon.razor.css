@@ -1,0 +1,15 @@
+/* The ring and the glyph share one grid cell, so the glyph sits in the middle of the ring at any size. */
+.app-sync-icon { position: relative; display: inline-grid; flex: none; place-items: center; width: var(--sync-icon-box, 2.3rem); height: var(--sync-icon-box, 2.3rem); color: inherit; }
+.app-sync-icon__ring { grid-area: 1 / 1; }
+.app-sync-icon__ring { display: grid; width: var(--sync-icon-ring, 2.3rem); height: var(--sync-icon-ring, 2.3rem); }
+.app-sync-icon__ring.is-spinning { animation: app-sync-icon-spin 1.6s linear infinite; }
+.app-sync-icon__ring ::deep .app-sync-icon__arc { width: 100%; height: 100%; color: inherit; }
+.app-sync-icon ::deep .app-sync-icon__glyph { grid-area: 1 / 1; width: var(--sync-icon-glyph, 1.25rem); height: var(--sync-icon-glyph, 1.25rem); }
+.app-sync-icon__dot { position: absolute; top: 0.55rem; right: 0.6rem; width: 0.5rem; height: 0.5rem; border-radius: var(--tl-radius-round); background: currentColor; animation: app-sync-icon-pulse 1.8s ease-in-out infinite; }
+
+@keyframes app-sync-icon-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes app-sync-icon-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .app-sync-icon__ring.is-spinning, .app-sync-icon__dot { animation: none; }
+}

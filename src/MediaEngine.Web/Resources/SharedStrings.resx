@@ -10028,8 +10028,53 @@
   <data name="LibraryActivity_Active" xml:space="preserve">
     <value>Active</value>
   </data>
-  <data name="LibraryActivity_AllCount" xml:space="preserve">
-    <value>All {0}</value>
+  <data name="LibraryActivity_Now" xml:space="preserve">
+    <value>Now</value>
+  </data>
+  <data name="LibraryActivity_Completed" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="LibraryActivity_Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="LibraryActivity_AddingKind" xml:space="preserve">
+    <value>Adding {0}</value>
+  </data>
+  <data name="LibraryActivity_AddingItems" xml:space="preserve">
+    <value>Adding items</value>
+  </data>
+  <data name="LibraryActivity_AddedSoFar" xml:space="preserve">
+    <value>{0} added so far</value>
+  </data>
+  <data name="LibraryActivity_BatchItemAdded" xml:space="preserve">
+    <value>{0} item added</value>
+  </data>
+  <data name="LibraryActivity_BatchItemsAdded" xml:space="preserve">
+    <value>{0} items added</value>
+  </data>
+  <data name="LibraryActivity_BatchItemUpdated" xml:space="preserve">
+    <value>{0} item updated</value>
+  </data>
+  <data name="LibraryActivity_BatchItemsUpdated" xml:space="preserve">
+    <value>{0} items updated</value>
+  </data>
+  <data name="LibraryActivity_BatchItemFixed" xml:space="preserve">
+    <value>{0} item fixed</value>
+  </data>
+  <data name="LibraryActivity_BatchItemsFixed" xml:space="preserve">
+    <value>{0} items fixed</value>
+  </data>
+  <data name="LibraryActivity_BatchItemRemoved" xml:space="preserve">
+    <value>{0} item removed</value>
+  </data>
+  <data name="LibraryActivity_BatchItemsRemoved" xml:space="preserve">
+    <value>{0} items removed</value>
+  </data>
+  <data name="LibraryActivity_ReasonFixed" xml:space="preserve">
+    <value>Resolved from Needs Review</value>
+  </data>
+  <data name="LibraryActivity_ReasonRemoved" xml:space="preserve">
+    <value>Manually removed from library</value>
   </data>
   <data name="LibraryActivity_AllLibraries" xml:space="preserve">
     <value>All libraries</value>
@@ -10049,8 +10094,8 @@
   <data name="LibraryActivity_Background" xml:space="preserve">
     <value>Background</value>
   </data>
-  <data name="LibraryActivity_CountsFound" xml:space="preserve">
-    <value>{0} found</value>
+  <data name="LibraryActivity_BackgroundFor" xml:space="preserve">
+    <value>{0} for {1:N0} {2}</value>
   </data>
   <data name="LibraryActivity_DateRange" xml:space="preserve">
     <value>Date range</value>
@@ -10063,9 +10108,6 @@
   </data>
   <data name="LibraryActivity_FilesFound" xml:space="preserve">
     <value>{0} files found</value>
-  </data>
-  <data name="LibraryActivity_FilterByKind" xml:space="preserve">
-    <value>Filter by kind</value>
   </data>
   <data name="LibraryActivity_History" xml:space="preserve">
     <value>History</value>
@@ -10111,24 +10153,6 @@
   </data>
   <data name="LibraryActivity_OpenTitle" xml:space="preserve">
     <value>Open {0}</value>
-  </data>
-  <data name="LibraryActivity_PercentProcessed" xml:space="preserve">
-    <value>{0}% processed</value>
-  </data>
-  <data name="LibraryActivity_Processing" xml:space="preserve">
-    <value>{0} processing</value>
-  </data>
-  <data name="LibraryActivity_Queued" xml:space="preserve">
-    <value>{0} queued</value>
-  </data>
-  <data name="LibraryActivity_Ready" xml:space="preserve">
-    <value>{0} ready</value>
-  </data>
-  <data name="LibraryActivity_ReviewItems" xml:space="preserve">
-    <value>Review {0} items →</value>
-  </data>
-  <data name="LibraryActivity_ReviewOneItem" xml:space="preserve">
-    <value>Review 1 item →</value>
   </data>
   <data name="LibraryActivity_SearchHistory" xml:space="preserve">
     <value>Search history</value>
@@ -10178,8 +10202,32 @@
   <data name="LibraryActivity_WhenAdded" xml:space="preserve">
     <value>When {0} was added</value>
   </data>
-  <data name="LibraryActivity_WorkingNow" xml:space="preserve">
-    <value>Working now</value>
+  <data name="LibraryActivity_WorkingNowOne" xml:space="preserve">
+    <value>Working now · 1 title</value>
+  </data>
+  <data name="LibraryActivity_WorkingNowMany" xml:space="preserve">
+    <value>Working now · {0:N0} titles</value>
+  </data>
+  <data name="LibraryActivity_InProgress" xml:space="preserve">
+    <value>In progress</value>
+  </data>
+  <data name="LibraryActivity_FilesProcessed" xml:space="preserve">
+    <value>{0} of {1} files processed</value>
+  </data>
+  <data name="LibraryActivity_FilesProcessedOne" xml:space="preserve">
+    <value>{0} of 1 file processed</value>
+  </data>
+  <data name="LibraryActivity_Elapsed" xml:space="preserve">
+    <value>{0} elapsed</value>
+  </data>
+  <data name="LibraryActivity_NeedReviewOne" xml:space="preserve">
+    <value>1 needs review</value>
+  </data>
+  <data name="LibraryActivity_ViewActivity" xml:space="preserve">
+    <value>View activity</value>
+  </data>
+  <data name="LibraryActivity_Progress" xml:space="preserve">
+    <value>Library update progress</value>
   </data>
   <data name="ViewActions_Download" xml:space="preserve">
     <value>Download</value>
@@ -12772,18 +12820,6 @@
   </data>
   <data name="BackupRecoveryPanel_RestorePinHelp" xml:space="preserve">
     <value>Only needed if this backup includes keys. Without the right PIN everything else still restores and you enter keys again.</value>
-  </data>
-  <data name="LibraryScanCard_Idle" xml:space="preserve">
-    <value>Idle</value>
-  </data>
-  <data name="LibraryScanCard_Working" xml:space="preserve">
-    <value>Scanning your libraries</value>
-  </data>
-  <data name="LibraryScanCard_Progress" xml:space="preserve">
-    <value>Scan progress</value>
-  </data>
-  <data name="LibraryScanCard_ViewActivity" xml:space="preserve">
-    <value>View activity</value>
   </data>
   <data name="SetupVaultOffer_ForTitle" xml:space="preserve">
     <value>What the Vault is for</value>

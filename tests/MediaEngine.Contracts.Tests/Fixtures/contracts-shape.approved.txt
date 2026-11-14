@@ -4340,6 +4340,12 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionAttenti
   Description: System.String | nullability=nullable | accessors=get,set
   Route: System.String | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionBackgroundWorkDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Count: System.Int32 | nullability=not-null | accessors=get,set
+  Noun: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionFacetStateDto
   State: System.String | nullability=not-null | accessors=get,set
   Label: System.String | nullability=nullable | accessors=get,set
@@ -4391,10 +4397,11 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPresent
   LibraryGroups: System.Int32 | nullability=not-null | accessors=get,set
   ReadyGroups: System.Int32 | nullability=not-null | accessors=get,set
   FinishingGroups: System.Int32 | nullability=not-null | accessors=get,set
-  ReviewGroups: System.Int32 | nullability=not-null | accessors=get,set
+  NeedReviewCount: System.Int32 | nullability=not-null | accessors=get,set
   ActiveOperations: System.Int32 | nullability=not-null | accessors=get,set
   QueuedOperations: System.Int32 | nullability=not-null | accessors=get,set
   RetryWaitingOperations: System.Int32 | nullability=not-null | accessors=get,set
+  BackgroundWork: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionBackgroundWorkDto> | nullability=not-null | accessors=get,set
   ByType: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionPresentationTypeDto> | nullability=not-null | accessors=get,set
   StartedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   LastActivityAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
@@ -4408,7 +4415,6 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPresent
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPresentationTypeDto
   MediaType: System.String | nullability=not-null | accessors=get,set
   ReadyGroups: System.Int32 | nullability=not-null | accessors=get,set
-  ReviewGroups: System.Int32 | nullability=not-null | accessors=get,set
   ActiveOperations: System.Int32 | nullability=not-null | accessors=get,set
   QueuedOperations: System.Int32 | nullability=not-null | accessors=get,set
 

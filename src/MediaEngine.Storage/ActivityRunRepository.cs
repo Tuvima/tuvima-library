@@ -126,6 +126,36 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         return Task.FromResult(closed);
     }
 
+    public Task<int> CompleteInterruptedRunsAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var closed = connection.Execute("""
+            UPDATE activity_runs SET status = 'completed', ended_at = last_activity_at, interrupted = 1
+            WHERE status = 'active';
+            """);
+        return Task.FromResult(closed);
+    }
+
+    public Task<int> ReopenInterruptedRunsAsync(string kind, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var reopened = connection.Execute("""
+            UPDATE activity_runs SET status = 'active', ended_at = NULL, interrupted = 0
+            WHERE interrupted = 1 AND kind = @kind;
+            """, new { kind });
+        return Task.FromResult(reopened);
+    }
+
+    public Task<int> ClearInterruptedAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var cleared = connection.Execute("UPDATE activity_runs SET interrupted = 0 WHERE interrupted = 1;");
+        return Task.FromResult(cleared);
+    }
+
     public Task<ActivityAssetContext?> GetAssetContextAsync(Guid assetId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -154,13 +184,15 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
             LIMIT @limit OFFSET @offset;
             """, parameters).ToList();
 
+        // With an area chosen (D31) a mixed batch counts only that area's items.
+        var mediaTypes = query.MediaTypes is { Count: > 0 } chosen ? chosen.ToArray() : null;
         var counts = new Dictionary<Guid, Dictionary<string, int>>();
         foreach (var batch in rows.Select(row => row.Id).Chunk(400))
         {
             var perType = connection.Query<CountRow>("""
                 SELECT run_id AS RunId, media_type AS MediaType, COUNT(*) AS Total
-                FROM activity_run_items WHERE run_id IN @ids GROUP BY run_id, media_type;
-                """, new { ids = batch.Select(GuidSql.ToBlob).ToArray() });
+                FROM activity_run_items WHERE run_id IN @ids AND (@filterTypes = 0 OR media_type IN @mediaTypes) GROUP BY run_id, media_type;
+                """, new { ids = batch.Select(GuidSql.ToBlob).ToArray(), filterTypes = mediaTypes is null ? 0 : 1, mediaTypes = mediaTypes ?? [string.Empty] });
             foreach (var entry in perType)
             {
                 if (!counts.TryGetValue(entry.RunId, out var bucket))
@@ -194,9 +226,11 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         return Task.FromResult(row?.ToRecord());
     }
 
-    public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default)
+    public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid entryId, ActivityRunScope? scope, int offset, int limit, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        var libraries = scope?.LibraryIds is { Count: > 0 } chosenLibraries ? chosenLibraries.Select(id => id.ToLowerInvariant()).ToArray() : null;
+        var mediaTypes = scope?.MediaTypes is { Count: > 0 } chosenTypes ? chosenTypes.ToArray() : null;
         using var connection = db.CreateConnection();
         var rows = connection.Query<GroupRow>("""
             SELECT group_key AS GroupKey,
@@ -207,11 +241,21 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
                    MIN(asset_id) AS FirstAssetId,
                    COUNT(*) AS ItemCount
             FROM activity_run_items
-            WHERE run_id IN (SELECT id FROM activity_runs WHERE COALESCE(scan_id, id) = @entryId) AND (@mediaType IS NULL OR media_type = @mediaType)
+            WHERE run_id IN (SELECT id FROM activity_runs WHERE COALESCE(scan_id, id) = @entryId AND (@filterLibraries = 0 OR library_id IN @libraries))
+              AND (@filterTypes = 0 OR media_type IN @mediaTypes)
             GROUP BY group_key
             ORDER BY MIN(created_at), group_key
             LIMIT @limit OFFSET @offset;
-            """, new { entryId, mediaType, limit = Math.Clamp(limit, 1, MaxLimit), offset = Math.Max(0, offset) });
+            """, new
+        {
+            entryId,
+            filterLibraries = libraries is null ? 0 : 1,
+            libraries = libraries ?? [string.Empty],
+            filterTypes = mediaTypes is null ? 0 : 1,
+            mediaTypes = mediaTypes ?? [string.Empty],
+            limit = Math.Clamp(limit, 1, MaxLimit),
+            offset = Math.Max(0, offset),
+        });
         IReadOnlyList<ActivityRunGroup> groups = rows
             .Select(row => new ActivityRunGroup(row.GroupKey, row.GroupTitle, row.MediaType, row.GroupWorkId, row.FirstWorkId, row.FirstAssetId, row.ItemCount))
             .ToList();
@@ -232,6 +276,7 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         parameters.Add("like", Like(query.Search));
         parameters.Add("limit", Math.Clamp(query.Limit, 1, MaxLimit));
         var order = query.NewestFirst ? "DESC" : "ASC";
+        var onlyChosenArea = query.MediaTypes is { Count: > 0 } ? "AND i.media_type IN @mediaTypes" : string.Empty;
 
         using var connection = db.CreateConnection();
         var rows = connection.Query<HitRow>($"""
@@ -242,6 +287,7 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
             INNER JOIN activity_runs r ON r.id = i.run_id
             WHERE {where}
               AND (i.title LIKE @like ESCAPE '\' OR i.group_title LIKE @like ESCAPE '\')
+              {onlyChosenArea}
             GROUP BY i.group_key, COALESCE(r.scan_id, r.id), r.kind
             ORDER BY MIN(r.started_at) {order}
             LIMIT @limit;
@@ -339,6 +385,13 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         {
             parameters.Add("kinds", kinds.ToArray());
             clauses.Add("r.kind IN @kinds");
+        }
+
+        if (query.MediaTypes is { Count: > 0 } mediaTypes)
+        {
+            // D31: a batch with nothing in the chosen area is left out.
+            parameters.Add("mediaTypes", mediaTypes.ToArray());
+            clauses.Add("EXISTS (SELECT 1 FROM activity_run_items t WHERE t.run_id = r.id AND t.media_type IN @mediaTypes)");
         }
 
         if (query.From is { } from)

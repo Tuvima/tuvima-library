@@ -209,6 +209,9 @@
     /// <summary>The libraries the chips and the library tab allow; empty means every library.</summary>
     [Parameter] public IReadOnlyList<string> LibraryIds { get; set; } = [];
 
+    /// <summary>The chosen area's media types (D31): batches with none of them are hidden and mixed batches show only these. Empty means every kind.</summary>
+    [Parameter] public IReadOnlyList<string> MediaTypes { get; set; } = [];
+
     /// <summary>Bumped by the page when ingestion starts or finishes, so the newest entry follows along.</summary>
     [Parameter] public int RefreshToken { get; set; }
 
@@ -245,7 +248,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        var signature = string.Join(',', LibraryIds);
+        var signature = string.Join(',', LibraryIds) + "|" + string.Join(',', MediaTypes);
         if (signature == _signature && _lastRefresh == RefreshToken)
         {
             return;
@@ -295,7 +298,7 @@
                 <ol class="lact-line">
                     @foreach (var run in month.Runs)
                     {
-                        <LibraryActivityRunEntry @key="run.Id" Run="run" />
+                        <LibraryActivityRunEntry @key="@((run.Id, _signature))" Run="run" LibraryIds="LibraryIds" MediaTypes="MediaTypes" />
                     }
                 </ol>
             }
@@ -371,7 +374,7 @@
             var (from, to) = Dates();
             if (Searching)
             {
-                var found = await Api.SearchActivityTitlesAsync(_search!.Trim(), LibraryIds, Kinds, from, to, ct);
+                var found = await Api.SearchActivityTitlesAsync(_search!.Trim(), LibraryIds, Kinds, from, to, MediaTypes, ct);
                 if (ct.IsCancellationRequested) { return; }
                 if (found is null) { _failed = true; return; }
                 _titles = found.Titles;
@@ -381,7 +384,7 @@
             }
 
             _titles = null;
-            var page = await Api.GetActivityRunsAsync(LibraryIds, Kinds, from, to, null, _sort == "newest", 0, PageSize, ct);
+            var page = await Api.GetActivityRunsAsync(LibraryIds, Kinds, from, to, null, _sort == "newest", 0, PageSize, MediaTypes, ct);
             // The client answers null for a cancelled call too; a newer load has taken over, so that is not a failure.
             if (ct.IsCancellationRequested) { return; }
             if (page is null) { _failed = true; return; }
@@ -403,7 +406,7 @@
         try
         {
             var (from, to) = Dates();
-            var page = await Api.GetActivityRunsAsync(LibraryIds, Kinds, from, to, null, _sort == "newest", _runs.Count, PageSize);
+            var page = await Api.GetActivityRunsAsync(LibraryIds, Kinds, from, to, null, _sort == "newest", _runs.Count, PageSize, MediaTypes);
             if (page is not null)
             {
                 _runs.AddRange(page.Runs.Where(run => _runs.All(existing => existing.Id != run.Id)));

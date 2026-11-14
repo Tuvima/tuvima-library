@@ -152,7 +152,7 @@ public sealed class ActivityRunRepositoryTests : IDisposable
         Assert.Equal(4, expanse.ItemCount);
         Assert.Equal(show, expanse.GroupWorkId);
 
-        var onlyMovies = await _runs.ListGroupsAsync(run.Id, "Movies", 0, 20);
+        var onlyMovies = await _runs.ListGroupsAsync(run.Id, new ActivityRunScope(MediaTypes: ["Movies"]), 0, 20);
         Assert.Single(onlyMovies);
     }
 
@@ -216,6 +216,39 @@ public sealed class ActivityRunRepositoryTests : IDisposable
         Assert.Equal(1, removed);
         Assert.Equal(stillActive.Id, Assert.Single(await _runs.ListRunsAsync(new ActivityRunQuery())).Run.Id);
         Assert.Empty(await _runs.ListGroupsAsync(old.Id, null, 0, 10));
+    }
+
+    [Fact]
+    public async Task CompleteInterruptedRuns_ClosesEveryActiveRunAtItsLastTitle_AndReopenBringsOnlyThatKindBack()
+    {
+        var added = await OpenRunAsync(Library, ActivityRunKinds.Added, isFirst: false, Start);
+        await AddAsync(added, "Movies", "Cut off", Start.AddMinutes(2));
+        await OpenRunAsync(Library, ActivityRunKinds.Removed, isFirst: false, Start);
+
+        Assert.Equal(2, await _runs.CompleteInterruptedRunsAsync());
+        var closed = (await _runs.ListRunsAsync(new ActivityRunQuery())).Select(entry => entry.Run).ToList();
+        Assert.All(closed, run => Assert.Equal(ActivityRunStatuses.Completed, run.Status));
+        Assert.Equal(Start.AddMinutes(2), closed.Single(run => run.Id == added.Id).EndedAt);
+
+        Assert.Equal(1, await _runs.ReopenInterruptedRunsAsync(ActivityRunKinds.Added));
+
+        var reopened = await _runs.FindOpenRunAsync(Library, ActivityRunKinds.Added, DateTimeOffset.MinValue);
+        Assert.Equal(added.Id, reopened?.Id);
+        Assert.Null(reopened?.EndedAt);
+        Assert.Null(await _runs.FindOpenRunAsync(Library, ActivityRunKinds.Removed, DateTimeOffset.MinValue));
+    }
+
+    [Fact]
+    public async Task ClearInterrupted_StopsTheCutOffRunsFromReopening()
+    {
+        var run = await OpenRunAsync(Library, ActivityRunKinds.Added, isFirst: false, Start);
+        await AddAsync(run, "Movies", "Cut off", Start);
+        await _runs.CompleteInterruptedRunsAsync();
+
+        Assert.Equal(1, await _runs.ClearInterruptedAsync());
+
+        Assert.Equal(0, await _runs.ReopenInterruptedRunsAsync(ActivityRunKinds.Added));
+        Assert.Equal(ActivityRunStatuses.Completed, Assert.Single(await _runs.ListRunsAsync(new ActivityRunQuery())).Run.Status);
     }
 
     private async Task<ActivityRunRecord> OpenRunAsync(string library, string kind, bool isFirst, DateTimeOffset at)

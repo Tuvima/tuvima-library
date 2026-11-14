@@ -392,6 +392,26 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("is-idle", cut.Find("button.system-activity-indicator").ClassList));
     }
 
+    // Library activity D32: the top bar's ring and the progress card's bar show one number, and both draw the one shared activity icon.
+    [Theory]
+    [InlineData(0.4, 40)]
+    [InlineData(0.996, 99)]
+    public void TheTopBarRingAndTheProgressCardShowTheSamePercent_AndTheSameSharedIcon(double progress, int expected)
+    {
+        var queue = Queue("working", found: 538, done: 427, progress: progress);
+        _state.PushIngestionQueueProgress(queue);
+
+        var bar = Render<SystemActivityIndicator>();
+        var card = Render<MediaEngine.Web.Components.Settings.LibraryActivity.LibraryActivityProgressCard>(parameters => parameters
+            .Add(c => c.Queue, queue));
+
+        var ring = bar.Find("button.system-activity-indicator .app-sync-icon svg.tl-progress-circular");
+        Assert.Equal(expected.ToString(), ring.GetAttribute("aria-valuenow"));
+        Assert.Equal($"{expected}%", string.Join(' ', card.Find(".app-progress-bar__value").TextContent.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+        Assert.NotNull(bar.Find(".app-sync-icon .is-spinning"));
+        Assert.NotNull(card.Find(".app-sync-icon .is-spinning"));
+    }
+
     private static string Tooltip(IRenderedComponent<SystemActivityIndicator> cut) =>
         cut.Find("[data-playback-tooltip]").GetAttribute("data-playback-tooltip")!;
 

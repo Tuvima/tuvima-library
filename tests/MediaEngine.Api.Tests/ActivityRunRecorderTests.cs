@@ -75,25 +75,31 @@ public sealed class ActivityRunRecorderTests : IDisposable
     }
 
     [Fact]
-    public async Task RecordAdded_ASecondWaveOfTheInitialImport_IsStillTheFirstRun_WhileTheQueueHasNotGoneQuiet()
+    public async Task RecordAdded_ASecondWaveOfTheInitialImport_JoinsTheFirstRun_WhileTheQueueHasNotGoneQuiet()
     {
         var queue = new QueueStub(_clock.GetUtcNow().AddMinutes(-1));
-        var recorder = new ActivityRunRecorder(_store, new VaultStub([VaultLibrary]), _clock, NullLogger<ActivityRunRecorder>.Instance,
-            new ServiceCollection().AddSingleton<MediaEngine.Api.Services.IIngestionQueueProgressService>(queue).BuildServiceProvider());
+        var recorder = RecorderWith(queue);
         await AddMovieAsync("Wave one", recorder);
-        _clock.Advance(TimeSpan.FromMinutes(6)); // the first run closes after five quiet minutes
+        _clock.Advance(TimeSpan.FromMinutes(6)); // longer than the quiet window, but the Engine is still busy (D30)
         await AddMovieAsync("Wave two", recorder);
+
+        var only = Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run;
+        Assert.True(only.IsFirstRun);
+        Assert.Equal(2, only.ItemCount);
+
+        // The queue goes quiet and starts a new period: the next import is a later one and can be New.
+        queue.State = "idle";
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow);
+        _clock.Advance(TimeSpan.FromMinutes(10));
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow);
+        queue.PeriodStart = _clock.GetUtcNow();
+        queue.State = "working";
+        await AddMovieAsync("Much later", recorder);
 
         var runs = (await _real.ListRunsAsync(new ActivityRunQuery(NewestFirst: false))).Select(entry => entry.Run).ToList();
         Assert.Equal(2, runs.Count);
-        Assert.All(runs, run => Assert.True(run.IsFirstRun));
-
-        // The queue goes quiet and starts a new period: the next import is a later one and can be New.
-        _clock.Advance(TimeSpan.FromMinutes(10));
-        queue.PeriodStart = _clock.GetUtcNow();
-        await AddMovieAsync("Much later", recorder);
-
-        Assert.False((await _real.ListRunsAsync(new ActivityRunQuery(NewestFirst: true))).First().Run.IsFirstRun);
+        Assert.False(runs[1].IsFirstRun);
     }
 
     [Fact]
@@ -174,6 +180,117 @@ public sealed class ActivityRunRecorderTests : IDisposable
         Assert.Equal("course", first.Title);
     }
 
+    [Fact]
+    public async Task RecordAdded_TwoTitlesTwelveMinutesApartWhileTheEngineIsBusy_JoinOneBatchThatStaysOpen()
+    {
+        var queue = new QueueStub(_clock.GetUtcNow()) { State = "working" };
+        var recorder = RecorderWith(queue);
+        await AddMovieAsync("Big video one", recorder);
+
+        for (var minute = 0; minute < 12; minute++)
+        {
+            _clock.Advance(TimeSpan.FromMinutes(1));
+            Assert.Equal(0, await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow)); // the sweeper's minute tick
+        }
+
+        await AddMovieAsync("Big video two", recorder);
+
+        var only = Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run;
+        Assert.Equal(2, only.ItemCount);
+        Assert.Equal(ActivityRunStatuses.Active, only.Status);
+    }
+
+    [Fact]
+    public async Task CloseQuietRuns_TheFiveQuietMinutesOnlyCountFromWhenTheEngineGoesIdle()
+    {
+        var queue = new QueueStub(_clock.GetUtcNow()) { State = "working" };
+        var recorder = RecorderWith(queue);
+        await AddMovieAsync("Only title", recorder);
+        _clock.Advance(TimeSpan.FromMinutes(20));
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow); // still busy: nothing closes
+
+        queue.State = "idle";
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow); // first idle look
+        _clock.Advance(TimeSpan.FromMinutes(4));
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow); // four idle minutes: still open
+        Assert.Equal(ActivityRunStatuses.Active, Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run.Status);
+
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow);
+
+        var done = Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run;
+        Assert.Equal(ActivityRunStatuses.Completed, done.Status);
+    }
+
+    [Fact]
+    public async Task RecordAdded_AFileAddedAfterFiveIdleMinutes_OpensASecondBatch()
+    {
+        var queue = new QueueStub(_clock.GetUtcNow()) { State = "working" };
+        var recorder = RecorderWith(queue);
+        await AddMovieAsync("Import", recorder);
+        _clock.Advance(TimeSpan.FromMinutes(3));
+        queue.State = "idle";
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow); // the Engine is seen idle
+        _clock.Advance(TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(30));
+        await recorder.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow);
+
+        await AddMovieAsync("Dropped in later", recorder);
+
+        var runs = (await _real.ListRunsAsync(new ActivityRunQuery(NewestFirst: false))).Select(entry => entry.Run).ToList();
+        Assert.Equal(2, runs.Count);
+        Assert.Equal(ActivityRunStatuses.Completed, runs[0].Status);
+        Assert.Equal(1, runs[0].ItemCount);
+    }
+
+    [Fact]
+    public async Task RecordAdded_AfterTheEngineWasStoppedMidImport_ContinuesTheBatchThatWasCutOff()
+    {
+        var first = RecorderWith(new QueueStub(_clock.GetUtcNow()) { State = "working" });
+        await AddMovieAsync("Before the stop", first);
+
+        // The Engine stops, is down for a minute, and starts again; the new sweeper closes what the last session left open.
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var queue = new QueueStub(_clock.GetUtcNow()) { State = "idle" };
+        var second = RecorderWith(queue);
+        Assert.Equal(1, await second.CloseLeftOpenRunsAsync());
+        Assert.Equal(ActivityRunStatuses.Completed, Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run.Status);
+
+        // The same work is picked up again.
+        _clock.Advance(TimeSpan.FromSeconds(20));
+        queue.State = "working";
+        await AddMovieAsync("After the restart", second);
+
+        var only = Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run;
+        Assert.Equal(2, only.ItemCount);
+        Assert.Equal(ActivityRunStatuses.Active, only.Status);
+        Assert.Null(only.EndedAt);
+    }
+
+    [Fact]
+    public async Task RecordAdded_AFileDroppedInLongAfterARestart_OpensANewBatchInsteadOfReopeningTheOldOne()
+    {
+        var first = RecorderWith(new QueueStub(_clock.GetUtcNow()) { State = "working" });
+        await AddMovieAsync("Before the stop", first);
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var queue = new QueueStub(_clock.GetUtcNow()) { State = "idle" };
+        var second = RecorderWith(queue);
+        await second.CloseLeftOpenRunsAsync();
+
+        _clock.Advance(TimeSpan.FromMinutes(6)); // the Engine stayed idle after the restart
+        await second.CloseQuietRunsAsync(ActivityRunRecorder.QuietWindow);
+        await AddMovieAsync("A new drop", second);
+
+        var runs = (await _real.ListRunsAsync(new ActivityRunQuery(NewestFirst: false))).Select(entry => entry.Run).ToList();
+        Assert.Equal(2, runs.Count);
+        Assert.Equal(1, runs[0].ItemCount);
+        Assert.Equal(ActivityRunStatuses.Completed, runs[0].Status);
+    }
+
+    private ActivityRunRecorder RecorderWith(QueueStub queue) => new(
+        _store, new VaultStub([VaultLibrary]), _clock, NullLogger<ActivityRunRecorder>.Instance,
+        new ServiceCollection().AddSingleton<MediaEngine.Api.Services.IIngestionQueueProgressService>(queue).BuildServiceProvider());
+
     private async Task<Guid> AddMovieAsync(string title, ActivityRunRecorder? recorder = null)
     {
         var work = Guid.NewGuid();
@@ -239,9 +356,10 @@ public sealed class ActivityRunRecorderTests : IDisposable
     private sealed class QueueStub(DateTimeOffset periodStart) : MediaEngine.Api.Services.IIngestionQueueProgressService
     {
         public DateTimeOffset PeriodStart { get; set; } = periodStart;
+        public string State { get; set; } = "working";
 
         public MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto Current
-            => new() { State = "working", StartedAt = PeriodStart };
+            => new() { State = State, StartedAt = PeriodStart };
     }
 
     private sealed class VaultStub(IEnumerable<string> ids) : IVaultLibraryRepository
@@ -276,9 +394,12 @@ public sealed class ActivityRunRecorderTests : IDisposable
         public Task InsertRunAsync(ActivityRunRecord run, CancellationToken ct = default) => inner.InsertRunAsync(run, ct);
         public Task AddItemAsync(ActivityRunItemRecord item, DateTimeOffset at, CancellationToken ct = default) => inner.AddItemAsync(item, at, ct);
         public Task<int> CompleteQuietRunsAsync(DateTimeOffset quietBefore, CancellationToken ct = default) => inner.CompleteQuietRunsAsync(quietBefore, ct);
+        public Task<int> CompleteInterruptedRunsAsync(CancellationToken ct = default) => inner.CompleteInterruptedRunsAsync(ct);
+        public Task<int> ReopenInterruptedRunsAsync(string kind, CancellationToken ct = default) => inner.ReopenInterruptedRunsAsync(kind, ct);
+        public Task<int> ClearInterruptedAsync(CancellationToken ct = default) => inner.ClearInterruptedAsync(ct);
         public Task<IReadOnlyList<ActivityRunSummary>> ListRunsAsync(ActivityRunQuery query, CancellationToken ct = default) => inner.ListRunsAsync(query, ct);
         public Task<ActivityRunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default) => inner.GetRunAsync(runId, ct);
-        public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid runId, string? mediaType, int offset, int limit, CancellationToken ct = default) => inner.ListGroupsAsync(runId, mediaType, offset, limit, ct);
+        public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid runId, ActivityRunScope? scope, int offset, int limit, CancellationToken ct = default) => inner.ListGroupsAsync(runId, scope, offset, limit, ct);
         public Task<IReadOnlyList<ActivityTitleHit>> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default) => inner.SearchTitlesAsync(query, ct);
         public Task<DateTimeOffset?> GetLastCompletedAsync(IReadOnlyCollection<string>? libraryIds, CancellationToken ct = default) => inner.GetLastCompletedAsync(libraryIds, ct);
         public Task<int> PurgeAsync(DateTimeOffset olderThan, CancellationToken ct = default) => inner.PurgeAsync(olderThan, ct);

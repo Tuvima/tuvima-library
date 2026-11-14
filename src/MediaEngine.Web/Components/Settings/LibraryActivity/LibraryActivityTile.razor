@@ -7,20 +7,20 @@
    for what Library is doing ("Getting artwork") and a flush label in the bottom-left corner for the count or step, the "..." menu top right
    (the same one every tile has) and no caption under the art. Square art (albums) keeps the poster's height. A tile with a page opens it
    on click; a tile that stands for no single page (a folder of videos, several movies) has no link and no menu. *@
-<div class="lact-tile @(IsSquare ? "is-square" : null)" data-testid="activity-tile" data-media-type="@MediaType">
+<div class="lact-tile @(IsSquare ? "is-square" : null) @(Compact ? "is-compact" : null)" data-testid="activity-tile" data-media-type="@MediaType">
     @if (!string.IsNullOrWhiteSpace(Route))
     {
         <a href="@Route" class="lact-tile__link" aria-label="@L["LibraryActivity_OpenTitle", Title]">
-            <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" BottomLabel="@BottomLabel" />
+            <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" BottomLabel="@BottomLabel" Compact="Compact" />
         </a>
-        @if (ActionItem is { } item)
+        @if (!Compact && ActionItem is { } item)
         {
             <MediaTileActions Item="@item" />
         }
     }
     else
     {
-        <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" BottomLabel="@BottomLabel" />
+        <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" BottomLabel="@BottomLabel" Compact="Compact" />
     }
 </div>
 
@@ -31,6 +31,9 @@
     [Parameter] public string? Route { get; set; }
     [Parameter] public string? StatusLabel { get; set; }
     [Parameter] public string? BottomLabel { get; set; }
+
+    /// <summary>The half-size tile of Working now (D34): the row's own width, no "..." menu (there is no room), the same page link.</summary>
+    [Parameter] public bool Compact { get; set; }
 
     private bool IsSquare => MediaType == "Music";
 

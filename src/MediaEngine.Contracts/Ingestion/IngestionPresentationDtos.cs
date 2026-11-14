@@ -25,8 +25,13 @@ public sealed class IngestionPresentationSnapshotDto
     [JsonPropertyName("finishing_groups")]
     public int FinishingGroups { get; set; }
 
-    [JsonPropertyName("review_groups")]
-    public int ReviewGroups { get; set; }
+    /// <summary>
+    /// The one "need review" number (spec library-activity D28): everything waiting in Needs Review right now, counted exactly as the
+    /// Needs Review list counts it, for the caller who asked. The Activity card, the Needs Review tab and the administrator banner all
+    /// show it, and it is the whole number whichever library chips are picked.
+    /// </summary>
+    [JsonPropertyName("need_review_count")]
+    public int NeedReviewCount { get; set; }
 
     [JsonPropertyName("active_operations")]
     public int ActiveOperations { get; set; }
@@ -38,8 +43,16 @@ public sealed class IngestionPresentationSnapshotDto
     public int RetryWaitingOperations { get; set; }
 
     /// <summary>
-    /// The same ready, review, active and queued numbers split by media type, so a page filtered to some library areas can add up
-    /// only its own. Types with nothing to report are left out.
+    /// Follow-up work that runs after a title is usable (preview pictures for scrubbing and similar), one entry per kind with a plain
+    /// name and how many things it is for (spec library-activity D29). It is never "working": the Activity card, Working now and the
+    /// active and queued numbers above leave it out, and the quiet Background line names it ("Making preview pictures for 12 videos").
+    /// </summary>
+    [JsonPropertyName("background_work")]
+    public List<IngestionBackgroundWorkDto> BackgroundWork { get; set; } = [];
+
+    /// <summary>
+    /// The same ready, active and queued numbers split by media type, so a page filtered to some library areas can add up
+    /// only its own. Types with nothing to report are left out. The need-review number is never split: it is whole.
     /// </summary>
     [JsonPropertyName("by_type")]
     public List<IngestionPresentationTypeDto> ByType { get; set; } = [];
@@ -72,7 +85,27 @@ public sealed class IngestionPresentationSnapshotDto
     public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-/// <summary>One media type's share of the live snapshot's ready, review, active and queued numbers.</summary>
+/// <summary>One kind of follow-up work that is open now: its plain name and how many things it is for.</summary>
+public sealed class IngestionBackgroundWorkDto
+{
+    /// <summary>The kind of work, as the Engine names its operation type, such as <c>playback.scrub_previews</c>.</summary>
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>The plain name, such as "Making preview pictures".</summary>
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>How many things it is open for.</summary>
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+
+    /// <summary>What the count counts, already singular or plural to match the count ("videos"), so the line reads "Making preview pictures for 12 videos".</summary>
+    [JsonPropertyName("noun")]
+    public string Noun { get; set; } = string.Empty;
+}
+
+/// <summary>One media type's share of the live snapshot's ready, active and queued numbers.</summary>
 public sealed class IngestionPresentationTypeDto
 {
     /// <summary>The media type name (for example "Movies"), as in <see cref="IngestionQueueTypeTallyDto.MediaType"/>.</summary>
@@ -81,9 +114,6 @@ public sealed class IngestionPresentationTypeDto
 
     [JsonPropertyName("ready_groups")]
     public int ReadyGroups { get; set; }
-
-    [JsonPropertyName("review_groups")]
-    public int ReviewGroups { get; set; }
 
     [JsonPropertyName("active_operations")]
     public int ActiveOperations { get; set; }
