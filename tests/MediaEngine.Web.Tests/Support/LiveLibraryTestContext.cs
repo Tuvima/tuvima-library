@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Web.Components.Shared;
@@ -23,6 +24,9 @@ public abstract class LiveLibraryTestContext : AsyncBunitContext
         () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto());
     protected Func<Task<IngestionQueueProgressDto?>> Queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
     protected List<IngestionMediaGroupDto> History = [];
+
+    /// <summary>The signed-in session; it starts as an administrator who may open Activity (<see cref="SignInAs"/> changes that).</summary>
+    protected readonly DashboardSessionAccessor Session = new();
 
     protected LiveLibraryTestContext()
     {
@@ -52,6 +56,8 @@ public abstract class LiveLibraryTestContext : AsyncBunitContext
                 return Task.FromResult(true);
             });
         });
+        SignInAs(administrator: true);
+        Services.AddSingleton(Session);
         Services.AddSingleton(api);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(State);
@@ -76,6 +82,14 @@ public abstract class LiveLibraryTestContext : AsyncBunitContext
             new NoPlaybackPreferences()));
         Services.AddSingleton<ContextSidebarCoordinator>();
         Render<AppPopoverHost>();
+    }
+
+    /// <summary>Signs the test session in as an administrator (who may open Activity) or as someone who may not.</summary>
+    protected void SignInAs(bool administrator)
+    {
+        var profile = Guid.NewGuid();
+        Session.Set("token", profile, profile, Guid.NewGuid(),
+            new DashboardAuthorityResponse(Guid.NewGuid(), profile, true, true, 1, 1, administrator, administrator, null, 1, [], administrator ? ["settings.administration"] : [], []));
     }
 
     public sealed class NoPlaybackPreferences : IUserPlaybackPreferencesAccessor

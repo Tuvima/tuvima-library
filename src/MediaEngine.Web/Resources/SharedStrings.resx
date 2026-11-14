@@ -8600,6 +8600,9 @@
   <data name="LibraryStatusLine_ToolsAndRequirements" xml:space="preserve">
     <value>Tools and requirements</value>
   </data>
+  <data name="AppCountTabs_Working" xml:space="preserve">
+    <value>Working</value>
+  </data>
   <data name="SettingsLibrariesTabs_Libraries" xml:space="preserve">
     <value>Libraries</value>
   </data>
@@ -10222,9 +10225,6 @@
   </data>
   <data name="LibraryActivity_NeedReviewOne" xml:space="preserve">
     <value>1 needs review</value>
-  </data>
-  <data name="LibraryActivity_ViewActivity" xml:space="preserve">
-    <value>View activity</value>
   </data>
   <data name="LibraryActivity_Progress" xml:space="preserve">
     <value>Library update progress</value>

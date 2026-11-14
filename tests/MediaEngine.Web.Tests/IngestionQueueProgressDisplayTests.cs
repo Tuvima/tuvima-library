@@ -360,6 +360,66 @@ public sealed class IngestionQueueProgressDisplayTests : LiveLibraryTestContext
         Assert.Equal("Looking for files", IngestionQueueProgressText.Headline(snapshot));
     }
 
+    [Fact]
+    public void Working_ShowsTheTurningSyncIconInsteadOfTheStaticDot_AndNoProgressBar()
+    {
+        var cut = RenderLine(Working());
+
+        var icon = cut.Find("[data-testid='library-status-sync'] .app-sync-icon");
+        Assert.Contains("app-sync-icon--spin", icon.ClassList);
+        Assert.Empty(cut.FindAll(".libs-status__dot"));
+        Assert.Empty(cut.FindAll("[role='progressbar'], .app-progress-bar"));
+    }
+
+    [Fact]
+    public void Idle_KeepsTheStaticDotAndHasNoSyncIcon()
+    {
+        var cut = RenderLine(new IngestionQueueProgressDto { State = "idle", Progress = 1 });
+
+        Assert.Single(cut.FindAll(".libs-status__dot"));
+        Assert.Empty(cut.FindAll("[data-testid='library-status-sync']"));
+        Assert.Empty(cut.FindAll("[data-testid='library-status-activity-link']"));
+        Assert.Equal("Up to date", StatusText(cut));
+    }
+
+    [Fact]
+    public void Working_ForSomeoneWhoMayOpenActivity_MakesTheLeadingWordALinkToActivityAndKeepsTheEnginesWords()
+    {
+        var snapshot = Working();
+        snapshot.EstimatedSecondsRemaining = 240;
+
+        var cut = RenderLine(snapshot);
+
+        var link = cut.Find("[data-testid='library-status-activity-link']");
+        Assert.Equal("/settings/library-activity", link.GetAttribute("href"));
+        Assert.Equal("Adding", link.TextContent.Trim());
+        Assert.Equal("Adding 254 files · about 4 min left", StatusText(cut));
+    }
+
+    [Fact]
+    public void Working_ForSomeoneWhoMayNotOpenActivity_IsPlainTextWithTheSameWords()
+    {
+        SignInAs(administrator: false);
+        var snapshot = Working();
+        snapshot.EstimatedSecondsRemaining = 240;
+
+        var cut = RenderLine(snapshot);
+
+        Assert.Empty(cut.FindAll("[data-testid='library-status-activity-link']"));
+        Assert.Equal("Adding 254 files · about 4 min left", StatusText(cut));
+        Assert.NotNull(cut.Find("[data-testid='library-status-sync']"));
+    }
+
+    [Fact]
+    public void LibrariesPage_HasNoProgressCardOrViewActivityButton_OnlyTheOneStatusLine()
+    {
+        var overview = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Settings", "Libraries", "LibrariesOverview.razor"));
+
+        Assert.DoesNotContain("LibrariesActivityCard", overview, StringComparison.Ordinal);
+        Assert.DoesNotContain("LibraryActivityProgressCard", overview, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Settings", "Libraries", "LibrariesActivityCard.razor")));
+    }
+
     private IRenderedComponent<LibraryStatusLine> RenderLine(IngestionQueueProgressDto queue)
     {
         Queue = () => Task.FromResult<IngestionQueueProgressDto?>(queue);

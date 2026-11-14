@@ -3,15 +3,16 @@
 @* The one animated activity icon (spec library-activity D32): the top bar's indicator and the progress card on Activity and Libraries both draw it,
    so they cannot drift apart. A ring fills as the percent grows and turns while Library works, with the glyph (Sync by default) inside it. With no
    percent yet but work running, a small pulsing dot stands in for the ring. The host sets the colour, and the sizes through --sync-icon-box,
-   --sync-icon-ring and --sync-icon-glyph. *@
+   --sync-icon-ring and --sync-icon-glyph. Small hosts (a tab, a status line) set SpinGlyph instead: no ring or dot, the whole small icon (just the Sync
+   glyph) turns while work runs and stands still otherwise. *@
 <span class="@RootClass" aria-hidden="true" @attributes="AdditionalAttributes">
-    @if (Percent is { } value)
+    @if (!SpinGlyph && Percent is { } value)
     {
         <span class="@RingClass">
             <AppSpinner Indeterminate="false" Value="@value" Size="AppSize.Small" StrokeWidth="2" Class="app-sync-icon__arc" />
         </span>
     }
-    else if (Working)
+    else if (!SpinGlyph && Working)
     {
         <span class="app-sync-icon__dot"></span>
     }
@@ -31,11 +32,14 @@
     /// <summary>The glyph inside the ring.</summary>
     [Parameter] public string Icon { get; set; } = AppMaterialIcons.Outlined.Sync;
 
+    /// <summary>A small icon: draw no ring or dot; the glyph turns while <see cref="Working"/> (reduced motion keeps it still).</summary>
+    [Parameter] public bool SpinGlyph { get; set; }
+
     [Parameter] public string? Class { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private string RootClass => string.IsNullOrWhiteSpace(Class) ? "app-sync-icon" : $"app-sync-icon {Class}";
+    private string RootClass => string.Join(" ", new[] { "app-sync-icon", SpinGlyph && Working ? "app-sync-icon--spin" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string RingClass => Spinning ? "app-sync-icon__ring is-spinning" : "app-sync-icon__ring";
 }

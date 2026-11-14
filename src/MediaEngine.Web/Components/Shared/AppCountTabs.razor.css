@@ -1,0 +1,2 @@
+/* A working tab's small turning sync icon takes the tab icon's place and size, in the blue the top bar uses for "working". */
+.app-count-tabs__sync { display: inline-flex; --sync-icon-box: var(--tl-tab-icon-size); --sync-icon-glyph: var(--tl-tab-icon-size); flex: 0 0 auto; color: var(--tl-accent-secondary); }

@@ -156,32 +156,27 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     // 1. One table, filtered by area chips (Libraries and folder picker D1): All, Watch, Listen, Read, View, each with a count.
     private static string[] ChipTexts(IRenderedComponent<LibrariesTab> cut) => cut.FindAll(".lib-chip").Select(Text).ToArray();
 
-    // The scan card is the Activity page's own progress card (library-activity D36); View activity is for administrators, the Activity page's readers.
-    [Fact]
-    public void TheOverviewShowsTheSharedProgressCard_WithViewActivityForAnAdministrator_AndNoOldScanCard()
+    // The Libraries page has no progress card or View activity button, only the one status line above the table; while work runs the
+    // status line's leading word links to Activity (library-activity follow-up).
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TheOverviewHasNoProgressCardAndNoViewActivityButton_OnlyTheOneStatusLine(bool administrator)
     {
         var session = Services.GetRequiredService<DashboardSessionAccessor>();
         var accountId = Guid.NewGuid();
         var profileId = Guid.NewGuid();
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
-            accountId, profileId, true, true, 1, 1, true, true, null, 1, [], ["settings.administration"], ["access.manage"]);
+            accountId, profileId, true, true, 1, 1, administrator, administrator, null, 1, [], administrator ? ["settings.administration"] : [], administrator ? ["access.manage"] : []);
         session.Set("test-session-token", accountId, profileId, Guid.NewGuid(), authority);
 
         var cut = Open();
 
         Assert.Empty(cut.FindAll("[data-scan-card], .lib-scan"));
-        var card = cut.Find("[data-testid='activity-up-to-date']");
-        Assert.Contains("Everything is up to date", card.TextContent, StringComparison.Ordinal);
-        Assert.Equal("/settings/library-activity", card.QuerySelector("a.lact-progress__view")!.GetAttribute("href"));
-    }
-
-    [Fact]
-    public void TheOverviewShowsTheSharedProgressCardWithoutViewActivityForSomeoneWhoCannotOpenActivity()
-    {
-        var cut = Open();
-
-        Assert.NotNull(cut.Find("[data-testid='activity-up-to-date']"));
+        Assert.Empty(cut.FindAll("[data-testid='activity-up-to-date'], [data-testid='activity-progress-card'], .lact-progress"));
         Assert.Empty(cut.FindAll("a.lact-progress__view"));
+        Assert.DoesNotContain("View activity", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("[data-testid='library-status-line']"));
     }
 
     [Fact]

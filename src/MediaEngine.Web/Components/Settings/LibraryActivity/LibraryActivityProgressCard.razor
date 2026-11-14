@@ -4,7 +4,7 @@
 @using MediaEngine.Web.Components.Settings
 @inject IStringLocalizer<SharedStrings> L
 
-@* The one slim progress card (spec library-activity D32, D36), drawn on the Activity page and, with View activity, on the Libraries page.
+@* The one slim progress card (spec library-activity D32, D36), drawn on the Activity page only (the Libraries page has just a one-line status, no bar).
    Left: the same animated sync icon as the top bar, the title and an "In progress" dot-label. Under it one line, "427 of 538 files processed ·
    16 min elapsed". Right: one amber "N need review" pill that opens Needs Review (hidden at zero). Along the bottom: a thin bar with the percent at
    its right end, the same truthful number as the top bar (D23). With the total not yet known it reads "412 files found" over a moving bar and shows no
@@ -18,17 +18,10 @@
             <span class="lact-progress__state" data-testid="activity-in-progress"><i class="lact-progress__dot" aria-hidden="true"></i>@L["LibraryActivity_InProgress"]</span>
         </div>
         <span class="lact-progress__line" data-testid="activity-progress-counts">@Line</span>
-        @if ((ReviewCount > 0 && ShowReview) || ShowViewActivity)
+        @if (ReviewCount > 0 && ShowReview)
         {
             <div class="lact-progress__actions">
-                @if (ReviewCount > 0 && ShowReview)
-                {
-                    <a href="/settings/review" class="lact-progress__pill" data-testid="activity-need-review">@ReviewText</a>
-                }
-                @if (ShowViewActivity)
-                {
-                    <AppButton Label="@L["LibraryActivity_ViewActivity"].Value" Href="@ActivityRoute" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" Class="lact-progress__view" />
-                }
+                <a href="/settings/review" class="lact-progress__pill" data-testid="activity-need-review">@ReviewText</a>
             </div>
         }
         <div class="lact-progress__bar">
@@ -51,10 +44,6 @@ else
                 <span> · @L["LibraryActivity_LastCompletedScan", LibraryActivityText.Ago(last, DateTimeOffset.UtcNow)]</span>
             }
         </span>
-        @if (ShowViewActivity)
-        {
-            <AppButton Label="@L["LibraryActivity_ViewActivity"].Value" Href="@ActivityRoute" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" Class="lact-progress__view" />
-        }
     </section>
 }
 
@@ -65,8 +54,6 @@ else
 }
 
 @code {
-    private const string ActivityRoute = "/settings/library-activity";
-
     [Parameter] public IngestionQueueProgressDto? Queue { get; set; }
     [Parameter] public IngestionPresentationSnapshotDto? Presentation { get; set; }
 
@@ -74,9 +61,6 @@ else
     [Parameter] public IReadOnlySet<string>? MediaTypes { get; set; }
 
     [Parameter] public DateTimeOffset? LastCompleted { get; set; }
-
-    /// <summary>The "View activity" button: shown on the Libraries page (D36), never on the Activity page itself.</summary>
-    [Parameter] public bool ShowViewActivity { get; set; }
 
     /// <summary>The "N need review" pill; a host that is not for administrators turns it off.</summary>
     [Parameter] public bool ShowReview { get; set; } = true;

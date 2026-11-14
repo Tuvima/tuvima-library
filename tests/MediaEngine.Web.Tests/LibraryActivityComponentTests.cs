@@ -147,20 +147,17 @@ public sealed class LibraryActivityComponentTests : LiveLibraryTestContext
     }
 
     [Fact]
-    public void ProgressCard_ShowsViewActivityOnlyWhereTheHostAsksForIt_WorkingAndIdle()
+    public void ProgressCard_HasNoViewActivityButton_WorkingOrIdle()
     {
         var working = new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 2, Progress = 0.2 };
 
-        var activityPage = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.Queue, working));
-        Assert.Empty(activityPage.FindAll("a.lact-progress__view"));
+        var busy = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.Queue, working));
+        var idle = Render<LibraryActivityProgressCard>();
 
-        var libraries = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.Queue, working).Add(card => card.ShowViewActivity, true));
-        var link = libraries.Find("a.lact-progress__view");
-        Assert.Equal("/settings/library-activity", link.GetAttribute("href"));
-        Assert.Equal("View activity", Normalize(link.TextContent));
-
-        var idle = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.ShowViewActivity, true));
-        Assert.Equal("/settings/library-activity", idle.Find("[data-testid='activity-up-to-date'] a.lact-progress__view").GetAttribute("href"));
+        Assert.Empty(busy.FindAll("a[href='/settings/library-activity']"));
+        Assert.Empty(idle.FindAll("a[href='/settings/library-activity']"));
+        Assert.DoesNotContain("View activity", busy.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("View activity", idle.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

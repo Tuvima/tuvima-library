@@ -34,6 +34,7 @@ public sealed class OneActivityEventWordingTests : AsyncBunitContext
         Services.AddLocalization();
         Services.AddLogging();
         Services.AddNativeUiServices();
+        Services.AddScoped<DashboardSessionAccessor>();
         var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetIngestionPresentationAsync), _ =>

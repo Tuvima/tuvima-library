@@ -1,10 +1,15 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
 @inject NavigationManager Nav
+@inject ShellActivityState Activity
 @inject IStringLocalizer<SharedStrings> L
 
 @* The one row of tabs under a Settings page title. Every tab is a link with its own address, so reload, Back and a pasted link open
-   exactly that tab. The look is the shared tab (AppCountTabs); the row scrolls sideways on a phone and never wraps. *@
+   exactly that tab. The look is the shared tab (AppCountTabs); the row scrolls sideways on a phone and never wraps. The Activity tab
+   swaps its icon for the small turning sync icon whenever the Library is working (the top bar's own rule: follow-up work does not
+   count), selected or not. *@
 @if (Tabs.Count > 1)
 {
     <AppCountTabs Tabs="@TabItems"
@@ -27,13 +32,21 @@
 
     // A tab's address is its key, so a link, the selection and the keyboard all agree on which tab is which.
     private IReadOnlyList<AppCountTab> TabItems => Tabs
-        .Select(tab => new AppCountTab(tab.Route, tab.LabelKey is { } key ? L[key].Value : tab.Label, CountFor(tab), tab.Icon, tab.Route, tab.IsAdvanced))
+        .Select(tab => new AppCountTab(tab.Route, tab.LabelKey is { } key ? L[key].Value : tab.Label, CountFor(tab), tab.Icon, tab.Route, tab.IsAdvanced, IsWorking(tab)))
         .OrderBy(tab => tab.Advanced ? 1 : 0)
         .ToList();
 
     // Needs Review carries how many items wait for the person; no other tab has a count.
     private int? CountFor(SettingsPageTab tab) =>
         tab.Section == SettingsSection.Review && ReviewCount > 0 ? ReviewCount : null;
+
+    private bool IsWorking(SettingsPageTab tab) => tab.Section == SettingsSection.RecentlyAdded && Activity.Current.IsWorking;
+
+    protected override void OnInitialized() => Activity.Changed += OnActivityChanged;
+
+    private void OnActivityChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Activity.Changed -= OnActivityChanged;
 
     private Task OpenAsync(string route)
     {
