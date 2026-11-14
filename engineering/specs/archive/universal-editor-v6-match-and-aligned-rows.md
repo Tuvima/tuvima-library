@@ -2,6 +2,8 @@
 
 > **Status:** Built, awaiting your Local checks (built 2026-11-12 in PRs 915, 916, 919, 920, 929, 934, 935, 936, 942, 944 to 951; docs PR 136; Local checks "Editor v6 L1 to L14" in `engineering/validation/batch.md`) · **Version:** 1 · **Last updated:** 2026-11-12 (locked by Shy, 2026-11-12 02:00Z: "build it here") · **Related docs:** [Universal editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) · [Look pass v3](../look-pass-v3.md) · [Look v3.1](look-pass-v3-1-controls-and-type.md) · [Mockups](../../design/mockups/editor-v6/editor-v6-mockups.html) · [Product overview](../../product/overview.md) · Issues 870, 871, 876, 878, 879, 881 (editor part), 899 (alignment part)
 
+> **Amended by [Editor v7](../universal-editor-v7-bug-review.md) (2026-11-14):** D2 (one-line header on Match), D10 (Open source, Change match, Remove match) and the verdict, compare table and Apply line on an applied match are replaced; the "Matched" state dot is replaced by the header's match links; the phone header is cover and name only. The rest of this version stands.
+
 ## 0. Why
 
 The local check of 2026-11-11 found that the editor built from v5 works, but its Match tab is hard to read and its rows do not line up. Shy drew a target for the Match view (described in issue 870; screen A of the mockups follows it). This version redraws Match to that target, makes every editor row line up by construction, and fixes the editor bugs found in the same check. Everything else in v5 stays, with one large exception decided on 2026-11-12: the editor now works on phones and tablets too (Shy: "Most people use only their phones so we should build with this in mind and make the phone equivalent to the desktop in every way we can (other than setup).").
