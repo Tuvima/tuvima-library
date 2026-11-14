@@ -85,7 +85,6 @@
 /* A group of videos (issue 869): the tall dark-purple card. */
 .media-tile.is-video-still .media-tile-media:has(.media-tile-video-collection) { background:linear-gradient(165deg, color-mix(in srgb, var(--tl-accent-primary-active) 35%, var(--tl-bg-root)) 0%, var(--tl-bg-surface) 55%, var(--tl-bg-shell) 100%); border:1px solid color-mix(in srgb, var(--tl-accent-primary) 45%, transparent); border-radius:inherit; }
 .media-tile-video-collection { position:relative; display:flex; flex-direction:column; gap:6px; height:100%; padding:12px; box-sizing:border-box; }
-.media-tile-video-collection__layers { position:absolute; top:12px; right:56px; color:var(--tl-text-secondary); display:inline-flex; }
 .media-tile-video-collection__art { position:relative; margin-top:36px; aspect-ratio:16 / 9; overflow:hidden; border-radius:var(--tl-radius-sm,6px); background:color-mix(in srgb, var(--tl-viewer-black) 35%, transparent); }
 .media-tile-video-collection__soft { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scale(1.3); filter:blur(14px) brightness(.6); }
 .media-tile-video-collection__still { position:absolute; inset:8%; width:84%; height:84%; object-fit:cover; border-radius:4px; box-shadow:0 4px 14px var(--tl-scrim-dark-4); }
