@@ -386,7 +386,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         var note = cut.Find("[data-testid='needs-review-importing']");
         Assert.Contains("still working on 15 files", note.TextContent, StringComparison.Ordinal);
-        Assert.Equal("/settings/library-activity", note.QuerySelector("a")!.GetAttribute("href"));
+        Assert.Equal("/settings/general/library-activity", note.QuerySelector("a")!.GetAttribute("href"));
 
         await cut.InvokeAsync(() => engine.State.PushIngestionQueueProgress(
             new IngestionQueueProgressDto { State = IngestionQueueProgressText.IdleState, FilesFound = 40, FilesDone = 40, UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(1) }));
@@ -816,7 +816,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
 
         OpenMenuAndClick(cut, RowSelector(row), "Show in Activity");
 
-        cut.WaitForAssertion(() => Assert.EndsWith("/settings/library-activity?q=Cibola%20Burn", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.EndsWith("/settings/general/library-activity?q=Cibola%20Burn", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
     }
 
     // ---- File problems --------------------------------------------------------------------------------------------------------------

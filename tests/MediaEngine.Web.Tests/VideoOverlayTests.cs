@@ -266,7 +266,7 @@ public sealed class VideoOverlayTests : AsyncBunitContext
         Services.AddSingleton(new VideoPresentationResolver(api, null!, playback));
         Services.AddSingleton(tools);
         Services.AddSingleton(new MediaEngine.Web.Services.Integration.UniverseStateContainer());
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new FixturePreferences());
         Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(js);
         if (device is not null)

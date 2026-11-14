@@ -1,0 +1,109 @@
+@namespace MediaEngine.Web.Components.Settings.PlayingNow
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Web.Services.Integration
+@inject IStringLocalizer<SharedStrings> L
+
+@* One row of Playing now (spec playing-now-and-general-tabs, section 4): cover, title and who, what it is doing with how far along, how heavy
+   it is, and Stop. A session playing directly has no heaviness and no Stop; an encode always has Stop. On a phone the rows stack and Stop
+   is a full-width 44 px button under the row (D14). *@
+<div class="pnow-row" data-testid="playing-now-row" data-kind="@Row.Kind" data-step="@Row.Step">
+    <span class="pnow-row__cover"><LibraryActivityPicture Url="@Cover" DrawnPx="48" Icon="@AppMaterialIcons.Outlined.PlayCircle" /></span>
+    <div class="pnow-row__who">
+        <div class="pnow-row__title">@(Row.Subtitle ?? Row.Title)</div>
+        <div class="pnow-row__line @(StatusIsProblem ? "is-problem" : null) @(Row.StopsInSeconds is not null ? "is-countdown" : null)" data-testid="playing-now-status">@StatusLine</div>
+    </div>
+    <div class="pnow-row__doing">
+        <div class="pnow-row__label" data-testid="playing-now-step">@L[PlayingNowText.StepKey(Row.Step)]</div>
+        @if (Row.PercentPrepared is { } percent)
+        {
+            <AppProgressBar Value="@percent" Rounded="true" Decorative="true" Class="pnow-row__bar" />
+            <div class="pnow-row__sub">@L["PlayingNow_Prepared", percent]</div>
+        }
+        else if (Row.PreparingReason is { } reason && Row.Step == PlayingNowSteps.Preparing)
+        {
+            <div class="pnow-row__sub">@Reason(reason)</div>
+        }
+        else if (Row.PositionSeconds is { } position)
+        {
+            <div class="pnow-row__sub">@(Row.DurationSeconds is { } length ? L["PlayingNow_Position", PlayingNowText.Clock(position), PlayingNowText.Clock(length)].Value : PlayingNowText.Clock(position))</div>
+        }
+    </div>
+    <div class="pnow-row__load">
+        @if (Row.Heaviness is { } heaviness)
+        {
+            <span class="pnow-chip pnow-chip--@heaviness" data-testid="playing-now-heaviness">@L[PlayingNowText.HeavinessKey(heaviness)]</span>
+            @if (Row.RanOn is { } place)
+            {
+                <span class="pnow-row__sub">@PlaceWords(place)</span>
+            }
+        }
+        else if (Row.WaitingForSlot)
+        {
+            <span class="pnow-chip">@L["PlayingNow_SlotsInUse", ActiveEncodes, MaxActiveEncodes]</span>
+        }
+        else if (Row.Kind == PlayingNowKinds.Watching)
+        {
+            <span class="pnow-row__sub">@L["PlayingNow_NoExtraLoad"]</span>
+        }
+    </div>
+    <div class="pnow-row__action">
+        @if (Row.CanStop)
+        {
+            <AppButton Label="@L["PlayingNow_Stop"].Value" FullWidth="true" OnClick="@(() => OnStop.InvokeAsync(Row))" data-testid="playing-now-stop" />
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlayingNowRowDto Row { get; set; } = new();
+
+    /// <summary>The Streaming limit and how many encodes run, for a waiting row's "1 of 1 in use".</summary>
+    [Parameter] public int MaxActiveEncodes { get; set; } = 1;
+
+    [Parameter] public int ActiveEncodes { get; set; }
+
+    /// <summary>True when the last Stop on this row failed, so its status line says so (no toast).</summary>
+    [Parameter] public bool StopFailed { get; set; }
+
+    [Parameter] public EventCallback<PlayingNowRowDto> OnStop { get; set; }
+
+    private string? Cover => string.IsNullOrWhiteSpace(Row.CoverUrl) ? null : EngineImageProxyPath.ToBrowserUrl(Row.CoverUrl, null);
+
+    private bool StatusIsProblem => StopFailed;
+
+    private string StatusLine
+    {
+        get
+        {
+            if (StopFailed)
+            {
+                return L["PlayingNow_CouldNotStop"];
+            }
+
+            if (Row.StopsInSeconds is { } seconds && !Row.IsWatched)
+            {
+                return L["PlayingNow_NobodyWatching", PlayingNowText.Clock(seconds)];
+            }
+
+            if (Row.Kind == PlayingNowKinds.OfflineEncode)
+            {
+                var quality = Row.OfflineQuality ?? string.Empty;
+                return string.IsNullOrWhiteSpace(Row.PersonName)
+                    ? L["PlayingNow_OfflineLine", quality]
+                    : L["PlayingNow_OfflineLineBy", quality, Row.PersonName];
+            }
+
+            return PlayingNowText.WhoLine(Row, L["PlayingNow_KidsProfile"]);
+        }
+    }
+
+    private string Reason(string reason) => reason switch
+    {
+        "Waiting for a free slot" => L["PlayingNow_WaitingForSlot"],
+        "Reading the file" => L["PlayingNow_ReadingTheFile"],
+        _ => reason,
+    };
+
+    private string PlaceWords(string place) => place == "Graphics card" ? L["PlayingNow_GraphicsCard"] : L["PlayingNow_Processor"];
+}

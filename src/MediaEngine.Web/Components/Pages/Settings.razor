@@ -202,9 +202,6 @@ else
                             case SettingsSection.Libraries:
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
-                            case SettingsSection.RecentlyAdded:
-                                <LibraryActivityPage ShowTitle="false" />
-                                break;
                             case SettingsSection.Review:
                                 <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" />
                                 break;
@@ -232,7 +229,7 @@ else
                                 <ToolsRequirementsTab />
                                 break;
                             case SettingsSection.General:
-                                <GeneralPage />
+                                <GeneralPage Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Network:
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
@@ -980,7 +977,6 @@ else
         },
         // Only the overview has a subtitle; the pages below it are named by their title and breadcrumb.
         SettingsSection.Libraries => LibrariesLevel.Crumbs.Count == 0 ? "Your media, grouped the way you browse it." : null,
-        SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
         SettingsSection.LibraryRules => "The rules every library follows. Each library can override them.",
         SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",
         SettingsSection.DevHarness => "Development builds only: reset, seed or rescan the test library.",

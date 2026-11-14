@@ -82,7 +82,7 @@
             <div class="needs-review-page__note" data-testid="needs-review-importing">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppIconSize.Control20" />
                 <span>@(remaining == 1 ? L["NeedsReviewPage_ImportingOne"].Value : L["NeedsReviewPage_Importing", remaining].Value)</span>
-                <AppButton Label="@L["NeedsReviewPage_ViewActivity"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Href="/settings/library-activity" />
+                <AppButton Label="@L["NeedsReviewPage_ViewActivity"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Href="/settings/general/library-activity" />
             </div>
         }
 
@@ -240,7 +240,7 @@
             Keep = Redraw<IReadOnlyList<NeedsReviewRowDto>>(KeepAsync),
             ShowInActivity = title =>
             {
-                Nav.NavigateTo($"/settings/library-activity?q={Uri.EscapeDataString(title)}");
+                Nav.NavigateTo($"/settings/general/library-activity?q={Uri.EscapeDataString(title)}");
                 return Task.CompletedTask;
             },
             Delete = Redraw<NeedsReviewRowDto>(DeleteAsync),

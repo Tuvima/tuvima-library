@@ -1,0 +1,191 @@
+@namespace MediaEngine.Web.Components.Settings.PlayingNow
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Integration
+@inject PlayingNowState State
+@inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+@inject MediaEngine.Web.Services.Ui.IAppDialogService Dialogs
+@implements IDisposable
+
+@* Server > General > Playing now (spec playing-now-and-general-tabs, administrators only): what is being watched and prepared, for every account and
+   profile. One flat list, newest first, with a People and a Device filter, Stop on every encode, and Stop all unwatched at the top right. Stop asks
+   once, and only when someone is watching; there are no toasts. It reads the Engine's live list every few seconds. *@
+<div class="pnow-page" data-testid="playing-now-page">
+    <header class="pnow-head">
+        <div class="pnow-filters">
+            <AppSelect T="string" Label="@L["PlayingNow_People"].Value" Value="@_person" ValueChanged="PickPersonAsync" Options="PersonOptions" Size="AppControlSize.Compact" FullWidth="false" data-testid="playing-now-people" />
+            <AppSelect T="string" Label="@L["PlayingNow_Device"].Value" Value="@_device" ValueChanged="PickDeviceAsync" Options="DeviceOptions" Size="AppControlSize.Compact" FullWidth="false" data-testid="playing-now-device" />
+        </div>
+        @if (State.Current is { } list)
+        {
+            <span class="pnow-counts" data-testid="playing-now-counts">@L["PlayingNow_Counts", list.WatchingCount, list.PreparingCount, list.ActiveEncodes, list.MaxActiveEncodes]</span>
+        }
+        <span class="pnow-live @(State.IsUnreachable ? null : "is-live")" data-testid="playing-now-live"><span class="pnow-live__dot" aria-hidden="true"></span> @(State.IsUnreachable ? L["LibraryActivity_NotLive"] : L["LibraryActivity_Live"])</span>
+        <div class="pnow-stop-all"><AppButton Label="@StopAllLabel" FullWidth="true" Disabled="@(UnwatchedCount == 0)" OnClick="StopAllUnwatchedAsync" data-testid="playing-now-stop-unwatched" /></div>
+    </header>
+
+    @if (State.Current is null)
+    {
+        <p class="pnow-note" data-testid="playing-now-loading">@L["PlayingNow_Loading"]</p>
+    }
+    else if (State.Current.Rows.Count == 0)
+    {
+        <p class="pnow-note" data-testid="playing-now-empty">@L["PlayingNow_NothingNow"]</p>
+    }
+    else if (Visible.Count == 0)
+    {
+        <p class="pnow-note" data-testid="playing-now-filtered-empty">
+            @L["PlayingNow_NothingForFilter", FilterName]
+            <AppButton Label="@L["PlayingNow_ClearFilter"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="ClearFiltersAsync" />
+        </p>
+    }
+    else
+    {
+        <div class="pnow-list" role="list">
+            @foreach (var row in Visible)
+            {
+                <PlayingNowRow @key="@(string.IsNullOrEmpty(row.Id) ? $"w{row.ProfileId}{row.StartedAt.Ticks}{row.Title}" : row.Id)"
+                               Row="row"
+                               MaxActiveEncodes="State.Current.MaxActiveEncodes"
+                               ActiveEncodes="State.Current.ActiveEncodes"
+                               StopFailed="@_failed.Contains(row.Id)"
+                               OnStop="StopAsync" />
+            }
+        </div>
+    }
+
+    <p class="pnow-note">@L["PlayingNow_LimitsPrefix"] <AppLink Href="/settings/playback/advanced">@L["PlayingNow_StreamingLimits"]</AppLink></p>
+</div>
+
+@code {
+    private const string StorageKey = "tuvima.playingNow.filters";
+
+    private readonly HashSet<string> _failed = [];
+    private string? _person;
+    private string? _device;
+    private bool _disposed;
+
+    private IReadOnlyList<PlayingNowRowDto> Visible =>
+        State.Current?.Rows.Where(row => PlayingNowText.Matches(row, _person, _device)).ToList() ?? [];
+
+    private int UnwatchedCount => State.Current?.Rows.Count(row => row.Kind == PlayingNowKinds.PlaybackEncode && !row.IsWatched && row.CanStop) ?? 0;
+
+    private string StopAllLabel => UnwatchedCount > 0 ? L["PlayingNow_StopAllUnwatchedCount", UnwatchedCount] : L["PlayingNow_StopAllUnwatched"];
+
+    private string FilterName => PersonOptions.FirstOrDefault(option => option.Value == _person)?.Label ?? DeviceOptions.FirstOrDefault(option => option.Value == _device)?.Label ?? string.Empty;
+
+    // People: everyone, then each person, with their profiles beneath. Built from the rows, so the list never offers someone who is not here.
+    private IReadOnlyList<AppSelectOption> PersonOptions
+    {
+        get
+        {
+            var options = new List<AppSelectOption> { new(string.Empty, L["PlayingNow_AllPeople"].Value) };
+            foreach (var group in (State.Current?.Rows ?? []).Where(row => row.AccountId is not null).GroupBy(row => row.AccountId!).OrderBy(group => group.First().PersonName))
+            {
+                options.Add(new($"a:{group.Key}", group.First().PersonName ?? L["PlayingNow_Someone"].Value));
+                foreach (var profile in group.Where(row => row.ProfileId is not null).GroupBy(row => row.ProfileId!))
+                {
+                    options.Add(new($"p:{profile.Key}", $"{group.First().PersonName} › {profile.First().ProfileName}"));
+                }
+            }
+
+            return options;
+        }
+    }
+
+    private IReadOnlyList<AppSelectOption> DeviceOptions
+    {
+        get
+        {
+            var options = new List<AppSelectOption> { new(string.Empty, L["PlayingNow_AllDevices"].Value) };
+            options.AddRange((State.Current?.Rows ?? []).Where(row => row.DeviceId is not null && row.DeviceName is not null)
+                .GroupBy(row => row.DeviceId!).Select(group => new AppSelectOption(group.Key, group.First().DeviceName!)));
+            return options;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.Changed += OnChanged;
+        State.Retain();
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+            if (stored is { Length: > 0 } && stored.Split('|') is [var person, var device])
+            {
+                _person = person;
+                _device = device;
+            }
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            // Filters are a convenience: without storage the page simply opens on everyone.
+            _ = ex;
+        }
+
+        await State.RefreshAsync();
+    }
+
+    private Task PickPersonAsync(string? value) => SetFiltersAsync(value, _device);
+
+    private Task PickDeviceAsync(string? value) => SetFiltersAsync(_person, value);
+
+    private Task ClearFiltersAsync() => SetFiltersAsync(null, null);
+
+    private async Task SetFiltersAsync(string? person, string? device)
+    {
+        _person = string.IsNullOrEmpty(person) ? null : person;
+        _device = string.IsNullOrEmpty(device) ? null : device;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, $"{_person}|{_device}");
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            // Not remembering the filters is harmless.
+            _ = ex;
+        }
+    }
+
+    // Stopping something that is being watched asks once; stopping an unwatched encode just happens (D7).
+    private async Task StopAsync(PlayingNowRowDto row)
+    {
+        if (row.IsWatched && row.Kind == PlayingNowKinds.PlaybackEncode)
+        {
+            var who = string.IsNullOrWhiteSpace(row.PersonName) ? L["PlayingNow_Someone"].Value : row.PersonName!;
+            var on = string.IsNullOrWhiteSpace(row.DeviceName) ? string.Empty : $" {L["PlayingNow_On", row.DeviceName].Value}";
+            var go = await Dialogs.ShowMessageBoxAsync(
+                L["PlayingNow_StopTitle", row.Subtitle ?? row.Title].Value,
+                L["PlayingNow_StopWatched", who, on].Value,
+                yesText: L["PlayingNow_Stop"].Value, noText: L["PlayingNow_KeepGoing"].Value);
+            if (go != true)
+            {
+                return;
+            }
+        }
+
+        _failed.Remove(row.Id);
+        if (!await State.StopAsync(row.Id))
+        {
+            _failed.Add(row.Id);
+        }
+    }
+
+    // Only ever touches encodes nobody is watching, so it needs no confirmation.
+    private async Task StopAllUnwatchedAsync() => await State.StopUnwatchedAsync();
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
+    });
+
+    public void Dispose()
+    {
+        _disposed = true;
+        State.Changed -= OnChanged;
+        State.Release();
+    }
+}

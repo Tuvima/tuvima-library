@@ -436,6 +436,7 @@ builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>
         new InProcessListenPlaybackCommandChannel(recipientId, dispatcher));
 });
 builder.Services.AddScoped<ShellActivityState>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Integration.PlayingNowState>();
 builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
 builder.Services.AddScoped<SongDragDropService>();

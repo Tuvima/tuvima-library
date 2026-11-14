@@ -14,8 +14,6 @@ public enum SettingsSection
 
     AdminOverview,
     Libraries,
-    /// <summary>The Activity tab of Libraries: what is being added and what was added lately.</summary>
-    RecentlyAdded,
     DevHarness,
     /// <summary>The Matching tab of Libraries (was Ingestion Flow).</summary>
     Providers,
@@ -223,6 +221,15 @@ public static class SettingsNav
     /// <summary>The Devices sub-page of Security &amp; Devices.</summary>
     public const string DevicesSubsection = "devices";
 
+    /// <summary>The Notifications tab of Server &gt; General: what the Library tells you about and where those messages go.</summary>
+    public const string NotificationsSubsection = "notifications";
+
+    /// <summary>The Library activity tab of Server &gt; General: what is being added to the Library, what is working now, and what was added lately.</summary>
+    public const string LibraryActivitySubsection = "library-activity";
+
+    /// <summary>The Playing now tab of Server &gt; General: what is being watched and prepared, for everyone (administrators only).</summary>
+    public const string PlayingNowSubsection = "playing-now";
+
     /// <summary>The Taste sub-page of Overview: your taste in plain groups (Genres, Moods, Eras), editable for your own and read-only for others.</summary>
     public const string TasteSubsection = "taste";
 
@@ -260,7 +267,6 @@ public static class SettingsNav
             [SettingsSection.Security] = Complete(),
             [SettingsSection.AdminOverview] = Complete(),
             [SettingsSection.Libraries] = Complete(),
-            [SettingsSection.RecentlyAdded] = Complete(),
             [SettingsSection.Providers] = Complete(),
             [SettingsSection.LibraryRules] = Complete(),
             [SettingsSection.Review] = Complete(),
@@ -317,7 +323,6 @@ public static class SettingsNav
 
         // Library: the media and how it is matched and played. Libraries, Activity, Needs Review, Matching and Rules are the five tabs of one page.
         new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.RecentlyAdded, "library", "library-activity", AppMaterialIcons.Outlined.History, "Activity", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Providers, "library", "matching", AppMaterialIcons.Outlined.AccountTree, "Matching", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.LibraryRules, "library", "rules", AppMaterialIcons.Outlined.Tune, "Rules", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
@@ -372,7 +377,6 @@ public static class SettingsNav
             Page("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries,
             [
                 Tab("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries, labelKey: "SettingsLibrariesTabs_Libraries"),
-                Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.RecentlyAdded, labelKey: "SettingsLibrariesTabs_Activity"),
                 Tab("Needs Review", AppMaterialIcons.Outlined.RateReview, SettingsSection.Review, labelKey: "SettingsLibrariesTabs_NeedsReview"),
                 Tab("Matching", AppMaterialIcons.Outlined.AccountTree, SettingsSection.Providers, labelKey: "SettingsLibrariesTabs_Matching"),
                 Tab("Rules", AppMaterialIcons.Outlined.Tune, SettingsSection.LibraryRules, labelKey: "SettingsLibrariesTabs_Rules"),
@@ -385,7 +389,13 @@ public static class SettingsNav
         ]),
         new("server", "Server", AppMaterialIcons.Outlined.Dns,
         [
-            Page("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General),
+            Page("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General,
+            [
+                Tab("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General),
+                Tab("Notifications", AppMaterialIcons.Outlined.Mail, SettingsSection.General, NotificationsSubsection),
+                Tab("Library activity", AppMaterialIcons.Outlined.History, SettingsSection.General, LibraryActivitySubsection),
+                Tab("Playing now", AppMaterialIcons.Outlined.PlayCircle, SettingsSection.General, PlayingNowSubsection),
+            ]),
             Page("Users & Households", AppMaterialIcons.Outlined.AdminPanelSettings, SettingsSection.Access,
             [
                 Tab("Users", AppMaterialIcons.Outlined.ManageAccounts, SettingsSection.Access, "users"),
@@ -469,7 +479,6 @@ public static class SettingsNav
                 new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Libraries] = [],
-            [SettingsSection.RecentlyAdded] = [],
             [SettingsSection.DevHarness] = [],
             [SettingsSection.Providers] = [],
             [SettingsSection.LibraryRules] = [],
@@ -498,7 +507,12 @@ public static class SettingsNav
             ],
             [SettingsSection.Integrations] = [],
             [SettingsSection.Tools] = [],
-            [SettingsSection.General] = [],
+            [SettingsSection.General] =
+            [
+                new(NotificationsSubsection, "Notifications", AppMaterialIcons.Outlined.Mail),
+                new(LibraryActivitySubsection, "Library activity", AppMaterialIcons.Outlined.History),
+                new(PlayingNowSubsection, "Playing now", AppMaterialIcons.Outlined.PlayCircle),
+            ],
             [SettingsSection.Backups] =
             [
                 new(DestinationsSubsection, "Destinations", AppMaterialIcons.Outlined.Storage),
@@ -528,7 +542,6 @@ public static class SettingsNav
         SettingsSection.Security,
         SettingsSection.AdminOverview,
         SettingsSection.Libraries,
-        SettingsSection.RecentlyAdded,
         SettingsSection.Review,
         SettingsSection.Providers,
         SettingsSection.LibraryRules,

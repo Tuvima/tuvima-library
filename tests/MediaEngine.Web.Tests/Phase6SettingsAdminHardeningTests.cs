@@ -54,7 +54,7 @@ public sealed class Phase6SettingsAdminHardeningTests
 
         Assert.DoesNotContain("aria-label=\"Media Management sections\"", source, StringComparison.Ordinal);
         Assert.Contains("new(SettingsSection.Libraries", nav, StringComparison.Ordinal);
-        Assert.Contains("new(SettingsSection.RecentlyAdded", nav, StringComparison.Ordinal);
+        Assert.DoesNotContain("SettingsSection.RecentlyAdded", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
 
         Assert.Contains("Personal Space", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);

@@ -4,6 +4,7 @@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject ShellActivityState Activity
+@inject PlayingNowState Playing
 @inject IStringLocalizer<SharedStrings> L
 
 @* The one row of tabs under a Settings page title. Every tab is a link with its own address, so reload, Back and a pasted link open
@@ -40,13 +41,39 @@
     private int? CountFor(SettingsPageTab tab) =>
         tab.Section == SettingsSection.Review && ReviewCount > 0 ? ReviewCount : null;
 
-    private bool IsWorking(SettingsPageTab tab) => tab.Section == SettingsSection.RecentlyAdded && Activity.Current.IsWorking;
+    // Library activity and Playing now each carry the turning icon while they have live work (spec playing-now-and-general-tabs D16).
+    private bool IsWorking(SettingsPageTab tab) => tab.Section == SettingsSection.General && tab.Subsection switch
+    {
+        SettingsNav.LibraryActivitySubsection => Activity.Current.IsWorking,
+        SettingsNav.PlayingNowSubsection => Playing.HasLiveWork,
+        _ => false,
+    };
 
-    protected override void OnInitialized() => Activity.Changed += OnActivityChanged;
+    protected override void OnInitialized()
+    {
+        Activity.Changed += OnActivityChanged;
+        Playing.Changed += OnActivityChanged;
+        // Only the General page has a Playing now tab, so only there is the list read for its dot.
+        if (Tabs.Any(tab => tab.Section == SettingsSection.General && tab.Subsection == SettingsNav.PlayingNowSubsection))
+        {
+            _retained = true;
+            Playing.Retain();
+        }
+    }
 
     private void OnActivityChanged() => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Activity.Changed -= OnActivityChanged;
+    private bool _retained;
+
+    public void Dispose()
+    {
+        Activity.Changed -= OnActivityChanged;
+        Playing.Changed -= OnActivityChanged;
+        if (_retained)
+        {
+            Playing.Release();
+        }
+    }
 
     private Task OpenAsync(string route)
     {

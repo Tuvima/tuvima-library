@@ -1,15 +1,40 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Web.Components.Settings.PlayingNow
 @inject IStringLocalizer<SharedStrings> L
 
-@* Server > General: one page, no tabs. Name and address, Language and region, Notifications (with its email test). *@
-<div class="general-page" data-testid="general-page">
-    <GeneralNameAddressPanel />
+@* Server > General, four tabs (spec playing-now-and-general-tabs D16): General (Right now, name and address, language and region), Notifications
+   (the whole notifications panel and its email test), Library activity (what is being added) and Playing now (what is being watched and prepared). *@
+<div class="general-page" data-testid="general-page" data-tab="@Tab">
+    @if (Tab == SettingsNav.NotificationsSubsection)
+    {
+        <section class="general-page__group" aria-labelledby="general-notifications-heading" data-testid="general-notifications">
+            <h2 id="general-notifications-heading" class="general-page__heading">@L["Common_Notifications"]</h2>
+            <NotificationsPanel />
+            <NotificationsEmailTest />
+        </section>
+    }
+    else if (Tab == SettingsNav.LibraryActivitySubsection)
+    {
+        <LibraryActivityPage ShowTitle="false" />
+    }
+    else if (Tab == SettingsNav.PlayingNowSubsection)
+    {
+        <PlayingNowPage />
+    }
+    else
+    {
+        <GeneralRightNow />
 
-    <LanguageRegionPanel />
+        <GeneralNameAddressPanel />
 
-    <section class="general-page__group" aria-labelledby="general-notifications-heading" data-testid="general-notifications">
-        <h2 id="general-notifications-heading" class="general-page__heading">@L["Common_Notifications"]</h2>
-        <NotificationsPanel />
-        <NotificationsEmailTest />
-    </section>
+        <LanguageRegionPanel />
+    }
 </div>
+
+@code {
+    /// <summary>The tab's address segment (notifications, library-activity, playing-now), or empty for General itself.</summary>
+    [Parameter] public string? Subsection { get; set; }
+
+    private string Tab => string.IsNullOrWhiteSpace(Subsection) ? string.Empty : Subsection.Trim().ToLowerInvariant();
+}

@@ -23,7 +23,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         Services.AddSingleton(_state);
         Services.AddSingleton(new PlaybackSessionController(null!, api));
         Services.AddSingleton<ActivityNotificationQueue>();
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
 
         cut.Find("button.system-activity-indicator").Click();
 
-        Assert.EndsWith("/settings/library-activity", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
+        Assert.EndsWith("/settings/general/library-activity", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
     }
 
     [Fact]

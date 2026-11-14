@@ -98,7 +98,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddLogging();
         Services.AddScoped(sp => new MediaEngine.Web.Services.Playback.PlaybackSessionController(null!, sp.GetRequiredService<IEngineApiClient>()));
-        Services.AddScoped<ShellActivityState>();
+        Services.AddScoped<ShellActivityState>(); Services.AddScoped<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
         Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();

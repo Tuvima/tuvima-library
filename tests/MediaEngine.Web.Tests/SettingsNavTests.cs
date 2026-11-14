@@ -15,13 +15,13 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void TheLibrariesPage_HasFiveTabsInOrder_EachNamedFromTheWordingFile()
+    public void TheLibrariesPage_HasFourTabsInOrder_EachNamedFromTheWordingFile()
     {
         var page = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).Single(node => node.Section == SettingsSection.Libraries);
 
-        Assert.Equal(["Libraries", "Activity", "Needs Review", "Matching", "Rules"], page.Tabs.Select(tab => tab.Label).ToArray());
+        Assert.Equal(["Libraries", "Needs Review", "Matching", "Rules"], page.Tabs.Select(tab => tab.Label).ToArray());
         Assert.Equal(
-            ["SettingsLibrariesTabs_Libraries", "SettingsLibrariesTabs_Activity", "SettingsLibrariesTabs_NeedsReview", "SettingsLibrariesTabs_Matching", "SettingsLibrariesTabs_Rules"],
+            ["SettingsLibrariesTabs_Libraries", "SettingsLibrariesTabs_NeedsReview", "SettingsLibrariesTabs_Matching", "SettingsLibrariesTabs_Rules"],
             page.Tabs.Select(tab => tab.LabelKey!).ToArray());
     }
 
@@ -35,7 +35,7 @@ public sealed class SettingsNavTests
         Assert.DoesNotContain("AccordionNavigation", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<SettingsPageTabs", settingsSource, StringComparison.Ordinal);
         Assert.Contains("settings-mobile-navigation", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("<LibraryActivityPage", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("<LibraryActivityPage", LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/General/GeneralPage.razor")), StringComparison.Ordinal);
         Assert.Contains("<LibraryRulesPage", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<GeneralPage", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<ToolsRequirementsTab", settingsSource, StringComparison.Ordinal);
@@ -200,7 +200,7 @@ public sealed class SettingsNavTests
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.LibraryRules));
         Assert.Equal(["destinations", "advanced"], SettingsNav.GetSubsections(SettingsSection.Backups).Select(item => item.Slug));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Tools));
-        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.General));
+        Assert.Equal(["notifications", "library-activity", "playing-now"], SettingsNav.GetSubsections(SettingsSection.General).Select(item => item.Slug));
     }
 
     [Fact]
@@ -229,7 +229,6 @@ public sealed class SettingsNavTests
     [Theory]
     [InlineData(SettingsSection.AdminOverview, "/settings/system")]
     [InlineData(SettingsSection.Libraries, "/settings/libraries")]
-    [InlineData(SettingsSection.RecentlyAdded, "/settings/library-activity")]
     [InlineData(SettingsSection.DevHarness, "/settings/development-data")]
     [InlineData(SettingsSection.Providers, "/settings/matching")]
     [InlineData(SettingsSection.LibraryRules, "/settings/rules")]
@@ -301,8 +300,8 @@ public sealed class SettingsNavTests
     [Fact]
     public void ResolveRoute_APunctuationVariantOfASlug_IsNotFound()
     {
-        Assert.False(SettingsNav.ResolveRoute("libraryactivity", true).IsKnownRoute);
-        Assert.True(SettingsNav.ResolveRoute("Library-Activity", true).IsKnownRoute);
+        Assert.False(SettingsNav.ResolveRoute("enrichmenttester", true).IsKnownRoute);
+        Assert.True(SettingsNav.ResolveRoute("Enrichment-Tester", true).IsKnownRoute);
     }
 
     [Fact]
@@ -387,9 +386,9 @@ public sealed class SettingsNavTests
         Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts", "Import"], TabLabels(groups, "Profile"));
         Assert.Empty(TabLabels(groups, "Manage Profiles"));
         Assert.Equal(["Sign-in", "Devices"], TabLabels(groups, "Security & Devices"));
-        Assert.Equal(["Libraries", "Activity", "Needs Review", "Matching", "Rules"], TabLabels(groups, "Libraries"));
+        Assert.Equal(["Libraries", "Needs Review", "Matching", "Rules"], TabLabels(groups, "Libraries"));
         Assert.Equal(["Quality", "Advanced"], TabLabels(groups, "Playback"));
-        Assert.Empty(TabLabels(groups, "General"));
+        Assert.Equal(["General", "Notifications", "Library activity", "Playing now"], TabLabels(groups, "General"));
         Assert.Equal(["Users", "Households", "Advanced"], TabLabels(groups, "Users & Households"));
         Assert.Equal(["Home network", "Remote access", "Advanced"], TabLabels(groups, "Network & Remote Access"));
         Assert.Empty(TabLabels(groups, "Tools"));
@@ -511,7 +510,6 @@ public sealed class SettingsNavTests
     [InlineData("security", SettingsSection.Security, "/settings/security")]
     [InlineData("system", SettingsSection.AdminOverview, "/settings/system")]
     [InlineData("libraries", SettingsSection.Libraries, "/settings/libraries")]
-    [InlineData("library-activity", SettingsSection.RecentlyAdded, "/settings/library-activity")]
     [InlineData("matching", SettingsSection.Providers, "/settings/matching")]
     [InlineData("rules", SettingsSection.LibraryRules, "/settings/rules")]
     [InlineData("network", SettingsSection.Network, "/settings/network/home")]

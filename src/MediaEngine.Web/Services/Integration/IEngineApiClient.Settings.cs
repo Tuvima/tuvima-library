@@ -247,6 +247,15 @@ public partial interface IEngineApiClient
     /// <summary>GET /library/libraries/{libraryId}/activity — what has happened in one library, newest first, in plain sentences (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
     Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default);
 
+    /// <summary>What is being watched and prepared right now, across every account (administrators only); null when it could not be read.</summary>
+    Task<PlayingNowDto?> GetPlayingNowAsync(CancellationToken ct = default);
+
+    /// <summary>Stops one encode at once. False when it was already gone or could not be stopped.</summary>
+    Task<bool> StopPlayingNowAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Stops every playback encode nobody is watching; returns how many stopped, or null when the call failed.</summary>
+    Task<int?> StopUnwatchedPlayingNowAsync(CancellationToken ct = default);
+
     /// <summary>GET /settings/vault-libraries — the Vault-protected libraries of the content types, for an administrator whose Vault mode is on; null for anyone else (the Engine answers "not found") or when it could not be read.</summary>
     Task<IReadOnlyList<LibraryFolderDto>?> GetVaultSiblingLibrariesAsync(CancellationToken ct = default);
 

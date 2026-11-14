@@ -74,7 +74,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         Services.AddSingleton(provider => new IngestionLiveDashboardState(api, provider.GetRequiredService<UIOrchestratorService>(), _state));
         Services.AddSingleton(new PlaybackSessionController(null!, api));
         Services.AddSingleton<ActivityNotificationQueue>();
-        Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<ShellActivityState>(); Services.AddSingleton<MediaEngine.Web.Services.Integration.PlayingNowState>();
         Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
     }
 
@@ -156,7 +156,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         var settings = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
         var shell = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Settings", "Libraries", "LibraryShell.razor"));
 
-        Assert.Contains("<LibraryActivityPage ShowTitle=\"false\" />", settings, StringComparison.Ordinal);
+        Assert.Contains("<LibraryActivityPage ShowTitle=\"false\" />", File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Settings", "General", "GeneralPage.razor")), StringComparison.Ordinal);
         Assert.Contains("<LibraryActivityPage LibraryId=\"@Library.Id\" ShowTitle=\"false\" />", shell, StringComparison.Ordinal);
     }
 

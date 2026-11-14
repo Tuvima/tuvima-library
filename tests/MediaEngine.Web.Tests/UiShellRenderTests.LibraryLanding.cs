@@ -34,7 +34,7 @@ public sealed partial class UiShellRenderTests
         Services.AddScoped<IngestionLiveDashboardState>();
     }
 
-    private IRenderedComponent<Settings> RenderSettings(string section)
+    private IRenderedComponent<Settings> RenderSettings(string section, string? subsection = null)
     {
         var host = Render(builder =>
         {
@@ -42,6 +42,7 @@ public sealed partial class UiShellRenderTests
             builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), section);
+            if (subsection is not null) builder.AddAttribute(5, nameof(Settings.Subsection), subsection);
             builder.CloseComponent();
         });
         return host.FindComponent<Settings>();
@@ -65,11 +66,11 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void ActivityTab_IsNotInTheMenu_ButItsRouteResolvesWithALibraryLibrariesBreadcrumb()
+    public void LibraryActivityTab_LivesUnderGeneral_AndIsNotAMenuRow()
     {
         UseLandingApi();
 
-        var cut = RenderSettings("library-activity");
+        var cut = RenderSettings("general", "library-activity");
 
         cut.WaitForAssertion(() =>
         {
@@ -78,11 +79,11 @@ public sealed partial class UiShellRenderTests
                 .Where(text => text.Length > 0)
                 .Distinct()
                 .ToArray();
-            Assert.Equal(["Settings", "Library", "Libraries", "Activity"], trail);
+            Assert.Equal(["Settings", "Server", "General", "Library activity"], trail);
             var links = cut.FindAll(".media-section-shell__tree-link");
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Recently Added", StringComparison.Ordinal));
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Activity", StringComparison.Ordinal));
-            Assert.Single(links, link => link.QuerySelector(".media-section-shell__tree-label")?.TextContent.Trim() == "Libraries");
+            Assert.Single(links, link => link.QuerySelector(".media-section-shell__tree-label")?.TextContent.Trim() == "General");
         });
     }
 
