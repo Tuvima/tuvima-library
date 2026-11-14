@@ -1,0 +1,41 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The one animated activity icon (spec library-activity D32): the top bar's indicator and the progress card on Activity and Libraries both draw it,
+   so they cannot drift apart. A ring fills as the percent grows and turns while Library works, with the glyph (Sync by default) inside it. With no
+   percent yet but work running, a small pulsing dot stands in for the ring. The host sets the colour, and the sizes through --sync-icon-box,
+   --sync-icon-ring and --sync-icon-glyph. *@
+<span class="@RootClass" aria-hidden="true" @attributes="AdditionalAttributes">
+    @if (Percent is { } value)
+    {
+        <span class="@RingClass">
+            <AppSpinner Indeterminate="false" Value="@value" Size="AppSize.Small" StrokeWidth="2" Class="app-sync-icon__arc" />
+        </span>
+    }
+    else if (Working)
+    {
+        <span class="app-sync-icon__dot"></span>
+    }
+    <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Control20" Class="app-sync-icon__glyph" />
+</span>
+
+@code {
+    /// <summary>How far the ring is filled, 0 to 100; null draws no ring.</summary>
+    [Parameter] public int? Percent { get; set; }
+
+    /// <summary>Work is running: with no percent yet, the pulsing dot is drawn.</summary>
+    [Parameter] public bool Working { get; set; }
+
+    /// <summary>The ring turns (reduced motion keeps it still).</summary>
+    [Parameter] public bool Spinning { get; set; }
+
+    /// <summary>The glyph inside the ring.</summary>
+    [Parameter] public string Icon { get; set; } = AppMaterialIcons.Outlined.Sync;
+
+    [Parameter] public string? Class { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass => string.IsNullOrWhiteSpace(Class) ? "app-sync-icon" : $"app-sync-icon {Class}";
+
+    private string RingClass => Spinning ? "app-sync-icon__ring is-spinning" : "app-sync-icon__ring";
+}

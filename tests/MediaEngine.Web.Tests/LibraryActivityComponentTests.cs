@@ -15,19 +15,48 @@ public sealed class LibraryActivityComponentTests : LiveLibraryTestContext
     }
 
     [Fact]
-    public void ProgressCard_WhileWorking_ShowsOneBarAndTheReviewLink()
+    public void ProgressCard_WhileWorking_ShowsTheSlimCard_WithTheIconTheTitleInProgressTheLineTheBarAndThePill()
     {
         var cut = Render<LibraryActivityProgressCard>(parameters => parameters
-            .Add(card => card.Queue, new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 4 })
-            .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 3 }));
+            .Add(card => card.Queue, new IngestionQueueProgressDto { State = "working", FilesFound = 538, FilesDone = 427, Progress = 0.79, StartedAt = DateTimeOffset.UtcNow.AddMinutes(-16).AddSeconds(-5) })
+            .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 2 }));
 
         Assert.Single(cut.FindAll("[data-testid='activity-progress-card']"));
         Assert.Empty(cut.FindAll("[data-testid='activity-up-to-date']"));
-        Assert.Contains("/settings/review", cut.Markup, StringComparison.Ordinal);
+        Assert.NotNull(cut.Find(".lact-progress__icon .app-sync-icon .is-spinning"));
+        Assert.Contains("Updating your library", cut.Find(".lact-progress__title").TextContent, StringComparison.Ordinal);
+        Assert.Equal("In progress", Normalize(cut.Find("[data-testid='activity-in-progress']").TextContent));
+        Assert.Equal("427 of 538 files processed · 16 min elapsed", Normalize(cut.Find("[data-testid='activity-progress-counts']").TextContent));
+        var pill = cut.Find("a.lact-progress__pill");
+        Assert.Equal("/settings/review", pill.GetAttribute("href"));
+        Assert.Equal("2 need review", Normalize(pill.TextContent));
+        var bar = cut.Find("[data-testid='activity-progress-bar']");
+        Assert.Equal("79%", Normalize(bar.QuerySelector(".app-progress-bar__value")!.TextContent));
     }
 
     [Fact]
-    public void ProgressCard_WithOneAreaChosen_ShowsOnlyThatAreasPercentAndCounts_ButTheWholeNeedReviewNumber()
+    public void ProgressCard_NeverShowsTheOldCountsByKindOrTheReadyProcessingAndQueuedNumbers()
+    {
+        var cut = Render<LibraryActivityProgressCard>(parameters => parameters
+            .Add(card => card.Queue, new IngestionQueueProgressDto
+            {
+                State = "working",
+                FilesFound = 40,
+                FilesDone = 15,
+                Progress = 0.4,
+                Tally = [new IngestionQueueTypeTallyDto { MediaType = "Movies", Files = 40, FilesDone = 15, StepsTotal = 90, StepsCompleted = 36 }],
+            })
+            .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, ReadyGroups = 10, ActiveOperations = 9, QueuedOperations = 10, NeedReviewCount = 3 }));
+
+        var text = Normalize(cut.Find("[data-testid='activity-progress-card']").TextContent);
+        foreach (var gone in new[] { "ready", "processing", "queued", "movies", "% processed" })
+        {
+            Assert.DoesNotContain(gone, text, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void ProgressCard_WithOneAreaChosen_ShowsOnlyThatAreasFilesAndPercent_ButTheWholeNeedReviewNumber()
     {
         var queue = new IngestionQueueProgressDto
         {
@@ -42,23 +71,12 @@ public sealed class LibraryActivityComponentTests : LiveLibraryTestContext
                 new IngestionQueueTypeTallyDto { MediaType = "Music", Files = 20, FilesDone = 0, StepsTotal = 180, StepsCompleted = 0 },
             ],
         };
-        var presentation = new IngestionPresentationSnapshotDto
-        {
-            IsRunning = true,
-            ReadyGroups = 10,
-            NeedReviewCount = 11,
-            ActiveOperations = 9,
-            QueuedOperations = 10,
-            ByType =
-            [
-                new IngestionPresentationTypeDto { MediaType = "Movies", ReadyGroups = 3, ActiveOperations = 1, QueuedOperations = 4 },
-                new IngestionPresentationTypeDto { MediaType = "Music", ReadyGroups = 7, ActiveOperations = 8, QueuedOperations = 6 },
-            ],
-        };
+        var presentation = new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 11 };
 
         var whole = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.Queue, queue).Add(card => card.Presentation, presentation));
-        Assert.Contains("40% processed", whole.Find("[data-testid='activity-progress-percent']").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Review 11 items", whole.Find("a.lact-summary__review").TextContent, StringComparison.Ordinal);
+        Assert.Equal("40%", Normalize(whole.Find(".app-progress-bar__value").TextContent));
+        Assert.StartsWith("15 of 40 files processed", Normalize(whole.Find("[data-testid='activity-progress-counts']").TextContent), StringComparison.Ordinal);
+        Assert.Equal("11 need review", Normalize(whole.Find("a.lact-progress__pill").TextContent));
 
         var watch = Render<LibraryActivityProgressCard>(parameters => parameters
             .Add(card => card.Queue, queue)
@@ -66,16 +84,10 @@ public sealed class LibraryActivityComponentTests : LiveLibraryTestContext
             .Add(card => card.MediaTypes, new HashSet<string>(["Movies", "TV", "Videos"], StringComparer.Ordinal)));
 
         // (45 + 90) of 180 steps; the Watch files that are not finished keep it under 100.
-        Assert.Contains("75% processed", watch.Find("[data-testid='activity-progress-percent']").TextContent, StringComparison.Ordinal);
-        var counts = watch.Find("[data-testid='activity-progress-counts']").TextContent;
-        Assert.Contains("3 ready", counts, StringComparison.Ordinal);
+        Assert.Equal("75%", Normalize(watch.Find(".app-progress-bar__value").TextContent));
+        Assert.StartsWith("15 of 20 files processed", Normalize(watch.Find("[data-testid='activity-progress-counts']").TextContent), StringComparison.Ordinal);
         // The need-review number is the Needs Review list's own count (D28), so a chip never narrows it.
-        Assert.Contains("11 need review", counts, StringComparison.Ordinal);
-        Assert.Contains("1 processing", counts, StringComparison.Ordinal);
-        Assert.Contains("4 queued", counts, StringComparison.Ordinal);
-        Assert.Contains("10 movies", counts, StringComparison.Ordinal);
-        Assert.DoesNotContain("tracks", counts, StringComparison.Ordinal);
-        Assert.Contains("Review 11 items", watch.Find("a.lact-summary__review").TextContent, StringComparison.Ordinal);
+        Assert.Equal("11 need review", Normalize(watch.Find("a.lact-progress__pill").TextContent));
     }
 
     [Fact]
@@ -91,18 +103,74 @@ public sealed class LibraryActivityComponentTests : LiveLibraryTestContext
             .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 5 })
             .Add(card => card.MediaTypes, new HashSet<string>(["Books", "Comics"], StringComparer.Ordinal)));
 
-        Assert.Contains("Review 5 items", cut.Find("a.lact-summary__review").TextContent, StringComparison.Ordinal);
-        Assert.Contains("25% processed", cut.Find("[data-testid='activity-progress-percent']").TextContent, StringComparison.Ordinal);
+        Assert.Equal("5 need review", Normalize(cut.Find("a.lact-progress__pill").TextContent));
+        Assert.Equal("25%", Normalize(cut.Find(".app-progress-bar__value").TextContent));
     }
 
     [Fact]
-    public void ProgressCard_WhenNothingWaitsInNeedsReview_ShowsNoReviewLink()
+    public void ProgressCard_WhenNothingWaitsInNeedsReview_ShowsNoPill()
     {
         var cut = Render<LibraryActivityProgressCard>(parameters => parameters
             .Add(card => card.Queue, new IngestionQueueProgressDto { State = "working", FilesFound = 10 })
             .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 0 }));
 
-        Assert.Empty(cut.FindAll("a.lact-summary__review"));
+        Assert.Empty(cut.FindAll("a.lact-progress__pill"));
+        Assert.Empty(cut.FindAll("[data-testid='activity-need-review']"));
+    }
+
+    [Fact]
+    public void ProgressCard_WithOneTitleToReview_SaysOneNeedsReview_AndAHostForNonAdministratorsCanHideThePill()
+    {
+        var presentation = new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 1 };
+        var queue = new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 2, Progress = 0.2 };
+
+        var one = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.Queue, queue).Add(card => card.Presentation, presentation));
+        Assert.Equal("1 needs review", Normalize(one.Find("a.lact-progress__pill").TextContent));
+
+        var hidden = Render<LibraryActivityProgressCard>(parameters => parameters
+            .Add(card => card.Queue, queue)
+            .Add(card => card.Presentation, presentation)
+            .Add(card => card.ShowReview, false));
+        Assert.Empty(hidden.FindAll("a.lact-progress__pill"));
+    }
+
+    [Fact]
+    public void ProgressCard_WithTheTotalNotKnownYet_ShowsFilesFoundOverAMovingBarAndNoPercent()
+    {
+        var cut = Render<LibraryActivityProgressCard>(parameters => parameters
+            .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, FilesDiscovered = 412 }));
+
+        Assert.Equal("412 files found", Normalize(cut.Find("[data-testid='activity-progress-counts']").TextContent));
+        Assert.NotNull(cut.Find("[data-testid='activity-progress-bar'].app-progress-bar--indeterminate"));
+        Assert.Empty(cut.FindAll(".app-progress-bar__value"));
+        Assert.DoesNotContain("elapsed", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProgressCard_ShowsViewActivityOnlyWhereTheHostAsksForIt_WorkingAndIdle()
+    {
+        var working = new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 2, Progress = 0.2 };
+
+        var activityPage = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.Queue, working));
+        Assert.Empty(activityPage.FindAll("a.lact-progress__view"));
+
+        var libraries = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.Queue, working).Add(card => card.ShowViewActivity, true));
+        var link = libraries.Find("a.lact-progress__view");
+        Assert.Equal("/settings/library-activity", link.GetAttribute("href"));
+        Assert.Equal("View activity", Normalize(link.TextContent));
+
+        var idle = Render<LibraryActivityProgressCard>(parameters => parameters.Add(card => card.ShowViewActivity, true));
+        Assert.Equal("/settings/library-activity", idle.Find("[data-testid='activity-up-to-date'] a.lact-progress__view").GetAttribute("href"));
+    }
+
+    [Fact]
+    public void ProgressCard_StacksOnAPhone_IconAndTitleThenTheLineThenThePillThenTheBar_WithNothingHidden()
+    {
+        var css = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Settings", "LibraryActivity", "LibraryActivityProgressCard.razor.css"));
+        var phone = css[css.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
+
+        Assert.Contains("grid-template-areas: \"icon head\" \"line line\" \"actions actions\" \"bar bar\";", phone, StringComparison.Ordinal);
+        Assert.DoesNotContain("display: none", phone, StringComparison.Ordinal);
     }
 
     [Fact]

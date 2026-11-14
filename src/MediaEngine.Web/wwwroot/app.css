@@ -4841,7 +4841,6 @@ button.app-toggle-chip.lact-chip.is-on { border-color: var(--lib-area-colour, va
 @media (max-width: 640px) {
     .lact-box__toggle { grid-template-areas: "what status chev" "covers covers covers" "count count count"; grid-template-columns: minmax(0, 1fr) auto auto; row-gap: var(--tl-space-2); }
 }
-a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 600; white-space: nowrap; }
 /* One colour per library kind (setup and libraries fixes D12), chosen in LibraryKindLook.ColorClass; the card cell and the row icon both read --lib-kind-color. */
 .lib-kind-color--movies { --lib-kind-color: var(--tl-media-movies); }
 .lib-kind-color--tv { --lib-kind-color: var(--tl-media-tv); }

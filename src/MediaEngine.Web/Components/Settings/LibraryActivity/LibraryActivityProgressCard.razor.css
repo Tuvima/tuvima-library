@@ -1,12 +1,22 @@
-/* The one card under the chips (mock screens 2 and 3): a raised box with the title and percent on one line, the bar, then the counts on the left and Review N items on the right. */
-.lact-summary { display: flex; flex-direction: column; gap: var(--tl-space-2); padding: var(--tl-space-3) var(--tl-space-4); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); color: var(--tl-text-secondary); }
-.lact-summary--idle { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--tl-space-1); }
-.lact-summary strong { color: var(--tl-text-primary); }
-.lact-summary__head { display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-3); font-size: var(--tl-type-heading-size); }
-.lact-summary__title { margin-right: auto; }
-.lact-summary__head { justify-content: flex-start; }
-.lact-summary__ring { position: relative; display: inline-grid; place-items: center; width: 2.3rem; height: 2.3rem; color: var(--tl-accent-secondary); }
-.lact-summary__foot { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--tl-space-3); }
-.lact-summary__counts { min-width: 0; }
+/* The one slim progress card (spec library-activity D32): icon, title and "In progress" over one line on the left, the amber need-review pill (and View activity
+   on the Libraries page) on the right, and a thin bar with its percent along the bottom. On a phone it stacks: icon and title, the line, the pill, then the bar. */
+.lact-progress { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "icon head actions" "icon line actions" "bar bar bar"; align-items: center; column-gap: var(--tl-space-3); row-gap: var(--tl-space-1); padding: var(--tl-space-3) var(--tl-space-4); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); color: var(--tl-text-secondary); }
+.lact-progress strong { color: var(--tl-text-primary); }
+.lact-progress--idle { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tl-space-2) var(--tl-space-3); }
+.lact-progress__idle-text { min-width: 0; }
+.lact-progress__icon { grid-area: icon; color: var(--tl-accent-primary); }
+.lact-progress__head { grid-area: head; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--tl-space-1) var(--tl-space-3); min-width: 0; }
+.lact-progress__title { font-size: var(--tl-type-heading-size); font-weight: var(--tl-type-heading-weight); }
+.lact-progress__state { display: inline-flex; align-items: center; gap: var(--tl-space-1); color: var(--tl-accent-primary); font-size: var(--tl-type-label-size); font-weight: var(--tl-type-label-weight); }
+.lact-progress__dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.lact-progress__line { grid-area: line; min-width: 0; font-size: var(--tl-type-secondary-size); overflow-wrap: anywhere; }
+.lact-progress__actions { grid-area: actions; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--tl-space-2); }
+.lact-progress__pill { display: inline-flex; align-items: center; padding: var(--tl-space-1) var(--tl-space-3); border: 1px solid var(--tl-status-warning-border); border-radius: var(--tl-radius-pill); background: var(--tl-status-warning-soft); color: var(--tl-status-warning); font-size: var(--tl-type-label-size); font-weight: var(--tl-type-label-weight); white-space: nowrap; }
+.lact-progress__pill:hover, .lact-progress__pill:focus-visible { background: var(--tl-status-warning-border); }
+.lact-progress__bar { grid-area: bar; margin-top: var(--tl-space-2); color: var(--tl-accent-primary); }
 .lact-waiting { margin: 0; color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); }
-@media (max-width: 600px) { .lact-summary__foot { flex-direction: column; } }
+
+@media (max-width: 600px) {
+    .lact-progress { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icon head" "line line" "actions actions" "bar bar"; row-gap: var(--tl-space-2); }
+    .lact-progress__actions { justify-content: flex-start; }
+}

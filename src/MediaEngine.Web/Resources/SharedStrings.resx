@@ -10049,9 +10049,6 @@
   <data name="LibraryActivity_BackgroundFor" xml:space="preserve">
     <value>{0} for {1:N0} {2}</value>
   </data>
-  <data name="LibraryActivity_CountsFound" xml:space="preserve">
-    <value>{0} found</value>
-  </data>
   <data name="LibraryActivity_DateRange" xml:space="preserve">
     <value>Date range</value>
   </data>
@@ -10109,24 +10106,6 @@
   <data name="LibraryActivity_OpenTitle" xml:space="preserve">
     <value>Open {0}</value>
   </data>
-  <data name="LibraryActivity_PercentProcessed" xml:space="preserve">
-    <value>{0}% processed</value>
-  </data>
-  <data name="LibraryActivity_Processing" xml:space="preserve">
-    <value>{0} processing</value>
-  </data>
-  <data name="LibraryActivity_Queued" xml:space="preserve">
-    <value>{0} queued</value>
-  </data>
-  <data name="LibraryActivity_Ready" xml:space="preserve">
-    <value>{0} ready</value>
-  </data>
-  <data name="LibraryActivity_ReviewItems" xml:space="preserve">
-    <value>Review {0} items →</value>
-  </data>
-  <data name="LibraryActivity_ReviewOneItem" xml:space="preserve">
-    <value>Review 1 item →</value>
-  </data>
   <data name="LibraryActivity_SearchHistory" xml:space="preserve">
     <value>Search history</value>
   </data>
@@ -10177,6 +10156,27 @@
   </data>
   <data name="LibraryActivity_WorkingNow" xml:space="preserve">
     <value>Working now</value>
+  </data>
+  <data name="LibraryActivity_InProgress" xml:space="preserve">
+    <value>In progress</value>
+  </data>
+  <data name="LibraryActivity_FilesProcessed" xml:space="preserve">
+    <value>{0} of {1} files processed</value>
+  </data>
+  <data name="LibraryActivity_FilesProcessedOne" xml:space="preserve">
+    <value>{0} of 1 file processed</value>
+  </data>
+  <data name="LibraryActivity_Elapsed" xml:space="preserve">
+    <value>{0} elapsed</value>
+  </data>
+  <data name="LibraryActivity_NeedReviewOne" xml:space="preserve">
+    <value>1 needs review</value>
+  </data>
+  <data name="LibraryActivity_ViewActivity" xml:space="preserve">
+    <value>View activity</value>
+  </data>
+  <data name="LibraryActivity_Progress" xml:space="preserve">
+    <value>Library update progress</value>
   </data>
   <data name="ViewActions_Download" xml:space="preserve">
     <value>Download</value>
@@ -12769,18 +12769,6 @@
   </data>
   <data name="BackupRecoveryPanel_RestorePinHelp" xml:space="preserve">
     <value>Only needed if this backup includes keys. Without the right PIN everything else still restores and you enter keys again.</value>
-  </data>
-  <data name="LibraryScanCard_Idle" xml:space="preserve">
-    <value>Idle</value>
-  </data>
-  <data name="LibraryScanCard_Working" xml:space="preserve">
-    <value>Scanning your libraries</value>
-  </data>
-  <data name="LibraryScanCard_Progress" xml:space="preserve">
-    <value>Scan progress</value>
-  </data>
-  <data name="LibraryScanCard_ViewActivity" xml:space="preserve">
-    <value>View activity</value>
   </data>
   <data name="SetupVaultOffer_ForTitle" xml:space="preserve">
     <value>What the Vault is for</value>

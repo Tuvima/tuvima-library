@@ -1,0 +1,44 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Web.Services.Integration
+@implements IAsyncDisposable
+@inject IngestionLiveDashboardState Dashboard
+@inject DashboardSessionAccessor Session
+
+@* The Libraries page's progress card (spec library-activity D36): the very same card the Activity page draws, fed by the same live state, with the
+   View activity button added (administrators only, since Activity is their page). It replaces the old scan card, so the two cannot drift apart. *@
+<LibraryActivityProgressCard Queue="Dashboard.QueueProgress"
+                             Presentation="Dashboard.Presentation"
+                             LastCompleted="LastCompleted"
+                             ShowViewActivity="CanOpenActivity"
+                             ShowReview="CanOpenActivity" />
+
+@code {
+    private bool _disposed;
+
+    private bool CanOpenActivity => Session.HasNavigation("settings.administration");
+
+    // The Libraries page has no History list to read the last finished run from; the Engine's own last-activity time stands in for it while idle.
+    private DateTimeOffset? LastCompleted => Dashboard.QueueProgress is { State: not "working" } queue ? queue.LastActivityAt : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Dashboard.OnChanged += OnDashboardChanged;
+        await Dashboard.InitializeAsync();
+    }
+
+    private void OnDashboardChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Dashboard.OnChanged -= OnDashboardChanged;
+        await Dashboard.StopAsync();
+    }
+}
