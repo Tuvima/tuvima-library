@@ -381,6 +381,20 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OnAPhone_ArtworkShowsASmallPreviewWithViewFullSize_AboveTheActionsAndTheVersions()
+    {
+        var cut = await RenderArtworkAsync(phone: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__version")));
+
+        var art = cut.Find(".tl-art-picker--phone .tl-art-picker__art");
+        Assert.NotNull(art.QuerySelector(".tl-art-picker__preview-col .tl-art-picker__preview img"));
+        Assert.NotNull(art.QuerySelector(".tl-art-picker__preview-col .tl-art-picker__fullsize"));
+        var html = cut.Markup;
+        Assert.True(html.IndexOf("tl-art-picker__preview-col", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__strip", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task OnAPhone_UploadOffersThePhonesPhotosAndItsCameraThroughTheSameUpload()
     {
         var cut = await RenderArtworkAsync(phone: true);
