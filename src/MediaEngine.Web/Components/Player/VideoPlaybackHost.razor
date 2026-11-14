@@ -17,6 +17,7 @@
 @inject IServiceProvider Services
 @inject NavigationManager Nav
 @inject ILogger<VideoPlaybackHost> Logger
+@inject BrowserPlaybackCapabilityReporter AbilityReporter
 @implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
 
@@ -1136,14 +1137,14 @@
         Tools.Close();
     }
 
-    private Task HandleErrorAsync()
+    private async Task HandleErrorAsync()
     {
         if (Playback.IsVideoMode)
         {
+            // Tell the Engine so the next start of this kind of file uses a lighter-to-heavier rung (playback-path D13).
+            await AbilityReporter.ReportFailureAsync(Playback.CurrentManifest, "This video source failed to load or play.");
             Playback.MarkCurrentFailed("This video source failed to load or play.");
         }
-
-        return Task.CompletedTask;
     }
 
     private async Task HandleTransportCommandAsync(PlaybackTransportCommand command)

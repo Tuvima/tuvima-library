@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1558; api=0; web-client=56
+# scopes: contracts=1562; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1002,7 +1002,10 @@
   SupportsHdr: System.Boolean | json=supports_hdr | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SupportsPlaybackSpeed: System.Boolean | json=supports_playback_speed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SupportsOfflineDownloads: System.Boolean | json=supports_offline_downloads | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"schema_version":7,"containers":[],"video_codecs":[],"audio_codecs":[],"subtitle_formats":[],"protocols":[],"max_width":7,"max_height":7,"max_bitrate_kbps":7,"max_audio_channels":7,"supports_hdr":true,"supports_playback_speed":true,"supports_offline_downloads":true}
+  HardwareDecodeVideoCodecs: System.Collections.Generic.IReadOnlyList<System.String> | json=hardware_decode_video_codecs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TenBitVideoCodecs: System.Collections.Generic.IReadOnlyList<System.String> | json=ten_bit_video_codecs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LearnedLimits: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.LearnedPlaybackLimitDto> | json=learned_limits | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"schema_version":7,"containers":[],"video_codecs":[],"audio_codecs":[],"subtitle_formats":[],"protocols":[],"max_width":7,"max_height":7,"max_bitrate_kbps":7,"max_audio_channels":7,"supports_hdr":true,"supports_playback_speed":true,"supports_offline_downloads":true,"hardware_decode_video_codecs":[],"ten_bit_video_codecs":[],"learned_limits":[]}
 
 [contracts] MediaEngine.Contracts.Authentication.ClientDeviceDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1237,6 +1240,16 @@
   Token: System.String | json=token | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExpiresAt: System.DateTimeOffset | json=expires_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.Authentication.LearnedPlaybackLimitDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  VideoCodec: System.String | json=video_codec | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Container: System.String | json=container | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TenBit: System.Boolean | json=ten_bit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FailedRung: System.String | json=failed_rung | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Summary: System.String | json=summary | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LearnedAt: System.DateTimeOffset | json=learned_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"video_codec":"sample","container":"sample","ten_bit":true,"failed_rung":"sample","summary":"sample","learned_at":"2025-01-02T03:04:05+00:00"}
+
 [contracts] MediaEngine.Contracts.Authentication.LinkAccountExternalLoginRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   TransactionTicket: System.String | json=transaction_ticket | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -1278,7 +1291,8 @@
   BacksUpTo: System.String | json=backs_up_to | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BackupProfileId: System.Guid? | json=backup_profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HouseholdId: System.Guid? | json=household_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","device_name":"sample","platform":"sample","client_name":"sample","account_id":"11111111-2222-3333-4444-555555555555","account_display_name":"sample","profile_id":"11111111-2222-3333-4444-555555555555","profile_name":"sample","paired_at":"2025-01-02T03:04:05+00:00","last_seen_at":"2025-01-02T03:04:05+00:00","backs_up_to":"sample","backup_profile_id":"11111111-2222-3333-4444-555555555555","household_id":"11111111-2222-3333-4444-555555555555"}
+  Capabilities: MediaEngine.Contracts.Authentication.ClientCapabilitiesDto | json=capabilities | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","device_name":"sample","platform":"sample","client_name":"sample","account_id":"11111111-2222-3333-4444-555555555555","account_display_name":"sample","profile_id":"11111111-2222-3333-4444-555555555555","profile_name":"sample","paired_at":"2025-01-02T03:04:05+00:00","last_seen_at":"2025-01-02T03:04:05+00:00","backs_up_to":"sample","backup_profile_id":"11111111-2222-3333-4444-555555555555","household_id":"11111111-2222-3333-4444-555555555555","capabilities":null}
 
 [contracts] MediaEngine.Contracts.Authentication.ManagedProfileResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9092,6 +9106,12 @@
   Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"profileId":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","contentBase64":"sample","runningTimeSeconds":7,"chapters":[],"mode":"sample"}
 
+[contracts] MediaEngine.Contracts.Playback.BrowserCapabilitiesReportDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Browser: System.String | json=browser | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Capabilities: MediaEngine.Contracts.Authentication.ClientCapabilitiesDto | json=capabilities | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"browser":"sample","capabilities":null}
+
 [contracts] MediaEngine.Contracts.Playback.CastSessionDto
   kind=class | converter=default | number-handling=default | unmapped=default
   AssetId: System.Guid | json=assetId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9428,6 +9448,17 @@
   ExpiresAt: System.DateTimeOffset? | json=expiresAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","profileKey":"sample","status":"sample","createdAt":"2025-01-02T03:04:05+00:00","scheduledFor":"2025-01-02T03:04:05+00:00","startedAt":"2025-01-02T03:04:05+00:00","completedAt":"2025-01-02T03:04:05+00:00","progressPct":7,"outputPath":"sample","outputBytes":7,"lastError":"sample","retryCount":7,"expiresAt":"2025-01-02T03:04:05+00:00"}
 
+[contracts] MediaEngine.Contracts.Playback.GraphicsHardwareDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Outcome: System.String | json=outcome | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CardName: System.String | json=cardName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Accelerator: System.String | json=accelerator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProcessorOnlyChosen: System.Boolean | json=processorOnlyChosen | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TestedAt: System.DateTimeOffset? | json=testedAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"outcome":"sample","cardName":"sample","accelerator":"sample","reason":"sample","detail":"sample","processorOnlyChosen":true,"testedAt":"2025-01-02T03:04:05+00:00"}
+
 [contracts] MediaEngine.Contracts.Playback.ListenPlaybackCommandDto
   kind=class | converter=default | number-handling=default | unmapped=default
   CommandId: System.Guid | json=commandId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9596,6 +9627,13 @@
   ActiveJobs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EncodeJobDto> | json=activeJobs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Warnings: System.Collections.Generic.IReadOnlyList<System.String> | json=warnings | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"fFmpegAvailable":true,"fFmpegVersion":"sample","hlsMuxerAvailable":true,"h264EncoderAvailable":true,"aacEncoderAvailable":true,"webVttEncoderAvailable":true,"preferredHardwareEncoder":"sample","activeJobs":[],"warnings":[]}
+
+[contracts] MediaEngine.Contracts.Playback.PlaybackFailureReportDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Rung: System.String | json=rung | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Browser: System.String | json=browser | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"rung":"sample","detail":"sample","browser":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackGeneralSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
