@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1573; api=0; web-client=56
+# scopes: contracts=1571; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4344,21 +4344,6 @@
   HasMore: System.Boolean | json=has_more | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorFolderEntryDto> | json=entries | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"root_name":"sample","folder":"sample","parent_folder":"sample","read_only":true,"total":7,"offset":7,"has_more":true,"entries":[]}
-
-[contracts] MediaEngine.Contracts.Editing.EditorFollowUpDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Finished: System.Boolean | json=finished | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorFollowUpStepDto> | json=steps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"entity_id":"11111111-2222-3333-4444-555555555555","finished":true,"steps":[]}
-
-[contracts] MediaEngine.Contracts.Editing.EditorFollowUpStepDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Label: System.String | json=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  State: System.String | json=state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Reason: System.String | json=reason | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","label":"sample","state":"sample","reason":"sample"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorGroupMatchDto
   kind=class | converter=default | number-handling=default | unmapped=default

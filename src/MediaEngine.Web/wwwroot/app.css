@@ -5344,6 +5344,7 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .review-changes--phone{padding:var(--tl-space-4) var(--tl-space-4) 0}
 .review-changes--phone .review-changes__footer{flex-direction:column-reverse;align-items:stretch;gap:var(--tl-space-2);padding-bottom:max(var(--tl-space-3),var(--tl-editor-safe-bottom))}
 .review-changes--phone .review-changes__footer>*{min-width:0;min-height:var(--tl-tap-target-min)}
+.review-changes--phone .review-changes__footer.app-action-bar>.app-footer-start{margin-inline-end:0}
 .review-changes--phone .review-changes__row{grid-template-columns:minmax(0,1fr) auto}.review-changes--phone .review-changes__change{grid-column:1/-1;grid-row:2}.review-changes--phone .review-changes__row--file .review-changes__change{grid-column:1;grid-row:auto}.review-changes--phone .review-changes__actions{flex-wrap:wrap;grid-column:2;grid-row:1}.review-changes--phone .review-changes__row--file .review-changes__actions{grid-row:auto}
 /* The collection and playlist builder on a phone: the same full-screen sheet as the editor window. The shell sets collection-editor-workspace--phone (and the editor's
    tl-editor-window--phone, so editor-focus.js finds it) for a phone, a portrait tablet and a window no wider than a tablet, and asks its dialog to be full screen, so the

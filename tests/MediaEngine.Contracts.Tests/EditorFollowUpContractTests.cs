@@ -7,18 +7,6 @@ namespace MediaEngine.Contracts.Tests;
 public sealed class EditorFollowUpContractTests
 {
     [Fact]
-    public void FollowUpStep_UsesSnakeCaseNames()
-    {
-        var step = new EditorFollowUpStepDto { Key = EditorFollowUpSteps.PicturesAndCast, Label = "Pictures and cast", State = EditorFollowUpStates.Failed, Reason = "No pictures." };
-
-        var json = JsonSerializer.Serialize(step);
-
-        Assert.Contains("\"key\":\"pictures_and_cast\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"state\":\"failed\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"reason\":\"No pictures.\"", json, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void ShowChildRematchPreview_UsesSnakeCaseNames_AndRoundTrips()
     {
         var preview = new ShowChildRematchPreviewDto { EntityId = Guid.NewGuid(), SeriesId = "200", ShowName = "Show", EpisodeCount = 4, MatchableCount = 3, NotFoundCount = 1 };

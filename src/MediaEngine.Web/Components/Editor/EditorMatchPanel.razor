@@ -445,7 +445,7 @@
 
         var id = Subject.EntityId;
         var request = EditorMatchRules.RequestFor(candidate, Subject, Subject.TargetGroup);
-        var facts = EditorMatchRules.FactsOf(candidate);
+        var facts = EditorMatchRules.FactsOf(candidate, _setup?.Providers);
         _staging = true;
         try
         {
@@ -468,7 +468,7 @@
                 EditSessionChangeKinds.Identity,
                 id,
                 EditSessionIdentityTarget.Serialize(request),
-                label: $"{facts.Title} ({facts.Provider})",
+                label: EditorMatchRules.StagedLabel(facts),
                 before: MatchBefore());
             StagePlacement(id, placement);
             await StageShowRematchAsync(id, candidate);
@@ -479,7 +479,7 @@
         }
 
         _stagedSide = new ProviderMatchSide(candidate.ProviderId, candidate.ProviderName, candidate.ProviderItemId ?? string.Empty, facts.Title, facts.Year);
-        _staged = $"{facts.Title} ({facts.Provider})";
+        _staged = EditorMatchRules.StagedLabel(facts);
         _revealStaged = IsPhone;
         _changing = false;
         _found = null;

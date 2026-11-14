@@ -1,5 +1,6 @@
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services.Collections;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Matching;
 using MediaEngine.Domain.Contracts;
@@ -44,8 +45,12 @@ public sealed class RetailMatchWriter(
     AppleRetailClient apple,
     IEnumerable<IExternalMetadataProvider> externalProviders,
     ILoggerFactory loggerFactory,
-    IExternalLookupGuard lookupGuard) : IRetailMatchWriter
+    IExternalLookupGuard lookupGuard,
+    EditorProviderNames? providerNames = null) : IRetailMatchWriter
 {
+    /// <summary>The lookup from a provider key to its product name; History lines use it so a code name never reaches the History tab.</summary>
+    internal EditorProviderNames? ProviderNames => providerNames;
+
     internal IMetadataClaimRepository ClaimRepo => claimRepo;
     internal ICanonicalValueRepository CanonicalRepo => canonicalRepo;
     internal IBridgeIdRepository BridgeIdRepo => bridgeIdRepo;

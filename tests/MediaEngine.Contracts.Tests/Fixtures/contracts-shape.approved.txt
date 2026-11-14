@@ -3657,21 +3657,6 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFolderTreeDto
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
   Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorFolderEntryDto> | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpDto
-  EntityId: System.Guid | nullability=not-null | accessors=get,set
-  Finished: System.Boolean | nullability=not-null | accessors=get,set
-  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorFollowUpStepDto> | nullability=not-null | accessors=get,set
-
-MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpStates
-
-MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpStepDto
-  Key: System.String | nullability=not-null | accessors=get,set
-  Label: System.String | nullability=not-null | accessors=get,set
-  State: System.String | nullability=not-null | accessors=get,set
-  Reason: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpSteps
-
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorGroupMatchDto
   Kind: System.String | nullability=not-null | accessors=get,init
   TargetLabel: System.String | nullability=not-null | accessors=get,init

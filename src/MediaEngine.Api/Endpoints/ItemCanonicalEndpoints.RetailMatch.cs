@@ -2,6 +2,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Api.Services.Collections;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Matching;
 using MediaEngine.Contracts.Realtime;
@@ -48,6 +49,16 @@ public static partial class ItemCanonicalEndpoints
             await collectionRepo.UpdateWorkWikidataMatchStateAsync(workId, WorkWikidataStatus.ProviderOnly, WorkWikidataMatchSource.Retail, false, ct: ct);
         }
     }
+
+    /// <summary>The History line for a replaced match; <paramref name=providerText/> is a product name, never a provider key.</summary>
+    internal static string RetailMatchReplacedDetail(string providerText, string? providerItemId) =>
+        $"Retail match replaced with {providerText} {providerItemId}.";
+
+    /// <summary>The History line for the item behind a replaced match; <paramref name=providerText/> is a product name, never a provider key.</summary>
+    internal static string RetailIdentityChangedDetail(string providerText, string? providerItemId, string? artworkMessage, string? albumManifestRefreshDetail) =>
+        string.IsNullOrWhiteSpace(artworkMessage)
+            ? $"Retail identity changed to {providerText} {providerItemId}. {albumManifestRefreshDetail}".Trim()
+            : $"Retail identity changed to {providerText} {providerItemId}. {artworkMessage} {albumManifestRefreshDetail}".Trim();
 
     /// <summary>
     /// Replaces the item's retail match. The one write path behind both the editor's retail-match action and the edit session's
@@ -598,6 +609,8 @@ public static partial class ItemCanonicalEndpoints
             }
         }
 
+        // History is read by people: the source is named as a product ("Apple Books"), never by its key ("apple_api"; universal editor v7 D4).
+        var providerText = writer.ProviderNames?.NameForHistory(request.ProviderName, policy.TargetFieldGroup) ?? EditorProviderNames.UnknownProviderText;
         await activityRepo.LogAsync(new SystemActivityEntry
         {
             OccurredAt = now,
@@ -605,7 +618,7 @@ public static partial class ItemCanonicalEndpoints
             EntityId = entityId,
             EntityType = "Work",
             CollectionName = context.WorkTitle,
-            Detail = $"Retail match replaced with {request.ProviderName} {request.ProviderItemId}.",
+            Detail = RetailMatchReplacedDetail(providerText, request.ProviderItemId),
         }, ct);
 
         await timeline.RecordRetailMatchedAsync(
@@ -622,8 +635,8 @@ public static partial class ItemCanonicalEndpoints
             EntityType = "MediaAsset",
             CollectionName = context.WorkTitle,
             Detail = artworkResult is null
-                ? $"Retail identity changed to {request.ProviderName} {request.ProviderItemId}. {albumManifestRefreshDetail}".Trim()
-                : $"Retail identity changed to {request.ProviderName} {request.ProviderItemId}. {artworkResult.Message} {albumManifestRefreshDetail}".Trim(),
+                ? RetailIdentityChangedDetail(providerText, request.ProviderItemId, null, albumManifestRefreshDetail)
+                : RetailIdentityChangedDetail(providerText, request.ProviderItemId, artworkResult.Message, albumManifestRefreshDetail),
         }, ct);
         await activityRepo.LogAsync(new SystemActivityEntry
         {

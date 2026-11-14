@@ -352,6 +352,24 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ApplyingAnAppleBooksResult_NamesAppleBooksInTheStagedNoteAndInReview_NeverTheProviderKey()
+    {
+        var cut = SearchBooks(BookResult("Dune"));
+        cut.Find("[data-testid=match-result]").Click();
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Apply match"));
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Apply match").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-staged]")));
+        var note = cut.Find("[data-testid=match-staged]").TextContent;
+        Assert.Contains("Dune (Apple Books)", note, StringComparison.Ordinal);
+        Assert.DoesNotContain("apple_api", note, StringComparison.Ordinal);
+
+        var row = Assert.Single(EditReviewRows.Build(_session.Pending, _ => "Dune", null));
+        Assert.Contains("(Apple Books)", row.After, StringComparison.Ordinal);
+        Assert.DoesNotContain("apple_api", row.After, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ApplyMatch_ThatNamesAnotherPlace_StagesTheMoveAndTheFileMoveWithPaths_InAManagedFolder()
     {
         var destination = Guid.Parse("55555555-5555-5555-5555-555555555555");
