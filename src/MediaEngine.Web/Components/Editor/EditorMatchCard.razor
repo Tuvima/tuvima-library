@@ -6,7 +6,8 @@
 @* The Match card (universal editor v6, WP3; mock screens A and B): the one card for a chosen search result and for the item's current match. A large
    cover to compare with your own, the title, the series and number, the creator and year, a link to the provider, two lines of description with
    Read more, the verdict in words, the compare table (Field, Your file, the other side) and a basis note. The caller fills the foot: Apply match
-   under a search, Open source / Remove match / Change match for a match. Every comparison comes from the Engine; this part only draws it. *@
+   under a search, Remove match and Change match for a match. Every comparison comes from the Engine; this part only draws it. The item's own
+   match is Plain (universal editor v7 D5): only the match and the foot, with no verdict, table or basis. *@
 <section class="@RootClass" aria-label="@Model.Title" data-art="@ArtName" @attributes="AdditionalAttributes">
     <div class="tl-mcard__top">
         <div class="tl-mcard__cover" data-testid="match-card-cover">
@@ -58,27 +59,30 @@
                     </div>
                 }
             }
-            @if (CompareBesideCover && !IsPhone)
-            {
-                @Compare()
-            }
         </div>
     </div>
 
-    @if (!CompareBesideCover || IsPhone)
+    @if (HasCompare)
     {
         @Compare()
     }
 
     @Extra
 
-    <div class="tl-mcard__foot">
-        <div class="tl-mcard__basis">
-            <span data-testid="match-card-basis">@Model.BasisNote</span>
-            @Basis
+    @if (Plain)
+    {
+        <div class="tl-mcard__foot tl-mcard__foot--plain">@Foot</div>
+    }
+    else
+    {
+        <div class="tl-mcard__foot">
+            <div class="tl-mcard__basis">
+                <span data-testid="match-card-basis">@Model.BasisNote</span>
+                @Basis
+            </div>
+            <div class="tl-mcard__actions">@Foot</div>
         </div>
-        <div class="tl-mcard__actions">@Foot</div>
-    </div>
+    }
 </section>
 
 @code {
@@ -95,14 +99,14 @@
     /// <summary>The heading of the third column: "Selected result" under a search, "Matched record" for the current match.</summary>
     [Parameter, EditorRequired] public string ResultLabel { get; set; } = string.Empty;
 
-    /// <summary>The actions at the bottom right: Apply match with its line, or Open source, Remove match and Change match.</summary>
+    /// <summary>The actions at the bottom right: Apply match, or (Plain) Remove match at the left and Change match at the right across the full width.</summary>
     [Parameter] public RenderFragment? Foot { get; set; }
 
-    /// <summary>More under the basis note on the left of the foot (the current match says unlocked details update).</summary>
+    /// <summary>More under the basis note on the left of the foot.</summary>
     [Parameter] public RenderFragment? Basis { get; set; }
 
-    /// <summary>True for the current match: the verdict and the table sit in the right column beside the cover. False under a search: they run the full width under it.</summary>
-    [Parameter] public bool CompareBesideCover { get; set; }
+    /// <summary>True for the item's own match (v7 D5): just the match and the foot, with no verdict, compare table or basis note. Those stay on a candidate under a search.</summary>
+    [Parameter] public bool Plain { get; set; }
 
     /// <summary>More that belongs with the card, drawn under the table and above the foot (on a phone, the editions of a work, so Apply match stays the last thing).</summary>
     [Parameter] public RenderFragment? Extra { get; set; }
@@ -120,6 +124,9 @@
     private AppControlSize ControlSize => IsPhone ? AppControlSize.Normal : AppControlSize.Compact;
 
     private string RootClass => string.Join(' ', new[] { "tl-mcard", IsPhone ? "tl-mcard--phone" : null, InSheet ? "tl-mcard--sheet" : null }.Where(part => part is not null));
+
+    // Nothing to draw (a Plain card, or a result the Engine sent neither a verdict nor rows for) leaves no empty block behind.
+    private bool HasCompare => !Plain && (!string.IsNullOrWhiteSpace(Model.Verdict) || Model.Rows.Count > 0);
 
     private string ArtName => Model.Art.ToString().ToLowerInvariant();
 
@@ -161,11 +168,10 @@
         }
     }
 
-    // The verdict in words and the compare table. Under a search it runs the full width under the cover and facts; for the current match it sits in
-    // the right column beside the cover (mock B).
+    // The verdict in words and the compare table, under a search only: they run the full width under the cover and facts.
     private RenderFragment Compare() => __builder =>
     {
-        <div class="tl-mcard__compare" data-beside="@(CompareBesideCover && !IsPhone ? "true" : "false")">
+        <div class="tl-mcard__compare">
         @* The verdict is the Engine's; a result it gave none for (a Wikidata item) has only the table. *@
         @if (!string.IsNullOrWhiteSpace(Model.Verdict))
         {

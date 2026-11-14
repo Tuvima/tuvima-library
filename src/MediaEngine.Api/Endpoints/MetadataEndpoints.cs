@@ -522,6 +522,7 @@ public static partial class MetadataEndpoints
             IEnumerable<IExternalMetadataProvider> providers,
             IWorkDetailReadService workDetailReadService,
             EditorHeaderReadService editorHeader,
+            EditorProviderNames editorProviderNames,
             HttpContext http,
             CancellationToken ct) =>
         {
@@ -661,7 +662,7 @@ public static partial class MetadataEndpoints
                 SupportsFileTab = context.SupportsFileTab,
                 FileMetadataSyncStatus = context.FileMetadataSyncStatus,
                 CurrentTargetSummary = ToContract(context.CurrentTargetSummary),
-                IdentitySummary = ToContract(context.IdentitySummary),
+                IdentitySummary = ToContract(context.IdentitySummary, editorProviderNames, header?.Kind),
                 IdentityStatus = context.IdentityStatus,
                 ArtworkSource = context.ArtworkSource,
                 FieldLockMap = new Dictionary<string, bool>(context.FieldLockMap, StringComparer.OrdinalIgnoreCase),
@@ -688,7 +689,7 @@ public static partial class MetadataEndpoints
                         DisplaySubtitle = scope.DisplaySubtitle,
                         BreadcrumbLabel = scope.BreadcrumbLabel,
                         CanonicalTargetGroup = scope.CanonicalTargetGroup,
-                        IdentitySummary = ToContract(scopeIdentity),
+                        IdentitySummary = ToContract(scopeIdentity, editorProviderNames, header?.Kind),
                         ScopeSummary = scope.ScopeSummary,
                         ReadOnlyHint = scope.ReadOnlyHint,
                         CanEditFields = scope.CanEditFields,
@@ -3141,9 +3142,10 @@ public static partial class MetadataEndpoints
         Subtitle = source.Subtitle,
     };
 
-    private static MediaEditorIdentitySummaryDto ToContract(MediaEditorIdentitySummaryEnvelope source) => new()
+    // The provider is named the way a person knows it ("Apple Books", "TMDB"), never by its key (universal editor v7 D4).
+    private static MediaEditorIdentitySummaryDto ToContract(MediaEditorIdentitySummaryEnvelope source, EditorProviderNames productNames, string? editorKind) => new()
     {
-        ProviderName = source.ProviderName,
+        ProviderName = productNames.ProductName(source.ProviderName, editorKind),
         ProviderItemId = source.ProviderItemId,
         MatchSource = source.MatchSource,
         MatchMethod = source.MatchMethod,
