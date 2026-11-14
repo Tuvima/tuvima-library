@@ -83,40 +83,26 @@ public static class EditorMatchCardModels
         };
     }
 
-    /// <summary>The card for the item's current match: the same card, filled from the Engine's read of the matched record and its "why" rows.</summary>
-    public static EditorMatchCardModel ForCurrent(EditorCurrentMatchDto current, string? kind, IStringLocalizer<SharedStrings> l)
+    /// <summary>
+    /// The card for the item's current match (universal editor v7 D5): only the match itself, which is the cover, title, creator and year, and the short
+    /// description. No verdict, compare rows, basis note or provider line: those belong to a candidate under a search, and the header links say where it matched.
+    /// </summary>
+    public static EditorMatchCardModel ForCurrent(EditorCurrentMatchDto current, string? kind)
     {
         var record = current.Record!;
-        var rows = current.Why.Select(row => new EditorMatchCardRow(
-            FieldLabel(row.Field, kind, l),
-            Value(row.Field, row.YourFile, yours: true, l),
-            Value(row.Field, row.MatchedRecord, yours: false, l),
-            row.State,
-            row.Field)).ToList();
-        var notes = new List<string>();
-        if (current.Pinned)
-        {
-            notes.Add(l["EditorMatchPanel_ChosenByYou"].Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(current.Note))
-        {
-            notes.Add(current.Note);
-        }
-
         return new EditorMatchCardModel(
             record.Title,
             null,
             Join(record.Creator, record.Year),
             record.ImageUrl,
             ArtFor(record.Kind, kind),
-            record.ProviderName,
-            record.SourceUrl,
+            string.Empty,
+            null,
             record.Description,
-            current.Verdict ?? EditorMatchVerdicts.Possible,
-            rows,
-            BasisNote(rows, kind, l),
-            notes);
+            null,
+            [],
+            string.Empty,
+            []);
     }
 
     /// <summary>"Percy Jackson and the Olympians · Book 2" (a list row joins the same two parts with a comma); null when the provider gave no series.</summary>
@@ -163,10 +149,6 @@ public static class EditorMatchCardModels
             _ => EditorMatchCardArt.Portrait,
         },
     };
-
-    /// <summary>The "Links this book to Apple Books." line under Apply match, worded for the kind and the provider.</summary>
-    public static string ApplyLine(string? kind, string provider, IStringLocalizer<SharedStrings> l) =>
-        l["EditorMatchCard_LinksThis", EditorMatchKindWords.For(kind, l), provider].Value;
 
     // The field's name, in the kind's own words: the creator is an author, a director or an artist; the identifier is an ISBN for a book.
     private static string FieldLabel(string fact, string? kind, IStringLocalizer<SharedStrings> l) => fact switch

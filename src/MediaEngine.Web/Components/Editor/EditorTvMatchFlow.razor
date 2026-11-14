@@ -638,8 +638,7 @@
             var model = CardModel(_judged, _candidate);
             <EditorMatchCard Model="@model" ResultLabel="@L["EditorMatchResults_SelectedResult"].Value" data-testid="match-preview">
                 <Foot>
-                    <EditorMatchApply ShowCancel="ShowCancel" CanApply="@(CanApply && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel"
-                                      Line="@EditorMatchCardModels.ApplyLine(KindId, model.ProviderName, L)" />
+                    <EditorMatchApply ShowCancel="ShowCancel" CanApply="@(CanApply && !_judging)" OnApply="ApplyAsync" OnCancel="OnCancel" />
                 </Foot>
             </EditorMatchCard>
         }
