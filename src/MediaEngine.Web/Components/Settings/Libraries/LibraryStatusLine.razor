@@ -2,9 +2,12 @@
 @using MediaEngine.Contracts.Ingestion
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Navigation
 @implements IAsyncDisposable
 @inject IngestionLiveDashboardState Dashboard
 @inject DashboardSessionAccessor Session
+@inject SettingsAttentionState Attention
 @inject IStringLocalizer<SharedStrings> L
 
 @* The one line above the libraries table (settings-and-setup-simplified D6): what the Library is doing right now, in the Engine's own
@@ -47,6 +50,16 @@
             {
                 <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Tools)">@L["LibraryStatusLine_ToolsAndRequirements"]</AppLink>
             }
+            @if (Attention.ReviewCount > 0)
+            {
+                <span class="libs-status__divider" aria-hidden="true"></span>
+                <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Review)" class="libs-status__review" data-testid="library-status-review-link">@ReviewText(Attention.ReviewCount)</AppLink>
+            }
+            @if (CanOpenActivity)
+            {
+                <span class="libs-status__divider" aria-hidden="true"></span>
+                <AppLink Href="@SettingsNav.RouteFor(SettingsSection.RecentlyAdded)" data-testid="library-status-view-activity">@L["LibraryStatusLine_ViewActivity"]</AppLink>
+            }
         </p>
         <AppButton Label="@L["IngestionScanAction_CheckFoldersForChanges"].Value"
                    ButtonStyle="AppButtonStyle.Outlined"
@@ -64,6 +77,9 @@
     // Activity is the administrators' page (the same check the menu uses), so the leading word is a link only for them.
     private bool CanOpenActivity => Session.HasNavigation("settings.administration");
 
+    private static string ReviewText(int count) =>
+        count == 1 ? "1 item needs review" : $"{DisplayFormat.FormatCount(count)} items need review";
+
     private IngestionQueueProgressDto? Queue => Dashboard.QueueProgress;
     private bool IsBusy => !Dashboard.IsEngineUnreachable && (Queue is null || IngestionQueueProgressText.IsWorking(Queue));
 
@@ -78,6 +94,7 @@
     protected override async Task OnInitializedAsync()
     {
         Dashboard.OnChanged += OnDashboardChanged;
+        Attention.Changed += OnDashboardChanged;
         await Dashboard.InitializeAsync();
     }
 
@@ -90,6 +107,7 @@
     public async ValueTask DisposeAsync()
     {
         Dashboard.OnChanged -= OnDashboardChanged;
+        Attention.Changed -= OnDashboardChanged;
         await Dashboard.StopAsync();
     }
 }

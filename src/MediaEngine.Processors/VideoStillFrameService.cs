@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using MediaEngine.Domain.Contracts;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 
 namespace MediaEngine.Processors;
@@ -10,7 +11,7 @@ namespace MediaEngine.Processors;
 /// throws away near-black and near-uniform frames, and keeps the sharpest, most colourful one. The pick is cached, so a
 /// second scan reuses it. When every frame is dull the answer is "no picture", never a black tile.
 /// </summary>
-public sealed class VideoStillFrameService(IFFmpegService? ffmpeg, string cacheRoot)
+public sealed class VideoStillFrameService(IFFmpegService? ffmpeg, string cacheRoot, ILogger<VideoStillFrameService>? logger = null)
 {
     private static readonly double[] SamplePoints = [0.10, 0.20, 0.35, 0.50];
     private const double MinimumBrightness = 0.08;
@@ -18,19 +19,24 @@ public sealed class VideoStillFrameService(IFFmpegService? ffmpeg, string cacheR
 
     public async Task<FolderCoverImage?> GetOrCreateAsync(string videoPath, CancellationToken ct = default)
     {
+        // Only the file's name is logged, never its folder: the log may be shared when someone asks for help.
+        var name = Path.GetFileName(videoPath);
         if (!File.Exists(videoPath))
         {
+            logger?.LogInformation("Video frame step: {File} was not found, so no frame was made", name);
             return null;
         }
 
         var cachePath = Path.Combine(cacheRoot, CacheKey(videoPath) + ".jpg");
         if (File.Exists(cachePath))
         {
+            logger?.LogInformation("Video frame step: reused the saved frame for {File}", name);
             return new FolderCoverImage(await File.ReadAllBytesAsync(cachePath, ct).ConfigureAwait(false), "image/jpeg", cachePath);
         }
 
         if (ffmpeg is null || !ffmpeg.IsAvailable)
         {
+            logger?.LogWarning("Video frame step: FFmpeg is not available, so no frame was made for {File}", name);
             return null;
         }
 
@@ -65,11 +71,14 @@ public sealed class VideoStillFrameService(IFFmpegService? ffmpeg, string cacheR
 
             if (best is null)
             {
+                logger?.LogInformation(
+                    "Video frame step: no usable frame for {File} (every sampled frame was missing or too dark or flat)", name);
                 return null;
             }
 
             Directory.CreateDirectory(cacheRoot);
             await File.WriteAllBytesAsync(cachePath, best, ct).ConfigureAwait(false);
+            logger?.LogInformation("Video frame step: made a frame for {File}", name);
             return new FolderCoverImage(best, "image/jpeg", cachePath);
         }
         finally

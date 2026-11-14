@@ -709,8 +709,17 @@
     }
     // The Libraries panel saves each folder as it is added; the person moves on with Continue.
     private async Task LibraryCreatedAsync() { _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession); }
-    private async Task LoadProvidersAsync() { _busy = true; _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); _busy = false; }
-    private async Task RefreshProvidersAsync() { _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); }
+    // An empty answer right after a fresh start usually means the Engine is still warming up, so the list is asked for once more before the step
+    // says it could not load it (it then offers Try again); the step never looks finished while empty (issue 971).
+    private async Task<IReadOnlyList<ProviderCatalogueDto>> FetchProvidersWithRetryAsync()
+    {
+        var catalogue = await ApiClient.GetProviderCatalogueAsync();
+        if (catalogue.Count > 0) return catalogue;
+        await Task.Delay(1500);
+        return await ApiClient.GetProviderCatalogueAsync();
+    }
+    private async Task LoadProvidersAsync() { _busy = true; try { _providerCatalogue = await FetchProvidersWithRetryAsync(); } finally { _busy = false; } }
+    private async Task RefreshProvidersAsync() { _providerCatalogue = await FetchProvidersWithRetryAsync(); }
     private async Task SaveProviderResultAsync()
     {
         _stageNotice = null;

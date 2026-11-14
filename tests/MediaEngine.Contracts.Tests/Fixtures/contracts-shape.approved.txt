@@ -3741,7 +3741,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderRootDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
-  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSecondLevelDto
   Label: System.String | nullability=not-null | accessors=get,init
@@ -10158,11 +10158,11 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewRowDto
   Review: MediaEngine.Contracts.Review.ReviewItemDto | nullability=nullable | accessors=get,init
   Unmatched: MediaEngine.Contracts.Library.UnmatchedItemDto | nullability=nullable | accessors=get,init
   Group: System.String | nullability=not-null | accessors=get,init
-  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,set
   FamilyKey: System.String | nullability=nullable | accessors=get,init
   FamilyTitle: System.String | nullability=nullable | accessors=get,init
   FamilyWorkId: System.Guid? | nullability=nullable | accessors=get,init
-  FamilyCoverUrl: System.String | nullability=nullable | accessors=get,init
+  FamilyCoverUrl: System.String | nullability=nullable | accessors=get,set
   NextRetryAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   Kept: System.Boolean | nullability=not-null | accessors=get,init
 

@@ -57,7 +57,7 @@ public static class SettingsMenuBuilder
     /// <summary>The phone page selector: the same groups and pages as the desktop menu, one line each.</summary>
     public static IReadOnlyList<SettingsPhoneMenuGroup> BuildPhoneSelector(IReadOnlyList<MediaSectionNavigationGroup> groups) =>
         groups
-            .Select(group => new SettingsPhoneMenuGroup(group.Label, group.Items.Select(item => new SettingsPhoneMenuOption(item.Route, item.Label)).ToList()))
+            .Select(group => new SettingsPhoneMenuGroup(group.Label, group.Items.Select(item => new SettingsPhoneMenuOption(item.Route, PhoneLabel(item))).ToList()))
             .ToList();
 
     /// <summary>
@@ -95,6 +95,10 @@ public static class SettingsMenuBuilder
             .SelectMany(group => group.Items)
             .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(current), StringComparer.OrdinalIgnoreCase) == true)?.Route
         ?? SettingsNav.RouteFor(current);
+
+    /// <summary>The phone selector's line: the name, and the amber review count in brackets beside Libraries for administrators, as on a computer (issue 930).</summary>
+    private static string PhoneLabel(MediaSectionNavigationItem item) =>
+        item.MetaIsNotification && !string.IsNullOrWhiteSpace(item.Meta) ? $"{item.Label} ({item.Meta})" : item.Label;
 
     private static bool IsOffered(SettingsMenuNode node, SettingsMenuContext context)
     {
@@ -134,7 +138,7 @@ public static class SettingsMenuBuilder
 
     private static MediaSectionNavigationItem BuildItem(SettingsMenuNode node, SettingsMenuContext context)
     {
-        // Needs Review is a tab of the Libraries page, so that row carries the amber "waiting" shading; Local AI, Plugins and Integrations show red with "Broken" while something switched on cannot work
+        // Needs Review is a tab of the Libraries page, so that row carries only the amber count pill, with no shading (issue 973); Local AI, Plugins and Integrations show red with "Broken" while something switched on cannot work
         // (Local AI: an AI feature is on and the tools are missing); Tools shows red with what is missing, and Security & Devices shows
         // red with "No password" until the account is secured. Phones show plain rows.
         var sections = node.Sections.ToList();
@@ -161,13 +165,11 @@ public static class SettingsMenuBuilder
             AttentionDot: node.Section == SettingsSection.Security && context.SecurityNeedsAttention && !securityRed,
             Attention: localAiOff || pluginsBroken || integrationsBroken || toolsMissing || securityRed
                 ? MediaSectionAttentionLevel.Blocked
-                : showReview && !context.IsMobile
-                    ? MediaSectionAttentionLevel.Waiting
-                    : MediaSectionAttentionLevel.None,
+                : MediaSectionAttentionLevel.None,
             AttentionLabel: toolsMissing ? context.ToolsMissingReason
                 : securityRed ? "No password"
                 : localAiOff || pluginsBroken || integrationsBroken ? "Broken" : null,
-            ActiveRoutes: sections.Select(SettingsNav.BaseRouteFor).Distinct().ToList(),
+            ActiveRoutes: sections.Select(SettingsNav.BaseRouteFor).Concat(node.Section == SettingsSection.Overview ? new[] { "=/settings" } : []).Distinct().ToList(),
             InactiveRoutes: null);
     }
 }

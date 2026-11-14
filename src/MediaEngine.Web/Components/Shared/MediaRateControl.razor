@@ -1,17 +1,17 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
-<span class="media-rate-control @(_open ? "is-open" : "") @(Bare ? "media-rate-control--bare" : "")" @ref="_root" @onpointerenter="PointerEnterAsync" @onpointerleave="BlurAsync" @onfocusin="Show" @onfocusout="BlurAsync" @onkeydown="KeyAsync">
+<span class="media-rate-control @(_open ? "is-open" : "") @(Bare ? "media-rate-control--bare" : "")" @ref="_root" @onpointerenter="PointerEnterAsync" @onpointerleave="PointerLeaveAsync" @onfocusout="BlurAsync" @onkeydown="KeyAsync">
     @if (PlaybackAppearance)
     {
-        <AppTooltip Text="@L["MediaRateControl_Rate"].Value"><AppNativeButton Type="button" Class="playback-song-action" AriaLabel="@L["MediaRateControl_Rate"].Value" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
+        <AppTooltip Text="@L["MediaRateControl_Rate"].Value"><AppNativeButton Type="button" Class="playback-song-action" AriaLabel="@L["MediaRateControl_Rate"].Value" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Toggle">
             <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" />
         </AppNativeButton></AppTooltip>
     }
     else
     {
         @* The shared icon button (Look v3 D9): Plain at rest, Filled once the title is rated. *@
-        <AppIconButton Class="hero-icon-circle" Tooltip="@L["MediaRateControl_Rate"].Value" Label="@Label" Size="@TriggerSize" ButtonStyle="@(Positive || Negative ? AppButtonStyle.Filled : AppButtonStyle.Text)" Soft="true" OverArtwork="@OverArtwork" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
+        <AppIconButton Class="hero-icon-circle" Tooltip="@L["MediaRateControl_Rate"].Value" Label="@Label" Size="@TriggerSize" ButtonStyle="@(Positive || Negative ? AppButtonStyle.Filled : AppButtonStyle.Text)" Soft="true" OverArtwork="@OverArtwork" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Toggle">
             @if (UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" /> }
             else { <AppMaterialIcon Icon="@(Positive ? AppMaterialIcons.Filled.ThumbUp : Negative ? AppMaterialIcons.Filled.ThumbDown : AppMaterialIcons.Outlined.ThumbUp)" /> }
         </AppIconButton>
@@ -44,8 +44,25 @@
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
     private ElementReference _root;
     private bool _open;
-    private Task Show() => SetOpen(true);
-    private Task PointerEnterAsync(PointerEventArgs e) => e.PointerType == "mouse" ? Show() : Task.CompletedTask;
+    // Like Netflix (issue 1009): pointing at Rate opens the choices after a short delay, as a pill that slides open right over the thumb
+    // itself (never over Play). Pressing Rate opens it at once, which is how touch and keyboard open it.
+    private const int HoverDelayMilliseconds = 400;
+    private CancellationTokenSource? _hoverDelay;
+    private Task Toggle() { CancelHoverDelay(); return SetOpen(true); } // a press never closes it (the pointer may already have opened it); leaving, Escape or clicking elsewhere does
+    private void CancelHoverDelay() { _hoverDelay?.Cancel(); _hoverDelay = null; }
+    private async Task PointerEnterAsync(PointerEventArgs e)
+    {
+        if (e.PointerType != "mouse" || _open) return;
+        CancelHoverDelay();
+        var delay = _hoverDelay = new CancellationTokenSource();
+        try { await Task.Delay(HoverDelayMilliseconds, delay.Token); }
+        catch (TaskCanceledException) { return; } // the pointer left before the delay ended: nothing opens
+        if (!ReferenceEquals(_hoverDelay, delay)) return;
+        _hoverDelay = null;
+        await SetOpen(true);
+    }
+    private async Task PointerLeaveAsync() { CancelHoverDelay(); await BlurAsync(); }
+
     private async Task BlurAsync() { if (!await JS.InvokeAsync<bool>("tuvimaMenu.hasFocus", _root)) await SetOpen(false); }
     private async Task SetOpen(bool value) { _open = value; await OpenChanged.InvokeAsync(value); }
     private async Task SelectAsync(bool positive) { await Selected.InvokeAsync(positive); await SetOpen(false); }

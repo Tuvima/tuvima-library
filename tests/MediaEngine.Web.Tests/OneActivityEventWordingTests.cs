@@ -112,7 +112,7 @@ public sealed class OneActivityEventWordingTests : AsyncBunitContext
         var statusLine = Render<LibraryStatusLine>();
         var idle = Queue("idle", addedAt, filesDone: 508);
         _state.PushIngestionQueueProgress(idle);
-        statusLine.WaitForAssertion(() => Assert.Equal("Up to date · last checked 2 min ago", statusLine.Find("[data-testid='library-status-text']").TextContent.Trim()));
+        statusLine.WaitForAssertion(() => Assert.Equal("Up to date · Checked 2 min ago", statusLine.Find("[data-testid='library-status-text']").TextContent.Trim()));
         indicator.WaitForAssertion(() => Assert.StartsWith(SystemActivityText.IdleLabel, Tooltip(indicator), StringComparison.Ordinal));
 
         Assert.Equal($"{SystemActivityText.IdleLabel} · Last activity 2 minutes ago", Tooltip(indicator));

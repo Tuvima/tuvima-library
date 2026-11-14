@@ -111,7 +111,8 @@ public sealed class LibraryKindCatalog
     ];
 
     /// <summary>An available View kind by key, or null (a kind of another group is not a View kind).</summary>
-    public LibraryTypeOption? FindViewKind(string? key) => Find(key) is { } kind && LibraryTypeCatalog.IsViewKind(kind) ? kind : null;
+    public LibraryTypeOption? FindViewKind(string? key) =>
+        Find(key) is { } kind && LibraryTypeCatalog.IsViewKind(kind) && !LibraryTypeCatalog.IsHiddenFromAdd(kind) ? kind : null; // Personal videos has no page of its own: Photos and videos is the one page (issue 931)
 
     /// <summary>An available kind (including the View kinds) by key, or null.</summary>
     public LibraryTypeOption? Find(string? key) =>

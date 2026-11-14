@@ -77,6 +77,13 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ProfileRow_StandsForTheBareSettingsAddress()
+    {
+        var profile = Flatten(SettingsMenuBuilder.Build(Context(administrator: true))).Single(row => row.Label == "Profile");
+        Assert.Contains("=/settings", profile.ActiveRoutes!);
+    }
+
+    [Fact]
     public void Member_GetsOnlyPersonal_AndKidsGetsOnlyProfile()
     {
         var member = SettingsMenuBuilder.Build(Context(administrator: false));
@@ -103,12 +110,12 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void NeedsReviewCount_MakesLibrariesWaiting_AndRecentlyAddedIsNotInTheMenu()
+    public void NeedsReviewCount_ShowsOnlyThePillOnLibraries_AndRecentlyAddedIsNotInTheMenu()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 3 });
 
         var libraries = Flatten(groups).Single(row => row.Label == "Libraries");
-        Assert.Equal(MediaSectionAttentionLevel.Waiting, libraries.Attention);
+        Assert.Equal(MediaSectionAttentionLevel.None, libraries.Attention);
         Assert.Equal("3", libraries.Meta);
         Assert.True(libraries.MetaIsNotification);
         Assert.DoesNotContain(Flatten(groups), row => row.Label == "Recently Added");
@@ -497,7 +504,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8, IsMobile = true });
 
         Assert.Equal("8", Assert.Single(Flatten(groups), row => row.Meta is not null).Meta);
-        Assert.Equal("Libraries", SettingsMenuBuilder.BuildPhoneSelector(groups).SelectMany(group => group.Options).Single(option => option.Route == "/settings/libraries").Label);
+        Assert.Equal("Libraries (8)", SettingsMenuBuilder.BuildPhoneSelector(groups).SelectMany(group => group.Options).Single(option => option.Route == "/settings/libraries").Label);
     }
 
     private static SettingsMenuContext Context(bool administrator) =>

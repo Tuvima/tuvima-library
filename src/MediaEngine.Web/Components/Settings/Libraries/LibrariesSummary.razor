@@ -2,34 +2,40 @@
 @using MediaEngine.Web.Services.Formatting
 @inject IStringLocalizer<SharedStrings> L
 
-@* "In your collection" (Libraries and folder picker, item 2): one count per kind of library, each in its kind's one color (LibraryKindLook.ColorClass, the same as the icon on its row). A kind whose count is not known shows its
-   folder count instead, and a kind with nothing in it is left out. Photos and videos are counted by their folders. *@
-@if (Items.Count > 0)
+@* The five fixed areas across the top of Libraries (issue 1006): Watch, Listen, Read, View and, only when a Vault library exists, the Vault in gold. Each cell is the
+   area's own icon in the area's color, one big total and the area's name. No heading and no card: the icons never change, only the totals grow, so a new kind (YouTube,
+   say) just adds to its area. A total is the titles the Engine counts for the area's libraries, or their folders where a count is not known. *@
+@if (Cells.Count > 0)
 {
-    <section class="lib-summary" aria-label="@L["LibrariesSummary_InYourCollection"].Value" data-lib-summary>
-        <h3 class="lib-summary__heading">@L["LibrariesSummary_InYourCollection"]</h3>
-        <ul class="lib-summary__list">
-            @foreach (var item in Items)
-            {
-                <li class="lib-summary__item @item.Colour" data-kind="@item.Key">
-                    <span class="lib-summary__icon"><AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Tile32" /></span>
-                    <span class="lib-summary__count">@DisplayFormat.FormatCount(item.Count)</span>
-                    <span class="lib-summary__label">@item.Label</span>
-                </li>
-            }
-        </ul>
-    </section>
+    <ul class="lib-summary" aria-label="@L["LibrariesSummary_InYourCollection"].Value" data-lib-summary>
+        @foreach (var cell in Cells)
+        {
+            <li class="lib-summary__item lib-area--@cell.Key" data-area="@cell.Key">
+                <span class="lib-summary__icon"><AppMaterialIcon Icon="@cell.Icon" Size="AppIconSize.Tile32" /></span>
+                <span class="lib-summary__count">@DisplayFormat.FormatCount(cell.Count)</span>
+                <span class="lib-summary__label">@cell.Label</span>
+            </li>
+        }
+    </ul>
 }
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<LibraryListRow> Rows { get; set; } = [];
 
-    private sealed record Item(string Key, string Colour, string Icon, string Label, int Count);
+    /// <summary>The areas the person may see, in the page's order (the Vault only for someone who may open it).</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<LibraryGroup> Areas { get; set; } = [];
 
-    // Titles when the Engine counts them for the kind, else folders ("2 folders"); rows with nothing in them are left out.
-    private IReadOnlyList<Item> Items => [.. Rows
-        .Select(row => row.Titles is { } titles
-            ? new Item(row.Key, LibraryKindLook.ColorClass(row.Type), row.Type.Icon, row.Type.PluralLabel, titles)
-            : new Item(row.Key, LibraryKindLook.ColorClass(row.Type), row.Type.Icon, L["LibrariesSummary_KindFolders", row.Type.PluralLabel].Value, row.Folders ?? 0))
-        .Where(item => item.Count > 0)];
+    private sealed record Cell(string Key, string Icon, string Label, int Count);
+
+    private static string AreaKeyOf(LibraryListRow row) =>
+        row.Access == LibraryListing.Vault ? LibraryGroupCatalog.VaultKey : row.Area.ToLowerInvariant();
+
+    private IReadOnlyList<Cell> Cells => [.. Areas
+        .Select(area =>
+        {
+            var rows = Rows.Where(row => string.Equals(AreaKeyOf(row), area.Key, StringComparison.OrdinalIgnoreCase)).ToList();
+            return (Area: area, Rows: rows);
+        })
+        .Where(entry => entry.Area.Key != LibraryGroupCatalog.VaultKey || entry.Rows.Count > 0)
+        .Select(entry => new Cell(entry.Area.Key, entry.Area.Icon, entry.Area.Label, entry.Rows.Sum(row => row.Titles ?? row.Folders ?? 0)))];
 }

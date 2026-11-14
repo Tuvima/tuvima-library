@@ -1,7 +1,11 @@
 /* The shared hero row (Look v3 D12): one wide light main button, 56 px tall, and Plain icon-button companions (AppIconButton) at 48 px. */
 .tl-detail-actions { display:flex; flex-direction:column; align-items:flex-start; gap:12px; width:100%; min-width:0; max-width:100%; }
 .tl-detail-primary-actions,.tl-detail-secondary-actions { display:flex; align-items:center; gap:14px; min-width:0; }
-.tl-detail-primary-actions { flex:0 1 auto; }
+.tl-detail-primary-actions { flex:0 1 auto; flex-direction:column; align-items:flex-start; gap:6px; }
+/* The percentage and time left sit under the button only where nothing can hover (phones, tablets without a mouse, TVs); elsewhere they are the tooltip (issue 1000). */
+.tl-detail-action-hint { display:none; color:var(--tl-on-scrim); opacity:.8; font-size:var(--tl-type-secondary-size); font-weight:var(--tl-type-secondary-weight); }
+@media (hover:none) { .tl-detail-action-hint { display:block; } }
+html[data-form-factor="phone"] .tl-detail-action-hint, html[data-form-factor="tv"] .tl-detail-action-hint { display:block; }
 .tl-detail-actions ::deep .tl-detail-action--primary { position:relative; display:flex; align-items:center; justify-content:center; gap:10px; flex:0 0 auto; width:min(100%, 24rem); min-width:180px; max-width:100%; height:var(--tl-hero-action-height); min-height:var(--tl-hero-action-height); padding-inline:24px; border:0; border-radius:var(--tl-control-radius); background:var(--tl-hero-action-bg); color:var(--tl-hero-action-text); font-family:var(--font-ui); font-size:var(--tl-hero-action-label-size); white-space:nowrap; font-weight:var(--tl-font-weight-semibold); cursor:pointer; overflow:hidden; }
 .tl-detail-actions ::deep .tl-detail-action--primary:hover:not(:disabled) { background:var(--tl-hero-action-bg-hover); }
 .tl-detail-actions ::deep .tl-detail-action--primary:focus-visible { outline:2px solid var(--tl-on-scrim); outline-offset:2px; }

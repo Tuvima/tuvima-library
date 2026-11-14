@@ -1,11 +1,9 @@
 .media-rate-control { position:relative; display:inline-flex; align-items:center; }
-.media-rate-control__choices { position:absolute; left:50%; bottom:calc(100% + 4px); display:flex; gap:4px; padding:4px; border:1px solid var(--tl-menu-border); border-radius:var(--tl-control-radius); background:var(--tl-menu-surface); opacity:0; visibility:hidden; transform:translateX(-50%) scale(.96); transition:opacity .15s ease,transform .15s ease; z-index:5; }
-.is-open .media-rate-control__choices { opacity:1; visibility:visible; transform:translateX(-50%) scale(1); }
-@media(prefers-reduced-motion:reduce) { .media-rate-control__choices { transition:none; } }
-
-.media-rate-control__choices::after { content:""; position:absolute; top:100%; inset-inline:0; height:8px; }
-
+/* The choices are a dark pill that slides open to the left over the thumb button itself: Like lands where the Rate button is, Not for me
+   appears beside it. It stays inside the action row, so it never covers Play (issue 1009). */
+.media-rate-control__choices { position:absolute; right:-5px; top:50%; display:flex; gap:4px; padding:4px; border:1px solid var(--tl-menu-border); border-radius:var(--tl-control-radius); background:var(--tl-menu-surface); opacity:0; visibility:hidden; clip-path:inset(0 0 0 100% round var(--tl-control-radius)); transform:translateY(-50%); transition:clip-path .22s ease,opacity .15s ease,visibility 0s linear .22s; z-index:5; }
+.is-open .media-rate-control__choices { opacity:1; visibility:visible; clip-path:inset(0 0 0 0 round var(--tl-control-radius)); transition:clip-path .22s ease,opacity .15s ease,visibility 0s; }
+@media(prefers-reduced-motion:reduce) { .media-rate-control__choices, .is-open .media-rate-control__choices { transition:none; } }
 
 /* Lift the owner as well as the choices above neighboring hero controls. */
 .media-rate-control.is-open { z-index:40; }
-

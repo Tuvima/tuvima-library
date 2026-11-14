@@ -8609,6 +8609,9 @@
   <data name="LibraryStatusLine_ToolsAndRequirements" xml:space="preserve">
     <value>Tools and requirements</value>
   </data>
+  <data name="LibraryStatusLine_ViewActivity" xml:space="preserve">
+    <value>View activity</value>
+  </data>
   <data name="AppCountTabs_Working" xml:space="preserve">
     <value>Working</value>
   </data>
@@ -9742,9 +9745,6 @@
   </data>
   <data name="LibrariesSummary_InYourCollection" xml:space="preserve">
     <value>In your collection</value>
-  </data>
-  <data name="LibrariesSummary_KindFolders" xml:space="preserve">
-    <value>{0} (folders)</value>
   </data>
   <data name="LibraryFoldersPopover_Online" xml:space="preserve">
     <value>Online</value>

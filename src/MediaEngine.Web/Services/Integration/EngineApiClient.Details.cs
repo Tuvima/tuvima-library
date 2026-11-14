@@ -427,13 +427,25 @@ public sealed partial class EngineApiClient
     {
         try
         {
-            return await _http.GetFromJsonAsync<MediaEditorContextDto>($"/metadata/{entityId}/editor-context", ct);
+            var context = await _http.GetFromJsonAsync<MediaEditorContextDto>($"/metadata/{entityId}/editor-context", ct);
+            // The header's cover is an Engine picture address: the browser can only fetch it through the Dashboard's picture route.
+            ThroughPictureRoute(context?.Header);
+            return context;
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /metadata/{EntityId}/editor-context failed", entityId);
             return null;
+        }
+    }
+
+    /// <summary>The editor header's cover is an Engine picture address; only the Dashboard's picture route can serve it to the browser.</summary>
+    private void ThroughPictureRoute(MediaEngine.Contracts.Editing.EditorHeaderDto? header)
+    {
+        if (header?.Root is { CoverUrl: { Length: > 0 } cover } root)
+        {
+            root.CoverUrl = AbsoluteUrl(cover);
         }
     }
 

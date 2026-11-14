@@ -93,6 +93,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = "E:\\Library\\Movies" }));
         }));
         Services.AddScoped<DashboardSessionAccessor>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped<DeviceContextService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddLogging();
@@ -949,10 +950,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal(["Photos and videos", "Documents"], LibraryKindsTestData.Catalog.ViewRowKinds.Select(kind => kind.Label).ToArray());
 
         var rows = LibraryListing.RowsFor(LibraryKindsTestData.Catalog, "view", new LibrariesConfigurationDto(), null, new Dictionary<string, int> { ["photos"] = 1, ["personal_videos"] = 2 }, null, showVault: false);
-        var card = Render<LibrariesSummary>(parameters => parameters.Add(x => x.Rows, rows));
-
-        Assert.Single(card.FindAll("[data-lib-summary] [data-kind=photos]"));
-        Assert.Contains("Photos and videos", Text(card.Find("[data-lib-summary] [data-kind=photos] .lib-summary__label")));
+        Assert.Contains(rows, row => row.Key == "photos" && row.Name == "Photos and videos");
     }
 
     // 10. Phone: counts and status, nothing that changes anything.
@@ -1211,60 +1209,6 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         return [.. new[] { "watch", "listen", "read", "view" }.SelectMany(area => LibraryListing.RowsFor(catalog, area, configuration, null, viewCounts, null, showVault: false))];
     }
 
-    [Fact]
-    public void EveryKindHasTheSameColourOnItsCardCellAndItsSetupRowIcon()
-    {
-        var (catalog, configuration, viewFolders) = EveryKindEverywhere();
-        var rows = RowsOf(catalog, configuration);
-        Assert.Contains(rows, row => row.Key == "photos" && row.Name == "Photos and videos");
-        Assert.Contains(rows, row => row.Type.Key == "podcasts");
-        Assert.Contains(rows, row => row.Type.Key == "youtube");
-
-        var card = Render<LibrariesSummary>(parameters => parameters.Add(x => x.Rows, rows));
-        var table = Render<SetupLibrariesTable>(parameters => parameters.Add(x => x.Configuration, configuration).Add(x => x.Kinds, catalog).Add(x => x.ViewFolders, viewFolders));
-
-        foreach (var row in rows)
-        {
-            var cell = card.Find($"[data-lib-summary] [data-kind='{row.Key}']");
-            var icon = table.Find($"tr[data-library='{row.Key}'] .lib-kind-tile");
-            Assert.Equal(LibraryKindLook.ColorClass(row.Type), ColorClassOf(cell));
-            Assert.Equal(ColorClassOf(cell), ColorClassOf(icon));
-        }
-    }
-
-    [Fact]
-    public void EveryKindHasTheSameColourOnItsCardCellAndItsLibrariesRowIcon()
-    {
-        var (catalog, configuration, _) = EveryKindEverywhere();
-        _kinds = LibraryKindsTestData.All(LibraryKindsTestData.Podcasts());
-        _configuration = configuration;
-        _overview = null; // no title counts known, so each kind's cell shows its folder count
-        var cut = OpenAndSettle();
-
-        // The Vault kind (Adult content) is not listed here, so it is not in the rows either.
-        var listed = RowsOf(catalog, configuration).Where(row => row.Library is not null).ToList();
-        Assert.True(listed.Count >= 10);
-        foreach (var row in listed)
-        {
-            var cell = cut.Find($"[data-lib-summary] [data-kind='{row.Key}']");
-            var icon = Row(cut, row.Key).QuerySelector(".lib-kind-tile")!;
-            Assert.Equal(LibraryKindLook.ColorClass(row.Type), ColorClassOf(cell));
-            Assert.Equal(ColorClassOf(cell), ColorClassOf(icon));
-        }
-    }
-
-    [Fact]
-    public void AudiobooksIsTheAudiobooksColourOnTheCardAndOnTheRow()
-    {
-        var cut = OpenAndSettle();
-
-        var cell = cut.Find($"[data-lib-summary] [data-kind='{AudiobooksId}']");
-        var icon = Row(cut, AudiobooksId).QuerySelector(".lib-kind-tile")!;
-        Assert.Equal("lib-kind-color--audiobooks", ColorClassOf(cell));
-        Assert.Equal("lib-kind-color--audiobooks", ColorClassOf(icon));
-        Assert.Equal("lib-kind-color--movies", ColorClassOf(cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']")));
-    }
-
     [Theory]
     [InlineData("movies", "--tl-media-movies")]
     [InlineData("tv", "--tl-media-tv")]
@@ -1312,15 +1256,18 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ACardCellShowsTheIconThenTheCountThenTheKindName()
+    public void TheTopOfThePageIsFiveFixedAreaCellsEachWithItsIconThenItsTotalThenItsName()
     {
         var cut = OpenAndSettle();
 
-        var cell = cut.Find($"[data-lib-summary] [data-kind='{MoviesId}']");
-        Assert.Equal(["lib-summary__icon", "lib-summary__count", "lib-summary__label"], cell.Children.Select(child => child.ClassName ?? string.Empty).ToArray());
-        Assert.NotNull(cell.Children[0].QuerySelector("svg"));
-        Assert.Equal("1,284", Text(cell.Children[1]));
-        Assert.Equal("Movies", Text(cell.Children[2]));
+        var cells = cut.FindAll("[data-lib-summary] > li");
+        Assert.Equal(["watch", "listen", "read", "view"], cells.Select(cell => cell.GetAttribute("data-area") ?? "").Where(key => key != "vault").ToArray());
+        Assert.Empty(cut.FindAll("[data-lib-summary] h3"));
+        var watch = cut.Find("[data-lib-summary] [data-area=watch]");
+        Assert.Equal(["lib-summary__icon", "lib-summary__count", "lib-summary__label"], watch.Children.Select(child => child.ClassName ?? string.Empty).ToArray());
+        Assert.NotNull(watch.Children[0].QuerySelector("svg"));
+        Assert.Equal("Watch", Text(watch.Children[2]));
+        Assert.Contains("lib-area--watch", watch.ClassName, StringComparison.Ordinal);
     }
 
     [Fact]

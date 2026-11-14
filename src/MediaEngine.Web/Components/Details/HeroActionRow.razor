@@ -11,15 +11,18 @@
     @foreach (var action in PrimaryActions.Where(action => action.Key != "restart").Take(1))
     {
         <div class="tl-detail-primary-actions">
-            <AppNativeButton Type="button" Class="@($"tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(HasEmbeddedProgress ? "tl-detail-action--has-progress" : "")}")" Disabled="@action.IsDisabled" AriaLabel="@(PrimaryAriaLabel ?? action.Label)" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
-                <AppMaterialIcon Icon="@IconFor(action)" />
-                <span class="tl-detail-action-label">
-                    <span>@(PrimaryLabel ?? action.Label)</span>
-                    @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__label">@EmbeddedProgressLabel</span> }
-                    else if (!string.IsNullOrWhiteSpace(PrimaryDetail)) { <span class="tl-detail-action-progress__label">@PrimaryDetail</span> }
-                </span>
-                @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__track" role="progressbar" aria-label="@EmbeddedProgressAriaLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@EmbeddedProgressPercent"><AppCssElement Tag="span" Class="tl-detail-action-progress__fill" Css="@EmbeddedProgressStyle" /></span> }
-            </AppNativeButton>
+            @* The button holds only the icon, the word and the thin progress line (issue 1000). The percentage and time left show as the standard tooltip on
+               hover or focus, and as a quiet line underneath where there is no hover (phones and TVs, by CSS). *@
+            <AppTooltip Text="@ProgressHint" Suppressed="@string.IsNullOrWhiteSpace(ProgressHint)" Class="tl-detail-primary-tooltip">
+                <AppNativeButton Type="button" Class="@($"tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(HasEmbeddedProgress ? "tl-detail-action--has-progress" : "")}")" Disabled="@action.IsDisabled" AriaLabel="@(PrimaryAriaLabel ?? action.Label)" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
+                    <AppMaterialIcon Icon="@IconFor(action)" />
+                    <span class="tl-detail-action-label">
+                        <span>@(PrimaryLabel ?? action.Label)</span>
+                    </span>
+                    @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__track" role="progressbar" aria-label="@EmbeddedProgressAriaLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@EmbeddedProgressPercent"><AppCssElement Tag="span" Class="tl-detail-action-progress__fill" Css="@EmbeddedProgressStyle" /></span> }
+                </AppNativeButton>
+            </AppTooltip>
+            @if (!string.IsNullOrWhiteSpace(ProgressHint)) { <span class="tl-detail-action-progress__label tl-detail-action-hint" aria-hidden="true">@ProgressHint</span> }
         </div>
     }
     <div class="tl-detail-secondary-actions">
@@ -110,6 +113,10 @@
     /// <summary>The shared More list: the overflow actions plus the primary actions that do not fit in the row.</summary>
     public static IReadOnlyList<DetailAction> OverflowMenu(IReadOnlyList<DetailAction> primaryActions, IReadOnlyList<DetailAction> overflowActions) =>
         overflowActions.Concat(primaryActions.Skip(1).Where(action => action.Key is not ("restart" or "shuffle"))).ToList();
+    /// <summary>The percentage and what is left ("42% · 25 min left"), shown as the button's tooltip and, where there is no hover, as a quiet line underneath.</summary>
+    private string? ProgressHint => HasEmbeddedProgress
+        ? string.IsNullOrWhiteSpace(PrimaryDetail) ? EmbeddedProgressLabel : $"{EmbeddedProgressLabel} · {PrimaryDetail}"
+        : string.IsNullOrWhiteSpace(PrimaryDetail) ? null : PrimaryDetail;
     private bool HasEmbeddedProgress => Progress?.Percent is > 0 && PrimaryActions.Count > 0;
     private int EmbeddedProgressPercent => Progress is null
         ? 0

@@ -71,13 +71,25 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
         Assert.Equal("false", cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
     }
     [Fact]
-    public async Task HoverAndFocusBeforeClickDoNotCloseTheRatingChoices()
+    public async Task PointingAtRateOpensTheChoicesOnlyAfterTheDelay_AndFocusAloneNeverOpensThem()
     {
         var cut = Render<MediaRateControl>();
-        await cut.Find(".media-rate-control").TriggerEventAsync("onpointerenter", new PointerEventArgs { PointerType = "mouse" });
-        await cut.Find(".media-rate-control").TriggerEventAsync("onfocusin", new FocusEventArgs());
-        await cut.Find("button[aria-label=Rate]").ClickAsync();
+        var hover = cut.Find(".media-rate-control").TriggerEventAsync("onpointerenter", new PointerEventArgs { PointerType = "mouse" });
+        Assert.Equal("false", cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
+        await hover;
         Assert.Equal("true", cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
     }
+
+    [Fact]
+    public async Task LeavingBeforeTheDelayEndsNeverOpensTheRatingChoices()
+    {
+        JSInterop.Setup<bool>("tuvimaMenu.hasFocus", _ => false).SetResult(false);
+        var cut = Render<MediaRateControl>();
+        var hover = cut.Find(".media-rate-control").TriggerEventAsync("onpointerenter", new PointerEventArgs { PointerType = "mouse" });
+        await cut.Find(".media-rate-control").TriggerEventAsync("onpointerleave", new PointerEventArgs { PointerType = "mouse" });
+        await hover;
+        Assert.Equal("false", cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
+    }
+
 
 }

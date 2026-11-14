@@ -34,7 +34,7 @@
     {
         <div class="libs__header">@_addLibraryAction</div>
     }
-    <LibrariesSummary Rows="@everyRow" />
+    <LibrariesSummary Rows="@everyRow" Areas="@areas" />
 
     <div class="libs__filters">
     <LibraryAreaChips Areas="@areas" Counts="@AreaCounts(groups)" Selected="@_area" SelectedChanged="ChooseAreaAsync" />
