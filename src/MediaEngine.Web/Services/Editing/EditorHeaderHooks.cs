@@ -18,4 +18,13 @@ public sealed class EditorHeaderHooks
 
     /// <summary>"Browse files and folders" was chosen: the id of the item being edited.</summary>
     public Func<Guid, Task>? OpenFolders { get; set; }
+
+    /// <summary>
+    /// True while this device and profile may choose several episodes to edit (the editor is open, may edit, and the device is not a TV). The
+    /// Season (or Section) dropdown draws "Select episodes" only when this says yes; the editor checks again when it is chosen.
+    /// </summary>
+    public Func<bool>? CanSelectEpisodes { get; set; }
+
+    /// <summary>"Select episodes" was chosen: the season or section whose episodes are to be ticked (details-page-bottom D9).</summary>
+    public Func<EpisodeSelectRequest, Task>? OpenEpisodeSelect { get; set; }
 }
