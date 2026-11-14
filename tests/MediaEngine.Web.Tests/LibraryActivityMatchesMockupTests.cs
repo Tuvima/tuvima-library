@@ -23,6 +23,11 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     private IReadOnlyList<ActivityRunDto> _runs = [];
     private IReadOnlyList<MediaEngine.Contracts.Settings.LibraryFolderDto> _libraries = [new() { Id = "movies", Name = "Movies" }];
 
+    private IReadOnlyCollection<string>? _lastRunLibraries;
+    private IReadOnlyCollection<string>? _lastRunMediaTypes;
+    private IReadOnlyCollection<string>? _lastGroupLibraries;
+    private IReadOnlyCollection<string>? _lastGroupMediaTypes;
+
     public LibraryActivityMatchesMockupTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -35,11 +40,21 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetIngestionQueueProgressAsync), _ => Task.FromResult<IngestionQueueProgressDto?>(new IngestionQueueProgressDto { State = "idle" }));
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<MediaEngine.Contracts.Settings.LibrariesConfigurationDto?>(
                 new MediaEngine.Contracts.Settings.LibrariesConfigurationDto { Libraries = [.. _libraries] }));
-            stub.SetHandler(nameof(IEngineApiClient.GetActivityRunsAsync), _ => Task.FromResult<ActivityRunsDto?>(new ActivityRunsDto(_runs, false, DateTimeOffset.UtcNow.AddMinutes(-12))));
-            stub.SetHandler(nameof(IEngineApiClient.GetActivityRunGroupsAsync), _ => Task.FromResult<ActivityRunGroupsDto?>(new ActivityRunGroupsDto(
-                Guid.NewGuid(),
-                [new ActivityGroupDto("movie:dune", "Dune", "Movies", 1, $"/engine-image/stream/entity/work/{Work:D}/cover?size=s", $"/details/work/{Work:D}?context=watch")],
-                false)));
+            stub.SetHandler(nameof(IEngineApiClient.GetActivityRunsAsync), args =>
+            {
+                _lastRunLibraries = (IReadOnlyCollection<string>?)args![0];
+                _lastRunMediaTypes = (IReadOnlyCollection<string>?)args[8];
+                return Task.FromResult<ActivityRunsDto?>(new ActivityRunsDto(_runs, false, DateTimeOffset.UtcNow.AddMinutes(-12)));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetActivityRunGroupsAsync), args =>
+            {
+                _lastGroupLibraries = (IReadOnlyCollection<string>?)args![1];
+                _lastGroupMediaTypes = (IReadOnlyCollection<string>?)args[2];
+                return Task.FromResult<ActivityRunGroupsDto?>(new ActivityRunGroupsDto(
+                    Guid.NewGuid(),
+                    [new ActivityGroupDto("movie:dune", "Dune", "Movies", 1, $"/engine-image/stream/entity/work/{Work:D}/cover?size=s", $"/details/work/{Work:D}?context=watch")],
+                    false));
+            });
         });
         Services.AddSingleton(api);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
@@ -261,6 +276,52 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
 
         Assert.Equal(2, cut.FindAll(".lact-box__covers [data-testid='lact-picture-empty']").Count);
         Assert.Empty(cut.FindAll(".lact-box__covers img"));
+    }
+
+    [Fact]
+    public void AnOpenedBatchThatHoldsSeveralKinds_HasNoFilterByKindInsideIt()
+    {
+        _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Movies", 2), new ActivityRunCountDto("Books", 3)], [])];
+
+        var cut = Render<LibraryActivityPage>();
+        cut.WaitForElement("[data-testid='lact-entry-toggle']").Click();
+
+        var open = cut.WaitForElement("[data-testid='lact-open']");
+        Assert.Empty(open.QuerySelectorAll("[aria-pressed]"));
+        Assert.Empty(cut.FindAll(".lact-kind-chip"));
+        Assert.Empty(cut.FindAll(".lact-kinds"));
+    }
+
+    [Fact]
+    public void WithWatchPicked_TheTimelineAndAnOpenedBatchAreBothAskedForOnlyTheWatchKinds()
+    {
+        _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Movies", 2)], [])];
+        var cut = Render<LibraryActivityPage>();
+        cut.WaitForAssertion(() => Assert.Empty(_lastRunMediaTypes ?? []));
+
+        cut.FindAll("[data-testid='lact-chips'] button")[1].Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(["Movies", "TV", "Videos"], _lastRunMediaTypes));
+        cut.WaitForElement("[data-testid='lact-entry-toggle']").Click();
+        cut.WaitForAssertion(() => Assert.Equal(["Movies", "TV", "Videos"], _lastGroupMediaTypes));
+
+        cut.FindAll("[data-testid='lact-chips'] button")[3].Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(["Books", "Comics"], _lastRunMediaTypes));
+    }
+
+    [Fact]
+    public void ALibrarysOwnActivityTab_AsksTheTimelineAndAnOpenedBatchForThatLibraryOnly()
+    {
+        _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Movies", 2)], [])];
+
+        var cut = Render<LibraryActivityPage>(parameters => parameters.Add(page => page.LibraryId, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));
+        cut.WaitForElement("[data-testid='lact-entry-toggle']").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"], _lastGroupLibraries));
+        Assert.Equal(["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"], _lastRunLibraries);
+        Assert.Empty(_lastRunMediaTypes ?? []);
+        Assert.Empty(cut.FindAll("[data-testid='lact-chips']"));
     }
 
     [Fact]

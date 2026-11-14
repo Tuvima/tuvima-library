@@ -7,7 +7,7 @@
 
 @* One History entry (spec library-activity D9, D11, D12, D15): a round date bubble on the line, then what was added and where, up to five small
    covers, a plain count and Completed (or Active while it runs). Clicking opens it in place: its items as standard tiles in a scrolling area
-   that shows two rows at a time and loads more as you scroll, with a filter by kind. Episodes are stacked into one tile per show, tracks into
+   that shows two rows at a time and loads more as you scroll, with no filter of its own (the chips at the top of the page narrow the whole page, D31). Episodes are stacked into one tile per show, tracks into
    one per album. No file or enrichment detail (that lives in the item's editor). *@
 <li class="lact-entry @(Run.Status == ActivityRunStatusNames.Active ? "is-active" : null)" data-testid="lact-entry" data-run-status="@Run.Status">
     <div class="lact-entry__row">
@@ -56,20 +56,9 @@
     {
         @* The opened batch is its own panel under the line, indented past the date bubble (mock screen 2). *@
         <div class="lact-open" data-testid="lact-open">
-                @if (Run.Counts.Count > 1)
-                {
-                    <div class="lact-kinds" role="group" aria-label="@L["LibraryActivity_FilterByKind"]">
-                        <AppToggleChip Pressed="@(_mediaType is null)" Class="lact-kind-chip" OnClick="@(() => PickAsync(null))">@L["LibraryActivity_AllCount", Run.ItemCount.ToString("N0")]</AppToggleChip>
-                        @foreach (var count in Run.Counts)
-                        {
-                            <AppToggleChip Pressed="@(_mediaType == count.MediaType)" Class="lact-kind-chip" OnClick="@(() => PickAsync(count.MediaType))">@KindName(count.MediaType) @count.Count.ToString("N0")</AppToggleChip>
-                        }
-                    </div>
-                }
-
                 @if (_failed)
                 {
-                    <AppAlert Tone="AppUiTone.Warning">@L["LibraryActivity_ItemsFailed"] <AppButton Label="@L["LibraryActivity_TryAgain"].Value" OnClick="@(() => PickAsync(_mediaType))" /></AppAlert>
+                    <AppAlert Tone="AppUiTone.Warning">@L["LibraryActivity_ItemsFailed"] <AppButton Label="@L["LibraryActivity_TryAgain"].Value" OnClick="LoadFirstPageAsync" /></AppAlert>
                 }
                 else if (_loadedOnce && _groups.Count == 0)
                 {
@@ -104,13 +93,18 @@
 
     [Parameter, EditorRequired] public ActivityRunDto Run { get; set; } = default!;
 
+    /// <summary>The libraries the page is narrowed to (a library's own tab, or an area chip); empty means every library.</summary>
+    [Parameter] public IReadOnlyList<string> LibraryIds { get; set; } = [];
+
+    /// <summary>The chosen area's media types (D31): the opened batch lists only these. Empty means every kind.</summary>
+    [Parameter] public IReadOnlyList<string> MediaTypes { get; set; } = [];
+
     private readonly List<ActivityGroupDto> _groups = [];
     private bool _open;
     private bool _loading;
     private bool _loadedOnce;
     private bool _failed;
     private bool _hasMore;
-    private string? _mediaType;
     private IJSObjectReference? _module;
     private DotNetObjectReference<MoreCallback>? _callback;
     private string? _observedId;
@@ -127,18 +121,6 @@
             ? $"{Run.ItemCount:N0} {(Run.ItemCount == 1 ? "item" : "items")} removed"
             : LibraryActivityText.Counts(Run);
 
-    private static string KindName(string mediaType) => mediaType switch
-    {
-        "Movies" => "Movies",
-        "TV" => "TV",
-        "Music" => "Music",
-        "Books" => "Books",
-        "Audiobooks" => "Audiobooks",
-        "Comics" => "Comics",
-        "Videos" => "Videos",
-        _ => "Other",
-    };
-
     // The bottom-left label: "12 new episodes", or nothing for a single movie.
     private static string? BottomLabel(ActivityGroupDto group)
         => group.ItemCount > 1 || group.MediaType is "TV" or "Music"
@@ -150,13 +132,12 @@
         _open = !_open;
         if (_open && !_loadedOnce)
         {
-            await PickAsync(null);
+            await LoadFirstPageAsync();
         }
     }
 
-    private async Task PickAsync(string? mediaType)
+    private async Task LoadFirstPageAsync()
     {
-        _mediaType = mediaType;
         _groups.Clear();
         _hasMore = false;
         _failed = false;
@@ -173,7 +154,7 @@
         _loading = true;
         try
         {
-            var page = await Api.GetActivityRunGroupsAsync(Run.Id, _mediaType, _groups.Count, PageSize);
+            var page = await Api.GetActivityRunGroupsAsync(Run.Id, LibraryIds, MediaTypes, _groups.Count, PageSize);
             if (page is null)
             {
                 _failed = true;

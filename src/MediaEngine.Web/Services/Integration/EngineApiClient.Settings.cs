@@ -459,11 +459,12 @@ public sealed partial class EngineApiClient
     // and "localhost" would be the viewer's device, so every picture address goes through the same-origin image proxy before it is drawn.
     public async Task<MediaEngine.Contracts.Library.ActivityRunsDto?> GetActivityRunsAsync(
         IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
-        string? search, bool newestFirst, int offset, int limit, CancellationToken ct = default)
+        string? search, bool newestFirst, int offset, int limit, IReadOnlyCollection<string>? mediaTypes = null, CancellationToken ct = default)
     {
         var runs = await GetAsync<MediaEngine.Contracts.Library.ActivityRunsDto>(
             "GET /library/activity/runs",
             "/library/activity/runs" + ActivityQuery(libraryIds, kinds, from, to, search, ("sort", newestFirst ? "newest" : "oldest"),
+                ("media_types", Join(mediaTypes)),
                 ("offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 ("limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture))),
             ct: ct).ConfigureAwait(false);
@@ -473,12 +474,12 @@ public sealed partial class EngineApiClient
     }
 
     public async Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
-        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default)
+        Guid entryId, IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? mediaTypes, int offset, int limit, CancellationToken ct = default)
     {
         var groups = await GetAsync<MediaEngine.Contracts.Library.ActivityRunGroupsDto>(
             "GET /library/activity/runs/{entryId}/groups",
-            $"/library/activity/runs/{entryId:D}/groups" + ActivityQuery(null, null, null, null, null,
-                ("media_type", mediaType),
+            $"/library/activity/runs/{entryId:D}/groups" + ActivityQuery(libraryIds, null, null, null, null,
+                ("media_types", Join(mediaTypes)),
                 ("offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 ("limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture))),
             ct: ct).ConfigureAwait(false);
@@ -489,14 +490,16 @@ public sealed partial class EngineApiClient
 
     public async Task<MediaEngine.Contracts.Library.ActivityTitleSearchDto?> SearchActivityTitlesAsync(
         string search, IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
-        CancellationToken ct = default)
+        IReadOnlyCollection<string>? mediaTypes = null, CancellationToken ct = default)
     {
         var found = await GetAsync<MediaEngine.Contracts.Library.ActivityTitleSearchDto>(
-            "GET /library/activity/titles", "/library/activity/titles" + ActivityQuery(libraryIds, kinds, from, to, search), ct: ct).ConfigureAwait(false);
+            "GET /library/activity/titles", "/library/activity/titles" + ActivityQuery(libraryIds, kinds, from, to, search, ("media_types", Join(mediaTypes))), ct: ct).ConfigureAwait(false);
         return found is null
             ? null
             : found with { Titles = [.. found.Titles.Select(title => title with { CoverUrl = ProxiedPicture(title.CoverUrl) })] };
     }
+
+    private static string? Join(IReadOnlyCollection<string>? values) => values is { Count: > 0 } ? string.Join(',', values) : null;
 
     private string? ProxiedPicture(string? url) => string.IsNullOrWhiteSpace(url) ? null : AbsoluteUrl(url);
 

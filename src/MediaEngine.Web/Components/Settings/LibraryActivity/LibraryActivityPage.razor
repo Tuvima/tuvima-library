@@ -45,6 +45,7 @@
     <LibraryActivityWorkingNow Items="WorkingItems" Background="BackgroundNames" />
 
     <LibraryActivityHistory LibraryIds="LibraryIds"
+                            MediaTypes="AreaMediaTypes"
                             RefreshToken="_refresh"
                             NoLibraries="NoLibraries"
                             OnAddLibrary="@(CanAddLibrary ? EventCallback.Factory.Create(this, AddLibraryAsync) : default)"
@@ -118,6 +119,10 @@
                 : _libraries.Where(library => string.Equals(library.Area, _area, StringComparison.OrdinalIgnoreCase)).Select(library => library.Id).ToList();
         }
     }
+
+    // History narrows by the same media types as the card and Working now (D31).
+    private IReadOnlyList<string> AreaMediaTypes
+        => _area is null ? [] : Areas.First(area => area.Key == _area).MediaTypes;
 
     private IReadOnlySet<string>? MediaTypes
         => _area is null ? null : Areas.First(area => area.Key == _area).MediaTypes.ToHashSet(StringComparer.Ordinal);

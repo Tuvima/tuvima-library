@@ -4829,7 +4829,6 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 button.app-toggle-chip.lact-chip { gap: 4px; min-height: 34px; padding: 0 14px; border-radius: var(--tl-radius-sm); border-color: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 75%, transparent); background: transparent; color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-regular); }
 button.app-toggle-chip.lact-chip--all { --lib-area-colour: var(--tl-accent-primary); }
 button.app-toggle-chip.lact-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); color: var(--tl-text-primary); }
-button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; border-radius: var(--tl-radius-sm); font-weight: var(--tl-font-weight-regular); }
 .lact-controls { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 @media (max-width: 600px) { .lact-controls { flex: 1 1 100%; margin-left: 0; } }
 .lact-group__toggle { display: flex; align-items: center; gap: var(--tl-space-2); width: 100%; padding: var(--tl-space-1) 0; border: 0; background: none; color: var(--tl-text-secondary); font: inherit; text-align: left; cursor: pointer; }

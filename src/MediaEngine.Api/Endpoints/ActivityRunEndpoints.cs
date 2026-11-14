@@ -27,13 +27,14 @@ internal static class ActivityRunEndpoints
             string? to,
             string? q,
             string? sort,
+            string? media_types,
             int? offset,
             int? limit,
             [FromServices] ActivityRunReadService runs,
             CancellationToken ct) =>
         {
             var paged = PagedRequest.From(offset, limit, defaultLimit: ActivityRunReadService.DefaultLimit);
-            if (Query(library, kind, from, to, q, sort, paged) is not { } query)
+            if (Query(library, kind, from, to, q, sort, paged, media_types) is not { } query)
             {
                 return ApiErrors.BadRequest("A date or kind in the History filters was not understood.");
             }
@@ -44,14 +45,16 @@ internal static class ActivityRunEndpoints
 
         group.MapGet("/runs/{entryId:guid}/groups", async (
             Guid entryId,
-            string? media_type,
+            string? library,
+            string? media_types,
             int? offset,
             int? limit,
             [FromServices] ActivityRunReadService runs,
             CancellationToken ct) =>
         {
             var paged = PagedRequest.From(offset, limit, defaultLimit: 24);
-            var groups = await runs.ListGroupsAsync(entryId, media_type, paged.Offset, paged.Limit, ct).ConfigureAwait(false);
+            var groups = await runs.ListGroupsAsync(entryId, new ActivityRunScope(Split(library), Split(media_types)), paged.Offset, paged.Limit, ct)
+                .ConfigureAwait(false);
             return groups is null ? ApiErrors.NotFound("Not found.") : Results.Ok(groups);
         }).WithName("ListActivityRunGroups").WithSummary("Returns one batch's items stacked into tiles, a page at a time.")
           .Produces<ActivityRunGroupsDto>().RequireAdmin();
@@ -62,6 +65,7 @@ internal static class ActivityRunEndpoints
             string? kind,
             string? from,
             string? to,
+            string? media_types,
             [FromServices] ActivityRunReadService runs,
             CancellationToken ct) =>
         {
@@ -70,7 +74,7 @@ internal static class ActivityRunEndpoints
                 return Results.Ok(new ActivityTitleSearchDto([]));
             }
 
-            if (Query(library, kind, from, to, q, null, PagedRequest.From(0, 200, maxLimit: 200)) is not { } query)
+            if (Query(library, kind, from, to, q, null, PagedRequest.From(0, 200, maxLimit: 200), media_types) is not { } query)
             {
                 return ApiErrors.BadRequest("A date or kind in the History filters was not understood.");
             }
@@ -91,7 +95,7 @@ internal static class ActivityRunEndpoints
     }
 
     private static ActivityRunQuery? Query(
-        string? library, string? kind, string? from, string? to, string? q, string? sort, PagedRequest paged)
+        string? library, string? kind, string? from, string? to, string? q, string? sort, PagedRequest paged, string? mediaTypes)
     {
         var kinds = Split(kind);
         if (kinds.Any(value => !ActivityRunKinds.IsKnown(value)))
@@ -112,7 +116,8 @@ internal static class ActivityRunEndpoints
             string.IsNullOrWhiteSpace(q) ? null : q.Trim(),
             !string.Equals(sort, "oldest", StringComparison.OrdinalIgnoreCase),
             paged.Offset,
-            paged.Limit);
+            paged.Limit,
+            Split(mediaTypes));
     }
 
     private static string[] Split(string? value)
