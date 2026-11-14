@@ -11,8 +11,9 @@
 
 @* The Artwork tool of the pop-over editor (universal editor v4, section 3b; v4.1 WP3), drawn inside its window.
    One clean row of role tabs across the top (Poster, Background, Logo, ... each with its number of versions), then one row of actions
-   (Upload, From URL, Choose from Library, Preferred, Remove, Refresh), then a large zoomable preview at the role's real shape with the file's
-   facts in a slim line, and a strip of versions below. Clicking a version makes it Preferred and moves it to the front (D19). Upload, From URL,
+   (Upload, From URL, Choose from Library, Preferred, Remove, Refresh) beside a small preview (about 200 px on its long side) at the role's
+   real shape with a "View full size" link under it (v7 D8: no zoom steps), the file's facts in a slim line, and one wrapping row of small version
+   thumbnails. Clicking a version makes it Preferred and moves it to the front (D19). Upload, From URL,
    Choose from Library and Refresh open their source in place of the preview, with Language and Size filters for the provider's pictures.
    Choose from Library opens the Library's own picture picker above the window. Everything waits for Save changes except Remove, which asks
    first and happens at once. *@
@@ -27,7 +28,6 @@
              aria-label="@L["EditorArtworkTool_Artwork"].Value">
         <div class="tl-art-picker__body">
             @RoleTabs(picker, tabs, slot)
-            @ActionRow(picker, slot, preferred)
 
             @if (picker.CanFetchAllStills)
             {
@@ -57,15 +57,20 @@
 
             @if (_adding)
             {
+                @ActionRow(picker, slot, preferred)
                 @AddPanel(picker, slot, label)
             }
             else
             {
-                <div class="tl-art-picker__main">
+                @* One column at 1023 px and narrower (preview above actions and versions); on a computer the preview is on the left, the rest on the right. *@
+                <div class="tl-art-picker__art">
                     @Preview(picker, slot, preferred, label)
-                    @Info(picker, slot, preferred)
+                    <div class="tl-art-picker__controls">
+                        @ActionRow(picker, slot, preferred)
+                        @Info(picker, slot, preferred)
+                        @Strip(picker, slot, label)
+                    </div>
                 </div>
-                @Strip(picker, slot, label)
             }
         </div>
     </section>
@@ -77,7 +82,9 @@
     private const string SourceLink = "link";
     private const string SourceLibrary = "library";
 
-    private static readonly double[] ZoomSteps = [1, 1.5, 2, 3];
+    // The small preview is about 200 px on its long side; the full-size view asks for the largest copy.
+    private const int PreviewDrawnPx = 200;
+    private const int FullDrawnPx = 1280;
 
     private static readonly IReadOnlyList<AppSelectOption> Sources =
     [
@@ -101,7 +108,6 @@
     private string? _lastRequestedSlot;
     private bool _adding;
     private bool _full;
-    private int _zoomIndex;
     private bool _makePreferred = true;
     private string _source = SourceProviders;
     private string _address = string.Empty;
@@ -284,31 +290,46 @@
     {
         var shape = ShapeClass(slot, picker);
         var url = preferred is null ? null : picker.RolePictureUrl(slot) ?? preferred.ContentUrl;
-        var zoom = ZoomSteps[_zoomIndex];
-        var fit = shape is "landscape" or "wide" ? "width" : "height";
-        <div class="@($"tl-art-picker__preview{(_full ? " is-full" : string.Empty)}")">
-            <div class="tl-art-picker__stage">
+        <div class="tl-art-picker__preview-col">
+            <div class="@($"tl-art-picker__preview tl-art-picker__preview--{shape}")">
                 @if (url is not null)
                 {
-                    <img class="@($"tl-art-picker__image tl-art-picker__image--{fit} is-zoom-{_zoomIndex}")"
-                         src="@MediaTileArtworkUrl.ForDrawnSize(url, 1280)"
+                    <img class="tl-art-picker__image"
+                         src="@MediaTileArtworkUrl.ForDrawnSize(url, PreviewDrawnPx)"
+                         srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(url, PreviewDrawnPx)"
                          alt="@($"{label} preview")" />
                 }
                 else
                 {
-                    <span class="@($"tl-art-picker__empty tl-art-picker__thumb--{shape}")">
+                    <span class="tl-art-picker__empty">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
                         <span>No artwork for this yet</span>
                     </span>
                 }
             </div>
-            <div class="tl-art-picker__tools" role="group" aria-label="Zoom">
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" Disabled="@(_zoomIndex == 0 || url is null)" OnClick="ZoomOut" />
-                <span class="tl-art-picker__zoom" aria-live="polite">@((zoom * 100).ToString("0", CultureInfo.InvariantCulture))%</span>
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" Disabled="@(_zoomIndex == ZoomSteps.Length - 1 || url is null)" OnClick="ZoomIn" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="@(_full ? "Leave full screen" : "Full screen")" Disabled="@(url is null)" OnClick="ToggleFull" />
-            </div>
+            @if (url is not null)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text"
+                           Tone="AppUiTone.Neutral"
+                           StartIcon="@AppMaterialIcons.Outlined.Fullscreen"
+                           Class="tl-art-picker__fullsize"
+                           OnClick="ShowFull">
+                    View full size
+                </AppButton>
+            }
         </div>
+        @if (_full && url is not null)
+        {
+            @* One picture, large, over the window; Close puts the tab back as it was. *@
+            <AppViewer Class="tl-art-picker__full-viewer"
+                       Label="@($"{label} full size")"
+                       OnClose="HideFull"
+                       CloseLabel="Close full size">
+                <div class="tl-art-picker__full-stage">
+                    <img class="tl-art-picker__full-image" src="@MediaTileArtworkUrl.ForDrawnSize(url, FullDrawnPx)" alt="@($"{label} full size")" />
+                </div>
+            </AppViewer>
+        }
     };
 
     // A slim line under the preview: what the change reaches, whether it is waiting for Save, and the file's name, source, size and type.
@@ -381,7 +402,7 @@
                     picker.Busy,
                     () => { picker.MakePreferred(version); return Task.CompletedTask; },
                     @<text>
-                        <img src="@MediaTileArtworkUrl.ForDrawnSize(version.ThumbnailUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(version.ThumbnailUrl, 160)" alt="" loading="lazy" decoding="async" />
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(version.ThumbnailUrl, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(version.ThumbnailUrl, 96)" alt="" loading="lazy" decoding="async" />
                         @if (isPreferred)
                         {
                             <span class="tl-art-picker__chip">Preferred</span>
@@ -396,7 +417,7 @@
                 false,
                 picker.Busy,
                 () => BeginAddAsync(),
-                @<text><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /><span>Add version</span></text>)
+                @<text><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /></text>)
         </div>
     };
 
@@ -717,11 +738,9 @@
         return picker.IsStaged ? "Will be saved with your other changes." : "Click a version below to make it Preferred.";
     }
 
-    private void ZoomIn() => _zoomIndex = Math.Min(_zoomIndex + 1, ZoomSteps.Length - 1);
+    private void ShowFull() => _full = true;
 
-    private void ZoomOut() => _zoomIndex = Math.Max(_zoomIndex - 1, 0);
-
-    private void ToggleFull() => _full = !_full;
+    private void HideFull() => _full = false;
 
     // Opens the add panel on a source. Refresh asks the providers again even when their pictures are already listed; Choose from Library opens
     // the Library's picker at once, and a picker closed without a choice goes back to the preview.
@@ -801,7 +820,6 @@
         _address = string.Empty;
         _adding = false;
         _full = false;
-        _zoomIndex = 0;
         _languageSeeded = false;
         await Picker.SelectSlotAsync(slot);
     }

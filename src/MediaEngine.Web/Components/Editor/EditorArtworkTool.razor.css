@@ -168,102 +168,80 @@
     opacity: .7;
 }
 
-/* ---- Preview: most of the tab's width, the picture at its real shape ----------------------------------------- */
+/* ---- Preview: small (about 200 px on its long side) at the role's real shape, beside the actions and versions -------- */
 
-.tl-art-picker__main {
+.tl-art-picker__art {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: start;
+    gap: var(--tl-space-6);
+}
+
+.tl-art-picker__preview-col {
     display: flex;
     flex-direction: column;
-    gap: var(--tl-space-3);
+    align-items: flex-start;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.tl-art-picker__controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4);
     min-width: 0;
 }
 
 .tl-art-picker__preview {
-    position: relative;
-    min-width: 0;
+    display: flex;
+    box-sizing: border-box;
+    overflow: hidden;
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-md);
     background: var(--tl-bg-shell);
 }
 
-.tl-art-picker__tools {
-    position: absolute;
-    top: var(--tl-space-3);
-    right: var(--tl-space-3);
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    gap: var(--tl-space-1);
-    padding: var(--tl-space-1);
-    border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-bg-surface-raised);
-}
-
-.tl-art-picker__zoom {
-    min-width: 3rem;
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    text-align: center;
-}
-
-.tl-art-picker__stage {
-    display: flex;
-    height: min(28rem, 42vh);
-    overflow: auto;
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-shell);
-}
+.tl-art-picker__preview--portrait { height: 12.5rem; aspect-ratio: 2 / 3; }
+.tl-art-picker__preview--landscape { width: 12.5rem; aspect-ratio: 16 / 9; }
+.tl-art-picker__preview--wide { width: 12.5rem; aspect-ratio: 5 / 2; }
+.tl-art-picker__preview--square { width: 12.5rem; aspect-ratio: 1 / 1; }
 
 .tl-art-picker__image {
-    flex: none;
-    margin: auto;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
 }
 
-/* Zoom steps: 100%, 150%, 200%, 300% of the stage, along the side the role's shape is limited by. */
-.tl-art-picker__image--height { width: auto; }
-.tl-art-picker__image--width { height: auto; }
-.tl-art-picker__image--height.is-zoom-0 { height: 100%; }
-.tl-art-picker__image--height.is-zoom-1 { height: 150%; }
-.tl-art-picker__image--height.is-zoom-2 { height: 200%; }
-.tl-art-picker__image--height.is-zoom-3 { height: 300%; }
-.tl-art-picker__image--width.is-zoom-0 { width: 100%; }
-.tl-art-picker__image--width.is-zoom-1 { width: 150%; }
-.tl-art-picker__image--width.is-zoom-2 { width: 200%; }
-.tl-art-picker__image--width.is-zoom-3 { width: 300%; }
-
 .tl-art-picker__empty {
     display: flex;
-    flex: none;
+    flex: 1 1 auto;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--tl-space-2);
-    height: 100%;
-    margin: auto;
+    padding: var(--tl-space-2);
     border: 1px dashed var(--tl-border-strong);
     border-radius: var(--tl-radius-sm);
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-sm);
+    text-align: center;
 }
 
-.tl-art-picker__empty.tl-art-picker__thumb--wide,
-.tl-art-picker__empty.tl-art-picker__thumb--landscape {
-    height: auto;
-    width: 70%;
-}
-
-.tl-art-picker__preview.is-full {
-    position: fixed;
+/* "View full size": one picture, large, in the shared Viewer (full screen, with its own close X). */
+.tl-art-picker__full-stage {
+    position: absolute;
     inset: 0;
-    z-index: 1000;
-    border-radius: 0;
-    background: var(--tl-bg-root);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: var(--tl-space-8);
 }
 
-.tl-art-picker__preview.is-full .tl-art-picker__stage {
-    height: 100%;
-    border-radius: 0;
+.tl-art-picker__full-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 
 /* ---- The slim line under the preview: what it reaches, whether it waits for Save, and the file's facts ---------- */
@@ -314,7 +292,7 @@
     font-weight: var(--tl-font-weight-semibold);
 }
 
-/* ---- Versions strip ------------------------------------------------------------------------------------ */
+/* ---- Versions: one wrapping row of small thumbnails at the role's real shape -------------------------------------- */
 
 .tl-art-picker__strip {
     display: flex;
@@ -327,7 +305,6 @@
     position: relative;
     display: block;
     flex: 0 0 auto;
-    height: 5.75rem;
     padding: 0;
     overflow: hidden;
     border: 2px solid transparent;
@@ -336,9 +313,10 @@
     cursor: pointer;
 }
 
-.tl-art-picker__strip--portrait .tl-art-picker__face--version { height: 8.5rem; }
-.tl-art-picker__strip--wide .tl-art-picker__face--version { height: 4.5rem; }
-.tl-art-picker__strip--square .tl-art-picker__face--version { height: 7rem; }
+.tl-art-picker__strip--portrait .tl-art-picker__face--version { height: 6rem; }
+.tl-art-picker__strip--landscape .tl-art-picker__face--version { height: 4rem; }
+.tl-art-picker__strip--wide .tl-art-picker__face--version { height: 3.25rem; }
+.tl-art-picker__strip--square .tl-art-picker__face--version { height: 4.5rem; }
 
 .tl-art-picker__face--version img {
     width: 100%;
@@ -354,10 +332,8 @@
 
 .tl-art-picker__face--add {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--tl-space-1);
     border: 1px dashed var(--tl-border-strong);
     background: transparent;
     color: var(--tl-text-secondary);
@@ -480,6 +456,13 @@
     min-width: 0;
 }
 
+/* Narrower than 1024: one column, the preview above the actions and versions. */
+@media (max-width: 1023px) {
+    .tl-art-picker__art {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 /* ---- The phone arrangement (v6 section 4a, D21) ------------------------------------------------------------ */
 
 .tl-art-picker__add-flow {
@@ -514,9 +497,30 @@
     white-space: normal;
 }
 
-.tl-art-picker--phone .tl-art-picker__stage {
-    height: min(22rem, 40vh);
+/* The preview sits at the left with its facts beside it; the actions and the versions use the full width below. */
+.tl-art-picker--phone .tl-art-picker__art {
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--tl-space-3) var(--tl-space-4);
 }
+
+.tl-art-picker--phone .tl-art-picker__controls {
+    display: contents;
+}
+
+.tl-art-picker--phone .tl-art-picker__preview-col { grid-area: 1 / 1; }
+.tl-art-picker--phone .tl-art-picker__info {
+    grid-area: 1 / 2;
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: start;
+}
+.tl-art-picker--phone .tl-art-picker__actions { grid-area: 2 / 1 / 3 / 3; }
+.tl-art-picker--phone .tl-art-picker__strip { grid-area: 3 / 1 / 4 / 3; }
+
+.tl-art-picker--phone .tl-art-picker__preview--portrait { height: 10.3rem; }
+.tl-art-picker--phone .tl-art-picker__preview--landscape,
+.tl-art-picker--phone .tl-art-picker__preview--wide,
+.tl-art-picker--phone .tl-art-picker__preview--square { width: 10.3rem; }
 
 /* The saved versions: two pictures per row, each at its role's real shape. */
 .tl-art-picker--phone .tl-art-picker__strip {
