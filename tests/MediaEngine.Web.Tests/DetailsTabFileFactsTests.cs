@@ -37,31 +37,31 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
         string? label = null,
         string? location = "/media/Movies/Test (2011)/Test (2011).mkv",
         string[]? chips = null) => new()
-    {
-        Label = label,
-        Kind = DetailYourCopyKinds.Video,
-        Chips = chips ?? ["1080p", "H.264", "AAC 5.1", "MKV"],
-        Groups =
+        {
+            Label = label,
+            Kind = DetailYourCopyKinds.Video,
+            Chips = chips ?? ["1080p", "H.264", "AAC 5.1", "MKV"],
+            Groups =
         [
             new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.Video, Lines = ["1920 × 1080 · 23.976 fps", "H.264 · 8.4 Mb/s", "SDR"] },
             new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.AudioSubtitles, Lines = ["English · AAC 5.1", "48 kHz · 384 kb/s", "Subtitles · English, Spanish"] },
             new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.File, Lines = ["MKV · 7.1 GB", "Duration · 1h 49m", "Added · Nov 2, 2026"] },
         ],
-        FileName = "Test (2011).mkv",
-        FileLocation = location,
-    };
+            FileName = "Test (2011).mkv",
+            FileLocation = location,
+        };
 
     private static DetailPageViewModel Model(
         DetailEntityType type = DetailEntityType.Movie,
         DetailYourCopyViewModel? copy = null,
         bool canEdit = false) => new()
-    {
-        Id = ItemId.ToString("D"),
-        EntityType = type,
-        Title = "Test",
-        YourCopy = copy,
-        OverflowActions = canEdit ? [new DetailAction { Key = "edit", Label = "Edit details" }] : [],
-    };
+        {
+            Id = ItemId.ToString("D"),
+            EntityType = type,
+            Title = "Test",
+            YourCopy = copy,
+            OverflowActions = canEdit ? [new DetailAction { Key = "edit", Label = "Edit details" }] : [],
+        };
 
     private static DetailYourCopyViewModel One(DetailYourCopyBlockViewModel block) => new() { Blocks = [block] };
 

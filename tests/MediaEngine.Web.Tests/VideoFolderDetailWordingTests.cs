@@ -67,9 +67,15 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
         var placement = VideoFolderPlacement();
         placement = new SequencePlacementViewModel
         {
-            ContainerId = placement.ContainerId, SelectedContainerId = placement.SelectedContainerId, ContainerTitle = placement.ContainerTitle,
-            ContainerLabel = placement.ContainerLabel, ItemLabel = placement.ItemLabel, ItemPluralLabel = placement.ItemPluralLabel,
-            GroupLabel = placement.GroupLabel, CurrentGroupKey = "section-parent-child", CurrentItem = placement.Groups[1].Items[0],
+            ContainerId = placement.ContainerId,
+            SelectedContainerId = placement.SelectedContainerId,
+            ContainerTitle = placement.ContainerTitle,
+            ContainerLabel = placement.ContainerLabel,
+            ItemLabel = placement.ItemLabel,
+            ItemPluralLabel = placement.ItemPluralLabel,
+            GroupLabel = placement.GroupLabel,
+            CurrentGroupKey = "section-parent-child",
+            CurrentItem = placement.Groups[1].Items[0],
             Groups =
             [
                 Group("section-intro", "Intro", [Video("5", "section-intro", "Intro", "1", "Welcome")]),

@@ -4,11 +4,11 @@ using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Details;
-using MediaEngine.Domain.Services;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
