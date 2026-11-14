@@ -2,6 +2,8 @@
 
 > **Status:** Built, awaiting your Local checks (waves 1-5 merged; a few items not built, see the Local checks rows in `validation/batch.md`) · **Version:** 2 (replaces the as-built v1 "Universal editor (Details, Artwork, Match)") · **Last updated:** 2026-10-30 · **Related docs:** [Product overview]((../../product/overview.md) · [Universal editor v1]((../universal-editor.md) · [Details overlay and Editing Mode]((../details-overlay-and-edit-mode.md) · [Library setup groups]((../library-setup-groups.md) · Mockups: [`engineering/design/mockups/universal-editor-v2/`]((../../design/mockups/universal-editor-v2/) (11 screens, 1440 wide; also https://claude.ai/artifact/FkiJYpZg6DpbwSK1K6eBRc) · Bug log items F13, F14, F17, F18, F19, F35, F48, F49, F50, F51, F61 and Shy's 2026-10-30 editor review
 
+> **Amended by [Editor v7](../universal-editor-v7-bug-review.md) (2026-11-14):** the "Saved" ribbon (D7) is removed, and artwork no longer waits for Save changes (it applies at once, with no Undo). The rest of this version stands.
+
 ## Why a v2 (what went wrong with v1)
 
 Shy's verdict on the built v1 (2026-10-30): "I can't match an episode to a show, I can't match a show and have it update, nothing really seems to work and I have no confidence what I did actually had any impact." Reading the code behind each complaint gives four root causes. Every design below starts from them.
