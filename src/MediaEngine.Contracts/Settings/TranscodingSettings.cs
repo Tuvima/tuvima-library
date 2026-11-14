@@ -16,6 +16,12 @@ public sealed class TranscodingSettings
     [JsonPropertyName("max_concurrent_transcodes")]
     public int MaxConcurrentTranscodes { get; set; } = 1;
 
+    [JsonPropertyName("grace_seconds_after_last_viewer")]
+    public int GraceSecondsAfterLastViewer { get; set; } = 120;
+
+    [JsonPropertyName("paused_counts_as_watching_minutes")]
+    public int PausedCountsAsWatchingMinutes { get; set; } = 10;
+
     [JsonPropertyName("shadow_storage_limit_gb")]
     public int ShadowStorageLimitGb { get; set; } = 500;
 

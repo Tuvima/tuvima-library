@@ -35,6 +35,14 @@ public sealed class TranscodingSettings
     [JsonPropertyName("max_concurrent_transcodes")]
     public int MaxConcurrentTranscodes { get; set; } = 1;
 
+    /// <summary>Seconds a playback encode keeps running after the last viewer leaves (playing-now spec D6).</summary>
+    [JsonPropertyName("grace_seconds_after_last_viewer")]
+    public int GraceSecondsAfterLastViewer { get; set; } = 120;
+
+    /// <summary>Minutes a paused player still counts as watching, so its encode is kept (playing-now spec D6).</summary>
+    [JsonPropertyName("paused_counts_as_watching_minutes")]
+    public int PausedCountsAsWatchingMinutes { get; set; } = 10;
+
     /// <summary>Maximum disk space (GB) for shadow transcoded copies.</summary>
     [JsonPropertyName("shadow_storage_limit_gb")]
     public int ShadowStorageLimitGb { get; set; } = 500;

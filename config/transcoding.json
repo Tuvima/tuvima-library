@@ -8,6 +8,8 @@
   "hardware_acceleration": "auto",
 
   "max_concurrent_transcodes": 1,
+  "grace_seconds_after_last_viewer": 120,
+  "paused_counts_as_watching_minutes": 10,
   "shadow_storage_limit_gb": 500,
   "scheduled_encodes_enabled": true,
   "maintenance_window": "01:00-05:00",

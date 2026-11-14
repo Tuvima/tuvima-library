@@ -8607,6 +8607,48 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayerStateDto
   Warnings: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   Connection: MediaEngine.Contracts.Playback.PlaybackConnectionContextDto | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayingNowDto
+  Rows: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlayingNowRowDto> | nullability=not-null | accessors=get,init
+  MaxActiveEncodes: System.Int32 | nullability=not-null | accessors=get,init
+  ActiveEncodes: System.Int32 | nullability=not-null | accessors=get,init
+  WatchingCount: System.Int32 | nullability=not-null | accessors=get,init
+  PreparingCount: System.Int32 | nullability=not-null | accessors=get,init
+  HeaviestLoad: System.String | nullability=nullable | accessors=get,init
+  HeaviestRanOn: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayingNowHeaviness
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayingNowKinds
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayingNowRowDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Subtitle: System.String | nullability=nullable | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  AccountId: System.String | nullability=nullable | accessors=get,init
+  ProfileId: System.String | nullability=nullable | accessors=get,init
+  DeviceId: System.String | nullability=nullable | accessors=get,init
+  PersonName: System.String | nullability=nullable | accessors=get,init
+  ProfileName: System.String | nullability=nullable | accessors=get,init
+  IsKidsProfile: System.Boolean | nullability=not-null | accessors=get,init
+  DeviceName: System.String | nullability=nullable | accessors=get,init
+  Step: System.String | nullability=not-null | accessors=get,init
+  PreparingReason: System.String | nullability=nullable | accessors=get,init
+  WaitingForSlot: System.Boolean | nullability=not-null | accessors=get,init
+  PercentPrepared: System.Int32? | nullability=nullable | accessors=get,init
+  PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  Heaviness: System.String | nullability=nullable | accessors=get,init
+  RanOn: System.String | nullability=nullable | accessors=get,init
+  IsWatched: System.Boolean | nullability=not-null | accessors=get,init
+  StopsInSeconds: System.Int32? | nullability=nullable | accessors=get,init
+  OfflineQuality: System.String | nullability=nullable | accessors=get,init
+  CanStop: System.Boolean | nullability=not-null | accessors=get,init
+  StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayingNowSteps
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PreferredTextTrackResponse
   asset_id: System.Guid | nullability=not-null | accessors=get,init
   track_id: System.Guid | nullability=not-null | accessors=get,init
@@ -8680,6 +8722,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SetVideoOptionRequ
   Id: System.String | nullability=not-null | accessors=get,init
   Value: System.String | nullability=not-null | accessors=get,init
   Browser: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.StopUnwatchedResultDto
+  Stopped: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   DefaultSubtitleLanguage: System.String | nullability=not-null | accessors=get,set
@@ -11453,6 +11498,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TranscodingSetting
   FfprobeBinaryPath: System.String | nullability=not-null | accessors=get,set
   HardwareAcceleration: System.String | nullability=not-null | accessors=get,set
   MaxConcurrentTranscodes: System.Int32 | nullability=not-null | accessors=get,set
+  GraceSecondsAfterLastViewer: System.Int32 | nullability=not-null | accessors=get,set
+  PausedCountsAsWatchingMinutes: System.Int32 | nullability=not-null | accessors=get,set
   ShadowStorageLimitGb: System.Int32 | nullability=not-null | accessors=get,set
   QualityProfiles: System.Collections.Generic.List<MediaEngine.Contracts.Settings.TranscodingQualityProfile> | nullability=not-null | accessors=get,set
   ScheduledEncodesEnabled: System.Boolean | nullability=not-null | accessors=get,set

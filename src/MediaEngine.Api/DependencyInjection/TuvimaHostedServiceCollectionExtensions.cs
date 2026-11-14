@@ -44,6 +44,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ScheduledTaskRunRecoveryHostedService>();
 
         services.AddSingleton<EncodeQueueService>();
+        services.AddHostedService<PlaybackActivityService>();
         services.AddHostedService(sp => sp.GetRequiredService<EncodeQueueService>());
         // Scrub previews: the lowest-priority job, one file at a time, plus the gradual pass that queues them.
         services.AddHostedService<ScrubPreviewOperationWorker>();
