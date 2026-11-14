@@ -12,7 +12,7 @@
         <div class="tl-mcard__cover" data-testid="match-card-cover">
             @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
             {
-                <AppImage Src="@Model.ImageUrl" Alt="" Width="@CoverWidth" Height="@CoverHeight" DrawnPx="@CoverDrawnPx" ObjectFit="AppObjectFit.Cover" />
+                <AppImage Src="@Model.ImageUrl" Alt="" Width="@CoverWidth" Height="@CoverHeight" DrawnPx="@CoverDrawnPx" ObjectFit="AppObjectFit.Contain" />
             }
             else
             {

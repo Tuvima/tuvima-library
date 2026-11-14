@@ -182,7 +182,7 @@
 
     private void ShowAll() => _all = true;
 
-    private string Shape(EditorMatchResultDto result) => EditorMatchCardModels.ArtFor(result.KindText, Kind).ToString().ToLowerInvariant();
+    private string Shape(EditorMatchResultDto result) => EditorMatchCardModels.ArtFor(result.KindText, Kind, result.ImageShape).ToString().ToLowerInvariant();
 
     // Creator · year · series and number; a collection or box set says "Collection" in the series place.
     private string Line(EditorMatchResultDto result) =>

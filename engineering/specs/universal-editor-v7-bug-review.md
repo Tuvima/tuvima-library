@@ -1,6 +1,6 @@
 # Spec: Universal editor v7: one header, a plain Match view, artwork that applies at once
 
-> **Status:** Locked (by Shy, 2026-11-14 07:42Z: "lock it") · **Version:** 1 · **Last updated:** 2026-11-14 · **Related docs:** [Universal editor v6](universal-editor-v6-match-and-aligned-rows.md) (Built) · [Universal editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) · [Universal editor v2](universal-editor-v2.md) · [Look v3.1](look-pass-v3-1-controls-and-type.md) · [Mockups](../../design/mockups/editor-v7/editor-v7-mockups.html) · Issues 989, 990, 991, 992, 993, 994, 995. Issues 988 and 996 are built in other threads (section 2).
+> **Status:** In progress (Locked by Shy, 2026-11-14 07:42Z: "lock it") · **Version:** 1 · **Last updated:** 2026-11-14 · **Related docs:** [Universal editor v6](universal-editor-v6-match-and-aligned-rows.md) (Built) · [Universal editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) · [Universal editor v2](universal-editor-v2.md) · [Look v3.1](look-pass-v3-1-controls-and-type.md) · [Mockups](../../design/mockups/editor-v7/editor-v7-mockups.html) · Issues 989, 990, 991, 992, 993, 994, 995. Issues 988 and 996 are built in other threads (section 2).
 
 *This is a new version, not a rewrite: v6 stays as built and archived. Where this version reverses something v2, v5 or v6 locked, it says so in section 3 and in section 9.*
 

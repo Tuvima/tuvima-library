@@ -8,6 +8,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
+using SkiaSharp;
 
 namespace MediaEngine.Api.Tests;
 
@@ -297,6 +298,57 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
 
         var found = await Service().SearchForKindAsync(book, EditorKinds.Book, new EditorMatchSearchRequestDto { Fields = fields });
         return Assert.Single(found!.Results);
+    }
+
+    [Theory]
+    [InlineData(300, 300, "square")]
+    [InlineData(320, 180, "wide")]
+    [InlineData(180, 270, null)]
+    public async Task AResultsPictureShape_IsReportedOnlyWhenTheProvidersOwnPictureIsSquareOrWide(int width, int height, string? expected)
+    {
+        var movie = Movie("The.Matrix.1999.mkv");
+        var candidate = Candidate("603", "The Matrix", "1999", score: 0.9);
+        candidate.PreviewUrl = PreviewOf(width, height);
+        _search.Candidates = [candidate];
+
+        var found = await Service().SearchForKindAsync(movie, EditorKinds.Movie, Request("The Matrix", "1999"));
+
+        Assert.Equal(expected, Assert.Single(found!.Results).ImageShape);
+    }
+
+    [Fact]
+    public async Task AResultWithNoPicture_ReportsNoPictureShape()
+    {
+        var movie = Movie("The.Matrix.1999.mkv");
+        _search.Candidates = [Candidate("603", "The Matrix", "1999", score: 0.9)];
+
+        var found = await Service().SearchForKindAsync(movie, EditorKinds.Movie, Request("The Matrix", "1999"));
+
+        Assert.Null(Assert.Single(found!.Results).ImageShape);
+    }
+
+    [Fact]
+    public async Task ABookWorksPictureShape_FollowsItsClosestEdition()
+    {
+        var book = _world.Work("Books", "standalone", "Dune");
+        _world.File(book, "Frank Herbert - Dune.epub");
+        _catalog.Providers = [new RetailProviderInfo("openlibrary", "Open Library", true, false, [EditorKinds.Book], 1)];
+        var first = Candidate("OL1W", "Dune", "1990", author: "Frank Herbert", score: 0.9);
+        var second = Candidate("OL2W", "Dune", "1965", author: "Frank Herbert", score: 0.88);
+        first.ProviderName = second.ProviderName = "openlibrary";
+        first.PreviewUrl = PreviewOf(300, 300);
+        second.PreviewUrl = PreviewOf(300, 300);
+        _search.Candidates = [first, second];
+
+        var found = await Service().SearchForKindAsync(book, EditorKinds.Book, new EditorMatchSearchRequestDto
+        {
+            Provider = "openlibrary",
+            Fields = new Dictionary<string, string> { ["title"] = "Dune", ["author"] = "Frank Herbert" },
+        });
+
+        var work = Assert.Single(found!.Results);
+        Assert.Equal(EditorMatchImageShapes.Square, work.ImageShape);
+        Assert.All(work.Editions, edition => Assert.Equal(EditorMatchImageShapes.Square, edition.ImageShape));
     }
 
     [Fact]
@@ -662,6 +714,16 @@ public sealed class EditorMatchSearchServiceTests : IDisposable
         Assert.Equal(expected, EditorMatchSearchService.StripPunctuation(text));
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // A small JPEG of the given size as the data address the Engine's own preview makes.
+    private static string PreviewOf(int width, int height)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        bitmap.Erase(SKColors.Gray);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 70);
+        return "data:image/jpeg;base64," + Convert.ToBase64String(encoded.ToArray());
+    }
 
     private Guid Movie(string fileName, double? durationSeconds = null)
     {

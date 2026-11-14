@@ -16,7 +16,7 @@
                 <span class="@(string.IsNullOrWhiteSpace(ImageUrl) ? "tl-mlrow__art tl-mlrow__art--empty" : "tl-mlrow__art")" data-art="@ArtShape" aria-hidden="true">
                     @if (!string.IsNullOrWhiteSpace(ImageUrl))
                     {
-                        <AppImage Src="@ImageUrl" Alt="" Width="@ArtWidth" Height="@ArtHeight" ObjectFit="AppObjectFit.Cover" />
+                        <AppImage Src="@ImageUrl" Alt="" Width="@ArtWidth" Height="@ArtHeight" ObjectFit="AppObjectFit.Contain" />
                     }
                     else
                     {

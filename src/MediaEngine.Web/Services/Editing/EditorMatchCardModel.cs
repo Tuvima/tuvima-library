@@ -57,7 +57,7 @@ public static class EditorMatchCardModels
             SeriesLine(shown.SeriesName ?? work.SeriesName, shown.SeriesNumber ?? work.SeriesNumber, kind, " · ", l),
             Join(shown.Creator, shown.Year),
             shown.ImageUrl ?? work.ImageUrl,
-            ArtFor(shown.KindText ?? work.KindText, kind),
+            ArtFor(shown.KindText ?? work.KindText, kind, shown.ImageShape ?? work.ImageShape),
             shown.ProviderName,
             shown.SourceUrl ?? work.SourceUrl,
             shown.Description ?? work.Description,
@@ -148,12 +148,20 @@ public static class EditorMatchCardModels
         return shown.Length == 0 ? null : string.Join(" · ", shown);
     }
 
-    /// <summary>The picture shape: an episode is 16:9, music is square, everything else is a portrait.</summary>
-    public static EditorMatchCardArt ArtFor(string? recordKind, string? editorKind) => (editorKind, recordKind) switch
+    /// <summary>
+    /// The picture shape (universal editor v7, D7): the provider's own shape wins when it says square or wide
+    /// (<see cref="EditorMatchResultDto.ImageShape"/>); otherwise an episode is 16:9, music and audiobooks are square, everything else is a portrait.
+    /// </summary>
+    public static EditorMatchCardArt ArtFor(string? recordKind, string? editorKind, string? providerShape = null) => providerShape switch
     {
-        (EditorKinds.TvEpisode, _) or (_, "Episode") => EditorMatchCardArt.Wide,
-        (EditorKinds.Album or EditorKinds.Song, _) or (_, "Album" or "Song") => EditorMatchCardArt.Square,
-        _ => EditorMatchCardArt.Portrait,
+        EditorMatchImageShapes.Square => EditorMatchCardArt.Square,
+        EditorMatchImageShapes.Wide => EditorMatchCardArt.Wide,
+        _ => (editorKind, recordKind) switch
+        {
+            (EditorKinds.TvEpisode, _) or (_, "Episode") => EditorMatchCardArt.Wide,
+            (EditorKinds.Album or EditorKinds.Song or EditorKinds.Audiobook, _) or (_, "Album" or "Song" or "Audiobook") => EditorMatchCardArt.Square,
+            _ => EditorMatchCardArt.Portrait,
+        },
     };
 
     /// <summary>The "Links this book to Apple Books." line under Apply match, worded for the kind and the provider.</summary>

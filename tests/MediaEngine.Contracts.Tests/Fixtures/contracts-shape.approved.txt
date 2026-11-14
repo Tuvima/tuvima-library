@@ -3828,6 +3828,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchIdentifie
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchIdentifierKinds
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchImageShapes
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchLocalEvidenceDto
   FileTitle: System.String | nullability=nullable | accessors=get,init
   Year: System.String | nullability=nullable | accessors=get,init
@@ -3881,6 +3883,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchResultDto
   Creator: System.String | nullability=nullable | accessors=get,init
   LengthText: System.String | nullability=nullable | accessors=get,init
   ImageUrl: System.String | nullability=nullable | accessors=get,init
+  ImageShape: System.String | nullability=nullable | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init
   SourceUrl: System.String | nullability=nullable | accessors=get,init
   KindText: System.String | nullability=nullable | accessors=get,init
