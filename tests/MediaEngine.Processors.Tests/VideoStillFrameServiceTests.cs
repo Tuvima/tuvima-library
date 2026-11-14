@@ -2,6 +2,7 @@ using System.Diagnostics;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Processors;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 
 namespace MediaEngine.Processors.Tests;
@@ -70,6 +71,50 @@ public sealed class VideoStillFrameServiceTests : IDisposable
         Assert.NotNull(VideoStillFrameService.Score(first!.Bytes));
         Assert.Equal(first.SourcePath, second!.SourcePath);
         Assert.Single(Directory.GetFiles(Path.Combine(_root, "cache")));
+    }
+
+    /// <summary>Issue 997: the frame step used to log nothing, so a skipped frame could not be seen in the Engine log.</summary>
+    [Fact]
+    public async Task TheFrameStep_SaysInTheLogWhyItMadeNoFrame_WithoutTheFolderPath()
+    {
+        var video = Path.Combine(_root, "clip.mp4");
+        await File.WriteAllBytesAsync(video, [1, 2, 3]);
+        var log = new Capture();
+
+        Assert.Null(await new VideoStillFrameService(null, Path.Combine(_root, "cache"), log).GetOrCreateAsync(video));
+        Assert.Null(await new VideoStillFrameService(null, Path.Combine(_root, "cache"), log).GetOrCreateAsync(Path.Combine(_root, "gone.mp4")));
+
+        Assert.Contains(log.Lines, line => line.Contains("FFmpeg is not available", StringComparison.Ordinal) && line.Contains("clip.mp4", StringComparison.Ordinal));
+        Assert.Contains(log.Lines, line => line.Contains("gone.mp4", StringComparison.Ordinal) && line.Contains("not found", StringComparison.Ordinal));
+        Assert.DoesNotContain(log.Lines, line => line.Contains(_root, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TheFrameStep_SaysInTheLogWhenItReusesASavedFrame()
+    {
+        var video = Path.Combine(_root, "again.mp4");
+        await File.WriteAllBytesAsync(video, [1, 2, 3]);
+        var cache = Path.Combine(_root, "cache");
+        Directory.CreateDirectory(cache);
+        var key = typeof(VideoStillFrameService).GetMethod("CacheKey", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        await File.WriteAllBytesAsync(Path.Combine(cache, (string)key.Invoke(null, [video])! + ".jpg"), Busy());
+        var log = new Capture();
+
+        Assert.NotNull(await new VideoStillFrameService(null, cache, log).GetOrCreateAsync(video));
+
+        Assert.Contains(log.Lines, line => line.Contains("reused", StringComparison.Ordinal) && line.Contains("again.mp4", StringComparison.Ordinal));
+    }
+
+    private sealed class Capture : ILogger<VideoStillFrameService>
+    {
+        public List<string> Lines { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Lines.Add(formatter(state, exception));
     }
 
     private static string? FfmpegPath() =>

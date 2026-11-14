@@ -52,7 +52,11 @@ internal sealed partial class DetailCompositionOrchestrator
             {
                 Description = FirstText(ResolveDisplayOverride(overrides, "description"),
                     GetValue(episodeValues, MetadataFieldConstants.EpisodeDescription)),
-                BackgroundUrl = GetValue(episodeValues, "episode_still_url"),
+                // A frame Library made itself has no provider address and no canonical still value, so the stored still stands in for it:
+                // the episode card draws BackgroundUrl, and without this a generated frame reads as "Artwork unavailable" (issue 999).
+                BackgroundUrl = GetValue(episodeValues, "episode_still_url") is { Length: > 0 } providerStill
+                    ? providerStill
+                    : actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is Guid storedStill ? $"/stream/artwork/{storedStill:D}" : null,
                 EpisodeStillUrl = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is Guid stillId ? $"/stream/artwork/{stillId:D}" : null,
                 EpisodeStillWidthPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillWidthPx,
                 EpisodeStillHeightPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillHeightPx,
