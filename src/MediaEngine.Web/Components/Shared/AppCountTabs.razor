@@ -1,7 +1,9 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 @* Tabs with a count on each ("All 11", "Metadata 4"). Arrow keys, Home and End move between tabs; the counts stay honest because
-   the page works them out from the whole list, not from what the search left. Every tab carries its outline icon (Look v3.1 D1). *@
+   the page works them out from the whole list, not from what the search left. Every tab carries its outline icon (Look v3.1 D1); a tab whose work is running swaps it for the small turning sync icon, selected or not,
+   with "Working" for a screen reader. *@
 <div class="tl-tabs-toolbar @RootClass" role="tablist" aria-label="@(AriaLabel ?? "Categories")">
     @for (var index = 0; index < Tabs.Count; index++)
     {
@@ -20,7 +22,7 @@
                tabindex="@(selected ? 0 : -1)"
                @onclick="() => SelectAsync(tab.Key)"
                @onkeydown="args => KeyDownAsync(args, position)">
-                <AppMaterialIcon Icon="@tab.Icon" Size="AppIconSize.Control20" />
+                @TabIcon(tab)
                 <span>@tab.Label</span>
                 @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </a>
@@ -35,7 +37,7 @@
                     tabindex="@(selected ? 0 : -1)"
                     @onclick="() => SelectAsync(tab.Key)"
                     @onkeydown="args => KeyDownAsync(args, position)">
-                <AppMaterialIcon Icon="@tab.Icon" Size="AppIconSize.Control20" />
+                @TabIcon(tab)
                 <span>@tab.Label</span>
                 @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </button>
@@ -45,6 +47,10 @@
 
 @code {
     [Inject] private IJSRuntime Js { get; set; } = default!;
+
+    private RenderFragment TabIcon(AppCountTab tab) => tab.Working
+        ? @<text><span class="app-count-tabs__sync"><AppSyncActivityIcon Working="true" Spinning="true" SpinGlyph="true" /></span><span class="sr-only">@L["AppCountTabs_Working"]</span></text>
+        : @<AppMaterialIcon Icon="@tab.Icon" Size="AppIconSize.Control20" />;
 
     [Parameter] public IReadOnlyList<AppCountTab> Tabs { get; set; } = [];
     [Parameter] public string? Selected { get; set; }

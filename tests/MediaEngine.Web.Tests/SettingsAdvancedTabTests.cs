@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,7 +17,14 @@ public sealed class SettingsAdvancedTabTests : AsyncBunitContext
     public SettingsAdvancedTabTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.CreateDefault());
+        Services.AddLogging();
+        var api = EngineApiClientStub.CreateDefault();
+        Services.AddSingleton<IEngineApiClient>(api);
+        // The Activity tab turns its icon while the Library works, so the tab row reads the shell's activity state.
+        Services.AddSingleton(new UniverseStateContainer());
+        Services.AddSingleton(new PlaybackSessionController(null!, api));
+        Services.AddSingleton<ActivityNotificationQueue>();
+        Services.AddSingleton<ShellActivityState>();
     }
 
     [Fact]

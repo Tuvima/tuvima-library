@@ -5,3 +5,4 @@
 .libs-status__text.is-working .libs-status__dot { background: var(--tl-accent-primary); }
 .libs-status__text.is-waiting .libs-status__dot { background: var(--tl-status-warning); }
 .libs-status__text.is-unreachable { color: var(--tl-status-warning); }
+.libs-status__sync { display: inline-flex; --sync-icon-box: 1.1rem; --sync-icon-glyph: 1.1rem; flex: 0 0 auto; color: var(--tl-accent-primary); }

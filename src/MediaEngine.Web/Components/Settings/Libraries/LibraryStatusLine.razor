@@ -4,10 +4,13 @@
 @using MediaEngine.Web.Services.Integration
 @implements IAsyncDisposable
 @inject IngestionLiveDashboardState Dashboard
+@inject DashboardSessionAccessor Session
 @inject IStringLocalizer<SharedStrings> L
 
 @* The one line above the libraries table (settings-and-setup-simplified D6): what the Library is doing right now, in the Engine's own
-   words, with the button that checks the folders for changes beside it. It replaces the old Library & Ingestion overview. *@
+   words, with the button that checks the folders for changes beside it. It replaces the old Library & Ingestion overview. There is no progress bar
+   here (that is the Activity page's job): while work runs the small turning sync icon stands where the static dot is, and the leading word
+   ("Adding", "Looking") links to the Activity page for someone who may open it. *@
 <div class="libs-status" data-testid="library-status-line" aria-live="polite" aria-busy="@(IsBusy ? "true" : "false")">
     @if (Dashboard.IsEngineUnreachable)
     {
@@ -21,8 +24,25 @@
     else
     {
         <p class="@TextClass(queue)">
-            <i class="libs-status__dot" aria-hidden="true"></i>
-            <span data-testid="library-status-text">@IngestionQueueProgressText.LibraryStatus(queue, DateTimeOffset.UtcNow)</span>
+            @if (IngestionQueueProgressText.IsWorking(queue))
+            {
+                <span class="libs-status__sync" data-testid="library-status-sync"><AppSyncActivityIcon Working="true" Spinning="true" SpinGlyph="true" /></span>
+            }
+            else
+            {
+                <i class="libs-status__dot" aria-hidden="true"></i>
+            }
+            @{ var text = IngestionQueueProgressText.LibraryStatus(queue, DateTimeOffset.UtcNow); }
+            <span data-testid="library-status-text">
+                @if (LeadIsLink(queue))
+                {
+                    <AppLink Href="@SettingsNav.RouteFor(SettingsSection.RecentlyAdded)" data-testid="library-status-activity-link">@Lead(text)</AppLink>@(text[Lead(text).Length..])
+                }
+                else
+                {
+                    @text
+                }
+            </span>
             @if (IngestionQueueProgressText.IsWaiting(queue))
             {
                 <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Tools)">@L["LibraryStatusLine_ToolsAndRequirements"]</AppLink>
@@ -41,8 +61,16 @@
     /// <summary>A phone only reads the Libraries page, so it cannot start a check.</summary>
     [Parameter] public bool ReadOnly { get; set; }
 
+    // Activity is the administrators' page (the same check the menu uses), so the leading word is a link only for them.
+    private bool CanOpenActivity => Session.HasNavigation("settings.administration");
+
     private IngestionQueueProgressDto? Queue => Dashboard.QueueProgress;
     private bool IsBusy => !Dashboard.IsEngineUnreachable && (Queue is null || IngestionQueueProgressText.IsWorking(Queue));
+
+    // While work runs the Engine's words are kept as they are; only their first word ("Adding", "Looking") is a link to Activity.
+    private bool LeadIsLink(IngestionQueueProgressDto queue) => CanOpenActivity && IngestionQueueProgressText.IsWorking(queue);
+
+    private static string Lead(string text) => text.Split(' ', 2)[0];
 
     private static string TextClass(IngestionQueueProgressDto queue) =>
         "libs-status__text " + (IngestionQueueProgressText.IsWorking(queue) ? "is-working" : IngestionQueueProgressText.IsWaiting(queue) ? "is-waiting" : "is-idle");
