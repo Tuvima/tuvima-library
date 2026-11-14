@@ -21,8 +21,9 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// The Artwork tool on a real detail page (universal editor spec D8, D9): the bar's Artwork tab opens the floating picker instead of
-/// a panel, a picked picture shows on the page before anything is saved, and a season picture opens the labelled temporary view that
-/// "Return to series view" and closing the tool take away again. The Engine is a hand-written stub; nothing is written anywhere.
+/// a panel, a picture chosen there is applied at once through the Engine's edit session while the page behind the window stays as it was
+/// (it shows the new picture when the window closes, v7 D9), and a season picture never makes a temporary view on the page. The Engine is
+/// a hand-written stub; nothing is written anywhere.
 /// </summary>
 public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
 {
@@ -48,7 +49,6 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
                 nameof(IEngineApiClient.LinkArtworkAssetAsync),
                 nameof(IEngineApiClient.AddArtworkFromUrlAsync),
                 nameof(IEngineApiClient.UploadCanonicalArtworkAsync),
-                nameof(IEngineApiClient.RunEditSessionAsync),
             })
             {
                 var name = write;
@@ -58,6 +58,25 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
                     return Task.FromResult<object?>(null);
                 });
             }
+
+            stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
+            {
+                var request = (EditSessionRequest)args![0]!;
+                if (!request.PreviewOnly)
+                {
+                    _writes.Add(nameof(IEngineApiClient.RunEditSessionAsync));
+                }
+
+                return Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Ok(new EditSessionResult
+                {
+                    PreviewOnly = request.PreviewOnly,
+                    Valid = true,
+                    DataSaved = !request.PreviewOnly,
+                    Changes = request.Changes
+                        .Select(change => new EditSessionChangeResult { Id = change.Id, Kind = change.Kind, EntityId = change.EntityId, Status = EditSessionChangeStatuses.Ok })
+                        .ToList(),
+                }));
+            });
         });
         Services.AddSingleton<IEngineApiClient>(api);
         Services.AddSingleton<IDetailsOverlayHistory>(new NoHistory());
@@ -139,7 +158,7 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AClickedBackgroundVersion_NeverChangesThePageBehindTheWindow_AndWritesNothing()
+    public async Task AClickedBackgroundVersion_IsAppliedAtOnce_ButTheWindowOpenNeverChangesThePageBehindIt()
     {
         var cut = await StartEditingAsync();
         OpenArtworkTool(cut);
@@ -149,14 +168,14 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")));
         _editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
-        _editor.WaitForAssertion(() => Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
+        // The Engine is asked at once (one write), and the page behind the window stays as it was.
+        _editor.WaitForAssertion(() => Assert.Equal([nameof(IEngineApiClient.RunEditSessionAsync)], _writes));
         Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.DoesNotContain("preview-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
-        Assert.Empty(_writes);
     }
 
     [Fact]
-    public async Task APreferredBackground_CountsAsAChange_WithoutTouchingThePageOrWritingAnything()
+    public async Task AChosenBackground_LeavesNothingToSave_SoSaveChangesStaysOff()
     {
         var cut = await StartEditingAsync();
         OpenArtworkTool(cut);
@@ -164,9 +183,9 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")));
         _editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
-        _editor.WaitForAssertion(() => Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
+        _editor.WaitForAssertion(() => Assert.Equal([nameof(IEngineApiClient.RunEditSessionAsync)], _writes));
+        Assert.True(_editor.Find("button.tl-editor-window__save").HasAttribute("disabled"));
         Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
-        Assert.Empty(_writes);
     }
 
     [Fact]

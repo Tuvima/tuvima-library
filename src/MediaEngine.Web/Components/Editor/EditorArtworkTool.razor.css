@@ -104,13 +104,6 @@
     color: var(--tl-text-on-accent);
 }
 
-.tl-art-picker__tab-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: var(--tl-radius-round);
-    background: var(--tl-accent-primary);
-}
-
 /* ---- One row of actions ----------------------------------------------------------------------------------- */
 
 .tl-art-picker__actions {
@@ -193,12 +186,38 @@
 }
 
 .tl-art-picker__preview {
+    position: relative;
     display: flex;
     box-sizing: border-box;
     overflow: hidden;
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-md);
     background: var(--tl-bg-shell);
+}
+
+/* While a change goes through the preview dims and shows a small spinner; the buttons stay where they are. */
+.tl-art-picker__preview.is-busy .tl-art-picker__image,
+.tl-art-picker__preview.is-busy .tl-art-picker__empty {
+    opacity: .45;
+}
+
+.tl-art-picker__busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* One plain line under the actions: what failed, with Try again. */
+.tl-art-picker__failure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-1) var(--tl-space-3);
+    margin: 0;
+    color: var(--tl-status-warning);
+    font-size: var(--tl-font-size-sm);
 }
 
 .tl-art-picker__preview--portrait { height: 12.5rem; aspect-ratio: 2 / 3; }
@@ -261,12 +280,6 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-sm);
-}
-
-.tl-art-picker__state {
-    display: flex;
-    align-items: center;
-    gap: var(--tl-space-2);
 }
 
 .tl-art-picker__facts {
@@ -413,10 +426,6 @@
     height: auto;
 }
 
-.tl-art-picker__face--tile.is-picked {
-    border-color: var(--tl-accent-primary);
-}
-
 .tl-art-picker__face--tile.is-disabled {
     opacity: .55;
     cursor: default;
@@ -431,29 +440,6 @@
 .tl-art-picker__small {
     color: var(--tl-status-warning);
     font-weight: var(--tl-font-weight-semibold);
-}
-
-.tl-art-picker__selected {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--tl-space-3);
-    padding: var(--tl-space-3);
-    border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-surface-raised);
-}
-
-.tl-art-picker__selected .tl-art-picker__thumb {
-    height: 3.75rem;
-}
-
-.tl-art-picker__selected-text {
-    display: flex;
-    flex: 1 1 14rem;
-    flex-direction: column;
-    gap: var(--tl-space-1);
-    min-width: 0;
 }
 
 /* Narrower than 1024: one column, the preview above the actions and versions. */

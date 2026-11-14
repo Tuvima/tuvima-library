@@ -27,6 +27,15 @@ public sealed record ArtworkPickerPicture(
     string Source = "Saved",
     string? FileName = null);
 
+/// <summary>One picture to make Preferred: the item, the slot, and the picture (an asset id, or <see cref="EditSessionArtworkTargets.None"/>).</summary>
+public sealed record ArtworkChoice(Guid EntityId, string Slot, string TargetId);
+
+/// <summary>
+/// Makes pictures the Preferred ones through the Engine's edit session, the same check and save as Save changes (so the same permission,
+/// refusals and write-back). The editor host builds it, so staging and saving stay in one place; nothing is staged for Review.
+/// </summary>
+public delegate Task<EditSessionSaveOutcome> ArtworkChangeSaver(IReadOnlyList<ArtworkChoice> choices);
+
 /// <summary>The shape a role's pictures have; the tool draws thumbnails and the preview at it.</summary>
 public enum ArtworkRoleShape
 {
@@ -189,44 +198,61 @@ public static class ArtworkPickerRules
 }
 
 /// <summary>
-/// What the Artwork tool does (universal editor spec D8), kept off the screen so it can be tested. Picking a picture only
-/// previews it in the tool; "Use this artwork" stages it in the pending list; nothing becomes the chosen picture until Save changes.
-/// Pictures that have to exist before they can be shown (an upload, a pasted link, a provider picture) are stored as unchosen pictures
-/// of the item, which changes nothing on the page.
+/// What the Artwork tool does (universal editor v7 D9). Choosing a picture changes the item at once: a version clicked, a provider picture,
+/// an upload, a pasted link and a Library picture each go through the Engine's edit session (the same check, permission and write-back as Save
+/// changes) as one artwork change, nothing waits in the pending list, and there is no Undo: the earlier pictures stay in the versions row, so
+/// picking one again reverses it. Pictures that have to exist before they can be chosen (an upload, a pasted link, a provider picture) are
+/// stored as unchosen pictures of the item first, then chosen. While a change is going through the preview shows a busy state; when it fails the
+/// previous picture stays and <see cref="Failure"/> says what failed, with <see cref="RetryChangeAsync"/> behind Try again.
 /// </summary>
 public sealed class ArtworkPickerSession
 {
     private const long MaximumUploadBytes = 10 * 1024 * 1024;
-    private const string ProviderPrefix = "provider:";
+    private const string ChangeFailed = "The picture was not changed.";
 
     private readonly IEngineApiClient _api;
     private readonly EditSessionState _session;
     private readonly ItemFieldEditSession _fields;
     private readonly ArtworkEditPreview _preview;
+    private readonly ArtworkChangeSaver _applyChoices;
     private readonly ILogger? _logger;
-    private string? _pickedProviderId;
+    private Func<Task<bool>>? _retry;
 
     public ArtworkPickerSession(
         IEngineApiClient api,
         EditSessionState session,
         ItemFieldEditSession fields,
         ArtworkEditPreview preview,
+        ArtworkChangeSaver applyChoices,
         ILogger? logger = null)
     {
         _api = api;
         _session = session;
         _fields = fields;
         _preview = preview;
+        _applyChoices = applyChoices;
         _logger = logger;
     }
 
     public event Action? Changed;
+
+    /// <summary>Raised each time a picture change went through, so the editor can refresh the page behind it when the window closes.</summary>
+    public event Action? Applied;
 
     public IReadOnlyList<ArtworkPickerTab> Tabs => ArtworkPickerRules.TabsFor(_fields.ArtworkSlots, _fields.MediaType);
 
     public string? ActiveSlot { get; private set; }
 
     public bool Busy { get; private set; }
+
+    /// <summary>A picture change is going through the Engine: the preview shows a short busy state while the buttons stay where they are.</summary>
+    public bool Applying { get; private set; }
+
+    /// <summary>One plain line about the last picture change that did not go through (what failed); null when the last one did. The previous picture stays.</summary>
+    public string? Failure { get; private set; }
+
+    /// <summary>Whether Try again can repeat the change that failed.</summary>
+    public bool CanRetryChange => Failure is not null && _retry is not null;
 
     /// <summary>A plain sentence about the last thing that could not be done; empty when all is well.</summary>
     public string? Message
@@ -259,18 +285,11 @@ public sealed class ArtworkPickerSession
     /// <summary>How many versions the item has saved for a role (zero until the roles have loaded).</summary>
     public int VersionCount(string slot) => _bySlot.TryGetValue(slot, out var versions) ? versions.Count : 0;
 
-    /// <summary>The asset that is Preferred for a role now: the staged choice if there is one, else the saved one. Null when none.</summary>
-    public Guid? PreferredAssetId(string slot)
-    {
-        if (_preview.StagedTargetId(slot) is { } staged)
-        {
-            return Guid.TryParse(staged, out var asset) ? asset : null;
-        }
+    /// <summary>The asset that is Preferred for a role now, or null when none.</summary>
+    public Guid? PreferredAssetId(string slot) =>
+        _bySlot.TryGetValue(slot, out var versions) ? versions.FirstOrDefault(version => version.IsCurrent)?.AssetId : null;
 
-        return _bySlot.TryGetValue(slot, out var versions) ? versions.FirstOrDefault(version => version.IsCurrent)?.AssetId : null;
-    }
-
-    /// <summary>The Preferred version of a role, or null (no artwork, or a removal is staged).</summary>
+    /// <summary>The Preferred version of a role, or null (no artwork).</summary>
     public ArtworkPickerPicture? PreferredVersion(string slot) =>
         PreferredAssetId(slot) is { } id && _bySlot.TryGetValue(slot, out var versions)
             ? versions.FirstOrDefault(version => version.AssetId == id)
@@ -278,7 +297,7 @@ public sealed class ArtworkPickerSession
 
     /// <summary>
     /// The versions of a role for the strip: the Preferred one first, the others in the order they were added (the order the Engine lists them).
-    /// Clicking one makes it Preferred and moves it to the front (spec D19).
+    /// Clicking one makes it Preferred at once and moves it to the front (spec D19).
     /// </summary>
     public IReadOnlyList<ArtworkPickerPicture> Versions(string slot)
     {
@@ -293,26 +312,12 @@ public sealed class ArtworkPickerSession
             : versions.Where(version => version.AssetId == preferred).Concat(versions.Where(version => version.AssetId != preferred)).ToList();
     }
 
-    /// <summary>The picture a role card shows: the staged or picked picture, else the saved Preferred one.</summary>
+    /// <summary>The picture a role card shows: the item's Preferred one.</summary>
     public string? RolePictureUrl(string slot) => _preview.ShownUrl(slot);
 
     public bool ProviderLoading { get; private set; }
 
     public ProviderArtworkDiscoveryDto? Provider { get; private set; }
-
-    /// <summary>Whether a picture is picked for the active slot and waits for "Use this artwork".</summary>
-    public bool HasPick => ActiveSlot is not null && _preview.HasPick(ActiveSlot);
-
-    /// <summary>The id of the picked picture (a saved picture's id, or "provider:" and a candidate id), or null.</summary>
-    public string? PickedTarget => ActiveSlot is null ? null : _preview.PickedTarget(ActiveSlot);
-
-    /// <summary>The picture the page shows for the active slot right now: the pick, else the staged picture, else the one the item has.</summary>
-    public string? ShownUrl => ActiveSlot is null ? null : _preview.ShownUrl(ActiveSlot);
-
-    /// <summary>The change staged for the active slot, if any.</summary>
-    public bool IsStaged => ActiveSlot is not null && _preview.IsStaged(ActiveSlot);
-
-    public bool IsRemoval => ActiveSlot is not null && _preview.IsRemoval(ActiveSlot);
 
     /// <summary>Opens the picker on a slot (the poster or cover tab when the slot is not one this item has).</summary>
     public async Task OpenAsync(string? slot)
@@ -324,19 +329,14 @@ public sealed class ArtworkPickerSession
         await SelectSlotAsync(target);
     }
 
-    /// <summary>Moves to another tab. A pick that was not used is dropped.</summary>
+    /// <summary>Moves to another tab.</summary>
     public async Task SelectSlotAsync(string? slot)
     {
-        if (ActiveSlot is not null && !string.Equals(ActiveSlot, slot, StringComparison.OrdinalIgnoreCase))
-        {
-            _preview.ClearPicks();
-            _pickedProviderId = null;
-        }
-
         ActiveSlot = slot;
         Provider = null;
         Saved = [];
         Message = null;
+        ClearFailure();
         Changed?.Invoke();
         if (slot is not null)
         {
@@ -344,45 +344,29 @@ public sealed class ArtworkPickerSession
         }
     }
 
-    /// <summary>Whether a change is staged for a role (it shows "Changed, not saved" on its card).</summary>
-    public bool IsSlotStaged(string slot) => _preview.IsStaged(slot);
-
-    /// <summary>Drops the picture picked in the Add artwork panel without adding it (Back to the role).</summary>
-    public void DiscardPick()
-    {
-        if (ActiveSlot is { } slot)
-        {
-            _preview.ClearPick(slot);
-            _pickedProviderId = null;
-            Changed?.Invoke();
-        }
-    }
-
-    /// <summary>Closes the picker: unused picks go away.</summary>
+    /// <summary>Closes the picker.</summary>
     public void Close()
     {
-        _preview.ClearPicks();
-        _pickedProviderId = null;
         ActiveSlot = null;
+        ClearFailure();
     }
 
     /// <summary>
-    /// The item being edited changed while the picker is open (spec D7): a pick that was not used is dropped, the tabs follow the new item,
-    /// and the picker stays on the same kind of picture when the new item has it. Pictures already staged for either item stay staged.
+    /// The item being edited changed while the picker is open (spec D7): the tabs follow the new item, and the picker stays on the same kind
+    /// of picture when the new item has it.
     /// </summary>
     public async Task FollowItemAsync()
     {
         var slot = ActiveSlot;
-        _preview.ClearPicks();
-        _pickedProviderId = null;
         ActiveSlot = null;
         Provider = null;
         Saved = [];
         Message = null;
+        ClearFailure();
         await OpenAsync(slot);
     }
 
-    /// <summary>Try again after the saved pictures did not come back: the plain line goes and the read is made again; nothing staged is touched.</summary>
+    /// <summary>Try again after the saved pictures did not come back: the plain line goes and the read is made again.</summary>
     public Task RetryLoadSavedAsync()
     {
         Message = null;
@@ -463,34 +447,23 @@ public sealed class ArtworkPickerSession
     }
 
     /// <summary>
-    /// Clicking a version makes it Preferred (spec D19): it is staged for Save changes and moves to the front of the strip.
-    /// Clicking the version that is saved as Preferred while another is staged takes the staged choice back.
+    /// Clicking a version makes it Preferred at once (spec D9, D19) and moves it to the front of the strip. The version that is Preferred
+    /// already is left as it is.
     /// </summary>
-    public void MakePreferred(ArtworkPickerPicture version)
+    public Task<bool> MakePreferredAsync(ArtworkPickerPicture version)
     {
         var slot = ActiveSlot;
         if (slot is null || _fields.ArtworkEntityId == Guid.Empty || PreferredAssetId(slot) == version.AssetId)
         {
-            return;
+            return Task.FromResult(false);
         }
 
-        _pickedProviderId = null;
-        _preview.ClearPick(slot);
-        if (version.IsCurrent)
-        {
-            UndoStaged();
-            return;
-        }
-
-        var assetId = version.AssetId.ToString("D");
-        _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId, before: BeforeText(slot));
-        _preview.RememberStaged(slot, assetId, version.ContentUrl);
-        Changed?.Invoke();
+        return RunChangeAsync(() => ApplyAsync(slot, version.AssetId.ToString("D")));
     }
 
     /// <summary>
-    /// "Delete this version" (after the person agreed): removes the picture from this item at once. Delete is the one artwork action that
-    /// does not wait for Save changes (spec 3b). A staged choice of the deleted picture is taken back.
+    /// "Delete this version" (after the person agreed): removes the picture from this item at once, the same as it always has. The versions
+    /// are read again.
     /// </summary>
     public async Task<bool> DeleteVersionAsync(ArtworkPickerPicture version)
     {
@@ -501,6 +474,7 @@ public sealed class ArtworkPickerSession
 
         Busy = true;
         Message = null;
+        ClearFailure();
         Changed?.Invoke();
         try
         {
@@ -510,12 +484,7 @@ public sealed class ArtworkPickerSession
                 return false;
             }
 
-            if (_preview.StagedTargetId(slot) == version.AssetId.ToString("D"))
-            {
-                UndoStaged();
-            }
-
-            _preview.ClearPick(slot);
+            Applied?.Invoke();
             await LoadSavedAsync();
             return true;
         }
@@ -570,68 +539,80 @@ public sealed class ArtworkPickerSession
         }
     }
 
-    /// <summary>Picks a provider picture: the page previews its thumbnail, nothing is written until it is used.</summary>
-    public void PickProvider(ProviderArtworkCandidateDto candidate)
+    /// <summary>Choosing a provider picture adds it to the item and makes it Preferred at once.</summary>
+    public Task<bool> ChooseProviderAsync(ProviderArtworkCandidateDto candidate)
     {
-        if (ActiveSlot is null || candidate.AlreadyAdded)
+        var slot = ActiveSlot;
+        if (slot is null || candidate.AlreadyAdded || _fields.ArtworkEntityId == Guid.Empty)
         {
-            return;
+            return Task.FromResult(false);
         }
 
-        _pickedProviderId = candidate.Id;
-        _preview.Pick(ActiveSlot, ProviderPrefix + candidate.Id, candidate.ThumbnailUrl);
-        Changed?.Invoke();
+        return RunChangeAsync(async () =>
+        {
+            var imported = await ImportProviderAsync(slot, candidate.Id);
+            if (imported is null)
+            {
+                return false;
+            }
+
+            // From here the picture is one of the item's versions, so Try again only has to choose it.
+            var importedId = imported.Value.ToString("D");
+            _retry = () => ApplyAsync(slot, importedId);
+            await LoadSavedAsync();
+            return await ApplyAsync(slot, importedId);
+        });
     }
 
-    /// <summary>Stores a picture the person chose from their computer as an unchosen picture of the item, and picks it.</summary>
-    public async Task<bool> UploadAsync(IBrowserFile file)
+    /// <summary>Stores a picture the person chose from their computer as a picture of the item and makes it Preferred at once.</summary>
+    public Task<bool> UploadAsync(IBrowserFile file)
     {
         var slot = ActiveSlot;
         var role = ArtworkPickerRules.RoleFor(slot);
         if (slot is null || role is null || Busy)
         {
-            return false;
+            return Task.FromResult(false);
         }
 
         if (file.ContentType is not ("image/jpeg" or "image/png"))
         {
-            return Fail("Choose a JPEG or PNG image.");
+            return Task.FromResult(Reject("Choose a JPEG or PNG image."));
         }
 
         if (file.Size > MaximumUploadBytes)
         {
-            return Fail("Artwork must be 10 MB or smaller.");
+            return Task.FromResult(Reject("Artwork must be 10 MB or smaller."));
         }
 
-        return await StoreAsync(slot, async () =>
+        return RunChangeAsync(() => StoreAndApplyAsync(slot, async () =>
         {
             await using var stream = file.OpenReadStream(MaximumUploadBytes);
             return await _api.UploadCanonicalArtworkAsync(
                 _fields.ArtworkEntityKind, _fields.ArtworkEntityId, role, stream, file.Name,
                 _session.ActiveItem?.Title, _fields.MediaType, null, slot, preferred: false);
-        }, "That image could not be uploaded.");
+        }, "That image could not be uploaded."));
     }
 
-    /// <summary>Stores a picture from a pasted web address as an unchosen picture of the item, and picks it.</summary>
-    public async Task<bool> PasteLinkAsync(string? address)
+    /// <summary>Stores a picture from a pasted web address as a picture of the item and makes it Preferred at once.</summary>
+    public Task<bool> PasteLinkAsync(string? address)
     {
         var slot = ActiveSlot;
         var role = ArtworkPickerRules.RoleFor(slot);
         var url = address?.Trim();
         if (slot is null || role is null || Busy)
         {
-            return false;
+            return Task.FromResult(false);
         }
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
-            return Fail("Paste a web address that starts with http:// or https://.");
+            return Task.FromResult(Reject("Paste a web address that starts with http:// or https://."));
         }
 
-        return await StoreAsync(slot, () => _api.AddArtworkFromUrlAsync(
+        return RunChangeAsync(() => StoreAndApplyAsync(slot, () => _api.AddArtworkFromUrlAsync(
             _fields.ArtworkEntityKind, _fields.ArtworkEntityId,
             new ArtworkFromUrlRequest(url!, role, Preferred: false, EntityLabel: _session.ActiveItem?.Title, MediaType: _fields.MediaType, SourceAssetType: slot)),
-            "That link could not be used.");
+            "That link could not be used."));
     }
 
     /// <summary>Whether "Choose from Library" can be offered: a role is open and the item has an artwork owner to link a Library picture to (every kind, a Universe and its things included).</summary>
@@ -678,170 +659,25 @@ public sealed class ArtworkPickerSession
             : null;
 
     /// <summary>
-    /// The Library's picker added these pictures to the item as unchosen versions (the same as an upload: nothing on the page changes). The
-    /// first one is picked here, ready for "Add version"; nothing becomes Preferred, and nothing is staged, until then.
+    /// The Library's picker added these pictures to the item as versions (the same as an upload). The first one is made Preferred at once.
     /// </summary>
-    public async Task<bool> UseLibraryPicturesAsync(IReadOnlyList<Guid> added)
+    public Task<bool> UseLibraryPicturesAsync(IReadOnlyList<Guid> added)
     {
         var slot = ActiveSlot;
-        if (slot is null || added.Count == 0)
+        if (slot is null || added.Count == 0 || _fields.ArtworkEntityId == Guid.Empty)
         {
-            return false;
+            return Task.FromResult(false);
         }
 
-        _pickedProviderId = null;
-        await LoadSavedAsync();
-        if (!string.Equals(slot, ActiveSlot, StringComparison.OrdinalIgnoreCase))
+        return RunChangeAsync(async () =>
         {
-            return true;
-        }
-
-        var first = added[0];
-        _preview.Pick(slot, first.ToString("D"), Saved.FirstOrDefault(picture => picture.AssetId == first)?.ContentUrl);
-        Changed?.Invoke();
-        return true;
-    }
-
-    /// <summary>"Use this artwork": stages the picked picture. Nothing is saved until Save changes.</summary>
-    public async Task<bool> UseAsync(bool makePreferred = true)
-    {
-        var slot = ActiveSlot;
-        var target = PickedTarget;
-        if (slot is null || target is null || Busy || _fields.ArtworkEntityId == Guid.Empty)
-        {
-            return false;
-        }
-
-        Busy = true;
-        Message = null;
-        Changed?.Invoke();
-        try
-        {
-            string? url = null;
-            string assetId;
-            if (target.StartsWith(ProviderPrefix, StringComparison.Ordinal))
-            {
-                var imported = await ImportProviderAsync(slot, _pickedProviderId ?? target[ProviderPrefix.Length..]);
-                if (imported is null)
-                {
-                    return false;
-                }
-
-                assetId = imported.Value.ToString("D");
-                await LoadSavedAsync();
-                url = Saved.FirstOrDefault(picture => picture.AssetId == imported)?.ContentUrl;
-            }
-            else
-            {
-                assetId = target;
-                url = Saved.FirstOrDefault(picture => picture.AssetId.ToString("D") == target)?.ContentUrl;
-            }
-
-            _pickedProviderId = null;
-            if (!makePreferred)
-            {
-                // Added as one more version only: it is saved with the item but nothing becomes Preferred.
-                _preview.ClearPick(slot);
-                return true;
-            }
-
-            _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId, before: BeforeText(slot));
-            _preview.RememberStaged(slot, assetId, url);
-            return true;
-        }
-        finally
-        {
-            Busy = false;
-            Changed?.Invoke();
-        }
-    }
-
-    /// <summary>"Remove artwork" (after the person agreed): stages leaving no picture chosen for the slot. The pictures stay saved.</summary>
-    public void Remove()
-    {
-        if (ActiveSlot is not { } slot || _fields.ArtworkEntityId == Guid.Empty)
-        {
-            return;
-        }
-
-        _pickedProviderId = null;
-        _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, EditSessionArtworkTargets.None, before: BeforeText(slot));
-        _preview.RememberStaged(slot, EditSessionArtworkTargets.None, null);
-        Changed?.Invoke();
-    }
-
-    /// <summary>Takes the staged choice for the active slot back out of the pending list.</summary>
-    public void UndoStaged()
-    {
-        if (ActiveSlot is { } slot && _preview.StagedChangeId(slot) is { } changeId)
-        {
-            _session.Pending.Remove(changeId);
-            Changed?.Invoke();
-        }
-    }
-
-    private async Task<bool> StoreAsync(string slot, Func<Task<ArtworkAssetDto?>> store, string failure)
-    {
-        Busy = true;
-        Message = null;
-        Changed?.Invoke();
-        try
-        {
-            var stored = await store();
-            if (stored is null)
-            {
-                return Fail(_api.LastError ?? failure);
-            }
-
-            if (!string.Equals(slot, ActiveSlot, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            _pickedProviderId = null;
-            _preview.Pick(slot, stored.Id.ToString("D"), stored.ContentUrl);
             await LoadSavedAsync();
-            return true;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
-        {
-            _logger?.LogWarning(ex, "A picture for {Slot} could not be stored", slot);
-            return Fail(failure);
-        }
-        finally
-        {
-            Busy = false;
-            Changed?.Invoke();
-        }
+            return await ApplyAsync(slot, added[0].ToString("D"));
+        });
     }
 
-    private async Task<Guid?> ImportProviderAsync(string slot, string candidateId)
-    {
-        var role = ArtworkPickerRules.RoleFor(slot);
-        if (role is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            var result = await _api.ImportProviderArtworkAsync(_fields.EditorEntityId, _fields.ScopeId, role, [candidateId]);
-            if (result?.Items.FirstOrDefault()?.AssetId is { } assetId)
-            {
-                return assetId;
-            }
-
-            Message = result?.Items.FirstOrDefault()?.Error
-                      ?? "That picture could not be added. Reload the provider pictures and try again.";
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            _logger?.LogWarning(ex, "A provider picture for {Slot} could not be added", slot);
-            Message = "That picture could not be added. Reload the provider pictures and try again.";
-        }
-
-        return null;
-    }
+    /// <summary>Try again after a picture change failed: the same change is made again. False when there is nothing to repeat.</summary>
+    public Task<bool> RetryChangeAsync() => _retry is { } retry ? RunChangeAsync(retry) : Task.FromResult(false);
 
     /// <summary>Where "Fetch all" finds the episodes under the item being edited; set by the editor host from the family tree.</summary>
     public Func<Task<IReadOnlyList<Guid>>>? EpisodeSource { get; set; }
@@ -852,7 +688,7 @@ public sealed class ArtworkPickerSession
         && Tabs.Any(tab => string.Equals(tab.Slot, "EpisodeStill", StringComparison.OrdinalIgnoreCase) || tab.Level == ArtworkPickerRules.EpisodesLevel);
 
     /// <summary>
-    /// Fetches the provider's still for every episode under this item and stages each as a change (nothing is saved until Save changes).
+    /// Fetches the provider's still for every episode under this item and makes each the episode's still at once, in one change to the library.
     /// An episode the provider has no still for is skipped and counted in the sentence in <see cref="Message"/>.
     /// </summary>
     public async Task<int> FetchAllStillsAsync()
@@ -862,20 +698,18 @@ public sealed class ArtworkPickerSession
             return 0;
         }
 
-        Busy = true;
-        Message = null;
-        Changed?.Invoke();
-        var staged = 0;
-        var skipped = 0;
-        try
+        var changed = 0;
+        await RunChangeAsync(async () =>
         {
-            var episodes = await EpisodeSource();
+            changed = 0;
+            var episodes = await EpisodeSource!();
+            var fetched = new List<(Guid Owner, Guid Asset)>();
+            var skipped = 0;
             foreach (var episodeId in episodes)
             {
-                var fetched = await FetchStillAsync(episodeId);
-                if (fetched)
+                if (await FetchStillAsync(episodeId) is { } still)
                 {
-                    staged++;
+                    fetched.Add(still);
                 }
                 else
                 {
@@ -883,35 +717,36 @@ public sealed class ArtworkPickerSession
                 }
             }
 
+            if (fetched.Count > 0)
+            {
+                var outcome = await _applyChoices(fetched.Select(still => new ArtworkChoice(still.Owner, "EpisodeStill", still.Asset.ToString("D"))).ToList());
+                if (!outcome.Saved)
+                {
+                    return FailChange(FailureText(outcome));
+                }
+
+                Applied?.Invoke();
+                changed = fetched.Count;
+            }
+
             Message = episodes.Count == 0
                 ? "No episodes were found to fetch pictures for."
                 : skipped == 0
-                    ? $"Added a picture for {staged} episodes. Save changes to keep them."
-                    : $"Added a picture for {staged} episodes; {skipped} had none to offer. Save changes to keep them.";
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            _logger?.LogWarning(ex, "Pictures for the episodes could not be fetched");
-            Message = staged == 0
-                ? "The episode pictures could not be fetched. Check the provider connection and try again."
-                : $"Added a picture for {staged} episodes before the connection failed. Save changes to keep them.";
-        }
-        finally
-        {
-            Busy = false;
-            Changed?.Invoke();
-        }
+                    ? $"Added a picture for {changed} episodes."
+                    : $"Added a picture for {changed} episodes; {skipped} had none to offer.";
+            return true;
+        });
 
-        return staged;
+        return changed;
     }
 
-    private async Task<bool> FetchStillAsync(Guid episodeId)
+    private async Task<(Guid Owner, Guid Asset)?> FetchStillAsync(Guid episodeId)
     {
         var context = await _api.GetMediaEditorContextAsync(episodeId);
         var scope = context?.Scopes.FirstOrDefault(candidate => candidate.ArtworkSlots.Contains("EpisodeStill", StringComparer.OrdinalIgnoreCase));
         if (scope is null)
         {
-            return false;
+            return null;
         }
 
         var owner = scope.ArtworkOwnerEntityId ?? episodeId;
@@ -920,28 +755,130 @@ public sealed class ArtworkPickerSession
         var candidate = found?.Items.FirstOrDefault();
         if (candidate is null)
         {
-            return false;
+            return null;
         }
 
         var imported = await _api.ImportProviderArtworkAsync(owner, scope.ScopeId, "Primary", [candidate.Id]);
-        if (imported?.Items.FirstOrDefault()?.AssetId is not { } assetId)
+        return imported?.Items.FirstOrDefault()?.AssetId is { } assetId ? (owner, assetId) : null;
+    }
+
+    // -- One picture change --------------------------------------------------------------------------------
+
+    // Runs one change (the busy state on, the earlier failure cleared) and remembers it so Try again can repeat it. A failure is told on
+    // one plain line (Failure) and the previous picture stays; an exception from the Engine call is logged and told the same way.
+    private async Task<bool> RunChangeAsync(Func<Task<bool>> attempt)
+    {
+        if (Busy)
         {
             return false;
         }
 
-        _session.Pending.SetArtwork(owner, "EpisodeStill", assetId.ToString("D"), "Episode picture", EditReviewRows.NoPictureYet);
+        _retry = attempt;
+        Busy = true;
+        Applying = true;
+        Failure = null;
+        Message = null;
+        Changed?.Invoke();
+        try
+        {
+            var done = await attempt();
+            if (done)
+            {
+                _retry = null;
+            }
+
+            return done;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        {
+            _logger?.LogWarning(ex, "A picture change for {Slot} did not go through", ActiveSlot);
+            return FailChange(ChangeFailed);
+        }
+        finally
+        {
+            Busy = false;
+            Applying = false;
+            Changed?.Invoke();
+        }
+    }
+
+    // The picture becomes the item's Preferred one for the slot through the Engine's edit session (check, then apply): the same permission,
+    // refusals and write-back as Save changes. The saved pictures are read again so the preview and the strip show it.
+    private async Task<bool> ApplyAsync(string slot, string targetId)
+    {
+        var outcome = await _applyChoices([new ArtworkChoice(_fields.ArtworkEntityId, slot, targetId)]);
+        if (!outcome.Saved)
+        {
+            return FailChange(FailureText(outcome));
+        }
+
+        Applied?.Invoke();
+        await LoadSavedAsync();
         return true;
     }
 
-    // Review's Before for a picture: the item has one saved for the slot, or none.
-    private string BeforeText(string slot) =>
-        _preview.HasCurrent(slot) ? "The current picture" : EditReviewRows.NoPictureYet;
-
-    private bool Fail(string message)
+    private async Task<bool> StoreAndApplyAsync(string slot, Func<Task<ArtworkAssetDto?>> store, string failure)
     {
-        Message = message;
+        var stored = await store();
+        if (stored is null)
+        {
+            return FailChange(_api.LastError ?? failure);
+        }
+
+        if (!string.Equals(slot, ActiveSlot, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // From here the picture is one of the item's versions, so Try again only has to choose it.
+        var assetId = stored.Id.ToString("D");
+        _retry = () => ApplyAsync(slot, assetId);
+        await LoadSavedAsync();
+        return await ApplyAsync(slot, assetId);
+    }
+
+    private async Task<Guid?> ImportProviderAsync(string slot, string candidateId)
+    {
+        var role = ArtworkPickerRules.RoleFor(slot);
+        if (role is null)
+        {
+            return null;
+        }
+
+        var result = await _api.ImportProviderArtworkAsync(_fields.EditorEntityId, _fields.ScopeId, role, [candidateId]);
+        if (result?.Items.FirstOrDefault()?.AssetId is { } assetId)
+        {
+            return assetId;
+        }
+
+        FailChange(result?.Items.FirstOrDefault()?.Error ?? "That picture could not be added. Reload the provider pictures and try again.");
+        return null;
+    }
+
+    private static string FailureText(EditSessionSaveOutcome outcome) =>
+        outcome.Failures.FirstOrDefault()?.Reason is { Length: > 0 } reason ? $"{ChangeFailed} {reason}"
+        : outcome.Message is { Length: > 0 } message ? $"{ChangeFailed} {message}"
+        : ChangeFailed;
+
+    private bool FailChange(string line)
+    {
+        Failure = line;
+        return false;
+    }
+
+    // A change that cannot even be tried (the wrong file type, a link that is not a web address) says so; Try again would repeat the same refusal.
+    private bool Reject(string line)
+    {
+        _retry = null;
+        Failure = line;
         Changed?.Invoke();
         return false;
+    }
+
+    private void ClearFailure()
+    {
+        Failure = null;
+        _retry = null;
     }
 
     private static string SourceOf(ArtworkEntityVariantDto variant) =>

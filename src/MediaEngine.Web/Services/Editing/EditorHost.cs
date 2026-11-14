@@ -140,6 +140,7 @@ public sealed class EditorHost : IDisposable
     private bool _disposed;
     private bool _wasOpen;
     private bool _changedWhileOpen;
+    private bool _artworkAppliedWhileOpen;
     private int _deleting;
     private readonly HashSet<Guid> _touched = [];
 
@@ -173,7 +174,7 @@ public sealed class EditorHost : IDisposable
             OpenItem = OpenItemAsync,
             ItemSwitched = () => _binding?.ItemSwitched?.Invoke() ?? Task.CompletedTask,
         };
-        Picker = new ArtworkPickerSession(api, Session, Mode.Fields, new ArtworkEditPreview(Session, Mode.Fields), logger);
+        Picker = new ArtworkPickerSession(api, Session, Mode.Fields, new ArtworkEditPreview(), ApplyArtworkAsync, logger);
         Batch = new BulkEditSelection { RefreshAsync = () => _binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask };
         Family = new EditorFamilyState(api, logger);
         Universe = new EditorUniverseState(api, logger);
@@ -195,6 +196,7 @@ public sealed class EditorHost : IDisposable
         Mode.Changed += OnModeChanged;
         Session.Changed += OnSessionChanged;
         Picker.Changed += RaiseChanged;
+        Picker.Applied += OnArtworkApplied;
         Flow.Changed += RaiseChanged;
         Batch.Changed += OnBatchChanged;
         Family.Changed += RaiseChanged;
@@ -707,9 +709,36 @@ public sealed class EditorHost : IDisposable
         }
     }
 
+    // A picture was chosen in the Artwork tool and is already in the library (spec v7 D9). The page behind the window stays as it was until
+    // the window closes, so only a note is kept here; the page refreshes once, on close.
+    private void OnArtworkApplied()
+    {
+        _changedWhileOpen = true;
+        _artworkAppliedWhileOpen = true;
+        if (Session.ActiveItem is { } active && active.EntityId != Guid.Empty)
+        {
+            _touched.Add(active.EntityId);
+        }
+    }
+
+    // A picture chosen in the Artwork tool goes through the same edit session as Save changes (the same check, permission and write-back), at
+    // once and on its own list: nothing from the tool is staged for Review.
+    private Task<EditSessionSaveOutcome> ApplyArtworkAsync(IReadOnlyList<ArtworkChoice> choices)
+    {
+        var pending = new PendingEditList();
+        foreach (var choice in choices)
+        {
+            pending.SetArtwork(choice.EntityId, choice.Slot, choice.TargetId);
+        }
+
+        return new EditSessionSaver(_api).SaveAsync(pending);
+    }
+
     private Task OnSavedAsync()
     {
         _changedWhileOpen = true;
+        // The page refreshes after this save, and what it reads now includes any picture chosen earlier.
+        _artworkAppliedWhileOpen = false;
         if (Session.ActiveItem is { } active)
         {
             // Some changes may have gone through while the editor stays open (others failed): the marks follow what is now in the library.
@@ -819,6 +848,7 @@ public sealed class EditorHost : IDisposable
         {
             _wasOpen = true;
             _changedWhileOpen = false;
+            _artworkAppliedWhileOpen = false;
             _touched.Clear();
         }
         else if (!Mode.IsOn && _wasOpen)
@@ -826,6 +856,8 @@ public sealed class EditorHost : IDisposable
             // Leaving (Done, a device change, a removed title) ends the ticks and the bulk panel with them.
             _wasOpen = false;
             var closed = new EditorClosedEventArgs(_changedWhileOpen, [.. _touched]);
+            var refreshForArtwork = _artworkAppliedWhileOpen;
+            _artworkAppliedWhileOpen = false;
             _touched.Clear();
             Batch.Clear();
             FileBatch.Close();
@@ -839,11 +871,33 @@ public sealed class EditorHost : IDisposable
             SyncOverlayGuard();
             RaiseChanged();
             RaiseClosed(closed);
+            if (refreshForArtwork)
+            {
+                _ = RefreshPageAfterArtworkAsync();
+            }
+
             return;
         }
 
         SyncOverlayGuard();
         RaiseChanged();
+    }
+
+    // The window closed after a picture was chosen: the page behind shows it now, once (no stale copy of the show page or its tiles).
+    private async Task RefreshPageAfterArtworkAsync()
+    {
+        try
+        {
+            if (_binding?.SectionCommitted is { } committed)
+            {
+                await committed();
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The picture is already saved; a page that cannot refresh keeps what it showed until its next load.
+            _logger.LogWarning(ex, "The page could not refresh after a picture was chosen in the editor");
+        }
     }
 
     private void RaiseClosed(EditorClosedEventArgs closed)

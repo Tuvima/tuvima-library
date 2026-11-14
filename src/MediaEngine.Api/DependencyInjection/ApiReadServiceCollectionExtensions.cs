@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Collections.Packs;
 using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Matching;
+using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
 using MediaEngine.Storage;
@@ -97,6 +98,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<PersonEditorReadService>();
         services.AddSingleton<ArtworkLibraryReadService>();
         services.AddSingleton<ArtworkAssetService>();
+        services.AddSingleton<ArtworkCanonicalSync>();
         services.AddSingleton<IEditSessionChangeHandler, ArtworkEditSessionChangeHandler>();
         services.AddSingleton<ArtworkRenditionQueue>();
         services.AddSingleton<IArtworkRenditionService, ArtworkRenditionService>();
