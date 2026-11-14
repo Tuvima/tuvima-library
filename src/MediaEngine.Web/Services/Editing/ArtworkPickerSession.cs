@@ -453,12 +453,13 @@ public sealed class ArtworkPickerSession
     public Task<bool> MakePreferredAsync(ArtworkPickerPicture version)
     {
         var slot = ActiveSlot;
-        if (slot is null || _fields.ArtworkEntityId == Guid.Empty || PreferredAssetId(slot) == version.AssetId)
+        var entityId = _fields.ArtworkEntityId;
+        if (slot is null || entityId == Guid.Empty || PreferredAssetId(slot) == version.AssetId)
         {
             return Task.FromResult(false);
         }
 
-        return RunChangeAsync(() => ApplyAsync(slot, version.AssetId.ToString("D")));
+        return RunChangeAsync(() => ApplyAsync(entityId, slot, version.AssetId.ToString("D")));
     }
 
     /// <summary>
@@ -542,8 +543,11 @@ public sealed class ArtworkPickerSession
     /// <summary>Choosing a provider picture adds it to the item and makes it Preferred at once.</summary>
     public Task<bool> ChooseProviderAsync(ProviderArtworkCandidateDto candidate)
     {
+        // The item and role are fixed here, before anything is awaited: a header switch to another item while the picture is being
+        // imported must not send the choice to the new item.
         var slot = ActiveSlot;
-        if (slot is null || candidate.AlreadyAdded || _fields.ArtworkEntityId == Guid.Empty)
+        var entityId = _fields.ArtworkEntityId;
+        if (slot is null || candidate.AlreadyAdded || entityId == Guid.Empty)
         {
             return Task.FromResult(false);
         }
@@ -558,17 +562,19 @@ public sealed class ArtworkPickerSession
 
             // From here the picture is one of the item's versions, so Try again only has to choose it.
             var importedId = imported.Value.ToString("D");
-            _retry = () => ApplyAsync(slot, importedId);
+            _retry = () => ApplyAsync(entityId, slot, importedId);
             await LoadSavedAsync();
-            return await ApplyAsync(slot, importedId);
+            return await ApplyAsync(entityId, slot, importedId);
         });
     }
 
     /// <summary>Stores a picture the person chose from their computer as a picture of the item and makes it Preferred at once.</summary>
     public Task<bool> UploadAsync(IBrowserFile file)
     {
+        // The item, kind and role are fixed here, before anything is awaited (see ChooseProviderAsync).
         var slot = ActiveSlot;
         var role = ArtworkPickerRules.RoleFor(slot);
+        var target = ArtworkTarget.From(_fields, _session.ActiveItem?.Title);
         if (slot is null || role is null || Busy)
         {
             return Task.FromResult(false);
@@ -584,12 +590,12 @@ public sealed class ArtworkPickerSession
             return Task.FromResult(Reject("Artwork must be 10 MB or smaller."));
         }
 
-        return RunChangeAsync(() => StoreAndApplyAsync(slot, async () =>
+        return RunChangeAsync(() => StoreAndApplyAsync(target.EntityId, slot, async () =>
         {
             await using var stream = file.OpenReadStream(MaximumUploadBytes);
             return await _api.UploadCanonicalArtworkAsync(
-                _fields.ArtworkEntityKind, _fields.ArtworkEntityId, role, stream, file.Name,
-                _session.ActiveItem?.Title, _fields.MediaType, null, slot, preferred: false);
+                target.Kind, target.EntityId, role, stream, file.Name,
+                target.Title, target.MediaType, null, slot, preferred: false);
         }, "That image could not be uploaded."));
     }
 
@@ -598,6 +604,7 @@ public sealed class ArtworkPickerSession
     {
         var slot = ActiveSlot;
         var role = ArtworkPickerRules.RoleFor(slot);
+        var target = ArtworkTarget.From(_fields, _session.ActiveItem?.Title);
         var url = address?.Trim();
         if (slot is null || role is null || Busy)
         {
@@ -609,9 +616,9 @@ public sealed class ArtworkPickerSession
             return Task.FromResult(Reject("Paste a web address that starts with http:// or https://."));
         }
 
-        return RunChangeAsync(() => StoreAndApplyAsync(slot, () => _api.AddArtworkFromUrlAsync(
-            _fields.ArtworkEntityKind, _fields.ArtworkEntityId,
-            new ArtworkFromUrlRequest(url!, role, Preferred: false, EntityLabel: _session.ActiveItem?.Title, MediaType: _fields.MediaType, SourceAssetType: slot)),
+        return RunChangeAsync(() => StoreAndApplyAsync(target.EntityId, slot, () => _api.AddArtworkFromUrlAsync(
+            target.Kind, target.EntityId,
+            new ArtworkFromUrlRequest(url!, role, Preferred: false, EntityLabel: target.Title, MediaType: target.MediaType, SourceAssetType: slot)),
             "That link could not be used."));
     }
 
@@ -664,7 +671,8 @@ public sealed class ArtworkPickerSession
     public Task<bool> UseLibraryPicturesAsync(IReadOnlyList<Guid> added)
     {
         var slot = ActiveSlot;
-        if (slot is null || added.Count == 0 || _fields.ArtworkEntityId == Guid.Empty)
+        var entityId = _fields.ArtworkEntityId;
+        if (slot is null || added.Count == 0 || entityId == Guid.Empty)
         {
             return Task.FromResult(false);
         }
@@ -672,7 +680,7 @@ public sealed class ArtworkPickerSession
         return RunChangeAsync(async () =>
         {
             await LoadSavedAsync();
-            return await ApplyAsync(slot, added[0].ToString("D"));
+            return await ApplyAsync(entityId, slot, added[0].ToString("D"));
         });
     }
 
@@ -804,9 +812,11 @@ public sealed class ArtworkPickerSession
 
     // The picture becomes the item's Preferred one for the slot through the Engine's edit session (check, then apply): the same permission,
     // refusals and write-back as Save changes. The saved pictures are read again so the preview and the strip show it.
-    private async Task<bool> ApplyAsync(string slot, string targetId)
+    // The item and role are the ones the person chose for, handed in by the caller: they are not read again here, so a switch to another
+    // item or role while a picture was uploading or importing still lands on the item it was chosen for.
+    private async Task<bool> ApplyAsync(Guid entityId, string slot, string targetId)
     {
-        var outcome = await _applyChoices([new ArtworkChoice(_fields.ArtworkEntityId, slot, targetId)]);
+        var outcome = await _applyChoices([new ArtworkChoice(entityId, slot, targetId)]);
         if (!outcome.Saved)
         {
             return FailChange(FailureText(outcome));
@@ -817,7 +827,9 @@ public sealed class ArtworkPickerSession
         return true;
     }
 
-    private async Task<bool> StoreAndApplyAsync(string slot, Func<Task<ArtworkAssetDto?>> store, string failure)
+    // A stored picture is always chosen for the item and role it was stored for, even when the person has moved to another role or item
+    // meanwhile: it was never silently left unchosen. The strip is read again for whatever is open now.
+    private async Task<bool> StoreAndApplyAsync(Guid entityId, string slot, Func<Task<ArtworkAssetDto?>> store, string failure)
     {
         var stored = await store();
         if (stored is null)
@@ -825,16 +837,18 @@ public sealed class ArtworkPickerSession
             return FailChange(_api.LastError ?? failure);
         }
 
-        if (!string.Equals(slot, ActiveSlot, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
         // From here the picture is one of the item's versions, so Try again only has to choose it.
         var assetId = stored.Id.ToString("D");
-        _retry = () => ApplyAsync(slot, assetId);
+        _retry = () => ApplyAsync(entityId, slot, assetId);
         await LoadSavedAsync();
-        return await ApplyAsync(slot, assetId);
+        return await ApplyAsync(entityId, slot, assetId);
+    }
+
+    // What an upload or a pasted link is for, read once before any await.
+    private readonly record struct ArtworkTarget(string Kind, Guid EntityId, string? MediaType, string? Title)
+    {
+        public static ArtworkTarget From(ItemFieldEditSession fields, string? title) =>
+            new(fields.ArtworkEntityKind, fields.ArtworkEntityId, fields.MediaType, title);
     }
 
     private async Task<Guid?> ImportProviderAsync(string slot, string candidateId)

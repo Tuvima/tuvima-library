@@ -1415,12 +1415,6 @@
   <data name="ReviewChangesView_ThereAreNoChangesTo" xml:space="preserve">
     <value>There are no changes to review.</value>
   </data>
-  <data name="ReviewChangesView_Before" xml:space="preserve">
-    <value>Before</value>
-  </data>
-  <data name="ReviewChangesView_After" xml:space="preserve">
-    <value>After</value>
-  </data>
   <data name="ReviewChangesView_ProviderRecordsAreNeverModified" xml:space="preserve">
     <value>Provider records are never modified.</value>
   </data>
@@ -1431,7 +1425,7 @@
     <value>Back to editing</value>
   </data>
   <data name="ReviewChangesView_DiscardChanges" xml:space="preserve">
-    <value>Discard changes</value>
+    <value>Discard</value>
   </data>
   <data name="ReviewFilesStatus_FilesWillBeUpdated" xml:space="preserve">
     <value>Files will be updated:</value>
@@ -10693,6 +10687,9 @@
   </data>
   <data name="EditorQuickFacts_CopyPath" xml:space="preserve">
     <value>Copy file path</value>
+  </data>
+  <data name="ReviewChangesView_CannotBeUndone" xml:space="preserve">
+    <value>This cannot be undone.</value>
   </data>
   <data name="ReviewChangesView_NowYours" xml:space="preserve">
     <value>now yours</value>

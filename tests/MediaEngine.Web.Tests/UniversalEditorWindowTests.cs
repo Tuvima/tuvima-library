@@ -876,7 +876,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var description = Assert.Single(rows, row => row.GetAttribute("data-row")!.EndsWith(":description", StringComparison.Ordinal));
         var tags = Assert.Single(rows, row => row.GetAttribute("data-row")!.EndsWith(":custom_tags", StringComparison.Ordinal));
         Assert.NotNull(description.QuerySelector("[data-now-yours]"));
-        Assert.Contains("now yours", description.QuerySelector(".review-changes__what")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("now yours", description.QuerySelector(".review-changes__change")!.TextContent, StringComparison.Ordinal);
         Assert.Null(tags.QuerySelector("[data-now-yours]"));
     }
 

@@ -4,9 +4,10 @@
 @using MediaEngine.Web.Services.Ui
 @inject IStringLocalizer<SharedStrings> L
 
-@* Review changes (universal editor spec D8, D12): the last stop before anything is saved, as a page of the pop-over window (it has no dialog of its
-   own: every way into the editor, including ticked rows, saves through the window). It asks the Engine to check the whole list, shows what would change grouped
-   Metadata, Identity, Artwork, Relationships and Physical files, and saves only on "Save N changes". Each row can be sent back to its tool
+@* Review changes (universal editor spec D8, D12; v7 D11): the last stop before anything is saved, as a page of the pop-over window (it has no dialog of its
+   own: every way into the editor, including ticked rows, saves through the window). It asks the Engine to check the whole list and shows what would change as a
+   compact list, one line per change (field, old value struck through, new value, the same fact never twice), with one amber block when a file will move
+   or be renamed, and saves only on "Save changes". Each row can be sent back to its tool
    (Edit) or taken out of the list (the row's menu). A row the Engine refuses shows its plain reason and blocks Save until it is fixed or
    removed. After a save that only partly went through it stays, shows every row's result and says what was saved. How the person left it is
    raised as an outcome. *@
@@ -42,53 +43,73 @@
         <p class="review-changes__state">@L["ReviewChangesView_ThereAreNoChangesTo"]</p>
     }
 
-    @foreach (var group in Groups)
+    @if (Compact is { Count: > 0 } layout)
     {
-        <section class="review-changes__group" aria-label="@EditReviewRows.GroupTitle(group.Key)">
-            <h3>@EditReviewRows.GroupTitle(group.Key) <span class="review-changes__count">@group.Count()</span></h3>
-            <ul class="review-changes__rows">
-                @foreach (var row in group)
-                {
-                    var shown = StatusOf(row);
-                    <li class="review-changes__row" data-row="@row.RowId" data-state="@shown.State">
-                        <div class="review-changes__what">
-                            <strong>@row.Item</strong>
-                            <span>@row.What@if (row.NowYours)
-                            {
-                                <span class="review-changes__yours" data-now-yours> &mdash; @L["ReviewChangesView_NowYours"]</span>
-                            }</span>
-                        </div>
-                        <div class="review-changes__values">
-                            @if (row.Before is not null)
-                            {
-                                <span class="review-changes__before"><span class="review-changes__label">@L["ReviewChangesView_Before"]</span> @row.Before</span>
-                            }
-                            <span class="review-changes__after"><span class="review-changes__label">@L["ReviewChangesView_After"]</span> @row.After</span>
-                        </div>
-                        @if (row.Warning is not null)
+        <ul class="review-changes__rows">
+            @foreach (var row in layout.Lines)
+            {
+                var shown = StatusOf(row);
+                var note = ReviewChangeLines.NoteFor(row);
+                <li class="review-changes__row" data-row="@row.RowId" data-state="@shown.State">
+                    <span class="review-changes__field">
+                        @if (layout.MultipleItems)
                         {
-                            <AppAlert Tone="AppUiTone.Warning" Dense="true" Class="review-changes__warning">@row.Warning</AppAlert>
+                            <span class="review-changes__item">@row.Item</span>
                         }
-
-                        @if (shown.Text is not null)
+                        @row.What
+                    </span>
+                    <span class="review-changes__change">
+                        @if (ReviewChangeLines.HasBefore(row))
                         {
-                            <p class="review-changes__status" role="@(shown.State == "invalid" || shown.State == "failed" ? "alert" : "status")">@shown.Text</p>
+                            <s class="review-changes__before">@row.Before</s>
+                            <span class="review-changes__arrow" aria-hidden="true">&rarr;</span>
                         }
-
-                        @if (!_finished)
+                        <span class="review-changes__after">@row.After</span>
+                        @if (row.NowYours)
                         {
-                            <div class="review-changes__actions">
-                                @if (Source.CanJumpTo(row))
+                            <span class="review-changes__yours" data-now-yours>&mdash; @L["ReviewChangesView_NowYours"]</span>
+                        }
+                    </span>
+                    @RowActions(row)
+                    @if (note is not null)
+                    {
+                        <span class="review-changes__detail">@note</span>
+                    }
+                    @if (shown.Text is not null)
+                    {
+                        <span class="review-changes__status review-changes__detail" role="@(shown.State == "invalid" || shown.State == "failed" ? "alert" : "status")">@shown.Text</span>
+                    }
+                </li>
+            }
+        </ul>
+        @if (layout.FileHeading is { } heading)
+        {
+            @* The one amber block (editor v7 D11): every file that will move or be renamed, each said once. *@
+            <AppAlert Tone="AppUiTone.Warning" Class="review-changes__move">
+                <strong>@heading</strong>
+                <ul class="review-changes__rows review-changes__rows--files">
+                    @foreach (var entry in layout.Files)
+                    {
+                        var shown = StatusOf(entry.Row);
+                        <li class="review-changes__row review-changes__row--file" data-row="@entry.Row.RowId" data-state="@shown.State">
+                            <span class="review-changes__change">
+                                @if (layout.MultipleItems)
                                 {
-                                    <AppButton Label="@L["Common_Edit"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" aria-label="@($"Edit {row.What} for {row.Item}")" OnClick="@(() => EditAsync(row))" />
+                                    <span class="review-changes__item">@entry.Row.Item</span>
                                 }
-                                <AppRowMenu AriaLabel="@($"More actions for {row.What}")" Items="@MenuFor(row)" />
-                            </div>
-                        }
-                    </li>
-                }
-            </ul>
-        </section>
+                                @entry.Text
+                            </span>
+                            @RowActions(entry.Row)
+                            @if (shown.Text is not null)
+                            {
+                                <span class="review-changes__status review-changes__detail" role="@(shown.State == "invalid" || shown.State == "failed" ? "alert" : "status")">@shown.Text</span>
+                            }
+                        </li>
+                    }
+                </ul>
+                <span class="review-changes__detail">@L["ReviewChangesView_CannotBeUndone"]</span>
+            </AppAlert>
+        }
     }
 
     <p class="review-changes__note">@L["ReviewChangesView_ProviderRecordsAreNeverModified"]</p>
@@ -96,19 +117,16 @@
     {
         <ReviewFilesStatus Source="Source" Disabled="@Busy" />
     }
-    <div class="review-changes__footer">
+    <AppActionBar Class="review-changes__footer">
     @if (_finished)
     {
         <AppButton Label="@L["Common_Close"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="BackAsync" />
     }
     else
     {
-        <AppButton Label="@L["ReviewChangesView_BackToEditing"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="BackAsync" />
-        @if (!IsPhone)
-        {
-            @* On a phone the step offers Back and Save changes; Discard is the editor's own footer button, one step back. *@
-            <AppButton Label="@L["ReviewChangesView_DiscardChanges"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DiscardAsync" />
-        }
+        @* One row at the foot (editor v7 D11): Back to editing alone at the left, Discard and Save changes together at the right. A phone stacks them, Save changes first. *@
+        <AppButton Label="@L["ReviewChangesView_BackToEditing"].Value" ButtonStyle="AppButtonStyle.Text" Class="app-footer-start" Disabled="@Busy" OnClick="BackAsync" />
+        <AppButton Label="@L["ReviewChangesView_DiscardChanges"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="DiscardAsync" />
         <AppButton Label="@SaveLabel"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
@@ -116,10 +134,23 @@
                    Disabled="@(!CanSave)"
                    OnClick="SaveAsync" />
     }
-    </div>
+    </AppActionBar>
 </div>
 
 @code {
+    private RenderFragment RowActions(EditReviewRow row) => @<text>
+        @if (!_finished)
+        {
+            <span class="review-changes__actions">
+                @if (Source.CanJumpTo(row))
+                {
+                    <AppButton Label="@L["Common_Edit"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" aria-label="@($"Edit {row.What} for {row.Item}")" OnClick="@(() => EditAsync(row))" />
+                }
+                <AppRowMenu AriaLabel="@($"More actions for {row.What}")" Items="@MenuFor(row)" />
+            </span>
+        }
+    </text>;
+
     private readonly Dictionary<string, EditSessionChangeResult> _results = new(StringComparer.Ordinal);
     private List<EditReviewRow> _rows = [];
     private bool _loading = true;
@@ -134,7 +165,7 @@
     /// <summary>Raised when the person leaves Review: back to editing, to a tool, discarded, or saved.</summary>
     [Parameter] public EventCallback<ReviewChangesOutcome> OnOutcome { get; set; }
 
-    /// <summary>The phone arrangement (v6 section 4a): a full-screen step with every change listed and Back and Save changes side by side at the foot.</summary>
+    /// <summary>The phone arrangement (v6 section 4a): a full-screen step with every change listed and the footer stacked, Save changes first.</summary>
     [Parameter] public bool Phone { get; set; }
 
     /// <summary>The arrangement the window is drawn in (cascaded from the editor window); the <c>Phone</c> parameter still works on its own.</summary>
@@ -147,15 +178,29 @@
 
     private bool Busy => _loading || _saving;
 
-    private string? Subtitle => _finished ? null : "Nothing is saved until you choose Save.";
+    private ReviewChangeLayout? Compact => _rows.Count == 0 ? null : ReviewChangeLines.Build(_rows);
 
-    private IEnumerable<IGrouping<EditReviewGroup, EditReviewRow>> Groups => _rows.GroupBy(row => row.Group).OrderBy(group => group.Key);
+    // "3 changes to The Sea of Monsters" (editor v7 D11): the count and the item, in one line.
+    private string? Subtitle
+    {
+        get
+        {
+            if (_finished || Compact is not { } layout)
+            {
+                return null;
+            }
+
+            var count = layout.Count == 1 ? "1 change" : $"{layout.Count} changes";
+            var items = _rows.Select(row => row.Item).Distinct(StringComparer.Ordinal).ToList();
+            return items.Count == 1 ? $"{count} to {items[0]}" : $"{count} to {items.Count} items";
+        }
+    }
 
     private bool HasInvalidRow => !_afterSave && _rows.Any(row => IsRefused(row));
 
     private bool CanSave => !Busy && _rows.Count > 0 && _notice is null && !HasInvalidRow;
 
-    private string SaveLabel => _saving ? "Saving..." : _rows.Count == 1 ? "Save 1 change" : $"Save {_rows.Count} changes";
+    private string SaveLabel => _saving ? "Saving..." : "Save changes";
 
     protected override async Task OnInitializedAsync()
     {

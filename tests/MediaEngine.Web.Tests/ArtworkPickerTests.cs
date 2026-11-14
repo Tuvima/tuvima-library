@@ -32,6 +32,8 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     private readonly List<EditSessionRequest> _requests = [];
     private Func<EditSessionRequest, LibraryBatchEditOutcome<EditSessionResult>?>? _answer;
     private TaskCompletionSource? _gate;
+    private TaskCompletionSource? _uploadGate;
+    private MediaEditorContextDto? _contextOverride;
     private string? _providerMessage;
     private int _providerAsked;
     private IReadOnlyList<ProviderArtworkCandidateDto>? _providerItems;
@@ -126,7 +128,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         context ??= EditingModeTestData.MovieContext();
         var api = EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(context));
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(_contextOverride ?? context));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetEntityArtworkAsync), _ => Task.FromResult<ArtworkEntityWorkspaceDto?>(_workspace));
             stub.SetHandler(nameof(IEngineApiClient.DiscoverProviderArtworkAsync), _ =>
@@ -147,8 +149,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.UploadCanonicalArtworkAsync), args =>
             {
                 _writes.Add((nameof(IEngineApiClient.UploadCanonicalArtworkAsync), args));
-                _workspace = Workspace(("CoverArt", FirstPicture, true), ("CoverArt", SecondPicture, false));
-                return Task.FromResult<ArtworkAssetDto?>(Asset(SecondPicture));
+                return StoreUploadAsync();
             });
             stub.SetHandler(nameof(IEngineApiClient.AddArtworkFromUrlAsync), args =>
             {
@@ -181,6 +182,18 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.True(await mode.EnterAsync());
         var preview = new ArtworkEditPreview();
         return new Harness(mode, session, flow, preview, new ArtworkPickerSession(api, session, fields, preview, ArtworkChangeSavers.For(api)));
+    }
+
+    // The upload is stored once the test lets it (a header switch or a role change can happen while it is on its way).
+    private async Task<ArtworkAssetDto?> StoreUploadAsync()
+    {
+        if (_uploadGate is { } gate)
+        {
+            await gate.Task;
+        }
+
+        _workspace = Workspace(("CoverArt", FirstPicture, true), ("CoverArt", SecondPicture, false));
+        return Asset(SecondPicture);
     }
 
     // The Engine's edit session: it answers each change as saved (and moves the Preferred picture), unless the test says otherwise.
@@ -634,6 +647,49 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.Contains(false, upload.Args!);
         Assert.Equal(SecondPicture.ToString("D"), Assert.Single(Assert.Single(Saves).Changes).TargetId);
         Assert.True(harness.Session.Pending.IsEmpty);
+        Assert.Null(harness.Picker.Failure);
+    }
+
+    [Fact]
+    public async Task AnUpload_ThatFinishesAfterTheHeaderSwitchedToAnotherItem_IsStillChosenForTheItemItWasUploadedFor()
+    {
+        var otherItem = Guid.Parse("11111111-aaaa-bbbb-cccc-000000000002");
+        var (harness, _) = await OpenPickerAsync();
+        _uploadGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var uploading = harness.Picker.UploadAsync(new FakeFile("poster.png", "image/png"));
+        Assert.Contains(_writes, write => write.Name == nameof(IEngineApiClient.UploadCanonicalArtworkAsync));
+        var switched = EditingModeTestData.MovieContext();
+        switched.LaunchEntityId = otherItem;
+        switched.Scopes[0].FieldEntityId = otherItem;
+        _contextOverride = switched;
+        await harness.Mode.Fields.LoadAsync(otherItem, "Movies", "movie", null);
+        Assert.Equal(otherItem, harness.Mode.Fields.ArtworkEntityId);
+        _uploadGate.SetResult();
+
+        Assert.True(await uploading);
+
+        var change = Assert.Single(Assert.Single(Saves).Changes);
+        Assert.Equal(MovieId, change.EntityId);
+        Assert.Equal("CoverArt", change.Slot);
+        Assert.Equal(SecondPicture.ToString("D"), change.TargetId);
+    }
+
+    [Fact]
+    public async Task AnUpload_ThatFinishesAfterAnotherRoleWasOpened_IsStillChosenForTheRoleItWasUploadedFor_NotLeftUnchosen()
+    {
+        var (harness, _) = await OpenPickerAsync();
+        _uploadGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var uploading = harness.Picker.UploadAsync(new FakeFile("poster.png", "image/png"));
+        await harness.Picker.SelectSlotAsync("Background");
+        _uploadGate.SetResult();
+
+        Assert.True(await uploading);
+
+        var change = Assert.Single(Assert.Single(Saves).Changes);
+        Assert.Equal("CoverArt", change.Slot);
+        Assert.Equal(SecondPicture.ToString("D"), change.TargetId);
         Assert.Null(harness.Picker.Failure);
     }
 
