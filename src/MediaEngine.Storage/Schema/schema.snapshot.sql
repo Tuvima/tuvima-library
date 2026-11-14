@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0086 activity_run_scans).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0087 activity_run_interrupted).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -102,7 +102,7 @@ CREATE TABLE activity_runs (
     last_activity_at TEXT NOT NULL,              -- when the newest item joined; a run closes after 5 quiet minutes
     ended_at         TEXT,                       -- set when the run completes; the true end is the last item
     item_count       INTEGER NOT NULL DEFAULT 0
-, scan_id BLOB);
+, scan_id BLOB, interrupted INTEGER NOT NULL DEFAULT 0);
 
 CREATE TABLE adaptive_hls_packages (
     id              BLOB NOT NULL PRIMARY KEY,

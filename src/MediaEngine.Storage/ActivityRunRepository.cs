@@ -126,6 +126,36 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         return Task.FromResult(closed);
     }
 
+    public Task<int> CompleteInterruptedRunsAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var closed = connection.Execute("""
+            UPDATE activity_runs SET status = 'completed', ended_at = last_activity_at, interrupted = 1
+            WHERE status = 'active';
+            """);
+        return Task.FromResult(closed);
+    }
+
+    public Task<int> ReopenInterruptedRunsAsync(string kind, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var reopened = connection.Execute("""
+            UPDATE activity_runs SET status = 'active', ended_at = NULL, interrupted = 0
+            WHERE interrupted = 1 AND kind = @kind;
+            """, new { kind });
+        return Task.FromResult(reopened);
+    }
+
+    public Task<int> ClearInterruptedAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        var cleared = connection.Execute("UPDATE activity_runs SET interrupted = 0 WHERE interrupted = 1;");
+        return Task.FromResult(cleared);
+    }
+
     public Task<ActivityAssetContext?> GetAssetContextAsync(Guid assetId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

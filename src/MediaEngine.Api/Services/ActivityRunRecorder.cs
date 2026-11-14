@@ -7,6 +7,8 @@ namespace MediaEngine.Api.Services;
 /// <see cref="QuietWindow"/> passes with nothing new. A library's first run is flagged (D14) so its initial load never marks anything New.
 /// A Vault library records nothing, so no title or cover leaks outside the Vault's own activity list (D19). Photos and documents are
 /// never Works in the Work/Edition graph, so they never reach this recorder (D17).
+/// One import is one batch (D30): while the Engine is working through files a run never closes, the quiet window only counts from when the
+/// Engine went idle, and a run cut off by the Engine stopping is reopened if the same work is picked up again after the restart.
 /// </summary>
 public sealed class ActivityRunRecorder(
     IActivityRunStore store,
@@ -19,6 +21,14 @@ public sealed class ActivityRunRecorder(
     public static readonly TimeSpan QuietWindow = TimeSpan.FromMinutes(5);
 
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    // When the Engine was last seen busy (or, once it has gone idle, the first look that saw it idle, so the quiet minutes are never short).
+    // The start of a session counts as busy: work picked up again after a restart gets that long to arrive before the batch counts as over.
+    private DateTimeOffset _lastBusyAt = time.GetUtcNow();
+    private bool _wasBusy;
+
+    // Set at start-up while runs the last session cut off may still be reopened; cleared once they are reopened or the Engine stays idle.
+    private bool _interruptedPending;
 
     public async Task RecordAddedAsync(
         Guid workId, Guid? assetId, string mediaType, string title, string? groupTitle, Guid? groupWorkId, CancellationToken ct = default)
@@ -85,12 +95,57 @@ public sealed class ActivityRunRecorder(
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return await store.CompleteQuietRunsAsync(time.GetUtcNow() - quiet, ct).ConfigureAwait(false);
+            var now = time.GetUtcNow();
+            if (IsHeldOpen(now, quiet))
+            {
+                return 0; // the Engine is still busy with the import, or only just went idle: the quiet minutes have not passed
+            }
+
+            var closed = await store.CompleteQuietRunsAsync(now - quiet, ct).ConfigureAwait(false);
+            if (_interruptedPending)
+            {
+                // Idle for the whole quiet window after a restart: whatever arrives next is a new drop, not the cut-off import.
+                await store.ClearInterruptedAsync(ct).ConfigureAwait(false);
+                _interruptedPending = false;
+            }
+
+            return closed;
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    public async Task<int> CloseLeftOpenRunsAsync(CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            _interruptedPending = true;
+            return await store.CompleteInterruptedRunsAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Looks at the Engine's queue once and says whether runs must stay open: while it is working through files, and for the quiet window
+    /// after the first look that saw it idle (D30). Only "working" counts; files that are merely waiting cannot hold a batch open (D27).
+    /// </summary>
+    private bool IsHeldOpen(DateTimeOffset now, TimeSpan quiet)
+    {
+        // Looked up now, not at construction: the queue service sits behind the event publisher, which itself needs this recorder.
+        var busy = services?.GetService<IIngestionQueueProgressService>()?.Current is { State: "working" };
+        if (busy || _wasBusy)
+        {
+            _lastBusyAt = now;
+            _wasBusy = busy;
+        }
+
+        return busy || now - _lastBusyAt < quiet;
     }
 
     private async Task AddAsync(
@@ -113,11 +168,21 @@ public sealed class ActivityRunRecorder(
         try
         {
             var now = time.GetUtcNow();
-            var run = await store.FindOpenRunAsync(library, kind, now - QuietWindow, ct).ConfigureAwait(false);
+            var held = IsHeldOpen(now, QuietWindow);
+            if (held && _interruptedPending)
+            {
+                // The same work is being picked up again after a restart: the batch the stop cut off is continued, not replaced.
+                await store.ReopenInterruptedRunsAsync(kind, ct).ConfigureAwait(false);
+                _interruptedPending = false;
+            }
+
+            // While the Engine is busy with the import any open run is still its batch, however long ago its last title finished.
+            var notBefore = held ? DateTimeOffset.MinValue : now - QuietWindow;
+            var run = await store.FindOpenRunAsync(library, kind, notBefore, ct).ConfigureAwait(false);
             if (run is null)
             {
                 // Runs opened while another library's run of the same kind is still going belong to the same scan: one History entry.
-                var scanId = await store.FindOpenScanIdAsync(kind, now - QuietWindow, ct).ConfigureAwait(false) ?? Guid.NewGuid();
+                var scanId = await store.FindOpenScanIdAsync(kind, notBefore, ct).ConfigureAwait(false) ?? Guid.NewGuid();
                 run = new ActivityRunRecord(
                     Guid.NewGuid(), library, kind, ActivityRunStatuses.Active,
                     IsFirstRun: kind == ActivityRunKinds.Added && await IsInitialImportAsync(library, ct).ConfigureAwait(false),
