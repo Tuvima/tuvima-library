@@ -11,17 +11,8 @@
                          Class="@ButtonClass"
                          AriaLabel="@AriaLabel"
                          OnClick="HandleClick">
-            @if (Snapshot.IsWorking && Snapshot.Primary?.ProgressPercent is { } progress)
-            {
-                <span class="@RingClass" aria-hidden="true">
-                    <AppSpinner Indeterminate="false" Value="@progress" Size="AppSize.Small" StrokeWidth="2" />
-                </span>
-            }
-            else if (Snapshot.IsWorking)
-            {
-                <span class="system-activity-indicator__dot" aria-hidden="true"></span>
-            }
-            <AppMaterialIcon Icon="@PrimaryIcon" Class="system-activity-indicator__center-icon" />
+            @* The one activity icon the Activity and Libraries progress card also draws (spec library-activity D32). *@
+            <AppSyncActivityIcon Percent="@RingPercent" Working="@Snapshot.IsWorking" Spinning="@RingSpins" Icon="@PrimaryIcon" />
             @if (Snapshot.IsWorking && Snapshot.ActiveCount > 1)
             {
                 <span class="system-activity-indicator__count" aria-hidden="true">@CountLabel</span>
@@ -43,10 +34,9 @@
     private string ButtonClass => Snapshot.IsWorking
         ? "system-activity-indicator is-working"
         : NeedsAttention ? "system-activity-indicator is-attention" : "system-activity-indicator is-idle";
-    private string RingClass => Snapshot.Primary is { ProgressPercent: not null } primary
-        && primary.Kind is ShellActivityKind.Ingestion or ShellActivityKind.Enrichment
-            ? "system-activity-indicator__ring is-animated"
-            : "system-activity-indicator__ring";
+    private int? RingPercent => Snapshot.IsWorking ? Snapshot.Primary?.ProgressPercent : null;
+    private bool RingSpins => Snapshot.Primary is { ProgressPercent: not null } primary
+        && primary.Kind is ShellActivityKind.Ingestion or ShellActivityKind.Enrichment;
 
     private string PrimaryIcon => NeedsAttention ? AppMaterialIcons.Outlined.ErrorOutline
         : !Snapshot.IsWorking ? AppMaterialIcons.Outlined.Sync : Snapshot.Primary?.Kind switch

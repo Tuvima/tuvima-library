@@ -343,18 +343,24 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WhileSomethingRuns_TheProgressCardIsOneRingWithItsPercent_AndReviewIsALinkInTheWarningColour()
+    public void WhileSomethingRuns_TheProgressCardIsTheSlimCard_WithTheSharedIconAndTheNeedReviewPillInTheWarningColour()
     {
         var cut = Render<LibraryActivityProgressCard>(parameters => parameters
             .Add(card => card.Queue, new IngestionQueueProgressDto { State = "working", FilesFound = 10, FilesDone = 4, Progress = 0.4, StartedAt = DateTimeOffset.UtcNow.AddMinutes(-8) })
             .Add(card => card.Presentation, new IngestionPresentationSnapshotDto { IsRunning = true, NeedReviewCount = 20, ReadyGroups = 920 }));
 
         Assert.Empty(cut.FindAll("[data-testid='activity-progress-started']"));
-        Assert.NotNull(cut.Find(".lact-summary__ring"));
-        Assert.Contains("40% processed", cut.Find(".lact-summary__head").TextContent, StringComparison.Ordinal);
-        var review = cut.Find("a.lact-summary__review");
+        Assert.NotNull(cut.Find(".lact-progress .app-sync-icon .app-sync-icon__ring"));
+        Assert.Equal("40%", string.Join(' ', cut.Find(".app-progress-bar__value").TextContent.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+        var review = cut.Find("a.lact-progress__pill");
         Assert.Equal("/settings/review", review.GetAttribute("href"));
-        Assert.Contains("Review 20 items", review.TextContent, StringComparison.Ordinal);
+        Assert.Contains("20 need review", review.TextContent, StringComparison.Ordinal);
+
+        var css = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Settings", "LibraryActivity", "LibraryActivityProgressCard.razor.css"));
+        var pill = css[css.IndexOf(".lact-progress__pill {", StringComparison.Ordinal)..];
+        pill = pill[..pill.IndexOf('}', StringComparison.Ordinal)];
+        Assert.Contains("var(--tl-status-warning)", pill, StringComparison.Ordinal);
+        Assert.Contains("var(--tl-status-warning-soft)", pill, StringComparison.Ordinal);
     }
 
     [Theory]

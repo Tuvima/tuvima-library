@@ -1246,8 +1246,8 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Navigation/SystemActivityIndicator.razor.css": {
-      "important": 2,
-      "deep": 11
+      "important": 0,
+      "deep": 7
     },
     "src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css": {
       "important": 49,
@@ -1560,6 +1560,10 @@
     "src/MediaEngine.Web/Components/Shared/AppSwitchRow.razor.css": {
       "important": 0,
       "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppSyncActivityIcon.razor.css": {
+      "important": 0,
+      "deep": 2
     },
     "src/MediaEngine.Web/Components/Shared/AppTagInput.razor.css": {
       "important": 0,
@@ -4565,6 +4569,17 @@
         ".playback-identity ::deep .playback-identity__art--button:focus-visible"
       ],
       "reason": "Issue 941: the bar's clickable cover is an AppNativeButton and its picture is built in code, so neither carries the isolation attribute; the art-box rules are written as a plain and '::deep' pair and the picture rules after '::deep'. The Continue section no longer has deep rules."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Navigation/SystemActivityIndicator.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/AppSyncActivityIcon.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        ".app-sync-icon__ring ::deep .app-sync-icon__arc",
+        ".app-sync-icon ::deep .app-sync-icon__glyph"
+      ],
+      "reason": "Library activity D32: the top bar's ring and glyph became the shared AppSyncActivityIcon, which the Activity and Libraries progress card draws too. The ring's circle and the glyph are rendered by AppSpinner and AppMaterialIcon, so they carry no isolation attribute and are sized through '::deep'. The top bar's own sheet loses its ring, glyph and dot rules (and its three '!important' sizes), so the aggregate shrinks."
     }
   ],
   "finalBundleBytes": 1283347,

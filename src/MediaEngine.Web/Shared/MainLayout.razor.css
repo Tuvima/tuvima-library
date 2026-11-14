@@ -589,14 +589,9 @@ html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .system-activ
     height: 48px;
 }
 
-html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .system-activity-indicator__ring {
-    width: 32px;
-    height: 32px;
-}
-
-html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .system-activity-indicator__ring .tl-progress-circular {
-    width: 32px !important;
-    height: 32px !important;
+/* The shared activity icon's ring is 32px inside the 48px phone button. */
+html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .system-activity-indicator {
+    --sync-icon-ring: 32px;
 }
 
 html[data-form-factor="phone"] .layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,

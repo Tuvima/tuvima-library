@@ -219,7 +219,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             var activity = Assert.Single(cut.FindAll(".system-activity-indicator"));
             Assert.Equal("Idle. Library is up to date", activity.GetAttribute("aria-label"));
             Assert.Contains("is-idle", activity.ClassList);
-            Assert.Empty(cut.FindAll(".system-activity-indicator__ring"));
+            Assert.Empty(cut.FindAll(".app-sync-icon__ring"));
             Assert.Empty(cut.FindAll(".system-activity-indicator__count"));
             Assert.Empty(cut.FindAll(".layout-shell__review-button"));
             Assert.Empty(cut.FindAll(".layout-shell__avatar-trigger"));
@@ -298,7 +298,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var accountSource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
         var accountCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor.css"));
         var activityIndicator = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor"));
-        var activityIndicatorCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor.css"));
+        var syncIconCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "AppSyncActivityIcon.razor.css"));
         var globalCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
         var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor.css"));
 
@@ -314,8 +314,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("<TopNavAccountMenu", source);
         Assert.Contains("<SystemActivityIndicator", source);
         Assert.Contains("ShellActivityKind.Ingestion or ShellActivityKind.Enrichment", activityIndicator);
-        Assert.Contains("system-activity-indicator__ring is-animated", activityIndicator);
-        Assert.Contains("@keyframes system-activity-ring-spin", activityIndicatorCss);
+        Assert.Contains("<AppSyncActivityIcon", activityIndicator);
+        Assert.Contains("@keyframes app-sync-icon-spin", syncIconCss);
         Assert.Contains("layout-shell__brand-wordmark", source);
         Assert.DoesNotContain("<AppLogo", source);
         Assert.Contains("Nav_Search", source);

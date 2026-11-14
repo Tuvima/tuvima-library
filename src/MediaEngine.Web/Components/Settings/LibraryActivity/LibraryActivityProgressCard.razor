@@ -4,47 +4,56 @@
 @using MediaEngine.Web.Components.Settings
 @inject IStringLocalizer<SharedStrings> L
 
-@* The one progress card (spec library-activity D5): everything Library is doing in one ring with its percent, the counts found by kind
-   and Review N items (Shy 10 Nov: very simple, no bar, no started line). Nothing per library. Its counts line uses the same words as a finished batch. When nothing runs it is replaced by the
-   up-to-date line, which has no icon and no bar. *@
+@* The one slim progress card (spec library-activity D32, D36), drawn on the Activity page and, with View activity, on the Libraries page.
+   Left: the same animated sync icon as the top bar, the title and an "In progress" dot-label. Under it one line, "427 of 538 files processed ·
+   16 min elapsed". Right: one amber "N need review" pill that opens Needs Review (hidden at zero). Along the bottom: a thin bar with the percent at
+   its right end, the same truthful number as the top bar (D23). With the total not yet known it reads "412 files found" over a moving bar and shows no
+   percent. When nothing runs it is replaced by the up-to-date sentence, which has no icon and no bar. *@
 @if (Working)
 {
-    <section class="lact-summary" data-testid="activity-progress-card" aria-live="polite">
-        <div class="lact-summary__head">
-            @* The same ring as the top bar's spinner: it fills as the percent grows and the Sync glyph sits inside it. *@
-            <span class="lact-summary__ring" aria-hidden="true">
-                @if (Percent is { } ringValue)
-                {
-                    <AppSpinner Indeterminate="false" Value="@ringValue" Size="AppSize.Small" StrokeWidth="2" />
-                }
-                else
-                {
-                    <AppSpinner Indeterminate="true" Size="AppSize.Small" StrokeWidth="2" />
-                }
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" Size="AppIconSize.Control20" />
-            </span>
-            <strong class="lact-summary__title">@L["LibraryActivity_Updating"]</strong>
-            @if (Percent is { } percent)
-            {
-                <strong data-testid="activity-progress-percent">@L["LibraryActivity_PercentProcessed", percent]</strong>
-            }
+    <section class="lact-progress" data-testid="activity-progress-card" aria-live="polite">
+        <span class="lact-progress__icon"><AppSyncActivityIcon Percent="@Percent" Working="true" Spinning="true" /></span>
+        <div class="lact-progress__head">
+            <strong class="lact-progress__title">@L["LibraryActivity_Updating"]</strong>
+            <span class="lact-progress__state" data-testid="activity-in-progress"><i class="lact-progress__dot" aria-hidden="true"></i>@L["LibraryActivity_InProgress"]</span>
         </div>
-        <div class="lact-summary__foot">
-            <span class="lact-summary__counts" data-testid="activity-progress-counts">@CountsLine</span>
-            @if (ReviewCount > 0)
-            {
-                <AppLink Href="/settings/review" Class="lact-summary__review">@(ReviewCount == 1 ? L["LibraryActivity_ReviewOneItem"] : L["LibraryActivity_ReviewItems", ReviewCount.ToString("N0")])</AppLink>
-            }
+        <span class="lact-progress__line" data-testid="activity-progress-counts">@Line</span>
+        @if ((ReviewCount > 0 && ShowReview) || ShowViewActivity)
+        {
+            <div class="lact-progress__actions">
+                @if (ReviewCount > 0 && ShowReview)
+                {
+                    <a href="/settings/review" class="lact-progress__pill" data-testid="activity-need-review">@ReviewText</a>
+                }
+                @if (ShowViewActivity)
+                {
+                    <AppButton Label="@L["LibraryActivity_ViewActivity"].Value" Href="@ActivityRoute" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" Class="lact-progress__view" />
+                }
+            </div>
+        }
+        <div class="lact-progress__bar">
+            <AppProgressBar Value="@(Percent ?? 0)"
+                            ShowValue="@(Percent is not null)"
+                            Indeterminate="@(Percent is null)"
+                            Rounded="true"
+                            Title="@L["LibraryActivity_Progress"].Value"
+                            data-testid="activity-progress-bar" />
         </div>
     </section>
 }
 else
 {
-    <section class="lact-summary lact-summary--idle" data-testid="activity-up-to-date">
-        <strong>@L["LibraryActivity_UpToDate"]</strong>
-        @if (LastCompleted is { } last)
+    <section class="lact-progress lact-progress--idle" data-testid="activity-up-to-date">
+        <span class="lact-progress__idle-text">
+            <strong>@L["LibraryActivity_UpToDate"]</strong>
+            @if (LastCompleted is { } last)
+            {
+                <span> · @L["LibraryActivity_LastCompletedScan", LibraryActivityText.Ago(last, DateTimeOffset.UtcNow)]</span>
+            }
+        </span>
+        @if (ShowViewActivity)
         {
-            <span> · @L["LibraryActivity_LastCompletedScan", LibraryActivityText.Ago(last, DateTimeOffset.UtcNow)]</span>
+            <AppButton Label="@L["LibraryActivity_ViewActivity"].Value" Href="@ActivityRoute" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" Class="lact-progress__view" />
         }
     </section>
 }
@@ -56,6 +65,8 @@ else
 }
 
 @code {
+    private const string ActivityRoute = "/settings/library-activity";
+
     [Parameter] public IngestionQueueProgressDto? Queue { get; set; }
     [Parameter] public IngestionPresentationSnapshotDto? Presentation { get; set; }
 
@@ -63,6 +74,12 @@ else
     [Parameter] public IReadOnlySet<string>? MediaTypes { get; set; }
 
     [Parameter] public DateTimeOffset? LastCompleted { get; set; }
+
+    /// <summary>The "View activity" button: shown on the Libraries page (D36), never on the Activity page itself.</summary>
+    [Parameter] public bool ShowViewActivity { get; set; }
+
+    /// <summary>The "N need review" pill; a host that is not for administrators turns it off.</summary>
+    [Parameter] public bool ShowReview { get; set; } = true;
 
     private bool Working => Queue is { State: "working" } || Presentation is { IsRunning: true };
 
@@ -72,19 +89,20 @@ else
     private IEnumerable<IngestionQueueTypeTallyDto> Tally => (Queue?.Tally ?? [])
         .Where(entry => !Scoped || MediaTypes!.Contains(entry.MediaType));
 
-    private IEnumerable<IngestionPresentationTypeDto> PresentationTypes => (Presentation?.ByType ?? [])
-        .Where(entry => MediaTypes!.Contains(entry.MediaType));
-
     private int Found => Scoped ? Tally.Sum(entry => entry.Files) : Queue?.FilesFound ?? Presentation?.FilesDiscovered ?? 0;
 
+    private int Done => Scoped ? Tally.Sum(entry => entry.FilesDone) : Queue?.FilesDone ?? 0;
+
     // The same rule as the top bar's ring (rounded down, never 100 while still working), added up from the chosen areas' own step counts.
+    // Null while the total is not known yet.
     private int? Percent => Queue is null ? null : IngestionQueueProgressText.Percent(Queue, MediaTypes);
 
-    private int Ready => Scoped ? PresentationTypes.Sum(entry => entry.ReadyGroups) : Presentation?.ReadyGroups ?? 0;
     // The one "need review" number (D28): the Engine counts it as the Needs Review list does, so it is the whole number even with chips picked.
     private int ReviewCount => Presentation?.NeedReviewCount ?? 0;
-    private int Processing => Scoped ? PresentationTypes.Sum(entry => entry.ActiveOperations) : Presentation?.ActiveOperations ?? 0;
-    private int Queued => Scoped ? PresentationTypes.Sum(entry => entry.QueuedOperations) : Presentation?.QueuedOperations ?? 0;
+
+    private string ReviewText => ReviewCount == 1
+        ? L["LibraryActivity_NeedReviewOne"].Value
+        : L["LibraryActivity_NeedReview", ReviewCount.ToString("N0")].Value;
 
     // Files held back with no tool to blame (nobody picked them up, D27) are named; files waiting for a missing tool have their own notice.
     private int FilesWaiting => Queue is { FilesWaiting: > 0 } queue
@@ -92,21 +110,22 @@ else
         ? queue.FilesWaiting
         : 0;
 
-    private string CountsLine
+    // "427 of 538 files processed · 16 min elapsed"; with the total not known yet, just "412 files found".
+    private string Line
     {
         get
         {
-            var parts = new List<string>();
-            var found = LibraryActivityText.Counts(Tally.Select(entry => (entry.MediaType, entry.Files)));
-            parts.Add(string.IsNullOrEmpty(found)
-                ? L["LibraryActivity_FilesFound", Found.ToString("N0")].Value
-                : L["LibraryActivity_CountsFound", found].Value);
-            if (Ready > 0) parts.Add(L["LibraryActivity_Ready", Ready.ToString("N0")].Value);
-            if (ReviewCount > 0) parts.Add(L["LibraryActivity_NeedReview", ReviewCount.ToString("N0")].Value);
-            if (Processing > 0) parts.Add(L["LibraryActivity_Processing", Processing.ToString("N0")].Value);
-            if (Queued > 0) parts.Add(L["LibraryActivity_Queued", Queued.ToString("N0")].Value);
+            if (Percent is null)
+            {
+                return L["LibraryActivity_FilesFound", Found.ToString("N0")].Value;
+            }
 
-            return string.Join(" · ", parts);
+            var processed = Found == 1
+                ? L["LibraryActivity_FilesProcessedOne", Done.ToString("N0")].Value
+                : L["LibraryActivity_FilesProcessed", Done.ToString("N0"), Found.ToString("N0")].Value;
+            return Queue?.StartedAt is { } started
+                ? $"{processed} · {L["LibraryActivity_Elapsed", IngestionQueueProgressText.FormatElapsed(DateTimeOffset.UtcNow - started.ToUniversalTime())].Value}"
+                : processed;
         }
     }
 }
