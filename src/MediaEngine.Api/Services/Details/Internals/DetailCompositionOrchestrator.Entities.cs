@@ -128,7 +128,7 @@ internal sealed partial class DetailCompositionOrchestrator
             : (await _bridgeIds.FindAsync(personId, BridgeIdKeys.TvdbPersonId, ct))?.IdValue;
         var musicBrainzArtistId = _bridgeIds is null ? null
             : (await _bridgeIds.FindAsync(personId, BridgeIdKeys.MusicBrainzArtistId, ct))?.IdValue;
-        var personSourceLinks = BuildExternalSourceLinks(person.WikidataQid, wikipediaUrl, null).ToList();
+        var personSourceLinks = BuildExternalSourceLinks(person.WikidataQid, wikipediaUrl).ToList();
         if (OutsideLinks.MusicBrainz("artist", musicBrainzArtistId) is { } musicBrainzArtistUrl)
         {
             personSourceLinks.Add(new ExternalSourceLinkViewModel
@@ -265,7 +265,7 @@ internal sealed partial class DetailCompositionOrchestrator
             Title = row.DisplayName ?? "Universe",
             Subtitle = $"Universe • {works.Count} item{(works.Count == 1 ? "" : "s")} in library",
             Description = row.Description,
-            SourceLinks = BuildExternalSourceLinks(row.WikidataQid, null, null),
+            SourceLinks = BuildExternalSourceLinks(row.WikidataQid, null),
             Artwork = BuildArtwork(DetailEntityType.Universe, row.BackgroundUrl, row.BannerUrl, row.CoverUrl, row.CoverUrl, null, new Dictionary<string, string>(), relatedArt, 0, null),
             Metadata = [new MetadataPill { Label = "Universe" }, new MetadataPill { Label = $"{works.Count} items" }],
             // The button opens the Universe page; it only exists when the Universe has a well-formed Wikidata identity.

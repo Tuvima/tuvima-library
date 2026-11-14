@@ -3,8 +3,9 @@
    an existing shared/C# renderer boundary; the page context excludes other uses. */
 :where(.tl-detail-page) .tl-credit-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-    gap: clamp(1rem, 2vw, 1.45rem);
+    /* One tile everywhere (details-page-bottom D3): only the column count changes with the width. */
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem 1.5rem;
     overflow: visible;
 }
 
@@ -88,8 +89,8 @@
 }
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-grid {
-    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-    gap: clamp(0.75rem, 1.25vw, 1rem);
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem 1.5rem;
     align-items: start;
 }
 

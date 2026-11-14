@@ -85,13 +85,73 @@ public sealed class ExtrasRowTests : AsyncBunitContext
         Assert.Equal(1, opened);
     }
 
+    // details-page-bottom D11 (mock K): "See all N" sits at the right end of the Extras heading whenever the page can open the list, even when every card shows.
     [Fact]
-    public void SeeAll_IsNotOffered_WhenEveryCardIsShown()
+    public void SeeAll_SitsAtTheEndOfTheExtrasHeading_EvenWhenEveryCardIsShown()
     {
         var cut = Render<ExtrasSection>(p => p.Add(c => c.Extras, [Card("A", "Guides"), Card("B", "Guides")]).Add(c => c.CardsPerGroup, 12)
             .Add(c => c.OnSeeAll, EventCallback.Factory.Create(this, () => { })));
 
+        Assert.Equal("See all 2", cut.Find(".tl-extras__heading [data-testid=extras-see-all]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void WithoutAPageToOpenTheList_NoSeeAllIsOffered()
+    {
+        var cut = Render<ExtrasSection>(p => p.Add(c => c.Extras, [Card("A", "Guides")]).Add(c => c.CardsPerGroup, 12));
+
         Assert.Empty(cut.FindAll("[data-testid=extras-see-all]"));
+    }
+
+    [Fact]
+    public void ACard_ShowsASmallKindLabelOnItsPictureAndItsTitleBelow()
+    {
+        var clip = Card("Official trailer", "Trailers and clips", DetailExtraCardKinds.Clip, "VIDEO", pages: null);
+        var cut = Render<ExtrasSection>(p => p.Add(c => c.Extras, [clip]).Add(c => c.CardsPerGroup, 12));
+
+        var card = cut.Find("a.tl-extras-card");
+        Assert.Equal("Worksheet", card.QuerySelector(".tl-extras-card__art [data-testid=extras-badge]")!.TextContent.Trim());
+        Assert.Equal("Official trailer", card.QuerySelector(".tl-extras-card__text .tl-extras-card__title")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public void ADocument_HasAPaperIconAndItsFileTypeInTheArt()
+    {
+        var cut = Render<ExtrasSection>(p => p.Add(c => c.Extras, [Card("Viewing notes", "Documents")]).Add(c => c.CardsPerGroup, 12));
+
+        var paper = cut.Find(".tl-extras-card__art .tl-extras-card__paper");
+        Assert.NotNull(paper.QuerySelector("svg"));
+        Assert.Equal("PDF", paper.QuerySelector("[data-testid=extras-type]")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public void TheExtrasRow_SitsBetweenTheHeroAndTheTabs_AndAShowsSitsUnderItsEpisodes_AndNoTvDrawsIt()
+    {
+        var page = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
+        var code = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor.cs"));
+
+        var hero = page.IndexOf("<DetailHero ", StringComparison.Ordinal);
+        var above = page.IndexOf("@if (ShowExtrasAboveTabs)", StringComparison.Ordinal);
+        var tabs = page.IndexOf("<DetailTabs ", StringComparison.Ordinal);
+        var under = page.IndexOf("@if (ShowExtrasUnderEpisodes)", StringComparison.Ordinal);
+        var body = page.IndexOf("class=\"tl-detail-body\"", StringComparison.Ordinal);
+
+        Assert.True(hero >= 0 && hero < above && above < tabs, "The Extras row sits between the hero and the tabs.");
+        Assert.True(tabs < under && under < body, "A show's Extras sit under the episodes, after the tabs and the primary module.");
+        Assert.Equal(2, page.Split("<ExtrasSection ").Length - 1);
+        Assert.Contains("!DeviceContext.IsTv", code, StringComparison.Ordinal);
+        Assert.Contains("is DetailEntityType.TvShow or DetailEntityType.TvSeason", code, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
 
     [Fact]

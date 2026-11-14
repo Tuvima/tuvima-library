@@ -12,10 +12,10 @@ public sealed class DetailTabCatalogTests
 {
     public static TheoryData<DetailEntityType, string[]> ExpectedSets => new()
     {
-        { DetailEntityType.Movie, ["overview", "cast"] },
-        { DetailEntityType.TvShow, ["overview", "cast"] },
-        { DetailEntityType.TvSeason, ["overview", "cast"] },
-        { DetailEntityType.TvEpisode, ["overview", "cast"] },
+        { DetailEntityType.Movie, ["overview", "credits"] },
+        { DetailEntityType.TvShow, ["overview", "credits"] },
+        { DetailEntityType.TvSeason, ["overview", "credits"] },
+        { DetailEntityType.TvEpisode, ["overview", "credits"] },
         { DetailEntityType.MusicAlbum, ["overview"] },
         { DetailEntityType.Audiobook, ["overview", "tracks"] },
         { DetailEntityType.Book, ["overview", "credits"] },

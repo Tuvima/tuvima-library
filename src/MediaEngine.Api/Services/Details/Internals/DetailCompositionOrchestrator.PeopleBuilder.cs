@@ -427,11 +427,16 @@ internal sealed partial class DetailCompositionOrchestrator
         string.Equals(key, MetadataFieldConstants.IssueDescription, StringComparison.OrdinalIgnoreCase)
         || string.Equals(key, "issue_overview", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The Sources row of a page (details-page-bottom D8): only links for this title. One Wikidata link (the title's own, never its Series' or
+    /// Universe's, and never a Q-number link beside a named one), then one Wikipedia, one TMDB and one link per other provider. No Series,
+    /// Universe or person links are added to a title's row.
+    /// </summary>
     private IReadOnlyList<ExternalSourceLinkViewModel> BuildExternalSourceLinks(
         string? wikidataQid,
         string? wikipediaUrl,
-        SequencePlacementViewModel? sequence,
-        IReadOnlyDictionary<string, string>? values = null)
+        IReadOnlyDictionary<string, string>? values = null,
+        DetailEntityType? entityType = null)
     {
         var identifiers = values is null
             ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -439,7 +444,14 @@ internal sealed partial class DetailCompositionOrchestrator
         var qid = ExtractQid(FirstText(
             wikidataQid,
             values is null ? null : GetValue(values, BridgeIdKeys.WikidataQid)));
-        if (!string.IsNullOrWhiteSpace(qid))
+        var method = values is null ? null : GetValue(values, MetadataFieldConstants.QidResolutionMethod)?.Trim().ToLowerInvariant();
+
+        if (RolledUpIdentityIsParents(method, entityType))
+        {
+            qid = null;
+            identifiers.Remove(BridgeIdKeys.WikidataQid);
+        }
+        else if (!string.IsNullOrWhiteSpace(qid))
         {
             identifiers[BridgeIdKeys.WikidataQid] = qid;
         }
@@ -453,66 +465,45 @@ internal sealed partial class DetailCompositionOrchestrator
                         && !string.IsNullOrWhiteSpace(GetValue(values, MetadataFieldConstants.ShowName))
             ? "TV"
             : null;
-        var links = _providerSourceLinks.Resolve(identifiers, mediaType).ToList();
 
-        if (values is not null)
+        return OneLinkPerSite(_providerSourceLinks.Resolve(identifiers, mediaType));
+    }
+
+    /// <summary>
+    /// True when the Wikidata ID a record resolved to is its parent's, not its own: an episode's ID is its show's and a comic issue's is its run's. That is the
+    /// Series' link, which a title's Sources row never shows (details-page-bottom D8).
+    /// </summary>
+    private static bool RolledUpIdentityIsParents(string? resolutionMethod, DetailEntityType? entityType) => resolutionMethod switch
+    {
+        "tv_show_rollup" => entityType is DetailEntityType.TvEpisode or DetailEntityType.TvSeason,
+        "comic_series_rollup" => entityType is DetailEntityType.ComicIssue,
+        _ => false,
+    };
+
+    /// <summary>One link per site: the first of Wikidata, of Wikipedia and of each provider, in the order the provider files list them.</summary>
+    private static List<ExternalSourceLinkViewModel> OneLinkPerSite(IEnumerable<ExternalSourceLinkViewModel> resolved)
+    {
+        var links = new List<ExternalSourceLinkViewModel>();
+        var seenSites = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var link in resolved)
         {
-            var method = GetValue(values, MetadataFieldConstants.QidResolutionMethod);
-            var rollupPresentation = method?.Trim().ToLowerInvariant() switch
+            if (seenSites.Add(SourceLinkSite(link)))
             {
-                "tv_show_rollup" => (Key: "wikidata-show", Label: "TV show on Wikidata", Tooltip: "Open the root TV show identity used for every owned episode."),
-                "music_album_rollup" => (Key: "wikidata-album", Label: "Album on Wikidata", Tooltip: "Open the album identity used for every owned track."),
-                "comic_series_rollup" => (Key: "wikidata-series", Label: "Series/run on Wikidata", Tooltip: "Open the series or run identity used for this comic issue."),
-                _ => default,
-            };
-
-            if (!string.IsNullOrWhiteSpace(rollupPresentation.Key))
-            {
-                var wikidataLinkIndex = links.FindIndex(link => string.Equals(
-                    link.Key,
-                    BridgeIdKeys.WikidataQid,
-                    StringComparison.OrdinalIgnoreCase));
-                if (wikidataLinkIndex >= 0)
-                {
-                    var link = links[wikidataLinkIndex];
-                    links[wikidataLinkIndex] = new ExternalSourceLinkViewModel
-                    {
-                        Key = rollupPresentation.Key,
-                        Label = rollupPresentation.Label,
-                        Url = link.Url,
-                        SourceName = link.SourceName,
-                        Tooltip = rollupPresentation.Tooltip,
-                    };
-                }
-            }
-        }
-
-        var seriesQid = ExtractQid(FirstText(sequence?.SourceContainerId, sequence?.ContainerId));
-        if (!string.IsNullOrWhiteSpace(seriesQid)
-            && !string.Equals(seriesQid, qid, StringComparison.OrdinalIgnoreCase))
-        {
-            var seriesLink = _providerSourceLinks.Resolve(
-                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        [BridgeIdKeys.WikidataQid] = seriesQid,
-                    },
-                    mediaType)
-                .FirstOrDefault();
-            if (seriesLink is not null
-                && !links.Any(link => string.Equals(link.Url, seriesLink.Url, StringComparison.OrdinalIgnoreCase)))
-            {
-                links.Add(new ExternalSourceLinkViewModel
-                {
-                    Key = "wikidata-series",
-                    Label = "Series on Wikidata",
-                    Url = seriesLink.Url,
-                    SourceName = seriesLink.SourceName,
-                    Tooltip = $"Sequence source for {sequence?.ContainerTitle ?? "this series"}",
-                });
+                links.Add(link);
             }
         }
 
         return links;
+    }
+
+    private static string SourceLinkSite(ExternalSourceLinkViewModel link)
+    {
+        if (link.Key.StartsWith("wikidata", StringComparison.OrdinalIgnoreCase))
+        {
+            return "wikidata";
+        }
+
+        return link.Key.StartsWith("wikipedia", StringComparison.OrdinalIgnoreCase) ? "wikipedia" : link.SourceName;
     }
 
     private static string? BuildWikidataEntityUrl(string? qid)

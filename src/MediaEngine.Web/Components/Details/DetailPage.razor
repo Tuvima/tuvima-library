@@ -68,6 +68,15 @@ else if (Model is not null)
                         OnTabRequested="SetActiveTabAsync"
                         ActionAttributes="@(IsAudiobook ? AudiobookActionAttributes : null)" />
 
+            @* The Extras row sits between the top of the page and the tabs (details-page-bottom D11). A show's Extras sit under its episodes instead,
+               and the row is not drawn on a TV. No extras means no row (the section draws nothing). *@
+            @if (ShowExtrasAboveTabs)
+            {
+                <div class="tl-detail-stage__extras">
+                    <ExtrasSection Extras="Model.Extras" CardsPerGroup="Model.ExtrasCardsPerGroup" OnSeeAll="@(CanSeeAllExtras ? EventCallback.Factory.Create(this, OpenAllExtrasAsync) : default)" />
+                </div>
+            }
+
             @if (ShowDetailNavigation)
             {
                 <div class="tl-detail-stage__navigation">
@@ -88,6 +97,13 @@ else if (Model is not null)
             </section>
         }
 
+        @if (ShowExtrasUnderEpisodes)
+        {
+            <section class="tl-detail-page__extras">
+                <ExtrasSection Extras="Model.Extras" CardsPerGroup="Model.ExtrasCardsPerGroup" OnSeeAll="@(CanSeeAllExtras ? EventCallback.Factory.Create(this, OpenAllExtrasAsync) : default)" />
+            </section>
+        }
+
         <section id="@CurrentActiveTab" class="tl-detail-body">
             @if (CurrentActiveTab is "overview")
             {
@@ -101,7 +117,6 @@ else if (Model is not null)
                                                                      OnTabRequested="SetActiveTabAsync"
                                                                      OnContainerSelected="HandleContainerSelectedAsync" />
                 }
-                <ExtrasSection Extras="Model.Extras" CardsPerGroup="Model.ExtrasCardsPerGroup" OnSeeAll="@(CanSeeAllExtras ? EventCallback.Factory.Create(this, OpenAllExtrasAsync) : default)" />
                 <section class="tl-detail-about" aria-label="@L["DetailPage_AboutThis"].Value">
                     <DetailsTab Model="Model" />
                 </section>
@@ -122,7 +137,7 @@ else if (Model is not null)
             {
                 <AudiobookTracksContent Model="Model" />
             }
-            else if (CurrentActiveTab is "people" or "credits" or "cast")
+            else if (CurrentActiveTab is "people" or "credits")
             {
                 <PeopleTab ContributorGroups="@(Model.FullContributorGroups.Count > 0 ? Model.FullContributorGroups : Model.ContributorGroups)"
                                         EpisodeId="@(Model.EntityType == DetailEntityType.TvEpisode ? Model.Id : null)"

@@ -1349,11 +1349,35 @@
   <data name="OverviewTab_NoOverviewIsAvailableYet" xml:space="preserve">
     <value>No overview is available yet.</value>
   </data>
-  <data name="OverviewTab_ViewFull" xml:space="preserve">
-    <value>View full {0}</value>
+  <data name="OverviewTab_ViewFullCredits" xml:space="preserve">
+    <value>View full credits</value>
   </data>
-  <data name="OverviewTab_NoLinkedPeopleAreAvailable" xml:space="preserve">
-    <value>No linked people are available yet.</value>
+  <data name="OverviewTab_NoCreditsYet" xml:space="preserve">
+    <value>No credits yet</value>
+  </data>
+  <data name="OverviewTab_CastAndCrew" xml:space="preserve">
+    <value>Cast and crew</value>
+  </data>
+  <data name="OverviewTab_Credits" xml:space="preserve">
+    <value>Credits</value>
+  </data>
+  <data name="OverviewTab_Released" xml:space="preserve">
+    <value>Released</value>
+  </data>
+  <data name="OverviewTab_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="OverviewTab_Rated" xml:space="preserve">
+    <value>Rated</value>
+  </data>
+  <data name="OverviewTab_Network" xml:space="preserve">
+    <value>Network</value>
+  </data>
+  <data name="OverviewTab_Publisher" xml:space="preserve">
+    <value>Publisher</value>
+  </data>
+  <data name="OverviewTab_Pages" xml:space="preserve">
+    <value>Pages</value>
   </data>
   <data name="PeopleTab_NoCreditsAvailableForThis" xml:space="preserve">
     <value>No credits available for this selection.</value>

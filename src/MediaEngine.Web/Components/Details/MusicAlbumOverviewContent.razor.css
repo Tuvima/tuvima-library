@@ -49,13 +49,8 @@
 }
 
 .tl-music-album-overview__credits ::deep .tl-credit-grid {
-    grid-template-columns: repeat(auto-fill, minmax(6.5rem, 7.75rem));
-    gap: clamp(0.85rem, 1.15vw, 1.25rem);
-}
-
-.tl-music-album-overview__credits ::deep .tl-credit-card {
-    width: clamp(6.5rem, 6.8vw, 7.75rem);
-    max-width: 7.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 1rem 1.5rem;
 }
 
 .tl-music-album-overview ::deep .tl-music-album-series-rail {

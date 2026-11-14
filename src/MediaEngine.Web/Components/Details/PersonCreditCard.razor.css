@@ -1,124 +1,70 @@
-/* Detail presentation owned by this markup. Retained ::deep rules cross
-   an existing shared/C# renderer boundary; the page context excludes other uses. */
+/* The one credit tile (details-page-bottom D3): a rounded square photo, then the name and the role or character. Every list that draws it
+   (Overview, the Credits tab, an album's credits, a person's linked identities) gets the same tile at the same size; only the number of
+   columns of the list around it changes. The photo is 72 px, 64 px under 1180 px (mock: one size per breakpoint). */
 :where(.tl-detail-page) .tl-credit-card {
+    --tl-credit-photo: 4.5rem;
     min-width: 0;
     position: relative;
-    display: block;
+    display: grid;
+    grid-template-columns: var(--tl-credit-photo) minmax(0, 1fr);
+    align-items: center;
+    gap: 0.875rem;
     color: var(--tl-text-primary);
-    text-align: center;
+    text-align: start;
     text-decoration: none;
+    border-radius: var(--tl-radius-md);
+}
+
+@media (width < 1180px) {
+:where(.tl-detail-page) .tl-credit-card {
+        --tl-credit-photo: 4rem;
+    }
+}
+
+:where(.tl-detail-page) .tl-credit-card--link:focus-visible {
+    outline: 2px solid var(--tl-text-primary);
+    outline-offset: 3px;
+}
+
+:where(.tl-detail-page) .tl-credit-card--link:hover .tl-credit-card__name {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
 }
 
 :where(.tl-detail-page) .tl-credit-card__image {
-    /* One small square size for people pictures everywhere except the person page (Home, detail and tiles spec D11, D15). */
-    width: 88px;
-    margin-inline: auto;
+    width: var(--tl-credit-photo);
+    height: var(--tl-credit-photo);
     aspect-ratio: 1 / 1;
     border-radius: var(--tl-radius-md);
     overflow: hidden;
-    border: 0;
+    border: 1px solid var(--tl-wash-light-3);
     background: var(--tl-scrim-dark-1);
 }
 
-:where(.tl-detail-page) .tl-credit-card__image img {
-    width: 100%;
-    height: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-}
+/* The photo and its initials fill the tile's own rounded square, never a circle (PersonAvatar's styles size them inside this tile). */
 
 :where(.tl-detail-page) .tl-credit-card__body {
-    padding: 0.5rem 0.25rem 0;
+    min-width: 0;
+    padding: 0;
+}
+
+:where(.tl-detail-page) .tl-credit-card__name,
+:where(.tl-detail-page) .tl-credit-card__role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 :where(.tl-detail-page) .tl-credit-card__name {
     color: var(--tl-text-primary);
-    font-size: var(--tl-type-label-size);
-    font-weight: var(--tl-type-label-weight);
-    line-height: 1.15;
-    text-shadow: 0 1px 2px var(--tl-scrim-dark-3);
+    font-size: var(--tl-type-control-size);
+    font-weight: 600;
+    line-height: 1.25;
 }
 
 :where(.tl-detail-page) .tl-credit-card__role {
-    margin-top: 0.18rem;
-    color: var(--tl-text-secondary);
+    margin-top: 0.15rem;
+    color: var(--tl-text-muted);
     font-size: var(--tl-type-caption-size);
-    line-height: 1.2;
-    text-shadow: 0 1px 2px var(--tl-scrim-dark-3);
-}
-
-:where(.tl-detail-page) .tl-credit-card--compact {
-    min-width: 0;
-    max-width: 10rem;
-}
-
-:where(.tl-detail-page) .tl-credit-card--compact .tl-credit-card__image {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-}
-
-:where(.tl-detail-page) :where(.tl-credit-card--compact) .tl-credit-card__name {
-    font-size: var(--tl-type-secondary-size);
-}
-
-:where(.tl-detail-page) :where(.tl-credit-card--compact) .tl-credit-card__role {
-    font-size: var(--tl-type-caption-size);
-}
-
-:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-card {
-    width: 100%;
-    max-width: 12rem;
-    align-self: start;
-    box-shadow: none;
-}
-
-:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-card__name {
-    font-size: var(--tl-type-caption-size);
-}
-
-:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-card__role {
-    font-size: var(--tl-type-caption-size);
-}
-
-:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact {
-    width: clamp(9.5rem, 13vw, 11rem);
-    max-width: none;
-    text-align: center;
-}
-
-:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact .tl-credit-card__image {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-}
-
-:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact .tl-credit-card__name {
-    font-size: var(--tl-type-secondary-size);
-}
-
-:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact .tl-credit-card__role {
-    font-size: var(--tl-type-caption-size);
-}
-
-:where(.tl-detail-page) .tl-media-overview-credits-list--video .tl-credit-card--compact {
-    width: clamp(8.75rem, 11vw, 10.25rem);
-    max-width: none;
-    text-align: center;
-}
-
-:where(.tl-detail-page) .tl-media-overview-credits-list--video .tl-credit-card--compact .tl-credit-card__image {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-}
-
-@media (width < 840px) {
-:where(.tl-detail-page) .tl-credit-card {
-        min-width: 0;
-        grid-template-columns: 4rem minmax(0, 1fr);
-    }
-
-:where(.tl-detail-page) .tl-credit-card__image {
-        width: 4rem;
-        height: 4rem;
-    }
-
+    line-height: 1.25;
 }

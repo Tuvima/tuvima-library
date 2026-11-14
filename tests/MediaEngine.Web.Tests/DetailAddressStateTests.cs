@@ -85,28 +85,28 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PickingCastWritesTheTabToTheAddressByReplacingTheEntryAndDoesNotReloadThePage()
+    public void PickingCreditsWritesTheTabToTheAddressByReplacingTheEntryAndDoesNotReloadThePage()
     {
         var cut = RenderShow();
         var navigation = Services.GetRequiredService<BunitNavigationManager>();
         Assert.Single(_loads);
 
-        cut.FindAll("[role='tab']").Single(tab => tab.TextContent.Trim() == "Cast").Click();
+        cut.FindAll("[role='tab']").Single(tab => tab.TextContent.Trim() == "Credits").Click();
 
         var written = navigation.History.First();
-        Assert.Contains("tab=cast", written.Uri, StringComparison.Ordinal);
+        Assert.Contains("tab=credits", written.Uri, StringComparison.Ordinal);
         Assert.True(written.Options.ReplaceHistoryEntry, "Picking a tab must replace the history entry, never add a Back step.");
         Assert.Single(navigation.History);
         Assert.Single(_loads);
-        cut.WaitForAssertion(() => Assert.Contains("Cast", cut.Find("section.tl-detail-body").Id, StringComparison.OrdinalIgnoreCase));
+        cut.WaitForAssertion(() => Assert.Contains("Credits", cut.Find("section.tl-detail-body").Id, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void AnAddressThatNamesTheCastTabOpensCast()
+    public void AnAddressThatNamesTheCreditsTabOpensCredits()
     {
-        var cut = RenderShow(tab: "cast");
+        var cut = RenderShow(tab: "credits");
 
-        Assert.Equal("cast", cut.Find("section.tl-detail-body").Id);
+        Assert.Equal("credits", cut.Find("section.tl-detail-body").Id);
     }
 
     [Fact]
@@ -125,9 +125,9 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
         var cut = RenderShow();
         Assert.Equal("overview", cut.Find("section.tl-detail-body").Id);
 
-        cut.Render(parameters => parameters.Add(c => c.Request, Request(tab: "cast")));
+        cut.Render(parameters => parameters.Add(c => c.Request, Request(tab: "credits")));
 
-        cut.WaitForAssertion(() => Assert.Equal("cast", cut.Find("section.tl-detail-body").Id));
+        cut.WaitForAssertion(() => Assert.Equal("credits", cut.Find("section.tl-detail-body").Id));
         Assert.Single(_loads);
 
         cut.Render(parameters => parameters.Add(c => c.Request, Request(tab: null)));
@@ -173,11 +173,11 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
     public void AddressChangesThatNameTheSameShowAndASeasonAreTheSamePageAsTheShow()
     {
         var show = DetailRouteRequest.ForUnified("tvshow", Show, null);
-        var viaSeason = DetailRouteRequest.ForUnified("tvshow", Show, null, seasonId: SeasonTwoId, tab: "cast");
+        var viaSeason = DetailRouteRequest.ForUnified("tvshow", Show, null, seasonId: SeasonTwoId, tab: "credits");
 
         Assert.Equal(show.LoadKey, viaSeason.LoadKey);
         Assert.Equal(SeasonTwoId, viaSeason.SelectedSeasonId);
-        Assert.Equal("cast", viaSeason.RequestedTab);
+        Assert.Equal("credits", viaSeason.RequestedTab);
         Assert.NotEqual(show.LoadKey, DetailRouteRequest.ForUnified("tvshow", Guid.NewGuid(), null).LoadKey);
     }
 
@@ -186,8 +186,8 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
     {
         var cut = RenderShow();
         PickSeason(cut, "Season 2");
-        cut.FindAll("[role='tab']").Single(tab => tab.TextContent.Trim() == "Cast").Click();
-        Assert.Equal("cast", cut.Find("section.tl-detail-body").Id);
+        cut.FindAll("[role='tab']").Single(tab => tab.TextContent.Trim() == "Credits").Click();
+        Assert.Equal("credits", cut.Find("section.tl-detail-body").Id);
 
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         await cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Mark as watched")).ClickAsync(new());
@@ -196,7 +196,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
         var refresh = Assert.Single(_refreshes);
         Assert.Equal((DetailEntityType.TvSeason, SeasonTwoId, Show.ToString("D")), refresh);
         Assert.Single(_loads);
-        Assert.Equal("cast", cut.Find("section.tl-detail-body").Id);
+        Assert.Equal("credits", cut.Find("section.tl-detail-body").Id);
 
         // Back on Overview the refreshed page is still on the chosen season, and the page did not fall back to the
         // payload it was first loaded with.
@@ -221,7 +221,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
 
         _refreshGate.SetResult(ShowPage("season-2"));
         await click;
-        cut.Render(parameters => parameters.Add(c => c.Request, DetailRouteRequest.ForUnified("tvshow", other, null, tab: "cast")));
+        cut.Render(parameters => parameters.Add(c => c.Request, DetailRouteRequest.ForUnified("tvshow", other, null, tab: "credits")));
 
         Assert.Contains("Other show", cut.Markup);
         Assert.DoesNotContain("Northwatch", cut.Markup);
@@ -249,7 +249,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
             Tabs =
             [
                 new DetailTab { Key = "overview", Label = "Overview" },
-                new DetailTab { Key = "cast", Label = "Cast" },
+                new DetailTab { Key = "credits", Label = "Credits" },
                 new DetailTab { Key = "details", Label = "Details" },
             ],
             ContributorGroups = [new CreditGroupViewModel { Title = "Cast", GroupType = CreditGroupType.Cast }],
