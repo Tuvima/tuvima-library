@@ -1,50 +1,71 @@
 @namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using System.Globalization
 @using MediaEngine.Contracts.Library
 @inject IEngineApiClient Api
 @inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 @implements IAsyncDisposable
 
-@* One History entry (spec library-activity D9, D11, D12, D15): a round date bubble on the line, then what was added and where, up to five small
-   covers, a plain count and Completed (or Active while it runs). Clicking opens it in place: its items as standard tiles in a scrolling area
-   that shows two rows at a time and loads more as you scroll, with no filter of its own (the chips at the top of the page narrow the whole page, D31). Episodes are stacked into one tile per show, tracks into
-   one per album. No file or enrichment detail (that lives in the item's editor). *@
-<li class="lact-entry @(Run.Status == ActivityRunStatusNames.Active ? "is-active" : null)" data-testid="lact-entry" data-run-status="@Run.Status">
+@* One History entry (spec library-activity D33, D35): a date label on the line, then one slim row in a bordered box. A running batch has a purple
+   left edge, "Adding audiobooks", "2 added so far", up to two small covers, Active and a chevron. A finished batch reads "250 items added", one
+   counts-by-kind line, three small covers with "+247", Completed and a chevron. The phone shows two covers with the "+N" and lets the counts wrap
+   to two lines. No library names on the row. Clicking opens it in place: its items as standard tiles in a scrolling area that shows two rows at a
+   time and loads more as you scroll, with no filter of its own (the chips at the top of the page narrow the whole page, D31). Episodes are stacked
+   into one tile per show, tracks into one per album. No file or enrichment detail (that lives in the item's editor). *@
+<li class="lact-entry @(IsActive ? "is-active" : null)" data-testid="lact-entry" data-run-status="@Run.Status">
     <div class="lact-entry__row">
-        <span class="lact-bubble">@Bubble</span>
+        <span class="lact-bubble" data-testid="lact-entry-date">@Bubble</span>
         <div class="lact-box">
             <AppNativeButton Type="button" Class="lact-box__toggle" OnClick="ToggleAsync"
                              aria-expanded="@(_open ? "true" : "false")" data-testid="lact-entry-toggle"
-                             AriaLabel="@($"{LibraryActivityText.Headline(Run)}, {LibraryActivityText.StatusLabel(Run.Status)}")">
+                             AriaLabel="@($"{Title}, {StatusText}")">
                 <span class="lact-box__what">
-                    <strong>@LibraryActivityText.Headline(Run)</strong>
-                    <small data-testid="lact-entry-subtitle">@LibraryActivityText.Subtitle(Run)</small>
-                </span>
-                <span class="lact-box__covers" aria-hidden="true">
-                    @foreach (var cover in Run.Covers)
+                    <strong data-testid="lact-entry-title">@Title</strong>
+                    @if (!string.IsNullOrEmpty(Line))
                     {
-                        <span class="lact-cover @(cover.MediaType == "Music" ? "is-square" : null)">
+                        <small data-testid="lact-entry-line" data-overflow-tooltip="@Line">@Line</small>
+                    }
+                </span>
+                <span class="lact-box__covers" aria-hidden="true" data-testid="lact-entry-covers">
+                    @{ var covers = Run.Covers.Take(IsActive ? PhoneCovers : DesktopCovers).ToList(); }
+                    @for (var index = 0; index < covers.Count; index++)
+                    {
+                        var cover = covers[index];
+                        <span class="lact-cover @(cover.MediaType == "Music" ? "is-square" : null) @(index >= PhoneCovers ? "is-desktop-only" : null)">
                             <LibraryActivityPicture Url="@cover.Url" DrawnPx="44" />
                         </span>
                     }
-                    @if (MoreCovers > 0)
+                    @if (!IsActive)
                     {
-                        <span class="lact-cover-more">+@MoreCovers.ToString("N0")</span>
+                        @if (MoreOnDesktop > 0 && MoreOnDesktop == MoreOnPhone)
+                        {
+                            <span class="lact-cover-more" data-testid="lact-entry-more">+@MoreOnDesktop.ToString("N0", CultureInfo.InvariantCulture)</span>
+                        }
+                        else
+                        {
+                            @if (MoreOnDesktop > 0)
+                            {
+                                <span class="lact-cover-more is-desktop-only" data-testid="lact-entry-more">+@MoreOnDesktop.ToString("N0", CultureInfo.InvariantCulture)</span>
+                            }
+                            @if (MoreOnPhone > 0)
+                            {
+                                <span class="lact-cover-more is-phone-only" data-testid="lact-entry-more-phone">+@MoreOnPhone.ToString("N0", CultureInfo.InvariantCulture)</span>
+                            }
+                        }
                     }
                 </span>
-                <span class="lact-box__count">@Count</span>
                 <span class="lact-box__status lact-status--@Run.Status" data-testid="lact-entry-status">
-                    @if (Run.Status == ActivityRunStatusNames.Active)
+                    @if (IsActive)
                     {
-                        <span class="lact-dot" aria-hidden="true"></span><span>@L["LibraryActivity_Active"]</span>
+                        <span class="lact-dot" aria-hidden="true"></span><span>@StatusText</span>
                     }
                     else if (Run.Status == ActivityRunStatusNames.Failed)
                     {
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppIconSize.Control20" /><span>@LibraryActivityText.StatusLabel(Run.Status)</span>
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppIconSize.Control20" /><span>@StatusText</span>
                     }
                     else
                     {
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" /><span>@LibraryActivityText.StatusLabel(Run.Status)</span>
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" /><span>@StatusText</span>
                     }
                 </span>
                 <span class="lact-box__chevron"><AppMaterialIcon Icon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppIconSize.Control20" /></span>
@@ -90,6 +111,8 @@
 
 @code {
     private const int PageSize = 24;
+    private const int DesktopCovers = 3;
+    private const int PhoneCovers = 2;
 
     [Parameter, EditorRequired] public ActivityRunDto Run { get; set; } = default!;
 
@@ -111,15 +134,72 @@
 
     private string SentinelId => $"lact-more-{Run.Id:N}";
 
-    private string Bubble => Run.Status == ActivityRunStatusNames.Active ? "Now" : LibraryActivityText.Bubble(Run.StartedAt);
+    private bool IsActive => Run.Status == ActivityRunStatusNames.Active;
 
-    private int MoreCovers => Math.Max(0, Run.ItemCount - Run.Covers.Count);
+    private string Bubble => IsActive ? L["LibraryActivity_Now"].Value : LibraryActivityText.Bubble(Run.StartedAt);
 
-    private string Count => Run.Status == ActivityRunStatusNames.Active
-        ? $"{Run.ItemCount:N0} so far"
-        : Run.Kind == ActivityRunKindNames.Removed
-            ? $"{Run.ItemCount:N0} {(Run.ItemCount == 1 ? "item" : "items")} removed"
-            : LibraryActivityText.Counts(Run);
+    private string StatusText => Run.Status switch
+    {
+        ActivityRunStatusNames.Active => L["LibraryActivity_Active"].Value,
+        ActivityRunStatusNames.Failed => L["LibraryActivity_Failed"].Value,
+        _ => L["LibraryActivity_Completed"].Value,
+    };
+
+    // A running import reads "Adding audiobooks" when one kind is arriving and "Adding items" when several are; every other batch, and a
+    // finished one, reads by its count and what happened to it: "250 items added", "12 items updated", "3 items fixed", "3 items removed".
+    private string Title
+    {
+        get
+        {
+            var count = Run.ItemCount.ToString("N0", CultureInfo.InvariantCulture);
+            if (IsActive && Run.Kind == ActivityRunKindNames.Added)
+            {
+                var kinds = Run.Counts.Where(entry => entry.Count > 0).Select(entry => entry.MediaType).Distinct(StringComparer.Ordinal).ToList();
+                return kinds.Count == 1
+                    ? L["LibraryActivity_AddingKind", LibraryActivityText.Noun(kinds[0], 2)].Value
+                    : L["LibraryActivity_AddingItems"].Value;
+            }
+
+            var one = Run.ItemCount == 1;
+            return Run.Kind switch
+            {
+                ActivityRunKindNames.Updated => L[one ? "LibraryActivity_BatchItemUpdated" : "LibraryActivity_BatchItemsUpdated", count].Value,
+                ActivityRunKindNames.Fixed => L[one ? "LibraryActivity_BatchItemFixed" : "LibraryActivity_BatchItemsFixed", count].Value,
+                ActivityRunKindNames.Removed => L[one ? "LibraryActivity_BatchItemRemoved" : "LibraryActivity_BatchItemsRemoved", count].Value,
+                _ => L[one ? "LibraryActivity_BatchItemAdded" : "LibraryActivity_BatchItemsAdded", count].Value,
+            };
+        }
+    }
+
+    // The one line under the title: "2 added so far" while it runs, otherwise the counts by kind; a batch that knows no kinds (a removal) says why instead.
+    private string Line
+    {
+        get
+        {
+            if (IsActive && Run.Kind == ActivityRunKindNames.Added)
+            {
+                return L["LibraryActivity_AddedSoFar", Run.ItemCount.ToString("N0", CultureInfo.InvariantCulture)].Value;
+            }
+
+            var counts = LibraryActivityText.Counts(Run);
+            if (counts.Length > 0)
+            {
+                return counts;
+            }
+
+            return Run.Kind switch
+            {
+                ActivityRunKindNames.Fixed => L["LibraryActivity_ReasonFixed"].Value,
+                ActivityRunKindNames.Removed => L["LibraryActivity_ReasonRemoved"].Value,
+                _ => string.Empty,
+            };
+        }
+    }
+
+    // The desktop draws three covers and the phone two, so the "+N" differs; a running batch shows two covers and no "+N" (D33).
+    private int MoreOnDesktop => Math.Max(0, Run.ItemCount - Math.Min(DesktopCovers, Run.Covers.Count));
+
+    private int MoreOnPhone => Math.Max(0, Run.ItemCount - Math.Min(PhoneCovers, Run.Covers.Count));
 
     // The bottom-left label: "12 new episodes", or nothing for a single movie.
     private static string? BottomLabel(ActivityGroupDto group)

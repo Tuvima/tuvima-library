@@ -233,7 +233,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnEntry_IsOneLeftAlignedRow_WithASubtitleCoversCountsAndCompleted()
+    public void AnEntry_IsOneLeftAlignedRow_WithATitleOneCountsLineCoversAndCompleted()
     {
         _runs =
         [
@@ -245,13 +245,12 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
 
         var entry = cut.WaitForElement("[data-testid='lact-entry']");
         Assert.Contains("lact-box__toggle", entry.QuerySelector("[data-testid='lact-entry-toggle']")!.ClassName, StringComparison.Ordinal);
-        Assert.Equal("Added 85 episodes · 51 tracks · 12 movies", entry.QuerySelector(".lact-box__what strong")!.TextContent.Trim());
-        Assert.Equal("Movies, TV and Music", entry.QuerySelector("[data-testid='lact-entry-subtitle']")!.TextContent.Trim());
-        Assert.Equal("85 episodes · 51 tracks · 12 movies", entry.QuerySelector(".lact-box__count")!.TextContent.Trim());
+        Assert.Equal("148 items added", entry.QuerySelector(".lact-box__what strong")!.TextContent.Trim());
+        Assert.Equal("85 episodes · 51 tracks · 12 movies", entry.QuerySelector("[data-testid='lact-entry-line']")!.TextContent.Trim());
         Assert.Equal("Completed", entry.QuerySelector("[data-testid='lact-entry-status']")!.TextContent.Trim());
-        // The row order is what, covers, counts, status, chevron: left to right, never one centred stack.
+        // The row order is what, covers, status, chevron: left to right, never one centred stack.
         var order = entry.QuerySelectorAll(".lact-box__toggle > span").Select(span => (span.ClassName ?? string.Empty).Split(' ')[0]).ToArray();
-        Assert.Equal(["lact-box__what", "lact-box__covers", "lact-box__count", "lact-box__status", "lact-box__chevron"], order);
+        Assert.Equal(["lact-box__what", "lact-box__covers", "lact-box__status", "lact-box__chevron"], order);
     }
 
     [Fact]
@@ -381,14 +380,8 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheWords_ForTheSubtitleAndTheTitleCountFollowTheMockup()
+    public void TheWords_ForTheTitleCountAndTheMarkerFollowTheMockup()
     {
-        Assert.Equal("Movies, TV and Music", LibraryActivityText.Kinds(["Music", "Movies", "TV"]));
-        Assert.Equal("Music", LibraryActivityText.Kinds(["Music"]));
-        Assert.Equal(string.Empty, LibraryActivityText.Kinds([]));
-        Assert.Equal("Metadata refresh · Music", LibraryActivityText.Subtitle(Run(DateTimeOffset.Now, [new ActivityRunCountDto("Music", 3)], kind: ActivityRunKindNames.Updated)));
-        Assert.Equal("Resolved from Needs Review", LibraryActivityText.Subtitle(Run(DateTimeOffset.Now, kind: ActivityRunKindNames.Fixed)));
-        Assert.Equal("Manually removed from library", LibraryActivityText.Subtitle(Run(DateTimeOffset.Now, kind: ActivityRunKindNames.Removed)));
         Assert.Equal("2 titles", LibraryActivityText.TitlesCount(2));
         Assert.Equal("1 title", LibraryActivityText.TitlesCount(1));
         Assert.Equal("4 new episodes", LibraryActivityText.MarkerLine(new ActivityTitleMarkerDto(Guid.NewGuid(), ActivityRunKindNames.Added, DateTimeOffset.Now, 4), "TV"));
