@@ -19,9 +19,12 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         ["pending", "queued", "leased", "running", "processing", "active", "retry_waiting", "failed_retryable", "interrupted"];
 
     /// <summary>
-    /// Enough in-flight rows for the Dashboard's Now panel (at most 10 shown) to rotate from, ordered most recently active first.
+    /// Enough in-flight rows for the Dashboard's Working now row (at most 10 shown at once) to rotate from, ordered most recently active first.
     /// </summary>
-    public const int DefaultCurrentLimit = 12;
+    public const int DefaultCurrentLimit = 20;
+
+    /// <summary>The most in-flight rows a caller may ask for.</summary>
+    public const int MaxCurrentLimit = 20;
 
     private readonly IDatabaseConnection _db;
     private readonly IIngestionQueueProgressService? _queue;
@@ -50,11 +53,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         bool includeUnmatchedFiles = false,
         CancellationToken ct = default)
     {
-        currentLimit = Math.Clamp(currentLimit, 1, 20);
+        currentLimit = Math.Clamp(currentLimit, 1, MaxCurrentLimit);
         recentDayLimit = Math.Clamp(recentDayLimit, 1, 7);
         recentItemsPerDay = Math.Clamp(recentItemsPerDay, 1, 12);
 
-        var currentPage = await LoadCurrentGroupPageAsync(PagedRequest.From(0, currentLimit, currentLimit, 20), ct, eligibleOnly: true).ConfigureAwait(false);
+        var currentPage = await LoadCurrentGroupPageAsync(PagedRequest.From(0, currentLimit, currentLimit, MaxCurrentLimit), ct, eligibleOnly: true).ConfigureAwait(false);
         var current = currentPage.Items;
         var queue = _queue?.Current;
         var currentFactsByType = await ReadCurrentGroupFactsAsync(queue?.StartedAt, ct).ConfigureAwait(false);

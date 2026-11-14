@@ -5,9 +5,9 @@
 @implements IAsyncDisposable
 @using MediaEngine.Web.Components.Settings
 
-@* Working now (spec library-activity D6, D7, D34): one row of half-size tiles, each with the flush status label for what Library is doing to that title
+@* Working now (spec library-activity D6, D7, D34): one row of small tiles, each with the flush status label for what Library is doing to that title
    and a flush count or step at the bottom-left. The row shows only as many tiles as fit across (measured, so it never scrolls and never cuts one off),
-   at most 10 at a time, each held at least 3 seconds; when more titles are in progress than fit, it rotates through them. The heading says how many
+   at most 10 at a time, each held at least 2 seconds; when more titles are in progress than fit, it rotates through them. The heading says how many
    there are in all. Hidden when nothing runs. Background work is one plain line with no bar of its own. *@
 @if (Items.Count > 0)
 {
@@ -56,7 +56,7 @@
     /// </summary>
     [Parameter] public IReadOnlyList<string> Background { get; set; } = [];
 
-    /// <summary>The clock the 3-second hold and the rotation run on; tests pass a fake one.</summary>
+    /// <summary>The clock the 2-second hold and the rotation run on; tests pass a fake one.</summary>
     [Parameter] public TimeProvider? Clock { get; set; }
 
     private string Heading

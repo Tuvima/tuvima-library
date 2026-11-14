@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Ingestion;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 
@@ -21,7 +22,10 @@ public static class SystemActivityText
     {
         if (!snapshot.IsWorking)
         {
-            return Idle(snapshot.Queue, now);
+            // Follow-up work never lights the ring, but the tooltip still names it.
+            var idle = Idle(snapshot.Queue, now);
+            var background = BackgroundNames(snapshot);
+            return background.Count == 0 ? idle : $"{idle} • {string.Join(", ", background)}";
         }
 
         var parts = new List<string>();
@@ -31,12 +35,19 @@ public static class SystemActivityText
             parts.Add(Ingestion(queue, now));
         }
 
-        parts.AddRange(snapshot.Items
+        parts.AddRange(snapshot.WorkingItems
             .Where(item => item.Kind != ShellActivityKind.Ingestion)
             .Select(FormatActivity));
 
         return string.Join(" • ", parts.Take(MaxTooltipItems));
     }
+
+    /// <summary>The plain names of the follow-up work still open ("Making preview pictures"), each once.</summary>
+    private static IReadOnlyList<string> BackgroundNames(ShellActivitySnapshot snapshot) => snapshot.BackgroundItems
+        .Select(item => MediaOperationFollowUp.Describe(item.OperationType)?.Label ?? item.Label)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(MaxTooltipItems)
+        .ToList();
 
     /// <summary>The live page's headline, status and time on one line: "Found 508 files · 120 of 508 done · About 4 min left".</summary>
     public static string Ingestion(IngestionQueueProgressDto queue, DateTimeOffset now)

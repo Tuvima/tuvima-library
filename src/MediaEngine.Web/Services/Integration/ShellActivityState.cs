@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Playback;
 
@@ -24,17 +25,28 @@ public sealed record ShellActivityItem(
     string? Detail,
     int? ProgressPercent,
     DateTimeOffset UpdatedAt,
-    string? OperationType = null);
+    string? OperationType = null)
+{
+    /// <summary>Follow-up work (preview pictures, text tracks, plugins, write-back, AI, documents) that runs after a title is usable; it never counts as working.</summary>
+    public bool IsFollowUp => MediaOperationFollowUp.IsFollowUp(OperationType);
+}
 
 /// <summary>
-/// The Library's work as the menu indicator sees it: working (blue) when any item is present, idle (green) otherwise.
+/// The Library's work as the menu indicator sees it: working (blue) while any item other than follow-up work is present, idle (green) otherwise
+/// (one rule for "working", spec library-activity D29: follow-up work only shows in the tooltip, as <see cref="BackgroundItems"/>).
 /// <see cref="Queue"/> is the Engine's latest ingestion snapshot, kept so the tooltip can use its numbers and its last-activity time.
 /// </summary>
 public sealed record ShellActivitySnapshot(IReadOnlyList<ShellActivityItem> Items, IngestionQueueProgressDto? Queue = null, bool NeedsAttention = false)
 {
-    public bool IsWorking => Items.Count > 0;
-    public int ActiveCount => Items.Count;
-    public ShellActivityItem? Primary => Items.FirstOrDefault();
+    /// <summary>The items that make the Library "working": everything except follow-up work.</summary>
+    public IEnumerable<ShellActivityItem> WorkingItems => Items.Where(item => !item.IsFollowUp);
+
+    /// <summary>Follow-up work still open: the ring stays idle but the tooltip names it.</summary>
+    public IEnumerable<ShellActivityItem> BackgroundItems => Items.Where(item => item.IsFollowUp);
+
+    public bool IsWorking => WorkingItems.Any();
+    public int ActiveCount => WorkingItems.Count();
+    public ShellActivityItem? Primary => WorkingItems.FirstOrDefault();
 }
 
 public sealed class ShellActivityState : IDisposable

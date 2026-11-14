@@ -2,5 +2,5 @@
 .lact-tile__label { position: absolute; left: 0; max-width: 100%; box-sizing: border-box; padding: var(--tl-space-1) var(--tl-space-3); font-size: var(--tl-type-overline-size); font-weight: var(--tl-type-overline-weight); color: var(--tl-on-scrim); background: var(--tl-scrim-soft-strong); }
 .lact-tile__label--top { top: 0; border-radius: var(--tl-radius-md) 0 var(--tl-radius-sm) 0; }
 .lact-tile__label--bottom { bottom: 0; border-radius: 0 var(--tl-radius-sm) 0 var(--tl-radius-md); }
-/* Half-size tile (D34): tighter labels that may wrap to two lines instead of running past the tile. */
+/* Small tile (D34): tighter labels that may wrap to two lines instead of running past the tile. */
 .lact-tile__face--compact .lact-tile__label { padding: 1px var(--tl-space-2); font-size: var(--tl-type-caption-size); line-height: 1.2; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

@@ -60,7 +60,7 @@ public static class IngestionEndpoints
             // The one "need review" number counts what the Needs Review list holds for this caller, files included for an administrator.
             var includeFiles = UnmatchedScope.For(await authorities.ResolveAsync(http, ct)).AllLibraries;
             return Results.Ok(await readService.GetSnapshotAsync(
-                currentLimit ?? 12,
+                currentLimit ?? MediaEngine.Api.Services.ReadServices.IngestionPresentationReadService.DefaultCurrentLimit,
                 recentDayLimit ?? 3,
                 recentItemsPerDay ?? 9,
                 includeFiles,

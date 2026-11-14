@@ -7,7 +7,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// Working now fits the width (spec library-activity D34, D35, issue 862): the heading counts every title in progress, the row never shows
-/// more than 10 tiles or more than fit across, each tile is held at least 3 seconds, a long list rotates, and the row never scrolls sideways.
+/// more than 10 tiles or more than fit across, each tile is held at least 2 seconds, a long list rotates, and the row never scrolls sideways.
 /// </summary>
 public sealed class LibraryActivityWorkingNowFitsTests : AsyncBunitContext
 {
@@ -48,7 +48,7 @@ public sealed class LibraryActivityWorkingNowFitsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task WhenOnlyFourTilesFitAcrossTheRow_FourShow_AndTheRowRotatesAfterThreeSeconds()
+    public async Task WhenOnlyFourTilesFitAcrossTheRow_FourShow_AndTheRowRotatesAfterTwoSeconds()
     {
         var cut = RenderRow(Titles(12));
         await cut.InvokeAsync(() => cut.Instance.OnFit(4));
@@ -56,7 +56,7 @@ public sealed class LibraryActivityWorkingNowFitsTests : AsyncBunitContext
         var first = TileTitles(cut);
         Assert.Equal(4, first.Count);
 
-        _clock.Advance(TimeSpan.FromSeconds(2));
+        _clock.Advance(TimeSpan.FromSeconds(1));
         Assert.Equal(first, TileTitles(cut));
 
         _clock.Advance(TimeSpan.FromSeconds(1));
@@ -82,7 +82,7 @@ public sealed class LibraryActivityWorkingNowFitsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ATileWithAPage_StillOpensItsPage_AndIsHalfSize()
+    public void ATileWithAPage_StillOpensItsPage_AndIsCompact()
     {
         var items = Titles(1);
         items[0].DetailRoute = "/details/movie/11111111-1111-4111-8111-111111111111";
@@ -111,12 +111,12 @@ public sealed class LibraryActivityWorkingNowFitsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheRowsTilesAreAboutHalfTodaysSize_OnADesktopAndSmallerStillOnAPhone()
+    public void TheRowsTilesAreSmall_OnADesktopAndSmallerStillOnAPhone()
     {
         var row = Read(Folder + "LibraryActivityWorkingNow.razor.css");
 
-        Assert.Contains("--lact-working-tile-w: 107px;", row, StringComparison.Ordinal);
-        Assert.Contains("@media (max-width: 600px) { .lact-working { --lact-working-tile-w: 76px;", row, StringComparison.Ordinal);
+        Assert.Contains("--lact-working-tile-w: 84px;", row, StringComparison.Ordinal);
+        Assert.Contains("@media (max-width: 600px) { .lact-working { --lact-working-tile-w: 64px;", row, StringComparison.Ordinal);
     }
 
     private IRenderedComponent<LibraryActivityWorkingNow> RenderRow(IReadOnlyList<IngestionMediaGroupDto> items, int? total = null)

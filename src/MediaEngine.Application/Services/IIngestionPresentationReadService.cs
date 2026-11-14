@@ -10,7 +10,7 @@ public interface IIngestionPresentationReadService
     /// equals what the Needs Review list holds for that caller.
     /// </param>
     Task<IngestionPresentationSnapshotDto> GetSnapshotAsync(
-        int currentLimit = 12,
+        int currentLimit = 20,
         int recentDayLimit = 3,
         int recentItemsPerDay = 9,
         bool includeUnmatchedFiles = false,
