@@ -210,8 +210,43 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaOperationAlone_ShowsTheWorkingState()
+    public void AFolderJobAlone_ShowsTheWorkingState()
     {
+        _state.SetMediaOperationActivity(
+        [
+            new MediaOperationChangedEvent(Guid.NewGuid(), "organise_folder", "maintenance", "running", null, 0, 0, 0, DateTimeOffset.UtcNow),
+        ]);
+
+        var cut = Render<SystemActivityIndicator>();
+
+        Assert.Contains("is-working", cut.Find("button.system-activity-indicator").ClassList);
+        Assert.Equal("Organising a folder", Tooltip(cut));
+    }
+
+    [Fact]
+    public void OnlyPreviewPictureJobsOpen_RingStaysIdleAndTheTooltipNamesThem()
+    {
+        _state.PushIngestionQueueProgress(Queue("idle", found: 0, done: 0, progress: 1));
+        _state.SetMediaOperationActivity(
+        [
+            new MediaOperationChangedEvent(Guid.NewGuid(), "playback.scrub_previews", "maintenance", "running", null, 40, 3, 1, DateTimeOffset.UtcNow),
+            new MediaOperationChangedEvent(Guid.NewGuid(), "playback.scrub_previews", "maintenance", "queued", null, 0, 3, 0, DateTimeOffset.UtcNow),
+        ]);
+
+        var cut = Render<SystemActivityIndicator>();
+
+        Assert.Contains("is-idle", cut.Find("button.system-activity-indicator").ClassList);
+        Assert.DoesNotContain("is-working", cut.Find("button.system-activity-indicator").ClassList);
+        Assert.Empty(cut.FindAll(".app-sync-icon .is-spinning"));
+        Assert.Empty(cut.FindAll(".system-activity-indicator__count"));
+        Assert.Equal("Idle", cut.Find(".sr-only").TextContent);
+        Assert.Equal("Library is up to date • Making preview pictures", Tooltip(cut));
+    }
+
+    [Fact]
+    public void FollowUpWorkAlongsideRealWork_DoesNotCountAndTheRingKeepsWorking()
+    {
+        _state.PushIngestionQueueProgress(Queue("working", found: 5, done: 1, progress: 0.2, secondsLeft: 30));
         _state.SetMediaOperationActivity(
         [
             new MediaOperationChangedEvent(Guid.NewGuid(), "writeback.metadata", "writeback", "running", null, 0, 0, 0, DateTimeOffset.UtcNow),
@@ -220,7 +255,8 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         var cut = Render<SystemActivityIndicator>();
 
         Assert.Contains("is-working", cut.Find("button.system-activity-indicator").ClassList);
-        Assert.Equal("Writing media metadata", Tooltip(cut));
+        Assert.Equal("Found 5 files · 1 of 5 done · Less than a minute left", Tooltip(cut));
+        Assert.Empty(cut.FindAll(".system-activity-indicator__count"));
     }
 
     [Fact]

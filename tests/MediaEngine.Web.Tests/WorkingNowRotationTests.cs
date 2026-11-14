@@ -4,7 +4,7 @@ using MediaEngine.Web.Components.Settings.LibraryActivity;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The Working now window (spec library-activity D34): never more than 10 tiles or more than fit, each held at least 3 seconds,
+/// The Working now window (spec library-activity D34): never more than 10 tiles or more than fit, each held at least 2 seconds,
 /// and a rotation through every title in progress when they do not all fit.
 /// </summary>
 public sealed class WorkingNowRotationTests
@@ -39,12 +39,12 @@ public sealed class WorkingNowRotationTests
     }
 
     [Fact]
-    public void ATileIsHeldForThreeSeconds_ThenTheRowRotatesToTheNextTitlesInLine()
+    public void ATileIsHeldForTwoSeconds_ThenTheRowRotatesToTheNextTitlesInLine()
     {
         var rotation = new WorkingNowRotation(_clock);
         rotation.Update(Titles(12), 4);
 
-        _clock.Advance(TimeSpan.FromMilliseconds(2999));
+        _clock.Advance(TimeSpan.FromMilliseconds(1999));
         Assert.False(rotation.Tick());
         Assert.Equal(Ids(0, 4), rotation.Shown.Select(item => item.GroupId));
 
@@ -99,7 +99,7 @@ public sealed class WorkingNowRotationTests
     }
 
     [Fact]
-    public void ATitleThatFinishesEarly_StaysItsThreeSeconds_ThenLeaves()
+    public void ATitleThatFinishesEarly_StaysItsTwoSeconds_ThenLeaves()
     {
         var rotation = new WorkingNowRotation(_clock);
         rotation.Update(Titles(3), 8);
@@ -109,7 +109,7 @@ public sealed class WorkingNowRotationTests
         Assert.Equal(3, rotation.Shown.Count);
         Assert.True(rotation.NeedsTick);
 
-        _clock.Advance(TimeSpan.FromSeconds(1.9));
+        _clock.Advance(TimeSpan.FromSeconds(0.9));
         Assert.False(rotation.Tick());
         Assert.Equal(3, rotation.Shown.Count);
 

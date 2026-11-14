@@ -884,6 +884,33 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Snapshot_ListsTwentyInFlightRowsByDefault_AndStillCountsEveryOne()
+    {
+        for (var index = 1; index <= 25; index++)
+        {
+            AddStandalone("Movies", $"In Flight {index}", ready: false);
+        }
+
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,state,pass,created_at,updated_at)
+                SELECT randomblob(16), id, 'MediaAsset', 'Movies', 'Hydrating', 'Quick', @now, @now FROM media_assets;
+                UPDATE ingestion_log SET status = 'queued_identity';
+                """, new { now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var service = new IngestionPresentationReadService(_db);
+        var snapshot = await service.GetSnapshotAsync();
+        var clamped = await service.GetSnapshotAsync(currentLimit: 99);
+
+        Assert.Equal(20, IngestionPresentationReadService.DefaultCurrentLimit);
+        Assert.Equal(25, snapshot.CurrentMediaTotal);
+        Assert.Equal(20, snapshot.CurrentMedia.Count);
+        Assert.Equal(20, clamped.CurrentMedia.Count);
+    }
+
+    [Fact]
     public async Task Snapshot_AFileQueuedForOverTenMinutesDoesNotHoldTheQueueWorking_ItShowsAsWaiting()
     {
         var stale = DateTimeOffset.UtcNow.AddMinutes(-30).ToString("O");

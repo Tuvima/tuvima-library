@@ -16,7 +16,7 @@ public sealed class WorkingNowRotation
     public const int MaxShown = 10;
 
     /// <summary>How long a tile stays on screen at least before it can make way for another title.</summary>
-    public static readonly TimeSpan MinimumHold = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan MinimumHold = TimeSpan.FromSeconds(2);
 
     private readonly TimeProvider _clock;
     private readonly List<Slot> _slots = [];

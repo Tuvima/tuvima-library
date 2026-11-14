@@ -4,9 +4,9 @@
 .lact-tile__link { display: block; width: 100%; height: 100%; color: inherit; text-decoration: none; border-radius: var(--tl-radius-md); }
 .lact-tile__link:hover, .lact-tile__link:focus-visible { outline: 2px solid var(--tl-accent-primary); }
 @media (max-width: 600px) { .lact-tile { --lact-tile-w: 112px; --lact-tile-h: 168px; } }
-/* Working now's half-size tile (D34): the row sets the width (--lact-working-tile-w) so what fits across is counted, not guessed; albums take the same width, square. A tile never scrolls or clips: the row only holds as many as fit. */
-.lact-tile.is-compact { width: var(--lact-working-tile-w, 107px); height: calc(var(--lact-working-tile-w, 107px) * 1.5); animation: lact-tile-in 240ms ease-out; }
-.lact-tile.is-compact.is-square { height: var(--lact-working-tile-w, 107px); }
+/* Working now's small tile (D34): the row sets the width (--lact-working-tile-w) so what fits across is counted, not guessed; albums take the same width, square. A tile never scrolls or clips: the row only holds as many as fit. */
+.lact-tile.is-compact { width: var(--lact-working-tile-w, 84px); height: calc(var(--lact-working-tile-w, 84px) * 1.5); animation: lact-tile-in 240ms ease-out; }
+.lact-tile.is-compact.is-square { height: var(--lact-working-tile-w, 84px); }
 .lact-tile.is-compact .lact-tile__link:hover, .lact-tile.is-compact .lact-tile__link:focus-visible { outline-offset: -2px; }
 @keyframes lact-tile-in { from { opacity: 0; } to { opacity: 1; } }
 /* Reduced motion: tiles still change over time, they just appear without the fade. */
