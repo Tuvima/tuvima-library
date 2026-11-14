@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Details
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="tl-detail-tab-panel tl-overview-surface @OverviewSurfaceModifier">
+<div class="@OverviewSurfaceClass">
     @if (Model.EntityType == DetailEntityType.Person && Model.PersonDetails is not null)
     {
         <section class="tl-overview-section tl-overview-section--copy">
@@ -53,7 +53,7 @@
                     <div class="tl-overview-credit-rows">
                         @foreach (var person in RelatedPeople)
                         {
-                            <PersonCreditCard Credit="@ToRelatedIdentityCredit(person)" Compact="true" />
+                            <PersonCreditCard Credit="@ToRelatedIdentityCredit(person)" />
                         }
                     </div>
                 </div>
@@ -88,45 +88,61 @@
                                Label="@(_overviewExpanded ? "Show less" : "Show more")"
                                OnClick="@(() => _overviewExpanded = !_overviewExpanded)" />
                 }
+            }
+            @* Released, Language and one or two facts of this kind of title, then where the description came from (details-page-bottom D2). *@
+            @if (OverviewFacts.Count > 0)
+            {
+                <dl class="tl-overview-pair" data-testid="overview-facts">
+                    @foreach (var fact in OverviewFacts)
+                    {
+                        <div>
+                            <dt>@fact.Label</dt>
+                            <dd>@fact.Value</dd>
+                        </div>
+                    }
+                </dl>
+            }
+            @if (OverviewDescriptionParagraphs.Count > 0)
+            {
                 <DescriptionAttribution Attribution="Model.DescriptionAttribution" Compact="true" />
             }
         </section>
 
         @if (ShowOverviewCredits)
         {
-            <aside class="tl-overview-section tl-overview-section--secondary tl-overview-section--credits">
+            <aside class="tl-overview-section tl-overview-section--secondary tl-overview-section--credits" data-testid="overview-credits">
                 <header class="tl-overview-section__heading">
-                    <span>@CreditPanelTitle</span>
+                    <h2>@CreditPanelTitle</h2>
                     @if (OverviewCreditRows.Count > 0 && HasCreditTab)
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Text"
                                    Tone="AppUiTone.Primary"
                                    Size="AppControlSize.Compact"
                                    EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
-                                   Label="@L["OverviewTab_ViewFull", CreditPanelTitle.ToLowerInvariant()].Value"
+                                   data-testid="overview-view-full-credits"
+                                   Label="@L["OverviewTab_ViewFullCredits"].Value"
                                    OnClick="@(() => OnTabRequested.InvokeAsync(CreditTabKey))" />
                     }
                 </header>
-                @if (DisplayedOverviewCreditGroups.Count == 0)
+                @if (OverviewCreditRows.Count == 0)
                 {
-                    <p class="tl-overview-section__empty">@L["OverviewTab_NoLinkedPeopleAreAvailable"]</p>
+                    <p class="tl-overview-section__empty">@L["OverviewTab_NoCreditsYet"]</p>
                 }
                 else
                 {
-                    <div class="tl-overview-credit-groups">
-                        @foreach (var group in DisplayedOverviewCreditGroups)
-                        {
-                            <section class="@OverviewCreditGroupClass(group)">
-                                <h3>@OverviewCreditGroupTitle(group)</h3>
-                                <div class="tl-overview-credit-rows">
-                                    @foreach (var credit in group.Credits)
-                                    {
-                                        <PersonCreditCard Credit="credit" Compact="true" />
-                                    }
-                                </div>
-                            </section>
-                        }
+                    @* The director or lead credit first, in a slightly larger row, then a two-column grid of people (D2). One tile throughout (D3). *@
+                    <div class="tl-overview-credit-lead">
+                        <PersonCreditCard Credit="OverviewLeadCredit!" />
                     </div>
+                    @if (OverviewGridCredits.Count > 0)
+                    {
+                        <div class="tl-overview-credit-rows">
+                            @foreach (var credit in OverviewGridCredits)
+                            {
+                                <PersonCreditCard Credit="credit" />
+                            }
+                        </div>
+                    }
                 }
             </aside>
         }
@@ -163,6 +179,11 @@
         _ => "tl-overview-surface--media",
     };
 
+    // No credits yet: the right column has nothing to show, so the description column spans the whole width (details-page-bottom D2).
+    private string OverviewSurfaceClass =>
+        $"tl-detail-tab-panel tl-overview-surface {OverviewSurfaceModifier}"
+        + (ShowOverviewCredits && Model.EntityType != DetailEntityType.Person && OverviewCreditRows.Count == 0 ? " tl-overview-surface--no-credits" : string.Empty);
+
     private bool IsCanonicalSeriesContainer => Model.EntityType is DetailEntityType.MovieSeries
         or DetailEntityType.BookSeries
         or DetailEntityType.ComicSeries;
@@ -195,13 +216,10 @@
 
     private sealed record OverviewCreditGroup(string Title, IReadOnlyList<EntityCreditViewModel> Credits, int TotalCount);
 
-    private string CreditPanelTitle => Model.EntityType switch
-    {
-        DetailEntityType.Movie or DetailEntityType.MovieSeries or DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => "Cast",
-        _ => "Credits",
-    };
+    // Video's heading is "Cast and crew" (details-page-bottom D2); every other kind keeps "Credits". The tab behind "View full credits" is Credits for all.
+    private string CreditPanelTitle => IsVideo ? L["OverviewTab_CastAndCrew"].Value : L["OverviewTab_Credits"].Value;
 
-    private string CreditTabKey => IsVideo ? "cast" : "credits";
+    private const string CreditTabKey = "credits";
     private bool HasCreditTab => Model.Tabs.Any(tab =>
         string.Equals(tab.Key, CreditTabKey, StringComparison.OrdinalIgnoreCase));
 
@@ -238,6 +256,40 @@
                 StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
+
+    // The credit the right column opens with (the director for a video, the first author or writer otherwise) and the people in the grid
+    // under it: up to eight more, three on a phone-width list through the style sheet (four people in all, then "View full credits").
+    private EntityCreditViewModel? OverviewLeadCredit => OverviewCreditRows.Count > 0 ? OverviewCreditRows[0] : null;
+
+    private IReadOnlyList<EntityCreditViewModel> OverviewGridCredits => OverviewCreditRows.Skip(1).Take(8).ToList();
+
+    // Released, Language and one or two facts of this kind of title; a fact the Engine has no value for is left out.
+    private IReadOnlyList<(string Label, string Value)> OverviewFacts
+    {
+        get
+        {
+            var facts = new List<(string Label, string Value)>();
+            var detail = Model.Facts;
+            if (detail is null)
+                return facts;
+
+            AddFact(facts, L["OverviewTab_Released"].Value, !string.IsNullOrWhiteSpace(detail.Year) ? detail.Year : FormatDateLabel(detail.ReleaseDate));
+            AddFact(facts, L["OverviewTab_Language"].Value, detail.Language);
+            if (IsVideo)
+            {
+                AddFact(facts, L["OverviewTab_Rated"].Value, detail.ContentRating);
+                if (Model.EntityType == DetailEntityType.TvShow)
+                    AddFact(facts, L["OverviewTab_Network"].Value, detail.Network);
+            }
+            else if (IsBookish || IsComic)
+            {
+                AddFact(facts, L["OverviewTab_Publisher"].Value, detail.Publisher);
+                AddFact(facts, L["OverviewTab_Pages"].Value, detail.PageCount);
+            }
+
+            return facts;
+        }
+    }
 
     private IReadOnlyList<(string Label, string Value)> QuickFacts
     {

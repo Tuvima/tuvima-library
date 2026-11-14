@@ -3,17 +3,16 @@ using MediaEngine.Domain.Enums;
 namespace MediaEngine.Domain.Services;
 
 /// <summary>
-/// The one rule for whether a person sees the entries of a Series the Library does not own. The Series panel on item
+/// The one place that names where a profile's own "Show missing" tick for a Series is kept. The Series panel on item
 /// pages (Dashboard) and the Universe page read (Engine) both call it, so they cannot drift apart.
 /// </summary>
 /// <remarks>
-/// A person sees missing entries for a Series when that media type's policy shows missing entries at all
-/// (<c>enabled</c>), the Series has some missing, and either the person chose so for this Series or, with no choice of
-/// their own, the media default is <c>shown</c>.
+/// There is no Library-wide setting any more (spec details-page-bottom D12): a Series starts unticked and the profile's
+/// own tick, stored per profile and Series, is the only thing that decides whether its missing entries show.
 /// </remarks>
 public static class SeriesMissingItemVisibility
 {
-    /// <summary>The key of a media type in the library preferences' <c>missing_item_display</c>; null for a media type that has none.</summary>
+    /// <summary>The key a media type is stored under with a profile's tick; null for a media type that has none.</summary>
     public static string? PolicyKey(MediaType mediaType) => mediaType switch
     {
         MediaType.Books => "books",
@@ -25,7 +24,7 @@ public static class SeriesMissingItemVisibility
         _ => null,
     };
 
-    /// <summary>The policy key for a media type written as a format or type string ("Books", "Movie", "TV", …).</summary>
+    /// <summary>The key for a media type written as a format or type string ("Books", "Movie", "TV", …).</summary>
     public static string? PolicyKey(string? mediaType) => PolicyKey(MediaTypeClassifier.Classify(mediaType));
 
     /// <summary>
@@ -48,14 +47,4 @@ public static class SeriesMissingItemVisibility
 
         return keys;
     }
-
-    /// <summary>Whether a media default of <paramref name="defaultVisibility"/> (<c>shown</c> or <c>hidden</c>) shows missing entries.</summary>
-    public static bool IsDefaultShown(string? defaultVisibility) =>
-        string.Equals(defaultVisibility, "shown", StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>The visibility the person has before any choice of their own: the media default when the policy is enabled.</summary>
-    public static bool Resolve(bool policyEnabled, string? defaultVisibility, bool? profileOverride, int missingCount) =>
-        policyEnabled
-        && missingCount > 0
-        && (profileOverride ?? IsDefaultShown(defaultVisibility));
 }

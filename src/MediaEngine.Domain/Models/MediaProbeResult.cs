@@ -39,6 +39,7 @@ public sealed record MediaProbeResult
     public int? AudioBitrate { get; init; }   // kbps
     public int? SampleRate { get; init; }   // Hz
     public int? Channels { get; init; }
+    public int? BitDepth { get; init; }   // bits per sample of the first audio stream (16, 24, ...); null when the file does not say
 
     // ── Video stream (if present) ────────────────────────────────────────────
 

@@ -1,25 +1,16 @@
 /* Detail presentation owned by this markup. Retained ::deep rules cross
-   an existing shared/C# renderer boundary; the page context excludes other uses. */
-:where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-overview-credit-group:not(:first-child) {
-    padding-top: 1rem;
-    border-top: 1px solid var(--tl-wash-light-4);
-}
+   an existing shared/C# renderer boundary; the page context excludes other uses.
 
-:where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-media-overview-credits-list--video .tl-overview-credit-group--cast:first-child {
-    grid-column: 1 / -1;
-}
-
-:where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-media-overview-credits-list--bookish .tl-overview-credit-group,
-:where(.tl-detail-page) :where(.tl-overview-surface) ::deep .tl-media-overview-credits-list--video .tl-overview-credit-group {
-    padding-top: 0;
-    border-top: 0;
-}
-
+   The Overview is two columns (details-page-bottom D2): the description with its facts on the left, the cast and crew on the right. The credit tile is
+   PersonCreditCard's own (D3); nothing here resizes it except the slightly larger lead row. */
 :where(.tl-detail-page) .tl-overview-surface {
-    grid-template-columns: minmax(0, 1.15fr) minmax(28rem, 1fr);
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     gap: 0;
-
-    padding: clamp(1.4rem, 2.2vw, 2.3rem) 0 clamp(3rem, 5vw, 5rem);
+    width: calc(100% - clamp(6.5rem, 7vw, 9rem));
+    max-width: none;
+    margin: 0 auto;
+    padding: clamp(1.25rem, 2vw, 2rem) 0 clamp(2.5rem, 4vw, 4rem);
 }
 
 :where(.tl-detail-page) .tl-overview-section {
@@ -39,6 +30,13 @@
     gap: 1rem;
     min-height: 1.5rem;
     margin-bottom: 0.9rem;
+}
+
+:where(.tl-detail-page) .tl-overview-section__heading > span,
+:where(.tl-detail-page) .tl-overview-section__heading > h2 {
+    margin: 0;
+    font: inherit;
+    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 72%, var(--tl-text-primary));
 }
 
 :where(.tl-detail-page) .tl-overview-section__prose {
@@ -66,252 +64,61 @@
     margin-top: 0.5rem;
 }
 
-:where(.tl-detail-page) .tl-overview-credit-rows {
-
-    grid-template-columns: repeat(auto-fit, minmax(6.75rem, 1fr));
-    align-items: start;
-    gap: clamp(0.75rem, 1.2vw, 1.2rem);
+/* Released, Language and the one or two facts of this kind of title: small label over a value, a hairline between them. */
+:where(.tl-detail-page) .tl-overview-pair {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 0;
+    margin: 1.4rem 0 0;
 }
 
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact {
-
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
-
-    max-width: 9rem;
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
+:where(.tl-detail-page) .tl-overview-pair > div {
+    padding: 0 1.4rem;
+    border-left: 1px solid var(--tl-wash-light-4);
 }
 
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--link::after {
-    display: none;
+:where(.tl-detail-page) .tl-overview-pair > div:first-child {
+    padding-left: 0;
+    border-left: 0;
 }
 
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image .tl-person-avatar,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image img {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    overflow: hidden;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__body {
-    position: static;
-
-    padding: 0.5rem 0.1rem 0;
-    background: transparent;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
-    font-size: var(--tl-type-secondary-size);
-
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
-    margin-top: 0.16rem;
-    color: var(--tl-text-muted);
-
-}
-
-@media (min-width: 840px) {
-.tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact,
-.tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child {
-        display: block;
-        width: clamp(7.5rem, 9vw, 10rem);
-        max-width: clamp(7.5rem, 9vw, 10rem);
-        min-height: 0;
-    }
-
-.tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image,
-.tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image .tl-person-avatar,
-.tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image img {
-        width: 100%;
-        height: auto;
-    }
-
-.tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__body {
-        padding: 0.45rem 0.05rem 0;
-    }
-
-}
-
-@media (min-width: 840px) {
-:where(.tl-detail-page) .tl-overview-credit-rows {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        gap: clamp(1rem, 1.5vw, 1.6rem);
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact {
-        display: block;
-        width: clamp(7.5rem, 9vw, 10rem);
-        max-width: clamp(7.5rem, 9vw, 10rem);
-        min-height: 0;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
-        color: var(--tl-text-primary);
-        text-decoration: none;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child {
-        display: grid;
-        grid-template-columns: 5.5rem minmax(8rem, 1fr);
-        align-items: center;
-        width: min(100%, 17rem);
-        max-width: 17rem;
-        gap: 0.85rem;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--link::after {
-        display: none;
-        content: none;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image .tl-person-avatar,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image img {
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1;
-        margin: 0;
-        border-radius: 50%;
-        overflow: hidden;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image .tl-person-avatar,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image img {
-        width: 5.5rem;
-        height: 5.5rem;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__body {
-        position: static;
-        min-width: 0;
-        padding: 0.45rem 0.05rem 0;
-        background: transparent;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__body {
-        padding: 0;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
-        font-size: var(--tl-type-label-size);
-        font-weight: var(--tl-type-label-weight);
-    }
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
-        margin-top: 0.18rem;
-        color: var(--tl-text-muted);
-        font-size: var(--tl-type-caption-size);
-    }
-
-}
-
-@media (width < 840px) {
-:where(.tl-detail-page) .tl-overview-section,
-:where(.tl-detail-page) .tl-overview-section--secondary {
-        padding: 1.25rem 0;
-        border-left: 0;
-        border-top: 1px solid var(--tl-wash-light-3);
-    }
-
-:where(.tl-detail-page) .tl-overview-section:first-child {
-        padding-top: 0;
-        border-top: 0;
-    }
-
-}
-
-:where(.tl-detail-page) .tl-overview-surface {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(24rem, 0.95fr);
-    gap: clamp(1rem, 1.5vw, 1.6rem);
-    width: calc(100% - clamp(6.5rem, 7vw, 9rem));
-    max-width: none;
-    margin: 0 auto;
-    padding: clamp(1.25rem, 2vw, 2rem) 0 clamp(2.5rem, 4vw, 4rem);
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows {
-    display: grid;
-    gap: 0.55rem;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--compact {
-    display: grid;
-    grid-template-columns: 3.4rem minmax(0, 1fr) 1.5rem;
-    align-items: center;
-    min-width: 0;
-    min-height: 4.5rem;
-    padding: 0.35rem 0.75rem 0.35rem 0.45rem;
-    border: 1px solid var(--tl-wash-light-3);
-    border-radius: 0.65rem;
-    background: var(--tl-wash-light-2);
-    color: var(--tl-text-primary);
-    text-decoration: none;
-    width: 100%;
-    max-width: none;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card--link::after {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-dialog-title);
-    content: "›";
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image {
-    width: 3.4rem;
-    height: 3.4rem;
-    margin: 0;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image .tl-person-avatar,
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__image img {
-    width: 3.4rem;
-    height: 3.4rem;
-    border-radius: 50%;
-    overflow: hidden;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__body {
-    min-width: 0;
-    padding: 0 0.5rem;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__name {
-    overflow: hidden;
-    font-size: var(--tl-type-control-size);
-    font-weight: var(--tl-type-control-weight);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-:where(.tl-detail-page) .tl-overview-credit-rows ::deep .tl-credit-card__role {
-    margin-top: 0.15rem;
-    overflow: hidden;
+:where(.tl-detail-page) .tl-overview-pair dt {
     color: var(--tl-text-muted);
     font-size: var(--tl-type-caption-size);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+:where(.tl-detail-page) .tl-overview-pair dd {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-control-size);
+    font-weight: 600;
+}
+
+/* The lead credit (the director, or the first credit): the same tile in a slightly larger row, a hairline under it. */
+:where(.tl-detail-page) .tl-overview-credit-lead {
+    margin: 0.25rem 0 1.1rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--tl-wash-light-3);
+}
+
+:where(.tl-detail-page) .tl-overview-credit-lead ::deep .tl-credit-card {
+    --tl-credit-photo: 5rem;
+}
+
+:where(.tl-detail-page) .tl-overview-credit-lead ::deep .tl-credit-card__name {
+    font-size: var(--tl-type-body-size);
+}
+
+/* Then a two-column grid of people; one column on a phone, where four people in all show before "View full credits". */
+:where(.tl-detail-page) .tl-overview-credit-rows {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem 1.5rem;
+}
+
+:where(.tl-detail-page) .tl-overview-section--facts .tl-overview-credit-rows {
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
 }
 
 :where(.tl-detail-page) .tl-overview-facts {
@@ -352,14 +159,6 @@
     letter-spacing: 0.08em;
 }
 
-@media (width < 840px) {
-:where(.tl-detail-page) .tl-overview-surface {
-        grid-template-columns: minmax(0, 1fr);
-        width: calc(100% - 2rem);
-    }
-
-}
-
 :where(.tl-detail-page) .tl-overview-surface--collection {
     grid-template-columns: minmax(0, 1fr);
 }
@@ -368,153 +167,54 @@
     max-width: 92rem;
 }
 
-
-.tl-overview-credit-groups {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 1rem 0;
-}
-
-.tl-overview-credit-group {
-    display: grid;
-    align-content: start;
-    gap: 0.6rem;
-    min-width: 0;
-    padding-inline: clamp(0.9rem, 1.25vw, 1.35rem);
-    border-left: 1px solid var(--tl-wash-light-4);
-}
-
-.tl-overview-credit-group:first-child {
-    padding-left: 0;
-    border-left: 0;
-}
-
-.tl-overview-credit-group h3 {
-    margin: 0;
-    color: var(--tl-accent-collection-hover);
-    font-size: var(--tl-type-overline-size);
-    font-weight: var(--tl-type-overline-weight);
-    letter-spacing: 0.12em;
-    line-height: 1;
-}
-
-.tl-overview-section__heading > span {
-    color: color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 72%, var(--tl-text-primary));
-}
-
-.tl-overview-credit-group--director h3 {
-    color: var(--tl-accent-collection-hover);
-}
-
-.tl-overview-credit-group--cast h3 {
-    color: var(--tl-accent-collection-hover);
-}
-
-.tl-overview-credit-rows {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: clamp(0.85rem, 1.15vw, 1.25rem);
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card--compact {
-    display: block;
-
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    color: var(--tl-text-primary);
-    text-decoration: none;
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card--link::after {
-    display: none;
-    content: none;
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card__image,
-.tl-overview-credit-rows ::deep .tl-credit-card__image .tl-person-avatar,
-.tl-overview-credit-rows ::deep .tl-credit-card__image img {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-    margin: 0;
-    border-radius: 50%;
-    overflow: hidden;
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card__body {
-    position: static;
-    min-width: 0;
-    padding: 0.45rem 0.05rem 0;
-    background: transparent;
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card__name,
-.tl-overview-credit-rows ::deep .tl-credit-card__role {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card__name {
-    font-size: var(--tl-type-label-size);
-    font-weight: var(--tl-type-label-weight);
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card__role {
-    margin-top: 0.18rem;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-caption-size);
-}
-
-/* The overview is a peek, not a claim of billing order. Keep every person at
-   the same visual weight and reveal more of the provider-ordered cast as the
-   available width grows. */
-.tl-overview-credit-rows ::deep .tl-credit-card--compact,
-.tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child {
-    width: clamp(6.5rem, 6.8vw, 7.75rem);
-    max-width: clamp(6.5rem, 6.8vw, 7.75rem);
-}
-
-.tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image,
-.tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image .tl-person-avatar,
-.tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child .tl-credit-card__image img {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-}
-
-@media (max-width: 1180px) {
-    .tl-overview-credit-group--cast .tl-overview-credit-rows ::deep .tl-credit-card--compact:nth-child(n + 7) {
-        display: none;
+@media (width < 1180px) {
+:where(.tl-detail-page) .tl-overview-credit-lead ::deep .tl-credit-card {
+        --tl-credit-photo: 4.5rem;
     }
 }
 
+/* Under 840 px the Overview is one column: the credits sit under the description with a hairline between. */
 @media (width < 840px) {
-    .tl-overview-credit-group--cast .tl-overview-credit-rows ::deep .tl-credit-card--compact:nth-child(n + 6) {
-        display: none;
-    }
-}
-
-@media (width < 840px) {
-    .tl-overview-credit-groups {
-        display: grid;
+:where(.tl-detail-page) .tl-overview-surface {
+        grid-template-columns: minmax(0, 1fr);
+        width: calc(100% - 2rem);
     }
 
-    .tl-overview-credit-group,
-    .tl-overview-credit-group:first-child {
-        padding: 1rem 0 0;
-        border-top: 1px solid var(--tl-wash-light-4);
+:where(.tl-detail-page) .tl-overview-section,
+:where(.tl-detail-page) .tl-overview-section--secondary {
+        padding: 1.25rem 0;
         border-left: 0;
+        border-top: 1px solid var(--tl-wash-light-3);
     }
 
-    .tl-overview-credit-group:first-child {
+:where(.tl-detail-page) .tl-overview-section:first-child {
         padding-top: 0;
         border-top: 0;
+    }
+}
+
+/* No credits yet: the description column spans the width and "No credits yet" sits quietly under it (D2). */
+:where(.tl-detail-page) .tl-overview-surface--no-credits {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+:where(.tl-detail-page) .tl-overview-surface--no-credits .tl-overview-section {
+    padding-right: 0;
+}
+
+:where(.tl-detail-page) .tl-overview-surface--no-credits .tl-overview-section--secondary {
+    padding: 1.25rem 0 0;
+    margin-top: 1.25rem;
+    border-left: 0;
+    border-top: 1px solid var(--tl-wash-light-3);
+}
+
+@media (width < 600px) {
+:where(.tl-detail-page) .tl-overview-section--credits .tl-overview-credit-rows {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+:where(.tl-detail-page) .tl-overview-section--credits .tl-overview-credit-rows ::deep .tl-credit-card:nth-child(n + 4) {
+        display: none;
     }
 }

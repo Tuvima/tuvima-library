@@ -1,6 +1,6 @@
 # Spec: Details page bottom (v4.2 revision)
 
-> **Status:** Locked · **Version:** 1 (of this revision) · **Last updated:** 2026-11-14 (locked) · **Amends:** [Editor and details page revision v4.1](universal-editor-v4-1-details-page.md) (Locked; its body is not rewritten) · **Issues:** #981, #982, #984, #985, #998 (#997, video frames, stays with the local bug review) · **Mockups:** `design/mockups/details-page-bottom.html` · **Related docs:** [Look pass v3](look-pass-v3.md), [Universal editor v6](archive/universal-editor-v6-match-and-aligned-rows.md)
+> **Status:** In progress · **Version:** 1 (of this revision) · **Last updated:** 2026-11-14 (locked) · **Amends:** [Editor and details page revision v4.1](universal-editor-v4-1-details-page.md) (Locked; its body is not rewritten) · **Issues:** #981, #982, #984, #985, #998 (#997, video frames, stays with the local bug review) · **Mockups:** `design/mockups/details-page-bottom.html` · **Related docs:** [Look pass v3](look-pass-v3.md), [Universal editor v6](archive/universal-editor-v6-match-and-aligned-rows.md)
 
 ## 1. Goal
 

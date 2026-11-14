@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Persons;
 using MediaEngine.Domain;
@@ -43,6 +44,37 @@ public sealed class DetailComposerServiceTests
         var groups = Assert.IsAssignableFrom<IReadOnlyList<SequenceGroupViewModel>>(method.Invoke(null, [normalized, "Season", null]));
         Assert.Equal(1, Assert.Single(groups).OwnedCount); Assert.Equal(1, groups[0].CompletedCount);
     }
+    [Fact]
+    public void AVideoInAFolderIsGroupedByItsFolder_AndASubFolderReadsParentSlashChild()
+    {
+        var plain = DetailCompositionOrchestrator.ResolveVideoSection(DetailEntityType.TvShow, "Videos", "abc", "Week 1", null);
+        var nested = DetailCompositionOrchestrator.ResolveVideoSection(DetailEntityType.TvShow, "Videos", "def", "Drills", "Week 1");
+
+        Assert.Equal(("section-abc", "Week 1"), plain);
+        Assert.Equal(("section-def", "Week 1 / Drills"), nested);
+    }
+
+    [Theory]
+    [InlineData(DetailEntityType.TvShow, "TV", "abc")]
+    [InlineData(DetailEntityType.TvShow, "Videos", null)]
+    [InlineData(DetailEntityType.TvShow, "Videos", " ")]
+    [InlineData(DetailEntityType.BookSeries, "Videos", "abc")]
+    public void OnlyAVideoInsideAFolderOfVideosHasASectionGroup(DetailEntityType type, string mediaType, string? sectionKey)
+        => Assert.Null(DetailCompositionOrchestrator.ResolveVideoSection(type, mediaType, sectionKey, "Week 1", null));
+
+    [Fact]
+    public void TheSectionsOfAFolderFollowTheEditorsOrder_NotTheAlphabet_AndAnyOtherGroupComesLast()
+    {
+        var groups = new[] { "section-b", "section-a", "season-1", "section-c" }
+            .Select(key => new SequenceGroupViewModel { Key = key, Title = key }).ToList();
+        var ordinals = new Dictionary<string, int> { ["section-b"] = 2, ["section-a"] = 1, ["section-c"] = 3 };
+
+        var ordered = DetailCompositionOrchestrator.OrderVideoSections(groups, ordinals);
+
+        Assert.Equal(["section-a", "section-b", "section-c", "season-1"], ordered.Select(group => group.Key));
+        Assert.Same(groups, DetailCompositionOrchestrator.OrderVideoSections(groups, new Dictionary<string, int>()));
+    }
+
     [Theory]
     [InlineData("/watch/player/123", "/watch/player/123?restart=true")]
     [InlineData("/watch/player/123?collectionId=456", "/watch/player/123?collectionId=456&restart=true")]
@@ -311,10 +343,10 @@ public sealed class DetailComposerServiceTests
     {
         var source = ReadDetailComposerSource();
 
-        Assert.Contains("DetailEntityType.Movie => [\"overview\", \"cast\"]", source);
+        Assert.Contains("DetailEntityType.Movie => [\"overview\", \"credits\"]", source);
         Assert.DoesNotContain("DetailEntityType.Movie => [\"overview\", \"people\"", source);
-        Assert.Contains("DetailEntityType.TvShow => [\"overview\", \"cast\"]", source);
-        Assert.Contains("DetailEntityType.TvSeason => [\"overview\", \"cast\"]", source);
+        Assert.Contains("DetailEntityType.TvShow => [\"overview\", \"credits\"]", source);
+        Assert.Contains("DetailEntityType.TvSeason => [\"overview\", \"credits\"]", source);
         Assert.Contains("DetailEntityType.Book => [\"overview\", \"credits\"]", source);
         Assert.Contains("DetailEntityType.Audiobook => [\"overview\", \"tracks\"]", source);
         Assert.DoesNotContain("DetailEntityType.Audiobook when hasChapters", source);
@@ -963,8 +995,49 @@ public sealed class DetailComposerServiceTests
         Assert.Equal(5, Assert.Single(groups).TotalKnownItems);
     }
 
+    private static ExternalSourceLinkViewModel SourceLink(string key, string label, string source) => new()
+    {
+        Key = key,
+        Label = label,
+        Url = $"https://example.test/{key}",
+        SourceName = source,
+    };
+
     [Fact]
-    public void DetailComposer_ExposesWikidataAndSeriesSourceLinks()
+    public void SourcesRow_KeepsOneWikidataLinkOneWikipediaLinkAndOneLinkPerProvider()
+    {
+        var resolved = new[]
+        {
+            SourceLink("wikidata_qid", "Wikidata", "Wikidata"),
+            SourceLink("wikipedia_url", "Wikipedia", "Wikidata"),
+            SourceLink("tmdb_id", "TMDB", "TMDB"),
+            SourceLink("tmdb_movie_id", "TMDB movie", "TMDB"),
+            SourceLink("wikidata-series", "Series on Wikidata", "Wikidata"),
+            SourceLink("tvdb_id", "TheTVDB series", "TheTVDB"),
+            SourceLink("tvdb_episode_id", "TheTVDB episode", "TheTVDB"),
+        };
+
+        var links = InvokePrivate<List<ExternalSourceLinkViewModel>>("OneLinkPerSite", (object)resolved);
+
+        Assert.Equal(["wikidata_qid", "wikipedia_url", "tmdb_id", "tvdb_id"], links.Select(link => link.Key));
+    }
+
+    [Theory]
+    [InlineData("tv_show_rollup", DetailEntityType.TvEpisode, true)]
+    [InlineData("tv_show_rollup", DetailEntityType.TvShow, false)]
+    [InlineData("comic_series_rollup", DetailEntityType.ComicIssue, true)]
+    [InlineData("comic_series_rollup", DetailEntityType.ComicSeries, false)]
+    [InlineData("music_album_rollup", DetailEntityType.MusicAlbum, false)]
+    [InlineData(null, DetailEntityType.Movie, false)]
+    public void SourcesRow_DropsTheWikidataLinkWhenItIsTheSeriesOwnNotTheTitles(string? method, DetailEntityType entityType, bool dropped)
+    {
+        var result = InvokePrivate<bool>("RolledUpIdentityIsParents", method, (DetailEntityType?)entityType);
+
+        Assert.Equal(dropped, result);
+    }
+
+    [Fact]
+    public void DetailComposer_ExposesTheTitlesOwnSourceLinksOnly()
     {
         var source = ReadDetailComposerSource();
         var resolver = File.ReadAllText(Path.Combine(
@@ -973,14 +1046,15 @@ public sealed class DetailComposerServiceTests
         var contracts = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Contracts/Details/DetailDtos.cs"));
 
         Assert.Contains("SourceLinks = BuildExternalSourceLinks(detail.WikidataQid", source);
-        Assert.Contains("\"wikidata-series\"", source);
-        Assert.Contains("FirstText(sequence?.SourceContainerId, sequence?.ContainerId)", source);
+        // details-page-bottom D8: no Series link is added beside the title's own Wikidata link.
+        Assert.DoesNotContain("\"wikidata-series\"", source);
+        Assert.DoesNotContain("\"Series on Wikidata\"", source);
+        Assert.DoesNotContain("FirstText(sequence?.SourceContainerId, sequence?.ContainerId)", source);
         Assert.Contains("_providerSourceLinks.Resolve", source);
         Assert.Contains("UiMetadata?.ExternalLinks", resolver);
         Assert.Contains("linkConfig.UrlTemplate", resolver);
         Assert.DoesNotContain("https://www.themoviedb.org/", resolver, StringComparison.Ordinal);
         Assert.DoesNotContain("https://musicbrainz.org/", resolver, StringComparison.Ordinal);
-        Assert.Contains("\"Series on Wikidata\"", source);
         Assert.Contains("public IReadOnlyList<ExternalSourceLinkViewModel> SourceLinks { get; init; } = [];", contracts);
         Assert.Contains("public sealed class ExternalSourceLinkViewModel", contracts);
         Assert.Contains("public string? SourceContainerId { get; init; }", contracts);

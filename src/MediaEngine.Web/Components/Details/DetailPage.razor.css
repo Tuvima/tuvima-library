@@ -203,7 +203,6 @@
     color: var(--tl-text-primary);
 }
 
-::deep .tl-credit-card img,
 ::deep .tl-series-item img {
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -211,17 +210,11 @@
     display: block;
 }
 
-::deep .tl-credit-card__body {
-    padding: 0.72rem;
-}
-
-::deep .tl-series-item__title,
-::deep .tl-credit-card__name {
+::deep .tl-series-item__title {
     font-weight: 600;
     line-height: 1.25;
 }
 
-::deep .tl-credit-card__role,
 ::deep .tl-detail-copy,
 ::deep .tl-detail-dl {
     margin-top: 0.25rem;
@@ -272,11 +265,13 @@
     margin-top: -0.35rem;
 }
 
+/* A credit tile's photo and initials fill the tile's own rounded square (PersonCreditCard), never a circle. */
 ::deep .tl-credit-card__image .tl-person-avatar,
 ::deep .tl-credit-card__image .tl-person-avatar img {
     width: 100%;
     height: 100%;
     border-radius: 0;
+    object-fit: cover;
 }
 
 ::deep .tl-detail-body {
@@ -610,6 +605,21 @@
 /* Detail-series presentation. This intentionally shares sequence state and
    navigation logic with SequencePlacementPanel, but replaces its
    summary/sidebar composition with the target control row and cover rail. */
+
+/* The Extras row sits between the hero and the tabs (details-page-bottom D11); it draws nothing, and so takes no room, when a title has none. */
+.tl-detail-stage__extras {
+    position: relative;
+    z-index: 6;
+    flex: 0 0 auto;
+    max-height: 45svh;
+    overflow-y: auto;
+    padding-inline: clamp(1rem, 3.5vw, 4.5rem);
+    background: var(--tl-scrim-dark-4);
+}
+
+.tl-detail-stage__extras:not(:has(*)) {
+    display: none;
+}
 
 .tl-detail-stage__navigation {
     position: relative;
@@ -971,4 +981,8 @@
         min-height: var(--tl-touch-target-min, 48px);
     }
 
+}
+
+.tl-detail-page__extras {
+    padding-inline: clamp(1rem, 3.5vw, 4.5rem);
 }

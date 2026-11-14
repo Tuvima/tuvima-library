@@ -2558,6 +2558,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   UnmatchedAssets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailUnmatchedAssetViewModel> | nullability=not-null | accessors=get,set
   Extras: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailExtraCardViewModel> | nullability=not-null | accessors=get,set
   ExtrasCardsPerGroup: System.Int32 | nullability=not-null | accessors=get,set
+  YourCopy: MediaEngine.Contracts.Details.DetailYourCopyViewModel | nullability=nullable | accessors=get,set
   CollectionInfo: MediaEngine.Contracts.Details.DetailCollectionInfoViewModel | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPresentationContext
@@ -2580,6 +2581,26 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailTab
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailUnmatchedAssetViewModel
   AssetId: System.Guid | nullability=not-null | accessors=get,init
   KeptAsIs: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailYourCopyBlockViewModel
+  Label: System.String | nullability=nullable | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  IsReadingFacts: System.Boolean | nullability=not-null | accessors=get,init
+  Chips: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailYourCopyGroupViewModel> | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=nullable | accessors=get,init
+  FileLocation: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailYourCopyGroupKeys
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailYourCopyGroupViewModel
+  Key: System.String | nullability=not-null | accessors=get,init
+  Lines: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailYourCopyKinds
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailYourCopyViewModel
+  Blocks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailYourCopyBlockViewModel> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.EntityCreditViewModel
   IsUpdatingDetails: System.Boolean | nullability=not-null | accessors=get,set
@@ -10830,7 +10851,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryPreferences
   settings: MediaEngine.Contracts.Settings.LibraryPreferencesSettings | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryPreferencesSettings
-  MissingItemDisplay: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.MissingItemDisplayPolicy> | nullability=not-null | accessors=get,set
   ViewModes: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   LaneGroupDisplay: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.LibraryLaneGroupDisplaySettings> | nullability=not-null | accessors=get,set
 
@@ -10886,13 +10906,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MediaTypePipeline
   MaxProviderAttempts: System.Int32 | nullability=not-null | accessors=get,set
   Scoring: MediaEngine.Contracts.Settings.RetailScoringPolicyConfiguration | nullability=not-null | accessors=get,set
   FieldPriorities: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
-
-MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MissingItemDisplayPolicy
-  Enabled: System.Boolean | nullability=not-null | accessors=get,set
-  DefaultVisibility: System.String | nullability=not-null | accessors=get,set
-  Presentation: System.String | nullability=not-null | accessors=get,set
-  PageSize: System.Int32 | nullability=not-null | accessors=get,set
-  DetailHydration: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkAddressDto
   InterfaceId: System.String | nullability=not-null | accessors=get,set
@@ -11321,7 +11334,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SeriesMissingItemP
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
   ContainerKey: System.String | nullability=not-null | accessors=get,init
-  ShowMissing: System.Boolean? | nullability=nullable | accessors=get,init
+  ShowMissing: System.Boolean | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFileEntryDto

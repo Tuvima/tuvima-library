@@ -26,12 +26,10 @@ public sealed class UniversePageReadService(
     DisplayCardBuilder cards,
     ISeriesManifestRepository manifests,
     IProfileSequencePreferencesRepository preferences,
-    IConfigurationLoader configuration,
     IFictionalEntityRepository entities,
     IEntityRelationshipRepository relationships,
     IUniverseEnrichmentStatusRepository enrichment,
-    UniverseContentsReadService contents,
-    ILogger<UniversePageReadService> logger)
+    UniverseContentsReadService contents)
 {
     /// <summary>Title of the shelf of works that belong directly to the Universe.</summary>
     public const string StandaloneTitle = "Standalone";
@@ -167,7 +165,6 @@ public sealed class UniversePageReadService(
         Profile? profile,
         CancellationToken ct)
     {
-        var libraryPreferences = LoadLibraryPreferences();
         var seriesById = (await collections.GetByIdsAsync(detail.Shelves.Select(shelf => shelf.CollectionId), ct).ConfigureAwait(false))
             .ToDictionary(series => series.Id);
         var result = new List<UniverseShelfMissingDto>();
@@ -194,7 +191,7 @@ public sealed class UniversePageReadService(
             }
 
             var showMissing = await ResolveShowMissingAsync(
-                shelf, seriesById.GetValueOrDefault(shelf.CollectionId), manifest, missingCount, libraryPreferences, profile, ct).ConfigureAwait(false);
+                shelf, seriesById.GetValueOrDefault(shelf.CollectionId), manifest, profile, ct).ConfigureAwait(false);
             result.Add(new UniverseShelfMissingDto
             {
                 CollectionId = shelf.CollectionId,
@@ -245,58 +242,34 @@ public sealed class UniversePageReadService(
     }
 
     /// <summary>
-    /// The profile's choice for this Series, by the one shared rule (<see cref="SeriesMissingItemVisibility"/>, which the
-    /// Series panel on item pages calls too): the policy of the Series' own media kind must be enabled, and then the
-    /// profile's own choice wins (stored under the Series' collection id, else its QID), else the media default decides.
+    /// The profile's own tick for this Series, by the one shared key rule (<see cref="SeriesMissingItemVisibility"/>, which the
+    /// Series panel on item pages calls too): stored under the Series' collection id, else its QID. A Series always starts
+    /// unticked, so with no tick stored (or no profile) its missing entries stay out of the answer (spec details-page-bottom D12).
     /// </summary>
     private async Task<bool> ResolveShowMissingAsync(
         UniverseMemberShelfDto shelf,
         Collection? series,
         SeriesManifestViewDto manifest,
-        int missingCount,
-        LibraryPreferencesSettings? libraryPreferences,
         Profile? profile,
         CancellationToken ct)
     {
         // The Series' own media kind; a Series with none recorded falls back to the kind of its first card.
         var mediaKey = SeriesMissingItemVisibility.PolicyKey(series?.MediaType)
             ?? SeriesMissingItemVisibility.PolicyKey(shelf.Shelf.Items.FirstOrDefault()?.MediaType);
-        if (mediaKey is null
-            || libraryPreferences is null
-            || !libraryPreferences.MissingItemDisplay.TryGetValue(mediaKey, out var policy))
+        if (mediaKey is null || profile is null)
         {
             return false;
         }
 
-        bool? profileOverride = null;
-        if (profile is not null && policy.Enabled)
+        foreach (var containerKey in SeriesMissingItemVisibility.OverrideKeys(shelf.CollectionId, manifest.SeriesQid))
         {
-            foreach (var containerKey in SeriesMissingItemVisibility.OverrideKeys(shelf.CollectionId, manifest.SeriesQid))
+            var stored = await preferences.GetAsync(profile.Id, mediaKey, containerKey, ct).ConfigureAwait(false);
+            if (stored is not null)
             {
-                var stored = await preferences.GetAsync(profile.Id, mediaKey, containerKey, ct).ConfigureAwait(false);
-                if (stored is not null)
-                {
-                    profileOverride = stored.ShowMissing;
-                    break;
-                }
+                return stored.ShowMissing;
             }
         }
 
-        return SeriesMissingItemVisibility.Resolve(policy.Enabled, policy.DefaultVisibility, profileOverride, missingCount);
-    }
-
-    private LibraryPreferencesSettings? LoadLibraryPreferences()
-    {
-        try
-        {
-            return configuration.LoadLibraryPreferences();
-        }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.Text.Json.JsonException
-            or MediaEngine.Storage.Configuration.ConfigValidationException)
-        {
-            // An unreadable preferences file must not take the Universe page down; missing entries stay hidden.
-            logger.LogWarning(ex, "Universe page: library preferences could not be read; missing entries stay hidden.");
-            return null;
-        }
+        return false;
     }
 }

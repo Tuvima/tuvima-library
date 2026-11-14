@@ -20,6 +20,7 @@ public sealed class SequencePlacementPreferenceNoticeTests : AsyncBunitContext
     private static readonly Guid Series = Guid.Parse("50000000-0000-0000-0000-000000000031");
     private bool _saveSucceeds = true;
     private int _saveCalls;
+    private bool _storedTick;
 
     public SequencePlacementPreferenceNoticeTests()
     {
@@ -32,14 +33,8 @@ public sealed class SequencePlacementPreferenceNoticeTests : AsyncBunitContext
             {
                 new(TestSessions.Profile, "Test User", "#C9922E", "Standard", DateTimeOffset.UtcNow),
             }));
-            stub.SetHandler(nameof(IEngineApiClient.GetLibraryPreferencesAsync), _ => Task.FromResult<LibraryPreferencesSettings?>(new LibraryPreferencesSettings
-            {
-                MissingItemDisplay = new Dictionary<string, MissingItemDisplayPolicy>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["books"] = new() { Enabled = true, DefaultVisibility = "hidden", Presentation = "inline", PageSize = 10, DetailHydration = "owned_only" },
-                },
-            }));
-            stub.SetHandler(nameof(IEngineApiClient.GetSeriesMissingItemPreferenceAsync), _ => Task.FromResult<SeriesMissingItemPreferenceDto?>(null));
+            stub.SetHandler(nameof(IEngineApiClient.GetSeriesMissingItemPreferenceAsync), args => Task.FromResult<SeriesMissingItemPreferenceDto?>(
+                new SeriesMissingItemPreferenceDto { ProfileId = (Guid)args![0]!, MediaType = (string)args[1]!, ContainerKey = (string)args[2]!, ShowMissing = _storedTick }));
             stub.SetHandler(nameof(IEngineApiClient.SaveSeriesMissingItemPreferenceAsync), args =>
             {
                 _saveCalls++;
@@ -52,6 +47,40 @@ public sealed class SequencePlacementPreferenceNoticeTests : AsyncBunitContext
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<UIOrchestratorService>();
+    }
+
+    [Fact]
+    public void ASeriesStartsUnticked_WithOnePlainCheckMarkAndNoUseMediaDefaultButton()
+    {
+        var cut = RenderPanel();
+
+        Assert.False(cut.Find(".tl-series-detail__missing input[type=checkbox]").HasAttribute("checked"));
+        Assert.DoesNotContain("Use media default", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll(".tl-series-detail__missing button"));
+        // Only the owned books show until the box is ticked; the missing ones are not drawn at all.
+        Assert.Equal(2, cut.FindAll(".tl-series-item").Count);
+    }
+
+    [Fact]
+    public async Task TickingShowMissing_ShowsTheMissingBooksDimmedAsNotInYourLibrary()
+    {
+        var cut = RenderPanel();
+
+        await cut.Find(".tl-series-detail__missing input[type=checkbox]").ChangeAsync(new ChangeEventArgs { Value = true });
+
+        cut.WaitForAssertion(() => Assert.Equal(4, cut.FindAll(".tl-series-item").Count));
+        Assert.Equal(2, cut.FindAll(".tl-series-item.is-missing").Count);
+        Assert.Contains("Not in your library", cut.FindAll(".tl-series-item.is-missing").First().TextContent);
+    }
+
+    [Fact]
+    public void ASavedTick_IsReadBackForTheProfileWhenThePanelOpensAgain()
+    {
+        _storedTick = true;
+
+        var cut = RenderPanel();
+
+        cut.WaitForAssertion(() => Assert.Equal(4, cut.FindAll(".tl-series-item").Count));
     }
 
     [Fact]

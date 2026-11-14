@@ -371,9 +371,6 @@
   <data name="Listen_NothingPlaying" xml:space="preserve">
     <value>Nothing is playing right now.</value>
   </data>
-  <data name="Listen_History" xml:space="preserve">
-    <value>History</value>
-  </data>
   <data name="Ingestion_Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>
@@ -1064,15 +1061,6 @@
   <data name="Common_Close" xml:space="preserve">
     <value>Close</value>
   </data>
-  <data name="DetailsTab_LoadingFileDetails" xml:space="preserve">
-    <value>Loading file details...</value>
-  </data>
-  <data name="DetailsTab_NoFileDetailsAreStored" xml:space="preserve">
-    <value>No file details are stored for this item yet.</value>
-  </data>
-  <data name="DetailsTab_FileName" xml:space="preserve">
-    <value>File name</value>
-  </data>
   <data name="Common_Files" xml:space="preserve">
     <value>Files</value>
   </data>
@@ -1094,20 +1082,11 @@
   <data name="DetailsTab_SeriesAuthor" xml:space="preserve">
     <value>Author</value>
   </data>
-  <data name="DetailsTab_LoadingHistory" xml:space="preserve">
-    <value>Loading history...</value>
-  </data>
-  <data name="DetailsTab_NothingHasBeenRecordedFor" xml:space="preserve">
-    <value>Nothing has been recorded for this item yet.</value>
-  </data>
   <data name="Common_Details" xml:space="preserve">
     <value>Details</value>
   </data>
   <data name="Common_Type" xml:space="preserve">
     <value>Type</value>
-  </data>
-  <data name="DetailsTab_LibraryStatus" xml:space="preserve">
-    <value>Library Status</value>
   </data>
   <data name="DetailsTab_Occupation" xml:space="preserve">
     <value>Occupation</value>
@@ -1124,8 +1103,47 @@
   <data name="DetailPage_AboutThis" xml:space="preserve">
     <value>About this</value>
   </data>
-  <data name="DetailsTab_FileFacts" xml:space="preserve">
-    <value>File facts</value>
+  <data name="YourCopy_Title" xml:space="preserve">
+    <value>Your copy</value>
+  </data>
+  <data name="YourCopy_FileDetails" xml:space="preserve">
+    <value>File details</value>
+  </data>
+  <data name="YourCopy_ReadingFileFacts" xml:space="preserve">
+    <value>Reading file facts</value>
+  </data>
+  <data name="YourCopy_FileName" xml:space="preserve">
+    <value>Filename</value>
+  </data>
+  <data name="YourCopy_ShowFileLocation" xml:space="preserve">
+    <value>Show file location</value>
+  </data>
+  <data name="YourCopy_HideFileLocation" xml:space="preserve">
+    <value>Hide file location</value>
+  </data>
+  <data name="YourCopy_GroupVideo" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="YourCopy_GroupAudioSubtitles" xml:space="preserve">
+    <value>Audio and subtitles</value>
+  </data>
+  <data name="YourCopy_GroupFile" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="YourCopy_GroupFiles" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="YourCopy_GroupAudio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="YourCopy_GroupTracks" xml:space="preserve">
+    <value>Tracks</value>
+  </data>
+  <data name="YourCopy_GroupBook" xml:space="preserve">
+    <value>Book</value>
+  </data>
+  <data name="YourCopy_GroupReading" xml:space="preserve">
+    <value>Reading</value>
   </data>
   <data name="Common_Dismiss" xml:space="preserve">
     <value>Dismiss</value>
@@ -1322,11 +1340,35 @@
   <data name="OverviewTab_NoOverviewIsAvailableYet" xml:space="preserve">
     <value>No overview is available yet.</value>
   </data>
-  <data name="OverviewTab_ViewFull" xml:space="preserve">
-    <value>View full {0}</value>
+  <data name="OverviewTab_ViewFullCredits" xml:space="preserve">
+    <value>View full credits</value>
   </data>
-  <data name="OverviewTab_NoLinkedPeopleAreAvailable" xml:space="preserve">
-    <value>No linked people are available yet.</value>
+  <data name="OverviewTab_NoCreditsYet" xml:space="preserve">
+    <value>No credits yet</value>
+  </data>
+  <data name="OverviewTab_CastAndCrew" xml:space="preserve">
+    <value>Cast and crew</value>
+  </data>
+  <data name="OverviewTab_Credits" xml:space="preserve">
+    <value>Credits</value>
+  </data>
+  <data name="OverviewTab_Released" xml:space="preserve">
+    <value>Released</value>
+  </data>
+  <data name="OverviewTab_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="OverviewTab_Rated" xml:space="preserve">
+    <value>Rated</value>
+  </data>
+  <data name="OverviewTab_Network" xml:space="preserve">
+    <value>Network</value>
+  </data>
+  <data name="OverviewTab_Publisher" xml:space="preserve">
+    <value>Publisher</value>
+  </data>
+  <data name="OverviewTab_Pages" xml:space="preserve">
+    <value>Pages</value>
   </data>
   <data name="PeopleTab_NoCreditsAvailableForThis" xml:space="preserve">
     <value>No credits available for this selection.</value>
@@ -1404,7 +1446,7 @@
     <value>Artwork unavailable</value>
   </data>
   <data name="Common_NotInLibrary" xml:space="preserve">
-    <value>Not in library</value>
+    <value>Not in your library</value>
   </data>
   <data name="SequenceEntryContent_Completed" xml:space="preserve">
     <value>Completed</value>
@@ -1414,9 +1456,6 @@
   </data>
   <data name="SequencePlacementPanel_ChooseSeries" xml:space="preserve">
     <value>Choose series</value>
-  </data>
-  <data name="SequencePlacementPanel_LoadMoreMissing" xml:space="preserve">
-    <value>Load more missing {0}</value>
   </data>
   <data name="SequencePlacementPanel_MakeDefault" xml:space="preserve">
     <value>Make default</value>
@@ -1447,12 +1486,6 @@
   </data>
   <data name="SequencePlacementPanel_ShowMissing" xml:space="preserve">
     <value>Show missing</value>
-  </data>
-  <data name="SequencePlacementPanel_UseTheConfiguredMediaDefault" xml:space="preserve">
-    <value>Use the configured media default</value>
-  </data>
-  <data name="SequencePlacementPanel_UseMediaDefault" xml:space="preserve">
-    <value>Use media default</value>
   </data>
   <data name="SequencePlacementPanel_OpenThisComicSeriesOn" xml:space="preserve">
     <value>Open this comic series on Comic Vine in a new tab</value>
@@ -7592,9 +7625,6 @@
   <data name="DetailPage_TheSelectedItemCannotBe" xml:space="preserve">
     <value>The selected item cannot be opened yet.</value>
   </data>
-  <data name="DetailsTab_FileDetailsCouldNotBe" xml:space="preserve">
-    <value>File details could not be loaded.</value>
-  </data>
   <data name="ReviewChangesView_RemoveThisChange" xml:space="preserve">
     <value>Remove this change</value>
   </data>
@@ -7606,9 +7636,6 @@
   </data>
   <data name="SequencePlacementPanel_TheSeriesPreferenceCouldNot" xml:space="preserve">
     <value>The series preference could not be saved.</value>
-  </data>
-  <data name="SequencePlacementPanel_TheSeriesPreferenceCouldNot2" xml:space="preserve">
-    <value>The series preference could not be reset.</value>
   </data>
   <data name="ListenNowPlayingBar_FinishOrCloseTheAudiobook" xml:space="preserve">
     <value>Finish or close the audiobook before adding music to its queue.</value>
@@ -12106,6 +12133,45 @@
   </data>
   <data name="EditorReorder_SectionsRow" xml:space="preserve">
     <value>Reorder sections</value>
+  </data>
+  <data name="EditorSelect_EntryEpisodes" xml:space="preserve">
+    <value>Select episodes</value>
+  </data>
+  <data name="EditorSelect_EntryVideos" xml:space="preserve">
+    <value>Select videos</value>
+  </data>
+  <data name="EditorSelect_TitleEpisodes" xml:space="preserve">
+    <value>Select episodes in {0}</value>
+  </data>
+  <data name="EditorSelect_TitleVideos" xml:space="preserve">
+    <value>Select videos in {0}</value>
+  </data>
+  <data name="EditorSelect_Count" xml:space="preserve">
+    <value>{0} of {1} selected</value>
+  </data>
+  <data name="EditorSelect_SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="EditorSelect_ClearAll" xml:space="preserve">
+    <value>Clear all</value>
+  </data>
+  <data name="EditorSelect_Loading" xml:space="preserve">
+    <value>Reading the list</value>
+  </data>
+  <data name="EditorSelect_Failed" xml:space="preserve">
+    <value>The list could not be read. Nothing was changed.</value>
+  </data>
+  <data name="EditorSelect_Empty" xml:space="preserve">
+    <value>There is nothing here to choose.</value>
+  </data>
+  <data name="EditorSelect_Back" xml:space="preserve">
+    <value>Back to the editor</value>
+  </data>
+  <data name="EditorSelect_Edit" xml:space="preserve">
+    <value>Edit {0} {1}</value>
+  </data>
+  <data name="EditorSelect_ChooseAgain" xml:space="preserve">
+    <value>Change selection</value>
   </data>
   <data name="EditorBrowser_Showing" xml:space="preserve">
     <value>Showing {0}–{1} of {2}</value>

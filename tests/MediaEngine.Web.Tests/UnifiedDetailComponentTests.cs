@@ -333,7 +333,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain(".tl-season-browser", styles);
         Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__carousel", styles);
         Assert.Contains("min-height: clamp(24rem, 58svh, 30rem)", styles);
-        Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__ownership", styles);
         Assert.DoesNotContain(".tl-series-detail__edit-season", styles);
     }
 
@@ -366,17 +365,18 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void CreditsTab_UsesCastLikeFluidCreditCards()
+    public void CreditsTab_ListsTheOneCreditTileInColumns_AndOnlyTheColumnCountChanges()
     {
+        // details-page-bottom D3: the tile is the same size everywhere, so the grid only decides how many columns fit.
         var styles = ReadDetailStyles();
 
         Assert.Contains(".tl-credits-detail-card .tl-credit-grid", styles);
-        Assert.Contains("grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr))", styles);
+        Assert.Contains("grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr))", styles);
         Assert.Contains("align-content: start", styles);
         Assert.Contains("align-items: start", styles);
-        Assert.Contains("align-self: start", styles);
-        Assert.Contains("max-width: 12rem", styles);
-        Assert.DoesNotContain("grid-template-columns: repeat(auto-fill, minmax(8.75rem, 9.75rem))", styles);
+        Assert.DoesNotContain("grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr))", styles);
+        Assert.DoesNotContain("max-width: 12rem", styles);
+        Assert.DoesNotContain("tl-credit-card--compact", styles);
     }
 
     [Fact]
@@ -389,6 +389,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-overview-section--copy", source);
         Assert.Contains("tl-overview-section--credits", source);
         Assert.Contains("tl-overview-credit-rows", source);
+        Assert.Contains("tl-overview-credit-lead", source);
         Assert.Contains("OverviewDescriptionParagraphs", source);
         Assert.Contains("ShowSeriesDescription", source);
         Assert.DoesNotContain("SequencePlacementPanel Placement=\"Model.SequencePlacement\"", source);
@@ -402,8 +403,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("private static string OverviewCreditGroupTitle", source);
         Assert.Contains("OverviewGroupPriority", source);
         Assert.Contains("OverviewCreditIdentity", source);
-        Assert.Contains("tl-overview-credit-groups", source);
-        Assert.Contains("View full @CreditPanelTitle.ToLowerInvariant()", source);
+        Assert.DoesNotContain("tl-overview-credit-groups", source);
+        Assert.Contains("View full credits", source);
+        Assert.Contains("No credits yet", source);
+        Assert.Contains("private const string CreditTabKey = \"credits\"", source);
         Assert.Contains("OverviewCreditRows", source);
         Assert.Contains("ShowOverviewCredits => Model.EntityType is not (", source);
         Assert.Contains("or DetailEntityType.ComicSeries", source);
@@ -418,9 +421,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("Split('\\n'", source);
         Assert.Contains("Replace(\"\\\\n\", \"\\n\", StringComparison.Ordinal)", source);
         Assert.Contains("DescriptionAttribution Attribution=\"Model.DescriptionAttribution\" Compact=\"true\"", source);
-        Assert.Contains("grid-template-columns: minmax(0, 1.15fr) minmax(28rem, 1fr)", styles);
+        Assert.Contains("grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr)", styles);
         Assert.Contains(".tl-overview-section--secondary", styles);
-        Assert.Contains(".tl-overview-credit-rows ::deep .tl-credit-card--compact", styles);
+        Assert.Contains(".tl-overview-surface--no-credits", styles);
+        Assert.Contains(".tl-overview-credit-lead ::deep .tl-credit-card", styles);
+        Assert.DoesNotContain("tl-credit-card--compact", styles);
         Assert.Contains("width: calc(100% - clamp(6.5rem, 7vw, 9rem))", styles);
         Assert.Contains("white-space: pre-line", styles);
         Assert.Contains(".tl-overview-section__prose p", styles);
@@ -707,7 +712,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("0 0 0 3px", styles);
         Assert.DoesNotContain("tl-series-item__owned-badge", styles);
         Assert.Contains("tl-series-owned-summary", styles);
-        Assert.Contains("tl-source-links", styles);
+        Assert.Contains("tl-source-row", styles);
         Assert.Contains("minmax(3rem, auto)", styles);
         Assert.Contains("-webkit-line-clamp: 4", styles);
         Assert.Contains("a.tl-series-item", styles);
@@ -774,15 +779,14 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("Label=\"Show missing\"", sequence);
         Assert.Contains("CanShowMissingToggle", sequence);
         Assert.DoesNotContain("ActiveGroup?.HasAuthoritativeTotal == true", sequence);
-        Assert.Contains("MissingItemDisplay", sequence);
-        Assert.Contains("DefaultVisibility", sequence);
+        // No Library-wide missing-items setting and no inherit state (spec details-page-bottom D12): only the profile's own tick.
+        Assert.DoesNotContain("MissingItemDisplay", sequence);
+        Assert.DoesNotContain("DefaultVisibility", sequence);
         Assert.Contains("GetSeriesMissingItemPreferenceAsync", sequence);
         Assert.Contains("SaveSeriesMissingItemPreferenceAsync", sequence);
-        Assert.Contains("ResetSeriesMissingItemPreferenceAsync", sequence);
-        Assert.Contains("tl-series-missing-preference", sequence);
-        Assert.Contains("Use media default", sequence);
-        Assert.Contains("HasMoreConfiguredMissingItems", sequence);
-        Assert.Contains("Load more missing", sequence);
+        Assert.DoesNotContain("ResetSeriesMissingItemPreferenceAsync", sequence);
+        Assert.DoesNotContain("Use media default", sequence);
+        Assert.DoesNotContain("LoadMoreMissingItems", sequence);
         Assert.Contains("if (IsSeasonContainer)", sequence);
         Assert.Contains("grid-template-rows: auto", ReadDetailStyles());
         Assert.Contains("Watch S{season} E{episode}", sequence);

@@ -10,7 +10,7 @@ public sealed class DetailTabNavigationTests
     [Fact]
     public void Resolve_NoRequestedTab_UsesFirstVisibleTab()
     {
-        var model = CreateModel("overview", "cast", "details");
+        var model = CreateModel("overview", "credits", "details");
 
         var resolution = DetailTabNavigation.Resolve(model, null);
 
@@ -21,11 +21,11 @@ public sealed class DetailTabNavigationTests
     [Fact]
     public void Resolve_RequestedTab_IsCaseInsensitive()
     {
-        var model = CreateModel(["overview", "cast", "details"], withCast: true);
+        var model = CreateModel(["overview", "credits", "details"], withCast: true);
 
-        var resolution = DetailTabNavigation.Resolve(model, "CAST");
+        var resolution = DetailTabNavigation.Resolve(model, "CREDITS");
 
-        Assert.Equal("cast", resolution.ActiveTab);
+        Assert.Equal("credits", resolution.ActiveTab);
         Assert.True(resolution.IsRequestedTabValid);
     }
 
@@ -41,11 +41,11 @@ public sealed class DetailTabNavigationTests
     }
 
     [Fact]
-    public void Resolve_CastTabWithoutRenderableCredits_FallsBack()
+    public void Resolve_CreditsTabWithoutRenderableCredits_FallsBack()
     {
-        var model = CreateModel("overview", "cast", "details");
+        var model = CreateModel("overview", "credits", "details");
 
-        var resolution = DetailTabNavigation.Resolve(model, "cast");
+        var resolution = DetailTabNavigation.Resolve(model, "credits");
 
         Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.IsRequestedTabValid);
@@ -116,7 +116,7 @@ public sealed class DetailTabNavigationTests
         var workId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         var collectionId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
-        var route = MediaNavigation.ForMedia("Movies", workId, collectionId, "cast");
+        var route = MediaNavigation.ForMedia("Movies", workId, collectionId, "credits");
 
         Assert.Equal(
             "/details/work/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?context=watch",
@@ -216,7 +216,7 @@ public sealed class DetailTabNavigationTests
     [Fact]
     public void Resolve_RequestedUniverseOrRelatedTabShowsTheFirstTab()
     {
-        var model = CreateModel(["overview", "cast", "details"], withCast: true);
+        var model = CreateModel(["overview", "credits", "details"], withCast: true);
 
         foreach (var requested in new[] { "universe", "related" })
         {
@@ -233,7 +233,7 @@ public sealed class DetailTabNavigationTests
     [InlineData("relationships")]
     public void Resolve_RequestedCharacterTabShowsTheFirstTab(string requested)
     {
-        var model = CreateModel(["overview", "cast", "details"], withCast: true);
+        var model = CreateModel(["overview", "credits", "details"], withCast: true);
 
         var resolution = DetailTabNavigation.Resolve(model, requested);
 

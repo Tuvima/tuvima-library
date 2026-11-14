@@ -110,6 +110,10 @@ internal sealed partial class DetailCompositionOrchestrator
                        (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = ma.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1),
                        (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = w.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1)) AS TEXT) AS SeriesPlacementPosition,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
+                   CASE WHEN p.work_kind = 'parent' AND p.parent_work_id IS NOT NULL THEN lower(hex(p.id)) END AS SectionKey,
+                   CASE WHEN p.work_kind = 'parent' AND p.parent_work_id IS NOT NULL THEN p.ordinal END AS SectionOrdinal,
+                   CASE WHEN p.work_kind = 'parent' AND p.parent_work_id IS NOT NULL THEN CAST((SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = p.id AND cv.key = 'title' LIMIT 1) AS TEXT) END AS SectionTitle,
+                   CASE WHEN p.work_kind = 'parent' AND p.parent_work_id IS NOT NULL AND gp.work_kind = 'parent' AND gp.parent_work_id IS NOT NULL THEN CAST((SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = gp.id AND cv.key = 'title' LIMIT 1) AS TEXT) END AS SectionParentTitle,
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'issue_title' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'issue_title' LIMIT 1),
@@ -274,6 +278,10 @@ internal sealed partial class DetailCompositionOrchestrator
             // The Work's own number in this Series (its stored pair) first, then today's chain.
             OrdinalSort = SeriesPositionPairs.SortValueOf(StringValue(row.SeriesPlacementPosition)) ?? DoubleValue(row.OrdinalSort),
             RetailSeriesPosition = StringValue(row.SeriesPlacementPosition) ?? StringValue(row.SeriesPosition),
+            SectionKey = StringValue(row.SectionKey),
+            SectionTitle = StringValue(row.SectionTitle),
+            SectionOrdinal = IntValue(row.SectionOrdinal),
+            SectionParentTitle = StringValue(row.SectionParentTitle),
         }).ToList();
 
         // Dynamic collections can include an owned work before its edition and

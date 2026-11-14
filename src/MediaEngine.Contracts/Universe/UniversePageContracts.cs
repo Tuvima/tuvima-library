@@ -60,8 +60,7 @@ public sealed class UniverseShelfMissingDto
     public Guid CollectionId { get; init; }
 
     /// <summary>
-    /// Whether this profile sees missing entries for this Series: the per-Series override when the profile set one,
-    /// otherwise the media default from the library preferences (and only when the media type shows missing entries at all).
+    /// Whether this profile sees missing entries for this Series: the profile's own tick for it, false when never ticked.
     /// </summary>
     [JsonPropertyName("show_missing")]
     public bool ShowMissing { get; init; }

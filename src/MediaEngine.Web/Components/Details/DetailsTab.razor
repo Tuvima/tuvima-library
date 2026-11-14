@@ -1,58 +1,16 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
-@using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Models.ViewDTOs
-@using MediaEngine.Web.Services.Integration
-@using MediaEngine.Web.Services.Theming
-@inject IEngineApiClient ApiClient
-@inject DeviceContextService DeviceContext
-@inject ILogger<DetailsTab> Logger
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-detail-tab-panel">
-    @if (ShowFileFacts)
+    @* Your copy replaces About this (details-page-bottom spec D4): the Engine writes the chips and the File details panel. History left the page
+       (D6; it stays in the editor's History tab), and the Type and Library rows of the old details list are gone (D7). *@
+    <YourCopyRow Model="Model" />
+
+    @if (ShowSeriesFacts)
     {
-        <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailsTab_FileFacts"].Value">
-            <div class="tl-section-heading"><h2>@L["DetailPage_AboutThis"]</h2></div>
-            @if (_loading)
-            {
-                <p class="tl-file-facts__note" role="status">@L["DetailsTab_LoadingFileDetails"]</p>
-            }
-            else if (!string.IsNullOrWhiteSpace(_fileFactsError))
-            {
-                <p class="tl-file-facts__note" role="alert">@_fileFactsError</p>
-            }
-            else if (_blocks.Count == 0)
-            {
-                <p class="tl-file-facts__note">@L["DetailsTab_NoFileDetailsAreStored"]</p>
-            }
-            else
-            {
-                @foreach (var block in _blocks)
-                {
-                    <div class="tl-file-facts__block">
-                        @if (_blocks.Count > 1)
-                        {
-                            <h3 class="tl-file-facts__title">@block.Title</h3>
-                        }
-                        <dl class="tl-file-facts__list">
-                            @if (_blocks.Count == 1)
-                            {
-                                <div class="tl-file-facts__cell"><dt>@L["DetailsTab_FileName"]</dt><dd>@block.Title</dd></div>
-                            }
-                            @foreach (var row in block.Rows)
-                            {
-                                <div class="tl-file-facts__cell"><dt>@row.Label</dt><dd>@row.Value</dd></div>
-                            }
-                        </dl>
-                    </div>
-                }
-            }
-        </section>
-    }
-    else if (ShowSeriesFacts)
-    {
-        @* A Series has no file of its own: About this lists series facts in the same quiet grid (Series details mock). *@
+        @* A Series has no file of its own: its facts sit in the same quiet grid (Series details mock). *@
         <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailPage_AboutThis"].Value">
             <div class="tl-section-heading"><h2>@L["DetailPage_AboutThis"]</h2></div>
             <div class="tl-file-facts__block">
@@ -65,62 +23,20 @@
             </div>
         </section>
     }
-    else if (DetailFileFacts.IsGrouping(Model.EntityType) && !DetailFileFacts.IsSeriesContainer(Model.EntityType))
+    else if (Model.EntityType == DetailEntityType.Collection)
     {
-        <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailsTab_FileFacts"].Value">
+        <section class="tl-detail-panel tl-file-facts" aria-label="@L["Common_Files"].Value">
             <div class="tl-section-heading"><h2>@L["Common_Files"]</h2></div>
             <p class="tl-file-facts__note">@L["DetailsTab_ThisIsAGroupingOpen"]</p>
         </section>
     }
 
-    @if (ShowHistory)
+    @if (HasPersonFacts)
     {
-        <section class="tl-detail-panel tl-item-history" aria-label="@L["Listen_History"].Value">
-            <div class="tl-section-heading"><h2>@L["Listen_History"]</h2></div>
-            @if (_historyLoading)
-            {
-                <p class="tl-file-facts__note" role="status">@L["DetailsTab_LoadingHistory"]</p>
-            }
-            else if (!string.IsNullOrWhiteSpace(_historyError))
-            {
-                <p class="tl-file-facts__note" role="alert">@_historyError</p>
-            }
-            else if (_history.Count == 0)
-            {
-                <p class="tl-file-facts__note">@L["DetailsTab_NothingHasBeenRecordedFor"]</p>
-            }
-            else
-            {
-                <ol class="tl-item-history__list">
-                    @foreach (var entry in _history)
-                    {
-                        <li class="tl-item-history__entry">
-                            <span class="tl-item-history__when">@entry.OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
-                            <span class="tl-item-history__what">@entry.Label</span>
-                            @if (!string.IsNullOrWhiteSpace(entry.Detail))
-                            {
-                                <span class="tl-item-history__detail">@entry.Detail</span>
-                            }
-                            <span class="tl-item-history__who">@entry.ActorLabel</span>
-                        </li>
-                    }
-                </ol>
-            }
-        </section>
-    }
-
-    @if (!DetailFileFacts.IsSeriesContainer(Model.EntityType))
-    {
-    <section class="tl-detail-panel">
-        <div class="tl-section-heading"><h2>@L["Common_Details"]</h2></div>
-        <dl class="tl-detail-dl">
-            <dt>@L["Common_Type"]</dt>
-            <dd>@Model.EntityType</dd>
-            <dt>@L["DetailsTab_LibraryStatus"]</dt>
-            <dd>@Model.LibraryStatus</dd>
-            @if (Model.PersonDetails is not null)
-            {
-                @if (!string.IsNullOrWhiteSpace(Model.PersonDetails.Occupation))
+        <section class="tl-detail-panel">
+            <div class="tl-section-heading"><h2>@L["Common_Details"]</h2></div>
+            <dl class="tl-detail-dl">
+                @if (!string.IsNullOrWhiteSpace(Model.PersonDetails!.Occupation))
                 {
                     <dt>@L["DetailsTab_Occupation"]</dt>
                     <dd>@Model.PersonDetails.Occupation</dd>
@@ -135,53 +51,33 @@
                     <dt>@L["DetailsTab_CanonicalIdentity"]</dt>
                     <dd>@Model.PersonDetails.WikidataQid</dd>
                 }
-            }
-        </dl>
-    </section>
+            </dl>
+        </section>
     }
 
     <DetailAiResults Results="@Model.Facts?.AiResults" />
 
     @if (Model.SourceLinks.Count > 0)
     {
-        <section class="tl-detail-panel tl-source-links-panel">
-            <div class="tl-section-heading"><h2>@L["Common_Sources"]</h2></div>
-            <div class="tl-source-links">
-                @foreach (var link in Model.SourceLinks)
-                {
-                    <a class="tl-source-link"
-                       href="@link.Url"
-                       target="_blank"
-                       rel="noopener noreferrer">
-                        <AppMaterialIcon Icon="@SourceIcon(link.Key)" Size="AppIconSize.Control20" />
-                        <span>@link.Label</span>
-                        <small>@link.SourceName</small>
-                    </a>
-                }
-            </div>
-        </section>
+        @* The Sources row (details-page-bottom D8): a quiet line of links for this title only, one per site, each opening in a new tab. *@
+        <nav class="tl-source-row" aria-label="@L["Common_Sources"].Value" data-testid="sources-row">
+            <span class="tl-source-row__label">@L["Common_Sources"]</span>
+            @foreach (var link in Model.SourceLinks)
+            {
+                <a class="tl-source-link"
+                   href="@link.Url"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    <span>@link.Label</span>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
+                </a>
+            }
+        </nav>
     }
 </div>
 
 @code {
     [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
-
-    private string? _loadedFor;
-    private bool _loading;
-    private bool _historyLoading;
-    private string? _historyError;
-    private string? _fileFactsError;
-    private IReadOnlyList<DetailFileBlock> _blocks = [];
-    private IReadOnlyList<LibraryItemHistoryDto> _history = [];
-
-    /// <summary>
-    /// The people who may already see the file path and the item's history: those who are offered
-    /// the Edit action on this page (the Engine decides, and still enforces it on every request).
-    /// </summary>
-    private bool CanSeeAdminFacts => Model.OverflowActions.Any(action => action.Key is "edit" or "edit-media");
-
-    /// <summary>The path, like the editor's File view, is not offered on phones (no editing there).</summary>
-    private bool ShowPath => CanSeeAdminFacts && !DeviceContext.IsPhone;
 
     private IReadOnlyList<DetailFileFactRow> SeriesFacts => DetailFileFacts.IsSeriesContainer(Model.EntityType)
         ? DetailFileFacts.BuildSeriesFacts(
@@ -193,65 +89,11 @@
             L["DetailsTab_SeriesOwnedOfTotal"].Value)
         : [];
     private bool ShowSeriesFacts => SeriesFacts.Count > 0;
-    private bool ShowFileFacts => DetailFileFacts.IsFileBearing(Model.EntityType);
 
-    /// <summary>History is read-only and shown on desktop-class screens only.</summary>
-    private bool ShowHistory => ShowFileFacts && CanSeeAdminFacts && DeviceContext.IsDesktop;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        var key = $"{Model.Id}|{Model.EntityType}|{CanSeeAdminFacts}|{DeviceContext.IsDesktop}|{DeviceContext.IsPhone}";
-        if (key == _loadedFor)
-        {
-            return;
-        }
-
-        _loadedFor = key;
-        _blocks = [];
-        _history = [];
-        _historyError = null;
-        _fileFactsError = null;
-        if (!ShowFileFacts || !Guid.TryParse(Model.Id, out var id))
-        {
-            return;
-        }
-
-        _loading = true;
-        _historyLoading = ShowHistory;
-        try
-        {
-            var versionsTask = ApiClient.GetMediaEditorWorkVersionsAsync(id);
-            var detailTask = ApiClient.GetLibraryItemDetailAsync(id);
-            Task<(List<LibraryItemHistoryDto> Items, string? Error)>? historyTask = ShowHistory
-                ? ApiClient.GetItemHistoryWithStatusAsync(id)
-                : null;
-
-            var versions = await versionsTask;
-            var detail = await detailTask;
-            _blocks = DetailFileFacts.Build(Model, versions, detail, includePath: ShowPath);
-            _loading = false;
-
-            if (historyTask is not null)
-            {
-                var (items, error) = await historyTask;
-                _history = items.OrderByDescending(entry => entry.OccurredAt).ToList();
-                _historyError = error;
-            }
-        }
-        catch (Exception ex)
-        {
-            // The client methods report their own failures and return empty, so this only guards an
-            // unexpected throw: log it and show a degraded panel rather than failing the whole tab.
-            Logger.LogWarning(ex, "Details tab could not load file facts for {EntityId}", id);
-            _blocks = [];
-            _fileFactsError = L["DetailsTab_FileDetailsCouldNotBe"].Value;
-        }
-        finally
-        {
-            _loading = false;
-            _historyLoading = false;
-        }
-    }
+    private bool HasPersonFacts => Model.PersonDetails is { } person
+        && (!string.IsNullOrWhiteSpace(person.Occupation)
+            || !string.IsNullOrWhiteSpace(person.Nationality)
+            || !string.IsNullOrWhiteSpace(person.WikidataQid));
 
     private static string SourceIcon(string key) => key switch
     {

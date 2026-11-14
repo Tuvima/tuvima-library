@@ -27,7 +27,7 @@ public sealed class SequenceEntryPresentationTests : AsyncBunitContext
             .Add(component => component.Title, "The Missing Coast"));
 
         Assert.Equal("3", cut.Find(".tl-series-item__node").TextContent);
-        Assert.Contains("Not in library", cut.Find("[aria-label='Missing from library']").TextContent);
+        Assert.Contains("Not in your library", cut.Find("[aria-label='Missing from library']").TextContent);
         Assert.Empty(cut.FindAll("img, a, button"));
     }
 
