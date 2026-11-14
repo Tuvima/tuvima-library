@@ -207,7 +207,7 @@ public sealed class PlaybackCapabilitiesService
             recommendedDelivery = decision.Rung == PlaybackRungs.Direct ? PlaybackDeliveryModes.DirectStream : PlaybackDeliveryModes.Hls;
             if (decision.Rung == PlaybackRungs.Direct)
             {
-                _logger.LogInformation("Play: {Rung}, because {Reason} (asset {AssetId})", decision.Rung, decision.Reason, assetId);
+                _logger.LogInformation("Play: {Rung}, because {Code} (asset {AssetId})", decision.Rung, decision.Code, assetId);
             }
         }
 

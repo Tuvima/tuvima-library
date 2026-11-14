@@ -30,12 +30,14 @@ public sealed record PlaybackLadderInput(
 /// <param name="Rung">One of <see cref="PlaybackRungs"/>.</param>
 /// <param name="Reason">The plain reason, without the trailing copy/convert summary.</param>
 /// <param name="CopyVideo">True when the picture is copied, never re-encoded.</param>
+/// <param name="Code">A short fixed word for why, safe to write to the Engine log (the reason text carries file and player names).</param>
 /// <param name="CopyAudioCodecs">Audio codecs the prepared stream keeps as they are; any other audio track is converted to AAC.</param>
 public sealed record PlaybackDecision(
     string Rung,
     string Reason,
     bool CopyVideo,
-    IReadOnlyList<string> CopyAudioCodecs)
+    IReadOnlyList<string> CopyAudioCodecs,
+    string Code = "player-needs-stream")
 {
     /// <summary>What happens to the picture and sound, for the log line and the reason text.</summary>
     public string Summary => Rung switch
@@ -192,7 +194,7 @@ public static class PlaybackLadder
 
         if (containerOk && pictureOk && audioOk && !input.ForceStreamableCopy)
         {
-            return new PlaybackDecision(PlaybackRungs.Direct, "The file already plays in this player", CopyVideo: false, []);
+            return new PlaybackDecision(PlaybackRungs.Direct, "The file already plays in this player", CopyVideo: false, [], "plays-as-it-is");
         }
 
         // The picture can be copied into a stream when this player accepts the codec and size, and the codec is one a
@@ -206,7 +208,7 @@ public static class PlaybackLadder
                 var why = input.ForceStreamableCopy && containerOk
                     ? input.StreamableCopyReason ?? "An alternate audio track needs a streamable copy"
                     : $"{container.ToUpperInvariant()} is not a {player} container";
-                return new PlaybackDecision(PlaybackRungs.Repackage, why, CopyVideo: true, copyAudio);
+                return new PlaybackDecision(PlaybackRungs.Repackage, why, CopyVideo: true, copyAudio, input.ForceStreamableCopy && containerOk ? "alternate-audio-track" : "container-not-supported");
             }
 
             return new PlaybackDecision(
@@ -223,6 +225,6 @@ public static class PlaybackLadder
                 : tenBit
                     ? $"{player} cannot play 10-bit {video.ToUpperInvariant()} video"
                     : $"{video.ToUpperInvariant()} video cannot be copied into a stream";
-        return new PlaybackDecision(PlaybackRungs.EncodePicture, cause, CopyVideo: false, copyAudio);
+        return new PlaybackDecision(PlaybackRungs.EncodePicture, cause, CopyVideo: false, copyAudio, !videoListed ? "picture-codec-not-supported" : !sizeOk ? "picture-too-large" : tenBit ? "ten-bit-picture" : "picture-cannot-be-copied");
     }
 }

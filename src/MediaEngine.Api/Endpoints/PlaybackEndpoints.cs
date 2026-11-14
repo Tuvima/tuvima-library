@@ -280,11 +280,18 @@ public static class PlaybackEndpoints
                 recorded = false;
             }
 
-            var said = request.Detail?.Trim() ?? string.Empty;
+            // Only the Engine's own facts and a fixed rung word are logged; the player's free text is never written to the log.
+            var rungWord = request.Rung switch
+            {
+                PlaybackRungs.Direct => PlaybackRungs.Direct,
+                PlaybackRungs.Repackage => PlaybackRungs.Repackage,
+                PlaybackRungs.ConvertSound => PlaybackRungs.ConvertSound,
+                PlaybackRungs.EncodePicture => PlaybackRungs.EncodePicture,
+                _ => "unknown",
+            };
             logger.LogInformation(
-                "Playback failed in the {Rung} rung for {Kind}{TenBit} in {Container} (asset {AssetId}); remembered: {Recorded}. Player said: {Detail}",
-                request.Rung, kind.VideoCodec, kind.TenBit ? " 10-bit" : string.Empty, kind.Container, assetId, recorded,
-                said.Length == 0 ? "nothing" : said[..Math.Min(said.Length, 200)]);
+                "Playback failed in the {Rung} rung for {Kind}{TenBit} in {Container} (asset {AssetId}); remembered: {Recorded}",
+                rungWord, kind.VideoCodec, kind.TenBit ? " 10-bit" : string.Empty, kind.Container, assetId, recorded);
             return Results.NoContent();
         })
         .WithName("ReportPlaybackFailure")

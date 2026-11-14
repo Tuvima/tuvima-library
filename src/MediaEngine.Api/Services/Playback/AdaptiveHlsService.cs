@@ -280,8 +280,8 @@ public sealed class AdaptiveHlsService
             run.RanOn = choice.RanOn;
             run.FallbackReason = choice.FallbackReason;
             _logger.LogInformation(
-                "Play: {Rung}, because {Reason}; encoder {Encoder}, runs on {RanOn}{Fallback} (asset {AssetId})",
-                plan.Decision.Rung, plan.Decision.FullReason, encoder, choice.RanOn,
+                "Play: {Rung}, because {Code}; encoder {Encoder}, runs on {RanOn}{Fallback} (asset {AssetId})",
+                plan.Decision.Rung, plan.Decision.Code, encoder, choice.RanOn,
                 choice.FallbackReason is null ? string.Empty : $" ({choice.FallbackReason})", package.AssetId);
             if (audioTracks.Count == 0 && !string.IsNullOrWhiteSpace(probe.AudioCodec))
             {
