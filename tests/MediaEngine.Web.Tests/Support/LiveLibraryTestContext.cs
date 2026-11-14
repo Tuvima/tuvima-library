@@ -73,6 +73,7 @@ public abstract class LiveLibraryTestContext : AsyncBunitContext
             orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
             return orchestrator;
         });
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddSingleton(provider => new IngestionLiveDashboardState(
             api,
             provider.GetRequiredService<UIOrchestratorService>(),

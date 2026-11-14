@@ -281,7 +281,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     [Theory]
     [InlineData(null, null, "Libraries", "")]
     [InlineData("view", "photos", "Photos and videos", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Photos and videos")]
-    [InlineData("view", "personal_videos", "Personal videos", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Personal videos")]
+    [InlineData("view", "personal_videos", "Libraries", "")]
     [InlineData("view", "documents", "Documents", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Documents")]
     [InlineData("view", "podcasts", "Libraries", "")]
     [InlineData("view", null, "Libraries", "")]
@@ -461,7 +461,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ThePhoneBackupSourceShowsOnPhotosAndPersonalVideosMarkedPhotosAndVideosAndNotOnDocuments()
+    public void ThePhoneBackupSourceShowsOnPhotosMarkedPhotosAndVideosAndNotOnDocuments()
     {
         _personalSpace = TestSpace;
         _viewSources =
@@ -470,31 +470,12 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
             ViewSource("C:\\Paperwork", "Paperwork", "documents"),
         ];
 
-        foreach (var (kind, expected) in new[] { ("photos", new[] { "Phone backup" }), ("personal_videos", ["Phone backup"]), ("documents", ["Paperwork"]) })
+        foreach (var (kind, expected) in new[] { ("photos", new[] { "Phone backup" }), ("documents", ["Paperwork"]) })
         {
             var page = Open("view", kind);
             page.WaitForAssertion(() => Assert.Equal(expected, page.FindAll(".view-source-row strong").Select(Text).ToArray()));
             Assert.Equal(kind != "documents", Text(page.Find(".view-source-row")).Contains("Photos and videos", StringComparison.Ordinal));
         }
-    }
-
-    [Fact]
-    public void ThePermissionSwitchOnThePersonalVideosPageSendsPersonalVideosAndKeepsTheOtherFlags()
-    {
-        var page = Open("view", "personal_videos", tab: "access");
-        page.WaitForAssertion(() => Assert.Contains("Who can see personal videos", page.Markup, StringComparison.Ordinal));
-        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".view-kind-access__list input[role=switch]")));
-        Assert.False(page.Find(".view-kind-access__list input[role=switch]").HasAttribute("checked"));
-
-        page.Find(".view-kind-access__list input[role=switch]").Change(true);
-
-        page.WaitForAssertion(() => Assert.Single(_policySaves));
-        var saved = _policySaves[0];
-        Assert.True(saved.AllowPersonalVideos);
-        // The photos and documents flags are sent back as they were saved.
-        Assert.False(saved.AllowPhotos);
-        Assert.True(saved.AllowDocuments);
-        Assert.True(saved.ViewEnabled && saved.AccessSharedLibrary && saved.SubmitToSharedLibrary && saved.AllowGallerySharing);
     }
 
     [Fact]
@@ -571,14 +552,14 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ThePersonalVideosAddressStillOpensAndListsOnlyPersonalVideosFolders()
+    public void ThePersonalVideosAddressIsNotFoundBecausePhotosAndVideosIsTheOnePage()
     {
         _personalSpace = TestSpace;
         _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos"), ViewSource("C:\\Clips", "Clips", "personal_videos")];
         var page = Open("view", "personal_videos");
 
-        page.WaitForAssertion(() => Assert.Equal(["Clips"], page.FindAll(".view-source-row strong").Select(Text).ToArray()));
-        Assert.Equal("1 folder", Text(page.Find(".libpage__counts")));
+        Assert.Empty(page.FindAll(".view-source-row"));
+        Assert.Empty(page.FindAll(".libpage__counts"));
     }
 
     [Fact]

@@ -504,7 +504,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8, IsMobile = true });
 
         Assert.Equal("8", Assert.Single(Flatten(groups), row => row.Meta is not null).Meta);
-        Assert.Equal("Libraries", SettingsMenuBuilder.BuildPhoneSelector(groups).SelectMany(group => group.Options).Single(option => option.Route == "/settings/libraries").Label);
+        Assert.Equal("Libraries (8)", SettingsMenuBuilder.BuildPhoneSelector(groups).SelectMany(group => group.Options).Single(option => option.Route == "/settings/libraries").Label);
     }
 
     private static SettingsMenuContext Context(bool administrator) =>

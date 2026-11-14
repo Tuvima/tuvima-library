@@ -31,6 +31,7 @@ public sealed partial class UiShellRenderTests
 
         // The notice stays until it is closed.
         cut.Find("[data-layout-notice] button").Click();
-        Assert.Empty(cut.FindAll("[data-layout-notice]"));
+        // Closing is handled on the layout's own thread, so wait for it to finish rather than looking once (issue 932).
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-layout-notice]")));
     }
 }

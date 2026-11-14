@@ -57,7 +57,7 @@ public static class SettingsMenuBuilder
     /// <summary>The phone page selector: the same groups and pages as the desktop menu, one line each.</summary>
     public static IReadOnlyList<SettingsPhoneMenuGroup> BuildPhoneSelector(IReadOnlyList<MediaSectionNavigationGroup> groups) =>
         groups
-            .Select(group => new SettingsPhoneMenuGroup(group.Label, group.Items.Select(item => new SettingsPhoneMenuOption(item.Route, item.Label)).ToList()))
+            .Select(group => new SettingsPhoneMenuGroup(group.Label, group.Items.Select(item => new SettingsPhoneMenuOption(item.Route, PhoneLabel(item))).ToList()))
             .ToList();
 
     /// <summary>
@@ -95,6 +95,10 @@ public static class SettingsMenuBuilder
             .SelectMany(group => group.Items)
             .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(current), StringComparer.OrdinalIgnoreCase) == true)?.Route
         ?? SettingsNav.RouteFor(current);
+
+    /// <summary>The phone selector's line: the name, and the amber review count in brackets beside Libraries for administrators, as on a computer (issue 930).</summary>
+    private static string PhoneLabel(MediaSectionNavigationItem item) =>
+        item.MetaIsNotification && !string.IsNullOrWhiteSpace(item.Meta) ? $"{item.Label} ({item.Meta})" : item.Label;
 
     private static bool IsOffered(SettingsMenuNode node, SettingsMenuContext context)
     {
