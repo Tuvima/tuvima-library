@@ -290,6 +290,69 @@ public sealed class UnmatchedAssetRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task APersonMatchingAWork_TakesEveryOtherFileOfThatWorkOutOfUnmatched()
+    {
+        var first = AddAsset("audiobooks", "Book3-part1.m4b");
+        var second = AddAssetToWorkOf(first, "audiobooks", "Book3-part2.m4b");
+        await _unmatched.MarkUnmatchedAsync(first, "audiobooks", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await _unmatched.MarkUnmatchedAsync(second, "audiobooks", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+
+        await _jobs.CreateOrResumeUserResolutionAsync(ResolutionJobFor(first));
+
+        Assert.Null(await _unmatched.GetAsync(first));
+        Assert.Null(await _unmatched.GetAsync(second));
+    }
+
+    [Fact]
+    public async Task AFolderFileCoveringSeveralBooks_LeavesUnmatchedOnceEveryBookIsMatched()
+    {
+        var book1 = AddAsset("audiobooks", "Book1.m4b");
+        var book2 = AddAsset("audiobooks", "Book2.m4b");
+        var folderFile = AddAsset("audiobooks", "Series-all.m4b");
+        CoverWork(folderFile, WorkOf(book1));
+        CoverWork(folderFile, WorkOf(book2));
+        await _unmatched.MarkUnmatchedAsync(folderFile, "audiobooks", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+
+        await _jobs.CreateOrResumeUserResolutionAsync(ResolutionJobFor(book1));
+        Assert.NotNull(await _unmatched.GetAsync(folderFile));
+
+        await _jobs.CreateOrResumeUserResolutionAsync(ResolutionJobFor(book2));
+        Assert.Null(await _unmatched.GetAsync(folderFile));
+    }
+
+    private static IdentityJob ResolutionJobFor(Guid asset) => new()
+    {
+        EntityId = asset,
+        EntityType = "MediaAsset",
+        MediaType = "Audiobooks",
+        State = nameof(IdentityJobState.RetailMatched),
+    };
+
+    private Guid AddAssetToWorkOf(Guid assetId, string libraryId, string fileName)
+    {
+        var editionId = Guid.NewGuid();
+        var newAsset = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            """
+            INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
+            VALUES (@newAsset, @editionId, @contentHash, @path, @libraryId);
+            """,
+            new { editionId, workId = WorkOf(assetId), newAsset, contentHash = Guid.NewGuid().ToString("N"), path = $"/media/{libraryId}/{fileName}", libraryId });
+        return newAsset;
+    }
+
+    private void CoverWork(Guid assetId, Guid workId)
+    {
+        using var conn = _db.CreateConnection();
+        var position = conn.ExecuteScalar<int>("SELECT COALESCE(MAX(position), 0) + 1 FROM media_asset_coverage WHERE asset_id = @assetId;", new { assetId });
+        conn.Execute(
+            "INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@assetId, @workId, @position, 'manual');",
+            new { assetId, workId, position });
+    }
+
+    [Fact]
     public async Task AFileThatMovedToAnotherLibrary_IsCountedListedAndActedOnUnderItsCurrentLibrary()
     {
         var moved = AddAsset("movies", "Dune.mkv");
