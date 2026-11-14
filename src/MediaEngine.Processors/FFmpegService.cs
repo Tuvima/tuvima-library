@@ -453,6 +453,7 @@ public sealed class FFmpegService : IFFmpegService
             int? bitrate = null;
             int? sampleRate = null;
             int? channels = null;
+            int? bitDepth = null;
             string? videoCodec = null;
             string? videoProfile = null;
             string? pixelFormat = null, colorTransfer = null, colorPrimaries = null;
@@ -501,6 +502,21 @@ public sealed class FFmpegService : IFFmpegService
                         if (stream.TryGetProperty("channels", out var ch))
                         {
                             channels = ch.GetInt32();
+                        }
+
+                        // ffprobe writes bits_per_raw_sample as text and bits_per_sample as a number (0 when it does not apply).
+                        if (stream.TryGetProperty("bits_per_raw_sample", out var rawDepth)
+                            && rawDepth.ValueKind == JsonValueKind.String
+                            && int.TryParse(rawDepth.GetString(), out var rawDepthValue)
+                            && rawDepthValue > 0)
+                        {
+                            bitDepth = rawDepthValue;
+                        }
+                        else if (stream.TryGetProperty("bits_per_sample", out var sampleDepth)
+                            && sampleDepth.ValueKind == JsonValueKind.Number
+                            && sampleDepth.GetInt32() > 0)
+                        {
+                            bitDepth = sampleDepth.GetInt32();
                         }
                     }
                     else if (codecType == "video")
@@ -639,6 +655,7 @@ public sealed class FFmpegService : IFFmpegService
                 AudioBitrate = bitrate,
                 SampleRate = sampleRate,
                 Channels = channels,
+                BitDepth = bitDepth,
                 VideoCodec = videoCodec,
                 VideoProfile = videoProfile,
                 PixelFormat = pixelFormat,

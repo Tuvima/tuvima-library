@@ -76,6 +76,13 @@ public sealed class DetailPageViewModel
     public int ExtrasCardsPerGroup { get; set; }
 
     /// <summary>
+    /// The "Your copy" row (details-page-bottom spec D4): the chips and File details panel for this title's own files, or the summary of a show's,
+    /// season's or album's files. Null when the page has no file to describe (a person, a Series, a Universe, a collection), when the viewer may not
+    /// see file facts (a Kids profile, anything in the Vault), and when the title has no file on disk. Set by the Engine after the page is composed.
+    /// </summary>
+    public DetailYourCopyViewModel? YourCopy { get; set; }
+
+    /// <summary>
     /// What a curated collection's page adds to the standard one (Collections and lists spec 4g): how it fills up, the set it is, and
     /// for an imported list the "You own X of Y" counts and the titles it holds that the library does not. Null on every other page.
     /// </summary>

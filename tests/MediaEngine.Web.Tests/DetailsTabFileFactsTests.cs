@@ -1,8 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Details;
-using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Components.Details;
-using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -11,8 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The Details tab: file facts first (every device, one block per file), then a read-only
-/// History that only people who may already see it get, on desktop-class screens only.
+/// The bottom of a details page (details-page-bottom spec D4 to D7, section 4): the Engine writes the "Your copy" row, the Dashboard only draws
+/// it. Chips and a File details control sit in one full-width row; the control opens one panel of groups with the file's name at the bottom, and
+/// the file's place stays out of the page until it is asked for. History, the Type and Library rows and the old About this panel are gone.
 /// </summary>
 public sealed class DetailsTabFileFactsTests : AsyncBunitContext
 {
@@ -21,47 +20,11 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
 
     private readonly DeviceContextService _device;
     private EngineApiClientStub? _stub;
-    private int _historyCalls;
-    private int _detailCalls;
-    private bool _throwOnDetail;
-    private MediaEditorWorkVersionSelectorDto? _versions;
-    private LibraryItemDetailViewModel? _detail;
 
     public DetailsTabFileFactsTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        var api = EngineApiClientStub.Create(stub =>
-        {
-            _stub = stub;
-            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorWorkVersionsAsync),
-                _ => Task.FromResult(_versions));
-            stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDetailAsync), _ =>
-            {
-                _detailCalls++;
-                if (_throwOnDetail)
-                {
-                    throw new InvalidOperationException("engine unavailable");
-                }
-
-                return Task.FromResult(_detail);
-            });
-            stub.SetHandler(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _ =>
-            {
-                _historyCalls++;
-                return Task.FromResult<(List<LibraryItemHistoryDto> Items, string? Error)>((
-                [
-                    new LibraryItemHistoryDto
-                    {
-                        Id = "h1",
-                        EntityId = ItemId,
-                        OccurredAt = new DateTimeOffset(2026, 5, 2, 10, 30, 0, TimeSpan.Zero),
-                        EventType = "ingested",
-                        Label = "Added to the library",
-                        ActorLabel = "System",
-                    },
-                ], null));
-            });
-        });
+        var api = EngineApiClientStub.Create(stub => _stub = stub);
         _device = new DeviceContextService(api);
         Services.AddSingleton(api);
         Services.AddSingleton(_device);
@@ -70,367 +33,246 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
     private Task UseAsync(string formFactor) =>
         _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));
 
-    private static MediaEditorWorkVersionSelectorDto OneFile(string fileName, string label) => new()
+    private static DetailYourCopyBlockViewModel MovieBlock(
+        string? label = null,
+        string? location = "/media/Movies/Test (2011)/Test (2011).mkv",
+        string[]? chips = null) => new()
     {
-        WorkId = ItemId,
-        Editions =
+        Label = label,
+        Kind = DetailYourCopyKinds.Video,
+        Chips = chips ?? ["1080p", "H.264", "AAC 5.1", "MKV"],
+        Groups =
         [
-            new MediaEditorEditionSelectorDto
-            {
-                EditionId = Guid.NewGuid(),
-                AssetCount = 1,
-                Assets = [new MediaEditorAssetSelectorDto { AssetId = Guid.NewGuid(), FileName = fileName, TechnicalLabel = label }],
-            },
+            new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.Video, Lines = ["1920 × 1080 · 23.976 fps", "H.264 · 8.4 Mb/s", "SDR"] },
+            new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.AudioSubtitles, Lines = ["English · AAC 5.1", "48 kHz · 384 kb/s", "Subtitles · English, Spanish"] },
+            new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.File, Lines = ["MKV · 7.1 GB", "Duration · 1h 49m", "Added · Nov 2, 2026"] },
         ],
+        FileName = "Test (2011).mkv",
+        FileLocation = location,
     };
 
-    private static LibraryItemDetailViewModel Detail(string fileName) => new()
-    {
-        EntityId = ItemId,
-        FileName = fileName,
-        FilePath = $"/library/media/{fileName}",
-        FileSizeBytes = 3_221_225_472,
-        PlaybackSummary = new PlaybackTechnicalSummaryViewModel
-        {
-            VideoResolutionLabel = "1080p",
-            VideoCodec = "HEVC",
-            AudioLanguage = "English",
-            AudioCodec = "AC3",
-            AudioChannels = "5.1",
-            SubtitleSummary = "English, French",
-        },
-    };
-
-    private static DetailPageViewModel Model(DetailEntityType type, bool canEdit = false) => new()
+    private static DetailPageViewModel Model(
+        DetailEntityType type = DetailEntityType.Movie,
+        DetailYourCopyViewModel? copy = null,
+        bool canEdit = false) => new()
     {
         Id = ItemId.ToString("D"),
         EntityType = type,
         Title = "Test",
-        Facts = new DetailFactsViewModel { Runtime = "2h 11m", Language = "English" },
+        YourCopy = copy,
         OverflowActions = canEdit ? [new DetailAction { Key = "edit", Label = "Edit details" }] : [],
     };
 
-    private IRenderedComponent<DetailsTab> RenderTab(DetailPageViewModel model)
+    private static DetailYourCopyViewModel One(DetailYourCopyBlockViewModel block) => new() { Blocks = [block] };
+
+    private IRenderedComponent<DetailsTab> RenderTab(DetailPageViewModel model) =>
+        Render<DetailsTab>(parameters => parameters.Add(tab => tab.Model, model));
+
+    [Fact]
+    public async Task AMovie_ShowsOneYourCopyRowWithChipsAndFileDetailsClosed()
     {
-        var cut = Render<DetailsTab>(parameters => parameters.Add(tab => tab.Model, model));
-        cut.WaitForState(() => cut.FindAll(".tl-file-facts__note[role='status']").Count == 0);
-        return cut;
+        await UseAsync("desktop");
+
+        var cut = RenderTab(Model(copy: One(MovieBlock())));
+
+        Assert.Contains("Your copy", cut.Find(".tl-your-copy__title").TextContent);
+        Assert.Equal(["1080p", "H.264", "AAC 5.1", "MKV"], cut.FindAll(".tl-your-copy__chip").Select(chip => chip.TextContent.Trim()));
+        var toggle = cut.Find(".tl-your-copy__toggle");
+        Assert.Equal("false", toggle.GetAttribute("aria-expanded"));
+        Assert.Contains("File details", toggle.TextContent);
+        Assert.Empty(cut.FindAll(".tl-your-copy__panel"));
+        Assert.DoesNotContain("Test (2011).mkv", cut.Markup);
     }
 
-    [Theory]
-    [InlineData(DetailEntityType.Movie, "movie.mkv", "MKV")]
-    [InlineData(DetailEntityType.TvEpisode, "s01e01.mp4", "MP4")]
-    [InlineData(DetailEntityType.Book, "book.epub", "EPUB")]
-    [InlineData(DetailEntityType.Audiobook, "book.m4b", "M4B")]
-    [InlineData(DetailEntityType.ComicIssue, "issue.cbz", "CBZ")]
-    [InlineData(DetailEntityType.Work, "track.flac", "FLAC")]
-    public async Task EveryFileBearingTypeShowsItsFileFactsOnEveryDevice(DetailEntityType type, string fileName, string format)
+    [Fact]
+    public async Task FileDetails_OpensOnePanelInThreeGroupsWithAnIconEachAndTheFilenameAtTheBottom()
     {
-        foreach (var formFactor in new[] { "desktop", "tablet", "phone" })
+        await UseAsync("desktop");
+        var cut = RenderTab(Model(copy: One(MovieBlock())));
+
+        cut.Find(".tl-your-copy__toggle").Click();
+
+        Assert.Equal("true", cut.Find(".tl-your-copy__toggle").GetAttribute("aria-expanded"));
+        var groups = cut.FindAll(".tl-your-copy__group");
+        Assert.Equal(["Video", "Audio and subtitles", "File"], groups.Select(group => group.QuerySelector("h3")!.TextContent.Trim()));
+        Assert.All(groups, group => Assert.NotNull(group.QuerySelector("h3 svg")));
+        Assert.Contains("1920 × 1080 · 23.976 fps", groups[0].TextContent);
+        Assert.Contains("Subtitles · English, Spanish", groups[1].TextContent);
+        Assert.Contains("MKV · 7.1 GB", groups[2].TextContent);
+        var panel = cut.Find(".tl-your-copy__panel");
+        Assert.Equal("Filename", panel.QuerySelector(".tl-your-copy__file-label")!.TextContent);
+        Assert.Equal("Test (2011).mkv", panel.QuerySelector(".tl-your-copy__file-name")!.TextContent);
+        // The filename follows the groups: it is the last thing in the panel (before the file location, which is closed).
+        Assert.Same(panel.Children.Last(), panel.QuerySelector(".tl-your-copy__file"));
+    }
+
+    [Fact]
+    public async Task TheFileLocation_StaysOutOfThePageUntilShowFileLocationIsPressed()
+    {
+        await UseAsync("desktop");
+        var cut = RenderTab(Model(copy: One(MovieBlock()), canEdit: true));
+        cut.Find(".tl-your-copy__toggle").Click();
+
+        Assert.DoesNotContain("/media/Movies", cut.Markup);
+        Assert.Equal("Show file location", cut.Find(".tl-your-copy__location-toggle").TextContent.Trim());
+
+        cut.Find(".tl-your-copy__location-toggle").Click();
+
+        Assert.Equal("/media/Movies/Test (2011)/Test (2011).mkv", cut.Find(".tl-your-copy__path").TextContent);
+        Assert.Equal("Hide file location", cut.Find(".tl-your-copy__location-toggle").TextContent.Trim());
+
+        // Closing File details puts the place away again: opening it afresh shows no path.
+        cut.Find(".tl-your-copy__toggle").Click();
+        cut.Find(".tl-your-copy__toggle").Click();
+        Assert.Empty(cut.FindAll(".tl-your-copy__path"));
+        Assert.DoesNotContain("/media/Movies", cut.Markup);
+    }
+
+    [Fact]
+    public async Task WhenTheEngineSentNoFileLocation_ThereIsNoShowFileLocationControl()
+    {
+        await UseAsync("desktop");
+        var cut = RenderTab(Model(copy: One(MovieBlock(location: null))));
+
+        cut.Find(".tl-your-copy__toggle").Click();
+
+        Assert.Equal("Test (2011).mkv", cut.Find(".tl-your-copy__file-name").TextContent);
+        Assert.Empty(cut.FindAll(".tl-your-copy__location-toggle"));
+    }
+
+    [Fact]
+    public async Task OnATelevision_FileDetailsIsAFocusableButtonAndNoFilenameOrLocationIsDrawn()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false));
+        var cut = RenderTab(Model(copy: One(MovieBlock())));
+
+        Assert.NotNull(cut.Find("section.tl-your-copy.tl-your-copy--tv"));
+        var toggle = cut.Find("button.tl-your-copy__toggle");
+        Assert.Equal("button", toggle.GetAttribute("type"));
+        toggle.Click();
+
+        Assert.Equal(3, cut.FindAll(".tl-your-copy__group").Count);
+        Assert.Empty(cut.FindAll(".tl-your-copy__file"));
+        Assert.DoesNotContain("Test (2011).mkv", cut.Markup);
+        Assert.DoesNotContain("/media/Movies", cut.Markup);
+    }
+
+    [Fact]
+    public async Task WhileTheFileIsNotScannedYet_TheRowReadsReadingFileFactsWithNoChipsAndNoFileDetails()
+    {
+        await UseAsync("desktop");
+        var block = new DetailYourCopyBlockViewModel { Kind = DetailYourCopyKinds.Video, IsReadingFacts = true };
+
+        var cut = RenderTab(Model(copy: One(block)));
+
+        Assert.Contains("Reading file facts", cut.Find(".tl-your-copy__reading").TextContent);
+        Assert.Empty(cut.FindAll(".tl-your-copy__chip"));
+        Assert.Empty(cut.FindAll(".tl-your-copy__toggle"));
+    }
+
+    [Fact]
+    public async Task SeveralEditions_GetOneRowEachLabelledByEditionAndEachOpensItsOwnPanel()
+    {
+        await UseAsync("desktop");
+        var copy = new DetailYourCopyViewModel
         {
-            _versions = OneFile(fileName, format);
-            _detail = Detail(fileName);
-            await UseAsync(formFactor);
+            Blocks =
+            [
+                MovieBlock("Theatrical cut"),
+                MovieBlock("Director's cut", chips: ["4K", "HEVC", "MKV"]),
+            ],
+        };
+        var cut = RenderTab(Model(copy: copy));
 
-            var cut = RenderTab(Model(type));
+        Assert.Equal(2, cut.FindAll(".tl-your-copy__block").Count);
+        Assert.Equal(["Theatrical cut", "Director's cut"], cut.FindAll(".tl-your-copy__edition").Select(label => label.TextContent.Trim()));
 
-            var text = cut.Find(".tl-file-facts__list").TextContent;
-            Assert.Contains(fileName, text);
-            Assert.Contains(format, text);
-            Assert.Contains("2h 11m", text);
-            Assert.Contains("1080p (HEVC)", text);
-            Assert.Contains("English (AC3 5.1)", text);
-            Assert.Contains("English, French", text);
-            Assert.Contains("3 GB", text);
-            Assert.Single(cut.FindAll(".tl-file-facts__block"));
-        }
+        cut.FindAll(".tl-your-copy__toggle")[1].Click();
+
+        var blocks = cut.FindAll(".tl-your-copy__block");
+        Assert.Empty(blocks[0].QuerySelectorAll(".tl-your-copy__panel"));
+        Assert.Single(blocks[1].QuerySelectorAll(".tl-your-copy__panel"));
+    }
+
+    [Fact]
+    public async Task ForAProfileThatMayNotSeeFileFacts_TheEngineSendsNoYourCopyAndNothingIsDrawn()
+    {
+        await UseAsync("desktop");
+
+        var cut = RenderTab(Model(copy: null, canEdit: true));
+
+        Assert.Empty(cut.FindAll(".tl-your-copy"));
+        Assert.DoesNotContain("File details", cut.Markup);
+        Assert.DoesNotContain("Your copy", cut.Markup);
     }
 
     [Theory]
     [InlineData("desktop")]
+    [InlineData("tablet")]
     [InlineData("phone")]
-    public async Task TheDetailsTabShowsNoIdentityRowToAnyViewer(string formFactor)
+    public async Task ThePageBottom_HasNoHistoryNoTypeOrLibraryRowsAndAsksTheEngineForNothing(string formFactor)
     {
-        _versions = OneFile("movie.mkv", "MKV");
-        _detail = Detail("movie.mkv");
         await UseAsync(formFactor);
 
-        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
+        var cut = RenderTab(Model(copy: One(MovieBlock()), canEdit: true));
 
-        var labels = cut.FindAll(".tl-detail-dl dt").Select(label => label.TextContent).ToList();
-        Assert.Contains("Library Status", labels);
-        Assert.DoesNotContain("Identity", labels);
-        Assert.DoesNotContain("ProviderMatched", cut.Markup);
-        Assert.DoesNotContain("WikidataLinked", cut.Markup);
+        Assert.Empty(cut.FindAll(".tl-item-history"));
+        Assert.Empty(cut.FindAll(".tl-detail-dl"));
+        Assert.DoesNotContain("Library Status", cut.Markup);
+        Assert.DoesNotContain("About this", cut.Markup);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _stub!.Calls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetMediaEditorWorkVersionsAsync), _stub.Calls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetLibraryItemDetailAsync), _stub.Calls);
     }
 
     [Fact]
-    public async Task AFailedLoadShowsADegradedNoteInTheSamePanelAndKeepsTheRestOfTheTab()
+    public async Task AShow_DrawsTheEnginesSummaryAsItIs_ChipsForTheCommonQualityAndTheExceptionsInThePanel()
     {
-        _versions = OneFile("movie.mkv", "MKV");
-        _throwOnDetail = true;
         await UseAsync("desktop");
-
-        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
-
-        Assert.Contains("File details could not be loaded.", cut.Find(".tl-file-facts [role='alert']").TextContent);
-        Assert.Empty(cut.FindAll(".tl-file-facts__list"));
-        Assert.Contains("Library Status", cut.Markup);
-    }
-
-    [Fact]
-    public async Task SeveralFilesGetOneBlockEach()
-    {
-        _versions = new MediaEditorWorkVersionSelectorDto
+        var block = new DetailYourCopyBlockViewModel
         {
-            WorkId = ItemId,
-            Editions =
+            Kind = DetailYourCopyKinds.Show,
+            Chips = ["62 episodes", "4K", "HDR10", "MKV"],
+            Groups =
             [
-                new MediaEditorEditionSelectorDto
-                {
-                    EditionId = Guid.NewGuid(),
-                    Label = "Theatrical",
-                    AssetCount = 1,
-                    Assets = [new MediaEditorAssetSelectorDto { AssetId = Guid.NewGuid(), FileName = "movie.mkv", TechnicalLabel = "MKV" }],
-                },
-                new MediaEditorEditionSelectorDto
-                {
-                    EditionId = Guid.NewGuid(),
-                    Label = "Extended",
-                    AssetCount = 1,
-                    Assets = [new MediaEditorAssetSelectorDto { AssetId = Guid.NewGuid(), FileName = "movie-extended.mp4", TechnicalLabel = "MP4" }],
-                },
+                new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.Video, Lines = ["Mostly 3840 × 2160 · HEVC", "12 episodes in 1080p"] },
+                new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.AudioSubtitles, Lines = ["English · AAC 5.1"] },
+                new DetailYourCopyGroupViewModel { Key = DetailYourCopyGroupKeys.Files, Lines = ["62 files · MKV · 214 GB", "Total · 44h 20m"] },
             ],
         };
-        _detail = Detail("movie.mkv");
-        await UseAsync("phone");
+        var cut = RenderTab(Model(DetailEntityType.TvShow, One(block)));
 
-        var cut = RenderTab(Model(DetailEntityType.Movie));
+        Assert.Contains("62 episodes", cut.Find(".tl-your-copy__chips").TextContent);
+        cut.Find(".tl-your-copy__toggle").Click();
 
-        var blocks = cut.FindAll(".tl-file-facts__block");
-        Assert.Equal(2, blocks.Count);
-        Assert.Equal(["movie.mkv", "movie-extended.mp4"], cut.FindAll(".tl-file-facts__title").Select(title => title.TextContent));
-        // The stored technical facts belong to the file the item detail names; the other file shows what is known of it.
-        Assert.Contains("1080p (HEVC)", blocks[0].TextContent);
-        Assert.DoesNotContain("1080p (HEVC)", blocks[1].TextContent);
-        Assert.Contains("Extended", blocks[1].TextContent);
-    }
-
-    [Fact]
-    public async Task FilePathAndHistoryAreHiddenFromPeopleWhoCannotSeeThemToday()
-    {
-        _versions = OneFile("movie.mkv", "MKV");
-        _detail = Detail("movie.mkv");
-        await UseAsync("desktop");
-
-        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: false));
-
-        Assert.DoesNotContain("/library/media/movie.mkv", cut.Markup);
-        Assert.DoesNotContain("Path", cut.Find(".tl-file-facts__list").TextContent);
-        Assert.Empty(cut.FindAll(".tl-item-history"));
-        Assert.Equal(0, _historyCalls);
-    }
-
-    [Fact]
-    public async Task FilePathAndReadOnlyHistoryShowForPeopleWhoMaySeeThemOnDesktop()
-    {
-        _versions = OneFile("movie.mkv", "MKV");
-        _detail = Detail("movie.mkv");
-        await UseAsync("desktop");
-
-        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-item-history__entry")));
-
-        Assert.Contains("/library/media/movie.mkv", cut.Find(".tl-file-facts__list").TextContent);
-        var history = cut.Find(".tl-item-history");
-        Assert.Contains("Added to the library", history.TextContent);
-        Assert.Empty(history.QuerySelectorAll("button, a, input"));
-        Assert.Equal(1, _historyCalls);
-
-        // File facts come first, then History.
-        var order = cut.FindAll(".tl-file-facts, .tl-item-history").Select(section => section.ClassName ?? string.Empty).ToList();
-        Assert.Contains("tl-file-facts", order[0]);
-        Assert.Contains("tl-item-history", order[1]);
+        Assert.Equal(["Video", "Audio and subtitles", "Files"], cut.FindAll(".tl-your-copy__group h3").Select(title => title.TextContent.Trim()));
+        Assert.Contains("12 episodes in 1080p", cut.Markup);
+        Assert.Contains("Total · 44h 20m", cut.Markup);
+        // A show has no single file, so the panel names none.
+        Assert.Empty(cut.FindAll(".tl-your-copy__file"));
     }
 
     [Theory]
-    [InlineData("tablet", true)]
-    [InlineData("phone", false)]
-    public async Task HistoryNeverShowsOutsideDesktopAndPhonesNeverShowThePath(string formFactor, bool pathShown)
+    [InlineData(DetailYourCopyKinds.Album, new[] { DetailYourCopyGroupKeys.Audio, DetailYourCopyGroupKeys.Tracks, DetailYourCopyGroupKeys.Files }, new[] { "Audio", "Tracks", "Files" })]
+    [InlineData(DetailYourCopyKinds.Book, new[] { DetailYourCopyGroupKeys.Book, DetailYourCopyGroupKeys.Reading, DetailYourCopyGroupKeys.File }, new[] { "Book", "Reading", "File" })]
+    public async Task AnAlbumAndABook_ShowTheirOwnThreeGroups(string kind, string[] keys, string[] titles)
     {
-        _versions = OneFile("movie.mkv", "MKV");
-        _detail = Detail("movie.mkv");
-        await UseAsync(formFactor);
-
-        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
-
-        Assert.Empty(cut.FindAll(".tl-item-history"));
-        Assert.Equal(0, _historyCalls);
-        var facts = cut.Find(".tl-file-facts__list").TextContent;
-        Assert.Contains("movie.mkv", facts);
-        Assert.Equal(pathShown, facts.Contains("/library/media/movie.mkv", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task AStoredContainerShowsOnlyWhenItAddsToTheFormat()
-    {
-        _versions = OneFile("movie.mkv", "MKV");
-        _detail = Detail("movie.mkv");
-        _detail.CanonicalValues = [new LibraryItemCanonicalValueDto { Key = "container", Value = "Matroska" }];
         await UseAsync("desktop");
-        var different = RenderTab(Model(DetailEntityType.Movie)).Find(".tl-file-facts__list").TextContent;
-        Assert.Contains("Matroska", different);
-
-        _detail.CanonicalValues = [new LibraryItemCanonicalValueDto { Key = "container", Value = "mkv" }];
-        var same = RenderTab(Model(DetailEntityType.Movie)).Find(".tl-file-facts__list").TextContent;
-        Assert.DoesNotContain("Container", same);
-    }
-
-    [Fact]
-    public async Task ThePathLandsOnTheFileItBelongsToNotOnItsSibling()
-    {
-        _versions = new MediaEditorWorkVersionSelectorDto
+        var block = new DetailYourCopyBlockViewModel
         {
-            WorkId = ItemId,
-            Editions =
-            [
-                new MediaEditorEditionSelectorDto
-                {
-                    EditionId = Guid.NewGuid(),
-                    AssetCount = 2,
-                    Assets =
-                    [
-                        new MediaEditorAssetSelectorDto { AssetId = Guid.NewGuid(), FileName = "a.mp4", TechnicalLabel = "MP4" },
-                        new MediaEditorAssetSelectorDto { AssetId = Guid.NewGuid(), FileName = "b.mkv", TechnicalLabel = "MKV" },
-                    ],
-                },
-            ],
+            Kind = kind,
+            Chips = ["FLAC"],
+            Groups = keys.Select(key => new DetailYourCopyGroupViewModel { Key = key, Lines = ["A line"] }).ToList(),
         };
-        _detail = Detail("b.mkv");
-        await UseAsync("desktop");
+        var cut = RenderTab(Model(kind == DetailYourCopyKinds.Album ? DetailEntityType.MusicAlbum : DetailEntityType.Book, One(block)));
 
-        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
+        cut.Find(".tl-your-copy__toggle").Click();
 
-        var blocks = cut.FindAll(".tl-file-facts__block");
-        Assert.DoesNotContain("/library/media/b.mkv", blocks[0].TextContent);
-        Assert.DoesNotContain("1080p (HEVC)", blocks[0].TextContent);
-        Assert.Contains("/library/media/b.mkv", blocks[1].TextContent);
-        Assert.Contains("1080p (HEVC)", blocks[1].TextContent);
+        Assert.Equal(titles, cut.FindAll(".tl-your-copy__group h3").Select(title => title.TextContent.Trim()));
     }
 
     [Fact]
-    public async Task EachFileShowsItsOwnStoredSizeAddedDateBitrateContainerAndTracks()
-    {
-        _versions = new MediaEditorWorkVersionSelectorDto
-        {
-            WorkId = ItemId,
-            Editions =
-            [
-                new MediaEditorEditionSelectorDto
-                {
-                    EditionId = Guid.NewGuid(),
-                    Label = "Theatrical",
-                    AssetCount = 1,
-                    Assets =
-                    [
-                        new MediaEditorAssetSelectorDto
-                        {
-                            AssetId = Guid.NewGuid(),
-                            FileName = "movie.mkv",
-                            TechnicalLabel = "MKV",
-                            Container = "Matroska",
-                            FileSizeBytes = 1_503_238_554,
-                            AddedAt = new DateTimeOffset(2026, 10, 16, 23, 30, 0, TimeSpan.Zero),
-                            BitrateBps = 6_200_000,
-                            AudioTracks =
-                            [
-                                new MediaEditorAssetAudioTrackDto { Language = "eng", Codec = "ac3", IsDefault = true },
-                                new MediaEditorAssetAudioTrackDto { Language = "jpn", Codec = "aac" },
-                            ],
-                            SubtitleLanguages = ["eng", "fra"],
-                        },
-                    ],
-                },
-                new MediaEditorEditionSelectorDto
-                {
-                    EditionId = Guid.NewGuid(),
-                    Label = "Extended",
-                    AssetCount = 1,
-                    Assets =
-                    [
-                        new MediaEditorAssetSelectorDto
-                        {
-                            AssetId = Guid.NewGuid(),
-                            FileName = "movie-extended.mp4",
-                            TechnicalLabel = "MP4",
-                            FileSizeBytes = 327_155_712,
-                            AddedAt = new DateTimeOffset(2026, 3, 2, 8, 0, 0, TimeSpan.Zero),
-                            BitrateBps = 256_000,
-                            AudioTracks = [new MediaEditorAssetAudioTrackDto { Language = "eng", Codec = "aac" }],
-                        },
-                    ],
-                },
-            ],
-        };
-        _detail = Detail("movie.mkv");
-        await UseAsync("desktop");
-
-        var blocks = RenderTab(Model(DetailEntityType.Movie)).FindAll(".tl-file-facts__block");
-
-        var first = blocks[0].TextContent;
-        Assert.Contains("Matroska", first);
-        Assert.Contains("1.4 GB", first);
-        Assert.Contains("6.2 Mbps", first);
-        Assert.Contains("2026-10-16", first);
-        Assert.Contains("English (ac3), Japanese (aac)", first);
-        Assert.Contains("English, French", first);
-        var second = blocks[1].TextContent;
-        Assert.Contains("312 MB", second);
-        Assert.Contains("256 kbps", second);
-        Assert.Contains("2026-03-02", second);
-        Assert.Contains("English (aac)", second);
-        // Nothing from the first file leaks into the second.
-        Assert.DoesNotContain("1.4 GB", second);
-        Assert.DoesNotContain("Matroska", second);
-        Assert.DoesNotContain("Subtitle tracks", second);
-    }
-
-    [Fact]
-    public async Task RowsWithNothingStoredAreHiddenInsteadOfShownEmpty()
-    {
-        _versions = OneFile("movie.mkv", "MKV");
-        _detail = new LibraryItemDetailViewModel { EntityId = ItemId, FileName = "movie.mkv" };
-        await UseAsync("desktop");
-
-        var labels = RenderTab(Model(DetailEntityType.Movie)).FindAll(".tl-file-facts__list dt").Select(label => label.TextContent).ToList();
-
-        foreach (var hidden in new[] { "Size", "Bitrate", "Added", "Audio tracks", "Subtitle tracks", "Container" })
-        {
-            Assert.DoesNotContain(hidden, labels);
-        }
-
-        Assert.Contains("Format", labels);
-    }
-
-    [Fact]
-    public async Task OpeningTheTabOnlyReadsStoredFactsAndNeverAsksForPlaybackOrProbing()
-    {
-        _versions = OneFile("movie.mkv", "MKV");
-        _detail = Detail("movie.mkv");
-        await UseAsync("desktop");
-
-        RenderTab(Model(DetailEntityType.Movie, canEdit: true));
-
-        Assert.NotNull(_stub);
-        string[] probing = ["Playback", "Manifest", "Inspect", "Probe", "Capabilit"];
-        Assert.DoesNotContain(_stub!.Calls, call => probing.Any(word => call.Contains(word, StringComparison.Ordinal)));
-        Assert.Contains(nameof(IEngineApiClient.GetMediaEditorWorkVersionsAsync), _stub.Calls);
-        // One detail read for the page, however many files the item has.
-        Assert.Equal(1, _stub.Calls.Count(call => call == nameof(IEngineApiClient.GetLibraryItemDetailAsync)));
-    }
-
-    [Fact]
-    public async Task ASeriesShowsSeriesFactsInAboutThisAndNoTypeOrStatusRows()
+    public async Task ASeries_ShowsSeriesFactsAndNoTypeOrStatusRows()
     {
         await UseAsync("desktop");
         var model = new DetailPageViewModel
@@ -455,67 +297,37 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
         Assert.Contains("2011", text);
         Assert.Contains("2021", text);
         Assert.Empty(cut.FindAll(".tl-detail-dl"));
+        Assert.Empty(cut.FindAll(".tl-your-copy"));
         Assert.DoesNotContain("BookSeries", cut.Markup);
-        Assert.DoesNotContain("Open an item inside it", cut.Markup);
-    }
-
-    [Theory]
-    [InlineData(DetailEntityType.TvShow)]
-    [InlineData(DetailEntityType.TvSeason)]
-    [InlineData(DetailEntityType.MusicAlbum)]
-    [InlineData(DetailEntityType.Collection)]
-    public async Task GroupingsOwnNoFileSoTheyPointToTheItemsInside(DetailEntityType type)
-    {
-        _detail = Detail("episode.mkv");
-        await UseAsync("desktop");
-
-        var cut = RenderTab(Model(type, canEdit: true));
-
-        Assert.Contains("Open an item inside it", cut.Find(".tl-file-facts").TextContent);
-        Assert.Empty(cut.FindAll(".tl-file-facts__list"));
-        Assert.Empty(cut.FindAll(".tl-item-history"));
-        // A grouping never borrows one of its episodes' files.
-        Assert.Equal(0, _detailCalls);
-        Assert.Equal(0, _historyCalls);
     }
 
     [Fact]
-    public async Task OwnedFormatsFillInWhenNoFileListIsStored()
+    public async Task APerson_KeepsItsOwnFactsButNoTypeOrLibraryRows()
     {
-        _versions = null;
-        _detail = null;
-        await UseAsync("phone");
+        await UseAsync("desktop");
         var model = new DetailPageViewModel
         {
-            Id = ItemId.ToString("D"),
-            EntityType = DetailEntityType.Book,
-            Title = "Test",
-            OwnedFormats =
-            [
-                new OwnedFormatViewModel { DisplayName = "Ebook", FileFormat = "EPUB", PageCount = 320 },
-                new OwnedFormatViewModel { DisplayName = "Audiobook", FileFormat = "M4B", Runtime = "11h 4m", ChapterCount = 30 },
-            ],
+            EntityType = DetailEntityType.Person,
+            PersonDetails = new PersonDetailFacts { Occupation = "Novelist", Nationality = "Canadian" },
         };
 
         var cut = RenderTab(model);
 
-        var blocks = cut.FindAll(".tl-file-facts__block");
-        Assert.Equal(2, blocks.Count);
-        Assert.Contains("320", blocks[0].TextContent);
-        Assert.Contains("11h 4m", blocks[1].TextContent);
+        Assert.Equal(["Occupation", "Nationality"], cut.FindAll(".tl-detail-dl dt").Select(label => label.TextContent));
     }
 
     [Fact]
-    public void TheFactsListWrapsOnPhonesInsteadOfScrollingSideways()
+    public void ThePhoneRowIsOneTapTargetAndTheGroupsStackOnNarrowWindows()
     {
-        var css = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Details/DetailsTab.razor.css"));
+        var css = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Details/YourCopyRow.razor.css"));
 
-        Assert.Contains("grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr))", css);
+        // The File details control's box is stretched over the whole row on a phone (600 px and narrower).
+        var phone = css[css.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
+        Assert.Contains(".tl-your-copy__action::after", phone);
+        Assert.Contains("inset: 0", phone);
+        Assert.Contains("@media (max-width: 840px)", css);
+        Assert.Contains("grid-template-columns: minmax(0, 1fr)", css);
         Assert.Contains("overflow-wrap: anywhere", css);
-        Assert.Contains("@media (max-width: 600px)", css);
         Assert.DoesNotContain("overflow-x: auto", css);
-        Assert.DoesNotContain("overflow-x: scroll", css);
-        Assert.DoesNotContain("white-space: nowrap", css);
-        Assert.DoesNotContain("white-space: pre", css);
     }
 }

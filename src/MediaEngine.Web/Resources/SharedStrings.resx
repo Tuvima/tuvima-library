@@ -371,9 +371,6 @@
   <data name="Listen_NothingPlaying" xml:space="preserve">
     <value>Nothing is playing right now.</value>
   </data>
-  <data name="Listen_History" xml:space="preserve">
-    <value>History</value>
-  </data>
   <data name="Ingestion_Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>
@@ -1064,15 +1061,6 @@
   <data name="Common_Close" xml:space="preserve">
     <value>Close</value>
   </data>
-  <data name="DetailsTab_LoadingFileDetails" xml:space="preserve">
-    <value>Loading file details...</value>
-  </data>
-  <data name="DetailsTab_NoFileDetailsAreStored" xml:space="preserve">
-    <value>No file details are stored for this item yet.</value>
-  </data>
-  <data name="DetailsTab_FileName" xml:space="preserve">
-    <value>File name</value>
-  </data>
   <data name="Common_Files" xml:space="preserve">
     <value>Files</value>
   </data>
@@ -1094,20 +1082,11 @@
   <data name="DetailsTab_SeriesAuthor" xml:space="preserve">
     <value>Author</value>
   </data>
-  <data name="DetailsTab_LoadingHistory" xml:space="preserve">
-    <value>Loading history...</value>
-  </data>
-  <data name="DetailsTab_NothingHasBeenRecordedFor" xml:space="preserve">
-    <value>Nothing has been recorded for this item yet.</value>
-  </data>
   <data name="Common_Details" xml:space="preserve">
     <value>Details</value>
   </data>
   <data name="Common_Type" xml:space="preserve">
     <value>Type</value>
-  </data>
-  <data name="DetailsTab_LibraryStatus" xml:space="preserve">
-    <value>Library Status</value>
   </data>
   <data name="DetailsTab_Occupation" xml:space="preserve">
     <value>Occupation</value>
@@ -1124,8 +1103,47 @@
   <data name="DetailPage_AboutThis" xml:space="preserve">
     <value>About this</value>
   </data>
-  <data name="DetailsTab_FileFacts" xml:space="preserve">
-    <value>File facts</value>
+  <data name="YourCopy_Title" xml:space="preserve">
+    <value>Your copy</value>
+  </data>
+  <data name="YourCopy_FileDetails" xml:space="preserve">
+    <value>File details</value>
+  </data>
+  <data name="YourCopy_ReadingFileFacts" xml:space="preserve">
+    <value>Reading file facts</value>
+  </data>
+  <data name="YourCopy_FileName" xml:space="preserve">
+    <value>Filename</value>
+  </data>
+  <data name="YourCopy_ShowFileLocation" xml:space="preserve">
+    <value>Show file location</value>
+  </data>
+  <data name="YourCopy_HideFileLocation" xml:space="preserve">
+    <value>Hide file location</value>
+  </data>
+  <data name="YourCopy_GroupVideo" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="YourCopy_GroupAudioSubtitles" xml:space="preserve">
+    <value>Audio and subtitles</value>
+  </data>
+  <data name="YourCopy_GroupFile" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="YourCopy_GroupFiles" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="YourCopy_GroupAudio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="YourCopy_GroupTracks" xml:space="preserve">
+    <value>Tracks</value>
+  </data>
+  <data name="YourCopy_GroupBook" xml:space="preserve">
+    <value>Book</value>
+  </data>
+  <data name="YourCopy_GroupReading" xml:space="preserve">
+    <value>Reading</value>
   </data>
   <data name="Common_Dismiss" xml:space="preserve">
     <value>Dismiss</value>
@@ -7591,9 +7609,6 @@
   </data>
   <data name="DetailPage_TheSelectedItemCannotBe" xml:space="preserve">
     <value>The selected item cannot be opened yet.</value>
-  </data>
-  <data name="DetailsTab_FileDetailsCouldNotBe" xml:space="preserve">
-    <value>File details could not be loaded.</value>
   </data>
   <data name="ReviewChangesView_RemoveThisChange" xml:space="preserve">
     <value>Remove this change</value>

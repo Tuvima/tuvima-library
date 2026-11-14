@@ -34,10 +34,9 @@
     font-size: var(--tl-type-caption-size);
 }
 
-/* File facts: a compact two-column list on every device. Long values wrap
+/* Series facts: a compact two-column list on every device. Long values wrap
    (never scroll sideways) so phones keep the page at viewport width. */
-:where(.tl-detail-page) .tl-file-facts,
-:where(.tl-detail-page) .tl-item-history {
+:where(.tl-detail-page) .tl-file-facts {
     min-width: 0;
     margin-bottom: clamp(0.9rem, 2vw, 1.4rem);
 }
@@ -56,13 +55,6 @@
 
 :where(.tl-detail-page) .tl-file-facts__block + .tl-file-facts__block {
     border-top: 1px solid var(--tl-wash-light-4);
-}
-
-:where(.tl-detail-page) .tl-file-facts__title {
-    margin: 0 0 0.35rem;
-    font-size: var(--tl-type-control-size);
-    font-weight: var(--tl-type-control-weight);
-    overflow-wrap: anywhere;
 }
 
 :where(.tl-detail-page) .tl-file-facts__list {
@@ -98,38 +90,6 @@
     font-weight: var(--tl-type-control-weight);
     overflow-wrap: anywhere;
     word-break: break-word;
-}
-
-:where(.tl-detail-page) .tl-item-history__list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    gap: 0.55rem;
-}
-
-:where(.tl-detail-page) .tl-item-history__entry {
-    display: grid;
-    grid-template-columns: 9.5rem minmax(0, 1fr) auto;
-    gap: 0.15rem 0.9rem;
-    min-width: 0;
-    font-size: var(--tl-type-body-size);
-}
-
-:where(.tl-detail-page) .tl-item-history__when,
-:where(.tl-detail-page) .tl-item-history__who {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-secondary-size);
-}
-
-:where(.tl-detail-page) .tl-item-history__detail {
-    grid-column: 2;
-    color: var(--tl-text-secondary);
-    overflow-wrap: anywhere;
-}
-
-:where(.tl-detail-page) .tl-item-history__what {
-    overflow-wrap: anywhere;
 }
 
 @media (max-width: 600px) {

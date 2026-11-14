@@ -1,0 +1,171 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Theming
+@inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
+
+@* Your copy (details-page-bottom spec D4, D5, section 4): a full-width row with an icon, the label, chips for the key facts and a File details
+   control at the right. The Engine writes every value (chips, group lines, the show, album and book summaries); this only draws them. The file
+   name sits at the bottom of the open panel; the path stays out of the page until "Show file location" is pressed, and a TV offers neither. *@
+@if (Copy is { Blocks.Count: > 0 } copy)
+{
+    <section class="tl-your-copy@(DeviceContext.IsTelevision ? " tl-your-copy--tv" : string.Empty)" aria-label="@L["YourCopy_Title"].Value">
+        @for (var index = 0; index < copy.Blocks.Count; index++)
+        {
+            var position = index;
+            var block = copy.Blocks[index];
+            var open = !block.IsReadingFacts && _open.Contains(position);
+            var panelId = $"{_idBase}-panel-{position}";
+            <div class="tl-your-copy__block" data-open="@(open ? "true" : "false")" data-kind="@block.Kind">
+                <div class="tl-your-copy__row">
+                    <span class="tl-your-copy__icon" aria-hidden="true">
+                        <AppMaterialIcon Icon="@RowIcon(block.Kind)" Size="AppIconSize.Control20" />
+                    </span>
+                    <h2 class="tl-your-copy__title">
+                        @L["YourCopy_Title"]
+                        @if (!string.IsNullOrWhiteSpace(block.Label))
+                        {
+                            <span class="tl-your-copy__edition">@block.Label</span>
+                        }
+                    </h2>
+                    @if (block.IsReadingFacts)
+                    {
+                        <p class="tl-your-copy__reading" role="status">@L["YourCopy_ReadingFileFacts"]</p>
+                    }
+                    else
+                    {
+                        @if (block.Chips.Count > 0)
+                        {
+                            <ul class="tl-your-copy__chips">
+                                @foreach (var chip in block.Chips)
+                                {
+                                    <li class="tl-your-copy__chip">@chip</li>
+                                }
+                            </ul>
+                        }
+                        @* The wrapper takes the click (it bubbles up from the button), so on a phone its ::after can stretch over the whole row. *@
+                        <div class="tl-your-copy__action" @onclick="() => TogglePanel(position)">
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       Class="tl-your-copy__toggle"
+                                       Label="@L["YourCopy_FileDetails"].Value"
+                                       EndIcon="@(open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                                       aria-expanded="@(open ? "true" : "false")"
+                                       aria-controls="@panelId" />
+                        </div>
+                    }
+                </div>
+                @if (open)
+                {
+                    <div id="@panelId" class="tl-your-copy__panel" role="region" aria-label="@L["YourCopy_FileDetails"].Value">
+                        <div class="tl-your-copy__groups">
+                            @foreach (var group in block.Groups)
+                            {
+                                <section class="tl-your-copy__group" data-group="@group.Key">
+                                    <h3 class="tl-your-copy__group-title">
+                                        <AppMaterialIcon Icon="@GroupIcon(group.Key)" Size="AppIconSize.Control20" />
+                                        <span>@GroupTitle(group.Key)</span>
+                                    </h3>
+                                    @foreach (var line in group.Lines)
+                                    {
+                                        <p class="tl-your-copy__line">@line</p>
+                                    }
+                                </section>
+                            }
+                        </div>
+                        @if (ShowFileName && !string.IsNullOrWhiteSpace(block.FileName))
+                        {
+                            <div class="tl-your-copy__file">
+                                <span class="tl-your-copy__file-label">@L["YourCopy_FileName"]</span>
+                                <span class="tl-your-copy__file-name">@block.FileName</span>
+                                @if (!string.IsNullOrWhiteSpace(block.FileLocation))
+                                {
+                                    var locationOpen = _locations.Contains(position);
+                                    <div class="tl-your-copy__file-action" @onclick="() => ToggleLocation(position)">
+                                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                                   Class="tl-your-copy__location-toggle"
+                                                   Label="@L[locationOpen ? "YourCopy_HideFileLocation" : "YourCopy_ShowFileLocation"].Value"
+                                                   EndIcon="@(locationOpen ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                                                   aria-expanded="@(locationOpen ? "true" : "false")"
+                                                   aria-controls="@($"{panelId}-location")" />
+                                    </div>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(block.FileLocation) && _locations.Contains(position))
+                            {
+                                <p id="@($"{panelId}-location")" class="tl-your-copy__path">@block.FileLocation</p>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private readonly string _idBase = "tl-your-copy-" + Guid.NewGuid().ToString("N");
+    private readonly HashSet<int> _open = [];
+    private readonly HashSet<int> _locations = [];
+
+    [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
+
+    private DetailYourCopyViewModel? Copy => Model.YourCopy;
+
+    /// <summary>A TV offers neither the file name nor its place (the 10-foot screen has no use for them).</summary>
+    private bool ShowFileName => !DeviceContext.IsTelevision;
+
+    private void TogglePanel(int position)
+    {
+        if (!_open.Remove(position))
+        {
+            _open.Add(position);
+        }
+        else
+        {
+            // Closing the panel puts the file's place away again: it is only ever shown when asked.
+            _locations.Remove(position);
+        }
+    }
+
+    private void ToggleLocation(int position)
+    {
+        if (!_locations.Remove(position))
+        {
+            _locations.Add(position);
+        }
+    }
+
+    private static string RowIcon(string kind) => kind switch
+    {
+        DetailYourCopyKinds.Show => AppMaterialIcons.Outlined.Tv,
+        DetailYourCopyKinds.Album => AppMaterialIcons.Outlined.Album,
+        DetailYourCopyKinds.Audio => AppMaterialIcons.Outlined.MusicNote,
+        DetailYourCopyKinds.Book => AppMaterialIcons.Outlined.MenuBook,
+        DetailYourCopyKinds.Audiobook => AppMaterialIcons.Outlined.Headphones,
+        DetailYourCopyKinds.Comic => AppMaterialIcons.Outlined.AutoStories,
+        _ => AppMaterialIcons.Outlined.Movie,
+    };
+
+    private static string GroupIcon(string key) => key switch
+    {
+        DetailYourCopyGroupKeys.Video => AppMaterialIcons.Outlined.Videocam,
+        DetailYourCopyGroupKeys.AudioSubtitles => AppMaterialIcons.Outlined.Headphones,
+        DetailYourCopyGroupKeys.Audio => AppMaterialIcons.Outlined.GraphicEq,
+        DetailYourCopyGroupKeys.Tracks => AppMaterialIcons.Outlined.QueueMusic,
+        DetailYourCopyGroupKeys.Book => AppMaterialIcons.Outlined.MenuBook,
+        DetailYourCopyGroupKeys.Reading => AppMaterialIcons.Outlined.AutoStories,
+        _ => AppMaterialIcons.Outlined.InsertDriveFile,
+    };
+
+    private string GroupTitle(string key) => key switch
+    {
+        DetailYourCopyGroupKeys.Video => L["YourCopy_GroupVideo"].Value,
+        DetailYourCopyGroupKeys.AudioSubtitles => L["YourCopy_GroupAudioSubtitles"].Value,
+        DetailYourCopyGroupKeys.Audio => L["YourCopy_GroupAudio"].Value,
+        DetailYourCopyGroupKeys.Tracks => L["YourCopy_GroupTracks"].Value,
+        DetailYourCopyGroupKeys.Book => L["YourCopy_GroupBook"].Value,
+        DetailYourCopyGroupKeys.Reading => L["YourCopy_GroupReading"].Value,
+        DetailYourCopyGroupKeys.Files => L["YourCopy_GroupFiles"].Value,
+        _ => L["YourCopy_GroupFile"].Value,
+    };
+}
