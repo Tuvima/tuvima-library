@@ -8213,6 +8213,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackDiagnostic
   ActiveJobs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EncodeJobDto> | nullability=not-null | accessors=get,init
   Warnings: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackEncodePlaces
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSettingsDto
   ResumePlayback: System.Boolean | nullability=not-null | accessors=get,set
   AskBeforeResuming: System.Boolean | nullability=not-null | accessors=get,set
@@ -8255,6 +8257,20 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackManifestDt
   SourceBitrateKbps: System.Int32? | nullability=nullable | accessors=get,init
   Connection: MediaEngine.Contracts.Playback.PlaybackConnectionContextDto | nullability=not-null | accessors=get,init
   ScrubPreviewIndexUrl: System.String | nullability=nullable | accessors=get,init
+  PlaybackPath: MediaEngine.Contracts.Playback.PlaybackPathDto | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPathDto
+  Rung: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  Encoder: System.String | nullability=not-null | accessors=get,init
+  RanOn: System.String | nullability=not-null | accessors=get,init
+  FallbackReason: System.String | nullability=nullable | accessors=get,init
+  WaitingLabel: System.String | nullability=not-null | accessors=get,init
+  Phase: System.String | nullability=not-null | accessors=get,init
+  PercentPrepared: System.Int32? | nullability=nullable | accessors=get,init
+  FailureDetail: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPathPhases
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackPreferenceValues
 
@@ -8277,6 +8293,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackResumeDto
   ProgressPct: System.Double | nullability=not-null | accessors=get,init
   PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
   LastAccessed: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackRungs
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackSegmentDto
   Id: System.Guid | nullability=not-null | accessors=get,init

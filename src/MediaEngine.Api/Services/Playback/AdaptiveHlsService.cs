@@ -7,6 +7,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Playback;
 
@@ -29,7 +30,8 @@ public sealed class AdaptiveHlsService
     private readonly ConcurrentDictionary<Guid, Lazy<Task>> _preparations = new();
     private readonly ConcurrentDictionary<Guid, int> _activeReaders = new();
     private long _lastServedTicks;
-    private readonly SemaphoreSlim _encodeSlots;
+    private readonly EncodeSlotGate _encodeSlots;
+    private readonly ConcurrentDictionary<Guid, AdaptiveHlsRunInfo> _runs = new();
     private readonly PlaybackStateRepository? _inspection;
 
     public AdaptiveHlsService(
@@ -50,26 +52,29 @@ public sealed class AdaptiveHlsService
         _configuration = configuration;
         _lifetime = lifetime;
         _logger = logger;
-        _encodeSlots = new SemaphoreSlim(Math.Clamp(configuration.LoadTranscoding().MaxConcurrentTranscodes, 1, 8));
+        // The limit is read each time a start asks for a slot, so changing "Maximum active encodes" applies at once (playback-path D9).
+        _encodeSlots = new EncodeSlotGate(() => Math.Clamp(configuration.LoadTranscoding().MaxConcurrentTranscodes, 1, 8));
     }
 
     public async Task<AdaptiveHlsPreparation> EnsurePackageAsync(
         Guid assetId,
         string sourceHash,
         IReadOnlyList<PlaybackTrackDto> audioTracks,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        HlsStartPlan? plan = null)
     {
         var settings = _configuration.LoadTranscoding();
-        var profileKey = BuildProfileKey(settings.AdaptiveHls);
+        plan ??= HlsStartPlan.EncodeDefault;
+        var profileKey = BuildProfileKey(settings.AdaptiveHls, plan);
         var existing = await _packages.FindAsync(assetId, sourceHash, profileKey, ct).ConfigureAwait(false);
         if (existing is { Status: "failed" })
         {
-            return new AdaptiveHlsPreparation(existing.Id, "failed", existing.LastError);
+            return new AdaptiveHlsPreparation(existing.Id, "failed", existing.LastError, RunFor(existing.Id, existing.RootPath, settings.AdaptiveHls.SegmentSeconds));
         }
         if (existing is not null && _preparations.ContainsKey(existing.Id)
             && File.Exists(Path.Combine(existing.RootPath, "master.m3u8")))
         {
-            return new AdaptiveHlsPreparation(existing.Id, "streaming", null);
+            return new AdaptiveHlsPreparation(existing.Id, "streaming", null, RunFor(existing.Id, existing.RootPath, settings.AdaptiveHls.SegmentSeconds));
         }
         if (existing is { Status: "ready" } && File.Exists(Path.Combine(existing.RootPath, "master.m3u8")))
         {
@@ -90,7 +95,7 @@ public sealed class AdaptiveHlsService
 
         var task = _preparations.GetOrAdd(
             package.Id,
-            _ => new Lazy<Task>(() => PreparePackageAsync(package, audioTracks, _lifetime.ApplicationStopping))).Value;
+            _ => new Lazy<Task>(() => PreparePackageAsync(package, audioTracks, plan, _lifetime.ApplicationStopping))).Value;
         var wait = TimeSpan.FromSeconds(1); // Report preparing promptly; the player retains start intent.
         try
         {
@@ -99,26 +104,56 @@ public sealed class AdaptiveHlsService
             {
                 if (File.Exists(Path.Combine(package.RootPath, "master.m3u8")))
                 {
-                    return new AdaptiveHlsPreparation(package.Id, "streaming", null);
+                    return new AdaptiveHlsPreparation(package.Id, "streaming", null, RunFor(package.Id, package.RootPath, settings.AdaptiveHls.SegmentSeconds));
                 }
                 await Task.Delay(250, ct).ConfigureAwait(false);
             }
             if (!task.IsCompleted)
             {
-                return new AdaptiveHlsPreparation(package.Id, "preparing", null);
+                return new AdaptiveHlsPreparation(package.Id, "preparing", null, RunFor(package.Id, package.RootPath, settings.AdaptiveHls.SegmentSeconds));
             }
             await task.ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
-            return new AdaptiveHlsPreparation(package.Id, "preparing", null);
+            return new AdaptiveHlsPreparation(package.Id, "preparing", null, RunFor(package.Id, package.RootPath, settings.AdaptiveHls.SegmentSeconds));
         }
 
         var refreshed = await _packages.FindByIdAsync(package.Id, ct).ConfigureAwait(false);
         return new AdaptiveHlsPreparation(
             package.Id,
             refreshed?.Status ?? "failed",
-            refreshed?.LastError);
+            refreshed?.LastError,
+            RunFor(package.Id, package.RootPath, settings.AdaptiveHls.SegmentSeconds));
+    }
+
+    /// <summary>What the packager is doing for a package right now, with how much is ready; null when it was never started here.</summary>
+    private AdaptiveHlsRunInfo? RunFor(Guid packageId, string root, int segmentSeconds)
+    {
+        if (!_runs.TryGetValue(packageId, out var run))
+        {
+            return null;
+        }
+
+        int? percent = null;
+        try
+        {
+            var directory = Path.Combine(root, "v0");
+            if (run.DurationSeconds > 0 && Directory.Exists(directory))
+            {
+                var segments = Directory.EnumerateFiles(directory, "segment_*.ts").Count();
+                percent = segments == 0
+                    ? null
+                    : (int)Math.Clamp(segments * (double)segmentSeconds / run.DurationSeconds * 100d, 1, 100);
+            }
+        }
+        catch (IOException)
+        {
+            // The folder was being rewritten while we counted; the next question gets the number.
+            percent = null;
+        }
+
+        return run.Snapshot(percent);
     }
 
     public async Task<HlsResourceLease?> OpenResourceAsync(
@@ -191,9 +226,15 @@ public sealed class AdaptiveHlsService
     private async Task PreparePackageAsync(
         AdaptiveHlsPackageRecord package,
         IReadOnlyList<PlaybackTrackDto> audioTracks,
+        HlsStartPlan plan,
         CancellationToken ct)
     {
+        var run = _runs.AddOrUpdate(
+            package.Id,
+            _ => new AdaptiveHlsRunInfo { WaitingForSlot = true },
+            (_, _) => new AdaptiveHlsRunInfo { WaitingForSlot = true });
         await _encodeSlots.WaitAsync(ct).ConfigureAwait(false);
+        run.WaitingForSlot = false;
         using var preparationCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         ct = preparationCancellation.Token;
         var staging = package.RootPath;
@@ -223,10 +264,25 @@ public sealed class AdaptiveHlsService
                 throw new InvalidOperationException("The source video dimensions could not be inspected.");
             }
 
-            var renditions = SelectRenditions(settings.AdaptiveHls, probe.Height.Value).OrderBy(r => r.Height).ToArray();
+            var copyVideo = plan.Decision.CopyVideo;
+            run.DurationSeconds = probe.Duration.TotalSeconds;
+            var renditions = (copyVideo
+                    ? [SourceRendition(probe)]
+                    : PickRenditions(settings.AdaptiveHls, probe.Height.Value, plan))
+                .OrderBy(r => r.Height).ToArray();
             // Captions can require reading the entire source. Publish video independently.
             captionTask = PrepareCaptionsAsync(package.AssetId, asset.FilePathRoot, staging, probe, ct);
-            var encoder = ResolveEncoder(settings.HardwareAcceleration);
+            var choice = copyVideo
+                ? new HlsEncoderChoice("copy", PlaybackEncodePlaces.None, null)
+                : ChooseEncoder(settings.HardwareAcceleration, _ffmpeg.HardwareCapabilities);
+            var encoder = choice.Encoder;
+            run.Encoder = encoder;
+            run.RanOn = choice.RanOn;
+            run.FallbackReason = choice.FallbackReason;
+            _logger.LogInformation(
+                "Play: {Rung}, because {Reason}; encoder {Encoder}, runs on {RanOn}{Fallback} (asset {AssetId})",
+                plan.Decision.Rung, plan.Decision.FullReason, encoder, choice.RanOn,
+                choice.FallbackReason is null ? string.Empty : $" ({choice.FallbackReason})", package.AssetId);
             if (audioTracks.Count == 0 && !string.IsNullOrWhiteSpace(probe.AudioCodec))
             {
                 audioTracks = [new PlaybackTrackDto { Index = 0, Codec = probe.AudioCodec, Language = probe.AudioLanguage, DisplayName = "Audio", IsDefault = true }];
@@ -234,46 +290,40 @@ public sealed class AdaptiveHlsService
             if (audioTracks.Count > 0)
             {
                 Directory.CreateDirectory(Path.Combine(staging, "a0"));
-                firstAudio = EncodeAudioAsync(asset.FilePathRoot, Path.Combine(staging, "a0"), 0, settings.AdaptiveHls.SegmentSeconds, ct);
+                firstAudio = EncodeAudioAsync(asset.FilePathRoot, Path.Combine(staging, "a0"), 0, settings.AdaptiveHls.SegmentSeconds, plan.Decision.CopyAudioCodecs, audioTracks[0].Codec, ct);
             }
             for (var index = 0; index < renditions.Length; index++)
             {
                 var rendition = renditions[index];
                 var directory = Path.Combine(staging, $"v{index}");
                 Directory.CreateDirectory(directory);
-                var encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, ct);
-                if (index == 0)
+                var firstRendition = index == 0;
+                Task Publish() => WriteMasterPlaylistAsync(staging, [rendition], audioTracks.Take(1).ToArray(),
+                    captionTask.IsCompletedSuccessfully ? captionTask.Result : [], copyVideo, ct);
+                bool AudioReady() => firstAudio is null || HasPublishedSegment(Path.Combine(staging, "a0"));
+
+                var result = await RunVideoAsync(
+                    token => copyVideo
+                        ? CopyVideoAsync(asset.FilePathRoot, directory, settings.AdaptiveHls.SegmentSeconds, token)
+                        : EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, token),
+                    directory, watchStart: !copyVideo && encoder != "libx264",
+                    firstRendition ? AudioReady : null, firstRendition ? Publish : null, ct).ConfigureAwait(false);
+                if (result.ExitCode != 0 && !copyVideo && !string.Equals(encoder, "libx264", StringComparison.Ordinal))
                 {
-                    while (!encode.IsCompleted)
-                    {
-                        if (HasPublishedSegment(directory) && (firstAudio is null || HasPublishedSegment(Path.Combine(staging, "a0"))))
-                        {
-                            await WriteMasterPlaylistAsync(staging, [rendition], audioTracks.Take(1).ToArray(), captionTask.IsCompletedSuccessfully ? captionTask.Result : [], ct);
-                            break;
-                        }
-                        await Task.Delay(250, ct);
-                    }
-                }
-                var result = await encode.ConfigureAwait(false);
-                if (result.ExitCode != 0 && !string.Equals(encoder, "libx264", StringComparison.Ordinal))
-                {
-                    _logger.LogWarning("Hardware HLS encode failed for {AssetId}; retrying with libx264: {Error}", package.AssetId, Tail(result.Error));
+                    // Restart this start on the processor at once, and say why (playback-path D5).
+                    var reason = HardwareReasons.Plain(result.Error);
+                    _logger.LogWarning("Graphics card encode failed for {AssetId} ({Reason}); restarting on the processor: {Error}",
+                        package.AssetId, reason, Tail(result.Error));
+                    encoder = "libx264";
+                    run.Encoder = encoder;
+                    run.RanOn = PlaybackEncodePlaces.Processor;
+                    run.FallbackReason = reason;
                     DeleteDirectory(directory);
                     Directory.CreateDirectory(directory);
-                    encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, "libx264", settings.AdaptiveHls.SegmentSeconds, probe, ct);
-                    if (index == 0)
-                    {
-                        while (!encode.IsCompleted)
-                        {
-                            if (HasPublishedSegment(directory) && (firstAudio is null || HasPublishedSegment(Path.Combine(staging, "a0"))))
-                            {
-                                await WriteMasterPlaylistAsync(staging, [rendition], audioTracks.Take(1).ToArray(), captionTask.IsCompletedSuccessfully ? captionTask.Result : [], ct);
-                                break;
-                            }
-                            await Task.Delay(250, ct);
-                        }
-                    }
-                    result = await encode.ConfigureAwait(false);
+                    result = await RunVideoAsync(
+                        token => EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, token),
+                        directory, watchStart: false,
+                        firstRendition ? AudioReady : null, firstRendition ? Publish : null, ct).ConfigureAwait(false);
                 }
                 if (result.ExitCode != 0)
                 {
@@ -288,7 +338,9 @@ public sealed class AdaptiveHlsService
             {
                 var directory = Path.Combine(staging, $"a{index}");
                 Directory.CreateDirectory(directory);
-                var result = await (index == 0 && firstAudio is not null ? firstAudio : EncodeAudioAsync(asset.FilePathRoot, directory, index, settings.AdaptiveHls.SegmentSeconds, ct))
+                var result = await (index == 0 && firstAudio is not null
+                        ? firstAudio
+                        : EncodeAudioAsync(asset.FilePathRoot, directory, index, settings.AdaptiveHls.SegmentSeconds, plan.Decision.CopyAudioCodecs, audioTracks[index].Codec, ct))
                     .ConfigureAwait(false);
                 if (result.ExitCode != 0)
                 {
@@ -305,13 +357,14 @@ public sealed class AdaptiveHlsService
             }
 
             var captions = await captionTask.ConfigureAwait(false);
-            await WriteMasterPlaylistAsync(staging, renditions, generatedAudio, captions, ct).ConfigureAwait(false);
+            await WriteMasterPlaylistAsync(staging, renditions, generatedAudio, captions, copyVideo, ct).ConfigureAwait(false);
             ValidatePackage(staging);
 
             var bytes = Directory.EnumerateFiles(package.RootPath, "*", SearchOption.AllDirectories)
                 .Sum(path => new FileInfo(path).Length);
             await _packages.MarkReadyAsync(package.Id, package.RootPath, bytes, ct).ConfigureAwait(false);
             _logger.LogInformation("Adaptive HLS package {PackageId} is ready for asset {AssetId} ({Bytes} bytes)", package.Id, package.AssetId, bytes);
+            _runs.TryRemove(package.Id, out _);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -319,6 +372,7 @@ public sealed class AdaptiveHlsService
             if (firstAudio is not null) { try { await firstAudio; } catch (OperationCanceledException) { } }
             if (captionTask is not null) { try { await captionTask; } catch (Exception captionError) { _logger.LogDebug(captionError, "Caption preparation stopped"); } }
             DeleteDirectory(staging);
+            _runs.TryRemove(package.Id, out _);
         }
         catch (Exception ex)
         {
@@ -334,6 +388,75 @@ public sealed class AdaptiveHlsService
             _preparations.TryRemove(package.Id, out _);
             _encodeSlots.Release();
         }
+    }
+
+    /// <summary>How long a graphics encoder gets to write its first segment before the start moves to the processor.</summary>
+    private static readonly TimeSpan HardwareStartDeadline = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Runs one video encode or copy. Publishes the master playlist as soon as the first segment (and first audio segment) exist, and
+    /// when <paramref name="watchStart"/> is set, stops an encoder that has not written a segment within the deadline.
+    /// </summary>
+    private static async Task<(int ExitCode, string Output, string Error)> RunVideoAsync(
+        Func<CancellationToken, Task<(int ExitCode, string Output, string Error)>> start,
+        string directory,
+        bool watchStart,
+        Func<bool>? readyToPublish,
+        Func<Task>? publish,
+        CancellationToken ct)
+    {
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var task = start(stop.Token);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var segmentSeen = false;
+        while (!task.IsCompleted)
+        {
+            var segment = HasPublishedSegment(directory);
+            segmentSeen |= segment;
+            if (publish is not null && segment && (readyToPublish?.Invoke() ?? true))
+            {
+                await publish().ConfigureAwait(false);
+                publish = null;
+            }
+            if (watchStart && !segmentSeen && clock.Elapsed > HardwareStartDeadline)
+            {
+                await stop.CancelAsync().ConfigureAwait(false);
+                try { await task.ConfigureAwait(false); }
+                catch (OperationCanceledException) { /* Stopped on purpose: the caller restarts on the processor. */ }
+                return (-1, string.Empty, "The graphics encoder did not produce its first segment in time (did not finish starting).");
+            }
+            await Task.Delay(250, ct).ConfigureAwait(false);
+        }
+        return await task.ConfigureAwait(false);
+    }
+
+    private Task<(int ExitCode, string Output, string Error)> CopyVideoAsync(
+        string input,
+        string directory,
+        int segmentSeconds,
+        CancellationToken ct) => _ffmpeg.RunAsync(
+        [
+            "-y", "-hide_banner", "-loglevel", "warning", "-i", input,
+            "-map", "0:v:0", "-an", "-sn", "-c:v", "copy",
+            "-f", "hls", "-hls_time", segmentSeconds.ToString(CultureInfo.InvariantCulture),
+            "-hls_playlist_type", "event", "-hls_flags", "independent_segments+temp_file",
+            "-hls_segment_filename", Path.Combine(directory, "segment_%05d.ts"), Path.Combine(directory, "index.m3u8"),
+        ], ct);
+
+    /// <summary>A stand-in rendition for a copied picture: the source's own size and bitrate, never re-encoded.</summary>
+    private static HlsRenditionProfile SourceRendition(MediaEngine.Domain.Models.MediaProbeResult probe)
+    {
+        var kbps = probe.Duration.TotalSeconds > 0 && probe.FileSizeBytes > 0
+            ? (int)Math.Clamp(probe.FileSizeBytes * 8d / probe.Duration.TotalSeconds / 1000d, 500, 100_000)
+            : 8000;
+        return new HlsRenditionProfile
+        {
+            Name = "source",
+            Height = probe.Height ?? 0,
+            VideoBitrateKbps = kbps,
+            MaxRateKbps = kbps,
+            BufferSizeKbps = kbps * 2,
+        };
     }
 
     private async Task<(int ExitCode, string Output, string Error)> EncodeVideoAsync(
@@ -376,10 +499,15 @@ public sealed class AdaptiveHlsService
         string directory,
         int streamIndex,
         int segmentSeconds,
+        IReadOnlyList<string> copyCodecs,
+        string? sourceCodec,
         CancellationToken ct) => _ffmpeg.RunAsync(
         [
             "-y", "-hide_banner", "-loglevel", "warning", "-i", input,
-            "-map", $"0:a:{streamIndex}", "-vn", "-sn", "-c:a", "aac", "-b:a", "160k", "-ac", "2",
+            "-map", $"0:a:{streamIndex}", "-vn", "-sn",
+            ..(copyCodecs.Contains(PlaybackCapabilitiesService.NormalizeCodecName(sourceCodec), StringComparer.OrdinalIgnoreCase)
+                ? new[] { "-c:a", "copy" }
+                : new[] { "-c:a", "aac", "-b:a", "160k", "-ac", "2" }),
             "-f", "hls", "-hls_time", segmentSeconds.ToString(CultureInfo.InvariantCulture),
             "-hls_playlist_type", "event", "-hls_flags", "temp_file", "-hls_segment_filename", Path.Combine(directory, "segment_%05d.ts"),
             Path.Combine(directory, "index.m3u8"),
@@ -479,6 +607,7 @@ public sealed class AdaptiveHlsService
         IReadOnlyList<HlsRenditionProfile> renditions,
         IReadOnlyList<PlaybackTrackDto> audioTracks,
         IReadOnlyList<HlsCaption> captions,
+        bool copiedVideo,
         CancellationToken ct)
     {
         var builder = new StringBuilder("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n");
@@ -504,10 +633,14 @@ public sealed class AdaptiveHlsService
         {
             var rendition = renditions[index];
             var bandwidth = (rendition.VideoBitrateKbps + 160) * 1000;
-            builder.Append("#EXT-X-STREAM-INF:BANDWIDTH=").Append(bandwidth)
-                .Append(audioTracks.Count > 0
+            builder.Append("#EXT-X-STREAM-INF:BANDWIDTH=").Append(bandwidth);
+            // A copied picture keeps the file's own codec and level, which are not known here, so no CODECS guess is written for it.
+            if (!copiedVideo)
+            {
+                builder.Append(audioTracks.Count > 0
                     ? ",CODECS=\"avc1.4d401f,mp4a.40.2\""
                     : ",CODECS=\"avc1.4d401f\"");
+            }
             if (audioTracks.Count > 0)
             {
                 builder.Append(",AUDIO=\"audio\"");
@@ -525,15 +658,77 @@ public sealed class AdaptiveHlsService
         File.Move(Path.Combine(root, "master.m3u8.tmp"), Path.Combine(root, "master.m3u8"), true);
     }
 
-    private string ResolveEncoder(string configured) => configured.ToLowerInvariant() switch
+    /// <summary>
+    /// Picks the encoder for one start and says where it runs and, when the graphics card was expected but is not used, why not.
+    /// Automatic tries the graphics card; the processor is the stated fallback (playback-path D5).
+    /// </summary>
+    internal static HlsEncoderChoice ChooseEncoder(string configured, HardwareCapabilities hardware)
     {
-        "none" or "cpu" => "libx264",
-        "nvenc" when _ffmpeg.HardwareCapabilities.HasNvenc => "h264_nvenc",
-        "quicksync" when _ffmpeg.HardwareCapabilities.HasQuickSync => "h264_qsv",
-        "vaapi" when _ffmpeg.HardwareCapabilities.HasVaapi => "h264_vaapi",
-        "gpu" or "auto" => _ffmpeg.HardwareCapabilities.PreferredEncoder,
-        _ => "libx264",
-    };
+        var mode = configured.Trim().ToLowerInvariant();
+        const string processor = PlaybackEncodePlaces.Processor;
+        if (mode is "none" or "cpu")
+        {
+            return new HlsEncoderChoice("libx264", processor, "Processor only is chosen in Playback settings");
+        }
+
+        var wanted = mode switch
+        {
+            "nvenc" => "h264_nvenc",
+            "quicksync" => "h264_qsv",
+            "vaapi" => "h264_vaapi",
+            _ => null,
+        };
+        var available = mode switch
+        {
+            "nvenc" => hardware.HasNvenc,
+            "quicksync" => hardware.HasQuickSync,
+            "vaapi" => hardware.HasVaapi,
+            _ => hardware.PreferredEncoder != "libx264",
+        };
+        if (available)
+        {
+            return new HlsEncoderChoice(wanted ?? hardware.PreferredEncoder, PlaybackEncodePlaces.GraphicsCard, null);
+        }
+
+        var failure = hardware.ProbeFailures.FirstOrDefault(pair => wanted is null || pair.Key == wanted);
+        var reason = failure.Key is not null
+            ? HardwareReasons.Plain(failure.Value)
+            : "No graphics card encoding was found";
+        return new HlsEncoderChoice("libx264", processor, reason);
+    }
+
+    /// <summary>
+    /// One quality right-sized for the player (playback-path D4): the tallest configured quality that does not exceed the source, the
+    /// player's own limit or the connection's cap. When a remote or slow connection asks, the next lower quality is added beside it.
+    /// </summary>
+    internal static IReadOnlyList<HlsRenditionProfile> PickRenditions(AdaptiveHlsSettings settings, int sourceHeight, HlsStartPlan plan)
+    {
+        var limit = sourceHeight;
+        if (plan.MaxHeight is > 0)
+        {
+            limit = Math.Min(limit, plan.MaxHeight.Value);
+        }
+
+        var pool = SelectRenditions(settings, limit);
+        if (plan.MaxBitrateKbps is > 0)
+        {
+            var affordable = pool.Where(r => r.VideoBitrateKbps <= plan.MaxBitrateKbps.Value).ToList();
+            pool = affordable.Count > 0 ? affordable : [pool[^1]];
+        }
+
+        var chosen = pool[0];
+        var picked = new List<HlsRenditionProfile> { chosen };
+        if (plan.OfferLowerQuality)
+        {
+            var lower = pool.FirstOrDefault(r => r.Height < chosen.Height);
+            if (lower is not null)
+            {
+                picked.Add(lower);
+            }
+        }
+
+        return picked;
+    }
 
     internal static IReadOnlyList<HlsRenditionProfile> SelectRenditions(AdaptiveHlsSettings settings, int sourceHeight)
     {
@@ -556,11 +751,12 @@ public sealed class AdaptiveHlsService
         return selected;
     }
 
-    private static string BuildProfileKey(AdaptiveHlsSettings settings)
+    private static string BuildProfileKey(AdaptiveHlsSettings settings, HlsStartPlan plan)
     {
         var json = JsonSerializer.Serialize(settings);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))[..16];
-        return $"progressive-v2:{settings.ProfileName}:{fingerprint}";
+        var audio = string.Join('+', plan.Decision.CopyAudioCodecs.Order(StringComparer.Ordinal));
+        return $"progressive-v3:{settings.ProfileName}:{plan.Decision.Rung}:h{plan.MaxHeight?.ToString() ?? "-"}:b{plan.MaxBitrateKbps?.ToString() ?? "-"}:{(plan.OfferLowerQuality ? "ladder" : "single")}:a{audio}:{fingerprint}";
     }
 
     private static bool HasPublishedSegment(string directory)
@@ -691,7 +887,77 @@ public sealed class AdaptiveHlsService
     private sealed record HlsCaption(string Language, bool IsDefault);
 }
 
-public sealed record AdaptiveHlsPreparation(Guid PackageId, string Status, string? Error);
+public sealed record AdaptiveHlsPreparation(Guid PackageId, string Status, string? Error, AdaptiveHlsRunInfo? Run = null);
+
+/// <summary>How a stream is to be prepared: the ladder's decision plus the connection's limits (playback-path D1, D4).</summary>
+/// <param name="Decision">Which rung, and whether picture and sound are copied.</param>
+/// <param name="MaxHeight">The tallest picture the player or connection allows, or null for no limit.</param>
+/// <param name="MaxBitrateKbps">The most video bitrate the connection can carry, or null.</param>
+/// <param name="OfferLowerQuality">True when a remote or slow connection needs a second, lower quality beside the first.</param>
+public sealed record HlsStartPlan(PlaybackDecision Decision, int? MaxHeight = null, int? MaxBitrateKbps = null, bool OfferLowerQuality = false)
+{
+    /// <summary>What a caller with no ladder (an older cast path) gets: encode the picture, copy nothing.</summary>
+    public static HlsStartPlan EncodeDefault { get; } = new(new PlaybackDecision(PlaybackRungs.EncodePicture, "The player needs a prepared stream", false, []));
+}
+
+/// <summary>The encoder one start uses, where it runs, and why the graphics card was not used when it was expected.</summary>
+public sealed record HlsEncoderChoice(string Encoder, string RanOn, string? FallbackReason);
+
+/// <summary>A live view of one package being prepared. Written by the packager, read (as a snapshot) for the manifest.</summary>
+public sealed class AdaptiveHlsRunInfo
+{
+    public bool WaitingForSlot { get; set; }
+    public string Encoder { get; set; } = "libx264";
+    public string RanOn { get; set; } = PlaybackEncodePlaces.Processor;
+    public string? FallbackReason { get; set; }
+    public int? PercentPrepared { get; init; }
+    internal double DurationSeconds { get; set; }
+
+    internal AdaptiveHlsRunInfo Snapshot(int? percent) => new()
+    {
+        WaitingForSlot = WaitingForSlot,
+        Encoder = Encoder,
+        RanOn = RanOn,
+        FallbackReason = FallbackReason,
+        PercentPrepared = percent,
+        DurationSeconds = DurationSeconds,
+    };
+}
+
+/// <summary>
+/// Limits how many streams are prepared at once. Unlike a fixed semaphore, the limit is asked for again each time, so a change to
+/// "Maximum active encodes" applies to the next start without restarting the Engine.
+/// </summary>
+public sealed class EncodeSlotGate(Func<int> limit)
+{
+    private readonly object _gate = new();
+    private int _active;
+
+    public async Task WaitAsync(CancellationToken ct)
+    {
+        while (true)
+        {
+            lock (_gate)
+            {
+                if (_active < Math.Max(1, limit()))
+                {
+                    _active++;
+                    return;
+                }
+            }
+
+            await Task.Delay(500, ct).ConfigureAwait(false);
+        }
+    }
+
+    public void Release()
+    {
+        lock (_gate)
+        {
+            _active = Math.Max(0, _active - 1);
+        }
+    }
+}
 
 public sealed class HlsResourceLease(Stream stream, string contentType, Action release) : IAsyncDisposable
 {

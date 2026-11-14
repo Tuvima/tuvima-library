@@ -23,6 +23,15 @@ public sealed record HardwareCapabilities
     /// <summary>Human-readable description of the detected accelerator, or null.</summary>
     public string? DetectedAccelerator { get; init; }
 
+    /// <summary>
+    /// Why a graphics encoder that FFmpeg lists did not pass the start-up test, keyed by encoder name (for example
+    /// <c>h264_nvenc</c>), holding the tail of FFmpeg's own error text. Empty when every listed encoder worked or none was listed.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ProbeFailures { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The graphics card's name when the operating system could say (for example "NVIDIA GeForce RTX 5080"), or null.</summary>
+    public string? GpuName { get; init; }
+
     public bool HasHlsMuxer { get; init; }
     public bool HasH264Encoder { get; init; }
     public bool HasAacEncoder { get; init; }

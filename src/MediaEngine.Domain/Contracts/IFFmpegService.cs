@@ -35,6 +35,12 @@ public interface IFFmpegService
     bool Redetect() => IsAvailable;
 
     /// <summary>
+    /// Tests the graphics encoders again right now, ignoring the earlier answer, and returns what was found. Used by the
+    /// "Test hardware" button and after FFmpeg is updated. Implementations without hardware probing return the current answer.
+    /// </summary>
+    HardwareCapabilities RetestHardware() => HardwareCapabilities;
+
+    /// <summary>
     /// Run ffprobe on the given file and return structured media metadata.
     /// Returns null if ffprobe is unavailable or the file cannot be probed.
     /// </summary>
