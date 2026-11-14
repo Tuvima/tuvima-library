@@ -93,7 +93,4 @@ public sealed partial class EngineApiClient
             "Show re-match preview",
             $"/metadata/{entityId}/rematch-children",
             new Dictionary<string, string?> { ["seriesId"] = seriesId }, ct: ct);
-
-    public async Task<EditorFollowUpDto?> GetEditorFollowUpAsync(Guid entityId, CancellationToken ct = default) =>
-        await GetAsync<EditorFollowUpDto>("Editor follow-up", $"/metadata/{entityId}/follow-up", ct: ct);
 }

@@ -73,7 +73,6 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
                 _overrideSaves.Add("saved");
                 return Task.FromResult(true);
             });
-            stub.SetHandler(nameof(IEngineApiClient.GetEditorFollowUpAsync), _ => Task.FromResult(_followUp));
             stub.SetHandler(nameof(IEngineApiClient.GetEditorQuickFactsAsync), _ => Task.FromResult(_quickFacts));
             stub.SetHandler(nameof(IEngineApiClient.GetItemExplicitAsync), _ =>
             {
@@ -96,34 +95,10 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         return api;
     }
 
-    private EditorFollowUpDto? _followUp;
     private ItemQuickFactsDto? _quickFacts;
     private readonly bool _explicitSaved = false;
     private int _explicitAsks;
     private int _explicitDirectSaves;
-
-    [Fact]
-    public async Task AfterAMatchSave_TheRibbonListsTheNamedSteps_AndShowsAnAmberReasonWhenOneStops()
-    {
-        _followUp = new EditorFollowUpDto
-        {
-            Steps =
-            [
-                new EditorFollowUpStepDto { Key = EditorFollowUpSteps.Matched, Label = "Matched", State = EditorFollowUpStates.Done },
-                new EditorFollowUpStepDto { Key = EditorFollowUpSteps.Details, Label = "Details from the providers", State = EditorFollowUpStates.Failed, Reason = "TMDB did not answer." },
-            ],
-        };
-        var editor = await StartEditorAsync();
-        editor.Session.Pending.SetTarget(EditSessionChangeKinds.Identity, MovieId, "provider-1");
-        var bar = RenderBar(editor);
-        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
-
-        SaveFromReview(bar);
-
-        ribbon.WaitForAssertion(() => Assert.Equal(2, ribbon.FindAll(".tl-saved-ribbon__steps li").Count));
-        Assert.Contains("Details from the providers: TMDB did not answer.", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Needs Review", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal);
-    }
 
     private static EditSessionResult Ok(EditSessionRequest request) => new()
     {
@@ -1120,42 +1095,28 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         Assert.Equal(1, _refreshes);
         Assert.True(editor.Session.Pending.IsEmpty);
         Assert.False(editor.Session.IsActive);
-        Assert.Equal(1, editor.Flow.LastSave?.Count);
+        // The window closes with nothing drawn in its place (v7 D12): the item shows the app's normal Updating state instead.
+        Assert.DoesNotContain("tl-saved-ribbon", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("tl-saved-ribbon", _dialogs.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Saved 1 change", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task AfterASave_TheRibbonSaysHowManyChangesWereSaved_AndDismissClearsIt()
+    public async Task AfterAMatchSave_TheWindowClosesWithNoBox_AndThePageIsToldToRefreshSoTheItemCanShowUpdating()
     {
         var editor = await StartEditorAsync();
-        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
-        var bar = RenderBar(editor);
-        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
-        Assert.Empty(ribbon.FindAll(".tl-saved-ribbon"));
+        editor.Session.Pending.SetTarget(EditSessionChangeKinds.Identity, MovieId, "provider-1");
+        var cut = RenderBar(editor);
 
-        SaveFromReview(bar);
+        SaveFromReview(cut);
 
-        ribbon.WaitForAssertion(() => Assert.Contains("Saved 1 change at", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal));
-        ribbon.Find(".tl-saved-ribbon button").Click();
-        ribbon.WaitForAssertion(() => Assert.Empty(ribbon.FindAll(".tl-saved-ribbon")));
-        Assert.Null(editor.Flow.LastSave);
-    }
-
-    [Fact]
-    public async Task AfterASave_TheRibbonNamesTheProviderWhoseDetailsArriveForTheSavedItem_AndIgnoresOtherItems()
-    {
-        var editor = await StartEditorAsync();
-        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
-        var bar = RenderBar(editor);
-        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
-        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
-        SaveFromReview(bar);
-        ribbon.WaitForElement(".tl-saved-ribbon");
-
-        await ribbon.InvokeAsync(() => orchestrator.RaiseHydrationStageCompleted(new HydrationStageCompletedEvent(Guid.NewGuid(), 1, 5, "Other")));
-        await ribbon.InvokeAsync(() => orchestrator.RaiseHydrationStageCompleted(new HydrationStageCompletedEvent(MovieId, 1, 5, "TMDB")));
-
-        ribbon.WaitForAssertion(() => Assert.Contains("Updated from TMDB.", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal));
-        Assert.DoesNotContain("Other", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
+        // One refresh, after the Engine took the match: the Engine then reports the item as updating until its finishing work is done,
+        // and every tile and row shows that through the same flag it uses during ingestion.
+        Assert.Equal(1, _refreshes);
+        Assert.True(editor.Session.Pending.IsEmpty);
+        Assert.DoesNotContain("tl-saved-ribbon", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("tl-saved-ribbon", _dialogs.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

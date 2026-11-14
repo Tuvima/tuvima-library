@@ -5613,15 +5613,6 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-saved-ribbon{position:fixed;top:4.5rem;left:50%;z-index:60;display:flex;align-items:center;gap:var(--tl-space-2);padding:var(--tl-space-1) var(--tl-space-2) var(--tl-space-1) var(--tl-space-3);transform:translateX(-50%);border:1px solid var(--tl-border-subtle);border-radius:var(--tl-radius-pill);background:var(--tl-bg-surface,var(--tl-bg-root));box-shadow:var(--tl-shadow-md);color:var(--tl-text-primary);font-size:var(--tl-font-size-sm)}
 .tl-saved-ribbon>:first-child{color:var(--tl-status-success)}
 .tl-saved-ribbon__progress{flex:1 1 8rem;min-width:8rem}
-/* The saved ribbon's named steps and the glow on changed parts (editor v3, D7). */
-.tl-saved-ribbon[data-steps=true]{flex-wrap:wrap;max-width:min(36rem,calc(100vw - 2rem));border-radius:var(--tl-radius-lg,.75rem)}
-.tl-saved-ribbon__steps{display:flex;flex-wrap:wrap;flex:1 1 100%;gap:var(--tl-space-1) var(--tl-space-3);margin:0;padding:0;list-style:none;color:var(--tl-text-secondary)}
-.tl-saved-ribbon__step{display:inline-flex;align-items:center;gap:var(--tl-space-1)}
-.tl-saved-ribbon__step[data-state=done] svg{color:var(--tl-status-success)}
-.tl-saved-ribbon__step[data-state=waiting]{opacity:.6}
-.tl-saved-ribbon__step[data-state=failed]{color:var(--tl-status-warning);font-weight:var(--tl-font-weight-semibold)}
-.tl-saved-ribbon__step .tl-progress-circular{width:1rem;height:1rem}
-.tl-saved-ribbon__reason{flex:1 1 100%;margin:0;color:var(--tl-status-warning)}
 @keyframes tl-just-changed{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--tl-accent-primary) 70%,transparent)}35%{box-shadow:0 0 .75rem .35rem color-mix(in srgb,var(--tl-accent-primary) 55%,transparent)}100%{box-shadow:0 0 0 0 transparent}}
 .tl-just-changed{animation:tl-just-changed 3.4s ease-out 1}
 @keyframes tl-just-changed-quiet{0%,70%{outline-color:var(--tl-accent-primary)}100%{outline-color:transparent}}
