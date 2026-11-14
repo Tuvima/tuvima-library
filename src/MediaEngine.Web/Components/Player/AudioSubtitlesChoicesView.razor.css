@@ -38,7 +38,7 @@
     display: grid;
     font: 500 16px/1.45 var(--font-ui);
     gap: 0 12px;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 24px;
     min-height: var(--playback-panel-row-height);
     padding: 4px 10px;
     text-align: left;

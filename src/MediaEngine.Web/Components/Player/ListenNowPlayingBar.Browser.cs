@@ -231,6 +231,15 @@ public partial class ListenNowPlayingBar
                 return _restored;
             }
 
+            // A reset makes a new data store with new profiles, but the browser still holds the old queue. Remembered playback that belongs to
+            // a profile this data store does not have is dropped, so a fresh library starts with no player (issue 972).
+            if (snapshot?.ProfileId is { } savedProfile && Playback.ActiveProfileId is { } activeProfile && savedProfile != activeProfile)
+            {
+                await JS.InvokeVoidAsync("listenPlayback.clearState");
+                _playbackRestoreError = null;
+                return true;
+            }
+
             if (snapshot is not null)
             {
                 Playback.RestoreInitialState(snapshot);

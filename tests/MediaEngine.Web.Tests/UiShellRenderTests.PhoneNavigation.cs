@@ -310,12 +310,12 @@ public sealed partial class UiShellRenderTests
 
         button().Click();
 
-        Assert.EndsWith("/my-list", nav.Uri);
+        cut.WaitForAssertion(() => Assert.EndsWith("/my-list", nav.Uri));
         cut.WaitForAssertion(() => Assert.Contains("is-open", cut.Find(".layout-shell__my-list-slot").ClassList));
 
         button().Click();
 
-        Assert.Equal(nav.BaseUri, nav.Uri);
+        cut.WaitForAssertion(() => Assert.Equal(nav.BaseUri, nav.Uri));
         cut.WaitForAssertion(() => Assert.DoesNotContain("is-open", cut.Find(".layout-shell__my-list-slot").ClassList));
     }
 

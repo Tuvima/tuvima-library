@@ -572,8 +572,11 @@
         return string.Equals(currentPath, itemPath, StringComparison.OrdinalIgnoreCase)
                || currentPath.StartsWith($"{itemPath}/", StringComparison.OrdinalIgnoreCase)
                || item.ActiveRoutes is { Count: > 0 } && item.ActiveRoutes.Any(route =>
-                   string.Equals(currentPath, route, StringComparison.OrdinalIgnoreCase)
-                   || currentPath.StartsWith($"{route}/", StringComparison.OrdinalIgnoreCase));
+                   route.StartsWith('=')
+                       // "=/path" lights the row only on that exact address (the bare Settings address stands for Profile, issue 974).
+                       ? string.Equals(currentPath, route[1..], StringComparison.OrdinalIgnoreCase)
+                       : string.Equals(currentPath, route, StringComparison.OrdinalIgnoreCase)
+                         || currentPath.StartsWith($"{route}/", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string NormalizePathAndQuery(Uri uri) => $"{NormalizePath(uri)}{uri.Query}";

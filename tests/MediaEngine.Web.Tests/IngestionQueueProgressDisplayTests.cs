@@ -73,7 +73,7 @@ public sealed class IngestionQueueProgressDisplayTests : LiveLibraryTestContext
 
         var cut = RenderLine(snapshot);
 
-        Assert.Equal("Up to date · last checked 10 min ago", StatusText(cut));
+        Assert.Equal("Up to date · Checked 10 min ago", StatusText(cut));
         Assert.Contains("is-idle", cut.Find(".libs-status__text").ClassList);
     }
 

@@ -210,7 +210,7 @@ public static class IngestionQueueProgressText
     }
 
     /// <summary>
-    /// The one status line on the Libraries page: "Up to date · last checked 10 min ago", "Adding 38 files · about 4 min left", or, while
+    /// The one status line on the Libraries page: "Up to date · Checked 10 min ago", "Adding 38 files · about 4 min left", or, while
     /// every unfinished file waits for a missing tool, the partly-ready headline ("Waiting for media tools · 3 files are waiting").
     /// </summary>
     public static string LibraryStatus(IngestionQueueProgressDto snapshot, DateTimeOffset now)
@@ -233,7 +233,7 @@ public static class IngestionQueueProgressText
         }
 
         return snapshot.LastActivityAt is { } at
-            ? $"Up to date · last checked {FormatAgo(at, now)}"
+            ? $"Up to date · Checked {FormatAgo(at, now)}"
             : "Up to date";
     }
 
