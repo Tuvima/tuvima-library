@@ -10049,6 +10049,9 @@
   <data name="LibraryActivity_Background" xml:space="preserve">
     <value>Background</value>
   </data>
+  <data name="LibraryActivity_BackgroundFor" xml:space="preserve">
+    <value>{0} for {1:N0} {2}</value>
+  </data>
   <data name="LibraryActivity_CountsFound" xml:space="preserve">
     <value>{0} found</value>
   </data>

@@ -23,7 +23,8 @@ public sealed record ShellActivityItem(
     string Label,
     string? Detail,
     int? ProgressPercent,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? OperationType = null);
 
 /// <summary>
 /// The Library's work as the menu indicator sees it: working (blue) when any item is present, idle (green) otherwise.
@@ -320,7 +321,8 @@ public sealed class ShellActivityState : IDisposable
                 operation.ProgressPercent > 0 || operation.ItemsTotal > 0
                     ? Math.Clamp(operation.ProgressPercent, 0, 100)
                     : null,
-                operation.UpdatedAt));
+                operation.UpdatedAt,
+                operation.OperationType));
         }
     }
 
@@ -408,7 +410,7 @@ public sealed class ShellActivityState : IDisposable
         "view.document_text_read" => "Reading document text",
         "view.document_ocr" => "Reading scanned documents",
         "writeback.metadata" => "Writing media metadata",
-        "playback.scrub_previews" => "Preparing scrub previews",
+        "playback.scrub_previews" => "Making preview pictures",
         "playback.bookmark_frame" => "Making bookmark pictures",
         "organise_folder" => "Organising a folder",
         _ => operationKind?.ToLowerInvariant() switch

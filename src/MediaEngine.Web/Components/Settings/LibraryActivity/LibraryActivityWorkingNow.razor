@@ -31,7 +31,10 @@
 @code {
     [Parameter] public IReadOnlyList<IngestionMediaGroupDto> Items { get; set; } = [];
 
-    /// <summary>Plain names of the background work now running (AI, maintenance); empty hides the line.</summary>
+    /// <summary>
+    /// Plain names of the background work now running (follow-up jobs such as preview pictures with their count, AI, maintenance); empty hides
+    /// the line. Background work is never "working" (D29): <see cref="Items"/> holds only titles being added, identified or having details fetched.
+    /// </summary>
     [Parameter] public IReadOnlyList<string> Background { get; set; } = [];
 
     private static string? Step(IngestionMediaGroupDto item)

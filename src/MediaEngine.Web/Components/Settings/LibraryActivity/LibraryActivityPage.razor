@@ -127,9 +127,10 @@
             .Where(item => MediaTypes is null || MediaTypes.Contains(item.MediaType))
             .ToList();
 
-    // AI, enrichment and maintenance have no bar of their own; they count in the card's total and are named here (D7).
+    // Follow-up work (preview pictures and similar) is named by the Engine with its count; AI, enrichment and maintenance have no bar of
+    // their own and are named here as well (D7, D29). None of it is "working": it never shows in Working now or the card.
     private IReadOnlyList<string> BackgroundNames
-        => Shell.Current.Items.Where(item => item.Kind != ShellActivityKind.Ingestion).Select(item => item.Label).Distinct().ToList();
+        => LibraryActivityBackground.Names(Dashboard.Presentation?.BackgroundWork, Shell.Current.Items, L["LibraryActivity_BackgroundFor"].Value);
 
     protected override async Task OnInitializedAsync()
     {
