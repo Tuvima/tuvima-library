@@ -29,7 +29,7 @@ public sealed class LibraryActivityHistoryTests : AsyncBunitContext
                 Interlocked.Increment(ref _runCalls);
                 _lastFrom = (DateTimeOffset?)args![2];
                 _lastTo = (DateTimeOffset?)args[3];
-                return _runs((CancellationToken)args![8]!);
+                return _runs((CancellationToken)args![9]!);
             })));
     }
 

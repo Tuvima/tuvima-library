@@ -21,21 +21,24 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
         var page = await store.ListRunsAsync(query with { Limit = limit + 1 }, ct).ConfigureAwait(false);
         var names = LibraryNames();
 
-        // One entry per scan: the runs of different libraries that opened in the same scan are shown together (Shy 10 Nov).
+        // One entry per scan: the runs of different libraries that opened in the same scan are shown together (Shy 10 Nov). With a chip picked or
+        // a library's own tab (D31), the covers come from that area and those libraries only, like the counts.
+        var scope = new ActivityRunScope(query.LibraryIds, query.MediaTypes);
+        var narrowed = query.MediaTypes is { Count: > 0 };
         var runs = new List<ActivityRunDto>();
         foreach (var scan in page.Take(limit).GroupBy(summary => summary.Run.EntryId))
         {
-            var covers = (await store.ListGroupsAsync(scan.Key, null, 0, CoversPerRun, ct).ConfigureAwait(false))
+            var covers = (await store.ListGroupsAsync(scan.Key, scope, 0, CoversPerRun, ct).ConfigureAwait(false))
                 .Select(group => new ActivityCoverDto(CoverUrl(group), group.MediaType, group.GroupTitle))
                 .ToList();
-            runs.Add(ToDto(scan.ToList(), names, covers));
+            runs.Add(ToDto(scan.ToList(), names, covers, narrowed));
         }
 
         var last = await store.GetLastCompletedAsync(query.LibraryIds, ct).ConfigureAwait(false);
         return new ActivityRunsDto(runs, page.Count > limit, last);
     }
 
-    public async Task<ActivityRunGroupsDto?> ListGroupsAsync(Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default)
+    public async Task<ActivityRunGroupsDto?> ListGroupsAsync(Guid entryId, ActivityRunScope? scope, int offset, int limit, CancellationToken ct = default)
     {
         if (await store.GetRunAsync(entryId, ct).ConfigureAwait(false) is null)
         {
@@ -43,8 +46,7 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
         }
 
         var take = Math.Clamp(limit <= 0 ? 24 : limit, 1, MaximumLimit);
-        var groups = await store.ListGroupsAsync(entryId, string.IsNullOrWhiteSpace(mediaType) ? null : mediaType, offset, take + 1, ct)
-            .ConfigureAwait(false);
+        var groups = await store.ListGroupsAsync(entryId, scope, offset, take + 1, ct).ConfigureAwait(false);
         return new ActivityRunGroupsDto(
             entryId,
             groups.Take(take).Select(ToDto).ToList(),
@@ -84,7 +86,8 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
             .GroupBy(library => library.Id.ToLowerInvariant(), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Name, StringComparer.Ordinal);
 
-    private static ActivityRunDto ToDto(IReadOnlyList<ActivityRunSummary> members, IReadOnlyDictionary<string, string> names, IReadOnlyList<ActivityCoverDto> covers)
+    private static ActivityRunDto ToDto(
+        IReadOnlyList<ActivityRunSummary> members, IReadOnlyDictionary<string, string> names, IReadOnlyList<ActivityCoverDto> covers, bool narrowed)
     {
         var first = members.OrderBy(member => member.Run.StartedAt).First().Run;
         var active = members.Any(member => member.Run.Status == ActivityRunStatuses.Active);
@@ -110,7 +113,7 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
             active ? ActivityRunStatuses.Active : failed ? ActivityRunStatuses.Failed : ActivityRunStatuses.Completed,
             first.StartedAt,
             active ? null : members.Max(member => member.Run.EndedAt),
-            members.Sum(member => member.Run.ItemCount),
+            narrowed ? counts.Sum(count => count.Count) : members.Sum(member => member.Run.ItemCount),
             counts,
             covers);
     }

@@ -52,7 +52,10 @@ public sealed record ActivityRunItemRecord(
 /// <summary>A run with the number of items it touched per media type, for the History entry's plain count.</summary>
 public sealed record ActivityRunSummary(ActivityRunRecord Run, IReadOnlyDictionary<string, int> CountsByMediaType);
 
-/// <summary>What the History list asks for: a month, kinds, a date range, a title search and the library chips.</summary>
+/// <summary>
+/// What the History list asks for: a month, kinds, a date range, a title search and the area chips (D31). <c>MediaTypes</c> is the chosen area's
+/// media types: a batch with nothing of them is left out, and a mixed batch is counted and drawn from those items only.
+/// </summary>
 public sealed record ActivityRunQuery(
     IReadOnlyCollection<string>? LibraryIds = null,
     IReadOnlyCollection<string>? Kinds = null,
@@ -61,7 +64,13 @@ public sealed record ActivityRunQuery(
     string? Search = null,
     bool NewestFirst = true,
     int Offset = 0,
-    int Limit = 200);
+    int Limit = 200,
+    IReadOnlyCollection<string>? MediaTypes = null);
+
+/// <summary>The part of one History entry the page is showing (D31): the chosen libraries and the chosen area's media types. Null or empty means all of it.</summary>
+public sealed record ActivityRunScope(
+    IReadOnlyCollection<string>? LibraryIds = null,
+    IReadOnlyCollection<string>? MediaTypes = null);
 
 /// <summary>One stacked tile inside an opened run: all the episodes of one show, the tracks of one album, or a single title.</summary>
 public sealed record ActivityRunGroup(
@@ -122,8 +131,8 @@ public interface IActivityRunStore
 
     Task<ActivityRunRecord?> GetRunAsync(Guid entryId, CancellationToken ct = default);
 
-    /// <summary>One History entry's items (every run in that scan) as stacked groups (D12), optionally narrowed to one media type, a page at a time.</summary>
-    Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default);
+    /// <summary>One History entry's items (every run in that scan) as stacked groups (D12), optionally narrowed to the chosen libraries and area (D31), a page at a time.</summary>
+    Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid entryId, ActivityRunScope? scope, int offset, int limit, CancellationToken ct = default);
 
     /// <summary>Every title that matches a search, with each run it appears in and how many items that run added (D18).</summary>
     Task<IReadOnlyList<ActivityTitleHit>> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default);

@@ -399,7 +399,7 @@ public sealed class ActivityRunRecorderTests : IDisposable
         public Task<int> ClearInterruptedAsync(CancellationToken ct = default) => inner.ClearInterruptedAsync(ct);
         public Task<IReadOnlyList<ActivityRunSummary>> ListRunsAsync(ActivityRunQuery query, CancellationToken ct = default) => inner.ListRunsAsync(query, ct);
         public Task<ActivityRunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default) => inner.GetRunAsync(runId, ct);
-        public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid runId, string? mediaType, int offset, int limit, CancellationToken ct = default) => inner.ListGroupsAsync(runId, mediaType, offset, limit, ct);
+        public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid runId, ActivityRunScope? scope, int offset, int limit, CancellationToken ct = default) => inner.ListGroupsAsync(runId, scope, offset, limit, ct);
         public Task<IReadOnlyList<ActivityTitleHit>> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default) => inner.SearchTitlesAsync(query, ct);
         public Task<DateTimeOffset?> GetLastCompletedAsync(IReadOnlyCollection<string>? libraryIds, CancellationToken ct = default) => inner.GetLastCompletedAsync(libraryIds, ct);
         public Task<int> PurgeAsync(DateTimeOffset olderThan, CancellationToken ct = default) => inner.PurgeAsync(olderThan, ct);

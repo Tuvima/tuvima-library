@@ -671,7 +671,8 @@
 
 [method] GetActivityRunGroupsAsync
   input entryId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input mediaType | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  input libraryIds | default=required | shape=cfb2f89f05559682cb91d9c303f5aa407751812bf67dc289192887fb87074459
+  input mediaTypes | default=required | shape=cfb2f89f05559682cb91d9c303f5aa407751812bf67dc289192887fb87074459
   input offset | default=required | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   input limit | default=required | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   response | shape=51a40ade825941a17691429185fcdb450aaa12353511a361f999cc6574e7f016
@@ -685,6 +686,7 @@
   input newestFirst | default=required | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
   input offset | default=required | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   input limit | default=required | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+  input mediaTypes | default=null | shape=cfb2f89f05559682cb91d9c303f5aa407751812bf67dc289192887fb87074459
   response | shape=ad5506320458a4d354f739fdd9dcad960af1b464b6dc6d1928694c035b7f7298
 
 [method] GetActivityStatsAsync
@@ -2993,6 +2995,7 @@
   input kinds | default=required | shape=cfb2f89f05559682cb91d9c303f5aa407751812bf67dc289192887fb87074459
   input from | default=required | shape=9313ffee236981b5ad45b01ec789f0975aeba31e050d5094f6446bc2d58447e6
   input to | default=required | shape=9313ffee236981b5ad45b01ec789f0975aeba31e050d5094f6446bc2d58447e6
+  input mediaTypes | default=null | shape=cfb2f89f05559682cb91d9c303f5aa407751812bf67dc289192887fb87074459
   response | shape=38ca21a779b5843f26083e04320bf7b88153c181ea55a1f52d46a48b6647bec0
 
 [method] SearchEditorMatchAsync

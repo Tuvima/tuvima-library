@@ -152,7 +152,7 @@ public sealed class ActivityRunRepositoryTests : IDisposable
         Assert.Equal(4, expanse.ItemCount);
         Assert.Equal(show, expanse.GroupWorkId);
 
-        var onlyMovies = await _runs.ListGroupsAsync(run.Id, "Movies", 0, 20);
+        var onlyMovies = await _runs.ListGroupsAsync(run.Id, new ActivityRunScope(MediaTypes: ["Movies"]), 0, 20);
         Assert.Single(onlyMovies);
     }
 

@@ -10028,9 +10028,6 @@
   <data name="LibraryActivity_Active" xml:space="preserve">
     <value>Active</value>
   </data>
-  <data name="LibraryActivity_AllCount" xml:space="preserve">
-    <value>All {0}</value>
-  </data>
   <data name="LibraryActivity_AllLibraries" xml:space="preserve">
     <value>All libraries</value>
   </data>
@@ -10063,9 +10060,6 @@
   </data>
   <data name="LibraryActivity_FilesFound" xml:space="preserve">
     <value>{0} files found</value>
-  </data>
-  <data name="LibraryActivity_FilterByKind" xml:space="preserve">
-    <value>Filter by kind</value>
   </data>
   <data name="LibraryActivity_History" xml:space="preserve">
     <value>History</value>

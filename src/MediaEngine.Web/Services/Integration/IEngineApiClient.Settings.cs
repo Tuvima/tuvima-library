@@ -230,16 +230,16 @@ public partial interface IEngineApiClient
     /// <summary>GET /library/activity/runs: the Activity page's History, one entry per batch (administrators); null when the Engine refused or it could not be read.</summary>
     Task<MediaEngine.Contracts.Library.ActivityRunsDto?> GetActivityRunsAsync(
         IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
-        string? search, bool newestFirst, int offset, int limit, CancellationToken ct = default);
+        string? search, bool newestFirst, int offset, int limit, IReadOnlyCollection<string>? mediaTypes = null, CancellationToken ct = default);
 
-    /// <summary>GET /library/activity/runs/{entryId}/groups: one opened batch as stacked tiles, a page at a time.</summary>
+    /// <summary>GET /library/activity/runs/{entryId}/groups: one opened batch as stacked tiles, a page at a time, narrowed to the chosen libraries and area (D31).</summary>
     Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
-        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default);
+        Guid entryId, IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? mediaTypes, int offset, int limit, CancellationToken ct = default);
 
     /// <summary>GET /library/activity/titles: the instant title search, each title once with its own dated markers.</summary>
     Task<MediaEngine.Contracts.Library.ActivityTitleSearchDto?> SearchActivityTitlesAsync(
         string search, IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
-        CancellationToken ct = default);
+        IReadOnlyCollection<string>? mediaTypes = null, CancellationToken ct = default);
 
     /// <summary>POST /library/activity/purge: removes History that started before the date (administrators).</summary>
     Task<MediaEngine.Contracts.Library.ActivityPurgeResultDto?> PurgeActivityRunsAsync(DateTimeOffset olderThan, CancellationToken ct = default);

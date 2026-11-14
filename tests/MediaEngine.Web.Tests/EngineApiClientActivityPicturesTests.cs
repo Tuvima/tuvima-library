@@ -38,7 +38,7 @@ public sealed class EngineApiClientActivityPicturesTests
         var group = new ActivityGroupDto("movie:dune", "Dune", "Movies", 1, EngineCover, null);
         using var client = Client(new ActivityRunGroupsDto(Guid.NewGuid(), [group], false));
 
-        var groups = await client.GetActivityRunGroupsAsync(Guid.NewGuid(), null, 0, 24);
+        var groups = await client.GetActivityRunGroupsAsync(Guid.NewGuid(), null, null, 0, 24);
 
         Assert.Equal(ProxiedCover, Assert.Single(groups!.Groups).CoverUrl);
     }
@@ -62,7 +62,7 @@ public sealed class EngineApiClientActivityPicturesTests
         using var client = Client(null, HttpStatusCode.InternalServerError);
 
         Assert.Null(await client.GetActivityRunsAsync(null, null, null, null, null, true, 0, 50));
-        Assert.Null(await client.GetActivityRunGroupsAsync(Guid.NewGuid(), null, 0, 24));
+        Assert.Null(await client.GetActivityRunGroupsAsync(Guid.NewGuid(), null, null, 0, 24));
         Assert.Null(await client.SearchActivityTitlesAsync("the", null, null, null, null));
     }
 
