@@ -104,6 +104,17 @@ public interface IActivityRunStore
     /// <summary>Completes every active run whose last item joined before <paramref name="quietBefore"/>; returns how many closed.</summary>
     Task<int> CompleteQuietRunsAsync(DateTimeOffset quietBefore, CancellationToken ct = default);
 
+    /// <summary>
+    /// Completes every run still active and marks it as cut off by the Engine stopping (D30), so the restart can pick it up again; returns how many.
+    /// </summary>
+    Task<int> CompleteInterruptedRunsAsync(CancellationToken ct = default);
+
+    /// <summary>Reopens every run of this kind that the Engine's stopping cut off, so titles picked up again join it (D30); returns how many.</summary>
+    Task<int> ReopenInterruptedRunsAsync(string kind, CancellationToken ct = default);
+
+    /// <summary>Forgets the cut-off mark on every run: the Engine has been idle long enough that the next files are a new drop; returns how many.</summary>
+    Task<int> ClearInterruptedAsync(CancellationToken ct = default);
+
     Task<ActivityAssetContext?> GetAssetContextAsync(Guid assetId, CancellationToken ct = default);
 
     /// <summary>The runs that match, with counts per media type, newest or oldest first.</summary>
