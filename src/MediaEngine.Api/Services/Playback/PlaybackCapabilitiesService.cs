@@ -223,9 +223,9 @@ public sealed class PlaybackCapabilitiesService
         // One line for every playback decision, so a stream that behaves oddly can be explained from the log (issue 1053): what the file is,
         // what the player was told to do and why.
         _logger.LogInformation(
-            "Play decision for asset {AssetId}: {Delivery}, rung {Rung}, because {Code}; file {Extension} video {VideoCodec} {Height}p audio {AudioCodec}; convert reason: {Reason}; picture subtitle burned: {Burned}",
+            "Play decision for asset {AssetId}: {Delivery}, rung {Rung}, because {Code}; file {Extension} video {VideoCodec} {Height}p audio {AudioCodec}; picture subtitle burned: {Burned}",
             assetId, recommendedDelivery, decision?.Rung ?? "none", decision?.Code ?? "no ladder", extension.TrimStart('.'),
-            probe?.VideoCodec ?? "none", probe?.Height ?? 0, probe?.AudioCodec ?? "none", conversionReason ?? "none", burn is not null);
+            probe?.VideoCodec ?? "none", probe?.Height ?? 0, probe?.AudioCodec ?? "none", burn is not null);
 
         var audioTracks = BuildAudioTracks(probe);
         string? hlsUrl = null;
