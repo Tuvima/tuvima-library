@@ -30,6 +30,7 @@ public sealed class DetailExtrasService(
         DetailEntityType.Work,
         DetailEntityType.Movie,
         DetailEntityType.TvShow,
+        DetailEntityType.TvSeason,
         DetailEntityType.Book,
         DetailEntityType.Audiobook,
         DetailEntityType.ComicIssue,
@@ -62,6 +63,20 @@ public sealed class DetailExtrasService(
             if (Guid.TryParse(item.AssetId, out var assetId) && assetId != Guid.Empty)
             {
                 assetIds.Add(assetId);
+            }
+        }
+
+        // A show's page lists its episodes in its sequence, not in a media group, and carries no authorized asset ids (those exist only for
+        // single items). The episodes it lists are what say which folders to look in for the show's own files.
+        if (detail.SequencePlacement is { } placement)
+        {
+            var listed = placement.OrderedItems.Concat(placement.Groups.SelectMany(group => group.Items));
+            foreach (var item in listed)
+            {
+                if (item.EpisodeContext is { } episode && episode.EpisodeAssetId != Guid.Empty)
+                {
+                    assetIds.Add(episode.EpisodeAssetId);
+                }
             }
         }
 

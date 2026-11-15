@@ -737,7 +737,7 @@ public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigura
             if (update.Role.IsSet && Blank(update.Role.Value) is { } role)
             {
                 // The roles a person may pick are the configured list for this kind of file (config/extras.json).
-                if (rules is not null && !rules.RoleFits(row.Kind, role))
+                if (rules is not null && !rules.RoleAccepted(row.Kind, role))
                 {
                     throw new ExtraRoleNotAllowedException(role, row.Kind);
                 }

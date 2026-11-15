@@ -135,8 +135,10 @@ public sealed class EditorSupportingFilePanelTests : AsyncBunitContext
         var cut = Panel(host);
 
         Assert.Equal("Workbook", cut.Find("[data-field-key=title] input").GetAttribute("value"));
-        Assert.Equal(["Workbook", "Guide", "Other"], Select(cut, "Role").Options!.Select(option => option.Label));
-        Assert.Equal("workbook", Select(cut, "Role").Value);
+        // Role is a type-or-pick field: it offers the listed kinds and shows the file's own.
+        var role = cut.FindComponents<AppComboField>().Single(combo => combo.Instance.AriaLabel == "Role").Instance;
+        Assert.Equal(["Workbook", "Guide", "Other"], role.Suggestions);
+        Assert.Equal("Workbook", role.Value);
         Assert.Equal("root", Select(cut, "Belongs to").Value);
         Assert.Equal("From its folder location (Season 02 / Documents).", cut.Find("[data-hint=scope]").TextContent.Trim());
         Assert.Contains("PDF document", cut.Find("aside").TextContent, StringComparison.Ordinal);

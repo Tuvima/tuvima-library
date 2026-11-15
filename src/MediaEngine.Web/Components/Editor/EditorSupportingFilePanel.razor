@@ -95,8 +95,9 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
 
                 <div class="tl-editor-field" data-field-key="role">
                     <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_Role"]</span></div>
-                    <AppSelect T="string" Value="@SupportingFileStaging.RoleOf(file, stage)" ValueChanged="@(value => SetRole(file, value))"
-                               Options="@RoleOptions(file)" Disabled="@(!canEdit)" AriaLabel="@L["EditorSupportingFile_Role"].Value" />
+                    <AppComboField Value="@SupportingFileStaging.RoleLabel(file, SupportingFileStaging.RoleOf(file, stage))" ValueChanged="@(value => SetRole(file, value))"
+                                   Suggestions="@file.Roles.Select(role => role.Label).ToList()" Disabled="@(!canEdit)"
+                                   AriaLabel="@L["EditorSupportingFile_Role"].Value" />
                 </div>
 
                 <div class="tl-editor-field" data-field-key="scope">
@@ -358,14 +359,11 @@ else if (Mode is { IsOn: true } mode && Flow is { Session.IsActive: true } flow 
 
     // -- Role, Belongs to, Shown alongside, Tags ----------------------------------------------------------------------------------
 
-    private static IReadOnlyList<AppSelectOption> RoleOptions(EditorSupportingFileDto file) =>
-        [.. file.Roles.Select(role => new AppSelectOption(role.Id, role.Label))];
-
     private void SetRole(EditorSupportingFileDto file, string? value)
     {
         if (CanStage)
         {
-            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetRole(file, Current(file), value));
+            Flow!.Session.Pending.SetSupportingFile(SupportingFileStaging.SetRole(file, Current(file), SupportingFileStaging.ResolveRole(file.Roles.Select(role => (role.Id, role.Label)), value)));
         }
     }
 

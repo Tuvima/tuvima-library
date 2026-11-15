@@ -41,6 +41,31 @@ public sealed class DetailExtrasRowTests : IDisposable
         Assert.True(page.ExtrasCardsPerGroup > 0);
     }
 
+    // Issue 1043: the Engine sends a show's page with no list of media files and no authorized asset ids (those are for single items only), so
+    // the show's own files were never looked for and its Extras row stayed empty. Its episodes name the folders to look in.
+    [Fact]
+    public async Task AShowsPage_FindsItsExtras_FromTheEpisodesItLists_WhenTheEngineGivesNoAssetIds()
+    {
+        var pilot = Seed(Path.Combine(_world.SeasonFolder(1), "The Last Signal S01E01.mkv"));
+        await _world.SeedDiskFileAsync("guide.pdf", "Guide");
+        var show = Guid.NewGuid();
+        var episode = new SequenceItemViewModel
+        {
+            Id = Guid.NewGuid().ToString("D"),
+            EpisodeContext = new MediaEngine.Contracts.Display.DisplayEpisodeContextDto(
+                show, Guid.NewGuid(), pilot, "The Last Signal", "Pilot", 1, 1, default, null, null),
+        };
+        var page = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.TvShow,
+            SequencePlacement = new SequencePlacementViewModel { OrderedItems = [episode] },
+        };
+
+        await _service.ApplyAsync(page, null, CancellationToken.None);
+
+        Assert.Single(page.Extras);
+    }
+
     [Fact]
     public void ATitleWithManyFilesAndNoGroups_FallsIntoOneGroupPerKindOfFile()
     {

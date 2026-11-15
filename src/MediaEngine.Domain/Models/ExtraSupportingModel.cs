@@ -83,7 +83,10 @@ public static class ExtraRoles
         Interview => "Interview",
         Clip => "Clip",
         Pictures => "Pictures",
-        _ => "Other",
+        Other => "Other",
+        null or "" => "Other",
+        // A kind the person typed in the editor is shown as they typed it.
+        _ => role.Trim(),
     };
 }
 

@@ -1,0 +1,26 @@
+@namespace MediaEngine.Web.Components.Shared
+@* The shared type-or-pick field: the list narrows as you type, one tap or Enter picks a suggestion, and any value you type is accepted as it
+   is. Use it for a free-text value that has common choices (an extra's kind). A field with a fixed set of choices stays an AppSelect.
+   It wraps AppAutocomplete, so it keeps its keyboard handling, 44px height and phone bottom-sheet look. Value is the text shown; the
+   caller decides what a typed value means (ValueChanged fires on every keystroke and on a pick). *@
+<AppAutocomplete TItem="string" Label="@Label" Value="@Value" ValueChanged="@ValueChanged" SearchFunc="@SearchAsync" CoerceValue="true"
+                 Disabled="@Disabled" Placeholder="@Placeholder" MaxItems="@MaxItems" Class="@Class" aria-label="@AriaLabel" />
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    /// <summary>The suggestions offered while typing; an empty text shows all of them.</summary>
+    [Parameter] public IReadOnlyList<string> Suggestions { get; set; } = [];
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public int MaxItems { get; set; } = 12;
+    [Parameter] public string? Class { get; set; }
+
+    private Task<IEnumerable<string>> SearchAsync(string? text, CancellationToken _)
+    {
+        var typed = text?.Trim() ?? string.Empty;
+        IEnumerable<string> matches = Suggestions.Where(item => typed.Length == 0 || item.Contains(typed, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(matches);
+    }
+}

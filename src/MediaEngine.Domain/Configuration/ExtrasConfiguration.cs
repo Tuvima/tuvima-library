@@ -84,6 +84,27 @@ public sealed class ExtrasConfiguration
     public bool RoleFits(string fileKind, string? role) =>
         !string.IsNullOrWhiteSpace(role) && RolesFor(fileKind).Any(entry => entry.Id.Equals(role, StringComparison.Ordinal));
 
+    /// <summary>The longest kind a person may type for a file; longer text is refused.</summary>
+    public const int MaxCustomRoleLength = 40;
+
+    /// <summary>
+    /// True when a person may set <paramref name="role"/> on a file of this kind: a listed role, or a kind of their own typed in the editor
+    /// (short, one line, no path characters). A kind of their own is shown as typed and counts as "Other" for the file's name on disk.
+    /// </summary>
+    public bool RoleAccepted(string fileKind, string? role) =>
+        RoleFits(fileKind, role) || (IsCustomRole(role) && !IsListedForAnotherKind(role!));
+
+    // "Trailer" on a document is a mistake, not a kind of the person's own: a word the configured lists give to other kinds of file stays refused.
+    private bool IsListedForAnotherKind(string role) =>
+        Roles.Values.SelectMany(list => list).Any(entry =>
+            entry.Id.Equals(role.Trim(), StringComparison.OrdinalIgnoreCase) || entry.Label.Equals(role.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>True for a short single-line text that can be kept as a person's own kind.</summary>
+    public static bool IsCustomRole(string? role) =>
+        !string.IsNullOrWhiteSpace(role)
+        && role.Trim().Length <= MaxCustomRoleLength
+        && role.All(character => !char.IsControl(character) && character is not ('/' or '\\' or ':' or '*' or '?' or '"' or '<' or '>' or '|'));
+
     /// <summary>The role a file of this kind has when no name says otherwise.</summary>
     public string DefaultRoleFor(string fileKind) =>
         DefaultRoles.TryGetValue(KindKey(fileKind), out var role) && !string.IsNullOrWhiteSpace(role) ? role : ExtraRoles.DefaultFor(fileKind);

@@ -120,7 +120,7 @@ public sealed class SupportingFileBulkService(
         var config = rules?.Current;
         if (update.Role.IsSet && config is not null)
         {
-            var misfit = load.Targets.FirstOrDefault(target => !config.RoleFits(target.Kind, update.Role.Value));
+            var misfit = load.Targets.FirstOrDefault(target => !config.RoleAccepted(target.Kind, update.Role.Value));
             if (misfit is not null)
             {
                 return Fail<SupportingFileBulkUpdateResultDto>(

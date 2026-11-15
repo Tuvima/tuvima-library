@@ -295,7 +295,26 @@ public static class SupportingFileStaging
         file.Places.FirstOrDefault(place => string.Equals(place.Key, key, StringComparison.Ordinal))?.Label ?? key;
 
     public static string RoleLabel(EditorSupportingFileDto file, string? roleId) =>
-        file.Roles.FirstOrDefault(role => string.Equals(role.Id, roleId, StringComparison.Ordinal))?.Label ?? file.File.RoleLabel;
+        file.Roles.FirstOrDefault(role => string.Equals(role.Id, roleId, StringComparison.Ordinal))?.Label
+        ?? (string.IsNullOrWhiteSpace(roleId) || string.Equals(roleId, file.File.Role, StringComparison.Ordinal) ? file.File.RoleLabel : roleId);
+
+    /// <summary>
+    /// What a typed or picked Role means: a listed role (matched by its words or its id, ignoring case) is that role's id; any other text is
+    /// the person's own kind, kept as typed. Empty stays empty.
+    /// </summary>
+    public static string ResolveRole(IEnumerable<(string Id, string Label)> roles, string? typed)
+    {
+        var text = Clean(typed);
+        foreach (var (id, label) in roles)
+        {
+            if (string.Equals(text, label, StringComparison.OrdinalIgnoreCase) || string.Equals(text, id, StringComparison.OrdinalIgnoreCase))
+            {
+                return id;
+            }
+        }
+
+        return text;
+    }
 
     internal static SupportingFileStage Replace(SupportingFileStage stage, string key, string label, string before, string after)
     {
