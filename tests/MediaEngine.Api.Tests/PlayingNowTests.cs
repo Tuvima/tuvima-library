@@ -167,7 +167,9 @@ public sealed class PlayingNowTests : IDisposable
         encode.WaitingForSlot = false;
         _registry.ObserveEngineWatch(Watch(asset, PlaybackTelemetryStates.Playing) with
         {
-            PlayerSessionId = PlaybackActivityRegistry.EngineWatchId(profile, asset), ProfileId = profile, Title = "I Am Number Four",
+            PlayerSessionId = PlaybackActivityRegistry.EngineWatchId(profile, asset),
+            ProfileId = profile,
+            Title = "I Am Number Four",
         });
 
         var row = Assert.Single((await Read().GetAsync(CancellationToken.None)).Rows);
@@ -189,7 +191,8 @@ public sealed class PlayingNowTests : IDisposable
         var profile = Guid.NewGuid();
         _registry.ObserveEngineWatch(Watch(asset, PlaybackTelemetryStates.Playing) with
         {
-            PlayerSessionId = PlaybackActivityRegistry.EngineWatchId(profile, asset), ProfileId = profile,
+            PlayerSessionId = PlaybackActivityRegistry.EngineWatchId(profile, asset),
+            ProfileId = profile,
         });
         _registry.ObserveWatch(Watch(asset, PlaybackTelemetryStates.Playing) with { ProfileId = profile });
 
