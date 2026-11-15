@@ -467,7 +467,9 @@ public sealed class WorkerPipelineTests
         Assert.NotNull(updatedJob);
         Assert.Equal(IdentityJobState.RetailMatchedNeedsReview.ToString(), updatedJob!.State);
 
-        var candidate = Assert.Single(candidateRepo.Candidates);
+        // The book had an ISBN and was not accepted, so it is searched once more by title and author; both searches are ambiguous.
+        Assert.Equal(2, candidateRepo.Candidates.Count);
+        var candidate = candidateRepo.Candidates[0];
         Assert.Equal("Ambiguous", candidate.Outcome);
         Assert.InRange(candidate.ScoreTotal, 0.65, 0.8999);
         Assert.NotNull(candidate.ScoreBreakdownJson);

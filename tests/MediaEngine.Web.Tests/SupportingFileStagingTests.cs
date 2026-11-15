@@ -494,4 +494,15 @@ public sealed class SupportingFileStagingTests
         Assert.Contains("removed from its folder", EditorSupportingFileFlow.Body(managed), StringComparison.Ordinal);
         Assert.Contains("stays where it is", EditorSupportingFileFlow.Body(readOnly), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ATypedRole_IsTheListedRoleWhenItMatchesOne_AndOtherwiseTheTypedWords()
+    {
+        (string Id, string Label)[] roles = [("worksheet", "Worksheet"), ("guide", "Guide")];
+
+        Assert.Equal("worksheet", SupportingFileStaging.ResolveRole(roles, " worksheet "));
+        Assert.Equal("guide", SupportingFileStaging.ResolveRole(roles, "GUIDE"));
+        Assert.Equal("Masterclass notes", SupportingFileStaging.ResolveRole(roles, "Masterclass notes"));
+        Assert.Equal(string.Empty, SupportingFileStaging.ResolveRole(roles, "  "));
+    }
 }

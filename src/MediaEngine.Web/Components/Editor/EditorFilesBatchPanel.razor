@@ -43,8 +43,9 @@
                 <div class="tl-editor-field__label"><span>@L["EditorSupportingFile_Role"]</span></div>
                 @if (State.FacetsForTicked is { } facets)
                 {
-                    <AppSelect T="string" Value="@Role" ValueChanged="@(value => State.StageRole(value))" Options="@RoleOptions(facets)"
-                               Placeholder="@L["EditorFilesBatch_Mixed"].Value" Disabled="@(!CanEdit)" AriaLabel="@L["EditorSupportingFile_Role"].Value" />
+                    <AppComboField Value="@RoleText(facets)" ValueChanged="@(value => State.StageRole(SupportingFileStaging.ResolveRole(facets.Roles.Select(role => (role.Id, role.Label)), value)))"
+                                   Suggestions="@facets.Roles.Select(role => role.Label).ToList()"
+                                   Placeholder="@L["EditorFilesBatch_Mixed"].Value" Disabled="@(!CanEdit)" AriaLabel="@L["EditorSupportingFile_Role"].Value" />
                 }
                 else
                 {
@@ -150,8 +151,8 @@
     private IReadOnlyList<AppSelectOption> AlongsideOptions =>
         [.. AlongsideChoices(Scope ?? string.Empty).Select(place => new AppSelectOption(place.Key, place.Label))];
 
-    private static IReadOnlyList<AppSelectOption> RoleOptions(EditorFileFacets facets) =>
-        [.. facets.Roles.Select(role => new AppSelectOption(role.Id, role.Label))];
+    private string? RoleText(EditorFileFacets facets) =>
+        Role is { Length: > 0 } role ? facets.Roles.FirstOrDefault(entry => entry.Id == role)?.Label ?? role : null;
 
     private static IReadOnlyList<string> Split(string? value) =>
         (value ?? string.Empty).Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

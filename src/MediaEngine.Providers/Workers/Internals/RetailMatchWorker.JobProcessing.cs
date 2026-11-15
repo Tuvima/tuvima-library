@@ -30,6 +30,84 @@ public sealed partial class RetailMatchWorker
         string HintSource);
 
     private const string IsbnRejectedHintSource = "isbn-rejected-retry";
+    private const string TitleAuthorRetryHintSource = "title-author-retry";
+
+    private static readonly System.Text.RegularExpressions.Regex SeriesNumberSuffix = new(
+        @"\s*#\s*\d+(?:\.\d+)?\s*$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// The words a book search is made from. Tags often carry a position inside the text ("3.5 - The Churn" as the title, "The Lord of the
+    /// Rings #0" as the series), and that position makes a store lean on the wrong book. The leading number and a trailing "#n" on the series
+    /// are dropped here; the file's own hints are left as they are for everything after the search.
+    /// </summary>
+    internal static Dictionary<string, string> BuildSearchHints(MediaType mediaType, IReadOnlyDictionary<string, string> hints)
+    {
+        var search = new Dictionary<string, string>(hints, StringComparer.OrdinalIgnoreCase);
+        if (mediaType is not (MediaType.Books or MediaType.Audiobooks))
+        {
+            return search;
+        }
+
+        if (search.TryGetValue(MetadataFieldConstants.Title, out var title) && !string.IsNullOrWhiteSpace(title))
+        {
+            var cleaned = LeadingNumberTitleCleaner.Strip(title, out _);
+            if (!string.IsNullOrWhiteSpace(cleaned))
+            {
+                search[MetadataFieldConstants.Title] = cleaned;
+            }
+        }
+
+        if (search.TryGetValue(MetadataFieldConstants.Series, out var series) && !string.IsNullOrWhiteSpace(series))
+        {
+            var cleaned = SeriesNumberSuffix.Replace(series, string.Empty).Trim();
+            if (cleaned.Length > 0)
+            {
+                search[MetadataFieldConstants.Series] = cleaned;
+            }
+            else
+            {
+                search.Remove(MetadataFieldConstants.Series);
+            }
+        }
+
+        return search;
+    }
+
+    /// <summary>
+    /// The last search of a book that was not accepted: the title and author (with the language and year, which tell editions apart), with no series, ISBN or other hint that may be pointing
+    /// at the wrong book. Null when that would repeat the search just made, or when this attempt already was a retry.
+    /// </summary>
+    internal static Dictionary<string, string>? BuildTitleAuthorRetryHints(
+        MediaType mediaType, string hintSource, IReadOnlyDictionary<string, string> attemptHints, string outcome)
+    {
+        if (mediaType is not (MediaType.Books or MediaType.Audiobooks)
+            || outcome == "AutoAccepted"
+            || string.Equals(hintSource, TitleAuthorRetryHintSource, StringComparison.Ordinal)
+            || !attemptHints.TryGetValue(MetadataFieldConstants.Title, out var title) || string.IsNullOrWhiteSpace(title)
+            || !attemptHints.TryGetValue(MetadataFieldConstants.Author, out var author) || string.IsNullOrWhiteSpace(author))
+        {
+            return null;
+        }
+
+        var retry = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [MetadataFieldConstants.Title] = title,
+            [MetadataFieldConstants.Author] = author,
+        };
+        // The language and the year stay: they tell editions of the same book apart, and dropping them would loosen what is accepted.
+        foreach (var key in new[] { MetadataFieldConstants.Language, MetadataFieldConstants.Year, "date" })
+        {
+            if (attemptHints.TryGetValue(key, out var kept) && !string.IsNullOrWhiteSpace(kept))
+            {
+                retry[key] = kept;
+            }
+        }
+
+        var repeats = attemptHints.Count == retry.Count
+            && retry.All(pair => attemptHints.TryGetValue(pair.Key, out var value) && string.Equals(value, pair.Value, StringComparison.Ordinal));
+        return repeats ? null : retry;
+    }
 
     /// <summary>
     /// True when a book lookup that used the file's ISBN was rejected, so the same provider
@@ -294,7 +372,7 @@ public sealed partial class RetailMatchWorker
                         Name = providerName,
                         Purpose = "identity"
                     },
-                new Dictionary<string, string>(hints, StringComparer.OrdinalIgnoreCase),
+                BuildSearchHints(mediaType, hints),
                 AllowAcceptedTransition: true,
                 HintSource: "file-hints"))
             .ToList();
@@ -306,6 +384,11 @@ public sealed partial class RetailMatchWorker
              attemptIndex++)
         {
             var attempt = providerAttempts[attemptIndex];
+            if (attempt.HintSource == TitleAuthorRetryHintSource && acceptedIdentity)
+            {
+                continue;
+            }
+
             var pipelineEntry = attempt.Entry;
             var providerName = pipelineEntry.Name;
             var attemptHints = attempt.Hints;
@@ -639,6 +722,28 @@ public sealed partial class RetailMatchWorker
                         providerName,
                         job.EntityId,
                         retailScore.TitleScore);
+                }
+
+                // A book that was still not accepted gets one more search by title and author alone, so a wrong series name or ISBN in
+                // the tags cannot keep a plain title from matching. It uses one attempt of the pipeline's own budget.
+                else if (providerRank < attemptBudget
+                    && BuildTitleAuthorRetryHints(mediaType, attempt.HintSource, attemptHints, decision.Outcome) is { } titleAuthorHints
+                    && !providerAttempts.Any(other => other.HintSource == TitleAuthorRetryHintSource
+                        && string.Equals(other.Entry.Name, pipelineEntry.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Added last, so every configured provider is still tried first; it is skipped if one of them accepted the book.
+                    providerAttempts.Add(
+                        new ProviderAttempt(
+                            pipelineEntry,
+                            titleAuthorHints,
+                            attempt.AllowAcceptedTransition,
+                            TitleAuthorRetryHintSource));
+
+                    _logger.LogInformation(
+                        "Provider {Provider} did not accept the book for entity {EntityId} ({Outcome}); retrying by title and author alone",
+                        providerName,
+                        job.EntityId,
+                        decision.Outcome);
                 }
 
                 // Waterfall: stop after first accepted candidate

@@ -335,6 +335,19 @@ public sealed class SupportingFileRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task AKindTheUserTypesThatNoListOffers_IsKeptAsTyped()
+    {
+        var rules = new ItemExtraRepository(_db, new FixedRules());
+        await rules.SyncItemFolderAsync(Show, [Found("Guide.pdf")], []);
+        var id = (await rules.GetByPathAsync($"{Show}/Guide.pdf"))!.Id;
+
+        var updated = await rules.UpdateOwnedAsync(id, new ExtraOwnedUpdate { Role = ExtraValue<string>.Set("Masterclass notes") });
+
+        Assert.Equal("Masterclass notes", updated!.EffectiveRole);
+        Assert.Equal("Masterclass notes", ExtraRoles.Label(updated.EffectiveRole));
+    }
+
+    [Fact]
     public async Task RemovingATitlesExtras_AlsoRemovesItsGroupsAndTagLinks()
     {
         await _extras.SyncItemFolderAsync(Show, [Found("A.pdf")], []);
