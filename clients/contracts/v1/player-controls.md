@@ -111,7 +111,8 @@ media and the app support it; the "Shown when" column says what that is.
 - `always`: the tool is always there.
 - `has queue`: there is a queue; `has chapters`: the book has timed chapters;
   `has episodes`: the show or the folder lists other videos; `can bookmark`: the
-  item supports bookmarks; `can fullscreen`: the screen can go full screen.
+  item supports bookmarks; `can fullscreen`: the screen can go full screen; `can picture in picture`: the
+  browser can float the video in its own small window (desktop only).
 
 Music has no Sleep timer tool. Audiobooks show the current speed on the Speed
 chip ("1.25×"). Now playing is an icon button and is selected while that page is
@@ -152,8 +153,9 @@ TV episodes:
 | 3 | bookmarks | Bookmarks | can bookmark |
 | 4 | volume | Volume | always |
 | 5 | playback-settings | Playback settings | always |
-| 6 | fullscreen | Fullscreen | can fullscreen |
-| 7 | close | Close | always |
+| 6 | picture-in-picture | Picture in picture | can picture in picture |
+| 7 | fullscreen | Fullscreen | can fullscreen |
+| 8 | close | Close | always |
 
 Films:
 
@@ -164,8 +166,9 @@ Films:
 | 2 | bookmarks | Bookmarks | can bookmark |
 | 3 | volume | Volume | always |
 | 4 | playback-settings | Playback settings | always |
-| 5 | fullscreen | Fullscreen | can fullscreen |
-| 6 | close | Close | always |
+| 5 | picture-in-picture | Picture in picture | can picture in picture |
+| 6 | fullscreen | Fullscreen | can fullscreen |
+| 7 | close | Close | always |
 
 Folder videos and lessons have a film's controls and add the list of the other
 videos when there are any. The tool and its panel are both named Lessons:
@@ -178,8 +181,9 @@ videos when there are any. The tool and its panel are both named Lessons:
 | 3 | bookmarks | Bookmarks | can bookmark |
 | 4 | volume | Volume | always |
 | 5 | playback-settings | Playback settings | always |
-| 6 | fullscreen | Fullscreen | can fullscreen |
-| 7 | close | Close | always |
+| 6 | picture-in-picture | Picture in picture | can picture in picture |
+| 7 | fullscreen | Fullscreen | can fullscreen |
+| 8 | close | Close | always |
 
 ## Phone
 

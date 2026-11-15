@@ -13,7 +13,7 @@
    Content learns it is drawn as a phone bottom sheet from the cascading value "PlaybackPanelSheet" (Audio & subtitles becomes two tabs there).
    Header (back, title, close) and footer are fixed; only the body scrolls. There is no arrow and nothing opens on hover. The open state has one
    owner, PlaybackTransientToolCoordinator, so exactly one top-level panel is open at a time. Phones draw the same panel as a bottom sheet. *@
-<span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-playback-popover-surface="@Surface" data-chrome-hold>
+<span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-playback-popover-surface="@Surface" data-playback-stays-open="@(PlaybackTransientToolCoordinator.StaysOpenUntilClosed(EffectiveToolId) ? "true" : null)" data-chrome-hold>
     @if (TriggerContent is not null)
     {
         <AppTooltip Text="@(TriggerLabel ?? Title)" Suppressed="@IsOpen">
@@ -189,7 +189,7 @@
         }
         if (_lastItemKey == ItemKey) return;
         _lastItemKey = ItemKey;
-        _tools?.Close(EffectiveToolId);
+        if (!PlaybackTransientToolCoordinator.StaysOpenUntilClosed(EffectiveToolId)) _tools?.Close(EffectiveToolId);
     }
 
     // Opening or leaving a nested view removes the control that had focus; after the next draw focus goes into the new view, or back to the control that opened it.

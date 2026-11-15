@@ -1518,6 +1518,9 @@ window.listenPlayback = (function () {
         canPictureInPicture: function (element) {
             return !!element && !!document.pictureInPictureEnabled && typeof element.requestPictureInPicture === 'function';
         },
+        isPictureInPictureActive: function () {
+            return !!document.pictureInPictureElement;
+        },
         exitPictureInPicture: async function () {
             if (document.pictureInPictureElement) await document.exitPictureInPicture();
         }

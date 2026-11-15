@@ -23,6 +23,7 @@ public sealed record PlaybackBarState(
     bool CanBookmark = false,
     bool CanFullscreen = true,
     bool IsFullscreen = false,
+    bool CanPictureInPicture = false,
     bool IsSleepTimerActive = false,
     bool HasQueue = true,
     bool Disabled = false,
@@ -136,6 +137,10 @@ public static partial class PlaybackControlCatalog
         else
         {
             tools.Add(BarTool(PlaybackControlKey.Settings, "Playback settings", "playback-settings", state));
+            if (state.CanPictureInPicture)
+            {
+                tools.Add(new(PlaybackControlKey.PictureInPicture, "Picture in picture", "Picture in picture", PlaybackUtilityGlyphKind.PictureInPicture, PlaybackControlPlacement.Utility, "picture-in-picture"));
+            }
             if (state.CanFullscreen)
             {
                 var label = state.IsFullscreen ? "Exit fullscreen" : "Fullscreen";

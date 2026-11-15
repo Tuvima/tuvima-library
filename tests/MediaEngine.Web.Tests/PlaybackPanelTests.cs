@@ -52,6 +52,23 @@ public sealed class PlaybackPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ALyricsPanel_StaysOpenWhenTheSongChanges_ButAMenuClosesWithIt()
+    {
+        var lyrics = RenderPanel("Lyrics", "audio-lyrics", p => p.Add(x => x.ItemKey, "song-1"));
+        var speed = RenderPanel("Speed", "audio-speed", p => p.Add(x => x.ItemKey, "song-1"));
+
+        await lyrics.InvokeAsync(() => lyrics.Instance.OpenAsync(true));
+        lyrics.Render(p => p.Add(x => x.ItemKey, "song-2"));
+        Assert.Equal("audio-lyrics", _tools.OpenToolId);
+        Assert.Contains("Lyrics contents", lyrics.Markup);
+
+        await speed.InvokeAsync(() => speed.Instance.OpenAsync(true));
+        speed.Render(p => p.Add(x => x.ItemKey, "song-3"));
+        Assert.Null(_tools.OpenToolId);
+        Assert.Equal("true", lyrics.Find("[data-playback-stays-open]").GetAttribute("data-playback-stays-open"));
+    }
+
+    [Fact]
     public async Task ThePanel_IsAnOwnedTopLayerPopoverWithAFixedHeaderBodyAndFooter()
     {
         var cut = RenderPanel("Playback settings", "settings", p => p.Add(x => x.Footer, (RenderFragment)(b => b.AddMarkupContent(0, "<span id='reset'>Reset playback preferences</span>"))));

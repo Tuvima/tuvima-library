@@ -7433,6 +7433,9 @@
   <data name="VideoContextPanel_NothingUpNext" xml:space="preserve">
     <value>Nothing up next</value>
   </data>
+  <data name="VideoPlaybackHost_PictureInPictureUnavailable" xml:space="preserve">
+    <value>This browser would not float the video. Try again after the video has started, or use a browser that supports picture in picture.</value>
+  </data>
   <data name="VideoPlaybackHost_SwitchingAudio" xml:space="preserve">
     <value>Switching audio…</value>
   </data>
