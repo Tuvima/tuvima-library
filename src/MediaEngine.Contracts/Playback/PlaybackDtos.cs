@@ -191,6 +191,21 @@ public sealed record PlaybackSubtitleTrackDto
     public bool IsDefault { get; init; }
     public bool IsForced { get; init; }
     public string? DeliveryUrl { get; init; }
+
+    /// <summary>The track's own name in the file (for example "English" or "SDH"), when it has one.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>True for a track made for the deaf and hard of hearing (the file's own flag).</summary>
+    public bool IsHearingImpaired { get; init; }
+
+    /// <summary>True for a picture-based track (PGS, DVD): a browser cannot show it as text, so it has no <see cref="DeliveryUrl"/> and can only be burned into the video.</summary>
+    public bool IsPicture { get; init; }
+
+    /// <summary>True when the track is inside the video file, rather than found online or added by a person.</summary>
+    public bool IsEmbedded { get; init; }
+
+    /// <summary>The stream number inside the file, used to burn a picture track into the video.</summary>
+    public int? StreamIndex { get; init; }
 }
 
 public sealed record PlaybackChapterDto

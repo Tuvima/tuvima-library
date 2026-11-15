@@ -280,12 +280,16 @@
                   },
                   "title_check": {
                     "type": "object",
-                    "required": ["type", "id_path", "id"],
+                    "required": ["type"],
                     "properties": {
                       "type": { "type": "string", "minLength": 1 },
                       "id_path": { "type": "string", "minLength": 1 },
                       "id": { "type": "string", "minLength": 1 },
-                      "ignore_case": { "type": "boolean" }
+                      "ignore_case": { "type": "boolean" },
+                      "name_path": { "type": "string", "minLength": 1 },
+                      "name": { "type": "string", "minLength": 1 },
+                      "year_path": { "type": "string", "minLength": 1 },
+                      "year": { "type": "string" }
                     },
                     "additionalProperties": false
                   }

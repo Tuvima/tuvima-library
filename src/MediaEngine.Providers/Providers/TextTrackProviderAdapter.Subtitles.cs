@@ -26,10 +26,13 @@ public sealed partial class TextTrackProviderAdapter
                 availability.Status, availability.Message ?? Message(TextTrackMessages.Unreachable, "{display_name} is unavailable."));
         }
 
+        // The first search that fits what is known about the title answers: its online ids when it has them, otherwise its name and year.
+        // The log says what was asked and how many results came back.
         var values = LookupValues(lookup);
         var request = SelectRequest(lookup.MediaType, values);
         if (request is null)
         {
+            _logger.LogInformation("{Provider} {Noun} search skipped for {Title}: nothing to search with", Name, _text.Noun, lookup.Title);
             return [];
         }
 
@@ -37,6 +40,7 @@ public sealed partial class TextTrackProviderAdapter
         var path = BuildPath(request, values);
         if (_emptySearches.TryGetValue(path, out var nextAttempt) && nextAttempt > DateTimeOffset.UtcNow)
         {
+            _logger.LogInformation("{Provider} {Noun} search {Path} skipped: it found nothing a moment ago", Name, _text.Noun, path);
             return [];
         }
 
@@ -63,6 +67,7 @@ public sealed partial class TextTrackProviderAdapter
                 throw new TextTrackLookupException("ProviderError", Message(TextTrackMessages.SearchIncomplete, "{display_name} returned an incomplete search response."));
             }
 
+            _logger.LogInformation("{Provider} {Noun} search {Path} answered with {Titles} titles and {Items} {Noun}", Name, _text.Noun, path, titles.GetArrayLength(), items.GetArrayLength(), _text.Noun);
             if (titles.GetArrayLength() == 0 || items.GetArrayLength() == 0)
             {
                 _emptySearches[path] = DateTimeOffset.UtcNow.AddMinutes(search.EmptySearchMinutes);
@@ -102,13 +107,28 @@ public sealed partial class TextTrackProviderAdapter
         }
     }
 
+    private static string LettersAndDigits(string text) =>
+        new(text.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
     private static bool IsSuccessful(JsonElement root, string? successPath) =>
         string.IsNullOrEmpty(successPath) || ReadBool(root, successPath) != false;
 
     private static bool MatchesTitle(
         JsonElement titles, TextTrackTitleCheckConfiguration check, IReadOnlyDictionary<string, string> values)
     {
-        var expected = Placeholder.Replace(check.Id, match => values.GetValueOrDefault(match.Groups[1].Value, string.Empty));
+        string Fill(string template) => Placeholder.Replace(template, match => values.GetValueOrDefault(match.Groups[1].Value, string.Empty));
+        // A search by name has no id to compare: the answer must name the same title (letters and digits only, any case) and, when the year is known, the same year.
+        if (string.IsNullOrEmpty(check.IdPath) && !string.IsNullOrEmpty(check.NamePath))
+        {
+            var wanted = LettersAndDigits(Fill(check.Name));
+            var year = Fill(check.Year);
+            return titles.EnumerateArray().Any(title =>
+                string.Equals(ReadString(title, "type"), check.Type, StringComparison.OrdinalIgnoreCase)
+                && LettersAndDigits(ReadString(title, check.NamePath) ?? string.Empty) == wanted
+                && (string.IsNullOrEmpty(year) || string.Equals(ReadString(title, check.YearPath) ?? string.Empty, year, StringComparison.Ordinal)));
+        }
+
+        var expected = Fill(check.Id);
         var comparison = check.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         return titles.EnumerateArray().Any(title =>
             string.Equals(ReadString(title, "type"), check.Type, StringComparison.OrdinalIgnoreCase)

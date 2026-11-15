@@ -2,6 +2,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
@@ -662,6 +663,33 @@ public static class StreamEndpoints
         })
         .WithName("GetAssetSubtitles")
         .WithSummary("Serve the preferred normalized WebVTT subtitles for a media asset.")
+        .Produces(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.PlaybackRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackRead);
+
+        group.MapGet("/{assetId:guid}/subtitles/embedded/{streamIndex:int}", async (
+            Guid assetId,
+            int streamIndex,
+            IMediaAssetRepository assetRepo,
+            [FromServices] IFFmpegService ffmpeg,
+            ILoggerFactory loggerFactory,
+            CancellationToken ct) =>
+        {
+            var asset = await assetRepo.FindByIdAsync(assetId, ct);
+            if (asset is null || string.IsNullOrWhiteSpace(asset.FilePathRoot) || !File.Exists(asset.FilePathRoot))
+            {
+                return ApiErrors.NotFound("The video file was not found.");
+            }
+
+            var logger = loggerFactory.CreateLogger("MediaEngine.Api.Endpoints.StreamEndpoints");
+            var path = await EmbeddedSubtitleCache.GetOrExtractAsync(ffmpeg, logger, assetId, asset.FilePathRoot, streamIndex, ct);
+            return path is null
+                ? ApiErrors.NotFound("That subtitle track could not be read as text.")
+                : Results.File(await File.ReadAllBytesAsync(path, ct), "text/vtt; charset=utf-8");
+        })
+        .WithName("GetAssetEmbeddedSubtitles")
+        .WithSummary("Serve one subtitle track that is inside the video file, turned into WebVTT on first use.")
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.PlaybackRead)

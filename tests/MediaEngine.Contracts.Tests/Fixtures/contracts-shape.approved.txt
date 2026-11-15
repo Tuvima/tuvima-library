@@ -8376,6 +8376,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackSubtitleTr
   IsDefault: System.Boolean | nullability=not-null | accessors=get,init
   IsForced: System.Boolean | nullability=not-null | accessors=get,init
   DeliveryUrl: System.String | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  IsHearingImpaired: System.Boolean | nullability=not-null | accessors=get,init
+  IsPicture: System.Boolean | nullability=not-null | accessors=get,init
+  IsEmbedded: System.Boolean | nullability=not-null | accessors=get,init
+  StreamIndex: System.Int32? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackTechnicalInfoDto
   Container: System.String | nullability=nullable | accessors=get,init

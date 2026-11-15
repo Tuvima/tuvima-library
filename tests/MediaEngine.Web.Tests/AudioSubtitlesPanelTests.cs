@@ -284,6 +284,46 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OtherLanguages_AreGroupedUnderMoreLanguagesAfterTheFirstRows()
+    {
+        var rows = new List<SubtitleChoice>
+        {
+            new(null, "Off", true),
+            new("manifest:0", "English", false),
+            new("manifest:1", "French", false, IsMoreLanguage: true),
+            new("burn:5", "German", false, IsMoreLanguage: true, IsPicture: true),
+        };
+        var cut = await OpenAsync(subtitles: rows);
+
+        Assert.Equal(["off", "manifest:0", "manifest:1", "burn:5"], cut.FindAll("[data-asv-subtitle]").Select(row => row.GetAttribute("data-asv-subtitle")));
+        Assert.Equal("More languages", cut.Find("[data-asv-group='more']").TextContent);
+        // The heading sits between the first rows and the other languages.
+        var html = cut.Markup;
+        Assert.True(html.IndexOf("data-asv-subtitle=\"manifest:0\"", StringComparison.Ordinal) < html.IndexOf("data-asv-group", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("data-asv-group", StringComparison.Ordinal) < html.IndexOf("data-asv-subtitle=\"manifest:1\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task APictureSubtitle_SaysItRestartsTheVideoAndAsksForItToBeBurnedIn()
+    {
+        var rows = new List<SubtitleChoice> { new(null, "Off", true), new("burn:7", "English", false, IsPicture: true) };
+        var cut = await OpenAsync(subtitles: rows);
+
+        var row = cut.Find("[data-asv-subtitle='burn:7']");
+        Assert.Contains("restarts the video", row.QuerySelector(".asv__sub")!.TextContent);
+        await row.ClickAsync();
+        Assert.Equal(7, rows[1].BurnStreamIndex);
+        Assert.Equal("burn:7", Assert.Single(_switches).CaptionKey);
+    }
+
+    [Fact]
+    public async Task WithOnlyTheFirstLanguages_NoMoreLanguagesHeadingIsDrawn()
+    {
+        var cut = await OpenAsync();
+        Assert.Empty(cut.FindAll("[data-asv-group]"));
+    }
+
+    [Fact]
     public async Task TheFooterOffersSubtitleAppearanceAndFindSubtitles()
     {
         var cut = await OpenAsync();

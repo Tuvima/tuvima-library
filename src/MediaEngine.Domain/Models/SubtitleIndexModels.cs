@@ -52,7 +52,32 @@ public sealed record MediaAssetChapter(int Index, long StartMs, long? EndMs, str
 public sealed record SubtitleAssetToProbe(Guid AssetId, string FilePath);
 
 /// <summary>A subtitle stream embedded in a video file, as the probe reports it.</summary>
-public sealed record EmbeddedSubtitleStream(int StreamIndex, string? Codec, string Language, bool IsForced, bool IsHearingImpaired);
+public sealed record EmbeddedSubtitleStream(int StreamIndex, string? Codec, string Language, bool IsForced, bool IsHearingImpaired, string? Title = null)
+{
+    /// <summary>True for a picture-based stream (PGS, DVD, DVB): a browser cannot show it as text, it can only be burned into the video.</summary>
+    public bool IsPicture => EmbeddedSubtitleCodecs.IsPicture(Codec);
+
+    /// <summary>True for a text stream ffmpeg can turn into WebVTT.</summary>
+    public bool IsText => EmbeddedSubtitleCodecs.IsText(Codec);
+}
+
+/// <summary>Which embedded subtitle codecs are text (can be shown by a browser) and which are pictures (can only be burned in).</summary>
+public static class EmbeddedSubtitleCodecs
+{
+    private static readonly HashSet<string> Text = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "subrip", "srt", "ass", "ssa", "webvtt", "mov_text", "text",
+    };
+
+    private static readonly HashSet<string> Picture = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "hdmv_pgs_subtitle", "pgssub", "dvd_subtitle", "dvdsub", "dvb_subtitle", "dvbsub", "xsub", "vobsub",
+    };
+
+    public static bool IsText(string? codec) => codec is not null && Text.Contains(codec);
+
+    public static bool IsPicture(string? codec) => codec is not null && Picture.Contains(codec);
+}
 
 /// <summary>Stable ids for indexed subtitle tracks, so a track keeps its id when it is read again.</summary>
 public static class SubtitleTrackIds

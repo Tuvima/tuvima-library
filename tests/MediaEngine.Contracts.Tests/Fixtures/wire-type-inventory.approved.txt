@@ -9771,7 +9771,12 @@
   IsDefault: System.Boolean | json=isDefault | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsForced: System.Boolean | json=isForced | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeliveryUrl: System.String | json=deliveryUrl | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"index":7,"language":"sample","codec":"sample","displayName":"sample","isDefault":true,"isForced":true,"deliveryUrl":"sample"}
+  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsHearingImpaired: System.Boolean | json=isHearingImpaired | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsPicture: System.Boolean | json=isPicture | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsEmbedded: System.Boolean | json=isEmbedded | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StreamIndex: System.Int32? | json=streamIndex | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"index":7,"language":"sample","codec":"sample","displayName":"sample","isDefault":true,"isForced":true,"deliveryUrl":"sample","title":"sample","isHearingImpaired":true,"isPicture":true,"isEmbedded":true,"streamIndex":7}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackTechnicalInfoDto
   kind=class | converter=default | number-handling=default | unmapped=default

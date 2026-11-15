@@ -20,7 +20,14 @@ public enum AudioTrackPurpose
 public sealed record AudioChoice(int Index, string Label, string? Detail, AudioTrackPurpose Purpose, bool Selected, bool Switchable);
 
 /// <summary>One row of the Subtitles column. A null <see cref="Key"/> is the Off row.</summary>
-public sealed record SubtitleChoice(string? Key, string Label, bool Selected);
+public sealed record SubtitleChoice(string? Key, string Label, bool Selected, bool IsMoreLanguage = false, bool IsPicture = false)
+{
+    /// <summary>The key a picture subtitle (burned into the video when chosen) carries: "burn:" and the stream's number in the file.</summary>
+    public const string BurnKeyPrefix = "burn:";
+
+    /// <summary>The file's stream number of a picture subtitle row, or null for any other row.</summary>
+    public int? BurnStreamIndex => Key is { } key && key.StartsWith(BurnKeyPrefix, StringComparison.Ordinal) && int.TryParse(key[BurnKeyPrefix.Length..], out var index) ? index : null;
+}
 
 /// <summary>Which of the two independent choices a <see cref="TrackSwitchRequest"/> changes.</summary>
 public enum TrackSwitchKind

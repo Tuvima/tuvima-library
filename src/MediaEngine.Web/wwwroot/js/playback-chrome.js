@@ -11,6 +11,12 @@ export function chromeHeld(facts) {
 // How long to wait before hiding, or null when the controls must stay.
 export function autoHideDelay(facts) { return chromeHeld(facts) ? null : AUTO_HIDE_MS; }
 
+/** A cue with no position of its own is centered across the whole picture (issue: subtitles not centered). A cue that carries a position keeps it. */
+export function centerCue(cue, original) {
+    if (original.position !== 'auto' && original.position !== undefined) return;
+    cue.position = 'auto'; cue.positionAlign = 'auto'; cue.size = 100; cue.align = 'center';
+}
+
 export function cueLine(railTop, videoRect) { return Math.max(0, Math.min(95, (railTop - videoRect.top - 12) / Math.max(1, videoRect.height) * 100)); }
 
 export function attach(host, video) {
@@ -35,10 +41,12 @@ export function attach(host, video) {
         for (const track of Array.from(video.textTracks || [])) {
             if (track.mode !== 'showing') continue;
             for (const cue of Array.from(track.activeCues || [])) {
-                if (!originals.has(cue)) originals.set(cue, { line:cue.line, snapToLines:cue.snapToLines, lineAlign:cue.lineAlign });
+                if (!originals.has(cue)) originals.set(cue, { line:cue.line, snapToLines:cue.snapToLines, lineAlign:cue.lineAlign, position:cue.position, positionAlign:cue.positionAlign, size:cue.size, align:cue.align });
                 if (!state.hidden && rail) {
                     // Native text tracks use the video viewport, including object-fit letterboxing.
                     const frame = video.getBoundingClientRect(), railTop = rail.getBoundingClientRect().top;
+                    // A cue that names no horizontal place of its own sits centered under the picture, whatever the cue box the browser built for it.
+                    centerCue(cue, originals.get(cue));
                     if (originals.get(cue).lineAlign !== undefined) {
                         cue.snapToLines = false; cue.lineAlign = 'end'; cue.line = cueLine(railTop, frame);
                     } else {

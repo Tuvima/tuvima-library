@@ -78,6 +78,13 @@
                         else
                         {
                             <p class="playback-lyrics__message">@(StillLooking ? L["PlaybackLyrics_StillLooking"] : L["PlaybackLyrics_NoLyricsFoundForThis"])</p>
+                            @if (!StillLooking && CurrentItem is { } searched && !string.IsNullOrWhiteSpace(searched.Title))
+                            {
+                                // Says what was searched for, so a missing song can be told from a lookup that asked the wrong thing.
+                                <p class="playback-lyrics__hint" data-lyrics-searched="true">@(string.IsNullOrWhiteSpace(searched.Subtitle)
+                                    ? L["PlaybackLyrics_SearchedForTitle", searched.Title]
+                                    : L["PlaybackLyrics_SearchedForTitleBy", searched.Title, searched.Subtitle])</p>
+                            }
                         }
                         <div class="playback-lyrics__actions">
                             @if (Presenter.Offers("find_lyrics") && !Presenter.NoSourceOn)

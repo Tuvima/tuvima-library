@@ -202,11 +202,24 @@ internal static partial class ProviderDeclarativeValidator
         {
             AddUnknown(check.UnmappedProperties, $"{path}.title_check", errors);
             AddRequired(errors, check.Type, $"{path}.title_check.type");
-            AddRequired(errors, check.IdPath, $"{path}.title_check.id_path");
-            AddRequired(errors, check.Id, $"{path}.title_check.id");
-            foreach (Match match in Placeholder.Matches(check.Id).Where(match => !TextTrackLookupValues.Contains(match.Groups[1].Value)))
+            // A check names the title either by an online id or, when the search is by name, by its name (and year).
+            var byName = string.IsNullOrEmpty(check.IdPath) && !string.IsNullOrEmpty(check.NamePath);
+            if (byName)
             {
-                errors.Add($"{path}.title_check.id uses {{{match.Groups[1].Value}}}, which is not a lookup value.");
+                AddRequired(errors, check.Name, $"{path}.title_check.name");
+            }
+            else
+            {
+                AddRequired(errors, check.IdPath, $"{path}.title_check.id_path");
+                AddRequired(errors, check.Id, $"{path}.title_check.id");
+            }
+
+            foreach (var (field, template) in new[] { ("id", check.Id), ("name", check.Name), ("year", check.Year) })
+            {
+                foreach (Match match in Placeholder.Matches(template).Where(match => !TextTrackLookupValues.Contains(match.Groups[1].Value)))
+                {
+                    errors.Add($"{path}.title_check.{field} uses {{{match.Groups[1].Value}}}, which is not a lookup value.");
+                }
             }
         }
     }

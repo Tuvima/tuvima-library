@@ -571,6 +571,18 @@ app.MapGet("/engine-subtitles/{assetId:guid}", async (Guid assetId, string? lang
     await response.Content.CopyToAsync(ctx.Response.Body, ct);
 }).RequireAuthorization();
 
+// A subtitle stream inside the video file, as WebVTT (subtitle menu fix). The Engine extracts it once and keeps it.
+app.MapGet("/engine-embedded-subtitle/{assetId:guid}/{streamIndex:int}", async (Guid assetId, int streamIndex, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/stream/{assetId:D}/subtitles/embedded/{streamIndex}");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).WithName("ProxyEngineEmbeddedSubtitle")
+  .WithSummary("Proxies one embedded subtitle stream as WebVTT through the Dashboard origin.")
+  .RequireAuthorization();
+
 // Scrub previews (Unified player v2 D9a): the index and sprite sheets of a video, through the Dashboard origin. The Engine applies the
 // same access checks as streaming the file and answers 404 when the profile may not play it.
 app.MapGet("/engine-scrub/{assetId:guid}/{file:regex(^(index\\.json|sheet-\\d{{3}}\\.jpg)$)}", async (Guid assetId, string file, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>

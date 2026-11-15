@@ -5,6 +5,7 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Services.MediaTiles
 @inject PlaybackSessionController Playback
@@ -66,6 +67,7 @@
         {
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? PlaybackWaitingRules.NeutralLine)</div>
         }
+        @if (_burningSubtitle) { <div class="video-playback-host__status" role="status">@L["VideoPlaybackHost_PreparingSubtitle"]</div> }
         @if (_switchingAudio) { <div class="video-playback-host__status" role="status">@L["VideoPlaybackHost_SwitchingAudio"]</div> }
         @if (_pictureInPictureNotice is not null) { <div class="video-playback-host__status" role="status" data-video-pip-notice>@_pictureInPictureNotice</div> }
         @* Unified player v2 D25 (mockup screen 14): the rating card at the top-left (the content rating, never the audience score), and the paused details at
@@ -227,7 +229,10 @@
     private int _availableSubtitleCount;
     private int _availableAudioTrackCount;
     private int? _selectedAudioTrackIndex, _pendingAudioIndex;
-    private bool _switchingAudio;
+    private bool _switchingAudio, _burningSubtitle;
+    // The picture subtitle (by its stream number in the file) burned into the video now, and a subtitle to show once the video restarts without it.
+    private int? _burnedSubtitleStream;
+    private string? _pendingCaptionKey;
     private bool _keyboardFocused;
     private bool _canPictureInPicture;
     private string? _continuationStatus;
@@ -310,10 +315,58 @@
     private bool AudioSwitchPossible => AudioTracks.Count > 1
         && (CanSwitchAudio || Playback.CurrentManifest?.HlsStatus is not ("failed" or "unavailable"));
     private IReadOnlyList<AudioChoice> AudioChoices => AudioSubtitlesChoices.BuildAudio(L, AudioTracks, _selectedAudioTrackIndex, AudioSwitchPossible);
-    private IReadOnlyList<SubtitleChoice> SubtitleChoices => _captionTracks
-        .Select(track => new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected))
-        .Prepend(new SubtitleChoice(null, L["Common_Off"].Value, !_captionTracks.Any(track => track.Selected)))
-        .ToList();
+    // Off first, then the person's own language and English, then "More languages" (picture subtitles sit with their language and say they restart the video).
+    private IReadOnlyList<SubtitleChoice> SubtitleChoices
+    {
+        get
+        {
+            var picked = _captionTracks.Any(track => track.Selected);
+            var rows = _captionTracks
+                .Select(track => (Choice: new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected), Language: CaptionLanguage(track.Key)))
+                .Concat((Playback.CurrentManifest?.SubtitleTracks ?? []).Where(track => track.IsPicture && track.StreamIndex is not null).Select(track => (
+                    Choice: new SubtitleChoice($"{SubtitleChoice.BurnKeyPrefix}{track.StreamIndex}", PictureChoiceLabel(track), _burnedSubtitleStream == track.StreamIndex, IsPicture: true),
+                    Language: track.Language)))
+                .ToList();
+            var wanted = PreferredSubtitleLanguages();
+            int Rank(string? language)
+            {
+                var name = DisplayFormat.FormatLanguageName(language);
+                var at = name is null ? -1 : wanted.FindIndex(candidate => string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase));
+                return at < 0 ? int.MaxValue : at;
+            }
+            var ordered = rows.Select((row, index) => (row, index, rank: Rank(row.Language)))
+                .OrderBy(item => item.rank).ThenBy(item => item.index)
+                .Select(item => item.rank == int.MaxValue && item.row.Language is not null ? item.row.Choice with { IsMoreLanguage = true } : item.row.Choice);
+            return ordered.Prepend(new SubtitleChoice(null, L["Common_Off"].Value, !picked && _burnedSubtitleStream is null)).ToList();
+        }
+    }
+
+    // The person's subtitle language, their alternates, then English.
+    private List<string> PreferredSubtitleLanguages()
+    {
+        var names = new List<string>();
+        void Add(string? value)
+        {
+            var name = string.IsNullOrWhiteSpace(value) ? null : DisplayFormat.FormatLanguageName(value) ?? value.Trim();
+            if (name is not null && !names.Contains(name, StringComparer.OrdinalIgnoreCase)) names.Add(name);
+        }
+        Add(_profileSubtitles?.DefaultSubtitleLanguage);
+        foreach (var alternate in _profileSubtitles?.AlternateSubtitleLanguages ?? []) Add(alternate);
+        Add("English");
+        return names;
+    }
+
+    private string? CaptionLanguage(string key)
+    {
+        if (key.StartsWith("managed:", StringComparison.Ordinal) && Guid.TryParse(key[8..], out var id))
+            return ManagedSubtitleTracks.FirstOrDefault(candidate => candidate.Id == id)?.Language;
+        if (key.StartsWith("manifest:", StringComparison.Ordinal) && int.TryParse(key[9..], out var index))
+            return SubtitleTracks.FirstOrDefault(candidate => candidate.Index == index)?.Language;
+        return null;
+    }
+
+    private string PictureChoiceLabel(PlaybackSubtitleTrackDto track) =>
+        AudioSubtitlesChoices.SubtitleLabel(L, track.Language, track.Title ?? track.DisplayName, track.IsForced, track.IsHearingImpaired || AudioSubtitlesChoices.NamesHearingImpaired(track.Title));
 
     private IReadOnlyList<PlaybackTrackDto> AudioTracks => Playback.CurrentManifest?.AudioTracks ?? [];
     // Profile defaults (Settings > Playback > Subtitles & audio). The size and background reach the cues through
@@ -510,6 +563,7 @@
         _loadedSubtitleAssetId = null;
         _managedSubtitleTracks = []; _captionTracks = []; _selectedCaptionKey = null;
         _selectedAudioTrackIndex = null; _pendingAudioIndex = null; _switchingAudio = false; _trackNotice = null;
+        _burningSubtitle = false; _burnedSubtitleStream = null; _pendingCaptionKey = null;
         _find?.Bind(identity?.AssetId);
         _profileAudioAppliedFor = null;
         _savedRail = [];
@@ -990,6 +1044,11 @@
             await InvokeAsync(StateHasChanged);
         }
         await ApplyPendingAudioAsync(state.AudioTrackCount);
+        if (_pendingCaptionKey is { } pendingCaption && _captionTracks.Any(track => track.Key == pendingCaption))
+        {
+            _pendingCaptionKey = null;
+            await SelectCaptionAsync(pendingCaption);
+        }
         await ApplyProfileAudioDefaultAsync();
         Playback.UpdateTransportState(
             currentTimeSeconds: state.CurrentTime,
@@ -1417,7 +1476,7 @@
             && int.TryParse(track.Key[9..], out var index)
             && SubtitleTracks.FirstOrDefault(candidate => candidate.Index == index) is { } manifest)
         {
-            return AudioSubtitlesChoices.SubtitleLabel(L, manifest.Language, manifest.DisplayName ?? track.Label, manifest.IsForced, AudioSubtitlesChoices.NamesHearingImpaired(manifest.DisplayName));
+            return AudioSubtitlesChoices.SubtitleLabel(L, manifest.Language, manifest.DisplayName ?? track.Label, manifest.IsForced, manifest.IsHearingImpaired || AudioSubtitlesChoices.NamesHearingImpaired(manifest.DisplayName));
         }
         return AudioSubtitlesChoices.SubtitleLabel(L, track.Language, track.Label, isForced: false, AudioSubtitlesChoices.NamesHearingImpaired(track.Label));
     }
@@ -1427,7 +1486,37 @@
     // carries that second too, so the panel's promise (A9: within one second) is stated where the choice is made.
     private Task HandleTrackSwitchAsync(TrackSwitchRequest request) => request.Kind == TrackSwitchKind.Audio
         ? SelectAudioTrackAsync(request.AudioIndex, request.ResumeSeconds)
-        : SelectCaptionAsync(request.CaptionKey);
+        : ChooseSubtitleAsync(request);
+
+    // A picture subtitle (DVD or Blu-ray) cannot be read by a browser, so the Engine paints it onto the video and the video restarts at the same second.
+    // Picking anything else while one is painted on restarts it again without. The video keeps playing as it was if the Engine cannot do it.
+    private async Task ChooseSubtitleAsync(TrackSwitchRequest request)
+    {
+        _trackNotice = null;
+        var burn = request.CaptionKey is { } key && key.StartsWith(SubtitleChoice.BurnKeyPrefix, StringComparison.Ordinal)
+            && int.TryParse(key[SubtitleChoice.BurnKeyPrefix.Length..], out var stream) ? stream : (int?)null;
+        if (burn is null && _burnedSubtitleStream is null)
+        {
+            await SelectCaptionAsync(request.CaptionKey);
+            return;
+        }
+        if (_burningSubtitle) return;
+
+        _burningSubtitle = true;
+        await InvokeAsync(StateHasChanged);
+        var switched = await Playback.SwitchVideoToAdaptiveAsync(_lifetimeCancellation.Token, request.ResumeSeconds, burn ?? -1);
+        _burningSubtitle = false;
+        if (switched)
+        {
+            _burnedSubtitleStream = burn;
+            _pendingCaptionKey = burn is null ? request.CaptionKey : null;
+        }
+        else
+        {
+            _trackNotice = L["VideoPlaybackHost_SubtitleCanTBePrepared"].Value;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
 
     private async Task SelectAudioTrackAsync(int index, double? resumeSeconds = null)
     {
@@ -1613,7 +1702,8 @@
 
     private string? SubtitleUrl(PlaybackSubtitleTrackDto track) =>
         !string.IsNullOrWhiteSpace(track.DeliveryUrl) && Playback.CurrentItem?.AssetId is { } assetId
-            ? $"/engine-subtitles/{assetId:D}?language={Uri.EscapeDataString(track.Language ?? "en")}" : null;
+            ? track is { IsEmbedded: true, StreamIndex: { } stream } ? $"/engine-embedded-subtitle/{assetId:D}/{stream}"
+            : $"/engine-subtitles/{assetId:D}?language={Uri.EscapeDataString(track.Language ?? "en")}" : null;
 
     private static string SubtitleLabel(PlaybackSubtitleTrackDto track)
         => StringHelpers.FirstNonBlankOr(
