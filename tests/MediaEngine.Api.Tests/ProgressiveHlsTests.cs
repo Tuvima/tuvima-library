@@ -36,7 +36,7 @@ public sealed class ProgressiveHlsTests
         var ffmpeg = new SegmentFfmpeg();
         var packages = new AdaptiveHlsPackageRepository(db);
         var inspection = new PlaybackStateRepository(db);
-        await inspection.StoreInspectionAsync(asset, "hash", 100, 120, "mp4", System.Text.Json.JsonSerializer.Serialize(new MediaProbeResult { Height = 360, Duration = TimeSpan.FromSeconds(120), SubtitleLanguages = ["en"] }));
+        await inspection.StoreInspectionAsync(asset, "hash", 100, 120, "mp4", System.Text.Json.JsonSerializer.Serialize(new MediaProbeResult { Height = 360, Duration = TimeSpan.FromSeconds(120), SubtitleLanguages = ["en"], SubtitleStreams = [new EmbeddedSubtitleStream(2, "subrip", "en", false, false)] }));
         var service = new AdaptiveHlsService(packages, new MediaAssetRepository(db), new TextTrackRepository(db), ffmpeg, config, new Lifetime(), NullLogger<AdaptiveHlsService>.Instance, inspection);
         var first = await service.EnsurePackageAsync(asset, "hash", []);
         // The service answers "preparing" after one second and the player asks again; a loaded CI runner can

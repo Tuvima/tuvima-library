@@ -138,6 +138,16 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Unavailable_SaysWhatWasSearchedFor()
+    {
+        var cut = await OpenAsync(Api([], findLyrics: true));
+        cut.WaitForAssertion(() => Assert.Equal("unavailable", View(cut)));
+
+        var hint = cut.Find("[data-lyrics-state=unavailable] [data-lyrics-searched]").TextContent.Trim();
+        Assert.StartsWith("Searched for “", hint, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Unavailable_IsOneLineWithFindLyricsAndAddALyricsFile()
     {
         var cut = await OpenAsync(Api([], findLyrics: true));

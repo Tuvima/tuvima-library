@@ -56,6 +56,18 @@
 .asv__row.is-selected,
 .asv__row.is-selected:hover {
     background: var(--playback-state-selected);
+    box-shadow: inset 3px 0 0 var(--playback-accent);
+}
+
+.asv__row.is-selected .asv__label {
+    font-weight: 600;
+}
+
+.asv__group {
+    color: var(--playback-text-muted);
+    font: 400 12px/1.45 var(--font-ui);
+    margin: 8px 0 0;
+    padding: 10px 10px 4px;
 }
 
 .asv__row:focus-visible {

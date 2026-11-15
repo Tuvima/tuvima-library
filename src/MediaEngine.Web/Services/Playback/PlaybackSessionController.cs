@@ -2933,14 +2933,14 @@ public sealed partial class PlaybackSessionController
     /// A browser cannot switch the audio of a direct-play file itself (video-player-controls-and-bookmarks D10). False when the Engine
     /// could not provide the stream; the video keeps playing as it was.
     /// </summary>
-    public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default, double? resumeSeconds = null)
+    public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default, double? resumeSeconds = null, int? burnSubtitleStream = null)
     {
         if (CurrentItem is not { AssetId: Guid assetId } item || !MediaKindClassifier.IsVideo(item.MediaType))
         {
             return false;
         }
 
-        if (item.Manifest?.RecommendedDelivery == PlaybackDeliveryModes.Hls && !string.IsNullOrWhiteSpace(item.StreamUrl))
+        if (burnSubtitleStream is null && item.Manifest?.RecommendedDelivery == PlaybackDeliveryModes.Hls && !string.IsNullOrWhiteSpace(item.StreamUrl))
         {
             return true;
         }
@@ -2953,7 +2953,7 @@ public sealed partial class PlaybackSessionController
 
         var profileId = _preferences is null ? null : (await _preferences.GetAsync(ct))?.ProfileId;
         var manifest = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client,
-            profileId == Guid.Empty ? null : profileId, ct, ToConnectionContext(), adaptive: true);
+            profileId == Guid.Empty ? null : profileId, ct, ToConnectionContext(), adaptive: true, burnSubtitleStream: burnSubtitleStream);
         if (manifest is null || manifest.RecommendedDelivery != PlaybackDeliveryModes.Hls
             || manifest.HlsStatus is "failed" or "unavailable"
             || index >= _queue.Count || _queue[index].AssetId != assetId)

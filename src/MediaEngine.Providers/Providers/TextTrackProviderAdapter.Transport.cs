@@ -47,10 +47,14 @@ public sealed partial class TextTrackProviderAdapter
 
     /// <summary>The first request that fits the media type and has every value it needs; <c>null</c> when none does.</summary>
     private TextTrackRequestConfiguration? SelectRequest(MediaType mediaType, IReadOnlyDictionary<string, string> values) =>
-        _text.Search.Requests.FirstOrDefault(request =>
+        SelectRequests(mediaType, values).FirstOrDefault();
+
+    /// <summary>Every request that fits the media type and has every value it needs, in the order the provider's file lists them.</summary>
+    private List<TextTrackRequestConfiguration> SelectRequests(MediaType mediaType, IReadOnlyDictionary<string, string> values) =>
+        _text.Search.Requests.Where(request =>
             (string.IsNullOrEmpty(request.WhenMediaType)
                 || string.Equals(request.WhenMediaType, mediaType.ToString(), StringComparison.OrdinalIgnoreCase))
-            && request.Needs.All(need => values.ContainsKey(need)));
+            && request.Needs.All(need => values.ContainsKey(need))).ToList();
 
     /// <summary>The path and query of a request; pairs that name a missing value are left out.</summary>
     private static string BuildPath(TextTrackRequestConfiguration request, IReadOnlyDictionary<string, string> values)

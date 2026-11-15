@@ -330,7 +330,7 @@ public sealed class AdaptiveHlsService
                 var result = await RunVideoAsync(
                     token => copyVideo
                         ? CopyVideoAsync(asset.FilePathRoot, directory, settings.AdaptiveHls.SegmentSeconds, token)
-                        : EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, token),
+                        : EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, plan.BurnSubtitleRelativeIndex, token),
                     directory, watchStart: !copyVideo && encoder != "libx264",
                     firstRendition ? AudioReady : null, firstRendition ? Publish : null, ct).ConfigureAwait(false);
                 if (result.ExitCode != 0 && !copyVideo && !string.Equals(encoder, "libx264", StringComparison.Ordinal))
@@ -350,7 +350,7 @@ public sealed class AdaptiveHlsService
                     DeleteDirectory(directory);
                     Directory.CreateDirectory(directory);
                     result = await RunVideoAsync(
-                        token => EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, token),
+                        token => EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, plan.BurnSubtitleRelativeIndex, token),
                         directory, watchStart: false,
                         firstRendition ? AudioReady : null, firstRendition ? Publish : null, ct).ConfigureAwait(false);
                 }
@@ -501,6 +501,7 @@ public sealed class AdaptiveHlsService
         string encoder,
         int segmentSeconds,
         MediaEngine.Domain.Models.MediaProbeResult probe,
+        int? burnSubtitleRelativeIndex,
         CancellationToken ct)
     {
         var playlist = Path.Combine(directory, "index.m3u8");
@@ -516,9 +517,20 @@ public sealed class AdaptiveHlsService
             "-hls_playlist_type", "event", "-hls_flags", "independent_segments+temp_file",
             "-hls_segment_filename", segmentPattern, playlist,
         };
+        if (burnSubtitleRelativeIndex is { } burn)
+        {
+            // The chosen picture subtitle is drawn over the video before it is scaled, so it keeps its place at every size.
+            var filterIndex = arguments.IndexOf("-vf");
+            var chain = arguments[filterIndex + 1];
+            arguments.RemoveRange(filterIndex, 2);
+            var mapIndex = arguments.IndexOf("-map");
+            arguments.RemoveRange(mapIndex, 2);
+            arguments.InsertRange(mapIndex, ["-filter_complex", $"[0:v:0][0:s:{burn.ToString(CultureInfo.InvariantCulture)}]overlay=eof_action=pass,{chain}[v]", "-map", "[v]"]);
+        }
+
         if (encoder == "libx264")
         {
-            arguments.InsertRange(12, ["-preset", "veryfast", "-profile:v", "main"]);
+            arguments.InsertRange(arguments.IndexOf("-c:v") + 2, ["-preset", "veryfast", "-profile:v", "main"]);
         }
 
         return await _ffmpeg.RunAsync(arguments, ct).ConfigureAwait(false);
@@ -581,23 +593,32 @@ public sealed class AdaptiveHlsService
             captions.Add(new HlsCaption(track.Language, track.IsPreferred));
         }
 
-        for (var streamIndex = 0; streamIndex < probe.SubtitleLanguages.Count; streamIndex++)
+        // Every subtitle stream of the file, each under its own name (the same one the player's menu shows). Picture streams (PGS, DVD) cannot
+        // become text, so they are not listed here; they are burned into the picture when a person chooses one.
+        var embedded = PlaybackCapabilitiesService.BuildEmbeddedSubtitleTracks(assetId, probe.SubtitleStreams);
+        var ordered = probe.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList();
+        for (var streamIndex = 0; streamIndex < ordered.Count; streamIndex++)
         {
+            var stream = ordered[streamIndex];
+            if (!stream.IsText)
+            {
+                _logger.LogInformation("Embedded caption {StreamIndex} of asset {AssetId} is a picture track ({Codec}); it is listed in the menu and burned in when chosen",
+                    stream.StreamIndex, assetId, stream.Codec ?? "unknown");
+                continue;
+            }
             var directory = Path.Combine(root, $"s{captions.Count}");
             Directory.CreateDirectory(directory);
             var target = Path.Combine(directory, "caption.vtt");
             var conversion = await ConvertCaptionAsync(sourcePath, $"0:s:{streamIndex}", target, ct).ConfigureAwait(false);
             if (conversion.ExitCode != 0)
             {
-                _logger.LogWarning("Embedded caption conversion failed for asset {AssetId} stream {StreamIndex}: {Error}", assetId, streamIndex, Tail(conversion.Error));
+                _logger.LogWarning("Embedded caption conversion failed for asset {AssetId} stream {StreamIndex}: {Error}", assetId, stream.StreamIndex, Tail(conversion.Error));
                 DeleteDirectory(directory);
                 continue;
             }
             await WriteCaptionPlaylistAsync(directory, probe.Duration.TotalSeconds, ct).ConfigureAwait(false);
-            var language = string.IsNullOrWhiteSpace(probe.SubtitleLanguages[streamIndex])
-                ? "und"
-                : probe.SubtitleLanguages[streamIndex];
-            captions.Add(new HlsCaption(language, captions.Count == 0));
+            var language = string.IsNullOrWhiteSpace(stream.Language) ? "und" : stream.Language;
+            captions.Add(new HlsCaption(language, captions.Count == 0, embedded[streamIndex].DisplayName, stream.IsForced));
         }
         var manifest = Path.Combine(root, "captions.json");
         await File.WriteAllTextAsync(manifest + ".tmp", JsonSerializer.Serialize(captions.Select((caption, index) => new
@@ -659,10 +680,10 @@ public sealed class AdaptiveHlsService
         {
             var track = captions[index];
             builder.Append("#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subs\",NAME=\"")
-                .Append(Escape(track.Language.ToUpperInvariant())).Append("\",LANGUAGE=\"")
+                .Append(Escape(track.Name ?? track.Language.ToUpperInvariant())).Append("\",LANGUAGE=\"")
                 .Append(Escape(track.Language)).Append("\",DEFAULT=")
                 .Append(track.IsDefault ? "YES" : "NO")
-                .Append(",AUTOSELECT=YES,FORCED=NO,URI=\"s").Append(index).Append("/index.m3u8\"\n");
+                .Append(",AUTOSELECT=YES,FORCED=").Append(track.Forced ? "YES" : "NO").Append(",URI=\"s").Append(index).Append("/index.m3u8\"\n");
         }
         for (var index = 0; index < renditions.Count; index++)
         {
@@ -791,7 +812,7 @@ public sealed class AdaptiveHlsService
         var json = JsonSerializer.Serialize(settings);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))[..16];
         var audio = string.Join('+', plan.Decision.CopyAudioCodecs.Order(StringComparer.Ordinal));
-        return $"progressive-v3:{settings.ProfileName}:{plan.Decision.Rung}:h{plan.MaxHeight?.ToString() ?? "-"}:b{plan.MaxBitrateKbps?.ToString() ?? "-"}:{(plan.OfferLowerQuality ? "ladder" : "single")}:a{audio}:{fingerprint}";
+        return $"progressive-v3:{settings.ProfileName}:{plan.Decision.Rung}:h{plan.MaxHeight?.ToString() ?? "-"}:b{plan.MaxBitrateKbps?.ToString() ?? "-"}:{(plan.OfferLowerQuality ? "ladder" : "single")}:a{audio}:burn{plan.BurnSubtitleStreamIndex?.ToString() ?? "-"}:{fingerprint}";
     }
 
     private static bool HasPublishedSegment(string directory)
@@ -919,7 +940,7 @@ public sealed class AdaptiveHlsService
         }
     }
 
-    private sealed record HlsCaption(string Language, bool IsDefault);
+    private sealed record HlsCaption(string Language, bool IsDefault, string? Name = null, bool Forced = false);
 }
 
 public sealed record AdaptiveHlsPreparation(Guid PackageId, string Status, string? Error, AdaptiveHlsRunInfo? Run = null);
@@ -929,7 +950,9 @@ public sealed record AdaptiveHlsPreparation(Guid PackageId, string Status, strin
 /// <param name="MaxHeight">The tallest picture the player or connection allows, or null for no limit.</param>
 /// <param name="MaxBitrateKbps">The most video bitrate the connection can carry, or null.</param>
 /// <param name="OfferLowerQuality">True when a remote or slow connection needs a second, lower quality beside the first.</param>
-public sealed record HlsStartPlan(PlaybackDecision Decision, int? MaxHeight = null, int? MaxBitrateKbps = null, bool OfferLowerQuality = false)
+/// <param name="BurnSubtitleRelativeIndex">The picture subtitle to burn into the video, as its position among the file's subtitle streams (0:s:N); null for none.</param>
+/// <param name="BurnSubtitleStreamIndex">The same stream by its number in the file; part of the package's identity so each choice keeps its own package.</param>
+public sealed record HlsStartPlan(PlaybackDecision Decision, int? MaxHeight = null, int? MaxBitrateKbps = null, bool OfferLowerQuality = false, int? BurnSubtitleRelativeIndex = null, int? BurnSubtitleStreamIndex = null)
 {
     /// <summary>What a caller with no ladder (an older cast path) gets: encode the picture, copy nothing.</summary>
     public static HlsStartPlan EncodeDefault { get; } = new(new PlaybackDecision(PlaybackRungs.EncodePicture, "The player needs a prepared stream", false, []));

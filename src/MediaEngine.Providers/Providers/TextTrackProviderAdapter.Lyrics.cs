@@ -91,6 +91,10 @@ public sealed partial class TextTrackProviderAdapter
             var candidateUrl = baseUrl + BuildPath(request, values);
             var answer = await GetJsonAsync(candidateUrl, ct).ConfigureAwait(false);
             tally.Requests++;
+            _logger.LogDebug(
+                "{Provider} lyrics request {Request} for \"{Title}\" by \"{Artist}\" (album \"{Album}\"): {Answer}",
+                Name, request.Path + "?" + string.Join('&', request.Query.Select(pair => pair[0])), lookup.Title, lookup.Artist, lookup.Album,
+                answer.Failed ? "could not be reached" : string.IsNullOrWhiteSpace(answer.Json) ? "nothing" : "an answer");
             if (answer.Failed)
             {
                 tally.Failures++;

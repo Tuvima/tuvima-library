@@ -64,7 +64,8 @@ public sealed partial class EngineApiClient
         Guid? profileId = null,
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
-        bool adaptive = false)
+        bool adaptive = false,
+        int? burnSubtitleStream = null)
     {
         var endpoint = $"GET /playback/{assetId}/manifest";
         try
@@ -82,6 +83,11 @@ public sealed partial class EngineApiClient
             if (adaptive)
             {
                 query.Add("delivery=hls");
+            }
+
+            if (burnSubtitleStream is >= 0)
+            {
+                query.Add($"burnSubtitle={burnSubtitleStream.Value}");
             }
 
             if (connection is not null)

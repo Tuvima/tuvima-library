@@ -1604,6 +1604,12 @@
   <data name="PlaybackLyrics_NoLyricsFoundForThis" xml:space="preserve">
     <value>No lyrics found</value>
   </data>
+  <data name="PlaybackLyrics_SearchedForTitle" xml:space="preserve">
+    <value>Searched for “{0}”</value>
+  </data>
+  <data name="PlaybackLyrics_SearchedForTitleBy" xml:space="preserve">
+    <value>Searched for “{0}” by {1}</value>
+  </data>
   <data name="PlaybackLyrics_LyricsOptions" xml:space="preserve">
     <value>Lyrics options</value>
   </data>
@@ -10615,6 +10621,18 @@
   </data>
   <data name="AudioSubtitles_Subtitles" xml:space="preserve">
     <value>Subtitles</value>
+  </data>
+  <data name="VideoPlaybackHost_PreparingSubtitle" xml:space="preserve">
+    <value>Preparing the subtitle…</value>
+  </data>
+  <data name="VideoPlaybackHost_SubtitleCanTBePrepared" xml:space="preserve">
+    <value>This subtitle can't be shown right now. The video is playing as it was.</value>
+  </data>
+  <data name="AudioSubtitles_MoreLanguages" xml:space="preserve">
+    <value>More languages</value>
+  </data>
+  <data name="AudioSubtitles_PictureNote" xml:space="preserve">
+    <value>Picture subtitle · restarts the video</value>
   </data>
   <data name="AudioSubtitles_NameSdh" xml:space="preserve">
     <value>{0} · SDH</value>

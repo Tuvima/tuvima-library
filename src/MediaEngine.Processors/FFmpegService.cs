@@ -631,7 +631,8 @@ public sealed class FFmpegService : IFFmpegService
                                 codecName,
                                 subtitleLanguage ?? "und",
                                 flags?.TryGetProperty("forced", out var forcedFlag) == true && forcedFlag.GetInt32() == 1,
-                                flags?.TryGetProperty("hearing_impaired", out var hearingFlag) == true && hearingFlag.GetInt32() == 1));
+                                flags?.TryGetProperty("hearing_impaired", out var hearingFlag) == true && hearingFlag.GetInt32() == 1,
+                                stream.TryGetProperty("tags", out var titleTags) ? TryReadTag(titleTags, "title") : null));
                         }
 
                         subtitleLanguage ??= codecName;

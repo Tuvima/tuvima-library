@@ -184,6 +184,42 @@
             "id": "{imdb_id}",
             "ignore_case": true
           }
+        },
+        {
+          "when_media_type": "Movies",
+          "needs": [
+            "title"
+          ],
+          "path": "/api/v2/subtitles/search",
+          "query": [
+            [
+              "film_name",
+              "{title}"
+            ],
+            [
+              "year",
+              "{year}"
+            ],
+            [
+              "type",
+              "movie"
+            ],
+            [
+              "languages",
+              "{language}"
+            ],
+            [
+              "unpack",
+              "1"
+            ]
+          ],
+          "title_check": {
+            "type": "movie",
+            "name_path": "name",
+            "name": "{title}",
+            "year_path": "year",
+            "year": "{year}"
+          }
         }
       ],
       "empty_search_minutes": 15,

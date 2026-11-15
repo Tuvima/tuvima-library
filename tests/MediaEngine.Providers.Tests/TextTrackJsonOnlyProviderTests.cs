@@ -117,6 +117,39 @@ public sealed class TextTrackJsonOnlyProviderTests
     }
 
     [Fact]
+    public async Task TheShippedSubtitleSource_SearchesByTitleAndYear_WhenAFilmHasNoOnlineId()
+    {
+        var handler = new RecordingHandler(_ => RecordingHandler.Json(
+            """{"status":true,"results":[{"name":"Burnt","year":2015,"type":"movie"}],"subtitles":[{"n_id":"123","release_name":"Burnt.2015.1080p.BluRay","language":"EN","hi":false}]}"""));
+        var subdl = ShippedProviderHarness.Subdl(handler);
+        var lookup = new TextTrackLookup(
+            new MediaAsset { Id = Guid.NewGuid(), FilePathRoot = "Burnt.2015.mkv" },
+            MediaType.Movies, "Burnt", null, null, "2015", "en", null,
+            new Dictionary<string, string>(), new SubtitleLookupContext());
+
+        await subdl.SearchAsync(lookup);
+
+        var line = Assert.Single(handler.Lines);
+        Assert.Contains("film_name=Burnt", line, StringComparison.Ordinal);
+        Assert.Contains("year=2015", line, StringComparison.Ordinal);
+        Assert.Contains("type=movie", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheShippedSubtitleSource_RefusesAnAnswerForADifferentFilmFoundByName()
+    {
+        var handler = new RecordingHandler(_ => RecordingHandler.Json(
+            """{"status":true,"results":[{"name":"Burnt Offerings","year":1976,"type":"movie"}],"subtitles":[{"n_id":"9","release_name":"x","language":"EN"}]}"""));
+        var subdl = ShippedProviderHarness.Subdl(handler);
+        var lookup = new TextTrackLookup(
+            new MediaAsset { Id = Guid.NewGuid(), FilePathRoot = "Burnt.2015.mkv" },
+            MediaType.Movies, "Burnt", null, null, "2015", "en", null,
+            new Dictionary<string, string>(), new SubtitleLookupContext());
+
+        await Assert.ThrowsAsync<TextTrackLookupException>(() => subdl.SearchAsync(lookup));
+    }
+
+    [Fact]
     public void TheShippedSubtitleSourceReportsIncompatibleDownloads_AndALyricsSourceDoesNot()
     {
         var subdl = ShippedProviderHarness.Subdl(new RecordingHandler(_ => RecordingHandler.Json("{}")));

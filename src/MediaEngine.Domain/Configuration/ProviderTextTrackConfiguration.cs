@@ -225,6 +225,22 @@ public sealed class TextTrackTitleCheckConfiguration
     [JsonPropertyName("ignore_case")]
     public bool IgnoreCase { get; set; }
 
+    /// <summary>For a search by name (no id): the field of a title holding its name.</summary>
+    [JsonPropertyName("name_path")]
+    public string NamePath { get; set; } = string.Empty;
+
+    /// <summary>For a search by name: template for the name that must be found.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>For a search by name: the field of a title holding its year.</summary>
+    [JsonPropertyName("year_path")]
+    public string YearPath { get; set; } = string.Empty;
+
+    /// <summary>For a search by name: template for the year that must be found; empty when the year is not known.</summary>
+    [JsonPropertyName("year")]
+    public string Year { get; set; } = string.Empty;
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
 }

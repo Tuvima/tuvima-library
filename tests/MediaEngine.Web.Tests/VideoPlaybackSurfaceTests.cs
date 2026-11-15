@@ -35,8 +35,8 @@ public sealed class VideoPlaybackSurfaceTests
         var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
         var script = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-core.js"));
 
-        Assert.Contains(".Select(track => new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected))", razor, StringComparison.Ordinal);
-        Assert.Contains("new SubtitleChoice(null, Off, !_captionTracks.Any(track => track.Selected))", razor, StringComparison.Ordinal);
+        Assert.Contains("new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected)", razor, StringComparison.Ordinal);
+        Assert.Contains("new SubtitleChoice(null, Off, !picked && _burnedSubtitleStream is null)", razor, StringComparison.Ordinal);
         Assert.Contains("CaptionTracks { get; set; }", razor, StringComparison.Ordinal);
         Assert.Contains("state.CaptionTracks", razor, StringComparison.Ordinal);
         Assert.Contains("readCaptionTrackChoices(element)", script, StringComparison.Ordinal);

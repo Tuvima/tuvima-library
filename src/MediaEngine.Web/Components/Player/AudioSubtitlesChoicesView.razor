@@ -62,14 +62,17 @@
                      aria-labelledby="@(IsSheet ? TabId("subtitles") : null)" aria-label="@(IsSheet ? null : L["Common_Subtitles"].Value)">
                 @if (!IsSheet) { <h3 class="asv__heading">@L["Common_Subtitles"]</h3> }
                 <div role="radiogroup" aria-label="@L["Common_Subtitles"].Value" @ref="_subtitleGroup">
-                    @foreach (var row in Subtitles)
+                    @foreach (var row in Subtitles.Where(row => !row.IsMoreLanguage))
                     {
-                        var choice = row;
-                        <AppNativeButton Type="button" Class="@RowClass(choice.Selected, true)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
-                                         tabindex="@(choice.Key == SubtitleTabStop ? 0 : -1)" data-asv-subtitle="@(choice.Key ?? "off")" OnClick="@(() => ChooseSubtitleAsync(choice))">
-                            <span class="asv__label" data-overflow-tooltip="@choice.Label">@choice.Label</span>
-                            @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
-                        </AppNativeButton>
+                        @SubtitleRow(row)
+                    }
+                    @if (Subtitles.Any(row => row.IsMoreLanguage))
+                    {
+                        <h4 class="asv__group" data-asv-group="more">@L["AudioSubtitles_MoreLanguages"]</h4>
+                        @foreach (var row in Subtitles.Where(row => row.IsMoreLanguage))
+                        {
+                            @SubtitleRow(row)
+                        }
                     }
                 </div>
             </section>
@@ -79,6 +82,21 @@
 </div>
 
 @code {
+    private RenderFragment SubtitleRow(SubtitleChoice row) => __builder =>
+    {
+        var choice = row;
+        <AppNativeButton Type="button" Class="@RowClass(choice.Selected, true)" role="radio" aria-checked="@(choice.Selected ? "true" : "false")"
+                         tabindex="@(choice.Key == SubtitleTabStop ? 0 : -1)" data-asv-subtitle="@(choice.Key ?? "off")" data-asv-picture="@(choice.IsPicture ? "true" : null)"
+                         OnClick="@(() => ChooseSubtitleAsync(choice))">
+            <span class="asv__label" data-overflow-tooltip="@choice.Label">@choice.Label</span>
+            @if (choice.Selected) { <span class="asv__check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span> }
+            @if (choice.IsPicture)
+            {
+                <span class="asv__sub" data-overflow-tooltip="@L["AudioSubtitles_PictureNote"].Value">@L["AudioSubtitles_PictureNote"]</span>
+            }
+        </AppNativeButton>
+    };
+
     /// <summary>The Audio rows, already ordered (commentary and audio description last).</summary>
     [Parameter] public IReadOnlyList<AudioChoice> Audio { get; set; } = [];
 

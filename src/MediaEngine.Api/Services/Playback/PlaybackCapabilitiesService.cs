@@ -84,7 +84,8 @@ public sealed class PlaybackCapabilitiesService
         ClientCapabilitiesDto? negotiatedCapabilities = null,
         Guid? deviceId = null,
         bool forceAdaptive = false,
-        PlaybackChoices? choices = null)
+        PlaybackChoices? choices = null,
+        int? burnSubtitleStream = null)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -211,6 +212,19 @@ public sealed class PlaybackCapabilitiesService
             }
         }
 
+        // A picture subtitle the viewer chose is burned into the video, which needs the picture re-encoded: no direct play, no copying (issue 1058).
+        var burn = burnSubtitleStream is { } wantedStream && probe?.SubtitleStreams.FirstOrDefault(stream => stream.StreamIndex == wantedStream && stream.IsPicture) is not null
+            ? burnSubtitleStream
+            : null;
+        if (burn is not null && isVideoFile)
+        {
+            decision = new PlaybackDecision(PlaybackRungs.EncodePicture, "A picture subtitle was chosen, so it is burned into the video", false,
+                decision?.CopyAudioCodecs ?? [], "burn-subtitle");
+            recommendedDelivery = PlaybackDeliveryModes.Hls;
+            conversionReason = "A picture subtitle was chosen, so it is burned into the video";
+            _logger.LogInformation("Play: {Rung}, because {Code} (asset {AssetId}, stream {StreamIndex})", decision.Rung, decision.Code, assetId, burn);
+        }
+
         var audioTracks = BuildAudioTracks(probe);
         string? hlsUrl = null;
         string? hlsStatus = null;
@@ -231,7 +245,7 @@ public sealed class PlaybackCapabilitiesService
                 {
                     maxHeight = maxHeight is { } own ? Math.Min(own, cappedHeight) : cappedHeight;
                 }
-                var plan = new HlsStartPlan(streamDecision, maxHeight, networkCap?.MaxBitrateKbps, networkCap?.OfferLowerQuality ?? false);
+                var plan = new HlsStartPlan(streamDecision, maxHeight, networkCap?.MaxBitrateKbps, networkCap?.OfferLowerQuality ?? false, burn is null ? null : probe!.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList().FindIndex(stream => stream.StreamIndex == burn), burn);
                 var preparation = await _adaptiveHls.EnsurePackageAsync(assetId, sourceHash, audioTracks, ct, plan);
                 hlsStatus = preparation.Status;
                 playbackPath = PlaybackPathBuilder.ForStream(streamDecision, preparation.Status, preparation.Run, preparation.Error);
@@ -910,6 +924,13 @@ public sealed class PlaybackCapabilitiesService
         MediaProbeResult? probe,
         CancellationToken ct)
     {
+        // Every subtitle track inside the file is listed with its own name and flags, never reduced to one per language (issue 1058). Text tracks
+        // can be shown by the browser; picture tracks (PGS, DVD) are listed too and are burned into the video when chosen.
+        if (probe?.SubtitleStreams.Count is > 0)
+        {
+            return BuildEmbeddedSubtitleTracks(assetId, probe.SubtitleStreams);
+        }
+
         var managedTracks = await _textTracks.GetByAssetAsync(assetId, TextTrackKind.Subtitles, ct);
         if (managedTracks.Count > 0)
         {
@@ -940,6 +961,30 @@ public sealed class PlaybackCapabilitiesService
             IsDefault = index == 0,
         }).ToList();
     }
+
+    /// <summary>One entry per subtitle stream of the file, in the file's order: its name, forced and hearing-impaired flags, and where a text track is read from.</summary>
+    internal static IReadOnlyList<PlaybackSubtitleTrackDto> BuildEmbeddedSubtitleTracks(Guid assetId, IReadOnlyList<EmbeddedSubtitleStream> streams) =>
+        streams.OrderBy(stream => stream.StreamIndex).Select((stream, index) =>
+        {
+            var named = !string.IsNullOrWhiteSpace(stream.Title);
+            var sdh = stream.IsHearingImpaired
+                || named && (stream.Title!.Contains("SDH", StringComparison.OrdinalIgnoreCase) || stream.Title.Contains("hearing", StringComparison.OrdinalIgnoreCase));
+            return new PlaybackSubtitleTrackDto
+            {
+                Index = index,
+                Language = stream.Language,
+                Codec = stream.Codec,
+                Title = named ? stream.Title!.Trim() : null,
+                DisplayName = named ? stream.Title!.Trim() : string.Equals(stream.Language, "und", StringComparison.OrdinalIgnoreCase) ? "Subtitles" : $"Subtitles ({stream.Language.ToUpperInvariant()})",
+                IsDefault = false,
+                IsForced = stream.IsForced,
+                IsHearingImpaired = sdh,
+                IsPicture = stream.IsPicture,
+                IsEmbedded = true,
+                StreamIndex = stream.StreamIndex,
+                DeliveryUrl = stream.IsText ? $"/stream/{assetId}/subtitles/embedded/{stream.StreamIndex}" : null,
+            };
+        }).ToList();
 
     private async Task<IReadOnlyList<PlaybackChapterDto>> BuildChaptersAsync(
         Guid assetId,
