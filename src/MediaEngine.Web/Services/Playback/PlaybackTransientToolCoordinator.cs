@@ -16,6 +16,13 @@ public sealed class PlaybackTransientToolCoordinator : IDisposable
     private string? _pinnedDockTool;
     private string? _experience;
     public bool IsPinnedDock(string tool) => _pinnedDockTool == tool;
+
+    /// <summary>
+    /// The reading panels of music and audiobooks (lyrics, bookmarks, queue, history, chapters) stay open until the person closes them: not on an outside
+    /// click, not when the song changes (issue 1071). Menus and settings keep the ordinary dismissal.
+    /// </summary>
+    public static bool StaysOpenUntilClosed(string? toolId) =>
+        toolId is "audio-lyrics" or "audio-bookmarks" or "audio-compact-context" or "audio-queue" or "audio-history" or "audio-chapters";
     public bool IsPinnedFor(string tool) => IsPinnedDock(tool) || IsPinned && IsOpen(tool);
     public void RegisterPanel(string panel, string tool, bool dockPreview = false)
     {
@@ -128,8 +135,16 @@ public sealed class PlaybackTransientToolCoordinator : IDisposable
         {
             return;
         }
+        var retainOpen = StaysOpenUntilClosed(OpenToolId) && _identity.Profile == identity.Profile
+            && _experience == _playback.Experience && _playback.HasQueue && !_playback.IsVideoMode;
         var retainDock = _pinnedDockTool is not null && _identity.Profile == identity.Profile
             && _experience == _playback.Experience && _playback.HasQueue && !_playback.IsVideoMode;
+        if (retainOpen)
+        {
+            _identity = identity;
+            _experience = _playback.Experience;
+            return;
+        }
         _identity = identity;
         _experience = _playback.Experience;
         if (retainDock)

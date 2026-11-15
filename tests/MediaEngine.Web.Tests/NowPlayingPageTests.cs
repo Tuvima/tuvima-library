@@ -95,6 +95,27 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("history", cut.Find("[data-now-playing-panel]").GetAttribute("data-now-playing-panel")));
     }
 
+    [Theory]
+    [InlineData("history", "queue")]
+    [InlineData("history", "lyrics")]
+    [InlineData("queue", "history")]
+    [InlineData("lyrics", "history")]
+    public async Task MusicPage_EveryTabStaysClickableAfterAnyOtherTab(string first, string second)
+    {
+        AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
+        var cut = Render<NowPlayingPage>();
+
+        foreach (var key in new[] { first, second, "history", "queue", "lyrics", first })
+        {
+            await cut.Find($"[role='tab'][data-playback-list-tab='{key}']").ClickAsync();
+            cut.WaitForAssertion(() =>
+            {
+                Assert.Equal(key, cut.Find("[data-now-playing-panel]").GetAttribute("data-now-playing-panel"));
+                Assert.Equal("true", cut.Find($"[role='tab'][data-playback-list-tab='{key}']").GetAttribute("aria-selected"));
+            });
+        }
+    }
+
     [Fact]
     public async Task AudiobookPage_ShowsBookAuthorNarratorAndTheChapterLineWithChaptersAndAboutTabs()
     {

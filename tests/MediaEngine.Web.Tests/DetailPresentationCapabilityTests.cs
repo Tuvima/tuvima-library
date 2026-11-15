@@ -159,9 +159,8 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
         Assert.NotNull(progress);
         Assert.Equal("98", progress!.GetAttribute("aria-valuenow"));
         Assert.Equal("Continue listening - 98% listened", progress.GetAttribute("aria-label"));
-        // The percentage is not inside the button: it is the tooltip and the quiet line under it (issue 1000).
-        Assert.DoesNotContain("98%", primary.TextContent);
-        Assert.Contains("98%", cut.Find(".tl-detail-action-hint").TextContent);
+        // The percentage is in the button's own words, "Continue Listening 98%" (issue 1054), and not in a tooltip.
+        Assert.Contains("Continue Listening 98%", primary.TextContent);
         Assert.Contains("width:98%", primary.InnerHtml);
     }
 

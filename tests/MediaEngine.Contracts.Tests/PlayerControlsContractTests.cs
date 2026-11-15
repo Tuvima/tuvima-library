@@ -72,6 +72,7 @@ public sealed class PlayerControlsContractTests
         [PlaybackControlKey.AudioSubtitles] = "audio-subtitles",
         [PlaybackControlKey.Settings] = "playback-settings",
         [PlaybackControlKey.Fullscreen] = "fullscreen",
+        [PlaybackControlKey.PictureInPicture] = "picture-in-picture",
     };
 
     // ---- The contract file itself ----
@@ -184,8 +185,8 @@ public sealed class PlayerControlsContractTests
     [InlineData("tools-lesson", PlaybackBarMedia.Movie, true)]
     public void ToolOrderNamesAndShownWhenRowsMatchTheDashboardBar(string tableName, PlaybackBarMedia media, bool hasEpisodes)
     {
-        var everything = new PlaybackBarState(HasChapters: true, HasEpisodes: hasEpisodes, CanBookmark: true, CanFullscreen: true, HasQueue: true, IsFolderVideo: tableName == "tools-lesson");
-        var nothing = new PlaybackBarState(HasChapters: false, HasEpisodes: false, CanBookmark: false, CanFullscreen: false, HasQueue: false);
+        var everything = new PlaybackBarState(HasChapters: true, HasEpisodes: hasEpisodes, CanBookmark: true, CanFullscreen: true, CanPictureInPicture: true, HasQueue: true, IsFolderVideo: tableName == "tools-lesson");
+        var nothing = new PlaybackBarState(HasChapters: false, HasEpisodes: false, CanBookmark: false, CanFullscreen: false, CanPictureInPicture: false, HasQueue: false);
         var built = PlaybackControlCatalog.BuildBarTools(media, everything);
         var table = Tables.Value[tableName];
         var problems = new List<string>();
@@ -212,11 +213,12 @@ public sealed class PlayerControlsContractTests
                 "has episodes" => everything with { HasEpisodes = false },
                 "can bookmark" => everything with { CanBookmark = false },
                 "can fullscreen" => everything with { CanFullscreen = false },
+                "can picture in picture" => everything with { CanPictureInPicture = false },
                 _ => null,
             };
             if (without is null)
             {
-                problems.Add($"{label}: 'Shown when' says '{row[3]}', which is not one of always, has queue, has chapters, has episodes, can bookmark, can fullscreen.");
+                problems.Add($"{label}: 'Shown when' says '{row[3]}', which is not one of always, has queue, has chapters, has episodes, can bookmark, can fullscreen, can picture in picture.");
                 continue;
             }
 

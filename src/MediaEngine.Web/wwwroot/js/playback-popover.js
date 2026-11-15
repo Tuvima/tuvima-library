@@ -93,7 +93,8 @@ export function attach(root, externalTrigger, owner) {
         if (state.open) close(true); else open();
     });
     listen(document, 'pointerdown', event => {
-        if (!state.open || trigger.contains(event.target) || state.panel?.contains(event.target)
+        // Reading panels (lyrics, bookmarks, queue) close only by their own button, the trigger or Escape (issue 1071).
+        if (!state.open || root.dataset.playbackStaysOpen === 'true' || trigger.contains(event.target) || state.panel?.contains(event.target)
             || event.target.closest?.('[data-playback-owned-menu]')?.dataset.playbackOwnedMenu === state.panel?.id) return;
         close(false); // The newly activated target retains its intended focus.
     }, true);

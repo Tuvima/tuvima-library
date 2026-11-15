@@ -415,10 +415,13 @@
             {
                 <p class="qp__empty">@L["QueuePanel_HistoryEmpty"]</p>
             }
+            @* The same song can be played more than once and each play keeps the same queue entry id, so a row's key adds how many rows before it share that id. *@
+            @{ var seen = new Dictionary<Guid, int>(); }
             @foreach (var item in history)
             {
                 var played = item;
-                <PlaybackListRow @key="played.QueueEntryId" Variant="history" Title="@played.Title" Secondary="@played.Subtitle" ArtUrl="@PlaybackArtworkUrl.ForItem(played, "s")" Length="@PlayedAt(played)"
+                var occurrence = seen[played.QueueEntryId] = seen.GetValueOrDefault(played.QueueEntryId) + 1;
+                <PlaybackListRow @key="(played.QueueEntryId, occurrence)" Variant="history" Title="@played.Title" Secondary="@played.Subtitle" ArtUrl="@PlaybackArtworkUrl.ForItem(played, "s")" Length="@PlayedAt(played)"
                                  OnClick="@(() => PlayHistoryAsync(snapshot, played))" AriaLabel="@L["QueuePanel_PlayLabel", played.Title].Value">
                     <Trailing>
                         <PlaybackRowMenu Title="@L["QueuePanel_HistoryRowMenu", played.Title].Value" HeaderLine="@played.Title"

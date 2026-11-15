@@ -250,6 +250,18 @@ public sealed class PlaybackListPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Queue_HistoryShowsASongPlayedTwiceAsTwoRowsWithoutBreakingThePanel()
+    {
+        // The history keeps a copy of the playing entry each time it plays, so a repeated song has the same queue entry id twice.
+        var first = Song("Repeat", "Some artist", "3:00") with { PlayedAt = DateTimeOffset.UtcNow.AddMinutes(-5) };
+        var second = first with { PlayedAt = DateTimeOffset.UtcNow.AddMinutes(-1) };
+        var cut = RenderQueue(Queue(1) with { History = [second, first] }, new RecordingPlaybackSink(), tab: "history", showTabs: false);
+
+        Assert.Equal(2, cut.FindAll("[data-playback-list-row='history']").Count);
+        await Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task Queue_HistoryWithNothingPlayedSaysSo()
     {
         var cut = RenderQueue(Queue(1), new RecordingPlaybackSink(), tab: "history", showTabs: false);
