@@ -99,6 +99,45 @@ public sealed class PlaybackTelemetryLifecycleService(
         return transitions;
     }
 
+    /// <summary>
+    /// A player asked for this video's manifest: the Engine records who and what from the request itself, so Playing now shows the title,
+    /// person and device even when the player's own reports do not arrive. Best effort: it never fails playback.
+    /// </summary>
+    public async Task NoteManifestRequestAsync(Guid assetId, string? client, CancellationToken ct)
+    {
+        if (http.HttpContext is not { } context)
+        {
+            return;
+        }
+
+        var authority = await context.RequestServices.GetRequiredService<IRequestAuthorityResolver>()
+            .ResolveAsync(context, ct).ConfigureAwait(false);
+        if (AuthorityValidity.ValidateHuman(authority) is not null ||
+            authority.AccountId is not { } accountId || authority.ActiveProfileId is not { } profileId)
+        {
+            return;
+        }
+
+        var asset = await catalogue.RequireAssetContextAsync(assetId, ct).ConfigureAwait(false);
+        if (FeatureFor(asset.MediaType) != AccountFeatureId.Watch)
+        {
+            return;
+        }
+
+        var shown = await catalogue.DisplayContextAsync(asset, ct).ConfigureAwait(false);
+        var clientFacts = await ClientFactsAsync(authority, client, ct).ConfigureAwait(false);
+        var isVault = !string.IsNullOrWhiteSpace(shown.LibraryId)
+            && (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(shown.LibraryId);
+        var episode = !string.IsNullOrWhiteSpace(shown.ShowName) && !string.IsNullOrWhiteSpace(shown.SeasonNumber) && !string.IsNullOrWhiteSpace(shown.EpisodeNumber)
+            ? $"{shown.ShowName} · S{shown.SeasonNumber}E{shown.EpisodeNumber}"
+            : null;
+        var now = clock.GetUtcNow();
+        playing.ObserveEngineWatch(new WatchEntry(
+            PlaybackActivityRegistry.EngineWatchId(profileId, assetId), assetId, accountId, profileId, clientFacts.DeviceId, clientFacts.Device.Name,
+            shown.Title, episode, shown.CoverSmallUrl ?? shown.CoverUrl, isVault, PlaybackTelemetryStates.Playing,
+            0, null, now, now));
+    }
+
     /// <summary>Tells the live Playing now list about this session. Best effort: it never fails playback.</summary>
     private async Task NoteWatchAsync(
         IReadOnlyList<PlaybackTelemetryTransition> transitions,

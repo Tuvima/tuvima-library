@@ -206,10 +206,6 @@ public sealed class PlaybackCapabilitiesService
                 networkCap is not null ? conversionReason : hdrOffReason, learnedMinimum, tenBitCodecs,
                 choices.StereoOnly, streamableCopyReason));
             recommendedDelivery = decision.Rung == PlaybackRungs.Direct ? PlaybackDeliveryModes.DirectStream : PlaybackDeliveryModes.Hls;
-            if (decision.Rung == PlaybackRungs.Direct)
-            {
-                _logger.LogInformation("Play: {Rung}, because {Code} (asset {AssetId})", decision.Rung, decision.Code, assetId);
-            }
         }
 
         // A picture subtitle the viewer chose is burned into the video, which needs the picture re-encoded: no direct play, no copying (issue 1058).
@@ -222,8 +218,14 @@ public sealed class PlaybackCapabilitiesService
                 decision?.CopyAudioCodecs ?? [], "burn-subtitle");
             recommendedDelivery = PlaybackDeliveryModes.Hls;
             conversionReason = "A picture subtitle was chosen, so it is burned into the video";
-            _logger.LogInformation("Play: {Rung}, because {Code} (asset {AssetId}, stream {StreamIndex})", decision.Rung, decision.Code, assetId, burn);
         }
+
+        // One line for every playback decision, so a stream that behaves oddly can be explained from the log (issue 1053): what the file is,
+        // what the player was told to do and why.
+        _logger.LogInformation(
+            "Play decision for asset {AssetId} (client {Client}): {Delivery}, rung {Rung}, because {Code}; file {Extension} video {VideoCodec} {Height}p audio {AudioCodec}; convert reason: {Reason}; picture subtitle burned: {Burned}",
+            assetId, client ?? "web", recommendedDelivery, decision?.Rung ?? "none", decision?.Code ?? "no ladder", extension.TrimStart('.'),
+            probe?.VideoCodec ?? "none", probe?.Height ?? 0, probe?.AudioCodec ?? "none", conversionReason ?? "none", burn is not null);
 
         var audioTracks = BuildAudioTracks(probe);
         string? hlsUrl = null;

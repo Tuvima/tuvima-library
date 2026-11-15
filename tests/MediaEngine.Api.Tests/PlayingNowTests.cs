@@ -159,6 +159,44 @@ public sealed class PlayingNowTests : IDisposable
     }
 
     [Fact]
+    public async Task AnEngineRecordedViewer_ShowsTitlePersonAndDevice_WhenThePlayerSendsNoReports_AndStaysWhileItsStreamIsRead()
+    {
+        var asset = Guid.NewGuid();
+        var profile = Guid.NewGuid();
+        var encode = Begin(asset, () => Task.CompletedTask);
+        encode.WaitingForSlot = false;
+        _registry.ObserveEngineWatch(Watch(asset, PlaybackTelemetryStates.Playing) with
+        {
+            PlayerSessionId = PlaybackActivityRegistry.EngineWatchId(profile, asset), ProfileId = profile, Title = "I Am Number Four",
+        });
+
+        var row = Assert.Single((await Read().GetAsync(CancellationToken.None)).Rows);
+        Assert.Equal("I Am Number Four", row.Title);
+        Assert.True(row.IsWatched);
+        Assert.Equal("Living room TV", row.DeviceName);
+
+        // Past the silence allowance only a read of the stream keeps it listed.
+        _clock.Advance(TimeSpan.FromSeconds(60));
+        Assert.False((await Read().GetAsync(CancellationToken.None)).Rows.Single().IsWatched);
+        _registry.NoteRead(asset);
+        Assert.True((await Read().GetAsync(CancellationToken.None)).Rows.Single().IsWatched);
+    }
+
+    [Fact]
+    public async Task APlayersOwnReport_ReplacesTheEngineRecordedViewerOfTheSameVideoAndProfile()
+    {
+        var asset = Guid.NewGuid();
+        var profile = Guid.NewGuid();
+        _registry.ObserveEngineWatch(Watch(asset, PlaybackTelemetryStates.Playing) with
+        {
+            PlayerSessionId = PlaybackActivityRegistry.EngineWatchId(profile, asset), ProfileId = profile,
+        });
+        _registry.ObserveWatch(Watch(asset, PlaybackTelemetryStates.Playing) with { ProfileId = profile });
+
+        Assert.Single(_registry.Watches);
+    }
+
+    [Fact]
     public async Task GetAsync_NamesNothingOfAVaultTitle()
     {
         var asset = Guid.NewGuid();

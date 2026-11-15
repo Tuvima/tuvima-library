@@ -74,6 +74,8 @@ public static class PlaybackEndpoints
             PlaybackCapabilitiesService playback,
             BrowserPlaybackAbilityRegistryService browserAbilities,
             VideoOptionsService videoOptions,
+            PlaybackTelemetryLifecycleService lifecycle,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             var connection = classifier.Classify(
@@ -107,6 +109,20 @@ public static class PlaybackEndpoints
             if (manifest?.DirectStreamUrl is { } streamUrl)
             {
                 manifest = manifest with { DirectStreamUrl = "/api/v1" + streamUrl };
+            }
+
+            if (manifest is not null)
+            {
+                try
+                {
+                    await lifecycle.NoteManifestRequestAsync(assetId, trustedClient, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Playing now is a nicety; a failure here must never stop the video, but it is logged so it can be found.
+                    loggerFactory.CreateLogger("MediaEngine.Api.Endpoints.PlaybackEndpoints")
+                        .LogWarning(ex, "Playing now could not record the viewer of asset {AssetId}", assetId);
+                }
             }
 
             return manifest is null
