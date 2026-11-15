@@ -17,7 +17,7 @@
    with "Find lyrics" and "Add a lyrics file"; "Still looking" while a queued lookup is slow), Unreachable ("Lyrics could not be looked up right now"
    with "Try again", which asks again) and Error (the message with "Try again"). The identity row (small art, song, artist) is for hosts that do
    not already show the song; the footer (source and the "..." menu) is PlaybackLyricsFooter, drawn here unless the panel supplies its own. *@
-<div class="playback-lyrics" @ref="_root" role="region" data-playback-lyrics data-lyrics-view="@View" aria-label="@L["Common_Lyrics"].Value">
+<div class="@(LargeLines ? "playback-lyrics playback-lyrics--page" : "playback-lyrics")" @ref="_root" role="region" data-playback-lyrics data-lyrics-view="@View" aria-label="@L["Common_Lyrics"].Value">
     @if (ShowIdentity && CurrentItem is { } item)
     {
         <div class="playback-lyrics__identity" data-lyrics-identity>
@@ -135,6 +135,11 @@
             </div>
         }
     </div>
+    @if (ShowFollowingNote && !_needsReturn && View is "synced")
+    {
+        // The Now playing mockup's quiet line under the lyrics while they follow the song (screen 13).
+        <p class="playback-lyrics__following" data-lyrics-following><span class="playback-lyrics__following-check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span><span>@L["PlaybackLyrics_FollowingPlayback"]</span></p>
+    }
     <PlaybackLyricsFilePicker @ref="_picker" />
     @if (ShowFooter)
     {
@@ -153,6 +158,12 @@
 
     /// <summary>True draws the source line and "..." menu under the lines. The lyrics panel passes false and puts <see cref="PlaybackLyricsFooter"/> in its own fixed footer.</summary>
     [Parameter] public bool ShowFooter { get; set; } = true;
+
+    /// <summary>True draws the lines at the Now playing page's size (26 px, mockup screen 13) instead of the panel's 22 px.</summary>
+    [Parameter] public bool LargeLines { get; set; }
+
+    /// <summary>True draws "Following playback" under synced lyrics while they follow the song (the Now playing page).</summary>
+    [Parameter] public bool ShowFollowingNote { get; set; }
 
     private ListenPlaybackSnapshot? _clockSnapshot;
     private IReadOnlyList<PlaybackLyricLine>? _clockLines;

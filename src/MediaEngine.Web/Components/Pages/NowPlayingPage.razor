@@ -89,7 +89,7 @@
                     @switch (ActiveTab)
                     {
                         case LyricsTab:
-                            <PlaybackLyrics Snapshot="@snapshot" Commands="@Commands" />
+                            <PlaybackLyrics Snapshot="@snapshot" Commands="@Commands" LargeLines="true" ShowFollowingNote="true" />
                             break;
                         case QueueTab:
                             <QueuePanel Snapshot="@snapshot" Commands="@Commands" ShowTabs="false" ActiveTab="upnext" />

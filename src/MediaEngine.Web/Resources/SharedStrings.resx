@@ -1610,6 +1610,9 @@
   <data name="PlaybackLyrics_SearchedForTitleBy" xml:space="preserve">
     <value>Searched for “{0}” by {1}</value>
   </data>
+  <data name="PlaybackLyrics_FollowingPlayback" xml:space="preserve">
+    <value>Following playback</value>
+  </data>
   <data name="PlaybackLyrics_LyricsOptions" xml:space="preserve">
     <value>Lyrics options</value>
   </data>
