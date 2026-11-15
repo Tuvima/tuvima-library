@@ -89,6 +89,17 @@ public sealed class NowPlayingMockupStyleTests
         Assert.Contains("text-decoration:none;", Rule(Read(IdentityLinkCss), ".playback-identity-owner ::deep .playback-identity-link"));
     }
 
+    [Fact]
+    public void PageLyrics_AreDrawnAtTheMockups26Pixels_WithAFollowingPlaybackLine()
+    {
+        var css = Read("src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor.css");
+        Assert.Contains("--playback-lyric-size:26px;", Rule(css, ".playback-lyrics--page"));
+        Assert.Contains("font:400var(--tl-type-secondary-size)/1.45var(--font-ui);", Rule(css, ".playback-lyrics__following"));
+        var page = Read("src/MediaEngine.Web/Components/Pages/NowPlayingPage.razor");
+        Assert.Contains("LargeLines=\"true\"", page);
+        Assert.Contains("ShowFollowingNote=\"true\"", page);
+    }
+
     // ---- The phone's expanded player (mockup screen 15) ----
 
     [Fact]

@@ -2,6 +2,7 @@
    identity row above and the footer below stay put. */
 .playback-lyrics {
     --playback-glyph-size: 16px;
+    --playback-lyric-size: 22px;
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
@@ -87,7 +88,7 @@
     box-sizing: border-box;
     color: var(--playback-text-secondary);
     display: block;
-    font: 400 22px/1.5 var(--font-ui);
+    font: 400 var(--playback-lyric-size)/1.5 var(--font-ui);
     margin: 0;
     overflow-wrap: anywhere;
     padding: 4px 0 4px 14px;
@@ -174,6 +175,28 @@ button.playback-lyrics__line:focus-visible, .playback-lyrics ::deep button.playb
         animation: none;
         transition: none;
     }
+}
+
+/* The Now playing page draws the lines at 26 px (mockup screen 13) and a quiet "Following playback" line under them. */
+.playback-lyrics--page {
+    --playback-lyric-size: 26px;
+}
+
+.playback-lyrics__following {
+    --playback-glyph-size: 16px;
+    align-items: center;
+    color: var(--playback-text-secondary);
+    display: flex;
+    flex: none;
+    font: 400 var(--tl-type-secondary-size)/1.45 var(--font-ui);
+    gap: 6px;
+    margin: 0;
+    padding: 8px 0 0;
+}
+
+.playback-lyrics__following-check {
+    color: var(--playback-accent-hover);
+    display: inline-flex;
 }
 
 /* Resume following: a selected-look chip (36 px, 14 / 600, a small play glyph) with the 13 px hint under it, centered over the bottom of the list. */

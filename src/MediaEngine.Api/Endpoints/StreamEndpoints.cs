@@ -56,6 +56,7 @@ public static class StreamEndpoints
             HttpContext ctx,
             IMediaAssetRepository assetRepo,
             IByteStreamer streamer,
+            [FromServices] PlaybackActivityRegistry activity,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -64,6 +65,8 @@ public static class StreamEndpoints
                 return ApiErrors.NotFound($"Asset '{assetId}' not found.");
             }
 
+            // A player reading the file counts as someone watching it (Playing now).
+            activity.NoteRead(assetId);
             if (!File.Exists(asset.FilePathRoot))
             {
                 return Results.Problem(

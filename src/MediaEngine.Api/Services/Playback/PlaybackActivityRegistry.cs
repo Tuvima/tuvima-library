@@ -20,6 +20,7 @@ public sealed class PlaybackActivityRegistry(TimeProvider clock)
     private readonly ConcurrentDictionary<Guid, EncodeEntry> _encodes = new();
     private readonly ConcurrentDictionary<Guid, WatchEntry> _watches = new();
     private readonly ConcurrentDictionary<Guid, long> _lastReadByAsset = new();
+    private readonly ConcurrentDictionary<Guid, byte> _engineRecorded = new();
 
     /// <summary>Raised after any change, so a listener can refresh. Never throws into the caller.</summary>
     public event Action? Changed;
@@ -43,11 +44,53 @@ public sealed class PlaybackActivityRegistry(TimeProvider clock)
     }
 
     /// <summary>A viewer's player read a piece of the stream for this video.</summary>
-    public void NoteRead(Guid assetId) => _lastReadByAsset[assetId] = clock.GetUtcNow().UtcTicks;
+    public void NoteRead(Guid assetId)
+    {
+        var now = clock.GetUtcNow();
+        _lastReadByAsset[assetId] = now.UtcTicks;
+        // A session the Engine recorded itself (the player's own reports never arrived) stays alive while its stream is being read.
+        foreach (var id in _engineRecorded.Keys)
+        {
+            if (_watches.TryGetValue(id, out var watch) && watch.AssetId == assetId)
+            {
+                _watches[id] = watch with { State = PlaybackTelemetryStates.Playing, LastObservedAt = now };
+            }
+        }
+    }
+
+    /// <summary>
+    /// The Engine saw a player ask for this video's manifest. When that player's own session reports (telemetry) have not arrived, this keeps
+    /// the person, device and title on the Playing now list anyway (issue: "Nobody watching" while a movie plays). The player's own report
+    /// replaces it as soon as one arrives.
+    /// </summary>
+    public void ObserveEngineWatch(WatchEntry watch)
+    {
+        var duplicate = _watches.Values.Any(existing =>
+            existing.AssetId == watch.AssetId && existing.ProfileId == watch.ProfileId
+            && existing.PlayerSessionId != watch.PlayerSessionId && IsLive(existing, watch.LastObservedAt, TimeSpan.FromMinutes(5)));
+        if (duplicate)
+        {
+            return;
+        }
+
+        _engineRecorded[watch.PlayerSessionId] = 0;
+        _watches[watch.PlayerSessionId] = watch;
+        Changed?.Invoke();
+    }
+
+    /// <summary>The key an Engine-recorded session uses: the same person and video always map to the same session.</summary>
+    public static Guid EngineWatchId(Guid profileId, Guid assetId) =>
+        new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"engine-watch:{profileId:N}:{assetId:N}")));
 
     /// <summary>A player session was seen (or changed state). The newest facts replace the old ones.</summary>
     public void ObserveWatch(WatchEntry watch)
     {
+        var engineId = EngineWatchId(watch.ProfileId, watch.AssetId);
+        if (engineId != watch.PlayerSessionId && _engineRecorded.TryRemove(engineId, out _))
+        {
+            _watches.TryRemove(engineId, out _);
+        }
+
         _watches[watch.PlayerSessionId] = watch;
         Changed?.Invoke();
     }
@@ -55,6 +98,7 @@ public sealed class PlaybackActivityRegistry(TimeProvider clock)
     /// <summary>A player session ended (stopped, closed, replaced).</summary>
     public void CloseWatch(Guid playerSessionId)
     {
+        _engineRecorded.TryRemove(playerSessionId, out _);
         if (_watches.TryRemove(playerSessionId, out _))
         {
             Changed?.Invoke();
