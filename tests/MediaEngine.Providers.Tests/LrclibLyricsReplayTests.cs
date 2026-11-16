@@ -49,7 +49,7 @@ public sealed class LrclibLyricsReplayTests
     }
 
     [Fact]
-    public async Task ATitleWithABracketedYear_FindsTheListEntryWithoutIt_AfterTheExactLookupMissed()
+    public async Task ATitleWithABracketedYear_FindsTheListEntryWithoutIt_FromTheFirstTitleAndArtistSearch()
     {
         var handler = SearchAnswers(List(Entry("Yesterday", "The Beatles", 125.03)));
         var (provider, log) = Build(handler);
@@ -57,9 +57,8 @@ public sealed class LrclibLyricsReplayTests
         var found = Assert.Single(await provider.SearchAsync(Song("Yesterday (Remastered 2009)")));
 
         Assert.Equal("1", found.SourceId);
-        Assert.Equal(2, handler.Lines.Count);
-        Assert.Contains("/api/get?", handler.Lines[0], StringComparison.Ordinal);
-        Assert.Contains("/api/search?", handler.Lines[1], StringComparison.Ordinal);
+        Assert.Single(handler.Lines);
+        Assert.Contains("/api/search?", handler.Lines[0], StringComparison.Ordinal);
         Assert.Contains("Remastered", handler.Lines[0], StringComparison.Ordinal);
         Assert.Contains("Found", Assert.Single(log.Information), StringComparison.Ordinal);
     }
@@ -105,7 +104,7 @@ public sealed class LrclibLyricsReplayTests
 
         var line = Assert.Single(log.Information);
         Assert.Contains("NoMatch", line, StringComparison.Ordinal);
-        Assert.Contains("1 candidate(s)", line, StringComparison.Ordinal);
+        Assert.Contains("2 candidate(s)", line, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -144,7 +143,7 @@ public sealed class LrclibLyricsReplayTests
 
         await Assert.ThrowsAsync<TextTrackLookupException>(() => provider.SearchAsync(Song("Song")));
 
-        Assert.Equal(2, handler.Lines.Count);
+        Assert.Equal(3, handler.Lines.Count);
         var line = Assert.Single(log.Information);
         Assert.Contains("SourceUnreachable", line, StringComparison.Ordinal);
         Assert.DoesNotContain("NoMatch", line, StringComparison.Ordinal);
