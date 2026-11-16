@@ -14387,6 +14387,33 @@
   <data name="VideoPreparing_PercentPrepared" xml:space="preserve">
     <value>{0}% prepared</value>
   </data>
+  <data name="SetupCapacity_Title" xml:space="preserve">
+    <value>Checking your system</value>
+  </data>
+  <data name="SetupCapacity_Detail" xml:space="preserve">
+    <value>Library is testing how many videos this computer can prepare for playback at the same time. This takes about half a minute and uses the graphics card or processor heavily while it runs.</value>
+  </data>
+  <data name="SetupCapacity_Running" xml:space="preserve">
+    <value>Benchmarking this computer…</value>
+  </data>
+  <data name="SetupCapacity_RowTitle" xml:space="preserve">
+    <value>Videos at once</value>
+  </data>
+  <data name="SetupCapacity_RowLineOne" xml:space="preserve">
+    <value>This computer can prepare 1 video at a time. You can change this in Settings.</value>
+  </data>
+  <data name="SetupCapacity_RowLineMany" xml:space="preserve">
+    <value>This computer can prepare {0} videos at the same time without falling behind. You can change this in Settings.</value>
+  </data>
+  <data name="SetupCapacity_RowNotMeasured" xml:space="preserve">
+    <value>Not measured, so Library prepares 1 video at a time. Check again from Settings later.</value>
+  </data>
+  <data name="SetupCapacity_BadgeMeasured" xml:space="preserve">
+    <value>Measured</value>
+  </data>
+  <data name="SetupCapacity_BadgeDefault" xml:space="preserve">
+    <value>Default</value>
+  </data>
   <data name="GraphicsHardware_Title" xml:space="preserve">
     <value>Graphics hardware</value>
   </data>

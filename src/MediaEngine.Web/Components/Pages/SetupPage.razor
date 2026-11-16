@@ -75,7 +75,7 @@
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "tools":
-                    <SetupToolsStage Preflight="@_preflight" Graphics="@_graphics" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
+                    <SetupToolsStage Preflight="@_preflight" Graphics="@_graphics" Capacity="@_capacity" Benchmarking="@_capacityRunning" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
                                      InstallTool="InstallToolAsync" RunInstaller="RunToolInstallerAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -121,6 +121,11 @@
     private SetupPreflightDto? _preflight;
     // The Graphics hardware row on the Tools step (playback-path spec D11): filled in on its own once FFmpeg is ready, never required.
     private GraphicsHardwareDto? _graphics;
+
+    // The "Checking your system" benchmark: runs once, right after the tools are ready and before the profile and libraries steps.
+    private PlaybackCapacityDto? _capacity;
+    private bool _capacityRunning;
+    private bool _capacityTried;
     private bool _graphicsChecking;
     private string? _preflightError;
     private SetupBackupInspectionDto? _backup;
@@ -401,6 +406,10 @@
         {
             await CheckGraphicsHardwareAsync();
         }
+        if (CurrentStep == "tools" && _preflight is { Passed: true } && SetupToolRules.IsFfmpegReady(_preflight.Tools) && !_capacityTried && !_showRestore && !_busy)
+        {
+            await RunSystemCheckAsync();
+        }
         if (CurrentStep == "libraries" && _setupLibraries is null)
             _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
         if (CurrentStep == "metadata" && !_providersLoaded && !_busy)
@@ -472,6 +481,28 @@
             await FollowToolDownloadsAsync();
         }
         await CheckGraphicsHardwareAsync();
+    }
+
+    // The benchmark never blocks setup: a failed call keeps the Engine's safe default of one video at a time and the row says so.
+    private async Task RunSystemCheckAsync()
+    {
+        _capacityTried = true;
+        _capacityRunning = true;
+        StateHasChanged();
+        try
+        {
+            _capacity = await ApiClient.RunSetupSystemCheckAsync(_setupSession);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "Setup could not measure how many videos this computer can prepare at once");
+        }
+        finally
+        {
+            _capacityRunning = false;
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     // Once FFmpeg is ready the Engine tests the graphics encoders and the row says what it found. It is skipped while FFmpeg is missing or

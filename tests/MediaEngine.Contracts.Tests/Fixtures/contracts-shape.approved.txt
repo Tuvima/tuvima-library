@@ -8232,6 +8232,15 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackAnalyticsG
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackAnalyticsGroupsDto
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlaybackAnalyticsGroupDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackCapacityDto
+  StreamsSupported: System.Int32 | nullability=not-null | accessors=get,init
+  Measured: System.Boolean | nullability=not-null | accessors=get,init
+  RanOn: System.String | nullability=not-null | accessors=get,init
+  CardName: System.String | nullability=nullable | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  SecondsTaken: System.Int32 | nullability=not-null | accessors=get,init
+  TestedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackChapterDto
   AssetId: System.Guid? | nullability=nullable | accessors=get,init
   Index: System.Int32 | nullability=not-null | accessors=get,init

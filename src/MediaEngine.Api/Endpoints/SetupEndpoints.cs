@@ -168,6 +168,20 @@ public static class SetupEndpoints
             return Results.Ok(await Task.Run(() => GraphicsHardwareReport.Test(ffmpeg, mode, clock), ct).ConfigureAwait(false));
         }).Produces<GraphicsHardwareDto>();
 
+        // The first "Checking your system" screen: measures how many videos this computer can convert at once and keeps the answer as the
+        // default for "Maximum active encodes". Never blocks setup: a failed test keeps the safe default of 1.
+        group.MapPost("/system-check", async (
+            HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
+            [FromServices] PlaybackCapacityBenchmark benchmark, CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
+            {
+                return Results.Unauthorized();
+            }
+
+            return Results.Ok(await benchmark.RunAsync(apply: true, ct).ConfigureAwait(false));
+        }).Produces<PlaybackCapacityDto>();
+
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,
             SetupSessionService sessions, IFirstPartyIdentityService identity,
