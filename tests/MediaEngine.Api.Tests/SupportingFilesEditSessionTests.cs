@@ -190,7 +190,8 @@ public sealed class SupportingFilesEditSessionTests : IDisposable
         Assert.Equal(ExtraRoles.Guide, after.EffectiveRole);
         Assert.Equal(["week 1"], after.TagList);
         var history = await SupportingFileHistory.Read(_world.Timeline, guide.Id, default);
-        Assert.Equal(5, history.Count);
+        // Five field rows and the rename of the file to its kind's ending ("guide-guide.pdf").
+        Assert.Equal(6, history.Count);
     }
 
     [Fact]

@@ -84,6 +84,29 @@ public sealed class ExtrasConfiguration
     public bool RoleFits(string fileKind, string? role) =>
         !string.IsNullOrWhiteSpace(role) && RolesFor(fileKind).Any(entry => entry.Id.Equals(role, StringComparison.Ordinal));
 
+    /// <summary>
+    /// The ending a file's name takes for a role, as in Plex and Jellyfin ("Pilot-trailer.mkv"). The video endings are theirs; the document
+    /// endings are the Tuvima extras naming convention. A role with no entry (Other, Clip, Pictures, a kind typed by a person) has no ending.
+    /// </summary>
+    [JsonPropertyName("role_file_endings")]
+    public Dictionary<string, string> RoleFileEndings { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["trailer"] = "trailer",
+        ["featurette"] = "featurette",
+        ["behind_the_scenes"] = "behindthescenes",
+        ["deleted_scene"] = "deleted",
+        ["interview"] = "interview",
+        ["guide"] = "guide",
+        ["worksheet"] = "worksheet",
+        ["transcript"] = "transcript",
+        ["notes"] = "notes",
+        ["booklet"] = "booklet",
+    };
+
+    /// <summary>The ending a file takes for <paramref name="role"/>; null when the role has none.</summary>
+    public string? FileEndingFor(string? role) =>
+        !string.IsNullOrWhiteSpace(role) && RoleFileEndings.TryGetValue(role.Trim(), out var ending) && !string.IsNullOrWhiteSpace(ending) ? ending.Trim() : null;
+
     /// <summary>The longest kind a person may type for a file; longer text is refused.</summary>
     public const int MaxCustomRoleLength = 40;
 

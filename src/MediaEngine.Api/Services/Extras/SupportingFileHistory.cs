@@ -115,7 +115,9 @@ public static class SupportingFileHistory
 
     /// <summary>The words for a file move: from where, to where, below the title's folder.</summary>
     public static string MoveWords(ItemExtra file, string from, string to) =>
-        $"Moved from \"{Relative(file.ItemFolder, from)}\" to \"{Relative(file.ItemFolder, to)}\".";
+        string.Equals(Path.GetDirectoryName(from), Path.GetDirectoryName(to), StringComparison.OrdinalIgnoreCase)
+            ? $"Renamed to \"{Path.GetFileName(to)}\"."
+            : $"Moved from \"{Relative(file.ItemFolder, from)}\" to \"{Relative(file.ItemFolder, to)}\".";
 
     /// <summary>The words for a delete: what happened to the file on disk.</summary>
     public static string DeleteWords(string diskOutcome, string? reason) => diskOutcome switch
