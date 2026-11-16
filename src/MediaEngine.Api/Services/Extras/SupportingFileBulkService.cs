@@ -183,6 +183,28 @@ public sealed class SupportingFileBulkService(
             }
         }
 
+        // A new kind renames the file to the ending that kind has (Pilot-trailer.mkv), in a Managed folder only.
+        if (update.Role.IsChanged && config is not null)
+        {
+            var claimed = new HashSet<string>(plans.Values.Where(plan => plan.To is not null).Select(plan => plan.To!), StringComparer.OrdinalIgnoreCase);
+            var endings = config.RoleFileEndings.Values;
+            foreach (var target in load.Targets.Where(target => !load.IsPictureFolder(target)))
+            {
+                var role = update.Role.IsSet ? update.Role.Value : target.InferredRole;
+                var existing = plans.GetValueOrDefault(target.Id);
+                if (existing?.To is not null)
+                {
+                    claimed.Remove(existing.To);
+                }
+
+                var plan = disk.PlanRename(target, config.FileEndingFor(role), endings, existing, claimed);
+                if (plan is not null && (plan.Moves || plan.Note is not null))
+                {
+                    plans[target.Id] = plan;
+                }
+            }
+        }
+
         var results = new List<SupportingFileBulkItemResultDto>(request.Ids.Count);
         foreach (var requested in load.Requested)
         {
@@ -247,7 +269,7 @@ public sealed class SupportingFileBulkService(
                 // The row follows the file straight away, and now counts as one a person decided, so the pipeline keeps claiming the
                 // file at its new place and a rescan keeps the row. The place read from the folder is the place the file now sits in.
                 var row = load.Targets.First(target => target.Id == id);
-                var nowSitsIn = update.Scope.IsSet ? update.Scope.Value : row.InferredScope;
+                var nowSitsIn = !update.Scope.IsChanged ? row.EffectiveScope : update.Scope.IsSet ? update.Scope.Value : row.InferredScope;
                 await extras.RelocateFileAsync(id, plan.To!, nowSitsIn, ct).ConfigureAwait(false);
                 moved.Add((row, plan));
                 history.Add(SupportingFileHistory.Row(id, SupportingFileHistory.MoveEvent, SupportingFileHistory.MoveWords(row, plan.From!, plan.To!)));

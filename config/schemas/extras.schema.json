@@ -96,6 +96,12 @@
       "additionalProperties": false
     },
 
+    "role_file_endings": {
+      "description": "The ending a file's name takes when its kind is set in the editor (Pilot-trailer.mkv). A role with no entry has no ending.",
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9]+$" }
+    },
+
     "default_roles": {
       "description": "The role a file gets when no name says otherwise. Must be in the kind's role list.",
       "type": "object",

@@ -90,6 +90,19 @@
     ]
   },
 
+  "role_file_endings": {
+    "trailer": "trailer",
+    "featurette": "featurette",
+    "behind_the_scenes": "behindthescenes",
+    "deleted_scene": "deleted",
+    "interview": "interview",
+    "guide": "guide",
+    "worksheet": "worksheet",
+    "transcript": "transcript",
+    "notes": "notes",
+    "booklet": "booklet"
+  },
+
   "default_roles": { "document": "other", "clip": "clip", "picture": "pictures" },
 
   "role_families": {
