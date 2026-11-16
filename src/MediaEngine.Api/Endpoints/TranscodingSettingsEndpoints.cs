@@ -101,6 +101,14 @@ public static class TranscodingSettingsEndpoints
         .Produces<GraphicsHardwareDto>(StatusCodes.Status200OK)
         .RequireEffectiveAdministrator();
 
+        // How many videos this computer can convert at once and keep up: measures, then sets "Maximum active encodes" to the answer.
+        grp.MapPost("/playback/test-capacity", async ([FromServices] PlaybackCapacityBenchmark benchmark, CancellationToken ct) =>
+            Results.Ok(await benchmark.RunAsync(apply: true, ct).ConfigureAwait(false)))
+        .WithName("TestPlaybackCapacity")
+        .WithSummary("Measures how many videos can be converted at once and applies the answer.")
+        .Produces<PlaybackCapacityDto>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
         return grp;
     }
 }

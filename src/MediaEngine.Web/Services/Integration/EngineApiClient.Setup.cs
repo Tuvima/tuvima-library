@@ -57,6 +57,9 @@ public sealed partial class EngineApiClient
     public Task<ToolRequirementsDto?> GetSetupToolRequirementsAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<ToolRequirementsDto>(HttpMethod.Get, "/setup/v1/tools", null, setupSession, ct);
 
+    public Task<PlaybackCapacityDto?> RunSetupSystemCheckAsync(string? setupSession, CancellationToken ct = default) =>
+        SetupSendAsync<PlaybackCapacityDto>(HttpMethod.Post, "/setup/v1/system-check", JsonContent.Create(new { }), setupSession, ct);
+
     public Task<GraphicsHardwareDto?> TestSetupGraphicsHardwareAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<GraphicsHardwareDto>(HttpMethod.Post, "/setup/v1/tools/graphics-hardware", JsonContent.Create(new { }), setupSession, ct);
 

@@ -22,6 +22,9 @@ public partial interface IEngineApiClient
     Task<ToolRequirementsDto?> GetSetupToolRequirementsAsync(string? setupSession, CancellationToken ct = default);
     /// <summary>The Graphics hardware row on the Tools step: tests the graphics encoders once FFmpeg is ready and returns what was found.</summary>
     Task<GraphicsHardwareDto?> TestSetupGraphicsHardwareAsync(string? setupSession, CancellationToken ct = default);
+
+    /// <summary>The "Checking your system" benchmark: measures how many videos this computer can prepare at once and keeps the answer as the default.</summary>
+    Task<PlaybackCapacityDto?> RunSetupSystemCheckAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default);
     Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> GetSetupLibrariesAsync(string? setupSession, CancellationToken ct = default);
