@@ -55,8 +55,8 @@ public sealed partial class TextTrackProviderAdapter
         var tally = new LyricsTally();
         var found = await FindLyricsAsync(lookup, tally, ct).ConfigureAwait(false);
         _logger.LogInformation(
-            "{Provider} lyrics lookup for \"{Title}\" by \"{Artist}\" ({Length}s): {Outcome}, {Candidates} candidate(s) looked at",
-            Name, lookup.Title, lookup.Artist, lookup.DurationSeconds, tally.Outcome, tally.Candidates);
+            "{Provider} lyrics lookup for \"{Title}\" by \"{Artist}\" ({Length}s) on album \"{Album}\": {Outcome}, {Candidates} candidate(s) looked at",
+            Name, lookup.Title, lookup.Artist, lookup.DurationSeconds, lookup.Album, tally.Outcome, tally.Candidates);
 
         // A lookup whose requests failed in transport and found nothing says nothing about the song, so it ends as a
         // retryable failure of the operation (the same signal the subtitle search gives), never as "no lyrics".

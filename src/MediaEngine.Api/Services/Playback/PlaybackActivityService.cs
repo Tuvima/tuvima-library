@@ -30,6 +30,9 @@ public sealed class PlaybackActivityService(
         }
     }
 
+    /// <summary>How long an encode must have had no viewer before a waiting title may take its slot (long enough for a player still opening).</summary>
+    internal static readonly TimeSpan PreemptAfterIdle = TimeSpan.FromSeconds(15);
+
     /// <summary>One pass: weigh the running encodes, then stop the forgotten ones. Public so tests drive it with a fake clock.</summary>
     public async Task TickAsync()
     {
@@ -55,6 +58,19 @@ public sealed class PlaybackActivityService(
             {
                 logger.LogInformation("Stopping an encode nobody has watched for {Seconds} seconds (asset {AssetId})",
                     settings.GraceSecondsAfterLastViewer, encode.AssetId);
+                await registry.StopEntryAsync(encode).ConfigureAwait(false);
+            }
+
+            // Another title is waiting for the slot: an encode nobody is watching gives it up now instead of after the full grace period.
+            var pausedAllowance = TimeSpan.FromMinutes(Math.Max(1, settings.PausedCountsAsWatchingMinutes));
+            foreach (var encode in registry.PreemptableForWaiting(clock.GetUtcNow(), pausedAllowance, PreemptAfterIdle))
+            {
+                if (due.Contains(encode))
+                {
+                    continue;
+                }
+
+                logger.LogInformation("Stopping an unwatched encode so a waiting title can start (asset {AssetId})", encode.AssetId);
                 await registry.StopEntryAsync(encode).ConfigureAwait(false);
             }
 

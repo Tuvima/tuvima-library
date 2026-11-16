@@ -39,7 +39,7 @@ public static class PlaybackEndpoints
         BrowserPlaybackAbilityRegistryService browserAbilities,
         CancellationToken ct)
     {
-        if (ClaimGuid(user, TuvimaClaimTypes.DeviceId) is { } deviceId)
+        if (PairedDeviceId(user) is { } deviceId)
         {
             return await authorization.GetDeviceAsync(deviceId, ct) is { } device
                 ? ClientAuthorizationService.ReadCapabilities(device)
@@ -88,7 +88,7 @@ public static class PlaybackEndpoints
             var profileId = ClaimGuid(user, TuvimaClaimTypes.ActiveProfileId);
             var deviceId = ClaimGuid(user, TuvimaClaimTypes.DeviceId);
             ClientCapabilitiesDto? capabilities = null;
-            if (deviceId is { } pairedDeviceId)
+            if (PairedDeviceId(user) is { } pairedDeviceId)
             {
                 var device = await authorization.GetDeviceAsync(pairedDeviceId, ct);
                 if (device is not null)
@@ -211,7 +211,7 @@ public static class PlaybackEndpoints
 
             var saved = false;
             ClientCapabilitiesDto? capabilities = null;
-            if (ClaimGuid(user, TuvimaClaimTypes.DeviceId) is { } deviceId)
+            if (PairedDeviceId(user) is { } deviceId)
             {
                 var device = await authorization.GetDeviceAsync(deviceId, ct);
                 var changed = device is null
@@ -284,7 +284,7 @@ public static class PlaybackEndpoints
             }
 
             bool recorded;
-            if (ClaimGuid(user, TuvimaClaimTypes.DeviceId) is { } deviceId)
+            if (PairedDeviceId(user) is { } deviceId)
             {
                 recorded = await authorization.RecordLearnedLimitAsync(deviceId, request.Rung, kind.VideoCodec, kind.Container, kind.TenBit, ct);
             }
@@ -450,6 +450,15 @@ public static class PlaybackEndpoints
 
         return app;
     }
+
+    /// <summary>
+    /// The device record of a paired app. A signed-in Dashboard browser also carries a device id (its session's), but that id has no
+    /// device record and no reported abilities, so a browser must use what it reported itself, not this.
+    /// </summary>
+    internal static Guid? PairedDeviceId(ClaimsPrincipal user) =>
+        string.Equals(user.FindFirstValue(TuvimaClaimTypes.PrincipalKind), PrincipalKind.DelegatedUserClient.ToString(), StringComparison.Ordinal)
+            ? ClaimGuid(user, TuvimaClaimTypes.DeviceId)
+            : null;
 
     private static Guid? ClaimGuid(ClaimsPrincipal user, string type) =>
         Guid.TryParse(user.FindFirstValue(type), out var value) ? value : null;

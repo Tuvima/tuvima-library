@@ -54,6 +54,41 @@ public sealed class PlayingNowTests : IDisposable
     }
 
     [Fact]
+    public async Task Tick_GivesAnUnwatchedEncodeUpEarlyWhenAnotherTitleIsWaiting()
+    {
+        var stopped = 0;
+        var running = Begin(Guid.NewGuid(), () => { stopped++; return Task.CompletedTask; });
+        running.WaitingForSlot = false;
+        Begin(Guid.NewGuid(), () => Task.CompletedTask);
+        var service = Service();
+
+        _clock.Advance(TimeSpan.FromSeconds(10));
+        await service.TickAsync();
+        Assert.Equal(0, stopped);
+
+        _clock.Advance(TimeSpan.FromSeconds(10));
+        await service.TickAsync();
+        Assert.Equal(1, stopped);
+    }
+
+    [Fact]
+    public async Task Tick_KeepsAWatchedEncodeEvenWhenAnotherTitleIsWaiting()
+    {
+        var stopped = 0;
+        var asset = Guid.NewGuid();
+        var running = Begin(asset, () => { stopped++; return Task.CompletedTask; });
+        running.WaitingForSlot = false;
+        Begin(Guid.NewGuid(), () => Task.CompletedTask);
+        var service = Service();
+
+        _clock.Advance(TimeSpan.FromSeconds(30));
+        _registry.ObserveWatch(Watch(asset, PlaybackTelemetryStates.Playing));
+        await service.TickAsync();
+
+        Assert.Equal(0, stopped);
+    }
+
+    [Fact]
     public async Task Tick_ResetsTheCountdownWhenSomeoneReturns()
     {
         var stopped = 0;
