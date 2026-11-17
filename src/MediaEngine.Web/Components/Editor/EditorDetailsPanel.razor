@@ -65,7 +65,8 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             </section>
         }
 
-        @if (canEdit && fields.ExplicitMark is { } explicitMark)
+        @* The Explicit mark is not the owner's on a Series (v8 D5): the Engine refuses it there, so it is never offered. *@
+        @if (canEdit && !fields.IsSeries && fields.ExplicitMark is { } explicitMark)
         {
             @ExplicitRow(fields, session, explicitMark)
         }
@@ -521,7 +522,11 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 : field.SourceLabel ?? "Provider";
 
     // What is the owner's own on a Series (v8 D5): its tags and sort title. Everything else on it comes from Wikidata or its members.
-    private static bool IsOwnerField(MediaEditorDetailsFieldPresentation field) => field.IsOwnField || IsTags(field);
+    // The Engine writes only these two on a Series (DetailsEditSessionChangeHandler); the sort name and the Explicit mark are refused there.
+    private static bool IsOwnerField(MediaEditorDetailsFieldPresentation field) =>
+        IsTags(field)
+        || string.Equals(StageKey(field).Trim(), "sort_title", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(field.Key?.Trim(), "sort_title", StringComparison.OrdinalIgnoreCase);
 
     private static string WhyLocked(MediaEditorDetailsFieldPresentation field, bool series = false) =>
         series

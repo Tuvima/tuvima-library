@@ -32,6 +32,8 @@ public sealed class SeriesEditorTests : AsyncBunitContext
     private EditorSubjectDto _subject = Grouping(EditorSubjectKinds.Series);
     private readonly List<(string Type, string? Query)> _titleReads = [];
     private Func<string, EditorSeriesTitlesDto> _titles = type => new EditorSeriesTitlesDto { MediaType = type };
+    private string _mediaType = "Books";
+    private bool _explicitSupported;
 
     public SeriesEditorTests()
     {
@@ -42,6 +44,8 @@ public sealed class SeriesEditorTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetEditorSubjectAsync), _ => Task.FromResult<EditorSubjectDto?>(_subject));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.GetItemExplicitAsync), args => Task.FromResult<MediaEngine.Contracts.Items.ItemExplicitResponse?>(
+                new MediaEngine.Contracts.Items.ItemExplicitResponse { EntityId = (Guid)args![0]!, Supported = _explicitSupported }));
             stub.SetHandler(nameof(IEngineApiClient.GetEditorKindConfigAsync), args => Task.FromResult<EditorHeaderConfigDto?>(
                 EditorHeaderTestData.Config((string)args![0]!, "details", "artwork", "history")));
             stub.SetHandler(nameof(IEngineApiClient.GetEditorSeriesTitlesAsync), args =>
@@ -72,13 +76,14 @@ public sealed class SeriesEditorTests : AsyncBunitContext
         return new Editor(mode, session, flow, fields);
     }
 
-    private async Task<Editor> StartSeriesOfBooksAsync()
+    private async Task<Editor> StartSeriesOfBooksAsync(string mediaType = "Books")
     {
+        _mediaType = mediaType;
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var api = Services.GetRequiredService<IEngineApiClient>();
         var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
-        mode.Loader = () => fields.LoadAsync(SeriesId, "Books", "series", null);
+        mode.Loader = () => fields.LoadAsync(SeriesId, mediaType, "series", null);
         var session = new EditSessionState(new PendingEditList());
         var flow = new EditSessionFlow(session, mode, new EditSessionSaver(api), () => [new EditTrailItem(SeriesId, "Dune Novels", "Series")], () => Task.FromResult(false))
         {
@@ -167,6 +172,34 @@ public sealed class SeriesEditorTests : AsyncBunitContext
         Assert.Single(window.FindAll(".tl-editor-field[data-field-key='custom_tags']"));
         Assert.Equal("false", window.Find(".tl-editor-field[data-field-key='sort_title']").GetAttribute("data-locked"));
         Assert.Equal("false", window.Find(".tl-editor-field[data-field-key='custom_tags']").GetAttribute("data-locked"));
+    }
+
+    [Fact]
+    public async Task EditOnASeries_OffersNoSortName_BecauseTheEngineWritesOnlySortTitleAndTags()
+    {
+        var subject = Grouping(EditorSubjectKinds.Series);
+        subject.Fields.Add(new EditorSubjectFieldDto { Key = "sort_name", Label = "Sort name" });
+        var editor = await StartSubjectAsync(subject);
+        var window = RenderWindow(editor);
+
+        window.WaitForElement(".tl-editor-details");
+
+        Assert.Empty(window.FindAll(".tl-editor-field[data-field-key='sort_name'] input"));
+        Assert.Single(window.FindAll(".tl-editor-field[data-field-key='sort_title'] input"));
+        Assert.Single(window.FindAll(".tl-editor-field[data-field-key='custom_tags']"));
+    }
+
+    [Fact]
+    public async Task EditOnASeriesOfVideos_OffersNoExplicitMark_BecauseTheEngineRefusesItOnASeries()
+    {
+        _explicitSupported = true;
+        var editor = await StartSeriesOfBooksAsync(mediaType: "Videos");
+        var window = RenderWindow(editor, withHeader: true);
+
+        window.WaitForElement("[data-series-members]");
+
+        Assert.True(editor.Fields.IsSeries);
+        Assert.Empty(window.FindAll("[data-field-key='explicit']"));
     }
 
     [Fact]
@@ -523,10 +556,10 @@ public sealed class SeriesEditorTests : AsyncBunitContext
         Config = EditorHeaderTestData.Config(EditorKindNames.Book, "details", "artwork", "match", "history"),
     };
 
-    private static MediaEditorContextDto BooksContext(Guid id, string title, string scope, EditorHeaderDto header) => new()
+    private MediaEditorContextDto BooksContext(Guid id, string title, string scope, EditorHeaderDto header) => new()
     {
         LaunchEntityId = id,
-        MediaType = "Books",
+        MediaType = _mediaType,
         InitialScope = scope,
         AvailableTabs = ["details", "artwork", "links", "history"],
         Header = header,

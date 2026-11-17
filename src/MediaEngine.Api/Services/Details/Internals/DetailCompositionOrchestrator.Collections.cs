@@ -320,8 +320,12 @@ internal sealed partial class DetailCompositionOrchestrator
         var fallbackCover = allowChildArtworkFallback
             ? works.Select(w => w.ArtworkUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url))
             : null;
+        // The pictures the person chose for the Series itself are linked to its collection (universal editor v8 D5) and win over the root work's.
+        var ownPictures = hasCollectionRow && IsStructuralContainer(entityType)
+            ? await LoadChosenCollectionPicturesAsync(collectionId, ct)
+            : null;
         var collectionBackdrop = IsStructuralContainer(entityType)
-            ? null
+            ? ownPictures?.Background
             : StringHelpers.FirstNonBlankOr(string.Empty,
                 tvInProgressEpisode?.BackgroundUrl,
                 row.BackgroundUrl,
@@ -345,7 +349,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 """, new { rootWorkId }, cancellationToken: ct))
             : null;
         var collectionCover = IsStructuralContainer(entityType)
-            ? shelfCoverId.HasValue ? $"/stream/artwork/{shelfCoverId.Value:D}" : rootWorkId.HasValue ? null : row.CoverUrl
+            ? ownPictures?.Cover ?? (shelfCoverId.HasValue ? $"/stream/artwork/{shelfCoverId.Value:D}" : rootWorkId.HasValue ? null : row.CoverUrl)
             : StringHelpers.FirstNonBlankOr(string.Empty,
                 row.CoverUrl,
                 GetValue(values, "cover_url"),
@@ -377,7 +381,7 @@ internal sealed partial class DetailCompositionOrchestrator
             collectionBackdrop = collectionCover;
         }
 
-        var collectionLogo = StringHelpers.FirstNonBlankOr(string.Empty, row.LogoUrl, GetValue(values, "logo_url"), GetValue(values, "logo"));
+        var collectionLogo = StringHelpers.FirstNonBlankOr(string.Empty, ownPictures?.Logo, row.LogoUrl, GetValue(values, "logo_url"), GetValue(values, "logo"));
         IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType) || placementOnly
             ? []
             : await BuildCollectionCreditsAsync(collectionId, rootWorkId, works, entityType, values, ct);

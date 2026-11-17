@@ -255,7 +255,8 @@ public sealed class ItemQuickFactsRepository(IDatabaseConnection db)
                 }
             }
 
-            if (looseEpisodes > 0)
+            // Loose episodes stand for a season only when the show has no real seasons (v8 D8).
+            if (looseEpisodes > 0 && directTotal == 0)
             {
                 directTotal++;
                 directOwned += looseEpisodeOwned > 0 ? 1 : 0;
