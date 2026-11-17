@@ -67,10 +67,6 @@
       "important": 27,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css": {
       "important": 26,
       "deep": 91
@@ -939,10 +935,6 @@
     },
     "src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css": {
       "important": 24,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor.css": {
-      "important": 0,
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css": {

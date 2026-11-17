@@ -107,7 +107,7 @@
             .. ShortcutTab is { } tab
                 ? new MediaSectionNavigationItem[]
                 {
-                    new("In Progress", $"/read/{tab.Id}?status=in-progress", AppMaterialIcons.Outlined.Timelapse, Exact: true),
+                    new("Continue Reading", "/all/read/continue-reading", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
                     new("Unread", $"/read/{tab.Id}?status=not-started", AppMaterialIcons.Outlined.MarkEmailUnread, Exact: true),
                     new("Recently Added", $"/read/{tab.Id}?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
                 }

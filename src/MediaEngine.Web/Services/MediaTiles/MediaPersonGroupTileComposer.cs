@@ -6,7 +6,9 @@ namespace MediaEngine.Web.Services.MediaTiles;
 
 /// <summary>
 /// Creates the one shared person-aware collection card used by grouped browse
-/// surfaces in Read, Watch, and Listen.
+/// surfaces in Read, Watch, and Listen. A person with works draws as the quadrant
+/// tile (spec details-and-tile-fixes D2): an artist is a square of four albums,
+/// a director, author or narrator a poster of four portrait covers.
 /// </summary>
 public static class MediaPersonGroupTileComposer
 {
@@ -39,6 +41,7 @@ public static class MediaPersonGroupTileComposer
         var isMusic = mediaType.Contains("music", StringComparison.OrdinalIgnoreCase);
         var songs = isMusic ? songCount ?? ownedCount : ownedCount;
         var albums = isMusic && albumCount is > 0 ? albumCount : null;
+        var tileShape = isMusic ? MediaTileShape.Square : MediaTileShape.Portrait;
         var mediaCounts = new List<MediaTileMediaCountViewModel>();
         if (albums is { } albumTotal)
         {
@@ -69,9 +72,9 @@ public static class MediaPersonGroupTileComposer
             MediaKind = "Person collection",
             AccentColor = accentColor,
             SecondaryAccentColor = "#111827",
-            Shape = MediaTileShape.Landscape,
+            Shape = tileShape,
             Presentation = MediaTilePresentation.Default,
-            SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
+            SurfaceKind = GroupTileShape.SurfaceFor(tileShape),
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = primaryArtwork,
             HoverImageUrl = primaryArtwork,

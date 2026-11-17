@@ -196,12 +196,6 @@ public partial class MediaBrowseShell
         await NavigateAndReloadAsync();
     }
 
-    private async Task OnInProgressChanged(bool selected)
-    {
-        _status = selected ? "in-progress" : string.Empty;
-        await NavigateAndReloadAsync();
-    }
-
     private async Task OnSecondaryQuickFilterChanged(bool selected)
     {
         _status = selected ? SecondaryQuickFilterValue : string.Empty;

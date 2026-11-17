@@ -17,11 +17,6 @@
 /* One size everywhere (One tile design D1, D2): a wider window shows more columns, never bigger tiles. A squares-only page keeps its squares as wide as a poster. */
 .media-tile-grid--squares-only { --tl-tile-square-w: var(--tl-tile-square-solo-w); }
 
-.media-tile-grid ::deep .person-tile {
-    flex: 0 0 auto;
-    width: var(--tl-tile-poster-w);
-}
-
 /* Select (My List): a tick box top left, and a layer over the whole cover that ticks it instead of opening it. */
 .media-tile-pick {
     position: relative;

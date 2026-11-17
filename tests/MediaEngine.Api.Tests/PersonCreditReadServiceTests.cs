@@ -1,6 +1,8 @@
 using Dapper;
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
@@ -927,6 +929,66 @@ public sealed class PersonCreditReadServiceTests : IDisposable
         Assert.All(members, member => Assert.Contains($"/persons/{member.Id:D}/headshot", member.HeadshotUrl));
         Assert.Equal("1988 - 1990", Assert.Single(members, member => member.Id == firstMemberId).DateRange);
         Assert.Equal("The Test Group", Assert.Single(groups).Name);
+    }
+
+    [Fact]
+    public async Task GetGroupMembersAsync_ShowsAPersonWhoseOnlyPictureIsThePreferredHeadshotAsset()
+    {
+        var groupId = Guid.NewGuid();
+        var memberWithAsset = Guid.NewGuid();
+        var memberWithNothing = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow.ToString("O");
+
+        using (var conn = _db.CreateConnection())
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO persons (id, name, is_group, created_at) VALUES ($groupId, 'The Test Group', 1, $now);
+                INSERT INTO persons (id, name, created_at) VALUES ($memberWithAsset, 'Asset Only', $now);
+                INSERT INTO persons (id, name, created_at) VALUES ($memberWithNothing, 'No Picture', $now);
+                INSERT INTO person_group_members (group_id, member_id) VALUES ($groupId, $memberWithAsset);
+                INSERT INTO person_group_members (group_id, member_id) VALUES ($groupId, $memberWithNothing);
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path, is_preferred)
+                    VALUES ($assetId, $memberWithAsset, 'Person', 'Headshot', '/art/asset-only.jpg', 1);
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path, is_preferred)
+                    VALUES ($groupAssetId, $groupId, 'Person', 'Headshot', '/art/group.jpg', 1);
+                """;
+            AddGuid(cmd, "$groupId", groupId);
+            AddGuid(cmd, "$memberWithAsset", memberWithAsset);
+            AddGuid(cmd, "$memberWithNothing", memberWithNothing);
+            AddGuid(cmd, "$assetId", Guid.NewGuid());
+            AddGuid(cmd, "$groupAssetId", Guid.NewGuid());
+            cmd.Parameters.AddWithValue("$now", now);
+            cmd.ExecuteNonQuery();
+        }
+
+        var service = CreateService();
+
+        var members = await service.GetGroupMembersAsync(groupId, isGroup: true, MediaEngine.Application.Services.ViewerCatalogue.Nothing, CancellationToken.None);
+        var memberOf = await service.GetGroupMembersAsync(memberWithAsset, isGroup: false, MediaEngine.Application.Services.ViewerCatalogue.Nothing, CancellationToken.None);
+
+        Assert.Equal($"/persons/{memberWithAsset}/headshot", Assert.Single(members, member => member.Id == memberWithAsset).HeadshotUrl);
+        Assert.Null(Assert.Single(members, member => member.Id == memberWithNothing).HeadshotUrl);
+        // The groups someone belongs to get their picture the same way.
+        var group = Assert.Single(memberOf);
+        Assert.Equal("The Test Group", group.Name);
+        Assert.Equal($"/persons/{groupId}/headshot", group.HeadshotUrl);
+    }
+
+    [Fact]
+    public void ALinkedPersonWhoseOnlyPictureIsThePreferredHeadshotAsset_GetsTheHeadshotAddress()
+    {
+        var withAsset = Guid.NewGuid();
+        var withoutAsset = Guid.NewGuid();
+        var headshots = PersonPreferredHeadshots.From(
+        [
+            new EntityAsset { EntityId = withAsset.ToString("D"), EntityType = "Person", AssetTypeValue = "Headshot", LocalImagePath = "/art/face.jpg", IsPreferred = true },
+            new EntityAsset { EntityId = withoutAsset.ToString("D"), EntityType = "Person", AssetTypeValue = "Background", LocalImagePath = "/art/bg.jpg", IsPreferred = true },
+        ]);
+
+        Assert.Equal($"/persons/{withAsset}/headshot", headshots.BuildUrl(withAsset, null, null));
+        Assert.Null(headshots.BuildUrl(withoutAsset, null, null));
+        Assert.Equal($"/persons/{withoutAsset}/headshot", headshots.BuildUrl(withoutAsset, null, "https://images.example.test/face.jpg"));
     }
 
     [Fact]

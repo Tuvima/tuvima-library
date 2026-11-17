@@ -19,10 +19,16 @@ internal static class ApiImageUrls
             return null;
         }
 
+        return BuildPersonHeadshotAddress(personId, localHeadshotPath, size);
+    }
+
+    /// <summary>The face address of a person whose picture is known to exist, with its change marker taken from <paramref name="markerFilePath"/>.</summary>
+    public static string BuildPersonHeadshotAddress(Guid personId, string? markerFilePath, string? size = null)
+    {
         var url = string.IsNullOrWhiteSpace(size)
             ? $"/persons/{personId}/headshot"
             : $"/persons/{personId}/headshot?size={size}";
-        return ArtworkVersionMarker.WithMarker(url, ArtworkVersionMarker.ForFile(localHeadshotPath));
+        return ArtworkVersionMarker.WithMarker(url, ArtworkVersionMarker.ForFile(markerFilePath));
     }
 
     public static string? BuildCharacterPortraitUrl(

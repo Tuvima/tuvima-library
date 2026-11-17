@@ -4,7 +4,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IStringLocalizer<SharedStrings> L
 
-@* The people list is a grid of the one shared round person tile: photo, name, and an icon-plus-count line per lane. *@
+@* The people list is a grid of the shared person tile: a square photo with the name on the art and the count per lane in the bottom label. *@
 <div class="people-catalog-list" role="list" aria-label="@L["PeopleCatalogList_PeopleInYourLibrary"].Value">
     <PersonTileGrid Items="@Tiles" />
 </div>

@@ -33,7 +33,6 @@ public enum MediaTileSurfaceKind
     BannerLandscape,
     CoverPortrait,
     CoverSquare,
-    ArtistPhotoSquare,
 }
 
 public enum MediaTileHoverLayout
@@ -134,6 +133,8 @@ public sealed class MediaTileViewModel
     public MediaTileGroupSummaryViewModel? GroupSummary { get; init; }
     public IReadOnlyList<string> ContextLines { get; init; } = [];
     public IReadOnlyList<string> HoverFacts { get; init; } = [];
+    /// <summary>The content rating of a movie or show (R, PG-13, TV-MA and so on); null when none is known. The Pick up tile shows it instead of a star rating.</summary>
+    public string? ContentRating { get; init; }
     public string? Tldr { get; init; }
     public IReadOnlyList<string> VibeTags { get; init; } = [];
     public string MediaKind { get; init; } = string.Empty;
@@ -180,7 +181,13 @@ public sealed class MediaTileViewModel
     /// <summary>True on a hand-made playlist the person may add to: dragged songs can be dropped on its tile (Listen music spec D10). A rule-based or system playlist is false.</summary>
     public bool AcceptsSongDrops { get; init; }
 
-    /// <summary>A group of titles (collection, Series, Universe, list, set) draws as a poster showing the group's cover and its count.</summary>
+    /// <summary>
+    /// The cover a person chose for a group (a curated collection's own cover). When set it replaces the four member covers; null (the
+    /// normal case, and always for a Series, which takes no cover of its own) draws the quadrants.
+    /// </summary>
+    public string? CustomCoverUrl { get; init; }
+
+    /// <summary>A group of titles (collection, Series, Universe, list, set) draws as a quadrant tile: four member covers in a 2 by 2 grid.</summary>
     public bool RenderAsGroupTile =>
         !IsPlaylist
         && (UseGroupTile
@@ -193,8 +200,19 @@ public sealed class MediaTileViewModel
                     or MediaTilePresentation.Album
                     or MediaTilePresentation.Artist)));
 
-    /// <summary>A person (artist, author, director) drawn as a group tile uses the one round person tile instead.</summary>
-    public bool RenderAsPersonTile => Person is not null && RenderAsGroupTile;
+    /// <summary>The first four member covers of a group, in order: the pictures of the quadrant tile. Blank addresses are skipped.</summary>
+    public IReadOnlyList<string> GroupCovers => ArtworkStackItems
+        .Select(item => item.ImageUrl)
+        .Where(url => !string.IsNullOrWhiteSpace(url))
+        .Take(4)
+        .ToList();
+
+    /// <summary>A person with works (artist, director, author) draws as the quadrant tile with the person's square photo at the bottom left.</summary>
+    public bool RenderAsPersonQuadrants =>
+        Person is not null && RenderAsGroupTile && string.IsNullOrWhiteSpace(CustomCoverUrl) && GroupCovers.Count > 0;
+
+    /// <summary>A person with no works to show, and a cast member, draw as a square photo with the name on the art.</summary>
+    public bool RenderAsPersonPhoto => Person is not null && !RenderAsPersonQuadrants;
 
     /// <summary>
     /// Stable render identity for a display card. Journey rows may share a work while

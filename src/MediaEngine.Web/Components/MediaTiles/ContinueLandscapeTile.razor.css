@@ -1,5 +1,5 @@
-/* The Continue tile (One tile design D8): a 16:9 picture with a play mark bottom-left and a progress bar along its bottom edge; the title
-   and the rating/year sit under it. It is the one tile that keeps text underneath. */
+/* The Continue tile (One tile design D8, details-and-tile-fixes D3): a 16:9 picture, the same size for every kind, with a play mark and a progress
+   bar along its bottom edge; the title and the content rating (or a book's author and progress) sit under it. */
 .continue-tile { position: relative; flex: 0 0 auto; box-sizing: border-box; width: var(--tl-tile-landscape-w); display: flex; flex-direction: column; gap: 8px; color: var(--tl-text-primary); scroll-snap-align: start; }
 .continue-tile__frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--tl-radius-md, 8px); background: var(--tl-bg-surface); isolation: isolate; }
 /* Hover and keyboard focus (D5): the same thin outline as every tile. */
@@ -10,12 +10,17 @@
 .continue-tile__soft { transform: scale(1.2); filter: blur(18px) brightness(.55); }
 .continue-tile__cover { position: absolute; left: 12px; top: 12px; bottom: 12px; height: calc(100% - 24px); width: auto; aspect-ratio: 2 / 3; object-fit: cover; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px var(--tl-scrim-dark-4); }
 .continue-tile__cover.is-centred { left: 50%; transform: translateX(-50%); }
+/* A book or audiobook (D3): the kind word takes the top-left slot, so the cover starts below it; the play mark moves right, clear of the cover. */
+.continue-tile--kind .continue-tile__cover { top: 32px; height: calc(100% - 44px); }
+.continue-tile--cover .continue-tile__play { left: auto; right: 8px; }
 .continue-tile--collage .continue-tile__picture { display: grid; }
 .continue-tile__collage { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); width: 100%; height: 100%; }
 .continue-tile__collage img { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* D8: a bare white play triangle bottom-left of the picture, no circle behind it; a soft shadow keeps it readable on any frame. */
 .continue-tile__play { position: absolute; left: 8px; bottom: 10px; z-index: 1; display: inline-flex; align-items: center; justify-content: center; color: var(--tl-on-scrim); filter: var(--tl-tile-mark-shadow); pointer-events: none; }
 .continue-tile__play .tl-icon-root { font-size: var(--tl-icon-size-lg); }
+/* D3: an episode's "S3 E8" sits just above the progress bar, bottom-right, so even a few percent of progress stays visible. */
+.continue-tile__episode-code { position: absolute; right: 8px; bottom: 10px; z-index: 1; color: var(--tl-on-scrim); font-size: var(--tl-type-caption-size); font-weight: 600; filter: var(--tl-tile-mark-shadow); pointer-events: none; }
 .continue-tile__progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none; }
 .continue-tile__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .continue-tile__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: var(--tl-type-subheading-size); font-weight: var(--tl-type-subheading-weight); line-height: 1.25; color: var(--tl-text-primary); }

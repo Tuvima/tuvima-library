@@ -1070,6 +1070,24 @@
     flex: 1 1 auto;
 }
 
+/* An episode row: Jump to is the last item in the controls row, at its right edge, level with the season dropdown on the left;
+   Show missing, when there is one, sits just before it. */
+.tl-detail-page .tl-series-detail__jump--end {
+    order: 2;
+    margin-left: 0;
+}
+
+/* "N episodes owned" under the tiles, with the collection tile icon. */
+.tl-detail-page .tl-series-detail__owned-line {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+    font-variant-numeric: tabular-nums;
+}
+
 /* A Series' Jump to picker is as wide as its longest entry (AppSelect Sizing="options"), so entries do not wrap. */
 @media (min-width: 840px) {
 .tl-detail-page .tl-series-detail__jump--fit {

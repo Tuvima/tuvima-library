@@ -84,7 +84,6 @@ public partial class MediaBrowseShell
 
     // The grouping the Engine is asked for: the Unmatched filter is always a flat list of files (see IsContainerGrouping).
     private string BrowseGrouping => _unmatched ? "all" : _grouping;
-    private bool IsInProgressOnly => string.Equals(_status, "in-progress", StringComparison.OrdinalIgnoreCase);
     private bool IsSecondaryQuickFilterSelected => string.Equals(_status, SecondaryQuickFilterValue, StringComparison.OrdinalIgnoreCase);
     private bool IsFinishedOnly => string.Equals(_status, "finished", StringComparison.OrdinalIgnoreCase);
     private string SecondaryQuickFilterValue => CurrentTab.MediaType == "Music" ? "favorite" : "not-started";
@@ -145,12 +144,6 @@ public partial class MediaBrowseShell
         ("Audiobooks", _) => "Search audiobooks or authors...",
         _ => $"Search {CurrentTab.Label.ToLowerInvariant()}...",
     };
-    private string ContinueTitle => Preset.HeroVariant switch
-    {
-        BrowseHeroVariant.Read => "Continue Reading",
-        BrowseHeroVariant.Listen => "Continue Listening",
-        _ => "Continue Watching",
-    };
     private string ResultCountLabel => _totalCount == 1 ? "1 item" : $"{_totalCount} items";
     private IReadOnlyList<ActiveFilterChip> ActiveFilterChips =>
         [
@@ -173,7 +166,6 @@ public partial class MediaBrowseShell
         ];
     private string StatusDisplayLabel => _status switch
     {
-        "in-progress" => "In progress",
         "not-started" => SecondaryQuickFilterLabel,
         "favorite" => "Favorites",
         "finished" => "Finished",

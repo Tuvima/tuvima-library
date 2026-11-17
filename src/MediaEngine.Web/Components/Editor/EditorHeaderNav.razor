@@ -251,7 +251,7 @@
         <span class="@(kind is "episode" or "video" or "movie" ? "tl-hnav__still" : "tl-hnav__still tl-hnav__still--square")" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(url))
             {
-                <AppImage Src="@url" Alt="" DrawnPx="120" ObjectFit="AppObjectFit.Cover" Class="tl-hnav__img" />
+                <AppImage Src="@EditorNavText.Picture(url)" Alt="" DrawnPx="120" ObjectFit="AppObjectFit.Cover" Class="tl-hnav__img" />
             }
         </span>
     };

@@ -304,14 +304,6 @@ public sealed class MediaTileComposerService
             _ => MediaTilePresentation.Default,
         };
         var isTvSeries = presentation == MediaTilePresentation.TvSeries;
-        var isAlbum = presentation == MediaTilePresentation.Album;
-        var isTypedGroup = card.Flags.IsCollection
-                           && presentation is MediaTilePresentation.TvSeries
-                               or MediaTilePresentation.MovieSeries
-                               or MediaTilePresentation.BookSeries
-                               or MediaTilePresentation.ComicSeries
-                               or MediaTilePresentation.AudiobookSeries
-                               or MediaTilePresentation.Album;
         // Landscape stills are reserved for the Continue Watching presentation.
         var surface = MediaTileArtworkResolver.Resolve(
             bucket,
@@ -323,12 +315,11 @@ public sealed class MediaTileComposerService
                 new MediaTileArtworkVariant(ArtworkRole.Cover, StringHelpers.FirstNonBlank(card.Artwork.CoverSmallUrl, card.Artwork.CoverUrl), card.Artwork.CoverMediumUrl, card.Artwork.CoverLargeUrl, card.Artwork.CoverWidthPx, card.Artwork.CoverHeightPx),
             ], preferLandscapeTile: context == MediaTileContext.ContinueWatching && (card.Subject == DisplaySubjectKind.TvEpisode || bucket is MediaTileBucket.Movie or MediaTileBucket.Tv) && !card.Flags.IsCollection);
         var artworkStackItems = BuildArtworkStackItems(card);
-        var useOrderedSeriesStack = UsesOrderedSeriesStack(presentation, artworkStackItems);
         var useGroupTile = card.Flags.IsCollection
             && presentation is not (MediaTilePresentation.Artist or MediaTilePresentation.TvSeries or MediaTilePresentation.Album);
-        // A group of titles is a poster like a single title; only Continue tiles are landscape (One tile design D2).
-        var tileShape = useGroupTile ? MediaTileShape.Portrait : surface.Shape;
-        var surfaceKind = useGroupTile ? MediaTileSurfaceKind.CoverPortrait : surface.SurfaceKind;
+        // A group of titles is a poster like a single title, or a square when it holds only albums; only Continue tiles are landscape (One tile design D2, details-and-tile-fixes D1).
+        var tileShape = useGroupTile ? GroupTileShape.For(artworkStackItems) : surface.Shape;
+        var surfaceKind = useGroupTile ? GroupTileShape.SurfaceFor(tileShape) : surface.SurfaceKind;
 
         return new MediaTileViewModel
         {
@@ -365,6 +356,7 @@ public sealed class MediaTileComposerService
             MediaCounts = card.GroupSummary?.MediaCounts.Select(ToMediaCount).ToList() ?? [],
             GroupSummary = ToGroupSummary(card.GroupSummary),
             HoverFacts = card.Facts,
+            ContentRating = card.ContentRating,
             Genres = card.Genres,
             MediaKind = card.MediaType,
             // Every video (a folder, a single file) wears the one video color (item 14).
@@ -637,13 +629,6 @@ public sealed class MediaTileComposerService
             "wide" or "landscape" => ArtworkShape.Wide,
             _ => ArtworkShape.Portrait,
         };
-
-    private static bool UsesOrderedSeriesStack(MediaTilePresentation presentation, IReadOnlyList<ArtworkStackItem> artworkStackItems) =>
-        artworkStackItems.Count > 0
-        && presentation is MediaTilePresentation.BookSeries
-            or MediaTilePresentation.ComicSeries
-            or MediaTilePresentation.MovieSeries
-            or MediaTilePresentation.AudiobookSeries;
 
     private static IReadOnlyList<string> BuildPreviewImages(DisplayCardDto card, IReadOnlyList<ArtworkStackItem> artworkStackItems)
     {
