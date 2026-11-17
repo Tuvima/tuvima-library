@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.MediaTiles
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @inject ILogger<DetailPrimaryModule> Logger
@@ -32,44 +33,19 @@
                     }
                     else
                     {
-                        <div class="tl-detail-primary-module__rail">
-                            @foreach (var item in FilteredItems)
-                            {
-                                <a class="@ItemClass(item)" href="@ResolveRoute(item)">
-                                    <span class="tl-detail-primary-module__art">
-                                        @if (!string.IsNullOrWhiteSpace(item.ArtworkUrl))
-                                        {
-                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" alt="" loading="lazy" decoding="async" />
-                                        }
-                                        else
-                                        {
-                                            <GeneratedIdentity Name="@item.Title" />
-                                        }
-                                        @* A small square kind label; on a person page it is the icon alone, without the word "Movie" (spec D10). *@
-                                        <AppTooltip Text="@MediaTypeLabel(item.EntityType)" Suppressed="@(!IsPersonSurface)">
-                                            <span class="@MediaTypeBadgeClass(item)">
-                                                <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppIconSize.Control20" />
-                                                @if (IsPersonSurface)
-                                                {
-                                                    <span class="sr-only">@MediaTypeLabel(item.EntityType)</span>
-                                                }
-                                                else
-                                                {
-                                                    @MediaTypeLabel(item.EntityType)
-                                                }
-                                            </span>
-                                        </AppTooltip>
-                                    </span>
-                                    <span class="tl-detail-primary-module__copy">
-                                        <strong>@item.Title</strong>
-                                        @if (!string.IsNullOrWhiteSpace(item.Subtitle))
-                                        {
-                                            <small>@item.Subtitle</small>
-                                        }
-                                    </span>
-                                </a>
-                            }
-                        </div>
+                        @if (Model.PrimaryModule.Kind == DetailPrimaryModuleKind.CollectionItems)
+                        {
+                            @* A collection's or Universe's Items scroll in the shared shelf row (wheel, touch swipe, arrows), the one the Home and episode rows use. *@
+                            <MediaShelfScroller ItemCount="@FilteredItems.Count" AriaLabel="@RowTitle">
+                                @RailItems
+                            </MediaShelfScroller>
+                        }
+                        else
+                        {
+                            <div class="tl-detail-primary-module__rail">
+                                @RailItems
+                            </div>
+                        }
                     }
                 </div>
             </AppCollapsibleRow>
@@ -258,6 +234,46 @@
                 </div>
             }
         </div>
+    };
+
+    private RenderFragment RailItems => __builder =>
+    {
+        foreach (var item in FilteredItems)
+        {
+            <a class="@ItemClass(item)" href="@ResolveRoute(item)">
+                <span class="tl-detail-primary-module__art">
+                    @if (!string.IsNullOrWhiteSpace(item.ArtworkUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" alt="" loading="lazy" decoding="async" />
+                    }
+                    else
+                    {
+                        <GeneratedIdentity Name="@item.Title" />
+                    }
+                    @* A small square kind label; on a person page it is the icon alone, without the word "Movie" (spec D10). *@
+                    <AppTooltip Text="@MediaTypeLabel(item.EntityType)" Suppressed="@(!IsPersonSurface)">
+                        <span class="@MediaTypeBadgeClass(item)">
+                            <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppIconSize.Control20" />
+                            @if (IsPersonSurface)
+                            {
+                                <span class="sr-only">@MediaTypeLabel(item.EntityType)</span>
+                            }
+                            else
+                            {
+                                @MediaTypeLabel(item.EntityType)
+                            }
+                        </span>
+                    </AppTooltip>
+                </span>
+                <span class="tl-detail-primary-module__copy">
+                    <strong>@item.Title</strong>
+                    @if (!string.IsNullOrWhiteSpace(item.Subtitle))
+                    {
+                        <small>@item.Subtitle</small>
+                    }
+                </span>
+            </a>
+        }
     };
 
     private string RowTitle => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Sequence
