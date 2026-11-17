@@ -242,12 +242,6 @@
                             @if (SupportsFacetFilters)
                             {
                                 <div class="browse-shell__toggle-row">
-                                    @if (!IsMusicTab)
-                                    {
-                                        <AppQuickFilterToggle Label="@L["MediaBrowseShell_InProgress"].Value"
-                                                              Selected="@IsInProgressOnly"
-                                                              SelectedChanged="OnInProgressChanged" />
-                                    }
                                     <AppQuickFilterToggle Label="@SecondaryQuickFilterLabel"
                                                           Selected="@IsSecondaryQuickFilterSelected"
                                                           SelectedChanged="OnSecondaryQuickFilterChanged" />
@@ -348,8 +342,6 @@
                                   OnDone="EndAlbumSelectAsync" />
             }
         }
-
-        <CompactContinueStrip Title="@ContinueTitle" Items="@_continueCards" Loading="@_continueLoading" OnViewAll="@(IsInProgressOnly ? default : EventCallback.Factory.Create(this, () => OnInProgressChanged(true)))" />
     }
 
     @if (_loading && !_hasLoadedOnce)

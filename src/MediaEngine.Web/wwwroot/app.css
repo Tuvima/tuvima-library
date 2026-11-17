@@ -4214,9 +4214,6 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .media-viewer .media-viewer__actions .tl-icon-button[aria-pressed="true"] { color:var(--tl-accent-primary); background:var(--playback-accent-soft); }
 @media(prefers-reduced-motion:reduce) { .media-tile .app-artwork-progress .app-progress-bar__track { transition:none; } }
 
-.compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__track { height:6px; }
-.compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
-
 /* "Who's watching?" controls. The page renders them through shared native controls, so their roots are styled here. */
 .who-grid { --who-size: clamp(88px, 26vw, 168px); display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: clamp(16px, 3.4vw, 44px) clamp(12px, 3vw, 40px); width: min(100%, 1080px); margin: 0; padding: 0; list-style: none; animation: who-fade-in 320ms ease-out both; }
 .who-grid > li { flex: 0 0 auto; width: var(--who-size); min-width: 0; }

@@ -84,6 +84,15 @@
     padding: var(--tl-space-3) 0 var(--tl-space-6);
 }
 
+/* A Continue page: the discover row's landscape tiles at full size, one per column slot, newest first. */
+.shelf-grid-page__continue-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, var(--tl-tile-landscape-w));
+    gap: clamp(20px, 1.7vw, 30px);
+    justify-content: start;
+    padding: var(--tl-space-3) 0 var(--tl-space-6);
+}
+
 /* The first load holds a fixed height, so the page below does not move when the tiles arrive. */
 .shelf-grid-page__skeleton {
     display: flex;

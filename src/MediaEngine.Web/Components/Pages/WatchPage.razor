@@ -109,7 +109,7 @@
             .. ShortcutTab is { } tab
                 ? new MediaSectionNavigationItem[]
                 {
-                    new("Continue Watching", $"/watch/{tab.Id}?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
+                    new("Continue Watching", "/all/watch/continue-watching", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
                     new("Unwatched", $"/watch/{tab.Id}?status=not-started", AppMaterialIcons.Outlined.VisibilityOff, Exact: true),
                     new("Recently Added", $"/watch/{tab.Id}?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
                 }

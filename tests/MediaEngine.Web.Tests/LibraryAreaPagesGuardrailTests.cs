@@ -18,21 +18,19 @@ public sealed class LibraryAreaPagesGuardrailTests
 
         Assert.Contains("<MediaLanePage", source, StringComparison.Ordinal);
         Assert.DoesNotContain("CompactContinueStrip", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("status=in-progress", source, StringComparison.Ordinal);
         Assert.DoesNotContain("layout-toggle", source, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TheLanePage_HostsTheSharedBrowseShell_WhichOwnsContinueAndTheCardsListSwitch()
+    public void TheLanePage_HostsTheSharedBrowseShell_WhichOwnsTheCardsListSwitchAndNoLongerDrawsAContinueStrip()
     {
         var lane = ReadSource("src/MediaEngine.Web/Components/Pages/MediaLanePage.razor");
         var shell = BrowseShellSource.ReadAll();
 
         Assert.Contains("<MediaBrowseShell", lane, StringComparison.Ordinal);
-        Assert.Contains("<CompactContinueStrip", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("CompactContinueStrip", shell, StringComparison.Ordinal);
         Assert.Contains("browse-shell__layout-toggle", shell, StringComparison.Ordinal);
-        Assert.Contains("Continue Reading", shell, StringComparison.Ordinal);
-        Assert.Contains("Continue Listening", shell, StringComparison.Ordinal);
-        Assert.Contains("Continue Watching", shell, StringComparison.Ordinal);
     }
 
     private static string ReadSource(string relativePath) =>

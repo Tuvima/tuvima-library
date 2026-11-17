@@ -656,9 +656,6 @@
   <data name="MediaBrowseShell_NoMatchingThemes" xml:space="preserve">
     <value>No matching themes</value>
   </data>
-  <data name="MediaBrowseShell_InProgress" xml:space="preserve">
-    <value>In progress</value>
-  </data>
   <data name="Common_Finished" xml:space="preserve">
     <value>Finished</value>
   </data>
