@@ -1,0 +1,46 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* The match badge of the editor's header (universal editor v8 D1, mock-up screen A): one small rounded box with two labels, "Retail" (a provider
+   match) and "Canonical" (Wikidata), each followed by a green check when matched or a red cross when not. Never colour alone: each half carries
+   its words for a screen reader ("Retail: Matched to Apple Books") and as its tooltip. On a phone the labels are the single letters R and C.
+   Read-only and not a control, so it takes no focus and has no tap target of its own. *@
+<div class="tl-hbadge" role="group" aria-label="@L["EditorHeaderBadge_Label"].Value" data-testid="header-match-badge" data-phone="@(Short ? "true" : null)">
+    <AppTooltip Text="@RetailText">
+        <span class="tl-hbadge__item" data-testid="header-badge-retail" data-matched="@(State.RetailMatched ? "true" : "false")">
+            <span class="tl-hbadge__label" aria-hidden="true">@(Short ? L["EditorHeaderBadge_RetailShort"].Value : L["EditorHeaderBadge_Retail"].Value)</span>
+            <span class="@(State.RetailMatched ? "tl-hbadge__mark tl-hbadge__mark--yes" : "tl-hbadge__mark tl-hbadge__mark--no")">
+                <AppMaterialIcon Icon="@(State.RetailMatched ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Close)" Size="AppIconSize.Inline16" />
+            </span>
+            <span class="sr-only">@($"{L["EditorHeaderBadge_Retail"].Value}: {RetailText}")</span>
+        </span>
+    </AppTooltip>
+    <AppTooltip Text="@CanonicalText">
+        <span class="tl-hbadge__item" data-testid="header-badge-canonical" data-matched="@(State.CanonicalMatched ? "true" : "false")">
+            <span class="tl-hbadge__label" aria-hidden="true">@(Short ? L["EditorHeaderBadge_CanonicalShort"].Value : L["EditorHeaderBadge_Canonical"].Value)</span>
+            <span class="@(State.CanonicalMatched ? "tl-hbadge__mark tl-hbadge__mark--yes" : "tl-hbadge__mark tl-hbadge__mark--no")">
+                <AppMaterialIcon Icon="@(State.CanonicalMatched ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Close)" Size="AppIconSize.Inline16" />
+            </span>
+            <span class="sr-only">@($"{L["EditorHeaderBadge_Canonical"].Value}: {CanonicalText}")</span>
+        </span>
+    </AppTooltip>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public EditorHeaderBadgeState State { get; set; } = default!;
+
+    /// <summary>The phone form: the single letters R and C in place of the words.</summary>
+    [Parameter] public bool Short { get; set; }
+
+    private string RetailText => State.RetailMatched
+        ? string.IsNullOrWhiteSpace(State.ProviderName)
+            ? L["EditorHeaderBadge_RetailMatchedPlain"].Value
+            : string.Format(L["EditorHeaderBadge_MatchedTo"].Value, State.ProviderName)
+        : L["EditorHeaderBadge_RetailNotMatched"].Value;
+
+    private string CanonicalText => State.CanonicalMatched
+        ? string.Format(L["EditorHeaderBadge_MatchedTo"].Value, L["EditorHeaderBadge_Wikidata"].Value)
+        : string.Format(L["EditorHeaderBadge_NotMatchedTo"].Value, L["EditorHeaderBadge_Wikidata"].Value);
+}
