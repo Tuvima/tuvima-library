@@ -542,6 +542,38 @@ internal sealed partial class DetailCompositionOrchestrator
         }
     }
 
+    private sealed record ChosenCollectionPictures(string? Cover, string? Background, string? Logo);
+
+    private sealed class ChosenPictureRow
+    {
+        public string Role { get; init; } = string.Empty;
+        public Guid AssetId { get; init; }
+    }
+
+    // The cover, background and logo chosen for a collection itself (a Series or a curated collection), or null when none is chosen.
+    private async Task<ChosenCollectionPictures?> LoadChosenCollectionPicturesAsync(Guid collectionId, CancellationToken ct)
+    {
+        using var conn = _db.CreateConnection();
+        var chosen = (await conn.QueryAsync<ChosenPictureRow>(new CommandDefinition(
+            """
+            -- readiness: detail page of one item opened by id
+            SELECT role AS Role, artwork_asset_id AS AssetId
+            FROM entity_artwork_links
+            WHERE entity_id = @collectionId AND entity_type = 'Collection' AND is_preferred = 1
+              AND role IN ('Primary', 'Background', 'Logo')
+            ORDER BY COALESCE(updated_at, created_at) DESC;
+            """,
+            new { collectionId = GuidSql.ToBlob(collectionId) },
+            cancellationToken: ct))).ToList();
+        string? UrlFor(string role) => chosen.FirstOrDefault(row => row.Role == role) is { } picture
+            ? $"/api/v1/display/artwork/assets/{picture.AssetId:D}/content"
+            : null;
+        var cover = UrlFor("Primary");
+        var background = UrlFor("Background");
+        var logo = UrlFor("Logo");
+        return cover is null && background is null && logo is null ? null : new ChosenCollectionPictures(cover, background, logo);
+    }
+
     private async Task<Guid?> LoadCollectionRootWorkIdAsync(
         Guid collectionId,
         bool requireRootWithChildren,

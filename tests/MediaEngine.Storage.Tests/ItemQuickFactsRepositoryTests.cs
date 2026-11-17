@@ -115,7 +115,7 @@ public sealed class ItemQuickFactsRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AShowWithSeasonsAndLooseEpisodes_CountsEachRealSeasonPlusOneForTheLooseEpisodes()
+    public async Task AShowWithSeasonsAndLooseEpisodes_CountsOnlyTheRealSeasons()
     {
         var show = Work("TV", "parent");
         var season1 = Work("TV", "parent", show);
@@ -125,7 +125,7 @@ public sealed class ItemQuickFactsRepositoryTests : IDisposable
 
         var facts = (await ReadAsync(show))!.Facts;
 
-        Assert.Equal(2, facts.DirectTotal);
+        Assert.Equal(1, facts.DirectTotal);
         Assert.Equal(1, facts.DirectOwned);
     }
 
