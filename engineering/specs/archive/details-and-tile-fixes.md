@@ -1,6 +1,6 @@
 # Spec: Details page and tile fixes (quadrant group and person tiles, Pick up tiles, Continue page, person page, collection page, episode frames)
 
-> **Status:** Locked (Shy said "build the rest", 2026-11-17; every open question took the recommended option) · **Version:** 1 · **Last updated:** 2026-11-17 · **Related docs:** [One tile design](one-tile-design.md) · [Collections and lists](archive/collections-and-lists.md) (D18 fan, replaced here) · [Details page bottom](archive/details-page-bottom.md) (D10, changed by WP9) · Issues 1040, 1042, 1044, 1049, 1052, 1055, 1059, 1061, 1063, 1068 · Mockups: [details-and-tile-fixes.html](../design/mockups/details-and-tile-fixes.html)
+> **Status:** Built, awaiting your Local checks (merged in PR 1093; #1052 parked for a screenshot)  · **Version:** 1 · **Last updated:** 2026-11-17 · **Related docs:** [One tile design](../one-tile-design.md) · [Collections and lists](collections-and-lists.md) (D18 fan, replaced here) · [Details page bottom](details-page-bottom.md) (D10, changed by WP9) · Issues 1040, 1042, 1044, 1049, 1052, 1055, 1059, 1061, 1063, 1068 · Mockups: [details-and-tile-fixes.html](../../design/mockups/details-and-tile-fixes.html)
 
 ## 1. Goal
 Fix ten problems from the 2026-11-14 local check so groups, people and Pick up items read at a glance, and the details pages match each other. One quadrant tile design replaces the fan; one Continue page replaces two broken ones.
