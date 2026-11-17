@@ -155,15 +155,6 @@ public sealed class EditorHeaderRulesTests
     }
 
     [Fact]
-    public void AllSupportingFiles_SaysHowManyAreAtThisLevelAndInTheWholeTitle()
-    {
-        var header = EditorHeaderTestData.TvEpisode();
-
-        Assert.Equal("12 in this season · 238 in the show", EditorNavText.AllFilesLine(header, header.Level.SupportingFiles));
-        Assert.Equal("1 in all", EditorNavText.AllFilesLine(EditorHeaderTestData.Movie(true), EditorHeaderTestData.Movie(true).Level.SupportingFiles));
-    }
-
-    [Fact]
     public void ASeasonRowInTheSecondDropdown_CountsItsEpisodesAndSupportingFiles()
     {
         var season = EditorHeaderTestData.TvEpisode().SecondLevel!.Entries[1];

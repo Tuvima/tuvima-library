@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Models;
@@ -53,6 +54,82 @@ public sealed class EditorFolderTreeServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AMediaFileNeedsReviewStillHolds_IsUnplaced_CarriesItsFileIdAndNoItem()
+    {
+        var episode = SeedSeasonTwo();
+        _world.Write("Season 02/The Expanse - S02E01.mkv", "video");
+        var odd = _world.Work("TV", "child", "odd", null);
+        var oddAsset = _world.File(odd, "Season 02/odd.mkv");
+        _world.Write("Season 02/odd.mkv", "video");
+        MarkUnmatched(oddAsset, kept: false);
+
+        var tree = await _world.FolderTree().ReadAsync(episode, "Season 02", 0);
+
+        var unplaced = Assert.Single(tree!.Entries, entry => entry.Name == "odd.mkv");
+        Assert.Equal(EditorFolderEntryStates.Unsorted, unplaced.State);
+        Assert.Equal(oddAsset, unplaced.FileId);
+        Assert.Null(unplaced.ItemId);
+        var placed = Assert.Single(tree.Entries, entry => entry.Name == "The Expanse - S02E01.mkv");
+        Assert.Equal(EditorFolderEntryStates.Main, placed.State);
+        Assert.Equal(episode, placed.ItemId);
+        Assert.NotNull(placed.FileId);
+    }
+
+    [Fact]
+    public async Task AnUnmatchedFileKeptAsItIs_IsPlaced()
+    {
+        var episode = SeedSeasonTwo();
+        var odd = _world.Work("TV", "child", "odd", null);
+        var oddAsset = _world.File(odd, "Season 02/odd.mkv");
+        _world.Write("Season 02/odd.mkv", "video");
+        MarkUnmatched(oddAsset, kept: true);
+
+        var tree = await _world.FolderTree().ReadAsync(episode, "Season 02", 0);
+
+        Assert.Equal(EditorFolderEntryStates.Main, Assert.Single(tree!.Entries, entry => entry.Name == "odd.mkv").State);
+    }
+
+    [Fact]
+    public async Task ALooseDocumentWithNoRecord_IsUnsortedWithNoFileId_SoThereIsNothingToAskAbout()
+    {
+        var episode = SeedSeasonTwo();
+        _world.Write("Season 02/bonus-workbook.pdf", "pdf");
+
+        var tree = await _world.FolderTree().ReadAsync(episode, "Season 02", 0);
+
+        var loose = Assert.Single(tree!.Entries, entry => entry.Name == "bonus-workbook.pdf");
+        Assert.Equal(EditorFolderEntryStates.Unsorted, loose.State);
+        Assert.Null(loose.FileId);
+        Assert.Null(loose.ItemId);
+    }
+
+    [Fact]
+    public async Task FilesLibraryCouldNotPlace_AreListedFirst_ThenFolders_ThenThePlacedFiles()
+    {
+        var episode = SeedSeasonTwo();
+        _world.Write("Season 02/The Expanse - S02E01.mkv", "video");
+        _world.Write("Season 02/Extras/trailer.mkv", "video");
+        _world.Write("Season 02/zz-loose.pdf", "pdf");
+        _world.Write("Season 02/guide.pdf", "pdf");
+        await _world.SupportingFileAsync("Season 02/guide.pdf", ExtraScope.ForSeason(2));
+
+        var tree = await _world.FolderTree().ReadAsync(episode, "Season 02", 0);
+
+        Assert.Equal(["zz-loose.pdf", "Extras", "guide.pdf", "The Expanse - S02E01.mkv"], tree!.Entries.Select(entry => entry.Name));
+    }
+
+    private void MarkUnmatched(Guid assetId, bool kept)
+    {
+        using var connection = _world.Database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO unmatched_assets (asset_id, library_id, reason, first_unmatched_at, last_tried_at, kept_as_is)
+            VALUES (@assetId, 'lib', 'no_match', datetime('now'), datetime('now'), @kept);
+            """,
+            new { assetId, kept = kept ? 1 : 0 });
+    }
+
+    [Fact]
     public async Task TheTitlesFolder_ListsFoldersFirst_ThenFiles_InNaturalOrder()
     {
         var episode = SeedSeasonTwo();
@@ -62,6 +139,12 @@ public sealed class EditorFolderTreeServiceTests : IDisposable
         _world.Write("Episode 2.mkv");
         _world.Write("Episode 10.mkv");
         _world.Write("Episode 1.mkv");
+        // Files Library has no record of are unplaced and come first, so each of these has its own record and is placed.
+        foreach (var number in new[] { 1, 2, 10 })
+        {
+            var work = _world.Work("TV", "child", $"Episode {number}", null);
+            _world.File(work, $"Episode {number}.mkv");
+        }
 
         var tree = await _world.FolderTree().ReadAsync(episode, null, 0);
 

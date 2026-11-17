@@ -107,6 +107,26 @@ public sealed class EditorFileSortPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AskedAboutAFile_TheChoiceIsStagedAgainstTheItemTheEngineSaysTheFilePlaysAs()
+    {
+        var fileId = Guid.Parse("33333333-0000-0000-0000-0000000000f1");
+        _sorting!.FileName = "sample.mkv";
+        var cut = Render<EditorFileSortPanel>(p => p
+            .Add(c => c.Subject, new EditorMatchSubject(fileId, string.Empty, string.Empty, string.Empty, "sample.mkv", null, null, null,
+                new Dictionary<string, string>(), []))
+            .Add(c => c.Session, _session)
+            .Add(c => c.CanEdit, true));
+        cut.WaitForState(() => cut.Markup.Contains("tl-filesort"), TimeSpan.FromSeconds(2));
+
+        cut.Find("button:contains('Ignore it')").Click();
+        cut.Find("button:contains('Ignore this file')").Click();
+
+        var staged = Assert.Single(_session.Pending.Changes);
+        Assert.Equal(ShowId, staged.EntityId);
+        Assert.Equal("file:ignore", staged.Token);
+    }
+
+    [Fact]
     public void AFilesOtherFolderMates_AreListed_AndCanBeSortedAsGuessed()
     {
         var cut = RenderPanel();

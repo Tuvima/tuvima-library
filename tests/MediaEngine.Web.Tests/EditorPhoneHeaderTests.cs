@@ -162,7 +162,7 @@ public sealed class EditorPhoneHeaderTests : AsyncBunitContext
         Assert.Equal(3, episodes.Length);
         Assert.All(episodes, episode => Assert.NotNull(episode.QuerySelector(".tl-hnav__still")));
         Assert.Equal(["Episode guide", "Script, S02E03"], sheet.QuerySelectorAll("[data-file-kind] .tl-hnav__text > b").Select(file => file.TextContent.Trim()).ToArray());
-        Assert.NotNull(sheet.QuerySelector("#tl-hnav-all-files"));
+        Assert.Null(sheet.QuerySelector("#tl-hnav-all-files"));
         Assert.Contains("The Last Signal / Season 02", sheet.QuerySelector("#tl-hnav-folder")!.TextContent, StringComparison.Ordinal);
     }
 

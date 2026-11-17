@@ -103,7 +103,6 @@ public sealed class EditorHeaderContractTests
                 ScopeKey = "season:2",
                 Count = 9,
                 TotalInRoot = 11,
-                ShowAll = true,
                 Files = [new EditorHeaderSupportingFileDto { Id = file, Kind = "document", Title = "Guide", TypeBadge = "PDF", Role = "guide", RoleLabel = "Guide", PageCount = 12, ItemCount = 1 }],
             },
         };

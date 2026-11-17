@@ -3,6 +3,13 @@
     font-size: var(--tl-font-size-md);
 }
 
+.tl-fbfolders__purpose {
+    margin: 0 0 var(--tl-space-3);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    line-height: 1.4;
+}
+
 .tl-fbfolders__crumbs {
     display: flex;
     flex-wrap: wrap;
@@ -21,7 +28,6 @@
     color: var(--tl-text-secondary);
 }
 
-.tl-fbfolders__size,
 .tl-fbfolders__hidden {
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-sm);

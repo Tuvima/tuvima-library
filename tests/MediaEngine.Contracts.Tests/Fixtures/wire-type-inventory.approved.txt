@@ -4321,9 +4321,10 @@
   IsFolder: System.Boolean | json=is_folder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   State: System.String | json=state | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   SizeBytes: System.Int64? | json=size_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  FileId: System.Guid? | json=file_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ItemId: System.Guid? | json=item_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   SupportingFileId: System.Guid? | json=supporting_file_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","path":"sample","is_folder":true,"state":"sample","size_bytes":7,"item_id":"11111111-2222-3333-4444-555555555555","supporting_file_id":"11111111-2222-3333-4444-555555555555"}
+  sample={"name":"sample","path":"sample","is_folder":true,"state":"sample","size_bytes":7,"file_id":"11111111-2222-3333-4444-555555555555","item_id":"11111111-2222-3333-4444-555555555555","supporting_file_id":"11111111-2222-3333-4444-555555555555"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorFolderFileDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4416,9 +4417,10 @@
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | json=colors | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | json=file_facts | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ProviderMatched: System.Boolean | json=provider_matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanReorder: System.Boolean | json=can_reorder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MatchLinks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchLinkDto> | json=match_links | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | json=config | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"provider_matched":true,"match_links":[],"config":null}
+  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"provider_matched":true,"can_reorder":true,"match_links":[],"config":null}
 
 [contracts] MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4485,9 +4487,8 @@
   ScopeKey: System.String | json=scope_key | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Count: System.Int32 | json=count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TotalInRoot: System.Int32 | json=total_in_root | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ShowAll: System.Boolean | json=show_all | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Files: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorHeaderSupportingFileDto> | json=files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"scope_key":"sample","count":7,"total_in_root":7,"show_all":true,"files":[]}
+  sample={"scope_key":"sample","count":7,"total_in_root":7,"files":[]}
 
 [contracts] MediaEngine.Contracts.Editing.EditorMatchBestGuessDto
   kind=class | converter=default | number-handling=default | unmapped=default

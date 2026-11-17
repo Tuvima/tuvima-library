@@ -13,7 +13,13 @@
     <td role="gridcell" id="@NameCellId" aria-label="@(IsFile ? Name : OpenLabelText)" class="app-browser-folder__namecell">
         <div class="app-browser-folder__name">
             <span class="app-browser-folder__icon" aria-hidden="true"><AppMaterialIcon Icon="@(IsFile ? AppMaterialIcons.Outlined.Description : AppMaterialIcons.Filled.Folder)" Size="AppIconSize.Control20" /></span>
-            <span class="app-browser-folder__text" data-overflow-tooltip="@Name">@Name</span>
+            <span class="app-browser-folder__lines">
+                <span class="app-browser-folder__text" data-overflow-tooltip="@Name">@Name</span>
+                @if (!string.IsNullOrWhiteSpace(Secondary))
+                {
+                    <span class="app-browser-folder__secondary">@Secondary</span>
+                }
+            </span>
         </div>
     </td>
     <td role="gridcell" class="@(WideOnlyMiddle ? "app-browser-folder__middle is-wide-only" : "app-browser-folder__middle")">
@@ -64,7 +70,10 @@
     /// <summary>The name the open button speaks; "Open folder {Name}" when empty.</summary>
     [Parameter] public string? OpenLabel { get; set; }
 
-    /// <summary>Replaces the modified date in the middle cell (a file's size and mark).</summary>
+    /// <summary>A quiet second line under the name (a file's size); nothing when empty.</summary>
+    [Parameter] public string? Secondary { get; set; }
+
+    /// <summary>Replaces the modified date in the middle cell (a file's mark).</summary>
     [Parameter] public RenderFragment? Middle { get; set; }
 
     /// <summary>Replaces the open button in the last cell (a file's actions).</summary>
