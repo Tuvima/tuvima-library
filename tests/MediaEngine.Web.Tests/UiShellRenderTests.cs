@@ -281,7 +281,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
         Assert.DoesNotContain(cut.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == "/settings/security");
         Assert.Contains(cut.FindAll(".top-nav-account-menu__secure-card a"), link =>
-            link.GetAttribute("href") == "/settings/security" && link.TextContent.Contains("Secure account"));
+            link.GetAttribute("href") == "/settings/security" && link.TextContent.Contains("Add a password"));
     }
 
     [Fact]
@@ -1550,15 +1550,16 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsMenu_ShowsSecurityRedWithItsReasonForAThisComputerOnlyAccountUntilNotNow()
+    public void SettingsMenu_ShowsASmallRedDotOnSecurityForAThisComputerOnlyAccountUntilNotNow()
     {
         var cut = RenderSettingsForAThisComputerOnlyAccount([]);
 
         cut.WaitForAssertion(() =>
         {
             var link = cut.Find("a.media-section-shell__tree-link[href='/settings/security']");
-            Assert.Equal("No password", link.QuerySelector(".media-section-shell__tree-attention-label")!.TextContent.Trim());
-            Assert.Contains("is-attention-blocked", link.ParentElement!.ClassList);
+            Assert.NotNull(link.QuerySelector(".media-section-shell__attention-dot"));
+            Assert.Null(link.QuerySelector(".media-section-shell__tree-attention-label"));
+            Assert.DoesNotContain("is-attention-blocked", link.ParentElement!.ClassList);
         });
     }
 

@@ -78,7 +78,7 @@
                 <AppStatusBadge Text="@L["SetupToolsStage_LocalAILater"].Value" Tone="AppUiTone.Neutral" />
             </div>
         </div>
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <SetupStageFooter Back="Back">
             <AppButton Label="@L["Common_CheckAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
             <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
         </SetupStageFooter>
@@ -111,8 +111,6 @@
     /// <summary>Moves on although a tool is missing; setup warns about tools and never blocks on them.</summary>
     [Parameter] public EventCallback Continue { get; set; }
     [Parameter] public EventCallback Back { get; set; }
-    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
 
     /// <summary>Starts the download of a tool that is not installed (the row's Install); it carries on in the background.</summary>
     [Parameter] public EventCallback<MediaEngine.Contracts.Settings.ToolRequirementDto> InstallTool { get; set; }
