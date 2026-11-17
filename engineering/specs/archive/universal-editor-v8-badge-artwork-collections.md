@@ -1,6 +1,6 @@
 # Spec: Editor v8, a match badge, a simpler Artwork tab, editable collections, and four fixes (amends v7, v6, v5)
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-11-17 · **Related docs:** [Editor v7](archive/universal-editor-v7-bug-review.md) · [Editor v5](archive/universal-editor-v5-header-navigation-and-supporting-files.md) · mockups in `../design/mockups/editor-v8/editor-v8-mockups.html` (screens A to F)
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-17 · **Related docs:** [Editor v7](universal-editor-v7-bug-review.md) · [Editor v5](universal-editor-v5-header-navigation-and-supporting-files.md) · mockups in `../../design/mockups/editor-v8/editor-v8-mockups.html` (screens A to F)
 
 Locked by Shy on 2026-11-17 ("build the rest"), after reviewing the mockups and answering the questions below on 2026-11-15. Issues: 1045, 1046, 1047, 1048, 1062, 1064, 1065.
 
