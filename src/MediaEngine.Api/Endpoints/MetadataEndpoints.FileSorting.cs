@@ -17,21 +17,25 @@ public static partial class MetadataEndpoints
     /// <summary>
     /// The read behind "What is this file?" in Match &amp; Identity (universal editor v4, D20): whether the item is a single file, the guess its
     /// name gives for an Extra's kind and place, and the other files in the same folder the Engine could not place, so they can be sorted in one
-    /// pass. A read; nothing is written until Save changes.
+    /// pass. A read; nothing is written until Save changes. <c>entityId</c> is the item, or the file (media asset) of a file the Engine could
+    /// not place, which the folder browser names by its file id (v8 D9): the answer names the item the file plays as, and that item's id is what a
+    /// sorting choice is staged against.
     /// </summary>
     private static void MapFileSortingEndpoints(RouteGroupBuilder group)
     {
         group.MapGet("/{entityId:guid}/file-sorting", async (
             Guid entityId, ILibraryItemDeletionRepository works, ILibraryFolderResolver folders, IItemExtrasScanner scanner,
-            IUnmatchedAssetRepository unmatched, CancellationToken ct) =>
+            IUnmatchedAssetRepository unmatched, IItemCanonicalRepository itemCanonical, CancellationToken ct) =>
         {
-            var found = (await works.GetWorksAsync([entityId], ct)).FirstOrDefault();
+            // A file id names the item the file plays as; an item id is used as it is.
+            var workId = await itemCanonical.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var found = (await works.GetWorksAsync([workId], ct)).FirstOrDefault();
             if (found is null)
             {
                 return ApiErrors.NotFound("File sorting was not found.");
             }
 
-            var dto = new EditorFileSortingDto { EntityId = entityId };
+            var dto = new EditorFileSortingDto { EntityId = workId };
             if (found.Assets.Count != 1 || !File.Exists(found.Assets[0].FilePath))
             {
                 return Results.Ok(dto);
@@ -64,7 +68,7 @@ public static partial class MetadataEndpoints
                 dto.FolderFiles =
                 [
                     .. page.Items
-                        .Where(item => item.WorkId is { } id && id != entityId
+                        .Where(item => item.WorkId is { } id && id != workId
                             && string.Equals(Path.GetDirectoryName(Path.GetFullPath(item.FilePath)), folder, StringComparison.OrdinalIgnoreCase))
                         .Take(MaxFolderFiles)
                         .Select(item =>

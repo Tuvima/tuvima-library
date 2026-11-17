@@ -9263,9 +9263,6 @@
   <data name="EditorNav_FileMissing" xml:space="preserve">
     <value>File not found</value>
   </data>
-  <data name="EditorNav_AllFiles" xml:space="preserve">
-    <value>All supporting files ({0})</value>
-  </data>
   <data name="EditorNav_Browse" xml:space="preserve">
     <value>Browse files and folders</value>
   </data>
@@ -12028,6 +12025,9 @@
   </data>
   <data name="EditorBrowser_Filters" xml:space="preserve">
     <value>Filters</value>
+  </data>
+  <data name="EditorBrowser_FoldersPurpose" xml:space="preserve">
+    <value>These are the files behind this title. Anything Library could not place is listed first so you can say what it is.</value>
   </data>
   <data name="EditorBrowser_FolderEmpty" xml:space="preserve">
     <value>Nothing in this folder.</value>

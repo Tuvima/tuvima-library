@@ -1,6 +1,8 @@
 using Bunit;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Items;
+using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.WriteBack;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Editor;
 using MediaEngine.Web.Components.Shared;
@@ -25,6 +27,7 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly EditSessionState _session = new(new PendingEditList());
     private VideoOrderResponse _order = new();
+    private bool? _writeBack;
     private int _discardAsked;
     private EditSessionFlow? _flow;
     private EditingModeContext? _mode;
@@ -36,7 +39,15 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
         Services.AddLogging();
         Services.AddSingleton(_device);
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
-            stub.SetHandler(nameof(IEngineApiClient.GetVideoOrderAsync), _ => Task.FromResult<VideoOrderResponse?>(_order))));
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetVideoOrderAsync), _ => Task.FromResult<VideoOrderResponse?>(_order));
+            stub.SetHandler(nameof(IEngineApiClient.GetFileWriteScheduleAsync), _ =>
+                Task.FromResult(_writeBack is { } enabled ? new FileWriteScheduleDto { Enabled = enabled } : null));
+            stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(new LibrariesConfigurationDto
+            {
+                Libraries = [new LibraryFolderDto { Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", Name = "Videos", MediaTypes = ["Videos"], OrganizationPolicy = new LibraryOrganizationPolicyDto { WriteTags = true } }],
+            }));
+        }));
         Render<AppPopoverHost>();
         _dialogs = Render<AppDialogHost>();
         _session.Begin([new EditTrailItem(EditorHeaderTestData.EpisodeTwoId, "Graded wash", "Item")]);
@@ -54,7 +65,7 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
     private IRenderedComponent<EditorHeaderNav> Show(EditorHeaderDto header) =>
         Render<EditorHeaderNav>(parameters => parameters.Add(nav => nav.Header, header).Add(nav => nav.Flow, NewFlow()));
 
-    private static VideoOrderResponse Lessons() => new()
+    private static VideoOrderResponse Lessons(bool canRenameFiles = false) => new()
     {
         Groups =
         [
@@ -62,6 +73,7 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
             {
                 ParentId = EditorHeaderTestData.SeasonOneId,
                 Title = "Washes",
+                CanRenameFiles = canRenameFiles,
                 Entries =
                 [
                     new VideoOrderEntryDto { Id = EditorHeaderTestData.EpisodeOneId, Title = "Flat wash" },
@@ -111,6 +123,48 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
         Assert.Equal([EditorHeaderTestData.EpisodeTwoId, EditorHeaderTestData.EpisodeOneId], staged.OrderedIds);
         Assert.Empty(cut.FindAll("[data-reorder-bar]"));
         Assert.Equal(["Graded wash", "Flat wash"], ItemTitlesInOrder(cut));
+    }
+
+    private static VideoOrderResponse LessonsInAManagedFolder() => Lessons(canRenameFiles: true);
+
+    [Fact]
+    public void SaveOrder_WithFileWriteBackOnInAManagedFolder_AlsoStagesRenamingTheFilesToTheNewOrder()
+    {
+        _writeBack = true;
+        var cut = EnterReorder(LessonsInAManagedFolder());
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+
+        cut.Find("[data-reorder-save]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(
+            [EditSessionChangeKinds.VideoOrder, EditSessionChangeKinds.VideoRename],
+            _session.Pending.Changes.Select(change => change.Kind).OrderBy(kind => kind, StringComparer.Ordinal)
+                .OrderBy(kind => kind == EditSessionChangeKinds.VideoOrder ? 0 : 1)));
+        Assert.All(_session.Pending.Changes, change => Assert.Equal(EditorHeaderTestData.SeasonOneId, change.EntityId));
+    }
+
+    [Fact]
+    public void SaveOrder_WithFileWriteBackOff_StagesOnlyTheOrder()
+    {
+        _writeBack = false;
+        var cut = EnterReorder(LessonsInAManagedFolder());
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+
+        cut.Find("[data-reorder-save]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(EditSessionChangeKinds.VideoOrder, Assert.Single(_session.Pending.Changes).Kind));
+    }
+
+    [Fact]
+    public void SaveOrder_WithFileWriteBackOnInAReadOnlyFolder_NeverStagesRenamingFiles()
+    {
+        _writeBack = true;
+        var cut = EnterReorder(Lessons());
+        cut.Find("button[aria-label='Move Flat wash down']").Click();
+
+        cut.Find("[data-reorder-save]").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(EditSessionChangeKinds.VideoOrder, Assert.Single(_session.Pending.Changes).Kind));
     }
 
     [Fact]
@@ -283,6 +337,7 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
         var header = new EditorHeaderDto
         {
             Kind = course.Kind,
+            CanReorder = course.CanReorder,
             Root = course.Root,
             CurrentId = course.CurrentId,
             Label = course.Label,
@@ -364,6 +419,7 @@ public sealed class EditorReorderStagingTests : AsyncBunitContext
         var header = new EditorHeaderDto
         {
             Kind = course.Kind,
+            CanReorder = course.CanReorder,
             Root = course.Root,
             CurrentId = course.CurrentId,
             Label = course.Label,

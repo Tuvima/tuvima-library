@@ -13,7 +13,8 @@
    person wants, by drag and drop or Move up and Move down, and a series with sections lets a video be dragged from one section to another. One
    list serves both places that show it: the Reorder videos mode of the item dropdown, and the Videos view of the supporting-files browser. Everything
    here only stages a change: Save changes shows it in Review first, and none of it moves a file. The one exception is the "Rename the files to match
-   this order" switch, off by default and offered only when every video is in a Managed folder. In Reorder mode (HoldChanges, the header lists) the
+   this order" switch, off by default and offered only when every video is in a Managed folder; with file write-back on, Save order also stages it
+   for a list whose order changed (v8 D3). In Reorder mode (HoldChanges, the header lists) the
    arrangement is held here until the shared Reorder bar's Save order calls CommitAsync, so Cancel leaves nothing staged (v6 D23). *@
 @if (_editor.HasSomethingToOrder)
 {
@@ -395,11 +396,40 @@ else if (_loaded && HoldChanges)
             }
         }
 
+        await FollowOrderWithFileNamesAsync(pending);
         _renameHeld.Clear();
         await StageAsync(pending);
         _editor.MarkBaseline();
         await NotifyDirtyAsync();
         return true;
+    }
+
+    // With file write-back on, a new order also renames the files to follow it (v8 D3): the same one "Rename the files" change the switch stages, so
+    // Review changes lists it. Only a list whose order changed, only where the Engine says every video can be renamed (a Managed folder; the Engine
+    // never offers it for a Read-only or As-is folder, so those are never touched), and never over a choice the person made on the switch.
+    private async Task FollowOrderWithFileNamesAsync(PendingEditList pending)
+    {
+        if (SectionsMode)
+        {
+            return;
+        }
+
+        var wanted = _editor.Lists.Where(list => list.IsChanged && list.CanRenameFiles && !_renameHeld.ContainsKey(list.ParentId)).ToList();
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        var setting = await FileWriteSettingReader.ReadAsync(Api, Logger, [VideoFolderWording.FolderMediaType]);
+        if (!setting.IsOn)
+        {
+            return;
+        }
+
+        foreach (var list in wanted)
+        {
+            ApplyRename(pending, list, true);
+        }
     }
 
     private async Task NotifyDirtyAsync()
