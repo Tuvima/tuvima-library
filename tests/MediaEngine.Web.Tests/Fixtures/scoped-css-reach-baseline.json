@@ -58,9 +58,7 @@
       "tl-bulk__face"
     ],
     "src/MediaEngine.Web/Components/Editor/EditorArtworkTool.razor": [
-      "is-on",
-      "tl-art-picker__action",
-      "tl-art-picker__prefer"
+      "tl-art-picker__action"
     ],
     "src/MediaEngine.Web/Components/Editor/EditorUniverseRail.razor": [
       "is-current",

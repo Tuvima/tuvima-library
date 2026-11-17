@@ -25,7 +25,8 @@ public sealed record ArtworkPickerPicture(
     long? FileSizeBytes = null,
     string? ContentType = null,
     string Source = "Saved",
-    string? FileName = null);
+    string? FileName = null,
+    bool InOwnFolder = false);
 
 /// <summary>One picture to make Preferred: the item, the slot, and the picture (an asset id, or <see cref="EditSessionArtworkTargets.None"/>).</summary>
 public sealed record ArtworkChoice(Guid EntityId, string Slot, string TargetId);
@@ -106,6 +107,16 @@ public static class ArtworkPickerRules
         "episodestill" => "Episode still",
         _ => slot,
     };
+
+    /// <summary>
+    /// Whether a picture lives in the person's own folder or inside their own file (the Engine's source is a local one: the file's embedded picture,
+    /// a picture found beside it, or a source that is not named). Library never deletes such a picture: its menu offers Hide, not Delete. A picture
+    /// Library downloaded from a provider or the person uploaded can be deleted (artwork spec v8 D4).
+    /// </summary>
+    public static bool IsInOwnFolder(string? sourceProvider) =>
+        string.IsNullOrWhiteSpace(sourceProvider)
+        || sourceProvider.Trim().ToLowerInvariant() is "embedded" or "folder" or "library_scanner"
+        || sourceProvider.StartsWith("local", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The real shape of a role's pictures, so thumbnails and the preview are never cropped to something else.</summary>
     public static ArtworkRoleShape ShapeFor(string? slot, string? mediaType) => slot?.Trim().ToLowerInvariant() switch
@@ -442,7 +453,8 @@ public sealed class ArtworkPickerSession
                 variant.FileSizeBytes,
                 variant.ContentType,
                 SourceOf(variant),
-                variant.FileName))
+                variant.FileName,
+                ArtworkPickerRules.IsInOwnFolder(variant.SourceProvider)))
             .ToList();
     }
 
@@ -463,10 +475,11 @@ public sealed class ArtworkPickerSession
     }
 
     /// <summary>
-    /// "Delete this version" (after the person agreed): removes the picture from this item at once, the same as it always has. The versions
-    /// are read again.
+    /// "Delete" a picture Library downloaded or the person uploaded, or "Hide" one that lives in the person's own folder (after the person agreed):
+    /// both take the picture off this item at once through the Engine's one remove action, which never deletes the shared file itself. The
+    /// versions are read again. <paramref name="hide"/> only changes the sentence told when it did not go through.
     /// </summary>
-    public async Task<bool> DeleteVersionAsync(ArtworkPickerPicture version)
+    public async Task<bool> DeleteVersionAsync(ArtworkPickerPicture version, bool hide = false)
     {
         if (ActiveSlot is not { } slot || Busy || version.LinkId == Guid.Empty)
         {
@@ -481,7 +494,7 @@ public sealed class ArtworkPickerSession
         {
             if (!await _api.RemoveArtworkLinkAsync(version.LinkId))
             {
-                Message = "That picture could not be deleted. Try again.";
+                Message = hide ? "That picture could not be hidden. Try again." : "That picture could not be deleted. Try again.";
                 return false;
             }
 
@@ -491,8 +504,8 @@ public sealed class ArtworkPickerSession
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            _logger?.LogWarning(ex, "A picture for {Slot} could not be deleted", slot);
-            Message = "That picture could not be deleted. Try again.";
+            _logger?.LogWarning(ex, "A picture for {Slot} could not be removed", slot);
+            Message = hide ? "That picture could not be hidden. Try again." : "That picture could not be deleted. Try again.";
             return false;
         }
         finally

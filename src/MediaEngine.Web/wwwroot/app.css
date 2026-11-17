@@ -5433,11 +5433,13 @@ html:has(.tl-editor-window--phone){scrollbar-gutter:auto}
 .tl-editor-touch .sme-tag-editor__add{min-height:var(--tl-tap-target-min)}
 .tl-editor-touch .tl-editor-field__note{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-1)}
 /* Parts of the phone tabs that are drawn by a shared button, so their own stylesheet cannot reach them (v6 D21, WP15). */
-.tl-art-picker--phone .tl-art-picker__hit{display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent;}
 .tl-art-picker--phone .tl-art-picker__retry{align-self: flex-start;}
 .tl-art-picker--phone .tl-art-picker__sources{display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); box-sizing: border-box; width: 100%; max-width: 100%;}
 .tl-art-picker--phone .tl-art-picker__sources .app-segmented-control__item{justify-content: center; min-height: var(--tl-tap-target-min);}
-.tl-art-picker--phone .tl-art-picker__library{grid-column: 1 / -1;}
+/* The "..." menu of a carousel picture (an AppRowMenu, so its button is drawn by the shared component): a dark chip over the picture's corner, 24 px on a computer and the shared 44 px target on touch. */
+.tl-art-picker__dots .app-row-menu__trigger{border-radius: var(--tl-radius-sm); background: var(--tl-scrim-dark-6); color: var(--tl-text-primary);}
+.tl-art-picker:not(.tl-art-picker--phone) .tl-art-picker__dots .app-row-menu__trigger{width: 1.5rem; height: 1.5rem; min-width: 0; min-height: 0; padding: 0;}
+.tl-art-picker__dots .app-row-menu__trigger:focus-visible{outline: 2px solid var(--tl-accent-primary); outline-offset: 2px;}
 .tl-art-picker__phone-sources .app-button{width: 100%;}
 .tl-quick-facts--phone .tl-quick-facts__toggle{display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-2); box-sizing: border-box; width: 100%; min-height: var(--tl-tap-target-min); padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left;}
 .tl-quick-facts--phone .tl-quick-facts__path-reveal{display: flex; flex: 1 1 auto; min-width: 0; white-space: nowrap;}

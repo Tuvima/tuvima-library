@@ -364,7 +364,7 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_ArtworkIsMarkedForTwoPicturesPerRow_AndRefreshOpensAFullScreenStepWithAWayBack()
+    public async Task OnAPhone_ArtworkIsMarkedForTouch_AndAddArtworkOpensAFullScreenStepWithAWayBack()
     {
         var cut = await RenderArtworkAsync(phone: true);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__version")));
@@ -372,7 +372,7 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
         Assert.Contains("tl-art-picker--phone", root.ClassList);
         Assert.Contains("tl-editor-touch", root.ClassList);
 
-        cut.Find("button.tl-art-picker__refresh").Click();
+        cut.Find("button.tl-art-picker__add").Click();
 
         var step = cut.WaitForElement(".tl-art-picker__add-panel--step");
         Assert.Equal("true", step.GetAttribute("data-artwork-step"));
@@ -381,17 +381,33 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_ArtworkShowsASmallPreviewWithViewFullSize_AboveTheActionsAndTheVersions()
+    public async Task OnAPhone_ArtworkKeepsTheTabsTheLargePreviewAndTheCarousel_AtTheBottom_WithNothingLeftOut()
     {
         var cut = await RenderArtworkAsync(phone: true);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__version")));
 
-        var art = cut.Find(".tl-art-picker--phone .tl-art-picker__art");
-        Assert.NotNull(art.QuerySelector(".tl-art-picker__preview-col .tl-art-picker__preview img"));
-        Assert.NotNull(art.QuerySelector(".tl-art-picker__preview-col .tl-art-picker__fullsize"));
+        Assert.Equal(3, cut.FindAll(".tl-art-picker__tabs .tl-art-picker__role").Count);
+        Assert.NotNull(cut.Find(".tl-art-picker__stage .tl-art-picker__preview img"));
+        Assert.NotNull(cut.Find(".tl-art-picker__preview .tl-art-picker__current"));
+        Assert.NotNull(cut.Find(".tl-art-picker__source-line"));
+        Assert.NotNull(cut.Find("button.tl-art-picker__add"));
+        Assert.NotNull(cut.Find("button.tl-art-picker__refresh"));
         var html = cut.Markup;
-        Assert.True(html.IndexOf("tl-art-picker__preview-col", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal));
-        Assert.True(html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__strip", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("tl-art-picker__tabs", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__preview", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("tl-art-picker__preview", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__carousel", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task OnAPhone_APicturesMenuIsABottomSheetWithOnlyMagnifyAndDelete()
+    {
+        var cut = await RenderArtworkAsync(phone: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__version")));
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+
+        cut.FindAll(".tl-art-picker__item")[0].QuerySelector("button.app-row-menu__trigger")!.Click();
+
+        var sheet = cut.WaitForElement(".app-row-menu__sheet");
+        Assert.Equal(["Magnify", "Delete…"], sheet.QuerySelectorAll("[role='menuitem']").Select(item => item.TextContent.Trim()));
     }
 
     [Fact]
@@ -399,7 +415,7 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
     {
         var cut = await RenderArtworkAsync(phone: true);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__version")));
-        cut.Find("button.tl-art-picker__refresh").Click();
+        cut.Find("button.tl-art-picker__add").Click();
         cut.WaitForElement(".tl-art-picker__sources");
 
         cut.FindAll(".tl-art-picker__sources .app-segmented-control__item").Single(item => item.TextContent.Trim() == "Upload").Click();
@@ -418,7 +434,7 @@ public sealed class EditorPhoneTabsTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__version")));
         Assert.DoesNotContain("tl-art-picker--phone", cut.Find(".tl-art-picker").ClassList);
 
-        cut.Find("button.tl-art-picker__refresh").Click();
+        cut.Find("button.tl-art-picker__add").Click();
 
         cut.WaitForElement(".tl-art-picker__add-panel");
         Assert.Empty(cut.FindAll(".tl-art-picker__add-panel--step"));
