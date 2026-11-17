@@ -1,0 +1,309 @@
+<title>Editor v8 mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a plain review page; each screen is the app drawn at its real size inside its own scroller, with numbered notes under it. Single dark look on purpose: it is the app's own. */
+:root{
+  color-scheme:dark;
+  --page:#101115; --nav:#14151A; --card:#1A1B21; --raised:#1F2027; --hover:#272830; --menu:#2F3039;
+  --text:#F5F7FB; --text2:#B6C2D6; --muted:#94A3B8;
+  --line:rgba(148,163,184,.16); --hair:rgba(148,163,184,.10);
+  --accent:#8852FC; --accent-hi:#A46FFF; --accent-soft:rgba(136,82,252,.16); --accent-line:rgba(136,82,252,.42);
+  --ok:#22C55E; --warn:#F59E0B; --bad:#FF8A8A; --bad-line:rgba(239,68,68,.5);
+  --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+body{background:var(--page);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.45;
+  padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.intro h1{font-size:24px;font-weight:700;margin:0 0 8px}
+.intro p{color:var(--text2);max-width:68ch;margin:0 0 8px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.toc a{color:var(--text2);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px}
+.toc a:hover,.toc a:focus-visible{background:var(--hover);color:var(--text);outline:none}
+section>h2{font-size:20px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+section>.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.scroller{overflow-x:auto;padding-bottom:8px}
+.notes{margin:16px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 32px;max-width:1280px}
+.notes li{display:flex;gap:10px;color:var(--text2);font-size:13px;min-width:0}
+.notes b{color:var(--text);font-weight:600}
+.n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:#F5F7FB;color:#101115;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.mk{position:absolute;z-index:9;box-shadow:0 0 0 2px var(--page)}
+
+/* ---------- the editor window ---------- */
+.win{position:relative;width:1280px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.hd1{display:flex;align-items:center;gap:12px;height:76px;padding:0 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hd1.blue{background:linear-gradient(90deg,#1c2c44 0%,#1b2333 30%,var(--card) 75%)}
+.hd1.red{background:linear-gradient(90deg,#40201f 0%,#2b1c20 30%,var(--card) 75%)}
+.cv{flex:0 0 auto;border-radius:4px;background:linear-gradient(160deg,#5c9a3f,#1f5a3a 55%,#c9a23a);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.cv.b{background:linear-gradient(160deg,#2b6cb0,#14304f 60%,#d9822b)}
+.cv.r{background:linear-gradient(160deg,#b0413e,#3a1620 60%,#e0b05a)}
+.cv.p{background:linear-gradient(160deg,#6d4bb8,#1d1638 60%,#d05a8a)}
+.cv.t{background:linear-gradient(160deg,#1f8a8a,#102a3a 60%,#e0c060)}
+.cv.o{background:linear-gradient(160deg,#d97a2b,#4a1d12 60%,#f0d070)}
+.hd1 .cv{width:36px;height:54px}
+.hd1 h3{font-size:20px;font-weight:600;margin:0}
+.state{display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.dot.ok{background:var(--ok)}
+.grow{flex:1 1 auto}
+.ib{width:44px;height:44px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text2);border:1px solid var(--line);background:transparent}
+.ib.home{color:var(--accent-hi);border-color:var(--accent-line)}
+.ib.plain{border-color:transparent}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.dd{height:44px;min-width:0;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);font-size:14px;font-weight:500;white-space:nowrap}
+.dd .lt{color:var(--muted);font-weight:400}
+.close{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 10px;color:var(--text2);font-weight:500}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);height:48px;align-items:stretch}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:0 14px;color:var(--text2);font-weight:500;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.src{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--page)}
+.src span{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:7px;color:var(--text2);font-weight:500}
+.src span.on{background:var(--accent-soft);color:var(--text)}
+.body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px;position:relative}
+.ft{display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--line);background:var(--raised)}
+.ft .wb{color:var(--muted);font-size:13px}
+.btn{height:44px;padding:0 18px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:500;font-size:14px;border:1px solid var(--line);color:var(--text);background:transparent;white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.red{border-color:var(--bad-line);color:var(--bad)}
+.btn.txt{border-color:transparent;color:var(--text2)}
+.btn.off{opacity:.45}
+
+/* ---------- the shared row: label line, control line, message line ---------- */
+.row{display:grid;gap:6px 12px;align-items:end}
+.row .lb{font-size:13px;font-weight:500;color:var(--text2);align-self:end}
+.row .msg{grid-column:1/-1;font-size:13px;color:var(--muted);min-height:18px}
+.row .msg:empty{display:none}
+.btn,.fld,.dd,.opt{flex-shrink:0}
+.fld{height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld.hint{color:var(--muted)}
+.fld.lock{background:transparent;color:var(--text2);justify-content:space-between}
+.pm{width:20px;height:20px;border-radius:5px;background:#e9edf3;color:#101115;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:0 0 auto}
+
+.filebar{display:flex;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--raised);min-width:0}
+.filebar .cap{font-size:12px;font-weight:600;color:var(--muted);padding-left:16px;border-left:1px solid var(--line);white-space:nowrap}
+.filebar .t1{font-weight:500}
+.filebar .t2{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:24px;align-items:start}
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+.sh h4{font-size:16px;font-weight:600;margin:0}
+.sh span{font-size:13px;color:var(--muted)}
+.list{display:flex;flex-direction:column}
+.rw{display:flex;align-items:center;gap:14px;min-height:64px;padding:8px 12px;border-bottom:1px solid var(--hair);border-left:3px solid transparent;min-width:0}
+.rw.on{background:var(--accent-soft);border:1px solid var(--accent-line);border-left:3px solid var(--accent);border-radius:8px}
+.rw .cv{width:32px;height:48px}
+.rw .cv.sq{width:44px;height:44px}
+.rw .tx{flex:1 1 auto;min-width:0}
+.rw .a{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .num{flex:0 0 auto;width:44px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rw .rt{flex:0 0 auto;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.tick{color:var(--accent-hi);flex:0 0 auto;width:20px}
+.more{display:inline-flex;align-items:center;gap:6px;color:var(--accent-hi);font-weight:500;height:44px;padding:0 12px}
+.cardx{border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;background:var(--card);min-width:0}
+.top{display:flex;gap:20px;min-width:0}
+.top .cv{width:140px;height:210px}
+.top .cv.wide{width:240px;height:135px}
+.top .cv.sq{width:160px;height:160px}
+.top h4{font-size:16px;font-weight:600;margin:0 0 4px}
+.top .m{font-size:13px;color:var(--text2)}
+.lnk{color:var(--accent-hi);font-weight:500;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.desc{color:var(--text2);margin:8px 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.verdict{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ok);padding-top:12px;border-top:1px solid var(--line)}
+.verdict.poss{color:var(--warn)}
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+table.cmp th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.cmp td{padding:9px 8px;border-bottom:1px solid var(--hair);color:var(--text)}
+table.cmp td:first-child{color:var(--text2)}
+table.cmp td.none{color:var(--muted)}
+table.cmp td:last-child{width:28px;text-align:right}
+.yes{color:var(--ok)} .no{color:var(--bad)} .na{color:var(--muted)}
+.apply{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.apply small,.sm{font-size:13px;color:var(--muted)}
+.apply .rt{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted)}
+
+/* details tab */
+.hdfull{display:flex;gap:20px;padding:20px 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hdfull .cv{width:96px;height:144px}
+.hdfull .lab{font-size:13px;color:var(--text2)}
+.hdfull h3{font-size:20px;font-weight:600;margin:2px 0 4px}
+.hdfull .facts{font-size:13px;color:var(--text2);margin-bottom:14px}
+.hdfull .nav{display:flex;gap:8px;align-items:center}
+.det{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px}
+.grp{display:flex;flex-direction:column;gap:14px}
+.qf{border:1px solid var(--accent-line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;align-self:start}
+.qf h4{font-size:16px;font-weight:600;margin:0 0 2px}
+.qf .kv{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.qf .kv span:first-child{color:var(--muted)}
+.qf .path{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--text2);min-width:0}
+.qf .path span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* small panel + phones */
+.panel{position:relative;width:560px;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:16px}
+.panel h4{font-size:20px;font-weight:600;margin:0}
+.panel p{margin:0;color:var(--text2)}
+.opt{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px}
+.opt.on{border-color:var(--accent-line);background:var(--accent-soft)}
+.rad{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);flex:0 0 auto}
+.opt.on .rad{border-color:var(--accent-hi);box-shadow:inset 0 0 0 4px var(--card),inset 0 0 0 9px var(--accent-hi)}
+.phones{display:flex;gap:28px;align-items:flex-start;padding:4px}
+.ph{position:relative;flex:0 0 auto;width:360px;height:740px;background:var(--card);border:1px solid var(--line);border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
+.ph .hd1{height:60px;padding:0 12px 0 16px;gap:10px}
+.ph .hd1 .cv{width:28px;height:42px}
+.ph .hd1 h3{font-size:16px}
+.ph .tabs{padding:0 8px;overflow:hidden}
+.ph .tab{padding:0 12px;white-space:nowrap}
+.ph .body{padding:14px 16px;gap:12px;flex:1 1 auto;overflow:hidden}
+.ph .ft{padding:10px 16px;flex-direction:column;align-items:stretch;gap:8px}
+.ph .ft .two2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ph .fld{font-size:16px}
+.ph .top .cv{width:110px;height:165px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:20px 20px 0 0;padding:10px 0 16px;display:flex;flex-direction:column}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:var(--muted);align-self:center;margin-bottom:10px}
+.sheet .rw{min-height:56px;padding:6px 16px}
+.sheet .rw .cv{width:64px;height:36px}
+.sheet .hdr{font-size:12px;font-weight:600;color:var(--muted);padding:10px 16px 4px}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.stack{display:flex;flex-direction:column;gap:6px}
+/* ---------- v7 additions ---------- */
+.win{height:auto}
+.hx{position:relative;display:flex;gap:20px;padding:20px 24px;background:linear-gradient(90deg,#24361f 0%,#1c2a22 30%,var(--card) 75%)}
+.hx.blue{background:linear-gradient(90deg,#1c2c44 0%,#1b2333 30%,var(--card) 75%)}
+.hx.red{background:linear-gradient(90deg,#40201f 0%,#2b1c20 30%,var(--card) 75%)}
+.hx .cv{width:96px;height:144px;flex:0 0 auto}
+.hx .cv.sq{height:96px}
+.hx .lab{font-size:13px;color:var(--text2)}
+.hx h3{font-size:20px;font-weight:600;margin:2px 0 4px}
+.hx .facts{font-size:13px;color:var(--text2);margin-bottom:14px}
+.hx .nv{display:flex;gap:8px;align-items:center}
+.hx .tr{margin-left:auto;display:flex;align-items:flex-start;gap:8px;flex:0 0 auto}
+.lkb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--line);border-radius:8px;color:var(--text);font-size:13px;font-weight:500;white-space:nowrap}
+.lkb svg{width:14px;height:14px;color:var(--text2)}
+.nm{display:inline-flex;align-items:center;height:32px;padding:0 4px;color:var(--muted);font-size:13px;font-weight:500}
+.xx{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 6px;color:var(--text2);font-weight:500}
+.mid{display:flex;align-items:center;gap:8px}
+.rw .cv.s2{width:44px;height:44px}
+.top .cv.s2{width:160px;height:160px}
+.cv.s2.o{background:linear-gradient(160deg,#d97a2b,#4a1d12 60%,#f0d070)}
+.acts2{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-top:12px;border-top:1px solid var(--line)}
+/* artwork */
+.roles{display:flex;gap:8px;flex-wrap:wrap}
+.role{height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-weight:500;font-size:13px}
+.role.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--text)}
+.art{display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:start}
+.pv{width:200px;height:300px;border-radius:8px}
+.vs{display:flex;gap:10px;flex-wrap:wrap}
+.vs .v{width:64px;height:96px;border-radius:6px;border:2px solid transparent;position:relative}
+.vs .v.on{border-color:var(--accent)}
+.vs .v.add{display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);color:var(--text2);background:transparent}
+.ud{display:inline-flex;align-items:center;gap:10px;color:var(--text2);font-size:13px}
+.ud b{color:var(--accent-hi);font-weight:600}
+.kv2{display:flex;gap:24px;font-size:13px;color:var(--muted)}
+.kv2 b{color:var(--text2);font-weight:500}
+/* review */
+.chg{display:grid;grid-template-columns:140px minmax(0,1fr);gap:4px 16px;padding:10px 0;border-bottom:1px solid var(--hair);font-size:14px;align-items:baseline}
+.chg .f{color:var(--muted);font-size:13px}
+.chg .ar{color:var(--muted);padding:0 6px}
+.chg s{color:var(--muted)}
+.mvl{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid rgba(245,158,11,.4);border-radius:8px;background:rgba(245,158,11,.06);font-size:13px;color:var(--text2)}
+.upd{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:14px;background:var(--accent-soft);color:var(--text);font-size:13px;font-weight:500}
+.upd i{width:12px;height:12px;border-radius:50%;border:2px solid var(--accent-hi);border-top-color:transparent;display:inline-block;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.upd.bad{background:rgba(245,158,11,.14)}
+.page{position:relative;width:1280px;background:var(--page);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ph .ud{font-size:12px}
+
+.hd{display:flex;align-items:center;gap:14px;padding:16px 24px;background:linear-gradient(90deg,#1c2c44 0%,#1b2333 32%,var(--card) 75%)}
+.hd .cv{width:64px;height:96px}
+.hd .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hd .lab{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.hd h3{font-size:20px;font-weight:600;margin:0}
+.hd .facts{font-size:13px;color:var(--text2)}
+.badge{display:inline-flex;gap:10px;align-items:center;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:rgba(16,17,21,.55);font-size:11px;color:var(--text2)}
+.badge span{display:inline-flex;gap:4px;align-items:center}
+.ck{color:var(--ok);font-weight:700}.xx{color:#F87171;font-weight:700}
+.navrow{display:flex;gap:8px;padding:0 24px 14px;background:linear-gradient(90deg,#1c2c44 0%,#1b2333 32%,var(--card) 75%)}
+.stage{display:flex;flex-direction:column;gap:12px}
+.prev{position:relative;height:330px;border-radius:10px;background:var(--page);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.prev .cv{width:220px;height:330px;border-radius:6px}
+.prev .cur{position:absolute;left:12px;top:12px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px}
+.prev .cap{position:absolute;left:0;right:0;bottom:-26px;text-align:center;color:var(--muted);font-size:13px}
+.car{display:flex;gap:10px;overflow-x:auto;padding:30px 0 4px}
+.th{position:relative;flex:0 0 auto;width:92px;height:138px;border-radius:6px;border:2px solid transparent}
+.th.on{border-color:var(--accent)}
+.th .cv{width:100%;height:100%;border-radius:4px}
+.th .tick{position:absolute;left:6px;top:6px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+.th .dots{position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:6px;background:rgba(16,17,21,.75);color:var(--text);display:flex;align-items:center;justify-content:center;font-weight:700}
+.menu{position:absolute;background:var(--menu);border:1px solid var(--line);border-radius:8px;padding:6px;font-size:13px;min-width:150px;z-index:6}
+.menu div{padding:8px 10px;border-radius:6px}.menu div.red{color:var(--bad)}
+.tabs2{display:flex;align-items:center;gap:6px}
+.tabs2 .pill{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-weight:500}
+.tabs2 .pill.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--text)}
+.tabs2 .ct{color:var(--muted);font-weight:400}
+.lockico{color:var(--muted);font-size:12px}
+.card2{display:flex;gap:16px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--raised)}
+.card2 .cv{width:96px;height:96px}
+.lnk{color:var(--accent-hi);font-size:13px;font-weight:500}
+.frow{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--hair)}
+.frow .cv{width:44px;height:28px;border-radius:4px}
+.phone{align-self:flex-start;width:390px;background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;position:relative}
+.phone .hd{padding:12px 14px;gap:10px}.phone .hd .cv{width:40px;height:60px}.phone h3{font-size:16px}
+.phone .prev{height:250px}.phone .prev .cv{width:166px;height:250px}
+.phone .body{padding:12px 14px}
+.pgrid{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+
+.ddm{position:absolute;background:var(--menu);border:1px solid var(--line);border-radius:10px;width:460px;box-shadow:0 12px 32px rgba(0,0,0,.5);z-index:6;overflow:hidden}
+.ddm .srch{margin:10px;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--page);display:flex;align-items:center;padding:0 12px;color:var(--muted)}
+.ddm .grp{padding:8px 14px 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ddm .it{display:grid;grid-template-columns:20px 64px 1fr auto;gap:10px;align-items:center;padding:6px 14px;min-height:48px}
+.ddm .it.cur{background:var(--accent-soft)}
+.ddm .it .cv{width:64px;height:36px;border-radius:4px}
+.ddm .it .no{color:var(--muted);font-size:12px;text-align:right}
+.ddm .it .mark{font-size:11px;color:var(--text2)}
+.ddm .it .dotw{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.ddm .foot{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line);align-items:center;color:var(--text2);font-size:13px}
+.ddm .grab{color:var(--muted);letter-spacing:-2px}
+</style><body><div class="wrap"><div class="intro"><h1>Editor v8 mockups</h1><p>Proposed for issues 1064, 1048, 1062, 1045 and 1065. Dark only. Drawn from the issue text; the owner's own mocks for the badge and Artwork tab were not readable, so these should be compared with them.</p>
+<div class="toc"><a href="#a">A Header badge</a><a href="#b">B Artwork tab</a><a href="#c">C Collection editor</a><a href="#d">D Supporting files</a><a href="#e">E Match tab</a><a href="#f">F Item dropdown</a></div></div><section id="a"><h2>A. Header match badge (issue 1064)</h2><p class="sub">Matched on both, retail only, not matched.</p><div class="scroller" style="display:flex;flex-direction:column;gap:24px">
+<div class="win" style="width:1280px"><div class="hd"><div class="cv b"></div><div class="t"><span class="lab">Episode</span><h3>Introduction: Write Your Own Story</h3><span class="facts">Season 1 &middot; Episode 1 &middot; 24 min</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div>
+<div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Season 1 <span class="lt">&#9662;</span></span><span class="dd">Episode 1 &middot; Introduction <span class="lt">&#9662;</span></span><span class="ib">&#128193;</span></div><i class="n mk" style="left:1090px;top:26px">1</i></div>
+<div class="win" style="width:1280px"><div class="hd"><div class="cv p"></div><div class="t"><span class="lab">Book</span><h3>Gods of Risk</h3><span class="facts">Novella &middot; 2012</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="xx">&#10005;</b></span></span><span class="close">&#10005;</span></div>
+<div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Season 1 <span class="lt">&#9662;</span></span><span class="dd">Episode 1 &middot; Introduction <span class="lt">&#9662;</span></span><span class="ib">&#128193;</span></div></div>
+<div class="win" style="width:1280px"><div class="hd"><div class="cv o"></div><div class="t"><span class="lab">Video</span><h3>Holiday 2019</h3><span class="facts">Personal video &middot; 4 min</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="xx">&#10005;</b></span><span>Canonical <b class="xx">&#10005;</b></span></span><span class="close">&#10005;</span></div>
+<div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Season 1 <span class="lt">&#9662;</span></span><span class="dd">Episode 1 &middot; Introduction <span class="lt">&#9662;</span></span><span class="ib">&#128193;</span></div></div></div>
+<ol class="notes"><li><span class="n">1</span><span><b>Badge</b> sits left of the close button, small text; never under it. Green check = matched, red X = not matched.</span></li><li><span class="n">2</span><span>Retail = a provider such as TheTVDB or Apple Books. Canonical = Wikidata. Hovering shows which provider.</span></li><li><span class="n">3</span><span>Links to the provider and Wikidata page live in the Match tab and at the bottom of the details page.</span></li></ol></section><section id="b"><h2>B. Artwork tab (issue 1048)</h2><p class="sub">Desktop, with a picture menu open; then phone.</p><div class="pgrid"><div class="scroller"><div class="win"><div class="hd"><div class="cv o"></div><div class="t"><span class="lab">Film</span><h3>Dune: Part One</h3><span class="facts">2021 &middot; 2 h 35 min</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div>
+<div class="navrow"><span class="ib home">&#8962;</span><span class="ib">&#128193;</span></div><div class="tabs"><span class="tab">Details</span><span class="tab on">Artwork</span><span class="tab">Match</span><span class="tab">History</span></div>
+<div class="body"><div class="tabs2"><span class="pill">Background <span class="ct">4</span></span><span class="pill on">Cover <span class="ct">8</span></span><span class="pill">Logo <span class="ct">2</span></span><span class="grow"></span><span class="btn">+ Add artwork</span><span class="ib">&#8635;</span></div>
+<div class="stage"><div class="prev"><span class="cur">Current</span><div class="cv o"></div><span class="cap">Library &middot; 1600 x 2400 &middot; 1 of 8</span></div><div class="car"><div class="th on"><div class="cv "></div><span class="tick">&#10003;</span><span class="dots">&#8942;</span></div><div class="th"><div class="cv b"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv r"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv p"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv t"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv o"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv "></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv b"></div><span class="dots">&#8942;</span></div></div></div>
+<div class="menu" style="left:120px;top:500px"><div>Magnify</div><div class="red">Delete&hellip;</div></div>
+<i class="n mk" style="left:8px;top:6px">1</i><i class="n mk" style="left:8px;top:80px">2</i><i class="n mk" style="left:8px;top:430px">3</i><i class="n mk" style="left:8px;top:520px">4</i><i class="n mk" style="left:1190px;top:6px">5</i><i class="n mk" style="left:84px;top:470px">6</i></div><div class="ft"><span class="btn red">Delete</span><span class="grow"></span><span class="wb">File write-back off</span><span class="btn">Discard</span><span class="btn pri off">Save changes</span></div></div></div>
+<div class="phone"><div class="hd"><div class="cv o"></div><div class="t"><span class="lab">Film</span><h3>Dune: Part One</h3><span class="facts">2021</span></div><span class="grow"></span><span class="badge"><span>R <b class="ck">&#10003;</b></span><span>C <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div>
+<div class="tabs" style="padding:0 8px;overflow-x:auto"><span class="tab">Details</span><span class="tab on">Artwork</span><span class="tab">Match</span><span class="tab">History</span></div><div class="body"><div class="tabs2" style="overflow-x:auto"><span class="pill">Background 4</span><span class="pill on">Cover 8</span><span class="pill">Logo 2</span></div><div class="stage"><div class="prev"><span class="cur">Current</span><div class="cv o"></div></div><div class="car"><div class="th on"><div class="cv "></div><span class="tick">&#10003;</span><span class="dots">&#8942;</span></div><div class="th"><div class="cv b"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv r"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv p"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv t"></div><span class="dots">&#8942;</span></div></div></div></div></div></div>
+<ol class="notes"><li><span class="n">1</span><span><b>Tabs</b> for the kinds of artwork, each with its count.</span></li><li><span class="n">2</span><span><b>Large preview</b> with a Current badge when it is the picture in use.</span></li><li><span class="n">3</span><span><b>Size and source line</b> under the preview.</span></li><li><span class="n">4</span><span><b>Carousel</b> of every picture, scrolls like the episode picker; the one in use has a check. Clicking one applies it at once, no Undo.</span></li><li><span class="n">5</span><span><b>Add artwork and refresh</b> on the right; Add opens Provider / Upload / Link.</span></li><li><span class="n">6</span><span><b>... menu</b> on each picture: Magnify and Delete only; clicking the picture itself applies it. Delete (asks once; only for pictures Library downloaded or you uploaded, otherwise Hide).</span></li><li><span class="n">7</span><span><b>Episode:</b> same screen, with the episode's own frames.</span></li></ol></section><section id="c"><h2>C. Editing a collection (issue 1062)</h2><p class="sub">The Expanse (Series). Wikidata details locked; own artwork, tags and sort title editable.</p><div class="scroller"><div class="win"><div class="hd"><div class="cv p"></div><div class="t"><span class="lab">Series</span><h3>The Expanse</h3><span class="facts">9 books &middot; 3 films &middot; 62 episodes</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div>
+<div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Books <span class="lt">&#9662;</span></span><span class="dd">1 &middot; Leviathan Wakes <span class="lt">&#9662;</span></span></div><div class="tabs"><span class="tab on">Details</span><span class="tab">Artwork</span><span class="tab">Match</span><span class="tab">History</span></div>
+<div class="body"><div class="row" style="grid-template-columns:1fr 1fr"><span class="lb">Title</span><span class="lb">Sort title</span><div class="fld lock">The Expanse <span class="lockico">&#128274; Wikidata</span></div><div class="fld">Expanse, The</div></div>
+<div class="row" style="grid-template-columns:1fr"><span class="lb">Reading order</span><div class="fld lock">9 books, in series order <span class="lockico">&#128274; Wikidata</span></div></div>
+<div class="row" style="grid-template-columns:1fr"><span class="lb">Tags</span><div class="fld">Space opera &middot; Favourite &middot; + Add tag</div></div>
+<div class="row" style="grid-template-columns:1fr"><span class="lb">Cover</span><div class="car" style="padding:0"><div class="th on"><div class="cv "></div><span class="tick">&#10003;</span><span class="dots">&#8942;</span></div><div class="th"><div class="cv b"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv r"></div><span class="dots">&#8942;</span></div><div class="th"><div class="cv p"></div><span class="dots">&#8942;</span></div></div></div>
+<i class="n mk" style="left:40px;top:76px">1</i><i class="n mk" style="left:190px;top:76px">2</i><i class="n mk" style="left:40px;top:230px">3</i><i class="n mk" style="left:40px;top:330px">4</i><i class="n mk" style="left:40px;top:420px">5</i></div><div class="ft"><span class="btn red">Delete</span><span class="grow"></span><span class="wb">File write-back off</span><span class="btn">Discard</span><span class="btn pri off">Save changes</span></div></div></div>
+<ol class="notes"><li><span class="n">1</span><span><b>Media type dropdown</b> replaces Seasons: Books, Movies, TV.</span></li><li><span class="n">2</span><span><b>Item dropdown</b> to its right lists every title of that type in the collection (missing ones only when the profile shows them).</span></li><li><span class="n">3</span><span><b>Locked fields</b> from Wikidata show a lock; they cannot be edited.</span></li><li><span class="n">4</span><span><b>Own fields</b> (sort title, tags) are editable.</span></li><li><span class="n">5</span><span><b>Artwork</b> editable; it is the collection's own cover and background. The order line says Reading order for books, Watch order for films and shows, Listening order for audio.</span></li></ol></section><section id="d"><h2>D. Supporting files (issue 1045)</h2><p class="sub">Only a file Library could not place is asked about.</p><div class="scroller"><div class="win"><div class="hd"><div class="cv o"></div><div class="t"><span class="lab">Show</span><h3>Stephen Curry Teaches Shooting</h3><span class="facts">1 season &middot; 16 episodes</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div>
+<div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Season 1 <span class="lt">&#9662;</span></span><span class="dd">Episode 1 &middot; Introduction <span class="lt">&#9662;</span></span><span class="ib">&#128193;</span></div>
+<div class="body"><div style="font-size:13px;color:var(--text2)">These are the files behind this title. Anything Library could not place is listed first so you can say what it is.</div>
+<div style="border:1px solid var(--line);border-radius:10px;background:var(--raised)"><div class="frow"><div class="cv b"></div><div><div>Episode 1 &middot; Introduction: Write Your Own Story</div><div class="facts" style="color:var(--muted);font-size:12px">S01E01.mkv &middot; matched</div></div><span style="color:var(--text2);font-size:13px">Episode</span></div><div class="frow"><div class="cv r"></div><div><div>Episode 2 &middot; Form Shooting Practice</div><div class="facts" style="color:var(--muted);font-size:12px">S01E02.mkv &middot; matched</div></div><span style="color:var(--text2);font-size:13px">Episode</span></div><div class="frow"><div class="cv p"></div><div><div>Episode 3 &middot; Shot Selection</div><div class="facts" style="color:var(--muted);font-size:12px">S01E03.mkv &middot; matched</div></div><span style="color:var(--text2);font-size:13px">Episode</span></div><div class="frow"><div class="cv t"></div><div><div>Episode 4 &middot; </div><div class="facts" style="color:var(--muted);font-size:12px">bonus-workbook.pdf</div></div><span style="color:var(--text2);font-size:13px">What is this file?</span></div></div><i class="n mk" style="left:40px;top:70px">1</i><i class="n mk" style="left:40px;top:200px">2</i><i class="n mk" style="left:880px;top:330px">3</i></div></div></div>
+<ol class="notes"><li><span class="n">1</span><span><b>Purpose line</b> at the top.</span></li><li><span class="n">2</span><span>Matched episodes show as episodes with their cover and no question.</span></li><li><span class="n">3</span><span>The item dropdown lists episodes and supporting files only, then Reorder videos only for a video collection Library is still ordering (never for matched episodes; with write-back on, the file names follow the new order); the folder button is the one way into the browser.","Unplaced files show <b>What is this file?</b> (episode, Extra, another title, or ignore).</span></li></ol></section><section id="e"><h2>E. Match tab (issue 1065)</h2><p class="sub">Provider side and Wikidata side of a matched book.</p><div class="pgrid"><div class="scroller"><div class="win"><div class="hd"><div class="cv p"></div><div class="t"><span class="lab">Book</span><h3>Gods of Risk</h3><span class="facts">Novella &middot; 2012</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div>
+<div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Book <span class="lt">&#9662;</span></span><span class="dd">Gods of Risk <span class="lt">&#9662;</span></span><span class="ib">&#128193;</span></div><div class="tabs"><span class="tab">Details</span><span class="tab">Artwork</span><span class="tab on">Match</span><span class="tab">History</span></div>
+<div class="body"><div class="src"><span class="on">Media providers</span><span>Wikidata</span></div>
+<div class="card2"><div class="cv p"></div><div style="display:flex;flex-direction:column;gap:4px"><b>Gods of Risk</b><span class="facts" style="color:var(--text2);font-size:13px">James S. A. Corey &middot; 2012 &middot; Apple Books</span><span class="lnk">Open in Apple Books &#8599;</span><div style="margin-top:8px;display:flex;gap:8px"><span class="btn">Change match</span><span class="btn txt">Remove match</span></div></div></div><i class="n mk" style="left:40px;top:70px">1</i><i class="n mk" style="left:8px;top:80px">2</i><i class="n mk" style="left:150px;top:220px">3</i></div></div></div>
+<div class="scroller"><div class="win" style="width:640px"><div class="body"><div class="src"><span>Media providers</span><span class="on">Wikidata</span></div><div class="card2"><div class="cv t" style="width:70px;height:70px"></div><div style="display:flex;flex-direction:column;gap:4px"><b>Gods of Risk</b><span style="color:var(--text2);font-size:13px">Novella by James S. A. Corey, 2012</span><span class="facts" style="color:var(--muted);font-size:12px">Q13513590</span><span class="lnk">Open on Wikidata &#8599;</span></div></div><i class="n mk" style="left:40px;top:80px">4</i></div></div></div></div>
+<ol class="notes"><li><span class="n">1</span><span>Provider switch.</span></li><li><span class="n">2</span><span>Matched provider card with cover or album art.</span></li><li><span class="n">3</span><span><b>Open in provider</b> link.</span></li><li><span class="n">4</span><span>Wikidata side shows the match (name, description, link) when one exists.</span></li></ol></section><section id="f"><h2>F. The item dropdown (episodes, files and reordering)</h2><p class="sub">Left: a matched show. Right: a video collection whose order is still a guess, in Reorder mode.</p><div class="pgrid">
+<div class="scroller"><div class="win" style="width:620px;min-height:780px"><div class="hd"><div class="cv o"></div><div class="t"><span class="lab">Show</span><h3>Stephen Curry Teaches Shooting</h3><span class="facts">16 videos</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div><div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Season 1 <span class="lt">&#9662;</span></span><span class="dd">Item <span class="lt">&#9662;</span></span><span class="ib">&#128193;</span></div><div class="ddm" style="left:150px;top:160px"><div class="srch">Search this show</div><div class="it cur"><span class="no">1</span><div class="cv b"></div><span>Introduction: Write Your Own Story</span><span class="mark">Matched</span></div><div class="it"><span class="no">2</span><div class="cv r"></div><span>Form Shooting Practice</span><span class="mark">Matched</span></div><div class="it"><span class="no">3</span><div class="cv p"></div><span>Shot Selection</span><span class="mark"><i class=dotw></i> Matched</span></div><div class="it"><span class="no">4</span><div class="cv t"></div><span>Off-the-Dribble Threes</span><span class="mark">Matched</span></div><div class="it"><span class="no">5</span><div class="cv o"></div><span>Footwork and Balance</span><span class="mark">Matched</span></div><div class="grp">Supporting files</div><div class="it"><span class="no">&#128196;</span><div class="cv" style="background:var(--hover)"></div><span>Workbook.pdf</span><span class="mark">Extra</span></div><div class="it"><span class="no">&#128196;</span><div class="cv" style="background:var(--hover)"></div><span>Trailer.mp4</span><span class="mark">Extra</span></div></div><i class="n mk" style="left:160px;top:166px">1</i><i class="n mk" style="left:160px;top:226px">2</i><i class="n mk" style="left:160px;top:340px">3</i><i class="n mk" style="left:160px;top:420px">4</i></div></div>
+<div class="scroller"><div class="win" style="width:620px;min-height:780px"><div class="hd"><div class="cv o"></div><div class="t"><span class="lab">Show</span><h3>Court Skills (unsorted videos)</h3><span class="facts">16 videos</span></div><span class="grow"></span><span class="badge"><span>Retail <b class="ck">&#10003;</b></span><span>Canonical <b class="ck">&#10003;</b></span></span><span class="close">&#10005;</span></div><div class="navrow"><span class="ib home">&#8962;</span><span class="dd">Section 1 <span class="lt">&#9662;</span></span><span class="dd">Item <span class="lt">&#9662;</span></span><span class="ib">&#128193;</span></div><div class="ddm" style="left:150px;top:160px"><div class="srch">Search this collection</div><div class="it"><span class="no"><span class=grab>&#8942;&#8942;</span></span><div class="cv b"></div><span>Warm-up routine</span><span class="mark">Order guessed</span></div><div class="it cur"><span class="no"><span class=grab>&#8942;&#8942;</span></span><div class="cv r"></div><span>Ball handling basics</span><span class="mark">Order guessed</span></div><div class="it"><span class="no"><span class=grab>&#8942;&#8942;</span></span><div class="cv p"></div><span>Shooting form</span><span class="mark">Order guessed</span></div><div class="it"><span class="no"><span class=grab>&#8942;&#8942;</span></span><div class="cv t"></div><span>Game speed drills</span><span class="mark">Order guessed</span></div><div class="foot"><span class="btn txt">Cancel</span><span style="flex:1"></span><span class="btn pri">Save order</span></div></div><i class="n mk" style="left:160px;top:166px">5</i><i class="n mk" style="left:160px;top:226px">6</i><i class="n mk" style="left:160px;top:370px">7</i></div></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Search</b> filters the list as you type (titles, numbers, file names), useful on a show with many episodes.</span></li>
+<li><span class="n">2</span><span><b>Episodes</b>: number, still, title and a mark. The one being edited is highlighted. Choosing one switches the editor to it in the same window; changes already typed in other episodes are kept and shown in Review changes.</span></li>
+<li><span class="n">3</span><span>An <b>amber dot</b> means that episode has unsaved changes.</span></li>
+<li><span class="n">4</span><span><b>Supporting files</b> of this level (PDFs, trailers, Extras) are listed under the episodes; choosing one opens it. No Reorder button, no &quot;All supporting files&quot; or &quot;Browse files and folders&quot; rows: matched episodes take their order from the match, and the folder button beside the dropdown opens the browser.</span></li>
+<li><span class="n">5</span><span><b>Reorder videos</b> is offered only on a video collection where Library is still guessing the order, never on matched episodes. Pressing it puts the list in Reorder mode.</span></li>
+<li><span class="n">6</span><span>Each row gets a handle: drag, or Move up / Move down from the keyboard. The new order is held in the list only.</span></li>
+<li><span class="n">7</span><span><b>Save order</b> stages one change (shown once in Review changes); Cancel, Escape or closing the list throws it away. On Save changes, with file write-back on, files in Managed folders are renamed to the new order; Read-only folders are never touched. If a later match fixes the order, the files are renamed again.</span></li></ol></section></div></body>

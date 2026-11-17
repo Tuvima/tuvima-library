@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
@@ -259,7 +260,13 @@ public sealed partial class EditorWikidataMatchService(
         }
 
         var kind = await kinds.ResolveAsync(entityId, ct).ConfigureAwait(false);
-        var own = Latest(await canonicals.GetByEntityAsync(launch.WorkId, ct).ConfigureAwait(false));
+        // The item's own values are its Work's with its file's filling what the Work lacks (the Match tab's rule): ingestion keeps a fact about the file,
+        // and a book's, film's or comic's Wikidata id is one, on the file's asset. Reading the Work alone is why a matched book showed no Wikidata match.
+        var work = Latest(await canonicals.GetByEntityAsync(launch.WorkId, ct).ConfigureAwait(false));
+        var asset = launch.RepresentativeAssetId is { } assetId && assetId != Guid.Empty && !EditorMatchRule.IsContainer(launch.WorkKind)
+            ? Latest(await canonicals.GetByEntityAsync(assetId, ct).ConfigureAwait(false))
+            : null;
+        var own = EditorMatchRule.OwnValues(work, asset, launch.WorkKind);
         var root = launch.RootWorkId != Guid.Empty && launch.RootWorkId != launch.WorkId
             ? Latest(await canonicals.GetByEntityAsync(launch.RootWorkId, ct).ConfigureAwait(false))
             : own;

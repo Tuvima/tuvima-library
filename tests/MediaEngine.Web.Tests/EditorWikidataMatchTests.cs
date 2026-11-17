@@ -122,6 +122,31 @@ public sealed class EditorWikidataMatchTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AnItemMatchedToWikidata_ShowsItsNameDescriptionAndAnOpenInWikidataLink()
+    {
+        _identity = new EditorWikidataIdentityDto
+        {
+            EntityId = ItemId,
+            Qid = "Q55641906",
+            Label = "Gods of Risk",
+            Description = "novella by James S. A. Corey",
+            Type = "novella",
+            Year = "2012",
+            Url = "https://www.wikidata.org/wiki/Q55641906",
+        };
+
+        var cut = RenderWikidataSide();
+
+        cut.WaitForAssertion(() => Assert.Contains("Gods of Risk", cut.Find("[data-testid=wikidata-current-name]").TextContent, StringComparison.Ordinal));
+        var card = cut.Find("[data-testid=wikidata-current]");
+        Assert.Contains("Q55641906", card.TextContent, StringComparison.Ordinal);
+        Assert.Equal("novella by James S. A. Corey", card.QuerySelector("[data-testid=wikidata-current-description]")!.TextContent.Trim());
+        var open = card.QuerySelector("[data-testid=wikidata-open]")!;
+        Assert.Equal("Open in Wikidata", open.TextContent.Trim());
+        Assert.Equal("https://www.wikidata.org/wiki/Q55641906", open.GetAttribute("href"));
+    }
+
+    [Fact]
     public void TheWikidataSide_ReadsTheStoredLink_AndSearchesNothingOnOpen()
     {
         var cut = RenderWikidataSide();

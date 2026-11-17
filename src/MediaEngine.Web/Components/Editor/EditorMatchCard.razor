@@ -43,7 +43,7 @@
                 <div class="tl-mcard__provider" data-testid="match-card-provider">
                     @if (!string.IsNullOrWhiteSpace(Model.SourceUrl))
                     {
-                        <AppButton Label="@Model.ProviderName" Href="@Model.SourceUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Text"
+                        <AppButton Label="@(Model.SourceLinkLabel ?? Model.ProviderName)" Href="@Model.SourceUrl" Target="_blank" data-testid="match-card-source-link" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Text"
                                    Tone="AppUiTone.Primary" Size="@ControlSize" />
                     }
                     else
