@@ -400,7 +400,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AGroupTile_DrawsOnlyTheCoversTheKindWordTheCountAndTheMenu_NoNameSourceOrBadgeOnTheArt()
+    public void AGroupTile_DrawsOnlyTheCoversTheNameTheKindWordTheCountAndTheMenu_NoSourceOrBadgeOnTheArt()
     {
         var collection = new MediaTileViewModel
         {

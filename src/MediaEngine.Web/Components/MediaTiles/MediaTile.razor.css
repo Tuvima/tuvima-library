@@ -39,6 +39,10 @@
 /* A person with works: their square photo bottom left (44 px, a small radius) with the count beside it. */
 .media-tile-person-photo { position:absolute; left:8px; bottom:8px; z-index:6; display:grid; place-items:center; box-sizing:border-box; width:44px; height:44px; overflow:hidden; border:2px solid var(--tl-bg-root); border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-surface-raised); color:var(--tl-text-secondary); pointer-events:none; }
 .media-tile-person-photo img { width:100%; height:100%; object-fit:cover; display:block; }
+/* The name on the art (One tile design D9): one or two lines over a bottom scrim, above the count label; beside the photo for a person. */
+.media-tile-scrim { position:absolute; inset:0; z-index:4; background:linear-gradient(180deg, transparent 50%, color-mix(in srgb, var(--tl-viewer-black) 78%, transparent) 100%); pointer-events:none; }
+.media-tile-name { position:absolute; left:12px; right:12px; bottom:36px; z-index:5; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; color:var(--tl-text-on-accent); font-size:var(--tl-type-subheading-size); font-weight:var(--tl-type-subheading-weight); line-height:1.25; text-shadow:0 1px 6px var(--tl-scrim-dark-6); pointer-events:none; }
+.media-tile-name--beside-photo { left:60px; right:8px; bottom:36px; -webkit-line-clamp:1; font-size:var(--tl-type-secondary-size); }
 .media-tile-label--beside-photo { left:60px; bottom:8px; max-width:calc(100% - 68px); border-radius:var(--tl-radius-sm,6px); }
 
 /* An episode TheTVDB has no picture for: a marked stand-in, never a real-looking still. */

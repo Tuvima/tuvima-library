@@ -47,6 +47,21 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AGroupTile_CarriesItsNameOnTheArtAboveTheCount_AndAChosenCoverKeepsTheName()
+    {
+        var grid = Render<MediaTile>(p => p.Add(c => c.Item, Group(Covers("/c/1.jpg", "/c/2.jpg"))));
+        var chosen = Render<MediaTile>(p => p.Add(c => c.Item, Group(Covers("/c/1.jpg"), customCover: "/art/chosen.jpg")));
+        var plain = Render<MediaTile>(p => p.Add(c => c.Item, Group([])));
+
+        Assert.Equal("Group", grid.Find(".media-tile-name").TextContent.Trim());
+        Assert.Single(grid.FindAll(".media-tile-scrim"));
+        Assert.Equal("Group", chosen.Find(".media-tile-name").TextContent.Trim());
+        // The plain tile already says its name once, in the fallback panel.
+        Assert.Empty(plain.FindAll(".media-tile-name"));
+        Assert.Equal("Group", plain.Find(".media-tile-fallback__title").TextContent.Trim());
+    }
+
+    [Fact]
     public void AGroupWithNoCovers_IsThePlainTileWithTheKindIcon()
     {
         var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group([])));
@@ -105,6 +120,7 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
         Assert.Equal(4, cut.FindAll("img.media-tile-quadrant").Count);
         Assert.Contains("headshot", cut.Find(".media-tile-person-photo img").GetAttribute("src"), StringComparison.Ordinal);
         Assert.Equal("11 albums", cut.Find(".media-tile-label--beside-photo").TextContent.Trim());
+        Assert.Equal("Evanescence", cut.Find(".media-tile-name--beside-photo").TextContent.Trim());
         Assert.Empty(cut.FindAll("a.person-tile"));
         Assert.Empty(cut.FindAll(".media-tile-label--kind"));
         Assert.Equal("Evanescence, 11 albums, 90 songs", cut.Find("a.media-tile-link").GetAttribute("aria-label"));

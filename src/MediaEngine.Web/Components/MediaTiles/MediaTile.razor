@@ -200,6 +200,12 @@ else if (!_removed)
                     }
                 </span>
             }
+            @if (ShowNameOnArt)
+            {
+                @* The group's or person's name over a bottom scrim (One tile design D9), above the count label. *@
+                <span class="media-tile-scrim" aria-hidden="true"></span>
+                <span class="@($"media-tile-name{(IsPersonQuadrant ? " media-tile-name--beside-photo" : string.Empty)}")">@Item.Title</span>
+            }
             @if (StatusLabel is { } status)
             {
                 <span class="media-tile-label media-tile-label--status">@status</span>
@@ -314,6 +320,9 @@ else if (!_removed)
     private bool ShowQuadrants => IsGroup && !ShowBrandLogo && string.IsNullOrWhiteSpace(CardImageUrl) && GroupCovers.Count > 0;
 
     private IReadOnlyList<string> GroupCovers => Item.GroupCovers;
+
+    // A group's four covers or its chosen cover do not say what the group is, so its name sits on the art. The plain tile and a brand logo already carry their name.
+    private bool ShowNameOnArt => IsGroup && !ShowBrandLogo && !IsVideoCollection && !IsVideoStill && (ShowQuadrants || !string.IsNullOrWhiteSpace(CardImageUrl));
 
     // Tiles are one size (214 px wide, 112 px on a phone), so the small copy covers every tile and a 1x/2x/3x list keeps sharp screens sharp.
     private const int TileDrawnPx = 320;
