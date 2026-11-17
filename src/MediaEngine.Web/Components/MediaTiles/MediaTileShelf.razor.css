@@ -145,11 +145,6 @@
 
 /* Phones: the poster rows are narrower, so the end tile is narrower too. */
 :root[data-form-factor="phone"] .media-tile-shelf { --media-tile-shelf-view-all-width: clamp(96px, 28vw, 120px); }
-
-.media-tile-shelf ::deep .person-tile {
-    flex: 0 0 auto;
-    width: clamp(130px, 9vw, 180px);
-}
 /* The Continue row's tiles keep their text under a 16:9 picture, so "View all" centres on the picture, not on picture plus text (issue 897). */
 .is-continue-row .media-tile-shelf-view-all {
     align-self: flex-start;

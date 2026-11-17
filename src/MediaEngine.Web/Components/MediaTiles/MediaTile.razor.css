@@ -30,18 +30,16 @@
 /* A network group (HBO, Netflix) shows its logo, contained, on the plain cover surface. */
 .media-tile-brand { position:absolute; inset:24% 16%; width:68%; height:52%; object-fit:contain; }
 
-/* Fanned cover stack for a title with no single cover but several pictures. */
-.media-tile-stack { position:absolute; inset:0; }
-.media-tile-stack-image { position:absolute; aspect-ratio:2 / 3; border-radius:var(--tl-radius-md); object-fit:cover; box-shadow:0 20px 36px var(--tl-scrim-dark-2); border:1px solid var(--tl-wash-light-4); opacity:.98; }
-.media-tile.is-landscape .media-tile-stack-image-0 { left:28%; top:56%; width:30%; transform:translate(-50%,-50%) rotate(-8deg); z-index:1; }
-.media-tile.is-landscape .media-tile-stack-image-1 { left:50%; top:48%; width:34%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
-.media-tile.is-landscape .media-tile-stack-image-2 { left:72%; top:56%; width:30%; transform:translate(-50%,-50%) rotate(8deg); z-index:2; }
-.media-tile.is-square .media-tile-stack-image-0 { left:34%; top:58%; width:38%; transform:translate(-50%,-50%) rotate(-10deg); z-index:1; }
-.media-tile.is-square .media-tile-stack-image-1 { left:52%; top:48%; width:44%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
-.media-tile.is-square .media-tile-stack-image-2 { left:70%; top:58%; width:38%; transform:translate(-50%,-50%) rotate(10deg); z-index:2; }
-.media-tile.is-portrait .media-tile-stack-image-0 { left:36%; top:60%; width:54%; transform:translate(-50%,-50%) rotate(-10deg); z-index:1; }
-.media-tile.is-portrait .media-tile-stack-image-1 { left:52%; top:48%; width:60%; transform:translate(-50%,-50%) rotate(0deg); z-index:3; }
-.media-tile.is-portrait .media-tile-stack-image-2 { left:68%; top:60%; width:54%; transform:translate(-50%,-50%) rotate(10deg); z-index:2; }
+/* Group tile (spec details-and-tile-fixes D1, D2): the group's first four covers in a 2 by 2 grid with no gap, so the cells keep the cover
+   shape (portrait cells in a poster tile, square cells in a square tile) and no cover is cropped. A missing cover is a plain cell. */
+.media-tile-quadrants { position:absolute; inset:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; background:var(--tl-bg-surface); }
+.media-tile-quadrant { display:block; width:100%; height:100%; min-width:0; min-height:0; object-fit:cover; background:var(--tl-bg-surface-raised); }
+.media-tile-quadrant.is-empty { background:var(--tl-bg-surface); }
+
+/* A person with works: their square photo bottom left (44 px, a small radius) with the count beside it. */
+.media-tile-person-photo { position:absolute; left:8px; bottom:8px; z-index:6; display:grid; place-items:center; box-sizing:border-box; width:44px; height:44px; overflow:hidden; border:2px solid var(--tl-bg-root); border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-surface-raised); color:var(--tl-text-secondary); pointer-events:none; }
+.media-tile-person-photo img { width:100%; height:100%; object-fit:cover; display:block; }
+.media-tile-label--beside-photo { left:60px; bottom:8px; max-width:calc(100% - 68px); border-radius:var(--tl-radius-sm,6px); }
 
 /* An episode TheTVDB has no picture for: a marked stand-in, never a real-looking still. */
 .media-tile-standin { position:absolute; inset:0; overflow:hidden; background:linear-gradient(135deg,var(--tl-bg-surface-raised),var(--tl-bg-root)); }

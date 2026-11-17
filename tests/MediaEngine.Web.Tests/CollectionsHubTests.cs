@@ -85,8 +85,9 @@ public sealed class CollectionsHubTests
         Assert.Contains("<MediaTileGrid", source, StringComparison.Ordinal);
         Assert.Contains("MediaTileArtworkResolver.Resolve(", composerSource, StringComparison.Ordinal);
         Assert.DoesNotContain("preferLandscapeTile: true", composerSource, StringComparison.Ordinal);
-        Assert.Contains("Shape = surface.Shape", composerSource, StringComparison.Ordinal);
-        Assert.Contains("SurfaceKind = surface.SurfaceKind", composerSource, StringComparison.Ordinal);
+        // A group is a poster, or a square of albums, decided from the covers it shows (details-and-tile-fixes D1).
+        Assert.Contains("Shape = tileShape", composerSource, StringComparison.Ordinal);
+        Assert.Contains("SurfaceKind = GroupTileShape.SurfaceFor(tileShape)", composerSource, StringComparison.Ordinal);
         Assert.Contains("UseGroupTile = true", composerSource, StringComparison.Ordinal);
         Assert.Contains("<MediaTile", tileGridSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<MediaGroupTile", tileGridSource, StringComparison.Ordinal);

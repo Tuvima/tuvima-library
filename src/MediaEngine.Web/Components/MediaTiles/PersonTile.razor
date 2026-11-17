@@ -1,10 +1,11 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Ui
 
-@* The one shared person tile (artist, author, director, actor): a round photo with the
-   name and the shared count line below, like every other tile's text block. Opens the
-   standard person page. *@
+@* A person with no works to show, and a cast member (spec details-and-tile-fixes D2): the person's square photo, the same size as an
+   album, with the name on the art and what they have in the bottom-left label. No photo is a plain square with the person icon.
+   A person with works is the quadrant tile drawn by MediaTile, not this one. Opens the standard person page. *@
 <a class="person-tile" href="@Item.NavigationUrl" aria-label="@Item.Title">
     <span class="person-tile__photo">
         @if (!string.IsNullOrWhiteSpace(Item.Person?.ImageUrl))
@@ -15,11 +16,15 @@
         }
         else
         {
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
+            <span class="person-tile__icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" /></span>
+        }
+        <span class="person-tile__scrim" aria-hidden="true"></span>
+        <span class="person-tile__name">@Item.Title</span>
+        @if (MediaTileLabels.Bottom(Item, string.Empty) is { } count)
+        {
+            <span class="media-tile-label media-tile-label--bottom" data-overflow-tooltip="@count">@count</span>
         }
     </span>
-    <span class="person-tile__name">@Item.Title</span>
-    <MediaCountLine Counts="@Item.MediaCounts" />
 </a>
 
 @code {
