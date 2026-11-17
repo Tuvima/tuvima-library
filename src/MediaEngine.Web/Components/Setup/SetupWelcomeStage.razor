@@ -29,7 +29,7 @@
     </div>
 
     @* "Restore a backup instead" lives on the intro, before Get started (Look v3 D15); this step has Continue only, as in the design. *@
-    <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+    <SetupStageFooter>
         <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
     </SetupStageFooter>
@@ -83,8 +83,6 @@
     [Parameter] public EventCallback<string> HostNameChanged { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback Save { get; set; }
-    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     [Parameter] public SetupBackupInspectionDto? Backup { get; set; }
     /// <summary>The Engine's one sentence when it refused the chosen file (an older layout, a damaged file); shown as it is.</summary>
     [Parameter] public string? BackupError { get; set; }

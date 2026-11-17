@@ -55,7 +55,7 @@ public sealed class TokenResolutionGuardrailTests
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
         var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
-        Assert.Contains("--tl-text-danger: #FF8A8A;", tokens);
+        Assert.Contains("--tl-text-danger: #FF6A5F;", tokens);
         var utilities = File.ReadAllText(Path.Combine(web, "wwwroot", "native-utilities.css"));
         Assert.DoesNotContain("a:focus-visible,button:focus{outline:none}", utilities);
         Assert.Contains(":focus-visible{outline:var(--tl-focus-ring-width", utilities);

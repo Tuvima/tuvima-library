@@ -34,21 +34,18 @@
             <div class="top-nav-account-menu__panel" role="menu">
                 @if (ShowSecureAccount && !_secureNotNow && !IsKids)
                 {
-                    <section class="top-nav-account-menu__secure-card" aria-labelledby="top-nav-secure-account-title">
-                        <h3 id="top-nav-secure-account-title" class="top-nav-account-menu__secure-title">@L["TopNavAccountMenu_SecureYourAccount"]</h3>
-                        <p class="top-nav-account-menu__secure-body">@L["TopNavAccountMenu_AddAPasswordToUse"]</p>
-                        <div class="top-nav-account-menu__secure-actions">
-                            <AppButton Label="@L["TopNavAccountMenu_SecureAccount"].Value"
-                                       Href="@SecureAccountPrompt.SecureAccountHref"
-                                       ButtonStyle="AppButtonStyle.Filled"
-                                       Tone="AppUiTone.Primary"
-                                       Class="top-nav-account-menu__secure-action"
-                                       OnClick="CloseMenu" />
-                            <AppButton Label="@L["Common_NotNow"].Value"
+                    <section class="top-nav-account-menu__secure-card" aria-label="@L["TopNavAccountMenu_AddAPassword"]">
+                        <a class="top-nav-account-menu__secure-link" href="@SecureAccountPrompt.SecureAccountHref" @onclick="CloseMenu">
+                            <span class="top-nav-account-menu__secure-dot" aria-hidden="true"></span>
+                            <span>@L["TopNavAccountMenu_AddAPassword"]</span>
+                        </a>
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                                       Size="AppControlSize.Compact"
                                        ButtonStyle="AppButtonStyle.Text"
+                                       Tooltip="@L["Common_NotNow"].Value"
+                                       AriaLabel="@L["Common_NotNow"].Value"
                                        Class="top-nav-account-menu__secure-action"
                                        OnClick="NotNowAsync" />
-                        </div>
                     </section>
                 }
 

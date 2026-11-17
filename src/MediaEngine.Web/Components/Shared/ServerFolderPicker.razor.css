@@ -33,6 +33,12 @@
 .server-folder-picker__name { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-1); max-width: 22.5rem; }
 .server-folder-picker__name-hint { margin-bottom: 0.7rem; color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); }
 
+/* Under the path: the path with its pencil, the small typed-path box when the pencil is pressed, then the friendly name (issue 1041). */
+.server-folder-picker__inside { display: grid; gap: var(--tl-space-2); min-width: 0; }
+.server-folder-picker__path-row { display: flex; align-items: center; gap: var(--tl-space-1); min-width: 0; }
+.server-folder-picker__path { flex: 1 1 auto; min-width: 0; }
+.server-folder-picker__inside .server-folder-picker__name-row { padding-top: var(--tl-space-1); }
+
 /* The folder you are inside, named above the list. */
 .server-folder-picker__selected { color: var(--tl-text-primary); overflow-wrap: anywhere; }
 
@@ -82,7 +88,9 @@
 
 .server-folder-picker__safety { margin: 0; flex: 1 1 240px; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 
-.server-folder-picker__handling { display: grid; flex: 1 1 100%; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--tl-space-2); min-width: 0; }
+/* The access choice is one small segmented control with one short line of help beside it (issue 1041). */
+.server-folder-picker__handling { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: var(--tl-space-1) var(--tl-space-3); min-width: 0; }
+.server-folder-picker__handling-help { margin: 0; flex: 1 1 16rem; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 
 /* The one check's answer, drawn when Add / Choose is pressed (D7). */
 .server-folder-picker__result { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: var(--tl-radius-md, 10px); border: 1px solid var(--tl-border-subtle); }

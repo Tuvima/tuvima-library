@@ -57,7 +57,7 @@
     }
 
     @* Skip for now (quiet) and Continue (primary) are both always there, as in the design. Continue waits for a saved key; Skip is how a person carries on without one. *@
-    <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+    <SetupStageFooter Back="Back">
         <AppButton Label="@L["SetupLibrariesStage_SkipForNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(Busy || Loading)" OnClick="Defer" />
         <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Loading || !AnythingConfigured)" OnClick="Continue" />
     </SetupStageFooter>
@@ -76,8 +76,6 @@
     [Parameter] public EventCallback Continue { get; set; }
     [Parameter] public EventCallback Defer { get; set; }
     [Parameter] public EventCallback Back { get; set; }
-    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
 
     private bool _retrying;
 

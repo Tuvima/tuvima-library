@@ -1,6 +1,6 @@
 # Spec: Setup, settings menu and Activity fixes
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-17 · **Related docs:** [Product overview](../product/overview.md) · [Library activity](library-activity.md) · [Setup and Libraries fixes](setup-and-libraries-fixes.md) · issues #1038, #1039, #1041, #1060, #1066, #1067
+> **Status:** Built, awaiting Local checks · **Version:** 1 · **Last updated:** 2026-11-17 · **Related docs:** [Product overview](../product/overview.md) · [Library activity](library-activity.md) · [Setup and Libraries fixes](setup-and-libraries-fixes.md) · issues #1038, #1039, #1041, #1060, #1066, #1067
 
 ## 1. Goal
 
