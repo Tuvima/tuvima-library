@@ -4014,6 +4014,24 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorNavItemDto
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorNavItemStates
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSeriesMediaTypeDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSeriesTitleDto
+  Id: System.Guid? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Number: System.String | nullability=nullable | accessors=get,init
+  Owned: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSeriesTitlesDto
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  Offset: System.Int32 | nullability=not-null | accessors=get,init
+  ShowingMissing: System.Boolean | nullability=not-null | accessors=get,init
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSeriesTitleDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Kind: System.String | nullability=not-null | accessors=get,init
@@ -4023,6 +4041,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectDto
   Fields: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFieldDto> | nullability=not-null | accessors=get,init
   Facts: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFactDto> | nullability=not-null | accessors=get,init
   Members: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectMemberDto> | nullability=not-null | accessors=get,init
+  MatchBadge: MediaEngine.Contracts.Editing.EditorSubjectMatchBadgeDto | nullability=nullable | accessors=get,init
+  MediaTypes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSeriesMediaTypeDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectFactDto
   Label: System.String | nullability=not-null | accessors=get,init
@@ -4042,6 +4062,11 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectFieldDt
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectInputKinds
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectKinds
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectMatchBadgeDto
+  RetailMatched: System.Boolean | nullability=not-null | accessors=get,init
+  ProviderName: System.String | nullability=nullable | accessors=get,init
+  CanonicalMatched: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectMemberDto
   Id: System.Guid | nullability=not-null | accessors=get,init

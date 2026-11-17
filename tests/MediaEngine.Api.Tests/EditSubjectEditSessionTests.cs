@@ -194,15 +194,17 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     }
 
     [Fact]
-    public async Task Series_Opens_WithItsFieldsButNoPicturesToChoose()
+    public async Task Series_Opens_WithItsFieldsAndTheThreePicturesTheOwnerCanChoose()
     {
         var series = SeedGrouping(CollectionType.ContentGroup, "The Expanse", "Canonical description.");
 
         var subject = (await _subjects.LoadAsync(series))!;
 
         Assert.Equal(EditorSubjectKinds.Series, subject.Kind);
-        Assert.Empty(subject.ArtworkSlots);
+        Assert.Equal(["CoverArt", "Background", "Logo"], subject.ArtworkSlots);
         Assert.Equal("The Expanse", subject.Fields.Single(field => field.Key == "title").Value);
+        Assert.Equal(["title", "description", "sort_title", "custom_tags"], subject.Fields.Select(field => field.Key));
+        Assert.Equal(EditorSubjectInputKinds.Chips, subject.Fields.Single(field => field.Key == "custom_tags").InputKind);
     }
 
     [Fact]
@@ -220,7 +222,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     }
 
     [Fact]
-    public async Task Series_Artwork_IsRefused_BecauseASeriesShowsItsMembersCovers()
+    public async Task Series_Artwork_AppliesAtOnce_BecauseThePicturesAreTheOwnersOwn()
     {
         var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
         var cover = SeedAsset("cover");
@@ -228,9 +230,50 @@ public sealed class EditSubjectEditSessionTests : IDisposable
 
         var result = await CreateService().RunAsync(Request(previewOnly: false, ArtworkChange("a1", series, "CoverArt", cover)), NoRefusals);
 
+        Assert.True(result.Valid);
+        Assert.Equal(cover, (await _artwork.GetChosenAsync("Collection", series, "Primary", CancellationToken.None))!.ArtworkAssetId);
+    }
+
+    [Fact]
+    public async Task Series_SortTitleAndTags_SaveAsTheSeriesOwnLocalValues_AndTheNameStaysTheProviders()
+    {
+        var series = SeedGrouping(CollectionType.Series, "The Expanse", "Canonical description.");
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", series, ("sort_title", "Expanse, The"), ("custom_tags", "space; favorites"))), NoRefusals);
+
+        Assert.True(result.Valid);
+        Assert.True(result.DataSaved);
+        var subject = (await _subjects.LoadAsync(series))!;
+        Assert.Equal("Expanse, The", subject.Fields.Single(field => field.Key == "sort_title").Value);
+        Assert.Contains("space", subject.Fields.Single(field => field.Key == "custom_tags").Value, StringComparison.Ordinal);
+        Assert.Equal("The Expanse", subject.Fields.Single(field => field.Key == "title").Value);
+        Assert.Equal("The Expanse", (await _collections.GetByIdAsync(series))!.DisplayName);
+    }
+
+    [Fact]
+    public async Task Series_SortTitleCleared_TakesTheLocalValueAway()
+    {
+        var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
+        await CreateService().RunAsync(Request(previewOnly: false, DetailsChange("d1", series, ("sort_title", "Expanse, The"))), NoRefusals);
+
+        await CreateService().RunAsync(Request(previewOnly: false, DetailsChange("d2", series, ("sort_title", string.Empty))), NoRefusals);
+
+        Assert.Equal(string.Empty, (await _subjects.LoadAsync(series))!.Fields.Single(field => field.Key == "sort_title").Value);
+    }
+
+    [Fact]
+    public async Task Series_ChangeThatAlsoTouchesTheName_IsRefusedWhole_SoNothingIsSaved()
+    {
+        var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", series, ("sort_title", "Expanse, The"), ("title", "Mine"))), NoRefusals);
+
         Assert.False(result.Valid);
-        Assert.Equal(EditSessionReasons.SeriesHasNoArtwork, Assert.Single(result.Changes).Reason);
-        Assert.Null(await _artwork.GetChosenAsync("Collection", series, "Primary", CancellationToken.None));
+        Assert.False(result.DataSaved);
+        Assert.Equal(EditSessionReasons.SeriesIsReadOnly, Assert.Single(result.Changes).Reason);
+        Assert.Empty(await _overrides.LoadAsync(series) ?? new Dictionary<string, string>());
     }
 
     [Fact]

@@ -5,7 +5,7 @@ namespace MediaEngine.Api.Tests;
 /// answers with the plain reason (universal editor v5 D7, D24). These read the route sources, so a new write route that forgets the
 /// check shows up here.
 /// </summary>
-public sealed class SeriesReadOnlyEndpointTests
+public sealed class SeriesEndpointGuardTests
 {
     private static string Route(string file, string marker)
     {
@@ -19,10 +19,6 @@ public sealed class SeriesReadOnlyEndpointTests
     [Theory]
     [InlineData("ItemCanonicalEndpoints.cs", "group.MapPut(\"/{entityId:guid}/display-overrides\"", "IsSeriesAsync(entityId, ct)", "SeriesIsReadOnly")]
     [InlineData("MetadataEndpoints.cs", "group.MapPut(\"/{entityId:guid}/override\"", "IsSeriesAsync(entityId, ct)", "SeriesIsReadOnly")]
-    [InlineData("MetadataEndpoints.cs", "group.MapPost(\"/{entityId:guid}/cover\"", "IsSeriesAsync(entityId, ct)", "SeriesHasNoArtwork")]
-    [InlineData("MetadataEndpoints.cs", "group.MapPost(\"/{entityId:guid}/artwork/{assetType}\"", "IsSeriesAsync(entityId, ct)", "SeriesHasNoArtwork")]
-    [InlineData("CollectionEndpoints.cs", "group.MapPost(\"/{id:guid}/artwork/{slot}\"", "CollectionType.Series or CollectionType.ContentGroup", "SeriesHasNoArtwork")]
-    [InlineData("CollectionEndpoints.cs", "group.MapDelete(\"/{id:guid}/artwork/{slot}\"", "CollectionType.Series or CollectionType.ContentGroup", "SeriesHasNoArtwork")]
     [InlineData("CollectionEndpoints.cs", "group.MapPut(\"/{id:guid}/display-overrides\"", "CollectionType.Series or CollectionType.ContentGroup", "SeriesIsReadOnly")]
     public void AWriteRoute_RefusesASeries_WithThePlainReason(string file, string marker, string check, string reason)
     {
@@ -30,6 +26,18 @@ public sealed class SeriesReadOnlyEndpointTests
 
         Assert.Contains(check, route, StringComparison.Ordinal);
         Assert.Contains(reason, route, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("MetadataEndpoints.cs", "group.MapPost(\"/{entityId:guid}/cover\"")]
+    [InlineData("MetadataEndpoints.cs", "group.MapPost(\"/{entityId:guid}/artwork/{assetType}\"")]
+    [InlineData("CollectionEndpoints.cs", "group.MapPost(\"/{id:guid}/artwork/{slot}\"")]
+    [InlineData("CollectionEndpoints.cs", "group.MapDelete(\"/{id:guid}/artwork/{slot}\"")]
+    public void APictureRoute_DoesNotRefuseASeries_BecauseItsPicturesAreTheOwners(string file, string marker)
+    {
+        var route = Route(file, marker);
+
+        Assert.DoesNotContain("SeriesHasNoArtwork", route, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

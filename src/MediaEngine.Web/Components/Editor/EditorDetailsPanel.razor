@@ -20,18 +20,25 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 {
     var fields = mode.Fields;
     var canEdit = mode.CanEdit && fields.CanEditFields;
-    var editable = canEdit ? Rows(fields).Where(IsEditable).ToList() : [];
+    // A Series is the owner's only for its tags and sort title (v8 D5): every other row stays locked and cannot be unlocked.
+    var editable = canEdit ? Rows(fields).Where(row => IsEditable(row) && (!fields.IsSeries || IsOwnerField(row))).ToList() : [];
     var facts = Rows(fields).Where(row => !editable.Contains(row)).ToList();
     <div class="@(Phone ? "tl-editor-details-layout tl-editor-details-layout--phone tl-editor-touch" : "tl-editor-details-layout")" data-phone="@(Phone ? "true" : null)">
     <div class="tl-editor-details">
-        @if (fields.IsReadOnlySeries)
+        @if (fields.IsSeries)
         {
-            @* A Series is a canonical grouping (v5 D7, screen H): nothing on it can be changed, so say why and where to go instead. *@
-            <AppAlert Severity="AppSeverity.Info" Dense="true" Icon="@AppMaterialIcons.Outlined.Lock" data-series-note="true">@L["EditorSeries_ReadOnlyNotice"]</AppAlert>
+            @* A Series is a canonical grouping (v5 D7, screen H, amended by v8 D5): its name, description, order and members cannot be changed, so say
+               why; its pictures, tags and sort title are the owner's. *@
+            <AppAlert Severity="AppSeverity.Info" Dense="true" Icon="@AppMaterialIcons.Outlined.Lock" data-series-note="true">@L["EditorSeries_LockedNotice"]</AppAlert>
         }
         else if (!canEdit)
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true">@L["Common_YouCanLookAtThese"]</AppAlert>
+        }
+
+        @if (fields.IsSeries && facts.Count > 0)
+        {
+            @FactsGroup(fields, facts)
         }
 
         @if (editable.Count > 0)
@@ -63,26 +70,12 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             @ExplicitRow(fields, session, explicitMark)
         }
 
-        @if (facts.Count > 0 && !canEdit)
+        @if (!fields.IsSeries && facts.Count > 0 && !canEdit)
         {
-            <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
-                @if (!fields.IsReadOnlySeries)
-                {
-                    <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
-                }
-                @foreach (var row in InRows(facts, honorWide: false))
-                {
-                    <AppFormRow Columns="@ColumnsOf(row)" Stack="Phone" data-details-row="true">
-                        @foreach (var field in row)
-                        {
-                            @FactRow(field)
-                        }
-                    </AppFormRow>
-                }
-            </section>
+            @FactsGroup(fields, facts)
         }
 
-        @if (fields.IsReadOnlySeries && EditorSeriesRules.Members(fields) is { Count: > 0 } members)
+        @if (fields.IsSeries && EditorSeriesRules.Members(fields) is { Count: > 0 } members)
         {
             @* The Series' members in order. Each opens that member's own editor in this same window (screen H). *@
             var heading = L[EditorSeriesRules.MembersHeadingKey(fields)].Value;
@@ -403,9 +396,29 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         }
     }
 
-    private RenderFragment FactRow(MediaEditorDetailsFieldPresentation field) => __builder =>
+    // The rows nothing can change: provider facts, or a Series' name and description.
+    private RenderFragment FactsGroup(ItemFieldEditSession fields, IReadOnlyList<MediaEditorDetailsFieldPresentation> facts) => __builder =>
     {
-        var why = WhyLocked(field);
+        <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value" data-locked-group="true">
+            @if (!fields.IsSeries)
+            {
+                <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
+            }
+            @foreach (var row in InRows(facts, honorWide: false))
+            {
+                <AppFormRow Columns="@ColumnsOf(row)" Stack="Phone" data-details-row="true">
+                    @foreach (var field in row)
+                    {
+                        @FactRow(field, fields.IsSeries)
+                    }
+                </AppFormRow>
+            }
+        </section>
+    };
+
+    private RenderFragment FactRow(MediaEditorDetailsFieldPresentation field, bool series = false) => __builder =>
+    {
+        var why = WhyLocked(field, series);
         <div class="tl-editor-field tl-editor-field--locked" data-form-row-field data-field-key="@field.Key">
             <div class="app-field__label tl-editor-field__label">
                 <span>@field.Label</span>
@@ -507,8 +520,13 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 ? ProviderCatalogueService.FormatProviderLabel(field.ProviderName)
                 : field.SourceLabel ?? "Provider";
 
-    private static string WhyLocked(MediaEditorDetailsFieldPresentation field) =>
-        string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase)
+    // What is the owner's own on a Series (v8 D5): its tags and sort title. Everything else on it comes from Wikidata or its members.
+    private static bool IsOwnerField(MediaEditorDetailsFieldPresentation field) => field.IsOwnField || IsTags(field);
+
+    private static string WhyLocked(MediaEditorDetailsFieldPresentation field, bool series = false) =>
+        series
+            ? "Comes from Wikidata and the Series' members. It cannot be changed here."
+            : string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase)
             ? $"Inherited from {field.SourceLabel ?? "its parent"}. Change it there."
             : $"Set by {SourceName(field)}. Provider facts cannot be edited here.";
 
