@@ -43,6 +43,7 @@ public static class CollectionSurfaceTileComposer
             group.BackgroundUrl,
             group.BannerUrl);
         var count = group.DistinctTitleCount ?? group.WorkCount;
+        var tileShape = GroupTileShape.For(artworkItems);
 
         return new MediaTileViewModel
         {
@@ -76,10 +77,10 @@ public static class CollectionSurfaceTileComposer
             MediaKind = "Shelf",
             AccentColor = AccentForMedia(mediaType),
             SecondaryAccentColor = "#111827",
-            Shape = MediaTileShape.Portrait,
-            HoverArtworkShape = MediaTileShape.Portrait,
+            Shape = tileShape,
+            HoverArtworkShape = tileShape,
             Presentation = PresentationForMedia(mediaType),
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
+            SurfaceKind = GroupTileShape.SurfaceFor(tileShape),
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = primaryArtwork,
             HoverImageUrl = StringHelpers.FirstNonBlank(group.BackgroundUrl, group.BannerUrl, primaryArtwork),
@@ -119,6 +120,9 @@ public static class CollectionSurfaceTileComposer
         var primaryArtwork = artworkItems.FirstOrDefault()?.ImageUrl;
         var countLabel = $"{shelf.OwnedCount} owned {(shelf.OwnedCount == 1 ? "work" : "works")}";
 
+        // An artist's shelf is a square of albums; a director's, author's or narrator's is a poster (spec details-and-tile-fixes D2).
+        var tileShape = string.Equals(shelf.Role, "Artist", StringComparison.OrdinalIgnoreCase) ? MediaTileShape.Square : MediaTileShape.Portrait;
+
         return new MediaTileViewModel
         {
             Id = StableGuid(shelf.Key),
@@ -129,7 +133,7 @@ public static class CollectionSurfaceTileComposer
             ArtworkStackItems = artworkItems,
             MediaCounts =
             [
-                new MediaTileMediaCountViewModel(ShelfRoleIcon(shelf.Role), shelf.Lane, shelf.OwnedCount),
+                new MediaTileMediaCountViewModel(ShelfRoleIcon(shelf.Role), shelf.OwnedCount == 1 ? "work" : "works", shelf.OwnedCount),
             ],
             GroupSummary = new MediaTileGroupSummaryViewModel
             {
@@ -148,10 +152,10 @@ public static class CollectionSurfaceTileComposer
             MediaKind = "Shelf",
             AccentColor = "var(--tl-accent-primary)",
             SecondaryAccentColor = "#111827",
-            Shape = MediaTileShape.Landscape,
-            HoverArtworkShape = MediaTileShape.Landscape,
+            Shape = tileShape,
+            HoverArtworkShape = tileShape,
             Presentation = MediaTilePresentation.Default,
-            SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
+            SurfaceKind = GroupTileShape.SurfaceFor(tileShape),
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = primaryArtwork,
             HoverImageUrl = primaryArtwork,
@@ -199,6 +203,7 @@ public static class CollectionSurfaceTileComposer
             .Take(4)
             .ToList();
         var primaryArtwork = PrimaryArtwork(collection);
+        var tileShape = GroupTileShape.For(artworkStackItems);
         var primarySmall = MediaTileArtworkUrl.Sized(primaryArtwork, "s");
         var primaryMedium = MediaTileArtworkUrl.Sized(primaryArtwork, "m");
         var surface = MediaTileArtworkResolver.Resolve(
@@ -248,10 +253,11 @@ public static class CollectionSurfaceTileComposer
             AccentColor = accentColor,
             SecondaryAccentColor = secondaryAccentColor,
             ArtworkPalette = collection.ArtworkPalette,
-            Shape = surface.Shape,
+            Shape = tileShape,
             HoverArtworkShape = surface.HoverArtworkShape,
             Presentation = MediaTilePresentation.Default,
-            SurfaceKind = surface.SurfaceKind,
+            SurfaceKind = GroupTileShape.SurfaceFor(tileShape),
+            CustomCoverUrl = collection.CoverArtworkUrl,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = surface.TileImageUrl,
             TileImageSrcSet = surface.TileImageSrcSet,

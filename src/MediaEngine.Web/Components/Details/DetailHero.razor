@@ -150,6 +150,7 @@
                 <HeroMetadataPills Metadata="Model.Metadata"
                                    EntityType="Model.EntityType"
                                    IsWatchHero="Presentation.IsWatchHero"
+                                   SeasonCount="@OwnedSeasonCount"
                                    UsePrimaryHeroChrome="Presentation.UsePrimaryHeroChrome"
                                    HeroBrand="Model.HeroBrand"
                                    RenderHeroBrandInMetadata="false" />
@@ -194,6 +195,15 @@
 
 @code {
     [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
+
+    // A show's seasons, counted from the same owned groups the episode row's Season dropdown lists, so the top of the page
+    // can read "N seasons · M episodes" (spec details-and-tile-fixes D9). A folder of Other videos has sections, not seasons.
+    private int OwnedSeasonCount => Model.EntityType == DetailEntityType.TvShow
+        && Model.SequencePlacement is { } placement
+        && string.Equals(placement.GroupLabel, "Season", StringComparison.OrdinalIgnoreCase)
+        && !VideoFolderWording.IsVideoFolderList(placement.ContainerLabel, placement.ItemLabel)
+            ? placement.Groups.Count(group => group.OwnedCount > 0)
+            : 0;
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public EventCallback<string> OnTabRequested { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }

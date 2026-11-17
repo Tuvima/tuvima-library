@@ -68,6 +68,11 @@
 .tl-detail-primary-module--below-hero .tl-detail-primary-module__item {
     height: clamp(13rem, 22vw, 20rem);
 }
+
+/* A collection's or Universe's Items sit in the shared shelf row (MediaShelfScroller), which scrolls; its cards keep their own size. */
+.tl-detail-primary-module__item {
+    flex: 0 0 auto;
+}
 .tl-detail-primary-module--works .tl-detail-primary-module__viewport {
     overflow-x: auto;
     overscroll-behavior: auto;

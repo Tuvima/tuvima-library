@@ -587,9 +587,9 @@
         <header>
             <div>
                 <p class="design-system-preview__eyebrow">Visual QA Matrix</p>
-                <h2 id="group-card-preview-title">Series and collection cards</h2>
+                <h2 id="group-card-preview-title">Group and person tiles</h2>
             </div>
-            <p>Rest is artwork-only. Hover or focus keeps the same frame and reveals the compact identity overlay.</p>
+            <p>Four covers in a 2 by 2 grid, the name over the bottom, the kind word top left and the count bottom left. A person with works adds their square photo bottom left; a person with none is a square photo.</p>
         </header>
 
         <div class="design-system-preview__group-card-grid">
@@ -763,45 +763,34 @@
 
     private static IReadOnlyList<GroupCardPreviewScenario> BuildGroupCardScenarios() =>
     [
-        Scenario("01 · Two portrait movie posters", "Echoes of Orion", MediaTilePresentation.MovieSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait], 2),
-        Scenario("02 · Three portrait movie posters", "The Veil Trilogy", MediaTilePresentation.MovieSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 3),
-        Scenario("03 · Four portrait movie posters", "The Kai Chronicles", MediaTilePresentation.MovieSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 4),
-        Scenario("04 · Two portrait book covers", "The Hollow Crown Files", MediaTilePresentation.BookSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait], 2),
-        Scenario("05 · Three portrait book covers", "The Dune Saga", MediaTilePresentation.BookSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 3),
-        Scenario("06 · Four portrait book covers", "Fantasy Essentials", MediaTilePresentation.BookSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 4),
-        Scenario("07 · Two square albums", "Midnight Sessions", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Square], 2, relationship: "Curated collection"),
-        Scenario("08 · Three square albums", "Late Night Records", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square], 3, relationship: "Curated collection"),
-        Scenario("09 · Four square albums", "Listening Room", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square], 4, relationship: "Curated collection"),
-        Scenario("10 · Portrait plus square", "Page and Sound", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Square], 2, mixedMedia: true),
-        Scenario("11 · Two portraits plus square", "Story Worlds", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Square], 3, mixedMedia: true),
-        Scenario("12 · Two squares plus portrait", "Sound and Story", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Portrait], 3, mixedMedia: true),
-        Scenario("13 · Two portraits plus two squares", "Across Formats", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Square, ArtworkShape.Square], 4, mixedMedia: true),
-        Scenario("14 · Portrait, square, and landscape", "The Astral Archive", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Square, ArtworkShape.Wide], 3, mixedMedia: true),
-        Scenario("15 · Two-item collection", "Sci-Fi Favorites", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Portrait], 2, relationship: "Curated collection"),
-        Scenario("16 · Three-item collection", "The Desert Worlds", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 3, relationship: "Curated collection"),
-        Scenario("17 · More than four items", "Twelve Worlds", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Square, ArtworkShape.Wide], 12, mixedMedia: true),
-        Scenario("18 · Ordered collection", "The Orion Journey", MediaTilePresentation.Default, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 9, relationship: "Ordered collection"),
-        Scenario("19 · Automated collection", "Recently Enriched", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Portrait, ArtworkShape.Wide, ArtworkShape.Square], 14, relationship: "Smart collection", mixedMedia: true),
-        Scenario("20 · Long title", "The Remarkably Long Chronicle of Every Lantern Beyond the Last Known Sea", MediaTilePresentation.BookSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 7),
-        Scenario("21 · Light artwork", "The Pale Horizon", MediaTilePresentation.MovieSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 3, tone: "light"),
-        Scenario("22 · Dark artwork", "Nocturne Cycle", MediaTilePresentation.BookSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 3, tone: "dark"),
-        Scenario("23 · Low-resolution artwork", "Archive Transfers", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Square], 2, tone: "low"),
-        Scenario("24 · Missing artwork", "Recovered Editions", MediaTilePresentation.BookSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 3, missingIndex: 1),
-        Scenario("25 · Keyboard focus", "Focus Ring Validation", MediaTilePresentation.MovieSeries, [ArtworkShape.Portrait, ArtworkShape.Portrait], 2),
-        Scenario("26 · Reduced motion", "Still Frames", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Portrait, ArtworkShape.Wide], 3, mixedMedia: true),
-        Scenario("27 · Narrowest supported size", "Compact Worlds", MediaTilePresentation.Default, [ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square], 8, relationship: "Curated collection", narrow: true),
+        Scenario("01 · Series, four portrait covers", "Fantasy Essentials", MediaTilePresentation.BookSeries, MediaTileGroupKind.Series, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 6),
+        Scenario("02 · Collection, four portrait covers", "Halloween Nights", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 15),
+        Scenario("03 · Universe, three covers (one plain cell)", "The Orion Journey", MediaTilePresentation.Default, MediaTileGroupKind.Universe, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 9),
+        Scenario("04 · List, two covers", "Sci-Fi Favorites", MediaTilePresentation.Default, MediaTileGroupKind.List, [ArtworkShape.Portrait, ArtworkShape.Portrait], 2),
+        Scenario("05 · Set, one cover", "Echoes of Orion", MediaTilePresentation.Default, MediaTileGroupKind.Set, [ArtworkShape.Portrait], 1),
+        Scenario("06 · Collection of four albums is square", "Listening Room", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square], 8),
+        Scenario("07 · No covers: plain tile with the kind icon", "Recovered Editions", MediaTilePresentation.BookSeries, MediaTileGroupKind.Series, [], 3),
+        Scenario("08 · Missing cover in the first cell", "Archive Transfers", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 3, missingIndex: 0),
+        Scenario("09 · Custom cover replaces the quadrants", "Story Worlds", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 4, customCover: true),
+        Scenario("10 · Artist: square, four albums, photo bottom left", "Midnight Sessions", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square], 11, personRole: "Artist"),
+        Scenario("11 · Director: poster, four portrait covers", "Ava DuVernay", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait, ArtworkShape.Portrait], 9, personRole: "Director"),
+        Scenario("12 · Person with no works: square photo", "Frank Herbert", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [], 0, personRole: "Author"),
+        Scenario("13 · Cast member with no photo", "Cast Member", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [], 0, personRole: "Actor", personPhoto: false),
+        Scenario("14 · Narrowest supported size", "Compact Worlds", MediaTilePresentation.Default, MediaTileGroupKind.Collection, [ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square, ArtworkShape.Square], 8, narrow: true),
     ];
 
     private static GroupCardPreviewScenario Scenario(
         string name,
         string title,
         MediaTilePresentation presentation,
+        MediaTileGroupKind kind,
         IReadOnlyList<ArtworkShape> shapes,
         int totalCount,
-        string? relationship = null,
-        bool mixedMedia = false,
         string tone = "normal",
         int? missingIndex = null,
+        bool customCover = false,
+        string? personRole = null,
+        bool personPhoto = true,
         bool narrow = false)
     {
         var items = shapes.Select((shape, index) => new ArtworkStackItem
@@ -813,36 +802,40 @@
             Shape = shape,
             Position = (index + 1).ToString(),
         }).ToList();
-        var mediaCounts = mixedMedia
-            ? new[]
+        var noun = shapes.Count > 0 && shapes.All(shape => shape == ArtworkShape.Square) ? "albums" : "titles";
+        var tileShape = GroupTileShape.For(items);
+        var person = personRole is null
+            ? null
+            : new MediaTilePersonViewModel
             {
-                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Movie, "Watch", Math.Max(1, totalCount / 3)),
-                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MenuBook, "Read", Math.Max(1, totalCount / 3)),
-                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Headphones, "Listen", Math.Max(1, totalCount / 3)),
-            }
-            : Array.Empty<MediaTileMediaCountViewModel>();
+                Id = Guid.NewGuid(),
+                Name = title,
+                ImageUrl = personPhoto ? PreviewArtwork(ArtworkShape.Square, 1, tone) : null,
+                Roles = [personRole],
+            };
 
         var item = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),
             CollectionId = Guid.NewGuid(),
             Title = title,
-            MediaKind = presentation == MediaTilePresentation.MovieSeries ? "Movie" : presentation == MediaTilePresentation.BookSeries ? "Book" : "Collection",
+            MediaKind = presentation == MediaTilePresentation.BookSeries ? "Book" : "Collection",
             Presentation = presentation,
-            Shape = MediaTileShape.Landscape,
-            SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
+            Shape = personRole is "Artist" ? MediaTileShape.Square : tileShape,
+            SurfaceKind = GroupTileShape.SurfaceFor(tileShape),
             NavigationUrl = "/design-system/components#group-card-preview-title",
             DetailsNavigationUrl = "/design-system/components#group-card-preview-title",
-            IsCollection = true,
-            UseGroupTile = true,
+            IsCollection = totalCount > 0 || person is null,
+            UseGroupTile = totalCount > 0 || person is null,
+            GroupKind = kind,
             PreviewTotalCount = totalCount,
             ArtworkStackItems = items,
-            MediaCounts = mediaCounts,
+            CustomCoverUrl = customCover ? PreviewArtwork(ArtworkShape.Portrait, 2, "dark") : null,
+            Person = person,
+            MediaCounts = totalCount > 0 ? [new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MenuBook, noun, totalCount)] : [],
             GroupSummary = new MediaTileGroupSummaryViewModel
             {
                 OwnedCount = totalCount,
-                KnownTotalCount = presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries ? totalCount : null,
-                RelationshipLabel = relationship,
             },
             AccentColor = "#9d7cff",
             SecondaryAccentColor = "#17132b",

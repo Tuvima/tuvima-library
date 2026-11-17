@@ -61,8 +61,6 @@ public partial class MediaBrowseShell
     private Guid? _libraryChip;
     private DisplayBrowseFacetsDto? _facets;
     private int _totalCount;
-    private readonly List<MediaTileViewModel> _continueCards = [];
-    private bool _continueLoading = true;
     private LibraryLayoutMode _layout = LibraryLayoutMode.Card;
     private bool _loading;
     private bool _hasLoadedOnce;

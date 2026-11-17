@@ -145,10 +145,11 @@ internal sealed partial class DetailCompositionOrchestrator
             return OwnedCollectionCountLabel(entityType, works);
         }
 
-        // A folder of Other videos is a plain list of videos: never "TV Show" or "TV Episode" (item 17).
+        // A folder of Other videos is a plain list of videos: never "TV Show" or "TV Episode" (item 17). The line names the folder only;
+        // its video count already shows on the right (spec details-and-tile-fixes D10).
         if (entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType))
         {
-            return $"{VideoFolderWording.KindLabel} • {VideoFolderWording.VideoCount(works.Count(work => work.IsOwned))}";
+            return VideoFolderWording.KindLabel;
         }
 
         var types = works.Select(w => FormatEntityType(InferMediaItemEntityType(w))).Distinct(StringComparer.OrdinalIgnoreCase).Take(3);
@@ -544,6 +545,7 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<string> displayRoles,
         string? wikipediaUrl,
         IReadOnlyList<MediaEngine.Domain.Entities.Person> aliases,
+        PersonPreferredHeadshots aliasHeadshots,
         IReadOnlyList<PersonGroupMemberDto> groupMembers,
         IReadOnlyList<PersonGroupMemberDto> memberOfGroups)
         => new()
@@ -568,10 +570,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 Id = alias.Id.ToString("D"),
                 Name = alias.Name,
                 Subtitle = alias.IsPseudonym ? "Pen name" : null,
-                ImageUrl = ApiImageUrls.BuildPersonHeadshotUrl(
-                    alias.Id,
-                    alias.LocalHeadshotPath,
-                    alias.HeadshotUrl),
+                ImageUrl = aliasHeadshots.BuildUrl(alias.Id, alias.LocalHeadshotPath, alias.HeadshotUrl),
                 Route = $"/details/person/{alias.Id:D}",
             }).ToList(),
             GroupMembers = groupMembers.Select(member => new PersonRelatedLink

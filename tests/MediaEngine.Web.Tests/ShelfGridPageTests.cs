@@ -121,12 +121,12 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
 
     private BunitNavigationManager Nav => (BunitNavigationManager)Services.GetRequiredService<NavigationManager>();
 
-    private IRenderedComponent<ShelfGridPage> RenderPage(string url = Route)
+    private IRenderedComponent<ShelfGridPage> RenderPage(string url = Route, string lane = "watch", string shelfKey = "recently-added")
     {
         Nav.NavigateTo(url);
         // The page reads its query from the address it was routed with; the host plays the route view's part.
         return Render<RoutedPageHost<ShelfGridPage>>(parameters => parameters
-            .Add(host => host.PageParameters, new Dictionary<string, object?> { [nameof(ShelfGridPage.Lane)] = "watch", [nameof(ShelfGridPage.ShelfKey)] = "recently-added" }))
+            .Add(host => host.PageParameters, new Dictionary<string, object?> { [nameof(ShelfGridPage.Lane)] = lane, [nameof(ShelfGridPage.ShelfKey)] = shelfKey }))
             .FindComponent<ShelfGridPage>();
     }
 
@@ -151,6 +151,64 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
         Assert.Equal("status", count.GetAttribute("role"));
         Assert.Equal("polite", count.GetAttribute("aria-live"));
         Assert.DoesNotContain("is-landscape", cut.Find("article.media-tile").ClassName);
+    }
+
+    private static DisplayCardDto ShowCard(int number) => Card(number) with { MediaType = "TV", Title = $"Show {number}" };
+
+    private static DisplayGridPageDto ContinueGrid(IReadOnlyList<DisplayCardDto> cards) =>
+        new("watch", "continue-watching", "Continue watching", "Movies and shows already in progress", cards, cards.Count, 0, 48, false, null,
+            DisplayGridValues.SortPlayed, DisplayGridValues.SortPlayed, null, SortOptions, []);
+
+    private static string[] ContinueTitles(IRenderedComponent<ShelfGridPage> cut) =>
+        cut.FindAll("article.continue-tile").Select(tile => tile.GetAttribute("aria-label") ?? string.Empty).ToArray();
+
+    [Fact]
+    public async Task TheContinuePageListsMoviesAndShowsAsContinueTilesInTheOrderTheEngineSent()
+    {
+        await UseAsync("desktop");
+        _grid = _ => ContinueGrid([ShowCard(3), Card(1), ShowCard(2)]);
+
+        var cut = RenderPage("/all/watch/continue-watching", "watch", "continue-watching");
+
+        cut.WaitForAssertion(() => Assert.Equal(["Show 3", "Film 1", "Show 2"], ContinueTitles(cut)));
+        Assert.NotNull(cut.Find("[data-shelf-grid-continue]"));
+        Assert.Empty(cut.FindAll("article.media-tile"));
+        Assert.Equal("Continue watching", cut.Find("h1").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task TheContinuePageShowsAnItemOnceEvenWhenTheEngineSendsItTwice()
+    {
+        await UseAsync("desktop");
+        _grid = _ => ContinueGrid([Card(1), ShowCard(2), Card(1)]);
+
+        var cut = RenderPage("/all/watch/continue-watching", "watch", "continue-watching");
+
+        cut.WaitForAssertion(() => Assert.Equal(["Film 1", "Show 2"], ContinueTitles(cut)));
+    }
+
+    [Fact]
+    public async Task TheContinuePageWithNothingInProgressShowsTheNormalEmptyState()
+    {
+        await UseAsync("desktop");
+        _grid = _ => ContinueGrid([]);
+
+        var cut = RenderPage("/all/watch/continue-watching", "watch", "continue-watching");
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing here yet", cut.Markup, StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(cut.FindAll("[data-shelf-grid-continue]"));
+    }
+
+    [Fact]
+    public async Task AGridThatIsNotContinueKeepsTheOrdinaryTiles()
+    {
+        await UseAsync("desktop");
+        _grid = _ => Grid([Card(1)], total: 1);
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => Assert.Single(Titles(cut)));
+        Assert.Empty(cut.FindAll("[data-shelf-grid-continue]"));
     }
 
     [Fact]
@@ -451,7 +509,8 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
             .Add(host => host.PageParameters, new Dictionary<string, object?> { [nameof(ShelfGridPage.Lane)] = "watch", [nameof(ShelfGridPage.ShelfKey)] = "continue" }))
             .FindComponent<ShelfGridPage>();
 
-        cut.WaitForAssertion(() => Assert.Contains("is-landscape", cut.Find("article.media-tile").ClassName));
+        cut.WaitForAssertion(() => Assert.Equal(["Half Seen"], ContinueTitles(cut)));
+        Assert.Empty(cut.FindAll("article.media-tile"));
     }
 
     [Fact]

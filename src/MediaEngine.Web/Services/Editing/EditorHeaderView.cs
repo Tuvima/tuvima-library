@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Services.Formatting;
+using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -243,6 +244,13 @@ public static class EditorHeaderFacts
 /// <summary>The words of the header's item dropdown (universal editor v5, screens A, B, D): a row's code and its lines.</summary>
 public static class EditorNavText
 {
+    /// <summary>
+    /// The address the browser draws for a row's picture (an episode's frame, a track's cover). The Engine addresses it as <c>/stream/artwork/{id}</c>,
+    /// which only the Engine can serve, so it goes through the Dashboard's picture route like every other Engine picture; null when the row has none.
+    /// </summary>
+    public static string? Picture(string? engineUrl) =>
+        string.IsNullOrWhiteSpace(engineUrl) ? null : EngineImageProxyPath.ToBrowserUrl(engineUrl, null);
+
     /// <summary>
     /// True when the item dropdown offers "Reorder videos" (v5 D19, v8 D3): the Engine decides (<c>can_reorder</c>), and says yes only on a video
     /// collection whose order Library is still guessing. A show, album, comic or book Series, and any collection or episode matched to a provider,

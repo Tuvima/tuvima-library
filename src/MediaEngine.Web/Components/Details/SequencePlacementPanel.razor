@@ -78,8 +78,10 @@
         }
 
         @* The owned-items bar and Show missing sit at the right end, level with the dropdowns (spec details-page-bottom D10, D12). *@
+        @if (ShowUtilities)
+        {
         <div class="tl-series-detail__utilities">
-            @if (TotalItems > 0)
+            @if (TotalItems > 0 && !OwnedLineBelow)
             {
                 <div class="tl-series-detail__ownership" aria-label="@OwnershipSummaryLabel">
                     @if (ShowCoverageBar)
@@ -111,6 +113,7 @@
                 </div>
             }
         </div>
+        }
         </div>
         @if (_preferenceNotice is not null)
         {
@@ -195,6 +198,15 @@
                        Disabled="@(!CanPageRight)"
                        OnClick="PageRight" />
     </div>
+
+    @if (OwnedLineBelow && TotalItems > 0)
+    {
+        @* An episode row has no heading line: "N episodes owned" sits on its own line under the tiles, with the collection tile icon (spec details-and-tile-fixes D9). *@
+        <p class="tl-series-detail__owned-line" aria-label="@OwnershipSummaryLabel">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" aria-hidden="true" />
+            <span>@OwnedSummary</span>
+        </p>
+    }
 
     @if (AlsoItems.Count > 0)
     {
@@ -546,6 +558,9 @@ else
     /// <summary>False when a shared row heading above already names the Series and its count (the details page row).</summary>
     [Parameter] public bool ShowIdentity { get; set; } = true;
 
+    /// <summary>An episode row (spec details-and-tile-fixes D9): "N episodes owned" moves to its own line under the tiles and Jump to sits at the right edge, level with the season dropdown.</summary>
+    [Parameter] public bool OwnedLineBelow { get; set; }
+
     private const int LongSequenceThreshold = 6;
     private const int PortraitWindowSize = 6;
 
@@ -824,13 +839,17 @@ else
     private IReadOnlyList<AppSelectOption> ContainerSelectOptions => DistinctAvailableContainers
         .Select(option => new AppSelectOption(option.ContainerId, option.ContainerTitle))
         .ToList();
-    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle || TotalItems > 0
+    private bool ShowUtilities => CanShowMissingToggle || (TotalItems > 0 && !OwnedLineBelow);
+    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle || (TotalItems > 0 && !OwnedLineBelow)
         || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector);
+
+    private string JumpClass => (IsSeasonContainer ? "tl-series-detail__jump" : "tl-series-detail__jump tl-series-detail__jump--fit")
+        + (OwnedLineBelow ? " tl-series-detail__jump--end" : string.Empty);
 
     // A season's Jump to sizes to the chosen episode; a Series' sizes to its longest entry, so entries never wrap.
     private RenderFragment JumpPicker => __builder =>
     {
-        <div class="@(IsSeasonContainer ? "tl-series-detail__jump" : "tl-series-detail__jump tl-series-detail__jump--fit")">
+        <div class="@JumpClass">
             <span>Jump to @ItemNoun.ToLowerInvariant()</span>
             <AppSelect Value="@JumpSelectionValue"
                        ValueChanged="SelectJump"

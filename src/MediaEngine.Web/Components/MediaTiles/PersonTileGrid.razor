@@ -1,12 +1,8 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 
-@* The one grid every people list uses (Artists, authors, narrators, directors, cast). *@
-<div class="person-tile-grid @Class">
-    @foreach (var item in Items)
-    {
-        <PersonTile Item="@item" />
-    }
-</div>
+@* The one grid every people list uses (Artists, authors, narrators, directors, cast): the shared tile grid, where a person with works
+   is the quadrant tile and a person with none is a square photo (spec details-and-tile-fixes D2). *@
+<MediaTileGrid Items="@Items" Class="@Class" />
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<MediaEngine.Web.Models.ViewDTOs.MediaTileViewModel> Items { get; set; } = [];

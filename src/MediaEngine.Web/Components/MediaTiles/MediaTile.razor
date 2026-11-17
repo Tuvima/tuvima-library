@@ -12,8 +12,10 @@
    "..." is top right and always visible, a status label touches the top-left corner and a bottom label (the group count) touches the
    bottom-left corner. Hover and keyboard focus draw one thin purple outline around the cover; the tile never grows or moves.
    A video with no cover art is the two-part tile (a still on top, its title and one detail line below, D7). A group of titles (Series,
-   curated collection, Universe) is the same poster: its cover and the count as the bottom label, nothing else drawn over the art (D2, D11). *@
-@if (Item.RenderAsPersonTile)
+   curated collection, Universe) is the quadrant tile (spec details-and-tile-fixes D1): its first four covers in a 2 by 2 grid, the kind word
+   in the top-left slot and the count in the bottom-left slot. A person with works is the same quadrant tile with the person's square photo
+   at the bottom left (D2); a person with no works is a square photo (PersonTile). *@
+@if (Item.RenderAsPersonPhoto)
 {
     <PersonTile Item="@Item" />
 }
@@ -57,19 +59,6 @@ else if (!_removed)
                 {
                     <span class="media-tile-landscape-title is-banner">@Item.Title</span>
                 }
-            }
-            else if (ShowPreviewStack)
-            {
-                <div class="media-tile-stack" aria-hidden="true">
-                    @for (var index = 0; index < PreviewImages.Count; index++)
-                    {
-                        <img src="@MediaTileArtworkUrl.ForDrawnSize(PreviewImages[index], TileDrawnPx)"
-                             alt=""
-                             class="@GetStackImageClass(index)"
-                             loading="lazy"
-                             decoding="async" />
-                    }
-                </div>
             }
             else if (Item.IsStandInPicture)
             {
@@ -146,6 +135,28 @@ else if (!_removed)
                     }
                 </div>
             }
+            else if (ShowQuadrants)
+            {
+                @* The group's first four covers; a missing one is a plain cell. Portrait cells in a poster tile, square cells in a tile of albums. *@
+                <div class="media-tile-quadrants" aria-hidden="true">
+                    @for (var index = 0; index < 4; index++)
+                    {
+                        if (index < GroupCovers.Count)
+                        {
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(GroupCovers[index], QuadrantDrawnPx)"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(GroupCovers[index], QuadrantDrawnPx)"
+                                 alt=""
+                                 class="media-tile-quadrant"
+                                 loading="@CardImageLoading"
+                                 decoding="async" />
+                        }
+                        else
+                        {
+                            <span class="media-tile-quadrant is-empty"></span>
+                        }
+                    }
+                </div>
+            }
             else if (!string.IsNullOrWhiteSpace(CardImageUrl))
             {
                 @if (Item.TileImageFitMode == MediaTileImageFitMode.Contain)
@@ -173,13 +184,39 @@ else if (!_removed)
                 </div>
             }
 
+            @if (IsPersonQuadrant)
+            {
+                @* The person's square photo, bottom left; the count sits beside it. *@
+                <span class="media-tile-person-photo" aria-hidden="true">
+                    @if (!string.IsNullOrWhiteSpace(Item.Person?.ImageUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(Item.Person!.ImageUrl, PersonPhotoDrawnPx)"
+                             srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.Person.ImageUrl, PersonPhotoDrawnPx)"
+                             alt="" loading="lazy" decoding="async" />
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
+                    }
+                </span>
+            }
+            @if (ShowNameOnArt)
+            {
+                @* The group's or person's name over a bottom scrim (One tile design D9), above the count label. *@
+                <span class="media-tile-scrim" aria-hidden="true"></span>
+                <span class="@($"media-tile-name{(IsPersonQuadrant ? " media-tile-name--beside-photo" : string.Empty)}")">@Item.Title</span>
+            }
             @if (StatusLabel is { } status)
             {
                 <span class="media-tile-label media-tile-label--status">@status</span>
             }
+            else if (KindWord is { } kind)
+            {
+                <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
+            }
             @if (BottomLabel is { } bottom && !IsVideoCollection)
             {
-                <span class="media-tile-label media-tile-label--bottom" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
+                <span class="@($"media-tile-label media-tile-label--bottom{(IsPersonQuadrant ? " media-tile-label--beside-photo" : string.Empty)}")" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }
             <AppArtworkProgress Enabled="@SupportsCompletion" State="@Item.ContinuationState" Percent="@Item.ProgressPct" MediaKind="@Item.MediaKind" RemainingSeconds="@Item.RemainingSeconds" Label="@Item.ProgressLabel" />
         </div>
@@ -219,13 +256,12 @@ else if (!_removed)
 
     private string CardImageLoading => EagerArtwork ? "eager" : "lazy";
 
-    private IReadOnlyList<string> _previewImages = [];
-
     private string TileStyle => $"{Item.ArtworkPalette?.CssVariableStyle} --media-tile-accent: {Item.AccentColor}; --media-tile-secondary-accent: {Item.SecondaryAccentColor};";
 
     private string PaletteScopeStyle => $"display: contents; {TileStyle}";
 
-    private string ShapeClass => IsGroup ? "is-portrait" : Item.Shape switch
+    // A group is a poster, or a square when it holds only albums (its composer sets the shape from the covers it shows).
+    private string ShapeClass => IsGroup ? (Item.Shape == MediaTileShape.Square ? "is-square" : "is-portrait") : Item.Shape switch
     {
         MediaTileShape.Landscape => "is-landscape",
         MediaTileShape.Square => "is-square",
@@ -258,7 +294,6 @@ else if (!_removed)
     {
         MediaTileSurfaceKind.BannerLandscape => "is-banner-surface",
         MediaTileSurfaceKind.CoverSquare => "is-cover-square",
-        MediaTileSurfaceKind.ArtistPhotoSquare => "is-artist-photo-square",
         _ => "is-cover-portrait",
     };
 
@@ -269,38 +304,48 @@ else if (!_removed)
     private string? StatusLabel => MediaTileLabels.Status(Item, L["MediaTile_GettingDetails"].Value);
     private string? BottomLabel => MediaTileLabels.Bottom(Item, L["MediaTile_Kept"].Value);
 
-    // A group of titles is always a poster (Series, curated collection, Universe); a person has its own tile before this one.
+    // A group of titles (Series, curated collection, Universe) and a person with works are quadrant tiles; a person with no works has PersonTile before this one.
     private bool IsGroup => Item.RenderAsGroupTile;
+
+    private bool IsPersonQuadrant => Item.RenderAsPersonQuadrants;
+
+    // The kind word in the top-left slot (spec details-and-tile-fixes D1). A status label ("New", "Getting details") takes the slot first.
+    private string? KindWord => IsGroup && Item.Person is null && !ShowBrandLogo && !IsVideoCollection && !IsVideoStill ? GroupKindWord : null;
 
     private bool ShowBrandLogo => IsGroup && Item.ShowLogoAsBrand && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 
     private bool ShowCollectionBanner => !IsGroup && Item.IsCollection && Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
 
-    private bool ShowPreviewStack => !IsGroup && !ShowBrandLogo && !ShowCollectionBanner && string.IsNullOrWhiteSpace(CardImageUrl) && PreviewImages.Count > 0 && !IsVideoStillWithoutStack;
+    // The four-cover grid: a group with no cover of its own and at least one member cover. With none it is the plain tile with the kind icon.
+    private bool ShowQuadrants => IsGroup && !ShowBrandLogo && string.IsNullOrWhiteSpace(CardImageUrl) && GroupCovers.Count > 0;
 
-    // A video with no frame shows the plain panel, never a fan of other pictures.
-    private bool IsVideoStillWithoutStack => MediaTileLabels.IsVideoStillTile(Item);
+    private IReadOnlyList<string> GroupCovers => Item.GroupCovers;
+
+    // A group's four covers or its chosen cover do not say what the group is, so its name sits on the art. The plain tile and a brand logo already carry their name.
+    private bool ShowNameOnArt => IsGroup && !ShowBrandLogo && !IsVideoCollection && !IsVideoStill && (ShowQuadrants || !string.IsNullOrWhiteSpace(CardImageUrl));
 
     // Tiles are one size (214 px wide, 112 px on a phone), so the small copy covers every tile and a 1x/2x/3x list keeps sharp screens sharp.
     private const int TileDrawnPx = 320;
     private const int TileWidthPx = 214;
 
-    private string? TileSrcSet => Item.TileImageSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(CardImageUrl, TileWidthPx);
+    // A quadrant cell is half a tile wide (107 px portrait, 160 px square) and at most 160 px on its long side; the person's photo is 44 px.
+    private const int QuadrantDrawnPx = 160;
+    private const int PersonPhotoDrawnPx = 44;
+
+    private string? TileSrcSet => (IsGroup ? null : Item.TileImageSrcSet) ?? MediaTileArtworkUrl.SrcSetForDrawnSize(CardImageUrl, TileWidthPx);
 
     private string StandInTooltip => string.IsNullOrWhiteSpace(Item.StandInRetryAfter)
         ? L["MediaTile_StandIn_Tooltip"].Value
         : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
 
-    // A group shows its own cover; with none, the first cover of what it holds (as the Series tile always did). Nothing at all is the plain fallback.
+    // A group draws only a cover somebody chose for it; otherwise it is the four-cover grid (or the plain tile with none).
     private string CardImageUrl => IsGroup
-        ? StringHelpers.FirstNonBlank(Item.TileImageUrl, Item.CoverUrl, Item.ArtworkStackItems.Select(stack => stack.ImageUrl).Concat(Item.PreviewImages).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url))) ?? string.Empty
+        ? Item.CustomCoverUrl ?? string.Empty
         : Item.TileImageUrl ?? string.Empty;
 
-    private bool HasArtworkSurface => ShowBrandLogo || ShowCollectionBanner || !string.IsNullOrWhiteSpace(CardImageUrl) || ShowPreviewStack;
+    private bool HasArtworkSurface => ShowBrandLogo || ShowCollectionBanner || !string.IsNullOrWhiteSpace(CardImageUrl) || ShowQuadrants;
 
-    private bool ShowTileLogo => Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape && !ShowPreviewStack && !string.IsNullOrWhiteSpace(Item.LogoUrl);
-
-    private IReadOnlyList<string> PreviewImages => _previewImages;
+    private bool ShowTileLogo => Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 
     private string TileImageFitClass => Item.TileImageFitMode == MediaTileImageFitMode.Contain ? "is-contained" : "is-fill";
 
@@ -339,20 +384,11 @@ else if (!_removed)
 
     private string DisplaySubtitle => Item.Subtitle ?? Item.Creator ?? string.Empty;
 
-    protected override void OnParametersSet()
-    {
-        _previewImages = Item.PreviewImages
-            .Where(image => !string.IsNullOrWhiteSpace(image))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToList();
-    }
-
     private string DetailsNavigationUrl => IsGroup
         ? StringHelpers.FirstNonBlank(Item.DetailsNavigationUrl, Item.NavigationUrl, Item.PrimaryNavigationUrl) ?? "/"
         : Item.DetailsNavigationUrl ?? Item.NavigationUrl;
 
-    // A group's name and kind are not on the art, so the link says both ("Dune Saga, Series") and what it holds.
+    // A group's name and kind are not on the art, so the link says both ("Dune Saga, Series") and what it holds; a person's says the name and what they have.
     private string DetailsActionAriaLabel => IsGroup
         ? GroupAccessibleLabel
         : $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
@@ -362,7 +398,7 @@ else if (!_removed)
         get
         {
             var counts = string.Join(", ", Item.MediaCounts.Where(count => count.Count > 0).Select(count => $"{count.Count} {count.Label.ToLowerInvariant()}"));
-            var label = L["MediaGroupTile_Label", Item.Title, GroupKindWord].Value;
+            var label = Item.Person is not null ? Item.Title : L["MediaGroupTile_Label", Item.Title, GroupKindWord].Value;
             return counts.Length == 0 ? label : $"{label}, {counts}";
         }
     }
@@ -392,6 +428,4 @@ else if (!_removed)
             Item.HeroBackgroundImageUrl));
         Nav.NavigateTo(DetailsNavigationUrl);
     }
-
-    private static string GetStackImageClass(int index) => $"media-tile-stack-image media-tile-stack-image-{Math.Min(index, 2)}";
 }

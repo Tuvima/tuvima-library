@@ -346,7 +346,7 @@ public sealed partial class UiShellRenderTests
         var cut = RenderLanePage<WatchPage>("/watch", null);
 
         cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("a"), link =>
-            link.GetAttribute("href") == "/watch/videos?status=in-progress"));
+            link.GetAttribute("href") == "/all/watch/continue-watching"));
         Assert.DoesNotContain(cut.FindAll("a"), link => link.GetAttribute("href")?.StartsWith("/watch/movies", StringComparison.Ordinal) == true);
     }
 
@@ -360,7 +360,7 @@ public sealed partial class UiShellRenderTests
 
         var cut = RenderLanePage<ListenBrowsePage>("/listen", null);
 
-        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/listen/audiobooks?status=in-progress"));
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/all/listen/continue-listening"));
         Assert.DoesNotContain(">Recently Played<", cut.Markup);
         Assert.DoesNotContain(">Recently Added<", cut.Markup);
         Assert.DoesNotContain(cut.FindAll("a"), link => link.GetAttribute("href") is "/listen/music" || link.GetAttribute("href")?.StartsWith("/listen/music?", StringComparison.Ordinal) == true);
