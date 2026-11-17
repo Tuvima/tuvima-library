@@ -4,7 +4,9 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
-namespace MediaEngine.Api.Endpoints;
+using MediaEngine.Api.Endpoints;
+
+namespace MediaEngine.Api.Services.ReadServices;
 
 /// <summary>
 /// The people whose face is a preferred Headshot picture rather than a path saved on the person. A linked person (alias, band member,
