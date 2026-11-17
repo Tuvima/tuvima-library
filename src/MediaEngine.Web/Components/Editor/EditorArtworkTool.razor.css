@@ -22,61 +22,45 @@
     font-size: var(--tl-font-size-sm);
 }
 
-/* ---- Role tabs: one clean row, each with its number of versions ------------------------------------------ */
 
-.tl-art-picker__levels {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--tl-space-2) var(--tl-space-6);
-}
+/* ---- Top row: one pill per kind of picture with its count (they scroll sideways when there are too many), Add artwork and Refresh on the right ---- */
 
-.tl-art-picker__level {
+.tl-art-picker__top {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: var(--tl-space-2) var(--tl-space-3);
+    gap: var(--tl-space-3);
     min-width: 0;
 }
 
-.tl-art-picker__level-name {
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: var(--tl-font-weight-semibold);
-}
-
-.tl-art-picker__roles {
+.tl-art-picker__tabs {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--tl-space-2);
-}
-
-.tl-art-picker__face {
     flex: 1 1 auto;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
-/* A tab never wraps or crushes its words: it is as wide as its label and its count. */
 .tl-art-picker__face--role {
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
     gap: var(--tl-space-2);
     box-sizing: border-box;
-    min-height: 2.75rem;
-    padding: 0 var(--tl-space-4);
+    min-height: 2.25rem;
+    padding: 0 14px;
     border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-bg-surface-raised);
+    border-radius: var(--tl-radius-round);
     color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-medium, 500);
     white-space: nowrap;
     cursor: pointer;
 }
 
 .tl-art-picker__face--role strong {
-    color: var(--tl-text-primary);
-    font-weight: var(--tl-font-weight-semibold);
+    font-weight: inherit;
 }
 
 .tl-art-picker__face--role:hover {
@@ -86,38 +70,19 @@
 .tl-art-picker__face--role.is-active {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary-soft);
+    color: var(--tl-text-primary);
 }
 
 .tl-art-picker__tab-count {
-    min-width: 1.5rem;
-    padding: 0 var(--tl-space-2);
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-bg-shell);
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    line-height: 1.5rem;
-    text-align: center;
+    color: var(--tl-text-muted);
+    font-weight: 400;
 }
-
-.tl-art-picker__face--role.is-active .tl-art-picker__tab-count {
-    background: var(--tl-accent-primary);
-    color: var(--tl-text-on-accent);
-}
-
-/* ---- One row of actions ----------------------------------------------------------------------------------- */
 
 .tl-art-picker__actions {
     display: flex;
-    flex-wrap: wrap;
+    flex: 0 0 auto;
     align-items: center;
     gap: var(--tl-space-2);
-}
-
-.tl-art-picker__actions-sep {
-    align-self: stretch;
-    width: 1px;
-    margin: var(--tl-space-1) var(--tl-space-1);
-    background: var(--tl-divider);
 }
 
 .tl-art-picker__action {
@@ -125,10 +90,172 @@
     white-space: nowrap;
 }
 
-/* Preferred says the shown picture is the one the item uses; it is the accent edge of the row while it is. */
-.tl-art-picker__prefer.is-on {
+/* One plain line under the top row: what failed, with Try again. */
+.tl-art-picker__failure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-1) var(--tl-space-3);
+    margin: 0;
+    color: var(--tl-status-warning);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-art-picker__none {
+    align-self: center;
+}
+
+/* ---- The large preview at the picture's real shape, its line, and the carousel at the bottom ---- */
+
+.tl-art-picker__stage {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.tl-art-picker__preview {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 20.625rem;
+    overflow: hidden;
+    border: 1px solid var(--tl-border-default);
+    border-radius: 10px;
+    background: var(--tl-bg-root);
+}
+
+/* The picture keeps its real shape inside the box; only the box has a fixed height. */
+.tl-art-picker__image {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: var(--tl-radius-sm);
+    object-fit: contain;
+}
+
+.tl-art-picker__preview--portrait .tl-art-picker__image { aspect-ratio: 2 / 3; }
+.tl-art-picker__preview--square .tl-art-picker__image { aspect-ratio: 1 / 1; }
+
+.tl-art-picker__current {
+    position: absolute;
+    top: var(--tl-space-3);
+    left: var(--tl-space-3);
+    z-index: 1;
+    padding: 4px 10px;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary);
+    color: var(--tl-text-on-accent);
+    font-size: var(--tl-font-size-xs);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+/* While a change goes through the preview dims and shows a small spinner; the controls stay where they are. */
+.tl-art-picker__preview.is-busy .tl-art-picker__image {
+    opacity: .45;
+}
+
+.tl-art-picker__busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tl-art-picker__source-line {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    text-align: center;
+}
+
+/* Every picture, one row that scrolls sideways; each keeps the role's real shape (the Preview's height is fixed, the carousel's pictures are not). */
+.tl-art-picker__carousel {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    overflow-x: auto;
+    padding: var(--tl-space-1) 0;
+    scrollbar-width: thin;
+}
+
+.tl-art-picker__item {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.tl-art-picker__face--version {
+    position: relative;
+    display: block;
+    box-sizing: border-box;
+    padding: 0;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-shell);
+    cursor: pointer;
+}
+
+.tl-art-picker__carousel--portrait .tl-art-picker__face--version { height: 8.625rem; }
+.tl-art-picker__carousel--landscape .tl-art-picker__face--version { height: 6.5rem; }
+.tl-art-picker__carousel--wide .tl-art-picker__face--version { height: 4rem; }
+.tl-art-picker__carousel--square .tl-art-picker__face--version { height: 7.5rem; }
+
+.tl-art-picker__face--version img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-art-picker__carousel--wide .tl-art-picker__face--version img {
+    object-fit: contain;
+}
+
+/* The picture in use: the accent edge and a check. */
+.tl-art-picker__face--version.is-current {
     border-color: var(--tl-accent-primary);
-    color: var(--tl-text-primary);
+}
+
+.tl-art-picker__tick {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary);
+    color: var(--tl-text-on-accent);
+}
+
+/* The "..." menu sits over the picture's top right corner, beside (never inside) the picture's own button. */
+.tl-art-picker__dots {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 2;
+}
+
+/* "Magnify": one picture, large, in the shared Viewer (full screen, with its own close X). */
+.tl-art-picker__full-stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: var(--tl-space-8);
+}
+
+.tl-art-picker__full-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 
 /* ---- Thumbnails keep each role's real shape ------------------------------------------------------------ */
@@ -159,210 +286,6 @@
 
 .tl-art-picker__thumb.is-small img {
     opacity: .7;
-}
-
-/* ---- Preview: small (about 200 px on its long side) at the role's real shape, beside the actions and versions -------- */
-
-.tl-art-picker__art {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    align-items: start;
-    gap: var(--tl-space-6);
-}
-
-.tl-art-picker__preview-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--tl-space-1);
-    min-width: 0;
-}
-
-.tl-art-picker__controls {
-    display: flex;
-    flex-direction: column;
-    gap: var(--tl-space-4);
-    min-width: 0;
-}
-
-.tl-art-picker__preview {
-    position: relative;
-    display: flex;
-    box-sizing: border-box;
-    overflow: hidden;
-    border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-shell);
-}
-
-/* While a change goes through the preview dims and shows a small spinner; the buttons stay where they are. */
-.tl-art-picker__preview.is-busy .tl-art-picker__image,
-.tl-art-picker__preview.is-busy .tl-art-picker__empty {
-    opacity: .45;
-}
-
-.tl-art-picker__busy {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* One plain line under the actions: what failed, with Try again. */
-.tl-art-picker__failure {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--tl-space-1) var(--tl-space-3);
-    margin: 0;
-    color: var(--tl-status-warning);
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-art-picker__preview--portrait { height: 12.5rem; aspect-ratio: 2 / 3; }
-.tl-art-picker__preview--landscape { width: 12.5rem; aspect-ratio: 16 / 9; }
-.tl-art-picker__preview--wide { width: 12.5rem; aspect-ratio: 5 / 2; }
-.tl-art-picker__preview--square { width: 12.5rem; aspect-ratio: 1 / 1; }
-
-.tl-art-picker__image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.tl-art-picker__empty {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--tl-space-2);
-    padding: var(--tl-space-2);
-    border: 1px dashed var(--tl-border-strong);
-    border-radius: var(--tl-radius-sm);
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-    text-align: center;
-}
-
-/* "View full size": one picture, large, in the shared Viewer (full screen, with its own close X). */
-.tl-art-picker__full-stage {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    padding: var(--tl-space-8);
-}
-
-.tl-art-picker__full-image {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-}
-
-/* ---- The slim line under the preview: what it reaches, whether it waits for Save, and the file's facts ---------- */
-
-.tl-art-picker__info {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--tl-space-1) var(--tl-space-5);
-    min-width: 0;
-}
-
-.tl-art-picker__reach {
-    display: flex;
-    align-items: center;
-    gap: var(--tl-space-2);
-    margin: 0;
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-art-picker__facts {
-    display: flex;
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-    gap: var(--tl-space-1) var(--tl-space-2);
-    margin: 0;
-    padding-top: var(--tl-space-2);
-    border-top: 1px solid var(--tl-border-subtle);
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-art-picker__facts dt {
-    color: var(--tl-text-muted);
-}
-
-.tl-art-picker__facts dd {
-    margin: 0 var(--tl-space-4) 0 0;
-    overflow-wrap: anywhere;
-    color: var(--tl-text-primary);
-    font-weight: var(--tl-font-weight-semibold);
-}
-
-/* ---- Versions: one wrapping row of small thumbnails at the role's real shape -------------------------------------- */
-
-.tl-art-picker__strip {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: var(--tl-space-3);
-}
-
-.tl-art-picker__face--version {
-    position: relative;
-    display: block;
-    flex: 0 0 auto;
-    padding: 0;
-    overflow: hidden;
-    border: 2px solid transparent;
-    border-radius: var(--tl-radius-sm);
-    background: var(--tl-bg-shell);
-    cursor: pointer;
-}
-
-.tl-art-picker__strip--portrait .tl-art-picker__face--version { height: 6rem; }
-.tl-art-picker__strip--landscape .tl-art-picker__face--version { height: 4rem; }
-.tl-art-picker__strip--wide .tl-art-picker__face--version { height: 3.25rem; }
-.tl-art-picker__strip--square .tl-art-picker__face--version { height: 4.5rem; }
-
-.tl-art-picker__face--version img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* The selected (Preferred) version: the accent edge and a ring, with its chip. */
-.tl-art-picker__face--version.is-preferred {
-    border-color: var(--tl-accent-primary);
-    box-shadow: 0 0 0 2px var(--tl-accent-primary-soft);
-}
-
-.tl-art-picker__face--add {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px dashed var(--tl-border-strong);
-    background: transparent;
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-}
-
-.tl-art-picker__chip {
-    position: absolute;
-    left: var(--tl-space-1);
-    bottom: var(--tl-space-1);
-    padding: 0 var(--tl-space-2);
-    border-radius: var(--tl-radius-sm);
-    background: var(--tl-accent-primary);
-    color: var(--tl-text-on-accent);
-    font-size: var(--tl-font-size-xs);
-    font-weight: var(--tl-font-weight-semibold);
 }
 
 /* ---- Add artwork --------------------------------------------------------------------------------------- */
@@ -442,14 +365,8 @@
     font-weight: var(--tl-font-weight-semibold);
 }
 
-/* Narrower than 1024: one column, the preview above the actions and versions. */
-@media (max-width: 1023px) {
-    .tl-art-picker__art {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
 
-/* ---- The phone arrangement (v6 section 4a, D21) ------------------------------------------------------------ */
+/* ---- The phone arrangement (v6 section 4a, D21; v8 D4) ------------------------------------------------------------ */
 
 .tl-art-picker__add-flow {
     display: flex;
@@ -462,72 +379,23 @@
     padding: var(--tl-space-2) 0 var(--tl-space-4);
 }
 
+/* The tabs scroll sideways on their own line; Add artwork and Refresh sit under them, each a 44 px target. */
+.tl-art-picker--phone .tl-art-picker__top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--tl-space-2);
+}
+
 .tl-art-picker--phone .tl-art-picker__face--role {
     min-height: var(--tl-tap-target-min);
 }
 
-/* The actions are two to a row, each a 44 px button. */
 .tl-art-picker--phone .tl-art-picker__actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--tl-space-2);
+    justify-content: flex-start;
 }
 
-.tl-art-picker--phone .tl-art-picker__actions-sep {
-    display: none;
-}
-
-.tl-art-picker--phone .tl-art-picker__action {
-    width: 100%;
-    min-width: 0;
-    white-space: normal;
-}
-
-/* The preview sits at the left with its facts beside it; the actions and the versions use the full width below. */
-.tl-art-picker--phone .tl-art-picker__art {
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: var(--tl-space-3) var(--tl-space-4);
-}
-
-.tl-art-picker--phone .tl-art-picker__controls {
-    display: contents;
-}
-
-.tl-art-picker--phone .tl-art-picker__preview-col { grid-area: 1 / 1; }
-.tl-art-picker--phone .tl-art-picker__info {
-    grid-area: 1 / 2;
-    flex-direction: column;
-    align-items: flex-start;
-    align-self: start;
-}
-.tl-art-picker--phone .tl-art-picker__actions { grid-area: 2 / 1 / 3 / 3; }
-.tl-art-picker--phone .tl-art-picker__strip { grid-area: 3 / 1 / 4 / 3; }
-
-.tl-art-picker--phone .tl-art-picker__preview--portrait { height: 10.3rem; }
-.tl-art-picker--phone .tl-art-picker__preview--landscape,
-.tl-art-picker--phone .tl-art-picker__preview--wide,
-.tl-art-picker--phone .tl-art-picker__preview--square { width: 10.3rem; }
-
-/* The saved versions: two pictures per row, each at its role's real shape. */
-.tl-art-picker--phone .tl-art-picker__strip {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--tl-space-3);
-}
-
-.tl-art-picker--phone .tl-art-picker__face--version {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-}
-
-.tl-art-picker--phone .tl-art-picker__strip--portrait .tl-art-picker__face--version { aspect-ratio: 2 / 3; height: auto; }
-.tl-art-picker--phone .tl-art-picker__strip--landscape .tl-art-picker__face--version { aspect-ratio: 16 / 9; height: auto; }
-.tl-art-picker--phone .tl-art-picker__strip--wide .tl-art-picker__face--version { aspect-ratio: 5 / 2; height: auto; }
-.tl-art-picker--phone .tl-art-picker__strip--square .tl-art-picker__face--version { aspect-ratio: 1 / 1; height: auto; }
-
-.tl-art-picker--phone .tl-art-picker__face--add {
-    min-height: var(--tl-tap-target-min);
+.tl-art-picker--phone .tl-art-picker__preview {
+    height: 15.625rem;
 }
 
 /* Add artwork is a full-screen step over the window, with a bar that has the way back; the pictures and sources scroll under it. */

@@ -1277,6 +1277,9 @@
   <data name="EditorArtworkTool_Artwork" xml:space="preserve">
     <value>Artwork</value>
   </data>
+  <data name="EditorArtworkTool_Magnify" xml:space="preserve">
+    <value>Magnify</value>
+  </data>
   <data name="EditorArtworkTool_FetchAllStills" xml:space="preserve">
     <value>Fetch all stills</value>
   </data>
