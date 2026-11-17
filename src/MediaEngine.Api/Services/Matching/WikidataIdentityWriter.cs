@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -50,7 +51,7 @@ public sealed class WikidataIdentityWriter(
     public async Task<string?> ReadAsync(Guid entityId, CancellationToken ct)
     {
         var launch = await launches.ResolveEditorLaunchAsync(entityId, ct).ConfigureAwait(false);
-        return launch is null ? null : await ReadOwnAsync(launch.WorkId, ct).ConfigureAwait(false);
+        return launch is null ? null : await ReadOwnAsync(launch, ct).ConfigureAwait(false);
     }
 
     public async Task SetAsync(Guid entityId, string qid, CancellationToken ct)
@@ -58,7 +59,7 @@ public sealed class WikidataIdentityWriter(
         var launch = await launches.ResolveEditorLaunchAsync(entityId, ct).ConfigureAwait(false)
                      ?? throw new InvalidOperationException("The item is not in the Library.");
         var work = launch.WorkId;
-        var was = await ReadOwnAsync(work, ct).ConfigureAwait(false);
+        var was = await ReadOwnAsync(launch, ct).ConfigureAwait(false);
         var now = DateTimeOffset.UtcNow;
 
         await claims.InsertBatchAsync(
@@ -150,14 +151,18 @@ public sealed class WikidataIdentityWriter(
         var launch = await launches.ResolveEditorLaunchAsync(entityId, ct).ConfigureAwait(false)
                      ?? throw new InvalidOperationException("The item is not in the Library.");
         var work = launch.WorkId;
-        var was = await ReadOwnAsync(work, ct).ConfigureAwait(false);
+        var was = await ReadOwnAsync(launch, ct).ConfigureAwait(false);
         string[] keys = [BridgeIdKeys.WikidataQid];
 
         // Retire, never delete: every current claim for the key, the person's locked link included, stays as history and drops out of scoring,
-        // so no later scoring brings the removed item back.
-        await claims.RetireCurrentClaimsAsync(work, keys, ct).ConfigureAwait(false);
+        // so no later scoring brings the removed item back. The item's file holds the automatic link of a book, film or comic (the item's own values
+        // are the Work's with the file's filling in), so it goes from the file as well, or the removed link would be read back from there.
+        foreach (var holder in OwnHolders(launch))
+        {
+            await claims.RetireCurrentClaimsAsync(holder, keys, ct).ConfigureAwait(false);
+            await canonicals.DeleteByKeyAsync(holder, BridgeIdKeys.WikidataQid, ct).ConfigureAwait(false);
+        }
 
-        await canonicals.DeleteByKeyAsync(work, BridgeIdKeys.WikidataQid, ct).ConfigureAwait(false);
         await bridges.DeleteByTypesAsync(work, keys, ct).ConfigureAwait(false);
         await works.RemoveExternalIdentifiersAsync(work, keys, ct).ConfigureAwait(false);
 
@@ -177,13 +182,32 @@ public sealed class WikidataIdentityWriter(
         }, ct).ConfigureAwait(false);
     }
 
-    private async Task<string?> ReadOwnAsync(Guid work, CancellationToken ct)
+    // The item's own link: its Work's, else its file's (ingestion stores a book's, film's or comic's Wikidata id on the file's asset; a container has no file of its own).
+    private async Task<string?> ReadOwnAsync(MetadataEditorLaunchContext launch, CancellationToken ct)
     {
-        var value = (await canonicals.GetByEntityAsync(work, ct).ConfigureAwait(false))
-            .Where(field => string.Equals(field.Key, BridgeIdKeys.WikidataQid, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(field.Value))
-            .OrderByDescending(field => field.LastScoredAt)
-            .Select(field => field.Value.Trim())
-            .FirstOrDefault();
-        return value;
+        foreach (var holder in OwnHolders(launch))
+        {
+            var value = (await canonicals.GetByEntityAsync(holder, ct).ConfigureAwait(false))
+                .Where(field => string.Equals(field.Key, BridgeIdKeys.WikidataQid, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(field.Value))
+                .OrderByDescending(field => field.LastScoredAt)
+                .Select(field => field.Value.Trim())
+                .FirstOrDefault();
+            if (value is not null)
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    // The entities that hold an item's own values, in the order they are read: the Work, then (never for a container) its representative file.
+    private static IEnumerable<Guid> OwnHolders(MetadataEditorLaunchContext launch)
+    {
+        yield return launch.WorkId;
+        if (launch.RepresentativeAssetId is { } asset && asset != Guid.Empty && !EditorMatchRule.IsContainer(launch.WorkKind))
+        {
+            yield return asset;
+        }
     }
 }

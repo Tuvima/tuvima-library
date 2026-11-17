@@ -71,6 +71,14 @@ public static partial class OutsideLinks
     public static string? AppleBooks(string? id)
         => Numeric(id) is { } n ? $"https://books.apple.com/book/id{n}" : null;
 
+    /// <summary>An album's page at Apple Music, by the collection id the Engine stored when it matched.</summary>
+    public static string? AppleMusicAlbum(string? id)
+        => Numeric(id) is { } n ? $"https://music.apple.com/album/{n}" : null;
+
+    /// <summary>A song's page at Apple Music, by the track id the Engine stored when it matched.</summary>
+    public static string? AppleMusicSong(string? id)
+        => Numeric(id) is { } n ? $"https://music.apple.com/song/{n}" : null;
+
     /// <summary>
     /// Expands a provider-config link template for one identifier. Identifier keys that
     /// have a known shape are validated first (TheTVDB ids must be numbers, a MusicBrainz

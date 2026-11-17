@@ -638,16 +638,16 @@
         }
     };
 
-    // The current match (v7 D5): the match itself and two actions, Remove match at the left and Change match at the right. No verdict, table, basis note,
-    // provider line or Open source (the header links do that); the card shows those only on a candidate under a search.
+    // The current match (v7 D5, v8 D10): the match itself (cover or album art, title, creator, year, description), its "Open in <provider>" link and two actions,
+    // Remove match at the left and Change match at the right. No verdict, table or basis note; the card shows those only on a candidate under a search.
     private RenderFragment CurrentCard(EditorCurrentMatchDto current) => __builder =>
     {
         var canChange = CanEdit && Session is { IsActive: true };
-        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" Plain="true" data-testid="match-current">
+        <EditorMatchCard Model="@EditorMatchCardModels.ForCurrent(current, _kind, L)" ResultLabel="@L["EditorMatchPanel_MatchedRecord"].Value" Plain="true" data-testid="match-current">
             <Extra>
                 @if (IsPhone)
                 {
-                    @* On a phone the header carries no links (v7 D14): the card ends with the item's pages at the source and at Wikidata, each only when it has one. *@
+                    @* On a phone the header carries no links (v7 D14): the card ends with the item's page at Wikidata when it has one (its page at the provider is the card's own "Open in" link). *@
                     @SourceLinks(current)
                 }
             </Extra>
@@ -660,28 +660,18 @@
         </EditorMatchCard>
     };
 
-    // The links to the item's pages at its source and at Wikidata (v7 D14): the phone's stand-in for the header's top right. A source with no page shows nothing.
+    // The link to the item's page at Wikidata (v7 D14): the phone's stand-in for the header's top right. The page at the provider is the card's own "Open in"
+    // link (v8 D10), on every device. No Wikidata page shows nothing.
     private RenderFragment SourceLinks(EditorCurrentMatchDto current) => __builder =>
     {
-        var sourceUrl = current.Record?.SourceUrl;
-        var hasSource = !string.IsNullOrWhiteSpace(sourceUrl);
-        var hasWikidata = !string.IsNullOrWhiteSpace(current.WikidataUrl);
-        if (!hasSource && !hasWikidata)
+        if (string.IsNullOrWhiteSpace(current.WikidataUrl))
         {
             return;
         }
 
         <div class="tl-match__sourcelinks" data-testid="match-source-links">
-            @if (hasSource)
-            {
-                <AppButton Label="@current.Record!.ProviderName" Href="@sourceUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Outlined"
-                           Tone="AppUiTone.Neutral" Size="AppControlSize.Normal" data-testid="match-source-link" />
-            }
-            @if (hasWikidata)
-            {
-                <AppButton Label="@L["EditorMatchPanel_Wikidata"].Value" Href="@current.WikidataUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Outlined"
-                           Tone="AppUiTone.Neutral" Size="AppControlSize.Normal" data-testid="match-wikidata-link" />
-            }
+            <AppButton Label="@L["EditorMatchPanel_Wikidata"].Value" Href="@current.WikidataUrl" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral" Size="AppControlSize.Normal" data-testid="match-wikidata-link" />
         </div>
     };
 

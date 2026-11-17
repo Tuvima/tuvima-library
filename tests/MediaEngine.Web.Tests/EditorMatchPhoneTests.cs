@@ -641,7 +641,7 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
     };
 
     [Fact]
-    public void AMatchedItem_OnAPhone_ShowsOnlyTheMatch_TheTwoActionsSideBySide_AndTheCardEndsWithTheSourceLink()
+    public void AMatchedItem_OnAPhone_ShowsOnlyTheMatch_TheTwoActionsSideBySide_AndTheCardCarriesTheOpenInProviderLink()
     {
         _matched = true;
         _setup = BookSetup();
@@ -659,9 +659,9 @@ public sealed class EditorMatchPhoneTests : AsyncBunitContext
         // Only the match and two actions side by side (v7 D5): no verdict, table, basis note or Open source.
         Assert.Empty(card.QuerySelectorAll("[data-testid=match-verdict], [data-testid=match-compare], [data-testid=match-card-basis], [data-testid=match-open-source], table"));
         Assert.Equal(["Remove match", "Change match"], card.QuerySelectorAll(".tl-mcard__foot--plain button, .tl-mcard__foot--plain a").Select(a => a.TextContent.Trim()).ToList());
-        // The header carries no links on a phone (v7 D14), so the card ends with the item's page at its source: a product name, never the config key.
-        var sourceLink = card.QuerySelector("[data-testid=match-source-links] a")!;
-        Assert.Equal("Apple Books", sourceLink.TextContent.Trim());
+        // The card names the item's page at its source (v8 D10): a product name, never the config key.
+        var sourceLink = card.QuerySelector("[data-testid=match-card-source-link]")!;
+        Assert.Equal("Open in Apple Books", sourceLink.TextContent.Trim());
         Assert.Equal("https://books.apple.com/book/395523481", sourceLink.GetAttribute("href"));
         Assert.DoesNotContain("apple_api", card.TextContent, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(cut.FindAll("[data-testid=match-your-file]"));
