@@ -545,6 +545,7 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<string> displayRoles,
         string? wikipediaUrl,
         IReadOnlyList<MediaEngine.Domain.Entities.Person> aliases,
+        PersonPreferredHeadshots aliasHeadshots,
         IReadOnlyList<PersonGroupMemberDto> groupMembers,
         IReadOnlyList<PersonGroupMemberDto> memberOfGroups)
         => new()
@@ -569,10 +570,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 Id = alias.Id.ToString("D"),
                 Name = alias.Name,
                 Subtitle = alias.IsPseudonym ? "Pen name" : null,
-                ImageUrl = ApiImageUrls.BuildPersonHeadshotUrl(
-                    alias.Id,
-                    alias.LocalHeadshotPath,
-                    alias.HeadshotUrl),
+                ImageUrl = aliasHeadshots.BuildUrl(alias.Id, alias.LocalHeadshotPath, alias.HeadshotUrl),
                 Route = $"/details/person/{alias.Id:D}",
             }).ToList(),
             GroupMembers = groupMembers.Select(member => new PersonRelatedLink

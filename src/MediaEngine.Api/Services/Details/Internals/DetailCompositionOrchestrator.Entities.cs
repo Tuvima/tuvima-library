@@ -104,6 +104,8 @@ internal sealed partial class DetailCompositionOrchestrator
         // A linked person is shown only when the viewer could open them (a pen name must not expose a Vault-only real name).
         var visibleAliases = await LinkedPersonVisibility.VisibleAsync(_persons, aliases.Select(alias => alias.Id), viewer, ct);
         aliases = aliases.Where(alias => visibleAliases.Contains(alias.Id)).ToList();
+        var aliasHeadshots = PersonPreferredHeadshots.From(
+            await _entityAssets.GetPreferredByEntitiesAsync(aliases.Select(alias => alias.Id.ToString()).ToList(), ct));
         var groupMembers = await _personCredits.GetGroupMembersAsync(personId, person.IsGroup, viewer, ct);
         var memberOfGroups = person.IsGroup
             ? []
@@ -178,7 +180,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 }
                 : BuildWikipediaDescriptionAttribution(person.Biography, wikipediaUrl),
             SourceLinks = personSourceLinks,
-            PersonDetails = BuildPersonDetails(person, displayRoles, wikipediaUrl, aliases, groupMembers, memberOfGroups),
+            PersonDetails = BuildPersonDetails(person, displayRoles, wikipediaUrl, aliases, aliasHeadshots, groupMembers, memberOfGroups),
             Facts = BuildPersonFacts(person, displayRoles),
             Artwork = BuildArtwork(entityType, background, banner, null, null, portrait, new Dictionary<string, string>(), relatedArt, 0, null, logo),
             Metadata = BuildPersonMetadata(displayRoles, ownedWorkCount)

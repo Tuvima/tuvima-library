@@ -49,6 +49,7 @@ public sealed class PersonAliasReadService : IPersonAliasReadService
         // A linked person is shown only when the viewer could open them (see LinkedPersonVisibility).
         var visible = await LinkedPersonVisibility.VisibleAsync(_personRepo, linkedIds, viewer, ct);
         var aliases = new List<PersonAliasItemResponse>();
+        var preferredHeadshots = await PersonPreferredHeadshots.LoadAsync(_db, linkedIds.Where(visible.Contains));
         foreach (var aliasId in linkedIds.Where(visible.Contains))
         {
             var aliasPerson = await _personRepo.FindByIdAsync(aliasId, ct);
@@ -62,7 +63,7 @@ public sealed class PersonAliasReadService : IPersonAliasReadService
                 Id = aliasPerson.Id,
                 Name = aliasPerson.Name,
                 Roles = aliasPerson.Roles,
-                HeadshotUrl = ApiImageUrls.BuildPersonHeadshotUrl(aliasPerson.Id, aliasPerson.LocalHeadshotPath, aliasPerson.HeadshotUrl),
+                HeadshotUrl = preferredHeadshots.BuildUrl(aliasPerson.Id, aliasPerson.LocalHeadshotPath, aliasPerson.HeadshotUrl),
                 IsPseudonym = aliasPerson.IsPseudonym,
                 WikidataQid = aliasPerson.WikidataQid,
                 Relationship = person.IsPseudonym ? "real_person" : "pen_name",
