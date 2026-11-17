@@ -12,7 +12,7 @@ namespace MediaEngine.Api.Services.EditSession;
 /// <summary>
 /// The folder button's tree (universal editor v5 3a, section 5): the title's own folder and every folder below it, each file marked as the
 /// title's media, a supporting file, a file Library never shows ("Not shown in the library", such as an .nfo or a subtitle), or one that is
-/// not sorted yet. One folder at a time, paged, so a long season folder costs no more than a short one. A read only: it only looks at
+/// not placed. A file Library could not place is listed first, ahead of the folders. One folder at a time, paged, so a long season folder costs no more than a short one. A read only: it only looks at
 /// the disk, and it never leaves the title's folder: a shortcut (a symbolic link or a junction) that points outside it is not followed, and
 /// one that cannot be read is left out of the list.
 /// </summary>
@@ -57,7 +57,7 @@ public sealed class EditorFolderTreeService(
         var context = resolved is null ? null : BuildContext(resolved);
         var pageSize = editorConfig.Current.FolderTreePageSize;
 
-        // Folders first, then files, each in natural name order.
+        // Files Library could not place first, then folders, then the other files, each group in natural name order.
         List<DirectoryInfo> folders;
         List<FileInfo> files;
         try
@@ -75,17 +75,20 @@ public sealed class EditorFolderTreeService(
         var total = folders.Count + files.Count;
         offset = Math.Clamp(offset, 0, total);
 
-        var page = folders.Select(info => (Entry: (FileSystemInfo)info, IsFolder: true))
-            .Concat(files.Select(info => (Entry: (FileSystemInfo)info, IsFolder: false)))
-            .Skip(offset).Take(pageSize).ToList();
-
-        var pageFiles = page.Where(item => !item.IsFolder).Select(item => item.Entry.FullName).ToList();
-        var main = ReadMainFiles(pageFiles);
-        var supporting = pageFiles.Count == 0
+        // The state of every file of the folder is needed to put the unplaced ones first, so the records are read for all of them (one query per 400).
+        var main = ReadMainFiles([.. files.Select(info => info.FullName)]);
+        var supporting = files.Count == 0
             ? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase)
             : (await extras.ListAllInItemFolderAsync(itemFolder, ct).ConfigureAwait(false))
                 .GroupBy(extra => Path.GetFullPath(extra.FilePath), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First().Id, StringComparer.OrdinalIgnoreCase);
+
+        var unplaced = files.Where(info => StateOf(info.FullName, main, supporting, context) == EditorFolderEntryStates.Unsorted).ToList();
+        var placed = files.Except(unplaced).ToList();
+        var page = unplaced.Select(info => (Entry: (FileSystemInfo)info, IsFolder: false))
+            .Concat(folders.Select(info => (Entry: (FileSystemInfo)info, IsFolder: true)))
+            .Concat(placed.Select(info => (Entry: (FileSystemInfo)info, IsFolder: false)))
+            .Skip(offset).Take(pageSize).ToList();
 
         var entries = new List<EditorFolderEntryDto>(page.Count);
         foreach (var (entry, isFolder) in page)
@@ -98,8 +101,9 @@ public sealed class EditorFolderTreeService(
             }
 
             var full = entry.FullName;
-            main.TryGetValue(full, out var itemId);
+            main.TryGetValue(full, out var record);
             supporting.TryGetValue(Path.GetFullPath(full), out var extraId);
+            var state = StateOf(full, main, supporting, context);
             var info = (FileInfo)entry;
             long size;
             try
@@ -117,13 +121,10 @@ public sealed class EditorFolderTreeService(
                 Name = entry.Name,
                 Path = path,
                 IsFolder = false,
-                State = itemId != Guid.Empty
-                    ? EditorFolderEntryStates.Main
-                    : extraId != Guid.Empty
-                        ? EditorFolderEntryStates.Supporting
-                        : IsHidden(context, full) ? EditorFolderEntryStates.Hidden : EditorFolderEntryStates.Unsorted,
+                State = state,
                 SizeBytes = size,
-                ItemId = itemId != Guid.Empty ? itemId : null,
+                FileId = record is not null && state is EditorFolderEntryStates.Main or EditorFolderEntryStates.Unsorted ? record.AssetId : null,
+                ItemId = record is not null && state == EditorFolderEntryStates.Main ? record.WorkId : null,
                 SupportingFileId = extraId != Guid.Empty ? extraId : null,
             });
         }
@@ -165,24 +166,63 @@ public sealed class EditorFolderTreeService(
         return !extensions.IsKnownMediaExtension(extension) && !ExtrasRule.IsExtraKindExtension(extension);
     }
 
-    // The title's media files among these paths, with the item each one is.
-    private Dictionary<string, Guid> ReadMainFiles(IReadOnlyList<string> paths)
+    // What Library makes of one file: one of its own media files, a supporting file, one it never shows, or one it could not place. A media file
+    // Needs Review still holds (Unmatched, not kept as it is) is one Library could not place.
+    private string StateOf(
+        string full, Dictionary<string, MediaFileRecord> main, Dictionary<string, Guid> supporting, ExtrasLibraryContext? context)
     {
-        var result = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        if (main.TryGetValue(full, out var record))
+        {
+            return record.Unplaced ? EditorFolderEntryStates.Unsorted : EditorFolderEntryStates.Main;
+        }
+
+        if (supporting.ContainsKey(Path.GetFullPath(full)))
+        {
+            return EditorFolderEntryStates.Supporting;
+        }
+
+        return IsHidden(context, full) ? EditorFolderEntryStates.Hidden : EditorFolderEntryStates.Unsorted;
+    }
+
+    /// <summary>The media record of a file: its asset, the item it plays as, and whether Needs Review still holds it as one Library could not place.</summary>
+    private sealed record MediaFileRecord(Guid AssetId, Guid WorkId, bool Unplaced);
+
+    private sealed class MediaFileRow
+    {
+        public string Path { get; set; } = string.Empty;
+
+        public Guid AssetId { get; set; }
+
+        public Guid WorkId { get; set; }
+
+        public bool Unplaced { get; set; }
+    }
+
+    private const int PathsPerQuery = 400;
+
+    // The title's media files among these paths, with the asset and item each one is.
+    private Dictionary<string, MediaFileRecord> ReadMainFiles(IReadOnlyList<string> paths)
+    {
+        var result = new Dictionary<string, MediaFileRecord>(StringComparer.OrdinalIgnoreCase);
         if (paths.Count == 0)
         {
             return result;
         }
 
         using var connection = db.CreateConnection();
-        foreach (var row in connection.Query<(string Path, Guid WorkId)>("""
-            SELECT ma.file_path_root AS Path, e.work_id AS WorkId
-            FROM media_assets ma
-            INNER JOIN editions e ON e.id = ma.edition_id
-            WHERE ma.file_path_root IN @paths;
-            """, new { paths }))
+        foreach (var chunk in paths.Chunk(PathsPerQuery))
         {
-            result[Path.GetFullPath(row.Path)] = row.WorkId;
+            foreach (var row in connection.Query<MediaFileRow>("""
+                SELECT ma.file_path_root AS Path, ma.id AS AssetId, e.work_id AS WorkId,
+                       CASE WHEN ua.asset_id IS NOT NULL AND ua.kept_as_is = 0 THEN 1 ELSE 0 END AS Unplaced
+                FROM media_assets ma
+                INNER JOIN editions e ON e.id = ma.edition_id
+                LEFT JOIN unmatched_assets ua ON ua.asset_id = ma.id
+                WHERE ma.file_path_root IN @chunk;
+                """, new { chunk }))
+            {
+                result[Path.GetFullPath(row.Path)] = new MediaFileRecord(row.AssetId, row.WorkId, row.Unplaced);
+            }
         }
 
         return result;

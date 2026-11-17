@@ -75,7 +75,6 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
         Assert.Equal("season:2", files.ScopeKey);
         Assert.Equal(1, files.Count);
         Assert.Equal(3, files.TotalInRoot);
-        Assert.False(files.ShowAll);
         var file = Assert.Single(files.Files);
         Assert.Equal("guide", file.Title);
         Assert.Equal("PDF", file.TypeBadge);
@@ -85,7 +84,7 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ASeasonWithMoreSupportingFilesThanTheThreshold_OffersAllOfThemAndShowsOnlyTheThreshold()
+    public async Task ASeasonWithMoreSupportingFilesThanTheThreshold_CountsAllOfThemAndShowsOnlyTheThreshold()
     {
         var tv = SeedExpanse();
         for (var index = 0; index < 10; index++)
@@ -97,7 +96,6 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
 
         Assert.Equal(10, files.Count);
         Assert.Equal(8, files.Files.Count);
-        Assert.True(files.ShowAll);
     }
 
     [Fact]
@@ -283,6 +281,63 @@ public sealed class EditorHeaderReadServiceTests : IDisposable
 
         Assert.Equal("course", (await service.GetHeaderAsync(course, null))!.Kind);
         Assert.Equal("course_section", (await service.GetHeaderAsync(section, null))!.Kind);
+    }
+
+    [Fact]
+    public async Task AVideoCollectionWhoseOrderIsStillGuessed_CanBeReorderedAtEveryLevel()
+    {
+        var course = _world.Work("Videos", "parent", "Court Skills");
+        var section = _world.Work("Videos", "parent", "Ball Handling", course, 1);
+        var warmUp = _world.Work("Videos", "child", "Warm Up", section, 1);
+        var drills = _world.Work("Videos", "child", "Drills", section, 2);
+        _world.File(warmUp, "Ball Handling/01 Warm Up.mkv");
+        _world.File(drills, "Ball Handling/02 Drills.mkv");
+        var service = _world.Header();
+
+        Assert.True((await service.GetHeaderAsync(course, null))!.CanReorder);
+        Assert.True((await service.GetHeaderAsync(section, null))!.CanReorder);
+        Assert.True((await service.GetHeaderAsync(warmUp, null))!.CanReorder);
+    }
+
+    [Fact]
+    public async Task AVideoCollectionMatchedToAProvider_CannotBeReorderedAtAnyLevel()
+    {
+        var course = _world.Work("Videos", "parent", "Stephen Curry Teaches Shooting");
+        var section = _world.Work("Videos", "parent", "Season 1", course, 1);
+        var intro = _world.Work("Videos", "child", "Introduction", section, 1);
+        var form = _world.Work("Videos", "child", "Form Shooting", section, 2);
+        _world.File(intro, "Season 1/01 Introduction.mkv");
+        _world.File(form, "Season 1/02 Form Shooting.mkv");
+        _world.Canonical(course, "tmdb_id", "12345");
+        var service = _world.Header();
+
+        Assert.False((await service.GetHeaderAsync(course, null))!.CanReorder);
+        Assert.False((await service.GetHeaderAsync(section, null))!.CanReorder);
+        Assert.False((await service.GetHeaderAsync(intro, null))!.CanReorder);
+    }
+
+    [Fact]
+    public async Task AVideoMatchedToAProviderOnItsOwn_CannotBeReordered()
+    {
+        var course = _world.Work("Videos", "parent", "Court Skills");
+        var one = _world.Work("Videos", "child", "Warm Up", course, 1);
+        var two = _world.Work("Videos", "child", "Drills", course, 2);
+        _world.File(one, "01 Warm Up.mkv");
+        _world.File(two, "02 Drills.mkv");
+        _world.Canonical(one, "tmdb_id", "777");
+
+        Assert.False((await _world.Header().GetHeaderAsync(one, null))!.CanReorder);
+    }
+
+    [Fact]
+    public async Task EpisodesOfAShow_AreNeverOfferedReorder_MatchedOrNot()
+    {
+        var tv = SeedExpanse();
+        var service = _world.Header();
+
+        Assert.False((await service.GetHeaderAsync(tv.Episode3, null))!.CanReorder);
+        Assert.False((await service.GetHeaderAsync(tv.Season2, null))!.CanReorder);
+        Assert.False((await service.GetHeaderAsync(tv.Show, null))!.CanReorder);
     }
 
     [Fact]

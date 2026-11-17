@@ -3637,6 +3637,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFolderEntryDto
   IsFolder: System.Boolean | nullability=not-null | accessors=get,init
   State: System.String | nullability=nullable | accessors=get,init
   SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  FileId: System.Guid? | nullability=nullable | accessors=get,init
   ItemId: System.Guid? | nullability=nullable | accessors=get,init
   SupportingFileId: System.Guid? | nullability=nullable | accessors=get,init
 
@@ -3720,6 +3721,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderDto
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | nullability=nullable | accessors=get,init
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | nullability=nullable | accessors=get,init
   ProviderMatched: System.Boolean | nullability=not-null | accessors=get,init
+  CanReorder: System.Boolean | nullability=not-null | accessors=get,init
   MatchLinks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchLinkDto> | nullability=not-null | accessors=get,init
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | nullability=not-null | accessors=get,init
 
@@ -3775,7 +3777,6 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSupporti
   ScopeKey: System.String | nullability=nullable | accessors=get,init
   Count: System.Int32 | nullability=not-null | accessors=get,init
   TotalInRoot: System.Int32 | nullability=not-null | accessors=get,init
-  ShowAll: System.Boolean | nullability=not-null | accessors=get,init
   Files: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorHeaderSupportingFileDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorKindNames

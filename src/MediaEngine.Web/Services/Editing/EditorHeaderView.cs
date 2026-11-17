@@ -229,7 +229,7 @@ public static class EditorHeaderFacts
     }
 }
 
-/// <summary>The words of the header's item dropdown (universal editor v5, screens A, B, D): a row's code, its lines and the "All supporting files" count.</summary>
+/// <summary>The words of the header's item dropdown (universal editor v5, screens A, B, D): a row's code and its lines.</summary>
 public static class EditorNavText
 {
     /// <summary>
@@ -240,14 +240,14 @@ public static class EditorNavText
         string.IsNullOrWhiteSpace(engineUrl) ? null : EngineImageProxyPath.ToBrowserUrl(engineUrl, null);
 
     /// <summary>
-    /// True when the item dropdown offers "Reorder videos" (v5 D19): only on a Videos series, a section of one, or a video in one, where the order
-    /// is the person's own. A show, album, comic or book Series takes its order from the match, so it never has the row.
+    /// True when the item dropdown offers "Reorder videos" (v5 D19, v8 D3): the Engine decides (<c>can_reorder</c>), and says yes only on a video
+    /// collection whose order Library is still guessing. A show, album, comic or book Series, and any collection or episode matched to a provider,
+    /// takes its order from the match, so it never has the row.
     /// </summary>
     public static bool CanReorder(EditorHeaderDto header)
     {
         ArgumentNullException.ThrowIfNull(header);
-        return header.Kind is EditorKindNames.Course or EditorKindNames.CourseSection
-            || (header.Kind == EditorKindNames.Video && header.ShowHome);
+        return header.CanReorder;
     }
 
     /// <summary>
@@ -327,23 +327,6 @@ public static class EditorNavText
             ? file.ShownAlongside!.Label
             : file.PageCount is > 0 ? $"{file.PageCount} {(file.PageCount == 1 ? "page" : "pages")}" : Length(file.DurationSeconds);
         return string.Join(" · ", new[] { lead, tail }.Where(piece => !string.IsNullOrWhiteSpace(piece)));
-    }
-
-    /// <summary>
-    /// The "All supporting files" row's second line: how many are at this level and in the whole title ("12 in this season · 238 in the show").
-    /// Without a second level, or when the level holds them all, only the total is said.
-    /// </summary>
-    public static string AllFilesLine(EditorHeaderDto header, EditorHeaderSupportingFilesDto files)
-    {
-        ArgumentNullException.ThrowIfNull(header);
-        ArgumentNullException.ThrowIfNull(files);
-        if (header.SecondLevel is not { } second || files.Count == files.TotalInRoot)
-        {
-            return $"{DisplayFormat.FormatCount(files.TotalInRoot)} in all";
-        }
-
-        var title = header.Kind is EditorKindNames.Course or EditorKindNames.CourseSection or EditorKindNames.Video ? "course" : "show";
-        return $"{DisplayFormat.FormatCount(files.Count)} in this {second.Label.ToLowerInvariant()} · {DisplayFormat.FormatCount(files.TotalInRoot)} in the {title}";
     }
 
     /// <summary>The second dropdown's row detail: "10 episodes · 12 supporting files".</summary>

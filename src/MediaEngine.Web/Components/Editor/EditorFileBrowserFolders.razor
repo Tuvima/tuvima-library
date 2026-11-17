@@ -5,10 +5,12 @@
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-@* The "Folders and files" view of the supporting-files browser (universal editor v5 screen E, note 4; 3a): the shared browser frame (D32) showing
-   the real folder tree of the title, folders first and then files, each file marked as the title's media, a supporting file, one Library never
-   shows ("Not shown in the library") or one that is not placed yet. Only a file the Engine could not place offers "What is this file?", the v4 question
-   (an episode, an Extra of a kind and place, another title, or ignored), which stages its answer for Review. On a Videos series the series order
+@* The "Folders and files" view of the supporting-files browser (universal editor v5 screen E, note 4; 3a; v8 D9, mock D): the shared browser frame (D32)
+   showing the real folder tree of the title under a purpose line, a file Library could not place first (so it can be told what it is), then the
+   folders and the placed files, each file marked as the title's media, a supporting file, one Library never shows ("Not shown in the library") or
+   one that is not placed yet. Only a file the Engine could not place offers "What is this file?", the v4 question (an episode, an Extra of a kind
+   and place, another title, or ignored), which stages its answer for Review. The question is asked about the file by its file id (the media asset
+   the Engine holds for it): such a file has no item to open, so it carries no item id. On a Videos series the series order
    sits above the tree. It never leaves the title's folder: the Engine answers only for folders inside it. Inside a sub-folder the path at the top
    (the title's own folder, then each folder down to this one) is how you go back; at the title's own folder there is no path line and no up arrow
    (universal editor v6, D16). The frame's toolbar (and with it the up arrow) is off, but Backspace and Alt+Up still go up one level, never above
@@ -36,6 +38,8 @@
         }
     </Sidebar>
     <TopContent>
+        <p class="tl-fbfolders__purpose" data-testid="file-browser-purpose">@L["EditorBrowser_FoldersPurpose"]</p>
+
         @if (Phone)
         {
             @* The left list is not drawn on a phone, so the way back to the supporting files is a button here. *@
@@ -77,21 +81,15 @@
             else
             {
                 <AppBrowserFolderRow @key="entry.Path" Id="@($"{RowIdPrefix}-{position}")" Name="@entry.Name" IsFile="true" Dim="@(entry.State == EditorFolderEntryStates.Hidden)"
-                                     Highlighted="@(position == _highlight)" data-entry="@entry.Path" data-state="@entry.State">
-                    <Middle>
-                        @if (entry.SizeBytes is { } size)
-                        {
-                            <span class="tl-fbfolders__size">@EditorFileBrowserRules.SizeText(size)</span>
-                        }
-
-                        @Mark(entry)
-                    </Middle>
+                                     Highlighted="@(position == _highlight)" data-entry="@entry.Path" data-state="@entry.State"
+                                     Secondary="@(entry.SizeBytes is { } size ? EditorFileBrowserRules.SizeText(size) : null)">
+                    <Middle>@Mark(entry)</Middle>
                     <End>@Actions(entry)</End>
                 </AppBrowserFolderRow>
-                @if (_sorting == entry.Path && entry.ItemId is { } itemId)
+                @if (_sorting == entry.Path && AskedAbout(entry) is { } asked)
                 {
                     <AppBrowserRowDetail Span="3" FocusOnOpen="Phone">
-                        <EditorFileSortPanel Subject="@SubjectFor(itemId, entry.Name)" Session="Session" CanEdit="@Editable" />
+                        <EditorFileSortPanel Subject="@SubjectFor(asked, entry.Name)" Session="Session" CanEdit="@Editable" />
                     </AppBrowserRowDetail>
                 }
             }
@@ -220,9 +218,12 @@
             : Task.CompletedTask;
     }
 
-    // The question needs only the item's id: it reads the rest (the file name, the kinds, the guess) from the Engine.
-    private static EditorMatchSubject SubjectFor(Guid itemId, string name) =>
-        new(itemId, string.Empty, string.Empty, string.Empty, name, null, null, null, new Dictionary<string, string>(), []);
+    // The id the question is asked about: the file's own (a file Library could not place has no item), else the item the file plays as.
+    private static Guid? AskedAbout(EditorFolderEntryDto entry) => entry.FileId ?? entry.ItemId;
+
+    // The question needs only that id: it reads the rest (the file name, the kinds, the guess, the item the file plays as) from the Engine.
+    private static EditorMatchSubject SubjectFor(Guid fileOrItemId, string name) =>
+        new(fileOrItemId, string.Empty, string.Empty, string.Empty, name, null, null, null, new Dictionary<string, string>(), []);
 
     private RenderFragment Mark(EditorFolderEntryDto entry) => __builder =>
     {
@@ -257,7 +258,7 @@
         }
 
         // The question is for a file the Engine could not place. A file already placed (an episode, a film, a track) is shown as what it is.
-        if (entry.ItemId is not null && entry.State == EditorFolderEntryStates.Unsorted)
+        if (AskedAbout(entry) is not null && entry.State == EditorFolderEntryStates.Unsorted)
         {
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" data-entry-sort="true"
                        OnClick="@(() => _sorting = _sorting == entry.Path ? null : entry.Path)">@L["EditorFileSort_Heading"]</AppButton>

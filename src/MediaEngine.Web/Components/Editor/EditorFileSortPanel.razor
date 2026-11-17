@@ -158,7 +158,11 @@
 
     private bool CanChange => CanEdit && Session is { IsActive: true };
 
-    private EditSessionChange? StagedChoice => Subject is null ? null : Pending?.FindFileChoice(Subject.EntityId);
+    // The question may be asked about a file (a file the folder browser names by its media asset id, v8 D9): the Engine's read says which item the
+    // file plays as, and a sorting choice is staged against that item, as for any other file.
+    private Guid StagingId => _sorting is { EntityId: var id } && id != Guid.Empty ? id : Subject?.EntityId ?? Guid.Empty;
+
+    private EditSessionChange? StagedChoice => Subject is null ? null : Pending?.FindFileChoice(StagingId);
 
     private IReadOnlyList<DetailExtraCardViewModel> ShowClips =>
         Subject is not null
@@ -245,7 +249,7 @@
             return;
         }
 
-        Pending?.SetFileChoice(Subject.EntityId, choice, EditorFileSortRules.Describe(choice, null), _sorting.FileName);
+        Pending?.SetFileChoice(StagingId, choice, EditorFileSortRules.Describe(choice, null), _sorting.FileName);
     }
 
     private void StageAttach()
@@ -256,14 +260,14 @@
             return;
         }
 
-        Pending?.SetFileChoice(Subject.EntityId, choice, EditorFileSortRules.Describe(choice, target.Title), _sorting.FileName);
+        Pending?.SetFileChoice(StagingId, choice, EditorFileSortRules.Describe(choice, target.Title), _sorting.FileName);
     }
 
     private void StageIgnore()
     {
         if (CanChange && Subject is not null && _sorting is not null)
         {
-            Pending?.SetFileChoice(Subject.EntityId, EditorFileSortRules.IgnoreChoice, EditorFileSortRules.Describe(EditorFileSortRules.IgnoreChoice, null), _sorting.FileName);
+            Pending?.SetFileChoice(StagingId, EditorFileSortRules.IgnoreChoice, EditorFileSortRules.Describe(EditorFileSortRules.IgnoreChoice, null), _sorting.FileName);
         }
     }
 
@@ -349,7 +353,7 @@
                 _results =
                 [
                     .. found
-                        .Where(result => result.Id != Subject.EntityId && EditorFileSortRules.CanAttachTo(result.EntityType))
+                        .Where(result => result.Id != StagingId && EditorFileSortRules.CanAttachTo(result.EntityType))
                         .DistinctBy(result => result.Id)
                         .Take(12)
                         .Select(result => new AttachTarget(result.Id, result.Title, DetailText(result.Subtitle, result.Year))),
