@@ -35,6 +35,26 @@ public static class EffectiveArtworkResolver
             : Resolve("Primary", "CoverArt", work, workParents);
     }
 
+    /// <summary>
+    /// The one rule for the picture an episode shows wherever it appears (the episode list, the episode's own hero and the editor's episode
+    /// dropdown): the episode's stored still first (a frame taken from its video, a chosen picture, or a downloaded provider still), then the
+    /// provider's still address, then each fallback in order. A blank value never wins; null when none is left.
+    /// </summary>
+    public static string? ResolveEpisodePicture(string? storedStillUrl, string? providerStillUrl, params string?[] fallbacks)
+    {
+        if (!string.IsNullOrWhiteSpace(storedStillUrl))
+        {
+            return storedStillUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(providerStillUrl))
+        {
+            return providerStillUrl;
+        }
+
+        return fallbacks.FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
+    }
+
     public static EffectiveArtworkSelection Resolve(
         string role,
         string? sourceAssetType,

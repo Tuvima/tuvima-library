@@ -472,7 +472,7 @@ internal sealed partial class DetailCompositionOrchestrator
     }
 
     private static int? ToDisplayPositionNumber(double? value)
-        => value.HasValue && IsWholeNumber(value.Value)
+        => value.HasValue && IsWholeNumber(value.Value) && Math.Abs(value.Value) < int.MaxValue
             ? Convert.ToInt32(Math.Round(value.Value, MidpointRounding.AwayFromZero))
             : null;
 

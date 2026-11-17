@@ -11,7 +11,7 @@ public sealed class PersonTileTests : AsyncBunitContext
     public PersonTileTests() { JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddLocalization(); Services.AddNativeUiServices(); }
 
     [Fact]
-    public void ArtistTile_ShowsNameAndSpelledOutCountsBelowThePhoto_AndOpensThePersonPage()
+    public void ArtistWithNoCovers_ShowsTheNameOnTheSquarePhotoAndTheCountInTheBottomLabel_AndOpensThePersonPage()
     {
         var personId = Guid.NewGuid();
         var tile = MediaPersonGroupTileComposer.Compose(
@@ -22,7 +22,6 @@ public sealed class PersonTileTests : AsyncBunitContext
 
         Assert.Equal($"/details/person/{personId:D}", cut.Find("a.person-tile").GetAttribute("href"));
         Assert.Equal("Adele", cut.Find(".person-tile__name").TextContent);
-        var counts = cut.FindAll(".media-count-line__item").Select(i => i.ParentElement!.GetAttribute("data-playback-tooltip")).ToList();
-        Assert.Equal(["4 albums", "52 songs"], counts);
+        Assert.Equal("4 albums", cut.Find(".media-tile-label--bottom").TextContent.Trim());
     }
 }

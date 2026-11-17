@@ -228,26 +228,10 @@ public partial class MediaBrowseShell
             MediaTileComposerService.FromDisplayCard(card),
             description: BuildGroupDescription(group),
             heroUrl: null,
-            previewImages: BuildGroupPreviewImages(group, wideArtwork, presentation),
             creator: group.Creator,
             collectionKey: group.DisplayName,
             showLogoAsBrand: IsTvNetworksGrouping,
             sortYear: group.LatestYear ?? group.EarliestYear ?? ParseYear(group.Year));
-    }
-
-    private static IReadOnlyList<string> BuildGroupPreviewImages(ContentGroupViewModel group, string? wideArtwork, string presentation)
-    {
-        IEnumerable<string?> candidates = string.Equals(presentation, "artist", StringComparison.OrdinalIgnoreCase)
-            ? new[] { group.ArtistPhotoUrl, group.CoverUrl, group.BannerUrl, group.BackgroundUrl }
-            : new[] { wideArtwork, group.BannerUrl, group.BackgroundUrl, group.CoverUrl };
-
-        return candidates
-            .Select(value => MediaTileArtworkUrl.Sized(value, "s") ?? value)
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Cast<string>()
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToList();
     }
 
     private static string GroupCountLabel(ContentGroupViewModel group)
@@ -411,7 +395,6 @@ public partial class MediaBrowseShell
         MediaTileViewModel card,
         string? description,
         string? heroUrl,
-        IReadOnlyList<string>? previewImages,
         string? creator,
         string? collectionKey,
         bool showLogoAsBrand,
@@ -429,7 +412,7 @@ public partial class MediaBrowseShell
             HeroUrl = heroUrl,
             LogoUrl = card.LogoUrl,
             ShowLogoAsBrand = showLogoAsBrand,
-            PreviewImages = previewImages ?? card.PreviewImages,
+            PreviewImages = card.PreviewImages,
             ArtworkStackItems = card.ArtworkStackItems,
             PreviewTotalCount = card.PreviewTotalCount,
             StatusText = card.StatusText,

@@ -144,6 +144,9 @@ public sealed record DisplayCardDto(
     /// (the same rule as the detail page's Universe icon). Tiles use it for "Open Universe" in the "..." menu; null draws no row.
     /// </summary>
     public string? UniverseQid { get; init; }
+
+    /// <summary>The content rating a movie or show carries (R, PG-13, TV-MA and so on); null when none is known. Pick up tiles show it instead of a star rating.</summary>
+    public string? ContentRating { get; init; }
 }
 
 public sealed record DisplayCardListMetadataDto(

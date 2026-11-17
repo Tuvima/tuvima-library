@@ -8,6 +8,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Persons;
@@ -89,8 +90,7 @@ internal sealed partial class DetailCompositionOrchestrator
             artworkFallback.CoverUrl,
             artworkFallback.SquareUrl);
         var backdropUrl = entityType == DetailEntityType.TvEpisode
-            ? StringHelpers.FirstNonBlankOr(string.Empty,
-                GetValue(values, "episode_still_url"))
+            ? await ResolveEpisodeHeroPictureAsync(workId, values, ct)
             : StringHelpers.FirstNonBlankOr(string.Empty,
                 detail.BackgroundUrl,
                 detail.HeroUrl,
@@ -292,6 +292,21 @@ internal sealed partial class DetailCompositionOrchestrator
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
             LibraryStatus = LibraryStatus.Owned,
         };
+    }
+
+    /// <summary>
+    /// An episode's hero takes the same picture its row in the episode list shows: the stored still first (a frame Library made from the
+    /// video has no canonical still value, so reading only that left the hero empty), then the provider's still address.
+    /// </summary>
+    internal async Task<string> ResolveEpisodeHeroPictureAsync(
+        Guid episodeWorkId,
+        IReadOnlyDictionary<string, string> values,
+        CancellationToken ct)
+    {
+        var stored = (await LoadTvEpisodeStillsAsync([episodeWorkId], ct)).GetValueOrDefault(episodeWorkId)?.EpisodeStillAssetId is Guid stillId
+            ? $"/stream/artwork/{stillId:D}"
+            : null;
+        return EffectiveArtworkResolver.ResolveEpisodePicture(stored, GetValue(values, "episode_still_url")) ?? string.Empty;
     }
 
     // "Companion" opens the phone companion for this title; it comes before Edit and is the same for everyone who can see the page.

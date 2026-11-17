@@ -264,8 +264,11 @@ public partial class ShelfGridPage
         _hasMore = page.HasMore && page.Items.Count > 0;
     }
 
+    // Continue shelves ("continue", "continue-watching", "continue-reading", "continue-listening") draw the Continue tiles of the discover row.
+    private bool IsContinueShelf => ShelfKey.StartsWith("continue", StringComparison.OrdinalIgnoreCase);
+
     private bool IsContinueGrid(DisplayGridPageDto page) =>
-        ShelfKey.StartsWith("continue", StringComparison.OrdinalIgnoreCase)
+        IsContinueShelf
         || string.Equals(page.DefaultSort, DisplayGridValues.SortPlayed, StringComparison.OrdinalIgnoreCase);
 
     private Task SyncObserverAsync() =>

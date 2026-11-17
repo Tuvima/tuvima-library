@@ -210,6 +210,43 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
         Assert.Null(Assert.Single(items, item => item.Id == other).StillUrl);
     }
 
+    [Fact]
+    public async Task AnEpisodeRowWithOnlyAFrameTakenFromItsVideo_ShowsThatFrame()
+    {
+        var (_, _, episode, _) = SeedShow();
+        // A frame Library made itself: source "generated", a stored picture with no medium copy and no provider address.
+        var frame = await StoreAsync(episode, "Work", "EpisodeStill", Image("frame"), source: "generated", withMedium: false);
+
+        var header = await _world.Header().GetHeaderAsync(episode, null);
+
+        Assert.Equal($"/stream/artwork/{frame:D}", Assert.Single(header!.Level!.Items, item => item.IsCurrent).StillUrl);
+    }
+
+    [Fact]
+    public async Task AnEpisodeRowWithAFrameAndAProviderStill_ShowsTheFrame_AsTheListDoes()
+    {
+        var (_, _, episode, _) = SeedShow();
+        var frame = await StoreAsync(episode, "Work", "EpisodeStill", Image("frame"), source: "generated");
+        _world.Canonical(episode, "episode_still_url", "https://tvdb.example/still.jpg");
+
+        var header = await _world.Header().GetHeaderAsync(episode, null);
+
+        Assert.Equal($"/stream/artwork/{frame:D}", Assert.Single(header!.Level!.Items, item => item.IsCurrent).StillUrl);
+    }
+
+    [Fact]
+    public async Task AnEpisodeRowWithOnlyAProviderStillAddress_ShowsThatAddress_AsTheListDoes()
+    {
+        var (_, other, episode, _) = SeedShow();
+        _world.Canonical(episode, "episode_still_url", "https://tvdb.example/still.jpg");
+
+        var header = await _world.Header().GetHeaderAsync(episode, null);
+
+        var items = header!.Level!.Items;
+        Assert.Equal("https://tvdb.example/still.jpg", Assert.Single(items, item => item.Id == episode).StillUrl);
+        Assert.Null(Assert.Single(items, item => item.Id == other).StillUrl);
+    }
+
     // -- Seeding --------------------------------------------------------------------------------------------------------------------
 
     // A show with one season of two episodes; returns the show, the second episode (no stored picture), the first episode and its file.
@@ -249,7 +286,8 @@ public sealed class EditorHeaderStoredPictureTests : IDisposable
 
     // Stores a picture through the real artwork repository, the way ingestion does (a preferred, provider-sourced variant).
     private async Task<Guid> StoreAsync(
-        Guid entityId, string entityType, string assetType, string path, string? primaryHex = null, string? secondaryHex = null)
+        Guid entityId, string entityType, string assetType, string path, string? primaryHex = null, string? secondaryHex = null,
+        string source = "tmdb", bool withMedium = true)
     {
         var variant = new EntityAsset
         {

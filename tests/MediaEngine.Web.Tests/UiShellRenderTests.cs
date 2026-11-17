@@ -1382,7 +1382,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("Authors", cut.Markup);
             Assert.Contains("Narrators", cut.Markup);
             Assert.Contains("Timeline", cut.Markup);
-            Assert.Contains("In progress", cut.Markup);
+            Assert.DoesNotContain("In progress", cut.Markup);
             Assert.Contains("Not started", cut.Markup);
             Assert.Contains("Finished", cut.Markup);
             Assert.Contains("Cards", cut.Markup);

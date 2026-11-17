@@ -58,7 +58,7 @@
                             <span class="tl-epsel__still" aria-hidden="true">
                                 @if (!string.IsNullOrWhiteSpace(item.StillUrl))
                                 {
-                                    <AppImage Src="@item.StillUrl" Alt="" Width="88" Height="50" DrawnPx="176" ObjectFit="AppObjectFit.Cover" />
+                                    <AppImage Src="@EditorNavText.Picture(item.StillUrl)" Alt="" Width="88" Height="50" DrawnPx="176" ObjectFit="AppObjectFit.Cover" />
                                 }
                             </span>
                             <span class="tl-epsel__text">

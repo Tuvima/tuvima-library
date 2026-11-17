@@ -3237,6 +3237,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardDto
   IsSettling: System.Boolean | nullability=not-null | accessors=get,init
   IsNew: System.Boolean? | nullability=nullable | accessors=get,init
   UniverseQid: System.String | nullability=nullable | accessors=get,init
+  ContentRating: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardFlagsDto
   IsPlayable: System.Boolean | nullability=not-null | accessors=get,init
