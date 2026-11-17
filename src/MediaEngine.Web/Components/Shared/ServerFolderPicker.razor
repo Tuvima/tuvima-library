@@ -55,11 +55,11 @@ else
                              OnOpenRow="OpenHighlightedAsync"
                              ShowState="@ShowListState">
                 <TopContent>
-                    @if (ShowFolderName || TopContent is not null || !string.IsNullOrWhiteSpace(TargetLabel))
+                    @if ((ShowFolderName && !ShowBrowser) || TopContent is not null || !string.IsNullOrWhiteSpace(TargetLabel))
                     {
                         @* One row above the list: the friendly name with its hint beside it, and the host's own context (the area and kind chips) at the far end. *@
                         <div class="server-folder-picker__head">
-                            @if (ShowFolderName)
+                            @if (ShowFolderName && !ShowBrowser)
                             {
                                 @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. It is the only text box. *@
                                 <div class="server-folder-picker__name-row">
@@ -108,14 +108,37 @@ else
                             </AppBrowserSideSection>
                         }
 
-                        @if (ShowBrowser)
-                        {
-                            @* "Type a path..." is for what a list cannot reach (a network share, a hidden folder, a deep tree): it opens a small box, and Go lists that folder. *@
-                            <AppBrowserSideSection RuleAbove="true">
-                                <AppBrowserSideItem Label="@L["FolderPicker_TypeAPath"].Value" Icon="@AppMaterialIcons.Outlined.Edit" Link="true" Selected="_typingPath"
-                                                    aria-expanded="@(_typingPath ? "true" : "false")" data-picker-type-path="true"
-                                                    OnClick="ToggleTypedPathAsync" />
-                            </AppBrowserSideSection>
+                    }
+                </Sidebar>
+                <InsideContent>
+                    @if (ShowBrowser)
+                    {
+                        @* The path first: the folder you are inside is the selection, with a pencil to type a path instead (issue 1041). The friendly name sits just under it. *@
+                        <div class="server-folder-picker__inside">
+                            <div class="server-folder-picker__path-row">
+                                <span data-picker-selected class="server-folder-picker__path">
+                                    @if (string.IsNullOrWhiteSpace(_selectedPathText))
+                                    {
+                                        @L["FolderPicker_NoFolderChosen"]
+                                    }
+                                    else
+                                    {
+                                        <b class="server-folder-picker__selected">@_selectedPathText</b>
+                                        @if (_browse is not null && !_loadingBrowse && _browse.RelativePath == _selectedRelativePath)
+                                        {
+                                            <span> &middot; @InsideText</span>
+                                        }
+                                    }
+                                </span>
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
+                                               Size="AppControlSize.Compact"
+                                               ButtonStyle="AppButtonStyle.Text"
+                                               Tooltip="@L["FolderPicker_TypeAPath"].Value"
+                                               AriaLabel="@L["FolderPicker_TypeAPath"].Value"
+                                               aria-expanded="@(_typingPath ? "true" : "false")"
+                                               data-picker-type-path="true"
+                                               OnClick="ToggleTypedPathAsync" />
+                            </div>
                             @if (_typingPath)
                             {
                                 <div class="server-folder-picker__typed" data-picker-typed data-app-escape-owner="field">
@@ -138,27 +161,21 @@ else
                                     }
                                 </div>
                             }
-                        }
-                    }
-                </Sidebar>
-                <InsideContent>
-                    @if (ShowBrowser)
-                    {
-                        @* The folder you are inside is the selection, named here; the list below shows what is in it. *@
-                        <span data-picker-selected>
-                            @if (string.IsNullOrWhiteSpace(_selectedPathText))
+                            @if (ShowFolderName)
                             {
-                                @L["FolderPicker_NoFolderChosen"]
+                                @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. It is the only text box. *@
+                                <div class="server-folder-picker__name-row">
+                                    <div class="server-folder-picker__name" data-folder-name>
+                                        <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
+                                                      Size="AppControlSize.Compact"
+                                                      Value="@_folderName"
+                                                      ValueChanged="FolderNameEdited"
+                                                      MaxLength="@FolderHandlingWords.MaxFolderNameLength" />
+                                    </div>
+                                    <span class="server-folder-picker__name-hint">@L["ServerFolderPicker_FriendlyNameHint"]</span>
+                                </div>
                             }
-                            else
-                            {
-                                <b class="server-folder-picker__selected">@_selectedPathText</b>
-                                @if (_browse is not null && !_loadingBrowse && _browse.RelativePath == _selectedRelativePath)
-                                {
-                                    <span> &middot; @InsideText</span>
-                                }
-                            }
-                        </span>
+                        </div>
                     }
                 </InsideContent>
                 <Columns>
@@ -236,13 +253,12 @@ else
             @if (OfferHandling)
             {
                 <div class="server-folder-picker__handling" role="group" aria-label="How Library uses this folder" data-folder-handling>
-                    <AppChoiceRow Title="@FolderHandlingWords.ReadOnly" Description="@FolderHandlingWords.ReadOnlyExplainer" Compact="true"
-                                  Selected="@(!_handlingManaged)" OnClick="@(() => SetHandlingAsync(false))" />
-                    @if (ManagedAllowed)
-                    {
-                        <AppChoiceRow Title="@FolderHandlingWords.Managed" Description="@FolderHandlingWords.ManagedExplainer" Compact="true"
-                                      Selected="@_handlingManaged" OnClick="@(() => SetHandlingAsync(true))" />
-                    }
+                    <AppSegmentedControl Options="HandlingOptions"
+                                         Value="@(_handlingManaged ? FolderHandlingWords.ManagedKey : FolderHandlingWords.ReadOnlyKey)"
+                                         ValueChanged="HandlingChosenAsync"
+                                         AriaLabel="How Library uses this folder"
+                                         Size="AppControlSize.Compact" />
+                    <p class="server-folder-picker__handling-help">@(ManagedAllowed ? FolderHandlingWords.ChoiceHelp : FolderHandlingWords.ReadOnlyOnlyHelp)</p>
                 </div>
             }
             @if (MessageLine is { } message)
@@ -368,6 +384,12 @@ else
     private AppBrowserFrame? _frame;
     private ElementReference _typedInput;
     private bool _typingPath;
+
+    // Read-only / Managed as one small choice; a kind that cannot be managed offers Read-only alone.
+    private IReadOnlyList<AppSelectOption> HandlingOptions => ManagedAllowed
+        ? [new AppSelectOption(FolderHandlingWords.ReadOnlyKey, FolderHandlingWords.ReadOnly), new AppSelectOption(FolderHandlingWords.ManagedKey, FolderHandlingWords.Managed)]
+        : [new AppSelectOption(FolderHandlingWords.ReadOnlyKey, FolderHandlingWords.ReadOnly)];
+    private Task HandlingChosenAsync(string key) => SetHandlingAsync(key == FolderHandlingWords.ManagedKey);
     private bool _managedChoice;
     private bool _handlingManaged;
     private string _folderName = string.Empty;

@@ -15,6 +15,10 @@ public static class FolderHandlingWords
     public const string ReadOnlyExplainer = "Library only reads this folder. Your files are never changed.";
     public const string ManagedExplainer = "Library keeps this folder tidy: new files are filed and named here.";
 
+    /// <summary>The one line under the compact Read-only / Managed choice in the folder picker (issue 1041).</summary>
+    public const string ChoiceHelp = "Read-only never changes your files. Managed can move and rename them.";
+    public const string ReadOnlyOnlyHelp = "Read-only never changes your files.";
+
     /// <summary>Heads up shown when Managed is chosen on a folder that already holds files.</summary>
     public const string ManagedOnFilesWarning = "Library will move and rename files here. Choose Read-only to leave them alone.";
 

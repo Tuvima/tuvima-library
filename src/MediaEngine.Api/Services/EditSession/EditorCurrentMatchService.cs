@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using MediaEngine.Api.Endpoints;
+using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain;
@@ -30,7 +31,8 @@ public sealed class EditorCurrentMatchService(
     ItemQuickFactsService quickFacts,
     ILogger<EditorCurrentMatchService> logger,
     EditorProviderNames? providerNames = null,
-    ICanonicalValueArrayRepository? arrays = null)
+    ICanonicalValueArrayRepository? arrays = null,
+    IHttpClientFactory? httpFactory = null)
 {
     private const string TvdbProvider = EditorMatchRule.TvdbProvider;
 
@@ -74,7 +76,7 @@ public sealed class EditorCurrentMatchService(
             Value(own, MetadataFieldConstants.Author) ?? Value(own, MetadataFieldConstants.Artist) ?? Value(own, MetadataFieldConstants.Director),
             Value(own, MetadataFieldConstants.SeasonNumber),
             Value(own, MetadataFieldConstants.EpisodeNumber),
-            Value(own, "cover_url") ?? Value(own, "poster_url"),
+            StoredPicture(own) ?? (IsMusic(launch.MediaType) ? StoredPicture(root) : null),
             Value(own, "description"));
 
         RecordFacts facts = stored;
@@ -133,9 +135,10 @@ public sealed class EditorCurrentMatchService(
         var measured = hasOwnLength ? (await quickFacts.GetAsync(entityId, ct).ConfigureAwait(false))?.RuntimeSeconds : null;
         var recordMinutes = hasOwnLength && double.TryParse(Value(own, MetadataFieldConstants.Runtime), NumberStyles.Float, CultureInfo.InvariantCulture, out var minutes) ? minutes : (double?)null;
 
-        // A TheTVDB picture is shown through the Engine's preview, never as TheTVDB's own address.
+        // A provider's picture is shown through the Engine, never as the provider's own address: TheTVDB through its preview, any other approved
+        // provider by a small copy the Engine fetches (the card's cover or album art, v8 D10). The file's own cover is the fallback.
         var imageUrl = MetadataEndpoints.CreateTvdbPreviewUrl(previews, entityId, launch.WorkId, facts.ImageUrl)
-            ?? (IsTvdbAddress(facts.ImageUrl) ? null : facts.ImageUrl);
+            ?? await ProviderPictureAsync(source, facts.ImageUrl, LocalPicture(own) ?? (IsMusic(launch.MediaType) ? LocalPicture(root) : null), ct).ConfigureAwait(false);
         var why = BuildWhy(isTv, parsed, titleSide, yearSide, facts, scores, measured, recordMinutes);
         var productName = providerNames?.ProductName(source.ProviderId, source.Kind.ToLowerInvariant()) ?? source.ProviderName;
         var checks = why.Select(Check).ToList();
@@ -208,6 +211,49 @@ public sealed class EditorCurrentMatchService(
 
         return EditorMatchRule.OwnValues(work, Latest(await canonicals.GetByEntityAsync(assetId, ct).ConfigureAwait(false)), launch.WorkKind);
     }
+
+    // The saved picture of a record. A provider's picture is saved as an address (Apple, TMDB and the others save it as "cover"), the file's own cover as a
+    // local one ("cover_url" is /stream/{id}/cover once the file has art), so the provider's address is looked for first: the card shows the record's cover.
+    private static string? StoredPicture(IReadOnlyDictionary<string, string> values)
+    {
+        var found = new[] { MetadataFieldConstants.CoverUrl, MetadataFieldConstants.Cover, "poster_url", "poster" }
+            .Select(key => Value(values, key))
+            .Where(value => value is not null)
+            .ToList();
+        return found.FirstOrDefault(IsRemote) ?? found.FirstOrDefault();
+    }
+
+    // The file's own cover, a local address on this Engine: what is shown when the provider's picture cannot be fetched.
+    private static string? LocalPicture(IReadOnlyDictionary<string, string> values) =>
+        new[] { MetadataFieldConstants.CoverUrl, MetadataFieldConstants.Cover, "poster_url", "poster" }
+            .Select(key => Value(values, key))
+            .FirstOrDefault(value => value is not null && !IsRemote(value));
+
+    private static bool IsRemote(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var address) && address.Scheme is "http" or "https";
+
+    private static bool IsMusic(string? mediaType) => string.Equals(mediaType, "Music", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<string?> ProviderPictureAsync(EditorMatchRule.ProviderSource source, string? picture, string? local, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(picture) || IsTvdbAddress(picture))
+        {
+            return null;
+        }
+
+        if (!IsRemote(picture))
+        {
+            return picture;
+        }
+
+        var preview = httpFactory is null
+            ? null
+            : await RetailCandidateArtworkPreview.LoadAsync(PreviewProvider(source.ProviderId), picture, httpFactory, previews, ct).ConfigureAwait(false);
+        return preview ?? local;
+    }
+
+    // The key the preview loader approves picture hosts by (Apple Books and Apple Music are the one Apple provider).
+    private static string PreviewProvider(string providerId) => providerId is "apple_books" or "apple_music" ? "apple_api" : providerId;
 
     private static bool IsTvdbAddress(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var address)

@@ -44,7 +44,7 @@ Surface tokens are the only backgrounds in the Dashboard. Purple appears only as
 | Text on accent | `--tl-text-on-accent` | `#FFFFFF` | Text on a purple fill |
 | Text on warning | `--tl-text-on-warning` | `#1F1303` | Text on an amber fill |
 | Text on Vault gold | `--tl-text-on-collection` | `#17120A` | Text on a gold fill |
-| Danger text | `--tl-text-danger` | `#FF8A8A` | Error text and destructive labels |
+| Danger text | `--tl-text-danger` | `#FF6A5F` | Error text and destructive labels |
 
 ### Borders
 
@@ -108,13 +108,13 @@ Neutral: the elevated surface, the default border, a neutral hover wash, a purpl
 | Success | `--tl-status-success` | `#22C55E` | Healthy, done, matched |
 | Info | `--tl-status-info` | `#38BDF8` | In progress, informational |
 | Warning | `--tl-status-warning` | `#F59E0B` | Needs attention, amber reasons |
-| Danger | `--tl-status-danger` | `#EF4444` | Failed, destructive |
+| Danger | `--tl-status-danger` | `#E5231F` | Failed, destructive |
 | Unmatched | `--tl-status-unmatched` | `#FB7185` | Not matched |
 | Idle | `--tl-status-idle` | `#7F8DA5` | Off, skipped |
 | Success soft | `--tl-status-success-soft` | `rgba(34, 197, 94, 0.14)` | Success wash |
 | Info soft | `--tl-status-info-soft` | `rgba(56, 189, 248, 0.14)` | Info wash |
 | Warning soft | `--tl-status-warning-soft` | `rgba(245, 158, 11, 0.14)` | Warning wash |
-| Danger soft | `--tl-status-danger-soft` | `rgba(239, 68, 68, 0.14)` | Danger wash |
+| Danger soft | `--tl-status-danger-soft` | `rgba(229, 35, 31, 0.14)` | Danger wash |
 
 ### Areas
 

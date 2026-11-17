@@ -316,6 +316,26 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
     // -- Folders and files ----------------------------------------------------------------------------------------------------------
 
     [Fact]
+    public async Task FoldersAndFiles_AMatchedEpisode_ShowsAsAnEpisode_WithoutTheWhatIsThisFileQuestion()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Fargo",
+            Total = 2,
+            Entries =
+            [
+                new EditorFolderEntryDto { Name = "Fargo S01E16.mkv", Path = "Fargo S01E16.mkv", State = EditorFolderEntryStates.Main, ItemId = Guid.NewGuid() },
+                new EditorFolderEntryDto { Name = "odd.bin", Path = "odd.bin", State = EditorFolderEntryStates.Unsorted, ItemId = Guid.NewGuid() },
+            ],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.NotEmpty(cut.FindAll("[data-entry=\"Fargo S01E16.mkv\"] [data-entry-open=item]"));
+        Assert.Empty(cut.FindAll("[data-entry=\"Fargo S01E16.mkv\"] [data-entry-sort]"));
+        Assert.NotEmpty(cut.FindAll("[data-entry=\"odd.bin\"] [data-entry-sort]"));
+    }
+
+    [Fact]
     public async Task FoldersAndFiles_ListsFoldersFirst_MarksEachFile_AndKeepsToTheTitlesFolder()
     {
         _tree = new EditorFolderTreeDto

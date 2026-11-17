@@ -1274,6 +1274,9 @@
   <data name="EditorArtworkTool_Artwork" xml:space="preserve">
     <value>Artwork</value>
   </data>
+  <data name="EditorArtworkTool_Magnify" xml:space="preserve">
+    <value>Magnify</value>
+  </data>
   <data name="EditorArtworkTool_FetchAllStills" xml:space="preserve">
     <value>Fetch all stills</value>
   </data>
@@ -1718,11 +1721,8 @@
   <data name="Common_Kids" xml:space="preserve">
     <value>Kids</value>
   </data>
-  <data name="TopNavAccountMenu_SecureYourAccount" xml:space="preserve">
-    <value>Secure your account</value>
-  </data>
-  <data name="TopNavAccountMenu_AddAPasswordToUse" xml:space="preserve">
-    <value>Add a password to use the Library away from home. Phones and TVs at home keep working without one.</value>
+  <data name="TopNavAccountMenu_AddAPassword" xml:space="preserve">
+    <value>Add a password</value>
   </data>
   <data name="TopNavAccountMenu_WhoSWatching" xml:space="preserve">
     <value>Who's watching?</value>
@@ -6716,9 +6716,6 @@
   <data name="SetupReadinessStage_OpenMyLibrary" xml:space="preserve">
     <value>Open my library</value>
   </data>
-  <data name="SetupStageFooter_ReturnToCurrentStep" xml:space="preserve">
-    <value>Return to current step</value>
-  </data>
   <data name="SetupStepper_Later" xml:space="preserve">
     <value>Later</value>
   </data>
@@ -9371,14 +9368,41 @@
   <data name="EditorFooter_ManyUnsaved" xml:space="preserve">
     <value>{0} unsaved changes</value>
   </data>
-  <data name="EditorHeader_OpenAt" xml:space="preserve">
-    <value>Open at {0}</value>
-  </data>
   <data name="EditorFamily_Matched" xml:space="preserve">
     <value>Matched</value>
   </data>
   <data name="EditorHeader_NotMatched" xml:space="preserve">
     <value>Not matched</value>
+  </data>
+  <data name="EditorHeaderBadge_Label" xml:space="preserve">
+    <value>Match status</value>
+  </data>
+  <data name="EditorHeaderBadge_Retail" xml:space="preserve">
+    <value>Retail</value>
+  </data>
+  <data name="EditorHeaderBadge_Canonical" xml:space="preserve">
+    <value>Canonical</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailShort" xml:space="preserve">
+    <value>R</value>
+  </data>
+  <data name="EditorHeaderBadge_CanonicalShort" xml:space="preserve">
+    <value>C</value>
+  </data>
+  <data name="EditorHeaderBadge_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorHeaderBadge_MatchedTo" xml:space="preserve">
+    <value>Matched to {0}</value>
+  </data>
+  <data name="EditorHeaderBadge_NotMatchedTo" xml:space="preserve">
+    <value>Not matched to {0}</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailMatchedPlain" xml:space="preserve">
+    <value>Matched to a retail provider</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailNotMatched" xml:space="preserve">
+    <value>Not matched to a retail provider</value>
   </data>
   <data name="EditorHeader_Close" xml:space="preserve">
     <value>Close the editor</value>
@@ -11332,9 +11356,6 @@
   </data>
   <data name="EditorMatchPanel_Staged" xml:space="preserve">
     <value>Staged: {0}. Nothing is saved until you press Save changes.</value>
-  </data>
-  <data name="EditorMatchPanel_OpenSource" xml:space="preserve">
-    <value>Open source ↗</value>
   </data>
   <data name="EditorMatchPanel_RemoveMatch" xml:space="preserve">
     <value>Remove match</value>
@@ -13981,6 +14002,9 @@
   </data>
   <data name="EditorMatchCard_ReadLess" xml:space="preserve">
     <value>Read less</value>
+  </data>
+  <data name="EditorMatchCard_OpenIn" xml:space="preserve">
+    <value>Open in {0}</value>
   </data>
   <data name="EditorMatchCard_NotProvided" xml:space="preserve">
     <value>Not provided</value>

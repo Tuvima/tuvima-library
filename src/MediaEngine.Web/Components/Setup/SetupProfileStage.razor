@@ -12,14 +12,14 @@
         <RecoveryCodesDisplay Codes="@RecoveryCodes"
                               Heading="@L["SetupProfileStage_LibraryAdministratorRecoveryCodes"].Value"
                               FileName="tuvima-administrator-recovery-codes.txt" />
-        <SetupStageFooter ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <SetupStageFooter>
             <AppButton Label="@L["SetupProfileStage_ISavedThemContinue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
         </SetupStageFooter>
     }
     else if (AdministratorConfigured)
     {
         <AppAlert Tone="AppUiTone.Success">@L["SetupProfileStage_YourProfileIsReady"]</AppAlert>
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <SetupStageFooter Back="Back">
             @if (Continue.HasDelegate)
             {
                 <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
@@ -70,7 +70,7 @@
             <AppAlert Tone="AppUiTone.Warning">@Notice</AppAlert>
         }
         <small>@(ThisComputerOnly ? "Your details stay on your Library server." : "Your credentials remain on your Library server.")</small>
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <SetupStageFooter Back="Back">
             <AppButton Label="@L["SetupProfileStage_CreateProfile"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || !CanCreate)" OnClick="CreateAdministrator" />
         </SetupStageFooter>
     }
@@ -115,7 +115,5 @@
     /// <summary>Moves on to the next step once the recovery codes were saved; the sign-in itself already happened when the profile was created.</summary>
     [Parameter] public EventCallback Continue { get; set; }
     [Parameter] public EventCallback Back { get; set; }
-    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     private bool PasswordsMatch => string.Equals(Password, PasswordConfirmation, StringComparison.Ordinal);
 }

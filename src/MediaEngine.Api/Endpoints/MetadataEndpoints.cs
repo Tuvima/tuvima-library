@@ -2762,13 +2762,15 @@ public static partial class MetadataEndpoints
         switch (mediaType)
         {
             case "TV":
+                // An episode always gets its own scope, whose field id is the episode's work id (the id the item dropdown asks
+                // for). Episodes filed straight under the show, with no season level, have the show as their parent: that parent is
+                // the Series scope, so they get no Season scope.
                 var isEpisodeLaunch = string.Equals(launchWorkKind, "child", StringComparison.OrdinalIgnoreCase)
-                    && hasParentScope
-                    && launch.ParentWorkId!.Value != rootWorkId;
+                    && hasParentScope;
                 var isSeasonLaunch = isParentLaunch && hasParentScope;
                 var seasonWorkId = isSeasonLaunch
                     ? launch.WorkId
-                    : isEpisodeLaunch && hasParentScope
+                    : isEpisodeLaunch && launch.ParentWorkId!.Value != rootWorkId
                         ? launch.ParentWorkId!.Value
                         : Guid.Empty;
 

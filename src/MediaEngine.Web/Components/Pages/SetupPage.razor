@@ -71,13 +71,12 @@
                                       HostNameDerived="@_hostDerived" HostNameDerivedChanged="@((bool value) => _hostDerived = value)"
                                       Busy="@_busy" Save="SaveWelcomeAsync"
                                       Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" CancelRestore="CancelRestore"
-                                      UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync" RestorePin="@_restorePin" RestorePinChanged="@((string? value) => _restorePin = value ?? string.Empty)"
-                                      ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                      UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync" RestorePin="@_restorePin" RestorePinChanged="@((string? value) => _restorePin = value ?? string.Empty)" />
                     break;
                 case "tools":
                     <SetupToolsStage Preflight="@_preflight" Graphics="@_graphics" Capacity="@_capacity" Benchmarking="@_capacityRunning" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
                                      InstallTool="InstallToolAsync" RunInstaller="RunToolInstallerAsync"
-                                     Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                     Back="GoBackAsync" />
                     break;
                 case "profile":
                     <SetupProfileStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
@@ -89,12 +88,12 @@
                                              RecoveryCodes="@_recoveryCodes"
                                              AdministratorConfigured="@(_status.AdministratorConfigured)" Busy="@_busy" CreateAdministrator="CreateAdministratorAsync"
                                              ThisComputerAvailable="@ThisComputerAvailable" SignInMode="@_signInMode" SignInModeChanged="SignInModeChangedAsync" Notice="@_signInNotice"
-                                             Continue="ContinueAfterProfileAsync" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                             Continue="ContinueAfterProfileAsync" Back="GoBackAsync" />
                     break;
                 case "libraries":
                     <SetupLibrariesStage VaultOn="@(StepState("vault") == "passed")" Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
                                      LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync"
-                                     Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                     Back="GoBackAsync" />
                     break;
                 case "vault" when _vaultProfileId is { } vaultProfileId:
                     <SetupVaultOffer ProfileId="@vaultProfileId" AdministratorHasPin="@_vaultProfileHasPin" SetupSession="@_setupSession" AlreadyOn="@SetupVaultStepRules.IsAlreadyOn(StepState("vault"), Nsfw.IsAvailable)" Finished="VaultFinishedAsync" TurnedOn="VaultTurnedOnAsync" Back="GoBackAsync" />
@@ -103,11 +102,11 @@
                     <SetupMetadataStage Catalogue="@_providerCatalogue" Loaded="@_providersLoaded" SetupSession="@_setupSession" Busy="@_busy"
                                          Locale="@_locale" LocaleChanged="@((SetupLocaleDto value) => _locale = value)"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
-                                         Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                         Back="GoBackAsync" />
                     break;
                 default:
                     <SetupReadinessStage HeldKinds="@HeldKinds" Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" Tools="@_preflight?.Tools" Busy="@_busy" Complete="CompleteAsync"
-                                         Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                         Back="GoBackAsync" />
                     break;
             }
         </section>
@@ -683,12 +682,16 @@
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
     private async Task ValidateMediaAsync()
     {
+        // A person who came back to this step stays on the path they were on: Continue moves to the step after it and loads that step (issue 1038).
+        var revisiting = CurrentStep != WorkflowStep;
         _busy = true;
         _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession);
         _busy = false;
         if (_media?.Passed != true) return;
         _readiness = null;
         await ReloadAsync();
+        if (revisiting) await GoNextAsync();
+        else { _selectedStep = null; await EnsureCurrentStageDataAsync(); }
     }
 
     // After Tools, the first administrator on a desktop or tablet with no Vault yet is offered it once, as its own step; everyone else sees nothing about it.
@@ -817,7 +820,6 @@
     }
     private async Task GoNextAsync() { var index = Math.Min(NavigableSteps.Length - 1, CurrentIndex + 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
     private async Task GoBackAsync() { _selectedStep = SetupVaultStepRules.Previous(CurrentStep, VaultOffered); await EnsureCurrentStageDataAsync(); }
-    private void ReturnToCurrentStep() => _selectedStep = null;
     private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "welcome";
     private static string Friendly(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 }

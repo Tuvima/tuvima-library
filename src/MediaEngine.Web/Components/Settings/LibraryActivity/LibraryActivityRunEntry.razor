@@ -95,8 +95,7 @@
                                                      Title="@group.Title"
                                                      CoverUrl="@group.CoverUrl"
                                                      MediaType="@group.MediaType"
-                                                     Route="@group.Route"
-                                                     BottomLabel="@BottomLabel(group)" />
+                                                     Route="@group.Route" />
                             }
                         </div>
                         @if (_hasMore)
@@ -142,6 +141,7 @@
     {
         ActivityRunStatusNames.Active => L["LibraryActivity_Active"].Value,
         ActivityRunStatusNames.Failed => L["LibraryActivity_Failed"].Value,
+        _ when Run.EndedAt is { } ended => $"{L["LibraryActivity_Completed"].Value} · {LibraryActivityText.Took(ended - Run.StartedAt)}",
         _ => L["LibraryActivity_Completed"].Value,
     };
 
@@ -200,12 +200,6 @@
     private int MoreOnDesktop => Math.Max(0, Run.ItemCount - Math.Min(DesktopCovers, Run.Covers.Count));
 
     private int MoreOnPhone => Math.Max(0, Run.ItemCount - Math.Min(PhoneCovers, Run.Covers.Count));
-
-    // The bottom-left label: "12 new episodes", or nothing for a single movie.
-    private static string? BottomLabel(ActivityGroupDto group)
-        => group.ItemCount > 1 || group.MediaType is "TV" or "Music"
-            ? LibraryActivityText.NewLabel(group.MediaType, group.ItemCount)
-            : null;
 
     private async Task ToggleAsync()
     {

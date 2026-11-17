@@ -44,7 +44,7 @@
     {
         <AppAlert Tone="@(Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice"><span>@Media.Detail</span></AppAlert>
     }
-    <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+    <SetupStageFooter Back="Back">
         @if (!HasLibraries && !HasViewFolders)
         {
             <AppButton Label="@L["SetupLibrariesStage_SkipForNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
@@ -67,8 +67,6 @@
     [Parameter] public EventCallback LibraryCreated { get; set; }
     [Parameter] public EventCallback ValidateMedia { get; set; }
     [Parameter] public EventCallback Back { get; set; }
-    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
 
     private LibrariesConfigurationDto? _configuration;
     private string? _loadError;

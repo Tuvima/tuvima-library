@@ -100,7 +100,7 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
         _dialogs.WaitForElement(".add-view-folder");
         Assert.Equal("Add folder", Text(_dialogs.FindAll(".app-dialog-shell__title").Last()));
         _dialogs.WaitForAssertion(() => Assert.NotNull(_dialogs.Find("[data-managed-note]")));
-        var chosen = _dialogs.FindAll("[data-folder-handling] .app-choice-row.is-selected");
+        var chosen = _dialogs.FindAll("[data-folder-handling] .app-segmented-control__item.is-selected");
         var row = Assert.Single(chosen);
         Assert.StartsWith("Managed", Text(row), StringComparison.Ordinal);
     }
@@ -171,7 +171,7 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
         Assert.Empty(_dialogs.FindAll("[data-footer-line]"));
         Assert.Empty(_dialogs.FindAll("[data-picker-safety]"));
         Assert.DoesNotContain("never", Text(footer), StringComparison.Ordinal);
-        Assert.Contains("Your files are never changed.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
+        Assert.Contains("Read-only never changes your files.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
         Assert.DoesNotContain("Library scans this folder", Text(_dialogs.Find(".add-view-folder")), StringComparison.Ordinal);
     }
 

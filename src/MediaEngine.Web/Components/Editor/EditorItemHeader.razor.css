@@ -1,5 +1,5 @@
 /* The pop-over's header (universal editor v5 D1, D9; mock-up screens A, B, C, D, K): a 96 by 144 cover, the label, the title, one line of facts,
-   the nav row and, at the top right, the provider links. Its background is the gradient wash the component draws behind everything from the cover's colours;
+   the nav row and, at the top right, the match badge. Its background is the gradient wash the component draws behind everything from the cover's colours;
    with no colours it is the plain window surface. It never scrolls away. */
 .tl-editor-header {
     position: relative;
@@ -147,32 +147,28 @@
     padding-top: var(--tl-space-2);
 }
 
-/* The match signal at the top right (v7 D2, D3): the source links as plain outlined 32 px buttons (the shared secondary look, a name and one small
-   outward arrow), or the quiet words "Not matched". Room is kept at the right for the window's close button, which sits over the corner. */
-.tl-editor-header__links {
+/* The match badge at the top right (v8 D1): "Retail" and "Canonical" with a check or a cross each, left of the window's close button, which sits over the
+   corner (top 1.125rem, right 1.25rem, 44 px). The slot is as tall as the close button and centred on it, so the two never overlap; the label, title and
+   facts line keep clear of it. On a phone the badge is part of the one line instead, between the title and the "..." menu. */
+.tl-editor-header__badge {
     position: absolute;
-    top: var(--tl-space-5);
+    top: 1.125rem;
     right: 4.25rem;
     display: flex;
     align-items: center;
-    gap: var(--tl-space-2);
+    height: var(--tl-tap-target-min);
 }
 
-.tl-editor-header ::deep .tl-editor-header__link {
-    min-height: 2rem;
-    height: 2rem;
-    padding: 0 var(--tl-space-3);
+.tl-editor-header--badge .tl-editor-header__label,
+.tl-editor-header--badge .tl-editor-header__title,
+.tl-editor-header--badge .tl-editor-header__line {
+    margin-right: 9.5rem;
 }
 
-.tl-editor-header ::deep .tl-editor-header__link .tl-button-icon {
-    width: 0.875rem;
-    height: 0.875rem;
-}
-
-.tl-editor-header__notmatched {
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-type-secondary-size);
-    line-height: 2rem;
+.tl-editor-header__badge--phone {
+    position: static;
+    flex: 0 0 auto;
+    height: auto;
 }
 
 /* Under 1180 the window fills the screen and a long title may take two lines. */

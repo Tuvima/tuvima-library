@@ -1,0 +1,47 @@
+/* The match badge of the editor's header (universal editor v8 D1, mock-up screen A): one small rounded box, "Retail" and "Canonical" each followed by a
+   green check (matched) or a red cross (not matched). Small text; not a control, so the 44 px target rule does not apply. */
+.tl-hbadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    height: 1.875rem;
+    padding: 0 0.625rem;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-bg-root) 55%, transparent);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.tl-hbadge__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-1);
+}
+
+.tl-hbadge__mark {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.tl-hbadge__mark svg {
+    width: var(--tl-icon-size-xs);
+    height: var(--tl-icon-size-xs);
+    fill: currentColor;
+}
+
+.tl-hbadge__mark--yes {
+    color: var(--tl-status-success);
+}
+
+.tl-hbadge__mark--no {
+    color: var(--tl-text-danger);
+}
+
+/* The phone form (R and C) is tighter. */
+.tl-hbadge[data-phone="true"] {
+    gap: var(--tl-space-2);
+    padding: 0 var(--tl-space-2);
+}
