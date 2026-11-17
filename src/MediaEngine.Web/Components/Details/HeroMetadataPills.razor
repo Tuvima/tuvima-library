@@ -96,6 +96,27 @@
     [Parameter] public HeroBrandViewModel? HeroBrand { get; set; }
     [Parameter] public bool RenderHeroBrandInMetadata { get; set; } = true;
 
+    /// <summary>A show's owned seasons; above zero adds "N seasons" before the episode count at the top of the page (spec details-and-tile-fixes D9).</summary>
+    [Parameter] public int SeasonCount { get; set; }
+
+    // The season count goes just before the episode count (the sort keeps equal ranks in order): "2 seasons · 24 episodes".
+    private IReadOnlyList<MetadataPill> EffectiveMetadata
+    {
+        get
+        {
+            if (SeasonCount <= 0 || EntityType != DetailEntityType.TvShow || Metadata.Any(item => KindEquals(item, "season_count")))
+            {
+                return Metadata;
+            }
+
+            var seasons = new MetadataPill { Label = $"{SeasonCount} {(SeasonCount == 1 ? "season" : "seasons")}", Kind = "season_count" };
+            var withSeasons = Metadata.ToList();
+            var episodeIndex = withSeasons.FindIndex(item => KindEquals(item, "episode_count"));
+            withSeasons.Insert(episodeIndex < 0 ? withSeasons.Count : episodeIndex, seasons);
+            return withSeasons;
+        }
+    }
+
     private bool ShouldRenderHeroBrand => IsWatchHero
         && RenderHeroBrandInMetadata
         && HeroBrand is not null
@@ -106,7 +127,7 @@
         : "tl-detail-hero-brand-badge tl-detail-hero-brand-badge--text";
 
     private IReadOnlyList<MetadataPill> StatItems =>
-        Metadata
+        EffectiveMetadata
             .Where(IsHeroStat)
             .Where(item => !KindEquals(item, "genre"))
             .Where(item => !ShouldSuppressTypeStat(item))
@@ -127,7 +148,7 @@
     {
         get
         {
-            return Metadata
+            return EffectiveMetadata
                 .Where(IsWatchHeroStat)
                 .Where(item => !KindEquals(item, "genre"))
                 .Where(item => !string.IsNullOrWhiteSpace(item.Label))
@@ -173,7 +194,7 @@
         var kind = item.Kind?.ToLowerInvariant();
         if (EntityType == DetailEntityType.TvShow)
         {
-            return kind is "certification" or "content_rating" or "year" or "episode_count" or "duration" or "genre" or "quality" or "subtitles" or "rating";
+            return kind is "certification" or "content_rating" or "year" or "season_count" or "episode_count" or "duration" or "genre" or "quality" or "subtitles" or "rating";
         }
 
         return kind is "certification" or "content_rating" or "rating" or "duration" or "year" or "genre" or "quality" or "subtitles" or "list_owned";
@@ -208,6 +229,7 @@
     {
         "certification" or "content_rating" => 0,
         "year" => 1,
+        "season_count" => 2,
         "episode_count" => 2,
         "duration" => 3,
         "rating" => 4,
@@ -253,6 +275,7 @@
     private static string? WatchIconFor(MetadataPill item) => item.Kind?.ToLowerInvariant() switch
     {
         "year" => AppMaterialIcons.Outlined.CalendarMonth,
+        "season_count" => AppMaterialIcons.Outlined.LiveTv,
         "episode_count" => AppMaterialIcons.Outlined.VideoLibrary,
         "duration" => AppMaterialIcons.Outlined.Schedule,
         "item_count" => AppMaterialIcons.Outlined.CollectionsBookmark,

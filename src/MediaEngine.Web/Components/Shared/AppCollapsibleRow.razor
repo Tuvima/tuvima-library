@@ -2,7 +2,9 @@
 
 @* One heading for every row under a details page's hero: a title, a short summary and, at the end, the row's controls.
    Rows never collapse (editor and details revision v4.1 D11). *@
-<section class="@RootClass" aria-labelledby="@_headingId">
+<section class="@RootClass" aria-labelledby="@(HideHeading ? null : _headingId)" aria-label="@(HideHeading ? Title : null)">
+    @if (!HideHeading)
+    {
     <div class="app-collapsible-row__header">
         @if (HeadingLevel == 3)
         {
@@ -17,6 +19,7 @@
             <div class="app-collapsible-row__actions">@Actions</div>
         }
     </div>
+    }
     <div id="@_bodyId" class="app-collapsible-row__body">@ChildContent</div>
 </section>
 
@@ -33,6 +36,9 @@
     [Parameter, EditorRequired] public string RowKind { get; set; } = string.Empty;
 
     [Parameter] public int HeadingLevel { get; set; } = 2;
+
+    /// <summary>No heading line at all (an episode row, details-and-tile-fixes D9); the title still names the section for assistive tools.</summary>
+    [Parameter] public bool HideHeading { get; set; }
     [Parameter] public string? Class { get; set; }
 
     /// <summary>Controls that belong at the end of the heading while the row is open (Jump to, Show missing).</summary>

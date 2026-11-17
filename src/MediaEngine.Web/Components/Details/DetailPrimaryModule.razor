@@ -14,6 +14,7 @@
             <AppCollapsibleRow Title="@RowTitle"
                                Summary="@RowSummary"
                                RowKind="@RowKind"
+                               HideHeading="@IsEpisodeRow"
                                Actions="@ModuleControls">
                 <div class="tl-detail-primary-module__viewport">
                     @if (Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
@@ -22,6 +23,7 @@
                         <SequencePlacementPanel Placement="Model.SequencePlacement"
                                                 DetailSurface="true"
                                                 ShowIdentity="false"
+                                                OwnedLineBelow="@IsEpisodeRow"
                                                 Extras="Model.Extras"
                                                 RequestedSeasonId="SelectedSeasonId"
                                                 OnSeasonSelected="OnSeasonSelected"
@@ -275,6 +277,12 @@
             </a>
         }
     };
+
+    // An episode row has no heading line of its own: the count sits at the top of the page and "N episodes owned" under the
+    // tiles (spec details-and-tile-fixes D9). A folder of Other videos keeps its "Videos" heading.
+    private bool IsEpisodeRow => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Episodes
+        && Model.SequencePlacement is { } placement
+        && !VideoFolderWording.IsVideoFolderList(placement.ContainerLabel, placement.ItemLabel);
 
     private string RowTitle => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Sequence
         ? StringHelpers.FirstNonBlank(Model.SequencePlacement?.ContainerTitle, Model.PrimaryModule.Title, "Series")!
