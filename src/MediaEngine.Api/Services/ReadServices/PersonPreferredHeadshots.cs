@@ -1,10 +1,9 @@
 using Dapper;
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
-
-using MediaEngine.Api.Endpoints;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
