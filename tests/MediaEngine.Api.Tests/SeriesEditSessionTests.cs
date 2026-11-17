@@ -12,11 +12,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// A Series is read-only (universal editor v5 D7, acceptance A10): a Series of books, audiobooks, comics or films is the root of a family
-/// whose members are the real items, and the edit session refuses every field or picture write to it while a member saves as usual.
+/// A Series' provider-given fields are read-only (universal editor v5 D7, acceptance A10, amended by v8 D5): a Series of books, audiobooks,
+/// comics or films is the root of a family whose members are the real items, and the edit session refuses a write to its name or match
+/// while a member saves as usual; only its own tags and sort title are the owner's to change.
 /// The family's structure comes from a hand-written navigation stand-in; the data store and the save are real.
 /// </summary>
-public sealed class SeriesReadOnlyEditSessionTests : IDisposable
+public sealed class SeriesEditSessionTests : IDisposable
 {
     private static readonly IReadOnlyDictionary<Guid, string> NoRefusals = new Dictionary<Guid, string>();
 
@@ -29,7 +30,7 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
     private readonly SeriesOfBooksNavigation _navigation;
     private readonly IServiceScopeFactory _scopes = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
-    public SeriesReadOnlyEditSessionTests()
+    public SeriesEditSessionTests()
     {
         DapperConfiguration.Configure();
         _db = new DatabaseConnection(_dbPath);
@@ -63,6 +64,18 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
         Assert.False(result.DataSaved);
         Assert.Equal(EditSessionReasons.SeriesIsReadOnly, Assert.Single(result.Changes).Reason);
         Assert.Equal(0, OverrideCount(_series));
+    }
+
+    [Fact]
+    public async Task ASeriesOfBooks_SavesItsOwnSortTitleAndTags_ButNotWhenTheNameComesAlong()
+    {
+        var own = await _service.RunAsync(Request(_series, ("sort_title", "Dune Novels, The"), ("custom_tags", "classics")), NoRefusals);
+        var mixed = await _service.RunAsync(Request(_series, ("sort_title", "Other"), ("title", "Dune books")), NoRefusals);
+
+        Assert.True(own.DataSaved);
+        Assert.Equal(1, OverrideCount(_series));
+        Assert.False(mixed.Valid);
+        Assert.Equal(EditSessionReasons.SeriesIsReadOnly, Assert.Single(mixed.Changes).Reason);
     }
 
     [Fact]

@@ -1,6 +1,8 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Services.EditSession;
@@ -32,6 +34,20 @@ public abstract class GroupingEditSubject(
     protected virtual Task<List<EditorSubjectMemberDto>> LoadMembersAsync(Guid id, CancellationToken ct) => Task.FromResult<List<EditorSubjectMemberDto>>([]);
 
     protected ICollectionRepository Collections => collections;
+
+    /// <summary>More Details fields a kind has beside the name and description (a Series' sort title and tags).</summary>
+    protected virtual IReadOnlyList<EditorSubjectFieldDto> ExtraFields(IReadOnlyDictionary<string, string> local) => [];
+
+    /// <summary>The header's match badge for the grouping; null for a kind that has none.</summary>
+    protected virtual Task<EditorSubjectMatchBadgeDto?> LoadMatchBadgeAsync(Collection collection, CancellationToken ct) =>
+        Task.FromResult<EditorSubjectMatchBadgeDto?>(null);
+
+    /// <summary>The kinds of title the grouping holds, for the header's first dropdown; none by default.</summary>
+    protected virtual Task<List<EditorSeriesMediaTypeDto>> LoadMediaTypesAsync(Guid id, CancellationToken ct) =>
+        Task.FromResult<List<EditorSeriesMediaTypeDto>>([]);
+
+    /// <summary>Puts a value into the form it is stored in (a Series' tags are normalized). The default keeps it as typed.</summary>
+    protected virtual string Normalize(string key, string? value) => value ?? string.Empty;
 
     public async Task<bool> OwnsAsync(Guid id, CancellationToken ct = default) =>
         await collections.GetByIdAsync(id, ct).ConfigureAwait(false) is { } collection && OwnsType(collection.CollectionType);
@@ -72,20 +88,21 @@ public abstract class GroupingEditSubject(
             [
                 title,
                 Field(DescriptionKey, "Description", EditorSubjectInputKinds.TextArea, collection.Description ?? string.Empty),
+                .. ExtraFields(local),
             ],
             Members = await LoadMembersAsync(id, ct).ConfigureAwait(false),
+            MatchBadge = await LoadMatchBadgeAsync(collection, ct).ConfigureAwait(false),
+            MediaTypes = await LoadMediaTypesAsync(id, ct).ConfigureAwait(false),
         };
     }
 
-    public virtual bool ReadOnly => false;
-
-    /// <summary>The fields a person may write; a Series takes none and a Universe only its description override.</summary>
+    /// <summary>The fields a person may write; a Series takes its sort title and tags only, and a Universe its name and description overrides.</summary>
     protected virtual bool CanWrite(string key) => key is TitleKey or DescriptionKey;
 
     /// <summary>The plain reason a field the kind could otherwise take is refused (null for the generic "cannot be changed here").</summary>
     protected virtual string? RefusalFor(string key) => null;
 
-    public string? CheckField(string key, string? value)
+    public virtual string? CheckField(string key, string? value)
     {
         var normalized = key.Trim().ToLowerInvariant();
         return CanWrite(normalized) ? null : RefusalFor(normalized) ?? $"'{key.Trim()}' cannot be changed here.";
@@ -104,7 +121,7 @@ public abstract class GroupingEditSubject(
 
         var changes = fields.ToDictionary(
             field => field.Key.Trim().ToLowerInvariant(),
-            field => field.Value ?? string.Empty,
+            field => Normalize(field.Key.Trim().ToLowerInvariant(), field.Value),
             StringComparer.OrdinalIgnoreCase);
         if (!await overrides.SaveAsync(id, changes, ct).ConfigureAwait(false))
         {
@@ -124,20 +141,49 @@ public abstract class GroupingEditSubject(
 }
 
 /// <summary>
-/// A Series (or other provider-built grouping that is not a Universe). It is read-only (universal editor v5 D7, D24): its name, order and
-/// membership come from its members' own matches, so every field write is refused, and it has no picture of its own (its tile is the
-/// automatic stack of its members' covers).
+/// A Series (or other provider-built grouping that is not a Universe). Editable only for what is the owner's own (universal editor v8 D5,
+/// which amends v5 D7 and D24): its cover, background and logo, its tags and its sort title, kept as the Series' own local values
+/// (<c>collections.display_overrides_json</c>, the same write a Universe's overrides use). Its name and description come from Wikidata and
+/// its members' own matches, so they and its order and members stay locked: a write to them is refused with a plain reason.
 /// </summary>
-public sealed class SeriesEditSubject(ICollectionRepository collections, CollectionDisplayOverrideRepository overrides)
+public sealed class SeriesEditSubject(
+    ICollectionRepository collections,
+    CollectionDisplayOverrideRepository overrides,
+    EditorSeriesReadService? series = null)
     : GroupingEditSubject(collections, overrides)
 {
+    /// <summary>The key a Series' sort title is stored under: the same key a title's own sort title uses.</summary>
+    public const string SortTitleKey = "sort_title";
+
+    /// <summary>The key a Series' library tags are stored under: the same key a title's own tags use.</summary>
+    public const string TagsKey = "custom_tags";
+
     public override string Kind => EditorSubjectKinds.Series;
 
     protected override string SourceLabel => "Provider";
 
-    protected override IReadOnlyList<string> ArtworkSlots => [];
+    protected override IReadOnlyList<string> ArtworkSlots => ["CoverArt", "Background", "Logo"];
 
-    public override bool ReadOnly => true;
+    protected override IReadOnlyList<EditorSubjectFieldDto> ExtraFields(IReadOnlyDictionary<string, string> local) =>
+    [
+        OwnField(local, SortTitleKey, "Sort title", EditorSubjectInputKinds.Text),
+        OwnField(local, TagsKey, "Tags", EditorSubjectInputKinds.Chips),
+    ];
+
+    // The owner's own fields hold nothing a provider fills, so there is no canonical value to go back to and no lock.
+    private static EditorSubjectFieldDto OwnField(IReadOnlyDictionary<string, string> local, string key, string label, string input)
+    {
+        var value = local.TryGetValue(key, out var stored) ? stored : string.Empty;
+        return new EditorSubjectFieldDto
+        {
+            Key = key,
+            Label = label,
+            InputKind = input,
+            Value = value,
+            CanonicalValue = string.Empty,
+            IsOverridden = !string.IsNullOrWhiteSpace(value),
+        };
+    }
 
     // The Series' works in their order (the number the Series gives each, then title), so the editor can list them and open any one.
     protected override async Task<List<EditorSubjectMemberDto>> LoadMembersAsync(Guid id, CancellationToken ct)
@@ -161,9 +207,28 @@ public sealed class SeriesEditSubject(ICollectionRepository collections, Collect
         ];
     }
 
-    protected override bool CanWrite(string key) => false;
+    protected override async Task<EditorSubjectMatchBadgeDto?> LoadMatchBadgeAsync(Collection collection, CancellationToken ct) =>
+        series is null ? null : await series.ReadBadgeAsync(collection.Id, collection.WikidataQid, ct).ConfigureAwait(false);
+
+    protected override async Task<List<EditorSeriesMediaTypeDto>> LoadMediaTypesAsync(Guid id, CancellationToken ct) =>
+        series is null ? [] : await series.ReadMediaTypesAsync(id, ct).ConfigureAwait(false);
+
+    protected override bool CanWrite(string key) => key is SortTitleKey or TagsKey;
 
     protected override string? RefusalFor(string key) => EditSessionReasons.SeriesIsReadOnly;
+
+    public override string? CheckField(string key, string? value)
+    {
+        if (base.CheckField(key, value) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return DetailDisplayOverrideCatalog.TryValidateValue(key.Trim(), value, out _, out var error) ? null : error ?? $"'{key.Trim()}' cannot be changed here.";
+    }
+
+    protected override string Normalize(string key, string? value) =>
+        DetailDisplayOverrideCatalog.TryValidateValue(key, value, out var normalized, out _) ? normalized : value ?? string.Empty;
 
     protected override bool OwnsType(CollectionType type) => type is CollectionType.Series or CollectionType.ContentGroup;
 }

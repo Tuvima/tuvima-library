@@ -1,0 +1,98 @@
+/* The Series' two header dropdowns (universal editor v8 D6): the kind of title, then the title. Own class names so no rule is shared with the
+   family or Universe dropdowns. The buttons are the shared Large AppButton (44 px); this file only places them and draws their text. */
+.tl-snav {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.tl-snav--stacked {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.tl-snav__level {
+    position: relative;
+    flex: 1 1 10rem;
+    max-width: 16rem;
+    min-width: 0;
+}
+
+.tl-snav--stacked .tl-snav__level {
+    flex: 0 0 auto;
+    max-width: none;
+}
+
+.tl-snav__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+    text-align: left;
+}
+
+.tl-snav__text > small {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+.tl-snav__text > span {
+    overflow: hidden;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The list itself (position, width, border, background) is drawn by AppPopover in the top layer; its surface styles are global in app.css. */
+.tl-snav__panel {
+    box-sizing: border-box;
+    padding: var(--tl-space-2);
+}
+
+.tl-snav__search {
+    margin-bottom: var(--tl-space-2);
+}
+
+.tl-snav__options {
+    max-height: min(22rem, 45vh);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+}
+
+.tl-snav__missing {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: var(--tl-space-1) var(--tl-space-3);
+}
+
+/* A title the person does not own is shown but cannot be opened. */
+.tl-snav__missing {
+    cursor: default;
+    color: var(--tl-text-muted);
+}
+
+.tl-snav__count,
+.tl-snav__note,
+.tl-snav__more {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+.tl-snav__note,
+.tl-snav__more {
+    padding: var(--tl-space-1) var(--tl-space-2);
+}

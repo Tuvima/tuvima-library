@@ -15,11 +15,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// A Series is read-only and a Universe takes overrides only (universal editor v5 D7, screen H, acceptance A10): Edit on a Series shows its
-/// name and ordered members locked, a notice that says why, no Artwork tab and Close instead of Save; the dropdown reaches a member, which
-/// edits as any item does; a Universe's provider facts have no unlock while its description override does. The Engine is a hand-written stub.
+/// A Series is editable only for what is the owner's own, and a Universe takes overrides only (universal editor v5 D7, screen H, acceptance A10,
+/// amended by v8 D5 and D6): Edit on a Series shows its name, description and ordered members locked with a notice that says why, offers its
+/// pictures, tags and sort title, and has Details, Artwork and History; its header carries the match badge and two dropdowns (kind of title,
+/// then title); a member edits as any item does; a Universe's provider facts have no unlock while its description override does. The Engine is
+/// a hand-written stub.
 /// </summary>
-public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
+public sealed class SeriesEditorTests : AsyncBunitContext
 {
     private static readonly Guid SeriesId = Guid.Parse("5e000000-0000-0000-0000-000000000001");
     private static readonly Guid BookOne = Guid.Parse("5e000000-0000-0000-0000-0000000000b1");
@@ -28,8 +30,10 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private EditorSubjectDto _subject = Grouping(EditorSubjectKinds.Series);
+    private readonly List<(string Type, string? Query)> _titleReads = [];
+    private Func<string, EditorSeriesTitlesDto> _titles = type => new EditorSeriesTitlesDto { MediaType = type };
 
-    public SeriesReadOnlyEditorTests()
+    public SeriesEditorTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
@@ -38,6 +42,13 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetEditorSubjectAsync), _ => Task.FromResult<EditorSubjectDto?>(_subject));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorKindConfigAsync), args => Task.FromResult<EditorHeaderConfigDto?>(
+                EditorHeaderTestData.Config((string)args![0]!, "details", "artwork", "history")));
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorSeriesTitlesAsync), args =>
+            {
+                _titleReads.Add(((string)args![1]!, (string?)args[2]));
+                return Task.FromResult<EditorSeriesTitlesDto?>(_titles((string)args[1]!));
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetEditorNavLevelAsync), _ => Task.FromResult<EditorHeaderLevelDto?>(SeriesHeader().Level));
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), args => Task.FromResult<MediaEditorContextDto?>(
                 (Guid)args![0]! == SeriesId ? BooksContext(SeriesId, "Dune Novels", "series", SeriesHeader()) : BooksContext((Guid)args[0]!, "Dune", "book", BookHeader((Guid)args[0]!))));
@@ -82,7 +93,7 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
     }
 
     // The window as the pop-over draws it: the header's nav row, the tabs, the Details tool and the footer.
-    private IRenderedComponent<CascadingValue<EditingModeContext>> RenderWindow(Editor editor, bool withHeader = false)
+    private IRenderedComponent<CascadingValue<EditingModeContext>> RenderWindow(Editor editor, bool withHeader = false, bool phone = false)
     {
         editor.Flow.SelectToolAsync(EditTool.Details).GetAwaiter().GetResult();
         return Render<CascadingValue<EditingModeContext>>(parameters => parameters
@@ -101,6 +112,7 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
                         header.AddComponentParameter(1, nameof(EditorItemHeader.Flow), editor.Flow);
                         header.AddComponentParameter(2, nameof(EditorItemHeader.Fields), editor.Fields);
                         header.AddComponentParameter(3, nameof(EditorItemHeader.Family), new EditorFamilyState(Services.GetRequiredService<IEngineApiClient>(), NullLogger.Instance));
+                        header.AddComponentParameter(4, nameof(EditorItemHeader.Phone), phone);
                         header.CloseComponent();
                     }));
                 }
@@ -126,7 +138,7 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
     // -- A Series of the Library ----------------------------------------------------------------
 
     [Fact]
-    public async Task EditOnASeries_ShowsItsNameLocked_WithNoWayToUnlockIt_AndTheNoticeWhy()
+    public async Task EditOnASeries_ShowsItsNameAndDescriptionLocked_WithNoWayToUnlockThem_AndTheNoticeWhy()
     {
         var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series));
         var window = RenderWindow(editor);
@@ -134,55 +146,243 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
         window.WaitForElement(".tl-editor-details");
 
         Assert.Single(window.FindAll("[data-series-note]"));
-        Assert.Contains("can't be edited", window.Find("[data-series-note]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("stay locked", window.Find("[data-series-note]").TextContent, StringComparison.Ordinal);
         Assert.Single(window.FindAll(".tl-editor-field--locked[data-field-key='title']"));
+        Assert.Single(window.FindAll(".tl-editor-field--locked[data-field-key='description']"));
+        Assert.Empty(window.FindAll(".tl-editor-field[data-field-key='title'] input"));
+        Assert.Empty(window.FindAll(".tl-editor-field[data-field-key='description'] textarea"));
         Assert.Empty(window.FindAll("[data-lock-state]"));
-        Assert.Empty(window.FindAll(".tl-editor-details input, .tl-editor-details textarea"));
         Assert.Empty(window.FindAll("button.tl-editor-field__reset"));
     }
 
     [Fact]
-    public async Task EditOnASeries_OffersDetailsAndHistory_WithNoArtworkTab()
+    public async Task EditOnASeries_OffersItsSortTitleAndTags_AsTheOwnersOwnFields_WithNoLock()
     {
         var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series));
-
         var window = RenderWindow(editor);
 
-        Assert.Equal(["Details", "History"], Tabs(window));
-        Assert.False(editor.Fields.CanEditArtwork);
+        window.WaitForElement(".tl-editor-details");
+
+        Assert.Single(window.FindAll(".tl-editor-field[data-field-key='sort_title'] input"));
+        Assert.Single(window.FindAll(".tl-editor-field[data-field-key='custom_tags']"));
+        Assert.Equal("false", window.Find(".tl-editor-field[data-field-key='sort_title']").GetAttribute("data-locked"));
+        Assert.Equal("false", window.Find(".tl-editor-field[data-field-key='custom_tags']").GetAttribute("data-locked"));
     }
 
     [Fact]
-    public async Task EditOnASeries_ShowsOnlyClose_NeverSaveDiscardDeleteOrAnUnsavedCount()
+    public async Task TypingASeriesSortTitle_StagesIt_ForSaveChangesToReview_AndSavesNothing()
+    {
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series));
+        var window = RenderWindow(editor);
+        window.WaitForElement(".tl-editor-details");
+
+        window.Find(".tl-editor-field[data-field-key='sort_title'] input").Input("Dune Novels, The");
+
+        window.WaitForAssertion(() =>
+        {
+            Assert.True(editor.Session.Pending.TryGetField(SubjectId, "sort_title", out var staged));
+            Assert.Equal("Dune Novels, The", staged);
+            Assert.False(editor.Session.Pending.TryGetField(SubjectId, "title", out _));
+        });
+    }
+
+    [Fact]
+    public async Task EditOnASeries_OffersDetailsArtworkAndHistory_NeverMatch()
     {
         var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series));
 
         var window = RenderWindow(editor);
 
-        var footer = window.Find("footer.tl-editor-window__footer");
-        Assert.Equal("true", footer.GetAttribute("data-read-only"));
-        Assert.Equal(["Close"], footer.QuerySelectorAll("button").Select(button => button.TextContent.Trim()));
-        Assert.Empty(window.FindAll("button.tl-editor-window__save"));
-        Assert.Empty(window.FindAll(".tl-editor-window__footer-start"));
-        Assert.DoesNotContain("unsaved", footer.TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(["Details", "Artwork", "History"], Tabs(window));
+        Assert.True(editor.Fields.CanEditArtwork);
+        Assert.Equal(["CoverArt", "Background", "Logo"], editor.Fields.ArtworkSlots);
+    }
+
+    [Fact]
+    public async Task EditOnASeries_KeepsSaveChangesAndDiscard_BecauseItsOwnFieldsAndPicturesCanBeSaved()
+    {
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series));
+
+        var window = RenderWindow(editor);
+
+        Assert.NotEmpty(window.FindAll("button.tl-editor-window__save"));
+        Assert.Empty(window.FindAll("footer[data-read-only]"));
+    }
+
+    // -- The Series' header: the badge and the two dropdowns (v8 D1 and D6) ---------------------
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    public async Task ASeriesHeader_ShowsTheBadgeFromItsWikidataLinkAndMembers(bool retail, bool canonical)
+    {
+        var series = Grouping(EditorSubjectKinds.Series, new EditorSubjectMatchBadgeDto { RetailMatched = retail, ProviderName = "TMDB", CanonicalMatched = canonical });
+        var editor = await StartSubjectAsync(series);
+
+        var window = RenderWindow(editor, withHeader: true);
+        window.WaitForElement("[data-testid='header-match-badge']");
+
+        Assert.Equal(retail ? "true" : "false", window.Find("[data-testid='header-badge-retail']").GetAttribute("data-matched"));
+        Assert.Equal(canonical ? "true" : "false", window.Find("[data-testid='header-badge-canonical']").GetAttribute("data-matched"));
+    }
+
+    [Fact]
+    public async Task ASeriesHeader_ListsOnlyTheKindsTheSeriesHas_InTheFirstDropdown()
+    {
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series, kinds: [("Books", "Books", 3), ("Movies", "Movies", 2)]));
+        var window = RenderWindow(editor, withHeader: true);
+
+        window.WaitForElement("#tl-snav-kind").Click();
+
+        Assert.Equal(["Books", "Movies"], window.FindAll("[data-kind-key]").Select(option => option.GetAttribute("data-kind-key")));
+        Assert.Contains("Books", window.Find("#tl-snav-kind").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASeriesHeader_ListsEveryTitleOfTheChosenKind_WithATitleNotOwnedShownButNotOpenable()
+    {
+        _titles = type => new EditorSeriesTitlesDto
+        {
+            MediaType = type,
+            Total = 3,
+            ShowingMissing = true,
+            Items =
+            [
+                new EditorSeriesTitleDto { Id = BookOne, Title = "Dune", Number = "1" },
+                new EditorSeriesTitleDto { Id = BookTwo, Title = "Dune Messiah", Number = "2" },
+                new EditorSeriesTitleDto { Title = "Children of Dune", Number = "3", Owned = false },
+            ],
+        };
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series, kinds: [("Books", "Books", 2)]));
+        var window = RenderWindow(editor, withHeader: true);
+
+        window.WaitForElement("#tl-snav-title").Click();
+        window.WaitForElement("[data-testid='series-nav-titles'] li");
+
+        Assert.Equal(("Books", (string?)string.Empty), Assert.Single(_titleReads));
+        Assert.Equal(
+            ["1 · Dune", "2 · Dune Messiah", "3 · Children of Dune Not in your library"],
+            window.FindAll("[data-testid='series-nav-titles'] li").Select(line => System.Text.RegularExpressions.Regex.Replace(line.TextContent, @"\s+", " ").Trim()).Where(text => text.Length > 0));
+        var missing = Assert.Single(window.FindAll("[data-missing='true']"));
+        Assert.Equal("true", missing.GetAttribute("aria-disabled"));
+        Assert.Empty(missing.QuerySelectorAll("button"));
+    }
+
+    [Fact]
+    public async Task ASeriesHeader_WithoutShowMissing_ListsOnlyOwnedTitles_AsTheEngineSaysThem()
+    {
+        _titles = type => new EditorSeriesTitlesDto
+        {
+            MediaType = type,
+            Total = 1,
+            Items = [new EditorSeriesTitleDto { Id = BookOne, Title = "Dune", Number = "1" }],
+        };
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series, kinds: [("Books", "Books", 1)]));
+        var window = RenderWindow(editor, withHeader: true);
+
+        window.WaitForElement("#tl-snav-title").Click();
+        window.WaitForElement("[data-testid='series-nav-titles'] li");
+
+        Assert.Empty(window.FindAll("[data-missing='true']"));
+        Assert.Single(window.FindAll("[data-title-id]"));
+    }
+
+    [Fact]
+    public async Task PickingATitleInTheSeriesHeader_OpensThatTitlesEditor()
+    {
+        _titles = type => new EditorSeriesTitlesDto
+        {
+            MediaType = type,
+            Total = 1,
+            Items = [new EditorSeriesTitleDto { Id = BookTwo, Title = "Dune Messiah", Number = "2" }],
+        };
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series, kinds: [("Books", "Books", 1)]));
+        var opened = new List<Guid>();
+        editor.Flow.OpenItem = item =>
+        {
+            opened.Add(item.EntityId);
+            return Task.FromResult(true);
+        };
+        var window = RenderWindow(editor, withHeader: true);
+        window.WaitForElement("#tl-snav-title").Click();
+
+        window.WaitForElement($"[data-title-id='{BookTwo:N}']").Click();
+
+        window.WaitForAssertion(() => Assert.Equal([BookTwo], opened));
+    }
+
+    [Fact]
+    public async Task AChosenKind_ReadsItsOwnTitles_AndASearchAsksTheEngineForThatText()
+    {
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series, kinds: [("Books", "Books", 1), ("Movies", "Movies", 1)]));
+        var window = RenderWindow(editor, withHeader: true);
+        window.WaitForElement("#tl-snav-kind").Click();
+
+        window.Find("[data-kind-key='Movies']").Click();
+
+        window.WaitForAssertion(() => Assert.Contains(("Movies", (string?)string.Empty), _titleReads));
+    }
+
+    [Fact]
+    public async Task ASeriesHeader_OnAPhone_PutsTheTwoDropdownsInTheNavigationSheet()
+    {
+        var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series, kinds: [("Books", "Books", 1)]));
+        var window = RenderWindow(editor, withHeader: true, phone: true);
+
+        window.WaitForElement("[data-testid='phone-series-tap']").Click();
+
+        window.WaitForAssertion(() =>
+        {
+            Assert.NotNull(window.Find("[data-testid='phone-series-sheet']"));
+            Assert.Single(window.FindAll("#tl-snav-kind"));
+            Assert.Single(window.FindAll("#tl-snav-title"));
+        });
+    }
+
+    [Theory]
+    [InlineData("Books", "EditorSeries_ReadingOrder")]
+    [InlineData("Comics", "EditorSeries_ReadingOrder")]
+    [InlineData("Movies", "EditorSeries_WatchOrder")]
+    [InlineData("TV", "EditorSeries_WatchOrder")]
+    [InlineData("Audiobooks", "EditorSeries_ListeningOrder")]
+    [InlineData("Music", "EditorSeries_ListeningOrder")]
+    public void TheOrderHeading_IsNamedForHowTheMembersAreTakenIn(string kind, string key) =>
+        Assert.Equal(key, EditorSeriesRules.OrderHeadingKey([kind]));
+
+    [Fact]
+    public void TheOrderHeading_ForASeriesThatMixesKinds_IsJustInOrder()
+    {
+        Assert.Equal("EditorSeries_MixedOrder", EditorSeriesRules.OrderHeadingKey(["Books", "Movies"]));
+        Assert.Equal("EditorSeries_ReadingOrder", EditorSeriesRules.OrderHeadingKey(["Books", "Comics"]));
+    }
+
+    [Theory]
+    [InlineData("EditorSeries_ReadingOrder", "Reading order")]
+    [InlineData("EditorSeries_WatchOrder", "Watch order")]
+    [InlineData("EditorSeries_ListeningOrder", "Listening order")]
+    [InlineData("EditorSeries_MixedOrder", "In order")]
+    public void TheOrderWords_AreTheOnesTheProductOwnerChose(string key, string words)
+    {
+        var localizer = Services.GetRequiredService<Microsoft.Extensions.Localization.IStringLocalizer<MediaEngine.Web.Resources.SharedStrings>>();
+
+        Assert.Equal(words, localizer[key].Value);
     }
 
     // -- A Series of books, reached from the header -----------------------------------------------
 
     [Fact]
-    public async Task EditOnASeriesOfBooks_ListsItsBooksInOrder_Locked_WithCloseAndNoSave()
+    public async Task EditOnASeriesOfBooks_ListsItsBooksInReadingOrder_Locked()
     {
         var editor = await StartSeriesOfBooksAsync();
         var window = RenderWindow(editor, withHeader: true);
 
         window.WaitForElement("[data-series-members]");
 
-        Assert.True(editor.Fields.IsReadOnlySeries);
+        Assert.True(editor.Fields.IsSeries);
         Assert.Equal(["1 · Dune", "2 · Dune Messiah"], window.FindAll("[data-series-members] li").Select(line => line.TextContent.Trim()));
-        Assert.Contains("Books in order", window.Find("[data-series-members]").GetAttribute("aria-label"), StringComparison.Ordinal);
+        Assert.Contains("Reading order", window.Find("[data-series-members]").GetAttribute("aria-label"), StringComparison.Ordinal);
         Assert.Equal(["Details", "History"], Tabs(window));
-        Assert.Empty(window.FindAll("button.tl-editor-window__save"));
-        Assert.Equal(["Close"], window.FindAll("footer.tl-editor-window__footer button").Select(button => button.TextContent.Trim()));
     }
 
     [Fact]
@@ -197,7 +397,7 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
         window.WaitForAssertion(() =>
         {
             Assert.Equal(BookOne, editor.Fields.EntityId);
-            Assert.False(editor.Fields.IsReadOnlySeries);
+            Assert.False(editor.Fields.IsSeries);
             Assert.True(editor.Fields.CanEditFields);
             Assert.Empty(window.FindAll("[data-series-note]"));
             Assert.NotEmpty(window.FindAll("button.tl-editor-window__save"));
@@ -262,19 +462,29 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
 
     // -- Data -------------------------------------------------------------------------------------
 
-    private static EditorSubjectDto Grouping(string kind) => new()
-    {
-        Id = SubjectId,
-        Kind = kind,
-        Title = "Dune",
-        ArtworkEntityKind = "Collection",
-        ArtworkSlots = kind == EditorSubjectKinds.Series ? [] : ["CoverArt", "Background"],
-        Fields =
+    private static EditorSubjectDto Grouping(
+        string kind, EditorSubjectMatchBadgeDto? badge = null, (string Key, string Label, int Count)[]? kinds = null) => new()
+        {
+            Id = SubjectId,
+            Kind = kind,
+            Title = "Dune",
+            ArtworkEntityKind = "Collection",
+            ArtworkSlots = kind == EditorSubjectKinds.Series ? ["CoverArt", "Background", "Logo"] : ["CoverArt", "Background"],
+            Fields =
         [
             new EditorSubjectFieldDto { Key = "title", Label = "Name", Value = "Dune", CanonicalValue = "Dune", SourceLabel = "Provider" },
             new EditorSubjectFieldDto { Key = "description", Label = "Description", InputKind = EditorSubjectInputKinds.TextArea, Value = "A desert world.", CanonicalValue = "A desert world.", SourceLabel = "Provider" },
+            .. kind == EditorSubjectKinds.Series
+                ?
+                [
+                    new EditorSubjectFieldDto { Key = "sort_title", Label = "Sort title" },
+                    new EditorSubjectFieldDto { Key = "custom_tags", Label = "Tags", InputKind = EditorSubjectInputKinds.Chips },
+                ]
+                : Array.Empty<EditorSubjectFieldDto>(),
         ],
-    };
+            MatchBadge = badge,
+            MediaTypes = [.. (kinds ?? []).Select(entry => new EditorSeriesMediaTypeDto { Key = entry.Key, Label = entry.Label, OwnedCount = entry.Count })],
+        };
 
     private static EditorNavItemDto Book(Guid id, int number, string title) => new() { Id = id, Kind = "book", Number = number, Title = title };
 

@@ -45,6 +45,19 @@ public sealed partial class EngineApiClient
             "GET /metadata/{id}/editor-nav/level", $"/metadata/{entityId:D}/editor-nav/level?{string.Join('&', parts)}", ct: ct);
     }
 
+    public Task<EditorSeriesTitlesDto?> GetEditorSeriesTitlesAsync(
+        Guid id, string mediaType, string? query, int offset, CancellationToken ct = default)
+    {
+        var parts = new List<string> { $"type={Uri.EscapeDataString(mediaType)}", $"offset={Math.Max(0, offset)}" };
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+        }
+
+        return GetAsync<EditorSeriesTitlesDto>(
+            "GET /library/editor-subjects/{id}/series-titles", $"/library/editor-subjects/{id:D}/series-titles?{string.Join('&', parts)}", ct: ct);
+    }
+
     public Task<EditorHeaderConfigDto?> GetEditorKindConfigAsync(string kind, CancellationToken ct = default) =>
         GetAsync<EditorHeaderConfigDto>(
             "GET /metadata/editor-config", $"/metadata/editor-config?kind={Uri.EscapeDataString(kind)}", logAsWarning: false, ct: ct);

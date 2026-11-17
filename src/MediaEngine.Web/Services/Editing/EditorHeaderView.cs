@@ -35,6 +35,18 @@ public sealed record EditorHeaderBadgeState(bool RetailMatched, string? Provider
             hasWikidata);
     }
 
+    /// <summary>
+    /// The badge of a Series of the Library (v8 D1): the Engine's own reading, from the Series' Wikidata link and its members' matches. Null when
+    /// the Engine did not say, so no badge is drawn.
+    /// </summary>
+    public static EditorHeaderBadgeState? ForSeries(EditorSubjectMatchBadgeDto? badge) =>
+        badge is null
+            ? null
+            : new EditorHeaderBadgeState(
+                badge.RetailMatched,
+                badge.RetailMatched && !string.IsNullOrWhiteSpace(badge.ProviderName) ? badge.ProviderName!.Trim() : null,
+                badge.CanonicalMatched);
+
     private static bool IsQid(string? value) =>
         value is { Length: > 1 } && value[0] is 'Q' or 'q' && value.Skip(1).All(char.IsDigit);
 }

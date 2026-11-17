@@ -55,6 +55,13 @@ public partial interface IEngineApiClient
     /// </summary>
     Task<EditorHeaderConfigDto?> GetEditorKindConfigAsync(string kind, CancellationToken ct = default);
 
+    /// <summary>
+    /// GET /library/editor-subjects/{id}/series-titles - one searchable, paged list of the titles of one kind (<paramref name="mediaType"/>, such as
+    /// "Books") in a Series: the second dropdown of the Series editor's header (universal editor v8 D6). Titles the person does not own are in it only
+    /// when the viewing profile has "Show missing" on. Null when the read fails; the dropdown then keeps the page it has.
+    /// </summary>
+    Task<EditorSeriesTitlesDto?> GetEditorSeriesTitlesAsync(Guid id, string mediaType, string? query, int offset, CancellationToken ct = default);
+
     /// <summary>GET /library/editor-subjects/{id}/history - what was changed in the editor on a Universe or one of its things, newest first.</summary>
     Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetEditorSubjectHistoryAsync(Guid id, CancellationToken ct = default);
 

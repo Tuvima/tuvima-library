@@ -81,11 +81,15 @@ public sealed class DetailsEditSessionChangeHandler(
             return EditSessionReasons.Gone;
         }
 
-        // A Series of books, comics or films is a grouping that comes from its members' matches: nothing on it can be written.
-        return seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false)
+        // A Series of books, comics or films is a grouping that comes from its members' matches: only its own tags and sort title can be written (v8 D5).
+        return seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false) && !OnlyOwnerFields(change)
             ? EditSessionReasons.SeriesIsReadOnly
             : null;
     }
+
+    // The fields of a Series that are the owner's own (universal editor v8 D5): its tags and its sort title.
+    private static bool OnlyOwnerFields(EditSessionChange change) =>
+        change.Fields.All(field => field.Key.Trim() is SeriesEditSubject.SortTitleKey or SeriesEditSubject.TagsKey);
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
@@ -100,7 +104,7 @@ public sealed class DetailsEditSessionChangeHandler(
             throw new InvalidOperationException(EditSessionReasons.Gone);
         }
 
-        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false) && !OnlyOwnerFields(change))
         {
             throw new InvalidOperationException(EditSessionReasons.SeriesIsReadOnly);
         }

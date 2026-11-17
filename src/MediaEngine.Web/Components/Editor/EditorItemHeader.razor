@@ -111,7 +111,9 @@ else if (Flow?.Session.ActiveItem is { } active)
 
     var wash = EditorHeaderGradient.Resolve(header?.Colors);
     var palette = PaletteProvider.Current.EditorHeader;
-    var showState = fields.Loaded && !isUniverse && fields.CanMatch && (header is null || EditorHeaderFacts.ShowsMatchState(header.Config));
+    // A Series of the Library has no Match tab, but its badge still shows (v8 D1): its two halves come from its own Wikidata link and its members' matches.
+    var seriesBadge = fields.Loaded && fields.IsSeriesSubject && fields.SubjectMatchBadge is not null && EditorHeaderFacts.ShowsMatchState(fields.Config);
+    var showState = fields.Loaded && !isUniverse && (fields.CanMatch || fields.IsSeries) && (header is null || EditorHeaderFacts.ShowsMatchState(header.Config));
     // The show's tile already carries its picture, so a show's seasons and episodes draw no second picture beside it; every other family keeps the item's own.
     var showCover = header is not null || !(HasFamily && Family.Kind == EditorFamilyKind.Show);
     var kindKey = header?.Kind ?? string.Empty;
@@ -122,10 +124,12 @@ else if (Flow?.Session.ActiveItem is { } active)
     // live on the Match tab.
     var matchRead = MatchRead is { } reported && reported.EntityId == active.EntityId ? reported : null;
     var itemMatched = matchRead is not null ? matchRead.Matched : !Unmatched;
-    EditorHeaderBadgeState? badge = file is null && showState
-        ? EditorHeaderBadgeState.Read(itemMatched, matchRead?.ProviderName ?? links.FirstOrDefault(link => link.Name != "Wikidata")?.Name, header?.MatchLinks,
-            fields.Identity?.WikidataQid)
-        : null;
+    EditorHeaderBadgeState? badge = seriesBadge
+        ? EditorHeaderBadgeState.ForSeries(fields.SubjectMatchBadge)
+        : file is null && showState && !fields.IsSeriesSubject
+            ? EditorHeaderBadgeState.Read(itemMatched, matchRead?.ProviderName ?? links.FirstOrDefault(link => link.Name != "Wikidata")?.Name, header?.MatchLinks,
+                fields.Identity?.WikidataQid)
+            : null;
     if (IsPhone)
     {
         @* The phone arrangement (v6 section 4a, D20 to D22; v7 D14): always the one-line form, a small cover and the title, nothing else (no state line, no
@@ -156,6 +160,32 @@ else if (Flow?.Session.ActiveItem is { } active)
                 @if (header is not null)
                 {
                     <EditorHeaderNav Header="header" Flow="Flow" Hooks="Hooks" CanMatch="@fields.CanMatch" Phone="true" PhoneLabel="@title" />
+                }
+                else if (fields.IsSeriesSubject && fields.SeriesMediaTypes.Count > 0)
+                {
+                    @* A Series of the Library is the same one line: its two dropdowns (kind of title, then title) are in the sheet the line opens (v8 D6). *@
+                    <AppRowButton id="tl-series-phone"
+                                  Class="@(_seriesSheet ? "tl-hnav__phonetap is-open" : "tl-hnav__phonetap")"
+                                  aria-haspopup="dialog"
+                                  aria-expanded="@(_seriesSheet ? "true" : "false")"
+                                  aria-label="@string.Format(L["EditorPhone_OpenNavigation"].Value, title)"
+                                  data-testid="phone-series-tap"
+                                  OnClick="@(() => _seriesSheet = !_seriesSheet)" />
+                    @if (_seriesSheet)
+                    {
+                        <AppDialogShell Framed="true"
+                                        Visible="true"
+                                        Title="@L["EditorNav_Label"].Value"
+                                        Size="Small"
+                                        FrameOptions="_sheetOptions"
+                                        HostClass="tl-hnav__surface tl-hnav__surface--phone"
+                                        OnClose="@(() => _seriesSheet = false)">
+                            <div class="tl-hnav__sheet" role="group" aria-label="@L["EditorNav_Label"].Value" data-testid="phone-series-sheet">
+                                <p class="tl-hnav__sheettitle">@title</p>
+                                <EditorSeriesNav Fields="fields" Flow="Flow" Stacked="true" />
+                            </div>
+                        </AppDialogShell>
+                    }
                 }
                 else if (HasFamily && Selects is not null)
                 {
@@ -254,6 +284,10 @@ else if (Flow?.Session.ActiveItem is { } active)
             {
                 <EditorHeaderNav Header="header" Flow="Flow" Hooks="Hooks" CanMatch="@fields.CanMatch" />
             }
+            else if (fields.IsSeriesSubject && fields.SeriesMediaTypes.Count > 0)
+            {
+                <EditorSeriesNav Fields="fields" Flow="Flow" />
+            }
             else if (HasFamily && Selects is not null)
             {
                 <div class="tl-editor-header__selects">@Selects</div>
@@ -272,6 +306,8 @@ else if (Flow?.Session.ActiveItem is { } active)
     private ItemFieldEditSession? _fields;
     // A Universe on a phone: its kinds are in a sheet the one-line header opens.
     private bool _universeSheet;
+    // A Series of the Library on a phone: its two dropdowns are in a sheet the one-line header opens.
+    private bool _seriesSheet;
     private static readonly AppDialogOptions _sheetOptions = new() { Sheet = AppDialogSheetMode.PhoneAndTablet, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
 
     [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }

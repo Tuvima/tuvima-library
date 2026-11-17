@@ -987,16 +987,9 @@ public static partial class MetadataEndpoints
             ArtworkScopeService artworkScopeService,
             HttpRequest httpRequest,
             ILoggerFactory loggerFactory,
-            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             var coverLogger = loggerFactory.CreateLogger("CoverUpload");
-
-            if (await seriesGuard.IsSeriesAsync(entityId, ct))
-            {
-                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
-            }
-
 
             if (!httpRequest.HasFormContentType)
             {
@@ -1366,7 +1359,6 @@ public static partial class MetadataEndpoints
             IMetadataEditorRepository metadataData,
             ArtworkScopeService artworkScopeService,
             HttpRequest httpRequest,
-            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             var normalizedAssetType = ArtworkScopeService.NormalizeUploadedArtworkType(assetType);
@@ -1374,12 +1366,6 @@ public static partial class MetadataEndpoints
             {
                 return ApiErrors.BadRequest("Artwork type must be CoverArt, Background, or Logo.");
             }
-
-            if (await seriesGuard.IsSeriesAsync(entityId, ct))
-            {
-                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
-            }
-
 
             if (!httpRequest.HasFormContentType)
             {
