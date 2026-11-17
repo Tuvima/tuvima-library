@@ -11324,9 +11324,6 @@
   <data name="EditorMatchPanel_Staged" xml:space="preserve">
     <value>Staged: {0}. Nothing is saved until you press Save changes.</value>
   </data>
-  <data name="EditorMatchPanel_OpenSource" xml:space="preserve">
-    <value>Open source ↗</value>
-  </data>
   <data name="EditorMatchPanel_RemoveMatch" xml:space="preserve">
     <value>Remove match</value>
   </data>
@@ -13972,6 +13969,9 @@
   </data>
   <data name="EditorMatchCard_ReadLess" xml:space="preserve">
     <value>Read less</value>
+  </data>
+  <data name="EditorMatchCard_OpenIn" xml:space="preserve">
+    <value>Open in {0}</value>
   </data>
   <data name="EditorMatchCard_NotProvided" xml:space="preserve">
     <value>Not provided</value>

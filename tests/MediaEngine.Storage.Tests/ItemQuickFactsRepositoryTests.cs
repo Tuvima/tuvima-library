@@ -100,6 +100,36 @@ public sealed class ItemQuickFactsRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task AShowWithEpisodesDirectlyUnderIt_ReadsAsOneSeason_NotOnePerEpisode()
+    {
+        var show = Work("TV", "parent");
+        var episodes = Enumerable.Range(0, 16).Select(number => Work("TV", "child", show, owned: number == 0)).ToList();
+        Asset(episodes[0], "/tv/Show/E01.mkv", 1_000, 2400, Hd);
+
+        var facts = (await ReadAsync(show))!.Facts;
+
+        Assert.Equal(1, facts.DirectTotal);
+        Assert.Equal(1, facts.DirectOwned);
+        Assert.Equal(16, facts.LeafTotal);
+        Assert.Equal(1, facts.LeafOwned);
+    }
+
+    [Fact]
+    public async Task AShowWithSeasonsAndLooseEpisodes_CountsEachRealSeasonPlusOneForTheLooseEpisodes()
+    {
+        var show = Work("TV", "parent");
+        var season1 = Work("TV", "parent", show);
+        Work("TV", "child", season1);
+        Work("TV", "child", show, owned: false);
+        Work("TV", "child", show, owned: false);
+
+        var facts = (await ReadAsync(show))!.Facts;
+
+        Assert.Equal(2, facts.DirectTotal);
+        Assert.Equal(1, facts.DirectOwned);
+    }
+
+    [Fact]
     public async Task ASeason_CountsItsOwnEpisodesOnly()
     {
         var show = Work("TV", "parent");

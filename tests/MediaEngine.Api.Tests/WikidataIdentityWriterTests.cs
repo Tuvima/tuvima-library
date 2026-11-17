@@ -129,6 +129,43 @@ public sealed class WikidataIdentityWriterTests : IDisposable
         Assert.Empty(_pipeline.Requests);
     }
 
+    // ----- ingestion keeps a film's, book's or comic's Wikidata id on the file (v8 D10, issue 1065) ---------------------------------
+
+    [Fact]
+    public async Task ALinkIngestionKeptOnTheFilesAsset_IsTheItemsOwnLink_WhetherAskedByItsWorkOrItsFile()
+    {
+        var film = await SeedFilmAsync();
+        await StoreOnAsync(film.AssetId, Qid);
+
+        Assert.Equal(Qid, await _writer.ReadAsync(film.WorkId, CancellationToken.None));
+        Assert.Equal(Qid, await _writer.ReadAsync(film.AssetId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ChangingALinkIngestionKeptOnTheFile_SaysReplaced_NotConfirmedAsIfThereWasNone()
+    {
+        var film = await SeedFilmAsync();
+        await StoreOnAsync(film.AssetId, Qid);
+
+        await _writer.SetAsync(film.WorkId, OtherQid, CancellationToken.None);
+
+        Assert.Equal(WorkWikidataStatus.UserReplaced, (await StateOfAsync(film.WorkId)).wikidata_status);
+        Assert.Equal(OtherQid, await _writer.ReadAsync(film.WorkId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RemovingTheLink_AlsoTakesTheLinkIngestionKeptOnTheFile_SoItIsNotReadBackFromThere()
+    {
+        var film = await SeedFilmAsync();
+        await StoreOnAsync(film.AssetId, Qid);
+
+        await _writer.RemoveAsync(film.WorkId, CancellationToken.None);
+
+        Assert.Null(await _writer.ReadAsync(film.WorkId, CancellationToken.None));
+        Assert.Null(await CanonicalAsync(film.AssetId));
+        Assert.Contains(Qid, (await StateOfAsync(film.WorkId)).wikidata_rejected_qids_json ?? string.Empty, StringComparison.Ordinal);
+    }
+
     // ----- a retail match changes the provider side only ------------------------------------------------------------------------
 
     [Fact]
@@ -226,6 +263,12 @@ public sealed class WikidataIdentityWriterTests : IDisposable
             "SELECT wikidata_qid, wikidata_status, wikidata_match_source, wikidata_match_locked, wikidata_rejected_qids_json FROM works WHERE id = @work",
             new { work });
     }
+
+    private Task StoreOnAsync(Guid entity, string qid) =>
+        new CanonicalValueRepository(_db).UpsertBatchAsync(
+        [
+            new MediaEngine.Domain.Entities.CanonicalValue { EntityId = entity, Key = BridgeIdKeys.WikidataQid, Value = qid, LastScoredAt = DateTimeOffset.UtcNow },
+        ]);
 
     private async Task<string?> CanonicalAsync(Guid work) =>
         (await new CanonicalValueRepository(_db).GetByEntityAsync(work))

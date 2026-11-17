@@ -7,7 +7,7 @@
 
 @* The "Folders and files" view of the supporting-files browser (universal editor v5 screen E, note 4; 3a): the shared browser frame (D32) showing
    the real folder tree of the title, folders first and then files, each file marked as the title's media, a supporting file, one Library never
-   shows ("Not shown in the library") or one that is not placed yet. A file the Engine has an item for offers "What is this file?", the v4 question
+   shows ("Not shown in the library") or one that is not placed yet. Only a file the Engine could not place offers "What is this file?", the v4 question
    (an episode, an Extra of a kind and place, another title, or ignored), which stages its answer for Review. On a Videos series the series order
    sits above the tree. It never leaves the title's folder: the Engine answers only for folders inside it. Inside a sub-folder the path at the top
    (the title's own folder, then each folder down to this one) is how you go back; at the title's own folder there is no path line and no up arrow
@@ -256,7 +256,8 @@
                        OnClick="@(() => OnChoose.InvokeAsync(new EditorFileBrowserOutcome(EditorFileBrowserAction.OpenItem, itemId)))">@L["EditorBrowser_Open"]</AppButton>
         }
 
-        if (entry.ItemId is not null && entry.State is EditorFolderEntryStates.Main or EditorFolderEntryStates.Unsorted)
+        // The question is for a file the Engine could not place. A file already placed (an episode, a film, a track) is shown as what it is.
+        if (entry.ItemId is not null && entry.State == EditorFolderEntryStates.Unsorted)
         {
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" data-entry-sort="true"
                        OnClick="@(() => _sorting = _sorting == entry.Path ? null : entry.Path)">@L["EditorFileSort_Heading"]</AppButton>

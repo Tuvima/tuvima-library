@@ -471,6 +471,10 @@
                         <AppChip Text="@L["EditorWikidata_NotSavedYet"].Value" Tone="AppUiTone.Warning" />
                     }
                 </div>
+                @if (!staged && !string.IsNullOrWhiteSpace(_identity?.Description))
+                {
+                    <div class="tl-match__meta" data-testid="wikidata-current-description">@_identity!.Description</div>
+                }
                 @if (!string.IsNullOrWhiteSpace(line))
                 {
                     <div class="tl-match__meta" data-testid="wikidata-current-line">@line</div>
@@ -482,7 +486,8 @@
                 <div class="@(IsPhone ? "tl-wikidata__actions tl-wikidata__actions--phone" : "tl-wikidata__actions")">
                     @if (!staged && !string.IsNullOrWhiteSpace(_identity?.Url))
                     {
-                        <AppButton Label="@L["EditorMatchPanel_OpenSource"].Value" Href="@_identity!.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="@ControlSize" />
+                        <AppButton Label="@L["EditorMatchCard_OpenIn", L["EditorMatchPanel_Wikidata"].Value].Value" Href="@_identity!.Url" Target="_blank" EndIcon="@AppMaterialIcons.Outlined.OpenInNew"
+                                   ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="@ControlSize" data-testid="wikidata-open" />
                     }
                     <AppButton Label="@L["EditorMatchPanel_RemoveMatch"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="@ControlSize"
                                Disabled="@(!CanStage)" OnClick="Remove" data-testid="wikidata-remove" />

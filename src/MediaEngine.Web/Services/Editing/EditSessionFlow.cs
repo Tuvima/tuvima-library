@@ -62,6 +62,9 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     /// </summary>
     public Func<EditTrailItem, Task<bool>>? OpenItem { get; set; }
 
+    /// <summary>The plain reason the last <see cref="OpenItem"/> failed, when the loader knows one. Unset or empty, a general reason is given.</summary>
+    public Func<string?>? OpenFailureReason { get; set; }
+
     /// <summary>Raised after the item being edited changed, so the page can move the Artwork picker and the History block with it.</summary>
     public Func<Task>? ItemSwitched { get; set; }
 
@@ -429,11 +432,14 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         Failures = [];
         Changed?.Invoke();
         var ready = true;
+        string? failureReason = null;
         try
         {
             if (OpenItem is { } open)
             {
                 ready = await open(target);
+                // Read before the item being left is put back, which clears the loader's own reason.
+                failureReason = ready ? null : OpenFailureReason?.Invoke();
                 if (!ready && previous is not null)
                 {
                     // The fields of the item being left are put back, so the panel never shows an item that is not the active one.
@@ -453,9 +459,11 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
         if (!ready)
         {
+            var reason = string.IsNullOrWhiteSpace(failureReason) ? "Library could not find its editable details." : failureReason;
+
             Message = previous is null
-                ? $"{target.Title} could not be opened for editing."
-                : $"{target.Title} could not be opened for editing. You are still editing {previous.Title}.";
+                ? $"{target.Title} could not be opened for editing. {reason}"
+                : $"{target.Title} could not be opened for editing. {reason} You are still editing {previous.Title}.";
             Changed?.Invoke();
             return false;
         }

@@ -28,6 +28,7 @@ internal static class EditorMatchRule
     [
         BridgeIdKeys.TvdbEpisodeId, BridgeIdKeys.TvdbSeasonId, BridgeIdKeys.TvdbId, BridgeIdKeys.TmdbId,
         BridgeIdKeys.MusicBrainzReleaseGroupId, BridgeIdKeys.MusicBrainzRecordingId, BridgeIdKeys.MusicBrainzReleaseId,
+        BridgeIdKeys.AppleMusicId, BridgeIdKeys.AppleMusicCollectionId,
         BridgeIdKeys.ComicVineId, BridgeIdKeys.OpenLibraryId, BridgeIdKeys.AppleBooksId,
     ];
 
@@ -119,6 +120,18 @@ internal static class EditorMatchRule
         if (Value(own, BridgeIdKeys.MusicBrainzReleaseId) is { } release)
         {
             return new ProviderSource("musicbrainz", "MusicBrainz", release, "Album", OutsideLinks.MusicBrainz("release", release), false);
+        }
+
+        // Apple Music is the retail source for music (v8 D10): a song by its track id, an album by its collection id. It comes after MusicBrainz so an item
+        // that has both keeps naming the source it always named; an item that has only Apple Music is no longer "not matched".
+        if (Value(own, BridgeIdKeys.AppleMusicId) is { } appleSong)
+        {
+            return new ProviderSource("apple_music", "Apple Music", appleSong, "Song", OutsideLinks.AppleMusicSong(appleSong), false);
+        }
+
+        if (Value(own, BridgeIdKeys.AppleMusicCollectionId) is { } appleAlbum)
+        {
+            return new ProviderSource("apple_music", "Apple Music", appleAlbum, "Album", OutsideLinks.AppleMusicAlbum(appleAlbum), false);
         }
 
         if (Value(own, BridgeIdKeys.ComicVineId) is { } issue)
