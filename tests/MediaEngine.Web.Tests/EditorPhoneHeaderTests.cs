@@ -75,14 +75,15 @@ public sealed class EditorPhoneHeaderTests : AsyncBunitContext
         Assert.Equal("Echoes in the Dark", cut.Find("[data-testid=phone-header-title]").TextContent.Trim());
         Assert.Equal("tl-editor-panel-title", cut.Find("[data-testid=phone-header-title]").Id);
         Assert.NotNull(header.QuerySelector(".tl-editor-header__minicover"));
-        // No state line, no "Not matched", no links, no big cover, label, facts line or row of dropdowns: that is the desktop header.
+        // No state line, no "Not matched" words, no links, no big cover, label, facts line or row of dropdowns: that is the desktop header. The one
+        // match signal is the small badge (v8 D1), checked in its own tests below.
         Assert.Empty(cut.FindAll("[data-testid=phone-header-state], .tl-editor-header__state, .tl-editor-header__dot"));
         Assert.Empty(cut.FindAll(".tl-editor-header__cover, .tl-editor-header__label, .tl-editor-header__facts, .tl-editor-header__links, .tl-hnav"));
-        Assert.DoesNotContain("matched", header.TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("matched", header.QuerySelector(".tl-editor-header__phoneline")!.TextContent, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task OnAPhone_AMatchedItemsHeaderSaysNothingAboutTheMatch_NeitherWordsNorLinks()
+    public async Task OnAPhone_AMatchedItemsHeaderShowsTheBadgeWithRAndC_AndNoLinksOrWords()
     {
         _header = EditorHeaderTestData.TvEpisode();
         var (flow, fields) = await StartAsync();
@@ -90,8 +91,30 @@ public sealed class EditorPhoneHeaderTests : AsyncBunitContext
         var cut = RenderHeader(flow, fields, phone: true, unmatched: false, read: new EditorMatchReadState(EpisodeId, true, "TheTVDB"));
 
         var header = cut.Find("[data-testid=phone-header]");
-        Assert.DoesNotContain("TheTVDB", header.TextContent, StringComparison.Ordinal);
+        var badge = header.QuerySelector("[data-testid=header-match-badge]")!;
+        Assert.Equal("true", badge.GetAttribute("data-phone"));
+        Assert.Equal("R", badge.QuerySelector("[data-testid=header-badge-retail] .tl-hbadge__label")!.TextContent.Trim());
+        Assert.Equal("C", badge.QuerySelector("[data-testid=header-badge-canonical] .tl-hbadge__label")!.TextContent.Trim());
+        // Retail is matched; no Wikidata link in this header, so Canonical is a cross. The words stay available to a screen reader.
+        Assert.Equal("true", badge.QuerySelector("[data-testid=header-badge-retail]")!.GetAttribute("data-matched"));
+        Assert.Equal("false", badge.QuerySelector("[data-testid=header-badge-canonical]")!.GetAttribute("data-matched"));
+        Assert.Equal("Retail: Matched to TheTVDB", badge.QuerySelector("[data-testid=header-badge-retail] .sr-only")!.TextContent.Trim());
+        // The badge is its own slot in the header, beside the line and not inside it, so the line keeps its whole width.
+        Assert.Equal("tl-editor-header__badge tl-editor-header__badge--phone", badge.ParentElement!.ClassName);
+        Assert.Equal("phone-header", badge.ParentElement.ParentElement!.GetAttribute("data-testid"));
         Assert.Empty(cut.FindAll("[data-testid=header-match-links], [data-testid=header-not-matched]"));
+    }
+
+    [Fact]
+    public async Task OnAPhone_AnUnmatchedItemShowsTwoCrossesInTheBadge()
+    {
+        _header = EditorHeaderTestData.TvEpisode();
+        var (flow, fields) = await StartAsync();
+
+        var cut = RenderHeader(flow, fields, phone: true, unmatched: true, read: new EditorMatchReadState(EpisodeId, false, null));
+
+        Assert.Equal("false", cut.Find("[data-testid=header-badge-retail]").GetAttribute("data-matched"));
+        Assert.Equal("false", cut.Find("[data-testid=header-badge-canonical]").GetAttribute("data-matched"));
     }
 
     [Fact]

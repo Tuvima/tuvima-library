@@ -6,6 +6,38 @@ using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Services.Editing;
 
+/// <summary>
+/// The match badge at the header's top right (universal editor v8 D1): "Retail" (a provider match) and "Canonical" (Wikidata), each matched or
+/// not. <see cref="ProviderName"/> is the provider's product name for the tooltip ("Apple Books"); null when the Engine did not say.
+/// </summary>
+public sealed record EditorHeaderBadgeState(bool RetailMatched, string? ProviderName, bool CanonicalMatched)
+{
+    /// <summary>
+    /// Reads the badge. Retail is the item's provider match as the header already knows it (the Match tab's own read once it exists, so a staged
+    /// Remove match reads not matched); Canonical is a Wikidata match, from the Engine's Wikidata link or the item's own Wikidata id. Removing a
+    /// match leaves the Wikidata match alone (Review says so), so a staged removal changes the Retail half only.
+    /// </summary>
+    public static EditorHeaderBadgeState Read(
+        bool retailMatched,
+        string? providerName,
+        IEnumerable<EditorMatchLinkDto>? links,
+        string? wikidataQid)
+    {
+        var all = (links ?? []).ToList();
+        var provider = all.FirstOrDefault(link => link.Source == EditorMatchLinkSources.Provider && !string.IsNullOrWhiteSpace(link.Name))?.Name;
+        var hasWikidata = all.Any(link => link.Source == EditorMatchLinkSources.Wikidata && !string.IsNullOrWhiteSpace(link.Url))
+            || IsQid(wikidataQid);
+        var name = string.IsNullOrWhiteSpace(provider) ? providerName : provider;
+        return new EditorHeaderBadgeState(
+            retailMatched,
+            retailMatched && !string.IsNullOrWhiteSpace(name) ? name!.Trim() : null,
+            hasWikidata);
+    }
+
+    private static bool IsQid(string? value) =>
+        value is { Length: > 1 } && value[0] is 'Q' or 'q' && value.Skip(1).All(char.IsDigit);
+}
+
 /// <summary>The two colours the header's gradient is made from, both plain <c>#rrggbb</c> values.</summary>
 public sealed record EditorHeaderColours(string Primary, string Secondary);
 
