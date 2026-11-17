@@ -121,6 +121,22 @@ public static class MediaTileLabels
             : $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}";
     }
 
+    /// <summary>
+    /// The short episode code a Pick up tile draws just above its progress bar ("S3 E8"). A video from a Videos or Other videos library
+    /// never carries a season or an S/E code, so it says only its number; null when there is none to say.
+    /// </summary>
+    public static string? EpisodeCode(MediaTileViewModel item, DisplayEpisodeContextDto episode)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(episode);
+        if (VideoFolderWording.IsVideoItemMediaType(item.MediaKind))
+        {
+            return episode.EpisodeNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return $"S{episode.SeasonNumber} E{episode.EpisodeNumber}";
+    }
+
     /// <summary>The noun for what a group holds, singular for one.</summary>
     public static string Noun(MediaTileViewModel item, int count)
     {

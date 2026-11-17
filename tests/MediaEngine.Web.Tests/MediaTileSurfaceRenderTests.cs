@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Web.Components.MediaTiles;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -55,7 +56,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PickUpRowIsOneMixedRowOfCompactCards()
+    public void PickUpRowIsOneMixedRowOfLandscapeTiles()
     {
         MediaTileViewModel Item(string kind, MediaTileShape shape) => new()
         {
@@ -74,14 +75,17 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = items }));
         Assert.Equal("Pick up where you left off", cut.Find("h2").TextContent);
         Assert.Empty(cut.FindAll(".continue-group"));
-        var cards = cut.FindAll(".pickup-card");
+        Assert.Empty(cut.FindAll(".pickup-card"));
+        // Every kind is the same landscape tile (details-and-tile-fixes D3); a book or audiobook says its kind in the top-left label.
+        var cards = cut.FindAll("article.continue-tile");
         Assert.Equal(3, cards.Count);
-        Assert.Contains("Read", cards.Single(c => c.TextContent.Contains("Continue Book")).QuerySelector(".pickup-kind")!.TextContent);
-        Assert.Contains("Watch", cards.Single(c => c.TextContent.Contains("Continue TV")).QuerySelector(".pickup-kind")!.TextContent);
-        Assert.Contains("Listen", cards.Single(c => c.TextContent.Contains("Continue Audiobook")).QuerySelector(".pickup-kind")!.TextContent);
-        Assert.Contains("Fixture creator", cards[0].TextContent);
-        Assert.Contains("42% complete", cards[0].TextContent);
-        Assert.Equal("42", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
+        Assert.Equal("Book", cards.Single(c => c.TextContent.Contains("Continue Book")).QuerySelector(".media-tile-label--kind")!.TextContent);
+        Assert.Equal("Audiobook", cards.Single(c => c.TextContent.Contains("Continue Audiobook")).QuerySelector(".media-tile-label--kind")!.TextContent);
+        Assert.Null(cards.Single(c => c.TextContent.Contains("Continue TV")).QuerySelector(".media-tile-label--kind"));
+        var book = cards.Single(c => c.TextContent.Contains("Continue Book"));
+        Assert.Contains("Fixture creator", book.QuerySelector(".continue-tile__line")!.TextContent);
+        Assert.Contains("42% complete", book.QuerySelector(".continue-tile__progress-text")!.TextContent);
+        Assert.All(cut.FindAll("[role=progressbar]"), bar => Assert.Equal("42", bar.GetAttribute("aria-valuenow")));
     }
 
     [Fact]
@@ -808,7 +812,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [Theory]
     [InlineData("Movie")]
     [InlineData("TV")]
-    public void PickUpCardResumesFromThePlayButtonAndOpensDetailsFromTheTitle(string kind)
+    public void PickUpTileResumesFromTheWholePictureAndSaysTheContentRatingNotTheStars(string kind)
     {
         var item = new MediaTileViewModel
         {
@@ -818,15 +822,67 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Shape = MediaTileShape.Landscape,
             TileImageUrl = "/episode-still.jpg",
             ProgressPct = 30,
+            ContentRating = "TV-MA",
+            HoverFacts = ["TV-MA", "2021", "\u2605 8.1"],
+            SortYear = 2021,
             DetailsNavigationUrl = "/details/work/continue",
             PrimaryNavigationUrl = "/watch/player/continue",
         };
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
-        Assert.Equal("/watch/player/continue", cut.Find(".pickup-play").GetAttribute("href"));
-        Assert.Equal("Resume Continue title", cut.Find(".pickup-play").GetAttribute("aria-label"));
-        Assert.Equal("/details/work/continue", cut.Find(".pickup-title").GetAttribute("href"));
-        Assert.Contains("Watch", cut.Find(".pickup-kind").TextContent);
+        Assert.Equal("/watch/player/continue", cut.Find(".continue-tile__link").GetAttribute("href"));
+        Assert.Equal("Resume Continue title", cut.Find(".continue-tile__link").GetAttribute("aria-label"));
+        Assert.Equal("TV-MA", cut.Find(".continue-tile__line").TextContent.Trim());
+        Assert.DoesNotContain("\u2605", cut.Find(".continue-tile__text").TextContent);
         Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "registerMediaTileHover");
+    }
+
+    [Fact]
+    public void PickUpEpisodeTileDrawsItsCodeAboveTheBarAndTheTitleBelow()
+    {
+        var item = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Night 1",
+            MediaKind = "TV",
+            Shape = MediaTileShape.Landscape,
+            TileImageUrl = "/still.jpg",
+            ProgressPct = 3,
+            ContentRating = "TV-14",
+            EpisodeContext = new DisplayEpisodeContextDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "The Continental", "Night 1", 3, 8, DisplayContinuationState.InProgress, null, null),
+            PrimaryNavigationUrl = "/watch/player/continue",
+        };
+        var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
+        Assert.Equal("S3 E8", cut.Find(".continue-tile__episode-code").TextContent.Trim());
+        Assert.Equal("Night 1", cut.Find(".continue-tile__title").TextContent.Trim());
+        Assert.Equal("The Continental · TV-14", cut.Find(".continue-tile__line").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll(".continue-tile__progress [role=progressbar]"));
+        // The code is its own element on the picture (not inside the progress bar), so it never covers the bar.
+        Assert.Empty(cut.FindAll(".continue-tile__progress .continue-tile__episode-code"));
+    }
+
+    [Fact]
+    public void PickUpBookTileShowsARatingOnlyWhenOneExistsOtherwiseTheAuthor()
+    {
+        MediaTileViewModel Book(params string[] facts) => new()
+        {
+            Id = Guid.NewGuid(),
+            Title = "Dune",
+            MediaKind = "Book",
+            Creator = "Frank Herbert",
+            Shape = MediaTileShape.Portrait,
+            CoverUrl = "/cover.jpg",
+            ProgressPct = 60,
+            HoverFacts = facts,
+            PrimaryNavigationUrl = "/read/continue",
+        };
+        var withRating = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, Book("Frank Herbert", "\u2605 4.3")));
+        Assert.Equal("\u2605 4.3", withRating.Find(".continue-tile__line").TextContent.Trim());
+        var without = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, Book("Frank Herbert")));
+        Assert.Equal("Frank Herbert", without.Find(".continue-tile__line").TextContent.Trim());
+        Assert.Contains("60% complete", without.Find(".continue-tile__progress-text").TextContent);
+        // The cover sits left on the wash, not centred.
+        Assert.Empty(without.FindAll(".continue-tile__cover.is-centred"));
+        Assert.NotEmpty(without.FindAll(".continue-tile__soft"));
     }
 
     [Fact]
@@ -845,7 +901,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         };
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
         Assert.Equal("41", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
-        Assert.Contains("41% complete", cut.Find(".pickup-progress-text").TextContent);
         var lane = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
         Assert.Equal("41", lane.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
         Assert.Contains("continue-tile", lane.Find("article").ClassList);

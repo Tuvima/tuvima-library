@@ -133,6 +133,8 @@ public sealed class MediaTileViewModel
     public MediaTileGroupSummaryViewModel? GroupSummary { get; init; }
     public IReadOnlyList<string> ContextLines { get; init; } = [];
     public IReadOnlyList<string> HoverFacts { get; init; } = [];
+    /// <summary>The content rating of a movie or show (R, PG-13, TV-MA and so on); null when none is known. The Pick up tile shows it instead of a star rating.</summary>
+    public string? ContentRating { get; init; }
     public string? Tldr { get; init; }
     public IReadOnlyList<string> VibeTags { get; init; } = [];
     public string MediaKind { get; init; } = string.Empty;

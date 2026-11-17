@@ -45,6 +45,7 @@ public sealed class DisplayCardBuilder
             Genres = DisplayMediaRules.SplitValues(row.Genre).ToList(),
             Badges = BuildBadges(mediaKind, row.Quality, StringHelpers.FirstNonBlank(row.Network, row.Source)),
             SortYear = ParseSortYear(row.Year),
+            ContentRating = string.IsNullOrWhiteSpace(row.ContentRating) ? null : row.ContentRating.Trim(),
             IsSettling = row.IsUpdatingDetails,
             UniverseQid = row.UniverseQid,
             ListMetadata = new DisplayCardListMetadataDto(
@@ -106,6 +107,7 @@ public sealed class DisplayCardBuilder
             Genres = DisplayMediaRules.SplitValues(row.Genre).ToList(),
             Badges = BuildBadges(mediaKind, row.Quality, StringHelpers.FirstNonBlank(row.Network, row.Source)),
             SortYear = ParseSortYear(row.Year),
+            ContentRating = string.IsNullOrWhiteSpace(row.ContentRating) ? null : row.ContentRating.Trim(),
             ListMetadata = new DisplayCardListMetadataDto(
                 row.Author,
                 row.Artist,

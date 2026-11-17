@@ -68,18 +68,21 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
         {
             await UseAsync(device);
             var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = Seed() }));
-            var cards = cut.FindAll(".pickup-card");
+            var cards = cut.FindAll("article.continue-tile");
             // The never-started movie and the album (music has no progress) are out; the rest run newest activity first: audiobook, episode, next-up episode, book.
             Assert.Equal(4, cards.Count);
             string Text(int index) => cards[index].TextContent;
             Assert.Contains("The Martian", Text(0));
-            Assert.Contains("Listen", Text(0));
-            Assert.Contains("The Continental", Text(1));
-            Assert.Contains("S1 E2 · Night 1", Text(1));
-            Assert.Contains("23 min left", Text(1));
-            Assert.Contains("S1 E1 · Pilot", Text(2));
+            Assert.Contains("Audiobook", cards[0].QuerySelector(".media-tile-label--kind")!.TextContent);
+            // An episode: its own title on the first line, its S/E code on the picture just above the bar (D3).
+            Assert.Equal("Night 1", cards[1].QuerySelector(".continue-tile__title")!.TextContent.Trim());
+            Assert.Equal("S1 E2", cards[1].QuerySelector(".continue-tile__episode-code")!.TextContent.Trim());
+            Assert.Contains("The Continental", cards[1].QuerySelector(".continue-tile__line")!.TextContent);
+            Assert.Equal("Pilot", cards[2].QuerySelector(".continue-tile__title")!.TextContent.Trim());
+            Assert.Equal("S1 E1", cards[2].QuerySelector(".continue-tile__episode-code")!.TextContent.Trim());
             Assert.Contains("Leviathan Wakes", Text(3));
-            Assert.Contains("42% complete", Text(3));
+            Assert.Contains("Book", cards[3].QuerySelector(".media-tile-label--kind")!.TextContent);
+            Assert.Contains("42% complete", cards[3].QuerySelector(".continue-tile__progress-text")!.TextContent);
             Assert.DoesNotContain("Never Started", cut.Markup);
             Assert.DoesNotContain("Jagged Little Pill", cut.Markup);
         }

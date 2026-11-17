@@ -9,10 +9,13 @@
 @inject IStringLocalizer<SharedStrings> L
 @inject IJSRuntime JS
 @implements IAsyncDisposable
-@* One landscape Continue tile (One tile design D8): the picture with a play mark bottom-left and a progress bar along its bottom edge, and under
-   it the title (or "S3 E8 · Episode title") and then the rating and year. This is the one tile that keeps text underneath. Tapping it plays;
-   its "..." menu starts with "Go to ..." (the title's own page), then Add to My List, Restart, Remove from Continue, Open Universe, Edit and
-   Delete. Removing hides it until it is played again. *@
+@* One landscape Continue tile (One tile design D8, details-and-tile-fixes D3): every kind is the same size as the show tile. A movie or episode
+   shows its picture with a play mark bottom-left; a book or audiobook shows its cover (portrait, left) on a blurred wash of itself, the kind
+   word in the top-left label slot and the play mark bottom-right. The progress bar runs full width along the bottom edge, and an episode's
+   "S3 E8" sits just above it, never over it. Under the tile: the title, then the content rating (a movie or show) or the rating or author
+   and then the progress (a book or audiobook); never a movie's or show's star rating. Tapping it plays; its "..." menu starts with
+   "Go to ..." (the title's own page), then Add to My List, Restart, Remove from Continue, Open Universe, Edit and Delete. Removing hides
+   it until it is played again. *@
 @if (!_hidden)
 {
     <article class="@TileClass" aria-label="@Item.Title">
@@ -33,7 +36,7 @@
                     @if (!string.IsNullOrWhiteSpace(CoverUrl))
                     {
                         <img class="continue-tile__soft" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 320)" alt="" loading="lazy" decoding="async" aria-hidden="true" />
-                        <img class="continue-tile__cover is-centred" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 200)" alt="" loading="lazy" decoding="async" />
+                        <img class="continue-tile__cover" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 200)" alt="" loading="lazy" decoding="async" />
                     }
                 }
                 else if (!string.IsNullOrWhiteSpace(BackdropUrl))
@@ -52,6 +55,14 @@
                 }
             </div>
             <span class="continue-tile__play" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></span>
+            @if (KindWord is { } kind)
+            {
+                <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
+            }
+            @if (EpisodeCode is { } episodeCode)
+            {
+                <span class="continue-tile__episode-code">@episodeCode</span>
+            }
             @if (PhoneContinueLogic.ShowsProgressBar(Item))
             {
                 <div class="continue-tile__progress"><AppProgressBar Value="@Item.ProgressPct" Title="@($"Progress for {Title}")" /></div>
@@ -63,6 +74,10 @@
             @if (!string.IsNullOrWhiteSpace(Line))
             {
                 <span class="continue-tile__line">@Line</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(ProgressText))
+            {
+                <span class="continue-tile__line continue-tile__progress-text">@ProgressText</span>
             }
         </div>
     </article>
@@ -122,27 +137,41 @@
     private bool IsWatch => Item.MediaKind is "Movie" or "TV";
     private bool UsesCoverLayout => !IsWatch;
     private bool ShowsCollage => Item.MediaKind == "Music" && string.IsNullOrWhiteSpace(CoverUrl) && Item.PreviewImages.Count >= 4;
-    private string TileClass => $"continue-tile{(UsesCoverLayout ? " continue-tile--cover" : " continue-tile--backdrop")}{(ShowsCollage ? " continue-tile--collage" : string.Empty)}";
+    private string TileClass => $"continue-tile{(UsesCoverLayout ? " continue-tile--cover" : " continue-tile--backdrop")}{(ShowsCollage ? " continue-tile--collage" : string.Empty)}{(KindWord is not null ? " continue-tile--kind" : string.Empty)}";
 
-    // The title, or "S3 E8 · Episode title" for an episode.
-    private string HeadingText => Item.EpisodeContext is { } episode
-        ? MediaTileLabels.EpisodeHeading(Item, episode)
+    // A book or audiobook says what it is in the top-left label slot (details-and-tile-fixes D3), as a group says Series or Universe.
+    private string? KindWord => Item.MediaKind switch
+    {
+        "Book" => L["ContinueTile_KindBook"].Value,
+        "Audiobook" => L["ContinueTile_KindAudiobook"].Value,
+        _ => null,
+    };
+
+    // "S3 E8", just above the progress bar (D3): never at the corner over it, so a few percent of progress stays visible.
+    private string? EpisodeCode => Item.EpisodeContext is { } episode ? MediaTileLabels.EpisodeCode(Item, episode) : null;
+
+    // The title; for an episode its own title (the S3 E8 code sits on the picture), falling back to the show's.
+    private string HeadingText => Item.EpisodeContext is { } episode && !string.IsNullOrWhiteSpace(episode.EpisodeTitle)
+        ? episode.EpisodeTitle
         : Title;
 
-    // Then the rating and year (D8); a title with neither (a book, an audiobook) shows its author or artist instead of an empty line.
+    // Under the title (D3). A movie or show: the content rating (R, PG-13, TV-MA), never the star rating; an episode leads with its show.
+    // A book or audiobook: a rating only when one is available, otherwise its author or narrator.
     private string? Line
     {
         get
         {
-            var parts = new[] { MediaTileLabels.RatingText(Item), MediaTileLabels.YearText(Item) }.Where(part => !string.IsNullOrWhiteSpace(part)).ToList();
-            if (parts.Count > 0)
+            if (IsWatch)
             {
-                return string.Join(" · ", parts);
+                return string.Join(" · ", new[] { Item.EpisodeContext?.ShowTitle, Item.ContentRating?.Trim() }.Where(part => !string.IsNullOrWhiteSpace(part)));
             }
 
-            return Item.EpisodeContext is { } episode ? episode.ShowTitle : Item.Creator ?? Item.Subtitle;
+            return MediaTileLabels.RatingText(Item) ?? Item.Creator ?? Item.Subtitle;
         }
     }
+
+    // A book or audiobook ends with its progress ("42% complete · 3 hr left").
+    private string? ProgressText => UsesCoverLayout && PhoneContinueLogic.ShowsProgressBar(Item) ? PhoneContinueLogic.PickUpProgressText(Item) : null;
 
     private DetailEntityType EntityType => Item.MediaKind switch
     {

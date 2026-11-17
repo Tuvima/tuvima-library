@@ -356,6 +356,7 @@ public sealed class MediaTileComposerService
             MediaCounts = card.GroupSummary?.MediaCounts.Select(ToMediaCount).ToList() ?? [],
             GroupSummary = ToGroupSummary(card.GroupSummary),
             HoverFacts = card.Facts,
+            ContentRating = card.ContentRating,
             Genres = card.Genres,
             MediaKind = card.MediaType,
             // Every video (a folder, a single file) wears the one video color (item 14).

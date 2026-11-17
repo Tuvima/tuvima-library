@@ -1,5 +1,5 @@
 @namespace MediaEngine.Web.Components.MediaTiles
-@* One mixed row of compact cards, most recently touched first. Nothing started hides the whole section (no empty heading). *@
+@* One mixed row of landscape Continue tiles (details-and-tile-fixes D3), most recently touched first. Nothing started hides the whole section (no empty heading). *@
 @{
     var items = PhoneContinueLogic.Select(Shelf.Items);
 }
@@ -10,7 +10,7 @@
         <MediaShelfScroller ItemCount="@items.Count" AriaLabel="@Heading" Class="pickup-row">
             @foreach (var item in items)
             {
-                <PickUpCard Item="@item" @key="item.RenderKey" />
+                <ContinueWatchingOrListeningTile Item="@item" @key="item.RenderKey" />
             }
         </MediaShelfScroller>
     </section>
