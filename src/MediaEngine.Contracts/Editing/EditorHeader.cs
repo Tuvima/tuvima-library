@@ -98,6 +98,14 @@ public sealed class EditorHeaderDto
     public bool ProviderMatched { get; init; }
 
     /// <summary>
+    /// True when the item dropdown offers "Reorder videos" (and the Section dropdown "Reorder sections"): only on a video collection whose order
+    /// Library is still guessing, never once the collection or its videos are matched to a provider, whose match gives the order (v8 D3).
+    /// The Engine decides; the Dashboard only shows what it is told.
+    /// </summary>
+    [JsonPropertyName("can_reorder")]
+    public bool CanReorder { get; init; }
+
+    /// <summary>
     /// The links the header shows at its top right (universal editor v7 D2, D3): the item's page at the provider it is matched to and its page at
     /// Wikidata, each only when that source has a page. Empty when the item is not matched, or matched to a source with no page. Product names only.
     /// </summary>
@@ -304,10 +312,6 @@ public sealed class EditorHeaderSupportingFilesDto
     /// <summary>How many supporting files the whole title has.</summary>
     [JsonPropertyName("total_in_root")]
     public int TotalInRoot { get; init; }
-
-    /// <summary>True when there are more files than fit inline, so the dropdown offers "All supporting files" and the browser.</summary>
-    [JsonPropertyName("show_all")]
-    public bool ShowAll { get; init; }
 
     /// <summary>The first files, at most <c>inline_supporting_files</c> of them.</summary>
     [JsonPropertyName("files")]
@@ -711,7 +715,10 @@ public static class EditorFolderEntryStates
     /// <summary>A file the Library never shows: an archive, an .nfo, a subtitle, artwork named for a media file, or anything Library cannot open ("Not shown in the library").</summary>
     public const string Hidden = "hidden";
 
-    /// <summary>A file Library could show but has not placed; it can be sorted from "What is this file?".</summary>
+    /// <summary>
+    /// A file Library could not place: a media file Needs Review still holds (it carries <c>file_id</c>, so "What is this file?" can be asked), or
+    /// a file Library could show but has no record of yet (a loose document). Listed first in the browser.
+    /// </summary>
     public const string Unsorted = "unsorted";
 }
 
@@ -770,6 +777,14 @@ public sealed class EditorFolderEntryDto
     [JsonPropertyName("size_bytes")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? SizeBytes { get; init; }
+
+    /// <summary>
+    /// For a file the Engine has a media record for (a main media file, or one it could not place), the media asset's id. A file Library could not
+    /// place is identified by this id: "What is this file?" is asked about it (v8 D9). Null for a file with no media record (a loose document).
+    /// </summary>
+    [JsonPropertyName("file_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? FileId { get; init; }
 
     /// <summary>For a main media file, the item it is (open it in the editor).</summary>
     [JsonPropertyName("item_id")]

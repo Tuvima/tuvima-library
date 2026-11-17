@@ -39,6 +39,21 @@
     color: var(--tl-status-warning, var(--tl-text-secondary));
 }
 
+.app-browser-folder__lines {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.app-browser-folder__secondary {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .app-browser-folder__text {
     min-width: 0;
     overflow: hidden;
