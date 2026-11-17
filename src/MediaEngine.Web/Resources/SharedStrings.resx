@@ -9371,14 +9371,41 @@
   <data name="EditorFooter_ManyUnsaved" xml:space="preserve">
     <value>{0} unsaved changes</value>
   </data>
-  <data name="EditorHeader_OpenAt" xml:space="preserve">
-    <value>Open at {0}</value>
-  </data>
   <data name="EditorFamily_Matched" xml:space="preserve">
     <value>Matched</value>
   </data>
   <data name="EditorHeader_NotMatched" xml:space="preserve">
     <value>Not matched</value>
+  </data>
+  <data name="EditorHeaderBadge_Label" xml:space="preserve">
+    <value>Match status</value>
+  </data>
+  <data name="EditorHeaderBadge_Retail" xml:space="preserve">
+    <value>Retail</value>
+  </data>
+  <data name="EditorHeaderBadge_Canonical" xml:space="preserve">
+    <value>Canonical</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailShort" xml:space="preserve">
+    <value>R</value>
+  </data>
+  <data name="EditorHeaderBadge_CanonicalShort" xml:space="preserve">
+    <value>C</value>
+  </data>
+  <data name="EditorHeaderBadge_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorHeaderBadge_MatchedTo" xml:space="preserve">
+    <value>Matched to {0}</value>
+  </data>
+  <data name="EditorHeaderBadge_NotMatchedTo" xml:space="preserve">
+    <value>Not matched to {0}</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailMatchedPlain" xml:space="preserve">
+    <value>Matched to a retail provider</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailNotMatched" xml:space="preserve">
+    <value>Not matched to a retail provider</value>
   </data>
   <data name="EditorHeader_Close" xml:space="preserve">
     <value>Close the editor</value>
