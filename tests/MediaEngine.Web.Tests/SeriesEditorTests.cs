@@ -464,13 +464,13 @@ public sealed class SeriesEditorTests : AsyncBunitContext
 
     private static EditorSubjectDto Grouping(
         string kind, EditorSubjectMatchBadgeDto? badge = null, (string Key, string Label, int Count)[]? kinds = null) => new()
-    {
-        Id = SubjectId,
-        Kind = kind,
-        Title = "Dune",
-        ArtworkEntityKind = "Collection",
-        ArtworkSlots = kind == EditorSubjectKinds.Series ? ["CoverArt", "Background", "Logo"] : ["CoverArt", "Background"],
-        Fields =
+        {
+            Id = SubjectId,
+            Kind = kind,
+            Title = "Dune",
+            ArtworkEntityKind = "Collection",
+            ArtworkSlots = kind == EditorSubjectKinds.Series ? ["CoverArt", "Background", "Logo"] : ["CoverArt", "Background"],
+            Fields =
         [
             new EditorSubjectFieldDto { Key = "title", Label = "Name", Value = "Dune", CanonicalValue = "Dune", SourceLabel = "Provider" },
             new EditorSubjectFieldDto { Key = "description", Label = "Description", InputKind = EditorSubjectInputKinds.TextArea, Value = "A desert world.", CanonicalValue = "A desert world.", SourceLabel = "Provider" },
@@ -482,9 +482,9 @@ public sealed class SeriesEditorTests : AsyncBunitContext
                 ]
                 : Array.Empty<EditorSubjectFieldDto>(),
         ],
-        MatchBadge = badge,
-        MediaTypes = [.. (kinds ?? []).Select(entry => new EditorSeriesMediaTypeDto { Key = entry.Key, Label = entry.Label, OwnedCount = entry.Count })],
-    };
+            MatchBadge = badge,
+            MediaTypes = [.. (kinds ?? []).Select(entry => new EditorSeriesMediaTypeDto { Key = entry.Key, Label = entry.Label, OwnedCount = entry.Count })],
+        };
 
     private static EditorNavItemDto Book(Guid id, int number, string title) => new() { Id = id, Kind = "book", Number = number, Title = title };
 
