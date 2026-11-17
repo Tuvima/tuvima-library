@@ -173,6 +173,7 @@ public sealed class ItemQuickFactsRepository(IDatabaseConnection db)
             ? connection.Query<TreeRow>(new CommandDefinition(TreeCte + """
 
                 SELECT t.id AS Id, t.parent_id AS ParentId, t.depth AS Depth,
+                       w.media_type AS MediaType, w.work_kind AS WorkKind,
                        CASE WHEN w.ownership = 'Owned' AND w.is_catalog_only = 0 THEN 1 ELSE 0 END AS Owned
                 FROM tree t JOIN works w ON w.id = t.id;
                 """, parameters, transaction, cancellationToken: ct)).ToList()
@@ -225,12 +226,26 @@ public sealed class ItemQuickFactsRepository(IDatabaseConnection db)
         {
             var rootId = roots[0];
             var parents = tree.Where(row => row.ParentId is not null).Select(row => row.ParentId!.Value).ToHashSet();
+            // A show's direct children are its seasons. Episodes filed straight under the show (no season
+            // level) are not seasons: together they stand for one season, so a one-season show reads "1 season".
+            var root = tree.FirstOrDefault(row => row.Depth == 0);
+            var isShow = root is not null && root.ParentId is null && string.Equals(root.MediaType, "TV", StringComparison.OrdinalIgnoreCase);
+            var looseEpisodeOwned = 0;
+            var looseEpisodes = 0;
             foreach (var row in tree.Where(row => row.Depth > 0))
             {
                 if (row.ParentId == rootId)
                 {
-                    directTotal++;
-                    directOwned += row.Owned;
+                    if (isShow && !string.Equals(row.WorkKind, "parent", StringComparison.OrdinalIgnoreCase))
+                    {
+                        looseEpisodes++;
+                        looseEpisodeOwned += row.Owned;
+                    }
+                    else
+                    {
+                        directTotal++;
+                        directOwned += row.Owned;
+                    }
                 }
 
                 if (!parents.Contains(row.Id))
@@ -238,6 +253,12 @@ public sealed class ItemQuickFactsRepository(IDatabaseConnection db)
                     leafTotal++;
                     leafOwned += row.Owned;
                 }
+            }
+
+            if (looseEpisodes > 0)
+            {
+                directTotal++;
+                directOwned += looseEpisodeOwned > 0 ? 1 : 0;
             }
         }
 
@@ -312,6 +333,8 @@ public sealed class ItemQuickFactsRepository(IDatabaseConnection db)
         public Guid Id { get; init; }
         public Guid? ParentId { get; init; }
         public int Depth { get; init; }
+        public string? MediaType { get; init; }
+        public string? WorkKind { get; init; }
         public int Owned { get; init; }
     }
 

@@ -105,6 +105,7 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
                 await fields.LoadAsync(item.EntityId, "TV", item.Kind switch { "Show" => "series", "Season" => "season", _ => "episode" }, null);
                 return fields.Loaded && fields.EntityId == item.EntityId;
             },
+            OpenFailureReason = () => fields.LoadError,
         };
         Assert.True(await mode.EnterAsync());
         return new Editor(mode, session, flow, asked);
@@ -219,6 +220,9 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
 
         panel.WaitForAssertion(() => Assert.Contains("could not be opened", panel.Find(".tl-editor-window__notice").TextContent, StringComparison.Ordinal));
         Assert.Contains("Season 2", panel.Find(".tl-editor-window__notice").TextContent, StringComparison.Ordinal);
+        // The window says why, in the loader's own plain words, and that the person is still on their item.
+        Assert.Contains("editable fields could not be loaded", panel.Find(".tl-editor-window__notice").TextContent, StringComparison.Ordinal);
+        Assert.Contains("You are still editing", panel.Find(".tl-editor-window__notice").TextContent, StringComparison.Ordinal);
         Assert.Equal(ShowId, editor.Session.ActiveItem!.EntityId);
         Assert.Equal(ShowId, editor.Mode.Fields.EntityId);
         Assert.True(editor.Mode.Fields.Loaded);
