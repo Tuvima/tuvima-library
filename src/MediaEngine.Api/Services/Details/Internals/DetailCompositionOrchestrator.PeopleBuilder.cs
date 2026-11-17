@@ -145,10 +145,11 @@ internal sealed partial class DetailCompositionOrchestrator
             return OwnedCollectionCountLabel(entityType, works);
         }
 
-        // A folder of Other videos is a plain list of videos: never "TV Show" or "TV Episode" (item 17).
+        // A folder of Other videos is a plain list of videos: never "TV Show" or "TV Episode" (item 17). The line names the folder only;
+        // its video count already shows on the right (spec details-and-tile-fixes D10).
         if (entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType))
         {
-            return $"{VideoFolderWording.KindLabel} • {VideoFolderWording.VideoCount(works.Count(work => work.IsOwned))}";
+            return VideoFolderWording.KindLabel;
         }
 
         var types = works.Select(w => FormatEntityType(InferMediaItemEntityType(w))).Distinct(StringComparer.OrdinalIgnoreCase).Take(3);

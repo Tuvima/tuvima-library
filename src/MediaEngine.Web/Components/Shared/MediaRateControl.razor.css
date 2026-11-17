@@ -1,8 +1,9 @@
 .media-rate-control { position:relative; display:inline-flex; align-items:center; }
-/* The choices are a dark pill that slides open to the left over the thumb button itself: Like lands where the Rate button is, Not for me
-   appears beside it. It stays inside the action row, so it never covers Play (issue 1009). */
-.media-rate-control__choices { position:absolute; right:-5px; top:50%; display:flex; gap:4px; padding:4px; border:1px solid var(--tl-menu-border); border-radius:var(--tl-control-radius); background:var(--tl-menu-surface); opacity:0; visibility:hidden; clip-path:inset(0 0 0 100% round var(--tl-control-radius)); transform:translateY(-50%); transition:clip-path .22s ease,opacity .15s ease,visibility 0s linear .22s; z-index:5; }
+/* The choices are a dark pill centered above the thumb button (issue 1049): it grows upward from the button, never over Play, and the gap between
+   the two is bridged so a pointer moving up to it does not close it. */
+.media-rate-control__choices { position:absolute; left:50%; bottom:calc(100% + var(--tl-space-1)); display:flex; gap:4px; padding:4px; border:1px solid var(--tl-menu-border); border-radius:var(--tl-control-radius); background:var(--tl-menu-surface); opacity:0; visibility:hidden; clip-path:inset(100% 0 0 0 round var(--tl-control-radius)); transform:translateX(-50%); transition:clip-path .22s ease,opacity .15s ease,visibility 0s linear .22s; z-index:5; }
 .is-open .media-rate-control__choices { opacity:1; visibility:visible; clip-path:inset(0 0 0 0 round var(--tl-control-radius)); transition:clip-path .22s ease,opacity .15s ease,visibility 0s; }
+.media-rate-control.is-open::after { content:""; position:absolute; left:0; right:0; bottom:100%; height:var(--tl-space-1); }
 @media(prefers-reduced-motion:reduce) { .media-rate-control__choices, .is-open .media-rate-control__choices { transition:none; } }
 
 /* Lift the owner as well as the choices above neighboring hero controls. */
