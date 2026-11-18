@@ -255,6 +255,30 @@ public sealed class ReachOtherDevicesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void NotNow_ChangesOnlyTheAnsweredFlag_EvenWhenOtherSettingsChangedSinceThePageOpened()
+    {
+        _user.Ingress = ClientIngressValues.ThisComputer;
+        var cut = RenderPrompt();
+        cut.WaitForElement("[data-testid='firewall-not-now']");
+
+        // Someone saves another network setting while the question is open.
+        var newer = new NetworkSettingsDto();
+        newer.Local.PreferredServerName = "newer-name";
+        newer.Local.DiscoveryEnabled = false;
+        newer.Remote.ConnectionMode = "tailscale";
+        _stored = newer;
+
+        cut.Find("[data-testid='firewall-not-now']").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_saved));
+        var saved = Assert.Single(_saved);
+        Assert.True(saved.Local.FirewallPromptAnswered);
+        Assert.Equal("newer-name", saved.Local.PreferredServerName);
+        Assert.False(saved.Local.DiscoveryEnabled);
+        Assert.Equal("tailscale", saved.Remote.ConnectionMode);
+    }
+
+    [Fact]
     public void Allow_WhenWindowsDeclines_StaysOpenWithAPlainLine_AndStillRemembersItAsked()
     {
         _user.Ingress = ClientIngressValues.ThisComputer;

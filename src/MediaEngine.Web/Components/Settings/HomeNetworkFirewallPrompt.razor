@@ -74,7 +74,7 @@
         }
 
         // Only where there is a Windows firewall and Library's rule is not already there.
-        if (await Firewall.GetStateAsync() != HomeNetworkFirewallState.RuleMissing)
+        if (await Firewall.GetStateAsync(_settings.Local.Port) != HomeNetworkFirewallState.RuleMissing)
         {
             return;
         }
@@ -116,17 +116,20 @@
 
     private async Task<bool> RememberAnswerAsync()
     {
-        if (_settings is null)
+        // Read the settings again just before saving, so a change made elsewhere since this page opened is not overwritten;
+        // only the answered flag is changed.
+        var latest = await ApiClient.GetNetworkSettingsAsync();
+        if (latest is null)
         {
             _failure = L["FirewallPrompt_SaveFailed"].Value;
             return false;
         }
 
-        _settings.Local.FirewallPromptAnswered = true;
-        var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
+        latest.Local.FirewallPromptAnswered = true;
+        var saved = await ApiClient.UpdateNetworkSettingsAsync(latest);
         if (saved is null)
         {
-            _settings.Local.FirewallPromptAnswered = false;
+            latest.Local.FirewallPromptAnswered = false;
             _failure = L["FirewallPrompt_SaveFailed"].Value;
             return false;
         }

@@ -49,15 +49,22 @@ public readonly record struct HomeNetworkFirewallCaller(bool IsServerAdministrat
 public static class HomeNetworkFirewallCommands
 {
     public const string Program = "netsh";
-    public const string RuleName = "Library Dashboard (home network)";
 
-    /// <summary>Adds the inbound rule for the Dashboard port on the Private profile only.</summary>
+    /// <summary>
+    /// The rule's name carries the port, so a rule made for an earlier port never reads as open after the port is changed.
+    /// </summary>
+    public static string RuleName(int port) => $"Library Dashboard (home network, port {port})";
+
+    /// <summary>
+    /// Adds the inbound rule for the Dashboard port on the Private profile only, and only for addresses on the local subnet,
+    /// so even a Private network that is routed from elsewhere cannot reach it from outside the home network.
+    /// </summary>
     public static string AddRuleArguments(int port) =>
-        $"advfirewall firewall add rule name=\"{RuleName}\" dir=in action=allow protocol=TCP localport={port} profile=private enable=yes";
+        $"advfirewall firewall add rule name=\"{RuleName(port)}\" dir=in action=allow protocol=TCP localport={port} remoteip=localsubnet profile=private enable=yes";
 
-    /// <summary>Looks the rule up by name; the exit code is 0 only when it exists.</summary>
-    public static string ShowRuleArguments() =>
-        $"advfirewall firewall show rule name=\"{RuleName}\"";
+    /// <summary>Looks the rule for that port up by name; the exit code is 0 only when it exists.</summary>
+    public static string ShowRuleArguments(int port) =>
+        $"advfirewall firewall show rule name=\"{RuleName(port)}\"";
 
     /// <summary>The command a person can run themselves in an administrator window when they declined the prompt.</summary>
     public static string ManualCommand(int port) => $"{Program} {AddRuleArguments(port)}";
@@ -76,14 +83,14 @@ public interface IFirewallCommandRunner
 /// <summary>Asks Windows for the Dashboard's home-network rule (and reports whether it is there). A no-op everywhere else.</summary>
 public interface IHomeNetworkFirewall
 {
-    Task<HomeNetworkFirewallState> GetStateAsync(CancellationToken ct = default);
+    Task<HomeNetworkFirewallState> GetStateAsync(int port, CancellationToken ct = default);
 
     Task<HomeNetworkFirewallOutcome> AllowAsync(int port, HomeNetworkFirewallCaller caller, CancellationToken ct = default);
 }
 
 public sealed class HomeNetworkFirewall(IFirewallCommandRunner runner) : IHomeNetworkFirewall
 {
-    public async Task<HomeNetworkFirewallState> GetStateAsync(CancellationToken ct = default)
+    public async Task<HomeNetworkFirewallState> GetStateAsync(int port, CancellationToken ct = default)
     {
         if (!runner.IsWindows)
         {
@@ -91,7 +98,7 @@ public sealed class HomeNetworkFirewall(IFirewallCommandRunner runner) : IHomeNe
         }
 
         var exitCode = await runner.RunAsync(
-            HomeNetworkFirewallCommands.Program, HomeNetworkFirewallCommands.ShowRuleArguments(), needsAdministrator: false, ct).ConfigureAwait(false);
+            HomeNetworkFirewallCommands.Program, HomeNetworkFirewallCommands.ShowRuleArguments(port), needsAdministrator: false, ct).ConfigureAwait(false);
         return exitCode == 0 ? HomeNetworkFirewallState.RuleInPlace : HomeNetworkFirewallState.RuleMissing;
     }
 
@@ -115,7 +122,7 @@ public sealed class HomeNetworkFirewall(IFirewallCommandRunner runner) : IHomeNe
         }
 
         // Trust the firewall, not the exit code alone.
-        return await GetStateAsync(ct).ConfigureAwait(false) == HomeNetworkFirewallState.RuleInPlace
+        return await GetStateAsync(port, ct).ConfigureAwait(false) == HomeNetworkFirewallState.RuleInPlace
             ? HomeNetworkFirewallOutcome.Allowed
             : HomeNetworkFirewallOutcome.NotAllowed;
     }

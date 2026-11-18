@@ -689,8 +689,10 @@ public static class AuthenticationEndpoints
         {
             try
             {
-                // Where the Dashboard says the visitor is, as the sign-in handler read it for this same request.
-                var currentIngress = httpRequest.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
+                // Where the Dashboard says the visitor is, as the sign-in handler read it for this same request. Only the Dashboard
+                // (service credential) may say so; from any other caller the header is ignored, like for the this-computer sign-in.
+                var currentIngress = httpRequest.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
+                    && httpRequest.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
                     && !string.IsNullOrWhiteSpace(ingressValues.ToString())
                     ? ClientIngress.Parse(ingressValues.ToString())
                     : null;

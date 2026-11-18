@@ -17,15 +17,37 @@ public sealed class HomeNetworkFirewallTests
         var command = HomeNetworkFirewallCommands.AddRuleArguments(5016);
 
         Assert.Equal(
-            "advfirewall firewall add rule name=\"Library Dashboard (home network)\" dir=in action=allow protocol=TCP localport=5016 profile=private enable=yes",
+            "advfirewall firewall add rule name=\"Library Dashboard (home network, port 5016)\" dir=in action=allow protocol=TCP localport=5016 remoteip=localsubnet profile=private enable=yes",
             command);
         Assert.Contains("profile=private", command, StringComparison.Ordinal);
         Assert.Equal(1, command.Split("profile=", StringSplitOptions.None).Length - 1);
         Assert.DoesNotContain("public", command, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("domain", command, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("profile=any", command, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("remoteip", command, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("remoteip=any", command, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("61495", command, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheRuleOnlyAdmitsTheLocalSubnet_SoARoutedPrivateNetworkCannotReachTheDashboard()
+    {
+        var command = HomeNetworkFirewallCommands.AddRuleArguments(5016);
+
+        Assert.Contains("remoteip=localsubnet", command, StringComparison.Ordinal);
+        Assert.Equal(1, command.Split("remoteip=", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
+    public async Task ARuleMadeForAnEarlierPort_NeverReadsAsOpenForTheNewOne()
+    {
+        // Windows knows only the rule made for 5016; asking about 6000 looks up a different name.
+        var runner = new SpyRunner { OnRun = (arguments, _) => arguments.Contains("port 5016", StringComparison.Ordinal) ? 0 : 1 };
+        var firewall = new HomeNetworkFirewall(runner);
+
+        Assert.Equal(HomeNetworkFirewallState.RuleInPlace, await firewall.GetStateAsync(5016));
+        Assert.Equal(HomeNetworkFirewallState.RuleMissing, await firewall.GetStateAsync(6000));
+        Assert.NotEqual(HomeNetworkFirewallCommands.RuleName(5016), HomeNetworkFirewallCommands.RuleName(6000));
+        Assert.Contains("localport=6000", HomeNetworkFirewallCommands.AddRuleArguments(6000), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -122,7 +144,7 @@ public sealed class HomeNetworkFirewallTests
         var runner = new SpyRunner { IsWindows = false, OnRun = (_, _) => 0 };
         var firewall = new HomeNetworkFirewall(runner);
 
-        Assert.Equal(HomeNetworkFirewallState.NotApplicable, await firewall.GetStateAsync());
+        Assert.Equal(HomeNetworkFirewallState.NotApplicable, await firewall.GetStateAsync(5016));
         Assert.Equal(HomeNetworkFirewallOutcome.NotApplicable, await firewall.AllowAsync(5016, Owner));
         Assert.Empty(runner.Runs);
     }
@@ -134,7 +156,7 @@ public sealed class HomeNetworkFirewallTests
 
         Assert.False(runner.IsWindows);
         Assert.Null(await runner.RunAsync("netsh", "anything", true, CancellationToken.None));
-        Assert.Equal(HomeNetworkFirewallState.NotApplicable, await new HomeNetworkFirewall(runner).GetStateAsync());
+        Assert.Equal(HomeNetworkFirewallState.NotApplicable, await new HomeNetworkFirewall(runner).GetStateAsync(5016));
     }
 
     [Theory]
@@ -145,9 +167,9 @@ public sealed class HomeNetworkFirewallTests
     {
         var runner = new SpyRunner { OnRun = (_, _) => exitCode };
 
-        Assert.Equal(expected, await new HomeNetworkFirewall(runner).GetStateAsync());
+        Assert.Equal(expected, await new HomeNetworkFirewall(runner).GetStateAsync(5016));
         var run = Assert.Single(runner.Runs);
-        Assert.Equal(HomeNetworkFirewallCommands.ShowRuleArguments(), run.Arguments);
+        Assert.Equal(HomeNetworkFirewallCommands.ShowRuleArguments(5016), run.Arguments);
         Assert.False(run.NeedsAdministrator);
     }
 

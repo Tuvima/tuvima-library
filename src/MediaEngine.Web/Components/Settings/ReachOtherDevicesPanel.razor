@@ -100,7 +100,7 @@
         var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
         _needsPassword = SecureAccountPrompt.IsThisComputerOnly(user);
         _mayChangeFirewall = Caller(user).MayChangeFirewall;
-        _firewall = await Firewall.GetStateAsync();
+        _firewall = await Firewall.GetStateAsync(Settings.Local.Port);
     }
 
     private HomeNetworkFirewallCaller Caller(System.Security.Claims.ClaimsPrincipal user) => new(
@@ -120,7 +120,7 @@
         _refused = false;
         var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
         var outcome = await Firewall.AllowAsync(Settings.Local.Port, Caller(user));
-        _firewall = await Firewall.GetStateAsync();
+        _firewall = await Firewall.GetStateAsync(Settings.Local.Port);
         _refused = outcome != HomeNetworkFirewallOutcome.Allowed;
         _allowing = false;
     }

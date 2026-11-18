@@ -446,6 +446,26 @@ public sealed class ThisComputerAccessTests : IDisposable
         Assert.Equal(StatusCodes.Status404NotFound, response.Status);
     }
 
+    [Fact]
+    public async Task SwitchingProfile_TakesThePlaceOnlyFromTheDashboard_NotFromAnyOtherCaller()
+    {
+        var owner = await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+        var body = new SwitchProfileRequest { ProfileId = owner.Profile.Id };
+
+        var fromThisComputer = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
+            ingress: ClientIngress.ThisComputer, sessionToken: owner.PlaintextToken);
+        var fromTheHomeNetwork = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
+            ingress: ClientIngress.HomeNetwork, sessionToken: owner.PlaintextToken);
+        // Without the Dashboard's service credential a caller's own claim about where it is counts for nothing.
+        var claimsToBeThisComputer = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
+            ingress: ClientIngress.ThisComputer, sessionToken: owner.PlaintextToken, dashboard: false);
+
+        Assert.Equal(StatusCodes.Status200OK, fromThisComputer.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, fromTheHomeNetwork.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, claimsToBeThisComputer.Status);
+    }
+
     // ---- Harness ----
 
     private SecureAccountGate CreateGate() => new();
