@@ -50,6 +50,13 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<IEraActorResolverService, EraActorResolverService>();
         services.AddSingleton<ImageDownloadCoordinator>();
         services.AddSingleton<IEpisodeFrameSource, MediaEngine.Api.Services.EpisodeFrameSource>();
+        // The editor's "Frames from the video" strip (review mock-ups 2026-11-18, D2): frames cached beside the other derived pictures.
+        services.AddSingleton(sp => new MediaEngine.Processors.VideoFrameCandidateService(
+            sp.GetRequiredService<MediaEngine.Processors.VideoFrameExtractor>(),
+            sp.GetService<IFFmpegService>(),
+            Path.Combine(sp.GetRequiredService<AssetPathService>().DerivedRoot, "video-frame-strip"),
+            sp.GetService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Processors.VideoFrameCandidateService>>()));
+        services.AddSingleton<VideoFrameArtworkService>();
         services.AddSingleton<ImageEnrichmentService>();
         services.AddSingleton<IImageEnrichmentService>(sp => sp.GetRequiredService<ImageEnrichmentService>());
         services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();

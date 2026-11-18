@@ -562,6 +562,19 @@ MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkReque
 MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.UpdateArtworkWritebackSettingsDto
   ArtworkEnabled: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.VideoFrameDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Seconds: System.Double | nullability=not-null | accessors=get,init
+  ThumbnailUrl: System.String | nullability=not-null | accessors=get,init
+  IsBest: System.Boolean | nullability=not-null | accessors=get,init
+  SourceKey: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.VideoFrameSources
+
+MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.VideoFramesDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Artwork.VideoFrameDto> | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AcceptAccountInvitationRequest
   Code: System.String | nullability=not-null | accessors=get,init
   Password: System.String | nullability=not-null | accessors=get,init

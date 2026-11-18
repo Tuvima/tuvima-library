@@ -233,6 +233,79 @@
     color: var(--tl-text-on-accent);
 }
 
+/* ---- "Frames from the video": a row of frames taken from the item's own video, the one in use outlined ---- */
+
+.tl-art-picker__frames {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.tl-art-picker__frames-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--tl-space-1) var(--tl-space-3);
+}
+
+.tl-art-picker__frame-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    overflow-x: auto;
+    padding: var(--tl-space-1) 0;
+    scrollbar-width: thin;
+}
+
+.tl-art-picker__face--frame {
+    position: relative;
+    display: block;
+    box-sizing: border-box;
+    height: 5.5rem;
+    aspect-ratio: 16 / 9;
+    padding: 0;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-shell);
+    cursor: pointer;
+}
+
+.tl-art-picker__face--frame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-art-picker__face--frame:hover {
+    border-color: var(--tl-border-strong);
+}
+
+/* The frame in use: the accent outline and a check, the same as the picture in use in the carousel. */
+.tl-art-picker__face--frame.is-current {
+    border-color: var(--tl-accent-primary);
+}
+
+.tl-art-picker__frame-time,
+.tl-art-picker__frame-best {
+    position: absolute;
+    bottom: 4px;
+    padding: 1px 6px;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-scrim-dark-6);
+    color: var(--tl-on-scrim);
+    font-size: var(--tl-font-size-xs);
+    line-height: 1.4;
+}
+
+.tl-art-picker__frame-time { right: 4px; }
+
+.tl-art-picker__frame-best { left: 4px; }
+
+.tl-art-picker__frames-note { text-align: center; }
+
 /* The "..." menu sits over the picture's top right corner, beside (never inside) the picture's own button. */
 .tl-art-picker__dots {
     position: absolute;

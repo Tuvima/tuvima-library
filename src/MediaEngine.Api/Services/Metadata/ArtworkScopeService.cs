@@ -134,6 +134,14 @@ internal sealed class ArtworkScopeService(
             [
                 "EpisodeStill",
             ],
+            // A folder of Other videos, its sections and its videos (review mock-ups 2026-11-18, D2): the same three pictures as a film, and
+            // a frame from the video can be chosen for the cover and the background. A single video is "Video" with the generic item scope.
+            ("Videos", "series" or "section" or "video" or "item") or ("Video", "item" or "video") =>
+            [
+                "CoverArt",
+                "Background",
+                "Logo",
+            ],
             ("Music", "album") =>
             [
                 "CoverArt",

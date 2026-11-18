@@ -17,6 +17,24 @@ public sealed class EngineImageProxyPathTests
     }
 
     [Theory]
+    [InlineData("/metadata/55555555-5555-5555-5555-555555555555/video-frames/video/3")]
+    [InlineData("/metadata/55555555-5555-5555-5555-555555555555/video-frames/episode/0")]
+    public void ToBrowserUrl_ProxiesAFrameTakenFromAVideo(string value)
+    {
+        Assert.Equal($"/engine-image{value}", EngineImageProxyPath.ToBrowserUrl(value, EngineBaseAddress));
+    }
+
+    [Theory]
+    [InlineData("/metadata/55555555-5555-5555-5555-555555555555/video-frames/video/notanumber")]
+    [InlineData("/metadata/55555555-5555-5555-5555-555555555555/video-frames/video/12345")]
+    [InlineData("/metadata/not-a-guid/video-frames/video/1")]
+    [InlineData("/metadata/55555555-5555-5555-5555-555555555555/video-frames/video")]
+    public void IsAllowedEnginePath_RejectsAFrameAddressThatIsNotOne(string value)
+    {
+        Assert.False(EngineImageProxyPath.IsAllowedEnginePath(value));
+    }
+
+    [Theory]
     [InlineData("/stream/11111111-1111-1111-1111-111111111111")]
     [InlineData("/stream/11111111-1111-1111-1111-111111111111/lyrics")]
     [InlineData("/auth/sessions")]
