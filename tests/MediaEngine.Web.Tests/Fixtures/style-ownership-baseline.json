@@ -1283,7 +1283,7 @@
     },
     "src/MediaEngine.Web/Components/Pages/Settings.razor.css": {
       "important": 313,
-      "deep": 239
+      "deep": 225
     },
     "src/MediaEngine.Web/Components/Pages/SetupPage.razor.css": {
       "important": 2,
@@ -1755,7 +1755,7 @@
     },
     "src/MediaEngine.Web/Components/Player/AudioSubtitlesChoicesView.razor.css": {
       "important": 0,
-      "deep": 1
+      "deep": 15
     },
     "src/MediaEngine.Web/Components/Player/AudioSubtitlesActions.razor.css": {
       "important": 0,
@@ -1872,6 +1872,17 @@
   },
   "lineExceptions": {},
   "transfers": [
+    {
+      "source": "src/MediaEngine.Web/Components/Pages/Settings.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Player/AudioSubtitlesChoicesView.razor.css",
+      "important": 0,
+      "deep": 14,
+      "selectors": [
+        ".asv ::deep .asv__row",
+        ".asv ::deep .asv__tab"
+      ],
+      "reason": "The Audio & subtitles rows and phone tabs are drawn by AppNativeButton, so their look (shading, check, font) can only reach them with deep rules; without them the chosen row was never shaded and the buttons kept the browser font (issue 1132). Settings has deep rules it no longer uses."
+    },
     {
       "source": "src/MediaEngine.Web/Components/Pages/Settings.razor.css",
       "destination": "src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css",

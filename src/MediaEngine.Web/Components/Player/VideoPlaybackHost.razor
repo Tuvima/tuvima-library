@@ -302,8 +302,9 @@
         if (_disposed || identity is null || identity.ProfileId != profileId || identity.WorkId != workId
             || identity.AssetId != assetId || identity.RequestVersion != requestVersion) return Task.CompletedTask;
         _isPictureInPicture = active;
-        // Native PiP exit has no reliable close/back-to-tab reason. Both exits retain Restore.
         if (active) Playback.SetVideoExpanded(false);
+        // Closing the pop-out (or its back-to-tab button) ends playback: no mini box is left behind and the page stays where it is.
+        else if (!_closingPlayer && !_restoringFromPictureInPicture) return InvokeAsync(() => ClosePlayerAsync(navigate: false));
         return InvokeAsync(StateHasChanged);
     }
     private IReadOnlyList<PlaybackSubtitleTrackDto> SubtitleTracks =>
@@ -1565,6 +1566,9 @@
         if (_canPictureInPicture && await JS.InvokeAsync<bool>("listenPlayback.togglePictureInPicture", _videoRef))
         {
             Playback.SetVideoExpanded(false);
+            // The player page has nothing left to show, so the page the title was opened from comes back (not a blank page).
+            if (!wasFloating && Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath.StartsWith("/watch/player/", StringComparison.OrdinalIgnoreCase))
+                await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, CurrentDetailAddress());
             return;
         }
         // Leaving picture in picture also answers false; only say the browser refused when the video was not floating to begin with.
@@ -1587,7 +1591,9 @@
     private async Task RestoreVideoAsync()
     {
         if (!Playback.HasQueue || !Playback.IsVideoMode) return;
-        await JS.InvokeVoidAsync("listenPlayback.exitPictureInPicture");
+        _restoringFromPictureInPicture = true;
+        try { await JS.InvokeVoidAsync("listenPlayback.exitPictureInPicture"); }
+        finally { _restoringFromPictureInPicture = false; }
         _continuationStatus = null;
         Playback.SetVideoExpanded(true);
     }
@@ -1651,9 +1657,29 @@
 
     private Task RetryPreparationAsync() => Playback.RetryPreparationAsync(_lifetimeCancellation.Token);
 
-    private async Task ClosePlayerAsync()
+    private bool _closingPlayer, _restoringFromPictureInPicture;
+
+    private string CurrentDetailAddress()
     {
-        if (!Playback.HasQueue || !Playback.IsVideoMode) return;
+        var workId = Playback.CurrentItem?.WorkId;
+        return _presentationContext is { ShowWorkId: Guid showId } context && context.Identity.IsCurrent(Playback)
+            && workId is Guid episodeId
+            ? TvEpisodeDetailRoute.Build(showId, episodeId, "watch")
+            : workId is Guid id && id != Guid.Empty ? $"/details/work/{id}?context=watch" : "/watch";
+    }
+
+    // navigate false: the player is closed where the person already is (closing the pop-out), not sent back to the title.
+    private Task ClosePlayerAsync() => ClosePlayerAsync(true);
+    private async Task ClosePlayerAsync(bool navigate)
+    {
+        if (!Playback.HasQueue || !Playback.IsVideoMode || _closingPlayer) return;
+        _closingPlayer = true;
+        try { await ClosePlayerCoreAsync(navigate); }
+        finally { _closingPlayer = false; }
+    }
+
+    private async Task ClosePlayerCoreAsync(bool navigate)
+    {
         var capturedProfile = Playback.ActiveProfileId;
         var capturedAsset = Playback.CurrentItem?.AssetId;
         var capturedRequest = Playback.PlaybackRequestVersion;
@@ -1673,10 +1699,7 @@
             await resolution;
             if (!IsCurrentClose()) return;
         }
-        var detailUrl = _presentationContext is { ShowWorkId: Guid showId } context && context.Identity.IsCurrent(Playback)
-            && workId is Guid episodeId
-            ? TvEpisodeDetailRoute.Build(showId, episodeId, "watch")
-            : workId is Guid id && id != Guid.Empty ? $"/details/work/{id}?context=watch" : "/watch";
+        var detailUrl = CurrentDetailAddress();
         var native = await JS.InvokeAsync<VideoMetrics>("listenPlayback.readAudioState", _videoRef);
         if (!IsCurrentClose()) return;
         if (native is not null && native.RequestVersion == capturedRequest && Guid.TryParse(native.AssetId, out var nativeAsset) && nativeAsset == capturedAsset)
@@ -1694,7 +1717,7 @@
         _isPictureInPicture = false;
         Playback.ClosePlayer();
         // Back over the page the title was opened from, so closing the title afterwards returns there instead of to the (now empty) player address.
-        await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, detailUrl);
+        if (navigate) await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, detailUrl);
     }
 
     private string? AbsoluteUrl(string? value)

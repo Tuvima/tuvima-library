@@ -634,6 +634,20 @@ window.listenPlayback = (function () {
         element.querySelectorAll('track[data-prepared-caption]').forEach(track => track.remove());
     }
 
+    // A new source must not inherit the last video's subtitles: switch every text track off, drop the cues the old video left on
+    // tracks that have no <track> element of their own (hls.js and the browser add those), and forget the old caption choice.
+    function resetTextTracks(element) {
+        element._tuvimaCaptionSelection = null;
+        for (const track of Array.from(element.textTracks || [])) {
+            try {
+                track.mode = 'disabled';
+                for (const cue of Array.from(track.cues || [])) track.removeCue(cue);
+            } catch (error) {
+                console.debug('A text track could not be cleared.', error);
+            }
+        }
+    }
+
     function discoverPreparedCaptions(element, streamUrl) {
         const master = new URL(streamUrl, window.location.href);
         if (master.origin !== window.location.origin) return;
@@ -746,6 +760,7 @@ window.listenPlayback = (function () {
                 element._tuvimaHls.destroy();
                 element._tuvimaHls = null;
             }
+            resetTextTracks(element);
             element.dataset.playbackSource = streamUrl;
             if (/\.m3u8(?:[?#]|$)/i.test(streamUrl) && browserMayUseHlsJs()) {
                 // Playback starts wait on this: the player is attached only once hls.js has loaded.
@@ -1390,6 +1405,7 @@ window.listenPlayback = (function () {
             clearPreparedCaptions(element);
             element._tuvimaHls?.destroy();
             element._tuvimaHls = null;
+            resetTextTracks(element);
             delete element.dataset.playbackSource;
             element.removeAttribute('src');
             element.load();

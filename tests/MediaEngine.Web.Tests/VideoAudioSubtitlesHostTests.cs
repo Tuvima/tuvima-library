@@ -207,7 +207,7 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         var rows = cut.FindAll("[data-asv-audio]");
         Assert.Equal(["English", "Spanish"], rows.Select(row => row.QuerySelector(".asv__label")!.TextContent));
         Assert.Equal("Dolby Digital · 5.1", rows[0].QuerySelector(".asv__sub")!.TextContent);
-        Assert.Equal("Stereo · 2.0", rows[1].QuerySelector(".asv__sub")!.TextContent);
+        Assert.Equal("AAC · Stereo · 2.0", rows[1].QuerySelector(".asv__sub")!.TextContent);
         Assert.False(rows[1].HasAttribute("disabled"));
     }
 
