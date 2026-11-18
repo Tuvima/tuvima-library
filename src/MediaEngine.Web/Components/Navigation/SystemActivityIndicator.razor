@@ -14,10 +14,6 @@
                          OnClick="HandleClick">
             @* The one activity icon the Activity and Libraries progress card also draws (spec library-activity D32). *@
             <AppSyncActivityIcon Percent="@RingPercent" Working="@Working" Spinning="@RingSpins" Icon="@PrimaryIcon" />
-            @if (Snapshot.IsWorking && Snapshot.ActiveCount > 1)
-            {
-                <span class="system-activity-indicator__count" aria-hidden="true">@CountLabel</span>
-            }
             <span class="sr-only">@StateLabel</span>
         </AppNativeButton>
     </AppTooltip>
@@ -55,15 +51,13 @@
         _ => AppMaterialIcons.Outlined.Build,
     };
 
-    private string CountLabel => Snapshot.ActiveCount > 9 ? "9+" : Snapshot.ActiveCount.ToString();
-
     // The state is spoken and written as text, never conveyed by colour alone.
     private string StateLabel => Snapshot.IsWorking ? SystemActivityText.WorkingState
         : NeedsAttention ? L["SystemActivityIndicator_NeedsAttentionState"].Value : SystemActivityText.IdleState;
 
     private string AriaLabel => $"{StateLabel}. {TooltipText}";
 
-    // The small number on the icon counts the pieces of work running right now (not Needs Review), so the tooltip says so (issue 1111).
+    // The icon carries no number badge (review mock-ups D10, #1111); the tooltip says how many pieces of work run right now.
     private string TooltipText => NeedsAttention
         ? L["SystemActivityIndicator_NeedsAttentionTooltip"].Value
         : Snapshot.IsWorking && Snapshot.ActiveCount > 1

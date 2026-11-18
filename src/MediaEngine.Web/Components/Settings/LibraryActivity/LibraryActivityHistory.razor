@@ -211,6 +211,9 @@
     /// <summary>The chosen area's media types (D31): batches with none of them are hidden and mixed batches show only these. Empty means every kind.</summary>
     [Parameter] public IReadOnlyList<string> MediaTypes { get; set; } = [];
 
+    /// <summary>The titles Library is still working on now (live Working now); an active batch's rows read Working while their title is in here.</summary>
+    [Parameter] public IReadOnlySet<Guid>? WorkingIds { get; set; }
+
     /// <summary>Bumped by the page when ingestion starts or finishes, so the newest entry follows along.</summary>
     [Parameter] public int RefreshToken { get; set; }
 
@@ -297,7 +300,7 @@
                 <ol class="lact-line">
                     @foreach (var run in month.Runs)
                     {
-                        <LibraryActivityRunEntry @key="@((run.Id, _signature))" Run="run" LibraryIds="LibraryIds" MediaTypes="MediaTypes" />
+                        <LibraryActivityRunEntry @key="@((run.Id, _signature))" Run="run" LibraryIds="LibraryIds" MediaTypes="MediaTypes" WorkingIds="WorkingIds" />
                     }
                 </ol>
             }
