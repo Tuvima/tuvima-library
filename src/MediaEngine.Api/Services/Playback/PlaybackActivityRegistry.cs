@@ -163,6 +163,26 @@ public sealed class PlaybackActivityRegistry(TimeProvider clock)
         return due;
     }
 
+    /// <summary>
+    /// When another title is waiting for an encode slot, the running encodes nobody is watching that have been idle for at least
+    /// <paramref name="idleFor"/>, longest idle first, at most one per waiting title. Giving up an unwatched encode early keeps a new
+    /// title from waiting out the full grace period (issue 1081); segments already finished stay on disk.
+    /// </summary>
+    public IReadOnlyList<EncodeEntry> PreemptableForWaiting(DateTimeOffset now, TimeSpan pausedFor, TimeSpan idleFor)
+    {
+        var waiting = _encodes.Values.Count(e => e.Kind == PlayingNowKinds.PlaybackEncode && e.WaitingForSlot && !e.IsStopping);
+        if (waiting == 0)
+        {
+            return [];
+        }
+
+        return [.. _encodes.Values
+            .Where(e => e.Kind == PlayingNowKinds.PlaybackEncode && !e.WaitingForSlot && !e.IsStopping
+                && !HasViewer(e.AssetId, now, pausedFor) && now - e.LastViewerAt >= idleFor)
+            .OrderBy(e => e.LastViewerAt)
+            .Take(waiting)];
+    }
+
     /// <summary>Stops one encode. False when it is not tracked (already finished or stopped).</summary>
     public async Task<bool> StopAsync(Guid id)
     {

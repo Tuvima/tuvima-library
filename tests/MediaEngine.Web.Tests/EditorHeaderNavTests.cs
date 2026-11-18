@@ -240,16 +240,17 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
     // -- Supporting files ---------------------------------------------------------------------------------------------------------------
 
     [Fact]
-    public void WithMoreSupportingFilesThanTheInlineCount_OnlyTheInlineOnesShow_AndAllSupportingFilesCarriesTheTotal()
+    public void TheItemList_NeverHasAnAllSupportingFilesOrBrowseFilesAndFoldersRow_EvenWithManyFiles()
     {
         var cut = Show(EditorHeaderTestData.TvEpisode(supportingTotal: 238));
 
         cut.Find("#tl-hnav-item").Click();
 
         Assert.Equal(2, cut.FindAll(".tl-hnav__option[data-file-kind]").Count);
-        var all = cut.Find("#tl-hnav-all-files");
-        Assert.Contains("All supporting files (238)", all.TextContent, StringComparison.Ordinal);
-        Assert.Contains("12 in this season · 238 in the show", all.TextContent, StringComparison.Ordinal);
+        var panel = cut.Find(".tl-hnav__panel");
+        Assert.Empty(panel.QuerySelectorAll("#tl-hnav-all-files, #tl-hnav-folder"));
+        Assert.DoesNotContain("All supporting files", panel.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Browse files and folders", panel.TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -267,63 +268,48 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WhenTheTitleHasNoMoreFilesThanAreShown_NoAllSupportingFilesRowIsDrawn()
-    {
-        var header = EditorHeaderTestData.Movie(withSupportingFiles: true);
-
-        var cut = Show(header);
-        cut.Find("#tl-hnav-item").Click();
-
-        Assert.Empty(cut.FindAll("#tl-hnav-all-files"));
-        Assert.Single(cut.FindAll(".tl-hnav__option[data-file-kind]"));
-    }
-
-    [Fact]
-    public void TheFolderButton_ReadsBrowseFilesAndFoldersAndShowsThePath()
+    public void TheFolderButton_SitsAtTheEndOfTheNavRow_OutsideTheItemList()
     {
         var cut = Show(EditorHeaderTestData.TvEpisode());
 
-        cut.Find("#tl-hnav-item").Click();
-
         var folder = cut.Find("#tl-hnav-folder");
-        Assert.Contains("Browse files and folders", folder.TextContent, StringComparison.Ordinal);
-        Assert.Contains("The Last Signal / Season 02", folder.TextContent, StringComparison.Ordinal);
+
+        Assert.Equal("BUTTON", folder.TagName);
+        Assert.Equal("Browse files and folders", folder.GetAttribute("aria-label"));
+        var cells = cut.Find(".tl-hnav").Children;
+        Assert.NotNull(cells.Last().QuerySelector("#tl-hnav-folder"));
+        cut.Find("#tl-hnav-item").Click();
+        Assert.Empty(cut.Find(".tl-hnav__panel").QuerySelectorAll("#tl-hnav-folder"));
     }
 
     [Fact]
-    public void ASupportingFileRow_AllSupportingFilesAndTheFolderButton_EachCallTheirHook()
+    public void ASupportingFileRowAndTheFolderButton_EachCallTheirHook()
     {
         var opened = new List<string>();
         var hooks = new EditorHeaderHooks
         {
             OpenSupportingFile = id => { opened.Add($"file:{id}"); return Task.CompletedTask; },
-            OpenSupportingFiles = request => { opened.Add($"all:{request.EntityId}:{request.ScopeKey}"); return Task.CompletedTask; },
             OpenFolders = id => { opened.Add($"folders:{id}"); return Task.CompletedTask; },
         };
         var cut = Show(EditorHeaderTestData.TvEpisode(), hooks);
 
         cut.Find("#tl-hnav-item").Click();
         cut.FindAll(".tl-hnav__option[data-file-kind]")[0].Click();
-        cut.Find("#tl-hnav-item").Click();
-        cut.Find("#tl-hnav-all-files").Click();
-        cut.Find("#tl-hnav-item").Click();
         cut.Find("#tl-hnav-folder").Click();
 
         Assert.Equal(
         [
             $"file:{EditorHeaderTestData.FileOneId}",
-            $"all:{EditorHeaderTestData.EpisodeThreeId}:season:2",
             $"folders:{EditorHeaderTestData.EpisodeThreeId}",
         ], opened);
     }
 
     [Fact]
-    public void WithNoHooksYet_TheSupportingFileRowsStillDrawAndAClickOpensNothing()
+    public void WithNoHooksYet_TheFolderButtonStillDrawsAndAClickOpensNothing()
     {
         var cut = Show(EditorHeaderTestData.TvEpisode());
 
-        cut.Find("#tl-hnav-item").Click();
-        cut.Find("#tl-hnav-all-files").Click();
+        cut.Find("#tl-hnav-folder").Click();
 
         Assert.Equal("false", cut.Find("#tl-hnav-item").GetAttribute("aria-expanded"));
     }
@@ -340,8 +326,6 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
             Assert.Equal("BUTTON", option.TagName);
             Assert.Null(option.GetAttribute("tabindex"));
         });
-        Assert.Equal("BUTTON", cut.Find("#tl-hnav-all-files").TagName);
-        Assert.Equal("BUTTON", cut.Find("#tl-hnav-folder").TagName);
     }
 
     // -- Paging and search ----------------------------------------------------------------------------------------------------------
@@ -458,11 +442,9 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
         {
             Assert.All(box.Children, child => Assert.Equal("none", child.GetAttribute("role")));
             Assert.All(box.QuerySelectorAll("button"), button => Assert.Equal("option", button.GetAttribute("role")));
-            Assert.Empty(box.QuerySelectorAll("input, hr, #tl-hnav-more, #tl-hnav-files-heading, #tl-hnav-all-files, #tl-hnav-folder"));
+            Assert.Empty(box.QuerySelectorAll("input, hr, #tl-hnav-more, #tl-hnav-files-heading"));
         }
 
-        Assert.Null(cut.Find("#tl-hnav-all-files").GetAttribute("role"));
-        Assert.Null(cut.Find("#tl-hnav-folder").GetAttribute("role"));
         Assert.Null(cut.Find("#tl-hnav-more").GetAttribute("role"));
         Assert.Equal("listbox", cut.Find("#tl-hnav-item").GetAttribute("aria-haspopup"));
     }
@@ -510,13 +492,11 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
         cut.Find("#tl-hnav-item").Click();
 
         Press(cut, "End");
-        Assert.Equal("tl-hnav-folder", FocusedIds().Last());
-        Press(cut, "ArrowDown");
-        Assert.Equal("tl-hnav-folder", FocusedIds().Last());
-        Press(cut, "ArrowUp");
-        Assert.Equal("tl-hnav-all-files", FocusedIds().Last());
-        Press(cut, "ArrowUp");
         Assert.Equal(OptionId(EditorHeaderTestData.FileTwoId), FocusedIds().Last());
+        Press(cut, "ArrowDown");
+        Assert.Equal(OptionId(EditorHeaderTestData.FileTwoId), FocusedIds().Last());
+        Press(cut, "ArrowUp");
+        Assert.Equal(OptionId(EditorHeaderTestData.FileOneId), FocusedIds().Last());
         Press(cut, "Home");
         Assert.Equal(OptionId(EditorHeaderTestData.EpisodeOneId), FocusedIds().Last());
     }

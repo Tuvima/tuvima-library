@@ -140,7 +140,7 @@ public static class SettingsMenuBuilder
     {
         // Needs Review is a tab of the Libraries page, so that row carries only the amber count pill, with no shading (issue 973); Local AI, Plugins and Integrations show red with "Broken" while something switched on cannot work
         // (Local AI: an AI feature is on and the tools are missing); Tools shows red with what is missing, and Security & Devices shows
-        // red with "No password" until the account is secured. Phones show plain rows.
+        // a small red dot until the account is secured (no shading, so it never looks selected, issue 1060).
         var sections = node.Sections.ToList();
         var showReview = sections.Contains(SettingsSection.Review) && context.ReviewCount > 0;
         // The same count also rides on that row as a small amber pill (#867, D13): administrators only, hidden at zero, "99+" above 99.
@@ -149,8 +149,6 @@ public static class SettingsMenuBuilder
         var pluginsBroken = node.Section == SettingsSection.Plugins && context.PluginsBroken && !context.IsMobile;
         var integrationsBroken = node.Section == SettingsSection.Integrations && context.IntegrationsBroken && !context.IsMobile;
         var toolsMissing = sections.Contains(SettingsSection.Tools) && context.ToolsMissingReason is not null && !context.IsMobile;
-        // The Security & Devices row says why it is red: this-computer-only accounts have no password yet.
-        var securityRed = node.Section == SettingsSection.Security && context.SecurityNeedsAttention && !context.IsMobile;
 
         return new MediaSectionNavigationItem(
             node.Label,
@@ -161,13 +159,12 @@ public static class SettingsMenuBuilder
             MetaAriaLabel: reviewPill ? ReviewPillSpokenText(context.ReviewCount) : null,
             // A page stays lit on all of its tabs and on the pages beneath them (a library's own page, a provider's detail).
             Exact: false,
-            // On a phone the row has no red shading, so it keeps the plain dot.
-            AttentionDot: node.Section == SettingsSection.Security && context.SecurityNeedsAttention && !securityRed,
-            Attention: localAiOff || pluginsBroken || integrationsBroken || toolsMissing || securityRed
+            // this-computer-only accounts have no password yet: the row carries a small red dot, on every device.
+            AttentionDot: node.Section == SettingsSection.Security && context.SecurityNeedsAttention,
+            Attention: localAiOff || pluginsBroken || integrationsBroken || toolsMissing
                 ? MediaSectionAttentionLevel.Blocked
                 : MediaSectionAttentionLevel.None,
             AttentionLabel: toolsMissing ? context.ToolsMissingReason
-                : securityRed ? "No password"
                 : localAiOff || pluginsBroken || integrationsBroken ? "Broken" : null,
             ActiveRoutes: sections.Select(SettingsNav.BaseRouteFor).Concat(node.Section == SettingsSection.Overview ? new[] { "=/settings" } : []).Distinct().ToList(),
             InactiveRoutes: null);

@@ -5,6 +5,7 @@ using Dapper;
 using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
+using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -594,6 +595,9 @@ public sealed class MediaEditorNavigationReadService(
                    (SELECT ea.aspect_class FROM entity_assets ea WHERE ea.entity_id = w.id
                     AND ea.asset_type = 'CoverArt' AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
                     ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1) AS ArtworkShape,
+                   -- The provider's own still address, for an episode that has no stored picture yet (the list shows it the same way).
+                   COALESCE(CAST(MAX(CASE WHEN av.key IN ('episode_still_url', 'still_url') THEN av.value END) AS TEXT),
+                            CAST(MAX(CASE WHEN wv.key IN ('episode_still_url', 'still_url') THEN wv.value END) AS TEXT)) AS ProviderStillUrl,
                    CAST(w.parent_key AS TEXT) AS ParentKey
             FROM works w
             LEFT JOIN representative_assets ra ON ra.WorkId = w.id
@@ -734,7 +738,12 @@ public sealed class MediaEditorNavigationReadService(
             CanSelectAsEditorTarget: canSelectAsEditorTarget,
             CanQuarantine: quarantineCount > 0,
             QuarantineCount: quarantineCount,
-            ArtworkUrl: value?.ArtworkId is Guid artworkId ? $"/stream/artwork/{artworkId:D}" : null,
+            // An episode shows the one picture rule the episode list uses: its stored still (a frame from the video included), then the provider's.
+            ArtworkUrl: nodeKind == "episode"
+                ? EffectiveArtworkResolver.ResolveEpisodePicture(
+                    value?.ArtworkId is Guid episodeStillId ? $"/stream/artwork/{episodeStillId:D}" : null,
+                    value?.ProviderStillUrl)
+                : value?.ArtworkId is Guid artworkId ? $"/stream/artwork/{artworkId:D}" : null,
             ArtworkShape: nodeKind == "episode" ? "wide" : mediaType == "Music" ? "square" : value?.ArtworkShape?.ToLowerInvariant() ?? "portrait");
     }
 
@@ -1327,6 +1336,7 @@ public sealed class MediaEditorNavigationReadService(
     {
         public Guid? ArtworkId { get; set; }
         public string? ArtworkShape { get; set; }
+        public string? ProviderStillUrl { get; set; }
         public Guid WorkId { get; init; }
         public Guid? AssetId { get; init; }
         public string? AssetFilePath { get; init; }

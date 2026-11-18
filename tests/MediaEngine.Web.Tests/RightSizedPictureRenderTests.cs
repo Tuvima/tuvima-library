@@ -134,18 +134,4 @@ public sealed class RightSizedPictureRenderTests : LocalizedBunitContext
         Assert.Null(MediaTileArtworkUrl.SrcSetByLongSide("https://provider.example/backdrop.jpg"));
         Assert.Null(MediaTileArtworkUrl.SrcSetByLongSide(null));
     }
-    [Fact]
-    public void ContinueStrip_SizesEnginePicturesAndNeverShowsAProviderLink()
-    {
-        var engine = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Dune", TileImageUrl = "/engine-image/stream/artwork/6f6b4d6e-0000-4000-8000-000000000002?size=s&v=abc" };
-        var provider = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Arrival", TileImageUrl = "https://image.tmdb.org/t/p/original/poster.jpg" };
-
-        var cut = Render<CompactContinueStrip>(parameters => parameters
-            .Add(component => component.Title, "Continue")
-            .Add(component => component.Items, [engine, provider]));
-
-        var image = Assert.Single(cut.FindAll("img[data-artwork-purpose='continue-thumbnail']"));
-        Assert.Equal("/engine-image/stream/artwork/6f6b4d6e-0000-4000-8000-000000000002?v=abc&size=t", image.GetAttribute("src"));
-        Assert.DoesNotContain("tmdb.org", cut.Markup, StringComparison.OrdinalIgnoreCase);
-    }
 }

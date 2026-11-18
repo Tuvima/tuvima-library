@@ -656,9 +656,6 @@
   <data name="MediaBrowseShell_NoMatchingThemes" xml:space="preserve">
     <value>No matching themes</value>
   </data>
-  <data name="MediaBrowseShell_InProgress" xml:space="preserve">
-    <value>In progress</value>
-  </data>
   <data name="Common_Finished" xml:space="preserve">
     <value>Finished</value>
   </data>
@@ -1277,6 +1274,9 @@
   <data name="EditorArtworkTool_Artwork" xml:space="preserve">
     <value>Artwork</value>
   </data>
+  <data name="EditorArtworkTool_Magnify" xml:space="preserve">
+    <value>Magnify</value>
+  </data>
   <data name="EditorArtworkTool_FetchAllStills" xml:space="preserve">
     <value>Fetch all stills</value>
   </data>
@@ -1721,11 +1721,8 @@
   <data name="Common_Kids" xml:space="preserve">
     <value>Kids</value>
   </data>
-  <data name="TopNavAccountMenu_SecureYourAccount" xml:space="preserve">
-    <value>Secure your account</value>
-  </data>
-  <data name="TopNavAccountMenu_AddAPasswordToUse" xml:space="preserve">
-    <value>Add a password to use the Library away from home. Phones and TVs at home keep working without one.</value>
+  <data name="TopNavAccountMenu_AddAPassword" xml:space="preserve">
+    <value>Add a password</value>
   </data>
   <data name="TopNavAccountMenu_WhoSWatching" xml:space="preserve">
     <value>Who's watching?</value>
@@ -6719,9 +6716,6 @@
   <data name="SetupReadinessStage_OpenMyLibrary" xml:space="preserve">
     <value>Open my library</value>
   </data>
-  <data name="SetupStageFooter_ReturnToCurrentStep" xml:space="preserve">
-    <value>Return to current step</value>
-  </data>
   <data name="SetupStepper_Later" xml:space="preserve">
     <value>Later</value>
   </data>
@@ -8258,6 +8252,12 @@
   <data name="MediaGroupTile_KindCollection" xml:space="preserve">
     <value>Collection</value>
   </data>
+  <data name="ContinueTile_KindBook" xml:space="preserve">
+    <value>Book</value>
+  </data>
+  <data name="ContinueTile_KindAudiobook" xml:space="preserve">
+    <value>Audiobook</value>
+  </data>
   <data name="MediaGroupTile_KindSeries" xml:space="preserve">
     <value>Series</value>
   </data>
@@ -9266,9 +9266,6 @@
   <data name="EditorNav_FileMissing" xml:space="preserve">
     <value>File not found</value>
   </data>
-  <data name="EditorNav_AllFiles" xml:space="preserve">
-    <value>All supporting files ({0})</value>
-  </data>
   <data name="EditorNav_Browse" xml:space="preserve">
     <value>Browse files and folders</value>
   </data>
@@ -9332,26 +9329,47 @@
   <data name="EditorFooter_MoveDetailGeneric" xml:space="preserve">
     <value>Managed folder · Moved and renamed to match the new details</value>
   </data>
-  <data name="EditorSeries_ReadOnlyNotice" xml:space="preserve">
-    <value>A Series is a grouping made from its members' own matches, so it can't be edited here. To change it, edit one of its members.</value>
+  <data name="EditorSeries_LockedNotice" xml:space="preserve">
+    <value>A Series' name, description and order come from Wikidata and its members, so they stay locked. Its pictures, tags and sort title are yours to change.</value>
   </data>
-  <data name="EditorSeries_BooksInOrder" xml:space="preserve">
-    <value>Books in order</value>
+  <data name="EditorSeries_ReadingOrder" xml:space="preserve">
+    <value>Reading order</value>
   </data>
-  <data name="EditorSeries_FilmsInOrder" xml:space="preserve">
-    <value>Films in order</value>
+  <data name="EditorSeries_WatchOrder" xml:space="preserve">
+    <value>Watch order</value>
   </data>
-  <data name="EditorSeries_ComicsInOrder" xml:space="preserve">
-    <value>Comics in order</value>
+  <data name="EditorSeries_ListeningOrder" xml:space="preserve">
+    <value>Listening order</value>
   </data>
-  <data name="EditorSeries_AudiobooksInOrder" xml:space="preserve">
-    <value>Audiobooks in order</value>
+  <data name="EditorSeries_MixedOrder" xml:space="preserve">
+    <value>In order</value>
   </data>
-  <data name="EditorSeries_ReadOnlyTitle" xml:space="preserve">
-    <value>Read-only</value>
+  <data name="EditorSeriesNav_Kind" xml:space="preserve">
+    <value>Kind of title</value>
   </data>
-  <data name="EditorSeries_ReadOnlyDetail" xml:space="preserve">
-    <value>Series come from their members' matches.</value>
+  <data name="EditorSeriesNav_Title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorSeriesNav_ChooseKind" xml:space="preserve">
+    <value>Choose a kind</value>
+  </data>
+  <data name="EditorSeriesNav_ChooseTitle" xml:space="preserve">
+    <value>Choose a title</value>
+  </data>
+  <data name="EditorSeriesNav_Search" xml:space="preserve">
+    <value>Search titles</value>
+  </data>
+  <data name="EditorSeriesNav_NotOwned" xml:space="preserve">
+    <value>Not in your library</value>
+  </data>
+  <data name="EditorSeriesNav_NoTitles" xml:space="preserve">
+    <value>No titles to show.</value>
+  </data>
+  <data name="EditorSeriesNav_MoreTitles" xml:space="preserve">
+    <value>Show more titles</value>
+  </data>
+  <data name="EditorSeriesNav_ReadFailed" xml:space="preserve">
+    <value>The titles could not be read. Try again.</value>
   </data>
   <data name="EditorFooter_EditsSaveHere" xml:space="preserve">
     <value>Edits save in Library.</value>
@@ -9368,14 +9386,41 @@
   <data name="EditorFooter_ManyUnsaved" xml:space="preserve">
     <value>{0} unsaved changes</value>
   </data>
-  <data name="EditorHeader_OpenAt" xml:space="preserve">
-    <value>Open at {0}</value>
-  </data>
   <data name="EditorFamily_Matched" xml:space="preserve">
     <value>Matched</value>
   </data>
   <data name="EditorHeader_NotMatched" xml:space="preserve">
     <value>Not matched</value>
+  </data>
+  <data name="EditorHeaderBadge_Label" xml:space="preserve">
+    <value>Match status</value>
+  </data>
+  <data name="EditorHeaderBadge_Retail" xml:space="preserve">
+    <value>Retail</value>
+  </data>
+  <data name="EditorHeaderBadge_Canonical" xml:space="preserve">
+    <value>Canonical</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailShort" xml:space="preserve">
+    <value>R</value>
+  </data>
+  <data name="EditorHeaderBadge_CanonicalShort" xml:space="preserve">
+    <value>C</value>
+  </data>
+  <data name="EditorHeaderBadge_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorHeaderBadge_MatchedTo" xml:space="preserve">
+    <value>Matched to {0}</value>
+  </data>
+  <data name="EditorHeaderBadge_NotMatchedTo" xml:space="preserve">
+    <value>Not matched to {0}</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailMatchedPlain" xml:space="preserve">
+    <value>Matched to a retail provider</value>
+  </data>
+  <data name="EditorHeaderBadge_RetailNotMatched" xml:space="preserve">
+    <value>Not matched to a retail provider</value>
   </data>
   <data name="EditorHeader_Close" xml:space="preserve">
     <value>Close the editor</value>
@@ -11330,9 +11375,6 @@
   <data name="EditorMatchPanel_Staged" xml:space="preserve">
     <value>Staged: {0}. Nothing is saved until you press Save changes.</value>
   </data>
-  <data name="EditorMatchPanel_OpenSource" xml:space="preserve">
-    <value>Open source ↗</value>
-  </data>
   <data name="EditorMatchPanel_RemoveMatch" xml:space="preserve">
     <value>Remove match</value>
   </data>
@@ -11986,6 +12028,9 @@
   </data>
   <data name="EditorBrowser_Filters" xml:space="preserve">
     <value>Filters</value>
+  </data>
+  <data name="EditorBrowser_FoldersPurpose" xml:space="preserve">
+    <value>These are the files behind this title. Anything Library could not place is listed first so you can say what it is.</value>
   </data>
   <data name="EditorBrowser_FolderEmpty" xml:space="preserve">
     <value>Nothing in this folder.</value>
@@ -13979,6 +14024,9 @@
   <data name="EditorMatchCard_ReadLess" xml:space="preserve">
     <value>Read less</value>
   </data>
+  <data name="EditorMatchCard_OpenIn" xml:space="preserve">
+    <value>Open in {0}</value>
+  </data>
   <data name="EditorMatchCard_NotProvided" xml:space="preserve">
     <value>Not provided</value>
   </data>
@@ -14386,6 +14434,33 @@
   </data>
   <data name="VideoPreparing_PercentPrepared" xml:space="preserve">
     <value>{0}% prepared</value>
+  </data>
+  <data name="SetupCapacity_Title" xml:space="preserve">
+    <value>Checking your system</value>
+  </data>
+  <data name="SetupCapacity_Detail" xml:space="preserve">
+    <value>Library is testing how many videos this computer can prepare for playback at the same time. This takes about half a minute and uses the graphics card or processor heavily while it runs.</value>
+  </data>
+  <data name="SetupCapacity_Running" xml:space="preserve">
+    <value>Benchmarking this computer…</value>
+  </data>
+  <data name="SetupCapacity_RowTitle" xml:space="preserve">
+    <value>Videos at once</value>
+  </data>
+  <data name="SetupCapacity_RowLineOne" xml:space="preserve">
+    <value>This computer can prepare 1 video at a time. You can change this in Settings.</value>
+  </data>
+  <data name="SetupCapacity_RowLineMany" xml:space="preserve">
+    <value>This computer can prepare {0} videos at the same time without falling behind. You can change this in Settings.</value>
+  </data>
+  <data name="SetupCapacity_RowNotMeasured" xml:space="preserve">
+    <value>Not measured, so Library prepares 1 video at a time. Check again from Settings later.</value>
+  </data>
+  <data name="SetupCapacity_BadgeMeasured" xml:space="preserve">
+    <value>Measured</value>
+  </data>
+  <data name="SetupCapacity_BadgeDefault" xml:space="preserve">
+    <value>Default</value>
   </data>
   <data name="GraphicsHardware_Title" xml:space="preserve">
     <value>Graphics hardware</value>

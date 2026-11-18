@@ -72,7 +72,7 @@ public sealed class LibraryActivitySlimBatchRowTests : AsyncBunitContext
         Assert.Equal("91 videos · 82 tracks · 37 episodes · 25 books · 9 audiobooks · 6 movies", cut.Find("[data-testid='lact-entry-line']").TextContent.Trim());
         Assert.Equal(3, cut.FindAll("[data-testid='lact-entry-covers'] .lact-cover").Count);
         Assert.Equal("+247", cut.Find("[data-testid='lact-entry-more']").TextContent.Trim());
-        Assert.Equal("Completed", cut.Find("[data-testid='lact-entry-status']").TextContent.Trim());
+        Assert.Equal("Completed · Took 1 h", cut.Find("[data-testid='lact-entry-status']").TextContent.Trim());
         Assert.NotEmpty(cut.FindAll("[data-testid='lact-entry-status'] svg"));
         Assert.DoesNotContain("is-active", cut.Find("[data-testid='lact-entry']").ClassName, StringComparison.Ordinal);
     }

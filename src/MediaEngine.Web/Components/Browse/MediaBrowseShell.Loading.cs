@@ -235,10 +235,6 @@ public partial class MediaBrowseShell
             _cards.AddRange(incoming);
             _facets = page.Facets;
             _totalCount = page.TotalCount > 0 ? page.TotalCount : page.Catalog.Count;
-            if (timelineOffset is null)
-            {
-                await LoadContinueAsync();
-            }
         }
 
         _items = [];
@@ -303,11 +299,6 @@ public partial class MediaBrowseShell
             _items = incoming;
             _totalCount = response?.TotalCount ?? incoming.Count;
             _facets = response?.Facets;
-            await LoadContinueAsync(ct);
-            if (ct.IsCancellationRequested)
-            {
-                return;
-            }
         }
 
         _cards.Clear();
@@ -318,36 +309,6 @@ public partial class MediaBrowseShell
         if (!append)
         {
             await PlayRequestedSongAsync();
-        }
-    }
-
-    private async Task LoadContinueAsync(CancellationToken ct = default)
-    {
-        DisplayPageDto? page;
-        try
-        {
-            page = await ApiClient.GetDisplayContinueAsync(
-                lane: Preset.Title.ToLowerInvariant(),
-                mediaType: CurrentTab.MediaType,
-                limit: CompactContinueStrip.MaxItems,
-                ct: ct);
-        }
-        finally
-        {
-            _continueLoading = false;
-        }
-        if (ct.IsCancellationRequested)
-        {
-            return;
-        }
-
-        _continueCards.Clear();
-        if (page is not null)
-        {
-            _continueCards.AddRange(page.Catalog
-                .Select(card => MediaTileComposerService.FromDisplayCard(card, MediaTileContext.ContinueWatching))
-                .Where(item => item.ProgressPct is > 0 and < 100)
-                .Take(CompactContinueStrip.MaxItems));
         }
     }
 
@@ -417,7 +378,6 @@ public partial class MediaBrowseShell
         _groups = await SortGroupsAsync(groups);
         _totalCount = _groups.Count;
         await EnsureFacetOptionsAsync();
-        await LoadContinueAsync();
         _hasMore = false;
     }
 
@@ -453,7 +413,6 @@ public partial class MediaBrowseShell
         _groups = [];
         _totalCount = playlists.Count;
         _facets = null;
-        _continueCards.Clear();
         _hasMore = false;
     }
 

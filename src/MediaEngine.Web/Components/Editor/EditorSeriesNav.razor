@@ -1,0 +1,322 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Series' two dropdowns in the editor's header (universal editor v8 D6, mock-up screen C). The first picks the kind of title (Books, Movies, TV
+   and so on, only the kinds the Series has); the second, to its right, picks the title and lists every title of that kind in the Series. A title
+   the person does not own is listed only when the profile has Show missing on, and cannot be opened. The Engine builds both lists; this only
+   draws them. A big Series is read one page at a time and searched, never loaded whole. Choosing a title opens its own editor in this window. *@
+@if (Fields.IsSeriesSubject && Fields.SeriesMediaTypes.Count > 0)
+{
+    var current = Current;
+    <nav class="@(Stacked ? "tl-snav tl-snav--stacked" : "tl-snav")" aria-label="@L["EditorNav_Label"].Value" data-testid="series-nav">
+        <div class="tl-snav__level">
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       Size="AppControlSize.Large"
+                       FullWidth="true"
+                       id="tl-snav-kind"
+                       aria-haspopup="listbox"
+                       aria-expanded="@(_open == Kind ? "true" : "false")"
+                       data-testid="series-nav-kind"
+                       OnClick="@(() => Toggle(Kind))">
+                <span class="tl-snav__text"><small>@L["EditorSeriesNav_Kind"]</small><span>@(current?.Label ?? L["EditorSeriesNav_ChooseKind"].Value)</span></span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
+            </AppButton>
+            @if (_open == Kind)
+            {
+                <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Kind))" Class="tl-snav__surface">
+                    <div class="tl-snav__panel" role="listbox" aria-label="@L["EditorSeriesNav_Kind"].Value" @onkeydown="OnKeyDown">
+                        <ul class="tl-snav__options">
+                            @foreach (var type in Fields.SeriesMediaTypes)
+                            {
+                                var selected = type.Key == _kind;
+                                <li @key="@($"kind{type.Key}")">
+                                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                                               Tone="@(selected ? AppUiTone.Primary : AppUiTone.Neutral)"
+                                               Size="AppControlSize.Large"
+                                               FullWidth="true"
+                                               EndIcon="@(selected ? AppMaterialIcons.Outlined.Check : null)"
+                                               role="option"
+                                               aria-selected="@(selected ? "true" : "false")"
+                                               data-kind-key="@type.Key"
+                                               OnClick="@(() => PickKindAsync(type.Key))">
+                                        <span class="tl-snav__text"><span>@type.Label</span></span>
+                                        <small class="tl-snav__count">@type.OwnedCount</small>
+                                    </AppButton>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </AppPopover>
+            }
+        </div>
+        <div class="tl-snav__level">
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       Size="AppControlSize.Large"
+                       FullWidth="true"
+                       id="tl-snav-title"
+                       Disabled="@(_kind is null)"
+                       aria-haspopup="listbox"
+                       aria-expanded="@(_open == Title ? "true" : "false")"
+                       data-testid="series-nav-title"
+                       OnClick="@(() => ToggleTitlesAsync())">
+                <span class="tl-snav__text"><small>@L["EditorSeriesNav_Title"]</small><span>@L["EditorSeriesNav_ChooseTitle"]</span></span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
+            </AppButton>
+            @if (_open == Title)
+            {
+                <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Title))" Class="tl-snav__surface">
+                    <div class="tl-snav__panel" role="listbox" aria-label="@L["EditorSeriesNav_Title"].Value" @onkeydown="OnKeyDown">
+                        <div class="tl-snav__search">
+                            <AppSearchField Value="@_query"
+                                            ValueChanged="SearchAsync"
+                                            Placeholder="@L["EditorSeriesNav_Search"].Value"
+                                            Label="@L["EditorSeriesNav_Search"].Value"
+                                            HideLabel="true"
+                                            Size="AppControlSize.Compact"
+                                            DebounceInterval="200" />
+                        </div>
+                        <ul class="tl-snav__options" data-testid="series-nav-titles">
+                            @foreach (var title in _items)
+                            {
+                                <li @key="@($"title{title.Id}{title.Title}")">
+                                    @if (title.Owned && title.Id is { } id)
+                                    {
+                                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                                   Tone="AppUiTone.Neutral"
+                                                   Size="AppControlSize.Large"
+                                                   FullWidth="true"
+                                                   role="option"
+                                                   aria-selected="false"
+                                                   data-title-id="@id.ToString("N")"
+                                                   Disabled="@(Flow is null || Flow.Saving || Flow.Switching)"
+                                                   OnClick="@(() => PickTitleAsync(id, title.Title))">
+                                            @TitleText(title)
+                                        </AppButton>
+                                    }
+                                    else
+                                    {
+                                        <span class="tl-snav__missing" role="option" aria-disabled="true" data-missing="true">
+                                            @TitleText(title)
+                                            <small class="tl-snav__note">@L["EditorSeriesNav_NotOwned"]</small>
+                                        </span>
+                                    }
+                                </li>
+                            }
+                            @if (_loading)
+                            {
+                                <li class="tl-snav__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
+                            }
+                            else if (_failed)
+                            {
+                                <li class="tl-snav__note" role="alert">@L["EditorSeriesNav_ReadFailed"]</li>
+                            }
+                            else if (_items.Count == 0)
+                            {
+                                <li class="tl-snav__note">@L["EditorSeriesNav_NoTitles"]</li>
+                            }
+
+                            @if (!_loading && _items.Count < _total)
+                            {
+                                <li class="tl-snav__more" role="none">
+                                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                               data-testid="series-nav-more"
+                                               OnClick="@(() => LoadAsync(append: true))">@L["EditorSeriesNav_MoreTitles"]</AppButton>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </AppPopover>
+            }
+        </div>
+    </nav>
+}
+
+@code {
+    private const string Kind = "kind";
+    private const string Title = "title";
+
+    private ItemFieldEditSession? _fields;
+    private Guid _loadedFor;
+    private string? _kind;
+    private string? _open;
+    private string _query = string.Empty;
+    private List<EditorSeriesTitleDto> _items = [];
+    private int _total;
+    private bool _loading;
+    private bool _failed;
+    private bool _disposed;
+    private int _generation;
+
+    [Parameter, EditorRequired] public ItemFieldEditSession Fields { get; set; } = default!;
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>The phone arrangement: the two dropdowns stack, one over the other, inside the navigation sheet.</summary>
+    [Parameter] public bool Stacked { get; set; }
+
+    private EditorSeriesMediaTypeDto? Current => Fields.SeriesMediaTypes.FirstOrDefault(type => type.Key == _kind);
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_fields, Fields))
+        {
+            if (_fields is not null)
+            {
+                _fields.Changed -= OnChanged;
+            }
+
+            _fields = Fields;
+            _fields.Changed += OnChanged;
+        }
+
+        // A different Series (or the same one read again) starts from its first kind and an empty search.
+        if (_loadedFor != Fields.EntityId || (_kind is not null && Current is null))
+        {
+            _loadedFor = Fields.EntityId;
+            _kind = Fields.SeriesMediaTypes.FirstOrDefault()?.Key;
+            Reset();
+        }
+    }
+
+    private void Reset()
+    {
+        _generation++;
+        _items = [];
+        _total = 0;
+        _query = string.Empty;
+        _failed = false;
+        _loading = false;
+        _open = null;
+    }
+
+    private RenderFragment TitleText(EditorSeriesTitleDto title) => __builder =>
+    {
+        <span class="tl-snav__text">
+            <span>@(string.IsNullOrWhiteSpace(title.Number) ? title.Title : $"{title.Number} · {title.Title}")</span>
+        </span>
+    };
+
+    private void Toggle(string which) => _open = _open == which ? null : which;
+
+    private async Task ToggleTitlesAsync()
+    {
+        if (_open == Title)
+        {
+            _open = null;
+            return;
+        }
+
+        _open = Title;
+        if (_items.Count == 0 && !_failed)
+        {
+            await LoadAsync(append: false);
+        }
+    }
+
+    private async Task PickKindAsync(string key)
+    {
+        _open = null;
+        if (key == _kind)
+        {
+            return;
+        }
+
+        _kind = key;
+        Reset();
+        // The titles of the chosen kind open at once, so the second dropdown is ready to pick from.
+        _open = Title;
+        await LoadAsync(append: false);
+    }
+
+    private async Task SearchAsync(string? text)
+    {
+        _query = text ?? string.Empty;
+        _items = [];
+        _total = 0;
+        await LoadAsync(append: false);
+    }
+
+    private async Task LoadAsync(bool append)
+    {
+        if (_kind is null || Fields.EntityId == Guid.Empty)
+        {
+            return;
+        }
+
+        var generation = ++_generation;
+        _loading = true;
+        _failed = false;
+        StateHasChanged();
+        var page = await Api.GetEditorSeriesTitlesAsync(Fields.EntityId, _kind, _query, append ? _items.Count : 0);
+        if (generation != _generation || _disposed)
+        {
+            return;
+        }
+
+        _loading = false;
+        if (page is null)
+        {
+            _failed = true;
+        }
+        else
+        {
+            _items = append ? [.. _items, .. page.Items] : [.. page.Items];
+            _total = page.Total;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task PickTitleAsync(Guid id, string title)
+    {
+        _open = null;
+        if (Flow is null)
+        {
+            return;
+        }
+
+        await Flow.SwitchToAsync(id, title);
+    }
+
+    // The shared popover reports an outside click or Escape; only the list that is still open closes.
+    private void PopoverChanged(bool open, string which)
+    {
+        if (!open && _open == which)
+        {
+            _open = null;
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            _open = null;
+        }
+    }
+
+    private void OnChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        if (_fields is not null)
+        {
+            _fields.Changed -= OnChanged;
+        }
+    }
+}

@@ -170,6 +170,42 @@ public sealed class SupportingFileEditorBulkTests : IDisposable
         Assert.True(File.Exists(movedPath));
     }
 
+    // The kind of a file is in its name, as in Plex and Jellyfin ("Pilot-trailer.mkv"); documents use the Tuvima endings. Managed folders only.
+    [Fact]
+    public async Task ANewKind_RenamesTheFileToThatKindsEnding_AndAnotherKindSwapsTheOldEnding()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "guide");
+
+        var first = await SaveAsync(One(guide, new SupportingFileBulkChangesDto { Role = ExtraRoles.Worksheet }));
+
+        Assert.Single(first.Value!.Moves);
+        Assert.True(File.Exists(Path.Combine(_world.Show, "guide-worksheet.pdf")));
+        Assert.False(File.Exists(guide.FilePath));
+        var renamed = (await _world.Extras.GetAsync(guide.Id))!;
+        Assert.EndsWith("guide-worksheet.pdf", renamed.FilePath, StringComparison.Ordinal);
+        Assert.Equal(ExtraScope.Root, renamed.EffectiveScope);
+
+        await SaveAsync(One(renamed, new SupportingFileBulkChangesDto { Role = ExtraRoles.Notes }));
+        Assert.True(File.Exists(Path.Combine(_world.Show, "guide-notes.pdf")));
+
+        // Other has no ending, so the file goes back to its plain name.
+        await SaveAsync(One((await _world.Extras.GetAsync(guide.Id))!, new SupportingFileBulkChangesDto { Role = ExtraRoles.Other }));
+        Assert.True(File.Exists(Path.Combine(_world.Show, "guide.pdf")));
+    }
+
+    [Fact]
+    public async Task ANewKind_InAReadOnlyFolder_NeverRenamesTheFile()
+    {
+        using var readOnly = new SupportingFileTestWorld(managedFolder: false);
+        var guide = await readOnly.SeedDiskFileAsync("guide.pdf", "guide");
+
+        var outcome = (await readOnly.Bulk.ApplyAsync(_title, One(guide, new SupportingFileBulkChangesDto { Role = ExtraRoles.Worksheet }))).Outcome;
+
+        Assert.Empty(outcome.Value!.Moves);
+        Assert.True(File.Exists(guide.FilePath));
+        Assert.Equal(ExtraRoles.Worksheet, (await readOnly.Extras.GetAsync(guide.Id))!.EffectiveRole);
+    }
+
     [Fact]
     public async Task ABelongsToChange_InAReadOnlyFolder_KeepsTheFileWhereItIs()
     {
@@ -237,9 +273,11 @@ public sealed class SupportingFileEditorBulkTests : IDisposable
         }));
 
         var rows = await SupportingFileHistory.Read(_world.Timeline, guide.Id, default);
-        Assert.Equal(4, rows.Count);
+        // The fields, plus the rename the new kind causes.
+        Assert.Equal(5, rows.Count);
         Assert.All(rows, row => Assert.Equal(guide.Id, row.EntityId));
-        Assert.All(rows, row => Assert.Equal("Details changed", row.Label));
+        Assert.Single(rows, row => row.Label == "File moved" && row.Detail == "Renamed to \"guide-guide.pdf\".");
+        Assert.All(rows.Where(row => row.EventType != SupportingFileHistory.MoveEvent), row => Assert.Equal("Details changed", row.Label));
         Assert.Contains(rows, row => row.Detail == "Title changed to \"Viewer's guide\".");
         Assert.Contains(rows, row => row.Detail == "Group set to \"Guides\".");
         Assert.Contains(rows, row => row.Detail!.StartsWith("Type set to", StringComparison.Ordinal));

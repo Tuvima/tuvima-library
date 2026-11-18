@@ -61,6 +61,20 @@ public static class LibraryActivityText
 
     public static string MonthHeading(DateTimeOffset when) => when.ToLocalTime().ToString("MMMM yyyy", CultureInfo.InvariantCulture);
 
+    /// <summary>How long a finished batch took: "Took under a minute", "Took 12 min", "Took 2 h 5 min" (issue 1039).</summary>
+    public static string Took(TimeSpan duration)
+    {
+        var minutes = (int)Math.Round(Math.Max(0, duration.TotalMinutes), MidpointRounding.AwayFromZero);
+        if (duration < TimeSpan.FromMinutes(1))
+        {
+            return "Took under a minute";
+        }
+
+        return minutes < 60
+            ? $"Took {minutes} min"
+            : minutes % 60 == 0 ? $"Took {minutes / 60} h" : $"Took {minutes / 60} h {minutes % 60} min";
+    }
+
     public static string Bubble(DateTimeOffset when) => when.ToLocalTime().ToString("MMM d", CultureInfo.InvariantCulture);
 
     public static string BatchCount(int count) => $"{count} {(count == 1 ? "batch" : "batches")}";

@@ -11,7 +11,7 @@ public static class EditorSubjectKinds
     /// <summary>A person or group: display name, biography, sort name and library tags; the photo; no provider record to re-match yet.</summary>
     public const string Person = "person";
 
-    /// <summary>A Series (or other provider-built grouping): title and description as local overrides, and a cover.</summary>
+    /// <summary>A Series (or other provider-built grouping): its name, description and order are locked; its cover, background, logo, tags and sort title are the owner's own (v8 D5).</summary>
     public const string Series = "series";
 
     /// <summary>A curated collection someone built: its own name and description, and a cover.</summary>
@@ -77,6 +77,95 @@ public sealed class EditorSubjectDto
     /// <summary>For a Series: its members in order, so the editor can list them (locked) and open any one of them. Empty for every other kind.</summary>
     [JsonPropertyName("members")]
     public List<EditorSubjectMemberDto> Members { get; init; } = [];
+
+    /// <summary>
+    /// For a Series (universal editor v8 D1): the header's Retail and Canonical badge, worked out from the Series' own Wikidata link and its
+    /// members' matches. Null for every other kind.
+    /// </summary>
+    [JsonPropertyName("match_badge")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EditorSubjectMatchBadgeDto? MatchBadge { get; init; }
+
+    /// <summary>
+    /// For a Series (v8 D6): the kinds of title it holds (Books, Movies, TV and so on), only those it has, in the library's usual order. They are
+    /// the choices of the header's first dropdown; the second lists the titles of one kind (<see cref="EditorSeriesTitlesDto"/>). Empty for every other kind.
+    /// </summary>
+    [JsonPropertyName("media_types")]
+    public List<EditorSeriesMediaTypeDto> MediaTypes { get; init; } = [];
+}
+
+/// <summary>The two halves of the editor header's match badge for a Series (v8 D1): a retail provider match through its members, and a Wikidata link of its own.</summary>
+public sealed class EditorSubjectMatchBadgeDto
+{
+    /// <summary>True when the Series has owned members and every one of them is matched to a retail provider.</summary>
+    [JsonPropertyName("retail_matched")]
+    public bool RetailMatched { get; init; }
+
+    /// <summary>The provider's name for the tooltip when the members are matched through one provider; null otherwise.</summary>
+    [JsonPropertyName("provider_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ProviderName { get; init; }
+
+    /// <summary>True when the Series itself is linked to a Wikidata item.</summary>
+    [JsonPropertyName("canonical_matched")]
+    public bool CanonicalMatched { get; init; }
+}
+
+/// <summary>One kind of title a Series holds: a choice of the header's first dropdown (v8 D6).</summary>
+public sealed class EditorSeriesMediaTypeDto
+{
+    /// <summary>The media type's name, such as <c>Books</c>, <c>Movies</c> or <c>TV</c>; the key the titles read is asked with.</summary>
+    [JsonPropertyName("key")]
+    public string Key { get; init; } = string.Empty;
+
+    /// <summary>The words shown for it: "Books", "Audiobooks", "Movies", "TV", "Music", "Comics".</summary>
+    [JsonPropertyName("label")]
+    public string Label { get; init; } = string.Empty;
+
+    /// <summary>How many titles of this kind the Series' owner has.</summary>
+    [JsonPropertyName("owned_count")]
+    public int OwnedCount { get; init; }
+}
+
+/// <summary>One page of the titles of one kind in a Series: the header's second dropdown (v8 D6).</summary>
+public sealed class EditorSeriesTitlesDto
+{
+    [JsonPropertyName("media_type")]
+    public string MediaType { get; init; } = string.Empty;
+
+    /// <summary>How many titles match the search, owned and (when the profile shows them) not owned.</summary>
+    [JsonPropertyName("total")]
+    public int Total { get; init; }
+
+    [JsonPropertyName("offset")]
+    public int Offset { get; init; }
+
+    /// <summary>True when the profile's own "Show missing" tick for this Series is on, so titles not owned are in the list.</summary>
+    [JsonPropertyName("showing_missing")]
+    public bool ShowingMissing { get; init; }
+
+    [JsonPropertyName("items")]
+    public List<EditorSeriesTitleDto> Items { get; init; } = [];
+}
+
+/// <summary>One title in the Series' second dropdown. A title the person does not own has no <see cref="Id"/> and cannot be opened.</summary>
+public sealed class EditorSeriesTitleDto
+{
+    /// <summary>The Work to open; null for a title that is not owned.</summary>
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? Id { get; init; }
+
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = string.Empty;
+
+    /// <summary>The title's place in the Series ("1", "2.5"); null when the Series gives it none.</summary>
+    [JsonPropertyName("number")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Number { get; init; }
+
+    [JsonPropertyName("owned")]
+    public bool Owned { get; init; } = true;
 }
 
 /// <summary>One member of a Series: the book, film or comic the editor opens when it is chosen.</summary>

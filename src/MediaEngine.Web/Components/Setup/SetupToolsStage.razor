@@ -10,7 +10,18 @@
    offers Install, which starts its download at once and carries on in the background. Nothing here blocks: Continue is always offered once the
    server check has passed, and downloads carry on in the background through the rest of setup. Local AI is not part of setup (it is set up in Settings), so it is a "Later" row. *@
 <div class="setup-stage-content">
-    @if (!Busy && NeedsAttention)
+    @if (Benchmarking)
+    {
+        <div class="setup-stage__heading">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Speed" />
+            <div><h2 id="setup-stage-title">@L["SetupCapacity_Title"]</h2><p>@L["SetupCapacity_Detail"]</p></div>
+        </div>
+        <div class="setup-preparing" role="status" aria-live="polite" data-testid="setup-benchmark">
+            <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
+            <span>@L["SetupCapacity_Running"]</span>
+        </div>
+    }
+    else if (!Busy && NeedsAttention)
     {
         <div class="setup-stage__heading">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
@@ -45,6 +56,17 @@
                         </div>
                         <AppStatusBadge Text="@hardware.Badge" Tone="@hardware.Tone" />
                     </div>
+                    @if (Capacity is not null)
+                    {
+                        @* How many videos at once (the "Checking your system" benchmark); a test that could not run keeps one at a time. *@
+                        <div class="setup-tools__later" data-tool-id="video-capacity" data-state="@(Capacity.Measured ? "measured" : "default")">
+                            <div>
+                                <strong>@L["SetupCapacity_RowTitle"]</strong>
+                                <span data-capacity-line>@CapacityLine</span>
+                            </div>
+                            <AppStatusBadge Text="@(Capacity.Measured ? L["SetupCapacity_BadgeMeasured"].Value : L["SetupCapacity_BadgeDefault"].Value)" Tone="@(Capacity.Measured ? AppUiTone.Success : AppUiTone.Neutral)" />
+                        </div>
+                    }
                 }
             }
             @* Local AI is not part of setup; it gets a quiet "Later" row so the list is complete (first-run setup rework, Tools). *@
@@ -56,7 +78,7 @@
                 <AppStatusBadge Text="@L["SetupToolsStage_LocalAILater"].Value" Tone="AppUiTone.Neutral" />
             </div>
         </div>
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <SetupStageFooter Back="Back">
             <AppButton Label="@L["Common_CheckAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
             <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
         </SetupStageFooter>
@@ -78,6 +100,10 @@
     [Parameter] public SetupPreflightDto? Preflight { get; set; }
     /// <summary>What the Engine found when it tested the graphics hardware, or null before FFmpeg is ready.</summary>
     [Parameter] public GraphicsHardwareDto? Graphics { get; set; }
+    /// <summary>What the "Checking your system" benchmark measured, or null before it has run.</summary>
+    [Parameter] public PlaybackCapacityDto? Capacity { get; set; }
+    /// <summary>True while the benchmark runs; the stage then shows the benchmarking screen.</summary>
+    [Parameter] public bool Benchmarking { get; set; }
     [Parameter] public string? Error { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
@@ -85,12 +111,15 @@
     /// <summary>Moves on although a tool is missing; setup warns about tools and never blocks on them.</summary>
     [Parameter] public EventCallback Continue { get; set; }
     [Parameter] public EventCallback Back { get; set; }
-    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
 
     /// <summary>Starts the download of a tool that is not installed (the row's Install); it carries on in the background.</summary>
     [Parameter] public EventCallback<MediaEngine.Contracts.Settings.ToolRequirementDto> InstallTool { get; set; }
     [Parameter] public EventCallback<MediaEngine.Contracts.Settings.ToolRequirementDto> RunInstaller { get; set; }
+
+    private string CapacityLine => Capacity is null ? string.Empty
+        : !Capacity.Measured ? L["SetupCapacity_RowNotMeasured"].Value
+        : Capacity.StreamsSupported <= 1 ? L["SetupCapacity_RowLineOne"].Value
+        : L["SetupCapacity_RowLineMany", Capacity.StreamsSupported].Value;
 
     private bool NeedsAttention => !string.IsNullOrWhiteSpace(Error) || Preflight is { Passed: false };
 

@@ -12,12 +12,12 @@ namespace MediaEngine.Providers.Tests;
 public sealed class LrclibRequestTests
 {
     [Fact]
-    public async Task SongWithAllDetails_UsesTheExactLookup()
+    public async Task SongWithTitleAndArtist_SearchesByThoseTwoFirst()
     {
         var seen = new List<string>();
-        var provider = Provider(seen, request => Json(new { id = 1, duration = 180, syncedLyrics = "[00:01]Line" }));
+        var provider = Provider(seen, request => Json(new[] { new { id = 1, trackName = "Fixture song", artistName = "Artist", duration = 180, syncedLyrics = "[00:01]Line" } }));
         Assert.Single(await provider.SearchAsync(Lookup(album: "Album")));
-        Assert.StartsWith("/api/get?", Assert.Single(seen));
+        Assert.StartsWith("/api/search?", Assert.Single(seen));
     }
 
     [Fact]
@@ -45,12 +45,12 @@ public sealed class LrclibRequestTests
     }
 
     [Fact]
-    public async Task ExactLookupThatFindsNothing_FallsBackToSearch()
+    public async Task TitleAndArtistSearchThatFindsNothing_FallsBackToTheExactLookup()
     {
         var seen = new List<string>();
-        var provider = Provider(seen, request => request.StartsWith("/api/get", StringComparison.Ordinal)
+        var provider = Provider(seen, request => request.StartsWith("/api/search", StringComparison.Ordinal)
             ? new HttpResponseMessage(HttpStatusCode.NotFound)
-            : Json(new[] { new { id = 9, trackName = "Fixture song", artistName = "Artist", duration = 180, plainLyrics = "Words" } }));
+            : Json(new { id = 9, trackName = "Fixture song", artistName = "Artist", duration = 180, plainLyrics = "Words" }));
         var candidate = Assert.Single(await provider.SearchAsync(Lookup(album: "Album")));
         Assert.Equal("9", candidate.SourceId);
         Assert.Equal(2, seen.Count);

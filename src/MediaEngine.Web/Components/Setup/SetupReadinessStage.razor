@@ -11,7 +11,7 @@
             <strong>@L["SetupReadinessStage_SignInToFinishSetup"]</strong>
             <p>@L["SetupReadinessStage_ThisBrowserIsNotSigned"]</p>
         </AppAlert>
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <SetupStageFooter Back="Back">
             <AppButton Label="@L["Common_TryAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
             <AppButton Label="@L["SetupReadinessStage_SignIn"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Href="/auth/login?returnUrl=%2Fsetup" />
         </SetupStageFooter>
@@ -52,7 +52,7 @@
         {
             <AppAlert Tone="AppUiTone.Info" data-testid="setup-download-note">@L["SetupReadinessStage_ADownloadIsStillRunning"]</AppAlert>
         }
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <SetupStageFooter Back="Back">
             <AppButton Label="@L["SetupReadinessStage_OpenMyLibrary"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
         </SetupStageFooter>
     }
@@ -69,8 +69,6 @@
     [Parameter] public EventCallback Retry { get; set; }
     [Parameter] public EventCallback Complete { get; set; }
     [Parameter] public EventCallback Back { get; set; }
-    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
 
     // Neutral until the check has an answer, so the spinner never claims something needs attention.
     private string Subtitle => Readiness is null

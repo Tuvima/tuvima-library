@@ -247,7 +247,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         Assert.Contains("lact-box__toggle", entry.QuerySelector("[data-testid='lact-entry-toggle']")!.ClassName, StringComparison.Ordinal);
         Assert.Equal("148 items added", entry.QuerySelector(".lact-box__what strong")!.TextContent.Trim());
         Assert.Equal("85 episodes · 51 tracks · 12 movies", entry.QuerySelector("[data-testid='lact-entry-line']")!.TextContent.Trim());
-        Assert.Equal("Completed", entry.QuerySelector("[data-testid='lact-entry-status']")!.TextContent.Trim());
+        Assert.Equal("Completed · Took 5 min", entry.QuerySelector("[data-testid='lact-entry-status']")!.TextContent.Trim());
         // The row order is what, covers, status, chevron: left to right, never one centred stack.
         var order = entry.QuerySelectorAll(".lact-box__toggle > span").Select(span => (span.ClassName ?? string.Empty).Split(' ')[0]).ToArray();
         Assert.Equal(["lact-box__what", "lact-box__covers", "lact-box__status", "lact-box__chevron"], order);

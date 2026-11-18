@@ -111,12 +111,18 @@ public sealed class EditorHeaderReadService(
             Colors = cover.Colors,
             FileFacts = family.Current.IsLeaf || !family.HasFamily ? await ReadFileFactsAsync(current.EntityId, support, ct).ConfigureAwait(false) : null,
             ProviderMatched = match.ProviderMatched,
+            CanReorder = CanReorder(kind, family.HasFamily, match),
             MatchLinks = match.Links,
             Config = BuildConfig(config, kind),
         };
     }
 
-    private sealed record MatchRead(bool ProviderMatched, IReadOnlyList<EditorMatchLinkDto> Links);
+    private sealed record MatchRead(bool ProviderMatched, IReadOnlyList<EditorMatchLinkDto> Links, bool CollectionProviderMatched);
+
+    // "Reorder videos" is for a video collection whose order Library is still guessing (v8 D3): the Videos kinds only (a show, album, comic or book
+    // Series takes its order from the match), and never once the collection, the section or the video itself is matched to a provider.
+    private static bool CanReorder(string kind, bool hasFamily, MatchRead match) =>
+        (kind is EditorKinds.Course or EditorKinds.CourseSection || (kind == EditorKinds.Video && hasFamily)) && !match.CollectionProviderMatched;
 
     // Whether the item is matched to a provider by the Match tab's own rule (EditorMatchRule), so the header and the Match tab say the same thing,
     // and the links its top right shows (v7 D2, D3): the provider's page and Wikidata's, each only when that source has a page.
@@ -127,6 +133,16 @@ public sealed class EditorHeaderReadService(
         var read = EditorProviderMatchReader
             .ReadSources(connection, family.MediaType, family.Root.EntityId, [new EditorProviderMatchReader.Item(family.Current.EntityId, workKind)])
             .GetValueOrDefault(family.Current.EntityId);
+
+        // The collection the item sits in: its own match gives the order of what is inside it, so it counts as well as the item's own.
+        var collectionMatched = read.Source is not null;
+        if (!collectionMatched && family.HasFamily && family.Root.EntityId != family.Current.EntityId)
+        {
+            var rootWorkKind = connection.QueryFirstOrDefault<string>("SELECT work_kind FROM works WHERE id = @id;", new { id = family.Root.EntityId }) ?? string.Empty;
+            collectionMatched = EditorProviderMatchReader
+                .ReadSources(connection, family.MediaType, family.Root.EntityId, [new EditorProviderMatchReader.Item(family.Root.EntityId, rootWorkKind)])
+                .GetValueOrDefault(family.Root.EntityId).Source is not null;
+        }
 
         var links = new List<EditorMatchLinkDto>();
         if (read.Source is { Url: { Length: > 0 } providerUrl } source)
@@ -149,7 +165,7 @@ public sealed class EditorHeaderReadService(
             });
         }
 
-        return new MatchRead(read.Source is not null, links);
+        return new MatchRead(read.Source is not null, links, collectionMatched);
     }
 
     // The config key of the Wikidata source in config/providers/, whose product name labels the header's Wikidata link.
@@ -871,7 +887,6 @@ public sealed class EditorHeaderReadService(
                 ScopeKey = scopeKey,
                 Count = list.Count,
                 TotalInRoot = inlineEntries.Count,
-                ShowAll = list.Count > inline,
                 Files = [.. list.Take(inline).Select(entry => ToHeaderFile(entry, currentFileId))],
             };
         }

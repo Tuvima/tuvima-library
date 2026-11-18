@@ -1,6 +1,7 @@
 @page "/all/{Lane}/{ShelfKey}"
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Web.Components.Browse
+@using MediaEngine.Web.Components.MediaTiles
 @implements IAsyncDisposable
 
 @inject IEngineApiClient ApiClient
@@ -123,9 +124,22 @@
         }
         else
         {
-            <MediaTileGrid Items="@_tiles"
-                           SquaresOnly="@SquaresOnly"
-                           Class="shelf-grid-page__grid" />
+            @if (IsContinueShelf)
+            {
+                @* A Continue page (Continue Watching, Reading, Listening, or Home's Continue): the same landscape Continue tiles as the discover row, at full size. *@
+                <div class="shelf-grid-page__continue-grid" data-shelf-grid-continue>
+                    @foreach (var tile in _tiles)
+                    {
+                        <ContinueWatchingOrListeningTile Item="@tile" @key="tile.RenderKey" />
+                    }
+                </div>
+            }
+            else
+            {
+                <MediaTileGrid Items="@_tiles"
+                               SquaresOnly="@SquaresOnly"
+                               Class="shelf-grid-page__grid" />
+            }
 
             @if (_hasMore)
             {

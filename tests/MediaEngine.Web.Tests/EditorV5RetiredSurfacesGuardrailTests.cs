@@ -39,12 +39,12 @@ public sealed partial class EditorV5RetiredSurfacesGuardrailTests
     }
 
     [Fact]
-    public void ASeriesHasOnlyDetailsAndHistory_AndASupportingFileOnlyDetailsPreviewAndHistory()
+    public void ASeriesHasOnlyDetailsArtworkAndHistory_AndASupportingFileOnlyDetailsPreviewAndHistory()
     {
         using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot, "config", "editor.json")));
         var kinds = document.RootElement.GetProperty("kinds");
 
-        Assert.Equal(["details", "history"], TabsOf(kinds, "series"));
+        Assert.Equal(["details", "artwork", "history"], TabsOf(kinds, "series"));
         Assert.Equal(["details", "preview", "history"], TabsOf(kinds, "supporting_file"));
     }
 

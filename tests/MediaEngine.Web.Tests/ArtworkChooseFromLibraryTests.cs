@@ -166,15 +166,24 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
             fields => fields.LoadSubjectAsync(UniverseSubjectId),
             subject: UniverseSubject());
 
-    [Fact]
-    public async Task AFilm_OffersChooseFromLibrary_InTheActionRow_AndOpensTheLibraryPicker()
+    // Add artwork, then the Library source, then its Choose from Library button.
+    private static void OpenLibrarySource(IRenderedComponent<EditorArtworkTool> cut)
     {
-        var (_, cut) = await OpenFilmAsync();
-
-        var button = cut.Find(".tl-art-picker__actions button.tl-art-picker__library");
+        cut.Find("button.tl-art-picker__add").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__add-panel")));
+        cut.FindAll(".tl-art-picker__sources .app-segmented-control__item").Single(item => item.TextContent.Trim() == "Library").Click();
+        var button = cut.WaitForElement("button.tl-art-picker__open-library");
         Assert.Equal("Choose from Library", button.TextContent.Trim());
         Assert.False(button.HasAttribute("disabled"));
         button.Click();
+    }
+
+    [Fact]
+    public async Task AFilm_OffersChooseFromLibrary_UnderAddArtwork_AndOpensTheLibraryPicker()
+    {
+        var (_, cut) = await OpenFilmAsync();
+
+        OpenLibrarySource(cut);
 
         _dialogs.WaitForElement(".artwork-picker-host");
         var query = Assert.Single(_queries);
@@ -190,7 +199,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
     {
         var (_, cut) = await OpenEpisodeAsync();
 
-        cut.Find("button.tl-art-picker__library").Click();
+        OpenLibrarySource(cut);
 
         _dialogs.WaitForElement(".artwork-picker-host");
         var query = Assert.Single(_queries);
@@ -205,7 +214,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
 
         // A Universe has no provider pictures to refresh, but it can still reuse what is already in the Library.
         Assert.Empty(cut.FindAll("button.tl-art-picker__refresh"));
-        cut.Find("button.tl-art-picker__library").Click();
+        OpenLibrarySource(cut);
 
         _dialogs.WaitForElement(".artwork-picker-host");
         var query = Assert.Single(_queries);
@@ -219,7 +228,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
     {
         var (_, cut) = await OpenFilmAsync();
 
-        cut.Find("button.tl-art-picker__library").Click();
+        OpenLibrarySource(cut);
 
         _dialogs.WaitForElement(".artwork-picker-host");
         // It is drawn by the dialog host (a modal dialog opened after the editor's, so it sits in front of it), not inside the tool.
@@ -231,7 +240,7 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
     public async Task AChosenLibraryPicture_IsAddedLikeAnUpload_AndMadePreferredAtOnce()
     {
         var (session, cut) = await OpenFilmAsync();
-        cut.Find("button.tl-art-picker__library").Click();
+        OpenLibrarySource(cut);
         _dialogs.WaitForElement(".artwork-picker-host");
         _dialogs.WaitForElement("button[aria-label='Select Library artwork']").Click();
 
@@ -250,16 +259,16 @@ public sealed class ArtworkChooseFromLibraryTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ClosingTheLibraryPickerWithoutAChoice_GoesBackToThePreview_AndChangesNothing()
+    public async Task ClosingTheLibraryPickerWithoutAChoice_StaysOnAddArtwork_AndChangesNothing()
     {
         var (session, cut) = await OpenFilmAsync();
-        cut.Find("button.tl-art-picker__library").Click();
+        OpenLibrarySource(cut);
         _dialogs.WaitForElement(".artwork-picker-host");
 
         _dialogs.FindAll(".app-dialog-shell__footer button").First().Click();
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__preview")));
-        Assert.Empty(cut.FindAll(".tl-art-picker__add-panel"));
+        cut.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".artwork-picker-host")));
+        Assert.NotEmpty(cut.FindAll(".tl-art-picker__add-panel"));
         Assert.Empty(_links);
         Assert.Empty(_saves);
         Assert.True(session.Pending.IsEmpty);

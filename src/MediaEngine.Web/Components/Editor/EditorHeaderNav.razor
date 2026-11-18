@@ -11,8 +11,10 @@
 
 @* The way around a title, inside the editor's header (universal editor v5 D1, D2, 1a items 2 to 6, 3a): an accent home button that is the one
    way back to the root, a Season (or Section) dropdown and an item dropdown with stills, codes and marks. Under the items it lists the supporting
-   files of the level, then "All supporting files" and the folder button "Browse files and folders". The Engine says which of the three show
-   (header.show_home, second_level, show_item_dropdown); this component decides nothing from the kind of item. Choosing an item switches the
+   files of the level. The folder button at the end of the row is the one way into the supporting-files browser (v8 D2: no "All supporting files" or
+   "Browse files and folders" row; on a phone the sheet ends with the folder button). The Engine says which of the three show
+   (header.show_home, second_level, show_item_dropdown) and whether videos can be reordered (header.can_reorder); this component decides nothing from
+   the kind of item. Choosing an item switches the
    editor to it in the same window and keeps every item's staged changes. Nothing is saved here. Reorder videos and Reorder sections hold the new
    order in the list until the shared Reorder bar's Save order stages it (one change, shown once in Review changes); Cancel, Escape or closing the
    list throws it away (v6 D23). The bar sits inside the list's own top-layer surface, so a press on it is never an outside press. *@
@@ -126,6 +128,23 @@
                 }
             </div>
         }
+
+        @if (header.FolderButton is { } folderButton)
+        {
+            @* The one way into the supporting-files browser (v8 D2): the item list has no "All supporting files" or "Browse files and folders" row. *@
+            <div class="tl-hnav__cell">
+                <AppIconButton id="tl-hnav-folder"
+                               Icon="@AppMaterialIcons.Outlined.Folder"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Neutral"
+                               Size="AppControlSize.Normal"
+                               Class="tl-hnav__folder"
+                               Tooltip="@(L["EditorNav_Browse"].Value + " · " + folderButton.PathLabel)"
+                               AriaLabel="@L["EditorNav_Browse"].Value"
+                               Disabled="@(busy)"
+                               OnClick="() => OpenFolderAsync(header)" />
+            </div>
+        }
     </div>
     }
 }
@@ -232,7 +251,7 @@
         <span class="@(kind is "episode" or "video" or "movie" ? "tl-hnav__still" : "tl-hnav__still tl-hnav__still--square")" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(url))
             {
-                <AppImage Src="@url" Alt="" DrawnPx="120" ObjectFit="AppObjectFit.Cover" Class="tl-hnav__img" />
+                <AppImage Src="@EditorNavText.Picture(url)" Alt="" DrawnPx="120" ObjectFit="AppObjectFit.Cover" Class="tl-hnav__img" />
             }
         </span>
     };
@@ -397,7 +416,7 @@
         </AppPopover>
     };
 
-    // The item list with its search, supporting files, "All supporting files", the folder button and Reorder videos: shared by its popover and by the phone sheet.
+    // The item list with its search, the supporting files of the level and Reorder videos (and, on a phone, the folder button): shared by its popover and by the phone sheet.
     private RenderFragment ItemPanelBody(EditorHeaderDto header, Dictionary<Guid, int> pending) => __builder =>
     {
         var files = header.Level.SupportingFiles;
@@ -532,28 +551,9 @@
                         </ul>
                     }
 
-                    @if (files.ShowAll)
+                    @if (_open == Open.Phone && header.FolderButton is { } folder)
                     {
-                        <ul class="tl-hnav__options tl-hnav__options--tail">
-                            <li>
-                                <AppRowButton
-                                           id="tl-hnav-all-files"
-                                           @onfocusin="@(() => _cursor = "tl-hnav-all-files")"
-                                           Class="tl-hnav__option tl-hnav__option--plain"
-                                           OnClick="() => OpenAllFilesAsync(header, files)">
-                                    <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Size="AppIconSize.Control20" /></span>
-                                    <span class="tl-hnav__text">
-                                        <b>@string.Format(L["EditorNav_AllFiles"].Value, DisplayCount(files.TotalInRoot, files.Count))</b>
-                                        <small>@EditorNavText.AllFilesLine(header, files)</small>
-                                    </span>
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppIconSize.Control20" />
-                                </AppRowButton>
-                            </li>
-                        </ul>
-                    }
-
-                    @if (header.FolderButton is { } folder)
-                    {
+                        @* On a phone there is no row of controls, so the sheet ends with the folder button; on a computer it is the button beside the dropdowns. *@
                         <hr class="tl-hnav__rule" />
                         <ul class="tl-hnav__options tl-hnav__options--tail">
                             <li>
@@ -693,9 +693,6 @@
                             }
                         </div>
     };
-
-    // The "(N)" of "All supporting files (N)": every file of the title, which is what the browser opens on.
-    private static int DisplayCount(int total, int level) => total > 0 ? total : level;
 
     protected override void OnParametersSet()
     {
@@ -846,7 +843,7 @@
         }
     }
 
-    // The ids of the rows the arrow keys visit, top to bottom: the options, then (in the item list) "All supporting files" and the folder button.
+    // The ids of the rows the arrow keys visit, top to bottom: the options, then (on a phone) the folder button.
     private List<string> NavigableIds()
     {
         var ids = new List<string>();
@@ -903,12 +900,7 @@
 
             ids.AddRange(_items.Select(item => OptionId(item.Id)));
             ids.AddRange(header.Level.SupportingFiles.Files.Select(file => OptionId(file.Id)));
-            if (header.Level.SupportingFiles.ShowAll)
-            {
-                ids.Add("tl-hnav-all-files");
-            }
-
-            if (header.FolderButton is not null)
+            if (_open == Open.Phone && header.FolderButton is not null)
             {
                 ids.Add("tl-hnav-folder");
             }
@@ -1143,15 +1135,6 @@
         if (Hooks?.OpenSupportingFile is { } open)
         {
             await open(file.Id);
-        }
-    }
-
-    private async Task OpenAllFilesAsync(EditorHeaderDto header, EditorHeaderSupportingFilesDto files)
-    {
-        _open = Open.None;
-        if (Hooks?.OpenSupportingFiles is { } open)
-        {
-            await open(new EditorSupportingFilesRequest(header.CurrentId, files.ScopeKey));
         }
     }
 

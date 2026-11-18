@@ -7,9 +7,9 @@ namespace MediaEngine.Web.Services.Editing;
 public sealed record EditorSeriesMember(Guid Id, string Title, string Line);
 
 /// <summary>
-/// Small rules for the read-only Series editor (universal editor v5 D7, D24, screen H). A Series is a grouping made from its members' own
-/// matches: the editor shows its name and ordered members locked, explains why, and offers Close instead of Save. A member is reached from
-/// the header's dropdown or from the list, and edited as any item is.
+/// Small rules for the Series editor (universal editor v5 D7, D24, screen H, amended by v8 D5). A Series is a grouping made from its members' own
+/// matches: the editor shows its name and ordered members locked and explains why, while its pictures, tags and sort title are the owner's own.
+/// A member is reached from the header's dropdown or from the list, and edited as any item is.
 /// </summary>
 public static class EditorSeriesRules
 {
@@ -39,15 +39,39 @@ public static class EditorSeriesRules
             : [];
     }
 
-    /// <summary>The resx key of the heading over the list, named for what the members are (books, films, comics, audiobooks).</summary>
-    public static string MembersHeadingKey(ItemFieldEditSession fields) =>
-        (fields.Header?.Level.Items.FirstOrDefault()?.Kind, fields.MediaType) switch
+    /// <summary>
+    /// The resx key of the heading over the list, named for how the members are taken in (universal editor v8 D7): "Reading order" for books and
+    /// comics, "Watch order" for films and shows, "Listening order" for audiobooks and music, and "In order" for a Series that mixes them.
+    /// </summary>
+    public static string MembersHeadingKey(ItemFieldEditSession fields)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
+        var kinds = fields.SeriesMediaTypes.Count > 0
+            ? fields.SeriesMediaTypes.Select(type => type.Key)
+            : (fields.Header?.Level.Items.Select(item => item.Kind) ?? []).Append(fields.MediaType);
+        return OrderHeadingKey(kinds);
+    }
+
+    /// <summary>The heading key for members of these kinds (media type names such as <c>Books</c> or item kinds such as <c>book</c>).</summary>
+    public static string OrderHeadingKey(IEnumerable<string?> kinds)
+    {
+        ArgumentNullException.ThrowIfNull(kinds);
+        var words = kinds.Select(Word).Where(word => word is not null).Distinct(StringComparer.Ordinal).ToList();
+        return words switch
         {
-            ("movie", _) or (_, "Movies") => "EditorSeries_FilmsInOrder",
-            ("comic", _) or (_, "Comics") => "EditorSeries_ComicsInOrder",
-            ("audiobook", _) or (_, "Audiobooks") => "EditorSeries_AudiobooksInOrder",
-            _ => "EditorSeries_BooksInOrder",
+            [] => "EditorSeries_ReadingOrder",
+            [var only] => only!,
+            _ => "EditorSeries_MixedOrder",
         };
+    }
+
+    private static string? Word(string? kind) => kind?.Trim().ToLowerInvariant() switch
+    {
+        "books" or "book" or "comics" or "comic" => "EditorSeries_ReadingOrder",
+        "movies" or "movie" or "film" or "tv" or "show" or "episode" => "EditorSeries_WatchOrder",
+        "audiobooks" or "audiobook" or "music" or "track" or "song" or "album" => "EditorSeries_ListeningOrder",
+        _ => null,
+    };
 
     private static EditorSeriesMember Line(Guid id, string title, string? number) =>
         new(id, title.Trim(), string.IsNullOrWhiteSpace(number) ? title.Trim() : $"{number.Trim()} · {title.Trim()}");

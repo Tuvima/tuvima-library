@@ -26,6 +26,11 @@ public sealed class CollectionSystemViewGroupReadModel
     public string? DescriptionOverride { get; init; }
     public Guid? RootBackgroundAssetId { get; init; }
     public Guid? RootLogoAssetId { get; init; }
+
+    /// <summary>The picture the person chose for the Series itself (its cover, background, logo), stored under the Series collection; null when none was chosen.</summary>
+    public Guid? SeriesCoverArtworkId { get; init; }
+    public Guid? SeriesBackgroundArtworkId { get; init; }
+    public Guid? SeriesLogoArtworkId { get; init; }
     public string? Creator { get; init; }
     public string? Network { get; init; }
     public string? Year { get; init; }
@@ -878,6 +883,25 @@ public sealed class CollectionBrowseReadService(
     private static string SystemViewPreviewKey(string groupName, string? albumArtistKey)
         => $"{groupName}\u001F{albumArtistKey}";
 
+    // The chosen picture of a Series (universal editor v8 D5): linked to the Series collection that the group's works belong to, never to a work.
+    private static string SeriesOwnPictureSql(string role) =>
+        $"""
+        -- readiness: the picture chosen for a Series collection, read for a group that is already Ready-gated
+        (SELECT l.artwork_asset_id
+         FROM entity_artwork_links l
+         WHERE lower(@GroupField) = 'series'
+           AND l.entity_type = 'Collection' AND l.role = '{role}' AND l.is_preferred = 1
+           AND l.entity_id IN (
+               SELECT c.id
+               FROM collections c
+               INNER JOIN works sw ON sw.collection_id = c.id
+               LEFT JOIN works sp ON sp.id = sw.parent_work_id
+               LEFT JOIN works sgp ON sgp.id = sp.parent_work_id
+               WHERE c.collection_type = 'Series' AND COALESCE(sgp.id, sp.id, sw.id) = g.RootWorkId)
+         ORDER BY l.updated_at DESC, l.created_at DESC
+         LIMIT 1)
+        """;
+
     private async Task<IReadOnlyList<CollectionSystemViewGroupReadModel>> QuerySystemViewGroupsAsync(
         IReadOnlyList<Guid> workIds,
         string groupField,
@@ -1054,6 +1078,9 @@ public sealed class CollectionBrowseReadService(
                        AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
                      ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC
                      LIMIT 1) ELSE NULL END AS RootLogoAssetId,
+                   {SeriesOwnPictureSql("Primary")} AS SeriesCoverArtworkId,
+                   {SeriesOwnPictureSql("Background")} AS SeriesBackgroundArtworkId,
+                   {SeriesOwnPictureSql("Logo")} AS SeriesLogoArtworkId,
                    g.WorkCreator AS Creator,
                    COALESCE(root.Network, asset.Network) AS Network,
                    COALESCE(root.Year, asset.Year) AS Year,
@@ -1263,6 +1290,8 @@ public sealed class CollectionBrowseReadService(
             }
 
             var assetRoute = row.FirstAssetId?.ToString("D");
+            // A Series the person chose a picture for shows it (v8 D5); with none chosen it stays the automatic stack of its members' covers.
+            var ownCover = groupByField == "series" && row.SeriesCoverArtworkId is not null;
             var usesRootTvArtwork = string.Equals(primaryMediaType, "TV", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(groupByField, "show_name", StringComparison.OrdinalIgnoreCase);
             result.Add(new ContentGroupDto
@@ -1273,16 +1302,22 @@ public sealed class CollectionBrowseReadService(
                 PrimaryMediaType = primaryMediaType,
                 WorkCount = row.WorkCount,
                 DistinctTitleCount = row.DistinctTitleCount,
-                // A Series takes no cover of its own (universal editor v5 D24): its tile is the automatic stack of its members' covers.
-                PreviewItems = previews.GetValueOrDefault(SystemViewPreviewKey(row.GroupName, row.AlbumArtistKey)) ?? [],
-                CoverUrl = usesRootTvArtwork
+                // Without a chosen cover a Series' tile is the automatic stack of its members' covers (universal editor v5 D24, amended by v8 D5).
+                PreviewItems = ownCover ? [] : previews.GetValueOrDefault(SystemViewPreviewKey(row.GroupName, row.AlbumArtistKey)) ?? [],
+                CoverUrl = ownCover
+                    ? SeriesPictureUrl(row.SeriesCoverArtworkId!.Value)
+                    : usesRootTvArtwork
                     ? row.RootCoverAssetId is { } rootCoverId ? $"/stream/artwork/{rootCoverId:D}" : null
                     : assetRoute is null ? null : $"/stream/{assetRoute}/cover",
-                BackgroundUrl = usesRootTvArtwork
+                BackgroundUrl = groupByField == "series" && row.SeriesBackgroundArtworkId is { } ownBackgroundId
+                    ? SeriesPictureUrl(ownBackgroundId)
+                    : usesRootTvArtwork
                     ? row.RootBackgroundAssetId is { } rootBackgroundId ? $"/stream/artwork/{rootBackgroundId:D}" : null
                     : assetRoute is null ? null : $"/stream/{assetRoute}/background",
                 BannerUrl = null,
-                LogoUrl = usesRootTvArtwork
+                LogoUrl = groupByField == "series" && row.SeriesLogoArtworkId is { } ownLogoId
+                    ? SeriesPictureUrl(ownLogoId)
+                    : usesRootTvArtwork
                     ? row.RootLogoAssetId is { } rootLogoId ? $"/stream/artwork/{rootLogoId:D}" : null
                     : assetRoute is null ? null : $"/stream/{assetRoute}/logo",
                 CoverAspectClass = row.CoverAspectClass,
@@ -1316,6 +1351,8 @@ public sealed class CollectionBrowseReadService(
             });
         }
     }
+
+    private static string SeriesPictureUrl(Guid artworkAssetId) => $"/api/v1/display/artwork/assets/{artworkAssetId:D}/content";
 
     private async Task<PreferredPersonRouteReadModel?> ResolvePreferredPersonAsync(
         string personName,

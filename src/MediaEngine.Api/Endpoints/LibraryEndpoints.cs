@@ -440,6 +440,48 @@ public static class LibraryEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministrator();
 
+        // ── GET /library/editor-subjects/{id}/series-titles ─────
+        // The second dropdown of a Series' editor header (universal editor v8 D6): the titles of one kind in the Series (Books, Movies, TV and so on),
+        // searched and paged so a Series of hundreds is never loaded whole. Titles the person does not own are listed only when the viewing profile
+        // has "Show missing" on for this Series. The same caller check as the editor's own read applies.
+        group.MapGet("/editor-subjects/{id:guid}/series-titles", async (
+            Guid id,
+            string? type,
+            string? q,
+            int? offset,
+            EditSubjectDirectory subjects,
+            [FromServices] EditorSeriesReadService series,
+            EditSessionAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var refusals = await access.FindRefusalsAsync(http, [id], ct);
+            if (refusals.TryGetValue(id, out var refusal))
+            {
+                return ApiErrors.Forbidden(refusal);
+            }
+
+            if (string.IsNullOrWhiteSpace(type))
+            {
+                return ApiErrors.BadRequest("Say which kind of title to list.");
+            }
+
+            if (await subjects.FindAsync(id, ct) is not { Kind: EditorSubjectKinds.Series })
+            {
+                return ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable);
+            }
+
+            var titles = await series.GetTitlesAsync(
+                id, type.Trim(), q, PagedRequest.From(offset, null).Offset, await CollectionEndpoints.ResolveViewerProfileIdAsync(http, ct), ct);
+            return titles is null ? ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable) : Results.Ok(titles);
+        })
+        .WithName("GetEditorSeriesTitles")
+        .WithSummary("One searchable, paged list of the titles of one kind in a Series, for the second dropdown of the editor's header.")
+        .Produces<EditorSeriesTitlesDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
         // ── GET /library/editor-quick-facts/{id} ─────
         // The totals the editor's Quick Facts panel needs beyond the fields (universal editor v4, D4): children owned of total, files, size,
         // runtime, best quality, and whether the files sit in a read-only library folder. Works for any title, person, Series, collection or Universe.

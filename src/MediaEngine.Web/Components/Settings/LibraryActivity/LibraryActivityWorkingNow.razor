@@ -22,8 +22,7 @@
                               CoverUrl="@item.CoverUrl"
                               MediaType="@item.MediaType"
                               Route="@item.DetailRoute"
-                              StatusLabel="@(string.IsNullOrWhiteSpace(item.CurrentGateLabel) ? item.StatusLabel : item.CurrentGateLabel)"
-                              BottomLabel="@Step(item)" />
+                              StatusLabel="@(string.IsNullOrWhiteSpace(item.CurrentGateLabel) ? item.StatusLabel : item.CurrentGateLabel)" />
             }
         </div>
     </section>
@@ -129,16 +128,5 @@
                 // The browser circuit is already gone, so there is nothing left to release.
             }
         }
-    }
-
-    private static string? Step(IngestionMediaGroupDto item)
-    {
-        if (item.ChildUnit is { Length: > 0 } unit && item.ChildCompleted > 0)
-        {
-            var noun = item.ChildCompleted == 1 && unit.EndsWith('s') ? unit[..^1] : unit;
-            return $"{item.ChildCompleted:N0} {noun}";
-        }
-
-        return string.IsNullOrWhiteSpace(item.Subtitle) ? null : item.Subtitle;
     }
 }

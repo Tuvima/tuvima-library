@@ -989,17 +989,16 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
 
         // A group's members, or the groups a person belongs to, are shown only when the viewer could open them (see LinkedPersonVisibility).
         var visible = await LinkedPersonVisibility.VisibleAsync(_personRepo, rows.Select(row => row.Id), viewer, ct);
-        return rows
-            .Where(row => visible.Contains(row.Id))
+        var shown = rows.Where(row => visible.Contains(row.Id)).ToList();
+        // A person whose face is only a preferred Headshot picture still shows it here, as on their own page.
+        var preferredHeadshots = await PersonPreferredHeadshots.LoadAsync(_db, shown.Select(row => row.Id));
+        return shown
             .Select(row => new PersonGroupMemberDto
             {
                 Id = row.Id,
                 Name = row.Name ?? string.Empty,
                 DateRange = row.DateRange,
-                HeadshotUrl = ApiImageUrls.BuildPersonHeadshotUrl(
-                    row.Id,
-                    row.LocalHeadshotPath,
-                    row.HeadshotUrl),
+                HeadshotUrl = preferredHeadshots.BuildUrl(row.Id, row.LocalHeadshotPath, row.HeadshotUrl),
             })
             .ToList();
     }

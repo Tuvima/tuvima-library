@@ -3,8 +3,53 @@ using System.Text.RegularExpressions;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Services.Formatting;
+using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.Editing;
+
+/// <summary>
+/// The match badge at the header's top right (universal editor v8 D1): "Retail" (a provider match) and "Canonical" (Wikidata), each matched or
+/// not. <see cref="ProviderName"/> is the provider's product name for the tooltip ("Apple Books"); null when the Engine did not say.
+/// </summary>
+public sealed record EditorHeaderBadgeState(bool RetailMatched, string? ProviderName, bool CanonicalMatched)
+{
+    /// <summary>
+    /// Reads the badge. Retail is the item's provider match as the header already knows it (the Match tab's own read once it exists, so a staged
+    /// Remove match reads not matched); Canonical is a Wikidata match, from the Engine's Wikidata link or the item's own Wikidata id. Removing a
+    /// match leaves the Wikidata match alone (Review says so), so a staged removal changes the Retail half only.
+    /// </summary>
+    public static EditorHeaderBadgeState Read(
+        bool retailMatched,
+        string? providerName,
+        IEnumerable<EditorMatchLinkDto>? links,
+        string? wikidataQid)
+    {
+        var all = (links ?? []).ToList();
+        var provider = all.FirstOrDefault(link => link.Source == EditorMatchLinkSources.Provider && !string.IsNullOrWhiteSpace(link.Name))?.Name;
+        var hasWikidata = all.Any(link => link.Source == EditorMatchLinkSources.Wikidata && !string.IsNullOrWhiteSpace(link.Url))
+            || IsQid(wikidataQid);
+        var name = string.IsNullOrWhiteSpace(provider) ? providerName : provider;
+        return new EditorHeaderBadgeState(
+            retailMatched,
+            retailMatched && !string.IsNullOrWhiteSpace(name) ? name!.Trim() : null,
+            hasWikidata);
+    }
+
+    /// <summary>
+    /// The badge of a Series of the Library (v8 D1): the Engine's own reading, from the Series' Wikidata link and its members' matches. Null when
+    /// the Engine did not say, so no badge is drawn.
+    /// </summary>
+    public static EditorHeaderBadgeState? ForSeries(EditorSubjectMatchBadgeDto? badge) =>
+        badge is null
+            ? null
+            : new EditorHeaderBadgeState(
+                badge.RetailMatched,
+                badge.RetailMatched && !string.IsNullOrWhiteSpace(badge.ProviderName) ? badge.ProviderName!.Trim() : null,
+                badge.CanonicalMatched);
+
+    private static bool IsQid(string? value) =>
+        value is { Length: > 1 } && value[0] is 'Q' or 'q' && value.Skip(1).All(char.IsDigit);
+}
 
 /// <summary>The two colours the header's gradient is made from, both plain <c>#rrggbb</c> values.</summary>
 public sealed record EditorHeaderColours(string Primary, string Secondary);
@@ -196,18 +241,25 @@ public static class EditorHeaderFacts
     }
 }
 
-/// <summary>The words of the header's item dropdown (universal editor v5, screens A, B, D): a row's code, its lines and the "All supporting files" count.</summary>
+/// <summary>The words of the header's item dropdown (universal editor v5, screens A, B, D): a row's code and its lines.</summary>
 public static class EditorNavText
 {
     /// <summary>
-    /// True when the item dropdown offers "Reorder videos" (v5 D19): only on a Videos series, a section of one, or a video in one, where the order
-    /// is the person's own. A show, album, comic or book Series takes its order from the match, so it never has the row.
+    /// The address the browser draws for a row's picture (an episode's frame, a track's cover). The Engine addresses it as <c>/stream/artwork/{id}</c>,
+    /// which only the Engine can serve, so it goes through the Dashboard's picture route like every other Engine picture; null when the row has none.
+    /// </summary>
+    public static string? Picture(string? engineUrl) =>
+        string.IsNullOrWhiteSpace(engineUrl) ? null : EngineImageProxyPath.ToBrowserUrl(engineUrl, null);
+
+    /// <summary>
+    /// True when the item dropdown offers "Reorder videos" (v5 D19, v8 D3): the Engine decides (<c>can_reorder</c>), and says yes only on a video
+    /// collection whose order Library is still guessing. A show, album, comic or book Series, and any collection or episode matched to a provider,
+    /// takes its order from the match, so it never has the row.
     /// </summary>
     public static bool CanReorder(EditorHeaderDto header)
     {
         ArgumentNullException.ThrowIfNull(header);
-        return header.Kind is EditorKindNames.Course or EditorKindNames.CourseSection
-            || (header.Kind == EditorKindNames.Video && header.ShowHome);
+        return header.CanReorder;
     }
 
     /// <summary>
@@ -287,23 +339,6 @@ public static class EditorNavText
             ? file.ShownAlongside!.Label
             : file.PageCount is > 0 ? $"{file.PageCount} {(file.PageCount == 1 ? "page" : "pages")}" : Length(file.DurationSeconds);
         return string.Join(" · ", new[] { lead, tail }.Where(piece => !string.IsNullOrWhiteSpace(piece)));
-    }
-
-    /// <summary>
-    /// The "All supporting files" row's second line: how many are at this level and in the whole title ("12 in this season · 238 in the show").
-    /// Without a second level, or when the level holds them all, only the total is said.
-    /// </summary>
-    public static string AllFilesLine(EditorHeaderDto header, EditorHeaderSupportingFilesDto files)
-    {
-        ArgumentNullException.ThrowIfNull(header);
-        ArgumentNullException.ThrowIfNull(files);
-        if (header.SecondLevel is not { } second || files.Count == files.TotalInRoot)
-        {
-            return $"{DisplayFormat.FormatCount(files.TotalInRoot)} in all";
-        }
-
-        var title = header.Kind is EditorKindNames.Course or EditorKindNames.CourseSection or EditorKindNames.Video ? "course" : "show";
-        return $"{DisplayFormat.FormatCount(files.Count)} in this {second.Label.ToLowerInvariant()} · {DisplayFormat.FormatCount(files.TotalInRoot)} in the {title}";
     }
 
     /// <summary>The second dropdown's row detail: "10 episodes · 12 supporting files".</summary>

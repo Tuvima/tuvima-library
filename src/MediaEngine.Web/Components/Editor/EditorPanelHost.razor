@@ -44,7 +44,6 @@
                         OnTab="@(key => PickTab(key, shown, flow))"
                         ChangeSuffix="@ChangeSuffix"
                         ShowFooter="@(!_reviewing)"
-                        ReadOnly="@mode.Fields.IsReadOnlySeries"
                         ChangeCount="count"
                         Saving="flow.Saving"
                         OnClose="@(() => flow.LeaveAsync())"

@@ -173,6 +173,7 @@ public sealed class EditorHost : IDisposable
             Saved = OnSavedAsync,
             MediaTypes = () => _binding?.MediaTypes?.Invoke() ?? [],
             OpenItem = OpenItemAsync,
+            OpenFailureReason = () => Mode.Fields.LoadError,
             ItemSwitched = () => _binding?.ItemSwitched?.Invoke() ?? Task.CompletedTask,
         };
         Picker = new ArtworkPickerSession(api, Session, Mode.Fields, new ArtworkEditPreview(), ApplyArtworkAsync, logger);

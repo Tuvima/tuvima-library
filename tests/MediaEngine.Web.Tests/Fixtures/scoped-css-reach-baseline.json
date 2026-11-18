@@ -4,10 +4,6 @@
     "src/MediaEngine.Web/Components/Browse/AppTimelineResults.razor": [
       "app-timeline__groups"
     ],
-    "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor": [
-      "compact-continue__resume",
-      "compact-continue__view-all"
-    ],
     "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor": [
       "browse-shell__grid",
       "browse-shell__load-more-button",
@@ -58,9 +54,7 @@
       "tl-bulk__face"
     ],
     "src/MediaEngine.Web/Components/Editor/EditorArtworkTool.razor": [
-      "is-on",
-      "tl-art-picker__action",
-      "tl-art-picker__prefer"
+      "tl-art-picker__action"
     ],
     "src/MediaEngine.Web/Components/Editor/EditorUniverseRail.razor": [
       "is-current",

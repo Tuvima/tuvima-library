@@ -203,15 +203,14 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         var panel = offered.Find(".top-nav-account-menu__panel");
         Assert.Contains("top-nav-account-menu__secure-card", panel.Children[0].ClassName, StringComparison.Ordinal);
         Assert.Contains("top-nav-account-menu__header", panel.Children[1].ClassName, StringComparison.Ordinal);
-        Assert.Equal("Secure your account", offered.Find(".top-nav-account-menu__secure-title").TextContent);
-        Assert.Equal("Add a password to use the Library away from home. Phones and TVs at home keep working without one.",
-            offered.Find(".top-nav-account-menu__secure-body").TextContent);
+        // One short line: no title, no explanation (issue 1066).
+        Assert.Equal("Add a password", offered.Find(".top-nav-account-menu__secure-link").TextContent.Trim());
+        Assert.Empty(offered.FindAll(".top-nav-account-menu__secure-body"));
         Assert.DoesNotContain("Tuvima", offered.Find(".top-nav-account-menu__secure-card").TextContent, StringComparison.Ordinal);
 
         var secure = offered.Find(".top-nav-account-menu__secure-card a");
         Assert.Equal(SecureAccountPrompt.SecureAccountHref, secure.GetAttribute("href"));
-        Assert.Equal("Secure account", secure.TextContent.Trim());
-        Assert.Equal("Not now", offered.Find(".top-nav-account-menu__secure-card button").TextContent.Trim());
+        Assert.Equal("Not now", offered.Find(".top-nav-account-menu__secure-card button").GetAttribute("aria-label"));
 
         // The old avatar dot and the "Secure account" menu item are gone.
         Assert.Empty(offered.FindAll(".top-nav-account-menu__attention-dot"));

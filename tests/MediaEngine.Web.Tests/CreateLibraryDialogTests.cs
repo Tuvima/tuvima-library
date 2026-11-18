@@ -219,7 +219,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     // The folder window's friendly name field (Libraries v3 D18); the library itself is never named by the person.
-    private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find(".server-folder-picker input");
+    private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find("[data-folder-name] input");
 
     [Fact]
     public void PlainVideosOffersManagedAndAKindWithoutItsOwnColorFollowsItsAreaColor()
@@ -588,9 +588,9 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         // The grey footer line is dropped while the handling choice is shown: the Read-only choice says it, and nothing else does.
         Assert.Empty(_dialogs.FindAll("[data-picker-safety]"));
-        Assert.Contains("Your files are never changed.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
+        Assert.Contains("Read-only never changes your files.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
         var outsideTheChoice = Text(_dialogs.Find(".create-library")).Replace(Text(_dialogs.Find("[data-folder-handling]")), string.Empty, StringComparison.Ordinal);
-        Assert.DoesNotContain("Your files are never changed", outsideTheChoice, StringComparison.Ordinal);
+        Assert.DoesNotContain("Read-only never changes your files", outsideTheChoice, StringComparison.Ordinal);
         Assert.DoesNotContain("never changed", Text(_dialogs.Find("[data-scan-line]")), StringComparison.Ordinal);
         // The scan line is the one message line, directly under the handling choice.
         Assert.True(_dialogs.Find("[data-folder-handling]").NextElementSibling!.HasAttribute("data-picker-message"));

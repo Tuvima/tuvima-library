@@ -40,8 +40,14 @@ public static class MediaTileLabels
     {
         ArgumentNullException.ThrowIfNull(item);
 
+        // A person counts what they have ("11 albums", "9 films"); a person tile never says "Kept".
+        if (item.Person is not null)
+        {
+            return PersonCount(item);
+        }
+
         // A group of titles counts what it holds ("6 books"); with no per-kind counts the Series noun reads better than "titles".
-        if (item.RenderAsGroupTile && item.Person is null)
+        if (item.RenderAsGroupTile)
         {
             return item.MediaCounts.Any(mediaCount => mediaCount.Count > 0)
                 ? GroupCount(item)
@@ -75,6 +81,19 @@ public static class MediaTileLabels
         return total > 0 ? $"{total} {(total == 1 ? "title" : "titles")}" : null;
     }
 
+    /// <summary>
+    /// The count on a person's tile: the first kind they have a count for ("11 albums" for an artist, whose album count comes first;
+    /// "9 films" for a director), or, for a person with several kinds at once (the people list), the total ("5 titles"). Null with none.
+    /// </summary>
+    public static string? PersonCount(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var first = item.MediaCounts.FirstOrDefault(count => count.Count > 0);
+        return item.RenderAsGroupTile && first is not null
+            ? $"{first.Count} {first.Label.ToLowerInvariant()}"
+            : GroupCount(item);
+    }
+
     /// <summary>"12 episodes", "1 book": the number with the noun for what the group holds, or null when there is no count.</summary>
     public static string? CountText(MediaTileViewModel item)
     {
@@ -100,6 +119,22 @@ public static class MediaTileLabels
         return VideoFolderWording.IsVideoItemMediaType(item.MediaKind)
             ? VideoFolderWording.NumberedTitle(episode.EpisodeNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture), episode.EpisodeTitle)
             : $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}";
+    }
+
+    /// <summary>
+    /// The short episode code a Pick up tile draws just above its progress bar ("S3 E8"). A video from a Videos or Other videos library
+    /// never carries a season or an S/E code, so it says only its number; null when there is none to say.
+    /// </summary>
+    public static string? EpisodeCode(MediaTileViewModel item, DisplayEpisodeContextDto episode)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(episode);
+        if (VideoFolderWording.IsVideoItemMediaType(item.MediaKind))
+        {
+            return episode.EpisodeNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return $"S{episode.SeasonNumber} E{episode.EpisodeNumber}";
     }
 
     /// <summary>The noun for what a group holds, singular for one.</summary>

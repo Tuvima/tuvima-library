@@ -532,6 +532,12 @@ public sealed class AdaptiveHlsService
         {
             arguments.InsertRange(arguments.IndexOf("-c:v") + 2, ["-preset", "veryfast", "-profile:v", "main"]);
         }
+        else
+        {
+            // When the graphics card encodes it also decodes (frames are copied back for the scaling step), so the processor
+            // is not left decoding the source. FFmpeg falls back to software decoding by itself when the card cannot (issue 1082).
+            arguments.InsertRange(arguments.IndexOf("-i"), ["-hwaccel", "auto"]);
+        }
 
         return await _ffmpeg.RunAsync(arguments, ct).ConfigureAwait(false);
     }

@@ -32,6 +32,7 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
     private readonly List<SupportingFileListRequest> _lists = [];
     private readonly List<SupportingFileBulkDeleteRequest> _deletes = [];
     private readonly List<string> _calls = [];
+    private readonly List<Guid> _sortingReads = [];
     private readonly PendingEditList _pending = new();
     private Func<SupportingFileListRequest, SupportingFileListDto?> _list = _ => Page();
     private EditorFolderTreeDto? _tree;
@@ -53,6 +54,19 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
                 return Task.FromResult(_list(request));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetEditorFolderTreeAsync), _ => Task.FromResult(_tree));
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorFileSortingAsync), args =>
+            {
+                // The Engine answers a file id with the item the file plays as.
+                _sortingReads.Add((Guid)args![0]!);
+                return Task.FromResult<EditorFileSortingDto?>(new EditorFileSortingDto
+                {
+                    EntityId = Guid.NewGuid(),
+                    CanSort = true,
+                    FileName = "odd.mkv",
+                    TitleKind = EditorFileSortingTitleKinds.Show,
+                    InTitleFolder = true,
+                });
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetSupportingFileEditorAsync), args =>
                 Task.FromResult<EditorSupportingFileDto?>(SupportingFileEditorTestData.File(
                     (Guid)args![1]!, group: null, mediaType: "TV")));
@@ -316,6 +330,71 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
     // -- Folders and files ----------------------------------------------------------------------------------------------------------
 
     [Fact]
+    public async Task FoldersAndFiles_AMatchedEpisode_ShowsAsAnEpisode_WithoutTheWhatIsThisFileQuestion()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Fargo",
+            Total = 2,
+            Entries =
+            [
+                new EditorFolderEntryDto { Name = "Fargo S01E16.mkv", Path = "Fargo S01E16.mkv", State = EditorFolderEntryStates.Main, FileId = Guid.NewGuid(), ItemId = Guid.NewGuid() },
+                new EditorFolderEntryDto { Name = "odd.bin", Path = "odd.bin", State = EditorFolderEntryStates.Unsorted, FileId = Guid.NewGuid() },
+            ],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.NotEmpty(cut.FindAll("[data-entry=\"Fargo S01E16.mkv\"] [data-entry-open=item]"));
+        Assert.Empty(cut.FindAll("[data-entry=\"Fargo S01E16.mkv\"] [data-entry-sort]"));
+        Assert.NotEmpty(cut.FindAll("[data-entry=\"odd.bin\"] [data-entry-sort]"));
+    }
+
+    [Fact]
+    public async Task FoldersAndFiles_AnUnplacedFileWithNoItem_ShowsTheQuestion_AndOpensItAboutItsFile()
+    {
+        var fileId = Guid.NewGuid();
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Fargo",
+            Total = 1,
+            Entries = [new EditorFolderEntryDto { Name = "odd.mkv", Path = "odd.mkv", State = EditorFolderEntryStates.Unsorted, FileId = fileId }],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+        var entry = Assert.Single(_tree.Entries);
+        Assert.Null(entry.ItemId);
+
+        cut.Find("[data-entry=\"odd.mkv\"] [data-entry-sort]").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(fileId, _sortingReads));
+    }
+
+    [Fact]
+    public async Task FoldersAndFiles_ALooseFileLibraryHasNoRecordOf_IsListedAsNotSorted_WithNothingToAskAbout()
+    {
+        _tree = new EditorFolderTreeDto
+        {
+            RootName = "Fargo",
+            Total = 1,
+            Entries = [new EditorFolderEntryDto { Name = "bonus-workbook.pdf", Path = "bonus-workbook.pdf", State = EditorFolderEntryStates.Unsorted }],
+        };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.Contains("Not sorted yet", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-entry-sort]"));
+    }
+
+    [Fact]
+    public async Task FoldersAndFiles_StartsWithThePurposeLine()
+    {
+        _tree = new EditorFolderTreeDto { RootName = "Fargo", Total = 0, Entries = [] };
+        var (_, cut) = await OpenAsync(EditorBrowserView.Folders);
+
+        Assert.Equal(
+            "These are the files behind this title. Anything Library could not place is listed first so you can say what it is.",
+            cut.Find("[data-testid=file-browser-purpose]").TextContent.Trim());
+    }
+
+    [Fact]
     public async Task FoldersAndFiles_ListsFoldersFirst_MarksEachFile_AndKeepsToTheTitlesFolder()
     {
         _tree = new EditorFolderTreeDto
@@ -328,7 +407,7 @@ public sealed class EditorFileBrowserTests : AsyncBunitContext
                 new EditorFolderEntryDto { Name = "Lesson 01.mkv", Path = "Lesson 01.mkv", State = EditorFolderEntryStates.Main, ItemId = Guid.NewGuid() },
                 new EditorFolderEntryDto { Name = "Workbook.pdf", Path = "Workbook.pdf", State = EditorFolderEntryStates.Supporting, SupportingFileId = FileIds[0] },
                 new EditorFolderEntryDto { Name = "notes.tmp", Path = "notes.tmp", State = EditorFolderEntryStates.Hidden },
-                new EditorFolderEntryDto { Name = "odd.bin", Path = "odd.bin", State = EditorFolderEntryStates.Unsorted, ItemId = Guid.NewGuid() },
+                new EditorFolderEntryDto { Name = "odd.bin", Path = "odd.bin", State = EditorFolderEntryStates.Unsorted, FileId = Guid.NewGuid() },
             ],
         };
         var (_, cut) = await OpenAsync(EditorBrowserView.Folders);

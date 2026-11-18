@@ -348,7 +348,7 @@
     width: 0.5rem;
     height: 0.5rem;
     border-radius: var(--tl-radius-round);
-    background: var(--tl-accent-primary);
+    background: var(--tl-status-danger-solid);
 }
 
 .media-section-shell__rail-meta--notification {
@@ -491,7 +491,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* Settings' larger menu text needs a wider column so labels such as "Network & Remote Access" are not cut off. */
+/* The Settings column is wide enough for every label at the shared menu text size; a label that still does not fit wraps instead of being cut off (issue 1067). */
 .media-section-shell--flat {
     grid-template-columns: 296px minmax(0, 1fr);
 }
@@ -512,7 +512,10 @@
 }
 
 .media-section-shell__tree--flat .media-section-shell__tree-label {
-    font-size: var(--tl-type-menu-size);
+    font-size: var(--tl-type-control-size);
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .media-section-shell__rail-group.is-flat .media-section-shell__rail-label {

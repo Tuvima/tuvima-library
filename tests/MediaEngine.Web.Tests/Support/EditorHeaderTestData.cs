@@ -92,7 +92,6 @@ internal static class EditorHeaderTestData
                 ScopeKey = "season:2",
                 Count = 12,
                 TotalInRoot = supportingTotal,
-                ShowAll = true,
                 Files =
                 [
                     SupportingFile(FileOneId, "Episode guide", "PDF", "document", "Guide", group: "Guides"),
@@ -137,6 +136,7 @@ internal static class EditorHeaderTestData
     public static EditorHeaderDto CourseLesson() => new()
     {
         Kind = EditorKindNames.Video,
+        CanReorder = true,
         Root = new EditorHeaderRootDto { Id = ShowId, Title = "Learn Watercolour", MediaType = "Videos" },
         CurrentId = EpisodeTwoId,
         Label = "Learn Watercolour",

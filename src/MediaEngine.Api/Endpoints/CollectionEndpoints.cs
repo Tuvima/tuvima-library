@@ -1795,12 +1795,7 @@ public static class CollectionEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            // A Series takes no picture of its own: its tile is the automatic stack of its members' covers (universal editor v5 D24).
-            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
-            {
-                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
-            }
-
+            // A Series' own cover, background and logo are the owner's to choose (universal editor v8 D5); the permission check below still decides who may.
             if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
@@ -1888,12 +1883,7 @@ public static class CollectionEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            // A Series takes no picture of its own: its tile is the automatic stack of its members' covers (universal editor v5 D24).
-            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
-            {
-                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
-            }
-
+            // A Series' own cover, background and logo are the owner's to choose (universal editor v8 D5); the permission check below still decides who may.
             if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();

@@ -75,7 +75,7 @@
       "match_fields": ["series", "issue", "year"]
     },
     "series": {
-      "tabs": ["details", "history"],
+      "tabs": ["details", "artwork", "history"],
       "facts_line": ["member_count", "match_state"],
       "quick_facts": ["member_count", "file_count", "total_size", "supporting_file_count"],
       "match_fields": []

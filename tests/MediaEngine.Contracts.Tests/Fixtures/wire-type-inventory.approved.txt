@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1571; api=0; web-client=56
+# scopes: contracts=1576; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3884,6 +3884,7 @@
   IsSettling: System.Boolean | json=isSettling | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsNew: System.Boolean? | json=isNew | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UniverseQid: System.String | json=universeQid | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContentRating: System.String | json=contentRating | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Display.DisplayCardFlagsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4321,9 +4322,10 @@
   IsFolder: System.Boolean | json=is_folder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   State: System.String | json=state | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   SizeBytes: System.Int64? | json=size_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  FileId: System.Guid? | json=file_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ItemId: System.Guid? | json=item_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   SupportingFileId: System.Guid? | json=supporting_file_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","path":"sample","is_folder":true,"state":"sample","size_bytes":7,"item_id":"11111111-2222-3333-4444-555555555555","supporting_file_id":"11111111-2222-3333-4444-555555555555"}
+  sample={"name":"sample","path":"sample","is_folder":true,"state":"sample","size_bytes":7,"file_id":"11111111-2222-3333-4444-555555555555","item_id":"11111111-2222-3333-4444-555555555555","supporting_file_id":"11111111-2222-3333-4444-555555555555"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorFolderFileDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4416,9 +4418,10 @@
   Colors: MediaEngine.Contracts.Editing.EditorCoverColorsDto | json=colors | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   FileFacts: MediaEngine.Contracts.Editing.EditorFileFactsDto | json=file_facts | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   ProviderMatched: System.Boolean | json=provider_matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanReorder: System.Boolean | json=can_reorder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MatchLinks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorMatchLinkDto> | json=match_links | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Config: MediaEngine.Contracts.Editing.EditorHeaderConfigDto | json=config | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"provider_matched":true,"match_links":[],"config":null}
+  sample={"kind":"sample","root":null,"current_id":"11111111-2222-3333-4444-555555555555","label":"sample","label_is_kind":true,"show_home":true,"home_id":"11111111-2222-3333-4444-555555555555","home_is_current":true,"show_item_dropdown":true,"level":null,"provider_matched":true,"can_reorder":true,"match_links":[],"config":null}
 
 [contracts] MediaEngine.Contracts.Editing.EditorHeaderFolderButtonDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4485,9 +4488,8 @@
   ScopeKey: System.String | json=scope_key | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Count: System.Int32 | json=count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TotalInRoot: System.Int32 | json=total_in_root | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ShowAll: System.Boolean | json=show_all | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Files: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorHeaderSupportingFileDto> | json=files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"scope_key":"sample","count":7,"total_in_root":7,"show_all":true,"files":[]}
+  sample={"scope_key":"sample","count":7,"total_in_root":7,"files":[]}
 
 [contracts] MediaEngine.Contracts.Editing.EditorMatchBestGuessDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4752,6 +4754,30 @@
   IsCurrent: System.Boolean | json=is_current | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","code":"sample","number":7,"title":"sample","still_url":"sample","state":"sample","duration_seconds":7,"is_current":true}
 
+[contracts] MediaEngine.Contracts.Editing.EditorSeriesMediaTypeDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OwnedCount: System.Int32 | json=owned_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","label":"sample","owned_count":7}
+
+[contracts] MediaEngine.Contracts.Editing.EditorSeriesTitleDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid? | json=id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Number: System.String | json=number | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Owned: System.Boolean | json=owned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample","number":"sample","owned":true}
+
+[contracts] MediaEngine.Contracts.Editing.EditorSeriesTitlesDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Total: System.Int32 | json=total | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Offset: System.Int32 | json=offset | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowingMissing: System.Boolean | json=showing_missing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSeriesTitleDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"media_type":"sample","total":7,"offset":7,"showing_missing":true,"items":[]}
+
 [contracts] MediaEngine.Contracts.Editing.EditorSubjectDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -4762,7 +4788,9 @@
   Fields: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFieldDto> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Facts: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFactDto> | json=facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Members: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectMemberDto> | json=members | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","title":"sample","artwork_entity_kind":"sample","artwork_slots":[],"fields":[],"facts":[],"members":[]}
+  MatchBadge: MediaEngine.Contracts.Editing.EditorSubjectMatchBadgeDto | json=match_badge | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  MediaTypes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSeriesMediaTypeDto> | json=media_types | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","title":"sample","artwork_entity_kind":"sample","artwork_slots":[],"fields":[],"facts":[],"members":[],"media_types":[]}
 
 [contracts] MediaEngine.Contracts.Editing.EditorSubjectFactDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4782,6 +4810,13 @@
   SourceLabel: System.String | json=source_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Options: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectOptionDto> | json=options | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","label":"sample","input_kind":"sample","value":"sample","canonical_value":"sample","is_overridden":true,"source_label":"sample","options":[]}
+
+[contracts] MediaEngine.Contracts.Editing.EditorSubjectMatchBadgeDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  RetailMatched: System.Boolean | json=retail_matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderName: System.String | json=provider_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  CanonicalMatched: System.Boolean | json=canonical_matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"retail_matched":true,"provider_name":"sample","canonical_matched":true}
 
 [contracts] MediaEngine.Contracts.Editing.EditorSubjectMemberDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9621,6 +9656,17 @@
 [contracts] MediaEngine.Contracts.Playback.PlaybackAnalyticsGroupsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlaybackAnalyticsGroupDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Playback.PlaybackCapacityDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  StreamsSupported: System.Int32 | json=streamsSupported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Measured: System.Boolean | json=measured | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RanOn: System.String | json=ranOn | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CardName: System.String | json=cardName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SecondsTaken: System.Int32 | json=secondsTaken | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TestedAt: System.DateTimeOffset? | json=testedAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"streamsSupported":7,"measured":true,"ranOn":"sample","cardName":"sample","reason":"sample","secondsTaken":7,"testedAt":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackChapterDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -207,7 +207,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     [InlineData("book", "Book", "The Sea of Monsters", "Rick Riordan", "2006", "apple_api", "Apple Books")]
     [InlineData("audiobook", "Audiobook", "The Sea of Monsters", "Rick Riordan", "2006", "apple_api", "Apple Books")]
     [InlineData("tv_episode", "Episode", "Pilot", "Vince Gilligan", "2008", "tvdb", "TheTVDB")]
-    public void AMatchedItemOfAnyKind_ShowsOnlyTheMatchAndTwoActions_WithNoProviderNameOrOpenSource(
+    public void AMatchedItemOfAnyKind_ShowsItsCoverAndAnOpenInProviderLink_AndTwoActions_WithNoVerdictOrTable(
         string kind, string recordKind, string title, string creator, string year, string providerId, string productName)
     {
         _setup = _ => Setup(kind, noProvider: false);
@@ -227,6 +227,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
                 Creator = creator,
                 Description = "A short description.",
                 SourceUrl = "https://example.test/949",
+                ImageUrl = "data:image/jpeg;base64,/9j/4AAQ",
             },
             Why = [new EditorMatchEvidenceRowDto { Field = "title", YourFile = title, MatchedRecord = title, State = EditorMatchEvidenceStates.Agrees, Verdict = EditorMatchVerdicts.Strong }],
             Pinned = true,
@@ -239,7 +240,12 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Equal(title, card.QuerySelector("[data-testid=match-card-title]")!.TextContent.Trim());
         Assert.Equal($"{creator} · {year}", card.QuerySelector("[data-testid=match-card-byline]")!.TextContent.Trim());
         Assert.Equal("A short description.", card.QuerySelector("[data-testid=match-card-description]")!.TextContent.Trim());
-        Assert.Empty(card.QuerySelectorAll("[data-testid=match-verdict], [data-testid=match-compare], [data-testid=match-card-basis], [data-testid=match-card-provider], [data-testid=match-card-note], [data-testid=match-open-source], table"));
+        Assert.Empty(card.QuerySelectorAll("[data-testid=match-verdict], [data-testid=match-compare], [data-testid=match-card-basis], [data-testid=match-card-note], [data-testid=match-open-source], table"));
+        // v8 D10: the record's cover (or album art) and its page at the provider, named by product, never by key.
+        Assert.StartsWith("data:image/jpeg", card.QuerySelector("[data-testid=match-card-cover] img")!.GetAttribute("src"), StringComparison.Ordinal);
+        var open = card.QuerySelector("[data-testid=match-card-source-link]")!;
+        Assert.Equal($"Open in {productName}", open.TextContent.Trim());
+        Assert.Equal("https://example.test/949", open.GetAttribute("href"));
         Assert.Equal(["Remove match", "Change match"], card.QuerySelectorAll(".tl-mcard__foot button, .tl-mcard__foot a").Select(action => action.TextContent.Trim()).ToList());
         Assert.DoesNotContain(providerId + "_", card.TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid=match-your-file]"));

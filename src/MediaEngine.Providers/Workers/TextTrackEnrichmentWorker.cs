@@ -292,6 +292,12 @@ public sealed partial class TextTrackEnrichmentWorker
         }
 
         var after = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
+        if (!importedLocal && unreachable is null)
+        {
+            _logger.LogInformation(
+                "No {Kind} accepted for \"{Title}\" by \"{Artist}\" (album \"{Album}\")", kind, lookup.Title, lookup.Artist, lookup.Album);
+        }
+
         if (unreachable is not null && !importedLocal && !instrumentalDetected && !incompatibleSubtitleDetected)
         {
             return new(unreachable.Status, kind, before.Count, after.Count,
@@ -679,7 +685,8 @@ public sealed partial class TextTrackEnrichmentWorker
             asset,
             mediaType,
             First(values, MetadataFieldConstants.Title, MetadataFieldConstants.EpisodeTitle, MetadataFieldConstants.ShowName),
-            First(values, MetadataFieldConstants.Artist, MetadataFieldConstants.Author),
+            // The song's artist, then the album artist (many files only carry that one); the album's values are already part of these, so a missing artist no longer makes the lookup title-only.
+            First(values, MetadataFieldConstants.Artist, MetadataFieldConstants.Author, "album_artist"),
             album,
             First(values, MetadataFieldConstants.Year),
             First(values, MetadataFieldConstants.Language) ?? (kind == TextTrackKind.Subtitles ? "en" : null),

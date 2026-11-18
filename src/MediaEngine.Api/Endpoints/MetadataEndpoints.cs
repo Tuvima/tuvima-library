@@ -987,16 +987,9 @@ public static partial class MetadataEndpoints
             ArtworkScopeService artworkScopeService,
             HttpRequest httpRequest,
             ILoggerFactory loggerFactory,
-            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             var coverLogger = loggerFactory.CreateLogger("CoverUpload");
-
-            if (await seriesGuard.IsSeriesAsync(entityId, ct))
-            {
-                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
-            }
-
 
             if (!httpRequest.HasFormContentType)
             {
@@ -1366,7 +1359,6 @@ public static partial class MetadataEndpoints
             IMetadataEditorRepository metadataData,
             ArtworkScopeService artworkScopeService,
             HttpRequest httpRequest,
-            MediaEngine.Api.Services.EditSession.EditorSeriesGuard seriesGuard,
             CancellationToken ct) =>
         {
             var normalizedAssetType = ArtworkScopeService.NormalizeUploadedArtworkType(assetType);
@@ -1374,12 +1366,6 @@ public static partial class MetadataEndpoints
             {
                 return ApiErrors.BadRequest("Artwork type must be CoverArt, Background, or Logo.");
             }
-
-            if (await seriesGuard.IsSeriesAsync(entityId, ct))
-            {
-                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesHasNoArtwork);
-            }
-
 
             if (!httpRequest.HasFormContentType)
             {
@@ -2762,13 +2748,15 @@ public static partial class MetadataEndpoints
         switch (mediaType)
         {
             case "TV":
+                // An episode always gets its own scope, whose field id is the episode's work id (the id the item dropdown asks
+                // for). Episodes filed straight under the show, with no season level, have the show as their parent: that parent is
+                // the Series scope, so they get no Season scope.
                 var isEpisodeLaunch = string.Equals(launchWorkKind, "child", StringComparison.OrdinalIgnoreCase)
-                    && hasParentScope
-                    && launch.ParentWorkId!.Value != rootWorkId;
+                    && hasParentScope;
                 var isSeasonLaunch = isParentLaunch && hasParentScope;
                 var seasonWorkId = isSeasonLaunch
                     ? launch.WorkId
-                    : isEpisodeLaunch && hasParentScope
+                    : isEpisodeLaunch && launch.ParentWorkId!.Value != rootWorkId
                         ? launch.ParentWorkId!.Value
                         : Guid.Empty;
 

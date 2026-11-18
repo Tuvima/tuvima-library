@@ -24,7 +24,6 @@ public sealed class ArtworkEditSessionChangeHandler(
     ArtworkCanonicalSync canonicalSync,
     EditSubjectDirectory? subjects = null,
     IEntityTimelineRepository? timeline = null,
-    EditorSeriesGuard? seriesGuard = null,
     IAssetExportService? exports = null,
     ILogger<ArtworkEditSessionChangeHandler>? logger = null) : IEditSessionChangeHandler
 {
@@ -40,11 +39,6 @@ public sealed class ArtworkEditSessionChangeHandler(
         if (ArtworkAssetService.RoleForSlot(change.Slot) is null)
         {
             return UnknownSlot;
-        }
-
-        if (await IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
-        {
-            return EditSessionReasons.SeriesHasNoArtwork;
         }
 
         if (string.IsNullOrWhiteSpace(change.TargetId))
@@ -75,11 +69,6 @@ public sealed class ArtworkEditSessionChangeHandler(
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
         var role = ArtworkAssetService.RoleForSlot(change.Slot) ?? throw new InvalidOperationException(UnknownSlot);
-        if (await IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
-        {
-            throw new InvalidOperationException(EditSessionReasons.SeriesHasNoArtwork);
-        }
-
         var entityType = await ResolveEntityTypeAsync(change.EntityId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(EditSessionReasons.Gone);
         var previous = await artwork.GetChosenAsync(entityType, change.EntityId, role, ct).ConfigureAwait(false);
@@ -173,18 +162,6 @@ public sealed class ArtworkEditSessionChangeHandler(
         {
             logger?.LogWarning(ex, "The picture file for {EntityType} {EntityId} could not be refreshed after an edit", entityType, change.EntityId);
         }
-    }
-
-    // A Series (a collection row of one, or the root of a family of books, comics or films) has no picture of its own (D24): its tile is
-    // the automatic stack of its members' covers.
-    private async Task<bool> IsSeriesAsync(Guid entityId, CancellationToken ct)
-    {
-        if (subjects is not null && await subjects.FindAsync(entityId, ct).ConfigureAwait(false) is { ReadOnly: true })
-        {
-            return true;
-        }
-
-        return seriesGuard is not null && await seriesGuard.IsSeriesAsync(entityId, ct).ConfigureAwait(false);
     }
 
     private static bool IsNone(string? targetId) =>

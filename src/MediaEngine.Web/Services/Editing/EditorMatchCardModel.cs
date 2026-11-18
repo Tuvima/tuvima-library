@@ -38,7 +38,8 @@ public sealed record EditorMatchCardModel(
     IReadOnlyList<EditorMatchCardRow> Rows,
     string BasisNote,
     IReadOnlyList<string> Notes,
-    string? CastLine = null);
+    string? CastLine = null,
+    string? SourceLinkLabel = null);
 
 /// <summary>Builds the card's model from the Engine's search result or its read of the current match, and words the small pieces the list rows share.</summary>
 public static class EditorMatchCardModels
@@ -86,26 +87,29 @@ public static class EditorMatchCardModels
     }
 
     /// <summary>
-    /// The card for the item's current match (universal editor v7 D5): only the match itself, which is the cover, title, creator and year, and the short
-    /// description. No verdict, compare rows, basis note or provider line: those belong to a candidate under a search, and the header links say where it matched.
+    /// The card for the item's current match (universal editor v7 D5, v8 D10): the match itself, which is the cover or album art, title, creator and year,
+    /// the short description, and "Open in &lt;provider&gt;" when the provider has a page for it. No verdict, compare rows or basis note: those belong to a
+    /// candidate under a search.
     /// </summary>
-    public static EditorMatchCardModel ForCurrent(EditorCurrentMatchDto current, string? kind)
+    public static EditorMatchCardModel ForCurrent(EditorCurrentMatchDto current, string? kind, IStringLocalizer<SharedStrings> l)
     {
         var record = current.Record!;
+        var hasPage = !string.IsNullOrWhiteSpace(record.SourceUrl) && !string.IsNullOrWhiteSpace(record.ProviderName);
         return new EditorMatchCardModel(
             record.Title,
             null,
             Join(record.Creator, record.Year, record.LengthText),
             record.ImageUrl,
             ArtFor(record.Kind, kind),
-            string.Empty,
-            null,
+            hasPage ? record.ProviderName : string.Empty,
+            hasPage ? record.SourceUrl : null,
             record.Description,
             null,
             [],
             string.Empty,
             [],
-            CastText(record.Cast));
+            CastText(record.Cast),
+            hasPage ? l["EditorMatchCard_OpenIn", record.ProviderName].Value : null);
     }
 
     /// <summary>"Percy Jackson and the Olympians · Book 2" (a list row joins the same two parts with a comma); null when the provider gave no series.</summary>

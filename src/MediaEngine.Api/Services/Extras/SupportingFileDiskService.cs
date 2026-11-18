@@ -102,6 +102,47 @@ public sealed class SupportingFileDiskService(
         return new SupportingFileMovePlan(from, to, null);
     }
 
+    /// <summary>
+    /// Works out the new name of the file when its kind changes (Plex and Jellyfin's "-trailer" ending, see <see cref="ExtraFileNaming"/>),
+    /// on top of <paramref name="movePlan"/> when the same change also moves it. The same rules as a move: nothing is renamed in a Read-only
+    /// folder or one Library may not write to, for a file that is not on disk, or when the new name is taken.
+    /// </summary>
+    public SupportingFileMovePlan? PlanRename(
+        ItemExtra extra, string? newEnding, IEnumerable<string> knownEndings, SupportingFileMovePlan? movePlan, ISet<string> claimed)
+    {
+        ArgumentNullException.ThrowIfNull(extra);
+        ArgumentNullException.ThrowIfNull(claimed);
+
+        var from = Path.GetFullPath(extra.FilePath);
+        var target = movePlan is { Moves: true } ? movePlan.To! : from;
+        var renamed = ExtraFileNaming.Rename(Path.GetFileName(target), newEnding, knownEndings);
+        if (renamed is null)
+        {
+            return movePlan;
+        }
+
+        var resolved = folders.ResolveSourceForPath(extra.FilePath);
+        if (resolved is null || !resolved.Source.IsManaged || !resolved.Source.IsWritable)
+        {
+            return movePlan;
+        }
+
+        var policy = FileSourceMutationPolicyFactory.Create(resolved.Library, resolved.Source);
+        if (!gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = SourceMutationKind.Move, Path = extra.FilePath }).Allowed
+            || !File.Exists(extra.FilePath))
+        {
+            return movePlan;
+        }
+
+        var to = Path.Combine(Path.GetDirectoryName(target)!, renamed);
+        if (File.Exists(to) || !claimed.Add(to))
+        {
+            return (movePlan ?? SupportingFileMovePlan.Stays()) with { Note = NameTaken };
+        }
+
+        return new SupportingFileMovePlan(from, to, null);
+    }
+
     /// <summary>True when <paramref name="scope"/> is a real place of the title in <paramref name="itemFolder"/>: the title itself, one of its seasons, or an episode, lesson or section.</summary>
     public async Task<bool> IsPlaceOfTitleAsync(string itemFolder, ExtraScope scope, CancellationToken ct = default) =>
         scope.Level == ExtraScopeLevel.Root

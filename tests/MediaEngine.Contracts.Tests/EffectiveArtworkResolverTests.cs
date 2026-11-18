@@ -93,6 +93,15 @@ public sealed class EffectiveArtworkResolverTests
         Assert.Equal("CoverArt", roles[0].SourceAssetType);
     }
 
+    [Fact]
+    public void AnEpisodePicture_IsTheStoredFrameFirst_ThenTheProvidersStill_ThenTheFallbacks()
+    {
+        Assert.Equal("/stream/artwork/frame", EffectiveArtworkResolver.ResolveEpisodePicture("/stream/artwork/frame", "https://tvdb.example/still.jpg", "/fallback.jpg"));
+        Assert.Equal("https://tvdb.example/still.jpg", EffectiveArtworkResolver.ResolveEpisodePicture(null, "https://tvdb.example/still.jpg", "/fallback.jpg"));
+        Assert.Equal("/fallback.jpg", EffectiveArtworkResolver.ResolveEpisodePicture("  ", "", null, "/fallback.jpg"));
+        Assert.Null(EffectiveArtworkResolver.ResolveEpisodePicture(null, null));
+    }
+
     private static ArtworkEntityWorkspaceDto Workspace(string type, params ArtworkEntityVariantDto[] variants) =>
         new(Guid.NewGuid(), type, variants);
 
