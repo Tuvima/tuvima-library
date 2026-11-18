@@ -25,9 +25,6 @@ public sealed class DetailExtrasService(
     // query per file; 500 covers a long course (every lesson then gets its chip) and still bounds a page that lists thousands of files.
     private const int MaxAssetsToLocate = 500;
 
-    // A Videos series page has no file ids, so each listed video costs one lookup; a few dozen cover every folder a course sits in.
-    private const int MaxWorksToLocate = 60;
-
     private static readonly HashSet<DetailEntityType> TitleTypes =
     [
         DetailEntityType.Work,
@@ -84,30 +81,30 @@ public sealed class DetailExtrasService(
         }
 
         // A Videos series (a folder of personal videos or lessons) lists its videos without episode details, so nothing above names a file.
-        // Each listed video is a Work of its own, so its first file says which folder to look in.
-        if (assetIds.Count == 0 && detail.SequencePlacement is { } videos)
+        // Each listed video is a Work of its own, so one file of each (a single batched lookup) says which folders to look in.
+        IReadOnlyDictionary<Guid, string> videoPaths = new Dictionary<Guid, string>();
+        if (assetIds.Count == 0
+            && detail.EntityType == DetailEntityType.TvShow
+            && detail.SequencePlacement is { } videos)
         {
             var listedWorks = videos.OrderedItems.Concat(videos.Groups.SelectMany(group => group.Items))
                 .Where(item => item.EpisodeContext is null && Guid.TryParse(item.Id, out var workId) && workId != Guid.Empty)
                 .Select(item => Guid.Parse(item.Id))
                 .Distinct()
-                .Take(MaxWorksToLocate);
-            foreach (var workId in listedWorks)
-            {
-                if (await assets.FindFirstByWorkIdAsync(workId, ct).ConfigureAwait(false) is { } asset)
-                {
-                    assetIds.Add(asset.Id);
-                }
-            }
+                .Take(MaxAssetsToLocate)
+                .ToList();
+            videoPaths = await assets.GetFirstFilePathsByWorkIdsAsync(listedWorks, ct).ConfigureAwait(false);
         }
 
         var distinct = assetIds.Distinct().Take(MaxAssetsToLocate).ToList();
-        if (distinct.Count == 0)
+        if (distinct.Count == 0 && videoPaths.Count == 0)
         {
             return;
         }
 
-        var paths = await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
+        var paths = distinct.Count == 0
+            ? videoPaths
+            : await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in paths.Values)
         {

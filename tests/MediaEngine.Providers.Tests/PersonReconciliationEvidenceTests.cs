@@ -79,26 +79,28 @@ public sealed class PersonReconciliationEvidenceTests
     }
 
     [Fact]
-    public void NamesakePickedByTheWorksSubject()
+    public void NamesakeTheWorksSubjectPointsTo_IsFavouredOverTheChosenPerson()
     {
         var comedian = Namesake("Q5573861", "Australian comedian and actor");
         var player = Namesake("Q352159", "American basketball player (born 1988)");
 
-        var pick = PersonReconciliationService.PickNamesakeByContext(
-            [comedian, player], "Stephen Curry MasterClass Learn basketball shooting from the all-time great");
-
-        Assert.Equal("Q352159", pick?.Id);
+        Assert.True(PersonReconciliationService.ContextFavoursAnotherNamesake(
+            [comedian, player], "Q5573861", "Stephen Curry MasterClass Learn basketball shooting from the all-time great"));
+        Assert.True(PersonReconciliationService.ContextFavoursAnotherNamesake(
+            [comedian, player], "Q5573861", "Teaches basketballers how to shoot"));
     }
 
     [Fact]
-    public void NamesakeNotPickedWhenTheWorkSaysNothingOrFitsBoth()
+    public void ChosenPersonStands_WhenTheWorkSaysNothing_FitsTheChosenPerson_OrFitsBoth()
     {
         var comedian = Namesake("Q5573861", "Australian comedian and actor");
         var player = Namesake("Q352159", "American basketball player (born 1988)");
 
-        Assert.Null(PersonReconciliationService.PickNamesakeByContext([comedian, player], "Part 01"));
-        Assert.Null(PersonReconciliationService.PickNamesakeByContext(
-            [comedian, player], "A comedian turned basketball coach"));
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake([comedian, player], "Q5573861", "Part 01"));
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake([comedian, player], "Q352159", "Learn basketball shooting"));
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake(
+            [Namesake("Q1", "basketball coach"), player], "Q1", "Learn basketball shooting"));
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake([comedian], "Q5573861", "basketball"));
     }
 
     private static ReconciliationResult Namesake(string qid, string description) => new()

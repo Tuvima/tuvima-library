@@ -176,7 +176,7 @@ public sealed class DescriptionIntelligenceRunner
                     .FirstOrDefault(c => string.Equals(c.Key, "media_type", StringComparison.OrdinalIgnoreCase))
                     ?.Value ?? "books";
                 var sourceDescription = canonicals
-                    .FirstOrDefault(c => string.Equals(c.Key, "description", StringComparison.OrdinalIgnoreCase))
+                    .FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Description, StringComparison.OrdinalIgnoreCase))
                     ?.Value
                     ?? canonicals.FirstOrDefault(c =>
                         string.Equals(c.Key, "plot_summary", StringComparison.OrdinalIgnoreCase))?.Value
@@ -313,7 +313,7 @@ public sealed class DescriptionIntelligenceRunner
                                 {
                                     var searchResult = await personRecon.SearchPersonAsync(
                                         person.Name, normalizedRole, workTitleForSearch, ct,
-                                        canonicals.FirstOrDefault(c => string.Equals(c.Key, "description", StringComparison.OrdinalIgnoreCase))?.Value)
+                                        canonicals.FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Description, StringComparison.OrdinalIgnoreCase))?.Value)
                                         .ConfigureAwait(false);
 
                                     if (searchResult is not null)

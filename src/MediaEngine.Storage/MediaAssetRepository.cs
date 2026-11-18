@@ -384,6 +384,38 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         return Task.FromResult(row is null ? null : (MediaAsset?)ToAsset(row));
     }
 
+    public Task<IReadOnlyDictionary<Guid, string>> GetFirstFilePathsByWorkIdsAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(workIds);
+        var paths = new Dictionary<Guid, string>();
+        if (workIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyDictionary<Guid, string>>(paths);
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var chunk in workIds.Distinct().Chunk(400))
+        {
+            var rows = conn.Query(
+                """
+                SELECT e.work_id AS WorkId, ma.file_path_root AS Path
+                FROM   media_assets ma
+                JOIN   editions e ON e.id = ma.edition_id
+                WHERE  e.work_id IN @ids
+                  AND  ma.status = 'Normal' AND ma.is_orphaned = 0
+                ORDER BY CASE ma.rendition_purpose WHEN 'Original' THEN 0 ELSE 1 END, ma.id;
+                """,
+                new { ids = chunk.Select(GuidSql.ToBlob).ToArray() });
+            foreach (var row in rows)
+            {
+                paths.TryAdd(GuidSql.FromDb((object)row.WorkId), (string)row.Path);
+            }
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<Guid, string>>(paths);
+    }
+
     public Task<IReadOnlyDictionary<Guid, string>> GetFilePathsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

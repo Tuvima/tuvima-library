@@ -118,39 +118,26 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             return null;
         }
 
+        // Several people can share one name (a comedian and a basketball player both called Stephen Curry). Unless one of the
+        // person's known works is this title, the work's own description gets a say: when it clearly points to a different
+        // person with the same name, the match is dropped (retried later) rather than trusted on the name and job alone.
+        // When the description says nothing either way, the match the search made stands, as before.
+        if (!NotableWorkMatches(ResolveLabels(libResult.NotableWorks, evidenceLabels), workTitle)
+            && !string.IsNullOrWhiteSpace($"{workTitle} {contextText}"))
+        {
+            var namesakes = await FindNamesakesAsync(name, language, ct).ConfigureAwait(false);
+            if (ContextFavoursAnotherNamesake(namesakes, libResult.Qid!, $"{workTitle} {contextText}"))
+            {
+                _logger.LogWarning(
+                    "Person reconciliation left unmatched: '{Name}' ({Role}) shares its name with another person that the work's description fits better",
+                    name, expectedRole);
+                return null;
+            }
+        }
+
         var chosenQid = libResult.Qid!;
         var chosenName = libResult.CanonicalName ?? name;
         var chosenScore = libResult.Score;
-
-        // Several people can share one name (a comedian and a basketball player both called Stephen Curry). A name and a
-        // matching job are not enough then: unless one of the person's known works is this title, the work's own
-        // description must point to exactly one of them, otherwise nothing is matched and the person is retried later.
-        var worksSettleIt = NotableWorkMatches(ResolveLabels(libResult.NotableWorks, evidenceLabels), workTitle);
-        if (!worksSettleIt)
-        {
-            var namesakes = await FindNamesakesAsync(name, language, ct).ConfigureAwait(false);
-            if (namesakes.Count > 1)
-            {
-                var pick = PickNamesakeByContext(namesakes, $"{workTitle} {contextText}");
-                if (pick is null)
-                {
-                    _logger.LogWarning(
-                        "Person reconciliation left unmatched: '{Name}' ({Role}) shares its name with {Count} people and the work gives no way to tell them apart",
-                        name, expectedRole, namesakes.Count);
-                    return null;
-                }
-
-                if (!string.Equals(pick.Id, chosenQid, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogInformation(
-                        "Person reconciliation chose {NewQid} over {OldQid} for '{Name}' using the work's description",
-                        pick.Id, chosenQid, name);
-                    chosenQid = pick.Id;
-                    chosenName = pick.Name;
-                    chosenScore = Math.Max(AutoAcceptThreshold, pick.Score / 100.0);
-                }
-            }
-        }
 
         _logger.LogInformation(
             "Person reconciliation auto-accepted: '{Name}' ({Role}) -> {QID} '{WikiName}' (score={Score:F2})",
@@ -181,29 +168,37 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
     }
 
     /// <summary>
-    /// Picks the one namesake whose Wikidata description shares a meaningful word with the work's text (for example
-    /// "basketball"). Returns null when none or more than one does.
+    /// True when exactly one namesake's Wikidata description shares a meaningful word with the work's text (for example "basketball")
+    /// and that namesake is not the person the search chose. No fit, a fit with the chosen person, or a fit with several, is false.
     /// </summary>
-    internal static ReconciliationResult? PickNamesakeByContext(
-        IReadOnlyList<ReconciliationResult> namesakes, string? contextText)
+    internal static bool ContextFavoursAnotherNamesake(
+        IReadOnlyList<ReconciliationResult> namesakes, string chosenQid, string? contextText)
     {
+        if (namesakes.Count < 2)
+        {
+            return false;
+        }
+
         var contextWords = SignificantWords(contextText);
         if (contextWords.Count == 0)
         {
-            return null;
+            return false;
         }
 
-        var hits = namesakes
-            .Where(candidate => SignificantWords(candidate.Description).Overlaps(contextWords))
+        var fits = namesakes
+            .Where(candidate => SignificantWords(candidate.Description).Any(word =>
+                contextWords.Any(other => word.StartsWith(other, StringComparison.OrdinalIgnoreCase)
+                    || other.StartsWith(word, StringComparison.OrdinalIgnoreCase))))
             .ToList();
-        return hits.Count == 1 ? hits[0] : null;
+        return fits.Count == 1 && !string.Equals(fits[0].Id, chosenQid, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Words that describe nearly everyone with a job, so they never tell two people apart.
     private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "american", "british", "english", "canadian", "australian", "born", "with", "from", "that", "this", "their",
-        "have", "which", "about", "into", "also", "the", "and", "for", "his", "her", "who", "series", "film", "show",
-        "person", "people", "season", "episode", "episodes",
+        "american", "british", "english", "canadian", "australian", "which", "about", "their", "player", "actor", "actress",
+        "writer", "singer", "musician", "comedian", "series", "season", "episode", "episodes", "person", "people", "born",
+        "known", "professional", "former", "current",
     };
 
     private static HashSet<string> SignificantWords(string? text)
