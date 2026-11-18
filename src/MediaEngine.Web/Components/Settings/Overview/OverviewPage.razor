@@ -4,6 +4,8 @@
 @using MediaEngine.Contracts.Taste
 @using MediaEngine.Web.Components.Profiles
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @inject UIOrchestratorService Orchestrator
@@ -67,7 +69,7 @@ else
 
         <SettingsSectionPanel Title="@L["Common_ContinueEnjoying"].Value" Class="overview-page__continue">
             <ChildContent>
-                <OverviewContinueEnjoying Items="@(_overview?.ContinueItems ?? [])" />
+                <OverviewContinueEnjoying Shelf="@_continueShelf" />
             </ChildContent>
         </SettingsSectionPanel>
 
@@ -164,6 +166,9 @@ else
         }
     }
 
+    private const int ContinueLimit = 24;
+    private MediaTileShelfViewModel _continueShelf = new() { Key = "continue", Title = string.Empty };
+
     protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync(bool showSkeleton = true)
@@ -179,11 +184,18 @@ else
 
             // The profile overview feeds Continue enjoying; the numbers and the calendar come from the activity summary.
             var overview = Api.GetProfileOverviewAsync(_profile.Id);
+            var started = Api.GetDisplayContinueAsync(limit: ContinueLimit);
             var summary = Api.GetPersonalActivitySummaryAsync();
             var recent = Api.GetPersonalActivityRecentAsync(PersonalActivityPresentation.StripLimit);
             var taste = Api.GetPersonalTasteAsync(null);
-            await Task.WhenAll(overview, summary, recent, taste);
+            await Task.WhenAll(overview, summary, recent, taste, started);
             _overview = await overview;
+            _continueShelf = new MediaTileShelfViewModel
+            {
+                Key = "continue",
+                Title = L["Common_ContinueEnjoying"].Value,
+                Items = PhoneContinueLogic.Select(PersonalTileIndex.FlattenCards(await started).Select(MediaTileComposerService.FromDisplayCard)).Take(ContinueLimit).ToList(),
+            };
             _summary = await summary;
             _recent = (await recent)?.Tiles;
             _taste = (await taste)?.People.FirstOrDefault(person => person.IsYou);

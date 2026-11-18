@@ -80,13 +80,31 @@ public sealed class DetailExtrasService(
             }
         }
 
+        // A Videos series (a folder of personal videos or lessons) lists its videos without episode details, so nothing above names a file.
+        // Each listed video is a Work of its own, so one file of each (a single batched lookup) says which folders to look in.
+        IReadOnlyDictionary<Guid, string> videoPaths = new Dictionary<Guid, string>();
+        if (assetIds.Count == 0
+            && detail.EntityType == DetailEntityType.TvShow
+            && detail.SequencePlacement is { } videos)
+        {
+            var listedWorks = videos.OrderedItems.Concat(videos.Groups.SelectMany(group => group.Items))
+                .Where(item => item.EpisodeContext is null && Guid.TryParse(item.Id, out var workId) && workId != Guid.Empty)
+                .Select(item => Guid.Parse(item.Id))
+                .Distinct()
+                .Take(MaxAssetsToLocate)
+                .ToList();
+            videoPaths = await assets.GetFirstFilePathsByWorkIdsAsync(listedWorks, ct).ConfigureAwait(false);
+        }
+
         var distinct = assetIds.Distinct().Take(MaxAssetsToLocate).ToList();
-        if (distinct.Count == 0)
+        if (distinct.Count == 0 && videoPaths.Count == 0)
         {
             return;
         }
 
-        var paths = await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
+        var paths = distinct.Count == 0
+            ? videoPaths
+            : await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in paths.Values)
         {

@@ -101,7 +101,7 @@ public partial class MusicTrackList
 
     // Ticks are for every album page, not only one the person may edit: ticked songs are played, queued and put in playlists by anyone
     // (Listen music spec D9). The bar then shows Edit only where the page and device allow it.
-    private bool SelectionShown => BatchSelection is not null;
+    private bool SelectionShown => false;
 
     private bool CanEditRows => Editor is { CanEdit: true, EditRowAsync: not null };
 

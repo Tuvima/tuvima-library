@@ -1,0 +1,200 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using System.Globalization
+@using MediaEngine.Contracts.Library
+@inject IStringLocalizer<SharedStrings> L
+
+@* An opened batch (review mock-ups D3): a summary row ("Batch · Nov 18, 3:42 PM" with the pills "46 items", "41 done", "5 working"), media-type chips
+   with counts that narrow the table (they combine with the page's Watch, Listen and Read chips, which have already narrowed what arrives here), and
+   a table with a small portrait cover, then Title, Type, Size and Status. A heading sorts the rows and shows an arrow for the direction. A folder of
+   videos is one row, closed at first, whose arrow opens its files as quieter rows. The table scrolls sideways inside its card on a phone. *@
+<div class="lact-batch" data-testid="lact-batch">
+    <div class="lact-batch__summary" data-testid="lact-batch-summary">
+        <strong data-testid="lact-batch-stamp">@L["LibraryActivity_BatchSummary", LibraryActivityEntryRows.Stamp(StartedAt)]</strong>
+        <span class="lact-batch__pills">
+            <AppStatusBadge Text="@(ItemCount == 1 ? L["LibraryActivity_PillItem", ItemCount.ToString("N0", CultureInfo.InvariantCulture)].Value : L["LibraryActivity_PillItems", ItemCount.ToString("N0", CultureInfo.InvariantCulture)].Value)"
+                            Tone="AppUiTone.Neutral" Class="lact-batch__pill lact-batch__pill--items" />
+            <AppStatusBadge Text="@L["LibraryActivity_PillDone", DoneItems.ToString("N0", CultureInfo.InvariantCulture)].Value"
+                            Tone="AppUiTone.Success" Class="lact-batch__pill lact-batch__pill--done" />
+            @if (WorkingCount > 0)
+            {
+                <AppStatusBadge Text="@L["LibraryActivity_PillWorking", WorkingCount.ToString("N0", CultureInfo.InvariantCulture)].Value"
+                                Tone="AppUiTone.Primary" Class="lact-batch__pill lact-batch__pill--working" />
+            }
+        </span>
+    </div>
+
+    <div class="lact-batch__chips" role="group" aria-label="@L["LibraryActivity_BatchTypes"]" data-testid="lact-batch-chips">
+        <AppToggleChip Pressed="@(_type is null)" Class="lact-chip lact-chip--all" OnClick="@(() => PickType(null))">
+            @L["LibraryActivity_ChipAll"] <span class="lact-batch__count">@ItemCount.ToString("N0", CultureInfo.InvariantCulture)</span>
+        </AppToggleChip>
+        @foreach (var entry in Counts.Where(count => count.Count > 0))
+        {
+            var type = entry.MediaType;
+            <AppToggleChip @key="type" Pressed="@(_type == type)" Class="lact-chip lact-chip--all" OnClick="@(() => PickType(type))">
+                @LibraryActivityEntryRows.TypeLabel(type) <span class="lact-batch__count">@entry.Count.ToString("N0", CultureInfo.InvariantCulture)</span>
+            </AppToggleChip>
+        }
+    </div>
+
+    <div class="lact-batch__scroll" data-testid="lact-batch-scroll">
+        <table class="lact-batch__table" data-testid="lact-batch-table">
+            <thead>
+                <tr>
+                    <th scope="col" class="lact-batch__col-cover"><span class="sr-only">@L["LibraryActivity_ColumnCover"]</span></th>
+                    @Heading(LibraryActivityEntrySort.Title, "title", L["LibraryActivity_ColumnTitle"].Value, "lact-batch__col-title")
+                    @Heading(LibraryActivityEntrySort.Type, "type", L["LibraryActivity_ColumnType"].Value, "lact-batch__col-type")
+                    @Heading(LibraryActivityEntrySort.Size, "size", L["LibraryActivity_ColumnSize"].Value, "lact-batch__col-size")
+                    @Heading(LibraryActivityEntrySort.Status, "status", L["LibraryActivity_ColumnStatus"].Value, "lact-batch__col-status")
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var group in VisibleRows)
+                {
+                    var collection = LibraryActivityEntryRows.IsCollection(group);
+                    var expanded = collection && _expanded.Contains(group.GroupKey);
+                    var working = LibraryActivityEntryRows.WorkingItems(group, WorkingIds);
+                    <tr @key="group.GroupKey" class="lact-batch__row @(collection ? "is-collection" : null)" data-testid="lact-batch-row" data-media-type="@group.MediaType" data-collection="@(collection ? "true" : "false")">
+                        <td class="lact-batch__cover">
+                            <span class="lact-batch__art @(group.MediaType == "Music" ? "is-square" : null)">
+                                <LibraryActivityPicture Url="@group.CoverUrl" DrawnPx="52" Icon="@IconFor(group.MediaType)" IconSize="AppIconSize.Row24" />
+                            </span>
+                        </td>
+                        <td class="lact-batch__title">
+                            <span class="lact-batch__name">
+                                @if (collection)
+                                {
+                                    <AppNativeButton Type="button" Class="lact-batch__toggle" OnClick="@(() => Toggle(group.GroupKey))"
+                                                     aria-expanded="@(expanded ? "true" : "false")" data-testid="lact-batch-toggle"
+                                                     AriaLabel="@L[expanded ? "LibraryActivity_HideFiles" : "LibraryActivity_ShowFiles", group.Title].Value">
+                                        <AppMaterialIcon Icon="@(expanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppIconSize.Control20" />
+                                    </AppNativeButton>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(group.Route))
+                                {
+                                    <a href="@group.Route" class="lact-batch__link" data-overflow-tooltip="@group.Title">@group.Title</a>
+                                }
+                                else
+                                {
+                                    <span class="lact-batch__text" data-overflow-tooltip="@group.Title">@group.Title</span>
+                                }
+                                @if (collection)
+                                {
+                                    <span class="lact-batch__tag" data-testid="lact-batch-tag">@L["LibraryActivity_VideoCollection"]</span>
+                                }
+                            </span>
+                        </td>
+                        <td class="lact-batch__type">@LibraryActivityEntryRows.TypeLabel(group.MediaType)</td>
+                        <td class="lact-batch__size">@LibraryActivityEntryRows.Size(group.SizeBytes)</td>
+                        <td class="lact-batch__status">
+                            @if (collection && working > 0)
+                            {
+                                <AppStatusBadge Text="@L["LibraryActivity_CollectionWorking", working.ToString(CultureInfo.InvariantCulture), group.ItemCount.ToString(CultureInfo.InvariantCulture)].Value"
+                                                Tone="AppUiTone.Primary" Class="lact-batch__pill" />
+                            }
+                            else if (working > 0)
+                            {
+                                <AppStatusBadge Text="@L["LibraryActivity_StatusWorking"].Value" Tone="AppUiTone.Primary" Class="lact-batch__pill" />
+                            }
+                            else
+                            {
+                                <AppStatusBadge Text="@L["LibraryActivity_StatusDone"].Value" Tone="AppUiTone.Success" Class="lact-batch__pill" />
+                            }
+                        </td>
+                    </tr>
+                    @if (expanded)
+                    {
+                        @foreach (var file in group.Files!)
+                        {
+                            var fileWorking = file.WorkId is { } id && WorkingIds is { } set && set.Contains(id);
+                            <tr class="lact-batch__row is-file" data-testid="lact-batch-file">
+                                <td class="lact-batch__cover"></td>
+                                <td class="lact-batch__title"><span class="lact-batch__name"><span class="lact-batch__text" data-overflow-tooltip="@file.Title">@file.Title</span></span></td>
+                                <td class="lact-batch__type">@LibraryActivityEntryRows.TypeLabel("Videos")</td>
+                                <td class="lact-batch__size">@LibraryActivityEntryRows.Size(file.SizeBytes)</td>
+                                <td class="lact-batch__status">
+                                    <AppStatusBadge Text="@(fileWorking ? L["LibraryActivity_StatusWorking"].Value : L["LibraryActivity_StatusDone"].Value)"
+                                                    Tone="@(fileWorking ? AppUiTone.Primary : AppUiTone.Success)" Class="lact-batch__pill" />
+                                </td>
+                            </tr>
+                        }
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    /// <summary>Every row of the batch loaded so far, in the order the Engine sent them.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<ActivityGroupDto> Groups { get; set; } = [];
+
+    /// <summary>The batch's items per media type (already narrowed by the page's Watch, Listen and Read chips): the chips and their counts.</summary>
+    [Parameter] public IReadOnlyList<ActivityRunCountDto> Counts { get; set; } = [];
+
+    /// <summary>How many items the batch holds in all; the "All" chip and the "items" pill.</summary>
+    [Parameter] public int ItemCount { get; set; }
+
+    [Parameter] public DateTimeOffset StartedAt { get; set; }
+
+    /// <summary>The titles Library is still working on right now (the live Working now list); null or empty when the batch has ended.</summary>
+    [Parameter] public IReadOnlySet<Guid>? WorkingIds { get; set; }
+
+    private string? _type;
+    private LibraryActivityEntrySort _sort = LibraryActivityEntrySort.Arrival;
+    private bool _descending;
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+
+    private IReadOnlyList<ActivityGroupDto> VisibleRows
+        => LibraryActivityEntryRows.Rows(Groups, _type, _sort, _descending, WorkingIds);
+
+    private int WorkingCount => Math.Min(ItemCount, Groups.Sum(group => LibraryActivityEntryRows.WorkingItems(group, WorkingIds)));
+
+    private int DoneItems => Math.Max(0, ItemCount - WorkingCount);
+
+    private void PickType(string? type) => _type = type;
+
+    private void Toggle(string key)
+    {
+        if (!_expanded.Remove(key))
+        {
+            _expanded.Add(key);
+        }
+    }
+
+    // A heading sorts ascending first; pressing the same one again turns it round.
+    private void SortBy(LibraryActivityEntrySort sort)
+    {
+        if (_sort == sort)
+        {
+            _descending = !_descending;
+            return;
+        }
+
+        _sort = sort;
+        _descending = false;
+    }
+
+    private RenderFragment Heading(LibraryActivityEntrySort sort, string key, string label, string cssClass) => __builder =>
+    {
+        var active = _sort == sort;
+        <th scope="col" class="@cssClass @(active ? "is-sorted" : null)" aria-sort="@(active ? (_descending ? "descending" : "ascending") : "none")">
+            <AppNativeButton Type="button" Class="lact-batch__sort" OnClick="@(() => SortBy(sort))" data-testid="@($"lact-sort-{key}")">
+                <span>@label</span>
+                @if (active)
+                {
+                    <AppMaterialIcon Icon="@(_descending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward)" Size="AppIconSize.Inline16" data-testid="lact-sort-arrow" />
+                }
+            </AppNativeButton>
+        </th>;
+    };
+
+    private static string IconFor(string mediaType) => mediaType switch
+    {
+        "Music" => AppMaterialIcons.Outlined.MusicNote,
+        "Books" => AppMaterialIcons.Outlined.MenuBook,
+        "Audiobooks" => AppMaterialIcons.Outlined.Headphones,
+        "Comics" => AppMaterialIcons.Outlined.AutoStories,
+        "Videos" => AppMaterialIcons.Outlined.VideoLibrary,
+        _ => AppMaterialIcons.Outlined.Movie,
+    };
+}

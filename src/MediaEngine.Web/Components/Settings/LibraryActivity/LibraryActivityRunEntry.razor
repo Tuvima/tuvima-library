@@ -9,9 +9,10 @@
 @* One History entry (spec library-activity D33, D35): a date label on the line, then one slim row in a bordered box. A running batch has a purple
    left edge, "Adding audiobooks", "2 added so far", up to two small covers, Active and a chevron. A finished batch reads "250 items added", one
    counts-by-kind line, three small covers with "+247", Completed and a chevron. The phone shows two covers with the "+N" and lets the counts wrap
-   to two lines. No library names on the row. Clicking opens it in place: its items as standard tiles in a scrolling area that shows two rows at a
-   time and loads more as you scroll, with no filter of its own (the chips at the top of the page narrow the whole page, D31). Episodes are stacked
-   into one tile per show, tracks into one per album. No file or enrichment detail (that lives in the item's editor). *@
+   to two lines. No library names on the row. Clicking opens it in place as the batch list (review mock-ups D3, LibraryActivityEntryList): a summary
+   row, media-type chips with counts and a sortable table, loaded in full (up to AutoLoadLimit rows, then Show more) so sorting covers the whole batch.
+   The chips at the top of the page narrow the whole page (D31). Episodes are stacked into one row per show, tracks into one per album, a folder of
+   videos into one collection row. No file or enrichment detail (that lives in the item's editor). *@
 <li class="lact-entry @(IsActive ? "is-active" : null)" data-testid="lact-entry" data-run-status="@Run.Status">
     <div class="lact-entry__row">
         <span class="lact-bubble" data-testid="lact-entry-date">@Bubble</span>
@@ -87,17 +88,12 @@
                 }
                 else
                 {
-                    <div class="lact-scroll" data-testid="lact-open-tiles">
-                        <div class="lact-tiles">
-                            @foreach (var group in _groups)
-                            {
-                                <LibraryActivityTile @key="group.GroupKey"
-                                                     Title="@group.Title"
-                                                     CoverUrl="@group.CoverUrl"
-                                                     MediaType="@group.MediaType"
-                                                     Route="@group.Route" />
-                            }
-                        </div>
+                    <div data-testid="lact-open-list">
+                        <LibraryActivityEntryList Groups="_groups"
+                                                  Counts="Run.Counts"
+                                                  ItemCount="Run.ItemCount"
+                                                  StartedAt="Run.StartedAt"
+                                                  WorkingIds="@(IsActive ? WorkingIds : null)" />
                         @if (_hasMore)
                         {
                             <div id="@SentinelId" class="lact-sentinel"><AppButton Label="@L["LibraryActivity_ShowMore"].Value" OnClick="LoadMoreAsync" Disabled="_loading" /></div>
@@ -109,7 +105,10 @@
 </li>
 
 @code {
-    private const int PageSize = 24;
+    private const int PageSize = 100;
+
+    // An opened batch reads in full (so a heading sorts every row, not only the first page) up to this many rows; a bigger one adds Show more.
+    private const int AutoLoadLimit = 1000;
     private const int DesktopCovers = 3;
     private const int PhoneCovers = 2;
 
@@ -120,6 +119,9 @@
 
     /// <summary>The chosen area's media types (D31): the opened batch lists only these. Empty means every kind.</summary>
     [Parameter] public IReadOnlyList<string> MediaTypes { get; set; } = [];
+
+    /// <summary>The titles Library is still working on now (the live Working now list): a row of an active batch is Working while its title is in here.</summary>
+    [Parameter] public IReadOnlySet<Guid>? WorkingIds { get; set; }
 
     private readonly List<ActivityGroupDto> _groups = [];
     private bool _open;
@@ -216,6 +218,15 @@
         _hasMore = false;
         _failed = false;
         await LoadMoreAsync();
+        while (_hasMore && !_failed && _groups.Count < AutoLoadLimit)
+        {
+            var before = _groups.Count;
+            await LoadMoreAsync();
+            if (_groups.Count == before)
+            {
+                break;
+            }
+        }
     }
 
     private async Task LoadMoreAsync()

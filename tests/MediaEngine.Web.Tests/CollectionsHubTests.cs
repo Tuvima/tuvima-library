@@ -131,7 +131,7 @@ public sealed class CollectionsHubTests
         Assert.Contains("PrimaryNavigationUrl = navigationUrl", composerSource, StringComparison.Ordinal);
         Assert.Contains("Person = collection.Person is null", composerSource, StringComparison.Ordinal);
         Assert.Contains("people-catalog-list", peopleListSource, StringComparison.Ordinal);
-        Assert.Contains("<PersonTileGrid", peopleListSource, StringComparison.Ordinal);
+        Assert.Contains("people-row", peopleListSource, StringComparison.Ordinal);
         Assert.Contains("/details/person/", peopleListSource, StringComparison.Ordinal);
         Assert.Contains("titles to read", peopleListSource, StringComparison.Ordinal);
         Assert.Contains("titles to watch", peopleListSource, StringComparison.Ordinal);

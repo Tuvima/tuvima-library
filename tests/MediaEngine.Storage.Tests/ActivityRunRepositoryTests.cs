@@ -157,6 +157,39 @@ public sealed class ActivityRunRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ListGroups_AddsUpTheSizeOfEveryFileInARow()
+    {
+        var run = await OpenRunAsync(Library, ActivityRunKinds.Added, isFirst: false, Start);
+        await AddAsync(run, "Videos", "Lesson 1", groupKey: "videos|/lessons", groupTitle: "Lessons", sizeBytes: 700);
+        await AddAsync(run, "Videos", "Lesson 2", groupKey: "videos|/lessons", groupTitle: "Lessons", sizeBytes: 300);
+        await AddAsync(run, "Movies", "Dune", sizeBytes: 4_000);
+        await AddAsync(run, "Movies", "Removed file");
+
+        var groups = await _runs.ListGroupsAsync(run.Id, null, 0, 20);
+
+        Assert.Equal(1_000, Assert.Single(groups, group => group.GroupKey == "videos|/lessons").SizeBytes);
+        Assert.Equal(4_000, Assert.Single(groups, group => group.GroupTitle == "Dune").SizeBytes);
+        Assert.Equal(0, Assert.Single(groups, group => group.GroupTitle == "Removed file").SizeBytes);
+    }
+
+    [Fact]
+    public async Task ListGroupFiles_ReturnsTheFilesOfOneFolderOfVideosInArrivalOrder_AndNothingFromOtherRows()
+    {
+        var run = await OpenRunAsync(Library, ActivityRunKinds.Added, isFirst: false, Start);
+        var second = Guid.NewGuid();
+        await AddAsync(run, "Videos", "Lesson 2", Start.AddSeconds(5), workId: second, groupKey: "videos|/lessons", groupTitle: "Lessons", sizeBytes: 300);
+        await AddAsync(run, "Videos", "Lesson 1", Start, groupKey: "videos|/lessons", groupTitle: "Lessons", sizeBytes: 700);
+        await AddAsync(run, "Videos", "Elsewhere", groupKey: "videos|/other", groupTitle: "Other", sizeBytes: 5);
+
+        var files = await _runs.ListGroupFilesAsync(run.Id, "videos|/lessons", null, 50);
+
+        Assert.Equal(["Lesson 1", "Lesson 2"], files.Select(file => file.Title));
+        Assert.Equal([700L, 300L], files.Select(file => file.SizeBytes));
+        Assert.Equal(second, files[1].WorkId);
+        Assert.Single(await _runs.ListGroupFilesAsync(run.Id, "videos|/lessons", null, 1));
+    }
+
+    [Fact]
     public async Task SearchTitles_FindsTheShowOncePerBatchWithItsOwnCounts()
     {
         var earlier = await OpenRunAsync(Library, ActivityRunKinds.Added, isFirst: false, Start);
@@ -260,10 +293,10 @@ public sealed class ActivityRunRepositoryTests : IDisposable
 
     private Task AddAsync(
         ActivityRunRecord run, string mediaType, string title, DateTimeOffset? at = null,
-        Guid? workId = null, string? groupKey = null, string? groupTitle = null, Guid? groupWorkId = null)
+        Guid? workId = null, string? groupKey = null, string? groupTitle = null, Guid? groupWorkId = null, long sizeBytes = 0)
         => _runs.AddItemAsync(
             new ActivityRunItemRecord(
                 Guid.NewGuid(), run.Id, workId ?? Guid.NewGuid(), null, mediaType, title,
-                groupKey ?? $"item|{Guid.NewGuid():N}", groupTitle ?? title, groupWorkId, at ?? Start),
+                groupKey ?? $"item|{Guid.NewGuid():N}", groupTitle ?? title, groupWorkId, at ?? Start, sizeBytes),
             at ?? Start);
 }
