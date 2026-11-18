@@ -64,6 +64,17 @@ public static class EngineImageProxyPath
             return true;
         }
 
+        // One frame taken from an item's video, offered in the editor's "Frames from the video" strip.
+        if (segments.Length == 5
+            && segments[0].Equals("metadata", StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParse(segments[1], out _)
+            && segments[2].Equals("video-frames", StringComparison.OrdinalIgnoreCase)
+            && segments[3].Length > 0
+            && segments[4].Length is > 0 and < 4 && segments[4].All(char.IsAsciiDigit))
+        {
+            return true;
+        }
+
         if (segments.Length == 3
             && segments[0].Equals("stream", StringComparison.OrdinalIgnoreCase)
             && segments[1].Equals("artwork", StringComparison.OrdinalIgnoreCase))

@@ -171,6 +171,37 @@ public sealed class ActivityRunRecorderTests : IDisposable
     }
 
     [Fact]
+    public async Task RecordAdded_KeepsTheFilesSizeOnDisk_ForTheBatchList()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"tuvima_run_size_{Guid.NewGuid():N}.mkv");
+        await File.WriteAllBytesAsync(path, new byte[2048]);
+        try
+        {
+            var asset = Guid.NewGuid();
+            _store.Known[asset] = new ActivityAssetContext(Library, path);
+            await _recorder.RecordAddedAsync(Guid.NewGuid(), asset, "Movies", "Sized", null, null);
+
+            var run = Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run;
+            Assert.Equal(2048, Assert.Single(await _real.ListGroupsAsync(run.EntryId, null, 0, 10)).SizeBytes);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task RecordAdded_AFileThatIsNotThereToMeasure_StillJoinsTheBatchWithNoSize()
+    {
+        var asset = Guid.NewGuid();
+        _store.Known[asset] = new ActivityAssetContext(Library, "/nowhere/missing.mkv");
+        await _recorder.RecordAddedAsync(Guid.NewGuid(), asset, "Movies", "Missing", null, null);
+
+        var run = Assert.Single(await _real.ListRunsAsync(new ActivityRunQuery())).Run;
+        Assert.Equal(0, Assert.Single(await _real.ListGroupsAsync(run.EntryId, null, 0, 10)).SizeBytes);
+    }
+
+    [Fact]
     public void Stack_OtherVideosShareOneTilePerRootFolder()
     {
         var first = ActivityRunRecorder.Stack("Videos", Guid.NewGuid(), null, "Lesson 1", null, "/learn/course/lesson1.mp4");
@@ -400,6 +431,7 @@ public sealed class ActivityRunRecorderTests : IDisposable
         public Task<IReadOnlyList<ActivityRunSummary>> ListRunsAsync(ActivityRunQuery query, CancellationToken ct = default) => inner.ListRunsAsync(query, ct);
         public Task<ActivityRunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default) => inner.GetRunAsync(runId, ct);
         public Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid runId, ActivityRunScope? scope, int offset, int limit, CancellationToken ct = default) => inner.ListGroupsAsync(runId, scope, offset, limit, ct);
+        public Task<IReadOnlyList<ActivityRunFile>> ListGroupFilesAsync(Guid runId, string groupKey, ActivityRunScope? scope, int limit, CancellationToken ct = default) => inner.ListGroupFilesAsync(runId, groupKey, scope, limit, ct);
         public Task<IReadOnlyList<ActivityTitleHit>> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default) => inner.SearchTitlesAsync(query, ct);
         public Task<DateTimeOffset?> GetLastCompletedAsync(IReadOnlyCollection<string>? libraryIds, CancellationToken ct = default) => inner.GetLastCompletedAsync(libraryIds, ct);
         public Task<int> PurgeAsync(DateTimeOffset olderThan, CancellationToken ct = default) => inner.PurgeAsync(olderThan, ct);

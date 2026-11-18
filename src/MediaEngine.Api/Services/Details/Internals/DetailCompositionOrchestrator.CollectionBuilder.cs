@@ -586,6 +586,11 @@ internal sealed partial class DetailCompositionOrchestrator
                     ? sameFile : [],
             };
         }).ToList();
+        if (entityType == DetailEntityType.TvShow)
+        {
+            // A file named S01E19-20 is one entry, "E19-20: Title A + Title B"; each covered episode is still its own Work (D9).
+            items = MergeCombinedEpisodeEntries(items);
+        }
 
         var authoritativeTotalsBySeason = (authoritativeTotalsByContainer
                 ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase))
@@ -615,8 +620,10 @@ internal sealed partial class DetailCompositionOrchestrator
                     seasonArtwork?.TryGetValue(seasonKey, out presentation);
                     return new SequenceGroupViewModel
                     {
-                        OwnedCount = group.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                        CompletedCount = group.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                        // Episodes count every episode a file covers; files count physical files (20 episodes, 19 files).
+                        OwnedCount = OwnedEpisodeTotal(group),
+                        CompletedCount = CompletedEpisodeTotal(group),
+                        FileCount = FileTotalWhenCombined(group.ToList()),
                         Key = group.Key,
                         Title = isVideoFolder
                             ? sectionOrdinals.ContainsKey(group.Key) ? group.First().GroupTitle ?? looseVideosTitle : VideoSectionTitle(group.First().GroupTitle, looseVideosTitle)
@@ -629,7 +636,7 @@ internal sealed partial class DetailCompositionOrchestrator
                         seasonKey,
                         out var groupTotal)
                             ? groupTotal
-                            : group.Count(),
+                            : group.Sum(item => Math.Max(1, item.EpisodeCount)),
                         HasAuthoritativeTotal = authoritativeTotalsBySeason.ContainsKey(
                         seasonKey),
                         ItemCount = group.Count(),
@@ -1060,7 +1067,8 @@ internal sealed partial class DetailCompositionOrchestrator
                 .Where(year => !string.IsNullOrWhiteSpace(year))
                 .OrderBy(year => year, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault();
-            var ownedEpisodeCount = works.Count(work => work.IsOwned && InferMediaItemEntityType(work) == DetailEntityType.TvEpisode);
+            var ownedEpisodes = works.Where(work => work.IsOwned && InferMediaItemEntityType(work) == DetailEntityType.TvEpisode).ToList();
+            var (ownedEpisodeCount, ownedFileCount) = CombinedEpisodeFiles.Count(ownedEpisodes.Select(work => (work.Id, work.AssetId)));
             var videoFolder = VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType);
 
             tvPlaybackValues ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1078,10 +1086,10 @@ internal sealed partial class DetailCompositionOrchestrator
                 GetValue(values, MetadataFieldConstants.Year),
                 GetValue(values, "release_year"),
                 firstOwnedYear), "year");
-            AddPlain(pills, ownedEpisodeCount > 0
-                ? videoFolder
-                    ? VideoFolderWording.VideoCount(ownedEpisodeCount)
-                    : $"{ownedEpisodeCount.ToString(CultureInfo.InvariantCulture)} {(ownedEpisodeCount == 1 ? "episode" : "episodes")}"
+            // A folder of videos shows its count once, with the list (issue 1040), so it gets no count pill here.
+            // "20 episodes · 19 files" when a file such as S01E19-20 covers two episodes; "episodes" counts every episode a file covers.
+            AddPlain(pills, ownedEpisodeCount > 0 && !videoFolder
+                ? CombinedEpisodeFiles.CountText(ownedEpisodeCount, ownedFileCount)
                 : null, "episode_count");
             AddPlain(pills, StringHelpers.FirstNonBlankOr(string.Empty,
                 FormatTrackDuration(StringHelpers.FirstNonBlankOr(string.Empty,

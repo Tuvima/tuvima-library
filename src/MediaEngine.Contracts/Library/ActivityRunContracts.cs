@@ -61,14 +61,28 @@ public sealed record ActivityRunGroupsDto(
     [property: JsonPropertyName("groups")] IReadOnlyList<ActivityGroupDto> Groups,
     [property: JsonPropertyName("has_more")] bool HasMore);
 
-/// <summary>One stacked tile: a show, an album, a folder of videos, or a single title. <c>route</c> is the item's own page when it has one.</summary>
+/// <summary>
+/// One row of an opened batch (review mock-ups D3): a show, an album, a folder of videos, or a single title. <c>route</c> is the item's own page
+/// when it has one. <c>size_bytes</c> is the size of everything in the row on disk when it arrived (0 when unknown). <c>work_id</c> is the title
+/// the row stands for (the show or album, or the single title), so the page can tell which rows are still being worked on. <c>files</c> lists
+/// the files of a folder of videos (a video collection, shown as one expandable row); it is empty for every other row.
+/// </summary>
 public sealed record ActivityGroupDto(
     [property: JsonPropertyName("group_key")] string GroupKey,
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("media_type")] string MediaType,
     [property: JsonPropertyName("item_count")] int ItemCount,
     [property: JsonPropertyName("cover_url")] string? CoverUrl,
-    [property: JsonPropertyName("route")] string? Route);
+    [property: JsonPropertyName("route")] string? Route,
+    [property: JsonPropertyName("size_bytes")] long SizeBytes = 0,
+    [property: JsonPropertyName("work_id")] Guid? WorkId = null,
+    [property: JsonPropertyName("files")] IReadOnlyList<ActivityFileDto>? Files = null);
+
+/// <summary>One file inside a video collection row of an opened batch: its title, its size on disk and the title it became.</summary>
+public sealed record ActivityFileDto(
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("size_bytes")] long SizeBytes,
+    [property: JsonPropertyName("work_id")] Guid? WorkId);
 
 /// <summary>
 /// The instant title search (<c>GET /library/activity/titles?q=</c>, D18): a title found in several batches appears once, with the total

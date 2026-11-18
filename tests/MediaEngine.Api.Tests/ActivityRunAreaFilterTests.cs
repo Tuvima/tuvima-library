@@ -97,6 +97,35 @@ public sealed class ActivityRunAreaFilterTests : IDisposable
     }
 
     [Fact]
+    public async Task ListGroups_AFolderOfVideos_IsOneRowWithItsFilesAndSize_AndEveryOtherRowHasNoFiles()
+    {
+        var run = await OpenRunAsync(Library, Start);
+        var first = Guid.NewGuid();
+        for (var index = 1; index <= 3; index++)
+        {
+            await _runs.AddItemAsync(
+                new ActivityRunItemRecord(Guid.NewGuid(), run.Id, index == 1 ? first : Guid.NewGuid(), null, "Videos", $"Lesson {index}", "videos|/course", "course", null, Start, 1_000 * index),
+                Start);
+        }
+
+        await _runs.AddItemAsync(
+            new ActivityRunItemRecord(Guid.NewGuid(), run.Id, Guid.NewGuid(), null, "Videos", "Lone clip", "videos|/clips", "clips", null, Start, 5),
+            Start);
+        await AddAsync(run, "Movies", "Dune");
+
+        var page = await _service.ListGroupsAsync(run.EntryId, null, 0, 24);
+
+        var course = Assert.Single(page!.Groups, group => group.Title == "course");
+        Assert.Equal(3, course.ItemCount);
+        Assert.Equal(6_000, course.SizeBytes);
+        Assert.Equal(["Lesson 1", "Lesson 2", "Lesson 3"], course.Files!.Select(file => file.Title));
+        Assert.Equal(first, course.Files![0].WorkId);
+        Assert.Equal(1_000, course.Files![0].SizeBytes);
+        Assert.Null(Assert.Single(page.Groups, group => group.Title == "Dune").Files);
+        Assert.Null(Assert.Single(page.Groups, group => group.Title == "clips").Files);
+    }
+
+    [Fact]
     public async Task ListRuns_WithWatchPicked_HidesABatchOfMusicOnly()
     {
         var music = await OpenRunAsync(Library, Start);

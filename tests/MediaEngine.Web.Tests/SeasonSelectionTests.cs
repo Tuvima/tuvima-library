@@ -41,12 +41,12 @@ public sealed class SeasonSelectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheSeasonControlIsADropdownListingEachSeasonWithItsEpisodeCount()
+    public void TheSeasonControlIsADropdownListingEachSeasonByNameOnly()
     {
         var cut = RenderShow("season-2");
 
         var options = SeasonSelect(cut).Instance.Options!.ToList();
-        Assert.Equal(["Season 1 · 2 episodes", "Season 2 · 2 episodes"], options.Select(option => option.Label));
+        Assert.Equal(["Season 1", "Season 2"], options.Select(option => option.Label));
         // Switching seasons never swaps the episode row for a row of season pictures.
         Assert.Empty(cut.FindAll(".tl-season-card"));
         Assert.Empty(cut.FindAll(".tl-season-browser"));

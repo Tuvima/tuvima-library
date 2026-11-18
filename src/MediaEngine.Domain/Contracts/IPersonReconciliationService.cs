@@ -17,12 +17,18 @@ public interface IPersonReconciliationService
     /// <param name="name">The person's name to search for.</param>
     /// <param name="expectedRole">Expected role: Author, Narrator, Director, Composer, Actor, Performer, Artist.</param>
     /// <param name="workTitle">Optional work title for notable-work matching boost.</param>
+    /// <param name="contextText">
+    /// Optional description of the work (its subject). When several people share the name and no notable work
+    /// settles it, this text is compared with each candidate's Wikidata description to pick the right one;
+    /// if it cannot, no match is made rather than guessing on the name alone.
+    /// </param>
     /// <param name="ct">Cancellation token.</param>
     Task<PersonSearchResult?> SearchPersonAsync(
         string name,
         string expectedRole,
         string? workTitle = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        string? contextText = null);
 
     /// <summary>
     /// Reconciles multiple person names in a single batch operation.

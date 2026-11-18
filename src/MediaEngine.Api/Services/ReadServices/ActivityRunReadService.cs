@@ -14,6 +14,7 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
     public const int DefaultLimit = 50;
     public const int MaximumLimit = 200;
     private const int CoversPerRun = 5;
+    private const int MaximumFilesPerCollection = 200;
 
     public async Task<ActivityRunsDto> ListRunsAsync(ActivityRunQuery query, CancellationToken ct = default)
     {
@@ -47,10 +48,22 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
 
         var take = Math.Clamp(limit <= 0 ? 24 : limit, 1, MaximumLimit);
         var groups = await store.ListGroupsAsync(entryId, scope, offset, take + 1, ct).ConfigureAwait(false);
-        return new ActivityRunGroupsDto(
-            entryId,
-            groups.Take(take).Select(ToDto).ToList(),
-            groups.Count > take);
+        var rows = new List<ActivityGroupDto>();
+        foreach (var group in groups.Take(take))
+        {
+            // A folder of videos is one row that opens to its files (D3); every other row is a single line.
+            IReadOnlyList<ActivityFileDto>? files = null;
+            if (group.MediaType == "Videos" && group.ItemCount > 1)
+            {
+                files = (await store.ListGroupFilesAsync(entryId, group.GroupKey, scope, MaximumFilesPerCollection, ct).ConfigureAwait(false))
+                    .Select(file => new ActivityFileDto(file.Title, file.SizeBytes, file.WorkId))
+                    .ToList();
+            }
+
+            rows.Add(ToDto(group, files));
+        }
+
+        return new ActivityRunGroupsDto(entryId, rows, groups.Count > take);
     }
 
     public async Task<ActivityTitleSearchDto> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default)
@@ -118,8 +131,10 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
             covers);
     }
 
-    private static ActivityGroupDto ToDto(ActivityRunGroup group)
-        => new(group.GroupKey, group.GroupTitle, group.MediaType, group.ItemCount, CoverUrl(group), RouteOf(group));
+    private static ActivityGroupDto ToDto(ActivityRunGroup group, IReadOnlyList<ActivityFileDto>? files)
+        => new(
+            group.GroupKey, group.GroupTitle, group.MediaType, group.ItemCount, CoverUrl(group), RouteOf(group),
+            group.SizeBytes, group.GroupWorkId ?? group.FirstWorkId, files);
 
     // A show or album tile shows the show's or album's own art; any other tile shows its title's art. A removed file has none.
     private static string? CoverUrl(ActivityRunGroup group)

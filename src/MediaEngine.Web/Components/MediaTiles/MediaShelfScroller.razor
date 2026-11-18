@@ -17,6 +17,8 @@
     [Parameter] public int ItemCount { get; set; }
     [Parameter] public string AriaLabel { get; set; } = "Media shelf";
     [Parameter] public string? Class { get; set; }
+    /// <summary>Raised when the row's own items (not its "View all" tile) start or stop being more than fit the window.</summary>
+    [Parameter] public EventCallback<bool> OnOverflowChanged { get; set; }
     private ElementReference _scrollRef;
     private DotNetObjectReference<MediaShelfScroller>? _reference;
     private int _measuredCount = -1;
@@ -40,6 +42,8 @@
         _atStart = atStart; _atEnd = atEnd;
         return InvokeAsync(StateHasChanged);
     }
+    [JSInvokable("OnOverflowChanged")] public Task NotifyOverflowChanged(bool overflows)
+        => _disposed ? Task.CompletedTask : InvokeAsync(() => OnOverflowChanged.InvokeAsync(overflows));
     private async Task ScrollAsync(string direction)
     {
         var state = await JS.InvokeAsync<ScrollBoundary>("scrollSwimlaneEx", _scrollRef, direction);

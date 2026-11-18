@@ -173,7 +173,7 @@ public sealed class EditorEpisodeSelect(IEngineApiClient api, ILogger logger)
                 }
 
                 _items.AddRange(page.Items.Where(item => _items.All(known => known.Id != item.Id)));
-                offset += page.Items.Count;
+                offset += EditorNavText.Covered(page.Items);
                 if (!page.HasMore || page.Items.Count == 0)
                 {
                     break;

@@ -101,6 +101,13 @@ public static class TranscodingSettingsEndpoints
         .Produces<GraphicsHardwareDto>(StatusCodes.Status200OK)
         .RequireEffectiveAdministrator();
 
+        // What the last computer capacity test measured, without testing again (Settings > Tools, Computer capacity).
+        grp.MapGet("/playback/capacity", ([FromServices] PlaybackCapacityBenchmark benchmark) => Results.Ok(benchmark.Current()))
+        .WithName("GetPlaybackCapacity")
+        .WithSummary("Returns what the last computer capacity test measured.")
+        .Produces<PlaybackCapacityDto>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
         // How many videos this computer can convert at once and keep up: measures, then sets "Maximum active encodes" to the answer.
         grp.MapPost("/playback/test-capacity", async ([FromServices] PlaybackCapacityBenchmark benchmark, CancellationToken ct) =>
             Results.Ok(await benchmark.RunAsync(apply: true, ct).ConfigureAwait(false)))

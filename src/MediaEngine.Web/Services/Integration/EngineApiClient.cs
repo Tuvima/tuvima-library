@@ -2074,6 +2074,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 RemainingSeconds = item.RemainingSeconds,
                 ProgressLabel = item.ProgressLabel,
                 CoveredWith = item.CoveredWith,
+                EpisodeCount = item.EpisodeCount,
             };
 
     private string? NormalizeOptionalUrl(string? value)

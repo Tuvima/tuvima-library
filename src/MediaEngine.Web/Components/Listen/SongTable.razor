@@ -198,7 +198,7 @@ else
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.PlaylistAdd" ButtonStyle="AppButtonStyle.Text" Tooltip="@L["Common_AddToQueue"].Value" AriaLabel="@L["SongTable_AddTitleToQueue", row.Title].Value" OnClick="@(() => QueueAsync(row))" />
                     </span>
                 }
-                <AppOverflowMenu Size="AppControlSize.Normal" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
+                <AppOverflowMenu Size="AppControlSize.Normal" TriggerClass="app-row-menu__trigger" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
                     @RowMenu(row, false)
                 </AppOverflowMenu>
             }
@@ -559,7 +559,7 @@ else
         @if (row.IsOwned && !SelectModeOn)
         {
             <span class="song-table__pmenu" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
-                <AppOverflowMenu Size="AppControlSize.Normal" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
+                <AppOverflowMenu Size="AppControlSize.Normal" TriggerClass="app-row-menu__trigger" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
                     @RowMenu(row, true)
                 </AppOverflowMenu>
             </span>
