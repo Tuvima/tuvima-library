@@ -4993,6 +4993,11 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityCoverDto
   MediaType: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityFileDto
+  Title: System.String | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  WorkId: System.Guid? | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityGroupDto
   GroupKey: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -5000,6 +5005,9 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityGroupDto
   ItemCount: System.Int32 | nullability=not-null | accessors=get,init
   CoverUrl: System.String | nullability=nullable | accessors=get,init
   Route: System.String | nullability=nullable | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  WorkId: System.Guid? | nullability=nullable | accessors=get,init
+  Files: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityFileDto> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityPurgeRequest
   OlderThan: System.DateTimeOffset | nullability=not-null | accessors=get,init

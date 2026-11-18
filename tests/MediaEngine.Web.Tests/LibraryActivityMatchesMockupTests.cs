@@ -278,15 +278,16 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnOpenedBatchThatHoldsSeveralKinds_HasNoFilterByKindInsideIt()
+    public void AnOpenedBatchThatHoldsSeveralKinds_OffersAChipForEachKindWithItsCount_AndAllFirst()
     {
-        _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Movies", 2), new ActivityRunCountDto("Books", 3)], [])];
+        _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Books", 3), new ActivityRunCountDto("Movies", 2)], [])];
 
         var cut = Render<LibraryActivityPage>();
         cut.WaitForElement("[data-testid='lact-entry-toggle']").Click();
 
         var open = cut.WaitForElement("[data-testid='lact-open']");
-        Assert.Empty(open.QuerySelectorAll("[aria-pressed]"));
+        var chips = open.QuerySelectorAll("[data-testid='lact-batch-chips'] button").Select(chip => string.Join(' ', chip.TextContent.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))).ToList();
+        Assert.Equal(["All 5", "Books 3", "Movies 2"], chips);
         Assert.Empty(cut.FindAll(".lact-kind-chip"));
         Assert.Empty(cut.FindAll(".lact-kinds"));
     }
@@ -324,7 +325,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnOpenedBatch_IsItsOwnPanelUnderTheLine_AndATileWithAPageHasATitleMenuAndNoCaption()
+    public void AnOpenedBatch_IsItsOwnPanelUnderTheLine_AndARowWithAPageLinksToItWithASmallCover()
     {
         _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Movies", 1)], [])];
 
@@ -333,13 +334,14 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
 
         var open = cut.WaitForElement("[data-testid='lact-open']");
         Assert.Empty(cut.FindAll(".lact-box [data-testid='lact-open']"));
-        var tile = open.QuerySelector("[data-testid='activity-tile']")!;
-        Assert.Equal($"/details/work/{Work:D}?context=watch", tile.QuerySelector("a")!.GetAttribute("href"));
-        Assert.Single(tile.QuerySelectorAll("img"));
-        // The art carries the title; nothing is drawn as a caption over a picture.
-        Assert.Empty(tile.QuerySelectorAll(".lact-tile__title"));
-        Assert.DoesNotContain("Dune", tile.QuerySelector(".lact-tile__face")!.TextContent, StringComparison.Ordinal);
-        Assert.NotNull(tile.QuerySelector("[data-media-tile-actions]"));
+        // The oversized tiles are gone (#1107): one table row with a small cover, the title as a link, and Type, Size and Status.
+        Assert.Empty(open.QuerySelectorAll("[data-testid='activity-tile']"));
+        var row = open.QuerySelector("[data-testid='lact-batch-row']")!;
+        Assert.Equal($"/details/work/{Work:D}?context=watch", row.QuerySelector("a")!.GetAttribute("href"));
+        Assert.Equal("Dune", row.QuerySelector("a")!.TextContent.Trim());
+        Assert.Single(row.QuerySelectorAll(".lact-batch__cover img"));
+        Assert.Equal("Movies", row.QuerySelector(".lact-batch__type")!.TextContent.Trim());
+        Assert.Equal("Done", row.QuerySelector(".lact-batch__status")!.TextContent.Trim());
     }
 
     [Fact]

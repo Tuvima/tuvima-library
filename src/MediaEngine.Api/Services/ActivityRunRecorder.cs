@@ -191,12 +191,33 @@ public sealed class ActivityRunRecorder(
             }
 
             await store.AddItemAsync(
-                new ActivityRunItemRecord(Guid.NewGuid(), run.Id, workId, assetId, mediaType, title, groupKey, groupName, groupWorkId, now),
+                new ActivityRunItemRecord(Guid.NewGuid(), run.Id, workId, assetId, mediaType, title, groupKey, groupName, groupWorkId, now, SizeOf(filePath)),
                 now, ct).ConfigureAwait(false);
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>The file's size on disk for the batch list (review mock-ups D3); 0 when there is no file to measure, such as a removal.</summary>
+    private long SizeOf(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return 0;
+        }
+
+        try
+        {
+            var file = new FileInfo(filePath);
+            return file.Exists ? file.Length : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            // A file the Engine cannot measure still joins the batch, only without a size.
+            logger.LogDebug(ex, "The size of {Path} could not be read for the activity batch.", filePath);
+            return 0;
         }
     }
 

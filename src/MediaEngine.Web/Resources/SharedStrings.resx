@@ -10214,6 +10214,60 @@
   <data name="LibraryActivity_NoMatchHelp" xml:space="preserve">
     <value>Try a different title.</value>
   </data>
+  <data name="LibraryActivity_BatchSummary" xml:space="preserve">
+    <value>Batch · {0}</value>
+  </data>
+  <data name="LibraryActivity_BatchTypes" xml:space="preserve">
+    <value>Media types in this batch</value>
+  </data>
+  <data name="LibraryActivity_ChipAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="LibraryActivity_CollectionWorking" xml:space="preserve">
+    <value>{0} of {1} working</value>
+  </data>
+  <data name="LibraryActivity_ColumnCover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="LibraryActivity_ColumnSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="LibraryActivity_ColumnStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="LibraryActivity_ColumnTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="LibraryActivity_ColumnType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="LibraryActivity_HideFiles" xml:space="preserve">
+    <value>Hide the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_PillDone" xml:space="preserve">
+    <value>{0} done</value>
+  </data>
+  <data name="LibraryActivity_PillItem" xml:space="preserve">
+    <value>{0} item</value>
+  </data>
+  <data name="LibraryActivity_PillItems" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="LibraryActivity_PillWorking" xml:space="preserve">
+    <value>{0} working</value>
+  </data>
+  <data name="LibraryActivity_ShowFiles" xml:space="preserve">
+    <value>Show the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_StatusDone" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="LibraryActivity_StatusWorking" xml:space="preserve">
+    <value>Working</value>
+  </data>
+  <data name="LibraryActivity_VideoCollection" xml:space="preserve">
+    <value>Video collection</value>
+  </data>
   <data name="LibraryActivity_NothingInBatch" xml:space="preserve">
     <value>Nothing to show for this batch.</value>
   </data>

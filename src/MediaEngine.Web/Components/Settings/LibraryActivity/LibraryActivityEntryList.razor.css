@@ -1,0 +1,34 @@
+/* An opened batch (review mock-ups D3): summary row, media-type chips, then one compact table. A row is 50 px tall and carries a 26 px wide portrait
+   cover (39 px high; albums are 26 px square). The table never makes the page scroll: its card scrolls sideways on a phone. */
+.lact-batch { --lact-batch-cover-w: 26px; --lact-batch-row-h: 50px; display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; }
+.lact-batch__summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2) var(--tl-space-3); }
+.lact-batch__pills { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2); }
+.lact-batch__chips { display: flex; flex-wrap: wrap; gap: var(--tl-space-2); }
+.lact-batch__count { margin-left: var(--tl-space-1); color: var(--tl-text-muted); font-variant-numeric: tabular-nums; }
+.lact-batch__scroll { min-width: 0; overflow-x: auto; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); }
+.lact-batch__table { width: 100%; min-width: 560px; border-collapse: collapse; }
+.lact-batch__table th, .lact-batch__table td { padding: var(--tl-space-2) var(--tl-space-3); text-align: left; vertical-align: middle; border-bottom: 1px solid var(--tl-border-subtle); }
+.lact-batch__table thead th { padding-block: var(--tl-space-1); color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); font-weight: var(--tl-type-label-weight); white-space: nowrap; }
+.lact-batch__table tbody tr:last-child td { border-bottom: 0; }
+.lact-batch__col-cover { width: calc(var(--lact-batch-cover-w) + 2 * var(--tl-space-3)); }
+.lact-batch__col-type { width: 110px; }
+.lact-batch__col-size { width: 100px; }
+.lact-batch__col-status { width: 150px; }
+.lact-batch__table thead th.is-sorted { color: var(--tl-text-primary); }
+.lact-batch__row { height: var(--lact-batch-row-h); }
+.lact-batch__row td { padding-block: var(--tl-space-1); }
+.lact-batch__row.is-file { height: auto; color: var(--tl-text-muted); background: var(--tl-bg-root); }
+.lact-batch__row.is-file td { padding-block: var(--tl-space-2); }
+.lact-batch__row.is-file .lact-batch__title { padding-left: calc(var(--tl-space-3) + 28px); }
+.lact-batch__art { display: block; width: var(--lact-batch-cover-w); height: calc(var(--lact-batch-cover-w) * 1.5); overflow: hidden; border-radius: var(--tl-radius-sm); background: var(--tl-bg-surface-raised); }
+.lact-batch__art.is-square { height: var(--lact-batch-cover-w); }
+.lact-batch__name { display: flex; align-items: center; gap: var(--tl-space-2); min-width: 0; }
+.lact-batch__link, .lact-batch__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; font-weight: var(--tl-type-label-weight); text-decoration: none; }
+.lact-batch__row.is-file .lact-batch__text { font-weight: var(--tl-font-weight-regular); }
+.lact-batch__link:hover { text-decoration: underline; }
+.lact-batch__tag { flex: none; padding: 1px var(--tl-space-2); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); white-space: nowrap; }
+.lact-batch__type, .lact-batch__size { color: var(--tl-text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lact-batch__row.is-file .lact-batch__type, .lact-batch__row.is-file .lact-batch__size { color: var(--tl-text-muted); }
+@media (max-width: 600px) {
+    .lact-batch__table { min-width: 520px; }
+}
