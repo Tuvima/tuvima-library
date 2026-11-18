@@ -276,7 +276,37 @@ public static class EditorNavText
             return string.Join(" · ", new[] { code, length }.Where(piece => !string.IsNullOrWhiteSpace(piece)));
         }
 
-        return code ?? ThisItem(item.Kind);
+        // Every other kind says its place in words ("Track 04", "Episode 4") unless the code already is words or an S/E code, then its time (m:ss).
+        var place = code is not null && code.All(char.IsDigit) && NumberWord(item.Kind) is { } word ? $"{word} {code}" : code ?? ThisItem(item.Kind);
+        var clock = Clock(item.DurationSeconds);
+        return clock is null ? place : $"{place} · {clock}";
+    }
+
+    private static string? NumberWord(string kind) => kind switch
+    {
+        "track" => "Track",
+        "episode" => "Episode",
+        "comic" => "Issue",
+        "book" => "Book",
+        "audiobook" => "Audiobook",
+        _ => null,
+    };
+
+    /// <summary>A length as a clock, "3:37" or "1:05:09"; null when unknown. Never a raw number of minutes.</summary>
+    public static string? Clock(double? seconds)
+    {
+        if (seconds is not > 0)
+        {
+            return null;
+        }
+
+        var total = (int)Math.Round(seconds.Value, MidpointRounding.AwayFromZero);
+        var hours = total / 3600;
+        var minutes = total % 3600 / 60;
+        var rest = total % 60;
+        return hours > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"{hours}:{minutes:00}:{rest:00}")
+            : string.Create(CultureInfo.InvariantCulture, $"{minutes}:{rest:00}");
     }
 
     /// <summary>"This movie", "This book": what the dropdown says over the item itself when it has no code.</summary>

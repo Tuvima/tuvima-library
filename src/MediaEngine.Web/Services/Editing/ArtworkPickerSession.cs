@@ -250,6 +250,15 @@ public sealed class ArtworkPickerSession
     /// <summary>Raised each time a picture change went through, so the editor can refresh the page behind it when the window closes.</summary>
     public event Action? Applied;
 
+    private readonly HashSet<Guid> _changedOwners = [];
+    private readonly Dictionary<Guid, string> _appliedCovers = [];
+
+    /// <summary>
+    /// The cover each owner has now, for an owner whose picture was changed while the editor was open (issue 1125): the header shows it at once
+    /// instead of the one it was opened with. An owner nobody changed is not listed.
+    /// </summary>
+    public IReadOnlyDictionary<Guid, string> AppliedCovers => _appliedCovers;
+
     public IReadOnlyList<ArtworkPickerTab> Tabs => ArtworkPickerRules.TabsFor(_fields.ArtworkSlots, _fields.MediaType);
 
     public string? ActiveSlot { get; private set; }
@@ -410,7 +419,19 @@ public sealed class ArtworkPickerSession
             {
                 var versions = VersionsOf(workspace, tab.Slot);
                 _bySlot[tab.Slot] = versions;
-                _preview.SetCurrent(tab.Slot, versions.FirstOrDefault(picture => picture.IsCurrent)?.ContentUrl);
+                var currentUrl = versions.FirstOrDefault(picture => picture.IsCurrent)?.ContentUrl;
+                _preview.SetCurrent(tab.Slot, currentUrl);
+                if (_changedOwners.Contains(_fields.ArtworkEntityId) && ArtworkPickerRules.RoleFor(tab.Slot) == "Primary")
+                {
+                    if (string.IsNullOrWhiteSpace(currentUrl))
+                    {
+                        _appliedCovers.Remove(_fields.ArtworkEntityId);
+                    }
+                    else
+                    {
+                        _appliedCovers[_fields.ArtworkEntityId] = currentUrl;
+                    }
+                }
             }
 
             Saved = VersionsOf(workspace, slot);
@@ -498,6 +519,7 @@ public sealed class ArtworkPickerSession
                 return false;
             }
 
+            _changedOwners.Add(_fields.ArtworkEntityId);
             Applied?.Invoke();
             await LoadSavedAsync();
             return true;
@@ -835,6 +857,7 @@ public sealed class ArtworkPickerSession
             return FailChange(FailureText(outcome));
         }
 
+        _changedOwners.Add(entityId);
         Applied?.Invoke();
         await LoadSavedAsync();
         return true;

@@ -579,6 +579,11 @@ public sealed class EditorMatchedRecordDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Creator { get; init; }
 
+    /// <summary>The album a matched song belongs to, so the card can say song, album and artist; null for every other kind.</summary>
+    [JsonPropertyName("album")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Album { get; init; }
+
     /// <summary>The record's length as shown ("108 min"); null when the Engine saved none for it.</summary>
     [JsonPropertyName("length_text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -160,7 +160,7 @@
 /* The rows are AppRowButtons, whose root does not carry this component's scope marker, so the row box itself (size, padding, hover, selected, plain)
    is styled in app.css under .tl-hnav__surface; what sits inside the row is this component's own markup and is styled here. A row's title is a 16/500 control (Look v3 D22). */
 .tl-hnav__option .tl-hnav__text > b {
-    font-size: var(--tl-font-size-md);
+    font-size: var(--tl-font-size-sm);
     font-weight: var(--tl-font-weight-medium);
 }
 

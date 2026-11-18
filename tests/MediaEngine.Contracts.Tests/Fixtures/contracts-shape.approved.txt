@@ -3952,6 +3952,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchedRecordD
   Title: System.String | nullability=not-null | accessors=get,init
   Year: System.String | nullability=nullable | accessors=get,init
   Creator: System.String | nullability=nullable | accessors=get,init
+  Album: System.String | nullability=nullable | accessors=get,init
   LengthText: System.String | nullability=nullable | accessors=get,init
   Cast: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   ImageUrl: System.String | nullability=nullable | accessors=get,init

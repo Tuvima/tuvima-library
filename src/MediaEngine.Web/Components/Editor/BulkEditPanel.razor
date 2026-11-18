@@ -379,7 +379,6 @@
                                                Tooltip="@(IsPhone ? null : lockText)"
                                                AriaLabel="@lockText"
                                                OnClick="@(() => ToggleLock(field, locked))" />
-                                <span>@(locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
                             }
                         </span>
                         }
