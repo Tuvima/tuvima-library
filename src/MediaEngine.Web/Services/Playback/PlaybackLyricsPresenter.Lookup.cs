@@ -169,6 +169,9 @@ public sealed partial class PlaybackLyricsPresenter
 
     public bool Offers(string kind) => PluginActions.Any(action => string.Equals(action.kind, kind, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>The words the open list was searched with (null for the song's own search); a choice from the list carries them so the Engine finds the same result.</summary>
+    private string? _alternativesQuery;
+
     /// <summary>
     /// Opens the "pick a result" window and asks the sources. <paramref name="query"/> is the text the person typed in its search box when it differs
     /// from what the box started with (the Engine's own lookup is used when it is null); searching again from the open window calls this too.
@@ -180,6 +183,7 @@ public sealed partial class PlaybackLyricsPresenter
             return;
         }
         var generation = _lookupGeneration;
+        _alternativesQuery = string.IsNullOrWhiteSpace(query) ? null : query.Trim();
         AlternativesOpen = true; AlternativesLoading = true; Alternatives = null; Status = null; Changed?.Invoke();
         var result = await api.GetTextTrackAlternativesAsync(identity.AssetId, LyricsKind, _reads.Token, null, query);
         if (_disposed || generation != _lookupGeneration)
@@ -204,7 +208,7 @@ public sealed partial class PlaybackLyricsPresenter
         var generation = _lookupGeneration;
         Choosing = true; Changed?.Invoke();
         var result = await api.ChooseTextTrackAlternativeAsync(identity.AssetId,
-            new ChooseTextTrackAlternativeRequest { kind = LyricsKind, provider = alternative.provider, source_id = alternative.source_id }, _reads.Token);
+            new ChooseTextTrackAlternativeRequest { kind = LyricsKind, provider = alternative.provider, source_id = alternative.source_id, query = _alternativesQuery }, _reads.Token);
         await AfterChoiceAsync(identity, generation, result, "Those lyrics could not be saved.");
     }
 

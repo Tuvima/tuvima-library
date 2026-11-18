@@ -14,7 +14,9 @@ public sealed partial class TextTrackProviderAdapter
 
     private async Task<IReadOnlyList<TextTrackCandidate>> SearchSubtitlesAsync(TextTrackLookup lookup, CancellationToken ct)
     {
-        if (!CanHandle(lookup.MediaType) || lookup.SubtitleContext is null)
+        // A search by typed text needs no verified identity: the person named what to look for.
+        var byText = !string.IsNullOrWhiteSpace(lookup.SearchText);
+        if (!CanHandle(lookup.MediaType) || (lookup.SubtitleContext is null && !byText))
         {
             return [];
         }
@@ -86,6 +88,17 @@ public sealed partial class TextTrackProviderAdapter
             }
 
             var ranked = candidates.OrderByDescending(candidate => candidate.Confidence).ToList();
+            // A person looking through a list of results picks one, so nothing is withheld for being tied and the list is not cut short here.
+            if (byText)
+            {
+                if (ranked.Count == 0)
+                {
+                    _emptySearches[path] = DateTimeOffset.UtcNow.AddMinutes(search.EmptySearchMinutes);
+                }
+
+                return ranked;
+            }
+
             // Two equally plausible releases cannot be resolved by popularity or API ordering.
             if (ranked.Count > 1 && ranked[0].Confidence - ranked[1].Confidence < search.AmbiguityMargin)
             {

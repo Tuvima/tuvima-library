@@ -40,6 +40,12 @@ public interface ITextTrackProvider
         return code is { Length: 2 or 3 } && code.All(char.IsAsciiLetter) ? code : null;
     }
 
+    /// <summary>
+    /// True when this source can be asked for results by text a person typed (<see cref="TextTrackLookup.SearchText"/>) instead of by the
+    /// item's own title and identities. A source that cannot is left out of a text search and says so plainly.
+    /// </summary>
+    bool SupportsSearchText(MediaType mediaType) => false;
+
     Task<IReadOnlyList<TextTrackCandidate>> SearchAsync(TextTrackLookup lookup, CancellationToken ct = default);
 
     Task<TextTrackDownload?> DownloadAsync(TextTrackCandidate candidate, CancellationToken ct = default);
@@ -50,6 +56,10 @@ public sealed record TextTrackProviderAvailability(string Status, string? Messag
     public bool IsAvailable => string.Equals(Status, "Available", StringComparison.OrdinalIgnoreCase);
 }
 
+/// <param name="SearchText">
+/// Free text a person typed to search by, in place of the title, artist and identities. When set, a source that supports it searches by this
+/// text alone (keeping only the language and, for episodes, the season and episode).
+/// </param>
 public sealed record TextTrackLookup(
     MediaAsset Asset,
     MediaType MediaType,
@@ -60,7 +70,8 @@ public sealed record TextTrackLookup(
     string? Language,
     double? DurationSeconds,
     IReadOnlyDictionary<string, string> BridgeIds,
-    SubtitleLookupContext? SubtitleContext = null);
+    SubtitleLookupContext? SubtitleContext = null,
+    string? SearchText = null);
 
 public sealed record TextTrackCandidate(
     string Provider,

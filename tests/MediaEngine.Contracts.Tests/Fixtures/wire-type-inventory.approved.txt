@@ -9239,7 +9239,8 @@
   provider: System.String | json=provider | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   source_id: System.String | json=source_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   language: System.String | json=language | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind":"sample","provider":"sample","source_id":"sample","language":"sample"}
+  query: System.String | json=query | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind":"sample","provider":"sample","source_id":"sample","language":"sample","query":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.CompanionCharacterDto
   kind=class | converter=default | number-handling=default | unmapped=default
