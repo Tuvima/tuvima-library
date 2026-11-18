@@ -158,23 +158,19 @@ public sealed class LibraryActivityEntryListTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheTable_SitsInsideItsOwnScrollingCard_AsTallAsAWorkingNowTile()
+    public void TheTable_SitsInsideItsOwnScrollingCard_WithCompactRowsAndASmallPortraitCover()
     {
         var cut = RenderList(Mixed(), counts: [new("Movies", 2)], itemCount: 6, working: null);
         Assert.NotNull(cut.Find("[data-testid='lact-batch-scroll'] [data-testid='lact-batch-table']"));
 
         var folder = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Settings", "LibraryActivity");
         var css = File.ReadAllText(Path.Combine(folder, "LibraryActivityEntryList.razor.css"));
-        var working = File.ReadAllText(Path.Combine(folder, "LibraryActivityWorkingNow.razor.css"));
-
         Assert.Contains("overflow-x: auto;", Rule(css, ".lact-batch__scroll"), StringComparison.Ordinal);
-        // The row is one and a half times the cover's width, and the cover is the Working now tile's width, on a computer and on a phone.
-        Assert.Contains("height: calc(var(--lact-batch-tile-w) * 1.5);", Rule(css, ".lact-batch__row"), StringComparison.Ordinal);
-        Assert.Contains("--lact-batch-tile-w: 84px;", css, StringComparison.Ordinal);
-        Assert.Contains("--lact-working-tile-w: 84px;", working, StringComparison.Ordinal);
-        Assert.Contains("--lact-batch-tile-w: 64px;", css, StringComparison.Ordinal);
-        Assert.Contains("--lact-working-tile-w: 64px;", working, StringComparison.Ordinal);
-        Assert.Contains("height: calc(var(--lact-working-tile-w) * 1.5);", working, StringComparison.Ordinal);
+        // A compact list (D3): rows about 50 px tall with a 26 px wide portrait cover, the same on a computer and on a phone.
+        Assert.Contains("--lact-batch-row-h: 50px;", css, StringComparison.Ordinal);
+        Assert.Contains("--lact-batch-cover-w: 26px;", css, StringComparison.Ordinal);
+        Assert.Contains("height: var(--lact-batch-row-h);", Rule(css, ".lact-batch__row"), StringComparison.Ordinal);
+        Assert.Contains("width: var(--lact-batch-cover-w);", Rule(css, ".lact-batch__art"), StringComparison.Ordinal);
     }
 
     [Fact]

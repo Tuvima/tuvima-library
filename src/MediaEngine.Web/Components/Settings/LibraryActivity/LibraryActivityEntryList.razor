@@ -56,7 +56,7 @@
                     <tr @key="group.GroupKey" class="lact-batch__row @(collection ? "is-collection" : null)" data-testid="lact-batch-row" data-media-type="@group.MediaType" data-collection="@(collection ? "true" : "false")">
                         <td class="lact-batch__cover">
                             <span class="lact-batch__art @(group.MediaType == "Music" ? "is-square" : null)">
-                                <LibraryActivityPicture Url="@group.CoverUrl" DrawnPx="126" Icon="@IconFor(group.MediaType)" IconSize="AppIconSize.Row24" />
+                                <LibraryActivityPicture Url="@group.CoverUrl" DrawnPx="52" Icon="@IconFor(group.MediaType)" IconSize="AppIconSize.Row24" />
                             </span>
                         </td>
                         <td class="lact-batch__title">
