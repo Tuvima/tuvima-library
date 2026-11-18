@@ -185,9 +185,9 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
         cut.WaitForElement("[data-audio-subtitles]");
         await cut.Find("[data-asa-action='find']").ClickAsync();
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
-        await cut.Find("[data-sfv-action='use']").ClickAsync();
+        await cut.Find("[data-pick-action='use']").ClickAsync();
 
         cut.WaitForAssertion(() => Assert.Equal(2, reloads));
         cut.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call =>

@@ -777,6 +777,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 RemainingSeconds = item.RemainingSeconds,
                 ProgressLabel = item.ProgressLabel,
                 CoveredWith = item.CoveredWith,
+                EpisodeCount = item.EpisodeCount,
             };
         }).ToList();
 
@@ -793,14 +794,15 @@ internal sealed partial class DetailCompositionOrchestrator
                 Title = group.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.GroupTitle))?.GroupTitle ?? fallbackTitle,
                 TotalKnownItems = string.Equals(group.Key, "main-sequence", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(group.Key, "all", StringComparison.OrdinalIgnoreCase)
-                    ? Math.Max(group.Count(), mainSequenceExpectedTotal ?? 0)
+                    ? Math.Max(group.Sum(item => Math.Max(1, item.EpisodeCount)), mainSequenceExpectedTotal ?? 0)
                     : group.Count(),
                 HasAuthoritativeTotal = mainSequenceExpectedTotal.HasValue
                     && (string.Equals(group.Key, "main-sequence", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(group.Key, "all", StringComparison.OrdinalIgnoreCase)),
                 Items = group.ToList(),
-                OwnedCount = group.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                CompletedCount = group.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                OwnedCount = OwnedEpisodeTotal(group),
+                CompletedCount = CompletedEpisodeTotal(group),
+                FileCount = FileTotalWhenCombined(group.ToList()),
             })
             .OrderBy(group => SequenceGroupSort(group.Key))
             .ThenBy(group => TryParseSeriesPosition(group.Key.Replace("season-", string.Empty, StringComparison.OrdinalIgnoreCase)) ?? int.MaxValue)

@@ -292,6 +292,30 @@ public sealed partial class EngineApiClient
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<VideoFramesDto?> GetVideoFramesAsync(Guid entityId, string scope, CancellationToken ct = default)
+    {
+        var frames = await GetAsync<VideoFramesDto>(
+            "GET /metadata/{entityId}/artwork/{scopeId}/video-frames",
+            $"/metadata/{entityId:D}/artwork/{Uri.EscapeDataString(scope)}/video-frames", ct: ct);
+        return frames is null
+            ? null
+            : frames with { Items = frames.Items.Select(frame => frame with { ThumbnailUrl = AbsoluteUrl(frame.ThumbnailUrl) }).ToList() };
+    }
+
+    public async Task<ArtworkAssetDto?> UseVideoFrameAsync(Guid entityId, string scope, string frameId, string slot, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync(
+            $"/metadata/{entityId:D}/artwork/{Uri.EscapeDataString(scope)}/video-frames/{Uri.EscapeDataString(frameId)}/{Uri.EscapeDataString(slot)}",
+            null, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var asset = await response.Content.ReadFromJsonAsync<ArtworkAssetDto>(cancellationToken: ct);
+        return asset is null ? null : NormalizeAsset(asset);
+    }
+
     private ArtworkAssetDto NormalizeAsset(ArtworkAssetDto asset) => asset with
     {
         ContentUrl = AbsoluteUrl(asset.ContentUrl),

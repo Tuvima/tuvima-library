@@ -464,7 +464,7 @@ else
                 {
                     <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null) @(_sameFileHighlight.Contains(item.Id) ? "is-same-file-highlight" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
                         <MediaTile Item="@SequenceEpisodeTileAdapter.FromItem(item, Placement.StandInBackdropUrl)" ShowEpisodeText="true" />
-                        <SameFileChip Links="item.CoveredWith"
+                        <SameFileChip Links="ChipLinks(item)"
                                       CanHighlight="@HasVisibleSibling(item)"
                                       IsHighlighting="@IsHighlightingSiblings(item)"
                                       OnHighlight="@(() => ToggleSameFileHighlight(item))" />
@@ -766,16 +766,22 @@ else
         .Select((item, index) => $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}")
         .Select((label, index) => new AppSelectOption(index.ToString(CultureInfo.InvariantCulture), label, Title: label))
         .ToList();
+    // An entry for one file that covers two episodes ("E19-20: A + B") stands for both: episodes count every episode a file covers.
     private int OwnedCount => IsWindowedGroup && ActiveGroup is { } windowedGroup
         ? windowedGroup.OwnedCount
-        : GroupItems.Count(item => item.IsOwned);
+        : GroupItems.Where(item => item.IsOwned).Sum(item => Math.Max(1, item.EpisodeCount));
+    private int GroupEpisodeCount => GroupItems.Sum(item => Math.Max(1, item.EpisodeCount));
+    // Files count physical files; shown only when a file covers more than one episode ("20 episodes owned · 19 files").
+    private int OwnedFileCount => IsWindowedGroup && ActiveGroup is { FileCount: > 0 } group ? group.FileCount : GroupItems.Count(item => item.IsOwned);
+    // A merged entry already says which episodes it holds, so it carries no "Same file as ..." chip of its own.
+    private static IReadOnlyList<SequenceCoverageLinkViewModel> ChipLinks(SequenceItemViewModel item) => item.EpisodeCount > 1 ? [] : item.CoveredWith;
     private int MissingCount => Math.Max(0, TotalItems - OwnedCount);
     private bool IsComicSequence => Placement.CurrentItem.EntityType is DetailEntityType.ComicIssue or DetailEntityType.ComicSeries;
     private bool ShowCoverageDonut => !IsComicSequence && Placement.HasAuthoritativeTotal && TotalItems > 0;
     private bool ShowCoverageBar => Placement.HasAuthoritativeTotal && TotalItems > 0;
     private int TotalItems => ShowGroupSelector
-        ? Math.Max(GroupItems.Count, ActiveGroup?.TotalKnownItems ?? GroupItems.Count)
-        : Math.Max(GroupItems.Count, Placement.TotalKnownItems ?? GroupItems.Count);
+        ? Math.Max(GroupEpisodeCount, ActiveGroup?.TotalKnownItems ?? GroupEpisodeCount)
+        : Math.Max(GroupEpisodeCount, Placement.TotalKnownItems ?? GroupEpisodeCount);
     private bool HasCurrentPosition => StringHelpers.FirstNonBlank(
         Placement.PositionText,
         Placement.CurrentItem.PositionText,
@@ -863,7 +869,8 @@ else
         : IsComicSequence && HasCurrentPosition
             ? ItemNoun.ToLowerInvariant()
             : "owned";
-    private string OwnedSummary => $"{OwnedCount} {(OwnedCount == 1 ? ItemNoun : Placement.ItemPluralLabel).ToLowerInvariant()} owned";
+    private string OwnedSummary => $"{OwnedCount} {(OwnedCount == 1 ? ItemNoun : Placement.ItemPluralLabel).ToLowerInvariant()} owned"
+        + (OwnedFileCount > 0 && OwnedFileCount < OwnedCount ? $" · {OwnedFileCount} {(OwnedFileCount == 1 ? "file" : "files")}" : string.Empty);
     // "13 of 13 owned" beside the bar; without an authoritative total the plain owned count stands alone.
     private string OwnershipText => ShowCoverageBar ? $"{OwnedCount} of {TotalItems} owned" : OwnedSummary;
     private string OwnershipSummaryLabel => ShowCoverageBar

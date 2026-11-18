@@ -562,6 +562,19 @@ MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkReque
 MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.UpdateArtworkWritebackSettingsDto
   ArtworkEnabled: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.VideoFrameDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Seconds: System.Double | nullability=not-null | accessors=get,init
+  ThumbnailUrl: System.String | nullability=not-null | accessors=get,init
+  IsBest: System.Boolean | nullability=not-null | accessors=get,init
+  SourceKey: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.VideoFrameSources
+
+MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.VideoFramesDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Artwork.VideoFrameDto> | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AcceptAccountInvitationRequest
   Code: System.String | nullability=not-null | accessors=get,init
   Password: System.String | nullability=not-null | accessors=get,init
@@ -2826,10 +2839,12 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewMod
   TotalKnownItems: System.Int32? | nullability=nullable | accessors=get,init
   HasAuthoritativeTotal: System.Boolean | nullability=not-null | accessors=get,init
   ItemCount: System.Int32 | nullability=not-null | accessors=get,set
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
   ItemOffset: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewModel
+  EpisodeCount: System.Int32 | nullability=not-null | accessors=get,init
   CoveredWith: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceCoverageLinkViewModel> | nullability=not-null | accessors=get,init
   EpisodeStillUrl: System.String | nullability=nullable | accessors=get,init
   EpisodeStillWidthPx: System.Int32? | nullability=nullable | accessors=get,init
@@ -3745,6 +3760,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderLevelEnt
   Title: System.String | nullability=not-null | accessors=get,init
   Number: System.Int32? | nullability=nullable | accessors=get,init
   ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  FileCount: System.Int32? | nullability=nullable | accessors=get,init
   SupportingFileCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderRootDto
@@ -4014,6 +4030,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorNavItemDto
   State: System.String | nullability=not-null | accessors=get,init
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   IsCurrent: System.Boolean | nullability=not-null | accessors=get,init
+  EpisodeCount: System.Int32? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorNavItemStates
 

@@ -96,12 +96,21 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         CancelSearch();
         Loading = false; StillSearching = false; Response = null; Failed = false; SourceName = null;
         ChoosingSourceId = null; FailedSourceId = null; FailedAction = null;
+        _query = null;
         Raise();
     }
 
-    /// <summary>The view opened: works out the language from the profile and searches once.</summary>
-    public Task OpenAsync(SubtitleLanguageSettingsDto? profile)
+    /// <summary>The text the search box started with (the title and year); a search sends its own text only once the person changed it.</summary>
+    public string Prefill { get; private set; } = string.Empty;
+
+    /// <summary>What the person typed when it differs from <see cref="Prefill"/>; null while the box is as it was filled in.</summary>
+    private string? _query;
+
+    /// <summary>The window opened: remembers the box's starting text, works out the language from the profile and searches once.</summary>
+    public Task OpenAsync(SubtitleLanguageSettingsDto? profile, string? prefill = null)
     {
+        Prefill = prefill ?? string.Empty;
+        _query = null;
         var preferred = profile is null ? [] : VideoPresentationResolver.SubtitleLanguagesInOrder(profile);
         Language = preferred.Count > 0 ? preferred[0] : DefaultLanguageName;
         Languages = preferred
@@ -123,6 +132,17 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         return SearchAsync();
     }
 
+    /// <summary>Search was pressed with the box's text: asks the sources again (the text counts only when it differs from the starting text).</summary>
+    public Task SearchTextAsync(string text)
+    {
+        if (ChoosingSourceId is not null)
+        {
+            return Task.CompletedTask;
+        }
+        _query = FindDialogSearchText.EditedOrNull(Prefill, text);
+        return SearchAsync();
+    }
+
     /// <summary>Asks the sources once, in <see cref="Language"/>. Also the "Try again" action.</summary>
     public async Task SearchAsync()
     {
@@ -140,7 +160,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         TextTrackAlternativesResponse? answer;
         try
         {
-            answer = await api.GetTextTrackAlternativesAsync(assetId, SubtitlesKind, token, Language);
+            answer = await api.GetTextTrackAlternativesAsync(assetId, SubtitlesKind, token, Language, _query);
         }
         catch (OperationCanceledException)
         {

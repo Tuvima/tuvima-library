@@ -50,6 +50,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 TotalKnownItems = group.TotalKnownItems,
                 HasAuthoritativeTotal = group.HasAuthoritativeTotal,
                 ItemCount = group.ItemCount,
+                FileCount = group.FileCount,
                 ItemOffset = offset,
                 Items = windowItems,
             };

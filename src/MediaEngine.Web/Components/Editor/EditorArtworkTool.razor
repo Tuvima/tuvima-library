@@ -86,6 +86,7 @@
             else
             {
                 @Stage(picker, slot, label)
+                @FramesStrip(picker, label)
             }
         </div>
     </section>
@@ -101,6 +102,7 @@
     // about 140 px on their long side; the full-size view asks for the largest copy.
     private const int PreviewDrawnPx = 660;
     private const int ThumbDrawnPx = 140;
+    private const int FrameDrawnPx = 160;
     private const int FullDrawnPx = 1280;
 
     private static readonly IReadOnlyList<AppSelectOption> Sources =
@@ -352,6 +354,74 @@
             </AppViewer>
         }
     };
+
+    // "Frames from the video" (review mock-ups 2026-11-18, D2): a strip of frames taken from the item's own video, under the carousel on the tabs
+    // that can use one. Choosing a frame saves it as a picture of the item and applies it at once, like any other source (no Undo, no Review
+    // line); the frame in use is outlined and the Engine's best frame carries a small "Best" mark. A video with no cover already has its best
+    // frame as the cover, shown above as "From video frame".
+    private RenderFragment FramesStrip(ArtworkPickerSession picker, string label) => __builder =>
+    {
+        if (!picker.ShowsFrames)
+        {
+            if (picker.FramesMessage is { Length: > 0 } why)
+            {
+                <p class="tl-art-picker__hint tl-art-picker__frames-note">@why</p>
+            }
+
+            return;
+        }
+
+        <section class="tl-art-picker__frames" aria-label="Frames from the video">
+            <div class="tl-art-picker__frames-head">
+                <strong>Frames from the video</strong>
+                <span class="tl-art-picker__muted">@($"Choose one to use it as the {label.ToLowerInvariant()}")</span>
+            </div>
+            @if (picker.FramesLoading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Taking frames from the video" />
+            }
+            else
+            {
+                <div class="tl-art-picker__frame-row" role="group" aria-label="Frames from the video. Choose one to use it.">
+                    @foreach (var frame in picker.Frames)
+                    {
+                        var isCurrent = picker.IsFrameCurrent(frame);
+                        var time = FrameTime(frame.Seconds);
+                        <div class="@($"tl-art-picker__item{(isCurrent ? " is-current" : string.Empty)}")">
+                            @ThumbButton(
+                                "tl-art-picker__frame",
+                                $"tl-art-picker__face tl-art-picker__face--frame{(isCurrent ? " is-current" : string.Empty)}",
+                                $"Frame at {time}{(frame.IsBest ? ", the best frame" : string.Empty)}{(isCurrent ? ", In use" : string.Empty)}",
+                                isCurrent,
+                                picker.Busy,
+                                () => picker.ChooseFrameAsync(frame),
+                                @<text>
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(frame.ThumbnailUrl, FrameDrawnPx)" alt="" loading="lazy" decoding="async" />
+                                    <span class="tl-art-picker__frame-time">@time</span>
+                                    @if (frame.IsBest)
+                                    {
+                                        <span class="tl-art-picker__frame-best">Best</span>
+                                    }
+                                    @if (isCurrent)
+                                    {
+                                        <span class="tl-art-picker__tick" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></span>
+                                    }
+                                </text>)
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    };
+
+    // How far into the video a frame was taken: 4:07, or 1:04:07 past the hour.
+    private static string FrameTime(double seconds)
+    {
+        var span = TimeSpan.FromSeconds(Math.Max(0, Math.Round(seconds)));
+        return span.TotalHours >= 1
+            ? span.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+            : span.ToString(@"m\:ss", CultureInfo.InvariantCulture);
+    }
 
     // The menu of one picture: Magnify, then Delete (a picture Library downloaded or the person uploaded) or Hide (one from the person's own folder).
     private IReadOnlyList<AppRowMenuItem> MenuItems(ArtworkPickerPicture version, string label) =>

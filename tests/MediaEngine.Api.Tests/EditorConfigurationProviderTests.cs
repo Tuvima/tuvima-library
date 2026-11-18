@@ -39,6 +39,7 @@ public sealed class EditorConfigurationProviderTests : IDisposable
     [InlineData(EditorKinds.TvSeason, new[] { "details", "artwork", "match", "bookmarks", "history" })]
     [InlineData(EditorKinds.TvEpisode, new[] { "details", "artwork", "match", "bookmarks", "history" })]
     [InlineData(EditorKinds.Course, new[] { "details", "artwork", "history" })]
+    [InlineData(EditorKinds.CourseSection, new[] { "details", "artwork", "history" })]
     [InlineData(EditorKinds.Video, new[] { "details", "artwork", "bookmarks", "history" })]
     [InlineData(EditorKinds.Series, new[] { "details", "artwork", "history" })]
     [InlineData(EditorKinds.SupportingFile, new[] { "details", "preview", "history" })]

@@ -335,22 +335,21 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task FindSubtitles_OpensTheSearchViewInsideThePanelAndTheBackArrowReturns()
+    public async Task FindSubtitles_OpensTheSharedPickAResultWindowAndCancelClosesIt()
     {
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync),
             _ => Task.FromResult<TextTrackAlternativesResponse?>(new() { status = "NoneFound", source_name = "SubDL" })));
         var presenter = new SubtitleFindPresenter(api);
         presenter.Bind(Guid.NewGuid());
-        var cut = await OpenAsync(configure: p => p.Add(x => x.Find, presenter));
+        var cut = await OpenAsync(configure: p => p.Add(x => x.Find, presenter).Add(x => x.FindSearchText, "Ferrari 2023"));
 
         await cut.Find("[data-asa-action='find']").ClickAsync();
 
-        Assert.Equal("Find subtitles", cut.Find("header h2").TextContent);
-        Assert.NotNull(cut.Find("[data-subtitle-find]"));
+        Assert.Equal("Find subtitles", cut.Find("dialog h2").TextContent);
+        Assert.Equal("Ferrari 2023", cut.Find("[data-pick-box]").GetAttribute("value"));
         cut.WaitForElement("[data-subtitles-state='NoneFound']");
-        await cut.Find("button[aria-label='Back']").ClickAsync();
-        Assert.Equal("Audio & subtitles", cut.Find("header h2").TextContent);
-        Assert.NotNull(cut.Find("[data-audio-subtitles]"));
+        await cut.Find("[data-pick-action='cancel']").ClickAsync();
+        Assert.Empty(cut.FindAll("[data-pick-dialog]"));
     }
 
     [Fact]
