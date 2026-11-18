@@ -8249,6 +8249,12 @@
   <data name="MediaGroupTile_KindSeries" xml:space="preserve">
     <value>Series</value>
   </data>
+  <data name="MediaGroupTile_KindBookSeries" xml:space="preserve">
+    <value>Book series</value>
+  </data>
+  <data name="MediaGroupTile_KindAudiobookSeries" xml:space="preserve">
+    <value>Audiobook series</value>
+  </data>
   <data name="MediaGroupTile_KindUniverse" xml:space="preserve">
     <value>Universe</value>
   </data>

@@ -137,6 +137,53 @@ public static class MediaTileLabels
         return $"S{episode.SeasonNumber} E{episode.EpisodeNumber}";
     }
 
+    /// <summary>
+    /// The first row of a Continue tile (review mock-ups D6): an episode reads "S1 E1: Title" (a video from a Videos library keeps its own
+    /// number and title), anything else its title. An episode with no title of its own says just the code.
+    /// </summary>
+    public static string ContinueHeading(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item.EpisodeContext is not { } episode)
+        {
+            return item.Title;
+        }
+
+        if (VideoFolderWording.IsVideoItemMediaType(item.MediaKind))
+        {
+            return EpisodeHeading(item, episode);
+        }
+
+        var code = EpisodeCode(item, episode);
+        if (string.IsNullOrWhiteSpace(episode.EpisodeTitle))
+        {
+            return code ?? episode.ShowTitle;
+        }
+
+        return string.IsNullOrWhiteSpace(code) ? episode.EpisodeTitle : $"{code}: {episode.EpisodeTitle}";
+    }
+
+    /// <summary>
+    /// The second row of a Continue tile (review mock-ups D6): the content rating, then the year ("TV-MA · 2021"); just the year when
+    /// there is no rating, just the rating when there is no year, null when there is neither. Never a star rating, never the progress.
+    /// </summary>
+    public static string? ContinueSecondLine(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var parts = new[] { item.ContentRating?.Trim(), YearText(item) }.Where(part => !string.IsNullOrWhiteSpace(part));
+        var line = string.Join(" · ", parts);
+        return line.Length == 0 ? null : line;
+    }
+
+    /// <summary>The percent complete a Continue tile wears as a small badge ("42%"), or null when nothing real has been done yet.</summary>
+    public static string? ContinuePercent(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return item.ProgressPct is > 0 and < 99.5
+            ? $"{Math.Round(item.ProgressPct.Value).ToString(System.Globalization.CultureInfo.InvariantCulture)}%"
+            : null;
+    }
+
     /// <summary>The noun for what a group holds, singular for one.</summary>
     public static string Noun(MediaTileViewModel item, int count)
     {

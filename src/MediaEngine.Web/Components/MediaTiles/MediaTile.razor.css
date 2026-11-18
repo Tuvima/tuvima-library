@@ -13,6 +13,8 @@
 .media-tile.is-portrait { width:var(--tl-tile-poster-w); --media-tile-media-aspect:2 / 3; }
 .media-tile.is-square { width:var(--tl-tile-square-w); --media-tile-media-aspect:1 / 1; }
 .media-tile.is-landscape { width:var(--tl-tile-landscape-w); --media-tile-media-aspect:16 / 9; }
+/* A group of mixed media kinds (review mock-ups D5): a wide 16:9 tile, about twice a poster. */
+.media-tile.is-collection-wide { width:calc(var(--tl-tile-poster-w) * 2); --media-tile-media-aspect:16 / 9; }
 
 .media-tile-frame { position:relative; display:flex; flex-direction:column; width:100%; }
 .media-tile-media { position:relative; display:block; overflow:hidden; width:100%; height:auto; padding:0; aspect-ratio:var(--media-tile-media-aspect); border-radius:var(--tl-radius-md); background:var(--tl-bg-surface); }
@@ -34,20 +36,44 @@
 /* A network group (HBO, Netflix) shows its logo, contained, on the plain cover surface. */
 .media-tile-brand { position:absolute; inset:24% 16%; width:68%; height:52%; object-fit:contain; }
 
-/* Group tile (spec details-and-tile-fixes D1, D2): the group's first four covers in a 2 by 2 grid with no gap, so the cells keep the cover
-   shape (portrait cells in a poster tile, square cells in a square tile) and no cover is cropped. A missing cover is a plain cell. */
-.media-tile-quadrants { position:absolute; inset:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; background:var(--tl-bg-surface); }
-.media-tile-quadrant { display:block; width:100%; height:100%; min-width:0; min-height:0; object-fit:cover; background:var(--tl-bg-surface-raised); }
-.media-tile-quadrant.is-empty { background:var(--tl-bg-surface); }
+/* Group tile (review mock-ups D4, D5): an 8 px inset and a 6 px gap. One title fills the tile; two fill the left column (top-left, bottom-left);
+   three add the top-right; four fill the grid. An empty square is a faint dashed outline with a tint. A portrait cover fills its quarter, a square
+   cover (audiobook, album) stays square and centered in it. A group that mixes media kinds lays its covers in a centered row in natural shapes. */
+.media-tile-quadrants { position:absolute; inset:0; box-sizing:border-box; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:6px; padding:8px; background:var(--tl-bg-surface); }
+.media-tile-quadrants.is-count-1 { display:block; padding:0; }
+.media-tile-quadrant { display:block; width:100%; height:100%; min-width:0; min-height:0; object-fit:cover; border-radius:var(--tl-radius-xs,4px); background:var(--tl-bg-surface-raised); }
+.media-tile-quadrant.is-slot-tl { grid-area:1 / 1; }
+.media-tile-quadrant.is-slot-bl { grid-area:2 / 1; }
+.media-tile-quadrant.is-slot-tr { grid-area:1 / 2; }
+.media-tile-quadrant.is-slot-br { grid-area:2 / 2; }
+.media-tile-quadrant.is-shape-square { height:auto; aspect-ratio:1 / 1; align-self:center; justify-self:center; }
+.media-tile-quadrant.is-shape-wide { height:auto; aspect-ratio:16 / 9; align-self:center; justify-self:center; }
+.media-tile-quadrants.is-count-1 .media-tile-quadrant { width:100%; height:100%; aspect-ratio:auto; border-radius:0; }
+.media-tile-quadrant.is-empty { box-sizing:border-box; border:1px dashed var(--tl-tile-group-empty-outline); background:var(--tl-tile-group-empty-tint); }
+.media-tile-quadrants.is-row { display:flex; align-items:center; justify-content:center; gap:6px; }
+.media-tile-quadrants.is-row .media-tile-quadrant { flex:0 1 auto; width:auto; align-self:auto; }
+.media-tile-quadrants.is-row .media-tile-quadrant.is-shape-portrait { height:100%; aspect-ratio:2 / 3; }
+.media-tile-quadrants.is-row .media-tile-quadrant.is-shape-square { height:70%; aspect-ratio:1 / 1; }
+.media-tile-quadrants.is-row .media-tile-quadrant.is-shape-wide { height:50%; aspect-ratio:16 / 9; }
+
+/* Series and Collection outlines (D5): 2 px, inset, on the cover; the tag moves in so the outline stays whole. */
+.media-tile.is-series-outlined .media-tile-media::after, .media-tile.is-collection-outlined .media-tile-media::after { content:""; position:absolute; inset:0; z-index:5; box-sizing:border-box; border:2px solid var(--tl-tile-series-outline); border-radius:inherit; pointer-events:none; }
+.media-tile.is-collection-outlined .media-tile-media::after { border-color:var(--tl-tile-collection-outline); }
+.media-tile.is-series-outlined .media-tile-label--status, .media-tile.is-collection-outlined .media-tile-label--status { top:2px; left:2px; }
 
 /* A person with works: their square photo bottom left (44 px, a small radius) with the count beside it. */
 .media-tile-person-photo { position:absolute; left:8px; bottom:8px; z-index:6; display:grid; place-items:center; box-sizing:border-box; width:44px; height:44px; overflow:hidden; border:2px solid var(--tl-bg-root); border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-surface-raised); color:var(--tl-text-secondary); pointer-events:none; }
 .media-tile-person-photo img { width:100%; height:100%; object-fit:cover; display:block; }
 /* The name on the art (One tile design D9): one or two lines over a bottom scrim, above the count label; beside the photo for a person. */
-.media-tile-scrim { position:absolute; inset:0; z-index:4; background:linear-gradient(180deg, transparent 50%, color-mix(in srgb, var(--tl-viewer-black) 78%, transparent) 100%); pointer-events:none; }
+.media-tile-scrim { position:absolute; inset:0; z-index:4; background:linear-gradient(180deg, transparent 0%, var(--tl-tile-group-foot-end) 100%); pointer-events:none; }
+.media-tile-scrim:not(.media-tile-group-foot) { top:auto; height:96px; }
 .media-tile-name { position:absolute; left:12px; right:12px; bottom:36px; z-index:5; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; color:var(--tl-text-on-accent); font-size:var(--tl-type-subheading-size); font-weight:var(--tl-type-subheading-weight); line-height:1.25; text-shadow:0 1px 6px var(--tl-scrim-dark-6); pointer-events:none; }
 .media-tile-name--beside-photo { left:60px; right:8px; bottom:36px; -webkit-line-clamp:1; font-size:var(--tl-type-secondary-size); }
-.media-tile-label--beside-photo { left:60px; bottom:8px; max-width:calc(100% - 68px); border-radius:var(--tl-radius-sm,6px); }
+.media-tile-label--beside-photo { left:60px; bottom:8px; max-width:calc(100% - 68px); padding:0; background:transparent; }
+/* A group's name and count line sit together at the bottom on a dark gradient (D4): transparent to near black with 28 px of lead-in. */
+.media-tile-group-foot { top:auto; display:flex; flex-direction:column; gap:2px; box-sizing:border-box; padding:28px 12px 10px; }
+.media-tile-group-foot .media-tile-name { position:static; }
+.media-tile-group-foot .media-tile-label--bottom { position:static; max-width:100%; padding:0; background:transparent; color:var(--tl-text-secondary); border-radius:0; }
 
 /* An episode TheTVDB has no picture for: a marked stand-in, never a real-looking still. */
 .media-tile-standin { position:absolute; inset:0; overflow:hidden; background:linear-gradient(135deg,var(--tl-bg-surface-raised),var(--tl-bg-root)); }
