@@ -231,6 +231,9 @@ public sealed class PersonEnrichmentWorker
         if (_personReconciliation is not null)
         {
             var titleHint = ResolvePersonWorkTitleHint(canonicals, mediaType) ?? "";
+            var contextText = canonicals
+                .FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Description, StringComparison.OrdinalIgnoreCase))
+                ?.Value;
 
             _logger.LogDebug(
                 "Standalone person reconciliation for entity {EntityId}: {Count} unlinked contributor(s)",
@@ -242,7 +245,7 @@ public sealed class PersonEnrichmentWorker
                 try
                 {
                     var searchResult = await _personReconciliation.SearchPersonAsync(
-                        unlinked.Name, unlinked.Role, titleHint, ct);
+                        unlinked.Name, unlinked.Role, titleHint, ct, contextText);
 
                     if (searchResult is not null)
                     {
