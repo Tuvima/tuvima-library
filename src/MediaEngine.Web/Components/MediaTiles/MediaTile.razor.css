@@ -20,6 +20,10 @@
 
 /* Hover and keyboard focus (D5): a thin outline in the accent around the cover only. The tile does not grow, move or change shape. */
 .media-tile:is(:hover, :focus-within) .media-tile-media { outline:2px solid var(--tl-accent-primary); outline-offset:0; }
+/* A group tile (Series, collection, Universe) draws covers, a scrim and its name over the picture, so the outside outline alone can be lost
+   (clipped by the shelf, or masked by the dark card). A matching ring is drawn over the art too, so the highlight always shows (issue 1117). */
+.media-tile.is-group .media-tile-media::after { content:""; position:absolute; inset:0; z-index:8; border-radius:inherit; box-shadow:inset 0 0 0 2px var(--tl-accent-primary); opacity:0; pointer-events:none; }
+.media-tile.is-group:is(:hover, :focus-within) .media-tile-media::after { opacity:1; }
 
 .media-tile-image { width:100%; height:100%; display:block; }
 .media-tile-image.is-fill { object-fit:cover; }

@@ -674,18 +674,8 @@ else
         .Select(group => new AppSelectOption(group.Key, GroupOptionLabel(group)))
         .ToList();
 
-    // A season reads "Season 2 · 13 episodes" so the list says what each choice holds; a folder of videos reads "Week 1 · 12 videos",
-    // as the editor's Section dropdown does (spec details-page-bottom D13). The current choice is ticked by the dropdown itself.
-    private string GroupOptionLabel(SequenceGroupViewModel group)
-    {
-        var count = group.ItemCount > 0 ? group.ItemCount : group.Items.Count;
-        if (IsVideoFolder)
-            return VideoFolderWording.SectionOptionLabel(group.Title, count);
-
-        return IsSeasonContainer && count > 0
-            ? $"{group.Title} · {count} {(count == 1 ? Placement.ItemLabel.ToLowerInvariant() : Placement.ItemPluralLabel.ToLowerInvariant())}"
-            : group.Title;
-    }
+    // The dropdown names the choice only (a season or a folder); the count sits once under the list (issue 1105).
+    private string GroupOptionLabel(SequenceGroupViewModel group) => group.Title;
 
     private string? SelectedGroupKey
     {

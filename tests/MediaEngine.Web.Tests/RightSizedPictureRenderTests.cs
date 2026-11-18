@@ -25,7 +25,7 @@ public sealed class RightSizedPictureRenderTests : LocalizedBunitContext
 
         var cut = Render<PeopleCatalogList>(parameters => parameters.Add(component => component.Items, [person]));
 
-        var image = cut.Find(".person-tile__photo img");
+        var image = cut.Find(".people-row__photo img");
         Assert.Equal($"{Face.Split('?')[0]}?v=abc123&size=s", image.GetAttribute("src"));
         Assert.Equal("lazy", image.GetAttribute("loading"));
         Assert.Equal("async", image.GetAttribute("decoding"));
@@ -42,7 +42,7 @@ public sealed class RightSizedPictureRenderTests : LocalizedBunitContext
 
         var cut = Render<PeopleCatalogList>(parameters => parameters.Add(component => component.Items, [person]));
 
-        var image = cut.Find(".person-tile__photo img");
+        var image = cut.Find(".people-row__photo img");
         Assert.Equal(External, image.GetAttribute("src"));
         Assert.Null(image.GetAttribute("srcset"));
     }

@@ -13,17 +13,20 @@
         {
             <span>@SourceLabel</span>
         }
-        <span>@L["DescriptionAttribution_TextIsAvailableUnder"]</span>
-        @if (!string.IsNullOrWhiteSpace(Attribution.LicenseUrl))
+        @if (!string.IsNullOrWhiteSpace(Attribution.LicenseName))
         {
-            <a href="@Attribution.LicenseUrl" target="_blank" rel="noopener noreferrer">@Attribution.LicenseName</a>
+            <span>@L["DescriptionAttribution_TextIsAvailableUnder"]</span>
+            @if (!string.IsNullOrWhiteSpace(Attribution.LicenseUrl))
+            {
+                <a href="@Attribution.LicenseUrl" target="_blank" rel="noopener noreferrer">@Attribution.LicenseName</a>
+            }
+            else
+            {
+                <span>@Attribution.LicenseName</span>
+            }
+            <span>;</span>
+            <span>@L["DescriptionAttribution_AdditionalTermsMayApply"]</span>
         }
-        else
-        {
-            <span>@Attribution.LicenseName</span>
-        }
-        <span>;</span>
-        <span>@L["DescriptionAttribution_AdditionalTermsMayApply"]</span>
         @if (Attribution.RetrievedAt is not null)
         {
             <span>Retrieved @Attribution.RetrievedAt.Value.ToString("MMM d, yyyy").</span>
