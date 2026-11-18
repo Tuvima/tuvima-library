@@ -67,7 +67,8 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         string name,
         string expectedRole,
         string? workTitle = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? contextText = null)
     {
         if (_reconciler is null || string.IsNullOrWhiteSpace(name))
         {
@@ -117,12 +118,113 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             return null;
         }
 
-        var canonicalName = libResult.CanonicalName ?? name;
+        var chosenQid = libResult.Qid!;
+        var chosenName = libResult.CanonicalName ?? name;
+        var chosenScore = libResult.Score;
+
+        // Several people can share one name (a comedian and a basketball player both called Stephen Curry). A name and a
+        // matching job are not enough then: unless one of the person's known works is this title, the work's own
+        // description must point to exactly one of them, otherwise nothing is matched and the person is retried later.
+        var worksSettleIt = NotableWorkMatches(ResolveLabels(libResult.NotableWorks, evidenceLabels), workTitle);
+        if (!worksSettleIt)
+        {
+            var namesakes = await FindNamesakesAsync(name, language, ct).ConfigureAwait(false);
+            if (namesakes.Count > 1)
+            {
+                var pick = PickNamesakeByContext(namesakes, $"{workTitle} {contextText}");
+                if (pick is null)
+                {
+                    _logger.LogWarning(
+                        "Person reconciliation left unmatched: '{Name}' ({Role}) shares its name with {Count} people and the work gives no way to tell them apart",
+                        name, expectedRole, namesakes.Count);
+                    return null;
+                }
+
+                if (!string.Equals(pick.Id, chosenQid, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation(
+                        "Person reconciliation chose {NewQid} over {OldQid} for '{Name}' using the work's description",
+                        pick.Id, chosenQid, name);
+                    chosenQid = pick.Id;
+                    chosenName = pick.Name;
+                    chosenScore = Math.Max(AutoAcceptThreshold, pick.Score / 100.0);
+                }
+            }
+        }
+
         _logger.LogInformation(
             "Person reconciliation auto-accepted: '{Name}' ({Role}) -> {QID} '{WikiName}' (score={Score:F2})",
-            name, expectedRole, libResult.Qid, canonicalName, libResult.Score);
+            name, expectedRole, chosenQid, chosenName, chosenScore);
 
-        return new PersonSearchResult(libResult.Qid!, canonicalName, libResult.Score);
+        return new PersonSearchResult(chosenQid, chosenName, chosenScore);
+    }
+
+    /// <summary>People on Wikidata whose name is exactly this name (best five, no job filter, so a namesake is never hidden).</summary>
+    private async Task<IReadOnlyList<ReconciliationResult>> FindNamesakesAsync(
+        string name, string language, CancellationToken ct)
+    {
+        try
+        {
+            var matches = await RetryTransientAsync(() => _reconciler!.Reconcile.ReconcileAsync(
+                new ReconciliationRequest { Query = name, Types = ["Q5"], Language = language, Limit = 5 }, ct), ct)
+                .ConfigureAwait(false);
+            var wanted = NormalizeEvidence(name);
+            return matches.Where(match => NormalizeEvidence(match.Name) == wanted).ToList();
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Best effort: if the namesake check cannot run, keep the match the search already made.
+            _logger.LogDebug(ex, "Namesake check failed for '{Name}'; keeping the search result", name);
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Picks the one namesake whose Wikidata description shares a meaningful word with the work's text (for example
+    /// "basketball"). Returns null when none or more than one does.
+    /// </summary>
+    internal static ReconciliationResult? PickNamesakeByContext(
+        IReadOnlyList<ReconciliationResult> namesakes, string? contextText)
+    {
+        var contextWords = SignificantWords(contextText);
+        if (contextWords.Count == 0)
+        {
+            return null;
+        }
+
+        var hits = namesakes
+            .Where(candidate => SignificantWords(candidate.Description).Overlaps(contextWords))
+            .ToList();
+        return hits.Count == 1 ? hits[0] : null;
+    }
+
+    private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "american", "british", "english", "canadian", "australian", "born", "with", "from", "that", "this", "their",
+        "have", "which", "about", "into", "also", "the", "and", "for", "his", "her", "who", "series", "film", "show",
+        "person", "people", "season", "episode", "episodes",
+    };
+
+    private static HashSet<string> SignificantWords(string? text)
+    {
+        var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return words;
+        }
+
+        foreach (var raw in text.Split(
+                     [' ', ',', '.', ';', ':', '(', ')', '-', '/', '"', '\'', '!', '?', '\n', '\r', '\t'],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (raw.Length >= 5 && !StopWords.Contains(raw) && !raw.All(char.IsDigit))
+            {
+                words.Add(raw);
+            }
+        }
+
+        return words;
     }
 
     public async Task<IReadOnlyDictionary<string, PersonSearchResult?>> SearchPersonsBatchAsync(

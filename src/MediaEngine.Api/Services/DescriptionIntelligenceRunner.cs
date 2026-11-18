@@ -312,7 +312,8 @@ public sealed class DescriptionIntelligenceRunner
                                 try
                                 {
                                     var searchResult = await personRecon.SearchPersonAsync(
-                                        person.Name, normalizedRole, workTitleForSearch, ct)
+                                        person.Name, normalizedRole, workTitleForSearch, ct,
+                                        canonicals.FirstOrDefault(c => string.Equals(c.Key, "description", StringComparison.OrdinalIgnoreCase))?.Value)
                                         .ConfigureAwait(false);
 
                                     if (searchResult is not null)

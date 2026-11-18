@@ -78,6 +78,37 @@ public sealed class PersonReconciliationEvidenceTests
             supported, "Unknown", "Project Hail Mary"));
     }
 
+    [Fact]
+    public void NamesakePickedByTheWorksSubject()
+    {
+        var comedian = Namesake("Q5573861", "Australian comedian and actor");
+        var player = Namesake("Q352159", "American basketball player (born 1988)");
+
+        var pick = PersonReconciliationService.PickNamesakeByContext(
+            [comedian, player], "Stephen Curry MasterClass Learn basketball shooting from the all-time great");
+
+        Assert.Equal("Q352159", pick?.Id);
+    }
+
+    [Fact]
+    public void NamesakeNotPickedWhenTheWorkSaysNothingOrFitsBoth()
+    {
+        var comedian = Namesake("Q5573861", "Australian comedian and actor");
+        var player = Namesake("Q352159", "American basketball player (born 1988)");
+
+        Assert.Null(PersonReconciliationService.PickNamesakeByContext([comedian, player], "Part 01"));
+        Assert.Null(PersonReconciliationService.PickNamesakeByContext(
+            [comedian, player], "A comedian turned basketball coach"));
+    }
+
+    private static ReconciliationResult Namesake(string qid, string description) => new()
+    {
+        Id = qid,
+        Name = "Stephen Curry",
+        Description = description,
+        Score = 91,
+    };
+
     private static PersonSearchResult Candidate(
         string qid,
         IReadOnlyList<string> occupations,
