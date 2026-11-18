@@ -63,9 +63,12 @@
 
     private string AriaLabel => $"{StateLabel}. {TooltipText}";
 
+    // The small number on the icon counts the pieces of work running right now (not Needs Review), so the tooltip says so (issue 1111).
     private string TooltipText => NeedsAttention
         ? L["SystemActivityIndicator_NeedsAttentionTooltip"].Value
-        : SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow);
+        : Snapshot.IsWorking && Snapshot.ActiveCount > 1
+            ? $"{Snapshot.ActiveCount} things running: {SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow)}"
+            : SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow);
 
     // Library work opens Library activity; otherwise the spinner (which also turns for an encode) opens Playing now (spec playing-now-and-general-tabs D16).
     private const string LibraryActivityRoute = "/settings/general/library-activity";

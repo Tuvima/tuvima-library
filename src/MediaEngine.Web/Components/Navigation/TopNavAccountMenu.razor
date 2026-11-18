@@ -32,23 +32,6 @@
         @* Drawn through the shared popover so it sits in the top layer and no bar or scroll box can clip it. *@
         <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight" Size="AppPopoutSize.Menu" Class="top-nav-account-menu__surface">
             <div class="top-nav-account-menu__panel" role="menu">
-                @if (ShowSecureAccount && !_secureNotNow && !IsKids)
-                {
-                    <section class="top-nav-account-menu__secure-card" aria-label="@L["TopNavAccountMenu_AddAPassword"]">
-                        <a class="top-nav-account-menu__secure-link" href="@SecureAccountPrompt.SecureAccountHref" @onclick="CloseMenu">
-                            <span class="top-nav-account-menu__secure-dot" aria-hidden="true"></span>
-                            <span>@L["TopNavAccountMenu_AddAPassword"]</span>
-                        </a>
-                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
-                                       Size="AppControlSize.Compact"
-                                       ButtonStyle="AppButtonStyle.Text"
-                                       Tooltip="@L["Common_NotNow"].Value"
-                                       AriaLabel="@L["Common_NotNow"].Value"
-                                       Class="top-nav-account-menu__secure-action"
-                                       OnClick="NotNowAsync" />
-                    </section>
-                }
-
                 <header class="top-nav-account-menu__header">
                     <AppAvatar ImageUrl="@AvatarImageUrl"
                                AltText=""
@@ -189,10 +172,6 @@
     /// <summary>Signed-in account (email); the header falls back to <see cref="DisplayName"/> when unavailable.</summary>
     [Parameter] public string? AccountLabel { get; set; }
     [Parameter] public bool CanManageProfiles { get; set; }
-    /// <summary>True while the account is this-computer-only and has not chosen Not now: shows the Secure your account card at the top of the menu.</summary>
-    [Parameter] public bool ShowSecureAccount { get; set; }
-    /// <summary>Raised when the person chooses Not now on the Secure your account card; the owner remembers it with the account.</summary>
-    [Parameter] public EventCallback OnSecureAccountNotNow { get; set; }
     public const string ManageProfilesHref = "/settings/profiles";
     /// <summary>Profile opens the person's own Overview.</summary>
     public const string MyProfileHref = "/settings/overview";
@@ -237,15 +216,6 @@
     {
         if (!open)
             CloseMenu();
-    }
-
-    // Not now hides the card at once, before the owner has finished remembering the choice.
-    private bool _secureNotNow;
-
-    private async Task NotNowAsync()
-    {
-        _secureNotNow = true;
-        await OnSecureAccountNotNow.InvokeAsync();
     }
 
     private void HandleKeyDown(KeyboardEventArgs args)
