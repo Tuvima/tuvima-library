@@ -10580,6 +10580,12 @@
   <data name="SubtitleFind_LanguageUnknown" xml:space="preserve">
     <value>That language is not supported for subtitle search.</value>
   </data>
+  <data name="SubtitleFind_TextSearchUnsupported" xml:space="preserve">
+    <value>{0} can only find subtitles for the movie or episode itself, not by words you type.</value>
+  </data>
+  <data name="SubtitleFind_TextSearchUnsupportedHint" xml:space="preserve">
+    <value>Put the original text back to search for this {0} itself.</value>
+  </data>
   <data name="SubtitleFind_Failed" xml:space="preserve">
     <value>The search could not be completed.</value>
   </data>

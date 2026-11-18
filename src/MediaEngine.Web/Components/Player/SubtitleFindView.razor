@@ -180,6 +180,8 @@
             "Blocked" => ReasonBlock(response.status, L["SubtitleFind_Blocked"].Value, null),
             "NotAllowed" => ReasonBlock(response.status, L["SubtitleFind_NotAllowed"].Value, null),
             "LanguageUnknown" => ReasonBlock(response.status, L["SubtitleFind_LanguageUnknown"].Value, null),
+            "TextSearchUnsupported" => ReasonBlock(response.status, L["SubtitleFind_TextSearchUnsupported", SourceOrFallback(response)].Value,
+                L["SubtitleFind_TextSearchUnsupportedHint", Kind].Value),
             "NoneFound" or "Found" => ReasonBlock("NoneFound", L["SubtitleFind_NoneFound", name, Kind].Value, L["SubtitleFind_NoneFoundHint"].Value),
             _ => ReasonBlock(response.status, L["SubtitleFind_Failed"].Value, null, tryAgain: true),
         };

@@ -14,6 +14,9 @@ public sealed partial class TextTrackProviderAdapter
 {
     private static readonly Regex Placeholder = new(@"\{([a-z_]+)\}", RegexOptions.Compiled);
 
+    /// <summary>The value name a request's <c>needs</c> list uses for text a person typed to search by.</summary>
+    private const string SearchTextKey = "search_text";
+
     /// <summary>The values a request template may use, taken from the lookup and its verified identities.</summary>
     private Dictionary<string, string> LookupValues(TextTrackLookup lookup)
     {
@@ -26,11 +29,26 @@ public sealed partial class TextTrackProviderAdapter
             }
         }
 
+        Set("language", NormalizeLanguage(lookup.Language));
+        if (!string.IsNullOrWhiteSpace(lookup.SearchText))
+        {
+            // A person's own words replace the title, artist and identities: only the text, the language and (for an episode) its
+            // season and episode go out, so no request that needs a title or an online id can fit.
+            Set(SearchTextKey, lookup.SearchText.Trim());
+            var verified = lookup.SubtitleContext?.ToVerifiedValues(lookup.MediaType);
+            if (verified is not null)
+            {
+                Set("season_number", verified.GetValueOrDefault("season_number"));
+                Set("episode_number", verified.GetValueOrDefault("episode_number"));
+            }
+
+            return values;
+        }
+
         Set("title", lookup.Title);
         Set("artist", lookup.Artist);
         Set("album", lookup.Album);
         Set("year", lookup.Year);
-        Set("language", NormalizeLanguage(lookup.Language));
         if (lookup.DurationSeconds is > 0)
         {
             Set("duration_seconds", Math.Round(lookup.DurationSeconds.Value).ToString(CultureInfo.InvariantCulture));

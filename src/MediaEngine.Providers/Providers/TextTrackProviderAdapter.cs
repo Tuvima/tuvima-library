@@ -101,6 +101,13 @@ public sealed partial class TextTrackProviderAdapter : ITextTrackProvider, IProv
         return string.Equals(code, _text.Language.Unknown, StringComparison.OrdinalIgnoreCase) ? null : code;
     }
 
+    /// <summary>True when the provider's file has a search that needs <c>search_text</c> for this media type.</summary>
+    public bool SupportsSearchText(MediaType mediaType) =>
+        CanHandle(mediaType) && _text.Search.Requests.Any(request =>
+            request.Needs.Contains(SearchTextKey, StringComparer.Ordinal)
+            && (string.IsNullOrEmpty(request.WhenMediaType)
+                || string.Equals(request.WhenMediaType, mediaType.ToString(), StringComparison.OrdinalIgnoreCase)));
+
     public Task<IReadOnlyList<TextTrackCandidate>> SearchAsync(TextTrackLookup lookup, CancellationToken ct = default) =>
         Kind == TextTrackKind.Lyrics ? SearchLyricsAsync(lookup, ct) : SearchSubtitlesAsync(lookup, ct);
 

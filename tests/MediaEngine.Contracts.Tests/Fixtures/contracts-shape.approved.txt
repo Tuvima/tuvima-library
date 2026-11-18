@@ -7865,6 +7865,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ChooseTextTrackAlt
   provider: System.String | nullability=not-null | accessors=get,init
   source_id: System.String | nullability=not-null | accessors=get,init
   language: System.String | nullability=nullable | accessors=get,init
+  query: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionCharacterDto
   Qid: System.String | nullability=not-null | accessors=get,init
