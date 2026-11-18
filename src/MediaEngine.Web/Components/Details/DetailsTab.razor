@@ -31,30 +31,6 @@
         </section>
     }
 
-    @if (HasPersonFacts)
-    {
-        <section class="tl-detail-panel">
-            <div class="tl-section-heading"><h2>@L["Common_Details"]</h2></div>
-            <dl class="tl-detail-dl">
-                @if (!string.IsNullOrWhiteSpace(Model.PersonDetails!.Occupation))
-                {
-                    <dt>@L["DetailsTab_Occupation"]</dt>
-                    <dd>@Model.PersonDetails.Occupation</dd>
-                }
-                @if (!string.IsNullOrWhiteSpace(Model.PersonDetails.Nationality))
-                {
-                    <dt>@L["DetailsTab_Nationality"]</dt>
-                    <dd>@Model.PersonDetails.Nationality</dd>
-                }
-                @if (!string.IsNullOrWhiteSpace(Model.PersonDetails.WikidataQid))
-                {
-                    <dt>@L["DetailsTab_CanonicalIdentity"]</dt>
-                    <dd>@Model.PersonDetails.WikidataQid</dd>
-                }
-            </dl>
-        </section>
-    }
-
     <DetailAiResults Results="@Model.Facts?.AiResults" />
 
     @if (Model.SourceLinks.Count > 0)
@@ -90,10 +66,6 @@
         : [];
     private bool ShowSeriesFacts => SeriesFacts.Count > 0;
 
-    private bool HasPersonFacts => Model.PersonDetails is { } person
-        && (!string.IsNullOrWhiteSpace(person.Occupation)
-            || !string.IsNullOrWhiteSpace(person.Nationality)
-            || !string.IsNullOrWhiteSpace(person.WikidataQid));
 
     private static string SourceIcon(string key) => key switch
     {

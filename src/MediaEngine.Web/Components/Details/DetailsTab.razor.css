@@ -7,6 +7,8 @@
     gap: 0.25rem 1.4rem;
     min-height: 2.75rem;
     margin-top: clamp(0.9rem, 2vw, 1.6rem);
+    grid-column: 1 / -1;
+    justify-self: start;
 }
 
 :where(.tl-detail-page) .tl-source-row__label {
