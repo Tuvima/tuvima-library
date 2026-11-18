@@ -52,6 +52,11 @@ public sealed partial class TextTrackProviderAdapter
             return [];
         }
 
+        if (!string.IsNullOrWhiteSpace(lookup.SearchText))
+        {
+            return await SearchLyricsByTextAsync(lookup, ct).ConfigureAwait(false);
+        }
+
         var tally = new LyricsTally();
         var found = await FindLyricsAsync(lookup, tally, ct).ConfigureAwait(false);
         _logger.LogInformation(
@@ -151,6 +156,17 @@ public sealed partial class TextTrackProviderAdapter
         }
 
         using var _ = doc;
+        var candidate = LyricsCandidateFrom(root, url, lookup, rules, tally);
+        return candidate is null ? [] : [candidate];
+    }
+
+    /// <summary>
+    /// The result a source's entry makes: its lyrics (best format first), whether it is instrumental, and how well its length fits the
+    /// song's. <c>null</c> when a timed entry is too different in length (the outcome says so).
+    /// </summary>
+    private TextTrackCandidate? LyricsCandidateFrom(
+        JsonElement root, string url, TextTrackLookup lookup, TextTrackLyricsConfiguration rules, LyricsTally tally)
+    {
         var format = rules.FallbackFormat;
         string? lyrics = null;
         foreach (var source in rules.Sources)
@@ -171,7 +187,7 @@ public sealed partial class TextTrackProviderAdapter
         if (strict && durationScore is < 0)
         {
             tally.Outcome = LyricsOutcome.LengthTooDifferent;
-            return [];
+            return null;
         }
 
         tally.Outcome = instrumental ? LyricsOutcome.Instrumental : LyricsOutcome.Found;
@@ -179,21 +195,92 @@ public sealed partial class TextTrackProviderAdapter
         var confidence = durationScore.HasValue
             ? strict ? Math.Max(0, durationScore.Value) : Math.Max(duration.LenientFloor, durationScore.Value)
             : duration.DefaultConfidence;
-        return
-        [
-            new TextTrackCandidate(
-                Provider: Name,
-                Kind: Kind,
-                SourceId: sourceId,
-                SourceUrl: url,
-                Language: lookup.Language ?? _text.Language.Unknown,
-                SourceFormat: format,
-                Confidence: confidence,
-                IsHearingImpaired: false,
-                DurationMatchScore: durationScore,
-                Payload: lyrics,
-                IsInstrumental: instrumental),
-        ];
+        return new TextTrackCandidate(
+            Provider: Name,
+            Kind: Kind,
+            SourceId: sourceId,
+            SourceUrl: url,
+            Language: lookup.Language ?? _text.Language.Unknown,
+            SourceFormat: format,
+            Confidence: confidence,
+            IsHearingImpaired: false,
+            DurationMatchScore: durationScore,
+            Payload: lyrics,
+            IsInstrumental: instrumental);
+    }
+
+    /// <summary>The most results one text search offers (the caller shows fewer).</summary>
+    private const int MaxTextSearchResults = 10;
+
+    /// <summary>
+    /// A search by words a person typed: the source is asked for the text as written (the song's own title, artist and length are not
+    /// sent), and every entry whose title, artist or album carries all of the words is offered, because the person is choosing among them.
+    /// </summary>
+    private async Task<IReadOnlyList<TextTrackCandidate>> SearchLyricsByTextAsync(TextTrackLookup lookup, CancellationToken ct)
+    {
+        // The song's own length must not reject the song a person went looking for instead.
+        lookup = lookup with { Title = null, Artist = null, Album = null, Year = null, DurationSeconds = null };
+        var values = LookupValues(lookup);
+        var request = MatchingRequests(lookup.MediaType, values).FirstOrDefault();
+        if (request is null)
+        {
+            _logger.LogInformation("{Provider} lyrics search by text skipped: the source has no search by text", Name);
+            return [];
+        }
+
+        var rules = _text.Search.Lyrics;
+        var url = (_config.Endpoints.GetValueOrDefault("api")?.TrimEnd('/') ?? string.Empty) + BuildPath(request, values);
+        var answer = await GetJsonAsync(url, ct).ConfigureAwait(false);
+        if (answer.Failed)
+        {
+            throw new TextTrackLookupException(
+                "ProviderUnavailable", Message(TextTrackMessages.Unreachable, "{display_name} could not be reached."));
+        }
+
+        if (string.IsNullOrWhiteSpace(answer.Json))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var parsed = JsonDocument.Parse(answer.Json);
+            if (parsed.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            var matcher = LyricsMatcher;
+            var tally = new LyricsTally();
+            var found = new List<TextTrackCandidate>();
+            foreach (var entry in parsed.RootElement.EnumerateArray())
+            {
+                tally.Candidates++;
+                if (!HasLyricsOrInstrumental(entry, rules)
+                    || !matcher.MatchesSearchText(lookup.SearchText, ReadString(entry, rules.Match.TitlePath), ReadString(entry, rules.Match.ArtistPath)))
+                {
+                    continue;
+                }
+
+                if (LyricsCandidateFrom(entry, url, lookup, rules, tally) is { } candidate)
+                {
+                    found.Add(candidate);
+                    if (found.Count >= MaxTextSearchResults)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            _logger.LogInformation(
+                "{Provider} lyrics search by text \"{Text}\": {Candidates} entries looked at, {Found} offered", Name, lookup.SearchText, tally.Candidates, found.Count);
+            return found;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogDebug(ex, "{Provider} lyrics answer was not JSON", Name);
+            return [];
+        }
     }
 
     /// <summary>The requests that fit the media type and have every value they need, in file order.</summary>

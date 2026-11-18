@@ -79,6 +79,33 @@ public sealed class PlaybackLyricsLookupTests
     }
 
     [Fact]
+    public async Task ChoosingFromATextSearch_SendsTheTypedText_AndAnItemsOwnSearchSendsNone()
+    {
+        var sent = new List<ChooseTextTrackAlternativeRequest>();
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([new() { Id = Guid.NewGuid(), Kind = "Lyrics", IsPreferred = true }]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), _ => Task.FromResult<string?>("Words"));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ => Task.FromResult<TextTrackAlternativesResponse?>(
+                new() { status = "Found", items = [new() { provider = "lrclib", provider_name = "LRCLIB", source_id = "7", is_timed = true }] }));
+            stub.SetHandler(nameof(IEngineApiClient.ChooseTextTrackAlternativeAsync), args =>
+            {
+                sent.Add((ChooseTextTrackAlternativeRequest)args![1]!);
+                return Task.FromResult<TextTrackChoiceResponse?>(new() { status = "Chosen", message = "Lyrics changed." });
+            });
+        });
+        using var presenter = new PlaybackLyricsPresenter(api);
+        await presenter.EnsureAsync(Snapshot(), new Sink());
+
+        await presenter.OpenAlternativesAsync("  bohemian queen ");
+        await presenter.ChooseAsync(new() { provider = "lrclib", source_id = "7" });
+        await presenter.OpenAlternativesAsync();
+        await presenter.ChooseAsync(new() { provider = "lrclib", source_id = "7" });
+
+        Assert.Equal(["bohemian queen", null], sent.Select(request => request.query));
+    }
+
+    [Fact]
     public async Task ChoosingTheResultAlreadyInUse_DoesNothing()
     {
         var api = Api(Guid.NewGuid());

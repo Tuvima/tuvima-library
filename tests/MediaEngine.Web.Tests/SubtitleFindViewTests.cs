@@ -177,6 +177,50 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ChoosingAResultFromATextSearch_SendsTheSameTextSoTheEngineFindsItAgain()
+    {
+        var api = Api(() => Found(Item("a"), Item("b")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        cut.Find("[data-pick-box]").Input("Ferrari 1998");
+        await cut.Find("[data-pick-search]").ClickAsync();
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
+        cut.WaitForElement("[data-pick-results]");
+        await cut.Find(Row("b")).ClickAsync();
+        await cut.Find("[data-pick-action='use']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Single(_chosen));
+        Assert.Equal("Ferrari 1998", _chosen[0].query);
+    }
+
+    [Fact]
+    public async Task ChoosingAResultFromTheItemsOwnSearch_SendsNoText()
+    {
+        var api = Api(() => Found(Item("a"), Item("b")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        await cut.Find(Row("b")).ClickAsync();
+        await cut.Find("[data-pick-action='use']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Single(_chosen));
+        Assert.Null(_chosen[0].query);
+    }
+
+    [Fact]
+    public async Task ASourceThatCannotBeSearchedByWords_SaysSoInPlainWords_AndHowToGetBack()
+    {
+        var api = Api(() => new TextTrackAlternativesResponse { asset_id = Asset, kind = "Subtitles", status = "TextSearchUnsupported", source_name = "SubDL" });
+        var cut = await OpenFindAsync(Presenter(api));
+
+        var why = cut.WaitForElement("[data-subtitles-state='TextSearchUnsupported']");
+
+        Assert.Contains("SubDL can only find subtitles for the movie or episode itself, not by words you type.", why.TextContent);
+        Assert.Contains("Put the original text back to search for this movie itself.", why.TextContent);
+    }
+
+    [Fact]
     public async Task PressingSearchOnABoxThatWasNotEdited_SendsNoText()
     {
         var api = Api(() => Found(Item("a")));

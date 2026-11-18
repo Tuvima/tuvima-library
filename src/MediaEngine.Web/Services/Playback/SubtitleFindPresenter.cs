@@ -194,7 +194,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         try
         {
             choice = await api.ChooseTextTrackAlternativeAsync(
-                assetId, new ChooseTextTrackAlternativeRequest { kind = SubtitlesKind, provider = item.provider, source_id = item.source_id, language = Language });
+                assetId, new ChooseTextTrackAlternativeRequest { kind = SubtitlesKind, provider = item.provider, source_id = item.source_id, language = Language, query = _query });
         }
         catch (OperationCanceledException)
         {

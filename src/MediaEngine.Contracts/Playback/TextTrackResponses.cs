@@ -95,7 +95,8 @@ public sealed record TextTrackAlternativesResponse
     /// <c>Found</c>, <c>NoneFound</c>, <c>NoSourceOn</c>, <c>NotAllowed</c>, <c>Blocked</c>, <c>Unavailable</c>, <c>AssetMissing</c> or <c>Unsupported</c>.
     /// For subtitles also <c>IdentityUnverified</c> (the movie or episode cannot be identified for an online search), <c>SourceKeyRequired</c>
     /// (a source is switched on but its key is missing or was refused), <c>LimitReached</c> (a source's allowance or rate limit is used up)
-    /// and <c>LanguageUnknown</c> (the language asked for cannot be searched).
+    /// and <c>LanguageUnknown</c> (the language asked for cannot be searched). For a search by typed words also
+    /// <c>TextSearchUnsupported</c> (no source that is switched on can be searched by words; <c>message</c> says so).
     /// </summary>
     public string status { get; init; } = string.Empty;
     public string message { get; init; } = string.Empty;
@@ -130,6 +131,9 @@ public sealed record ChooseTextTrackAlternativeRequest
 
     /// <summary>For subtitles, the language name or code the list was searched in, so the same result is found again.</summary>
     public string? language { get; init; }
+
+    /// <summary>The words the list was searched with (the <c>query</c> of the search), so the same result is found again. Omitted for the item's own search.</summary>
+    public string? query { get; init; }
 }
 
 /// <summary>Response for choosing a result or marking one wrong.</summary>

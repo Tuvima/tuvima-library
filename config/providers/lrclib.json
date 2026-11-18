@@ -44,6 +44,14 @@
       "requests": [
         {
           "when_media_type": "Music",
+          "needs": ["search_text"],
+          "path": "/api/search",
+          "query": [
+            ["q", "{search_text}"]
+          ]
+        },
+        {
+          "when_media_type": "Music",
           "needs": ["title", "artist"],
           "path": "/api/search",
           "query": [
