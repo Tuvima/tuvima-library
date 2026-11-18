@@ -4679,13 +4679,14 @@
   Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Creator: System.String | json=creator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Album: System.String | json=album | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   LengthText: System.String | json=length_text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Cast: System.Collections.Generic.IReadOnlyList<System.String> | json=cast | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ImageUrl: System.String | json=image_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   SourceUrl: System.String | json=source_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Source: System.String | json=source | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"provider_id":"sample","provider_name":"sample","provider_item_id":"sample","kind":"sample","title":"sample","year":"sample","creator":"sample","length_text":"sample","cast":[],"image_url":"sample","description":"sample","source_url":"sample","source":"sample"}
+  sample={"provider_id":"sample","provider_name":"sample","provider_item_id":"sample","kind":"sample","title":"sample","year":"sample","creator":"sample","album":"sample","length_text":"sample","cast":[],"image_url":"sample","description":"sample","source_url":"sample","source":"sample"}
 
 [contracts] MediaEngine.Contracts.Editing.EditorMusicDiscDto
   kind=class | converter=default | number-handling=default | unmapped=default
