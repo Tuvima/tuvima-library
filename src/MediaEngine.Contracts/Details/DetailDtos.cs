@@ -541,6 +541,11 @@ public sealed class SequenceGroupViewModel
     /// 0 means the group did not report a count and <c>Items</c> is complete.
     /// </summary>
     public int ItemCount { get; set; }
+    /// <summary>
+    /// How many physical files hold this group's owned episodes (a file named S01E19-20 is one file for two episodes). 0 means the group did not
+    /// report it and every owned episode is its own file; compare with <see cref="OwnedCount"/> (episodes) to show "20 episodes, 19 files".
+    /// </summary>
+    public int FileCount { get; init; }
     /// <summary>Position of <c>Items[0]</c> within the group's full ordering (0 when <c>Items</c> starts at the beginning).</summary>
     public int ItemOffset { get; init; }
     public IReadOnlyList<SequenceItemViewModel> Items { get; set; } = [];
@@ -557,6 +562,11 @@ public sealed class SequenceCoverageLinkViewModel
 
 public sealed class SequenceItemViewModel
 {
+    /// <summary>
+    /// How many episodes this one entry stands for: 2 for "E19-20: Title A + Title B" (one file covering two episodes), otherwise 1.
+    /// An entry that stands for several episodes carries no "Same file" chip; its <see cref="CoveredWith"/> lists the other episodes it covers.
+    /// </summary>
+    public int EpisodeCount { get; init; } = 1;
     public IReadOnlyList<SequenceCoverageLinkViewModel> CoveredWith { get; init; } = [];
     public string? EpisodeStillUrl { get; init; }
     public int? EpisodeStillWidthPx { get; init; }

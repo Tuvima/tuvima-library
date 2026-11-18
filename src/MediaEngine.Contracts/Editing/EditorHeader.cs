@@ -212,6 +212,13 @@ public sealed class EditorHeaderLevelEntryDto
     [JsonPropertyName("item_count")]
     public int ItemCount { get; init; }
 
+    /// <summary>
+    /// How many physical files hold those episodes, when one file covers several (S01E19-20 is one file for two episodes); null when every
+    /// episode is its own file. The dropdown reads "20 episodes · 19 files".</summary>
+    [JsonPropertyName("file_count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? FileCount { get; init; }
+
     /// <summary>How many supporting files belong to it (its own and those of its episodes or lessons).</summary>
     [JsonPropertyName("supporting_file_count")]
     public int SupportingFileCount { get; init; }
@@ -295,6 +302,14 @@ public sealed class EditorNavItemDto
     /// <summary>True for the item the editor is open on.</summary>
     [JsonPropertyName("is_current")]
     public bool IsCurrent { get; init; }
+
+    /// <summary>
+    /// How many episodes this one row stands for: 2 for "S01E19-20: Title A + Title B" (one file covering two episodes). Null for a row that is
+    /// one item. The row opens the first episode; a list pages by the episodes it holds, so a client adds this up rather than counting rows.
+    /// </summary>
+    [JsonPropertyName("episode_count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? EpisodeCount { get; init; }
 }
 
 /// <summary>The supporting files that belong to one level, as far as the item dropdown lists them.</summary>

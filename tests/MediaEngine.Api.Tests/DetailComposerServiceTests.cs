@@ -442,7 +442,7 @@ public sealed class DetailComposerServiceTests
 
         Assert.Contains("if (entityType == DetailEntityType.TvShow)", source);
         Assert.Contains("GetValue(values, \"start_year\")", source);
-        Assert.Contains("ownedEpisodeCount == 1 ? \"episode\" : \"episodes\"", source);
+        Assert.Contains("CombinedEpisodeFiles.CountText(ownedEpisodeCount, ownedFileCount)", source);
         Assert.DoesNotContain(")} owned\"", source);
         Assert.DoesNotContain("GetValue(values, \"episode_count\")", source);
         Assert.Contains("GetValue(values, \"content_rating\")", source);

@@ -516,7 +516,7 @@
                         <div class="tl-hnav__more" id="@MoreId">
                             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
                                        Disabled="@_loading"
-                                       OnClick="LoadMoreAsync">@string.Format(L["EditorNav_ShowingOf"].Value, _items.Count, _total)</AppButton>
+                                       OnClick="LoadMoreAsync">@string.Format(L["EditorNav_ShowingOf"].Value, EditorNavText.Covered(_items), _total)</AppButton>
                         </div>
                     }
 
@@ -921,7 +921,7 @@
     }
 
     // Only "show more" refuses while a read is in flight; a search always wins.
-    private Task LoadMoreAsync() => _loading || !_hasMore ? Task.CompletedTask : ReadPageAsync(_items.Count, restart: false);
+    private Task LoadMoreAsync() => _loading || !_hasMore ? Task.CompletedTask : ReadPageAsync(EditorNavText.Covered(_items), restart: false);
 
     // One page of the level, searched when a query is typed: the first 50 come with the header and each later page is read as the end scrolls into view.
     private async Task ReadPageAsync(int offset, bool restart)

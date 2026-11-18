@@ -126,6 +126,7 @@ internal sealed partial class DetailCompositionOrchestrator
         RemainingSeconds = item.RemainingSeconds,
         ProgressLabel = item.ProgressLabel,
         CoveredWith = item.CoveredWith,
+        EpisodeCount = item.EpisodeCount,
     };
 
     private static SeriesOrderInput WorkSeriesOrderOf(CollectionWorkSummary work)

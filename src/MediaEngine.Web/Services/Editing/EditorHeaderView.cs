@@ -371,6 +371,16 @@ public static class EditorNavText
         return string.Join(" · ", new[] { lead, tail }.Where(piece => !string.IsNullOrWhiteSpace(piece)));
     }
 
+    /// <summary>
+    /// How many episodes (or items) the rows hold: a row that stands for one file covering two episodes counts as two. A list pages by this, not
+    /// by its rows, so a merged "E19-20" row never makes the next page start one episode too early.
+    /// </summary>
+    public static int Covered(IEnumerable<EditorNavItemDto> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        return items.Sum(item => Math.Max(1, item.EpisodeCount ?? 1));
+    }
+
     /// <summary>The second dropdown's row detail: "10 episodes · 12 supporting files".</summary>
     public static string EntryLine(EditorHeaderLevelEntryDto entry, string itemWord)
     {
@@ -379,6 +389,11 @@ public static class EditorNavText
         if (entry.ItemCount > 0)
         {
             pieces.Add($"{DisplayFormat.FormatCount(entry.ItemCount)} {itemWord}{(entry.ItemCount == 1 ? string.Empty : "s")}");
+            // A file that covers several episodes (S01E19-20) makes the files fewer than the episodes: "20 episodes · 19 files".
+            if (entry.FileCount is { } files && files > 0 && files < entry.ItemCount)
+            {
+                pieces.Add($"{DisplayFormat.FormatCount(files)} {(files == 1 ? "file" : "files")}");
+            }
         }
 
         if (entry.SupportingFileCount > 0)

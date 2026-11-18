@@ -356,7 +356,7 @@ internal sealed partial class DetailCompositionOrchestrator
         items = NormalizeSequenceItems(items, entityType);
         if (entityType is DetailEntityType.TvEpisode or DetailEntityType.TvSeason)
         {
-            items = await ApplySameFileCoverageAsync(items, ct);
+            items = MergeCombinedEpisodeEntries(await ApplySameFileCoverageAsync(items, ct));
         }
 
         items = SortSequenceItems(items);
