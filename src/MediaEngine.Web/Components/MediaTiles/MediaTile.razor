@@ -27,7 +27,7 @@ else if (!_removed)
 {
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(IsGroup ? "is-group" : string.Empty)} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)} {(IsJustSaved ? "tl-just-changed" : string.Empty)}")'
+<article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(IsGroup ? "is-group" : string.Empty)} {GroupLookClass} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)} {(IsJustSaved ? "tl-just-changed" : string.Empty)}")'
          data-new="@(IsJustSaved ? "true" : null)"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
@@ -137,23 +137,23 @@ else if (!_removed)
             }
             else if (ShowQuadrants)
             {
-                @* The group's first four covers; a missing one is a plain cell. Portrait cells in a poster tile, square cells in a tile of albums. *@
-                <div class="media-tile-quadrants" aria-hidden="true">
-                    @for (var index = 0; index < 4; index++)
+                @* The group's covers (review mock-ups D4, D5). One title is one cover filling the tile; two fill top-left and bottom-left; three add
+                   top-right; four fill the grid, and an empty square is a faint dashed outline. A group that mixes media kinds draws its covers in a
+                   centered row, each in its natural shape. A square cover (audiobook, album) stays square and centered in its quarter. *@
+                var covers = GroupCoverItems;
+                <div class="@QuadrantsClass" aria-hidden="true">
+                    @for (var index = 0; index < covers.Count; index++)
                     {
-                        if (index < GroupCovers.Count)
-                        {
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(GroupCovers[index], QuadrantDrawnPx)"
-                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(GroupCovers[index], QuadrantDrawnPx)"
-                                 alt=""
-                                 class="media-tile-quadrant"
-                                 loading="@CardImageLoading"
-                                 decoding="async" />
-                        }
-                        else
-                        {
-                            <span class="media-tile-quadrant is-empty"></span>
-                        }
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(covers[index].ImageUrl, covers.Count == 1 ? TileDrawnPx : QuadrantDrawnPx)"
+                             srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(covers[index].ImageUrl, covers.Count == 1 ? TileWidthPx : QuadrantDrawnPx)"
+                             alt=""
+                             class="@QuadrantCellClass(covers[index], index, covers.Count)"
+                             loading="@CardImageLoading"
+                             decoding="async" />
+                    }
+                    @foreach (var slot in EmptyQuadrantSlots(covers.Count))
+                    {
+                        <span class="@($"media-tile-quadrant is-empty is-slot-{slot}")"></span>
                     }
                 </div>
             }
@@ -202,9 +202,23 @@ else if (!_removed)
             }
             @if (ShowNameOnArt)
             {
-                @* The group's or person's name over a bottom scrim (One tile design D9), above the count label. *@
-                <span class="media-tile-scrim" aria-hidden="true"></span>
-                <span class="@($"media-tile-name{(IsPersonQuadrant ? " media-tile-name--beside-photo" : string.Empty)}")">@Item.Title</span>
+                @* The group's or person's name over a bottom scrim (One tile design D9). A group's name and its small count line sit together at
+                   the bottom on a dark gradient (review mock-ups D4), so they read on any cover; a person's name sits beside their photo. *@
+                @if (IsPersonQuadrant)
+                {
+                    <span class="media-tile-scrim" aria-hidden="true"></span>
+                    <span class="media-tile-name media-tile-name--beside-photo">@Item.Title</span>
+                }
+                else
+                {
+                    <div class="media-tile-scrim media-tile-group-foot">
+                        <span class="media-tile-name">@Item.Title</span>
+                        @if (BottomLabel is { } count)
+                        {
+                            <span class="media-tile-label media-tile-label--bottom" aria-label="@count" data-overflow-tooltip="@count">@count</span>
+                        }
+                    </div>
+                }
             }
             @if (StatusLabel is { } status)
             {
@@ -214,7 +228,7 @@ else if (!_removed)
             {
                 <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
             }
-            @if (BottomLabel is { } bottom && !IsVideoCollection)
+            @if (BottomLabel is { } bottom && !IsVideoCollection && !(ShowNameOnArt && !IsPersonQuadrant))
             {
                 <span class="@($"media-tile-label media-tile-label--bottom{(IsPersonQuadrant ? " media-tile-label--beside-photo" : string.Empty)}")" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }
@@ -261,7 +275,8 @@ else if (!_removed)
     private string PaletteScopeStyle => $"display: contents; {TileStyle}";
 
     // A group is a poster, or a square when it holds only albums (its composer sets the shape from the covers it shows).
-    private string ShapeClass => IsGroup ? (Item.Shape == MediaTileShape.Square ? "is-square" : "is-portrait") : Item.Shape switch
+    // A group that mixes media kinds is the wide Collection tile (review mock-ups D5).
+    private string ShapeClass => IsMixedCollection ? "is-collection-wide" : IsGroup ? (Item.Shape == MediaTileShape.Square ? "is-square" : "is-portrait") : Item.Shape switch
     {
         MediaTileShape.Landscape => "is-landscape",
         MediaTileShape.Square => "is-square",
@@ -317,9 +332,49 @@ else if (!_removed)
     private bool ShowCollectionBanner => !IsGroup && Item.IsCollection && Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
 
     // The four-cover grid: a group with no cover of its own and at least one member cover. With none it is the plain tile with the kind icon.
-    private bool ShowQuadrants => IsGroup && !ShowBrandLogo && string.IsNullOrWhiteSpace(CardImageUrl) && GroupCovers.Count > 0;
+    private bool ShowQuadrants => IsGroup && !ShowBrandLogo && string.IsNullOrWhiteSpace(CardImageUrl) && GroupCoverItems.Count > 0;
 
-    private IReadOnlyList<string> GroupCovers => Item.GroupCovers;
+    private IReadOnlyList<ArtworkStackItem> GroupCoverItems => Item.GroupCoverItems;
+
+    // The kind a group reads as: a collection that carries a series presentation is a Series whichever composer built the tile.
+    private MediaTileGroupKind EffectiveGroupKind => Item.GroupKind == MediaTileGroupKind.Collection
+        && Item.Presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries
+            or MediaTilePresentation.ComicSeries or MediaTilePresentation.AudiobookSeries
+            ? MediaTileGroupKind.Series
+            : Item.GroupKind;
+
+    // Review mock-ups D5: a Series or curated collection whose covers are of different media kinds is a wide Collection tile with a gold
+    // outline; a Series of one media kind keeps the poster or square tile with a purple outline. Universes, lists, sets and people keep their look.
+    private bool IsMixedCollection => IsGroup && Item.Person is null && ShowQuadrants && Item.HoldsMixedMedia
+        && EffectiveGroupKind is MediaTileGroupKind.Series or MediaTileGroupKind.Collection;
+
+    private bool IsSeriesTile => IsGroup && Item.Person is null && !ShowBrandLogo && !IsMixedCollection && EffectiveGroupKind == MediaTileGroupKind.Series;
+
+    private string GroupLookClass => IsMixedCollection ? "is-collection-outlined" : IsSeriesTile ? "is-series-outlined" : string.Empty;
+
+    private string QuadrantsClass => $"media-tile-quadrants is-count-{GroupCoverItems.Count}{(IsMixedCollection ? " is-row" : string.Empty)}";
+
+    private static readonly string[] QuadrantSlots = ["tl", "bl", "tr", "br"];
+
+    // The slot a cover takes: top-left, bottom-left, top-right, bottom-right; its shape keeps a square or wide cover from being stretched.
+    private string QuadrantCellClass(ArtworkStackItem cover, int index, int count)
+    {
+        var shape = cover.Shape switch
+        {
+            ArtworkShape.Square => "is-shape-square",
+            ArtworkShape.Wide => "is-shape-wide",
+            _ => "is-shape-portrait",
+        };
+        return IsMixedCollection
+            ? $"media-tile-quadrant {shape}"
+            : count == 1
+                ? $"media-tile-quadrant is-single {shape}"
+                : $"media-tile-quadrant is-slot-{QuadrantSlots[index]} {shape}";
+    }
+
+    // Two titles leave the right column empty and three leave the bottom-right square; one title and a row of mixed covers have none.
+    private IEnumerable<string> EmptyQuadrantSlots(int count) =>
+        IsMixedCollection || count < 2 ? [] : QuadrantSlots.Skip(count);
 
     // A group's four covers or its chosen cover do not say what the group is, so its name sits on the art. The plain tile and a brand logo already carry their name.
     private bool ShowNameOnArt => IsGroup && !ShowBrandLogo && !IsVideoCollection && !IsVideoStill && (ShowQuadrants || !string.IsNullOrWhiteSpace(CardImageUrl));
@@ -403,19 +458,23 @@ else if (!_removed)
         }
     }
 
-    // A series presentation reads as a Series whichever composer built the tile.
-    private string GroupKindWord => (Item.GroupKind == MediaTileGroupKind.Collection
-        && Item.Presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries
-            or MediaTilePresentation.ComicSeries or MediaTilePresentation.AudiobookSeries
-            ? MediaTileGroupKind.Series
-            : Item.GroupKind) switch
-    {
-        MediaTileGroupKind.Series => L["MediaGroupTile_KindSeries"],
-        MediaTileGroupKind.Universe => L["MediaGroupTile_KindUniverse"],
-        MediaTileGroupKind.List => L["MediaGroupTile_KindList"],
-        MediaTileGroupKind.Set => L["MediaGroupTile_KindSet"],
-        _ => L["MediaGroupTile_KindCollection"],
-    };
+    // The tag on a group tile (review mock-ups D5): a mixed-media group is a "Collection"; a Series says what it holds ("Book series",
+    // "Audiobook series") or plain "Series".
+    private string GroupKindWord => IsMixedCollection
+        ? L["MediaGroupTile_KindCollection"].Value
+        : EffectiveGroupKind switch
+        {
+            MediaTileGroupKind.Series => Item.Presentation switch
+            {
+                MediaTilePresentation.BookSeries => L["MediaGroupTile_KindBookSeries"].Value,
+                MediaTilePresentation.AudiobookSeries => L["MediaGroupTile_KindAudiobookSeries"].Value,
+                _ => L["MediaGroupTile_KindSeries"].Value,
+            },
+            MediaTileGroupKind.Universe => L["MediaGroupTile_KindUniverse"].Value,
+            MediaTileGroupKind.List => L["MediaGroupTile_KindList"].Value,
+            MediaTileGroupKind.Set => L["MediaGroupTile_KindSet"].Value,
+            _ => L["MediaGroupTile_KindCollection"].Value,
+        };
 
     private void OpenDetails()
     {

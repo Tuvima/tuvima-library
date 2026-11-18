@@ -161,9 +161,9 @@ public sealed class VideoSeriesDetailTests : IDisposable
         }
 
         Assert.Equal("Video folder", page.Facts?.MediaKind);
-        Assert.Equal("Video folder", page.Subtitle); // the folder only: the count is the pill on the right
+        Assert.Equal("Video folder", page.Subtitle); // the folder only: the count shows once, with the list
         Assert.Equal("Play", Assert.Single(page!.PrimaryActions).Label);
-        Assert.Contains(page.Metadata, pill => pill.Kind == "episode_count" && pill.Label == (sections ? "6 videos" : "3 videos"));
+        Assert.DoesNotContain(page.Metadata, pill => pill.Kind == "episode_count"); // the count shows once, with the list (issue 1040)
         Assert.Equal("Folder", sequence.ContainerLabel);
         Assert.Equal("Section", sequence.GroupLabel);
     }

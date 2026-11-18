@@ -1078,10 +1078,9 @@ internal sealed partial class DetailCompositionOrchestrator
                 GetValue(values, MetadataFieldConstants.Year),
                 GetValue(values, "release_year"),
                 firstOwnedYear), "year");
-            AddPlain(pills, ownedEpisodeCount > 0
-                ? videoFolder
-                    ? VideoFolderWording.VideoCount(ownedEpisodeCount)
-                    : $"{ownedEpisodeCount.ToString(CultureInfo.InvariantCulture)} {(ownedEpisodeCount == 1 ? "episode" : "episodes")}"
+            // A folder of videos shows its count once, with the list (issue 1040), so it gets no count pill here.
+            AddPlain(pills, ownedEpisodeCount > 0 && !videoFolder
+                ? $"{ownedEpisodeCount.ToString(CultureInfo.InvariantCulture)} {(ownedEpisodeCount == 1 ? "episode" : "episodes")}"
                 : null, "episode_count");
             AddPlain(pills, StringHelpers.FirstNonBlankOr(string.Empty,
                 FormatTrackDuration(StringHelpers.FirstNonBlankOr(string.Empty,

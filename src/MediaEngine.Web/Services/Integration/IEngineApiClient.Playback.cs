@@ -140,6 +140,12 @@ public partial interface IEngineApiClient
     /// <summary>The Test hardware button: the Engine tests the graphics encoders again and returns what it found, or null when it could not be reached.</summary>
     Task<GraphicsHardwareDto?> TestPlaybackHardwareAsync(CancellationToken ct = default);
 
+    /// <summary>What the Engine's last computer capacity test measured (Settings > Tools, Computer capacity), or null when the Engine could not be reached.</summary>
+    Task<PlaybackCapacityDto?> GetPlaybackCapacityAsync(CancellationToken ct = default);
+
+    /// <summary>Run again: the Engine measures this computer now (about a minute) and returns the numbers, or null when it could not be reached.</summary>
+    Task<PlaybackCapacityDto?> TestPlaybackCapacityAsync(CancellationToken ct = default);
+
     Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(Guid profileId, CancellationToken ct = default);
 
     Task<UserPlaybackSettingsDto?> UpdatePlaybackSettingsAsync(Guid profileId, UserPlaybackSettingsDto settings, CancellationToken ct = default);

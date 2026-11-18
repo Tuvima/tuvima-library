@@ -47,7 +47,8 @@ public sealed record ActivityRunItemRecord(
     string GroupKey,
     string GroupTitle,
     Guid? GroupWorkId,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    long SizeBytes = 0);
 
 /// <summary>A run with the number of items it touched per media type, for the History entry's plain count.</summary>
 public sealed record ActivityRunSummary(ActivityRunRecord Run, IReadOnlyDictionary<string, int> CountsByMediaType);
@@ -80,7 +81,11 @@ public sealed record ActivityRunGroup(
     Guid? GroupWorkId,
     Guid? FirstWorkId,
     Guid? FirstAssetId,
-    int ItemCount);
+    int ItemCount,
+    long SizeBytes = 0);
+
+/// <summary>One file inside an opened batch's collection row (a folder of videos): its title and size on disk when it arrived.</summary>
+public sealed record ActivityRunFile(Guid? WorkId, Guid? AssetId, string Title, long SizeBytes);
 
 /// <summary>The library's own question: what asset belongs to which library, and where does its file live (for the Videos folder rule).</summary>
 public sealed record ActivityAssetContext(string? LibraryId, string? FilePath);
@@ -133,6 +138,9 @@ public interface IActivityRunStore
 
     /// <summary>One History entry's items (every run in that scan) as stacked groups (D12), optionally narrowed to the chosen libraries and area (D31), a page at a time.</summary>
     Task<IReadOnlyList<ActivityRunGroup>> ListGroupsAsync(Guid entryId, ActivityRunScope? scope, int offset, int limit, CancellationToken ct = default);
+
+    /// <summary>The files of one stacked group (a folder of videos) in one History entry, in arrival order, at most <paramref name="limit"/> of them (the batch list's expanded collection row).</summary>
+    Task<IReadOnlyList<ActivityRunFile>> ListGroupFilesAsync(Guid entryId, string groupKey, ActivityRunScope? scope, int limit, CancellationToken ct = default);
 
     /// <summary>Every title that matches a search, with each run it appears in and how many items that run added (D18).</summary>
     Task<IReadOnlyList<ActivityTitleHit>> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default);

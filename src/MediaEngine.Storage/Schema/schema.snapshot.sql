@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0087 activity_run_interrupted).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0088 activity_run_item_size).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -90,7 +90,7 @@ CREATE TABLE activity_run_items (
     group_title   TEXT NOT NULL,
     group_work_id BLOB,                          -- the show or album a tile opens, when there is one
     created_at    TEXT NOT NULL
-);
+, size_bytes INTEGER NOT NULL DEFAULT 0);
 
 CREATE TABLE activity_runs (
     id               BLOB NOT NULL PRIMARY KEY,

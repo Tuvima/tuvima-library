@@ -124,7 +124,6 @@
                             </div>
                             <div class="tl-embedded-audio__ordinal" role="cell">@DisplayOrdinal(item, index)</div>
                             <div class="tl-embedded-audio__title" role="cell">
-                                <DetailRowSelectBox ItemId="@ItemId(item)" Title="@item.Title" Kind="@item.EntityType" ParentId="@RowParentId" MediaType="Audiobooks" />
                                 <strong>@item.Title</strong>
                                 @if (item.IsUnmatched)
                                 {

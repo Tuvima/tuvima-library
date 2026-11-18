@@ -8249,6 +8249,12 @@
   <data name="MediaGroupTile_KindSeries" xml:space="preserve">
     <value>Series</value>
   </data>
+  <data name="MediaGroupTile_KindBookSeries" xml:space="preserve">
+    <value>Book series</value>
+  </data>
+  <data name="MediaGroupTile_KindAudiobookSeries" xml:space="preserve">
+    <value>Audiobook series</value>
+  </data>
   <data name="MediaGroupTile_KindUniverse" xml:space="preserve">
     <value>Universe</value>
   </data>
@@ -10213,6 +10219,60 @@
   </data>
   <data name="LibraryActivity_NoMatchHelp" xml:space="preserve">
     <value>Try a different title.</value>
+  </data>
+  <data name="LibraryActivity_BatchSummary" xml:space="preserve">
+    <value>Batch · {0}</value>
+  </data>
+  <data name="LibraryActivity_BatchTypes" xml:space="preserve">
+    <value>Media types in this batch</value>
+  </data>
+  <data name="LibraryActivity_ChipAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="LibraryActivity_CollectionWorking" xml:space="preserve">
+    <value>{0} of {1} working</value>
+  </data>
+  <data name="LibraryActivity_ColumnCover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="LibraryActivity_ColumnSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="LibraryActivity_ColumnStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="LibraryActivity_ColumnTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="LibraryActivity_ColumnType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="LibraryActivity_HideFiles" xml:space="preserve">
+    <value>Hide the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_PillDone" xml:space="preserve">
+    <value>{0} done</value>
+  </data>
+  <data name="LibraryActivity_PillItem" xml:space="preserve">
+    <value>{0} item</value>
+  </data>
+  <data name="LibraryActivity_PillItems" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="LibraryActivity_PillWorking" xml:space="preserve">
+    <value>{0} working</value>
+  </data>
+  <data name="LibraryActivity_ShowFiles" xml:space="preserve">
+    <value>Show the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_StatusDone" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="LibraryActivity_StatusWorking" xml:space="preserve">
+    <value>Working</value>
+  </data>
+  <data name="LibraryActivity_VideoCollection" xml:space="preserve">
+    <value>Video collection</value>
   </data>
   <data name="LibraryActivity_NothingInBatch" xml:space="preserve">
     <value>Nothing to show for this batch.</value>
@@ -14704,5 +14764,41 @@
   </data>
   <data name="PickResult_UseThis" xml:space="preserve">
     <value>Use this</value>
+  </data>
+  <data name="CapacityPanel_Title" xml:space="preserve">
+    <value>Computer capacity</value>
+  </data>
+  <data name="CapacityPanel_Tested" xml:space="preserve">
+    <value>Last tested {0}</value>
+  </data>
+  <data name="CapacityPanel_NotTested" xml:space="preserve">
+    <value>Not tested yet</value>
+  </data>
+  <data name="CapacityPanel_GaugeLabel" xml:space="preserve">
+    <value>Score {0} out of 100</value>
+  </data>
+  <data name="CapacityPanel_Streams" xml:space="preserve">
+    <value>Video streams at once</value>
+  </data>
+  <data name="CapacityPanel_FourK" xml:space="preserve">
+    <value>4K conversions at once</value>
+  </data>
+  <data name="CapacityPanel_Speed" xml:space="preserve">
+    <value>Faster than real time</value>
+  </data>
+  <data name="CapacityPanel_RunAgain" xml:space="preserve">
+    <value>Run again</value>
+  </data>
+  <data name="CapacityPanel_RunTest" xml:space="preserve">
+    <value>Run test</value>
+  </data>
+  <data name="CapacityPanel_Testing" xml:space="preserve">
+    <value>Testing…</value>
+  </data>
+  <data name="CapacityPanel_Running" xml:space="preserve">
+    <value>Testing this computer. This takes about a minute and uses the graphics card or processor heavily while it runs.</value>
+  </data>
+  <data name="CapacityPanel_CouldNotRun" xml:space="preserve">
+    <value>The test could not run. Check that the Engine is running, then try again.</value>
   </data>
 </root>

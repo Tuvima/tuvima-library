@@ -751,6 +751,37 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<PlaybackCapacityDto?> GetPlaybackCapacityAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<PlaybackCapacityDto>("/settings/playback/capacity", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /settings/playback/capacity failed");
+            return null;
+        }
+    }
+
+    public async Task<PlaybackCapacityDto?> TestPlaybackCapacityAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsync("/settings/playback/test-capacity", null, ct);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<PlaybackCapacityDto>(cancellationToken: ct)
+                : null;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /settings/playback/test-capacity failed");
+            return null;
+        }
+    }
+
     public async Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(Guid profileId, CancellationToken ct = default)
     {
         try
