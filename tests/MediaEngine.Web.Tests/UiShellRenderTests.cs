@@ -48,6 +48,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddLocalization();
         Services.AddLogging();
         Services.AddNativeUiServices();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IFirewallCommandRunner, MediaEngine.Web.Services.Configuration.NoFirewallCommandRunner>();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IHomeNetworkFirewall, MediaEngine.Web.Services.Configuration.HomeNetworkFirewall>();
         Services.AddSingleton<IConfiguration>(configuration);
         Services.AddSingleton<IEngineApiClient>(apiClient);
         Services.AddSingleton<IWebHostEnvironment>(new TestWebHostEnvironment());

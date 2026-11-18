@@ -25,7 +25,6 @@ public sealed class ShippedCoreConfigurationTests
         var core = LoadThroughLoader("docker/config/core.json");
 
         Assert.Equal("Local", core.Auth.Mode);
-        Assert.False(core.Auth.LocalhostBypass);
 
         using var document = JsonDocument.Parse(File.ReadAllText(RepoFile("docker/config/core.json")));
         Assert.False(document.RootElement.GetProperty("auth").TryGetProperty("oidc", out _));

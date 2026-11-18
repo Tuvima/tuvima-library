@@ -6258,7 +6258,7 @@
     <value>The Engine is still starting. Check again in a moment.</value>
   </data>
   <data name="SecuritySettingsPage_YourAccountHasNoPassword" xml:space="preserve">
-    <value>Your account has no password, so it only works at home. Add one any time below.</value>
+    <value>Your account has no password, so it only works on this computer. Add one any time below.</value>
   </data>
   <data name="SecuritySettingsPage_LoadingAccountSecurity" xml:space="preserve">
     <value>Loading account security</value>
@@ -14806,5 +14806,65 @@
   </data>
   <data name="CapacityPanel_CouldNotRun" xml:space="preserve">
     <value>The test could not run. Check that the Engine is running, then try again.</value>
+  </data>
+  <data name="ReachDevices_Title" xml:space="preserve">
+    <value>Reach from other devices</value>
+  </data>
+  <data name="ReachDevices_Subtitle" xml:space="preserve">
+    <value>Phones, TVs and tablets on your home network</value>
+  </data>
+  <data name="ReachDevices_AddPassword" xml:space="preserve">
+    <value>Add a password</value>
+  </data>
+  <data name="ReachDevices_AddPasswordHint" xml:space="preserve">
+    <value>Until your account has a password it works only on this computer, so other devices cannot sign in as you.</value>
+  </data>
+  <data name="ReachDevices_OutsideOff" xml:space="preserve">
+    <value>Outside access: Off</value>
+  </data>
+  <data name="ReachDevices_OutsideOn" xml:space="preserve">
+    <value>Outside access: On</value>
+  </data>
+  <data name="ReachDevices_RestartNote" xml:space="preserve">
+    <value>Takes effect the next time Library starts. Restart Library to apply it.</value>
+  </data>
+  <data name="ReachDevices_ContainerNote" xml:space="preserve">
+    <value>This install already shares its port with your network. Change who can reach it in your container port settings.</value>
+  </data>
+  <data name="ReachDevices_FirewallOpen" xml:space="preserve">
+    <value>Windows allows your home networks to reach Library.</value>
+  </data>
+  <data name="ReachDevices_FirewallBlocked" xml:space="preserve">
+    <value>Windows may block other devices until you allow Library on your home (Private) networks. Only home networks are opened; public Wi-Fi stays blocked.</value>
+  </data>
+  <data name="ReachDevices_FirewallAllow" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="ReachDevices_FirewallManual" xml:space="preserve">
+    <value>Or allow it yourself: open an administrator window and run this command. It opens the port on Private networks only.</value>
+  </data>
+  <data name="ReachDevices_FirewallElsewhere" xml:space="preserve">
+    <value>To change the Windows firewall, open Settings on the computer that runs Library.</value>
+  </data>
+  <data name="ReachDevices_FirewallRefused" xml:space="preserve">
+    <value>Windows did not allow it. You can try again, or use the command below.</value>
+  </data>
+  <data name="FirewallPrompt_Title" xml:space="preserve">
+    <value>Allow Library on your home network?</value>
+  </data>
+  <data name="FirewallPrompt_Body" xml:space="preserve">
+    <value>So your phone and TV can open it. Windows will ask once. Only home (Private) networks are opened. Public Wi-Fi stays blocked.</value>
+  </data>
+  <data name="FirewallPrompt_NotNow" xml:space="preserve">
+    <value>Not now</value>
+  </data>
+  <data name="FirewallPrompt_Allow" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="FirewallPrompt_Refused" xml:space="preserve">
+    <value>Windows did not allow it. Settings, then Network, lists exactly what to allow.</value>
+  </data>
+  <data name="FirewallPrompt_SaveFailed" xml:space="preserve">
+    <value>Library could not remember your answer. You can allow it later in Settings, then Network.</value>
   </data>
 </root>

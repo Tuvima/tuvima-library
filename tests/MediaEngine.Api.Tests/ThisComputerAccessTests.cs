@@ -89,25 +89,48 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Theory]
-    [InlineData(ClientIngress.ThisComputer, true)]
-    [InlineData(ClientIngress.HomeNetwork, false)]
-    [InlineData(ClientIngress.HomeNetwork, true)]
-    public async Task Setup_WithoutAPassword_IsAllowedFromThisComputerOrTheHomeNetworkEvenInAContainer(string ingress, bool inContainer)
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Setup_WithoutAPassword_IsAllowedOnlyFromThisComputerEvenInAContainer(bool inContainer)
     {
         _container.InContainer = inContainer;
         await using var app = BuildSetupApplication();
-        var token = await BeginSetupAsync(ingress);
+        var token = await BeginSetupAsync(ClientIngress.ThisComputer);
 
         var response = await SendAsync(app, "POST", "/setup/v1/administrator", new SetupAdministratorRequest
         {
             SignIn = SetupSignInModes.ThisComputer,
             Email = "owner@example.com",
             DisplayName = "Owner",
-            OriginalClientIngress = ingress,
+            OriginalClientIngress = ClientIngress.ThisComputer,
         }, setupToken: token);
 
         Assert.Equal(StatusCodes.Status200OK, response.Status);
         Assert.True(await _identity.IsAdministratorConfiguredAsync());
+    }
+
+    // Home network spec D8: the Dashboard listens on the home network, so a phone or laptop there must never be able to
+    // start Library as an administrator without a password.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Setup_WithoutAPassword_IsRefusedFromTheHomeNetworkEvenInAContainer(bool inContainer)
+    {
+        _container.InContainer = inContainer;
+        await using var app = BuildSetupApplication();
+        var token = await BeginSetupAsync(ClientIngress.HomeNetwork);
+
+        var response = await SendAsync(app, "POST", "/setup/v1/administrator", new SetupAdministratorRequest
+        {
+            SignIn = SetupSignInModes.ThisComputer,
+            Email = "owner@example.com",
+            DisplayName = "Owner",
+            OriginalClientIngress = ClientIngress.HomeNetwork,
+        }, setupToken: token);
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.Status);
+        Assert.Equal(SetupAdministratorRefusalCodes.NotAvailableHere, response.Json.GetProperty("code").GetString());
+        Assert.False(await _identity.IsAdministratorConfiguredAsync());
     }
 
     [Fact]
@@ -287,7 +310,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Fact]
-    public async Task Setup_WithoutAPassword_IsAllowedWhenSetupBeganOnTheHomeNetwork()
+    public async Task Setup_WithoutAPassword_IsRefusedWhenSetupBeganOnTheHomeNetworkWhateverTheRequestSays()
     {
         var begun = await _setupSessions.BeginAsync(ClientIngress.HomeNetwork, CancellationToken.None);
         var token = Assert.IsType<SetupStartResponse>(begun.Started).SetupSessionToken;
@@ -301,8 +324,51 @@ public sealed class ThisComputerAccessTests : IDisposable
             OriginalClientIngress = ClientIngress.ThisComputer,
         }, setupToken: token);
 
-        Assert.Equal(StatusCodes.Status200OK, response.Status);
-        Assert.True(await _identity.IsAdministratorConfiguredAsync());
+        Assert.Equal(StatusCodes.Status409Conflict, response.Status);
+        Assert.False(await _identity.IsAdministratorConfiguredAsync());
+    }
+
+    [Fact]
+    public async Task SignInAgain_IsRefusedFromTheHomeNetworkSoNobodyElseBecomesTheAdministratorWithoutAPassword()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var name = await SendAsync(app, "GET", "/auth/this-computer", ingress: ClientIngress.HomeNetwork);
+        var session = await SendAsync(app, "POST", "/auth/this-computer",
+            new ThisComputerSignInRequest { DeviceId = "phone", DeviceName = "Phone", Client = "Dashboard" },
+            ingress: ClientIngress.HomeNetwork);
+        var missingHeader = await SendAsync(app, "POST", "/auth/this-computer",
+            new ThisComputerSignInRequest { DeviceId = "phone", DeviceName = "Phone", Client = "Dashboard" },
+            ingress: null);
+
+        Assert.Equal(StatusCodes.Status404NotFound, name.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, session.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, missingHeader.Status);
+    }
+
+    [Fact]
+    public async Task ThisComputerSession_DoesNotContinueFromTheHomeNetworkOrAnyPlaceElse()
+    {
+        var issued = await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        var token = issued.PlaintextToken;
+
+        Assert.NotNull(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, ClientIngress.ThisComputer));
+        Assert.Null(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, ClientIngress.HomeNetwork));
+        Assert.Null(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, ClientIngress.Remote));
+        // No statement about where the caller is counts as outside for this kind of account.
+        Assert.Null(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, null));
+    }
+
+    [Fact]
+    public async Task SignInThisComputerAccount_IsRefusedUnlessTheCallerIsOnThisComputer()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+
+        Assert.Null(await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.HomeNetwork));
+        Assert.Null(await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.Remote));
+        Assert.Null(await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", string.Empty));
+        Assert.NotNull(await _identity.SignInThisComputerAccountAsync("laptop", "This computer", "Dashboard", ClientIngress.ThisComputer));
     }
 
     [Fact]
@@ -378,6 +444,26 @@ public sealed class ThisComputerAccessTests : IDisposable
             extraHeaders: new() { [ClientIngressValues.ForwardedHeader] = "true" });
 
         Assert.Equal(StatusCodes.Status404NotFound, response.Status);
+    }
+
+    [Fact]
+    public async Task SwitchingProfile_TakesThePlaceOnlyFromTheDashboard_NotFromAnyOtherCaller()
+    {
+        var owner = await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+        var body = new SwitchProfileRequest { ProfileId = owner.Profile.Id };
+
+        var fromThisComputer = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
+            ingress: ClientIngress.ThisComputer, sessionToken: owner.PlaintextToken);
+        var fromTheHomeNetwork = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
+            ingress: ClientIngress.HomeNetwork, sessionToken: owner.PlaintextToken);
+        // Without the Dashboard's service credential a caller's own claim about where it is counts for nothing.
+        var claimsToBeThisComputer = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
+            ingress: ClientIngress.ThisComputer, sessionToken: owner.PlaintextToken, dashboard: false);
+
+        Assert.Equal(StatusCodes.Status200OK, fromThisComputer.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, fromTheHomeNetwork.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, claimsToBeThisComputer.Status);
     }
 
     // ---- Harness ----

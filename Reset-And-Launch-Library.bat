@@ -3,6 +3,8 @@
 :: Wipes the database and caches (asks you to type YES first). Keeps provider keys, plugin
 :: settings, library paths, tools and OCR data. Never touches your media files.
 :: Double-click to run. Close this window (or press Ctrl+C) to stop the app.
+:: The Dashboard opens at http://localhost:5016 and also answers on your home network unless Settings > Network
+:: turns that off. The Engine stays on this computer only.
 cd /d "%~dp0"
 where pwsh >nul 2>&1 && (set "PS=pwsh") || (set "PS=powershell")
 %PS% -NoProfile -ExecutionPolicy Bypass -File "tools\Reset-TuvimaData.ps1"

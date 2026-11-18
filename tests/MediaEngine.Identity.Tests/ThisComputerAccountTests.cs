@@ -86,7 +86,34 @@ public sealed class ThisComputerAccountTests : IDisposable
         Assert.NotNull(again);
         Assert.Equal(ClientIngress.ThisComputer, again!.Session.IssuedIngress);
         Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.ThisComputer));
-        Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
+        // Home network spec D8: the Dashboard listens on the home network, so a phone there never continues this session.
+        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
+    }
+
+    [Theory]
+    [InlineData(ClientIngress.HomeNetwork)]
+    [InlineData(ClientIngress.Remote)]
+    [InlineData("")]
+    public async Task SignInAgain_IsNotPossibleFromAnywhereButThisComputer(string ingress)
+    {
+        await _service.BootstrapThisComputerAdministratorAsync(
+            "owner@example.com", "Owner", "device", "Browser", "Dashboard");
+
+        Assert.Null(await _service.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ingress));
+    }
+
+    [Fact]
+    public async Task SwitchingProfile_IsCheckedFromTheSamePlaceAsEveryOtherRequest()
+    {
+        var owner = await _service.BootstrapThisComputerAdministratorAsync(
+            "owner@example.com", "Owner", "device", "Browser", "Dashboard");
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.SwitchActiveProfileAsync(
+            owner.PlaintextToken, owner.Profile.Id, null, currentIngress: ClientIngress.HomeNetwork));
+        var switched = await _service.SwitchActiveProfileAsync(
+            owner.PlaintextToken, owner.Profile.Id, null, currentIngress: ClientIngress.ThisComputer);
+
+        Assert.Equal(owner.Profile.Id, switched.ActiveProfile.Id);
     }
 
     [Fact]

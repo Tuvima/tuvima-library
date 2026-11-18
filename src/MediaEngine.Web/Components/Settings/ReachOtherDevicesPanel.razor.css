@@ -1,0 +1,41 @@
+/* Settings > Network > Home network, Reach from other devices (review mock-ups spec D8). Dark only. */
+.reach-devices__pills {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.reach-devices__pill-link {
+    display: inline-flex;
+    text-decoration: none;
+}
+
+.reach-devices__pill-link:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: 2px;
+}
+
+.reach-devices__firewall {
+    display: grid;
+    gap: 10px;
+    justify-items: start;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.reach-devices__command {
+    display: block;
+    max-width: 100%;
+    padding: 10px 12px;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 8px;
+    background: var(--tl-bg-surface-elevated);
+    color: var(--tl-text-primary);
+    font-family: var(--tl-font-mono);
+    font-size: var(--tl-type-secondary-size);
+    user-select: all;
+}

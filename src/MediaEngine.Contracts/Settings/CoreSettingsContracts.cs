@@ -7,9 +7,6 @@ public sealed class AuthSettingsDto
     [JsonPropertyName("mode")]
     public string Mode { get; init; } = "Local";
 
-    [JsonPropertyName("localhost_bypass")]
-    public bool LocalhostBypass { get; init; }
-
     [JsonPropertyName("password_sign_in_enabled")] public bool PasswordSignInEnabled { get; init; }
     [JsonPropertyName("passkey_sign_in_enabled")] public bool PasskeySignInEnabled { get; init; }
     [JsonPropertyName("external_sign_in_enabled")] public bool ExternalSignInEnabled { get; init; }
@@ -85,7 +82,6 @@ public sealed class ExternalAuthProviderDto
 public sealed class UpdateAuthSettingsRequest
 {
     [JsonPropertyName("mode")] public string Mode { get; init; } = "Local";
-    [JsonPropertyName("localhost_bypass")] public bool LocalhostBypass { get; init; }
     [JsonPropertyName("password_sign_in_enabled")] public bool PasswordSignInEnabled { get; init; }
     [JsonPropertyName("passkey_sign_in_enabled")] public bool PasskeySignInEnabled { get; init; }
     [JsonPropertyName("external_sign_in_enabled")] public bool ExternalSignInEnabled { get; init; }

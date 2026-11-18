@@ -264,8 +264,8 @@ if ($Role -eq "Both") {
 
         Write-Host "Starting Tuvima Library from repo config."
         Write-Host "Config dir: $ConfigDir"
-        Write-Host "Engine:     http://localhost:61495"
-        Write-Host "Dashboard:  http://localhost:5016"
+        Write-Host "Engine:     http://localhost:61495 (this computer only)"
+        Write-Host "Dashboard:  http://localhost:5016 (also your home network unless Settings > Network turns it off)"
 
         Build-Project $EngineProject
         Build-Project $DashboardProject
@@ -291,7 +291,9 @@ if ($Role -eq "Both") {
             Wait-ForEngine -Process $engineProcess -OutputLog $engineOut -ErrorLog $engineErr
 
             $env:TUVIMA_ENGINE_URL = "http://localhost:61495"
-            $env:ASPNETCORE_URLS = "http://localhost:5016"
+            # The Dashboard decides where it listens from config/network.json (Settings > Network, "Reach from other
+            # devices": on the home network by default). Leave the address unset so that switch is honoured.
+            Remove-Item Env:ASPNETCORE_URLS -ErrorAction SilentlyContinue
             $dashboardProcess = Start-Process -FilePath "dotnet" `
                 -ArgumentList @("`"$DashboardDll`"") `
                 -PassThru `
@@ -304,8 +306,8 @@ if ($Role -eq "Both") {
 
             Write-Host ""
             Write-Host "Tuvima Library is ready."
-            Write-Host "Engine:    http://localhost:61495"
-            Write-Host "Dashboard: http://localhost:5016"
+            Write-Host "Engine:    http://localhost:61495 (this computer only)"
+            Write-Host "Dashboard: http://localhost:5016 (phones and TVs on your home network can open it too)"
             Write-Host "Logs:      $LogDir"
             Write-Host "Stop this command to stop both services."
             Write-Host ""
@@ -352,7 +354,7 @@ if ($Role -eq "Engine") {
 }
 
 $env:TUVIMA_ENGINE_URL = "http://localhost:61495"
-$env:ASPNETCORE_URLS = "http://localhost:5016"
+Remove-Item Env:ASPNETCORE_URLS -ErrorAction SilentlyContinue
 Build-Project $DashboardProject
 & dotnet $DashboardDll
 exit $LASTEXITCODE

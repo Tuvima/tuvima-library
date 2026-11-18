@@ -262,7 +262,6 @@ public sealed class CoreSettingsWireContractTests
         var authJson = JsonSerializer.Serialize(new AuthSettingsDto
         {
             Mode = "Required",
-            LocalhostBypass = false,
             ExternalProviders =
             [
                 new ExternalAuthProviderDto
@@ -286,7 +285,6 @@ public sealed class CoreSettingsWireContractTests
             Language = "de",
         }, JsonOptions);
 
-        Assert.Contains("\"localhost_bypass\":false", authJson, StringComparison.Ordinal);
         Assert.Contains("\"external_providers\":[", authJson, StringComparison.Ordinal);
         Assert.Contains("\"callback_path\":\"/signin-tuvima-company\"", authJson, StringComparison.Ordinal);
         Assert.Contains("\"has_write\":false", pathJson, StringComparison.Ordinal);

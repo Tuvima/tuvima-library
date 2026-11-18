@@ -44,7 +44,6 @@
   },
   "auth": {
     "mode": "Local",
-    "localhost_bypass": false,
     "password_sign_in_enabled": true,
     "passkey_sign_in_enabled": true,
     "external_sign_in_enabled": true,

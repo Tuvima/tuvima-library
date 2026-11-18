@@ -1,0 +1,140 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using Microsoft.AspNetCore.Components.Authorization
+@using MediaEngine.Web.Services.Configuration
+@using MediaEngine.Web.Services.Integration
+@inject IHomeNetworkFirewall Firewall
+@inject IEngineApiClient ApiClient
+@inject DashboardSessionAccessor Session
+@inject AuthenticationStateProvider AuthenticationState
+@inject IStringLocalizer<SharedStrings> L
+
+@* First run on Windows, home network spec D8: one question, asked once, for a server administrator sitting at the computer that
+   runs Library. "Allow" adds one inbound rule for the Dashboard port on Private (home) networks only; "Not now" leaves the
+   firewall alone and Settings > Network then explains exactly what to allow. Either answer is remembered, so it never asks again.
+   Drawn nothing anywhere else: other systems, other devices, other people, or once it has been answered. *@
+@if (_open)
+{
+    <AppDialogFrame Open="true" Title="@L["FirewallPrompt_Title"].Value" DialogOptions="FrameOptions" OnCancel="NotNowAsync">
+        <AppDialogShell Modal="false" Title="@L["FirewallPrompt_Title"].Value" Size="Small" OnClose="@(_busy ? default : EventCallback.Factory.Create(this, NotNowAsync))">
+            <ChildContent>
+                <div class="app-dialog-shell__pad app-dialog-shell__pad--flow" data-testid="firewall-prompt">
+                    <p>@L["FirewallPrompt_Body"]</p>
+                    @if (_failure is not null)
+                    {
+                        <AppAlert Tone="AppUiTone.Warning" role="alert" data-testid="firewall-prompt-failure">@_failure</AppAlert>
+                    }
+                </div>
+            </ChildContent>
+            <FooterContent>
+                <AppButton Label="@L["FirewallPrompt_NotNow"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy"
+                           OnClick="NotNowAsync" data-testid="firewall-not-now" />
+                @if (!_refused)
+                {
+                    <AppButton Label="@L["FirewallPrompt_Allow"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Loading="@_busy" Disabled="@_busy" OnClick="AllowAsync" data-testid="firewall-allow" />
+                }
+            </FooterContent>
+        </AppDialogShell>
+    </AppDialogFrame>
+}
+
+@code {
+    private static readonly AppDialogOptions FrameOptions = new() { Size = AppWindowSize.Small, NoHeader = true, BackdropClick = false, CloseOnEscapeKey = true };
+
+    /// <summary>Whether this is a container install; null asks the host. Set only by tests.</summary>
+    [Parameter] public bool? InContainer { get; set; }
+
+    private NetworkSettingsDto? _settings;
+    private bool _open;
+    private bool _busy;
+    private bool _refused;
+    private string? _failure;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        var caller = new HomeNetworkFirewallCaller(
+            Session.Authority?.EffectiveAdministrator == true,
+            user.FindFirst(DashboardPrincipalFactory.ClientIngressClaim)?.Value);
+        if (!caller.MayChangeFirewall || (InContainer ?? ContainerGateway.IsContainer()))
+        {
+            return;
+        }
+
+        _settings = await ApiClient.GetNetworkSettingsAsync();
+        if (_settings is null || !_settings.Local.ReachOtherDevices || _settings.Local.FirewallPromptAnswered)
+        {
+            return;
+        }
+
+        // Only where there is a Windows firewall and Library's rule is not already there.
+        if (await Firewall.GetStateAsync(_settings.Local.Port) != HomeNetworkFirewallState.RuleMissing)
+        {
+            return;
+        }
+
+        _open = true;
+        StateHasChanged();
+    }
+
+    private async Task NotNowAsync()
+    {
+        if (await RememberAnswerAsync())
+        {
+            _open = false;
+        }
+    }
+
+    private async Task AllowAsync()
+    {
+        _busy = true;
+        _failure = null;
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        var caller = new HomeNetworkFirewallCaller(
+            Session.Authority?.EffectiveAdministrator == true,
+            user.FindFirst(DashboardPrincipalFactory.ClientIngressClaim)?.Value);
+        var outcome = await Firewall.AllowAsync(_settings?.Local.Port ?? 5016, caller);
+        _busy = false;
+
+        // The question has been answered either way; a refusal at the Windows prompt is explained in Settings.
+        var remembered = await RememberAnswerAsync();
+        if (outcome == HomeNetworkFirewallOutcome.Allowed)
+        {
+            _open = remembered ? false : _open;
+            return;
+        }
+
+        _refused = true;
+        _failure = L["FirewallPrompt_Refused"].Value;
+    }
+
+    private async Task<bool> RememberAnswerAsync()
+    {
+        // Read the settings again just before saving, so a change made elsewhere since this page opened is not overwritten;
+        // only the answered flag is changed.
+        var latest = await ApiClient.GetNetworkSettingsAsync();
+        if (latest is null)
+        {
+            _failure = L["FirewallPrompt_SaveFailed"].Value;
+            return false;
+        }
+
+        latest.Local.FirewallPromptAnswered = true;
+        var saved = await ApiClient.UpdateNetworkSettingsAsync(latest);
+        if (saved is null)
+        {
+            latest.Local.FirewallPromptAnswered = false;
+            _failure = L["FirewallPrompt_SaveFailed"].Value;
+            return false;
+        }
+
+        _settings = saved;
+        return true;
+    }
+}

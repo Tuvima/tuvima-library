@@ -10559,7 +10559,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AddVaultFolderRequ
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AuthSettingsDto
   Mode: System.String | nullability=not-null | accessors=get,init
-  LocalhostBypass: System.Boolean | nullability=not-null | accessors=get,init
   PasswordSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   PasskeySignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExternalSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
@@ -10946,6 +10945,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LocalNetworkSettin
   BindMode: System.String | nullability=not-null | accessors=get,set
   InterfaceId: System.String | nullability=nullable | accessors=get,set
   DiscoveryEnabled: System.Boolean | nullability=not-null | accessors=get,set
+  ReachOtherDevices: System.Boolean | nullability=not-null | accessors=get,set
+  FirewallPromptAnswered: System.Boolean | nullability=not-null | accessors=get,set
   PreferredServerName: System.String | nullability=not-null | accessors=get,set
   Ipv6Enabled: System.Boolean | nullability=not-null | accessors=get,set
   AllowedHostnames: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -11682,7 +11683,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIShellSettingsCon
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UpdateAuthSettingsRequest
   Mode: System.String | nullability=not-null | accessors=get,init
-  LocalhostBypass: System.Boolean | nullability=not-null | accessors=get,init
   PasswordSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   PasskeySignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExternalSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init

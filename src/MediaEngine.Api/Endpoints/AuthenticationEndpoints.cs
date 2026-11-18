@@ -689,8 +689,15 @@ public static class AuthenticationEndpoints
         {
             try
             {
+                // Where the Dashboard says the visitor is, as the sign-in handler read it for this same request. Only the Dashboard
+                // (service credential) may say so; from any other caller the header is ignored, like for the this-computer sign-in.
+                var currentIngress = httpRequest.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
+                    && httpRequest.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
+                    && !string.IsNullOrWhiteSpace(ingressValues.ToString())
+                    ? ClientIngress.Parse(ingressValues.ToString())
+                    : null;
                 var result = await identity.SwitchActiveProfileAsync(
-                    httpRequest.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), request.ProfileId, request.Secret, ct).ConfigureAwait(false);
+                    httpRequest.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), request.ProfileId, request.Secret, ct, currentIngress).ConfigureAwait(false);
                 return Results.Ok(await ToValidationResponseAsync(result, projector, ct));
             }
             catch (Exception ex) when (ex is ProfilePinLockedException or ProfilePinRequiredException or KeyNotFoundException or UnauthorizedAccessException)
@@ -929,7 +936,7 @@ public static class AuthenticationEndpoints
     /// <summary>Only the Dashboard (service credential) may say where the browser is; a missing header counts as remote.</summary>
     private static bool ComesFromThisComputer(HttpRequest request) =>
         request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
-        && ClientIngress.IsLocal(request.Headers[ClientIngressValues.ValidateHeader].ToString())
+        && ClientIngress.IsThisComputer(request.Headers[ClientIngressValues.ValidateHeader].ToString())
         && !WasForwarded(request);
 
     /// <summary>

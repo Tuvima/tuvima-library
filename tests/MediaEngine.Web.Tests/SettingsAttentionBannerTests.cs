@@ -39,6 +39,8 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IFirewallCommandRunner, MediaEngine.Web.Services.Configuration.NoFirewallCommandRunner>();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IHomeNetworkFirewall, MediaEngine.Web.Services.Configuration.HomeNetworkFirewall>();
         _api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetToolRequirementsAsync), _ =>

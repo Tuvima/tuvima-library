@@ -65,9 +65,7 @@ public sealed class TuvimaAuthenticationHandler(
     UrlEncoder encoder,
     IFirstPartyIdentityService identity,
     ClientAuthorizationService clientAuthorization,
-    IApplicationRepository applications,
-    IConfigurationLoader configurationLoader,
-    IWebHostEnvironment environment)
+    IApplicationRepository applications)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -175,16 +173,7 @@ public sealed class TuvimaAuthenticationHandler(
             return Success(claims);
         }
 
-        var auth = configurationLoader.LoadCore().Auth;
-        if (environment.IsDevelopment() && auth.LocalhostBypass && IsLoopback(Context.Connection.RemoteIpAddress))
-        {
-            return Success([
-                new Claim(ClaimTypes.NameIdentifier, "development:localhost"),
-                new Claim(ClaimTypes.Name, "Development localhost"),
-                new Claim(TuvimaClaimTypes.PrincipalKind, Domain.Authorization.PrincipalKind.HostRecovery.ToString()),
-            ]);
-        }
-
+        // No credential, no identity: a request from this computer is treated exactly like one from the home network.
         return AuthenticateResult.NoResult();
     }
 
@@ -219,7 +208,4 @@ public sealed class TuvimaAuthenticationHandler(
             claims.Add(new Claim(TuvimaClaimTypes.ProfilePending, "true"));
         }
     }
-
-    private static bool IsLoopback(System.Net.IPAddress? address) =>
-        address is not null && System.Net.IPAddress.IsLoopback(address);
 }
