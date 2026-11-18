@@ -14711,4 +14711,40 @@
   <data name="EncodeSettingsTab_PausedCountsAsWatching" xml:space="preserve">
     <value>A paused player counts as watching for (minutes)</value>
   </data>
+  <data name="CapacityPanel_Title" xml:space="preserve">
+    <value>Computer capacity</value>
+  </data>
+  <data name="CapacityPanel_Tested" xml:space="preserve">
+    <value>Last tested {0}</value>
+  </data>
+  <data name="CapacityPanel_NotTested" xml:space="preserve">
+    <value>Not tested yet</value>
+  </data>
+  <data name="CapacityPanel_GaugeLabel" xml:space="preserve">
+    <value>Score {0} out of 100</value>
+  </data>
+  <data name="CapacityPanel_Streams" xml:space="preserve">
+    <value>Video streams at once</value>
+  </data>
+  <data name="CapacityPanel_FourK" xml:space="preserve">
+    <value>4K conversions at once</value>
+  </data>
+  <data name="CapacityPanel_Speed" xml:space="preserve">
+    <value>Faster than real time</value>
+  </data>
+  <data name="CapacityPanel_RunAgain" xml:space="preserve">
+    <value>Run again</value>
+  </data>
+  <data name="CapacityPanel_RunTest" xml:space="preserve">
+    <value>Run test</value>
+  </data>
+  <data name="CapacityPanel_Testing" xml:space="preserve">
+    <value>Testing…</value>
+  </data>
+  <data name="CapacityPanel_Running" xml:space="preserve">
+    <value>Testing this computer. This takes about a minute and uses the graphics card or processor heavily while it runs.</value>
+  </data>
+  <data name="CapacityPanel_CouldNotRun" xml:space="preserve">
+    <value>The test could not run. Check that the Engine is running, then try again.</value>
+  </data>
 </root>

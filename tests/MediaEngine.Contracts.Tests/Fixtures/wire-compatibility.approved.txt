@@ -1468,6 +1468,9 @@
 [method] GetPipelinesAsync
   response | shape=f8a7242276be1b5a3dd19aa39468d2d80877776dacd7d87f0276c411a1d2a64f
 
+[method] GetPlaybackCapacityAsync
+  response | shape=ca48c8b708537a4fb73674e67c57cf6991ad02befbb2aed79203d17ab0c76229
+
 [method] GetPlaybackDiagnosticsAsync
   response | shape=873ad8505fafdddc05575e456f045e2716eba8b43d85c77e65824f2b782800d5
 
@@ -2797,7 +2800,7 @@
 
 [method] RunSetupSystemCheckAsync
   input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-  response | shape=2d5099ea792c1544d4343b513fe1e299dd1a37e6e1e8b54063b50a6c7233ab9d
+  response | shape=ca48c8b708537a4fb73674e67c57cf6991ad02befbb2aed79203d17ab0c76229
 
 [method] RunToolInstallerAsync
   input toolId | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -3321,6 +3324,9 @@
 [method] TestPathAsync
   input path | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   response | shape=226e3fe99928c4cc12a133531d340201daa0d0275867cbd85e091d7d765b9b8e
+
+[method] TestPlaybackCapacityAsync
+  response | shape=ca48c8b708537a4fb73674e67c57cf6991ad02befbb2aed79203d17ab0c76229
 
 [method] TestPlaybackHardwareAsync
   response | shape=ea57c6e1431b69cd5db79ac66d30d18aab0011da25484494f4a4a0773d08989c
@@ -6121,16 +6127,6 @@ property=matched_by | nullability=nullable | accessors=get,init | required=no | 
 property=performers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ea843976640ae24697d7acc2e61132ec3ad3925f34a05cdf401e6ddcc1de7790
 property=studios | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ea843976640ae24697d7acc2e61132ec3ad3925f34a05cdf401e6ddcc1de7790
 property=tags | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ea843976640ae24697d7acc2e61132ec3ad3925f34a05cdf401e6ddcc1de7790
-
-[shape] 2d5099ea792c1544d4343b513fe1e299dd1a37e6e1e8b54063b50a6c7233ab9d
-direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=streamsSupported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=measured | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=ranOn | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=cardName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-property=secondsTaken | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
-property=testedAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=dd3bcf555a09c6f69c6724f3b4a4bc9c2115cc9b4bdfcffbb26f19147ebdc045
 
 [shape] 2d6b0bafac21a7873b897a6590e58203a501533ac755cde674159a57e7f560c0
 direction=read | kind=array | item=a8dfa11230c0a8db0265339e4dc5596ba76f7b33ba2ab8e3f273f207eb603fe9
@@ -14972,6 +14968,19 @@ property=provider | nullability=not-null | accessors=get,init | required=no | or
 property=providerItemId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=releaseId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=orderContext | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+
+[shape] ca48c8b708537a4fb73674e67c57cf6991ad02befbb2aed79203d17ab0c76229
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=streamsSupported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=measured | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=ranOn | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=cardName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=fourKStreamsSupported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=speedFactor | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=score | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=secondsTaken | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=testedAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=dd3bcf555a09c6f69c6724f3b4a4bc9c2115cc9b4bdfcffbb26f19147ebdc045
 
 [shape] ca897de8247972c5000c47ca586bb712c4a2edf1ca967d83a29e6c17eefe59d5
 direction=read | kind=array | item=406c3be9b7806f976de3f149faa7769e7e766712dce8d36c8b8a883989d06ffe

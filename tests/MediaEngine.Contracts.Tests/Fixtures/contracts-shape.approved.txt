@@ -8264,6 +8264,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackCapacityDt
   Measured: System.Boolean | nullability=not-null | accessors=get,init
   RanOn: System.String | nullability=not-null | accessors=get,init
   CardName: System.String | nullability=nullable | accessors=get,init
+  FourKStreamsSupported: System.Int32 | nullability=not-null | accessors=get,init
+  SpeedFactor: System.Double | nullability=not-null | accessors=get,init
+  Score: System.Int32 | nullability=not-null | accessors=get,init
   Reason: System.String | nullability=nullable | accessors=get,init
   SecondsTaken: System.Int32 | nullability=not-null | accessors=get,init
   TestedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
