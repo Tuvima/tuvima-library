@@ -109,7 +109,7 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
         Assert.Equal("English", atmos.Label);
         Assert.Equal("Dolby Atmos · 7.1", atmos.Detail);
         Assert.Equal("Dolby Digital · 5.1", rows.Single(row => row.Index == 3).Detail);
-        Assert.Equal("Stereo · 2.0", rows.Single(row => row.Index == 4).Detail);
+        Assert.Equal("AAC · Stereo · 2.0", rows.Single(row => row.Index == 4).Detail);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
         Assert.Equal(["English", "Spanish", "English", "English · Audio description", "Director commentary"], rows);
         Assert.Equal("commentary", cut.Find("[data-asv-audio='1']").GetAttribute("data-asv-purpose"));
         Assert.Equal("audiodescription", cut.Find("[data-asv-audio='2']").GetAttribute("data-asv-purpose"));
-        Assert.Contains("English · Stereo · 2.0", cut.Find("[data-asv-audio='1'] .asv__sub").TextContent);
+        Assert.Contains("English · AAC · Stereo · 2.0", cut.Find("[data-asv-audio='1'] .asv__sub").TextContent);
     }
 
     [Fact]
@@ -394,6 +394,26 @@ public sealed class AudioSubtitlesPanelTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll(".asv__tabs"));
         Assert.Equal("bar", cut.Find(".asa").GetAttribute("data-layout"));
+    }
+
+    [Fact]
+    public void ClosingThePopOut_ClosesThePlayerWhereThePersonIsAndPoppingOutLeavesThePlayerPage()
+    {
+        var host = LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/VideoPlaybackHost.razor"));
+
+        // The pop-out's exit (close or back-to-tab) ends playback without navigating, so no mini box or page change is left behind.
+        Assert.Contains("ClosePlayerAsync(navigate: false)", host, StringComparison.Ordinal);
+        // Popping out leaves the blank player page for the page the title was opened from.
+        Assert.Contains("!wasFloating && Nav.ToAbsoluteUri(Nav.Uri)", host, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheChoicesRows_AreStyledThroughDeepBecauseAppNativeButtonDrawsThem()
+    {
+        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Player/AudioSubtitlesChoicesView.razor.css"));
+
+        Assert.DoesNotContain("\n.asv__row", css, StringComparison.Ordinal);
+        Assert.Contains(".asv ::deep .asv__row.is-selected", css, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1712,9 +1712,6 @@
   <data name="Common_Kids" xml:space="preserve">
     <value>Kids</value>
   </data>
-  <data name="TopNavAccountMenu_AddAPassword" xml:space="preserve">
-    <value>Add a password</value>
-  </data>
   <data name="TopNavAccountMenu_WhoSWatching" xml:space="preserve">
     <value>Who's watching?</value>
   </data>

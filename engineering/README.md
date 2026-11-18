@@ -13,6 +13,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Doc | Status |
 |---|---|
+| [Spec: Review mock-ups of 2026-11-18 (Tools capacity, video Artwork, Activity list, group and Continue tiles, shared lookup dialog, home network)](specs/review-mockups-2026-11-18.md) | In progress (v1, Locked 2026-11-18) |
 | [Tuvima Library — product overview](product/overview.md) | Current |
 | [How Tuvima is built](architecture/overview.md) | Current |
 | [Tuvima design system](design/design-system.md) | Current |

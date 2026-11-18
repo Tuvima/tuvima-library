@@ -269,19 +269,17 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TopNavAccountMenu_ThisComputerOnlyShowsTheSecureCardAndNoAvatarDotOrMenuItem()
+    public void TopNavAccountMenu_NeverShowsAPasswordRowAvatarDotOrSecurityMenuItem()
     {
         var cut = Render<MediaEngine.Web.Components.Navigation.TopNavAccountMenu>(parameters => parameters
-            .Add(menu => menu.DisplayName, "Shy")
-            .Add(menu => menu.ShowSecureAccount, true));
+            .Add(menu => menu.DisplayName, "Shy"));
 
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
         cut.Find(".top-nav-account-menu__trigger").Click();
 
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
         Assert.DoesNotContain(cut.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == "/settings/security");
-        Assert.Contains(cut.FindAll(".top-nav-account-menu__secure-card a"), link =>
-            link.GetAttribute("href") == "/settings/security" && link.TextContent.Contains("Add a password"));
+        Assert.Empty(cut.FindAll(".top-nav-account-menu__secure-card"));
     }
 
     [Fact]

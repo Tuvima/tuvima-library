@@ -537,7 +537,7 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         Assert.Equal(generation + 1, _playback.PlaybackRequestVersion); Assert.Single(cut.FindAll("video"));
     }
     [Fact]
-    public async Task PipHidesRestoreUntilEitherNativeExitAndRejectsStaleCallbacks()
+    public async Task PipHidesRestoreAndClosingThePopOutEndsPlaybackAndRejectsStaleCallbacks()
     {
         var cut = Render<VideoPlaybackHost>();
         var identity = VideoPlaybackIdentity.Capture(_playback)!;
@@ -549,8 +549,9 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion - 1, false));
         Assert.Empty(cut.FindAll(".video-playback-restore"));
         await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion, false));
-        Assert.Single(cut.FindAll(".video-playback-restore"));
-        Assert.True(_playback.HasQueue);
+        // Closing the pop-out ends playback: no mini box is left behind.
+        cut.WaitForAssertion(() => Assert.False(_playback.HasQueue));
+        Assert.Empty(cut.FindAll(".video-playback-restore"));
     }
 
     [Fact]
@@ -620,6 +621,10 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
             if (identifier == "readVideoState")
             {
                 return ValueTask.FromResult(System.Text.Json.JsonSerializer.Deserialize<TValue>("{\"Position\":0,\"Duration\":180,\"Paused\":true,\"Muted\":false,\"Volume\":1,\"Speed\":1,\"TextTracks\":[],\"AudioTracks\":[]}")!);
+            }
+            if (identifier == "listenPlayback.releaseMedia" && typeof(TValue) == typeof(bool))
+            {
+                return ValueTask.FromResult((TValue)(object)true);
             }
             return ValueTask.FromResult(default(TValue)!);
         }

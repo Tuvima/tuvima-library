@@ -1,4 +1,5 @@
-/* Mockup screen 3: two equal columns in the 560 px panel (gap 12, padding 8 / 12 around them), each with an uppercase 12 px section label (.mh) over
+/* The rows and tabs are drawn by AppNativeButton, so their rules reach in with ::deep (without it a button keeps the browser's own font and no shading).
+   Mockup screen 3: two equal columns in the 560 px panel (gap 12, padding 8 / 12 around them), each with an uppercase 12 px section label (.mh) over
    44 px rows (.pr: 16 / 500 text, a 13 px helper line below, a check at the right, a soft purple background when chosen). Screen 15 swaps the columns
    for two tabs (.tabs2) over 52 px rows. */
 .asv__columns {
@@ -27,7 +28,7 @@
 
 /* Follow-ups D6: a row stays on one line. The label and the detail line shorten with an ellipsis (the full text is in the app tooltip,
    data-overflow-tooltip) and the check stays at the right; a row with a detail line is a little taller, but no line wraps. */
-.asv__row {
+.asv ::deep .asv__row {
     align-items: center;
     background: transparent;
     border: 0;
@@ -45,21 +46,21 @@
     width: 100%;
 }
 
-.asv__row:hover:not(:disabled) {
+.asv ::deep .asv__row:hover:not(:disabled) {
     background: var(--playback-state-hover);
 }
 
-.asv__row:active:not(:disabled) {
+.asv ::deep .asv__row:active:not(:disabled) {
     background: var(--playback-state-pressed);
 }
 
-.asv__row.is-selected,
-.asv__row.is-selected:hover {
+.asv ::deep .asv__row.is-selected,
+.asv ::deep .asv__row.is-selected:hover {
     background: var(--playback-state-selected);
     box-shadow: inset 3px 0 0 var(--playback-accent);
 }
 
-.asv__row.is-selected .asv__label {
+.asv ::deep .asv__row.is-selected .asv__label {
     font-weight: 600;
 }
 
@@ -70,16 +71,16 @@
     padding: 10px 10px 4px;
 }
 
-.asv__row:focus-visible {
+.asv ::deep .asv__row:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }
 
-.asv__row:disabled {
+.asv ::deep .asv__row:disabled {
     cursor: default;
 }
 
-.asv__row.is-unavailable:not(.is-selected) .asv__label {
+.asv ::deep .asv__row.is-unavailable:not(.is-selected) .asv__label {
     opacity: 0.6;
 }
 
@@ -130,7 +131,7 @@
     padding: 0 4px;
 }
 
-.asv__tab {
+.asv ::deep .asv__tab {
     background: transparent;
     border: 0;
     border-bottom: 2px solid transparent;
@@ -141,17 +142,17 @@
     padding: 8px 0;
 }
 
-.asv__tab.is-on {
+.asv ::deep .asv__tab.is-on {
     border-bottom-color: var(--playback-accent);
     color: var(--playback-text);
 }
 
-.asv__tab:focus-visible {
+.asv ::deep .asv__tab:focus-visible {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: 2px;
 }
 
-.asv[data-layout="tabs"] .asv__row {
+.asv[data-layout="tabs"] ::deep .asv__row {
     min-height: 52px;
 }
 
