@@ -157,6 +157,9 @@ public sealed class EditorCurrentMatchService(
                 Title = facts.Title ?? stored.Title ?? string.Empty,
                 Year = facts.Year,
                 Creator = facts.Creator,
+                Album = string.Equals(source.Kind, "Song", StringComparison.Ordinal)
+                    ? Value(own, MetadataFieldConstants.Album) ?? Value(root, MetadataFieldConstants.Album) ?? Value(root, MetadataFieldConstants.Title)
+                    : null,
                 LengthText = lengthText,
                 Cast = cast,
                 ImageUrl = imageUrl,
@@ -236,7 +239,12 @@ public sealed class EditorCurrentMatchService(
 
     private async Task<string?> ProviderPictureAsync(EditorMatchRule.ProviderSource source, string? picture, string? local, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(picture) || IsTvdbAddress(picture))
+        if (string.IsNullOrWhiteSpace(picture))
+        {
+            return local;
+        }
+
+        if (IsTvdbAddress(picture))
         {
             return null;
         }

@@ -5559,6 +5559,15 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-editor-field__reset{align-self:flex-start}
 .tl-editor-field__tools{display:inline-flex;align-items:center;gap:var(--tl-space-2);margin-left:auto}
 .tl-editor-field__lockstate{display:inline-flex;align-items:center;gap:var(--tl-space-1);color:var(--tl-accent-primary-hover);font-weight:500}
+/* The lock sits inside the box at its right edge (issue 1124): no words, the colour says the state. Locked is the accent purple, unlocked (open to typing) is amber. */
+.tl-editor-field__box{position:relative;min-width:0}
+.tl-editor-field__box[data-lock-box="true"] :is(.tl-input,input,select,textarea){padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
+.tl-editor-field__box[data-lock-box="true"] .tl-editor-field__chips{padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
+.tl-editor-field__box>.tl-editor-field__lockstate{position:absolute;top:0;right:var(--tl-space-1);z-index:1}
+.tl-editor-field__box>.tl-editor-field__lockstate .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
+.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"] .tl-editor-field__lock-toggle,.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"]{color:var(--tl-status-warning)}
+.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="locked"] .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
+.tl-editor-touch .tl-editor-field__box>.tl-editor-field__lockstate{top:0}
 .tl-editor-field--form-locked .tl-input,.tl-editor-field__chips{border-style:dashed}
 .tl-editor-field[data-form-row-field] .tl-input{font-weight:var(--tl-type-control-weight)}
 .tl-editor-field--form-locked textarea.tl-input{outline-style:dashed}

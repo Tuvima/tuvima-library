@@ -690,7 +690,7 @@ public sealed class EditorMatchSearchService(
             ImageUrl = candidate.PreviewUrl,
             ImageShape = EditorMatchImageShape.FromPreview(candidate.PreviewUrl),
             Description = candidate.Description,
-            SourceUrl = SourceUrl(candidate, isTv),
+            SourceUrl = SourceUrl(candidate, isTv, kindId),
             KindText = KindText(kindId),
             IsCollection = calculator.IsCollection(candidate.Title, extra, SeriesNumber(extra)),
             SeriesName = Extra(extra, MetadataFieldConstants.Series),
@@ -887,7 +887,7 @@ public sealed class EditorMatchSearchService(
         _ => "Video",
     };
 
-    private static string? SourceUrl(ItemCanonicalRetailCandidateDto candidate, bool isTv)
+    private static string? SourceUrl(ItemCanonicalRetailCandidateDto candidate, bool isTv, string? kindId = null)
     {
         var id = candidate.ProviderItemId;
         return candidate.ProviderName.ToLowerInvariant() switch
@@ -897,9 +897,21 @@ public sealed class EditorMatchSearchService(
             "openlibrary" => OutsideLinks.OpenLibraryWork(id),
             "apple_books" or "apple_api" => OutsideLinks.AppleBooks(id),
             "comicvine" => OutsideLinks.ComicVineIssue(id),
-            "musicbrainz" => OutsideLinks.MusicBrainz("release-group", id) ?? OutsideLinks.MusicBrainz("recording", id) ?? OutsideLinks.MusicBrainz("release", id),
+            "musicbrainz" => MusicBrainzUrl(candidate, kindId),
             "youtube" => string.IsNullOrWhiteSpace(id) ? null : OutsideLinks.WebPage($"https://www.youtube.com/watch?v={Uri.EscapeDataString(id)}"),
             _ => null,
         };
+    }
+
+    // A MusicBrainz id is a bare GUID that says nothing about what it names, and a page for the wrong kind does not open. The record's own typed
+    // ids come first (a recording for a song, a release group or release for an album); the plain item id is read as the kind the item is.
+    internal static string? MusicBrainzUrl(ItemCanonicalRetailCandidateDto candidate, string? kindId)
+    {
+        string? Typed(string key, string kind) => candidate.BridgeIds.TryGetValue(key, out var value) ? OutsideLinks.MusicBrainz(kind, value) : null;
+        var isSong = string.Equals(kindId, EditorKinds.Song, StringComparison.Ordinal);
+        var typed = isSong
+            ? Typed(BridgeIdKeys.MusicBrainzRecordingId, "recording") ?? Typed(BridgeIdKeys.MusicBrainzReleaseId, "release")
+            : Typed(BridgeIdKeys.MusicBrainzReleaseGroupId, "release-group") ?? Typed(BridgeIdKeys.MusicBrainzReleaseId, "release");
+        return typed ?? OutsideLinks.MusicBrainz(isSong ? "recording" : "release", candidate.ProviderItemId);
     }
 }

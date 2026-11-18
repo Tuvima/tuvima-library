@@ -96,6 +96,17 @@ public sealed class EditorHeaderRulesTests
     }
 
     [Fact]
+    public void ATrackRow_SaysTrackAndItsNumber_ThenItsLengthAsAClock()
+    {
+        var track = new EditorNavItemDto { Kind = "track", Code = "04", Number = 4, Title = "With This Knife", DurationSeconds = 217.02 };
+
+        Assert.Equal("Track 04 \u00b7 3:37", EditorNavText.Code(track));
+        Assert.Equal("Episode 04", EditorNavText.Code(new EditorNavItemDto { Kind = "episode", Code = "04", Title = "Pilot" }));
+        Assert.Equal("S02E03 \u00b7 42:05", EditorNavText.Code(new EditorNavItemDto { Kind = "episode", Code = "S02E03", Title = "Echoes", DurationSeconds = 2525 }));
+        Assert.Equal("This movie \u00b7 2:35:10", EditorNavText.Code(new EditorNavItemDto { Kind = "movie", Title = "Dune", DurationSeconds = 9310 }));
+    }
+
+    [Fact]
     public void AnItemWithNoCode_SaysWhatItIs()
     {
         Assert.Equal("This movie", EditorNavText.Code(new EditorNavItemDto { Kind = "movie", Title = "Dune: Part One" }));

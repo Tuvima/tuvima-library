@@ -82,6 +82,12 @@ else if (Flow?.Session.ActiveItem is { } active)
     var isUniverse = EditorUniverseRules.IsUniverseSubject(fields.SubjectKind);
     var links = fields.Loaded && !isUniverse ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
     var image = header?.Root.CoverUrl;
+    if (header is not null && AppliedCovers is not null && AppliedCovers.TryGetValue(header.Root.Id, out var appliedCover))
+    {
+        // A picture chosen in the Artwork tool applies at once, so the header shows it now, not the one it was opened with (issue 1125).
+        image = appliedCover;
+    }
+
     if (string.IsNullOrWhiteSpace(image))
     {
         image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
@@ -318,6 +324,9 @@ else if (Flow?.Session.ActiveItem is { } active)
 
     /// <summary>A Universe or an item with no header from the Engine has a family: the header draws its tile and its dropdowns.</summary>
     [Parameter] public bool HasFamily { get; set; }
+
+    /// <summary>Covers chosen in the Artwork tool while the editor is open, by owner: they win over the cover the header was read with.</summary>
+    [Parameter] public IReadOnlyDictionary<Guid, string>? AppliedCovers { get; set; }
 
     /// <summary>The fixed tile of a Universe, at the left of the header.</summary>
     [Parameter] public RenderFragment? Tile { get; set; }
