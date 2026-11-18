@@ -38,7 +38,7 @@ public static class DashboardAuthenticationEndpoints
             }
 
             var deviceId = EnsureDeviceCookie(context);
-            // Only asked on this computer or the home network; anywhere else the Engine never says the account exists.
+            // Only asked on the computer that runs Library; anywhere else the Engine never says the account exists.
             // After an explicit sign-out the person chooses to go back in, so they are not signed straight back in.
             // A prerendered or background copy of this page starts no session but still offers the Go back in button.
             string? thisComputerName = null;

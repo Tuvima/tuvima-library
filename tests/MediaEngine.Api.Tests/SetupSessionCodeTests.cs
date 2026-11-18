@@ -215,7 +215,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default, string? currentIngress = null) => throw new NotSupportedException();
         public Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }

@@ -120,6 +120,6 @@ public interface IFirstPartyIdentityService
     /// <summary>The subset of the given profiles that have a PIN (the picker shows a lock on them).</summary>
     Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default);
     Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default);
-    Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default);
+    Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default, string? currentIngress = null);
     Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default);
 }

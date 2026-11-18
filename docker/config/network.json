@@ -5,6 +5,8 @@
     "bind_mode": "automatic",
     "interface_id": null,
     "discovery_enabled": true,
+    "reach_other_devices": true,
+    "firewall_prompt_answered": false,
     "preferred_server_name": "tuvima",
     "ipv6_enabled": true,
     "allowed_hostnames": []

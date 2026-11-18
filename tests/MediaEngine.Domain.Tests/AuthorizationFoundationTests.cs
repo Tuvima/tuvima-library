@@ -219,6 +219,33 @@ public sealed class AuthorizationFoundationTests
         Assert.Equal(expected, ClientIngress.SessionMayContinue(issued, current));
     }
 
+    // Home network spec D8: the Dashboard listens on the home network, so only the computer that runs Library may
+    // use an account that has no password. Anything else, including a missing or unknown place, counts as the home network.
+    [Theory]
+    [InlineData("this_computer", true)]
+    [InlineData("THIS_COMPUTER", true)]
+    [InlineData("home_network", false)]
+    [InlineData("remote", false)]
+    [InlineData("", false)]
+    [InlineData("something-else", false)]
+    [InlineData(null, false)]
+    public void OnlyThisComputerIsThisComputer(string? place, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.IsThisComputer(place));
+    }
+
+    [Theory]
+    [InlineData("this_computer", "this_computer", true)]
+    [InlineData("home_network", "this_computer", true)]
+    [InlineData("this_computer", "home_network", false)]
+    [InlineData("home_network", "home_network", false)]
+    [InlineData("this_computer", "remote", false)]
+    [InlineData("this_computer", null, false)]
+    public void AnAccountWithoutAPasswordContinuesOnlyOnThisComputer(string? issued, string? current, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.SessionMayContinue(issued, current, accountIsThisComputerOnly: true));
+    }
+
     [Fact]
     public void EffectiveAdministratorRequiresACompleteEnabledHumanBinding()
     {

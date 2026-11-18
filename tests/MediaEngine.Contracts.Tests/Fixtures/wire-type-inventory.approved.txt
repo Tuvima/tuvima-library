@@ -12358,7 +12358,6 @@
 [contracts] MediaEngine.Contracts.Settings.AuthSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LocalhostBypass: System.Boolean | json=localhost_bypass | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasswordSignInEnabled: System.Boolean | json=password_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasskeySignInEnabled: System.Boolean | json=passkey_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalSignInEnabled: System.Boolean | json=external_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -12373,7 +12372,7 @@
   RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalProviders: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ExternalAuthProviderDto> | json=external_providers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasswordReset: MediaEngine.Contracts.Settings.PasswordResetDeliveryDto | json=password_reset | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"mode":"sample","localhost_bypass":true,"password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7,"public_address":"sample","canonical_origin_ready":true,"passkey_ready":true,"recovery_delivery_ready":true,"restart_required":true,"external_providers":[],"password_reset":null}
+  sample={"mode":"sample","password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7,"public_address":"sample","canonical_origin_ready":true,"passkey_ready":true,"recovery_delivery_ready":true,"restart_required":true,"external_providers":[],"password_reset":null}
 
 [contracts] MediaEngine.Contracts.Settings.BrowseServerFoldersRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -12818,10 +12817,12 @@
   BindMode: System.String | json=bind_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InterfaceId: System.String | json=interface_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DiscoveryEnabled: System.Boolean | json=discovery_enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReachOtherDevices: System.Boolean | json=reach_other_devices | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FirewallPromptAnswered: System.Boolean | json=firewall_prompt_answered | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PreferredServerName: System.String | json=preferred_server_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Ipv6Enabled: System.Boolean | json=ipv6_enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AllowedHostnames: System.Collections.Generic.List<System.String> | json=allowed_hostnames | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"port":7,"bind_mode":"sample","interface_id":"sample","discovery_enabled":true,"preferred_server_name":"sample","ipv6_enabled":true,"allowed_hostnames":[]}
+  sample={"port":7,"bind_mode":"sample","interface_id":"sample","discovery_enabled":true,"reach_other_devices":true,"firewall_prompt_answered":true,"preferred_server_name":"sample","ipv6_enabled":true,"allowed_hostnames":[]}
 
 [contracts] MediaEngine.Contracts.Settings.MediaTypeConfigurationDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13720,7 +13721,6 @@
 [contracts] MediaEngine.Contracts.Settings.UpdateAuthSettingsRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LocalhostBypass: System.Boolean | json=localhost_bypass | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasswordSignInEnabled: System.Boolean | json=password_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasskeySignInEnabled: System.Boolean | json=passkey_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalSignInEnabled: System.Boolean | json=external_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -13728,7 +13728,7 @@
   InvitationLifetimeHours: System.Int32 | json=invitation_lifetime_hours | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SessionLifetimeHours: System.Int32 | json=session_lifetime_hours | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MaximumActiveSessions: System.Int32 | json=maximum_active_sessions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"mode":"sample","localhost_bypass":true,"password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7}
+  sample={"mode":"sample","password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7}
 
 [contracts] MediaEngine.Contracts.Settings.UpdateExternalAuthProviderRequest
   kind=class | converter=default | number-handling=default | unmapped=default

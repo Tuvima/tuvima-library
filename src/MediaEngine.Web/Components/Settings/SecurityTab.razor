@@ -161,7 +161,6 @@
     private readonly CancellationTokenSource _lifetime = new();
     private AuthSettingsDto? _authSettings;
     private string _mode = "Local";
-    private bool _localhostBypass;
     private bool _passwordSignInEnabled;
     private bool _passkeySignInEnabled;
     private bool _externalSignInEnabled;
@@ -214,7 +213,6 @@
         _authSettings = value;
         if (value is null) return;
         _mode = value.Mode;
-        _localhostBypass = value.LocalhostBypass;
         _passwordSignInEnabled = value.PasswordSignInEnabled;
         _passkeySignInEnabled = value.PasskeySignInEnabled;
         _externalSignInEnabled = value.ExternalSignInEnabled;
@@ -257,7 +255,6 @@
             var saved = await Orchestrator.UpdateAuthSettingsAsync(new UpdateAuthSettingsRequest
             {
                 Mode = _mode,
-                LocalhostBypass = _localhostBypass,
                 PasswordSignInEnabled = _passwordSignInEnabled,
                 PasskeySignInEnabled = _passkeySignInEnabled,
                 ExternalSignInEnabled = _externalSignInEnabled,

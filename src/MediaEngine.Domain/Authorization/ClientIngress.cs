@@ -29,6 +29,12 @@ public static class ClientIngress
     public static bool IsLocal(string? value) => Rank(value) < 2;
 
     /// <summary>
+    /// True only for the computer that runs Tuvima. The no-password account and no-password setup work here and nowhere
+    /// else: a phone, TV or laptop on the home network always signs in with a password or passkey.
+    /// </summary>
+    public static bool IsThisComputer(string? value) => Parse(value) == ThisComputer;
+
+    /// <summary>
     /// A session that was made at home or on this computer is only usable from there; a session made from
     /// outside keeps working anywhere.
     /// </summary>
@@ -36,11 +42,11 @@ public static class ClientIngress
         !IsLocal(issuedIngress) || IsLocal(currentIngress);
 
     /// <summary>
-    /// Same rule for an account that has no password yet: its session may continue only from this computer or the
-    /// home network, never from outside, whatever the session was issued from.
+    /// Same rule for an account that has no password yet: its session may continue only on this computer, never from
+    /// the home network or outside, whatever the session was issued from.
     /// </summary>
     public static bool SessionMayContinue(string? issuedIngress, string? currentIngress, bool accountIsThisComputerOnly) =>
         accountIsThisComputerOnly
-            ? IsLocal(currentIngress)
+            ? IsThisComputer(currentIngress)
             : SessionMayContinue(issuedIngress, currentIngress);
 }

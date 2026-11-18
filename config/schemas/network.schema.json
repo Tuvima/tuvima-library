@@ -15,6 +15,8 @@
         "bind_mode": { "enum": ["automatic", "specific-interface"] },
         "interface_id": { "type": ["string", "null"] },
         "discovery_enabled": { "type": "boolean" },
+        "reach_other_devices": { "type": "boolean" },
+        "firewall_prompt_answered": { "type": "boolean" },
         "preferred_server_name": { "type": "string", "pattern": "^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$" },
         "ipv6_enabled": { "type": "boolean" },
         "allowed_hostnames": {

@@ -67,9 +67,9 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        // Record where the person really is (this computer or the home network); anything else is not allowed here.
+        // Signing in without a password works only on the computer that runs Tuvima; the home network must use a password or passkey.
         var ingress = clientIngress is null ? ClientIngress.ThisComputer : ClientIngress.Parse(clientIngress);
-        if (!ClientIngress.IsLocal(ingress))
+        if (!ClientIngress.IsThisComputer(ingress))
         {
             return null;
         }
@@ -331,7 +331,7 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        // An account that has no password yet works only on this computer, not even from the home network.
+        // An account that has no password yet works only on this computer, never from the home network.
         // Callers that do not say where the request came from count as outside for this kind of account.
         var effectiveIngress = currentIngress ?? (account.IsThisComputerOnly ? ClientIngress.Remote : null);
         if (effectiveIngress is not null && !ClientIngress.SessionMayContinue(session.IssuedIngress, effectiveIngress, account.IsThisComputerOnly))
@@ -847,9 +847,11 @@ public sealed class FirstPartyIdentityService(
 
     public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => SetProfileSecretAsync(profileId, ProfileCredentialKind.ProfilePin, pin, ct);
 
-    public async Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default)
+    public async Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default, string? currentIngress = null)
     {
-        var current = await ValidateSessionAsync(sessionToken, false, ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The session is no longer valid.");
+        // The caller says where the request came from, so a session of an account with no password (this computer only)
+        // is re-checked from the same place as every other request.
+        var current = await ValidateSessionAsync(sessionToken, false, ct, currentIngress).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The session is no longer valid.");
         if (!await accounts.HasProfileAccessAsync(current.Account.Id, targetProfileId, ct).ConfigureAwait(false))
         {
             throw new UnauthorizedAccessException("This account cannot use that profile.");

@@ -14,6 +14,8 @@ internal static class NetworkContractMapper
             BindMode = settings.Local.BindMode,
             InterfaceId = settings.Local.InterfaceId,
             DiscoveryEnabled = settings.Local.DiscoveryEnabled,
+            ReachOtherDevices = settings.Local.ReachOtherDevices,
+            FirewallPromptAnswered = settings.Local.FirewallPromptAnswered,
             PreferredServerName = settings.Local.PreferredServerName,
             Ipv6Enabled = settings.Local.Ipv6Enabled,
             AllowedHostnames = [.. settings.Local.AllowedHostnames],
@@ -47,6 +49,8 @@ internal static class NetworkContractMapper
             BindMode = Normalize(dto.Local.BindMode),
             InterfaceId = NormalizeOptional(dto.Local.InterfaceId),
             DiscoveryEnabled = dto.Local.DiscoveryEnabled,
+            ReachOtherDevices = dto.Local.ReachOtherDevices,
+            FirewallPromptAnswered = dto.Local.FirewallPromptAnswered,
             PreferredServerName = Normalize(dto.Local.PreferredServerName),
             Ipv6Enabled = dto.Local.Ipv6Enabled,
             AllowedHostnames = (dto.Local.AllowedHostnames ?? [])
