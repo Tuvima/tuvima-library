@@ -25,6 +25,9 @@ public sealed class DetailExtrasService(
     // query per file; 500 covers a long course (every lesson then gets its chip) and still bounds a page that lists thousands of files.
     private const int MaxAssetsToLocate = 500;
 
+    // A Videos series page has no file ids, so each listed video costs one lookup; a few dozen cover every folder a course sits in.
+    private const int MaxWorksToLocate = 60;
+
     private static readonly HashSet<DetailEntityType> TitleTypes =
     [
         DetailEntityType.Work,
@@ -76,6 +79,24 @@ public sealed class DetailExtrasService(
                 if (item.EpisodeContext is { } episode && episode.EpisodeAssetId != Guid.Empty)
                 {
                     assetIds.Add(episode.EpisodeAssetId);
+                }
+            }
+        }
+
+        // A Videos series (a folder of personal videos or lessons) lists its videos without episode details, so nothing above names a file.
+        // Each listed video is a Work of its own, so its first file says which folder to look in.
+        if (assetIds.Count == 0 && detail.SequencePlacement is { } videos)
+        {
+            var listedWorks = videos.OrderedItems.Concat(videos.Groups.SelectMany(group => group.Items))
+                .Where(item => item.EpisodeContext is null && Guid.TryParse(item.Id, out var workId) && workId != Guid.Empty)
+                .Select(item => Guid.Parse(item.Id))
+                .Distinct()
+                .Take(MaxWorksToLocate);
+            foreach (var workId in listedWorks)
+            {
+                if (await assets.FindFirstByWorkIdAsync(workId, ct).ConfigureAwait(false) is { } asset)
+                {
+                    assetIds.Add(asset.Id);
                 }
             }
         }

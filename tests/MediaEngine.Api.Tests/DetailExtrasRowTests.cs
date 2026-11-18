@@ -66,6 +66,39 @@ public sealed class DetailExtrasRowTests : IDisposable
         Assert.Single(page.Extras);
     }
 
+    // Issue 1135: a Videos series folder lists its videos with no episode details, so its page never looked for the PDF beside them.
+    [Fact]
+    public async Task AVideosSeriesPage_FindsItsExtras_FromTheVideosItLists()
+    {
+        var video = Path.Combine(_world.Show, "Test Drive (Part 1).mp4");
+        var workId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        Directory.CreateDirectory(_world.Show);
+        using (var connection = _world.Database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO works (id, media_type) VALUES (@work, 'Videos')", new { work = GuidSql.ToBlob(workId) });
+            var edition = GuidSql.ToBlob(Guid.NewGuid());
+            connection.Execute("INSERT INTO editions (id, work_id) VALUES (@edition, @work)", new { edition, work = GuidSql.ToBlob(workId) });
+            connection.Execute(
+                "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@asset, @edition, @hash, @path)",
+                new { asset = GuidSql.ToBlob(assetId), edition, hash = $"hash-{assetId:N}", path = video });
+        }
+
+        await _world.SeedDiskFileAsync("Handbook.pdf", "Handbook");
+        var page = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.TvShow,
+            SequencePlacement = new SequencePlacementViewModel
+            {
+                OrderedItems = [new SequenceItemViewModel { Id = workId.ToString("D"), Title = "Test Drive (Part 1)" }],
+            },
+        };
+
+        await _service.ApplyAsync(page, null, CancellationToken.None);
+
+        Assert.Single(page.Extras);
+    }
+
     [Fact]
     public void ATitleWithManyFilesAndNoGroups_FallsIntoOneGroupPerKindOfFile()
     {
