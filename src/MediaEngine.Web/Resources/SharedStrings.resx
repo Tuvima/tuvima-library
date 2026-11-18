@@ -1085,15 +1085,6 @@
   <data name="Common_Type" xml:space="preserve">
     <value>Type</value>
   </data>
-  <data name="DetailsTab_Occupation" xml:space="preserve">
-    <value>Occupation</value>
-  </data>
-  <data name="DetailsTab_Nationality" xml:space="preserve">
-    <value>Nationality</value>
-  </data>
-  <data name="DetailsTab_CanonicalIdentity" xml:space="preserve">
-    <value>Canonical identity</value>
-  </data>
   <data name="Common_Sources" xml:space="preserve">
     <value>Sources</value>
   </data>

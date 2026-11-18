@@ -302,7 +302,7 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task APerson_KeepsItsOwnFactsButNoTypeOrLibraryRows()
+    public async Task APerson_HasNoDetailsFactsBlockAndSourcesStayInTheLeftColumn()
     {
         await UseAsync("desktop");
         var model = new DetailPageViewModel
@@ -313,7 +313,11 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
 
         var cut = RenderTab(model);
 
-        Assert.Equal(["Occupation", "Nationality"], cut.FindAll(".tl-detail-dl dt").Select(label => label.TextContent));
+        Assert.Empty(cut.FindAll(".tl-detail-dl"));
+        Assert.DoesNotContain("Canonical identity", cut.Markup);
+        var css = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Details/DetailsTab.razor.css"));
+        Assert.Contains("grid-column: 1 / -1", css);
+        Assert.Contains("justify-self: start", css);
     }
 
     [Fact]
