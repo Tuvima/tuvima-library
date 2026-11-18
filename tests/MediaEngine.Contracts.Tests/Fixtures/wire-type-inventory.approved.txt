@@ -9664,10 +9664,13 @@
   Measured: System.Boolean | json=measured | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RanOn: System.String | json=ranOn | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CardName: System.String | json=cardName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FourKStreamsSupported: System.Int32 | json=fourKStreamsSupported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SpeedFactor: System.Double | json=speedFactor | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Score: System.Int32 | json=score | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SecondsTaken: System.Int32 | json=secondsTaken | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TestedAt: System.DateTimeOffset? | json=testedAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"streamsSupported":7,"measured":true,"ranOn":"sample","cardName":"sample","reason":"sample","secondsTaken":7,"testedAt":"2025-01-02T03:04:05+00:00"}
+  sample={"streamsSupported":7,"measured":true,"ranOn":"sample","cardName":"sample","fourKStreamsSupported":7,"speedFactor":7,"score":7,"reason":"sample","secondsTaken":7,"testedAt":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackChapterDto
   kind=class | converter=default | number-handling=default | unmapped=default
