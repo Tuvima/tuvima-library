@@ -1,6 +1,6 @@
 # Spec: Review mock-ups of 2026-11-18 (Tools capacity, video Artwork, Activity list, group tiles, Continue tiles, shared lookup dialog, home network)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-18 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · Mock review page (claude.ai artifact UyPxbfzDcmy5jAjb2wJf7x, "Mock Review Sign-off") · Issues #1101, #1104, #1107, #1108, #1118, #1112, #1113, #1114, #1123, #1131, #1129, #1111, #1137
+> **Status:** Built, awaiting Local checks · **Version:** 1 · **Last updated:** 2026-11-18 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · Mock review page (claude.ai artifact UyPxbfzDcmy5jAjb2wJf7x, "Mock Review Sign-off") · Issues #1101, #1104, #1107, #1108, #1118, #1112, #1113, #1114, #1123, #1131, #1129, #1111, #1137
 
 Locked by Shy on 2026-11-18: "these all look good" and "yes to all" (all 18 recommended answers, including the home network change 161A, 162A, 163A).
 
