@@ -126,7 +126,7 @@ public static class AudioSubtitlesChoices
         return string.Join(" · ", new[] { codec, channels }.Where(part => part is not null));
     }
 
-    // Only the surround families get a name; for a plain stereo or mono track the channel layout alone says what it is.
+    // The surround families get their product name; every other format shows its short code.
     private static string? CodecName(PlaybackTrackDto track)
     {
         if ((track.DisplayName ?? string.Empty).Contains("atmos", StringComparison.OrdinalIgnoreCase))
@@ -141,6 +141,8 @@ public static class AudioSubtitlesChoices
             "truehd" or "mlp" => "Dolby TrueHD",
             "dts" => "DTS",
             "dts-hd" or "dtshd" or "dts-hd ma" or "dts_hd" => "DTS-HD",
+            // Any other format is named by its short code ("AAC", "FLAC", "OPUS"), so a row always says what the track is.
+            { Length: > 0 } raw => raw.ToUpperInvariant(),
             _ => null,
         };
     }
