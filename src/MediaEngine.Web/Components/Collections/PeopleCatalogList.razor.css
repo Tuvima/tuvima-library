@@ -1,3 +1,74 @@
 .people-catalog-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px 24px;
     margin: 0 clamp(28px, 2.4vw, 48px);
+    padding: 0;
+    list-style: none;
+}
+
+.people-catalog-list__item {
+    min-width: 0;
+}
+
+/* The cast tile (details-page-bottom D3): a 72 px rounded square photo, 64 px under 1180 px, then the name and a second line. */
+.people-row {
+    --people-row-photo: 4.5rem;
+    display: grid;
+    grid-template-columns: var(--people-row-photo) minmax(0, 1fr);
+    align-items: center;
+    gap: 0.875rem;
+    min-width: 0;
+    color: var(--tl-text-primary);
+    text-decoration: none;
+    border-radius: var(--tl-radius-md);
+}
+
+@media (width < 1180px) {
+    .people-row { --people-row-photo: 4rem; }
+}
+
+.people-row__photo {
+    display: grid;
+    place-items: center;
+    width: var(--people-row-photo);
+    height: var(--people-row-photo);
+    overflow: hidden;
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+    color: var(--tl-text-secondary);
+}
+
+.people-row__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.people-row:is(:hover, :focus-visible) .people-row__photo {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 0;
+}
+
+.people-row__text {
+    display: grid;
+    min-width: 0;
+}
+
+.people-row__name,
+.people-row__detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.people-row__name {
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
+}
+
+.people-row__detail {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
 }

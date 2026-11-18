@@ -1,23 +1,21 @@
 @namespace MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
 
-@if (Shelf.Items.Count == 0)
+@if (Shelf.Items.Count > 0)
 {
-    <EmptyShelfState Title="@Shelf.Title" Message="@Shelf.Subtitle" />
-}
-else
-{
+    @* A lane with nothing in it is not drawn at all (issue 1119). *@
     <section class="@RootClass" data-media-hub-shelf="@Shelf.Key">
         <ShelfHeader Title="@Shelf.Title"
                      Subtitle="@Shelf.Subtitle"
                      Count="@Shelf.Items.Count"
-                     Route="@Shelf.SeeAllRoute"
+                     Route="@(_overflows ? Shelf.SeeAllRoute : null)"
                      ShelfKey="@Shelf.Key"
                      LanePlace="@SectionType.ToString().ToLowerInvariant()"
                      OnLaneHidden="OnLaneHidden" />
 
         <MediaTileShelf Shelf="@Shelf.ToMediaTileShelf()"
                         ShowHeader="false"
+                        OverflowChanged="OnOverflowChanged"
                         UseContinueWatchingOrListeningTiles="@UseContinueWatchingOrListeningTiles" />
     </section>
 }
@@ -27,6 +25,9 @@ else
     [Parameter, EditorRequired] public MediaHubSectionType SectionType { get; set; }
     /// <summary>Raised with the shelf key after a collection lane is hidden for this profile.</summary>
     [Parameter] public EventCallback<string> OnLaneHidden { get; set; }
+
+    private bool _overflows = true;
+    private void OnOverflowChanged(bool overflows) { if (_overflows == overflows) return; _overflows = overflows; StateHasChanged(); }
 
     private string RootClass => $"media-hub-shelf media-hub-shelf--{SectionType.ToString().ToLowerInvariant()} {(Shelf.IsContinueShelf ? "media-hub-shelf--continue" : null)}";
 

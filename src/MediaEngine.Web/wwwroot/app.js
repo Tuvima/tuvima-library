@@ -904,9 +904,17 @@ window.getSwimlaneScrollState = function (el) {
     }
 
     var tolerance = 4;
+    // "View all" is the last item of the row, so it must not count when judging whether the row holds more than fits (issue 1119).
+    var viewAll = el.querySelector && el.querySelector('[data-shelf-view-all]');
+    var viewAllExtra = 0;
+    if (viewAll) {
+        var gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+        viewAllExtra = viewAll.offsetWidth + gap;
+    }
     return {
         atStart: el.scrollLeft <= tolerance,
-        atEnd: el.scrollLeft + el.clientWidth >= el.scrollWidth - tolerance
+        atEnd: el.scrollLeft + el.clientWidth >= el.scrollWidth - tolerance,
+        overflows: el.scrollWidth - viewAllExtra > el.clientWidth + tolerance
     };
 };
 
@@ -1156,12 +1164,17 @@ window.updateMediaTileShelfStableHeight = function (el) {
 
 window.registerMediaShelfBoundaries = function (el, dotnet) {
     if (!el || el.__shelfBoundaries) return;
-    let previous = '', frame = 0;
+    let previous = '', previousOverflow = null, frame = 0;
     const update = () => {
         if (frame) cancelAnimationFrame(frame);
         frame = requestAnimationFrame(() => {
             frame = 0;
             const state = window.getSwimlaneScrollState(el);
+            if (state.overflows !== previousOverflow) {
+                previousOverflow = state.overflows;
+                dotnet.invokeMethodAsync('OnOverflowChanged', state.overflows)
+                    .catch(error => console.debug('Shelf overflow observer disconnected', error));
+            }
             const key = state.atStart + ':' + state.atEnd;
             if (key === previous) return;
             previous = key;
