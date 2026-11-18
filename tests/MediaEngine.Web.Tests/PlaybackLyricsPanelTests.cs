@@ -268,7 +268,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task FindAnother_ListsTheOffersWithOneTabStop_AndGoBackReturnsToTheLyrics()
+    public async Task FindAnother_OpensTheSharedWindowWithTheBestMatchSelected_AndCancelReturnsToTheLyrics()
     {
         var api = EngineApiClientStub.Create(stub =>
         {
@@ -288,16 +288,21 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
 
         await cut.ClickAsync("[data-lyrics-action='find-another']");
 
-        cut.WaitForAssertion(() => Assert.Equal("alternatives", View(cut)));
-        var offers = cut.FindAll("[data-lyrics-offer]");
+        cut.WaitForElement("[data-pick-results]");
+        Assert.Equal("Find lyrics", cut.Find("dialog h2").TextContent);
+        Assert.Equal("square", cut.Find("[data-pick-dialog]").GetAttribute("data-pick-cover"));
+        var offers = cut.FindAll("[data-pick-result]");
         Assert.Equal(3, offers.Count);
-        Assert.True(offers[0].HasAttribute("disabled"));
-        Assert.Equal(["-1", "0", "-1"], offers.Select(offer => offer.GetAttribute("tabindex")));
-        Assert.Contains("In use", offers[0].TextContent);
+        Assert.Equal("true", offers[0].GetAttribute("aria-checked"));
+        Assert.Single(cut.FindAll("[data-pick-best]"));
+        Assert.Contains("In use", offers[0].QuerySelector("[data-pick-note]")!.TextContent);
+        Assert.True(cut.Find("[data-pick-action='use']").HasAttribute("disabled"));
+        Assert.Equal("synced", View(cut));
 
-        await cut.ClickAsync(".playback-lyrics-alternatives__back");
+        await cut.ClickAsync("[data-pick-action='cancel']");
 
-        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-pick-dialog]")));
+        Assert.Equal("synced", View(cut));
     }
 
     // ---- Following, Resume following and selecting a line (A10) ----
@@ -503,19 +508,30 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task FindAnotherMovesFocusIntoTheOffers_AndGoBackReturnsItToTheMoreButton()
+    public async Task FindAnother_StartsWithTitleAndArtist_SearchAgainSendsTheEditedText_AndUseThisChoosesTheSelectedOffer()
     {
+        var queries = new List<string?>();
+        var chosen = new List<ChooseTextTrackAlternativeRequest>();
         var api = EngineApiClientStub.Create(stub =>
         {
+            stub.SetHandler(nameof(IEngineApiClient.ChooseTextTrackAlternativeAsync), args =>
+            {
+                chosen.Add((ChooseTextTrackAlternativeRequest)args![1]!);
+                return Task.FromResult<TextTrackChoiceResponse?>(new() { status = "Updated" });
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([Track(_track, "lrclib")]));
             stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), _ => Task.FromResult<string?>("[00:01.00]Words"));
             stub.SetHandler(nameof(IEngineApiClient.GetPlayerPluginActionsAsync), _ =>
                 Task.FromResult<IReadOnlyList<PlayerPluginActionDto>>([new() { kind = "find_lyrics", slot = "player_core" }]));
-            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ => Task.FromResult<TextTrackAlternativesResponse?>(new()
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), args =>
             {
-                status = "Found",
-                items = [new() { provider = "lrclib", provider_name = "LRCLIB", source_id = "2" }],
-            }));
+                queries.Add((string?)args![4]);
+                return Task.FromResult<TextTrackAlternativesResponse?>(new()
+                {
+                    status = "Found",
+                    items = [new() { provider = "lrclib", provider_name = "LRCLIB", source_id = "2" }, new() { provider = "lrclib", provider_name = "LRCLIB", source_id = "3" }],
+                });
+            });
         });
         var cut = await OpenAsync(api);
         cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
@@ -523,15 +539,22 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
 
         await cut.ClickAsync("[data-lyrics-action='find-another']");
 
-        cut.WaitForAssertion(() => Assert.Equal("alternatives", View(cut)));
-        cut.WaitForAssertion(() => Assert.Contains(Calls(_lyricsModule, "focusView"), call => call.Arguments is [_, "alternatives", _]));
-        Assert.Contains(Calls(_popoverModule, "update"), call => call.Arguments is [_, null, false, true]);
-        Assert.Empty(Calls(_lyricsModule, "focusMore"));
+        cut.WaitForElement("[data-pick-results]");
+        Assert.Equal("Stay a Little Longer The Midnight Coast", cut.Find("[data-pick-box]").GetAttribute("value"));
+        Assert.Equal([(string?)null], queries);
 
-        await cut.ClickAsync(".playback-lyrics-alternatives__back");
+        cut.Find("[data-pick-box]").Input("Stay a Little Longer Midnight");
+        await cut.ClickAsync("[data-pick-search]");
+        cut.WaitForAssertion(() => Assert.Equal(2, queries.Count));
+        Assert.Equal("Stay a Little Longer Midnight", queries[1]);
 
-        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
-        cut.WaitForAssertion(() => Assert.NotEmpty(Calls(_lyricsModule, "focusMore")));
+        cut.WaitForElement("[data-pick-results]");
+        await cut.ClickAsync("[data-pick-result='lrclib:3']");
+        await cut.ClickAsync("[data-pick-action='use']");
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-pick-dialog]")));
+        var request = Assert.Single(chosen);
+        Assert.Equal(("lyrics", "lrclib", "3"), (request.kind, request.provider, request.source_id));
     }
 
     // ---- A song change while the panel is open ----

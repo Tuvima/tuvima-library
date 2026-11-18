@@ -5,8 +5,8 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The one Audio & subtitles tool of a TV or movie player (unified player v2 D12, D13; mockup screens 3, 4 and 15). A wide panel (560 px) opened from the
-   speech-bubble-with-sound-waves button, with Audio and Subtitles side by side. The footer opens two nested views in the same panel: Subtitle appearance
-   (and, one level deeper, Custom appearance) and Find subtitles. On a phone it is a bottom sheet with Audio and Subtitles as tabs. *@
+   speech-bubble-with-sound-waves button, with Audio and Subtitles side by side. The footer opens Subtitle appearance as a nested view in the same panel
+   (and, one level deeper, Custom appearance), and Find subtitles as the shared pick-a-result window. On a phone it is a bottom sheet with Audio and Subtitles as tabs. *@
 <PlaybackPanel @ref="_panel" Title="@L["AudioSubtitles_Title"].Value" ToolId="@ToolId" Size="wide" Surface="@Surface" ItemKey="@ItemKey"
                TriggerClass="@TriggerClass" OpenChanged="OpenChanged" Footer="@MainFooter">
     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.AudioSubtitles" /></TriggerContent>
@@ -14,6 +14,12 @@
         <AudioSubtitlesChoicesView Audio="@Audio" Subtitles="@Subtitles" Position="@Position" OnSwitch="OnSwitch" Notice="@Notice" />
     </ChildContent>
 </PlaybackPanel>
+@if (_findOpen && Find is not null)
+{
+    @* Find subtitles… is the shared pick-a-result window (review mock-ups 2026-11-18 D7), drawn over the player; the panel closes as it opens. *@
+    <SubtitleFindView Presenter="@FindPresenter" Profile="@Look" NoSource="@NoSubtitleSource" IsAdministrator="@IsAdministrator" IsEpisode="@IsEpisode"
+                      SearchText="@FindSearchText" CoverUrl="@FindCoverUrl" OnClose="CloseFindAsync" />
+}
 
 @code {
     [Parameter] public string ToolId { get; set; } = "video-captions";
@@ -46,7 +52,12 @@
     [Parameter] public bool IsEpisode { get; set; }
     [Parameter] public SubtitleFindPresenter? Find { get; set; }
 
+    /// <summary>What Find subtitles' search box starts with ("Title Year") and the video's cover drawn small on each result.</summary>
+    [Parameter] public string FindSearchText { get; set; } = string.Empty;
+    [Parameter] public string? FindCoverUrl { get; set; }
+
     private PlaybackPanel? _panel;
+    private bool _findOpen;
 
     // Only reached through OpenFind, which does nothing without a presenter.
     private SubtitleFindPresenter FindPresenter => Find!;
@@ -56,8 +67,6 @@
     private RenderFragment AppearanceBody => @<SubtitleAppearanceView Look="@Look" StyleChanged="StyleChanged" OnCustom="OpenCustom" />;
 
     private RenderFragment CustomBody => @<SubtitleCustomAppearanceView Look="@Look" StyleChanged="StyleChanged" />;
-
-    private RenderFragment FindBody => @<SubtitleFindView Presenter="@FindPresenter" Profile="@Look" NoSource="@NoSubtitleSource" IsAdministrator="@IsAdministrator" IsEpisode="@IsEpisode" />;
 
     // Footer of the two appearance views (mockup screen 4): Reset to default at the left, the saving note at the right.
     private RenderFragment AppearanceFooter =>
@@ -79,14 +88,23 @@
         return Task.CompletedTask;
     }
 
-    private Task OpenFind()
+    private async Task OpenFind()
     {
         if (Find is null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        _panel?.Navigator.Push(L["AudioSubtitles_FindTitle"].Value, FindBody);
+        if (_panel is not null)
+        {
+            await _panel.CloseAsync();
+        }
+        _findOpen = true;
+    }
+
+    private Task CloseFindAsync()
+    {
+        _findOpen = false;
         return Task.CompletedTask;
     }
 
