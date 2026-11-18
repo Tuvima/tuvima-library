@@ -201,11 +201,32 @@ public sealed class MediaTileViewModel
                     or MediaTilePresentation.Artist)));
 
     /// <summary>The first four member covers of a group, in order: the pictures of the quadrant tile. Blank addresses are skipped.</summary>
-    public IReadOnlyList<string> GroupCovers => ArtworkStackItems
+    public IReadOnlyList<string> GroupCovers => GroupCoverItems
         .Select(item => item.ImageUrl)
-        .Where(url => !string.IsNullOrWhiteSpace(url))
+        .ToList();
+
+    /// <summary>The same first four member covers with their shapes and media kinds, so the tile keeps each cover's natural shape (review mock-ups D4, D5).</summary>
+    public IReadOnlyList<ArtworkStackItem> GroupCoverItems => ArtworkStackItems
+        .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
         .Take(4)
         .ToList();
+
+    /// <summary>
+    /// True when the covers shown are of more than one media kind (a book beside an audiobook, a movie beside a book): the group is a
+    /// Collection, not a Series (review mock-ups D5). Blank kinds are ignored; "Book" and "Books" are one kind.
+    /// </summary>
+    public bool HoldsMixedMedia => GroupCoverItems
+        .Select(item => NormaliseMediaKind(item.MediaType))
+        .Where(kind => kind.Length > 0)
+        .Distinct(StringComparer.Ordinal)
+        .Skip(1)
+        .Any();
+
+    private static string NormaliseMediaKind(string? mediaType)
+    {
+        var kind = (mediaType ?? string.Empty).Trim().ToLowerInvariant();
+        return kind.Length > 3 && kind.EndsWith('s') ? kind[..^1] : kind;
+    }
 
     /// <summary>A person with works (artist, director, author) draws as the quadrant tile with the person's square photo at the bottom left.</summary>
     public bool RenderAsPersonQuadrants =>
