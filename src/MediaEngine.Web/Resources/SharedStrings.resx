@@ -10496,18 +10496,6 @@
   <data name="SubtitleAppearance_Saved" xml:space="preserve">
     <value>Changes saved automatically</value>
   </data>
-  <data name="SubtitleFind_ResultsFrom" xml:space="preserve">
-    <value>{0} results from {1}</value>
-  </data>
-  <data name="SubtitleFind_ResultFrom" xml:space="preserve">
-    <value>1 result from {0}</value>
-  </data>
-  <data name="SubtitleFind_ResultsPlain" xml:space="preserve">
-    <value>{0} results</value>
-  </data>
-  <data name="SubtitleFind_ResultPlain" xml:space="preserve">
-    <value>1 result</value>
-  </data>
   <data name="SubtitleFind_SearchingSource" xml:space="preserve">
     <value>Searching {0}…</value>
   </data>
@@ -10531,9 +10519,6 @@
   </data>
   <data name="SubtitleFind_DifferentRelease" xml:space="preserve">
     <value>Different release</value>
-  </data>
-  <data name="SubtitleFind_UseThis" xml:space="preserve">
-    <value>Use this</value>
   </data>
   <data name="SubtitleFind_ThisOneIsWrong" xml:space="preserve">
     <value>This one is wrong</value>
@@ -14704,5 +14689,20 @@
   </data>
   <data name="EncodeSettingsTab_PausedCountsAsWatching" xml:space="preserve">
     <value>A paused player counts as watching for (minutes)</value>
+  </data>
+  <data name="PickResult_SearchBox" xml:space="preserve">
+    <value>Search for</value>
+  </data>
+  <data name="PickResult_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="PickResult_Searching" xml:space="preserve">
+    <value>Searching…</value>
+  </data>
+  <data name="PickResult_BestMatch" xml:space="preserve">
+    <value>Best match</value>
+  </data>
+  <data name="PickResult_UseThis" xml:space="preserve">
+    <value>Use this</value>
   </data>
 </root>

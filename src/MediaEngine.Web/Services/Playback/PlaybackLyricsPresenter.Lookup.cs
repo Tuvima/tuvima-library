@@ -169,7 +169,11 @@ public sealed partial class PlaybackLyricsPresenter
 
     public bool Offers(string kind) => PluginActions.Any(action => string.Equals(action.kind, kind, StringComparison.OrdinalIgnoreCase));
 
-    public async Task OpenAlternativesAsync()
+    /// <summary>
+    /// Opens the "pick a result" window and asks the sources. <paramref name="query"/> is the text the person typed in its search box when it differs
+    /// from what the box started with (the Engine's own lookup is used when it is null); searching again from the open window calls this too.
+    /// </summary>
+    public async Task OpenAlternativesAsync(string? query = null)
     {
         if (_identity is not { } identity || AlternativesLoading)
         {
@@ -177,7 +181,7 @@ public sealed partial class PlaybackLyricsPresenter
         }
         var generation = _lookupGeneration;
         AlternativesOpen = true; AlternativesLoading = true; Alternatives = null; Status = null; Changed?.Invoke();
-        var result = await api.GetTextTrackAlternativesAsync(identity.AssetId, LyricsKind, _reads.Token);
+        var result = await api.GetTextTrackAlternativesAsync(identity.AssetId, LyricsKind, _reads.Token, null, query);
         if (_disposed || generation != _lookupGeneration)
         {
             return;

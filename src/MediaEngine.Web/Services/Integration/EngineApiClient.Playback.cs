@@ -559,14 +559,15 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null)
+    public async Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null, string? query = null)
     {
         try
         {
-            var query = $"kind={Uri.EscapeDataString(kind)}"
-                + (string.IsNullOrWhiteSpace(language) ? string.Empty : $"&language={Uri.EscapeDataString(language)}");
+            var queryString = $"kind={Uri.EscapeDataString(kind)}"
+                + (string.IsNullOrWhiteSpace(language) ? string.Empty : $"&language={Uri.EscapeDataString(language)}")
+                + (string.IsNullOrWhiteSpace(query) ? string.Empty : $"&query={Uri.EscapeDataString(query.Trim())}");
             return await _http.GetFromJsonAsync<TextTrackAlternativesResponse>(
-                $"/stream/{assetId:D}/text-tracks/alternatives?{query}", ct);
+                $"/stream/{assetId:D}/text-tracks/alternatives?{queryString}", ct);
         }
         catch (OperationCanceledException) { return null; }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)

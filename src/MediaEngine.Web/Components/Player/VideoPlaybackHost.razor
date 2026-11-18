@@ -141,7 +141,8 @@
                                          TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)"
                                          Audio="@AudioChoices" Subtitles="@SubtitleChoices" Position="@Playback.CurrentTimeSeconds" OnSwitch="HandleTrackSwitchAsync" Notice="@_trackNotice"
                                          Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync"
-                                         NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" IsEpisode="@IsTvEpisode" Find="@Find" />
+                                         NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" IsEpisode="@IsTvEpisode" Find="@Find"
+                                         FindSearchText="@FindSearchText" FindCoverUrl="@Playback.CurrentItem?.CoverUrl" />
                             break;
                         case PlaybackControlKey.Settings:
                             @SettingsTool
@@ -280,6 +281,10 @@
         _presentationContext?.Episodes.Count ?? 0, UpcomingVideo.Count);
     private bool IsMovie => Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true;
     private bool IsTvEpisode => VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
+
+    // What Find subtitles' search box starts with (review mock-ups D7): the title and year ("Ferrari 2023"); an episode is searched by its show.
+    private string FindSearchText => FindDialogSearchText.ForVideo(
+        IsTvEpisode ? _presentationContext?.ShowTitle ?? Playback.CurrentItem?.Title : Playback.CurrentItem?.Title, Playback.CurrentItem?.Year);
     // The list is "Episodes" for a TV show and "Lessons" for a course or a folder of videos (unified player v2 D19).
     private string ContextTitle => EpisodesPanel.Title(L, IsTvEpisode);
     private string ChapterTickLabel(double seconds) => VideoChapters.Where(chapter => chapter.StartSeconds <= seconds).OrderByDescending(chapter => chapter.StartSeconds).FirstOrDefault() is { } chapter

@@ -1,0 +1,139 @@
+/* The shared "pick a result" window (subtitles and lyrics, review mock-ups D7). Dark surface, accent outline on the selected row, 44 px controls. */
+.app-pick-result {
+    display: grid;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    text-align: left;
+}
+
+.app-pick-result__search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.app-pick-result__list {
+    display: grid;
+    gap: var(--tl-space-2);
+    max-height: min(52vh, 26rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.app-pick-result__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--tl-space-3);
+    width: 100%;
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-root);
+}
+
+.app-pick-result__row:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 72%, var(--tl-border-subtle));
+}
+
+.app-pick-result__row:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.app-pick-result__row.is-selected {
+    border-color: var(--tl-accent-primary);
+    box-shadow: inset 0 0 0 1px var(--tl-accent-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 11%, var(--tl-bg-root));
+}
+
+.app-pick-result__row:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+/* The small cover: portrait for video, square for songs. */
+.app-pick-result__cover {
+    display: block;
+    width: 2.5rem;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
+}
+
+[data-pick-cover="square"] .app-pick-result__cover {
+    width: 3rem;
+    aspect-ratio: 1 / 1;
+}
+
+.app-pick-result__picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.app-pick-result__copy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.app-pick-result__title,
+.app-pick-result__sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-pick-result__sub {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+}
+
+.app-pick-result__pill {
+    justify-self: end;
+    padding: 0.125rem 0.625rem;
+    border-radius: var(--tl-radius-pill);
+    color: var(--tl-accent-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 16%, transparent);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.app-pick-result__pill--note {
+    color: var(--tl-text-secondary);
+    background: transparent;
+    border: 1px solid var(--tl-border-subtle);
+}
+
+.app-pick-result__status,
+.app-pick-result__problem {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-body-size);
+}
+
+.app-pick-result__problem {
+    color: var(--tl-text-primary);
+}
+
+/* Phone sheet: the pills drop under the text so the title keeps its room. */
+@media (max-width: 600px) {
+    .app-pick-result__row {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .app-pick-result__pill {
+        grid-column: 2;
+        justify-self: start;
+    }
+}
