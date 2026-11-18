@@ -18,7 +18,6 @@ public sealed partial class UiShellRenderTests
     private IRenderedComponent<TopNavAccountMenu> OpenProfileMenu(
         bool canManageProfiles,
         bool isKids = false,
-        bool secureAccount = false,
         params ProfileViewModel[] profiles)
     {
         var active = profiles.Length > 0 ? profiles[0] : Profile("Shy");
@@ -27,8 +26,7 @@ public sealed partial class UiShellRenderTests
             .Add(menu => menu.ActiveProfileId, active.Id)
             .Add(menu => menu.Profiles, profiles.Length > 0 ? profiles : new[] { active })
             .Add(menu => menu.CanManageProfiles, canManageProfiles)
-            .Add(menu => menu.IsKids, isKids)
-            .Add(menu => menu.ShowSecureAccount, secureAccount));
+            .Add(menu => menu.IsKids, isKids));
         cut.Find(".top-nav-account-menu__trigger").Click();
         return cut;
     }
@@ -105,16 +103,6 @@ public sealed partial class UiShellRenderTests
         Assert.All(rows, row => Assert.NotNull(row.QuerySelector(".profile-switcher__avatar svg, .profile-switcher__avatar img")));
         Assert.Equal("/engine-image/stream/avatar.jpg", rows[1].QuerySelector(".profile-switcher__avatar img")!.GetAttribute("src"));
         Assert.Contains("R", rows[0].QuerySelector(".profile-switcher__avatar svg text")!.TextContent, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ProfileMenu_KeepsTheSecureAccountCardAboveTheName()
-    {
-        var cut = OpenProfileMenu(canManageProfiles: false, secureAccount: true);
-
-        var panel = cut.Find(".top-nav-account-menu__panel");
-        Assert.True(panel.Children[0].ClassList.Contains("top-nav-account-menu__secure-card"));
-        Assert.True(panel.Children[1].ClassList.Contains("top-nav-account-menu__header"));
     }
 
     [Fact]

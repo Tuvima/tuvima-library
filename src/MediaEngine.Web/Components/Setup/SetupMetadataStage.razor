@@ -138,7 +138,7 @@
         };
         var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new AppDialogOptions
         {
-            MaxWidth = AppMaxWidth.Large,
+            MaxWidth = AppMaxWidth.Small, // one size for every provider pop-up, the same short card as Settings (issue 1102)
             FullWidth = true,
             CloseButton = false,
             CloseOnEscapeKey = true,

@@ -267,7 +267,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
 
         var cut = Render<SystemActivityIndicator>();
 
-        Assert.Equal("Found 5 files · 1 of 5 done · Less than a minute left • Enriching Dune (25%)", Tooltip(cut));
+        Assert.Equal("2 things running: Found 5 files · 1 of 5 done · Less than a minute left • Enriching Dune (25%)", Tooltip(cut));
         Assert.Equal("2", cut.Find(".system-activity-indicator__count").TextContent);
     }
 
