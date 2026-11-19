@@ -166,8 +166,13 @@ public sealed class CastReceiverRelayTests
         outside.Headers.Add("X-Forwarded-For", "203.0.113.9");
         using var outsideResponse = await dashboard.Client.SendAsync(outside);
 
+        using var oldLink = new HttpRequestMessage(HttpMethod.Get, $"/cast/v1/{Grant}/media");
+        oldLink.Headers.Add("X-Forwarded-For", "203.0.113.9");
+        using var oldLinkResponse = await dashboard.Client.SendAsync(oldLink);
+
         Assert.Equal(HttpStatusCode.OK, home.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, outsideResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, oldLinkResponse.StatusCode);
         Assert.Equal(1, hits);
     }
 

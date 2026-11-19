@@ -58,8 +58,8 @@ public static class CastReceiverRelayEndpoints
         }
 
         // Every cast link is for a receiver on the home network; from anywhere else it is refused (issue 1211).
-        if (grant.StartsWith("lan-", StringComparison.Ordinal)
-            && !MediaEngine.Domain.Authorization.ClientIngress.IsOnLocalNetwork(context.ClientIngress()))
+        // This covers every link whatever its prefix, so an older link without one is refused from outside too.
+        if (!MediaEngine.Domain.Authorization.ClientIngress.IsOnLocalNetwork(context.ClientIngress()))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
