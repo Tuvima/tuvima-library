@@ -8,7 +8,7 @@ namespace MediaEngine.Web.Endpoints;
 /// The Dashboard side of casting. A cast receiver (a Chromecast or Google TV) cannot send a bearer token, so the Engine
 /// serves it one title at a time from a secret link, <c>/cast/v1/{grant}/...</c>, that carries its own signed grant. The Engine
 /// is not what a TV is pointed at; this relay is how a receiver reaches it, through the Dashboard's own address. The link is a short-lived secret for one title,
-/// bound to the live session or device, and it works wherever the Dashboard is reachable: the relay has no location check (ADR 0009).
+/// bound to the live session or device, and it works only from the home network: the relay refuses a receiver anywhere else (issue 1211; ADR 0009 otherwise keeps the server open).
 /// <para>
 /// It forwards only the range headers (never <c>Authorization</c> or a cookie, so a stray credential cannot ride along), and copies back
 /// only the media and CORS headers the receiver needs. The grant itself is checked by the Engine on every request.
@@ -52,6 +52,14 @@ public static class CastReceiverRelayEndpoints
         if (!GrantShape.IsMatch(grant)
             || string.IsNullOrEmpty(rest)
             || !NativeApiForwardPolicy.IsSafeSubPath(rest))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        // Every cast link is for a receiver on the home network; from anywhere else it is refused (issue 1211).
+        if (grant.StartsWith("lan-", StringComparison.Ordinal)
+            && !MediaEngine.Domain.Authorization.ClientIngress.IsOnLocalNetwork(context.ClientIngress()))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;

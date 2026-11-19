@@ -54,6 +54,17 @@ public sealed class CastAccessGrantServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task EveryGrantIsHomeOnly_AndRemovingThePrefixInvalidatesIt()
+    {
+        var paired = await PairAsync();
+        var grant = await CreateService().CreateAsync(Guid.NewGuid(), null, paired.Authority, paired.Token.Id, PlaybackRead, 5400);
+
+        Assert.StartsWith(CastAccessGrantService.HomeOnlyPrefix, grant.Value, StringComparison.Ordinal);
+        Assert.NotNull(await CreateService().ValidateAsync(grant.Value));
+        Assert.Null(await CreateService().ValidateAsync(grant.Value[CastAccessGrantService.HomeOnlyPrefix.Length..]));
+    }
+
+    [Fact]
     public async Task GrantFromADifferentProtectorIsRefused()
     {
         var paired = await PairAsync();
