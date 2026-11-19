@@ -16,6 +16,7 @@
                   HasPrevious="@HasPrevious"
                   HasNext="@HasNext"
                   Galleries="@ManualGalleries"
+                  ImageAspect="@ImageAspect"
                   OnClose="@OnClose"
                   OnPrevious="@OnPrevious"
                   OnNext="@OnNext"
@@ -28,7 +29,20 @@
                   OnCreateGallery="@OnCreateGallery"
                   InfoInitiallyOpen="@(Workspace.ViewerInfoOpen || Item.FileMissing)"
                   InfoOpenChanged="InfoOpenChangedAsync">
+    <ImageOverlay>
+        @if (_showFaces)
+        {
+            @foreach (var face in _faces)
+            {
+                <MediaViewerFaceBox @key="face.FaceId" X="face.X" Y="face.Y" Width="face.Width" Height="face.Height" Name="@face.PersonName" />
+            }
+        }
+    </ImageOverlay>
     <ContextActions>
+        @if (_faces.Count > 0)
+        {
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.People" Tooltip="@(_showFaces ? ViewPeopleText.HideFaces : ViewPeopleText.ShowFaces)" AriaLabel="@(_showFaces ? ViewPeopleText.HideFaces : ViewPeopleText.ShowFaces)" OnClick="@(() => _showFaces = !_showFaces)" />
+        }
         @if (CanEditHere)
         {
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["ViewEdit_Edit"].Value" AriaLabel="@L["ViewEdit_Edit"].Value" OnClick="EditAsync" />
@@ -74,13 +88,13 @@
                 @if (HasLocation)
                 {
                     <div class="view-viewer-info__map"><ViewMap Latitude="@Item.Latitude" Longitude="@Item.Longitude" Interactive="false" ShowNavigation="false" AriaLabel="@($"Map showing {LocationLabel}")" /></div>
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Href="/view/places" Label="@MediaEngine.Web.Components.View.ViewPeopleText.OpenInPlaces" />
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Href="@PlacesHref" Label="@MediaEngine.Web.Components.View.ViewPeopleText.OpenInPlaces" />
                 }
             </section>
         }
         @if (Workspace.ScopeKind == ViewScopeKind.Mine && Item.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
         {
-            <MediaEngine.Web.Components.View.ViewViewerPeople ItemId="@Item.Id" CanName="@CanEditHere" />
+            <MediaEngine.Web.Components.View.ViewViewerPeople Faces="@_faces" CanName="@CanEditHere" OnNamed="LoadFacesAsync" />
         }
         @if (Item.People is { Count: > 0 })
         {
@@ -128,6 +142,49 @@
     /// <summary>The actions this item offers, from the one shared rule (ViewActionPolicy). Left unset, the viewer works it out from CanManage.</summary>
     [Parameter] public ViewActions? Actions { get; set; }
     private bool _showMotion;
+    private IReadOnlyList<ViewFaceBoxDto> _faces = [];
+    private bool _showFaces;
+    private string PlacesHref => Item.Latitude is { } lat && Item.Longitude is { } lon
+        ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"/view/places?lat={lat:0.#####}&lon={lon:0.#####}")
+        : "/view/places";
+    private Guid _facesFor;
+    private CancellationTokenSource? _facesCts;
+    // Face boxes are fractions of the picture, so the overlay needs the picture's shape.
+    private double? ImageAspect => Item.Width is > 0 && Item.Height is > 0 ? (double)Item.Width.Value / Item.Height.Value : null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_facesFor == Item.Id)
+        {
+            return;
+        }
+
+        _facesFor = Item.Id;
+        _faces = [];
+        _showFaces = false;
+        await LoadFacesAsync();
+    }
+
+    // Only the signed-in person's own faces ever come back, so other people's photos and the Vault show nothing.
+    private async Task LoadFacesAsync()
+    {
+        _facesCts?.Cancel();
+        if (Workspace.ScopeKind != ViewScopeKind.Mine || !Item.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _facesCts = new CancellationTokenSource();
+        var token = _facesCts.Token;
+        var itemId = Item.Id;
+        var result = await ApiClient.GetViewItemFacesAsync(itemId, token);
+        if (!token.IsCancellationRequested && itemId == Item.Id)
+        {
+            _faces = result?.Items ?? [];
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private string Title => string.IsNullOrWhiteSpace(Item.Title) ? Item.FileName : Item.Title;
     private DateTimeOffset Captured => Item.CapturedAt ?? Item.CreatedAt;
     private DateTimeOffset CapturedLocal => Captured.ToLocalTime();

@@ -5881,6 +5881,9 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 
 /* People: faces, the "Who's this?" row and the face pickers (spec view-people-search WP9). View-only; shared parts are untouched. */
 .view-face-image { width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: var(--tl-border-subtle); display: block; }
+.view-face-box { position: absolute; box-sizing: border-box; border: 2px solid var(--tl-accent-primary-hover); border-radius: .35rem; pointer-events: none; }
+.view-face-box--unnamed { border-style: dashed; }
+.view-face-box small { position: absolute; left: 0; top: 100%; max-width: 100%; padding: .1rem .35rem; border-radius: .25rem; background: var(--tl-bg-surface-hover); color: inherit; font-size: var(--tl-font-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .view-face-tile { display: grid; justify-items: center; gap: .35rem; width: 7rem; min-height: 44px; padding: .35rem; border: 2px solid transparent; border-radius: .75rem; background: transparent; color: inherit; cursor: pointer; text-align: center; }
 .view-face-tile:hover { background: var(--tl-bg-surface-hover); }
 .view-face-tile:focus-visible { outline: 2px solid var(--tl-accent-primary-hover); }

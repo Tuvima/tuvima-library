@@ -1,20 +1,18 @@
 @namespace MediaEngine.Web.Components.View
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Web.Services.Ui
-@implements IDisposable
-@inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
 @* The People section of the photo viewer's side panel (spec view-people-search WP10): each face found in this photo, with the person's name,
    or "Name this face" when nobody is named yet. Only the signed-in person's own faces ever come back, so nothing shows for other people's photos. *@
-@if (_faces.Count > 0)
+@if (Faces.Count > 0)
 {
     <section class="view-viewer-info__section">
         <div class="view-viewer-info__heading"><h3>@L["Wikidata_PeopleGroupTitle"]</h3></div>
         <ul class="view-face-grid">
-            @foreach (var face in _faces)
+            @foreach (var face in Faces)
             {
                 <li @key="face.FaceId">
                     @if (face.PersonName is null && face.PersonId.HasValue && CanName)
@@ -37,38 +35,14 @@
     </section>
 }
 @code {
-    [Parameter, EditorRequired] public Guid ItemId { get; set; }
+    [Parameter] public IReadOnlyList<ViewFaceBoxDto> Faces { get; set; } = [];
     [Parameter] public bool CanName { get; set; }
+    /// <summary>Raised after a face is named so the viewer reads the faces again.</summary>
+    [Parameter] public EventCallback OnNamed { get; set; }
 
-    private IReadOnlyList<ViewFaceBoxDto> _faces = [];
     private Guid? _profileId;
-    private Guid _loadedFor;
-    private CancellationTokenSource? _cts;
 
-    protected override async Task OnParametersSetAsync()
-    {
-        if (_loadedFor == ItemId)
-        {
-            return;
-        }
-
-        _loadedFor = ItemId;
-        await LoadAsync();
-    }
-
-    private async Task LoadAsync()
-    {
-        _cts?.Cancel();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-        var itemId = ItemId;
-        _profileId ??= (await Orchestrator.GetActiveProfileAsync())?.Id;
-        var result = await ApiClient.GetViewItemFacesAsync(itemId, token);
-        if (!token.IsCancellationRequested && itemId == ItemId)
-        {
-            _faces = result?.Items ?? [];
-        }
-    }
+    protected override async Task OnInitializedAsync() => _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id;
 
     private async Task NameAsync(ViewFaceBoxDto face)
     {
@@ -77,9 +51,7 @@
             new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium, Sheet = AppDialogSheetMode.PhoneAndTablet });
         if ((await dialog.Result) is { Canceled: false })
         {
-            await LoadAsync();
+            await OnNamed.InvokeAsync();
         }
     }
-
-    public void Dispose() => _cts?.Cancel();
 }
