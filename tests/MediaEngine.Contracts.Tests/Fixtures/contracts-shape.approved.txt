@@ -11411,6 +11411,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFolderEntryD
   Name: System.String | nullability=not-null | accessors=get,init
   RelativePath: System.String | nullability=not-null | accessors=get,init
   ModifiedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFolderSelectionModes
 

@@ -12692,9 +12692,6 @@
   <data name="FolderPicker_Name" xml:space="preserve">
     <value>Name</value>
   </data>
-  <data name="FolderPicker_Modified" xml:space="preserve">
-    <value>Modified</value>
-  </data>
   <data name="FolderPicker_Open" xml:space="preserve">
     <value>Open</value>
   </data>

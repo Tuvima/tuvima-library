@@ -19,6 +19,35 @@ public static class FolderHandlingWords
     public const string ChoiceHelp = "Read-only never changes your files. Managed can move and rename them.";
     public const string ReadOnlyOnlyHelp = "Read-only never changes your files.";
 
+    /// <summary>The tooltips beside "Folder access" (issue 1155); they replace the help line that used to change the size of the window.</summary>
+    public const string ReadOnlyTooltip = "Files stay exactly as they are. Library only reads them. Uploads need a Managed folder.";
+    public const string ManagedTooltip = "Library may rename and move files here to keep them tidy, and new uploads are saved here.";
+    public const string ManagedUndoWarning = "Renames and moves are not undone automatically.";
+
+    /// <summary>"38 items" for a folder row; a dash when the Engine could not count; "1000+ items" at the Engine's cap.</summary>
+    public static string ItemsText(int? count) => count switch
+    {
+        null => "—",
+        1 => "1 item",
+        >= 1000 => "1000+ items",
+        _ => $"{count} items",
+    };
+
+    /// <summary>Free space on a drive in the short form the folder list uses ("212 GB").</summary>
+    public static string FormatFree(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB", "PB"];
+        var value = (double)bytes;
+        var unit = 0;
+        while (value >= 1000 && unit < units.Length - 1)
+        {
+            value /= 1000;
+            unit++;
+        }
+
+        return value >= 100 || unit == 0 ? $"{value:0} {units[unit]}" : $"{value:0.#} {units[unit]}";
+    }
+
     /// <summary>Heads up shown when Managed is chosen on a folder that already holds files.</summary>
     public const string ManagedOnFilesWarning = "Library will move and rename files here. Choose Read-only to leave them alone.";
 

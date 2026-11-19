@@ -1,21 +1,20 @@
-/* Phone Home hero. One card, one fixed height: about 55% of what is visible between the top chrome and the dock, so the
-   first shelf header always sits above the dock and never moves between slides. --app-topbar-height is the whole top chrome
-   (56 px bar row + 48 px chips row) and --tl-bottom-dock-height the floating dock's footprint. --phone-hero-trim is the one
-   number that sets the card height against them: 10.3px keeps the first shelf header at the same y as before the chips row
-   was added at 390x844, 360x740 and 430x932; change it here, nowhere else, to move the header. */
+/* Phone Home hero (issues 1180, 1182). One full-width card of fixed height that starts at the very top of the screen, with the menu bar floating over it, so the
+   first shelf shows straight under it without scrolling. The height is the whole top chrome (--app-topbar-height: 56 px bar row + 48 px chips row, plus the safe
+   area) and one short stage for the logo, facts and 40 px buttons; every slide is the same height so nothing moves when the slide changes. */
 .phone-hero {
-    --phone-hero-trim: 10.3px;
-    --phone-hero-bottom-bar: calc(var(--tl-bottom-dock-height) + var(--phone-hero-trim));
-    --phone-hero-visible: calc(100svh - var(--app-topbar-height, 65px) - var(--tl-safe-area-top, 0px) - var(--phone-hero-bottom-bar));
-    --phone-hero-card-height: calc(var(--phone-hero-visible) * 0.55);
     --phone-hero-tap: var(--tl-touch-target-min, 48px);
+    /* The hero starts at the very top of the screen, under the floating menu bar, with no empty band above it (issue 1180): the card is the bar's own height
+       plus a short stage for the logo, facts and buttons (shown 12 rem tall), the same for every slide. A cover slide adds room for its cover. */
+    --phone-hero-top: calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px));
+    --phone-hero-card-height: calc(var(--phone-hero-top) + 12rem);
+    /* Buttons are 40 px high on a phone (the main button and My List), not the 56 / 48 px of a computer. */
+    --tl-hero-action-height: 40px;
+    --tl-control-height-lg: 40px;
+    --tl-hero-action-label-size: 15px;
+    --tl-hero-action-icon-size: 20px;
     box-sizing: border-box;
     width: 100%;
-    padding:
-        calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + var(--tl-space-2, 0.5rem))
-        max(var(--tl-space-4, 1rem), var(--tl-safe-area-right, 0px))
-        0
-        max(var(--tl-space-4, 1rem), var(--tl-safe-area-left, 0px));
+    padding: 0;
 }
 
 .phone-hero__card {
@@ -23,9 +22,13 @@
     isolation: isolate;
     overflow: hidden;
     height: var(--phone-hero-card-height);
-    border-radius: var(--tl-radius-lg, 1.25rem);
+    border-radius: 0;
     background: var(--tl-bg-root);
     color: var(--tl-text-primary);
+}
+
+.phone-hero__card--cover {
+    height: calc(var(--phone-hero-card-height) + 7rem);
 }
 
 .phone-hero__link {
@@ -71,9 +74,9 @@
     align-self: start;
     max-width: 78%;
     width: auto;
-    height: 64%;
+    height: 7rem;
     object-fit: contain;
-    margin-top: var(--tl-space-4, 1rem);
+    margin-top: calc(var(--phone-hero-top) + var(--tl-space-2, 0.5rem));
     border-radius: var(--tl-radius-md, 0.75rem);
     box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--tl-scrim-dark-6) 64%, transparent);
 }
@@ -116,7 +119,7 @@
     justify-content: flex-end;
     gap: var(--tl-space-1, 0.25rem);
     box-sizing: border-box;
-    padding: var(--tl-space-4, 1rem);
+    padding: var(--tl-space-3, 0.75rem) var(--tl-space-4, 1rem);
     background: linear-gradient(to top, color-mix(in srgb, var(--tl-bg-root) 94%, transparent) 0%, color-mix(in srgb, var(--tl-bg-root) 78%, transparent) 42%, transparent 78%);
     pointer-events: none;
 }
@@ -151,7 +154,7 @@
     display: block;
     width: auto;
     height: auto;
-    max-width: 70%;
+    max-width: 50%;
     max-height: 100%;
     object-fit: contain;
     object-position: left center;
@@ -175,7 +178,7 @@
     margin: 0;
     min-height: 1.4em;
     color: var(--tl-text-secondary);
-    font-size: var(--tl-type-body-size);
+    font-size: var(--tl-font-size-sm);
     line-height: 1.4;
     white-space: nowrap;
     overflow: hidden;

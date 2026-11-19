@@ -66,7 +66,7 @@
                         <HeroActionRow PrimaryActions="@(new[] { Primary })"
                                        ShowLabels="false"
                                        SecondaryActions="@(MyList is null ? Array.Empty<DetailAction>() : new[] { MyList })"
-                                       OverflowActions="MoreActions"
+                                       HideMore="true"
                                        PrimaryLabel="@PrimaryText.Text"
                                        PrimaryDetail="@PrimaryText.Detail"
                                        PrimaryAriaLabel="@PrimaryText.Full"
@@ -103,7 +103,6 @@
     [Parameter] public string DetailsUrl { get; set; } = "/";
     [Parameter] public DetailAction? Primary { get; set; }
     [Parameter] public DetailAction? MyList { get; set; }
-    [Parameter] public IReadOnlyList<DetailAction> MoreActions { get; set; } = [];
     [Parameter] public double? ProgressPercent { get; set; }
     [Parameter] public EventCallback<DetailAction> OnAction { get; set; }
     [Parameter] public EventCallback<int> OnSelectSlide { get; set; }

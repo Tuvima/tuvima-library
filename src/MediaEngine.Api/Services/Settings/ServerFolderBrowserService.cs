@@ -602,6 +602,22 @@ public sealed class ServerFolderBrowserService(
             ? Path.Combine(parentPhysical, directory.Name)
             : PhysicalOrFull(directory.FullName);
 
+    /// <summary>The number of things directly inside a folder, read only up to <see cref="ItemCountCap"/> so a huge or slow folder never holds the list up; null when it cannot be read.</summary>
+    private static int? CountItems(DirectoryInfo directory)
+    {
+        try
+        {
+            return directory.EnumerateFileSystemInfos().Take(ItemCountCap).Count();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // A folder Library cannot read still lists; its count is simply not shown.
+            return null;
+        }
+    }
+
+    private const int ItemCountCap = 1000;
+
     private ServerFolderEntryDto? CreateEntry(ResolvedSelection parent, DirectoryInfo directory, string physical)
     {
         try
@@ -625,6 +641,7 @@ public sealed class ServerFolderBrowserService(
                 Name = directory.Name,
                 RelativePath = Path.GetRelativePath(parent.RootPath, physical) is "." ? string.Empty : Path.GetRelativePath(parent.RootPath, physical),
                 ModifiedAt = directory.LastWriteTimeUtc,
+                ItemCount = CountItems(directory),
             };
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
