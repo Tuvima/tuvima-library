@@ -14867,4 +14867,217 @@
   <data name="FirewallPrompt_SaveFailed" xml:space="preserve">
     <value>Library could not remember your answer. You can allow it later in Settings, then Network.</value>
   </data>
+  <data name="ViewPage_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="ViewPage_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="ViewPage_Uploading" xml:space="preserve">
+    <value>Uploading…</value>
+  </data>
+  <data name="ViewPage_AddMedia" xml:space="preserve">
+    <value>Add media</value>
+  </data>
+  <data name="ViewPage_ReadWordsInPhotos" xml:space="preserve">
+    <value>Read words in my photos</value>
+  </data>
+  <data name="ViewPage_ReadWordsCouldNotBeSaved" xml:space="preserve">
+    <value>Could not save the words in photos setting. Try again.</value>
+  </data>
+  <data name="ViewPage_SearchPlaceholderWithWords" xml:space="preserve">
+    <value>Search photos, people, places, dates, cameras, and words in photos</value>
+  </data>
+  <data name="ViewPage_SearchPlaceholder" xml:space="preserve">
+    <value>Search photos, people, places, dates, and cameras</value>
+  </data>
+  <data name="ViewPage_SearchPhotos" xml:space="preserve">
+    <value>Search Photos</value>
+  </data>
+  <data name="ViewPage_PhotosQuickFilters" xml:space="preserve">
+    <value>Photos quick filters</value>
+  </data>
+  <data name="ViewPage_MorePhotoFilters" xml:space="preserve">
+    <value>More photo filters</value>
+  </data>
+  <data name="ViewPage_NoTimeline" xml:space="preserve">
+    <value>The Engine did not return a timeline.</value>
+  </data>
+  <data name="ViewPage_LoadingMorePhotos" xml:space="preserve">
+    <value>Loading more photos…</value>
+  </data>
+  <data name="ViewPage_ContinueOlderWindow" xml:space="preserve">
+    <value>Continue into an older window, or use the date navigator. Your selection is kept.</value>
+  </data>
+  <data name="ViewPage_MoreLoadAsYouScroll" xml:space="preserve">
+    <value>More photos load as you scroll</value>
+  </data>
+  <data name="ViewPage_Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="ViewPage_ContinueToOlderPhotos" xml:space="preserve">
+    <value>Continue to older photos</value>
+  </data>
+  <data name="ViewPage_LoadMore" xml:space="preserve">
+    <value>Load more</value>
+  </data>
+  <data name="ViewPage_FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="ViewPage_FilterFavorites" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="ViewPage_FilterVideos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="ViewPage_FilterArchive" xml:space="preserve">
+    <value>Archive</value>
+  </data>
+  <data name="ViewPage_ScopeMine" xml:space="preserve">
+    <value>Your private photo and video timeline.</value>
+  </data>
+  <data name="ViewPage_ScopeShared" xml:space="preserve">
+    <value>Photos and videos in the Shared Library.</value>
+  </data>
+  <data name="ViewPage_Archived" xml:space="preserve">
+    <value>Archived selected items.</value>
+  </data>
+  <data name="ViewPage_SelectionMovedToTrash" xml:space="preserve">
+    <value>Moved selected items to Trash.</value>
+  </data>
+  <data name="ViewPage_Favorited" xml:space="preserve">
+    <value>Favorited selected items.</value>
+  </data>
+  <data name="ViewPage_Restored" xml:space="preserve">
+    <value>Restored selected items to Photos.</value>
+  </data>
+  <data name="ViewPage_ContributionFailed" xml:space="preserve">
+    <value>The contribution could not be submitted.</value>
+  </data>
+  <data name="ViewPage_FileMissing" xml:space="preserve">
+    <value>File missing</value>
+  </data>
+  <data name="ViewPage_EmptyNoMatch" xml:space="preserve">
+    <value>No matching items</value>
+  </data>
+  <data name="ViewPage_EmptyFavorites" xml:space="preserve">
+    <value>No favorites yet</value>
+  </data>
+  <data name="ViewPage_EmptyVideos" xml:space="preserve">
+    <value>No videos yet</value>
+  </data>
+  <data name="ViewPage_EmptyArchive" xml:space="preserve">
+    <value>Archive is empty</value>
+  </data>
+  <data name="ViewPage_EmptyTrash" xml:space="preserve">
+    <value>Trash is empty</value>
+  </data>
+  <data name="ViewPage_EmptyHidden" xml:space="preserve">
+    <value>No hidden items</value>
+  </data>
+  <data name="ViewPage_EmptyDocuments" xml:space="preserve">
+    <value>No documents yet</value>
+  </data>
+  <data name="ViewPage_EmptyPersonal" xml:space="preserve">
+    <value>No personal media yet</value>
+  </data>
+  <data name="ViewPage_TrySearch" xml:space="preserve">
+    <value>Try a different search.</value>
+  </data>
+  <data name="ViewPage_FilterEmptyHint" xml:space="preserve">
+    <value>Items matching this View filter will appear here.</value>
+  </data>
+  <data name="ViewPage_ScopeProfile" xml:space="preserve">
+    <value>Photos and videos shared by {0}.</value>
+  </data>
+  <data name="ViewPeoplePage_NoResult" xml:space="preserve">
+    <value>The discovery service did not return a result.</value>
+  </data>
+  <data name="ViewPeoplePage_NoMatch" xml:space="preserve">
+    <value>No matching people</value>
+  </data>
+  <data name="ViewPeoplePage_NoPeople" xml:space="preserve">
+    <value>No people to show yet</value>
+  </data>
+  <data name="ViewPlacesPage_NoData" xml:space="preserve">
+    <value>The Engine did not return geographic discovery data.</value>
+  </data>
+  <data name="ViewPlacesPage_WithoutLocation" xml:space="preserve">
+    <value>Without location</value>
+  </data>
+  <data name="ViewPlacesPage_PlaceStory" xml:space="preserve">
+    <value>Place Story</value>
+  </data>
+  <data name="ViewPhotoTimeline_Video" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="ViewImmersiveViewer_ShowStill" xml:space="preserve">
+    <value>Show still</value>
+  </data>
+  <data name="ViewImmersiveViewer_PlayMotion" xml:space="preserve">
+    <value>Play motion</value>
+  </data>
+  <data name="ViewImmersiveViewer_ShowLiveStill" xml:space="preserve">
+    <value>Show Live Photo still</value>
+  </data>
+  <data name="ViewImmersiveViewer_PlayLiveMotion" xml:space="preserve">
+    <value>Play Live Photo motion</value>
+  </data>
+  <data name="ViewPage_DensityCompact" xml:space="preserve">
+    <value>Compact</value>
+  </data>
+  <data name="ViewPage_DensityComfortable" xml:space="preserve">
+    <value>Comfortable</value>
+  </data>
+  <data name="ViewPage_DensityRelaxed" xml:space="preserve">
+    <value>Relaxed</value>
+  </data>
+  <data name="ViewContributionsPage_AcceptedDestination" xml:space="preserve">
+    <value>Accepted destination</value>
+  </data>
+  <data name="ViewContributionsPage_DestinationTimeline" xml:space="preserve">
+    <value>Shared Timeline</value>
+  </data>
+  <data name="ViewContributionsPage_DestinationFolder" xml:space="preserve">
+    <value>Named Shared folder</value>
+  </data>
+  <data name="ViewGalleryDetailPage_PermissionFor" xml:space="preserve">
+    <value>Permission for {0}</value>
+  </data>
+  <data name="ViewPlacesPage_TileDisclosure" xml:space="preserve">
+    <value>Map pictures come from the online OpenFreeMap service (OpenStreetMap data). Only the area you look at is requested; your photos and their locations stay on your computer.</value>
+  </data>
+  <data name="ViewPlacesPage_BuiltInDisclosure" xml:space="preserve">
+    <value>Showing the built-in map only. No online map service is asked for anything.</value>
+  </data>
+  <data name="ViewPlacesPage_BuiltInOnly" xml:space="preserve">
+    <value>Built-in map only</value>
+  </data>
+  <data name="ViewPlacesPage_MapChoiceFailed" xml:space="preserve">
+    <value>The map choice could not be saved.</value>
+  </data>
+  <data name="ViewSmartSearch_People" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="ViewSmartSearch_Years" xml:space="preserve">
+    <value>Years</value>
+  </data>
+  <data name="ViewSmartSearch_Places" xml:space="preserve">
+    <value>Places</value>
+  </data>
+  <data name="ViewSmartSearch_Cameras" xml:space="preserve">
+    <value>Cameras</value>
+  </data>
+  <data name="ViewSmartSearch_Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="ViewSmartSearch_Suggestions" xml:space="preserve">
+    <value>Search suggestions</value>
+  </data>
+  <data name="ViewSmartSearch_RemoveChip" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <data name="ViewSmartSearch_Count" xml:space="preserve">
+    <value>{0} photos</value>
+  </data>
 </root>

@@ -85,6 +85,12 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<OcrLanguageDownloader>();
         services.AddSingleton<DocumentOcrService>();
         services.AddHostedService<DocumentOcrOperationWorker>();
+        // People (spec view-people-search WP7): looks through each person's own photos for faces in the background. The face engine itself is
+        // registered by the face runtime; until it is in place nothing is looked at.
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<MediaEngine.Api.Services.Faces.IFaceEngine, MediaEngine.Api.Services.Faces.UnavailableFaceEngine>(services);
+        services.AddSingleton<MediaEngine.Api.Services.Faces.FaceScanService>();
+        services.AddSingleton<MediaEngine.Api.Services.Faces.ViewPeopleService>();
+        services.AddHostedService<MediaEngine.Api.Services.Faces.FaceScanWorker>();
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
         services.AddHostedService<ArtworkRenditionBackgroundService>();
         services.AddHostedService<RejectedFileCleanupService>();

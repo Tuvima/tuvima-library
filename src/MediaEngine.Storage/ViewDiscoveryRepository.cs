@@ -529,6 +529,98 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
             hasEligibleData);
     }
 
+    public IReadOnlyList<ViewSuggestionRow> QuerySuggestions(ViewSuggestionQuery query, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(query.AuthorizedLibraryIds);
+        if (query.LimitPerKind is < 1 or > 20)
+        {
+            throw new ArgumentOutOfRangeException(nameof(query), "Limit per kind must be between 1 and 20.");
+        }
+
+        if (query.AuthorizedLibraryIds.Any(id => id == Guid.Empty))
+        {
+            throw new ArgumentException("Authorized library IDs cannot be empty.", nameof(query));
+        }
+
+        var libraries = query.AuthorizedLibraryIds.Distinct().ToArray();
+        if (libraries.Length == 0 && !query.IncludeSharedLibraryAssets)
+        {
+            return [];
+        }
+
+        ct.ThrowIfCancellationRequested();
+        var parameters = new DynamicParameters(new { Take = query.LimitPerKind, SearchPattern = SearchPattern(query.Prefix) });
+        AddLibraries(parameters, libraries);
+        AddExcludedKinds(parameters, query.ExcludedContentKinds);
+        var libraryPredicate = SharedAwareLibraryPredicate(query.IncludeSharedLibraryAssets, libraries.Length);
+        // The same active, visible photos and videos the timeline lists; nothing else is ever suggested.
+        var eligible = $$"""
+            FROM local_items li
+            LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
+            WHERE ({{libraryPredicate}})
+              AND li.hidden = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL
+              AND LOWER(li.media_kind) IN ('image', 'video')
+              AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
+            """;
+        using var connection = database.CreateConnection();
+        var rows = new List<ViewSuggestionRow>();
+        void Add(string kind, string sql) => rows.AddRange(connection.Query<(string Value, long Count)>(new CommandDefinition(sql, parameters, cancellationToken: ct))
+            .Select(row => new ViewSuggestionRow(kind, row.Value, (int)row.Count)));
+
+        Add("person", $$"""
+            SELECT MAX(TRIM(lia.annotation_value)) AS Value, COUNT(DISTINCT li.id) AS Count
+              FROM local_item_annotations lia JOIN local_items li ON li.id = lia.item_id
+              LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
+             WHERE ({{libraryPredicate}})
+               AND li.hidden = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL
+               AND LOWER(li.media_kind) IN ('image', 'video')
+               AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
+               AND TRIM(lia.annotation_value) <> ''
+               AND (lia.annotation_kind IN ('person_name', 'named_person', 'face_name')
+                    OR (lia.annotation_kind IN ('person_identity', 'face_identity') AND lia.reviewed_at IS NOT NULL))
+               AND (@SearchPattern IS NULL OR lia.annotation_value LIKE @SearchPattern ESCAPE '\')
+             GROUP BY LOWER(TRIM(lia.annotation_value))
+             ORDER BY Count DESC, Value LIMIT @Take;
+            """);
+        Add("place", $$"""
+            SELECT MAX(COALESCE(NULLIF(TRIM(lm.location_city), ''), NULLIF(TRIM(lm.location_name), ''))) AS Value, COUNT(DISTINCT li.id) AS Count
+              {{eligible}}
+               AND COALESCE(NULLIF(TRIM(lm.location_city), ''), NULLIF(TRIM(lm.location_name), '')) IS NOT NULL
+               AND (@SearchPattern IS NULL OR lm.location_city LIKE @SearchPattern ESCAPE '\' OR lm.location_name LIKE @SearchPattern ESCAPE '\'
+                    OR lm.location_region LIKE @SearchPattern ESCAPE '\' OR lm.location_country LIKE @SearchPattern ESCAPE '\')
+             GROUP BY LOWER(COALESCE(NULLIF(TRIM(lm.location_city), ''), NULLIF(TRIM(lm.location_name), '')))
+             ORDER BY Count DESC, Value LIMIT @Take;
+            """);
+        Add("year", $$"""
+            SELECT strftime('%Y', COALESCE(li.captured_at, li.created_at)) AS Value, COUNT(*) AS Count
+              {{eligible}}
+               AND (@SearchPattern IS NULL OR strftime('%Y', COALESCE(li.captured_at, li.created_at)) LIKE @SearchPattern ESCAPE '\')
+             GROUP BY Value
+             ORDER BY Value DESC LIMIT @Take;
+            """);
+        Add("camera", $$"""
+            SELECT MAX(TRIM(COALESCE(lm.device_make, '') || ' ' || COALESCE(lm.device_model, ''))) AS Value, COUNT(*) AS Count
+              {{eligible}}
+               AND TRIM(COALESCE(lm.device_make, '') || ' ' || COALESCE(lm.device_model, '')) <> ''
+               AND (@SearchPattern IS NULL OR (COALESCE(lm.device_make, '') || ' ' || COALESCE(lm.device_model, '')) LIKE @SearchPattern ESCAPE '\')
+             GROUP BY LOWER(TRIM(COALESCE(lm.device_make, '') || ' ' || COALESCE(lm.device_model, '')))
+             ORDER BY Count DESC, Value LIMIT @Take;
+            """);
+        Add("tag", $$"""
+            SELECT MAX(tg.name) AS Value, COUNT(DISTINCT li.id) AS Count
+              FROM local_item_tag_links tl JOIN tags tg ON tg.id = tl.tag_id JOIN local_items li ON li.id = tl.item_id
+             WHERE ({{libraryPredicate}})
+               AND li.hidden = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL
+               AND LOWER(li.media_kind) IN ('image', 'video')
+               AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
+               AND (@SearchPattern IS NULL OR tg.name LIKE @SearchPattern ESCAPE '\')
+             GROUP BY LOWER(tg.name)
+             ORDER BY Count DESC, Value LIMIT @Take;
+            """);
+        return rows;
+    }
+
     private static Guid[] Validate(
         IReadOnlyCollection<Guid> authorizedLibraryIds,
         int limit,

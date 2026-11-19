@@ -39,6 +39,28 @@ public sealed class ViewDiscoveryServiceTests
     }
 
     [Fact]
+    public async Task Suggestions_AskStorageOnlyForTheTrustedScopeAndNeverForAnotherPersonsLibrary()
+    {
+        var caller = State(access: false, include: false);
+        var other = State(access: false, include: false);
+        var repository = new CapturingRepository();
+        var service = Service(repository, caller, caller, other);
+
+        var result = await service.GetSuggestionsAsync(ViewScopeRequest.Mine, "  sa ", 5);
+
+        Assert.Equal(ViewAccessOutcome.Allowed, result.Outcome);
+        Assert.Equal([caller.PersonalSpace!.LibraryId], repository.SuggestionQuery!.AuthorizedLibraryIds);
+        Assert.DoesNotContain(other.PersonalSpace!.LibraryId, repository.SuggestionQuery.AuthorizedLibraryIds);
+        Assert.Equal("sa", repository.SuggestionQuery.Prefix);
+        Assert.Equal("Sam", Assert.Single(result.Page!.Items).Value);
+
+        var unknown = new CapturingRepository();
+        var refused = await Service(unknown, caller: null, State(access: true, include: true)).GetSuggestionsAsync(ViewScopeRequest.Shared, null, 5);
+        Assert.Equal(ViewAccessOutcome.Unauthenticated, refused.Outcome);
+        Assert.Null(unknown.SuggestionQuery);
+    }
+
+    [Fact]
     public async Task MissingTrustedIdentityNeverQueriesDiscoveryStorage()
     {
         var repository = new CapturingRepository();
@@ -124,6 +146,7 @@ public sealed class ViewDiscoveryServiceTests
         public ViewPlaceDiscoveryQuery? PlaceQuery { get; private set; }
         public ViewPeopleDiscoveryQuery? PeopleQuery { get; private set; }
         public ViewAtlasDiscoveryQuery? AtlasQuery { get; private set; }
+        public ViewSuggestionQuery? SuggestionQuery { get; private set; }
         public ViewPlaceDiscoveryPage PlacePage { get; init; } = new([], null, false, false);
         public ViewPeopleDiscoveryPage PeoplePage { get; init; } = new([], null, false, false);
 
@@ -137,6 +160,12 @@ public sealed class ViewDiscoveryServiceTests
         {
             PeopleQuery = query;
             return PeoplePage;
+        }
+
+        public IReadOnlyList<ViewSuggestionRow> QuerySuggestions(ViewSuggestionQuery query, CancellationToken ct = default)
+        {
+            SuggestionQuery = query;
+            return [new ViewSuggestionRow("person", "Sam", 3)];
         }
 
         public ViewAtlasDiscoveryPage QueryAtlas(ViewAtlasDiscoveryQuery query, CancellationToken ct = default)

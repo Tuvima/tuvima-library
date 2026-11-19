@@ -1,7 +1,8 @@
 .view-add-media {
     position: relative;
     display: inline-flex;
-    min-height: 38px;
+    align-items: center;
+    min-height: var(--tl-tap-target-min, 44px);
     overflow: hidden;
     color: var(--tl-text-primary);
     border: 1px solid color-mix(in srgb, var(--tl-accent-primary-hover) 48%, transparent);

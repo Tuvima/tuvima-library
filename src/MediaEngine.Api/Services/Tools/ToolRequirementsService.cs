@@ -37,6 +37,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
     private readonly IToolInstallerService? _installer;
     private readonly ISystemActivityRepository? _activity;
     private readonly IExifToolRunner? _exifTool;
+    private readonly Faces.FaceModelProvider? _faceModels;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ToolRequirementsDto? _last;
 
@@ -54,7 +55,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         TimeProvider? time = null,
         IToolInstallerService? installer = null,
         ISystemActivityRepository? activity = null,
-        IExifToolRunner? exifTool = null)
+        IExifToolRunner? exifTool = null,
+        Faces.FaceModelProvider? faceModels = null)
     {
         _ffmpeg = ffmpeg;
         _ocr = ocr;
@@ -70,6 +72,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         _installer = installer;
         _activity = activity;
         _exifTool = exifTool;
+        _faceModels = faceModels;
     }
 
     /// <summary>
@@ -310,6 +313,27 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             _probe.AiRuntimeLoads() ? ToolRequirementStates.Ready : ToolRequirementStates.Problem,
             Copy.AiRuntimeEffect, Copy.BundledProblemReason("The local AI engine"), Copy.AiRuntimeFix(installKind), null, canLocate: false));
 
+        // ── Face models (People) ─────────────────────────────────────────────
+        if (_faceModels is not null)
+        {
+            foreach (var model in _faceModels.Statuses())
+            {
+                var detection = model.FileName == MediaEngine.Domain.Configuration.FaceModelFiles.Detection;
+                var state = model.State switch
+                {
+                    Faces.FaceModelState.Ready => ToolRequirementStates.Ready,
+                    Faces.FaceModelState.Downloading => ToolRequirementStates.Downloading,
+                    Faces.FaceModelState.Problem => ToolRequirementStates.Problem,
+                    _ => ToolRequirementStates.Missing,
+                };
+                rows.Add(Row(
+                    detection ? ToolRequirementIds.FaceDetection : ToolRequirementIds.FaceMatching,
+                    detection ? "Face finder (YuNet)" : "Face matcher (SFace)", "tool", ToolRequirementLevels.Optional,
+                    state, Copy.FaceModelEffect, model.Reason, Copy.FaceModelFix,
+                    state == ToolRequirementStates.Ready ? model.FileName : null, canLocate: false));
+            }
+        }
+
         // ── AI models ────────────────────────────────────────────────────────
         _probe.RefreshModelFiles();
         foreach (var model in _models.GetAllStatuses())
@@ -517,6 +541,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         public const string ExifToolEffect = "Photos, videos and PDFs in View keep the profile name in Library only until ExifTool is ready.";
         public const string ExifToolPerlFix = "Install Perl (for example `apt install perl`), then press Check again.";
         public const string ImageEngineEffect = "Covers and thumbnails can't be created.";
+        public const string FaceModelEffect = "People cannot find or group faces in your photos.";
+        public const string FaceModelFix = "Library gets this by itself, once, and tries again every hour. It needs the internet once.";
         public const string AiRuntimeEffect = "Local AI features are off.";
 
         public const string ReinstallFix = "Reinstall the Library.";

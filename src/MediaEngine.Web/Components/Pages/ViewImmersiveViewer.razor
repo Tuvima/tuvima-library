@@ -35,8 +35,8 @@
         @if (!string.IsNullOrWhiteSpace(MotionUrl))
         {
             <AppIconButton Icon="@(_showMotion ? AppMaterialIcons.Outlined.Photo : AppMaterialIcons.Outlined.MotionPhotosOn)"
-                           Tooltip="@(_showMotion ? "Show still" : "Play motion")"
-                           AriaLabel="@(_showMotion ? "Show Live Photo still" : "Play Live Photo motion")"
+                           Tooltip="@(_showMotion ? L["ViewImmersiveViewer_ShowStill"].Value : L["ViewImmersiveViewer_PlayMotion"].Value)"
+                           AriaLabel="@(_showMotion ? L["ViewImmersiveViewer_ShowLiveStill"].Value : L["ViewImmersiveViewer_PlayLiveMotion"].Value)"
                            OnClick="ToggleMotion" />
         }
     </ContextActions>

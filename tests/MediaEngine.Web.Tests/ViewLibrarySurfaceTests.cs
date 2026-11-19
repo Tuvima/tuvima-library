@@ -20,7 +20,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.DoesNotContain("@page \"/view/{LibraryId:guid}\"", source, StringComparison.Ordinal);
         Assert.Contains("<ViewSectionShell", source, StringComparison.Ordinal);
         Assert.Contains("<PageTitle>Photos - Library</PageTitle>", source, StringComparison.Ordinal);
-        Assert.Contains("Search photos, dates, devices, locations, and tags", source, StringComparison.Ordinal);
+        Assert.Contains("Search photos, people, places, dates, and cameras", source, StringComparison.Ordinal);
         Assert.Contains("<AppDiscoveryFilterBar", source, StringComparison.Ordinal);
         Assert.Contains("role=\"tablist\"", Read("src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor"), StringComparison.Ordinal);
         Assert.Contains("<ViewImmersiveViewer", source, StringComparison.Ordinal);
@@ -35,10 +35,10 @@ public sealed class ViewLibrarySurfaceTests
         Assert.DoesNotContain("ToAbsoluteEngineUrl", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SupplyParameterFromQuery", source, StringComparison.Ordinal);
         Assert.Contains("Photos quick filters", source, StringComparison.Ordinal);
-        Assert.Contains("[\"all\"] = \"All\"", source, StringComparison.Ordinal);
-        Assert.Contains("[\"favorites\"] = \"Favorites\"", source, StringComparison.Ordinal);
-        Assert.Contains("[\"videos\"] = \"Videos\"", source, StringComparison.Ordinal);
-        Assert.Contains("[\"archive\"] = \"Archive\"", source, StringComparison.Ordinal);
+        Assert.Contains("[\"all\"] = All,", source, StringComparison.Ordinal);
+        Assert.Contains("[\"favorites\"] = Favorites,", source, StringComparison.Ordinal);
+        Assert.Contains("[\"videos\"] = Videos,", source, StringComparison.Ordinal);
+        Assert.Contains("[\"archive\"] = Archive", source, StringComparison.Ordinal);
         Assert.Contains("Add media", source, StringComparison.Ordinal);
         Assert.Contains("<InputFile", source, StringComparison.Ordinal);
         Assert.Contains("DropUploader.UploadAsync", source, StringComparison.Ordinal);
@@ -173,7 +173,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("map.once('idle', () => { renderOverviewLabels(state); renderHotspots(state); })", mapScript, StringComparison.Ordinal);
         Assert.Contains("group.representative?.thumbnailUrl", mapScript, StringComparison.Ordinal);
         Assert.Contains("new ResizeObserver", mapScript, StringComparison.Ordinal);
-        Assert.Contains("view-map.js?v=20261111.1", mapComponent, StringComparison.Ordinal);
+        Assert.Contains("view-map.js?v=20261119.1", mapComponent, StringComparison.Ordinal);
         Assert.DoesNotContain("getNorthEast().equals", mapScript, StringComparison.Ordinal);
         Assert.Contains("northEast.lng === southWest.lng && northEast.lat === southWest.lat", mapScript, StringComparison.Ordinal);
         Assert.Contains("PlacesTimeScale", timeline, StringComparison.Ordinal);

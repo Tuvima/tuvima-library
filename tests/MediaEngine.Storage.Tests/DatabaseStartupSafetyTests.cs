@@ -492,6 +492,18 @@ public sealed class DatabaseStartupSafetyTests
             ("view_duplicate_groups", "id"),
             ("view_duplicate_groups", "library_id"),
             ("view_duplicate_groups", "dismissed_by"),
+            ("view_face_rejections", "face_id"),
+            ("view_face_rejections", "person_id"),
+            ("view_face_rejections", "owner_profile_id"),
+            ("view_face_scans", "item_id"),
+            ("view_face_scans", "owner_profile_id"),
+            ("view_faces", "id"),
+            ("view_faces", "item_id"),
+            ("view_faces", "owner_profile_id"),
+            ("view_faces", "person_id"),
+            ("view_people", "id"),
+            ("view_people", "owner_profile_id"),
+            ("view_people", "cover_face_id"),
             ("view_intake_files", "id"),
             ("view_intake_files", "owner_profile_id"),
             ("view_intake_files", "added_by_profile_id"),
@@ -786,7 +798,7 @@ public sealed class DatabaseStartupSafetyTests
             .OrderBy(value => value, StringComparer.Ordinal)
             .ToArray();
         var actualGuidColumns = DeclaredBlobColumns(conn)
-            .Where(value => value is not "audio_fingerprints.fingerprint" and not "account_passkeys.credential_id")
+            .Where(value => value is not "audio_fingerprints.fingerprint" and not "account_passkeys.credential_id" and not "view_faces.embedding")
             // FTS5 creates implementation-owned shadow tables with BLOB pages.
             // Those columns are not application GUID contracts.
             .Where(value => !value.StartsWith("artwork_asset_search_", StringComparison.Ordinal))

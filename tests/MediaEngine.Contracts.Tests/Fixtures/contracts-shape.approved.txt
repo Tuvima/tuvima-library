@@ -5589,6 +5589,10 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewClientTi
   NextCursor: System.String | nullability=nullable | accessors=get,init
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewConfirmFacesRequest
+  AcceptedFaceIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  RejectedFaceIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewCorrespondentDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
@@ -5814,6 +5818,48 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewEditorLi
   InlineItems: System.Int32 | nullability=not-null | accessors=get,init
   PageSize: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceBoxDto
+  FaceId: System.Guid | nullability=not-null | accessors=get,init
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  PersonId: System.Guid? | nullability=nullable | accessors=get,init
+  PersonName: System.String | nullability=nullable | accessors=get,init
+  X: System.Double | nullability=not-null | accessors=get,init
+  Y: System.Double | nullability=not-null | accessors=get,init
+  Width: System.Double | nullability=not-null | accessors=get,init
+  Height: System.Double | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceBoxesDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFaceBoxDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceGroupDto
+  PersonId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=nullable | accessors=get,init
+  Hidden: System.Boolean | nullability=not-null | accessors=get,init
+  FaceCount: System.Int32 | nullability=not-null | accessors=get,init
+  PhotoCount: System.Int32 | nullability=not-null | accessors=get,init
+  CoverFaceId: System.Guid? | nullability=nullable | accessors=get,init
+  SampleFaceIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceGroupsDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFaceGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceProgressDto
+  State: System.String | nullability=not-null | accessors=get,init
+  PhotosLooked: System.Int32 | nullability=not-null | accessors=get,init
+  PhotosTotal: System.Int32 | nullability=not-null | accessors=get,init
+  Faces: System.Int32 | nullability=not-null | accessors=get,init
+  People: System.Int32 | nullability=not-null | accessors=get,init
+  UnnamedGroups: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceStates
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceSuggestionDto
+  Group: MediaEngine.Contracts.LocalAssets.ViewFaceGroupDto | nullability=not-null | accessors=get,init
+  Faces: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFaceBoxDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFaceSuggestionsDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewFaceSuggestionDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFilingLayoutDto
   Pattern: System.String | nullability=not-null | accessors=get,init
   DefaultPattern: System.String | nullability=not-null | accessors=get,init
@@ -5883,6 +5929,9 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewGalleryS
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewGallerySharesRequest
   Shares: System.Collections.Generic.IReadOnlyCollection<MediaEngine.Contracts.LocalAssets.ViewGalleryShareRequest> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewHidePersonRequest
+  Hidden: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewIntakeRejectedDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -5964,9 +6013,22 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEdi
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsRemovedResponse
   Removed: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewMapPreferenceDto
+  BuiltInOnly: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewMergePeopleRequest
+  IntoPersonId: System.Guid | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewMissingFileSettingsDto
   RetentionDays: System.Int32 | nullability=not-null | accessors=get,init
   DefaultRetentionDays: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewNamePersonRequest
+  Name: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewNamePersonResultDto
+  PersonId: System.Guid | nullability=not-null | accessors=get,init
+  Merged: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewOnThisDayDto
   Years: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewOnThisDayYearDto> | nullability=not-null | accessors=get,init
@@ -5995,6 +6057,9 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPeoplePa
   NextCursor: System.String | nullability=nullable | accessors=get,init
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
   Capability: MediaEngine.Contracts.LocalAssets.ViewDiscoveryCapabilityDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPersonCoverRequest
+  FaceId: System.Guid | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPersonDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -6028,6 +6093,9 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPhotoVie
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPhotoViewsPageDto
   Page: MediaEngine.Contracts.Paging.PagedResponse<MediaEngine.Contracts.LocalAssets.ViewPhotoViewDto> | nullability=not-null | accessors=get,init
   HouseholdWide: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPhotoWordsPreferenceDto
+  ReadWords: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPlaceDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -6065,6 +6133,12 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewPreferen
   ScopeProfileId: System.Guid? | nullability=nullable | accessors=get,init
   TimelineDensity: MediaEngine.Domain.PersonalMedia.ViewTimelineDensity | nullability=not-null | accessors=get,init
   ViewerInfoOpen: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewRecognizePeopleDto
+  Recognize: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewRejectFacesRequest
+  FaceIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewResolvedScopeDto
   Kind: MediaEngine.Domain.PersonalMedia.ViewScopeKind | nullability=not-null | accessors=get,init
@@ -6207,6 +6281,14 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSourceAd
   AcceptsPhotosAndVideos: System.Boolean | nullability=not-null | accessors=get,init
   KeptInLibraryCount: System.Int32 | nullability=not-null | accessors=get,init
   FolderOffline: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSuggestionDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSuggestionsDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewSuggestionDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTagDto
   Id: System.Guid | nullability=not-null | accessors=get,init

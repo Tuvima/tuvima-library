@@ -4,6 +4,12 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <section class="app-discovery-filter" aria-label="@AriaLabel">
+    @if (SearchContent is not null)
+    {
+        <div class="app-discovery-filter__search app-discovery-filter__search--custom">@SearchContent</div>
+    }
+    else
+    {
     <label class="app-discovery-filter__search">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
         <AppNativeInput Type="search"
@@ -12,6 +18,7 @@
                         Placeholder="@SearchPlaceholder"
                         AriaLabel="@SearchAriaLabel" />
     </label>
+    }
     <div class="app-discovery-filter__controls">
         <div class="tl-tabs-toolbar app-discovery-filter__tabs" role="tablist" aria-label="@QuickFilterAriaLabel" @ref="_strip">
             @QuickFilters
@@ -48,6 +55,8 @@
     /// <summary>Identifies the active quick filter. The phone chip row scrolls it into view when this changes; left unset, it is only scrolled once on first render.</summary>
     [Parameter] public string? ActiveKey { get; set; }
     [Parameter] public EventCallback<object?> SearchChanged { get; set; }
+    /// <summary>A page's own search area (the Photos smart search bar); left unset, the plain search box is drawn.</summary>
+    [Parameter] public RenderFragment? SearchContent { get; set; }
     [Parameter] public RenderFragment? QuickFilters { get; set; }
     [Parameter] public RenderFragment? AdvancedFilters { get; set; }
 

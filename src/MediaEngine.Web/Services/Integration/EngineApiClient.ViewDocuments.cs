@@ -200,4 +200,46 @@ public sealed partial class EngineApiClient
             return new ViewCatalogueResult<bool>(false, "The Dashboard could not reach the Engine.");
         }
     }
+
+    public async Task<bool> GetViewMapBuiltInOnlyAsync(CancellationToken ct = default) =>
+        (await GetAsync<ViewMapPreferenceDto>("GET /view/preferences/map", "/view/preferences/map", ct: ct))?.BuiltInOnly ?? false;
+
+    public async Task<bool> SetViewMapBuiltInOnlyAsync(bool builtInOnly, CancellationToken ct = default)
+    {
+        const string endpoint = "PUT /view/preferences/map";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, "/view/preferences/map")
+            {
+                Content = JsonContent.Create(new ViewMapPreferenceDto(builtInOnly)),
+            };
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) { await RecordHttpFailureAsync(endpoint, response, ct); return false; }
+            ClearFailure(endpoint);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
+    }
+
+    public async Task<bool> GetViewReadWordsInPhotosAsync(CancellationToken ct = default) =>
+        (await GetAsync<ViewPhotoWordsPreferenceDto>("GET /view/preferences/photo-words", "/view/preferences/photo-words", ct: ct))?.ReadWords ?? false;
+
+    public async Task<bool> SetViewReadWordsInPhotosAsync(bool readWords, CancellationToken ct = default)
+    {
+        const string endpoint = "PUT /view/preferences/photo-words";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, "/view/preferences/photo-words")
+            {
+                Content = JsonContent.Create(new ViewPhotoWordsPreferenceDto(readWords)),
+            };
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) { await RecordHttpFailureAsync(endpoint, response, ct); return false; }
+            ClearFailure(endpoint);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
+    }
 }

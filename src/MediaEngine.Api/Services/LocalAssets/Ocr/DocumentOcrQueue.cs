@@ -88,6 +88,72 @@ public sealed class DocumentOcrQueue(
         return true;
     }
 
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, bool> _photoScans = new();
+
+    /// <summary>True while the words in this library's photos are still being queued.</summary>
+    public bool IsPhotoScanRunning(Guid libraryId) => _photoScans.ContainsKey(libraryId);
+
+    /// <summary>
+    /// Queues every photo of one person's own library whose words have not been read yet (spec view-people-search WP5), a page at a time.
+    /// Only that one library is ever read, never the Vault and never a shared or another person's library. Returns false when text recognition
+    /// is not ready or a scan of this library is already going.
+    /// </summary>
+    public async Task<bool> StartPhotoWordsScanAsync(Guid libraryId, CancellationToken ct)
+    {
+        if (!await IsReadyAsync(ct).ConfigureAwait(false) || !_photoScans.TryAdd(libraryId, true))
+        {
+            return false;
+        }
+
+        _ = Task.Run(() => ScanPhotosAsync(libraryId), CancellationToken.None);
+        return true;
+    }
+
+    /// <summary>Queues the photos of a library now (awaitable); used by the background scan and by tests.</summary>
+    public async Task<int> QueuePhotoWordsAsync(Guid libraryId, CancellationToken ct)
+    {
+        var queued = 0;
+        Guid? after = null;
+        while (true)
+        {
+            var page = await assets.GetPhotoWordsCandidatesAsync([libraryId], after, RereadPageSize, OcrFormats.Images, ct)
+                .ConfigureAwait(false);
+            if (page.Count == 0)
+            {
+                return queued;
+            }
+
+            foreach (var candidate in page)
+            {
+                if (await TryQueueAsync(candidate.ItemId, candidate.ContentHash, candidate.FilePath, ct).ConfigureAwait(false))
+                {
+                    queued++;
+                }
+            }
+
+            after = page[^1].ItemId;
+            await Task.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ScanPhotosAsync(Guid libraryId)
+    {
+        try
+        {
+            var queued = await QueuePhotoWordsAsync(libraryId, CancellationToken.None).ConfigureAwait(false);
+            logger.LogInformation("Queued {Count} photos to have their words read.", queued);
+        }
+        catch (Exception ex)
+        {
+            // A background batch has no caller to report to; log it. Switching the option off and on again starts it again.
+            logger.LogError(ex, "Queueing photos to have their words read stopped early.");
+        }
+        finally
+        {
+            _photoScans.TryRemove(libraryId, out _);
+        }
+    }
+
     private async Task<bool> HasActiveJobAsync(Guid itemId) =>
         (await operations.GetByEntityAsync(itemId, CancellationToken.None).ConfigureAwait(false)).Any(operation =>
             operation.OperationType == MediaOperationType.ViewDocumentOcr

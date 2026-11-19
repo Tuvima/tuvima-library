@@ -12,7 +12,21 @@ public interface IViewDiscoveryRepository
     ViewPlaceAssetDiscoveryPage QueryPlaceAssets(ViewPlaceAssetDiscoveryQuery query, CancellationToken ct = default) =>
         throw new NotSupportedException("Place Story discovery is not implemented by this repository.");
     ViewPeopleDiscoveryPage QueryPeople(ViewPeopleDiscoveryQuery query, CancellationToken ct = default);
+
+    /// <summary>The search bar's suggestions (people, places, years, cameras, tags) with counts, over the same active photos and videos the timeline shows.</summary>
+    IReadOnlyList<ViewSuggestionRow> QuerySuggestions(ViewSuggestionQuery query, CancellationToken ct = default) =>
+        throw new NotSupportedException("Search suggestions are not implemented by this repository.");
 }
+
+public sealed record ViewSuggestionQuery(
+    IReadOnlyCollection<Guid> AuthorizedLibraryIds,
+    string? Prefix = null,
+    int LimitPerKind = 5,
+    bool IncludeSharedLibraryAssets = false,
+    IReadOnlyCollection<string>? ExcludedContentKinds = null);
+
+/// <summary>One suggestion: its kind ("person", "place", "year", "camera" or "tag"), the text to search for, and how many photos and videos it matches.</summary>
+public sealed record ViewSuggestionRow(string Kind, string Value, int AssetCount);
 
 public sealed record ViewPlaceDiscoveryQuery(
     IReadOnlyCollection<Guid> AuthorizedLibraryIds,

@@ -30,6 +30,9 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<ViewAddedByDto>?> GetViewAssetsAddedByAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
     Task<LocalAssetDto?> GetViewItemAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default);
     Task<ViewDocumentTextDto?> GetViewDocumentTextAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default);
+    /// <summary>Search-bar suggestions (people, places, years, cameras, tags) for what has been typed; null when the Engine could not answer.</summary>
+    Task<ViewSuggestionsDto?> GetViewSearchSuggestionsAsync(ViewScopeKind scope, Guid? scopeProfileId, string? text, CancellationToken ct = default);
+
     Task<ViewPeoplePageDto?> GetViewPeopleAsync(ViewDiscoveryQueryOptions options, CancellationToken ct = default);
     Task<ViewPlacesPageDto?> GetViewPlacesAsync(ViewDiscoveryQueryOptions options, CancellationToken ct = default);
     Task<ViewAtlasPageDto?> GetViewAtlasAsync(ViewAtlasQueryOptions options, CancellationToken ct = default);
