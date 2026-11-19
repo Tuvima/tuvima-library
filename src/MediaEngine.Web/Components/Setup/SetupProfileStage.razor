@@ -42,7 +42,7 @@
         </div>
         @if (!ThisComputerOnly)
         {
-            <div class="setup-form-grid">
+            <div class="setup-form-grid setup-form-grid--stack">
                 <AppTextField Label="@L["Common_Email"].Value" Value="@Email" ValueChanged="EmailChanged" />
                 <AppTextField Label="@L["Common_Password"].Value" InputType="@(_showPassword ? AppInputType.Text : AppInputType.Password)" Value="@Password" ValueChanged="PasswordChanged"
                               Adornment="AppAdornment.End" AdornmentIcon="@(_showPassword ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showPassword = !_showPassword)" AdornmentAriaLabel="@(_showPassword ? "Hide password" : "Show password")"

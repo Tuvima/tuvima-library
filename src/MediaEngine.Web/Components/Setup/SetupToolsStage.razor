@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Shared.Tools
 @inject IStringLocalizer<SharedStrings> L
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 
 @* "Here is what Library needs": every tool is listed with the same row Settings > Tools and requirements draws, ready or not. A tool that is not installed
    offers Install, which starts its download at once and carries on in the background. Nothing here blocks: Continue is always offered once the
@@ -41,31 +42,37 @@
         </div>
         <div class="setup-tools" data-testid="setup-tools">
             <ToolsSummaryLine Tools="@Listed" />
+            @if (!DeviceContext.IsPhone)
+            {
+                @* The same Computer capacity panel as Settings > Tools: graphics card, videos at once, 4K conversions and speed. *@
+                <MediaEngine.Web.Components.Settings.ComputerCapacityPanel SetupMode="true" Capacity="@Capacity" Graphics="@Graphics" />
+            }
             @foreach (var tool in Listed)
             {
                 <ToolRequirementRow Tool="@tool" Busy="@Busy" OnInstall="InstallTool" OnRunInstaller="RunInstaller" />
                 @if (tool.Id == ToolRequirementIds.Ffmpeg)
                 {
-                    @* The Graphics hardware row (playback-path spec D11): filled in on its own once FFmpeg is ready, the same words as
-                       Settings > Playback; it never blocks Continue and asks nothing. *@
-                    var hardware = GraphicsHardwareText.ForSetupRow(Graphics, L);
-                    <div class="setup-tools__later" data-tool-id="graphics-hardware" data-state="@(Graphics?.Outcome ?? GraphicsHardwareOutcomes.Unavailable)">
-                        <div>
-                            <strong>@L["GraphicsHardware_Title"]</strong>
-                            <span data-graphics-hardware-line>@hardware.Headline</span>
-                        </div>
-                        <AppStatusBadge Text="@hardware.Badge" Tone="@hardware.Tone" />
-                    </div>
-                    @if (Capacity is not null)
+                    @* The Graphics hardware and Videos at once rows are the phone's form of the Computer capacity panel below. *@
+                    @if (DeviceContext.IsPhone)
                     {
-                        @* How many videos at once (the "Checking your system" benchmark); a test that could not run keeps one at a time. *@
-                        <div class="setup-tools__later" data-tool-id="video-capacity" data-state="@(Capacity.Measured ? "measured" : "default")">
+                        var hardware = GraphicsHardwareText.ForSetupRow(Graphics, L);
+                        <div class="setup-tools__later" data-tool-id="graphics-hardware" data-state="@(Graphics?.Outcome ?? GraphicsHardwareOutcomes.Unavailable)">
                             <div>
-                                <strong>@L["SetupCapacity_RowTitle"]</strong>
-                                <span data-capacity-line>@CapacityLine</span>
+                                <strong>@L["GraphicsHardware_Title"]</strong>
+                                <span data-graphics-hardware-line>@hardware.Headline</span>
                             </div>
-                            <AppStatusBadge Text="@(Capacity.Measured ? L["SetupCapacity_BadgeMeasured"].Value : L["SetupCapacity_BadgeDefault"].Value)" Tone="@(Capacity.Measured ? AppUiTone.Success : AppUiTone.Neutral)" />
+                            <AppStatusBadge Text="@hardware.Badge" Tone="@hardware.Tone" />
                         </div>
+                        @if (Capacity is not null)
+                        {
+                            <div class="setup-tools__later" data-tool-id="video-capacity" data-state="@(Capacity.Measured ? "measured" : "default")">
+                                <div>
+                                    <strong>@L["SetupCapacity_RowTitle"]</strong>
+                                    <span data-capacity-line>@CapacityLine</span>
+                                </div>
+                                <AppStatusBadge Text="@(Capacity.Measured ? L["SetupCapacity_BadgeMeasured"].Value : L["SetupCapacity_BadgeDefault"].Value)" Tone="@(Capacity.Measured ? AppUiTone.Success : AppUiTone.Neutral)" />
+                            </div>
+                        }
                     }
                 }
             }

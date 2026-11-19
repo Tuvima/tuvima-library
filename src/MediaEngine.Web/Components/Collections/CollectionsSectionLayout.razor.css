@@ -205,6 +205,10 @@
     padding: 28px 0 8px;
 }
 
+.collections-section ::deep .collections-people-sentinel {
+    height: 1px;
+}
+
 .collections-section ::deep .collections-inline-empty {
     margin-inline: var(--collections-content-gutter);
 }

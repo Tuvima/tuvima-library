@@ -159,8 +159,7 @@ public sealed class GraphicsHardwareCardTests : AsyncBunitContext
     {
         var cut = RenderSetup(Works());
 
-        Assert.Equal("NVIDIA GeForce RTX 5080 · encoding works", cut.Find("[data-tool-id=graphics-hardware] [data-graphics-hardware-line]").TextContent.Trim());
-        Assert.Contains("Working", cut.Find("[data-tool-id=graphics-hardware]").TextContent);
+        Assert.Equal("NVIDIA GeForce RTX 5080 · encoding works", cut.Find("[data-testid=capacity-hardware]").TextContent.Trim());
     }
 
     [Fact]
@@ -168,7 +167,7 @@ public sealed class GraphicsHardwareCardTests : AsyncBunitContext
     {
         var cut = RenderSetup(new GraphicsHardwareDto { Outcome = GraphicsHardwareOutcomes.None });
 
-        Assert.Equal("No graphics encoding found · Library will use the processor", cut.Find("[data-tool-id=graphics-hardware] [data-graphics-hardware-line]").TextContent.Trim());
+        Assert.Equal("No graphics encoding found · Library will use the processor", cut.Find("[data-testid=capacity-hardware]").TextContent.Trim());
     }
 
     [Fact]
@@ -178,8 +177,7 @@ public sealed class GraphicsHardwareCardTests : AsyncBunitContext
 
         Assert.Equal(
             "Found, but the test failed: the graphics driver is too old for this card or this FFmpeg. Library will use the processor.",
-            cut.Find("[data-tool-id=graphics-hardware] [data-graphics-hardware-line]").TextContent.Trim());
-        Assert.Contains("Using processor", cut.Find("[data-tool-id=graphics-hardware]").TextContent);
+            cut.Find("[data-testid=capacity-hardware]").TextContent.Trim());
     }
 
     [Fact]
@@ -187,7 +185,7 @@ public sealed class GraphicsHardwareCardTests : AsyncBunitContext
     {
         var cut = RenderSetup(null);
 
-        Assert.Equal("Checked automatically once FFmpeg is ready", cut.Find("[data-tool-id=graphics-hardware] [data-graphics-hardware-line]").TextContent.Trim());
+        Assert.Equal("Checked automatically once FFmpeg is ready", cut.Find("[data-testid=capacity-hardware]").TextContent.Trim());
         Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("Continue", StringComparison.Ordinal) && !button.HasAttribute("disabled"));
     }
 

@@ -131,6 +131,81 @@ public sealed class PersonCreditReadServiceTests : IDisposable
         Assert.Single(credits, credit => credit.Role == "Director");
     }
 
+    private (Guid Person, Guid Collection, Guid ShowWork) SeedShowWhoseEpisodesHaveNoSeriesOfTheirOwn()
+    {
+        var personId = Guid.NewGuid();
+        var collectionId = Guid.NewGuid();
+        var showWorkId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow.ToString("O");
+
+        using var conn = _db.CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO collections (id, display_name, collection_type, created_at)
+                VALUES ($collectionId, 'Lesson Show', 'Series', $now);
+            INSERT INTO works (id, collection_id, media_type, work_kind)
+                VALUES ($showWorkId, $collectionId, 'TV', 'parent');
+            INSERT INTO persons (id, name, created_at) VALUES ($personId, 'Cast Person', $now);
+            INSERT INTO person_roles (person_id, role) VALUES ($personId, 'Actor');
+            """;
+        AddGuid(cmd, "$collectionId", collectionId);
+        AddGuid(cmd, "$showWorkId", showWorkId);
+        AddGuid(cmd, "$personId", personId);
+        cmd.Parameters.AddWithValue("$now", now);
+        cmd.ExecuteNonQuery();
+
+        for (var episode = 1; episode <= 3; episode++)
+        {
+            using var episodeCmd = conn.CreateCommand();
+            episodeCmd.CommandText = """
+                INSERT INTO works (id, parent_work_id, media_type, work_kind, ordinal)
+                    VALUES ($workId, $showWorkId, 'TV', 'child', $episode);
+                INSERT INTO editions (id, work_id) VALUES ($editionId, $workId);
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, $hash, $path);
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                    VALUES ($workId, 'title', $title, $now);
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
+                    VALUES ($workId, 'cast_member', 0, 'Cast Person');
+                """;
+            AddGuid(episodeCmd, "$workId", Guid.NewGuid());
+            AddGuid(episodeCmd, "$showWorkId", showWorkId);
+            AddGuid(episodeCmd, "$editionId", Guid.NewGuid());
+            AddGuid(episodeCmd, "$assetId", Guid.NewGuid());
+            episodeCmd.Parameters.AddWithValue("$episode", episode);
+            episodeCmd.Parameters.AddWithValue("$hash", $"lesson-show-{episode}");
+            episodeCmd.Parameters.AddWithValue("$path", $"C:/library/Lesson Show/Lesson {episode}.mkv");
+            episodeCmd.Parameters.AddWithValue("$title", $"Lesson {episode}");
+            episodeCmd.Parameters.AddWithValue("$now", now);
+            episodeCmd.ExecuteNonQuery();
+        }
+
+        return (personId, collectionId, showWorkId);
+    }
+
+    [Fact]
+    public async Task GetLibraryCreditsAsync_ListsAShowOnceEvenWhenItsEpisodesCarryNoSeriesOfTheirOwn()
+    {
+        var (personId, collectionId, _) = SeedShowWhoseEpisodesHaveNoSeriesOfTheirOwn();
+
+        var credits = await CreateService().GetLibraryCreditsAsync(personId, CancellationToken.None);
+
+        var credit = Assert.Single(credits);
+        Assert.Equal(collectionId, credit.CollectionId);
+        Assert.Equal("Lesson Show", credit.Title);
+    }
+
+    [Fact]
+    public async Task BuildForWorkAsync_GivesAShowTheCastOfItsEpisodesEachPersonOnce()
+    {
+        var (personId, _, showWorkId) = SeedShowWhoseEpisodesHaveNoSeriesOfTheirOwn();
+
+        var cast = await CreateService().BuildForWorkAsync(showWorkId, CancellationToken.None);
+
+        var member = Assert.Single(cast);
+        Assert.Equal(personId, member.PersonId);
+    }
+
     [Fact]
     public async Task GetLibraryCreditsAsync_PreservesMultipleRolesForOneOwnedWork()
     {
