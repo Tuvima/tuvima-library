@@ -300,7 +300,7 @@
             if (!string.IsNullOrWhiteSpace(details.PlaceOfBirth))
                 facts.Add((AppMaterialIcons.Outlined.Place, details.PlaceOfBirth!));
             if (Model.MediaGroups.Sum(group => group.Items.Count) > 0)
-                facts.Add((AppMaterialIcons.Outlined.VideoLibrary, $"{Model.MediaGroups.Sum(group => group.Items.Count)} titles in library"));
+                facts.Add((AppMaterialIcons.Outlined.VideoLibrary, $"{DisplayFormat.FormatCountNoun(Model.MediaGroups.Sum(group => group.Items.Count), "title")} in library"));
             return facts;
         }
     }

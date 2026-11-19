@@ -500,7 +500,7 @@ public partial class MediaBrowseShell
             group.Creator,
             group.Network,
             group.SeasonCount is > 0 ? $"{group.SeasonCount.Value} seasons" : null,
-            group.AlbumCount is > 0 ? $"{group.AlbumCount.Value} albums" : null,
+            group.AlbumCount is > 0 ? DisplayFormat.FormatCountNoun(group.AlbumCount.Value, "album") : null,
             group.WorkCount > 0 ? $"{group.WorkCount} items" : null,
         }.Where(part => !string.IsNullOrWhiteSpace(part));
 

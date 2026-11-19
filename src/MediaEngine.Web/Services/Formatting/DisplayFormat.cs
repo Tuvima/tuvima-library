@@ -133,6 +133,34 @@ public static class DisplayFormat
     /// </summary>
     public static string FormatCountClamped(int value) => Math.Max(0, value).ToString("N0", CultureInfo.CurrentCulture);
 
+    /// <summary>
+    /// A stored multi-value field (genre, network, studio, country, language, roles) as a normal list: the stored bar-joined form
+    /// "Nickelodeon|Nick Jr. Channel" reads "Nickelodeon, Nick Jr. Channel" (issue 1162). Text without a bar is returned unchanged; null or blank
+    /// returns null so callers can leave the line out.
+    /// </summary>
+    public static string? FormatMultiValue(string? stored)
+    {
+        if (string.IsNullOrWhiteSpace(stored))
+        {
+            return null;
+        }
+
+        if (!stored.Contains('|'))
+        {
+            return stored;
+        }
+
+        var parts = stored.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? null : string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// A count with its noun in the right number: "1 title", "2 titles", "1 book", "5 books" (issue 1189). One rule for every count line;
+    /// <paramref name="pluralNoun"/> is given only for nouns that do not simply add an "s".
+    /// </summary>
+    public static string FormatCountNoun(long count, string singularNoun, string? pluralNoun = null)
+        => $"{FormatCount(count)} {(count == 1 ? singularNoun : pluralNoun ?? singularNoun + "s")}";
+
     // ---- Playback speed -----------------------------------------------------
 
     /// <summary>
