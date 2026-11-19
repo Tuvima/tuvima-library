@@ -67,12 +67,15 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        // Signing in without a password works only on the computer that runs Tuvima; the home network must use a password or passkey.
-        var ingress = clientIngress is null ? ClientIngress.ThisComputer : ClientIngress.Parse(clientIngress);
-        if (!ClientIngress.IsThisComputer(ingress))
+        // Signing in without a password works on the computer that runs Tuvima and on the home network (phones, TVs),
+        // and never from outside it: anything not clearly local is refused.
+        var requested = clientIngress ?? ClientIngress.ThisComputer;
+        if (!ClientIngress.IsOnLocalNetwork(requested))
         {
             return null;
         }
+
+        var ingress = ClientIngress.Parse(requested);
 
         var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
         var issued = await IssueSignInSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);

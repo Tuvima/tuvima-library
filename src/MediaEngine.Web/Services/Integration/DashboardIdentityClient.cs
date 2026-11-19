@@ -137,8 +137,8 @@ public sealed partial class DashboardIdentityClient(
     private HttpRequestMessage? ThisComputerRequest(HttpMethod method)
     {
         var context = contextAccessor?.HttpContext;
-        // Only the computer that runs Tuvima; a phone or laptop on the home network signs in with a password.
-        if (context is null || IngressClassifierExtensions.FromWireValue(CurrentIngress(context)) != IngressKind.ThisComputer)
+        // The computer that runs Tuvima and devices on the home network; anything else (Remote) signs in with a password.
+        if (context is null || IngressClassifierExtensions.FromWireValue(CurrentIngress(context)) is not (IngressKind.ThisComputer or IngressKind.HomeNetwork))
         {
             return null;
         }

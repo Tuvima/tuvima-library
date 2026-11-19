@@ -86,15 +86,32 @@ public sealed class ThisComputerAccountTests : IDisposable
         Assert.NotNull(again);
         Assert.Equal(ClientIngress.ThisComputer, again!.Session.IssuedIngress);
         Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.ThisComputer));
-        // Home network spec D8: the Dashboard listens on the home network, so a phone there never continues this session.
-        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
+        // A phone or TV on the home network continues it too; anything outside the home network never does.
+        Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
+        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.Remote));
+        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: "something-else"));
+        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false));
+    }
+
+    [Fact]
+    public async Task SignInAgain_WorksFromADeviceOnTheHomeNetwork()
+    {
+        await _service.BootstrapThisComputerAdministratorAsync(
+            "owner@example.com", "Owner", "device", "Browser", "Dashboard");
+
+        var phone = await _service.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.HomeNetwork);
+
+        Assert.NotNull(phone);
+        Assert.Equal(ClientIngress.HomeNetwork, phone!.Session.IssuedIngress);
+        Assert.NotNull(await _service.ValidateSessionAsync(phone.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
+        Assert.Null(await _service.ValidateSessionAsync(phone.PlaintextToken, touch: false, currentIngress: ClientIngress.Remote));
     }
 
     [Theory]
-    [InlineData(ClientIngress.HomeNetwork)]
     [InlineData(ClientIngress.Remote)]
+    [InlineData("something-else")]
     [InlineData("")]
-    public async Task SignInAgain_IsNotPossibleFromAnywhereButThisComputer(string ingress)
+    public async Task SignInAgain_IsNotPossibleFromOutsideTheHomeNetwork(string ingress)
     {
         await _service.BootstrapThisComputerAdministratorAsync(
             "owner@example.com", "Owner", "device", "Browser", "Dashboard");
@@ -109,7 +126,7 @@ public sealed class ThisComputerAccountTests : IDisposable
             "owner@example.com", "Owner", "device", "Browser", "Dashboard");
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.SwitchActiveProfileAsync(
-            owner.PlaintextToken, owner.Profile.Id, null, currentIngress: ClientIngress.HomeNetwork));
+            owner.PlaintextToken, owner.Profile.Id, null, currentIngress: ClientIngress.Remote));
         var switched = await _service.SwitchActiveProfileAsync(
             owner.PlaintextToken, owner.Profile.Id, null, currentIngress: ClientIngress.ThisComputer);
 

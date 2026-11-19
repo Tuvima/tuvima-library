@@ -137,7 +137,7 @@ public sealed class TuvimaAuthenticationHandler(
                 // The Dashboard says where the visitor is when it knows; the place is recorded but no longer restricts access.
                 var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
                     && !string.IsNullOrWhiteSpace(ingressValues.ToString())
-                    ? ClientIngress.Parse(ingressValues.ToString())
+                    ? ClientIngress.ParseCurrent(ingressValues.ToString())
                     : null;
                 session = await identity.ValidateSessionAsync(sessionValues.ToString(), true, Context.RequestAborted, claimedIngress).ConfigureAwait(false);
                 if (session is null)

@@ -6671,6 +6671,9 @@
   <data name="SetupProfileStage_UseLibraryOnYourOther" xml:space="preserve">
     <value>Use Library on your other devices from the start.</value>
   </data>
+  <data name="SetupProfileStage_NoPasswordWarning" xml:space="preserve">
+    <value>Anyone on your home network who can reach Library can open this profile without a password. It never opens from outside your home network. Choose email and password if you would rather keep it private.</value>
+  </data>
   <data name="SetupProfileStage_ConfirmPassword" xml:space="preserve">
     <value>Confirm password</value>
   </data>

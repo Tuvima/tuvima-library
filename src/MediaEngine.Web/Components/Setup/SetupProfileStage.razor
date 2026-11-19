@@ -34,12 +34,17 @@
         <div class="setup-form-grid" role="group" aria-label="@L["SetupProfileStage_HowWillYouSignIn"].Value">
             @if (ThisComputerAvailable)
             {
-                <AppChoiceRow Title="@L["SetupProfileStage_JustMyName"].Value" Description="Recommended on this computer. Everyone on your home network goes straight in. You can add a password later; you'll need one before adding another household."
+                <AppChoiceRow Title="@L["SetupProfileStage_JustMyName"].Value" Description="Recommended at home. Phones, TVs and other devices on your home network go straight in. You can add a password later; you'll need one before adding another household."
                               Selected="@ThisComputerOnly" OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.ThisComputer))" />
             }
             <AppChoiceRow Title="@L["SetupProfileStage_EmailAndPassword"].Value" Description="@L["SetupProfileStage_UseLibraryOnYourOther"].Value"
                           Selected="@(!ThisComputerOnly)" OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.Password))" />
         </div>
+        @if (ThisComputerOnly)
+        {
+            @* Shown once, before the profile is created (issue 1152): a no-password profile opens for anyone on the home network, never from outside it. *@
+            <AppAlert Tone="AppUiTone.Warning" data-testid="no-password-warning">@L["SetupProfileStage_NoPasswordWarning"]</AppAlert>
+        }
         @if (!ThisComputerOnly)
         {
             <div class="setup-form-grid setup-form-grid--stack">

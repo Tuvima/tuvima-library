@@ -329,43 +329,54 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Fact]
-    public async Task SignInAgain_IsRefusedFromTheHomeNetworkSoNobodyElseBecomesTheAdministratorWithoutAPassword()
+    public async Task SignInAgain_WorksFromTheHomeNetworkButIsRefusedFromOutsideIt()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
         await using var app = BuildAuthenticationApplication();
 
-        var name = await SendAsync(app, "GET", "/auth/this-computer", ingress: ClientIngress.HomeNetwork);
-        var session = await SendAsync(app, "POST", "/auth/this-computer",
+        // A phone or TV on the home network goes straight in.
+        var homeName = await SendAsync(app, "GET", "/auth/this-computer", ingress: ClientIngress.HomeNetwork);
+        var homeSession = await SendAsync(app, "POST", "/auth/this-computer",
             new ThisComputerSignInRequest { DeviceId = "phone", DeviceName = "Phone", Client = "Dashboard" },
             ingress: ClientIngress.HomeNetwork);
+        Assert.Equal(StatusCodes.Status200OK, homeName.Status);
+        Assert.Equal(StatusCodes.Status200OK, homeSession.Status);
+
+        // Nobody outside it does: a remote, unknown or missing place is refused with the plain 404.
+        var name = await SendAsync(app, "GET", "/auth/this-computer", ingress: ClientIngress.Remote);
+        var session = await SendAsync(app, "POST", "/auth/this-computer",
+            new ThisComputerSignInRequest { DeviceId = "phone", DeviceName = "Phone", Client = "Dashboard" },
+            ingress: ClientIngress.Remote);
+        var unknown = await SendAsync(app, "GET", "/auth/this-computer", ingress: "something-else");
         var missingHeader = await SendAsync(app, "POST", "/auth/this-computer",
             new ThisComputerSignInRequest { DeviceId = "phone", DeviceName = "Phone", Client = "Dashboard" },
             ingress: null);
 
         Assert.Equal(StatusCodes.Status404NotFound, name.Status);
         Assert.Equal(StatusCodes.Status404NotFound, session.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, unknown.Status);
         Assert.Equal(StatusCodes.Status404NotFound, missingHeader.Status);
     }
 
     [Fact]
-    public async Task ThisComputerSession_DoesNotContinueFromTheHomeNetworkOrAnyPlaceElse()
+    public async Task ThisComputerSession_ContinuesOnTheHomeNetworkButNotFromOutsideIt()
     {
         var issued = await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
         var token = issued.PlaintextToken;
 
         Assert.NotNull(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, ClientIngress.ThisComputer));
-        Assert.Null(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, ClientIngress.HomeNetwork));
+        Assert.NotNull(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, ClientIngress.HomeNetwork));
         Assert.Null(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, ClientIngress.Remote));
         // No statement about where the caller is counts as outside for this kind of account.
         Assert.Null(await _identity.ValidateSessionAsync(token, false, CancellationToken.None, null));
     }
 
     [Fact]
-    public async Task SignInThisComputerAccount_IsRefusedUnlessTheCallerIsOnThisComputer()
+    public async Task SignInThisComputerAccount_IsRefusedUnlessTheCallerIsOnTheHomeNetwork()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
 
-        Assert.Null(await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.HomeNetwork));
+        Assert.NotNull(await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.HomeNetwork));
         Assert.Null(await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.Remote));
         Assert.Null(await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", string.Empty));
         Assert.NotNull(await _identity.SignInThisComputerAccountAsync("laptop", "This computer", "Dashboard", ClientIngress.ThisComputer));
@@ -435,7 +446,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Fact]
-    public async Task SignInAgain_IsRefusedWhenTheHomeNetworkRequestWasForwarded()
+    public async Task SignInAgain_IsRefusedWhenTheHomeNetworkRequestWasForwarded_ATunnelIsNotTheHomeNetwork()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
         await using var app = BuildAuthenticationApplication();
@@ -455,14 +466,14 @@ public sealed class ThisComputerAccessTests : IDisposable
 
         var fromThisComputer = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
             ingress: ClientIngress.ThisComputer, sessionToken: owner.PlaintextToken);
-        var fromTheHomeNetwork = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
-            ingress: ClientIngress.HomeNetwork, sessionToken: owner.PlaintextToken);
+        var fromOutside = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
+            ingress: ClientIngress.Remote, sessionToken: owner.PlaintextToken);
         // Without the Dashboard's service credential a caller's own claim about where it is counts for nothing.
         var claimsToBeThisComputer = await SendAsync(app, "POST", "/auth/session/switch-profile", body,
             ingress: ClientIngress.ThisComputer, sessionToken: owner.PlaintextToken, dashboard: false);
 
         Assert.Equal(StatusCodes.Status200OK, fromThisComputer.Status);
-        Assert.Equal(StatusCodes.Status401Unauthorized, fromTheHomeNetwork.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, fromOutside.Status);
         Assert.Equal(StatusCodes.Status401Unauthorized, claimsToBeThisComputer.Status);
     }
 
