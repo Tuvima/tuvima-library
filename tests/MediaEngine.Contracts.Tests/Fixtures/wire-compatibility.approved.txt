@@ -2351,6 +2351,9 @@
   input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
   response | shape=b0d8d8218dfd775dfc9969da20511c2e232eabe2afafb1c3515b28d531f736e6
 
+[method] MarkFirewallPromptAnsweredAsync
+  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
 [method] MarkNotificationsReadAsync
   input ids | default=required | shape=669627897819297c582cb890d507da27054999f0d4457da67b6f05bcde168c72
   response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677

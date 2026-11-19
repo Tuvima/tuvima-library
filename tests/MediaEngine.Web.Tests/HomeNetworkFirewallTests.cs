@@ -91,7 +91,7 @@ public sealed class HomeNetworkFirewallTests
         var outcome = await firewall.AllowAsync(5016, Owner);
 
         Assert.Equal(HomeNetworkFirewallOutcome.NotAllowed, outcome);
-        Assert.Single(runner.Runs);
+        Assert.Equal(2, runner.Runs.Count); // looks for the rule first, then tries to add it
     }
 
     [Fact]

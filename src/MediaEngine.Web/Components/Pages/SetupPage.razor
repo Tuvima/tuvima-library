@@ -107,6 +107,8 @@
                 default:
                     <SetupReadinessStage HeldKinds="@HeldKinds" Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" Tools="@_preflight?.Tools" Busy="@_busy" Complete="CompleteAsync"
                                          Back="GoBackAsync" />
+                    @* The one home-network question, asked here at the end of setup rather than over a page later (issue 1179). *@
+                    <MediaEngine.Web.Components.Settings.HomeNetworkFirewallPrompt />
                     break;
             }
         </section>
@@ -398,8 +400,8 @@
         }
         if (CurrentStep == "tools" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
         {
+            // Carry on: once the tools are ready the graphics and system checks below must run on this first visit too.
             await RunPreflightAsync();
-            return;
         }
         if (CurrentStep == "tools" && _preflight is { Passed: true } && _graphics is null && !_showRestore && !_busy)
         {

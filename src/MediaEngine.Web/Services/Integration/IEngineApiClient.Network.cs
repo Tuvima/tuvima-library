@@ -5,6 +5,8 @@ namespace MediaEngine.Web.Services.Integration;
 public partial interface IEngineApiClient
 {
     Task<NetworkSettingsDto?> GetNetworkSettingsAsync(CancellationToken ct = default);
+    /// <summary>Remembers that the first-run home-network question was answered; no fresh sign-in is needed.</summary>
+    Task<bool> MarkFirewallPromptAnsweredAsync(CancellationToken ct = default);
     Task<NetworkSettingsDto?> UpdateNetworkSettingsAsync(NetworkSettingsDto settings, CancellationToken ct = default);
     Task<NetworkRuntimeStatusDto?> GetNetworkRuntimeStatusAsync(CancellationToken ct = default);
 

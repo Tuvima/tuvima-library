@@ -114,6 +114,12 @@ public sealed class HomeNetworkFirewall(IFirewallCommandRunner runner) : IHomeNe
             return HomeNetworkFirewallOutcome.NotPermitted;
         }
 
+        // Allow twice adds one rule, not two: an existing rule for this port is already the answer.
+        if (await GetStateAsync(port, ct).ConfigureAwait(false) == HomeNetworkFirewallState.RuleInPlace)
+        {
+            return HomeNetworkFirewallOutcome.Allowed;
+        }
+
         var exitCode = await runner.RunAsync(
             HomeNetworkFirewallCommands.Program, HomeNetworkFirewallCommands.AddRuleArguments(port), needsAdministrator: true, ct).ConfigureAwait(false);
         if (exitCode != 0)

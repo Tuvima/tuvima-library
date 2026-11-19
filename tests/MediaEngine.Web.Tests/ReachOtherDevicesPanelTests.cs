@@ -53,6 +53,14 @@ public sealed class ReachOtherDevicesPanelTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetNetworkSettingsAsync), _ => Task.FromResult<NetworkSettingsDto?>(_stored));
+            // The answer is remembered through its own action, so no second "Confirm it's you" is asked for.
+            stub.SetHandler(nameof(IEngineApiClient.MarkFirewallPromptAnsweredAsync), _ =>
+            {
+                var answered = new NetworkSettingsDto();
+                answered.Local.FirewallPromptAnswered = !_saveFails;
+                _saved.Add(answered);
+                return Task.FromResult(!_saveFails);
+            });
             stub.SetHandler(nameof(IEngineApiClient.UpdateNetworkSettingsAsync), args =>
             {
                 var settings = (NetworkSettingsDto)args![0]!;
@@ -252,30 +260,6 @@ public sealed class ReachOtherDevicesPanelTests : AsyncBunitContext
         Assert.Contains("profile=private", add.Arguments, StringComparison.Ordinal);
         Assert.Contains("localport=5016", add.Arguments, StringComparison.Ordinal);
         Assert.True(Assert.Single(_saved).Local.FirewallPromptAnswered);
-    }
-
-    [Fact]
-    public void NotNow_ChangesOnlyTheAnsweredFlag_EvenWhenOtherSettingsChangedSinceThePageOpened()
-    {
-        _user.Ingress = ClientIngressValues.ThisComputer;
-        var cut = RenderPrompt();
-        cut.WaitForElement("[data-testid='firewall-not-now']");
-
-        // Someone saves another network setting while the question is open.
-        var newer = new NetworkSettingsDto();
-        newer.Local.PreferredServerName = "newer-name";
-        newer.Local.DiscoveryEnabled = false;
-        newer.Remote.ConnectionMode = "tailscale";
-        _stored = newer;
-
-        cut.Find("[data-testid='firewall-not-now']").Click();
-
-        cut.WaitForAssertion(() => Assert.Single(_saved));
-        var saved = Assert.Single(_saved);
-        Assert.True(saved.Local.FirewallPromptAnswered);
-        Assert.Equal("newer-name", saved.Local.PreferredServerName);
-        Assert.False(saved.Local.DiscoveryEnabled);
-        Assert.Equal("tailscale", saved.Remote.ConnectionMode);
     }
 
     [Fact]
