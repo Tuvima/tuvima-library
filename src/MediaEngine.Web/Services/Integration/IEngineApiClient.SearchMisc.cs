@@ -97,8 +97,23 @@ public partial interface IEngineApiClient
     /// <summary>DELETE /collections/{id}/items/{itemId} — remove a work from a playlist.</summary>
     Task<bool> RemoveCollectionItemAsync(Guid collectionId, Guid itemId, Guid? profileId = null, CancellationToken ct = default);
 
-    /// <summary>PUT /collections/{id}/items/reorder - persist playlist item ordering.</summary>
-    Task<bool> ReorderCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> itemIds, Guid? profileId = null, CancellationToken ct = default);
+    /// <summary>POST /collections/{id}/items with work_ids — add several works at once; null on failure, else how many were added and how many were already there.</summary>
+    Task<CollectionItemsAddedResponse?> AddCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> workIds, Guid? profileId = null, CancellationToken ct = default);
+
+    /// <summary>PUT /collections/{id}/items/{itemId}/move - move one playlist item to a position (1 is the top), to the top or to the bottom, at any playlist size.</summary>
+    Task<bool> MoveCollectionItemAsync(Guid collectionId, Guid itemId, CollectionItemMoveRequest move, Guid? profileId = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Brings a playlist to <paramref name="newOrder"/> (from <paramref name="currentOrder"/>, both item ids) with the fewest
+    /// <see cref="MoveCollectionItemAsync"/> calls: one for a drag or Move to top, more for a larger rearrangement.
+    /// </summary>
+    Task<bool> ApplyCollectionItemOrderAsync(Guid collectionId, IReadOnlyList<Guid> currentOrder, IReadOnlyList<Guid> newOrder, Guid? profileId = null, CancellationToken ct = default);
+
+    /// <summary>POST /collections/{id}/duplicate - copy a playlist with its items in order; returns the new playlist, or null on failure.</summary>
+    Task<ManagedCollectionDto?> DuplicateCollectionAsync(Guid collectionId, string? name = null, Guid? profileId = null, CancellationToken ct = default);
+
+    /// <summary>PUT /collections/{id}/pinned - pin or unpin a playlist for the active profile only.</summary>
+    Task<bool> SetCollectionPinnedAsync(Guid collectionId, bool pinned, Guid? profileId = null, CancellationToken ct = default);
 
     /// <summary>PUT /collections/{id}/enabled — toggle collection enabled state.</summary>
     Task<bool> UpdateCollectionEnabledAsync(Guid collectionId, bool enabled, CancellationToken ct = default);

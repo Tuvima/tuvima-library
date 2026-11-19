@@ -362,8 +362,10 @@ public partial class ListenPage
         }
 
         _notice = null;
-        var saved = await ApiClient.ReorderCollectionItemsAsync(
+        // The Engine takes position moves, not a whole list: a drag or Move to top is one call at any playlist size.
+        var saved = await ApiClient.ApplyCollectionItemOrderAsync(
             ActivePlaylistCollection.Id,
+            _playlistItems.OrderBy(item => item.SortOrder).Select(item => item.Id).ToList(),
             orderedItems.Select(item => item.Id).ToList(),
             _activeProfileId);
 

@@ -12,6 +12,7 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
 using MediaEngine.Web.Services.Integration.Clients;
+using MediaEngine.Web.Services.Ui;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -470,24 +471,58 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> ReorderCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> itemIds, Guid? profileId = null, CancellationToken ct = default)
+    public Task<CollectionItemsAddedResponse?> AddCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> workIds, Guid? profileId = null, CancellationToken ct = default) =>
+        PostAsync<CollectionItemAddRequest, CollectionItemsAddedResponse>(
+            "POST /collections/{id}/items (batch)",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/items", profileId),
+            new CollectionItemAddRequest { WorkIds = workIds.Where(id => id != Guid.Empty).Distinct().ToList() },
+            ct: ct);
+
+    public Task<bool> MoveCollectionItemAsync(Guid collectionId, Guid itemId, CollectionItemMoveRequest move, Guid? profileId = null, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /collections/{id}/items/{itemId}/move",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/items/{itemId}/move", profileId),
+            move,
+            ct: ct);
+
+    public async Task<bool> ApplyCollectionItemOrderAsync(
+        Guid collectionId,
+        IReadOnlyList<Guid> currentOrder,
+        IReadOnlyList<Guid> newOrder,
+        Guid? profileId = null,
+        CancellationToken ct = default)
     {
-        try
+        var moves = CollectionItemMovePlanner.Plan(currentOrder, newOrder);
+        if (moves is null)
         {
-            var url = AppendCollectionProfileQuery($"/collections/{collectionId}/items/reorder", profileId);
-            var resp = await _http.PutAsJsonAsync(
-                url,
-                new CollectionItemReorderRequest { ItemIds = itemIds.ToList() },
-                ct);
-            return resp.IsSuccessStatusCode;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "PUT /collections/{CollectionId}/items/reorder failed", collectionId);
-            LastError = ex.Message;
+            LastError = "The saved order and the new order do not hold the same items.";
             return false;
         }
+
+        foreach (var move in moves)
+        {
+            if (!await MoveCollectionItemAsync(collectionId, move.ItemId, new CollectionItemMoveRequest { Position = move.Position }, profileId, ct))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
+
+    public Task<ManagedCollectionDto?> DuplicateCollectionAsync(Guid collectionId, string? name = null, Guid? profileId = null, CancellationToken ct = default) =>
+        PostAsync<CollectionDuplicateRequest, ManagedCollectionDto>(
+            "POST /collections/{id}/duplicate",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/duplicate", profileId),
+            new CollectionDuplicateRequest { Name = name },
+            ct: ct);
+
+    public Task<bool> SetCollectionPinnedAsync(Guid collectionId, bool pinned, Guid? profileId = null, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /collections/{id}/pinned",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/pinned", profileId),
+            new CollectionPinRequest(pinned),
+            ct: ct);
 
     public async Task<bool> UpdateCollectionEnabledAsync(Guid collectionId, bool enabled, CancellationToken ct = default)
     {

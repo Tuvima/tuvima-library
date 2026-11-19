@@ -32,7 +32,8 @@ public sealed class CollectionCatalogReadService(
     IDatabaseConnection db,
     ILogger<CollectionCatalogReadService> logger,
     TimeProvider? timeProvider = null,
-    ICollectionListRepository? listRepo = null)
+    ICollectionListRepository? listRepo = null,
+    IPlaylistRepository? playlistRepo = null)
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -59,6 +60,19 @@ public sealed class CollectionCatalogReadService(
                 .Where(collection => collection.Resolution != CollectionResolution.Query)
                 .Select(collection => collection.Id),
             ct).ConfigureAwait(false);
+
+        // The profile's own pins and the summed song lengths of the hand-picked lists, each read once for the whole list.
+        IReadOnlySet<Guid> pinnedIds = playlistRepo is null || activeProfile is null
+            ? new HashSet<Guid>()
+            : await playlistRepo.GetPinnedCollectionIdsAsync(activeProfile.Id, ct).ConfigureAwait(false);
+        IReadOnlyDictionary<Guid, double> totalDurations = playlistRepo is null
+            ? new Dictionary<Guid, double>()
+            : await playlistRepo.GetTotalDurationSecondsAsync(
+                collections
+                    .Where(collection => collection.Resolution != CollectionResolution.Query)
+                    .Select(collection => collection.Id)
+                    .ToList(),
+                ct).ConfigureAwait(false);
 
         var results = new List<ManagedCollectionDto>(collections.Count);
         foreach (var collection in collections)
@@ -88,7 +102,9 @@ public sealed class CollectionCatalogReadService(
                 CollectionOptionsPolicy.CapCount(collection, count),
                 activeProfile,
                 isAdministrator,
-                today: Today));
+                today: Today,
+                isPinned: playlistRepo is null || activeProfile is null ? null : pinnedIds.Contains(collection.Id),
+                totalDurationSeconds: totalDurations.TryGetValue(collection.Id, out var seconds) ? seconds : null));
         }
 
         return results;

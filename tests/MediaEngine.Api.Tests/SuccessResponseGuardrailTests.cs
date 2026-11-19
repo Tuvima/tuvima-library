@@ -12,7 +12,6 @@ public sealed partial class SuccessResponseGuardrailTests
     // route starts returning JSON, and new entries require the same explicit review.
     private static readonly HashSet<string> UntypedSuccessMetadataAllowlist =
     [
-        "AddCollectionItem",
         "SaveCollectionDisplayOverrides",
         "CancelEncodeJob",
         "CancelMediaOperation",
@@ -73,7 +72,8 @@ public sealed partial class SuccessResponseGuardrailTests
         "RemoveCollectionItem",
         "RemoveCollectionPersonalMediaSource",
         "RevokeClientDevice",
-        "ReorderCollectionItems",
+        "MoveCollectionItem",
+        "SetCollectionPinned",
         "RetryMediaOperation",
         "StartAiModelDownload",
         "StreamAsset",
