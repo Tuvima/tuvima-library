@@ -225,6 +225,7 @@
             @if (CurrentItem is null)
             {
                 <p class="qp__empty">@L["QueuePanel_Empty"]</p>
+                <QueueSavePlaylist Snapshot="@Snapshot" />
             }
             else
             {
@@ -240,6 +241,7 @@
                     <AppNativeButton Type="button" Class="qp__clear" Disabled="@(upcoming.Count == 0)" AriaLabel="@L["QueuePanel_ClearLabel"].Value" data-queue-clear
                                      OnClick="@(() => ClearUpcomingAsync(snapshot))">@L["Activity_Clear"]</AppNativeButton>
                 </div>
+                <QueueSavePlaylist Snapshot="@snapshot" />
                 @if (upcoming.Count == 0)
                 {
                     <p class="qp__empty">@L["QueuePanel_NothingNext"]</p>

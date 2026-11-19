@@ -15188,4 +15188,31 @@
   <data name="PlaylistPage_PinFailed" xml:space="preserve">
     <value>Could not change the pin. Nothing was changed.</value>
   </data>
+  <data name="QueueSave_Button" xml:space="preserve">
+    <value>Save queue as playlist</value>
+  </data>
+  <data name="QueueSave_NothingToSave" xml:space="preserve">
+    <value>There are no songs in the queue to save.</value>
+  </data>
+  <data name="QueueSave_NameLabel" xml:space="preserve">
+    <value>Playlist name</value>
+  </data>
+  <data name="QueueSave_DefaultName" xml:space="preserve">
+    <value>Queue, {0}</value>
+  </data>
+  <data name="QueueSave_OneSaved" xml:space="preserve">
+    <value>Saved 1 song as {0}</value>
+  </data>
+  <data name="QueueSave_ManySaved" xml:space="preserve">
+    <value>Saved {0} songs as {1}</value>
+  </data>
+  <data name="QueueSave_SkippedOne" xml:space="preserve">
+    <value>1 item was skipped because it is not a song in your library.</value>
+  </data>
+  <data name="QueueSave_SkippedMany" xml:space="preserve">
+    <value>{0} items were skipped because they are not songs in your library.</value>
+  </data>
+  <data name="QueueSave_Failed" xml:space="preserve">
+    <value>The queue could not be saved as a playlist. Your queue was not changed.</value>
+  </data>
 </root>

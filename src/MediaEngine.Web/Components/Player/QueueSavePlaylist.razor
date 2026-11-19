@@ -1,0 +1,101 @@
+@namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+@inject IServiceProvider Services
+
+@* "Save queue as playlist" in the queue panel (Listen playlists spec WP6; mockup screen D). One button; it opens a small name step in place (a name field with
+   Create and Cancel), then makes a hand-made playlist from the current and upcoming songs, in play order, and says how it went in one sentence in place (no toast).
+   It only reads the snapshot: it never sends a playback command, so the queue and what is playing are left exactly as they were. *@
+<div class="qsp" data-queue-save>
+    @if (_naming)
+    {
+        <div class="qsp__name" data-queue-save-name>
+            <AppTextField Value="@_name"
+                          ValueChanged="@(value => _name = value ?? string.Empty)"
+                          Label="@L["QueueSave_NameLabel"].Value"
+                          HideLabel="true"
+                          Placeholder="@L["QueueSave_NameLabel"].Value"
+                          MaxLength="100"
+                          AutoFocus="true"
+                          Disabled="@_saving"
+                          OnKeyDown="OnNameKeyDownAsync"
+                          data-queue-save-field="true" />
+            <div class="qsp__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="Cancel" data-queue-save-cancel="true">@L["Search_Cancel"]</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || string.IsNullOrWhiteSpace(_name))" OnClick="SaveAsync"
+                           data-queue-save-create="true">@L["PlaylistPicker_Create"]</AppButton>
+            </div>
+        </div>
+    }
+    else
+    {
+        <AppTooltip Text="@L["QueueSave_NothingToSave"].Value" Suppressed="@HasSongs">
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" FullWidth="true" Disabled="@(!HasSongs)" OnClick="BeginNaming"
+                       data-queue-save-button="true">@L["QueueSave_Button"]</AppButton>
+        </AppTooltip>
+    }
+    @if (_notice is not null)
+    {
+        <div class="qsp__notice" role="status" data-queue-save-notice>
+            <AppAlert Severity="@_notice.Severity" Dense="true">@_notice.Message</AppAlert>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The queue as shown. Read only: this part never changes it.</summary>
+    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+
+    private string _name = string.Empty;
+    private bool _naming, _saving, _disposed;
+    private PlaylistFlowNotice? _notice;
+
+    private bool HasSongs => QueuePlaylistSaver.Select(Snapshot).SongIds.Count > 0;
+
+    private void BeginNaming()
+    {
+        _notice = null;
+        _name = QueuePlaylistSaver.DefaultName(L, DateTimeOffset.Now);
+        _naming = true;
+    }
+
+    private void Cancel()
+    {
+        if (_saving) return;
+        _naming = false;
+    }
+
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter") await SaveAsync();
+        else if (args.Key == "Escape") Cancel();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving || string.IsNullOrWhiteSpace(_name)) return;
+        _saving = true;
+        PlaylistFlowNotice notice;
+        try
+        {
+            notice = await QueuePlaylistSaver.SaveAsync(Services.GetRequiredService<IEngineApiClient>(), L, Snapshot, _name.Trim());
+        }
+        finally
+        {
+            _saving = false;
+        }
+        if (_disposed) return;
+
+        // A failure keeps the name step open so the same name can be tried again; a save closes it and the sentence stays in place.
+        _notice = notice;
+        if (notice.Severity != AppSeverity.Error) _naming = false;
+    }
+
+    public void Dispose() => _disposed = true;
+}
