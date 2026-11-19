@@ -103,6 +103,23 @@ public sealed class PersonReconciliationEvidenceTests
         Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake([comedian], "Q5573861", "basketball"));
     }
 
+    [Fact]
+    public void SameNamePeople_TheOneTheWorksTextFitsIsChosen_AndNoFitLeavesThemUnmatched()
+    {
+        var comedian = Namesake("Q5573861", "Australian comedian and actor");
+        var player = Namesake("Q352159", "American basketball player (born 1988)");
+
+        var switched = PersonReconciliationService.ChooseNamesakeFromContext([comedian, player], "MasterClass NBA champion teaches shooting", "Q5573861");
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Switch, switched.Outcome);
+        Assert.Equal("Q352159", switched.Person!.Id);
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Keep,
+            PersonReconciliationService.ChooseNamesakeFromContext([comedian, player], "Learn basketball", "Q352159").Outcome);
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Unmatched,
+            PersonReconciliationService.ChooseNamesakeFromContext([comedian, player], "Part 01", "Q5573861").Outcome);
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Keep,
+            PersonReconciliationService.ChooseNamesakeFromContext([comedian], "Part 01", "Q5573861").Outcome);
+    }
+
     private static ReconciliationResult Namesake(string qid, string description) => new()
     {
         Id = qid,

@@ -447,15 +447,21 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
         IDatabaseConnection db,
         CancellationToken ct)
     {
-        // Credits are worked out for this work's own files only. Filtering the whole-library credit view by work still
+        // A show's page asks for the show's own work, which holds no files itself: its seasons' and episodes' files count too, so the
+        // show's cast is each person once. Credits are worked out for those files only. Filtering the whole-library credit view by work still
         // built every file's credits first: about 1 s per movie, episode or show page at 4,000 works (B29).
         var workCreditsCte = PersonCreditSql.ScopedCreditsCte(
             "work_credits",
             """
+            -- readiness: the files of one show's own works, looked up by the show's id
             SELECT ma.id
             FROM media_assets ma
             INNER JOIN editions e ON e.id = ma.edition_id
-            WHERE e.work_id = @workId
+            INNER JOIN works w ON w.id = e.work_id
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            WHERE w.id = @workId
+               OR w.parent_work_id = @workId
+               OR p.parent_work_id = @workId
             """,
             "actor_");
         using var conn = db.CreateConnection();
@@ -1083,7 +1089,11 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
             {relatedBookYearCte}
             SELECT w.id                                   AS WorkId,
                    COALESCE(gp.id, p.id, w.id)             AS RootWorkId,
-                   w.collection_id                        AS CollectionId,
+                   -- An episode whose own row has no Series still belongs to its show: take the Series from its season or show, so a
+                   -- person page lists the show once and never each episode (spec: People presence counts distinct top-level works).
+                   CASE WHEN LOWER(COALESCE(w.media_type, '')) LIKE '%tv%'
+                        THEN COALESCE(w.collection_id, p.collection_id, gp.collection_id)
+                        ELSE w.collection_id END           AS CollectionId,
                    w.media_type                           AS MediaType,
                    c.display_name                         AS CollectionTitle,
                    c.wikidata_qid                         AS CollectionQid,
@@ -1163,7 +1173,9 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
             LEFT JOIN works gp
                 ON gp.id = p.parent_work_id
             LEFT JOIN collections c
-                ON c.id = w.collection_id
+                ON c.id = CASE WHEN LOWER(COALESCE(w.media_type, '')) LIKE '%tv%'
+                               THEN COALESCE(w.collection_id, p.collection_id, gp.collection_id)
+                               ELSE w.collection_id END
             LEFT JOIN canonical_values cv
                 ON cv.entity_id = w.id
                AND cv.key = 'title'

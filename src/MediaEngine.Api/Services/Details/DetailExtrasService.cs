@@ -19,7 +19,8 @@ public sealed class DetailExtrasService(
     IItemExtraRepository extras,
     ILibraryFolderResolver libraries,
     IExtrasConfigurationSource? rules = null,
-    IEditorConfigurationSource? editorConfig = null)
+    IEditorConfigurationSource? editorConfig = null,
+    ISupportingFileTitleResolver? titleFolders = null)
 {
     // How many of the page's files are looked up to find the folders Extras sit in. One batched lookup, so the cost is the folder walk, not a
     // query per file; 500 covers a long course (every lesson then gets its chip) and still bounds a page that lists thousands of files.
@@ -97,15 +98,21 @@ public sealed class DetailExtrasService(
         }
 
         var distinct = assetIds.Distinct().Take(MaxAssetsToLocate).ToList();
-        if (distinct.Count == 0 && videoPaths.Count == 0)
-        {
-            return;
-        }
-
-        var paths = distinct.Count == 0
+        IReadOnlyDictionary<Guid, string> paths = distinct.Count == 0
             ? videoPaths
             : await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // A title's own page also asks the folder finder the editor's supporting-files browser uses, so a page that lists its files
+        // in a way the lookups above cannot read (a show of lessons, a folder of videos) still finds the folders its Extras sit in.
+        if (!isEpisode && titleFolders is not null && Guid.TryParse(detail.Id, out var titleId))
+        {
+            foreach (var folder in await titleFolders.ResolveItemFoldersAsync(titleId, ct).ConfigureAwait(false))
+            {
+                folders.Add(folder);
+            }
+        }
+
         foreach (var path in paths.Values)
         {
             foreach (var folder in CandidateFolders(path))
