@@ -119,5 +119,8 @@ public sealed class ViewGalleryShareTargetTests
 
         public Task<bool> SaveBuiltInMapOnlyAsync(Guid profileId, bool builtInOnly, CancellationToken ct = default) =>
             throw new NotSupportedException();
+
+        public Task<bool> SaveReadWordsInPhotosAsync(Guid profileId, bool readWords, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 }

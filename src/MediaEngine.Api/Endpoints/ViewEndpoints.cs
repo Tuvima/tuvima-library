@@ -738,6 +738,7 @@ public static partial class ViewEndpoints
         MapDocumentFiling(group);
         MapDocumentBulk(group);
         MapMapPreference(group);
+        MapPhotoWordsPreference(group);
         MapItemsEdit(group);
         MapTrash(group);
         MapIntake(group);

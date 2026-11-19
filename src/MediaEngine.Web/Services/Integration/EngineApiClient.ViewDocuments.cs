@@ -221,4 +221,25 @@ public sealed partial class EngineApiClient
         catch (OperationCanceledException) { return false; }
         catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
     }
+
+    public async Task<bool> GetViewReadWordsInPhotosAsync(CancellationToken ct = default) =>
+        (await GetAsync<ViewPhotoWordsPreferenceDto>("GET /view/preferences/photo-words", "/view/preferences/photo-words", ct: ct))?.ReadWords ?? false;
+
+    public async Task<bool> SetViewReadWordsInPhotosAsync(bool readWords, CancellationToken ct = default)
+    {
+        const string endpoint = "PUT /view/preferences/photo-words";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, "/view/preferences/photo-words")
+            {
+                Content = JsonContent.Create(new ViewPhotoWordsPreferenceDto(readWords)),
+            };
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) { await RecordHttpFailureAsync(endpoint, response, ct); return false; }
+            ClearFailure(endpoint);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
+    }
 }

@@ -47,6 +47,9 @@ internal sealed class TestViewProfileRepository(ViewProfilePolicy? policy = null
 
     public Task<bool> SaveBuiltInMapOnlyAsync(Guid profileId, bool builtInOnly, CancellationToken ct = default) =>
         throw new NotSupportedException();
+
+    public Task<bool> SaveReadWordsInPhotosAsync(Guid profileId, bool readWords, CancellationToken ct = default) =>
+        throw new NotSupportedException();
 }
 
 internal sealed class TestAllowAuthorizationEvaluator : IAuthorizationEvaluator

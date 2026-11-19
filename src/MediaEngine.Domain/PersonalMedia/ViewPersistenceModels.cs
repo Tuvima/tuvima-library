@@ -84,7 +84,8 @@ public sealed record ViewProfilePreferences(
     bool ViewerInfoOpen = true,
     string? DocumentsSort = null,
     bool DocumentsPicturesToPhotos = false,
-    bool BuiltInMapOnly = false)
+    bool BuiltInMapOnly = false,
+    bool ReadWordsInPhotos = false)
 {
     public static ViewProfilePreferences Default(Guid profileId) =>
         new(profileId, null, null, ViewTimelineDensity.Comfortable, null, true);

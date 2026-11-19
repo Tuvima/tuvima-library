@@ -23,4 +23,7 @@ public interface IViewProfileRepository
 
     /// <summary>Remembers, for this profile, whether maps use only the built-in map and never ask an online tile service (spec view-people-search WP2).</summary>
     Task<bool> SaveBuiltInMapOnlyAsync(Guid profileId, bool builtInOnly, CancellationToken ct = default);
+
+    /// <summary>Saves whether this person wants the words inside their own photos read so a search can find them (spec view-people-search WP5).</summary>
+    Task<bool> SaveReadWordsInPhotosAsync(Guid profileId, bool readWords, CancellationToken ct = default);
 }

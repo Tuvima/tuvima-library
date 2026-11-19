@@ -229,6 +229,23 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         _mapLoaded = true;
     }
 
+    /// <summary>True when this person switched on reading the words inside their own photos. Loaded with the page; changed with <see cref="SetReadWordsInPhotosAsync"/>.</summary>
+    public bool ReadWordsInPhotos { get; private set; }
+
+    public async Task RefreshReadWordsInPhotosAsync(CancellationToken ct = default) =>
+        ReadWordsInPhotos = await api.GetViewReadWordsInPhotosAsync(ct);
+
+    public async Task<bool> SetReadWordsInPhotosAsync(bool readWords, CancellationToken ct = default)
+    {
+        if (!await api.SetViewReadWordsInPhotosAsync(readWords, ct))
+        {
+            return false;
+        }
+
+        ReadWordsInPhotos = readWords;
+        return true;
+    }
+
     public async Task<bool> SetBuiltInMapOnlyAsync(bool builtInOnly, CancellationToken ct = default)
     {
         if (!await api.SetViewMapBuiltInOnlyAsync(builtInOnly, ct))

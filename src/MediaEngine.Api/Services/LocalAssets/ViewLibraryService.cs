@@ -31,7 +31,8 @@ public sealed class ViewLibraryService(
     DocumentOcrQueue? ocrQueue = null,
     DocumentRulesQueue? rulesQueue = null,
     PersonalMediaActivityRecorder? activityRecorder = null,
-    IFileWriteQueue? fileWrites = null) : IViewPathIndexer, IVaultImageIndexer
+    IFileWriteQueue? fileWrites = null,
+    IViewProfileRepository? profiles = null) : IViewPathIndexer, IVaultImageIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -599,7 +600,7 @@ public sealed class ViewLibraryService(
             VideoCodec: metadata.VideoCodec,
             FrameRate: metadata.FrameRate,
             DocumentText: metadata.DocumentText), ct);
-        await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, ct);
+        await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, space, ct);
         await QueueAddedByWriteAsync(upserted, source, addedBy, ct);
         if (upserted.ItemAdded && activityRecorder is not null && space is not null
             && group.Primary.Type.MediaKind is LocalAssetMediaKinds.Image or LocalAssetMediaKinds.Video)
@@ -642,6 +643,16 @@ public sealed class ViewLibraryService(
         }
     }
 
+    private async Task<bool> ReadsWordsInPhotosAsync(ViewPersonalSpace? space, CancellationToken ct)
+    {
+        if (profiles is null)
+        {
+            return true;
+        }
+
+        return space is not null && (await profiles.GetPreferencesAsync(space.OwnerProfileId, ct)).ReadWordsInPhotos;
+    }
+
     /// <summary>
     /// PDFs and Office files are read by a throttled background job, never inline during the scan.
     /// A failure to queue must not fail the scan; the next scan queues it again.
@@ -650,6 +661,7 @@ public sealed class ViewLibraryService(
         Guid itemId,
         FileCandidate primary,
         IReadOnlyList<LocalAssetFileRegistration> registrations,
+        ViewPersonalSpace? space,
         CancellationToken ct)
     {
         var isPhotoOfPaper = primary.Type.MediaKind == LocalAssetMediaKinds.Image && OcrFormats.IsImage(primary.Extension);
@@ -671,8 +683,9 @@ public sealed class ViewLibraryService(
         {
             if (isPhotoOfPaper)
             {
-                // Photos go straight to text recognition; it only queues while recognition is on and installed.
-                if (ocrQueue is not null)
+                // Photos go to text recognition only for a person who switched on "Read words in my photos" (spec view-people-search WP5),
+                // and only while recognition is on and installed. Photos of nobody's personal space are never read.
+                if (ocrQueue is not null && await ReadsWordsInPhotosAsync(space, ct))
                 {
                     await ocrQueue.TryQueueAsync(itemId, file.ContentHash, file.FilePath, ct);
                 }

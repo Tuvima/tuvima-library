@@ -14876,6 +14876,15 @@
   <data name="ViewPage_AddMedia" xml:space="preserve">
     <value>Add media</value>
   </data>
+  <data name="ViewPage_ReadWordsInPhotos" xml:space="preserve">
+    <value>Read words in my photos</value>
+  </data>
+  <data name="ViewPage_ReadWordsCouldNotBeSaved" xml:space="preserve">
+    <value>Could not save the words in photos setting. Try again.</value>
+  </data>
+  <data name="ViewPage_SearchPlaceholderWithWords" xml:space="preserve">
+    <value>Search photos, people, places, dates, cameras, and words in photos</value>
+  </data>
   <data name="ViewPage_SearchPlaceholder" xml:space="preserve">
     <value>Search photos, people, places, dates, and cameras</value>
   </data>

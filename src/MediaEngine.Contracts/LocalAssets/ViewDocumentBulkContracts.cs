@@ -95,3 +95,7 @@ public sealed record ViewDocumentsPicturesDto(
 /// <summary>Whether this profile chose the built-in map only, so no online map tiles are requested (spec view-people-search WP2).</summary>
 public sealed record ViewMapPreferenceDto(
     [property: JsonPropertyName("built_in_only")] bool BuiltInOnly);
+
+/// <summary>Whether this profile wants the words inside its own photos read so a search can find them (spec view-people-search WP5).</summary>
+public sealed record ViewPhotoWordsPreferenceDto(
+    [property: JsonPropertyName("read_words")] bool ReadWords);
