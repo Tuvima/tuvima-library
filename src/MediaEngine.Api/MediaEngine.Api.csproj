@@ -16,6 +16,7 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <!-- Polly: standard resilience (retry, circuit-breaker, timeout) for all external HTTP calls. -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" />
     <!-- Windows Service: integrates with SCM when running as installed service. No-op elsewhere. -->
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
     <!-- Tuvima.Wikidata.AspNetCore: DI registration extension for WikidataReconciler.
