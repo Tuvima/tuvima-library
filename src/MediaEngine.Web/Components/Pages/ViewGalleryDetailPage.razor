@@ -150,13 +150,10 @@
                         <AppCheckbox Value="@IsShareSelected(target.ProfileId)"
                                      ValueChanged="@(value => SetShareSelected(target.ProfileId, value))"
                                      Label="@target.DisplayName" />
-                        <AppSelect Native="true" Value="@PermissionValue(target.ProfileId)"
+                        <AppSelect Options="@PermissionOptions" Value="@PermissionValue(target.ProfileId)"
                                          ValueChanged="@(selected => SharePermissionChanged(target.ProfileId, selected))"
                                          Disabled="@(!IsShareSelected(target.ProfileId))"
-                                         aria-label="@($"Permission for {target.DisplayName}")">
-                            <option value="view">@L["ViewGalleryDetailPage_CanView"]</option>
-                            <option value="contribute">@L["ViewGalleryDetailPage_CanContribute"]</option>
-                        </AppSelect>
+                                         AriaLabel="@L["ViewGalleryDetailPage_PermissionFor", target.DisplayName].Value" />
                     </div>
                 }
             </div>
@@ -442,6 +439,7 @@
     private bool IsShareSelected(Guid profileId) => _shareDraft.ContainsKey(profileId);
     private static string AvatarInitial(string displayName) =>
         string.IsNullOrWhiteSpace(displayName) ? "?" : displayName.Trim()[..1].ToUpperInvariant();
+    private IReadOnlyList<AppSelectOption> PermissionOptions => [new("view", L["ViewGalleryDetailPage_CanView"].Value), new("contribute", L["ViewGalleryDetailPage_CanContribute"].Value)];
     private string PermissionValue(Guid profileId) =>
         _shareDraft.GetValueOrDefault(profileId) == ViewGallerySharePermission.Contribute
             ? "contribute"

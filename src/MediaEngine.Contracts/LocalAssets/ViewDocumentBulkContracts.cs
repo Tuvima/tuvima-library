@@ -91,3 +91,7 @@ public sealed record ViewDocumentsSortDto(
 /// <summary>Whether this profile asked Library to stop asking and file pictures dropped on Documents into Photos.</summary>
 public sealed record ViewDocumentsPicturesDto(
     [property: JsonPropertyName("to_photos")] bool ToPhotos);
+
+/// <summary>Whether this profile chose the built-in map only, so no online map tiles are requested (spec view-people-search WP2).</summary>
+public sealed record ViewMapPreferenceDto(
+    [property: JsonPropertyName("built_in_only")] bool BuiltInOnly);

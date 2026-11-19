@@ -5869,6 +5869,11 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     height: var(--tl-viewer-close);
 }
 
+/* Photo, video and audio viewer root (MediaViewerShell). AppViewer draws this element, so the shell's scoped CSS cannot reach it; without a grid here
+   the bar and body stack at their natural height, the stage collapses and the photo opens small (spec view-people-search WP13). */
+.media-viewer { z-index: 1600; display: grid; grid-template-rows: auto minmax(0, 1fr); color: var(--tl-text-primary); background: color-mix(in srgb, var(--tl-bg-root) 98.5%, transparent); }
+.media-viewer.media-viewer--video { grid-template-rows: minmax(0, 1fr); }
+
 /* Window footer (Look v3 D14, D15.3; Shy 2026-11-07: as in the mock): every button sits in one right-hand group in reading order,
    destructive (outlined red), then Cancel or Discard, then the one primary last. Only a quiet extra action marked app-footer-start
    (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. The one exception is the short

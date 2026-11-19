@@ -23,17 +23,17 @@
 }
 else if (_atlas is null)
 {
-    <AppErrorState Title="@L["ViewPlacesPage_PlacesCouldNotBeLoaded"].Value" Message="The Engine did not return geographic discovery data." Retry="LoadAtlasAsync" />
+    <AppErrorState Title="@L["ViewPlacesPage_PlacesCouldNotBeLoaded"].Value" Message="@L["ViewPlacesPage_NoData"].Value" Retry="LoadAtlasAsync" />
 }
 else
 {
     <section class="view-atlas" aria-label="@L["ViewPlacesPage_PlacesMap"].Value">
         <div class="view-atlas__map-shell">
-            <ViewMap @ref="_map" Mode="atlas" Class="view-atlas__map" AriaLabel="@L["ViewPlacesPage_WorldMapOfAuthorizedPhoto"].Value"
+            <ViewMap @key="@Workspace.BuiltInMapOnly" @ref="_map" Mode="atlas" Class="view-atlas__map" AriaLabel="@L["ViewPlacesPage_WorldMapOfAuthorizedPhoto"].Value"
                      Hotspots="@_atlas.Hotspots" ThumbnailUrl="HotspotThumbnail" JourneyEnabled="@_journey" ShowNavigation="false" OnHotspotSelected="SelectHotspotAsync" />
             <div class="view-atlas__toolbar" aria-label="@L["ViewPlacesPage_AtlasFilters"].Value">
                 <label class="view-atlas__search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions"].Value" AriaLabel="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions2"].Value" /></label>
-                <AppSelect Native="true" Value="@TimePresetValue" ValueChanged="TimePresetChangedAsync" aria-label="@L["ViewPlacesPage_FilterPlacesByTime"].Value"><option value="">@L["ViewPlacesPage_AllTime"]</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppSelect>
+                <AppSelect Options="@TimePresetOptions" Value="@TimePresetValue" ValueChanged="TimePresetChangedAsync" AriaLabel="@L["ViewPlacesPage_FilterPlacesByTime"].Value" />
                 <div class="view-atlas__types" role="group" aria-label="@L["Common_MediaType"].Value"><AppNativeButton Type="button" Class="@TypeClass(null)" OnClick="@(_ => SetMediaKindAsync(null))">@L["ApiKeys_AllKeysRevoked"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("image")" OnClick="@(_ => SetMediaKindAsync("image"))">@L["Common_Photos"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("video")" OnClick="@(_ => SetMediaKindAsync("video"))">@L["ViewPlacesPage_Videos"]</AppNativeButton></div>
                 <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />@L["Common_Filters"]</AppNativeButton>
             </div>
@@ -56,6 +56,10 @@ else
                                 SelectedYear="@_year" SelectedFrom="@_from" SelectedTo="@_to" Resolution="@_timelineResolution"
                                 MappedAssetCount="@_atlas.MappedAssetCount" ImageCount="@_atlas.ImageCount" VideoCount="@_atlas.VideoCount"
                                 OnFromChanged="FromChangedAsync" OnToChanged="ToChangedAsync" OnResolutionChanged="ResolutionChangedAsync" OnReset="ResetTimelineAsync" />
+            <div class="view-atlas__disclosure">
+                <span>@(Workspace.BuiltInMapOnly ? L["ViewPlacesPage_BuiltInDisclosure"].Value : L["ViewPlacesPage_TileDisclosure"].Value)</span>
+                <AppCheckbox Value="@Workspace.BuiltInMapOnly" ValueChanged="BuiltInMapChangedAsync" Label="@L["ViewPlacesPage_BuiltInOnly"].Value" />
+            </div>
         </div>
 
         @if (_selectedHotspot is not null || _showUnmapped)
@@ -98,7 +102,7 @@ else
     private bool _initializing = true, _loading, _storyLoading, _showUnmapped, _journey, _filtersOpen, _favoritesOnly;
     private IReadOnlyList<LocalAssetDto> _unmapped = [];
 
-    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAtlasAsync(); }
+    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.EnsureMapPreferenceAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAtlasAsync(); }
     // The atlas histogram remains monthly and contextual while the selector controls
     // the calendar precision used by the range handles. This prevents Year mode from
     // collapsing a multi-year library into a handful of oversized bars.
@@ -125,6 +129,8 @@ else
     }
     private async Task TimePresetChangedAsync(string? selected) { _year = int.TryParse(selected, out var year) ? year : null; _from = _year.HasValue ? new DateTimeOffset(_year.Value, 1, 1, 0, 0, 0, TimeSpan.Zero) : null; _to = _year.HasValue ? new DateTimeOffset(_year.Value, 12, 31, 23, 59, 59, 999, TimeSpan.Zero) : null; await LoadAtlasAsync(); }
     private async Task SetMediaKindAsync(string? kind) { _mediaKind = kind; await LoadAtlasAsync(); }
+    private IReadOnlyList<AppSelectOption> TimePresetOptions => [new(string.Empty, L["ViewPlacesPage_AllTime"].Value), .. _atlas!.AvailableYears.Select(year => new AppSelectOption(year.ToString(), year.ToString()))];
+    private async Task BuiltInMapChangedAsync(bool builtInOnly) { if (!await Workspace.SetBuiltInMapOnlyAsync(builtInOnly)) Ribbon.Add(L["ViewPlacesPage_MapChoiceFailed"].Value, AppSeverity.Error); StateHasChanged(); }
     private string TimePresetValue => _year?.ToString() ?? string.Empty;
     private string TypeClass(string? kind) => string.Equals(_mediaKind, kind, StringComparison.Ordinal) ? "is-active" : string.Empty;
     private async Task SelectHotspotAsync(string key) { _selectedHotspot = _atlas?.Hotspots.FirstOrDefault(item => item.Key == key); _showUnmapped = false; await LoadStoryAsync(); if (_map is not null) await _map.ResizeAsync(); }
@@ -169,7 +175,7 @@ else
     private void CloseStory() { ++_storyVersion; _storyLoading = false; _selectedHotspot = null; _placeMedia = null; _showUnmapped = false; _unmapped = []; _unmappedCursor = null; _selected.Clear(); }
     private async Task CloseStoryAsync() { CloseStory(); if (_map is not null) { await InvokeAsync(StateHasChanged); await _map.ResizeAsync(); } }
     private IReadOnlyList<LocalAssetDto> StoryItems => _showUnmapped ? _unmapped : _placeMedia?.Items ?? [];
-    private string StoryTitle => _showUnmapped ? "Without location" : _selectedHotspot?.Name ?? "Place Story";
+    private string StoryTitle => _showUnmapped ? L["ViewPlacesPage_WithoutLocation"].Value : _selectedHotspot?.Name ?? L["ViewPlacesPage_PlaceStory"].Value;
     private string StorySummary => _showUnmapped ? $"{StoryItems.Count:N0} loaded · open an item to add a precise location" : _selectedHotspot is null ? string.Empty : $"{_selectedHotspot.AssetCount:N0} {(_selectedHotspot.AssetCount == 1 ? "item" : "items")} · {(_selectedHotspot.EarliestAt.Year == _selectedHotspot.LatestAt.Year ? _selectedHotspot.EarliestAt.ToString("yyyy") : $"{_selectedHotspot.EarliestAt:yyyy}–{_selectedHotspot.LatestAt:yyyy}")}";
     private string UnmappedTooltip => $"{(_atlas?.UnmappedAssetCount ?? 0):N0} media items have no usable GPS coordinates. Open them to add a location.";
     private Task ResetWorldAsync() => _map?.ResetWorldAsync() ?? Task.CompletedTask;

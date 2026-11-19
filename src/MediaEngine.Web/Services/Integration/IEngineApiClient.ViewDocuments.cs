@@ -43,6 +43,11 @@ public partial interface IEngineApiClient
     Task<bool> GetViewDocumentsPicturesToPhotosAsync(CancellationToken ct = default);
 
     Task<bool> SetViewDocumentsPicturesToPhotosAsync(bool toPhotos, CancellationToken ct = default);
+
+    /// <summary>True when this profile chose the built-in map only, so no online map tiles are requested.</summary>
+    Task<bool> GetViewMapBuiltInOnlyAsync(CancellationToken ct = default);
+
+    Task<bool> SetViewMapBuiltInOnlyAsync(bool builtInOnly, CancellationToken ct = default);
 }
 
 /// <summary>A finished export: the file, or the reason there is none. <see cref="Truncated"/> means the list was cut at the row cap.</summary>

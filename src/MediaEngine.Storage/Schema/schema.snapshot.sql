@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0088 activity_run_item_size).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0089 view_built_in_map_only).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2369,7 +2369,7 @@ CREATE TABLE profile_view_preferences (
     viewer_info_open        INTEGER NOT NULL DEFAULT 1 CHECK (viewer_info_open IN (0, 1)),
     -- How the Documents list is ordered for this profile; NULL means the default order.
     documents_sort          TEXT CHECK (documents_sort IS NULL OR documents_sort IN ('added', 'document_date', 'title', 'correspondent')),
-    updated_at              TEXT NOT NULL, documents_pictures_to_photos INTEGER NOT NULL DEFAULT 0 CHECK (documents_pictures_to_photos IN (0, 1)),
+    updated_at              TEXT NOT NULL, documents_pictures_to_photos INTEGER NOT NULL DEFAULT 0 CHECK (documents_pictures_to_photos IN (0, 1)), built_in_map_only INTEGER NOT NULL DEFAULT 0 CHECK (built_in_map_only IN (0, 1)),
     CHECK ((last_scope_kind = 'profile' AND last_scope_profile_id IS NOT NULL)
         OR (last_scope_kind IS NULL OR last_scope_kind IN ('shared', 'mine'))
            AND last_scope_profile_id IS NULL)

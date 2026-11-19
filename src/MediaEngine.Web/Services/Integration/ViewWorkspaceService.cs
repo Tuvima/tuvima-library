@@ -214,6 +214,26 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         return true;
     }
 
+    private bool _mapLoaded;
+
+    /// <summary>True when this person chose the built-in map only (no online map tiles). Read once, then kept; call <see cref="EnsureMapPreferenceAsync"/> first.</summary>
+    public bool BuiltInMapOnly { get; private set; }
+
+    public async Task EnsureMapPreferenceAsync(CancellationToken ct = default)
+    {
+        if (_mapLoaded) return;
+        BuiltInMapOnly = await api.GetViewMapBuiltInOnlyAsync(ct);
+        _mapLoaded = true;
+    }
+
+    public async Task<bool> SetBuiltInMapOnlyAsync(bool builtInOnly, CancellationToken ct = default)
+    {
+        if (!await api.SetViewMapBuiltInOnlyAsync(builtInOnly, ct)) return false;
+        BuiltInMapOnly = builtInOnly;
+        _mapLoaded = true;
+        return true;
+    }
+
     public async Task<bool> SetViewerInfoOpenAsync(bool open, CancellationToken ct = default)
     {
         if (Preferences is not null)

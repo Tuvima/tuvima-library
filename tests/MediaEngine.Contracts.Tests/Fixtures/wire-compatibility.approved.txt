@@ -2137,6 +2137,9 @@
   input take | default=100 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   response | shape=295bb3f39b687b8db4c9c28a99dbeb24fa271152a8cdd60c8e18b3a4598be49f
 
+[method] GetViewMapBuiltInOnlyAsync
+  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
 [method] GetViewMissingFileSettingsAsync
   response | shape=a1eb78ef985fd4b9c7fdd429c38ad90124d27e942f5d615454b3c305b5b3219d
 
@@ -3272,6 +3275,10 @@
 [method] SetViewItemHiddenAsync
   input itemId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   input value | default=required | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
+  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
+[method] SetViewMapBuiltInOnlyAsync
+  input builtInOnly | default=required | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
   response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
 [method] SetViewTidyScheduleAsync

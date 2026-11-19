@@ -3,6 +3,7 @@
 @implements IAsyncDisposable
 @namespace MediaEngine.Web.Components.View
 @inject IStringLocalizer<SharedStrings> L
+@inject MediaEngine.Web.Services.Integration.ViewWorkspaceService Workspace
 
 <div class="@RootClass" role="group" aria-label="@AriaLabel">
     <div class="view-map__canvas" @ref="_container"></div>
@@ -52,7 +53,8 @@
             // Keep an explicit revision on this long-lived dynamic module. A
             // running Blazor session otherwise keeps the previous module in the
             // browser module cache after a Dashboard update.
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-map.js?v=20261111.1");
+            await Workspace.EnsureMapPreferenceAsync();
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-map.js?v=20261119.1");
             _reference = DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("initialize", _container, _reference, new
             {
@@ -65,6 +67,7 @@
                 interactive = Interactive,
                 showNavigation = ShowNavigation,
                 journeyEnabled = JourneyEnabled,
+                builtInOnly = Workspace.BuiltInMapOnly,
             });
             return;
         }

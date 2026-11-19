@@ -5964,6 +5964,9 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEdi
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsRemovedResponse
   Removed: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewMapPreferenceDto
+  BuiltInOnly: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewMissingFileSettingsDto
   RetentionDays: System.Int32 | nullability=not-null | accessors=get,init
   DefaultRetentionDays: System.Int32 | nullability=not-null | accessors=get,init
