@@ -100,6 +100,35 @@ public sealed class ViewDiscoveryRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Suggestions_CountOnlyAuthorizedActiveVisiblePhotosAndNeverOtherPeoplesOrDocuments()
+    {
+        var owner = await CreateOwnership();
+        var other = await CreateOwnership();
+        var seattleOne = await AddAsset(owner, "Seattle one", 47.6062, -122.3321, "Seattle", new DateTimeOffset(2021, 6, 1, 0, 0, 0, TimeSpan.Zero));
+        var seattleTwo = await AddAsset(owner, "Seattle two", 47.6070, -122.3330, "Seattle", new DateTimeOffset(2021, 7, 1, 0, 0, 0, TimeSpan.Zero));
+        await AddAsset(owner, "Maui", 20.7984, -156.3319, "Maui", new DateTimeOffset(2019, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var hidden = await AddAsset(owner, "Hidden", 48.8566, 2.3522, "Paris", new DateTimeOffset(2021, 8, 1, 0, 0, 0, TimeSpan.Zero));
+        await _assets.SetFlagsAsync(hidden, favorite: null, hidden: true);
+        await AddAsset(owner, "Lease", 41.8, -87.6, "Chicago", mediaKind: LocalAssetMediaKinds.Document);
+        var theirs = await AddAsset(other, "Their Tokyo", 35.6762, 139.6503, "Tokyo", new DateTimeOffset(2021, 9, 1, 0, 0, 0, TimeSpan.Zero));
+        await _assets.AddAnnotationAsync(seattleOne, new LocalAssetAnnotation("person_name", "Sam", "user"));
+        await _assets.AddAnnotationAsync(seattleTwo, new LocalAssetAnnotation("person_name", "Sam", "user"));
+        await _assets.AddAnnotationAsync(theirs, new LocalAssetAnnotation("person_name", "Private Eve", "user"));
+
+        var all = _discovery.QuerySuggestions(new ViewSuggestionQuery([owner.LibraryId]));
+
+        Assert.Equal(2, Assert.Single(all, row => row is { Kind: "person", Value: "Sam" }).AssetCount);
+        Assert.Equal(2, Assert.Single(all, row => row is { Kind: "place", Value: "Seattle" }).AssetCount);
+        Assert.Equal(2, Assert.Single(all, row => row is { Kind: "year", Value: "2021" }).AssetCount);
+        Assert.Contains(all, row => row is { Kind: "year", Value: "2019" });
+        Assert.DoesNotContain(all, row => row.Value is "Tokyo" or "Private Eve" or "Paris" or "Chicago");
+
+        var narrowed = _discovery.QuerySuggestions(new ViewSuggestionQuery([owner.LibraryId], "mau"));
+        Assert.Equal("Maui", Assert.Single(narrowed, row => row.Kind == "place").Value);
+        Assert.Empty(_discovery.QuerySuggestions(new ViewSuggestionQuery([])));
+    }
+
+    [Fact]
     public async Task Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata()
     {
         var owner = await CreateOwnership();

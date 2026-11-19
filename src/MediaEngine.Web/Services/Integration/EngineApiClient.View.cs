@@ -279,6 +279,14 @@ public sealed partial class EngineApiClient
             ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
         }, ct: ct);
 
+    public Task<ViewSuggestionsDto?> GetViewSearchSuggestionsAsync(ViewScopeKind scope, Guid? scopeProfileId, string? text, CancellationToken ct = default) =>
+        GetAsync<ViewSuggestionsDto>("GET /view/search-suggestions", "/view/search-suggestions", new Dictionary<string, string?>
+        {
+            ["scope"] = ScopeValue(scope),
+            ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
+            ["q"] = string.IsNullOrWhiteSpace(text) ? null : text,
+        }, ct: ct);
+
     public Task<ViewPeoplePageDto?> GetViewPeopleAsync(ViewDiscoveryQueryOptions options, CancellationToken ct = default) =>
         GetViewDiscoveryAsync<ViewPeoplePageDto>("people", options, ct);
 

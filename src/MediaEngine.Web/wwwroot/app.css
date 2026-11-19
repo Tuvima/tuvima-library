@@ -6289,3 +6289,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
     width: min(86vw, 320px);
 }
 
+/* Photos smart search bar (view-people-search WP4): the chip remove button and the text box are drawn by shared components, so their rules live here. */
+.view-smart-search__chip .view-smart-search__remove{display:inline-grid;width:2.75rem;height:2.75rem;margin-block:-.25rem;place-items:center;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer}
+.view-smart-search__chip .view-smart-search__remove:hover,.view-smart-search__chip .view-smart-search__remove:focus-visible{background:var(--tl-bg-surface-hover)}
+.view-smart-search .view-smart-search__input{flex:1 1 8rem;width:auto;min-width:6rem}

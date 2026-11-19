@@ -221,14 +221,20 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
 
     public async Task EnsureMapPreferenceAsync(CancellationToken ct = default)
     {
-        if (_mapLoaded) return;
+        if (_mapLoaded)
+        {
+            return;
+        }
         BuiltInMapOnly = await api.GetViewMapBuiltInOnlyAsync(ct);
         _mapLoaded = true;
     }
 
     public async Task<bool> SetBuiltInMapOnlyAsync(bool builtInOnly, CancellationToken ct = default)
     {
-        if (!await api.SetViewMapBuiltInOnlyAsync(builtInOnly, ct)) return false;
+        if (!await api.SetViewMapBuiltInOnlyAsync(builtInOnly, ct))
+        {
+            return false;
+        }
         BuiltInMapOnly = builtInOnly;
         _mapLoaded = true;
         return true;

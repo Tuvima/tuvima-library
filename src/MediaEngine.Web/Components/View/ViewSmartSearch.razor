@@ -1,0 +1,160 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject ViewWorkspaceService Workspace
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Photos smart search bar (spec view-people-search WP4, mock screen 1): chosen suggestions become chips that combine with the typed words.
+   Suggestions open under the bar (a bottom sheet on a phone) and fail quietly to plain text search. *@
+<span class="view-smart-search" @ref="_anchor" @onclick="OpenAsync">
+    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+    @foreach (var chip in Chips)
+    {
+        <span class="view-smart-search__chip" data-kind="@chip.Kind">
+            <span>@chip.Value</span>
+            <AppNativeButton Type="button" Class="view-smart-search__remove" AriaLabel="@L["ViewSmartSearch_RemoveChip", chip.Value].Value" OnClick="@(_ => RemoveAsync(chip))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppIconSize.Control20" /></AppNativeButton>
+        </span>
+    }
+    <AppNativeInput @ref="_input" Type="search" Class="view-smart-search__input" Value="@Text" OnInput="OnInputAsync" OnKeyDown="OnKeyAsync"
+                    Placeholder="@(Chips.Count == 0 ? Placeholder : null)" AriaLabel="@AriaLabel"
+                    role="combobox" aria-expanded="@(_open && _flat.Count > 0 ? "true" : "false")" aria-controls="@ListId" aria-autocomplete="list"
+                    aria-activedescendant="@(_highlight >= 0 && _highlight < _flat.Count ? OptionId(_highlight) : null)" />
+    @if (_open && _flat.Count > 0)
+    {
+        <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" MatchAnchorWidth="true" SheetOnPhone="true" Role="listbox" AriaLabel="@L["ViewSmartSearch_Suggestions"].Value">
+            <div id="@ListId" class="view-smart-search__list" @onclick:stopPropagation="true">
+                @{ var index = 0; }
+                @foreach (var group in Groups)
+                {
+                    <h5>@GroupTitle(group.Key)</h5>
+                    @foreach (var item in group)
+                    {
+                        var current = index++;
+                        <div id="@OptionId(current)" role="option" class="view-smart-search__row@(current == _highlight ? " is-highlighted" : string.Empty)" aria-selected="@(current == _highlight ? "true" : "false")" @onclick="@(() => ChooseAsync(item))">
+                            <span>@item.Value</span><small>@L["ViewSmartSearch_Count", item.Count.ToString("N0")]</small>
+                        </div>
+                    }
+                }
+            </div>
+        </AppPopover>
+    }
+</span>
+
+@code {
+    [Parameter] public IReadOnlyList<ViewSearchChip> Chips { get; set; } = [];
+    [Parameter] public string Text { get; set; } = string.Empty;
+    [Parameter] public string Placeholder { get; set; } = string.Empty;
+    [Parameter] public string AriaLabel { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> TextChanged { get; set; }
+    [Parameter] public EventCallback<ViewSearchChip> ChipAdded { get; set; }
+    [Parameter] public EventCallback<ViewSearchChip> ChipRemoved { get; set; }
+
+    private static readonly string[] KindOrder = ["person", "year", "place", "camera", "tag"];
+    private readonly string ListId = "view-search-" + Guid.NewGuid().ToString("N")[..8];
+    private AppNativeInput? _input;
+    private ElementReference _anchor;
+    private Task PopoverChanged(bool open) => open ? Task.CompletedTask : CloseAsync();
+    private IReadOnlyList<ViewSuggestionDto> _flat = [];
+    private bool _open;
+    private int _highlight = -1;
+    private int _version;
+    private CancellationTokenSource? _cts;
+
+    private string OptionId(int index) => $"{ListId}-{index}";
+    private IEnumerable<IGrouping<string, ViewSuggestionDto>> Groups => _flat.GroupBy(item => item.Kind);
+    private string GroupTitle(string kind) => kind switch
+    {
+        "person" => L["ViewSmartSearch_People"].Value,
+        "year" => L["ViewSmartSearch_Years"].Value,
+        "place" => L["ViewSmartSearch_Places"].Value,
+        "camera" => L["ViewSmartSearch_Cameras"].Value,
+        _ => L["ViewSmartSearch_Tags"].Value,
+    };
+
+    private Task OpenAsync() => LoadAsync(Text, 0);
+
+    private async Task OnInputAsync(ChangeEventArgs args)
+    {
+        var text = args.Value?.ToString() ?? string.Empty;
+        await TextChanged.InvokeAsync(text);
+        await LoadAsync(text, 150);
+    }
+
+    // Suggestions are loaded after the bar opens and never block typing; a failed or cancelled load simply shows no list, and plain text search still works.
+    private async Task LoadAsync(string text, int delayMs)
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var cts = _cts = new CancellationTokenSource();
+        var version = ++_version;
+        try
+        {
+            if (delayMs > 0) await Task.Delay(delayMs, cts.Token);
+            var page = await ApiClient.GetViewSearchSuggestionsAsync(Workspace.ScopeKind, Workspace.ScopeProfileId, text.Trim(), cts.Token);
+            if (version != _version) return;
+            var chosen = Chips.Select(chip => (chip.Kind, chip.Value.ToLowerInvariant())).ToHashSet();
+            _flat = (page?.Items ?? [])
+                .Where(item => !chosen.Contains((item.Kind, item.Value.ToLowerInvariant())))
+                .OrderBy(item => Array.IndexOf(KindOrder, item.Kind))
+                .ToList();
+            _open = _flat.Count > 0;
+            _highlight = -1;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer keystroke replaced this load.
+        }
+    }
+
+    private async Task OnKeyAsync(KeyboardEventArgs args)
+    {
+        switch (args.Key)
+        {
+            case "ArrowDown" when _flat.Count > 0:
+                _open = true;
+                _highlight = (_highlight + 1) % _flat.Count;
+                break;
+            case "ArrowUp" when _flat.Count > 0:
+                _open = true;
+                _highlight = _highlight <= 0 ? _flat.Count - 1 : _highlight - 1;
+                break;
+            case "Enter" when _open && _highlight >= 0 && _highlight < _flat.Count:
+                await ChooseAsync(_flat[_highlight]);
+                break;
+            case "Escape" when _open:
+                await CloseAsync();
+                break;
+            case "Backspace" when string.IsNullOrEmpty(Text) && Chips.Count > 0:
+                await RemoveAsync(Chips[^1]);
+                break;
+        }
+    }
+
+    private async Task ChooseAsync(ViewSuggestionDto item)
+    {
+        _open = false;
+        _flat = [];
+        _highlight = -1;
+        await ChipAdded.InvokeAsync(new ViewSearchChip(item.Kind, item.Value));
+        if (!string.IsNullOrEmpty(Text)) await TextChanged.InvokeAsync(string.Empty);
+        if (_input is not null) await _input.FocusAsync();
+    }
+
+    private Task RemoveAsync(ViewSearchChip chip) => ChipRemoved.InvokeAsync(chip);
+
+    private Task CloseAsync()
+    {
+        _open = false;
+        _highlight = -1;
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

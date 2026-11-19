@@ -44,6 +44,36 @@ public static class ViewDiscoveryEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapGet("/search-suggestions", async (
+            string? scope,
+            Guid? scopeProfileId,
+            string? q,
+            int? limit,
+            ViewDiscoveryService service,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var result = await service.GetSuggestionsAsync(ParseScope(scope, scopeProfileId), q, limit ?? 5, ct).ConfigureAwait(false);
+                return result.Outcome switch
+                {
+                    ViewAccessOutcome.Allowed when result.Page is not null => Results.Ok(result.Page),
+                    ViewAccessOutcome.Unauthenticated => Results.Unauthorized(),
+                    ViewAccessOutcome.Forbidden => ApiErrors.Forbidden("View access is not permitted."),
+                    _ => ApiErrors.NotFound("The requested View scope was not found."),
+                };
+            }
+            catch (ArgumentException exception)
+            {
+                return ApiErrors.BadRequest(exception.Message);
+            }
+        })
+        .WithName("GetViewSearchSuggestions")
+        .WithSummary("Suggest people, places, years, cameras and tags for the Photos search bar, from the caller's authorized View scope.")
+        .Produces<ViewSuggestionsDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapGet("/places/atlas", async (
             string? scope,
             Guid? scopeProfileId,

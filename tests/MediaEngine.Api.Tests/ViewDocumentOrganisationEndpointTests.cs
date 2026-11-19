@@ -1766,6 +1766,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /view/preferences/map"] = NoItems + "the person's own map choice",
         ["GET /view/preferences/documents-pictures"] = Refused,
         ["GET /view/preferences/documents-sort"] = Refused,
+        ["GET /view/search-suggestions"] = Covers("Suggestions_AskStorageOnlyForTheTrustedScopeAndNeverForAnotherPersonsLibrary", "GetSuggestionsAsync"),
         ["GET /view/scopes"] = NoItems + "scope names only",
         ["GET /view/share-targets"] = NoItems + "profile names only",
         ["GET /view/shared/contributions"] = Covers(ContributionRoutes, "mode=review"),

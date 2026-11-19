@@ -14877,7 +14877,7 @@
     <value>Add media</value>
   </data>
   <data name="ViewPage_SearchPlaceholder" xml:space="preserve">
-    <value>Search photos, dates, devices, locations, and tags</value>
+    <value>Search photos, people, places, dates, and cameras</value>
   </data>
   <data name="ViewPage_SearchPhotos" xml:space="preserve">
     <value>Search Photos</value>
@@ -15043,5 +15043,29 @@
   </data>
   <data name="ViewPlacesPage_MapChoiceFailed" xml:space="preserve">
     <value>The map choice could not be saved.</value>
+  </data>
+  <data name="ViewSmartSearch_People" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="ViewSmartSearch_Years" xml:space="preserve">
+    <value>Years</value>
+  </data>
+  <data name="ViewSmartSearch_Places" xml:space="preserve">
+    <value>Places</value>
+  </data>
+  <data name="ViewSmartSearch_Cameras" xml:space="preserve">
+    <value>Cameras</value>
+  </data>
+  <data name="ViewSmartSearch_Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="ViewSmartSearch_Suggestions" xml:space="preserve">
+    <value>Search suggestions</value>
+  </data>
+  <data name="ViewSmartSearch_RemoveChip" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <data name="ViewSmartSearch_Count" xml:space="preserve">
+    <value>{0} photos</value>
   </data>
 </root>
