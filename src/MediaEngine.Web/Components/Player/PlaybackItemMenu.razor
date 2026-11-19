@@ -126,7 +126,8 @@
         Media, Item,
         IsDone: _status is { OwnedCount: > 0 } status ? status.CompletedCount >= status.OwnedCount : null,
         CanMark: _status is null || _status.OwnedCount > 0,
-        ShowWorkId: ShowWorkId, SeasonId: SeasonId));
+        ShowWorkId: ShowWorkId, SeasonId: SeasonId,
+        AddToPlaylistLabel: L["PlaybackItemMenu_AddToPlaylist"].Value));
 
     protected override void OnInitialized()
     {

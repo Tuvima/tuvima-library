@@ -15278,4 +15278,49 @@
   <data name="PlaylistTiles_Moved" xml:space="preserve">
     <value>Moved {0} to place {1} of {2}</value>
   </data>
+  <data name="PlaylistPage_AllMusic" xml:space="preserve">
+    <value>All Music</value>
+  </data>
+  <data name="PlaylistPage_SongsTableLabel" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="ListenPage_DragToReorderPlaylist" xml:space="preserve">
+    <value>Drag to reorder {0}</value>
+  </data>
+  <data name="ListenPage_PlaylistsShelfSubtitle" xml:space="preserve">
+    <value>Saved playlists and mixes from your library</value>
+  </data>
+  <data name="ListenBrowsePage_UnsupportedPage" xml:space="preserve">
+    <value>Choose Music, Audiobooks, or Playlists to browse your library.</value>
+  </data>
+  <data name="ListenBrowsePage_PlaylistsYearSemantic" xml:space="preserve">
+    <value>Playlist update year</value>
+  </data>
+  <data name="PlaybackItemMenu_AddToPlaylist" xml:space="preserve">
+    <value>Add to playlist…</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistEditor" xml:space="preserve">
+    <value>Playlist editor</value>
+  </data>
+  <data name="CollectionEditorShell_EditPlaylist" xml:space="preserve">
+    <value>Edit Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistSubtitle" xml:space="preserve">
+    <value>Create a playlist, then choose manual or smart membership.</value>
+  </data>
+  <data name="CollectionEditorShell_CreatePlaylist" xml:space="preserve">
+    <value>Create Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_SelectedPlaylistArtwork" xml:space="preserve">
+    <value>Selected playlist artwork</value>
+  </data>
+  <data name="CollectionEditorShell_CurrentPlaylistArtwork" xml:space="preserve">
+    <value>Current playlist artwork</value>
+  </data>
+  <data name="MediaBrowseShell_SearchPlaylists" xml:space="preserve">
+    <value>Search playlists...</value>
+  </data>
+  <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
+    <value>Create a playlist or smart playlist to organize music for later.</value>
+  </data>
 </root>

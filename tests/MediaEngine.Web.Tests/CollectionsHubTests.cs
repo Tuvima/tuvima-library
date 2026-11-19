@@ -241,7 +241,7 @@ public sealed class CollectionsHubTests
         Assert.DoesNotContain("Value=\"rule.", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTextField T=\"string\"\r\n                          Value=\"_description\"", source, StringComparison.Ordinal);
         Assert.Contains("min-height: 172px !important", styles, StringComparison.Ordinal);
-        Assert.Contains("EditingCollection.CollectionType is \"Custom\" or \"Playlist\" or \"Smart\"", source, StringComparison.Ordinal);
+        Assert.Contains("EditingCollection.CollectionType is CollectionTypeNames.Custom or CollectionTypeNames.Playlist or CollectionTypeNames.Smart", source, StringComparison.Ordinal);
         Assert.Contains("SetMembershipModeAsync", source, StringComparison.Ordinal);
         Assert.Contains("Change how it fills up", source, StringComparison.Ordinal);
         Assert.Contains("Add at least one complete rule before saving a collection that fills up from rules.", source, StringComparison.Ordinal);

@@ -74,12 +74,12 @@ public partial class ListenPage
         new("audiobooks", "Audiobooks", AudiobooksRoute, AppMaterialIcons.Outlined.Headphones),
     ];
 
-    private static readonly IReadOnlyList<BrowseGroupingOption> MusicBrowseOptions =
+    private IReadOnlyList<BrowseGroupingOption> MusicBrowseOptions =>
     [
         new("albums", "Albums", AppMaterialIcons.Outlined.Album),
         new("artists", "Artists", AppMaterialIcons.Outlined.PersonOutline),
         new("songs", "Songs", AppMaterialIcons.Outlined.MusicNote),
-        new("playlists", "Playlists", AppMaterialIcons.Outlined.QueueMusic),
+        new("playlists", L["Glossary_Playlists"].Value, AppMaterialIcons.Outlined.QueueMusic),
         new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
     ];
 
@@ -123,12 +123,12 @@ public partial class ListenPage
 
     private IReadOnlyList<ListenNavigationItem> ListenYourLibraryItems =>
     [
-        new("Recently Added", "/listen/music/playlists/system/recently-added", AppMaterialIcons.Outlined.Schedule, RecentlyAddedTracks.Count.ToString(CultureInfo.InvariantCulture)),
+        new(L["Glossary_RecentlyAdded"].Value, "/listen/music/playlists/system/recently-added", AppMaterialIcons.Outlined.Schedule, RecentlyAddedTracks.Count.ToString(CultureInfo.InvariantCulture)),
     ];
 
     private IReadOnlyList<ListenNavigationItem> ListenPinnedPlaylistItems =>
     [
-        new("Favorites", FavoriteSongsRoute, AppMaterialIcons.Outlined.FavoriteBorder),
+        new(L["Glossary_Favorites"].Value, FavoriteSongsRoute, AppMaterialIcons.Outlined.FavoriteBorder),
     ];
 
     private async Task HandleTrackQueryAsync()

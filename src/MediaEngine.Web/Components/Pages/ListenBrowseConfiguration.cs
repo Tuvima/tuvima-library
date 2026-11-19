@@ -1,6 +1,8 @@
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Ui;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Components.Pages;
 
@@ -9,7 +11,8 @@ internal static class ListenBrowseConfiguration
     /// <summary>The id of the Playlists tab (route <c>/listen/playlists</c>): the page of playlist tiles the lane draws itself.</summary>
     public const string PlaylistsTabId = "playlists";
 
-    public static readonly LibraryBrowsePreset Preset = new()
+    /// <summary>The Listen tabs. The Playlists tab's words come from the string table, so the page hands in its localizer.</summary>
+    public static LibraryBrowsePreset Create(IStringLocalizer<SharedStrings> strings) => new()
     {
         RouteBase = "/listen",
         Title = "Listen",
@@ -55,21 +58,18 @@ internal static class ListenBrowseConfiguration
             new BrowseTabPreset
             {
                 Id = PlaylistsTabId,
-                Label = "Playlists",
+                Label = strings["Glossary_Playlists"].Value,
                 MediaType = "Music",
                 GroupingOptions =
                 [
-                    new("playlists", "Playlists", AppMaterialIcons.Outlined.QueueMusic),
+                    new("playlists", strings["Glossary_Playlists"].Value, AppMaterialIcons.Outlined.QueueMusic),
                 ],
                 DefaultGrouping = "playlists",
                 DefaultLayout = LibraryLayoutMode.Card,
-                YearSemantic = "Playlist update year",
+                YearSemantic = strings["ListenBrowsePage_PlaylistsYearSemantic"].Value,
             },
         ],
     };
-
-    public static IReadOnlyList<MediaHubModeViewModel> LaneModes { get; } =
-        MediaLaneConfigurationBuilder.BuildModes(Preset);
 
     /// <summary>Tabs that are not libraries and stay whatever the library list holds; they follow the library tabs.</summary>
     public static IReadOnlySet<string> FixedTabIds { get; } =

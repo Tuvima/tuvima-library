@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Constants;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Components.Listen;
@@ -33,7 +34,7 @@ public static class PlaylistMenuRules
     {
         ArgumentNullException.ThrowIfNull(playlist);
         var smart = string.Equals(playlist.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase);
-        var handMade = string.Equals(playlist.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
+        var handMade = string.Equals(playlist.CollectionType, CollectionTypeNames.Playlist, StringComparison.OrdinalIgnoreCase);
         if (!smart && !handMade)
         {
             return [];

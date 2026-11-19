@@ -99,7 +99,7 @@ else
                                  @ondragover:preventDefault="true"
                                  @ondrop="@(() => DropPlaylistReorderAsync(playlist.Id))">
                                 @* A mouse drags by this grip with the browser's drag; a finger drags it by pointer events (playlist-reorder.js). *@
-                                <AppNativeButton Type="button" Class="listen-rail__drag" draggable="true" data-playlist-reorder-handle="true" AriaLabel="@($"Drag to reorder {playlist.Name}")" @ondragstart="@(() => BeginPlaylistReorder(playlist.Id))" @ondragend="EndPlaylistReorder">
+                                <AppNativeButton Type="button" Class="listen-rail__drag" draggable="true" data-playlist-reorder-handle="true" AriaLabel="@L["ListenPage_DragToReorderPlaylist", playlist.Name].Value" @ondragstart="@(() => BeginPlaylistReorder(playlist.Id))" @ondragend="EndPlaylistReorder">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="tl-u-font-size-18px" />
                                 </AppNativeButton>
                                 <a href="@playlistRoute" target="_top" data-enhance-nav="false" class='@($"listen-rail__item is-child {(IsRouteActive(playlistRoute) ? "is-active" : null)}")' aria-current="@(IsRouteActive(playlistRoute) ? "page" : null)" @onclick="@(() => NavigateRailLink(playlistRoute))" @onclick:preventDefault="true" data-song-drop="@(AcceptsSongDrops(playlist) ? "playlist" : null)" @ondragover:preventDefault="@AcceptsSongDrops(playlist)" @ondrop="@(() => DropSongsOnPlaylistAsync(playlist))">
@@ -557,7 +557,7 @@ else
                            Favorites at once, each move saved on the profile). *@
                         <SongTable Place="SongTablePlace.Playlist"
                                    Rows="@PlaylistSongRows"
-                                   AriaLabel="@($"{ActivePlaylistTitle} songs")"
+                                   AriaLabel="@L["PlaylistPage_SongsTableLabel", ActivePlaylistTitle].Value"
                                    ProfileId="@_activeProfileId"
                                    CurrentRowId="@PlaylistCurrentRowId"
                                    IsPlaying="@Playback.IsPlaying"

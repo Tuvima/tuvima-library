@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
@@ -213,7 +214,7 @@ public static class PlaylistMembership
             name,
             null,
             PlaylistIcon,
-            "Playlist",
+            CollectionTypeNames.Playlist,
             new CollectionRuleDefinitionViewModel(),
             "title",
             "asc",

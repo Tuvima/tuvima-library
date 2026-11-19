@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Browse;
@@ -38,37 +39,15 @@ public partial class ListenPage
     private string ActivePlaylistTitle => !string.IsNullOrWhiteSpace(PlaylistKey)
         ? PlaylistKey.ToLowerInvariant() switch
         {
-            "all-music" => "All Music",
+            "all-music" => L["PlaylistPage_AllMusic"].Value,
             "favorite-songs" => L["Glossary_Favorites"].Value,
-            "recently-added" => "Recently Added",
-            _ => "Playlist",
+            "recently-added" => L["Glossary_RecentlyAdded"].Value,
+            _ => L["PlaylistPage_Kind"].Value,
         }
-        : ActivePlaylistCollection?.Name ?? "Playlist";
+        : ActivePlaylistCollection?.Name ?? L["PlaylistPage_Kind"].Value;
 
     // The built-in Favorites list: the profile's hearted songs, kept in an order it can change by hand.
     private bool IsFavoritesPlaylist => string.Equals(PlaylistKey, "favorite-songs", StringComparison.OrdinalIgnoreCase);
-
-    private string ActivePlaylistTypeLabel => !string.IsNullOrWhiteSpace(PlaylistKey)
-        ? "System Playlist"
-        : ActivePlaylistCollection?.TypeLabel is { Length: > 0 } label
-            ? $"{label} Playlist"
-            : "Playlist";
-
-    private string? ActivePlaylistDescription => !string.IsNullOrWhiteSpace(PlaylistKey)
-        ? PlaylistKey.ToLowerInvariant() switch
-        {
-            "all-music" => "Every song in your library in one utility view.",
-            "favorite-songs" => "Songs this profile has marked as Favorites.",
-            "recently-added" => "Fresh music sorted by arrival time.",
-            _ => null,
-        }
-        : ActivePlaylistCollection?.Description;
-
-    private string? ActivePlaylistMeta => !string.IsNullOrWhiteSpace(PlaylistKey)
-        ? null
-        : ActivePlaylistCollection is null
-            ? null
-            : $"{ActivePlaylistCollection.ItemCount} items";
 
     private async Task ToggleActivePlaylistSavedAsync()
     {
@@ -288,7 +267,7 @@ public partial class ListenPage
             name,
             null,
             AppMaterialIcons.Outlined.QueueMusic,
-            "Playlist",
+            CollectionTypeNames.Playlist,
             new CollectionRuleDefinitionViewModel(),
             "title",
             "asc",
@@ -432,7 +411,7 @@ public partial class ListenPage
         };
 
     private static bool CanAcceptPlaylistItems(ManagedCollectionViewModel collection)
-        => string.Equals(collection.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
+        => string.Equals(collection.CollectionType, CollectionTypeNames.Playlist, StringComparison.OrdinalIgnoreCase);
 
     // The playlists dragged songs can be dropped on: exactly the ones the Add to playlist list offers (a rule-based or system list never).
     private static bool AcceptsSongDrops(ManagedCollectionViewModel collection)

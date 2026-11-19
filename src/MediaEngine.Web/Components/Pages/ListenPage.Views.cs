@@ -161,8 +161,8 @@ public partial class ListenPage
                 shelves.Add(new MediaHubShelfViewModel
                 {
                     Key = "listen-playlists",
-                    Title = "Playlists",
-                    Subtitle = "Saved playlists and mixes from your library",
+                    Title = L["Glossary_Playlists"].Value,
+                    Subtitle = L["ListenPage_PlaylistsShelfSubtitle"].Value,
                     Items = HomePlaylistTiles,
                     SeeAllRoute = PlaylistsRoute,
                 });

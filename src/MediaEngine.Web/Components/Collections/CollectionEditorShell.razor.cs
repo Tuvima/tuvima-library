@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Rules;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -36,9 +37,9 @@ public partial class CollectionEditorShell
         ("background", "Background", AppMaterialIcons.Outlined.Panorama),
         ("logo", "Logo", AppMaterialIcons.Outlined.BrandingWatermark),
     ];
-    private static readonly (string Label, string Icon)[] IconChoices =
+    private (string Label, string Icon)[] IconChoices =>
     [
-        ("Playlist", AppMaterialIcons.Outlined.QueueMusic),
+        (L["PlaylistPage_Kind"].Value, AppMaterialIcons.Outlined.QueueMusic),
         ("Rules", AppMaterialIcons.Outlined.AutoAwesomeMotion),
         ("Favorites", AppMaterialIcons.Outlined.FavoriteBorder),
         ("Recent", AppMaterialIcons.Outlined.Schedule),
@@ -94,7 +95,7 @@ public partial class CollectionEditorShell
     // stay in this editor and travel with the save instead of being added one by one.
     private bool _storedRuleDriven;
 
-    private bool IsPlaylist => string.Equals(_collectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
+    private bool IsPlaylist => string.Equals(_collectionType, CollectionTypeNames.Playlist, StringComparison.OrdinalIgnoreCase);
     private string PersistenceVisibility => string.Equals(_audience, "Everyone", StringComparison.OrdinalIgnoreCase) ? "shared" : "private";
     private bool SupportsManualItems => !_rulesEnabled;
 
@@ -112,13 +113,13 @@ public partial class CollectionEditorShell
         ? L["CollectionFlow_EmptyCuratedNew"].Value
         : L["CollectionFlow_EmptyCuratedExisting"].Value;
     private bool CanDeleteCollection => EditingCollection is not null
-        && EditingCollection.CollectionType is "Custom" or "Playlist" or "Smart";
+        && EditingCollection.CollectionType is CollectionTypeNames.Custom or CollectionTypeNames.Playlist or CollectionTypeNames.Smart;
     private string CollectionTypeIcon => !string.IsNullOrWhiteSpace(_iconName)
         ? _iconName
         : _collectionType switch
         {
             "Smart" => AppMaterialIcons.Outlined.AutoAwesomeMotion,
-            "Playlist" => AppMaterialIcons.Outlined.QueueMusic,
+            CollectionTypeNames.Playlist => AppMaterialIcons.Outlined.QueueMusic,
             _ => AppMaterialIcons.Outlined.Collections,
         };
 
@@ -138,17 +139,17 @@ public partial class CollectionEditorShell
             ? "app-selection-nav__item sme-section-nav__item is-active is-group-open"
             : "app-selection-nav__item sme-section-nav__item is-active";
     }
-    private string DialogEyebrow => IsPlaylistDialog ? "Playlist editor" : "Collection editor";
+    private string DialogEyebrow => IsPlaylistDialog ? L["CollectionEditorShell_PlaylistEditor"].Value : "Collection editor";
     private string DialogTitle => EditingCollection is not null
-        ? (IsPlaylistDialog ? "Edit Playlist" : "Edit Collection")
+        ? (IsPlaylistDialog ? L["CollectionEditorShell_EditPlaylist"].Value : "Edit Collection")
         : IsPlaylistDialog
-                ? "New playlist"
+                ? L["PlaylistTiles_NewTitle"].Value
                 : "New collection";
     private string EditorIdentityTitle => string.IsNullOrWhiteSpace(_name) ? DialogTitle : _name;
 
     private string HeaderSubtitle =>
         IsPlaylistDialog
-            ? "Create a playlist, then choose manual or smart membership."
+            ? L["CollectionEditorShell_PlaylistSubtitle"].Value
             : EditingCollection is null
                 ? "Create a saved collection using either live rules or manual membership."
                 : "Update the collection settings, rules, and saved items.";
@@ -170,7 +171,7 @@ public partial class CollectionEditorShell
         : _way == FillWay.Pack
                 ? "Create collections"
                 : IsPlaylistDialog
-                    ? "Create Playlist"
+                    ? L["CollectionEditorShell_CreatePlaylist"].Value
                     : "Create Collection";
 
     private List<CollectionMediaLookupDto> FilteredLibraryItems =>
@@ -187,7 +188,7 @@ public partial class CollectionEditorShell
         if (EditingCollection is null)
         {
             _name = Request.InitialTitle ?? string.Empty;
-            _collectionType = IsPlaylistDialog ? "Playlist" : "Custom";
+            _collectionType = IsPlaylistDialog ? CollectionTypeNames.Playlist : CollectionTypeNames.Custom;
             _rulesEnabled = string.Equals(Request.InitialMembershipMode, "Smart", StringComparison.OrdinalIgnoreCase);
             _way = _rulesEnabled ? FillWay.SetRules : FillWay.PickTitles;
             if (!IsPlaylistDialog && string.Equals(Request.InitialWay, "FromList", StringComparison.Ordinal))
@@ -245,7 +246,7 @@ public partial class CollectionEditorShell
         _name = EditingCollection.Name;
         _description = EditingCollection.Description;
         _iconName = EditingCollection.IconName;
-        _collectionType = string.Equals(EditingCollection.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase) ? "Playlist" : EditingCollection.CollectionType;
+        _collectionType = string.Equals(EditingCollection.CollectionType, CollectionTypeNames.Smart, StringComparison.OrdinalIgnoreCase) ? CollectionTypeNames.Playlist : EditingCollection.CollectionType;
         _primaryArea = EditingCollection.PrimaryArea;
         _ownerKind = EditingCollection.OwnerKind;
         _audience = EditingCollection.Audience;

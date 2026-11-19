@@ -1,6 +1,7 @@
 @page "/listen"
 @page "/listen/{Tab}"
 @using MediaEngine.Web.Components.Browse
+@using MediaEngine.Domain.Constants
 @using MediaEngine.Domain.Enums
 @using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.MediaHub
@@ -44,7 +45,7 @@
                EmptyMessage="@L["ListenBrowsePage_AddMusicOrAudiobooksTo"].Value"
                IsSupportedBrowseTab="@IsSupportedBrowseTab"
                UnsupportedTitle="Listen page not found"
-               UnsupportedMessage="Choose Music, Audiobooks, or Playlists to browse your library."
+               UnsupportedMessage="@L["ListenBrowsePage_UnsupportedPage"].Value"
                Retry="LoadLandingAsync"
                OnNavigationItemDrop="AddDraggedSongsToPlaylistAsync"
                OnNavigationCreateDrop="StageDraggedSongsForPlaylistAsync"
@@ -109,8 +110,8 @@
     private int? _favoritesCount;
 
     // The tabs follow the Engine's library list (one per library with folders, then Playlists); the fixed tabs stand in when it cannot be read.
-    private LibraryBrowsePreset Preset = ListenBrowseConfiguration.Preset;
-    private IReadOnlyList<MediaHubModeViewModel> Modes = ListenBrowseConfiguration.LaneModes;
+    private LibraryBrowsePreset Preset = null!;
+    private IReadOnlyList<MediaHubModeViewModel> Modes = [];
     private bool _tabsLoaded;
     private bool _landingAttempted;
 
@@ -134,7 +135,7 @@
         {
             var playlistItems = new List<MediaSectionNavigationItem>
             {
-                new("Favorites", "/listen/music/playlists/system/favorite-songs", AppMaterialIcons.Outlined.FavoriteBorder),
+                new(L["Glossary_Favorites"].Value, "/listen/music/playlists/system/favorite-songs", AppMaterialIcons.Outlined.FavoriteBorder),
             };
             playlistItems.AddRange(_playlists
                 .Take(12)
@@ -183,11 +184,11 @@
                     new HashSet<string>(StringComparer.OrdinalIgnoreCase) { musicTab.Id }));
             }
 
-            navigationGroups.Add(new("Playlists", playlistItems,
+            navigationGroups.Add(new(L["Glossary_Playlists"].Value, playlistItems,
                 new MediaSectionNavigationCreateOptions(
-                    "New Playlist",
-                    "New Smart Playlist",
-                    "Playlist name",
+                    L["ListenPage_NewPlaylist"].Value,
+                    L["ListenPage_NewSmartPlaylist"].Value,
+                    L["ListenPage_PlaylistName"].Value,
                     new ManualPlaylistCreateTarget(),
                     new SmartPlaylistCreateTarget(),
                     new NewPlaylistNavigationDropTarget())));
@@ -235,6 +236,8 @@
     // The page draws its header and a tab-strip skeleton at once; the library list is read while the playlists and the landing load.
     protected override async Task OnInitializedAsync()
     {
+        Preset = ListenBrowseConfiguration.Create(L);
+        Modes = MediaLaneConfigurationBuilder.BuildModes(Preset);
         var tabs = LoadTabsAsync();
         await EnsurePlaylistNavigationAsync();
         var landing = string.IsNullOrWhiteSpace(Tab) ? LoadLandingAsync() : Task.CompletedTask;
@@ -244,7 +247,7 @@
     private async Task LoadTabsAsync()
     {
         Preset = BrowseLibraryTabs.Build(
-            ListenBrowseConfiguration.Preset, "listen", await LibraryList.GetAsync(), ListenBrowseConfiguration.FixedTabIds);
+            ListenBrowseConfiguration.Create(L), "listen", await LibraryList.GetAsync(), ListenBrowseConfiguration.FixedTabIds);
         Modes = MediaLaneConfigurationBuilder.BuildModes(Preset);
         _tabsLoaded = true;
     }
@@ -389,7 +392,7 @@
             createEvent.Name,
             null,
             AppMaterialIcons.Outlined.QueueMusic,
-            "Playlist",
+            CollectionTypeNames.Playlist,
             new CollectionRuleDefinitionViewModel(),
             "title",
             "asc",

@@ -538,11 +538,11 @@
                 <label class="app-artwork-picker collection-editor-artwork-picker">
                     @if (_artworkPreviewUrls.TryGetValue("poster", out var playlistPreview))
                     {
-                        <img src="@playlistPreview" alt="Selected playlist artwork" />
+                        <img src="@playlistPreview" alt="@L["CollectionEditorShell_SelectedPlaylistArtwork"].Value" />
                     }
                     else if (!string.IsNullOrWhiteSpace(EditingCollection?.CoverUrl))
                     {
-                        <img src="@MediaTileArtworkUrl.ForDrawnSize(EditingCollection.CoverUrl, 112)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(EditingCollection.CoverUrl, 112)" alt="Current playlist artwork" />
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(EditingCollection.CoverUrl, 112)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(EditingCollection.CoverUrl, 112)" alt="@L["CollectionEditorShell_CurrentPlaylistArtwork"].Value" />
                     }
                     else
                     {

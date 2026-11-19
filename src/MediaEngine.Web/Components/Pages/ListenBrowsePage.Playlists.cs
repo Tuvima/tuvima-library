@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Constants;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -36,7 +37,7 @@ public partial class ListenBrowsePage
             name,
             null,
             AppMaterialIcons.Outlined.QueueMusic,
-            "Playlist",
+            CollectionTypeNames.Playlist,
             new CollectionRuleDefinitionViewModel(),
             "title",
             "asc",
