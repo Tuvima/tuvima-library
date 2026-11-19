@@ -190,6 +190,12 @@ public static class ClientApiEdgeEndpoints
             return;
         }
 
+        if (!BearerAllowedHere(context, bearer))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
         if (!NativeApiForwardPolicy.IsSafeSubPath(hubPath))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -290,6 +296,11 @@ public static class ClientApiEdgeEndpoints
         }
     }
 
+    // A token from a no-password account's approval works only on this computer or the home network (fails closed).
+    private static bool BearerAllowedHere(HttpContext context, string bearer) =>
+        !bearer.StartsWith(MediaEngine.Domain.Authorization.ClientIngress.LanOnlyTokenPrefix, StringComparison.Ordinal)
+        || MediaEngine.Domain.Authorization.ClientIngress.IsOnLocalNetwork(context.ClientIngress());
+
     private static bool TryReadBearer(HttpRequest request, out string token)
     {
         token = string.Empty;
@@ -311,6 +322,12 @@ public static class ClientApiEdgeEndpoints
     {
         var decision = NativeApiForwardPolicy.Evaluate(
             context.Request.Method, clientPath, TryReadBearer(context.Request, out _));
+        if (TryReadBearer(context.Request, out var presented) && !BearerAllowedHere(context, presented))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
         if (decision != NativeApiForwardDecision.Forward)
         {
             context.Response.StatusCode = decision == NativeApiForwardDecision.Unauthorized

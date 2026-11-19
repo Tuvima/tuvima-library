@@ -277,6 +277,17 @@ public sealed class AuthorizationFoundationTests
         Assert.Equal(expected, ClientIngress.SessionMayContinue(issued, current, accountIsThisComputerOnly: true));
     }
 
+    [Theory]
+    [InlineData("lan.abc", "home_network", true)]
+    [InlineData("lan.abc", "this_computer", true)]
+    [InlineData("lan.abc", "remote", false)]
+    [InlineData("lan.abc", null, false)]
+    [InlineData("abc", "remote", true)]
+    public void ATokenFromANoPasswordApprovalWorksOnlyOnTheHomeNetwork(string token, string? current, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.TokenMayBeUsedFrom(token, current));
+    }
+
     [Fact]
     public void EffectiveAdministratorRequiresACompleteEnabledHumanBinding()
     {

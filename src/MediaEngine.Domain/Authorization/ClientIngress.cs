@@ -70,4 +70,11 @@ public static class ClientIngress
         accountIsThisComputerOnly
             ? IsOnLocalNetwork(currentIngress)
             : SessionMayContinue(issuedIngress, currentIngress);
+
+    /// <summary>Starts the access and refresh tokens of a device approved by a no-password account.</summary>
+    public const string LanOnlyTokenPrefix = "lan.";
+
+    /// <summary>A home-network-only token is usable only from this computer or the home network; any other token always is.</summary>
+    public static bool TokenMayBeUsedFrom(string? token, string? currentIngress) =>
+        token is null || !token.StartsWith(LanOnlyTokenPrefix, StringComparison.Ordinal) || IsOnLocalNetwork(currentIngress);
 }

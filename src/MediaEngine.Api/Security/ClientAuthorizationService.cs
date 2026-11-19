@@ -356,8 +356,8 @@ public sealed class ClientAuthorizationService(
 
         var now = timeProvider.GetUtcNow();
         var familyId = Guid.NewGuid();
-        var access = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "access", device.Scopes, account.AuthorizationVersion, target.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now);
-        var refresh = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "refresh", device.Scopes, account.AuthorizationVersion, target.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now);
+        var access = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "access", device.Scopes, account.AuthorizationVersion, target.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now, account.IsThisComputerOnly);
+        var refresh = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "refresh", device.Scopes, account.AuthorizationVersion, target.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now, account.IsThisComputerOnly);
         if (!await repository.SwitchDeviceProfileAsync(
                 deviceId, accountId, expectedProfileId, callerTokenId, targetProfileId, access.Entity, refresh.Entity, now, "profile_switched", audit, ct).ConfigureAwait(false))
         {
@@ -424,8 +424,8 @@ public sealed class ClientAuthorizationService(
         var deviceId = Guid.NewGuid();
         var familyId = Guid.NewGuid();
         var scopes = pairing.ApprovedScopes;
-        var access = NewToken(application.Id, accountId, deviceId, profileId, familyId, "access", scopes, account.AuthorizationVersion, profile.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now);
-        var refresh = NewToken(application.Id, accountId, deviceId, profileId, familyId, "refresh", scopes, account.AuthorizationVersion, profile.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now);
+        var access = NewToken(application.Id, accountId, deviceId, profileId, familyId, "access", scopes, account.AuthorizationVersion, profile.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now, account.IsThisComputerOnly);
+        var refresh = NewToken(application.Id, accountId, deviceId, profileId, familyId, "refresh", scopes, account.AuthorizationVersion, profile.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now, account.IsThisComputerOnly);
         var device = new ClientDevice
         {
             Id = deviceId,
@@ -483,8 +483,8 @@ public sealed class ClientAuthorizationService(
         }
 
         var nextGeneration = checked(current.Generation + 1);
-        var access = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "access", current.Scopes, live.Account.AuthorizationVersion, live.Profile.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, AccessTokenLifetime, now);
-        var refresh = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "refresh", current.Scopes, live.Account.AuthorizationVersion, live.Profile.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, RefreshTokenLifetime, now);
+        var access = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "access", current.Scopes, live.Account.AuthorizationVersion, live.Profile.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, AccessTokenLifetime, now, live.Account.IsThisComputerOnly);
+        var refresh = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "refresh", current.Scopes, live.Account.AuthorizationVersion, live.Profile.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, RefreshTokenLifetime, now, live.Account.IsThisComputerOnly);
         if (!await repository.RotateRefreshTokenAsync(current, access.Entity, refresh.Entity, now, ct).ConfigureAwait(false))
         {
             await repository.RevokeTokenFamilyAsync(current.TokenFamilyId, now, "refresh_token_replay", ct).ConfigureAwait(false);
@@ -518,9 +518,12 @@ public sealed class ClientAuthorizationService(
         long applicationVersion,
         int generation,
         TimeSpan lifetime,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool lanOnly)
     {
-        var plaintext = RandomToken(32);
+        // A device approved by a no-password account may only be used from the home network; the Dashboard's public
+        // edge recognises this prefix and refuses such a token from anywhere else (issue 1152).
+        var plaintext = (lanOnly ? ClientIngress.LanOnlyTokenPrefix : string.Empty) + RandomToken(32);
         return (new ClientToken
         {
             Id = Guid.NewGuid(),
