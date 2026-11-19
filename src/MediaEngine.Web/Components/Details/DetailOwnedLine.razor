@@ -1,0 +1,12 @@
+@namespace MediaEngine.Web.Components.Details
+
+@* The one owned-count line under a details page's list of titles: the collection tile icon and the count ("11 books owned",
+   "12 episodes owned", "15 titles"). The same line, in the same place, for every kind of page (issue 1172). *@
+<p class="tl-detail-owned-line">
+    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" aria-hidden="true" />
+    <span>@Text</span>
+</p>
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+}

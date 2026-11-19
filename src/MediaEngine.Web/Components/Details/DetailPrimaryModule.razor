@@ -9,12 +9,11 @@
 @if (Model.PrimaryModule.Kind != DetailPrimaryModuleKind.None)
 {
     <div id="detail-primary-module" class="@RootClass">
-        @* One shared collapse arrow heads the row (AppCollapsibleRow); its filters sit at the end of that heading. *@
+        @* No heading text on any details page (issue 1172): the dropdowns say which group this is and the count sits under the list. Only a row's filters keep a line. *@
         <div class="tl-detail-primary-module__frame">
             <AppCollapsibleRow Title="@RowTitle"
-                               Summary="@RowSummary"
                                RowKind="@RowKind"
-                               HideHeading="@IsEpisodeRow"
+                               HideTitle="true"
                                Actions="@ModuleControls">
                 <div class="tl-detail-primary-module__viewport">
                     @if (Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
@@ -22,8 +21,6 @@
                     {
                         <SequencePlacementPanel Placement="Model.SequencePlacement"
                                                 DetailSurface="true"
-                                                ShowIdentity="false"
-                                                OwnedLineBelow="@IsEpisodeRow"
                                                 Extras="Model.Extras"
                                                 RequestedSeasonId="SelectedSeasonId"
                                                 OnSeasonSelected="OnSeasonSelected"
@@ -50,6 +47,10 @@
                         }
                     }
                 </div>
+                @if (ShowOwnedLine)
+                {
+                    <DetailOwnedLine Text="@OwnedLineText" />
+                }
             </AppCollapsibleRow>
         </div>
     </div>
@@ -278,12 +279,6 @@
         }
     };
 
-    // An episode row has no heading line of its own: the count sits at the top of the page and "N episodes owned" under the
-    // tiles (spec details-and-tile-fixes D9). A folder of Other videos keeps its "Videos" heading.
-    private bool IsEpisodeRow => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Episodes
-        && Model.SequencePlacement is { } placement
-        && !VideoFolderWording.IsVideoFolderList(placement.ContainerLabel, placement.ItemLabel);
-
     private string RowTitle => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Sequence
         ? StringHelpers.FirstNonBlank(Model.SequencePlacement?.ContainerTitle, Model.PrimaryModule.Title, "Series")!
         : StringHelpers.FirstNonBlank(Model.PrimaryModule.Title, "Library")!;
@@ -297,24 +292,12 @@
     };
 
 
-    private string? RowSummary
-    {
-        get
-        {
-            if (Model.SequencePlacement is { } placement
-                && Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes)
-            {
-                var owned = placement.Groups.Count > 0
-                    ? placement.Groups.Sum(group => group.OwnedCount)
-                    : placement.OrderedItems.Count(item => item.IsOwned);
-                var noun = owned == 1 ? placement.ItemLabel : placement.ItemPluralLabel;
-                return $"{owned} {noun.ToLowerInvariant()} owned";
-            }
+    // The count under a list of titles ("15 titles"); a Series, show or folder counts through SequencePlacementPanel's own line.
+    private bool ShowOwnedLine => !(Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
+            && Model.SequencePlacement is not null)
+        && FilteredItems.Count > 0;
 
-            var count = FilteredItems.Count;
-            return count == 0 ? null : $"{count} {(count == 1 ? "title" : "titles")}";
-        }
-    }
+    private string OwnedLineText => DisplayFormat.FormatCountNoun(FilteredItems.Count, "title");
 
     private bool ShowHeader => Model.PrimaryModule.Kind is not DetailPrimaryModuleKind.Chapters
         and not DetailPrimaryModuleKind.Sequence
