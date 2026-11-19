@@ -653,6 +653,13 @@ public static class PersonEndpoints
                 .ToList();
 
             var response = PagedResponse<PersonListItemResponse>.FromPage(results, page);
+            // With no search or filter set, say how many people the viewer can open in all, so the page can show the real count
+            // while the rest load as it scrolls (issue 1176).
+            if (catalog == true && string.IsNullOrWhiteSpace(q) && string.IsNullOrWhiteSpace(role) && string.IsNullOrWhiteSpace(lane))
+            {
+                response = response with { TotalCount = visiblePersonIds.Count };
+            }
+
             var logger = loggerFactory.CreateLogger("MediaEngine.Api.Persons");
             sw.Stop();
             if (sw.ElapsedMilliseconds >= 1000)
