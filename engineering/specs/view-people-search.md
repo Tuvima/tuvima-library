@@ -1,6 +1,8 @@
 # Spec: View polish, smart search bar, and automatic People (faces)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-19 (locked by Shy 2026-11-19) · **Related docs:** [View section](view-section.md) · [Photos and documents editor](photos-documents-editor.md) · [Look pass v3](look-pass-v3.md) · [Product overview](../product/overview.md) · mockups: `engineering/design/mockups/view-people-search/mockups.html`
+> **Status:** Locked · **Version:** 1.1 · **Last updated:** 2026-11-19 (locked by Shy 2026-11-19) · **Related docs:** [View section](view-section.md) · [Photos and documents editor](photos-documents-editor.md) · [Look pass v3](look-pass-v3.md) · [Product overview](../product/overview.md) · mockups: `engineering/design/mockups/view-people-search/mockups.html`
+
+> **Version note (2026-11-19, Shy):** adds WP13, the photo viewer opening small, as part of the UI uplift. The Locked body above is unchanged.
 
 ## 1. Goal
 
@@ -99,6 +101,9 @@ Shy, 2026-11-19 (Q100 to Q109) unless noted.
 
 **WP12 — Docs.** tuvima-docs pages and presentation rules for search, People, Tools entries, backup table list and schema. Depends on: WP10. Size: Mechanical. Done when: docs build and the drift tests pass.
 
+### Wave 1 addition (Version 1.1)
+**WP13 — Photo viewer opens large.** Shy reports the picture viewer did not open large; treat as a bug. Find the cause first: the viewer frame size (it must fill the window on desktop and be full-screen on phones), or the image it loads first (the `Preview` size rather than the full photo, so the picture looks small until zoomed). Fix so a photo opens fitted to the whole window, then sharpens to the full-size file; keep pinch and swipe. Files: `MediaViewerShell.razor(.css)`, `ViewImmersiveViewer.razor` (to be confirmed). Depends on: none. Size: Standard. Done when: a test or render check shows the viewer stage fills the window at 1024, 1280, 1440 and phone width for a landscape, portrait and panorama photo, and a Local check confirms on real photos. Local check **L8**: open a large photo and a small photo from Photos, People and a Gallery; each fills the window.
+
 ## 7. Local checks (added to `engineering/validation/batch.md`)
 
 - **L1.** On a small library, type a person, place and year; chips combine and narrow; on a phone, suggestions open as a sheet.
@@ -107,6 +112,7 @@ Shy, 2026-11-19 (Q100 to Q109) unless noted.
 - **L4.** Confirm nothing is scanned in the Vault or another profile's scope and that face data disappears with the profile.
 - **L5.** Screenshots with text are found after switching on words in photos.
 - **L6.** Look at 1024, 1280, 1440 and phone width against the mocks; tooltips and menus in the top layer.
+- **L8.** See WP13: the viewer opens large from Photos, People and a Gallery.
 - **L7.** First run on a fresh data store: models download once, appear in Tools, and the scan starts.
 
 ## 8. Risks and open questions
