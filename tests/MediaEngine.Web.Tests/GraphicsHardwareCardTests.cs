@@ -160,7 +160,7 @@ public sealed class GraphicsHardwareCardTests : AsyncBunitContext
         var cut = RenderSetup(Works());
 
         Assert.Equal("NVIDIA GeForce RTX 5080 · encoding works", cut.Find("[data-testid=capacity-hardware]").TextContent.Trim());
-            }
+    }
 
     [Fact]
     public void SetupRow_ForNoGraphicsEncoding_SaysLibraryWillUseTheProcessor()
@@ -178,7 +178,7 @@ public sealed class GraphicsHardwareCardTests : AsyncBunitContext
         Assert.Equal(
             "Found, but the test failed: the graphics driver is too old for this card or this FFmpeg. Library will use the processor.",
             cut.Find("[data-testid=capacity-hardware]").TextContent.Trim());
-            }
+    }
 
     [Fact]
     public void SetupRow_BeforeFFmpegIsReady_WaitsAndNeverBlocksContinue()
