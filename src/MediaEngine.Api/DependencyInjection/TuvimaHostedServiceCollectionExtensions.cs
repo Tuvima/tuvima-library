@@ -89,6 +89,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         // registered by the face runtime; until it is in place nothing is looked at.
         Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<MediaEngine.Api.Services.Faces.IFaceEngine, MediaEngine.Api.Services.Faces.UnavailableFaceEngine>(services);
         services.AddSingleton<MediaEngine.Api.Services.Faces.FaceScanService>();
+        services.AddSingleton<MediaEngine.Api.Services.Faces.ViewPeopleService>();
         services.AddHostedService<MediaEngine.Api.Services.Faces.FaceScanWorker>();
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
         services.AddHostedService<ArtworkRenditionBackgroundService>();

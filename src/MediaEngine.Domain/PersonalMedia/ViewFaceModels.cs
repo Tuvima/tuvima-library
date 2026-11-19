@@ -14,3 +14,14 @@ public sealed record ViewFaceLook(Guid FaceId, Guid? PersonId, float[] Embedding
 
 /// <summary>How far the face scan of one profile has got.</summary>
 public sealed record ViewFaceScanProgress(int PhotosLooked, int PhotosTotal, int Faces, int People, int UnnamedGroups);
+
+/// <summary>A person, or a group of faces still waiting for a name ("Who's this?"), with how many faces and photos it has.</summary>
+public sealed record ViewFaceGroup(
+    Guid PersonId, string? Name, bool Hidden, int FaceCount, int PhotoCount, Guid? CoverFaceId, IReadOnlyList<Guid> SampleFaceIds);
+
+/// <summary>One face in a photo: where it is (fractions of the picture) and who it was matched to.</summary>
+public sealed record ViewFaceBox(
+    Guid FaceId, Guid ItemId, Guid? PersonId, string? PersonName, double X, double Y, double Width, double Height);
+
+/// <summary>What happened when a group was named.</summary>
+public sealed record ViewNamedPerson(Guid PersonId, bool MergedIntoExisting);
