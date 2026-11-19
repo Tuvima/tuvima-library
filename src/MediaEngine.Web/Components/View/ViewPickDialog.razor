@@ -1,0 +1,36 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Web.Services.Ui
+
+@* A grid of faces to choose one from: "Merge with which person?" and "Choose a cover photo". Choosing returns the item's id. *@
+<AppDialogShell Title="@Title" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        @if (Items.Count == 0)
+        {
+            <p>@Empty</p>
+        }
+        else
+        {
+            <ul class="view-face-grid">
+                @foreach (var item in Items)
+                {
+                    <li @key="item.Id">
+                        <AppNativeButton Type="button" Class="view-face-tile" AriaLabel="@(item.Label ?? Title)" OnClick="@(_ => Dialog.Close(AppDialogResult.Ok(item.Id)))">
+                            <ViewFaceImage FaceId="@item.FaceId" ProfileId="@ProfileId" />
+                            @if (item.Label is not null) { <span>@item.Label</span> }
+                        </AppNativeButton>
+                    </li>
+                }
+            </ul>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="@ViewPeopleText.Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+    </FooterContent>
+</AppDialogShell>
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Empty { get; set; } = string.Empty;
+    [Parameter] public Guid? ProfileId { get; set; }
+    [Parameter] public IReadOnlyList<ViewPickItem> Items { get; set; } = [];
+}

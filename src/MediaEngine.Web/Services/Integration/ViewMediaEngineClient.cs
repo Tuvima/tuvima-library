@@ -24,6 +24,11 @@ public sealed class ViewMediaEngineClient(HttpClient http) : IViewMediaEngineCli
         string? ifRange,
         CancellationToken cancellationToken)
     {
+        if (grant.ResourceKind == ViewMediaResourceKind.FaceCrop)
+        {
+            return http.SendAsync(new HttpRequestMessage(method, $"/view/faces/{grant.AssetId:D}/crop?size=160"), HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        }
+
         var resource = grant.ResourceKind switch
         {
             ViewMediaResourceKind.Thumbnail => "thumbnail",

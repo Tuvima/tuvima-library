@@ -1,4 +1,5 @@
 @using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Editing
 @namespace MediaEngine.Web.Components.Pages
@@ -73,8 +74,13 @@
                 @if (HasLocation)
                 {
                     <div class="view-viewer-info__map"><ViewMap Latitude="@Item.Latitude" Longitude="@Item.Longitude" Interactive="false" ShowNavigation="false" AriaLabel="@($"Map showing {LocationLabel}")" /></div>
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Href="/view/places" Label="@MediaEngine.Web.Components.View.ViewPeopleText.OpenInPlaces" />
                 }
             </section>
+        }
+        @if (Workspace.ScopeKind == ViewScopeKind.Mine && Item.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            <MediaEngine.Web.Components.View.ViewViewerPeople ItemId="@Item.Id" CanName="@CanEditHere" />
         }
         @if (Item.People is { Count: > 0 })
         {

@@ -1,6 +1,8 @@
 @page "/view/people"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Components.View
+@using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
@@ -13,14 +15,43 @@
 @inject IStringLocalizer<SharedStrings> L
 <PageTitle>@L["ViewPeoplePage_PeopleLibrary"]</PageTitle>
 <ViewSectionShell><ViewContentPage Title="@L["Wikidata_PeopleGroupTitle"].Value" Subtitle="@L["ViewPeoplePage_BrowseNamedAndReviewedPeople"].Value">
+@if (_person is null && _progress is { State: ViewFaceStates.Off })
+{
+    <AppPageState Kind="AppPageStateKind.Empty" Title="@ViewPeopleText.OffTitle" Message="@ViewPeopleText.OffMessage" />
+    <AppButton Label="@ViewPeopleText.SwitchOn" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="TurnOnAsync" />
+}
+else if (_person is null)
+{
+    @if (_progress is { State: ViewFaceStates.GettingTools }) { <p class="view-face-status">@ViewPeopleText.GettingTools</p> }
+    else if (_progress is { State: ViewFaceStates.Looking }) { <p class="view-face-status">@ViewPeopleText.Looking(_progress.PhotosLooked, _progress.PhotosTotal)</p> }
+    <ViewWhosThisRow Groups="@_unnamed" ProfileId="@_profileId" OnOpen="NameGroupAsync" />
+}
 <label class="view-search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChanged" Placeholder="@L["ViewPeoplePage_SearchPeople"].Value" AriaLabel="@L["ViewPeoplePage_SearchPeople"].Value" /></label>
 @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPeoplePage_LoadingPeople"].Value" Message="@L["ViewPeoplePage_LookingAtIndexedLocalMetadata"].Value" /> }
 else if (_page is null) { <AppErrorState Title="@L["ViewPeoplePage_PeopleCouldNotBeLoaded"].Value" Message="@L["ViewPeoplePage_NoResult"].Value" Retry="LoadAsync" /> }
-else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@(_page.Capability.State == ViewDiscoveryCapabilityStates.NoMatches ? L["ViewPeoplePage_NoMatch"].Value : L["ViewPeoplePage_NoPeople"].Value)" Message="@_page.Capability.Message" /> }
+else if (_page.Items.Count == 0 && _unnamed.Count == 0 && _progress is { State: ViewFaceStates.Looking or ViewFaceStates.GettingTools }) { <AppPageState Kind="AppPageStateKind.Empty" Title="@ViewPeopleText.EmptyTitle" Message="@ViewPeopleText.EmptyLooking" /> }
+else if (_page.Items.Count == 0 && _unnamed.Count == 0 && _progress is not { State: ViewFaceStates.Off }) { <AppPageState Kind="AppPageStateKind.Empty" Title="@(_page.Capability.State == ViewDiscoveryCapabilityStates.NoMatches ? L["ViewPeoplePage_NoMatch"].Value : L["ViewPeoplePage_NoPeople"].Value)" Message="@_page.Capability.Message" /> }
+else if (_page.Items.Count == 0 && _person is null) { }
 else if (_person is not null)
 {
     <AppButton Label="@L["ViewPeoplePage_AllPeople"].Value" OnClick="ClosePerson" />
-    <h2>@_person.DisplayName</h2>
+    <div class="view-person-header">
+        <ViewFaceImage FaceId="@_group?.CoverFaceId" ProfileId="@_profileId" />
+        <div class="view-person-header__text">
+            <h2>@_person.DisplayName</h2>
+            <small>@ViewPeopleText.Photos(_person.AssetCount)</small>
+        </div>
+        @if (_group is not null && Workspace.ScopeKind == ViewScopeKind.Mine && EditorHost.CanEdit)
+        {
+            <AppOverflowMenu AriaLabel="@_person.DisplayName" SheetTitle="@_person.DisplayName">
+                <AppMenuItem Label="@ViewPeopleText.Rename" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="RenamePersonAsync" />
+                <AppMenuItem Label="@ViewPeopleText.MergeWith" OnClick="MergePersonAsync" />
+                <AppMenuItem Label="@ViewPeopleText.ChooseCover" OnClick="ChooseCoverAsync" />
+                <AppMenuItem Label="@(_group.Hidden ? ViewPeopleText.Unhide : ViewPeopleText.Hide)" OnClick="ToggleHiddenAsync" DividerBefore="true" />
+                <AppMenuItem Label="@ViewPeopleText.RemoveEverywhere" Icon="@AppMaterialIcons.Outlined.Delete" OnClick="RemovePersonAsync" />
+            </AppOverflowMenu>
+        }
+    </div>
     @if (_mediaLoading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPeoplePage_LoadingPhotos"].Value" /> }
     else if (_media is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Retry="@(() => OpenPersonAsync(_person))" /> }
     else
@@ -31,6 +62,30 @@ else if (_person is not null)
     }
 }
 else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroupTitle"].Value">@foreach (var person in _page.Items) { <AppNativeButton Class="view-discovery-card" AriaLabel="@($"View photos of {person.DisplayName}")" OnClick="@(_ => OpenPersonAsync(person))"><img src="@Thumbnail(person.RepresentativeLibraryId, person.RepresentativeAssetId)" alt="" loading="lazy" /><strong>@person.DisplayName</strong><span>@L["ViewPeoplePage_MediaItems", person.AssetCount]</span>@if (person.HasReviewedEvidence) { <small>@L["ViewPeoplePage_ReviewedIdentity"]</small> }</AppNativeButton> }</section>@if (_page.HasMore) { <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadMoreAsync">@L["Common_LoadMore"]</AppButton> } }
+@if (_person is null && _hiddenGroups.Count > 0)
+{
+    <div class="view-people-hidden">
+        <AppCheckbox Value="@_showHidden" ValueChanged="@(value => _showHidden = value)" Label="@ViewPeopleText.ShowHidden" />
+        @if (_showHidden)
+        {
+            <ul class="view-face-grid">
+                @foreach (var hidden in _hiddenGroups)
+                {
+                    <li @key="hidden.PersonId">
+                        <AppNativeButton Type="button" Class="view-face-tile" AriaLabel="@ViewPeopleText.Unhide" OnClick="@(_ => UnhideAsync(hidden))">
+                            <ViewFaceImage FaceId="@hidden.CoverFaceId" ProfileId="@_profileId" />
+                            <span>@hidden.Name</span>
+                        </AppNativeButton>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+}
+@if (_person is null && _progress is not null && Workspace.ScopeKind == ViewScopeKind.Mine && EditorHost.CanEdit)
+{
+    <ViewPeopleSettings Progress="@_progress" OnChanged="ReloadAfterChangeAsync" />
+}
 </ViewContentPage></ViewSectionShell>
 @if (_active is not null)
 {
@@ -49,7 +104,7 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
     private bool _mediaLoadingMore;
     private int _mediaVersion;
     private int ActiveIndex => _active is null ? -1 : _media?.Items.ToList().FindIndex(item => item.Id == _active.Id) ?? -1;
-    private void ClosePerson() { ++_mediaVersion; _person = null; _active = null; _selected.Clear(); }
+    private void ClosePerson() { ++_mediaVersion; _person = null; _group = null; _active = null; _selected.Clear(); }
     private void PreviousItem() { if (ActiveIndex > 0) _active = _media!.Items[ActiveIndex - 1]; }
     private async Task NextItemAsync()
     {
@@ -106,7 +161,7 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
     private async Task OpenPersonAsync(ViewPersonDto person)
     {
         var version = ++_mediaVersion;
-        _person = person; _mediaLoading = true; _selected.Clear();
+        _person = person; _group = GroupFor(person); _mediaLoading = true; _selected.Clear();
         var page = await ApiClient.GetViewAssetsAsync(new(Workspace.ScopeKind, Workspace.ScopeProfileId, PersonKey: person.Key));
         if (version != _mediaVersion) return;
         _media = page; _mediaLoading = false;
@@ -123,13 +178,113 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
         }
         finally { _mediaLoadingMore = false; }
     }
+    private ViewFaceProgressDto? _progress;
+    private IReadOnlyList<ViewFaceGroupDto> _unnamed = [];
+    private IReadOnlyList<ViewFaceGroupDto> _namedGroups = [];
+    private ViewFaceGroupDto? _group;
+    private bool _showHidden;
+    private IReadOnlyList<ViewFaceGroupDto> _hiddenGroups => _namedGroups.Where(group => group.Hidden).ToList();
+    private async Task UnhideAsync(ViewFaceGroupDto group)
+    {
+        if (await ApiClient.HideViewFacePersonAsync(group.PersonId, false)) { await ReloadAfterChangeAsync(); }
+        else Ribbon.Add(ViewPeopleText.CouldNotSave, AppSeverity.Error);
+    }
+    private async Task LoadFacesAsync()
+    {
+        _progress = await ApiClient.GetViewFaceProgressAsync();
+        await Workspace.RefreshPeopleWaitingAsync();
+        if (_progress is null or { State: ViewFaceStates.Off } || Workspace.ScopeKind != ViewScopeKind.Mine)
+        {
+            _unnamed = [];
+            _namedGroups = [];
+            return;
+        }
+
+        var unnamed = await ApiClient.GetViewFaceGroupsAsync(false, false, 12);
+        var named = await ApiClient.GetViewFaceGroupsAsync(true, true, 200);
+        _unnamed = unnamed?.Items ?? [];
+        _namedGroups = named?.Items ?? [];
+        if (_person is not null) { _group = GroupFor(_person); }
+    }
+    private ViewFaceGroupDto? GroupFor(ViewPersonDto person) =>
+        _namedGroups.FirstOrDefault(group => string.Equals(group.Name, person.DisplayName, StringComparison.OrdinalIgnoreCase));
+    private async Task TurnOnAsync()
+    {
+        if (!await ApiClient.SetViewRecognizePeopleAsync(true)) { Ribbon.Add(ViewPeopleText.CouldNotSave, AppSeverity.Error); return; }
+        await LoadFacesAsync();
+    }
+    private async Task NameGroupAsync(ViewFaceGroupDto group)
+    {
+        var dialog = await DialogService.ShowAsync<ViewNamePersonDialog>(string.Empty,
+            new AppDialogParameters<ViewNamePersonDialog> { { component => component.PersonId, group.PersonId }, { component => component.ProfileId, _profileId } },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium, Sheet = AppDialogSheetMode.PhoneAndTablet });
+        if ((await dialog.Result) is { Canceled: false }) { await LoadFacesAsync(); await LoadAsync(); }
+    }
+    private async Task RenamePersonAsync()
+    {
+        if (_group is not { } group || _person is null) return;
+        var dialog = await DialogService.ShowAsync<ViewNamePersonDialog>(string.Empty,
+            new AppDialogParameters<ViewNamePersonDialog> { { component => component.PersonId, group.PersonId }, { component => component.CurrentName, group.Name }, { component => component.ProfileId, _profileId }, { component => component.OfferSuggestions, false } },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small, Sheet = AppDialogSheetMode.PhoneAndTablet });
+        if ((await dialog.Result) is { Canceled: false }) { await ReloadAfterChangeAsync(); }
+    }
+    private async Task MergePersonAsync()
+    {
+        if (_group is not { } group) return;
+        var others = _namedGroups.Where(other => other.PersonId != group.PersonId && !other.Hidden).Select(other => new ViewPickItem(other.PersonId, other.CoverFaceId, other.Name)).ToList();
+        var chosen = await PickAsync(ViewPeopleText.PickMergeTitle, ViewPeopleText.NoOthers, others);
+        if (chosen is not { } target) return;
+        if (await ApiClient.MergeViewFacePeopleAsync(group.PersonId, target)) { await ReloadAfterChangeAsync(); }
+        else Ribbon.Add(ViewPeopleText.CouldNotSave, AppSeverity.Error);
+    }
+    private async Task ChooseCoverAsync()
+    {
+        if (_group is not { } group) return;
+        var faces = await ApiClient.GetViewFaceGroupFacesAsync(group.PersonId, 40);
+        var items = faces?.Items.Select(face => new ViewPickItem(face.FaceId, face.FaceId, null)).ToList() ?? [];
+        var chosen = await PickAsync(ViewPeopleText.PickCoverTitle, string.Empty, items);
+        if (chosen is not { } faceId) return;
+        if (await ApiClient.SetViewFacePersonCoverAsync(group.PersonId, faceId)) { await LoadFacesAsync(); }
+        else Ribbon.Add(ViewPeopleText.CouldNotSave, AppSeverity.Error);
+    }
+    private async Task ToggleHiddenAsync()
+    {
+        if (_group is not { } group) return;
+        if (await ApiClient.HideViewFacePersonAsync(group.PersonId, !group.Hidden)) { await LoadFacesAsync(); }
+        else Ribbon.Add(ViewPeopleText.CouldNotSave, AppSeverity.Error);
+    }
+    private async Task RemovePersonAsync()
+    {
+        if (_group is not { } group || _person is null) return;
+        var answer = await AppConfirmDialog.ShowAsync(DialogService, ViewPeopleText.RemoveTitle(_person.DisplayName), ViewPeopleText.RemoveMessage, ViewPeopleText.Remove, ViewPeopleText.Cancel, primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary) return;
+        if (await ApiClient.DeleteViewFacePersonAsync(group.PersonId)) { ClosePerson(); await ReloadAfterChangeAsync(); }
+        else Ribbon.Add(ViewPeopleText.CouldNotSave, AppSeverity.Error);
+    }
+    private async Task ReloadAfterChangeAsync()
+    {
+        await LoadAsync();
+        await LoadFacesAsync();
+        if (_person is not null)
+        {
+            _group = GroupFor(_person);
+            if (_group is null) { ClosePerson(); }
+        }
+    }
+    private async Task<Guid?> PickAsync(string title, string empty, IReadOnlyList<ViewPickItem> items)
+    {
+        var dialog = await DialogService.ShowAsync<ViewPickDialog>(string.Empty,
+            new AppDialogParameters<ViewPickDialog> { { component => component.Title, title }, { component => component.Empty, empty }, { component => component.Items, items }, { component => component.ProfileId, _profileId } },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium, Sheet = AppDialogSheetMode.PhoneAndTablet });
+        return (await dialog.Result) is { Canceled: false, Data: Guid id } ? id : null;
+    }
     private ViewPeoplePageDto? _page; private string _search = ""; private bool _loading = true; private Guid? _profileId;
-    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; await Workspace.InitializeAsync(); _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await LoadAsync(); }
+    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; await Workspace.InitializeAsync(); _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await LoadAsync(); await LoadFacesAsync(); }
     private ViewDiscoveryQueryOptions Query(string? cursor = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, _search, cursor);
     private int _peopleVersion;
     private bool _loadingMore;
     public void Dispose() => Workspace.ScopeChanged -= ScopeSwitchedAsync;
-    private async Task ScopeSwitchedAsync() { await InvokeAsync(async () => { ++_mediaVersion; _person = null; _active = null; await LoadAsync(); StateHasChanged(); }); }
+    private async Task ScopeSwitchedAsync() { await InvokeAsync(async () => { ++_mediaVersion; _person = null; _active = null; await LoadAsync(); await LoadFacesAsync(); StateHasChanged(); }); }
     private async Task LoadAsync() { var version = ++_peopleVersion; _loading = true; var page = await ApiClient.GetViewPeopleAsync(Query()); if (version != _peopleVersion) return; _page = page; _loading = false; }
     private async Task SearchChanged(object? value) { _search = value?.ToString() ?? ""; ++_mediaVersion; _person = null; _active = null; await LoadAsync(); }
     private async Task LoadMoreAsync() { if (_page?.NextCursor is null || _loadingMore) return; var version = _peopleVersion; _loadingMore = true; try { var next = await ApiClient.GetViewPeopleAsync(Query(_page.NextCursor)); if (version == _peopleVersion && next is not null) _page = next with { Items = [.. _page.Items, .. next.Items] }; } finally { _loadingMore = false; } }

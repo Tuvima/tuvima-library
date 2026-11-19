@@ -41,11 +41,12 @@
     protected override async Task OnInitializedAsync()
     {
         Workspace.DocumentInboxChanged += InboxChanged;
+        Workspace.PeopleWaitingChanged += InboxChanged;
         DeviceContext.OnChanged += InboxChanged;
         await ActiveProfileSession.GetActiveProfileAsync();
         // The Documents tab only shows for profiles allowed to see documents, which the scopes response says.
         await Workspace.InitializeAsync();
-        await Task.WhenAll(Workspace.LoadGalleriesAsync(), Workspace.RefreshDocumentInboxAsync());
+        await Task.WhenAll(Workspace.LoadGalleriesAsync(), Workspace.RefreshDocumentInboxAsync(), Workspace.RefreshPeopleWaitingAsync());
     }
 
     private void InboxChanged() => _ = InvokeAsync(StateHasChanged);
@@ -53,6 +54,7 @@
     public void Dispose()
     {
         Workspace.DocumentInboxChanged -= InboxChanged;
+        Workspace.PeopleWaitingChanged -= InboxChanged;
         DeviceContext.OnChanged -= InboxChanged;
     }
 
@@ -108,7 +110,13 @@
                     : new("Documents", "/view/documents", AppMaterialIcons.Outlined.Description, Exact: true));
             }
 
-            items.Add(new("People", "/view/people", AppMaterialIcons.Outlined.People, Exact: true));
+            // Groups of faces waiting for a name show as a count, like documents waiting in the Inbox.
+            var peopleWaiting = Workspace.PeopleWaitingCount;
+            items.Add(peopleWaiting > 0
+                ? new("People", "/view/people", AppMaterialIcons.Outlined.People,
+                    peopleWaiting.ToString(System.Globalization.CultureInfo.InvariantCulture), Exact: true, MetaIsNotification: true,
+                    MetaAriaLabel: $"{peopleWaiting} {(peopleWaiting == 1 ? "group" : "groups")} of faces to name")
+                : new("People", "/view/people", AppMaterialIcons.Outlined.People, Exact: true));
             items.Add(new("Places", "/view/places", AppMaterialIcons.Outlined.Place, Exact: true));
             return items;
         }

@@ -5879,6 +5879,37 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 .view-smart-search__chip .view-smart-search__remove:hover,.view-smart-search__chip .view-smart-search__remove:focus-visible{background:var(--tl-bg-surface-hover)}
 .view-smart-search .view-smart-search__input{flex:1 1 8rem;width:auto;min-width:6rem}
 
+/* People: faces, the "Who's this?" row and the face pickers (spec view-people-search WP9). View-only; shared parts are untouched. */
+.view-face-image { width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: var(--tl-border-subtle); display: block; }
+.view-face-tile { display: grid; justify-items: center; gap: .35rem; width: 7rem; min-height: 44px; padding: .35rem; border: 2px solid transparent; border-radius: .75rem; background: transparent; color: inherit; cursor: pointer; text-align: center; }
+.view-face-tile:hover { background: var(--tl-bg-surface-hover); }
+.view-face-tile:focus-visible { outline: 2px solid var(--tl-accent-primary-hover); }
+.view-face-tile span { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.view-face-tile--check { width: 5.5rem; }
+.view-face-tile--check.view-face-tile--on { border-color: var(--tl-accent-primary-hover); }
+.view-face-tile--check:not(.view-face-tile--on) .view-face-image { opacity: .35; }
+.view-face-grid { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: .75rem; }
+.view-face-grid--preview li { width: 4rem; }
+.view-face-hint { color: var(--tl-text-secondary); margin: 0 0 .75rem; }
+.view-whos-this { margin: 0 0 1.5rem; }
+.view-whos-this header { display: grid; gap: .15rem; margin-bottom: .5rem; }
+.view-whos-this h2 { margin: 0; font-size: var(--tl-font-size-lg); }
+.view-whos-this small { color: var(--tl-text-secondary); }
+.view-whos-this ul { list-style: none; margin: 0; padding: 0 0 .25rem; display: flex; gap: .75rem; overflow-x: auto; scroll-snap-type: x proximity; }
+.view-whos-this li { flex: 0 0 auto; scroll-snap-align: start; }
+.view-person-header { display: flex; align-items: center; gap: 1rem; margin: 0 0 1rem; }
+.view-person-header .view-face-image { width: 5rem; flex: 0 0 5rem; }
+.view-person-header__text { flex: 1 1 auto; display: grid; gap: .15rem; }
+.view-person-header__text h2 { margin: 0; }
+.view-person-header__text small { color: var(--tl-text-secondary); }
+.view-face-status { color: var(--tl-text-secondary); margin: 0 0 1rem; }
+.view-people-hidden { margin: 0 0 1rem; }
+.view-people-settings { display: grid; gap: .75rem; margin-top: 2rem; max-width: 46rem; }
+.view-people-settings h3 { margin: 0; }
+@media (max-width: 640px) {
+    .view-face-tile { width: 6rem; }
+    .view-person-header .view-face-image { width: 4rem; flex-basis: 4rem; }
+}
 /* Window footer (Look v3 D14, D15.3; Shy 2026-11-07: as in the mock): every button sits in one right-hand group in reading order,
    destructive (outlined red), then Cancel or Discard, then the one primary last. Only a quiet extra action marked app-footer-start
    (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. The one exception is the short

@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.View
+@inject ViewMediaGrantService MediaGrants
+
+@* One face as a round picture. The picture comes through the same signed Dashboard route as every other View picture, so only the
+   signed-in person's own faces can be shown. *@
+@if (ProfileId.HasValue && FaceId.HasValue)
+{
+    <img class="view-face-image" src="@Url" alt="@Alt" loading="lazy" />
+}
+else
+{
+    <span class="view-face-image view-face-image--empty" aria-hidden="true"></span>
+}
+@code {
+    [Parameter] public Guid? FaceId { get; set; }
+    [Parameter] public Guid? ProfileId { get; set; }
+    [Parameter] public string Alt { get; set; } = string.Empty;
+
+    private string Url => $"/view-media/{MediaGrants.Create(ProfileId!.Value, Guid.Empty, FaceId!.Value, ViewMediaResourceKind.FaceCrop).Value}";
+}

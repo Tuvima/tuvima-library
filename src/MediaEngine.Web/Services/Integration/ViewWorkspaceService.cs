@@ -70,6 +70,24 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         }
     }
 
+    /// <summary>Groups of faces waiting for a name, shown as a count on People. Zero when face recognition is off.</summary>
+    public int PeopleWaitingCount { get; private set; }
+
+    public event Action? PeopleWaitingChanged;
+
+    public async Task RefreshPeopleWaitingAsync(CancellationToken ct = default)
+    {
+        var progress = await api.GetViewFaceProgressAsync(ct);
+        var count = progress is null || progress.State == ViewFaceStates.Off ? 0 : Math.Max(0, progress.UnnamedGroups);
+        if (count == PeopleWaitingCount)
+        {
+            return;
+        }
+
+        PeopleWaitingCount = count;
+        PeopleWaitingChanged?.Invoke();
+    }
+
     private void SetDocumentInboxCount(int count)
     {
         if (DocumentInboxCount == count)
