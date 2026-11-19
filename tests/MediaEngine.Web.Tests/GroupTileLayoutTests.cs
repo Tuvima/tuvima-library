@@ -7,10 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Group tiles of the 2026-11-18 review mock-ups (D4, D5): one title fills the tile, two fill the left column, three add the top right,
-/// four fill the grid, empty squares are dashed, the name sits on a gradient with the count; a Series keeps the poster or square tile with a
-/// purple outline and a tag that says what it holds; a group that mixes media kinds is a wide gold-outlined Collection with its covers in
-/// a row; a Universe keeps its look.
+/// Group tiles of the 2026-11-18 review mock-ups (D4, D5), now drawn as the landscape cover collage (issue 1175): a person's tile keeps
+/// the grid (one title fills the tile, two fill the left column, three add the top right, four fill the grid, empty squares are dashed);
+/// a group of titles has the name and count on the collage's solid band; a Series has a purple outline and a tag that says what it holds;
+/// a group that mixes media kinds is a gold-outlined Collection in the same collage; a Universe has no outline.
 /// </summary>
 public sealed class GroupTileLayoutTests : AsyncBunitContext
 {
@@ -21,9 +21,9 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OneTitle_IsOneFullCoverFillingTheTile_WithNoEmptySquares()
+    public void OneTitle_OfAPerson_IsOneFullCoverFillingTheTile_WithNoEmptySquares()
     {
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group(Book("/c/1.jpg"))));
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Person(Book("/c/1.jpg"))));
 
         Assert.Contains("is-count-1", cut.Find(".media-tile-quadrants").ClassList);
         var cover = Assert.Single(cut.FindAll("img.media-tile-quadrant"));
@@ -32,27 +32,27 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TwoTitles_TakeTopLeftAndBottomLeft_AndTheRightColumnIsTwoEmptySquares()
+    public void TwoTitles_OfAPerson_TakeTopLeftAndBottomLeft_AndTheRightColumnIsTwoEmptySquares()
     {
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group(Book("/c/1.jpg"), Book("/c/2.jpg"))));
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Person(Book("/c/1.jpg"), Book("/c/2.jpg"))));
 
         Assert.Equal(["is-slot-tl", "is-slot-bl"], Slots(cut, "img.media-tile-quadrant"));
         Assert.Equal(["is-slot-tr", "is-slot-br"], Slots(cut, ".media-tile-quadrant.is-empty"));
     }
 
     [Fact]
-    public void ThreeTitles_TakeTopLeftBottomLeftAndTopRight_AndTheBottomRightIsEmpty()
+    public void ThreeTitles_OfAPerson_TakeTopLeftBottomLeftAndTopRight_AndTheBottomRightIsEmpty()
     {
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group(Book("/c/1.jpg"), Book("/c/2.jpg"), Book("/c/3.jpg"))));
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Person(Book("/c/1.jpg"), Book("/c/2.jpg"), Book("/c/3.jpg"))));
 
         Assert.Equal(["is-slot-tl", "is-slot-bl", "is-slot-tr"], Slots(cut, "img.media-tile-quadrant"));
         Assert.Equal(["is-slot-br"], Slots(cut, ".media-tile-quadrant.is-empty"));
     }
 
     [Fact]
-    public void FourTitles_FillTheGrid_InOrder_WithNoEmptySquares()
+    public void FourTitles_OfAPerson_FillTheGrid_InOrder_WithNoEmptySquares()
     {
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group(Book("/c/1.jpg"), Book("/c/2.jpg"), Book("/c/3.jpg"), Book("/c/4.jpg"), Book("/c/5.jpg"))));
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Person(Book("/c/1.jpg"), Book("/c/2.jpg"), Book("/c/3.jpg"), Book("/c/4.jpg"), Book("/c/5.jpg"))));
 
         Assert.Equal(["is-slot-tl", "is-slot-bl", "is-slot-tr", "is-slot-br"], Slots(cut, "img.media-tile-quadrant"));
         Assert.Empty(cut.FindAll(".media-tile-quadrant.is-empty"));
@@ -64,32 +64,31 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ACoverKeepsItsOwnShape_APortraitFillsItsQuarterAndASquareStaysSquare()
+    public void APersonsCoverKeepsItsOwnShape_APortraitFillsItsQuarterAndASquareStaysSquare()
     {
-        var group = Group(Series(MediaTilePresentation.AudiobookSeries),
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Person(
             Cover("/c/1.jpg", "Audiobook", ArtworkShape.Portrait),
             Cover("/c/2.jpg", "Audiobook", ArtworkShape.Square),
-            Cover("/c/3.jpg", "Audiobook", ArtworkShape.Wide));
-
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, group));
+            Cover("/c/3.jpg", "Audiobook", ArtworkShape.Wide))));
 
         var shapes = cut.FindAll("img.media-tile-quadrant").Select(image => image.ClassList.Single(name => name.StartsWith("is-shape-", StringComparison.Ordinal))).ToList();
         Assert.Equal(["is-shape-portrait", "is-shape-square", "is-shape-wide"], shapes);
     }
 
     [Fact]
-    public void TheNameAndTheCountSitTogetherAtTheBottomOnTheGradient()
+    public void TheNameAndTheCountOfAGroupSitTogetherOnTheSolidBand()
     {
         var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group(Book("/c/1.jpg"), Book("/c/2.jpg"))));
 
-        var foot = cut.Find(".media-tile-group-foot");
-        Assert.Equal("Group", foot.QuerySelector(".media-tile-name")!.TextContent.Trim());
-        Assert.Equal("2 items", foot.QuerySelector(".media-tile-label--bottom")!.TextContent.Trim());
-        Assert.Single(cut.FindAll(".media-tile-label--bottom"));
+        var band = cut.Find(".group-collage__band");
+        Assert.Equal("Group", band.QuerySelector(".group-collage__name")!.TextContent.Trim());
+        Assert.Equal("2 items", band.QuerySelector(".group-collage__count")!.TextContent.Trim());
+        Assert.Empty(cut.FindAll(".media-tile-label--bottom"));
+        Assert.Empty(cut.FindAll(".media-tile-scrim"));
     }
 
     [Fact]
-    public void ASeriesOfOneMediaKind_KeepsThePosterTileWithAPurpleOutlineAndTheTagSaysWhatItHolds()
+    public void ASeriesOfOneMediaKind_IsTheLandscapeCollageWithAPurpleOutlineAndTheTagSaysWhatItHolds()
     {
         var books = Render<MediaTile>(p => p.Add(c => c.Item, Group(Series(MediaTilePresentation.BookSeries), Book("/c/1.jpg"), Book("/c/2.jpg"))));
         var audio = Render<MediaTile>(p => p.Add(c => c.Item, Group(Series(MediaTilePresentation.AudiobookSeries),
@@ -104,16 +103,13 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
             var article = tile.Find("article.media-tile");
             Assert.Contains("is-series-outlined", article.ClassList);
             Assert.DoesNotContain("is-collection-outlined", article.ClassList);
-            Assert.DoesNotContain("is-collection-wide", article.ClassList);
-            Assert.Empty(tile.FindAll(".media-tile-quadrants.is-row"));
+            Assert.Contains("is-landscape", article.ClassList);
+            Assert.Empty(tile.FindAll(".media-tile-quadrants"));
         }
-
-        Assert.Contains("is-portrait", books.Find("article.media-tile").ClassList);
-        Assert.Contains("is-square", audio.Find("article.media-tile").ClassList);
     }
 
     [Fact]
-    public void AGroupOfMixedMediaKinds_IsAWideGoldOutlinedCollection_WithItsCoversInARowInNaturalShapes()
+    public void AGroupOfMixedMediaKinds_IsAGoldOutlinedCollection_WithItsCoversInTheCollageInNaturalShapes()
     {
         var group = Group(Series(MediaTilePresentation.BookSeries),
             Cover("/c/book.jpg", "Book", ArtworkShape.Portrait),
@@ -123,16 +119,13 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
         var cut = Render<MediaTile>(p => p.Add(c => c.Item, group));
 
         var article = cut.Find("article.media-tile");
-        Assert.Contains("is-collection-wide", article.ClassList);
         Assert.Contains("is-collection-outlined", article.ClassList);
         Assert.DoesNotContain("is-series-outlined", article.ClassList);
+        Assert.Contains("is-landscape", article.ClassList);
         Assert.DoesNotContain("is-portrait", article.ClassList);
         Assert.Equal("Collection", cut.Find(".media-tile-label--kind").TextContent.Trim());
-        Assert.Contains("is-row", cut.Find(".media-tile-quadrants").ClassList);
-        Assert.Equal(3, cut.FindAll("img.media-tile-quadrant").Count);
-        Assert.Empty(cut.FindAll(".media-tile-quadrant.is-empty"));
-        Assert.Equal(["is-shape-portrait", "is-shape-square", "is-shape-wide"],
-            cut.FindAll("img.media-tile-quadrant").Select(image => image.ClassList.Single(name => name.StartsWith("is-shape-", StringComparison.Ordinal))).ToList());
+        Assert.Empty(cut.FindAll(".media-tile-quadrants"));
+        Assert.Equal(["portrait", "square", "wide"], cut.FindAll(".group-collage__cover").Select(cover => cover.GetAttribute("data-shape")));
     }
 
     [Fact]
@@ -145,7 +138,7 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AUniverse_KeepsItsExistingLook_EvenWhenItHoldsMixedMedia()
+    public void AUniverse_IsTheSameCollageWithNoOutline_EvenWhenItHoldsMixedMedia()
     {
         var universe = Group(
             new MediaTileViewModel { GroupKind = MediaTileGroupKind.Universe },
@@ -155,11 +148,11 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
         var cut = Render<MediaTile>(p => p.Add(c => c.Item, universe));
 
         var article = cut.Find("article.media-tile");
-        Assert.Contains("is-portrait", article.ClassList);
+        Assert.Contains("is-landscape", article.ClassList);
         Assert.DoesNotContain("is-series-outlined", article.ClassList);
         Assert.DoesNotContain("is-collection-outlined", article.ClassList);
-        Assert.DoesNotContain("is-collection-wide", article.ClassList);
         Assert.Equal("Universe", cut.Find(".media-tile-label--kind").TextContent.Trim());
+        Assert.Equal(2, cut.FindAll(".group-collage__cover").Count);
     }
 
     [Fact]
@@ -202,6 +195,15 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
     private static MediaTileViewModel Series(MediaTilePresentation presentation) =>
         new() { GroupKind = MediaTileGroupKind.Series, Presentation = presentation };
 
+    // A person's tile: the grid around the person's photo.
+    private static MediaTileViewModel Person(params ArtworkStackItem[] covers)
+    {
+        var id = Guid.NewGuid();
+        return MediaPersonGroupTileComposer.Compose(
+            id, "Ava DuVernay", id, "/persons/ava/headshot", ["Director"], "Movies", covers.Length, 2012, 2023, DateTimeOffset.UtcNow,
+            covers, MediaPersonGroupTileComposer.NavigationUrl(id, "Ava DuVernay"), "#000");
+    }
+
     private static MediaTileViewModel Group(params ArtworkStackItem[] covers) =>
         Group(new MediaTileViewModel { GroupKind = MediaTileGroupKind.Collection }, covers);
 
@@ -214,7 +216,7 @@ public sealed class GroupTileLayoutTests : AsyncBunitContext
         UseGroupTile = true,
         GroupKind = kind.GroupKind,
         Presentation = kind.Presentation,
-        Shape = covers.Length > 0 && covers.All(cover => cover.Shape == ArtworkShape.Square) ? MediaTileShape.Square : MediaTileShape.Portrait,
+        Shape = MediaTileShape.Landscape,
         ArtworkStackItems = covers,
         NavigationUrl = "/details/collection/group",
         PreviewTotalCount = covers.Length,

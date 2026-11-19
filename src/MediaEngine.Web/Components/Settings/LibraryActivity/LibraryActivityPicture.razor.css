@@ -1,3 +1,5 @@
 .lact-picture { display: block; width: 100%; height: 100%; object-fit: cover; }
 .lact-picture--empty { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--tl-space-2); padding: var(--tl-space-1); overflow: hidden; background: var(--tl-bg-surface-raised); color: var(--tl-text-muted); text-align: center; }
 .lact-picture__text { font-weight: var(--tl-font-weight-semibold); color: var(--tl-text-secondary); overflow-wrap: anywhere; }
+/* Square covers (albums, audiobooks) sit whole and centered in the small tile instead of being cropped to a portrait (issue 1158). */
+.lact-tile__face--square.lact-tile__face--compact .lact-picture:not(.lact-picture--empty) { position: absolute; top: 50%; left: 0; height: auto; aspect-ratio: 1; transform: translateY(-50%); object-fit: contain; }

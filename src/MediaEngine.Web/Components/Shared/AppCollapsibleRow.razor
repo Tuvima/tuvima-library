@@ -2,11 +2,15 @@
 
 @* One heading for every row under a details page's hero: a title, a short summary and, at the end, the row's controls.
    Rows never collapse (editor and details revision v4.1 D11). *@
-<section class="@RootClass" aria-labelledby="@(HideHeading ? null : _headingId)" aria-label="@(HideHeading ? Title : null)">
-    @if (!HideHeading)
+<section class="@RootClass" aria-labelledby="@(NamedOnlyForAssistiveTools ? null : _headingId)" aria-label="@(NamedOnlyForAssistiveTools ? Title : null)">
+    @if (!HideHeading && (!HideTitle || Actions is not null))
     {
     <div class="app-collapsible-row__header">
-        @if (HeadingLevel == 3)
+        @if (HideTitle)
+        {
+            @* Controls only: no title or count text (issue 1172). *@
+        }
+        else if (HeadingLevel == 3)
         {
             <h3 class="app-collapsible-row__heading">@Toggle</h3>
         }
@@ -39,12 +43,17 @@
 
     /// <summary>No heading line at all (an episode row, details-and-tile-fixes D9); the title still names the section for assistive tools.</summary>
     [Parameter] public bool HideHeading { get; set; }
+
+    /// <summary>No title or summary text (details pages, issue 1172: the dropdowns and the count under the list say it); the controls in <see cref="Actions"/>, if any, keep their line. The title still names the section for assistive tools.</summary>
+    [Parameter] public bool HideTitle { get; set; }
     [Parameter] public string? Class { get; set; }
 
     /// <summary>Controls that belong at the end of the heading while the row is open (Jump to, Show missing).</summary>
     [Parameter] public RenderFragment? Actions { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool NamedOnlyForAssistiveTools => HideHeading || HideTitle;
 
     private string RootClass => $"app-collapsible-row{(string.IsNullOrWhiteSpace(Class) ? string.Empty : $" {Class}")}";
 

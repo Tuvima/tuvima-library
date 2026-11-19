@@ -495,6 +495,9 @@
     flex: 0 0 auto;
     grid-column: 3;
     grid-row: 1;
+    /* Exactly as wide as its two buttons (issue 1194), right-aligned with the other controls, even when its grid cell is wider. */
+    width: fit-content;
+    justify-self: end;
 }
 
 .browse-shell__filter-surface ::deep .app-active-filter-summary {

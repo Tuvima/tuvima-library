@@ -497,8 +497,10 @@
 
     private static void AddFact(List<(string Label, string Value)> facts, string label, string? value)
     {
-        if (!string.IsNullOrWhiteSpace(value))
-            facts.Add((label, value));
+        // A stored multi-value field reads as a normal list, never with a bare bar (issue 1162).
+        var text = DisplayFormat.FormatMultiValue(value);
+        if (!string.IsNullOrWhiteSpace(text))
+            facts.Add((label, text));
     }
 
     private static string? JoinLines(params string?[] values)

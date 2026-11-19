@@ -40,6 +40,19 @@ public sealed class ContinueTileRowsTests
         Assert.Equal(expected, MediaTileLabels.ContinueSecondLine(item));
     }
 
+    [Theory]
+    [InlineData("Movie", "R", 2023, "Film · R · 2023")]
+    [InlineData("Book", null, 2017, "Book · 2017")]
+    [InlineData("Audiobook", null, 2021, "Audiobook · 2021")]
+    [InlineData("TV", "TV-MA", 2021, "Show · TV-MA · 2021")]
+    [InlineData("Video", null, 0, "Video")]
+    public void TheSecondRow_SaysTheTypeInWordsFirst(string kind, string? rating, int year, string expected)
+    {
+        var item = new MediaTileViewModel { MediaKind = kind, ContentRating = rating, SortYear = year };
+
+        Assert.Equal(expected, MediaTileLabels.ContinueSecondLine(item));
+    }
+
     [Fact]
     public void TheSecondRow_IsEmptyWhenThereIsNeitherARatingNorAYear()
     {

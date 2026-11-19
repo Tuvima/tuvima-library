@@ -21,6 +21,38 @@ public sealed class PersonalStatusRepositoryTests : IDisposable
         return (work, asset);
     }
     [Fact]
+    public async Task ASeriesScope_CountsEveryOwnedWorkPlacedOnTheShelf_NovellasAndShortStoriesIncluded()
+    {
+        // Three novels are listed in the Series' own items; a novella and a short story are placed on the shelf (works.collection_id)
+        // only. The Series tile counts all five, so the "Mark owned titles as read" scope must count the same five, and a book on
+        // no shelf stays out.
+        var series = Guid.NewGuid();
+        var novels = Enumerable.Range(0, 3).Select(_ => Add(MediaType.Books).work).ToList();
+        var novella = Add(MediaType.Books).work;
+        var shortStory = Add(MediaType.Books).work;
+        _ = Add(MediaType.Books);
+        using (var conn = db.CreateConnection())
+        {
+            conn.Execute("INSERT INTO collections (id, created_at) VALUES (@series, @now);", new { series, now = DateTimeOffset.UtcNow.ToString("O") });
+            foreach (var work in novels.Concat([novella, shortStory]))
+            {
+                conn.Execute("UPDATE works SET collection_id=@series WHERE id=@work", new { series, work });
+            }
+
+            foreach (var work in novels)
+            {
+                conn.Execute(
+                    "INSERT INTO collection_items (id, collection_id, work_id, sort_order) VALUES (@id, @series, @work, 0)",
+                    new { id = Guid.NewGuid(), series, work });
+            }
+        }
+
+        var status = await new PersonalStatusRepository(db).ReadAsync(profile, new PersonalStatusTarget(series, MediaType.Books));
+
+        Assert.Equal(5, status.OwnedCount);
+    }
+
+    [Fact]
     public async Task CompletingOneSongDoesNotCompleteItsAlbumOrSibling()
     {
         var (album, albumAsset) = Add(MediaType.Music);

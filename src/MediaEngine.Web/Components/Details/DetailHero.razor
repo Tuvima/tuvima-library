@@ -107,7 +107,8 @@
                            SecondaryTitleText="@Presentation.SecondaryTitleText"
                            Synopsis="@Presentation.HeroCopy"
                            SynopsisHeading="@WatchEpisodeHeading"
-                           SynopsisClass="@HeroSummaryClass">
+                           SynopsisClass="@HeroSummaryClass"
+                           Class="@(HasCollectionArtwork ? "tl-detail-hero--collection-art" : string.Empty)">
             <IdentityBeforeTitle>
                 @if (!(Presentation.IsWatchHero && HasHeroBrand) && !string.IsNullOrWhiteSpace(Presentation.Eyebrow))
                 {
@@ -230,6 +231,7 @@
         or DetailEntityType.ComicSeries
         or DetailEntityType.MovieSeries;
     private IReadOnlyList<ArtworkStackItem> CollectionHeroArtwork => BuildCollectionHeroArtwork();
+    private bool HasCollectionArtwork => IsStructuralContainer && CollectionHeroArtwork.Count > 0;
     private int CollectionHeroArtworkTotal => Model.MediaGroups
         .SelectMany(group => group.Items)
         .Count(item => item.IsOwned);
@@ -300,7 +302,7 @@
             if (!string.IsNullOrWhiteSpace(details.PlaceOfBirth))
                 facts.Add((AppMaterialIcons.Outlined.Place, details.PlaceOfBirth!));
             if (Model.MediaGroups.Sum(group => group.Items.Count) > 0)
-                facts.Add((AppMaterialIcons.Outlined.VideoLibrary, $"{Model.MediaGroups.Sum(group => group.Items.Count)} titles in library"));
+                facts.Add((AppMaterialIcons.Outlined.VideoLibrary, $"{DisplayFormat.FormatCountNoun(Model.MediaGroups.Sum(group => group.Items.Count), "title")} in library"));
             return facts;
         }
     }

@@ -8243,12 +8243,6 @@
   <data name="MediaGroupTile_KindCollection" xml:space="preserve">
     <value>Collection</value>
   </data>
-  <data name="ContinueTile_KindBook" xml:space="preserve">
-    <value>Book</value>
-  </data>
-  <data name="ContinueTile_KindAudiobook" xml:space="preserve">
-    <value>Audiobook</value>
-  </data>
   <data name="MediaGroupTile_KindSeries" xml:space="preserve">
     <value>Series</value>
   </data>

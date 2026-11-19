@@ -11,7 +11,7 @@
     @if (!string.IsNullOrWhiteSpace(Route))
     {
         <a href="@Route" class="lact-tile__link" aria-label="@L["LibraryActivity_OpenTitle", Title]">
-            <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" Compact="Compact" />
+            <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" Compact="Compact" Square="IsSquare" />
         </a>
         @if (!Compact && ActionItem is { } item)
         {
@@ -20,7 +20,7 @@
     }
     else
     {
-        <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" Compact="Compact" />
+        <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" Compact="Compact" Square="IsSquare" />
     }
 </div>
 
@@ -34,7 +34,8 @@
     /// <summary>The small tile of Working now (D34): the row's own width, no "..." menu (there is no room), the same page link.</summary>
     [Parameter] public bool Compact { get; set; }
 
-    private bool IsSquare => MediaType == "Music";
+    // Albums and audiobooks are square covers (issue 1158); everything else is a portrait poster.
+    private bool IsSquare => MediaType is "Music" or "Audiobooks";
 
     // The menu acts on the title the tile's page belongs to (the show for an episode stack, the album for a track stack): the id in its route.
     private MediaTileViewModel? ActionItem => PageId(Route) is { } id

@@ -562,7 +562,6 @@ public sealed class UnifiedDetailComponentTests
     {
         var source = ReadSequenceMarkup();
         var styles = ReadDetailStyles();
-        var panelStyles = ReadSequenceStyles();
 
         Assert.Contains("tl-series-heading", source);
         Assert.Contains("<span>@HeadingLabel:</span>", source);
@@ -581,7 +580,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("IsNextSequenceItem", source);
         Assert.DoesNotContain("Part of", source);
         Assert.Contains("StringHelpers.FirstNonBlank(Placement.ContainerTitle, Placement.ContainerLabel, \"Series\")!", source);
-        Assert.Contains("tl-series-detail__identity", source);
+        // No heading line on any detail page (issue 1172): the dropdowns and the count under the list say it.
+        Assert.DoesNotContain("tl-series-detail__identity", source);
         Assert.Contains("@if (HasTopControls)", source);
         Assert.Contains("Sizing=\"intrinsic\"", source);
         Assert.Contains("VisibleItems", source);
@@ -668,11 +668,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("HasExpandableEpisodeDescription", source);
         Assert.DoesNotContain("ToggleEpisodeDescription", source);
         Assert.DoesNotContain("_expandedEpisodeDescriptions", source);
-        Assert.Contains("tl-series-detail__ownership", source);
-        Assert.Contains("ShowCoverageBar", source);
-        Assert.Contains("role=\"progressbar\"", source);
-        Assert.Contains("Class=\"tl-series-detail__ownership-progress-fill\"", source);
-        Assert.Contains(".tl-series-detail__ownership-progress ::deep .tl-series-detail__ownership-progress-fill", panelStyles);
+        // The owned count is one line under the list, never a bar at the top right (issues 1165, 1172).
+        Assert.DoesNotContain("tl-series-detail__ownership", source);
+        Assert.DoesNotContain("role=\"progressbar\"", source);
+        Assert.Contains("<DetailOwnedLine", source);
         Assert.Contains("tl-series-item__connector", source);
         Assert.DoesNotContain(".tl-series-strip::before", styles);
         Assert.Contains("min-width: clamp(5.8rem, 7.2vw, 7.3rem)", styles);
