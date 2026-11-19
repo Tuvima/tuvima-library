@@ -1,6 +1,6 @@
 # Spec: View polish, smart search bar, and automatic People (faces)
 
-> **Status:** In progress · **Version:** 1.1 · **Last updated:** 2026-11-19 (locked by Shy 2026-11-19) · **Related docs:** [View section](view-section.md) · [Photos and documents editor](photos-documents-editor.md) · [Look pass v3](look-pass-v3.md) · [Product overview](../product/overview.md) · mockups: `engineering/design/mockups/view-people-search/mockups.html`
+> **Status:** Built (awaiting Local checks) · **Version:** 1.1 · **Last updated:** 2026-11-19 (locked by Shy 2026-11-19) · **Related docs:** [View section](../view-section.md) · [Photos and documents editor](../photos-documents-editor.md) · [Look pass v3](../look-pass-v3.md) · [Product overview](../../product/overview.md) · mockups: `engineering/design/mockups/view-people-search/mockups.html`
 
 > **Version note (2026-11-19, Shy):** adds WP13, the photo viewer opening small, as part of the UI uplift. The Locked body above is unchanged.
 

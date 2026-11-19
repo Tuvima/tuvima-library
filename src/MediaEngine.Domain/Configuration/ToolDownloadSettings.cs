@@ -30,6 +30,12 @@ public sealed class ToolDownloadSettings
     /// <summary>The platform label of ExifTool's Perl distribution on 64-bit ARM Linux.</summary>
     public const string LinuxArm64 = "linux-arm64";
 
+    /// <summary>The platform label of the face runtime on 64-bit ARM Windows.</summary>
+    public const string WindowsArm64 = "win-arm64";
+
+    /// <summary>The platform label of the face runtime on Apple silicon.</summary>
+    public const string MacArm64 = "osx-arm64";
+
     /// <summary>FFmpeg and FFprobe as one zip, or <c>null</c> when none is offered.</summary>
     [JsonPropertyName("ffmpeg")]
     public FfmpegDownload? Ffmpeg { get; set; } = new();
@@ -63,6 +69,30 @@ public sealed class ToolDownloadSettings
             Sha256 = "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
         },
     ];
+
+    /// <summary>
+    /// The native part of the face tools (spec view-people-search WP7): ONNX Runtime (MIT), one library per platform, fetched once like the models
+    /// and pinned to the SHA-256 of the exact file. They are unmodified copies of Microsoft's official release libraries, kept as a release of the
+    /// Library's own GitHub project so every address stays on github.com. Never copied into the repository or the build output.
+    /// </summary>
+    [JsonPropertyName("face_runtime")]
+    public List<FaceRuntimeBuild> FaceRuntime { get; set; } =
+    [
+        new() { Platform = WindowsX64, Name = "onnxruntime.dll", Url = FaceRuntimeUrl("win-x64.dll"), Sha256 = "b95efb2113b603bbbf3f191061c5516a871ed546893c820e4f3b7b6c358dbf2a" },
+        new() { Platform = WindowsArm64, Name = "onnxruntime.dll", Url = FaceRuntimeUrl("win-arm64.dll"), Sha256 = "724d81ac50b11bfaa01ab3ce01b99fb6734a4b762259a8be4395ca662ce99fe6" },
+        new() { Platform = LinuxX64, Name = "libonnxruntime.so", Url = FaceRuntimeUrl("linux-x64.so"), Sha256 = "d132535d051344ff5c64c9c200004150559049a81ed330eb4422c1962fb6b7e4" },
+        new() { Platform = LinuxArm64, Name = "libonnxruntime.so", Url = FaceRuntimeUrl("linux-arm64.so"), Sha256 = "52b2a0e75e79468404284fec38ad5ee1a7a996232274f5e1b84f3e793fb07554" },
+        new() { Platform = MacArm64, Name = "libonnxruntime.dylib", Url = FaceRuntimeUrl("osx-arm64.dylib"), Sha256 = "0db33e160224e480c17932799d1dfaea59853b8e722b57bf61932c87e03586f0" },
+    ];
+
+    private static string FaceRuntimeUrl(string suffix) =>
+        "https://github.com/Tuvima/tuvima-library/releases/download/onnxruntime-1.24.4/onnxruntime-1.24.4-" + suffix;
+
+    /// <summary>The face runtime for a platform label such as <c>win-x64</c>, or <c>null</c> when none is pinned for it.</summary>
+    public FaceRuntimeBuild? FindFaceRuntime(string? platform) =>
+        platform is null
+            ? null
+            : FaceRuntime?.FirstOrDefault(build => string.Equals(build?.Platform, platform, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// True for a fixed <c>https</c> address on <see cref="AllowedHost"/> with no user name, password or port. Anything
@@ -137,6 +167,7 @@ public sealed class ToolDownloadSettings
         }
 
         FaceModels = FaceModels.Where(model => model.IsValid()).ToList();
+        FaceRuntime = FaceRuntime.Where(build => build?.IsValid() == true).ToList();
     }
 }
 
@@ -157,6 +188,38 @@ public sealed class DownloadFile
         ToolDownloadSettings.IsAllowedAddress(Url)
         && ToolDownloadSettings.IsSha256(Sha256)
         && ToolDownloadSettings.IsPlainFileName(Name);
+}
+
+/// <summary>One platform's face runtime library: which platform, what it is called on disk, where from, and the SHA-256 it must match.</summary>
+public sealed class FaceRuntimeBuild
+{
+    private static readonly string[] KnownPlatforms =
+    [
+        ToolDownloadSettings.WindowsX64, ToolDownloadSettings.WindowsArm64, ToolDownloadSettings.LinuxX64,
+        ToolDownloadSettings.LinuxArm64, ToolDownloadSettings.MacArm64,
+    ];
+
+    [JsonPropertyName("platform")]
+    public string Platform { get; set; } = string.Empty;
+
+    /// <summary>The file name the library is saved under (a plain name, no folders).</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
+
+    [JsonPropertyName("sha256")]
+    public string Sha256 { get; set; } = string.Empty;
+
+    internal bool IsValid() =>
+        KnownPlatforms.Contains(Platform, StringComparer.OrdinalIgnoreCase)
+        && ToolDownloadSettings.IsAllowedAddress(Url)
+        && ToolDownloadSettings.IsSha256(Sha256)
+        && ToolDownloadSettings.IsPlainFileName(Name);
+
+    /// <summary>The same entry as a plain download, so it is fetched and checked like a model.</summary>
+    public DownloadFile AsDownload() => new() { Name = Name, Url = Url, Sha256 = Sha256 };
 }
 
 /// <summary>The pinned FFmpeg build: one archive, and the two programs and licence taken out of it.</summary>

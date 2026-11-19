@@ -68,6 +68,9 @@ public static class ToolRequirementIds
 
     public const string FaceMatching = "face_matching";
 
+    /// <summary>The native library (ONNX Runtime) that runs the two face models.</summary>
+    public const string FaceRuntime = "face_runtime";
+
     /// <summary>Prefix of an AI model row id; the model's role follows it.</summary>
     public const string AiModelPrefix = "ai_model:";
 }
