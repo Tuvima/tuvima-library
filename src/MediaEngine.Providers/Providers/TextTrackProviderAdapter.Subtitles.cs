@@ -40,7 +40,7 @@ public sealed partial class TextTrackProviderAdapter
 
         var requestedLanguage = values.GetValueOrDefault("language", _text.Language.Unknown);
         var path = BuildPath(request, values);
-        if (_emptySearches.TryGetValue(path, out var nextAttempt) && nextAttempt > DateTimeOffset.UtcNow)
+        if (!lookup.Interactive && _emptySearches.TryGetValue(path, out var nextAttempt) && nextAttempt > DateTimeOffset.UtcNow)
         {
             _logger.LogInformation("{Provider} {Noun} search {Path} skipped: it found nothing a moment ago", Name, _text.Noun, path);
             return [];
