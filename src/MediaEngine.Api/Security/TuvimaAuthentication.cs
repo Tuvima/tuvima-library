@@ -134,7 +134,7 @@ public sealed class TuvimaAuthenticationHandler(
             if (Request.Headers.TryGetValue(TuvimaAuthDefaults.SessionHeader, out var sessionValues)
                 && !string.IsNullOrWhiteSpace(sessionValues.ToString()))
             {
-                // The Dashboard says where the visitor is when it knows; the place is recorded but no longer restricts access.
+                // The Dashboard says where the visitor is; a no-password account is only valid on this computer or the home network.
                 var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
                     && !string.IsNullOrWhiteSpace(ingressValues.ToString())
                     ? ClientIngress.ParseCurrent(ingressValues.ToString())
@@ -173,7 +173,7 @@ public sealed class TuvimaAuthenticationHandler(
             return Success(claims);
         }
 
-        // No credential, no identity: a request from this computer is treated exactly like one from the home network.
+        // No credential, no identity.
         return AuthenticateResult.NoResult();
     }
 

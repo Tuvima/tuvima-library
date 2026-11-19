@@ -92,16 +92,16 @@ public sealed class IngressClassifier
     }
 
     /// <summary>
-    /// Network location is no longer restricted: this computer is still recognised (it keeps the this-computer sign-in
-    /// path) and every other connection counts as the home network. Nothing is classified as remote.
+    /// Loopback is this computer; a private address (or an administrator-trusted range) is the home network. Everything
+    /// else is Remote: the proxy port, a configured proxy, an unknown address, a public address and, on a container
+    /// install, the bridge gateway (an internet visitor behind Docker NAT) unless the owner trusts it explicitly.
+    /// The no-password account is only ever offered to ThisComputer and HomeNetwork, so this must fail closed.
     /// </summary>
     public IngressKind Classify(IPAddress? address, int localPort)
     {
-        // Anything on the proxy port, or relayed by a configured proxy (a tunnel on this computer looks like loopback),
-        // is not "this computer" even though nothing is refused any more: setup and the no-password start key on it.
         if ((_proxyPort is int proxyPort && localPort == proxyPort) || address is null)
         {
-            return IngressKind.HomeNetwork;
+            return IngressKind.Remote;
         }
 
         if (address.IsIPv4MappedToIPv6)
@@ -111,10 +111,25 @@ public sealed class IngressClassifier
 
         if (IsConfiguredProxy(address))
         {
+            return IngressKind.Remote;
+        }
+
+        if (IPAddress.IsLoopback(address))
+        {
+            return IngressKind.ThisComputer;
+        }
+
+        if (IsInAny(_trustedNetworks, address))
+        {
             return IngressKind.HomeNetwork;
         }
 
-        return IPAddress.IsLoopback(address) ? IngressKind.ThisComputer : IngressKind.HomeNetwork;
+        if (_containerGateways.Any(gateway => gateway.Equals(address)))
+        {
+            return IngressKind.Remote;
+        }
+
+        return IsPrivate(address) ? IngressKind.HomeNetwork : IngressKind.Remote;
     }
 
     private bool IsConfiguredProxy(IPAddress address) =>

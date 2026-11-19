@@ -45,6 +45,35 @@ public sealed class IngressClassifierTests
         Assert.Equal(IngressKind.HomeNetwork, classifier.Classify(gateway, MainPort));
     }
 
+    [Theory]
+    [InlineData("192.168.1.20", IngressKind.HomeNetwork)]
+    [InlineData("10.0.0.5", IngressKind.HomeNetwork)]
+    [InlineData("203.0.113.50", IngressKind.Remote)]
+    [InlineData("2001:db8::1", IngressKind.Remote)]
+    [InlineData("fd00::5", IngressKind.HomeNetwork)]
+    public void OnlyPrivateAddressesAreTheHomeNetwork(string address, IngressKind expected)
+    {
+        Assert.Equal(expected, new IngressClassifier(null, []).Classify(IPAddress.Parse(address), MainPort));
+    }
+
+    [Fact]
+    public void ProxyPort_NullAddress_AndConfiguredProxies_AreRemote()
+    {
+        var classifier = new IngressClassifier(ProxyPort, [], ["192.168.1.2"]);
+
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Loopback, ProxyPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify((IPAddress?)null, MainPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse("192.168.1.2"), MainPort));
+    }
+
+    [Fact]
+    public void ContainerGateway_IsRemoteUnlessTrusted()
+    {
+        var gateway = IPAddress.Parse("172.17.0.1");
+
+        Assert.Equal(IngressKind.Remote, new IngressClassifier(null, [], null, null, [gateway]).Classify(gateway, MainPort));
+    }
+
     [Fact]
     public void ContainerGatewayParser_ReadsDefaultRoutesOnly()
     {
