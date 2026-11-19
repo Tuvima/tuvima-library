@@ -43,6 +43,28 @@ public sealed class ToolDownloadSettings
     public ExifToolDownload? ExifTool { get; set; } = new();
 
     /// <summary>
+    /// The two face models (spec view-people-search WP6), fetched once and automatically: YuNet finds faces (MIT) and SFace turns a face into
+    /// a number fingerprint (Apache 2.0). Each is pinned to the SHA-256 of the exact file, so a changed or swapped file is refused. Never copied
+    /// into the repository or the build output.
+    /// </summary>
+    [JsonPropertyName("face_models")]
+    public List<DownloadFile> FaceModels { get; set; } =
+    [
+        new()
+        {
+            Name = FaceModelFiles.Detection,
+            Url = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            Sha256 = "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+        },
+        new()
+        {
+            Name = FaceModelFiles.Matching,
+            Url = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx",
+            Sha256 = "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
+        },
+    ];
+
+    /// <summary>
     /// True for a fixed <c>https</c> address on <see cref="AllowedHost"/> with no user name, password or port. Anything
     /// else (another host, plain <c>http</c>, a relative address) is refused.
     /// </summary>
@@ -63,6 +85,7 @@ public sealed class ToolDownloadSettings
         "objects.githubusercontent.com",
         "release-assets.githubusercontent.com",
         "raw.githubusercontent.com",
+        "media.githubusercontent.com",
     ];
 
     /// <summary>True for an <c>https</c> address on <see cref="AllowedRedirectHosts"/> with no user name, password or port.</summary>
@@ -112,6 +135,8 @@ public sealed class ToolDownloadSettings
         {
             ExifTool = null;
         }
+
+        FaceModels = FaceModels.Where(model => model.IsValid()).ToList();
     }
 }
 
@@ -348,4 +373,14 @@ public sealed class ExifToolBuild
         && ToolDownloadSettings.IsSha256(Sha256)
         && Files is { Count: > 0 }
         && Files.All(file => file?.IsValid() == true);
+}
+
+/// <summary>The two face model file names, shared by the download list and the face scan.</summary>
+public static class FaceModelFiles
+{
+    /// <summary>YuNet: finds faces and their five landmarks (MIT license).</summary>
+    public const string Detection = "face_detection_yunet_2023mar.onnx";
+
+    /// <summary>SFace: turns an aligned face into a 128-number fingerprint (Apache 2.0 license).</summary>
+    public const string Matching = "face_recognition_sface_2021dec.onnx";
 }

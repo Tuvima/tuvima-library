@@ -26,4 +26,7 @@ public interface IViewProfileRepository
 
     /// <summary>Saves whether this person wants the words inside their own photos read so a search can find them (spec view-people-search WP5).</summary>
     Task<bool> SaveReadWordsInPhotosAsync(Guid profileId, bool readWords, CancellationToken ct = default);
+
+    /// <summary>Saves whether Library may look for faces in this person's own photos (spec view-people-search; on by default).</summary>
+    Task<bool> SaveRecognizePeopleAsync(Guid profileId, bool recognize, CancellationToken ct = default);
 }

@@ -46,6 +46,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
         services.AddSingleton<DocumentRulesQueue>();
         services.AddSingleton<IViewProfileRepository, ViewProfileRepository>();
+        services.AddSingleton<IViewFaceRepository, ViewFaceRepository>();
         services.AddSingleton<IViewPersonalSpaceRepository, ViewPersonalSpaceRepository>();
         services.AddSingleton<IViewSharedLibraryRepository, ViewSharedLibraryRepository>();
         services.AddSingleton<IProfilePersonalMediaRepository, ProfilePersonalMediaRepository>();

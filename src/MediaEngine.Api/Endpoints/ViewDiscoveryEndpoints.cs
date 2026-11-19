@@ -48,13 +48,13 @@ public static class ViewDiscoveryEndpoints
             string? scope,
             Guid? scopeProfileId,
             string? q,
-            int? limit,
+            int? perKind,
             ViewDiscoveryService service,
             CancellationToken ct) =>
         {
             try
             {
-                var result = await service.GetSuggestionsAsync(ParseScope(scope, scopeProfileId), q, limit ?? 5, ct).ConfigureAwait(false);
+                var result = await service.GetSuggestionsAsync(ParseScope(scope, scopeProfileId), q, perKind ?? 5, ct).ConfigureAwait(false);
                 return result.Outcome switch
                 {
                     ViewAccessOutcome.Allowed when result.Page is not null => Results.Ok(result.Page),

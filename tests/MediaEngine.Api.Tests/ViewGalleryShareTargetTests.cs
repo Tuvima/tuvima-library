@@ -122,5 +122,8 @@ public sealed class ViewGalleryShareTargetTests
 
         public Task<bool> SaveReadWordsInPhotosAsync(Guid profileId, bool readWords, CancellationToken ct = default) =>
             throw new NotSupportedException();
+
+        public Task<bool> SaveRecognizePeopleAsync(Guid profileId, bool recognize, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 }
