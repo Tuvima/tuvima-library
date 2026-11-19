@@ -37,12 +37,30 @@
     /// <summary>Delete: the caller asks once ("are you sure") and deletes.</summary>
     [Parameter] public EventCallback<ManagedCollectionViewModel> OnDelete { get; set; }
 
+    /// <summary>
+    /// Reorder (optional): only the sidebar of the Listen lane keeps its own reorder mode for playlists, so only it passes this and gets a
+    /// Reorder row after Pin to top. The playlist's own page and the tiles leave it out.
+    /// </summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnReorder { get; set; }
+
     /// <summary>Extra class for the menu button, so each place can size and place it.</summary>
     [Parameter] public string? Class { get; set; }
 
     private string Label => L["PlaylistMenu_Options", Playlist.Name].Value;
 
-    private IReadOnlyList<AppRowMenuItem> Items => [.. PlaylistMenuRules.ActionsFor(Playlist).Select(ItemFor)];
+    private IReadOnlyList<AppRowMenuItem> Items => [.. WithReorder(PlaylistMenuRules.ActionsFor(Playlist).Select(ItemFor))];
+
+    private IEnumerable<AppRowMenuItem> WithReorder(IEnumerable<AppRowMenuItem> items)
+    {
+        var all = items.ToList();
+        if (all.Count > 0 && OnReorder.HasDelegate)
+        {
+            // After the last plain action, before Delete (which is always last).
+            all.Insert(Math.Max(0, all.Count - 1), new AppRowMenuItem { Label = L["AppReorderBar_MenuReorder"].Value, OnClick = Call(OnReorder) });
+        }
+
+        return all;
+    }
 
     private AppRowMenuItem ItemFor(PlaylistMenuAction action) => action switch
     {

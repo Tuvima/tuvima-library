@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Navigation;
 
@@ -35,6 +36,28 @@ public static class ListenPlaylistOrderState
         root[PropertyName] = new JsonArray(
             orderedIds.Distinct().Select(id => JsonValue.Create(id.ToString("D"))).ToArray<JsonNode?>());
         return root.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+    }
+
+    /// <summary>
+    /// The order playlists are listed in, in the sidebar and on the Playlists page (spec listen-playlists D3): the ones this profile pinned
+    /// come first, then every playlist in the order the profile keeps (it follows the person across devices); a playlist the saved order
+    /// does not know yet follows the rest, newest first.
+    /// </summary>
+    public static List<ManagedCollectionViewModel> Order(IEnumerable<ManagedCollectionViewModel> playlists, IReadOnlyList<Guid> savedOrder)
+    {
+        ArgumentNullException.ThrowIfNull(playlists);
+        ArgumentNullException.ThrowIfNull(savedOrder);
+        var positions = new Dictionary<Guid, int>();
+        for (var index = 0; index < savedOrder.Count; index++)
+        {
+            positions.TryAdd(savedOrder[index], index);
+        }
+
+        return [.. playlists
+            .OrderByDescending(playlist => playlist.IsPinned == true)
+            .ThenBy(playlist => positions.GetValueOrDefault(playlist.Id, int.MaxValue))
+            .ThenByDescending(playlist => playlist.ModifiedAt ?? playlist.CreatedAt)
+            .ThenBy(playlist => playlist.Name, StringComparer.OrdinalIgnoreCase)];
     }
 
     public static bool TryMoveByOffset(

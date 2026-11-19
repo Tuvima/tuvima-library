@@ -45,11 +45,12 @@ public partial class ListenPage
     private IReadOnlyList<MediaTileViewModel> ArtistPersonTiles => FilteredArtistGroups
         .Select(group => ToContentPersonTile(group, "Artist"))
         .ToList();
-    private string ListenPageClass => IsAudioDetailSurface
+    // A phone has no rail (spec listen-playlists D1), so its page is one column.
+    private string ListenPageClass => (IsAudioDetailSurface
         ? "listen-page listen-page--detail"
         : IsAudiobooksMode
             ? "listen-page listen-page--audiobooks"
-            : "listen-page";
+            : "listen-page") + (DeviceContext.IsPhone ? " listen-page--no-rail" : string.Empty);
     private IReadOnlyList<AudiobookListenItem> AudiobookContinueCards => BuildAudiobookContinueCards();
     private IReadOnlyList<AudiobookDisplayItem> AudiobookDisplayItems => BuildAudiobookDisplayItems();
     private IReadOnlyList<AudiobookDisplayItem> FilteredAudiobookItems => ApplyAudiobookFilters();
@@ -92,11 +93,10 @@ public partial class ListenPage
         ? "audiobooks-books audiobooks-books--list"
         : "audiobooks-books";
     private IReadOnlyList<string> PlaylistCoverUrls => ActivePlaylistTracks.Select(track => track.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().Cast<string>().Take(4).ToList();
-    private IReadOnlyList<ManagedCollectionViewModel> PlaylistCollections => _managedCollections
-        .Where(MediaTileComposerService.IsUserVisiblePlaylist)
-        .OrderBy(GetPlaylistOrderIndex)
-        .ThenBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    // Pinned playlists first, then the profile's own order (spec listen-playlists D3).
+    private IReadOnlyList<ManagedCollectionViewModel> PlaylistCollections => ListenPlaylistOrderState.Order(
+        _managedCollections.Where(MediaTileComposerService.IsUserVisiblePlaylist),
+        _playlistOrder);
     private IReadOnlyList<ManagedCollectionViewModel> ManualPlaylistCollections => PlaylistCollections
         .Where(CanAcceptPlaylistItems)
         .ToList();
