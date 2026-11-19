@@ -2,7 +2,7 @@
 @implements IDisposable
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Playback
-@inject IEngineApiClient ApiClient
+@inject IServiceProvider Services
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
@@ -45,10 +45,13 @@
             </div>
         </dl>
 
-        <div class="computer-capacity__action">
-            <AppButton Label="@RunLabel" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined"
-                       Loading="@_running" Disabled="@(_loading || _running)" OnClick="RunAsync" data-testid="capacity-run" />
-        </div>
+        @if (!SetupMode)
+        {
+            <div class="computer-capacity__action">
+                <AppButton Label="@RunLabel" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined"
+                           Loading="@_running" Disabled="@(_loading || _running)" OnClick="RunAsync" data-testid="capacity-run" />
+            </div>
+        }
 
         @if (_running)
         {
@@ -67,6 +70,17 @@
 }
 
 @code {
+    /// <summary>
+    /// First-run setup draws this same panel from what the setup check already measured (no sign-in exists yet, so it cannot ask the
+    /// Settings connection points): it takes <see cref="Capacity"/> and <see cref="Graphics"/> and shows no Run again button.
+    /// </summary>
+    [Parameter] public bool SetupMode { get; set; }
+    [Parameter] public PlaybackCapacityDto? Capacity { get; set; }
+    [Parameter] public GraphicsHardwareDto? Graphics { get; set; }
+
+    // First-run setup has no sign-in, so the Engine connection is looked up only when the panel is not in setup mode.
+    private IEngineApiClient ApiClient => Services.GetRequiredService<IEngineApiClient>();
+
     private PlaybackCapacityDto? _capacity;
     private GraphicsHardwareDto? _graphics;
     private bool _loading = true;
@@ -105,9 +119,21 @@
 
     private string FailureText => string.IsNullOrWhiteSpace(_failureReason) ? L["CapacityPanel_CouldNotRun"].Value : _failureReason;
 
+    protected override void OnParametersSet()
+    {
+        if (!SetupMode)
+        {
+            return;
+        }
+
+        _capacity = Capacity;
+        _graphics = Graphics;
+        _loading = false;
+    }
+
     protected override async Task OnInitializedAsync()
     {
-        if (DeviceContext.IsPhone)
+        if (SetupMode || DeviceContext.IsPhone)
         {
             return;
         }
