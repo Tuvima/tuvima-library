@@ -1,8 +1,8 @@
+using System.Runtime.InteropServices;
 using MediaEngine.Domain.PersonalMedia;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
-using System.Runtime.InteropServices;
 
 namespace MediaEngine.Api.Services.Faces;
 
