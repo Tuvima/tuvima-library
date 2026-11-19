@@ -29,11 +29,11 @@ public sealed record FaceModelStatus(string FileName, FaceModelState State, stri
 /// The two face models, kept in <c>&lt;data&gt;/tools/faces/</c>: found, verified and fetched once. The files are never in the repository or the
 /// build output. A file counts as ready only when its SHA-256 equals the pinned value, so a corrupt or swapped model is never run.
 /// </summary>
-public sealed class FaceModelStore(
+public sealed class FaceModelProvider(
     IConfigurationLoader configuration,
     AssetPathService paths,
     IToolDownloadSource source,
-    ILogger<FaceModelStore> logger)
+    ILogger<FaceModelProvider> logger)
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, (FaceModelState State, string? Reason)> _states = new(StringComparer.OrdinalIgnoreCase);
@@ -176,7 +176,7 @@ public sealed class FaceModelStore(
 }
 
 /// <summary>Fetches the face models once at start-up (and retries hourly while one is missing), so People is ready without the person doing anything.</summary>
-public sealed class FaceModelDownloadService(FaceModelStore store, ILogger<FaceModelDownloadService> logger) : BackgroundService
+public sealed class FaceModelDownloadService(FaceModelProvider store, ILogger<FaceModelDownloadService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

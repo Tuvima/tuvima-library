@@ -24,7 +24,7 @@ public static class TuvimaToolRequirementsServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
         services.AddSingleton<IToolDownloadSource, HttpToolDownloadSource>();
         // The two face models (spec view-people-search WP6): fetched once, automatically, checked against pinned checksums, listed in Tools.
-        services.AddSingleton<MediaEngine.Api.Services.Faces.FaceModelStore>();
+        services.AddSingleton<MediaEngine.Api.Services.Faces.FaceModelProvider>();
         services.AddHostedService<MediaEngine.Api.Services.Faces.FaceModelDownloadService>();
         services.AddSingleton<IToolProcessLauncher, ShellProcessLauncher>();
         services.AddSingleton(ToolInstallPlatform.Current);

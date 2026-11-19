@@ -33,7 +33,7 @@ public static partial class ViewEndpoints
         group.MapPut("/preferences/photo-words", async ([FromBody] ViewPhotoWordsPreferenceDto request,
             IViewRequestProfileContext identity, IViewProfileRepository repository,
             IViewResourceAuthorizationService authorization, IViewPersonalSpaceRepository spaces,
-            DocumentOcrQueue ocrQueue, CancellationToken ct) =>
+            [FromServices] DocumentOcrQueue ocrQueue, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (authority.ActiveProfileId is not { } profileId)

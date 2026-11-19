@@ -37,7 +37,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
     private readonly IToolInstallerService? _installer;
     private readonly ISystemActivityRepository? _activity;
     private readonly IExifToolRunner? _exifTool;
-    private readonly Faces.FaceModelStore? _faceModels;
+    private readonly Faces.FaceModelProvider? _faceModels;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ToolRequirementsDto? _last;
 
@@ -56,7 +56,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         IToolInstallerService? installer = null,
         ISystemActivityRepository? activity = null,
         IExifToolRunner? exifTool = null,
-        Faces.FaceModelStore? faceModels = null)
+        Faces.FaceModelProvider? faceModels = null)
     {
         _ffmpeg = ffmpeg;
         _ocr = ocr;

@@ -76,7 +76,7 @@ public sealed class FaceModelStoreTests : IDisposable
         Assert.Contains("media.githubusercontent.com", ToolDownloadSettings.AllowedRedirectHosts);
     }
 
-    private FaceModelStore Store(FakeSource source, Dictionary<string, byte[]> pinned)
+    private FaceModelProvider Store(FakeSource source, Dictionary<string, byte[]> pinned)
     {
         var settings = new ToolDownloadSettings
         {
@@ -90,7 +90,7 @@ public sealed class FaceModelStoreTests : IDisposable
         var config = Path.Combine(_root, "config");
         Directory.CreateDirectory(config);
         File.WriteAllText(Path.Combine(config, "tool_downloads.json"), System.Text.Json.JsonSerializer.Serialize(settings));
-        return new FaceModelStore(new ConfigurationDirectoryLoader(config), new AssetPathService(_root, null, _root), source, NullLogger<FaceModelStore>.Instance);
+        return new FaceModelProvider(new ConfigurationDirectoryLoader(config), new AssetPathService(_root, null, _root), source, NullLogger<FaceModelProvider>.Instance);
     }
 
     private sealed class FakeSource(Dictionary<string, byte[]> served) : IToolDownloadSource

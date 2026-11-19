@@ -57,6 +57,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetPersonalActivityArtwork",
         "GetViewItemContent",
         "GetViewItemThumbnail",
+        "GetViewFaceCrop",
         // An Extras card picture is an image, not JSON.
         "GetExtraThumbnail",
         // A scrub-preview sprite sheet is a JPEG image, not JSON.

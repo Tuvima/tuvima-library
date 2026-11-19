@@ -19,25 +19,25 @@ public static partial class ViewEndpoints
     {
         var faces = group.MapGroup("/faces");
 
-        faces.MapGet("/groups", async (bool? named, bool? includeHidden, int? take, IViewRequestProfileContext identity, IViewFaceRepository repository,
+        faces.MapGet("/groups", async (bool? named, bool? includeHidden, int? take, IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
                 Results.Ok(new ViewFaceGroupsDto((await repository.GetGroupsAsync(profileId, named, includeHidden ?? false, take ?? 100, ct)).Select(ToDto).ToList()))))
             .WithName("GetViewFaceGroups").Produces<ViewFaceGroupsDto>();
 
-        faces.MapGet("/groups/{personId:guid}", async (Guid personId, IViewRequestProfileContext identity, IViewFaceRepository repository,
+        faces.MapGet("/groups/{personId:guid}", async (Guid personId, IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
                 await repository.GetGroupAsync(profileId, personId, ct) is { } found ? Results.Ok(ToDto(found)) : Missing()))
             .WithName("GetViewFaceGroup").Produces<ViewFaceGroupDto>();
 
-        faces.MapGet("/groups/{personId:guid}/faces", async (Guid personId, int? take, IViewRequestProfileContext identity, IViewFaceRepository repository,
+        faces.MapGet("/groups/{personId:guid}/faces", async (Guid personId, int? take, IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
                 Results.Ok(new ViewFaceBoxesDto((await repository.GetFacesOfPersonAsync(profileId, personId, take ?? 60, ct)).Select(ToDto).ToList()))))
             .WithName("GetViewFaceGroupFaces").Produces<ViewFaceBoxesDto>();
 
-        faces.MapGet("/groups/{personId:guid}/suggestions", async (Guid personId, IViewRequestProfileContext identity, ViewPeopleService people,
+        faces.MapGet("/groups/{personId:guid}/suggestions", async (Guid personId, IViewRequestProfileContext identity, [FromServices] ViewPeopleService people,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
             {
@@ -46,14 +46,14 @@ public static partial class ViewEndpoints
             }))
             .WithName("GetViewFaceSuggestions").Produces<ViewFaceSuggestionsDto>();
 
-        faces.MapGet("/items/{itemId:guid}", async (Guid itemId, IViewRequestProfileContext identity, IViewFaceRepository repository,
+        faces.MapGet("/items/{itemId:guid}", async (Guid itemId, IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
                 Results.Ok(new ViewFaceBoxesDto((await repository.GetFacesOfItemAsync(profileId, itemId, ct)).Select(ToDto).ToList()))))
             .WithName("GetViewItemFaces").Produces<ViewFaceBoxesDto>();
 
-        faces.MapGet("/{faceId:guid}/crop", async (Guid faceId, int? size, IViewRequestProfileContext identity, IViewFaceRepository repository,
-            ILocalAssetRepository assets, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+        faces.MapGet("/{faceId:guid}/crop", async (Guid faceId, int? size, IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
+            [FromServices] ILocalAssetRepository assets, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
             {
                 var face = await repository.GetFaceAsync(profileId, faceId, ct);
@@ -75,7 +75,7 @@ public static partial class ViewEndpoints
             .WithName("GetViewFaceCrop").Produces(StatusCodes.Status200OK, contentType: "image/jpeg");
 
         faces.MapPost("/groups/{personId:guid}/name", async (Guid personId, [FromBody] ViewNamePersonRequest request, IViewRequestProfileContext identity,
-            IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+            [FromServices] IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
             {
                 if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 120)
@@ -90,58 +90,58 @@ public static partial class ViewEndpoints
             .WithName("NameViewFacePerson").Produces<ViewNamePersonResultDto>();
 
         faces.MapPost("/groups/{personId:guid}/merge", async (Guid personId, [FromBody] ViewMergePeopleRequest request, IViewRequestProfileContext identity,
-            IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+            [FromServices] IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.MergeAsync(profileId, personId, request.IntoPersonId, ct) ? Results.NoContent() : Missing()))
-            .WithName("MergeViewFacePeople");
+            .WithName("MergeViewFacePeople").Produces(StatusCodes.Status204NoContent);
 
         faces.MapPost("/groups/{personId:guid}/confirm", async (Guid personId, [FromBody] ViewConfirmFacesRequest request, IViewRequestProfileContext identity,
-            IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+            [FromServices] IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.ConfirmFacesAsync(profileId, personId, request.AcceptedFaceIds, request.RejectedFaceIds, ct) ? Results.NoContent() : Missing()))
-            .WithName("ConfirmViewFaces");
+            .WithName("ConfirmViewFaces").Produces(StatusCodes.Status204NoContent);
 
         faces.MapPost("/groups/{personId:guid}/reject", async (Guid personId, [FromBody] ViewRejectFacesRequest request, IViewRequestProfileContext identity,
-            IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+            [FromServices] IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.RejectFacesAsync(profileId, personId, request.FaceIds, ct) ? Results.NoContent() : Missing()))
-            .WithName("RejectViewFaces");
+            .WithName("RejectViewFaces").Produces(StatusCodes.Status204NoContent);
 
         faces.MapPut("/groups/{personId:guid}/hidden", async (Guid personId, [FromBody] ViewHidePersonRequest request, IViewRequestProfileContext identity,
-            IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+            [FromServices] IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.SetHiddenAsync(profileId, personId, request.Hidden, ct) ? Results.NoContent() : Missing()))
-            .WithName("HideViewFacePerson");
+            .WithName("HideViewFacePerson").Produces(StatusCodes.Status204NoContent);
 
         faces.MapPut("/groups/{personId:guid}/cover", async (Guid personId, [FromBody] ViewPersonCoverRequest request, IViewRequestProfileContext identity,
-            IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+            [FromServices] IViewFaceRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.SetCoverAsync(profileId, personId, request.FaceId, ct) ? Results.NoContent() : Missing()))
-            .WithName("SetViewFacePersonCover");
+            .WithName("SetViewFacePersonCover").Produces(StatusCodes.Status204NoContent);
 
-        faces.MapDelete("/groups/{personId:guid}", async (Guid personId, IViewRequestProfileContext identity, IViewFaceRepository repository,
+        faces.MapDelete("/groups/{personId:guid}", async (Guid personId, IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.DeletePersonAsync(profileId, personId, ct) ? Results.NoContent() : Missing()))
-            .WithName("DeleteViewFacePerson");
+            .WithName("DeleteViewFacePerson").Produces(StatusCodes.Status204NoContent);
 
-        faces.MapDelete("/{faceId:guid}", async (Guid faceId, IViewRequestProfileContext identity, IViewFaceRepository repository,
+        faces.MapDelete("/{faceId:guid}", async (Guid faceId, IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.RemoveFaceAsync(profileId, faceId, ct) ? Results.NoContent() : Missing()))
-            .WithName("RemoveViewFace");
+            .WithName("RemoveViewFace").Produces(StatusCodes.Status204NoContent);
 
-        faces.MapDelete("/", async (IViewRequestProfileContext identity, IViewFaceRepository repository,
+        faces.MapDelete("/", async (IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
             {
                 await repository.DeleteAllAsync(profileId, ct);
                 return Results.NoContent();
             }))
-            .WithName("DeleteAllViewFaceData");
+            .WithName("DeleteAllViewFaceData").Produces(StatusCodes.Status204NoContent);
 
-        faces.MapGet("/progress", async (IViewRequestProfileContext identity, IViewFaceRepository repository, IViewProfileRepository profiles,
-            IViewPersonalSpaceRepository spaces, IFaceEngine engine, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+        faces.MapGet("/progress", async (IViewRequestProfileContext identity, [FromServices] IViewFaceRepository repository, [FromServices] IViewProfileRepository profiles,
+            [FromServices] IViewPersonalSpaceRepository spaces, [FromServices] IFaceEngine engine, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
             {
                 var recognize = (await profiles.GetPreferencesAsync(profileId, ct)).RecognizePeople;
@@ -157,14 +157,14 @@ public static partial class ViewEndpoints
             }))
             .WithName("GetViewFaceProgress").Produces<ViewFaceProgressDto>();
 
-        group.MapGet("/preferences/recognize-people", async (IViewRequestProfileContext identity, IViewProfileRepository repository,
+        group.MapGet("/preferences/recognize-people", async (IViewRequestProfileContext identity, [FromServices] IViewProfileRepository repository,
             IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: false, ct, async profileId =>
                 Results.Ok(new ViewRecognizePeopleDto((await repository.GetPreferencesAsync(profileId, ct)).RecognizePeople))))
             .WithName("GetViewRecognizePeople").Produces<ViewRecognizePeopleDto>();
 
         group.MapPut("/preferences/recognize-people", async ([FromBody] ViewRecognizePeopleDto request, IViewRequestProfileContext identity,
-            IViewProfileRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
+            [FromServices] IViewProfileRepository repository, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
             await OwnFacesAsync(identity, authorization, manage: true, ct, async profileId =>
                 await repository.SaveRecognizePeopleAsync(profileId, request.Recognize, ct) ? Results.Ok(request) : Missing()))
             .WithName("UpdateViewRecognizePeople").Produces<ViewRecognizePeopleDto>();
