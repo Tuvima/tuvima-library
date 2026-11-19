@@ -1,0 +1,46 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService DialogService
+
+@* The person's own face recognition settings (spec view-people-search WP11): the on/off switch and "Delete all face data". *@
+<section class="view-people-settings" aria-label="@ViewPeopleText.SettingsTitle">
+    <h3>@ViewPeopleText.SettingsTitle</h3>
+    <AppSwitchRow Label="@ViewPeopleText.RecognizeLabel" Description="@ViewPeopleText.RecognizeHelp" Value="@Recognize" ValueChanged="SetRecognizeAsync" Disabled="_busy" />
+    @if (Progress is { Faces: > 0 })
+    {
+        <p class="view-face-status">@ViewPeopleText.DataSize(Progress.Faces, Progress.People)</p>
+        <AppButton Label="@ViewPeopleText.DeleteAll" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Disabled="_busy" OnClick="DeleteAllAsync" />
+    }
+    @if (_failed) { <AppAlert Tone="AppUiTone.Error">@ViewPeopleText.CouldNotSave</AppAlert> }
+</section>
+@code {
+    [Parameter] public ViewFaceProgressDto? Progress { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool _busy;
+    private bool _failed;
+    private bool Recognize => Progress is not { State: ViewFaceStates.Off };
+
+    private async Task SetRecognizeAsync(bool value)
+    {
+        _busy = true;
+        _failed = !await ApiClient.SetViewRecognizePeopleAsync(value);
+        _busy = false;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task DeleteAllAsync()
+    {
+        if (await AppConfirmDialog.ShowAsync(DialogService, ViewPeopleText.DeleteAllTitle, ViewPeopleText.DeleteAllMessage, ViewPeopleText.DeleteAll, ViewPeopleText.Cancel, primaryDestructive: true) != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _busy = true;
+        _failed = !await ApiClient.DeleteAllViewFaceDataAsync();
+        _busy = false;
+        await OnChanged.InvokeAsync();
+    }
+}

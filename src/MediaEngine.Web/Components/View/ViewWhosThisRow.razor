@@ -1,0 +1,29 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+
+@* The "Who's this?" row: the biggest groups of faces that have no name yet, biggest first. It scrolls sideways on a phone. *@
+@if (Groups.Count > 0)
+{
+    <section class="view-whos-this" aria-label="@ViewPeopleText.WhosThis">
+        <header>
+            <h2>@ViewPeopleText.WhosThis</h2>
+            <small>@ViewPeopleText.WhosThisHint</small>
+        </header>
+        <ul>
+            @foreach (var group in Groups)
+            {
+                <li @key="group.PersonId">
+                    <AppNativeButton Type="button" Class="view-face-tile" AriaLabel="@($"{ViewPeopleText.NamePrompt}: {ViewPeopleText.Photos(group.PhotoCount)}")" OnClick="@(_ => OnOpen.InvokeAsync(group))">
+                        <ViewFaceImage FaceId="@(group.CoverFaceId ?? group.SampleFaceIds.FirstOrDefault())" ProfileId="@ProfileId" />
+                        <span>@ViewPeopleText.Photos(group.PhotoCount)</span>
+                    </AppNativeButton>
+                </li>
+            }
+        </ul>
+    </section>
+}
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ViewFaceGroupDto> Groups { get; set; } = [];
+    [Parameter] public Guid? ProfileId { get; set; }
+    [Parameter] public EventCallback<ViewFaceGroupDto> OnOpen { get; set; }
+}
