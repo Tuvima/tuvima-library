@@ -319,6 +319,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             foreach (var model in _faceModels.Statuses())
             {
                 var detection = model.FileName == MediaEngine.Domain.Configuration.FaceModelFiles.Detection;
+                var runtime = model.IsRuntime;
                 var state = model.State switch
                 {
                     Faces.FaceModelState.Ready => ToolRequirementStates.Ready,
@@ -327,8 +328,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
                     _ => ToolRequirementStates.Missing,
                 };
                 rows.Add(Row(
-                    detection ? ToolRequirementIds.FaceDetection : ToolRequirementIds.FaceMatching,
-                    detection ? "Face finder (YuNet)" : "Face matcher (SFace)", "tool", ToolRequirementLevels.Optional,
+                    runtime ? ToolRequirementIds.FaceRuntime : detection ? ToolRequirementIds.FaceDetection : ToolRequirementIds.FaceMatching,
+                    runtime ? "Face engine (ONNX Runtime)" : detection ? "Face finder (YuNet)" : "Face matcher (SFace)", "tool", ToolRequirementLevels.Optional,
                     state, Copy.FaceModelEffect, model.Reason, Copy.FaceModelFix,
                     state == ToolRequirementStates.Ready ? model.FileName : null, canLocate: false));
             }

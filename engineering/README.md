@@ -131,7 +131,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Deleting personal files in View](specs/archive/view-personal-file-deletion.md) | Built (v3, archived 2026-10-20) |
 | [Spec: Open from the start — retire "Who can connect"](specs/archive/open-from-the-start.md) | Built (v3, archived 2026-10-18) |
 | [Spec: Numbered data store upgrades and contributor guide](specs/archive/data-store-upgrade-scripts.md) | Built (v2, archived 2026-10-18) |
-| [Spec: View polish, smart search bar and automatic People](specs/view-people-search.md) | In progress (v1.1, wave 1 built 2026-11-19) | Photos search with chips, words in photos, local face grouping with confirm-first naming, new People pages |
+| [Spec: View polish, smart search bar and automatic People](specs/archive/view-people-search.md) | Built, awaiting your Local checks (v1.1, all waves built 2026-11-19; see batch.md) | Photos search with chips, words in photos, local face grouping with confirm-first naming, new People pages |
 | [Spec: View section (cleanup, Viewing switch, one action list, Recently added, On this day, drag and drop)](specs/view-section.md) | Built, awaiting your Local checks (v1, 2026-11-06; merged in PRs 726 to 733) | Photos, Galleries, Documents, People and Places follow the app rules; one whose-library switch; new Photos pill and memories strip |
 
 ## Handoffs

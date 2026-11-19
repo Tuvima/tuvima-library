@@ -34,6 +34,9 @@
     <!-- SkiaSharp: cross-platform image processing for hero banner generation.
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
     <PackageVersion Include="SkiaSharp" Version="4.150.1" />
+    <!-- ONNX Runtime, managed part only: runs the two face models (spec view-people-search WP7). MIT license, AGPLv3-compatible.
+         The native library is never a package here: it is fetched once through Tools and loaded from the data folder. -->
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.24.4" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.150.1" />
     <!-- Xabe.FFmpeg: fluent FFmpeg wrapper for media probing and transcoding; MIT license.
          Approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
