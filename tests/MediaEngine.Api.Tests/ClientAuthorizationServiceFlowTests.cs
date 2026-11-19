@@ -233,6 +233,37 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
         Assert.Equal("access_denied", result.Error?.Error);
     }
 
+    [Fact]
+    public async Task DevicesPairedByANoPasswordAccount_GetHomeOnlyTokens_AndRefreshKeepsThem()
+    {
+        var accounts = new AccountRepository(_database);
+        var account = (await accounts.GetByIdAsync(Account.SeedAccountId))!;
+        account.MarkThisComputerOnly();
+        await accounts.UpdateAsync(account);
+
+        var tokens = await IssueTvTokenAsync();
+        Assert.True(MediaEngine.Domain.Authorization.ClientIngress.IsLanOnlyToken(tokens.AccessToken));
+        Assert.True(MediaEngine.Domain.Authorization.ClientIngress.IsLanOnlyToken(tokens.RefreshToken));
+
+        var refreshed = await _authorization.ExchangeAsync(new OAuthTokenRequest
+        {
+            GrantType = ClientAuthorizationService.RefreshGrantType,
+            ClientId = "tuvima-tv",
+            RefreshToken = tokens.RefreshToken,
+        });
+        var next = Assert.IsType<OAuthTokenResponse>(refreshed.Success);
+        Assert.True(MediaEngine.Domain.Authorization.ClientIngress.IsLanOnlyToken(next.AccessToken));
+        Assert.True(MediaEngine.Domain.Authorization.ClientIngress.IsLanOnlyToken(next.RefreshToken));
+    }
+
+    [Fact]
+    public async Task DevicesPairedByAnAccountWithAPassword_GetOrdinaryTokens()
+    {
+        var tokens = await IssueTvTokenAsync();
+
+        Assert.False(MediaEngine.Domain.Authorization.ClientIngress.IsLanOnlyToken(tokens.AccessToken));
+    }
+
     private async Task<OAuthTokenResponse> IssueTvTokenAsync()
     {
         var started = await StartApprovedTvPairingAsync();

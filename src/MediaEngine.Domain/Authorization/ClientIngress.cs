@@ -74,7 +74,11 @@ public static class ClientIngress
     /// <summary>Starts the access and refresh tokens of a device approved by a no-password account.</summary>
     public const string LanOnlyTokenPrefix = "lan.";
 
+    /// <summary>True for an access or refresh token that only works on this computer or the home network.</summary>
+    public static bool IsLanOnlyToken(string? token) =>
+        token is not null && token.StartsWith(LanOnlyTokenPrefix, StringComparison.Ordinal);
+
     /// <summary>A home-network-only token is usable only from this computer or the home network; any other token always is.</summary>
     public static bool TokenMayBeUsedFrom(string? token, string? currentIngress) =>
-        token is null || !token.StartsWith(LanOnlyTokenPrefix, StringComparison.Ordinal) || IsOnLocalNetwork(currentIngress);
+        !IsLanOnlyToken(token) || IsOnLocalNetwork(currentIngress);
 }

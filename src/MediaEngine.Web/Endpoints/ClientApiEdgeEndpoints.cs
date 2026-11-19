@@ -298,8 +298,23 @@ public static class ClientApiEdgeEndpoints
 
     // A token from a no-password account's approval works only on this computer or the home network (fails closed).
     private static bool BearerAllowedHere(HttpContext context, string bearer) =>
-        !bearer.StartsWith(MediaEngine.Domain.Authorization.ClientIngress.LanOnlyTokenPrefix, StringComparison.Ordinal)
-        || MediaEngine.Domain.Authorization.ClientIngress.IsOnLocalNetwork(context.ClientIngress());
+        !MediaEngine.Domain.Authorization.ClientIngress.IsLanOnlyToken(bearer)
+        || MediaEngine.Domain.Authorization.ClientIngress.TokenMayBeUsedFrom(bearer, context.ClientIngress());
+
+    // The refresh token travels in the form body, so the same rule is applied to it before the request is forwarded.
+    private static async Task<bool> RefreshTokenAllowedHereAsync(HttpContext context, string? clientPath, CancellationToken ct)
+    {
+        if (!string.Equals(clientPath?.Trim('/'), "oauth/token", StringComparison.OrdinalIgnoreCase)
+            || !context.Request.HasFormContentType)
+        {
+            return true;
+        }
+
+        context.Request.EnableBuffering();
+        var form = await context.Request.ReadFormAsync(ct).ConfigureAwait(false);
+        context.Request.Body.Position = 0;
+        return BearerAllowedHere(context, form["refresh_token"].ToString());
+    }
 
     private static bool TryReadBearer(HttpRequest request, out string token)
     {
@@ -322,7 +337,8 @@ public static class ClientApiEdgeEndpoints
     {
         var decision = NativeApiForwardPolicy.Evaluate(
             context.Request.Method, clientPath, TryReadBearer(context.Request, out _));
-        if (TryReadBearer(context.Request, out var presented) && !BearerAllowedHere(context, presented))
+        if ((TryReadBearer(context.Request, out var presented) && !BearerAllowedHere(context, presented))
+            || !await RefreshTokenAllowedHereAsync(context, clientPath, ct).ConfigureAwait(false))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
