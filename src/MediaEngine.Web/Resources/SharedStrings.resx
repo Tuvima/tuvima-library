@@ -13451,9 +13451,6 @@
   <data name="ListenPage_PlaylistCreateFailed" xml:space="preserve">
     <value>The Playlist could not be created.</value>
   </data>
-  <data name="ListenPage_PlaylistRenameFailed" xml:space="preserve">
-    <value>The Playlist could not be renamed.</value>
-  </data>
   <data name="ListenPage_PlaylistDeleteFailed" xml:space="preserve">
     <value>The Playlist could not be deleted.</value>
   </data>
@@ -15214,5 +15211,59 @@
   </data>
   <data name="QueueSave_Failed" xml:space="preserve">
     <value>The queue could not be saved as a playlist. Your queue was not changed.</value>
+  </data>
+  <data name="PlaylistTiles_NewTitle" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="PlaylistTiles_HandPickedHint" xml:space="preserve">
+    <value>You choose the songs.</value>
+  </data>
+  <data name="PlaylistTiles_SmartHint" xml:space="preserve">
+    <value>Fills itself from rules you set.</value>
+  </data>
+  <data name="PlaylistTiles_NewShort" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="PlaylistTiles_SortBy" xml:space="preserve">
+    <value>Sort: {0}</value>
+  </data>
+  <data name="PlaylistTiles_SortManual" xml:space="preserve">
+    <value>Manual</value>
+  </data>
+  <data name="PlaylistTiles_SortName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistTiles_SortRecentlyAdded" xml:space="preserve">
+    <value>Recently added</value>
+  </data>
+  <data name="PlaylistTiles_MetaSongs" xml:space="preserve">
+    <value>Songs · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSongsLength" xml:space="preserve">
+    <value>Songs · {0} · {1}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSmart" xml:space="preserve">
+    <value>Smart · Songs · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSmartShort" xml:space="preserve">
+    <value>Smart · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortOne" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortMany" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistTiles_EmptyTitle" xml:space="preserve">
+    <value>No playlists yet</value>
+  </data>
+  <data name="PlaylistTiles_EmptyMessage" xml:space="preserve">
+    <value>Make one with New playlist, or add songs from any song's menu.</value>
+  </data>
+  <data name="PlaylistTiles_SeeAll" xml:space="preserve">
+    <value>See all</value>
+  </data>
+  <data name="PlaylistTiles_Back" xml:space="preserve">
+    <value>Playlists</value>
   </data>
 </root>

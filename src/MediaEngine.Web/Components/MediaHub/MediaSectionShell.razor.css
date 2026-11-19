@@ -88,20 +88,6 @@
     background: var(--tl-menu-item-hover);
 }
 
-.media-section-shell__inline-create {
-    display: grid;
-    grid-template-columns: 20px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    margin: 0 4px 6px 18px;
-    padding: 5px 8px;
-    border: 1px solid var(--tl-border-strong);
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-surface);
-}
-
-.media-section-shell__inline-create ::deep input,
 .media-section-shell__rename-row ::deep input {
     width: 100%;
     min-width: 0;

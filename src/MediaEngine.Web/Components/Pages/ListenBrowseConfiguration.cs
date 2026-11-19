@@ -6,6 +6,9 @@ namespace MediaEngine.Web.Components.Pages;
 
 internal static class ListenBrowseConfiguration
 {
+    /// <summary>The id of the Playlists tab (route <c>/listen/playlists</c>): the page of playlist tiles the lane draws itself.</summary>
+    public const string PlaylistsTabId = "playlists";
+
     public static readonly LibraryBrowsePreset Preset = new()
     {
         RouteBase = "/listen",
@@ -51,7 +54,7 @@ internal static class ListenBrowseConfiguration
             },
             new BrowseTabPreset
             {
-                Id = "playlists",
+                Id = PlaylistsTabId,
                 Label = "Playlists",
                 MediaType = "Music",
                 GroupingOptions =
@@ -72,6 +75,6 @@ internal static class ListenBrowseConfiguration
     public static IReadOnlySet<string> FixedTabIds { get; } =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "playlists",
+            PlaylistsTabId,
         };
 }

@@ -88,12 +88,6 @@ public partial class ListenPage
         _activePlaylistSaved = result.IsSaved;
     }
 
-    private int GetPlaylistOrderIndex(ManagedCollectionViewModel playlist)
-    {
-        var index = _playlistOrder.IndexOf(playlist.Id);
-        return index < 0 ? int.MaxValue : index;
-    }
-
     private async Task MovePlaylistAsync(Guid playlistId, int direction)
     {
         var orderedIds = PlaylistCollections.Select(playlist => playlist.Id).ToList();
@@ -141,30 +135,25 @@ public partial class ListenPage
     private void BeginPlaylistInlineCreate()
     {
         _creatingPlaylistInline = true;
-        _newPlaylistName = string.Empty;
     }
 
-    private async Task CreatePlaylistOnKeyDownAsync(KeyboardEventArgs args)
+    // Escape, or moving away from the name box, closes it; songs dropped on New playlist are let go with it.
+    private void CancelPlaylistInlineCreate()
     {
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
-        {
-            _creatingPlaylistInline = false;
-            _newPlaylistName = string.Empty;
-            _pendingPlaylistDrop = null;
-            return;
-        }
-        if (!string.Equals(args.Key, "Enter", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(_newPlaylistName))
-        {
-            return;
-        }
+        _creatingPlaylistInline = false;
+        _pendingPlaylistDrop = null;
+    }
 
+    // Enter or the Create button in the name box.
+    private async Task CreatePlaylistNamedAsync(string name)
+    {
         _notice = null;
         if (_activeProfileId is null)
         {
             ShowNotice(L["ListenPage_ProfileRequiredToCreatePlaylists"].Value, AppUiTone.Warning);
             return;
         }
-        var name = _newPlaylistName.Trim();
+
         if (_pendingPlaylistDrop is { } carried)
         {
             // Songs were dropped on New playlist: the playlist is made already holding them, and the sentence goes to their table.
@@ -173,7 +162,6 @@ public partial class ListenPage
             {
                 _pendingPlaylistDrop = null;
                 _creatingPlaylistInline = false;
-                _newPlaylistName = string.Empty;
                 await LoadAsync();
             }
 
@@ -196,54 +184,14 @@ public partial class ListenPage
             ShowNotice(L["ListenPage_PlaylistCreateFailed"].Value, AppUiTone.Error);
             return;
         }
+
         _creatingPlaylistInline = false;
-        _newPlaylistName = string.Empty;
-        await LoadAsync();
-    }
-
-    private void BeginPlaylistRename(ManagedCollectionViewModel playlist)
-    {
-        _renamingPlaylistId = playlist.Id;
-        _renamePlaylistName = playlist.Name;
-    }
-
-    private async Task RenamePlaylistOnKeyDownAsync(ManagedCollectionViewModel playlist, KeyboardEventArgs args)
-    {
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
-        {
-            _renamingPlaylistId = null;
-            return;
-        }
-        if (!string.Equals(args.Key, "Enter", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(_renamePlaylistName))
-        {
-            return;
-        }
-
-        _notice = null;
-        if (!await ApiClient.UpdateCollectionAsync(
-                playlist.Id,
-                _renamePlaylistName.Trim(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                _activeProfileId))
-        {
-            ShowNotice(L["ListenPage_PlaylistRenameFailed"].Value, AppUiTone.Error);
-            return;
-        }
-        _renamingPlaylistId = null;
         await LoadAsync();
     }
 
     // Delete is instant after one "are you sure" (the shared confirm).
     private async Task BeginPlaylistDeleteAsync(ManagedCollectionViewModel playlist)
     {
-        _renamingPlaylistId = null;
         var confirmed = await Dialogs.ShowMessageBoxAsync(
             L["Common_Delete2", playlist.Name].Value,
             string.Empty,

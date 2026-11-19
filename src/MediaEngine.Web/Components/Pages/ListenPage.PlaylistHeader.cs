@@ -165,7 +165,7 @@ public partial class ListenPage
         var entry = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId);
         var request = new CollectionEditorLaunchRequest
         {
-            EditingCollection = EditorItemFor(playlist),
+            EditingCollection = PlaylistMenuRules.EditorItemFor(playlist),
             ActiveProfileId = entry.ActiveProfileId,
             Kind = entry.Kind,
             InitialPrimaryArea = entry.InitialPrimaryArea,
@@ -183,46 +183,6 @@ public partial class ListenPage
             await LoadAsync();
         }
     }
-
-    private static CollectionListItemViewModel EditorItemFor(ManagedCollectionViewModel playlist) => new()
-    {
-        Id = playlist.Id,
-        Name = playlist.Name,
-        Description = playlist.Description,
-        IconName = playlist.IconName,
-        CollectionType = playlist.CollectionType,
-        Resolution = playlist.Resolution,
-        Scope = playlist.Scope,
-        ProfileId = playlist.ProfileId,
-        Visibility = playlist.Visibility,
-        MembershipMode = playlist.MembershipMode,
-        PrimaryArea = playlist.PrimaryArea,
-        OwnerKind = playlist.OwnerKind,
-        Audience = playlist.Audience,
-        SelectedProfileIds = playlist.SelectedProfileIds,
-        IsEnabled = playlist.IsEnabled,
-        IsFeatured = playlist.IsFeatured,
-        MinItems = playlist.MinItems,
-        MaxItems = playlist.MaxItems,
-        SeasonFrom = playlist.SeasonFrom,
-        SeasonTo = playlist.SeasonTo,
-        HiddenUntil = playlist.HiddenUntil,
-        ItemCount = playlist.ItemCount,
-        RuleJson = playlist.RuleJson,
-        RuleHash = playlist.RuleHash,
-        MatchMode = playlist.MatchMode,
-        SortField = playlist.SortField,
-        SortDirection = playlist.SortDirection,
-        SecondarySortField = playlist.SecondarySortField,
-        SecondarySortDirection = playlist.SecondarySortDirection,
-        CoverUrl = playlist.CoverArtworkUrl,
-        BackgroundUrl = playlist.BackgroundArtworkUrl,
-        BannerUrl = playlist.BannerArtworkUrl,
-        LogoUrl = playlist.LogoArtworkUrl,
-        CreatedAt = playlist.CreatedAt,
-        CanEdit = playlist.CanEdit,
-        CanShare = playlist.CanShare,
-    };
 
     // ---- Sort, then Keep this order -----------------------------------------------------------------------------------------------
 

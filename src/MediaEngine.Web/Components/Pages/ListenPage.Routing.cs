@@ -129,7 +129,6 @@ public partial class ListenPage
     private IReadOnlyList<ListenNavigationItem> ListenPinnedPlaylistItems =>
     [
         new("Favorites", FavoriteSongsRoute, AppMaterialIcons.Outlined.FavoriteBorder),
-        new("All Playlists", PlaylistsRoute, AppMaterialIcons.Outlined.QueueMusic),
     ];
 
     private async Task HandleTrackQueryAsync()

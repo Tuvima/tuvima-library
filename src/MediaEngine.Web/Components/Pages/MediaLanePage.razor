@@ -17,7 +17,8 @@
                    OnNavigationSmartCreate="@OnNavigationSmartCreate"
                    OnNavigationItemRename="@OnNavigationItemRename"
                    OnNavigationItemDelete="@OnNavigationItemDelete"
-                   OnNavigationItemReorder="@OnNavigationItemReorder">
+                   OnNavigationItemReorder="@OnNavigationItemReorder"
+                   PlaylistMenu="@PlaylistMenu">
     <LibrarySectionHeader Title="@Title"
                           Modes="@ShownModes"
                           ActiveMode="@ActiveMode"
@@ -79,6 +80,11 @@
                           Message="@EmptyMessage" />
         }
     }
+    else if (CustomTabContent is not null && string.Equals(Tab, CustomTabId, StringComparison.OrdinalIgnoreCase))
+    {
+        @* A tab the page draws itself (Listen's Playlists page of tiles) instead of the browse shell. *@
+        @CustomTabContent
+    }
     else if (IsSupportedBrowseTab)
     {
         <MediaBrowseShell Tab="@Tab"
@@ -137,6 +143,12 @@
     private bool NoTabs => !TabsLoading && Preset.Tabs.Count == 0;
     private IReadOnlyList<MediaHubModeViewModel> ShownModes => TabsLoading || NoTabs ? [] : Modes;
     private IReadOnlyList<MediaSectionNavigationGroup> ShownNavigationGroups => TabsLoading || NoTabs ? [] : NavigationGroups;
+    /// <summary>The tab (by id) whose content the page draws itself with CustomTabContent, so the browse shell is left out for it.</summary>
+    [Parameter] public string? CustomTabId { get; set; }
+    [Parameter] public RenderFragment? CustomTabContent { get; set; }
+
+    /// <summary>The rail's "..." menu for a playlist row (spec listen-playlists D7), passed on to the section shell.</summary>
+    [Parameter] public RenderFragment<PlaylistRailMenu>? PlaylistMenu { get; set; }
     [Parameter] public EventCallback<MediaSectionNavigationDropEvent> OnNavigationItemDrop { get; set; }
     [Parameter] public EventCallback<MediaSectionNavigationCreateDropEvent> OnNavigationCreateDrop { get; set; }
     [Parameter] public EventCallback<MediaSectionNavigationCreateTarget> OnNavigationCreateCanceled { get; set; }

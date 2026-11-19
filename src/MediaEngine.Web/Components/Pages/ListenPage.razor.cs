@@ -129,10 +129,7 @@ public partial class ListenPage : IDisposable
     private Guid? _draggingPlaylistId;
     private bool _activePlaylistSaved;
     private bool _creatingPlaylistInline;
-    private string _newPlaylistName = string.Empty;
     private CarriedSongs? _pendingPlaylistDrop;
-    private Guid? _renamingPlaylistId;
-    private string _renamePlaylistName = string.Empty;
     private int _listenLoadVersion;
 
     private string? _noticeSection;

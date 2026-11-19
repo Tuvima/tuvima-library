@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.MediaHub
+@using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Models.ViewDTOs
 @using Microsoft.AspNetCore.Components.Routing
 @using MediaEngine.Web.Services.Navigation
@@ -98,20 +99,11 @@
                 </div>
                 @if (IsCreating(group))
                 {
-                    <div class="media-section-shell__inline-create">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />
-                        <AppNativeInput @ref="_createInput"
-                                        Value="@_createName"
-                                        ValueChanged="OnCreateNameChanged"
-                                        OnKeyDown="HandleCreateKeyDownAsync"
-                                        Placeholder="@group.CreateOptions!.InputPlaceholder"
-                                        AriaLabel="@group.CreateOptions.InputPlaceholder"
-                                        Disabled="@_creating" />
-                        @if (_creating)
-                        {
-                            <AppSpinner Indeterminate="true" Size="AppSize.Small" />
-                        }
-                    </div>
+                    @* The name box has its own Create button and closes on Escape or when the focus leaves it (issue 1200). *@
+                    <PlaylistNameBox Placeholder="@group.CreateOptions!.InputPlaceholder"
+                                     Busy="@_creating"
+                                     OnCreate="CreateNamedAsync"
+                                     OnCancel="CancelCreateAsync" />
                 }
                 @if (FixedColumnTree)
                 {
@@ -232,25 +224,32 @@
                                                                       aria-label="@child.MetaAriaLabel">@child.Meta</span>
                                                             }
                                                         </a>
-                                                        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {child.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
-                                                            @if (management.CanRename && !InReorder(management))
-                                                            {
-                                                                <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
-                                                            }
-                                                            @if (management.CanReorder && !InReorder(management))
-                                                            {
-                                                                <AppMenuItem Label="@L["AppReorderBar_MenuReorder"].Value" Icon="@AppMaterialIcons.Outlined.SwapVert" OnClick="@(() => BeginReorderMode(child))" />
-                                                            }
-                                                            @if (management.CanReorder && InReorder(management))
-                                                            {
-                                                                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
-                                                                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
-                                                            }
-                                                            @if (management.CanDelete && !InReorder(management))
-                                                            {
-                                                                <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(child))" />
-                                                            }
-                                                        </AppOverflowMenu>
+                                                        @if (PlaylistMenu is not null && management.Playlist is { } menuPlaylist && !InReorder(management))
+                                                        {
+                                                            @PlaylistMenu(new PlaylistRailMenu(menuPlaylist, management.CanReorder ? () => BeginReorderMode(child) : null))
+                                                        }
+                                                        else
+                                                        {
+                                                            <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {child.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
+                                                                @if (management.CanRename && !InReorder(management))
+                                                                {
+                                                                    <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
+                                                                }
+                                                                @if (management.CanReorder && !InReorder(management))
+                                                                {
+                                                                    <AppMenuItem Label="@L["AppReorderBar_MenuReorder"].Value" Icon="@AppMaterialIcons.Outlined.SwapVert" OnClick="@(() => BeginReorderMode(child))" />
+                                                                }
+                                                                @if (management.CanReorder && InReorder(management))
+                                                                {
+                                                                    <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
+                                                                    <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
+                                                                }
+                                                                @if (management.CanDelete && !InReorder(management))
+                                                                {
+                                                                    <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(child))" />
+                                                                }
+                                                            </AppOverflowMenu>
+                                                        }
                                                     }
                                                 </div>
                                             </div>
@@ -344,25 +343,32 @@
                                                   aria-label="@item.MetaAriaLabel">@item.Meta</span>
                                         }
                                     </a>
-                                    <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {item.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
-                                        @if (management.CanRename && !InReorder(management))
-                                        {
-                                            <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
-                                        }
-                                        @if (management.CanReorder && !InReorder(management))
-                                        {
-                                            <AppMenuItem Label="@L["AppReorderBar_MenuReorder"].Value" Icon="@AppMaterialIcons.Outlined.SwapVert" OnClick="@(() => BeginReorderMode(item))" />
-                                        }
-                                        @if (management.CanReorder && InReorder(management))
-                                        {
-                                            <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
-                                            <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
-                                        }
-                                        @if (management.CanDelete && !InReorder(management))
-                                        {
-                                            <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(item))" />
-                                        }
-                                    </AppOverflowMenu>
+                                    @if (PlaylistMenu is not null && management.Playlist is { } menuPlaylist && !InReorder(management))
+                                    {
+                                        @PlaylistMenu(new PlaylistRailMenu(menuPlaylist, management.CanReorder ? () => BeginReorderMode(item) : null))
+                                    }
+                                    else
+                                    {
+                                        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {item.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
+                                            @if (management.CanRename && !InReorder(management))
+                                            {
+                                                <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
+                                            }
+                                            @if (management.CanReorder && !InReorder(management))
+                                            {
+                                                <AppMenuItem Label="@L["AppReorderBar_MenuReorder"].Value" Icon="@AppMaterialIcons.Outlined.SwapVert" OnClick="@(() => BeginReorderMode(item))" />
+                                            }
+                                            @if (management.CanReorder && InReorder(management))
+                                            {
+                                                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
+                                                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
+                                            }
+                                            @if (management.CanDelete && !InReorder(management))
+                                            {
+                                                <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(item))" />
+                                            }
+                                        </AppOverflowMenu>
+                                    }
                                 }
                             </div>
                         </div>
@@ -418,6 +424,13 @@
     [Parameter] public Func<MediaSectionNavigationRenameEvent, Task<bool>>? OnNavigationItemRename { get; set; }
     [Parameter] public Func<MediaSectionNavigationManageEvent, Task<bool>>? OnNavigationItemDelete { get; set; }
     [Parameter] public Func<MediaSectionNavigationReorderEvent, Task<bool>>? OnNavigationItemReorder { get; set; }
+
+    /// <summary>
+    /// The "..." menu of a playlist row (spec listen-playlists D7), drawn in place of the Rename, Reorder and Delete menu for a row whose
+    /// management carries its <see cref="MediaSectionNavigationItemManagement.Playlist"/>. While the rail is in its reorder mode the
+    /// rows keep the Move up and Move down menu.
+    /// </summary>
+    [Parameter] public RenderFragment<PlaylistRailMenu>? PlaylistMenu { get; set; }
     /// <summary>Optional content shown at the top of the rail and as the first row of the phone menu (View uses it for the Viewing switch).</summary>
     [Parameter] public RenderFragment? NavigationHeader { get; set; }
     [Parameter] public bool ShowMobileNavigation { get; set; } = true;
@@ -447,17 +460,14 @@
 
     private readonly HashSet<string> _expandedRoutes = new(StringComparer.OrdinalIgnoreCase);
     private ElementReference _content;
-    private AppNativeInput? _createInput;
     private AppNativeInput? _renameInput;
     private bool _scrollActiveItem;
     private bool _scrollContentTop;
-    private bool _focusCreateInput;
     private bool _focusRenameInput;
     private bool _creating;
     private bool _managing;
     private string? _creatingGroupLabel;
     private MediaSectionNavigationCreateOptions? _creatingOptions;
-    private string _createName = string.Empty;
     private string? _renameRoute;
     private string _renameName = string.Empty;
     private string? _swipedRoute;
@@ -878,12 +888,6 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_focusCreateInput && _createInput is not null)
-        {
-            _focusCreateInput = false;
-            await _createInput.FocusAsync();
-        }
-
         if (_focusRenameInput && _renameInput is not null)
         {
             _focusRenameInput = false;
@@ -940,9 +944,7 @@
 
         _creatingGroupLabel = group.Label;
         _creatingOptions = group.CreateOptions;
-        _createName = string.Empty;
         _renameRoute = null;
-        _focusCreateInput = true;
     }
 
     public async Task BeginManualCreateAsync(string groupLabel)
@@ -968,41 +970,24 @@
 
         _creatingGroupLabel = group.Label;
         _creatingOptions = options;
-        _createName = string.Empty;
-        _focusCreateInput = true;
     }
 
-    private Task OnCreateNameChanged(object? value)
+    // The name box (Enter or its Create button) hands the name over; the box closes when the host made the playlist.
+    private async Task CreateNamedAsync(string name)
     {
-        _createName = value?.ToString() ?? string.Empty;
-        return Task.CompletedTask;
-    }
-
-    private async Task HandleCreateKeyDownAsync(KeyboardEventArgs args)
-    {
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
-        {
-            await CancelCreateAsync();
-            return;
-        }
-
-        if (!string.Equals(args.Key, "Enter", StringComparison.Ordinal)
-            || string.IsNullOrWhiteSpace(_createName)
-            || _creatingOptions is null
-            || OnNavigationCreate is null)
+        if (_creatingOptions is null || OnNavigationCreate is null)
             return;
 
         _creating = true;
         var succeeded = await OnNavigationCreate(new(
             _creatingGroupLabel ?? string.Empty,
             _creatingOptions.ManualTarget,
-            _createName.Trim()));
+            name));
         _creating = false;
         if (succeeded)
         {
             _creatingGroupLabel = null;
             _creatingOptions = null;
-            _createName = string.Empty;
         }
     }
 
@@ -1012,7 +997,6 @@
             await OnNavigationCreateCanceled.InvokeAsync(_creatingOptions.ManualTarget);
         _creatingGroupLabel = null;
         _creatingOptions = null;
-        _createName = string.Empty;
     }
 
     private string ManagedRowClass(MediaSectionNavigationItem item) => string.Join(" ", new[]

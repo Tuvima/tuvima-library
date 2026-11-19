@@ -1,0 +1,26 @@
+/* New playlist window (spec listen-playlists WP3): the name, then the two kinds side by side, each with one line under it. 44 px buttons. */
+.new-playlist {
+    display: grid;
+    gap: var(--tl-space-4);
+    text-align: left;
+}
+
+.new-playlist__kinds {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--tl-space-3);
+}
+
+.new-playlist__kind {
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.new-playlist__caption {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+    line-height: 1.4;
+}
