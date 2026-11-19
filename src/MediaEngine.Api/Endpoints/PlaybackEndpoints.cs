@@ -67,6 +67,7 @@ public static class PlaybackEndpoints
             string? delivery,
             string? browser,
             int? burnSubtitle,
+            double? start,
             HttpContext httpContext,
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
@@ -105,7 +106,7 @@ public static class PlaybackEndpoints
             var forceAdaptive = string.Equals(delivery, "hls", StringComparison.OrdinalIgnoreCase);
             // This person's and this device's "Video quality and devices" choices decide the rung and the quality (playback-path spec D4, D15).
             var choices = await videoOptions.ResolveChoicesAsync(profileId, capabilities, ct);
-            var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId, forceAdaptive, choices, burnSubtitle);
+            var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId, forceAdaptive, choices, burnSubtitle, start);
             if (manifest?.DirectStreamUrl is { } streamUrl)
             {
                 manifest = manifest with { DirectStreamUrl = "/api/v1" + streamUrl };

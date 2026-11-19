@@ -8451,6 +8451,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackManifestDt
   HlsUrl: System.String | nullability=nullable | accessors=get,init
   HlsStatus: System.String | nullability=nullable | accessors=get,init
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  StreamStartSeconds: System.Double? | nullability=nullable | accessors=get,init
   HlsExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   Profile: MediaEngine.Contracts.Playback.PlaybackProfileDto | nullability=not-null | accessors=get,init
   AudioTracks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlaybackTrackDto> | nullability=not-null | accessors=get,init

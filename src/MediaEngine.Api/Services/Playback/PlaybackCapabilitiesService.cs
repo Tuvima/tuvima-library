@@ -85,7 +85,8 @@ public sealed class PlaybackCapabilitiesService
         Guid? deviceId = null,
         bool forceAdaptive = false,
         PlaybackChoices? choices = null,
-        int? burnSubtitleStream = null)
+        int? burnSubtitleStream = null,
+        double? startSeconds = null)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -232,6 +233,8 @@ public sealed class PlaybackCapabilitiesService
         string? hlsStatus = null;
         DateTimeOffset? hlsExpiresAt = null;
         PlaybackPathDto? playbackPath = decision is { Rung: PlaybackRungs.Direct } ? PlaybackPathBuilder.ForDirect(decision) : null;
+        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct), durationSeconds);
+        double? streamStartSeconds = null;
         if (recommendedDelivery == PlaybackDeliveryModes.Hls)
         {
             if (!_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
@@ -255,7 +258,12 @@ public sealed class PlaybackCapabilitiesService
                 {
                     maxHeight = maxHeight is { } own ? Math.Min(own, cappedHeight) : cappedHeight;
                 }
-                var plan = new HlsStartPlan(streamDecision, maxHeight, networkCap?.MaxBitrateKbps, networkCap?.OfferLowerQuality ?? false, burn is null ? null : probe!.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList().FindIndex(stream => stream.StreamIndex == burn), burn);
+                // A converted film starts where the viewer is going (seek-past-prepared-stream D1): the point they asked for, or where they left off
+                // when none was asked for. A start inside the first segment is the beginning.
+                var plan = new HlsStartPlan(streamDecision, maxHeight, networkCap?.MaxBitrateKbps, networkCap?.OfferLowerQuality ?? false, burn is null ? null : probe!.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList().FindIndex(stream => stream.StreamIndex == burn), burn,
+                    StreamStartFor(startSeconds ?? resume?.PositionSeconds, durationSeconds, _configuration.LoadTranscoding().AdaptiveHls.SegmentSeconds),
+                    profileId is null && deviceId is null ? null : $"{profileId:D}:{deviceId:D}");
+                streamStartSeconds = plan.StartSeconds > 0 ? plan.StartSeconds : null;
                 var preparation = await _adaptiveHls.EnsurePackageAsync(assetId, sourceHash, audioTracks, ct, plan);
                 hlsStatus = preparation.Status;
                 playbackPath = PlaybackPathBuilder.ForStream(streamDecision, preparation.Status, preparation.Run, preparation.Error);
@@ -295,11 +303,10 @@ public sealed class PlaybackCapabilitiesService
             }
         }
 
-        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct), durationSeconds);
-
         return new PlaybackManifestDto
         {
             DurationSeconds = durationSeconds,
+            StreamStartSeconds = streamStartSeconds,
             AssetId = assetId,
             IsVault = IsVaultAsset(assetId),
             Client = normalizedClient,
@@ -696,6 +703,22 @@ public sealed class PlaybackCapabilitiesService
         return probe?.Duration.TotalSeconds is > 0
             ? probe.Duration.TotalSeconds
             : null;
+    }
+
+    /// <summary>
+    /// The second a converted stream starts at: the wanted point rounded down to a whole segment, never inside the last segment of the film.
+    /// Zero (convert from the beginning) for no wanted point or one inside the first segment.
+    /// </summary>
+    internal static double StreamStartFor(double? wantedSeconds, double? durationSeconds, int segmentSeconds)
+    {
+        if (wantedSeconds is not { } wanted || !double.IsFinite(wanted) || segmentSeconds <= 0)
+        {
+            return 0;
+        }
+
+        var latest = durationSeconds is > 0 ? Math.Max(0, durationSeconds.Value - segmentSeconds) : wanted;
+        var start = Math.Floor(Math.Min(Math.Max(0, wanted), latest) / segmentSeconds) * segmentSeconds;
+        return start < segmentSeconds ? 0 : start;
     }
 
     private static PlaybackResumeDto? NormalizeResumePosition(PlaybackResumeDto? resume, double? durationSeconds)

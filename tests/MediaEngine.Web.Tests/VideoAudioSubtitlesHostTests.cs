@@ -255,6 +255,45 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AJumpPastThePreparedPart_AsksTheEngineForAStreamStartedAtThatSecond_AndKeepsFilmTime()
+    {
+        var asset = Guid.NewGuid();
+        var asked = new List<double?>();
+        var playback = Arrange(UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid()), asset, id => Direct(id) with
+        {
+            RecommendedDelivery = PlaybackDeliveryModes.Hls,
+            HlsUrl = "/hls/master.m3u8",
+            HlsStatus = "ready",
+            DirectStreamUrl = null,
+            DirectPlaySupported = false,
+            DurationSeconds = 6700,
+        }, configureApi: stub => stub.SetHandler(nameof(IEngineApiClient.GetPlaybackManifestAsync), args =>
+        {
+            var start = (double?)args![7];
+            asked.Add(start);
+            return Task.FromResult<PlaybackManifestDto?>(Direct(asset) with
+            {
+                RecommendedDelivery = PlaybackDeliveryModes.Hls,
+                HlsUrl = "/hls/master.m3u8",
+                HlsStatus = "ready",
+                DirectStreamUrl = null,
+                DirectPlaySupported = false,
+                DurationSeconds = 6700,
+                StreamStartSeconds = start,
+            });
+        }));
+        playback.UpdateTransportState(currentTimeSeconds: 100, durationSeconds: 6700, isPlaying: true);
+
+        var restarted = await playback.RestartVideoAtAsync(6000);
+
+        Assert.True(restarted);
+        Assert.Equal([6000d], asked);
+        Assert.Equal(6000, playback.CurrentItem!.InitialPositionSeconds!.Value, 3);
+        Assert.Equal(6000, playback.CurrentItem.Manifest!.StreamStartSeconds);
+        Assert.Equal(6700, playback.CurrentItem.Manifest.DurationSeconds);
+    }
+
+    [Fact]
     public async Task ChoosingAnotherAudioTrackInThePanel_RestartsTheStreamAtThePositionThePanelWasOpenedAt()
     {
         var asset = Guid.NewGuid();

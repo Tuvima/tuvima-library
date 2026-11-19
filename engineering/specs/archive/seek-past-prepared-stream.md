@@ -1,6 +1,6 @@
 # Spec: Jump anywhere in a film that is being converted
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-11-19 · **Related docs:** [Playback path](playback-path.md) · [Playing now and General tabs](playing-now-and-general-tabs.md) · issue #1053 (Shy chose "restart at the jump point" on 2026-11-19)
+> **Status:** Built (awaiting Local checks) · **Version:** 1 · **Last updated:** 2026-11-19 · **Related docs:** [Playback path](playback-path.md) · [Playing now and General tabs](playing-now-and-general-tabs.md) · issue #1053 (Shy chose "restart at the jump point" on 2026-11-19)
 
 ## Product walkthrough (read this first)
 
@@ -74,4 +74,11 @@ The cached copy's key gains a start point. Pre-release: existing cached copies a
 ## 8. Risks and open questions
 
 - **Risks:** time offset mistakes would save wrong resume points (guarded by WP3's done-when test); segment boundaries that do not line up after `-ss` could show a brief glitch at the start of a restart.
-- **Open questions:** Q1. Should a jump wait for the old conversion to finish its current segment before it is dropped? Recommendation: no, drop it at once.
+- **Open questions:** Q1. Should a jump wait for the old conversion to finish its current segment before it is dropped? Answered: no, it is dropped at once (built that way).
+
+## 9. Build notes (2026-11-19)
+
+- A converted stream's own clock begins at zero at its start point (the Engine does not stamp film time into the segments). The Engine answers `streamStartSeconds` and the player adds it back, so every time shown, saved or bookmarked is film time. WP1's "first listed segment starts at 600 s" is therefore met as "the stream begins at 600 s of the film" (the `-ss` start and `streamStartSeconds`), not as a playlist that lists 600 s as its first time. The film's full length still comes from the file, so the timeline shows it from the first second.
+- One conversion per viewer (profile and device) and film: a new start stops that viewer's earlier one for the same film. Cast sessions have no owner and are left alone.
+- Known limits: a copied (not converted) picture starts at the keyframe before the point, so it can begin up to a few seconds early; casting to a TV from a restarted stream resumes from the stream's own clock; the double-tap skip on a phone moves within what is ready and does not restart.
+
