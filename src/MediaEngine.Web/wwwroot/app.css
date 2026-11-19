@@ -5874,6 +5874,11 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 .media-viewer { z-index: 1600; display: grid; grid-template-rows: auto minmax(0, 1fr); color: var(--tl-text-primary); background: color-mix(in srgb, var(--tl-bg-root) 98.5%, transparent); }
 .media-viewer.media-viewer--video { grid-template-rows: minmax(0, 1fr); }
 
+/* Photos smart search bar (view-people-search WP4): the chip remove button and the text box are drawn by shared components, so their rules live here. */
+.view-smart-search__chip .view-smart-search__remove{display:inline-grid;width:2.75rem;height:2.75rem;margin-block:-.25rem;place-items:center;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer}
+.view-smart-search__chip .view-smart-search__remove:hover,.view-smart-search__chip .view-smart-search__remove:focus-visible{background:var(--tl-bg-surface-hover)}
+.view-smart-search .view-smart-search__input{flex:1 1 8rem;width:auto;min-width:6rem}
+
 /* Window footer (Look v3 D14, D15.3; Shy 2026-11-07: as in the mock): every button sits in one right-hand group in reading order,
    destructive (outlined red), then Cancel or Discard, then the one primary last. Only a quiet extra action marked app-footer-start
    (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. The one exception is the short
@@ -6288,8 +6293,3 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
-
-/* Photos smart search bar (view-people-search WP4): the chip remove button and the text box are drawn by shared components, so their rules live here. */
-.view-smart-search__chip .view-smart-search__remove{display:inline-grid;width:2.75rem;height:2.75rem;margin-block:-.25rem;place-items:center;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer}
-.view-smart-search__chip .view-smart-search__remove:hover,.view-smart-search__chip .view-smart-search__remove:focus-visible{background:var(--tl-bg-surface-hover)}
-.view-smart-search .view-smart-search__input{flex:1 1 8rem;width:auto;min-width:6rem}
