@@ -1,6 +1,7 @@
 @page "/view/places"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Services.Navigation
 @implements IDisposable
 @inject IAppDialogService DialogService
 @inject IEngineApiClient ApiClient
@@ -87,6 +88,13 @@ else
 @code {
     private ViewMap? _map;
     private ViewAtlasPageDto? _atlas;
+    // "Open Places" in the photo viewer passes the photo's spot; the nearest place on the map opens, so the person lands where the photo was taken.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    private double? FocusLatitude => FocusValue("lat");
+    private double? FocusLongitude => FocusValue("lon");
+    private double? FocusValue(string name) => double.TryParse(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : null;
+    private bool _focusApplied;
     private ViewAtlasHotspotDto? _selectedHotspot;
     private ViewPlaceMediaPageDto? _placeMedia;
     private LocalAssetDto? _active;
@@ -121,6 +129,12 @@ else
             if (current is null) CloseStory(); else { _selectedHotspot = current; await LoadStoryAsync(); }
         }
         else if (_showUnmapped) await ShowUnmappedAsync();
+        else if (!_focusApplied && _atlas is { Hotspots.Count: > 0 } && FocusLatitude is { } focusLat && FocusLongitude is { } focusLon)
+        {
+            _focusApplied = true;
+            var nearest = _atlas.Hotspots.MinBy(item => Math.Pow(item.Latitude - focusLat, 2) + Math.Pow(item.Longitude - focusLon, 2));
+            if (nearest is not null) await SelectHotspotAsync(nearest.Key);
+        }
     }
     private async Task SearchChangedAsync(object? value)
     {

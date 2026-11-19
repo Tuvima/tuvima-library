@@ -19,3 +19,5 @@
 
 .media-viewer__stage video { font-size:clamp(var(--tl-font-size-xs),1.15vw,var(--tl-font-size-lg)); }
 @media(min-width:851px) { .media-viewer--video .media-viewer__info { padding-top:calc(var(--playback-chrome-header-height,4.3rem) + 1rem); } }
+
+.media-viewer__stage{container-type:size}.media-viewer__overlay{position:absolute;left:50%;top:50%;width:min(100cqw,calc(100cqh*var(--media-ratio)));aspect-ratio:var(--media-ratio);transform:translate(-50%,-50%);pointer-events:none}

@@ -32,6 +32,9 @@ public static class ViewPeopleText
     public const string Unnamed = "Not named yet";
     public const string NameThisFace = "Name this face";
     public const string OpenInPlaces = "Open Places";
+    public const string OpenPeople = "Open People";
+    public const string ShowFaces = "Show people in this photo";
+    public const string HideFaces = "Hide people boxes";
 
     public const string SettingsTitle = "Face recognition";
     public const string RecognizeLabel = "Recognize people in my photos";
