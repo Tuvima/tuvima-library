@@ -243,6 +243,14 @@ public sealed class PlaybackCapabilitiesService
             {
                 var streamDecision = decision ?? new PlaybackDecision(PlaybackRungs.EncodePicture, conversionReason ?? "The player needs a prepared stream", false, []);
                 var maxHeight = profile.MaxHeight;
+                // A player that already failed on the picture encode for this kind of file gets a smaller picture next time (issue 1181).
+                if (streamDecision.Rung == PlaybackRungs.EncodePicture && negotiatedCapabilities is not null
+                    && LearnedPlaybackLimits.EncodeFailedBefore(negotiatedCapabilities.LearnedLimits, extension, probe))
+                {
+                    maxHeight = maxHeight is { } ownHeight
+                        ? Math.Min(ownHeight, LearnedPlaybackLimits.FallbackEncodeHeight)
+                        : LearnedPlaybackLimits.FallbackEncodeHeight;
+                }
                 if (networkCap?.MaxHeight is { } cappedHeight)
                 {
                     maxHeight = maxHeight is { } own ? Math.Min(own, cappedHeight) : cappedHeight;

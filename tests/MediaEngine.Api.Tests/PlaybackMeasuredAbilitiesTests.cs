@@ -132,6 +132,18 @@ public sealed class PlaybackMeasuredAbilitiesTests
     }
 
     [Fact]
+    public void AFailedPictureEncode_MakesTheNextStartOfThatKindOfFileUseASmallerPicture_AndOtherFailuresDoNot()
+    {
+        var encodeFailed = LearnedPlaybackLimits.Learn([], PlaybackRungs.EncodePicture, "hevc", "mkv", tenBit: false, DateTimeOffset.UtcNow);
+        var soundFailed = LearnedPlaybackLimits.Learn([], PlaybackRungs.ConvertSound, "hevc", "mkv", tenBit: false, DateTimeOffset.UtcNow);
+
+        Assert.True(LearnedPlaybackLimits.EncodeFailedBefore(encodeFailed, ".mkv", Probe("hevc")));
+        Assert.False(LearnedPlaybackLimits.EncodeFailedBefore(encodeFailed, ".mp4", Probe("hevc")));
+        Assert.False(LearnedPlaybackLimits.EncodeFailedBefore(soundFailed, ".mkv", Probe("hevc")));
+        Assert.False(LearnedPlaybackLimits.EncodeFailedBefore([], ".mkv", Probe("hevc")));
+    }
+
+    [Fact]
     public void ALimitOnOneKindOfFile_DoesNotChangeAnotherKind()
     {
         var limits = LearnedPlaybackLimits.Learn([], PlaybackRungs.Direct, "hevc", "mkv", tenBit: true, DateTimeOffset.UtcNow);

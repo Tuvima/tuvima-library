@@ -1610,8 +1610,11 @@
   <data name="PlaybackLyrics_EditLyrics" xml:space="preserve">
     <value>Edit lyrics</value>
   </data>
-  <data name="PlaybackLyrics_ThisOneIsWrong" xml:space="preserve">
-    <value>This one is wrong</value>
+  <data name="PlaybackLyrics_HideTheseLyrics" xml:space="preserve">
+    <value>Hide these lyrics for this song</value>
+  </data>
+  <data name="PlaybackLyrics_NotTheseLyrics" xml:space="preserve">
+    <value>Not these lyrics? Find different lyrics</value>
   </data>
   <data name="PlaybackLyrics_LyricLines" xml:space="preserve">
     <value>Lyric lines</value>
@@ -10714,6 +10717,9 @@
   </data>
   <data name="VideoPlaybackHost_SubtitleCanTBePrepared" xml:space="preserve">
     <value>This subtitle can't be shown right now. The video is playing as it was.</value>
+  </data>
+  <data name="VideoPlaybackHost_NoSubtitleInYourLanguage" xml:space="preserve">
+    <value>No subtitles in {0} for this video.</value>
   </data>
   <data name="AudioSubtitles_MoreLanguages" xml:space="preserve">
     <value>More languages</value>
