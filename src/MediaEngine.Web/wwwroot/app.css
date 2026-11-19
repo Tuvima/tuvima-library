@@ -5893,16 +5893,16 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 /* The folder picker on a phone (issue 1155): the drives are a row of chips across the top instead of a column on the left, so the folder list has the whole width,
    and the access choice and buttons stay pinned under the list. Global because the sidebar belongs to the shared browser frame, not to the picker. */
 @media (max-width: 840px) {
-    .server-folder-picker .app-browser__side { flex-direction: row; flex-wrap: nowrap; gap: var(--tl-space-2); max-height: none; overflow-x: auto; overflow-y: hidden; padding-bottom: var(--tl-space-1); }
-    .server-folder-picker .app-browser__side > * { display: contents; }
-    .server-folder-picker .app-browser__side hr, .server-folder-picker .app-browser__side h3 { display: none; }
-    .server-folder-picker .app-browser__side ul { display: flex; flex-direction: row; flex: none; gap: var(--tl-space-2); margin: 0; padding: 0; list-style: none; }
-    .server-folder-picker .app-browser-side-item { width: auto; min-height: var(--tl-tap-target-min); padding-inline: var(--tl-space-3); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); white-space: nowrap; }
-    .server-folder-picker .app-browser-side-item[aria-current="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
-    .server-folder-picker .app-browser-side-item__detail { display: none; }
-    .server-folder-picker__handling { flex-basis: 100%; }
-    .server-folder-picker__footer .app-action-bar { width: 100%; }
-    .server-folder-picker__footer .app-action-bar .app-button { flex: 1 1 0; min-height: var(--tl-tap-target-min); }
+    :root .server-folder-picker .app-browser__side { flex-direction: row; flex-wrap: nowrap; gap: var(--tl-space-2); max-height: none; overflow-x: auto; overflow-y: hidden; padding-bottom: var(--tl-space-1); }
+    :root .server-folder-picker .app-browser__side > * { display: contents; }
+    :root .server-folder-picker .app-browser__side hr, .server-folder-picker .app-browser__side h3 { display: none; }
+    :root .server-folder-picker .app-browser__side ul { display: flex; flex-direction: row; flex: none; gap: var(--tl-space-2); margin: 0; padding: 0; list-style: none; }
+    :root .server-folder-picker .app-browser-side-item { width: auto; min-height: var(--tl-tap-target-min); padding-inline: var(--tl-space-3); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); white-space: nowrap; }
+    :root .server-folder-picker .app-browser-side-item[aria-current="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+    :root .server-folder-picker .app-browser-side-item__detail { display: none; }
+    :root .server-folder-picker__handling { flex-basis: 100%; }
+    :root .server-folder-picker__footer .app-action-bar { width: 100%; }
+    :root .server-folder-picker__footer .app-action-bar .app-button { flex: 1 1 0; min-height: var(--tl-tap-target-min); }
 }
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
@@ -5913,9 +5913,13 @@ html[data-form-factor="phone"] .tl-detail-page {
     --cinematic-hero-phone-min-height: 0px;
     /* The same 40 px buttons as the phone Home hero (issue 1180). */
     --tl-hero-action-height: 40px;
-    --tl-control-height-lg: 40px;
     --tl-hero-action-label-size: 15px;
     --tl-hero-action-icon-size: 20px;
+}
+
+/* Only the hero's round buttons shrink to 40 px; other large controls on the page keep the shared tap-target size. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions {
+    --tl-control-height-lg: 40px;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__inner {

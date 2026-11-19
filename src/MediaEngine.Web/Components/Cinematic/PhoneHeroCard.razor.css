@@ -119,7 +119,7 @@
     justify-content: flex-end;
     gap: var(--tl-space-1, 0.25rem);
     box-sizing: border-box;
-    padding: var(--tl-space-3, 0.75rem) var(--tl-space-4, 1rem);
+    padding: var(--tl-space-3, 0.75rem) max(var(--tl-space-4, 1rem), var(--tl-safe-area-right, 0px)) var(--tl-space-3, 0.75rem) max(var(--tl-space-4, 1rem), var(--tl-safe-area-left, 0px));
     background: linear-gradient(to top, color-mix(in srgb, var(--tl-bg-root) 94%, transparent) 0%, color-mix(in srgb, var(--tl-bg-root) 78%, transparent) 42%, transparent 78%);
     pointer-events: none;
 }

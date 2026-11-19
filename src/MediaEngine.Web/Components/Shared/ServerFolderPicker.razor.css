@@ -110,3 +110,8 @@
 @media (max-width: 840px) {
     .server-folder-picker__name { max-width: none; }
 }
+
+/* On touch the "i" is a full tap target. */
+@media (hover: none), (pointer: coarse), (max-width: 1023px) {
+    .server-folder-picker__info { width: var(--tl-tap-target-min); height: var(--tl-tap-target-min); }
+}
