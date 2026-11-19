@@ -223,6 +223,11 @@ public sealed partial class PlaybackLyricsPresenter
         Choosing = true; Changed?.Invoke();
         var result = await api.MarkTextTrackWrongAsync(identity.AssetId, trackId, _reads.Token);
         await AfterChoiceAsync(identity, generation, result, "Could not mark those lyrics as wrong.");
+        // Hiding the lyrics must never leave a person with nothing: the list of other results opens straight away, searched by the song's own title and artist.
+        if (!_disposed && result is not null && Offers("find_lyrics"))
+        {
+            await OpenAlternativesAsync();
+        }
     }
 
     private async Task AfterChoiceAsync(PlaybackLyricsIdentity identity, long generation, TextTrackChoiceResponse? result, string failure)

@@ -230,10 +230,28 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
 
         await OpenFooterMenuAsync(cut);
 
-        Assert.Equal(["Find another", "Add a lyrics file", "About lyrics sources", "This one is wrong"], FooterMenuLabels(cut));
+        Assert.Equal(["Find another", "Add a lyrics file", "About lyrics sources", "Hide these lyrics for this song"], FooterMenuLabels(cut));
         Assert.Single(cut.FindAll(".playback-lyrics-menu__divider"));
         Assert.Equal("0", cut.Find("[data-lyrics-action='find-another']").GetAttribute("tabindex"));
         Assert.Equal("-1", cut.Find("[data-lyrics-action='about']").GetAttribute("tabindex"));
+    }
+
+    [Fact]
+    public async Task WhereLyricsShow_ThereIsAnObviousLinkToFindDifferentLyrics()
+    {
+        var cut = await OpenAsync(Api([Track(_track, "local", userOwned: true)], findLyrics: true));
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+
+        Assert.Equal("Not these lyrics? Find different lyrics", cut.Find("[data-lyrics-find-link]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task WithNoFindSourceThereIsNoFindDifferentLyricsLink()
+    {
+        var cut = await OpenAsync(Api([Track(_track, "local", userOwned: true)]));
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+
+        Assert.Empty(cut.FindAll("[data-lyrics-find-link]"));
     }
 
     [Fact]
@@ -478,7 +496,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
 
         var expected = formFactor is "desktop" or "tablet" or "phone" && administrator;
         Assert.Equal(expected, FooterMenuLabels(cut).Contains("Edit lyrics"));
-        Assert.Contains("This one is wrong", FooterMenuLabels(cut));
+        Assert.Contains("Hide these lyrics for this song", FooterMenuLabels(cut));
     }
 
     // ---- Focus never falls to the page ----

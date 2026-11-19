@@ -59,6 +59,8 @@ public sealed partial class TextTrackEnrichmentWorker
         string? query = null)
     {
         query = NormalizeSearchText(query);
+        // One fixed line per search, with no typed text in it, so the log shows whether the words reached the Engine.
+        _logger.LogInformation("Find another {Kind} for asset {AssetId}: searching by typed words: {ByWords}", kind, assetId, query is not null);
         var session = await OpenSessionAsync(assetId, kind, requester, language, query, ct).ConfigureAwait(false);
         if (session.Failure is not null)
         {
@@ -421,7 +423,7 @@ public sealed partial class TextTrackEnrichmentWorker
             lookup = lookup with { Language = language.Trim() };
         }
 
-        return session with { Lookup = lookup with { SearchText = query } };
+        return session with { Lookup = lookup with { SearchText = query, Interactive = true } };
     }
 
     /// <summary>The words a person typed to search by, trimmed; <c>null</c> when there are none.</summary>

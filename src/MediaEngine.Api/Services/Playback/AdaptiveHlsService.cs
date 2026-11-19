@@ -72,7 +72,9 @@ public sealed class AdaptiveHlsService
         plan ??= HlsStartPlan.EncodeDefault;
         var profileKey = BuildProfileKey(settings.AdaptiveHls, plan);
         var existing = await _packages.FindAsync(assetId, sourceHash, profileKey, ct).ConfigureAwait(false);
-        if (existing is { Status: "failed" })
+        // A failed package is reported for a minute (so a player that keeps asking is not made to wait), then the next Play tries again:
+        // a failure that came from a stopped graphics card, a busy machine or a moved file must not make the title unplayable for good (issue 1166).
+        if (existing is { Status: "failed" } && !FailureIsOldEnoughToRetry(existing))
         {
             return new AdaptiveHlsPreparation(existing.Id, "failed", existing.LastError, RunFor(existing.Id, existing.RootPath, settings.AdaptiveHls.SegmentSeconds));
         }
@@ -131,6 +133,12 @@ public sealed class AdaptiveHlsService
             refreshed?.LastError,
             RunFor(package.Id, package.RootPath, settings.AdaptiveHls.SegmentSeconds));
     }
+
+    private static readonly TimeSpan FailureRetryAfter = TimeSpan.FromMinutes(1);
+
+    private static bool FailureIsOldEnoughToRetry(AdaptiveHlsPackageRecord failed) =>
+        DateTimeOffset.TryParse(failed.CompletedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var at)
+        && DateTimeOffset.UtcNow - at >= FailureRetryAfter;
 
     /// <summary>What the packager is doing for a package right now, with how much is ready; null when it was never started here.</summary>
     private AdaptiveHlsRunInfo? RunFor(Guid packageId, string root, int segmentSeconds)

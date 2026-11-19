@@ -329,10 +329,17 @@ public sealed partial class TextTrackProviderAdapter
                 score += 1;
             }
 
+            // The Library picks lyrics by itself only when the artist is the song's own as well as the title (issue 1187): another artist's song of the
+            // same name is not offered as the answer. A person who wants it finds it by hand in Find lyrics.
             if (!string.IsNullOrWhiteSpace(lookup.Artist) && TryPath(entry, match.ArtistPath, out var artist)
                 && artist.ValueKind == JsonValueKind.String
-                && matcher.Matches(artist.GetString(), lookup.Artist))
+                && !string.IsNullOrWhiteSpace(artist.GetString()))
             {
+                if (!matcher.Matches(artist.GetString(), lookup.Artist))
+                {
+                    continue;
+                }
+
                 score += 1;
             }
 

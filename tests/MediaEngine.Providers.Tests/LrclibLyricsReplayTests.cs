@@ -88,11 +88,19 @@ public sealed class LrclibLyricsReplayTests
     [Fact]
     public async Task ADifferentSongWithTheSameTitleButAnotherLength_IsRejected_AndLoggedAsLengthTooDifferent()
     {
-        var (provider, log) = Build(SearchAnswers(List(Entry("Song", "Someone Else", 165))));
+        var (provider, log) = Build(SearchAnswers(List(Entry("Song", "The Beatles", 165))));
 
         Assert.Empty(await provider.SearchAsync(Song("Song")));
 
         Assert.Contains("LengthTooDifferent", Assert.Single(log.Information), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASongOfTheSameTitleByAnotherArtist_IsNeverPickedByItself()
+    {
+        var (provider, _) = Build(SearchAnswers(List(Entry("Silhouettes", "Another Band", 125))));
+
+        Assert.Empty(await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul")));
     }
 
     [Fact]

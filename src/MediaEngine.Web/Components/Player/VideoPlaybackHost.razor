@@ -764,6 +764,7 @@
     }
     private async Task ApplyProfileAudioDefaultAsync()
     {
+        NoteMissingPreferredSubtitle();
         // Once per playback, and never over a track the viewer already picked in the Audio sheet.
         if (_profileSubtitles is null || _selectedAudioTrackIndex is not null || !CanSwitchAudio
             || _profileAudioAppliedFor == VideoInstanceKey) return;
@@ -1504,6 +1505,7 @@
         if (burn is null && _burnedSubtitleStream is null)
         {
             await SelectCaptionAsync(request.CaptionKey);
+            await RememberSubtitleChoiceAsync(request.CaptionKey);
             return;
         }
         if (_burningSubtitle) return;
@@ -1523,6 +1525,44 @@
         }
         await InvokeAsync(StateHasChanged);
     }
+
+    // The person's own choice is kept on the profile (on or off, and the language), so the next video that has a matching track starts the same way
+    // (issue 1170). It goes through the profile's existing subtitle defaults: Off is "Never"; a track is "Always" in that track's language.
+    private async Task RememberSubtitleChoiceAsync(string? captionKey)
+    {
+        string? mode;
+        string? language = null;
+        if (string.IsNullOrEmpty(captionKey) || captionKey == "off")
+        {
+            mode = PlaybackPreferenceValues.Never;
+        }
+        else
+        {
+            language = captionKey.StartsWith("managed:", StringComparison.Ordinal)
+                ? ManagedSubtitleTracks.FirstOrDefault(track => $"managed:{track.Id:D}" == captionKey)?.Language
+                : SubtitleTracks.FirstOrDefault(track => $"manifest:{track.Index}" == captionKey)?.Language;
+            if (string.IsNullOrWhiteSpace(language)) return;
+            mode = PlaybackPreferenceValues.Always;
+        }
+        var languageName = language is null ? null : DisplayFormat.FormatLanguageName(language) ?? language;
+        await ChangeSubtitleStyleAsync(settings =>
+        {
+            settings.ForcedSubtitlesMode = mode;
+            if (languageName is not null) settings.DefaultSubtitleLanguage = languageName;
+        });
+    }
+
+    // With subtitles remembered as on, a video that has none in that language says so (and shows none), never the previous video's words.
+    private void NoteMissingPreferredSubtitle()
+    {
+        if (_profileSubtitles is not { } look || _trackNotice is not null
+            || !string.Equals(look.ForcedSubtitlesMode, PlaybackPreferenceValues.Always, StringComparison.OrdinalIgnoreCase)
+            || TrackDefaults.Captions != VideoCaptionDecision.Unchanged
+            || _subtitleNoticeFor == VideoInstanceKey) return;
+        _subtitleNoticeFor = VideoInstanceKey;
+        _trackNotice = L["VideoPlaybackHost_NoSubtitleInYourLanguage", look.DefaultSubtitleLanguage].Value;
+    }
+    private string? _subtitleNoticeFor;
 
     private async Task SelectAudioTrackAsync(int index, double? resumeSeconds = null)
     {
