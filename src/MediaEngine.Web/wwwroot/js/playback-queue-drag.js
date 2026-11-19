@@ -1,5 +1,20 @@
+import { wireToDotnet } from './touch-reorder.js';
+
+// A queue row is reordered by its handle: by mouse with the browser's own drag, by finger (listen-playlists WP5, issue 1201) with pointer events on
+// the same handle (touch-reorder.js), and by keyboard with Alt+Arrow or the row menu. The finger's drop reports the row it landed on to .NET, which
+// works the place out and sends the same guarded reorder command the mouse drop sends. Rows carry data-queue-index, their place among the
+// upcoming songs.
+export const QUEUE_TOUCH = Object.freeze({
+    handle: '[data-playback-queue-drag]',
+    row: '[data-queue-index]',
+    keyAttribute: 'data-queue-index',
+    startMethod: 'TouchDragStarted',
+    dropMethod: 'TouchDropped',
+    cancelMethod: 'TouchDragCancelled',
+});
+
 const roots = new WeakMap();
-export function attach(root) {
+export function attach(root, dotnetRef) {
     if (!root || roots.has(root)) return;
     const start = event => {
         const handle = event.target.closest?.('[data-playback-queue-drag]');
@@ -9,10 +24,16 @@ export function attach(root) {
         event.dataTransfer.setData('text/plain', handle.dataset.playbackQueueDrag);
         event.dataTransfer.effectAllowed = 'move';
     };
-    root.addEventListener('dragstart', start); roots.set(root,start);
+    root.addEventListener('dragstart', start);
+    const stopTouch = dotnetRef ? wireToDotnet(root, dotnetRef, QUEUE_TOUCH) : () => { };
+    roots.set(root, { start, stopTouch });
 }
 export function detach(root) {
-    const start=roots.get(root); if (start) root.removeEventListener('dragstart',start);
+    const wired = roots.get(root);
+    if (wired) {
+        root.removeEventListener('dragstart', wired.start);
+        wired.stopTouch();
+    }
     roots.delete(root);
 }
 

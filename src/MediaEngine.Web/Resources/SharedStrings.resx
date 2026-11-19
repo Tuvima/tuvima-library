@@ -15266,4 +15266,16 @@
   <data name="PlaylistTiles_Back" xml:space="preserve">
     <value>Playlists</value>
   </data>
+  <data name="Common_MoveToTop" xml:space="preserve">
+    <value>Move to top</value>
+  </data>
+  <data name="Common_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="QueuePanel_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="PlaylistTiles_Moved" xml:space="preserve">
+    <value>Moved {0} to place {1} of {2}</value>
+  </data>
 </root>

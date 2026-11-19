@@ -73,7 +73,9 @@
                            OnEditDetails="EditPlaylistDetailsAsync"
                            OnDuplicate="DuplicatePlaylistAsync"
                            OnTogglePin="TogglePlaylistPinAsync"
-                           OnDelete="DeletePlaylistWithAskAsync" />
+                           OnDelete="DeletePlaylistWithAskAsync"
+                           OnMoveUp="MovePlaylistUpAsync"
+                           OnMoveDown="MovePlaylistDownAsync" />
     </CustomTabContent>
     <PlaylistMenu Context="railMenu">
         <PlaylistActionsMenu Playlist="@railMenu.Playlist"
@@ -467,7 +469,29 @@
         var moved = reorderEvent.BeforeContainerId is { } targetId
             ? ListenPlaylistOrderState.TryMoveBefore(orderedIds, reorderEvent.Management.ContainerId, targetId, out updatedOrder!)
             : ListenPlaylistOrderState.TryMoveByOffset(orderedIds, reorderEvent.Management.ContainerId, reorderEvent.Direction, out updatedOrder!);
-        if (!moved || _activeProfile is null)
+        return moved && await SavePlaylistOrderAsync(updatedOrder);
+    }
+
+    // The tile's "..." menu (the Playlists page in Manual order): one place earlier or later in the order this profile keeps (spec listen-playlists D3).
+    private Task MovePlaylistUpAsync(ManagedCollectionViewModel playlist) => MovePlaylistTileAsync(playlist, -1);
+
+    private Task MovePlaylistDownAsync(ManagedCollectionViewModel playlist) => MovePlaylistTileAsync(playlist, 1);
+
+    private async Task MovePlaylistTileAsync(ManagedCollectionViewModel playlist, int direction)
+    {
+        _notice = null;
+        var orderedIds = _playlists.Select(item => item.Id).ToList();
+        if (ListenPlaylistOrderState.CanMoveWithinGroup(_playlists, playlist.Id, direction)
+            && ListenPlaylistOrderState.TryMoveByOffset(orderedIds, playlist.Id, direction, out var updatedOrder))
+        {
+            await SavePlaylistOrderAsync(updatedOrder);
+        }
+    }
+
+    // Writes the order onto the profile and draws the playlists in it; a refusal says so and keeps the order as it was.
+    private async Task<bool> SavePlaylistOrderAsync(List<Guid> updatedOrder)
+    {
+        if (_activeProfile is null)
             return false;
         var updatedConfig = ListenPlaylistOrderState.Write(_playlistNavigationConfig, updatedOrder);
         if (!await Orchestrator.UpdateProfileAsync(

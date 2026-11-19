@@ -23,7 +23,7 @@ using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Components.Pages;
 
-public partial class ListenPage : IDisposable
+public partial class ListenPage : IDisposable, IAsyncDisposable
 {
     private const string MusicHomeRoute = ListenNavigation.MusicHomeRoute;
     private const string AlbumsRoute = ListenNavigation.AlbumsRoute;
@@ -152,6 +152,7 @@ public partial class ListenPage : IDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await WirePlaylistTouchReorderAsync();
         if (firstRender && !_uiStateLoaded)
         {
             await RestoreUiStateAsync();

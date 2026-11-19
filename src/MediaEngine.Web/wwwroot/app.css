@@ -3196,6 +3196,15 @@ button.app-menu-item {
     border-color: var(--tl-menu-divider) !important;
 }
 
+/* The grips a finger drags a playlist row by in the Listen sidebar and the section rail's reorder mode (touch-reorder.js): only the grip stops the
+   page scrolling under a finger, and a long press on it selects nothing. The queue handle and the song table's grip say the same in their own sheets. */
+.listen-rail__drag,
+.media-section-shell__drag-handle {
+    touch-action: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
 /* Shared 44px tap-target contract. Touch devices and any window narrower than the desktop form factor
    (a mouse-driven narrow window complies too). The 48px dock/button token above is unchanged. Text links
    inside running prose are deliberately left alone. */
@@ -3218,6 +3227,8 @@ button.app-menu-item {
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
     :root:root .listen-rail__more,
+    :root:root .listen-rail__drag,
+    :root:root .media-section-shell__drag-handle,
     :root:root .listen-rail__item,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
@@ -3251,6 +3262,13 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
         align-items: center;
         justify-content: center;
+    }
+
+    /* The queue's drag handle keeps its 24 px drawing in its column; its touchable area grows to the 44 px target around it. */
+    :root:root .qp__handle::after {
+        content: "";
+        position: absolute;
+        inset: calc((var(--tl-tap-target-min) - 100%) / -2);
     }
 
     /* The Settings banner's X (32px on desktop). */

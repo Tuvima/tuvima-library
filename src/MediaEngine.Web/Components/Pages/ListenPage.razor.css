@@ -136,8 +136,25 @@
     gap: 4px;
 }
 
-.listen-rail__playlist-row.is-dragging {
+.listen-rail__playlist-row.is-dragging,
+.listen-rail__playlist-row.is-touch-dragging {
     opacity: 0.55;
+}
+
+/* A finger's drag by the grip (touch-reorder.js adds these): a line on the top or bottom edge shows where the playlist would land. */
+.listen-rail__playlist-row.is-touch-drop-before {
+    box-shadow: inset 0 2px 0 var(--tl-accent-primary);
+}
+
+.listen-rail__playlist-row.is-touch-drop-after {
+    box-shadow: inset 0 -2px 0 var(--tl-accent-primary);
+}
+
+/* On a touch device the grip is a 44 px target (its size is set below, after the grip's own rule). */
+@media (hover: none), (pointer: coarse) {
+    .listen-rail__playlist-row {
+        grid-template-columns: var(--tl-tap-target-min, 44px) minmax(0, 1fr) var(--tl-tap-target-min, 44px);
+    }
 }
 
 .listen-rail__drag,
@@ -270,6 +287,9 @@
     background: var(--tl-border-default);
     color: var(--tl-text-primary);
 }
+
+/* The grip's own look (only the grip stops the page scrolling under a finger, and on touch it is a 44 px target) is in app.css with the
+   other grips a finger drags. */
 
 ::deep .listen-rail__more {
     opacity: 0;

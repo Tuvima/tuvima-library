@@ -40,7 +40,11 @@
                                  OnEditDetails="OnEditDetails"
                                  OnDuplicate="OnDuplicate"
                                  OnTogglePin="OnTogglePin"
-                                 OnDelete="OnDelete" />
+                                 OnDelete="OnDelete"
+                                 OnMoveUp="OnMoveUp"
+                                 OnMoveDown="OnMoveDown"
+                                 CanMoveUp="CanMoveUp"
+                                 CanMoveDown="CanMoveDown" />
         </div>
     }
 </article>
@@ -65,6 +69,12 @@
     [Parameter] public EventCallback<ManagedCollectionViewModel> OnDuplicate { get; set; }
     [Parameter] public EventCallback<ManagedCollectionViewModel> OnTogglePin { get; set; }
     [Parameter] public EventCallback<ManagedCollectionViewModel> OnDelete { get; set; }
+
+    /// <summary>Move up and Move down in the tile's "..." menu (Manual order only; the page passes them then).</summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveUp { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveDown { get; set; }
+    [Parameter] public bool CanMoveUp { get; set; } = true;
+    [Parameter] public bool CanMoveDown { get; set; } = true;
 
     private bool AcceptsDrops => Playlist is not null && PlaylistTileRules.AcceptsSongDrops(Playlist);
 

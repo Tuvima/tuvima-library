@@ -53,7 +53,7 @@ else
                                          IsRouteActive="IsRouteActive"
                                          OnNavigate="NavigateRailLink" />
 
-                <section class="listen-rail__section" @onclick:stopPropagation="true">
+                <section class="listen-rail__section" @onclick:stopPropagation="true" @ref="_playlistRailRoot">
                     <div class="listen-rail__section-heading" data-song-drop="new-playlist" @ondragover:preventDefault="true" @ondrop="DropSongsOnNewPlaylist">
                         <AppNativeButton Type="button" Class="listen-rail__section-toggle" aria-expanded="@_playlistsExpanded" OnClick="@(() => _playlistsExpanded = !_playlistsExpanded)">
                             <span>@L["Glossary_Playlists"]</span>
@@ -95,9 +95,11 @@ else
                         {
                             var playlistRoute = $"/listen/music/playlists/{playlist.Id}";
                             <div class="listen-rail__playlist-row @(playlist.Id == _draggingPlaylistId ? "is-dragging" : null)"
+                                 data-playlist-reorder-row="@playlist.Id"
                                  @ondragover:preventDefault="true"
                                  @ondrop="@(() => DropPlaylistReorderAsync(playlist.Id))">
-                                <AppNativeButton Type="button" Class="listen-rail__drag" draggable="true" AriaLabel="@($"Drag to reorder {playlist.Name}")" @ondragstart="@(() => BeginPlaylistReorder(playlist.Id))" @ondragend="EndPlaylistReorder">
+                                @* A mouse drags by this grip with the browser's drag; a finger drags it by pointer events (playlist-reorder.js). *@
+                                <AppNativeButton Type="button" Class="listen-rail__drag" draggable="true" data-playlist-reorder-handle="true" AriaLabel="@($"Drag to reorder {playlist.Name}")" @ondragstart="@(() => BeginPlaylistReorder(playlist.Id))" @ondragend="EndPlaylistReorder">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="tl-u-font-size-18px" />
                                 </AppNativeButton>
                                 <a href="@playlistRoute" target="_top" data-enhance-nav="false" class='@($"listen-rail__item is-child {(IsRouteActive(playlistRoute) ? "is-active" : null)}")' aria-current="@(IsRouteActive(playlistRoute) ? "page" : null)" @onclick="@(() => NavigateRailLink(playlistRoute))" @onclick:preventDefault="true" data-song-drop="@(AcceptsSongDrops(playlist) ? "playlist" : null)" @ondragover:preventDefault="@AcceptsSongDrops(playlist)" @ondrop="@(() => DropSongsOnPlaylistAsync(playlist))">
@@ -122,6 +124,10 @@ else
                                                      OnDuplicate="DuplicatePlaylistAsync"
                                                      OnTogglePin="TogglePlaylistPinAsync"
                                                      OnDelete="BeginPlaylistDeleteAsync"
+                                                     OnMoveUp="MovePlaylistUpAsync"
+                                                     OnMoveDown="MovePlaylistDownAsync"
+                                                     CanMoveUp="@CanMovePlaylist(playlist, -1)"
+                                                     CanMoveDown="@CanMovePlaylist(playlist, 1)"
                                                      Class="listen-rail__more-menu" />
                             </div>
                         }

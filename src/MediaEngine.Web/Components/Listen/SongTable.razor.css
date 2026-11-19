@@ -146,6 +146,37 @@
     opacity: 0.45;
 }
 
+/* A finger's drag by the grip (touch-reorder.js adds these classes to the rows): the row it holds dims and a line marks where it would land. */
+.song-table__row.is-touch-dragging,
+.song-table__prow.is-touch-dragging {
+    opacity: 0.45;
+}
+
+.song-table__row.is-touch-drop-before,
+.song-table__prow.is-touch-drop-before {
+    box-shadow: inset 0 3px 0 var(--tl-accent-primary);
+}
+
+.song-table__row.is-touch-drop-after,
+.song-table__prow.is-touch-drop-after {
+    box-shadow: inset 0 -3px 0 var(--tl-accent-primary);
+}
+
+/* The grip: a 44 px target. Only the grip stops the page scrolling under a finger, so the rest of the row still scrolls the list. */
+.song-table__touch-grip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: var(--tl-tap-target-min);
+    height: var(--tl-tap-target-min);
+    color: var(--tl-text-muted);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
 .song-table__row--skeleton {
     cursor: default;
 }

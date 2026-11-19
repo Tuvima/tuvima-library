@@ -60,6 +60,31 @@ public static class ListenPlaylistOrderState
             .ThenBy(playlist => playlist.Name, StringComparer.OrdinalIgnoreCase)];
     }
 
+    /// <summary>
+    /// Whether Move up (<paramref name="direction"/> -1) or Move down (1) does anything visible for a playlist: there is a neighbour that way and
+    /// it is in the same group (pinned lists always come first, so swapping a pinned list with an unpinned one would change nothing on screen).
+    /// <paramref name="ordered"/> is the list as drawn.
+    /// </summary>
+    public static bool CanMoveWithinGroup(IReadOnlyList<ManagedCollectionViewModel> ordered, Guid playlistId, int direction)
+    {
+        ArgumentNullException.ThrowIfNull(ordered);
+        var index = -1;
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            if (ordered[i].Id == playlistId)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        var neighbour = index + direction;
+        return index >= 0
+            && neighbour >= 0
+            && neighbour < ordered.Count
+            && (ordered[neighbour].IsPinned == true) == (ordered[index].IsPinned == true);
+    }
+
     public static bool TryMoveByOffset(
         IReadOnlyList<Guid> orderedIds,
         Guid playlistId,
@@ -111,6 +136,33 @@ public static class ListenPlaylistOrderState
 
         updatedOrder.Insert(targetIndex, playlistId);
         return true;
+    }
+
+    /// <summary>
+    /// Puts <paramref name="playlistId"/> right after <paramref name="targetPlaylistId"/>: what a finger's drop on the lower half of a playlist
+    /// row means (the finger reports before or after; the mouse's drag only ever drops before).
+    /// </summary>
+    public static bool TryMoveAfter(
+        IReadOnlyList<Guid> orderedIds,
+        Guid playlistId,
+        Guid targetPlaylistId,
+        out List<Guid> updatedOrder)
+    {
+        updatedOrder = orderedIds.ToList();
+        if (playlistId == targetPlaylistId)
+        {
+            return false;
+        }
+
+        var sourceIndex = updatedOrder.IndexOf(playlistId);
+        if (sourceIndex < 0 || !updatedOrder.Contains(targetPlaylistId))
+        {
+            return false;
+        }
+
+        updatedOrder.RemoveAt(sourceIndex);
+        updatedOrder.Insert(updatedOrder.IndexOf(targetPlaylistId) + 1, playlistId);
+        return updatedOrder.SequenceEqual(orderedIds) is false;
     }
 
     private static JsonObject Parse(string? navigationConfig)

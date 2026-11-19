@@ -2,6 +2,7 @@ using System.Globalization;
 using Bunit;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -322,6 +323,86 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
         Assert.True(_moves[0].Move.ToBottom);
         Assert.False(_moves[0].Move.ToTop);
         Assert.Null(_moves[0].Move.Position);
+        Assert.Empty(_appliedOrders);
+    }
+
+    // A row's "..." menu in Reorder mode: Move to top and Move to bottom stage the song at the first or last place; Save order then sends one move
+    // (to_top or to_bottom), which holds at any size (spec listen-playlists WP5).
+    private static async Task ChooseRowMenuItemAsync(IRenderedComponent<ListenPage> page, string title, string label)
+    {
+        var row = page.FindAll(".song-table__row").Single(candidate => candidate.QuerySelector(".song-table__title")!.TextContent.Trim() == title);
+        await row.QuerySelector(".song-table__cell--actions button[aria-haspopup='menu']")!.ClickAsync(new());
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
+        await page.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == label).ClickAsync(new());
+    }
+
+    [Fact]
+    public async Task MoveToTopInASongsMenuThenSaveOrderSendsToTop()
+    {
+        SeedSongs(["Alpha", "Bravo", "Charlie"]);
+        _playlist = Playlist(itemCount: 3, seconds: null);
+        var charlie = _items[2].Id;
+        var page = await RenderPageAsync();
+        page.FindAll(".listen-detail button").Single(button => button.TextContent.Contains("Reorder", StringComparison.Ordinal)).Click();
+        page.WaitForElement(".song-table__end-zone");
+
+        await ChooseRowMenuItemAsync(page, "Charlie", "Move to top");
+        page.WaitForAssertion(() => Assert.Equal(["Charlie", "Alpha", "Bravo"], Titles(page)));
+        Assert.Empty(_moves);
+        page.WaitForAssertion(() => Assert.False(page.Find("[data-reorder-save]").HasAttribute("disabled")));
+        page.Find("[data-reorder-save]").Click();
+
+        page.WaitForAssertion(() => Assert.Single(_moves));
+        Assert.Equal(charlie, _moves[0].ItemId);
+        Assert.True(_moves[0].Move.ToTop);
+        Assert.False(_moves[0].Move.ToBottom);
+        Assert.Null(_moves[0].Move.Position);
+        Assert.Empty(_appliedOrders);
+    }
+
+    [Fact]
+    public async Task MoveToBottomInASongsMenuThenSaveOrderSendsToBottom()
+    {
+        SeedSongs(["Alpha", "Bravo", "Charlie"]);
+        _playlist = Playlist(itemCount: 3, seconds: null);
+        var alpha = _items[0].Id;
+        var page = await RenderPageAsync();
+        page.FindAll(".listen-detail button").Single(button => button.TextContent.Contains("Reorder", StringComparison.Ordinal)).Click();
+        page.WaitForElement(".song-table__end-zone");
+
+        await ChooseRowMenuItemAsync(page, "Alpha", "Move to bottom");
+        page.WaitForAssertion(() => Assert.Equal(["Bravo", "Charlie", "Alpha"], Titles(page)));
+        page.WaitForAssertion(() => Assert.False(page.Find("[data-reorder-save]").HasAttribute("disabled")));
+        page.Find("[data-reorder-save]").Click();
+
+        page.WaitForAssertion(() => Assert.Single(_moves));
+        Assert.Equal(alpha, _moves[0].ItemId);
+        Assert.True(_moves[0].Move.ToBottom);
+        Assert.False(_moves[0].Move.ToTop);
+        Assert.Empty(_appliedOrders);
+    }
+
+    [Fact]
+    public async Task MoveToTopOnAPlaylistOfMoreThanAThousandSongsStillSendsOneToTopMove()
+    {
+        const int count = 1100;
+        SeedSongs(Enumerable.Range(1, count).Select(number => $"Song {number:0000}"));
+        _playlist = Playlist(itemCount: count, seconds: count * 200d);
+        var page = await RenderPageAsync();
+        page.FindAll(".listen-detail button").Single(button => button.TextContent.Contains("Reorder", StringComparison.Ordinal)).Click();
+        page.WaitForElement(".song-table__end-zone");
+        var table = page.FindComponent<SongTable>();
+        var lastRow = table.Instance.Rows[^1];
+
+        // The last of the 1,100 songs lives in the virtualized list, so the move is asked of the table the way its row menu asks it.
+        await page.InvokeAsync(() => table.Instance.TouchReorder(
+            lastRow.PlaylistItemId!.Value.ToString("D"), table.Instance.Rows[0].PlaylistItemId!.Value.ToString("D"), after: false));
+        page.WaitForAssertion(() => Assert.False(page.Find("[data-reorder-save]").HasAttribute("disabled")));
+        page.Find("[data-reorder-save]").Click();
+
+        page.WaitForAssertion(() => Assert.Single(_moves));
+        Assert.Equal(_items[^1].Id, _moves[0].ItemId);
+        Assert.True(_moves[0].Move.ToTop);
         Assert.Empty(_appliedOrders);
     }
 

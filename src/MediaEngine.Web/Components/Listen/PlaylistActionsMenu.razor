@@ -43,6 +43,22 @@
     /// </summary>
     [Parameter] public EventCallback<ManagedCollectionViewModel> OnReorder { get; set; }
 
+    /// <summary>
+    /// Move up (optional, spec listen-playlists WP5): the places that keep their own order for the profile (the sidebar and the Playlists page in
+    /// Manual order) pass this and <see cref="OnMoveDown"/>, and get Move up and Move down after Pin to top. This is the way to reorder playlists
+    /// without dragging, by keyboard or by touch.
+    /// </summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveUp { get; set; }
+
+    /// <summary>Move down (optional); see <see cref="OnMoveUp"/>.</summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveDown { get; set; }
+
+    /// <summary>False when Move up would change nothing (the first playlist, or the first after the pinned ones); the row is then greyed.</summary>
+    [Parameter] public bool CanMoveUp { get; set; } = true;
+
+    /// <summary>False when Move down would change nothing (the last playlist, or the last pinned one); the row is then greyed.</summary>
+    [Parameter] public bool CanMoveDown { get; set; } = true;
+
     /// <summary>Extra class for the menu button, so each place can size and place it.</summary>
     [Parameter] public string? Class { get; set; }
 
@@ -53,10 +69,26 @@
     private IEnumerable<AppRowMenuItem> WithReorder(IEnumerable<AppRowMenuItem> items)
     {
         var all = items.ToList();
-        if (all.Count > 0 && OnReorder.HasDelegate)
+        if (all.Count == 0)
         {
-            // After the last plain action, before Delete (which is always last).
-            all.Insert(Math.Max(0, all.Count - 1), new AppRowMenuItem { Label = L["AppReorderBar_MenuReorder"].Value, OnClick = Call(OnReorder) });
+            return all;
+        }
+
+        // After the last plain action, before Delete (which is always last).
+        var at = Math.Max(0, all.Count - 1);
+        if (OnMoveUp.HasDelegate)
+        {
+            all.Insert(at++, new AppRowMenuItem { Label = L["Common_MoveUp"].Value, Disabled = !CanMoveUp, OnClick = Call(OnMoveUp) });
+        }
+
+        if (OnMoveDown.HasDelegate)
+        {
+            all.Insert(at++, new AppRowMenuItem { Label = L["Common_MoveDown"].Value, Disabled = !CanMoveDown, OnClick = Call(OnMoveDown) });
+        }
+
+        if (OnReorder.HasDelegate)
+        {
+            all.Insert(at, new AppRowMenuItem { Label = L["AppReorderBar_MenuReorder"].Value, OnClick = Call(OnReorder) });
         }
 
         return all;

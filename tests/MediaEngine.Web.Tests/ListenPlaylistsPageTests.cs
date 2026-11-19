@@ -33,6 +33,7 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
 
     private readonly List<(Guid Playlist, Guid Work)> _added = [];
     private List<ManagedCollectionViewModel> _collections = [];
+    private readonly List<string?> _savedNavigationConfigs = [];
 
     public ListenPlaylistsPageTests()
     {
@@ -52,6 +53,11 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
                 new(ActiveId, "Test User", "#C9922E", "Administrator", DateTimeOffset.UtcNow),
             }));
             stub.SetHandler(nameof(IEngineApiClient.GetManagedCollectionsAsync), _ => Task.FromResult(_collections));
+            stub.SetHandler(nameof(IEngineApiClient.UpdateProfileAsync), args =>
+            {
+                _savedNavigationConfigs.Add((string?)args![3]);
+                return Task.FromResult(true);
+            });
             stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), args =>
                 PlaylistAddSpy.Answer(args, [], (playlist, work) => _added.Add((playlist, work))));
         });
@@ -451,6 +457,193 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
         var written = ListenPlaylistOrderState.Write(null, [Jazz, RoadTrip]);
 
         Assert.Equal([Jazz, RoadTrip], ListenPlaylistOrderState.Read(written));
+    }
+
+    // -- Move up and Move down, and the finger's drag, for the playlists themselves (spec listen-playlists WP5, D3) ---------
+
+    private static async Task OpenTileMenuAsync(IRenderedComponent<PlaylistTilesView> page, string playlistName)
+    {
+        var tile = page.FindAll("[data-playlist-tile]").Single(candidate => candidate.QuerySelector(".playlist-tile__name")!.TextContent.Trim() == playlistName);
+        await tile.QuerySelector(".app-row-menu__trigger")!.ClickAsync(new());
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
+    }
+
+    private static List<string> MenuWords(IRenderedComponent<PlaylistTilesView> page) =>
+        [.. page.FindAll("button.app-menu-item").Select(item => item.TextContent.Trim())];
+
+    [Fact]
+    public async Task APlaylistTilesMenuHasMoveUpAndMoveDownThatHandTheTileToThePage()
+    {
+        await UseFormFactorAsync("desktop");
+        var up = new List<Guid>();
+        var down = new List<Guid>();
+        Render<AppPopoverHost>();
+        var page = Render<PlaylistTilesView>(parameters => parameters
+            .Add(view => view.Playlists, [Playlist(RoadTrip, "Road trip"), Playlist(Focus, "Focus"), Playlist(Jazz, "Sunday jazz")])
+            .Add(view => view.OnMoveUp, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(playlist => up.Add(playlist.Id))))
+            .Add(view => view.OnMoveDown, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(playlist => down.Add(playlist.Id)))));
+
+        await OpenTileMenuAsync(page, "Focus");
+        Assert.Contains("Move up", MenuWords(page));
+        Assert.Contains("Move down", MenuWords(page));
+        await page.FindAll("button.app-menu-item").Single(item => item.TextContent.Trim() == "Move down").ClickAsync(new());
+
+        page.WaitForAssertion(() => Assert.Equal([Focus], down));
+        Assert.Empty(up);
+        Assert.Equal("Moved Focus to place 3 of 3", page.Find("[data-playlist-tiles-announce]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task TheFirstTileCannotMoveUpAndTheLastCannotMoveDown()
+    {
+        await UseFormFactorAsync("desktop");
+        Render<AppPopoverHost>();
+        var page = Render<PlaylistTilesView>(parameters => parameters
+            .Add(view => view.Playlists, [Playlist(RoadTrip, "Road trip"), Playlist(Focus, "Focus")])
+            .Add(view => view.OnMoveUp, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(_ => { })))
+            .Add(view => view.OnMoveDown, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(_ => { }))));
+
+        await OpenTileMenuAsync(page, "Road trip");
+
+        Assert.True(page.FindAll("button.app-menu-item").Single(item => item.TextContent.Trim() == "Move up").HasAttribute("disabled"));
+        Assert.False(page.FindAll("button.app-menu-item").Single(item => item.TextContent.Trim() == "Move down").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task APinnedPlaylistAndAnUnpinnedOneNeverSwapPlacesBecausePinnedAlwaysComeFirst()
+    {
+        await UseFormFactorAsync("desktop");
+        Render<AppPopoverHost>();
+        var page = Render<PlaylistTilesView>(parameters => parameters
+            .Add(view => view.Playlists, [Playlist(Jazz, "Sunday jazz", pinned: true), Playlist(RoadTrip, "Road trip")])
+            .Add(view => view.OnMoveUp, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(_ => { })))
+            .Add(view => view.OnMoveDown, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(_ => { }))));
+
+        await OpenTileMenuAsync(page, "Sunday jazz");
+
+        Assert.True(page.FindAll("button.app-menu-item").Single(item => item.TextContent.Trim() == "Move down").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task TheTilesMenuHasNoMoveRowsInANameOrNewestSortBecauseTheOrderThereIsNotTheProfilesOwn()
+    {
+        await UseFormFactorAsync("desktop");
+        Render<AppPopoverHost>();
+        var page = Render<PlaylistTilesView>(parameters => parameters
+            .Add(view => view.Playlists, [Playlist(RoadTrip, "Road trip"), Playlist(Focus, "Focus")])
+            .Add(view => view.OnMoveUp, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(_ => { })))
+            .Add(view => view.OnMoveDown, new EventCallback<ManagedCollectionViewModel>(null, (Action<ManagedCollectionViewModel>)(_ => { }))));
+        await page.Find(".playlist-tiles__sort .app-overflow-menu__trigger").ClickAsync(new());
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
+        await page.FindAll("button.app-menu-item").Single(item => item.TextContent.Trim() == "Name").ClickAsync(new());
+
+        await OpenTileMenuAsync(page, "Focus");
+
+        Assert.DoesNotContain("Move up", MenuWords(page));
+        Assert.DoesNotContain("Move down", MenuWords(page));
+    }
+
+    [Fact]
+    public async Task ThePlaylistsPageWithoutMoveHandlersLeavesTheMenuAsItWas()
+    {
+        await UseFormFactorAsync("desktop");
+        var (_, page) = RenderTiles([Playlist(RoadTrip, "Road trip"), Playlist(Focus, "Focus")]);
+
+        await OpenTileMenuAsync(page, "Focus");
+
+        Assert.Equal(["Rename", "Edit description and cover", "Duplicate", "Pin to top", "Delete"], MenuWords(page));
+    }
+
+    [Fact]
+    public async Task AFingerDroppingASidebarPlaylistAfterAnotherSavesTheNewOrderOnTheProfile()
+    {
+        await UseFormFactorAsync("desktop");
+        _collections =
+        [
+            Playlist(RoadTrip, "Road trip", created: new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero)),
+            Playlist(Focus, "Focus", created: new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero)),
+            Playlist(Jazz, "Sunday jazz", created: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)),
+        ];
+        Render<AppPopoverHost>();
+        var page = Render<ListenPage>(parameters => parameters.Add(component => component.Section, "playlists"));
+        page.WaitForElement(".listen-rail__playlist-row");
+        Assert.Equal([RoadTrip, Focus, Jazz], page.FindAll("[data-playlist-reorder-row]").Select(row => Guid.Parse(row.GetAttribute("data-playlist-reorder-row")!)));
+
+        await page.InvokeAsync(() => page.Instance.TouchReorderPlaylistAsync(RoadTrip.ToString("D"), Jazz.ToString("D"), true));
+
+        var saved = Assert.Single(_savedNavigationConfigs);
+        Assert.Equal([Focus, Jazz, RoadTrip], ListenPlaylistOrderState.Read(saved));
+        page.WaitForAssertion(() => Assert.Equal([Focus, Jazz, RoadTrip], page.FindAll("[data-playlist-reorder-row]").Select(row => Guid.Parse(row.GetAttribute("data-playlist-reorder-row")!))));
+    }
+
+    [Fact]
+    public async Task AFingerDroppingASidebarPlaylistBeforeAnotherSavesItAheadOfIt()
+    {
+        await UseFormFactorAsync("desktop");
+        _collections =
+        [
+            Playlist(RoadTrip, "Road trip", created: new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero)),
+            Playlist(Focus, "Focus", created: new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero)),
+            Playlist(Jazz, "Sunday jazz", created: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)),
+        ];
+        Render<AppPopoverHost>();
+        var page = Render<ListenPage>(parameters => parameters.Add(component => component.Section, "playlists"));
+        page.WaitForElement(".listen-rail__playlist-row");
+
+        await page.InvokeAsync(() => page.Instance.TouchReorderPlaylistAsync(Jazz.ToString("D"), RoadTrip.ToString("D"), false));
+
+        Assert.Equal([Jazz, RoadTrip, Focus], ListenPlaylistOrderState.Read(Assert.Single(_savedNavigationConfigs)));
+    }
+
+    [Fact]
+    public async Task ADropNamingAPlaylistThatIsNotInTheSidebarSavesNothing()
+    {
+        await UseFormFactorAsync("desktop");
+        _collections = [Playlist(RoadTrip, "Road trip"), Playlist(Focus, "Focus")];
+        Render<AppPopoverHost>();
+        var page = Render<ListenPage>(parameters => parameters.Add(component => component.Section, "playlists"));
+        page.WaitForElement(".listen-rail__playlist-row");
+
+        await page.InvokeAsync(() => page.Instance.TouchReorderPlaylistAsync(RoadTrip.ToString("D"), Guid.NewGuid().ToString("D"), true));
+        await page.InvokeAsync(() => page.Instance.TouchReorderPlaylistAsync("not an id", Focus.ToString("D"), false));
+
+        Assert.Empty(_savedNavigationConfigs);
+    }
+
+    [Fact]
+    public async Task EachSidebarPlaylistHasAGripAFingerCanDragAndTheSidebarIsHandedToTheScript()
+    {
+        await UseFormFactorAsync("desktop");
+        _collections = [Playlist(RoadTrip, "Road trip"), Playlist(Focus, "Focus")];
+        var module = JSInterop.SetupModule("./js/playlist-reorder.js");
+        module.Mode = JSRuntimeMode.Loose;
+        Render<AppPopoverHost>();
+        var page = Render<ListenPage>(parameters => parameters.Add(component => component.Section, "playlists"));
+        page.WaitForElement(".listen-rail__playlist-row");
+
+        Assert.Equal(2, page.FindAll(".listen-rail__playlist-row [data-playlist-reorder-handle]").Count);
+        page.WaitForAssertion(() => Assert.Single(module.Invocations["attach"]));
+    }
+
+    [Fact]
+    public async Task TheSidebarMenuOffersMoveUpAndMoveDownAndSavesTheOrder()
+    {
+        await UseFormFactorAsync("desktop");
+        _collections =
+        [
+            Playlist(RoadTrip, "Road trip", created: new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero)),
+            Playlist(Focus, "Focus", created: new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero)),
+        ];
+        Render<AppPopoverHost>();
+        var page = Render<ListenPage>(parameters => parameters.Add(component => component.Section, "playlists"));
+        page.WaitForElement(".listen-rail__playlist-row");
+
+        await page.FindAll(".listen-rail__playlist-row .app-row-menu__trigger")[0].ClickAsync(new());
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
+        Assert.True(page.FindAll("button.app-menu-item").Single(item => item.TextContent.Trim() == "Move up").HasAttribute("disabled"));
+        await page.FindAll("button.app-menu-item").Single(item => item.TextContent.Trim() == "Move down").ClickAsync(new());
+
+        page.WaitForAssertion(() => Assert.Equal([Focus, RoadTrip], ListenPlaylistOrderState.Read(Assert.Single(_savedNavigationConfigs))));
     }
 
     private sealed class DefaultPreferences : IUserPlaybackPreferencesAccessor

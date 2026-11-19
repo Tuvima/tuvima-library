@@ -979,7 +979,7 @@ public sealed class SongTableTests : AsyncBunitContext
             .Add(t => t.OnRemoveFromPlaylist, Cb<SongRow>(_ => { })));
 
         var middle = OpenMenu(cut, RowElement(cut, rows[1]).QuerySelector("button[aria-haspopup]")!);
-        Assert.Equal(["Go to album", "Go to artist", "Move up", "Move down", "Remove from playlist"], middle);
+        Assert.Equal(["Go to album", "Go to artist", "Move to top", "Move up", "Move down", "Move to bottom", "Remove from playlist"], middle);
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Move down").Click();
         cut.WaitForAssertion(() => Assert.Equal([new SongReorderRequest(rows[1], 1, 2)], moves));
 
@@ -989,6 +989,169 @@ public sealed class SongTableTests : AsyncBunitContext
         var top = OpenMenu(firstRow, RowElement(firstRow, rows[0]).QuerySelector("button[aria-haspopup]")!);
         Assert.DoesNotContain("Move up", top);
         Assert.Contains("Move down", top);
+    }
+
+    [Fact]
+    public async Task APlaylistRowsMenuHasMoveToTopAndMoveToBottomThatMoveToTheFirstAndLastPlace()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true), Row("C", playlist: true), Row("D", playlist: true) };
+        var moves = new List<SongReorderRequest>();
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(moves.Add)));
+
+        OpenMenu(cut, RowElement(cut, rows[2]).QuerySelector("button[aria-haspopup]")!);
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Move to top").Click();
+        cut.WaitForAssertion(() => Assert.Equal([new SongReorderRequest(rows[2], 2, 0)], moves));
+
+        OpenMenu(cut, RowElement(cut, rows[1]).QuerySelector("button[aria-haspopup]")!);
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Move to bottom").Click();
+        cut.WaitForAssertion(() => Assert.Equal(new SongReorderRequest(rows[1], 1, 3), moves[^1]));
+    }
+
+    [Fact]
+    public async Task TheFirstAndLastRowsLeaveOutTheMovesThatCouldGoNowhereOnAPhone()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true), Row("C", playlist: true) };
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(_ => { })));
+
+        var first = OpenMenu(cut, RowElement(cut, rows[0]).QuerySelector("button[aria-haspopup]")!);
+
+        Assert.DoesNotContain("Move to top", first);
+        Assert.DoesNotContain("Move up", first);
+        Assert.Contains("Move down", first);
+        Assert.Contains("Move to bottom", first);
+
+        var other = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(_ => { })));
+        var last = OpenMenu(other, RowElement(other, rows[2]).QuerySelector("button[aria-haspopup]")!);
+
+        Assert.Contains("Move to top", last);
+        Assert.Contains("Move up", last);
+        Assert.DoesNotContain("Move down", last);
+        Assert.DoesNotContain("Move to bottom", last);
+    }
+
+    [Fact]
+    public async Task OnADesktopThePlaylistMenuKeepsAllFourMovesAndGreysTheOnesThatGoNowhere()
+    {
+        await UseDeviceAsync("desktop");
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true) };
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(_ => { })));
+
+        var items = OpenMenu(cut, RowElement(cut, rows[0]).QuerySelector(".song-table__cell--actions button[aria-haspopup='menu']")!);
+
+        Assert.Equal(["Move to top", "Move up", "Move down", "Move to bottom"], items.Where(item => item.StartsWith("Move", StringComparison.Ordinal)));
+        var greyed = cut.FindAll("[role='menuitem']").Where(item => item.HasAttribute("disabled") || item.GetAttribute("aria-disabled") == "true")
+            .Select(item => item.TextContent.Trim()).ToList();
+        Assert.Equal(["Move to top", "Move up"], greyed);
+    }
+
+    [Fact]
+    public async Task OnAPhoneEveryPlaylistRowCarriesAGripAndThePageIsHandedToTheScriptForFingerDrags()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true), Row("C", playlist: true) };
+        var module = JSInterop.SetupModule("./js/song-table.js");
+        module.Mode = JSRuntimeMode.Loose;
+
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(_ => { })));
+
+        Assert.Equal(3, cut.FindAll("[data-song-grip]").Count);
+        Assert.All(rows, row => Assert.NotNull(RowElement(cut, row).QuerySelector("[data-song-grip]")));
+        cut.WaitForAssertion(() => Assert.Single(module.Invocations["wireReorder"]));
+    }
+
+    [Fact]
+    public async Task ATouchTabletGetsGripsInTheDesktopRowsActionsCell()
+    {
+        await UseDeviceAsync("tablet", touch: true, fine: false, hover: false);
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true) };
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(_ => { })));
+
+        Assert.All(rows, row => Assert.NotNull(RowElement(cut, row).QuerySelector(".song-table__cell--actions [data-song-grip]")));
+        Assert.Empty(cut.FindAll("[draggable='true']"));
+    }
+
+    [Fact]
+    public async Task AMouseDeviceKeepsItsHoverGripAndDragAndGetsNoFingerGrip()
+    {
+        await UseDeviceAsync("desktop");
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true) };
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(_ => { })));
+
+        Assert.Empty(cut.FindAll("[data-song-grip]"));
+        Assert.Equal(2, cut.FindAll(".song-table__grip").Count);
+        Assert.Equal(2, cut.FindAll("[draggable='true']").Count);
+    }
+
+    [Fact]
+    public async Task NoGripsAreDrawnWhereTheListCannotBeReordered()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true) };
+
+        var readOnly = RenderTable(SongTablePlace.Playlist, rows);
+        var songs = RenderTable(SongTablePlace.Songs, rows, p => p.Add(t => t.CanReorder, true).Add(t => t.OnReorder, Cb<SongReorderRequest>(_ => { })));
+
+        Assert.Empty(readOnly.FindAll("[data-song-grip]"));
+        Assert.Empty(songs.FindAll("[data-song-grip]"));
+    }
+
+    [Theory]
+    [InlineData(0, 2, true, 2)]
+    [InlineData(0, 2, false, 1)]
+    [InlineData(3, 1, false, 1)]
+    [InlineData(3, 1, true, 2)]
+    [InlineData(1, 2, false, null)]
+    [InlineData(2, 1, true, null)]
+    public async Task AFingerDroppingARowBeforeOrAfterAnotherMovesItToTheRightPlace(int from, int target, bool after, int? expected)
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true), Row("C", playlist: true), Row("D", playlist: true) };
+        var moves = new List<SongReorderRequest>();
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(moves.Add)));
+        string KeyOf(SongRow row) => row.PlaylistItemId!.Value.ToString("D");
+
+        await cut.InvokeAsync(() => cut.Instance.TouchReorder(KeyOf(rows[from]), KeyOf(rows[target]), after));
+
+        if (expected is null)
+        {
+            Assert.Empty(moves);
+            return;
+        }
+
+        Assert.Equal([new SongReorderRequest(rows[from], from, expected.Value)], moves);
+    }
+
+    [Fact]
+    public async Task AFingerDropNamingARowThatIsNoLongerListedChangesNothing()
+    {
+        await UseDeviceAsync("phone", touch: true, fine: false, hover: false);
+        var rows = new List<SongRow> { Row("A", playlist: true), Row("B", playlist: true) };
+        var moves = new List<SongReorderRequest>();
+        var cut = RenderTable(SongTablePlace.Playlist, rows, p => p
+            .Add(t => t.CanReorder, true)
+            .Add(t => t.OnReorder, Cb<SongReorderRequest>(moves.Add)));
+
+        await cut.InvokeAsync(() => cut.Instance.TouchReorder(rows[0].PlaylistItemId!.Value.ToString("D"), Guid.NewGuid().ToString("D"), true));
+
+        Assert.Empty(moves);
     }
 
     [Fact]

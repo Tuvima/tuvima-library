@@ -88,16 +88,132 @@ public partial class ListenPage
         _activePlaylistSaved = result.IsSaved;
     }
 
+    // The sidebar's "..." menu: Move up and Move down put the playlist one place earlier or later in the order the profile keeps (spec D3).
     private async Task MovePlaylistAsync(Guid playlistId, int direction)
     {
-        var orderedIds = PlaylistCollections.Select(playlist => playlist.Id).ToList();
-        if (!ListenPlaylistOrderState.TryMoveByOffset(orderedIds, playlistId, direction, out var updatedOrder))
+        var shown = PlaylistCollections;
+        var orderedIds = shown.Select(playlist => playlist.Id).ToList();
+        if (!ListenPlaylistOrderState.CanMoveWithinGroup(shown, playlistId, direction)
+            || !ListenPlaylistOrderState.TryMoveByOffset(orderedIds, playlistId, direction, out var updatedOrder))
         {
             return;
         }
 
         _playlistOrder = updatedOrder;
         await SavePlaylistOrderAsync();
+    }
+
+    private Task MovePlaylistUpAsync(ManagedCollectionViewModel playlist) => MovePlaylistAsync(playlist.Id, -1);
+
+    private Task MovePlaylistDownAsync(ManagedCollectionViewModel playlist) => MovePlaylistAsync(playlist.Id, 1);
+
+    private bool CanMovePlaylist(ManagedCollectionViewModel playlist, int direction)
+        => ListenPlaylistOrderState.CanMoveWithinGroup(PlaylistCollections, playlist.Id, direction);
+
+    // ---- Reorder by finger (spec listen-playlists WP5, issue 1201) ----
+    // The sidebar's playlists are dragged by their grip (playlist-reorder.js): a finger cannot start the browser's drag. A drop reports the playlist
+    // that moved and the one it landed before or after; the order is worked out and saved exactly as for the mouse's drag.
+
+    private ElementReference _playlistRailRoot;
+    private string? _playlistRailWiredId;
+    private IJSObjectReference? _playlistReorderModule;
+    private DotNetObjectReference<ListenPage>? _playlistReorderSelf;
+
+    private async Task WirePlaylistTouchReorderAsync()
+    {
+        var rootId = !DeviceContext.IsPhone && PlaylistCollections.Count > 1 ? _playlistRailRoot.Id : null;
+        if (rootId == _playlistRailWiredId || _disposed)
+        {
+            return;
+        }
+
+        await UnwirePlaylistTouchReorderAsync();
+        if (rootId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _playlistReorderModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playlist-reorder.js");
+            _playlistReorderSelf ??= DotNetObjectReference.Create(this);
+            await _playlistReorderModule.InvokeVoidAsync("attach", _playlistRailRoot, _playlistReorderSelf);
+            _playlistRailWiredId = rootId;
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException)
+        {
+            // The mouse's drag and the menu's Move up and Move down still reorder the playlists.
+            Logger.LogWarning(exception, "Dragging a playlist by finger could not start in the Listen sidebar.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away before the Listen sidebar could start dragging playlists by finger.");
+        }
+    }
+
+    private async Task UnwirePlaylistTouchReorderAsync()
+    {
+        var wired = _playlistRailWiredId;
+        _playlistRailWiredId = null;
+        if (wired is null || _playlistReorderModule is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _playlistReorderModule.InvokeVoidAsync("detach", _playlistRailRoot);
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException or ObjectDisposedException or JSDisconnectedException)
+        {
+            // The sidebar may already be gone from the page; there is nothing left to let go of.
+            Logger.LogDebug(exception, "Letting go of the sidebar's finger drag failed.");
+        }
+    }
+
+    /// <summary>A finger let go of a playlist's grip over another playlist: the script names both and whether it was the lower half.</summary>
+    [JSInvokable]
+    public Task TouchReorderPlaylistAsync(string from, string to, bool after) => InvokeAsync(async () =>
+    {
+        if (!Guid.TryParse(from, out var playlistId) || !Guid.TryParse(to, out var targetId))
+        {
+            return;
+        }
+
+        var orderedIds = PlaylistCollections.Select(playlist => playlist.Id).ToList();
+        var moved = after
+            ? ListenPlaylistOrderState.TryMoveAfter(orderedIds, playlistId, targetId, out var updatedOrder)
+            : ListenPlaylistOrderState.TryMoveBefore(orderedIds, playlistId, targetId, out updatedOrder);
+        if (!moved)
+        {
+            return;
+        }
+
+        _playlistOrder = updatedOrder;
+        await SavePlaylistOrderAsync();
+        StateHasChanged();
+    });
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        await UnwirePlaylistTouchReorderAsync();
+        if (_playlistReorderModule is not null)
+        {
+            try
+            {
+                await _playlistReorderModule.DisposeAsync();
+            }
+            catch (Exception exception) when (exception is JSException or InvalidOperationException or ObjectDisposedException or JSDisconnectedException)
+            {
+                Logger.LogDebug(exception, "The sidebar's script was already gone when the Listen page closed.");
+            }
+
+            _playlistReorderModule = null;
+        }
+
+        _playlistReorderSelf?.Dispose();
+        _playlistReorderSelf = null;
     }
 
     private void BeginPlaylistReorder(Guid playlistId)

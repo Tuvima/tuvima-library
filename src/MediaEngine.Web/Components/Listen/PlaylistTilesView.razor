@@ -88,10 +88,15 @@
                               OnEditDetails="OnEditDetails"
                               OnDuplicate="OnDuplicate"
                               OnTogglePin="OnTogglePin"
-                              OnDelete="OnDelete" />
+                              OnDelete="OnDelete"
+                              OnMoveUp="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveUpAsync) : default)"
+                              OnMoveDown="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveDownAsync) : default)"
+                              CanMoveUp="@CanMove(playlist, -1)"
+                              CanMoveDown="@CanMove(playlist, 1)" />
             }
         </div>
     }
+    <div class="sr-only" role="status" aria-live="polite" data-playlist-tiles-announce>@_announcement</div>
 </section>
 
 @code {
@@ -131,7 +136,41 @@
     [Parameter] public EventCallback<ManagedCollectionViewModel> OnTogglePin { get; set; }
     [Parameter] public EventCallback<ManagedCollectionViewModel> OnDelete { get; set; }
 
+    /// <summary>
+    /// Move up: the tile's "..." menu moves the playlist one place earlier in the order this profile keeps (spec listen-playlists D3, WP5), and the
+    /// host saves it on the profile. Offered only in Manual sort, where the tiles are drawn in that order.
+    /// </summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveUp { get; set; }
+
+    /// <summary>Move down: one place later in the profile's order; see <see cref="OnMoveUp"/>.</summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveDown { get; set; }
+
     private bool CanSort => !Loading && Playlists.Count > 1;
+
+    private string? _announcement;
+
+    private bool CanReorder => _sort == PlaylistTileSort.Manual && Playlists.Count > 1 && (OnMoveUp.HasDelegate || OnMoveDown.HasDelegate);
+
+    // A move that would change nothing on screen is greyed: the first tile, the last tile, and the edge between pinned and other playlists
+    // (pinned ones always come first).
+    private bool CanMove(ManagedCollectionViewModel playlist, int direction)
+        => ListenPlaylistOrderState.CanMoveWithinGroup(Playlists, playlist.Id, direction);
+
+    private Task MoveUpAsync(ManagedCollectionViewModel playlist) => MoveAsync(playlist, -1, OnMoveUp);
+
+    private Task MoveDownAsync(ManagedCollectionViewModel playlist) => MoveAsync(playlist, 1, OnMoveDown);
+
+    private async Task MoveAsync(ManagedCollectionViewModel playlist, int direction, EventCallback<ManagedCollectionViewModel> move)
+    {
+        if (!CanMove(playlist, direction))
+        {
+            return;
+        }
+
+        var place = Playlists.ToList().FindIndex(candidate => candidate.Id == playlist.Id) + direction + 1;
+        await move.InvokeAsync(playlist);
+        _announcement = L["PlaylistTiles_Moved", playlist.Name, place, Playlists.Count].Value;
+    }
 
     private IReadOnlyList<ManagedCollectionViewModel> Shown => PlaylistTileRules.Sort(Playlists, _sort);
 
