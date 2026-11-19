@@ -75,10 +75,21 @@ public static class MediaTileLabels
             return $"{counts[0].Count} {counts[0].Label.ToLowerInvariant()}";
         }
 
-        var total = counts.Count > 1
+        var total = GroupTotal(item);
+        return total > 0 ? $"{total} {(total == 1 ? "title" : "titles")}" : null;
+    }
+
+    /// <summary>
+    /// How many titles a group holds: the sum of its counts, or its owned or previewed total when it has no counts. The same number the
+    /// count label says, so the collage's "+N" chip never disagrees with it.
+    /// </summary>
+    public static int GroupTotal(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var counts = item.MediaCounts.Where(count => count.Count > 0).ToList();
+        return counts.Count > 0
             ? counts.Sum(count => count.Count)
             : item.GroupSummary?.OwnedCount ?? item.PreviewTotalCount ?? 0;
-        return total > 0 ? $"{total} {(total == 1 ? "title" : "titles")}" : null;
     }
 
     /// <summary>

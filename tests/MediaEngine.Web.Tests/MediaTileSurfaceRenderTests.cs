@@ -219,7 +219,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaTileGrid_DrawsAGroupAsAPosterBesideASingleTitle()
+    public void MediaTileGrid_DrawsAGroupAsALandscapeCollageBesideASingleTitlesPoster()
     {
         var group = CreateGroupTile();
         var ordinary = CreateShelfItem("Ordinary title");
@@ -231,8 +231,8 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var tiles = cut.FindAll("article.media-tile");
         Assert.Equal(2, tiles.Count);
         Assert.Single(cut.FindAll("article.media-tile.is-group"));
-        Assert.All(tiles, tile => Assert.Contains("is-portrait", tile.ClassList));
-        Assert.Empty(cut.FindAll("article.media-tile.is-landscape"));
+        Assert.Contains("is-landscape", cut.Find("article.media-tile.is-group").ClassList);
+        Assert.Contains("is-portrait", tiles.Single(tile => !tile.ClassList.Contains("is-group")).ClassList);
     }
 
     [Fact]
@@ -290,7 +290,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AGroupTile_DrawsItsMemberCoversInAGrid_NotASingleCoverOrAFannedStack()
+    public void AGroupTile_DrawsItsMemberCoversInTheCollage_NotASingleCoverOrAFannedStack()
     {
         var group = new MediaTileViewModel
         {
@@ -308,14 +308,13 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll("img.media-tile-image"));
         Assert.Empty(cut.FindAll(".media-tile-stack"));
-        Assert.Single(cut.FindAll("img.media-tile-quadrant"));
-        Assert.Contains("film.jpg", cut.Find("img.media-tile-quadrant").GetAttribute("src"), StringComparison.Ordinal);
-        // One title is one cover filling the tile: no empty squares (review mock-ups D4).
-        Assert.Empty(cut.FindAll(".media-tile-quadrant.is-empty"));
+        Assert.Empty(cut.FindAll("img.media-tile-quadrant"));
+        Assert.Single(cut.FindAll(".group-collage__cover img"));
+        Assert.Contains("film.jpg", cut.Find(".group-collage__cover img").GetAttribute("src"), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AGroupTileWithMemberCovers_DrawsThemInTheGrid_AndThePlainTileWhenItHoldsNone()
+    public void AGroupTileWithMemberCovers_DrawsThemInTheCollage_AndThePlainTileWhenItHoldsNone()
     {
         var withMembers = new MediaTileViewModel
         {
@@ -335,10 +334,10 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var filled = Render<MediaTile>(parameters => parameters.Add(component => component.Item, withMembers));
         var plain = Render<MediaTile>(parameters => parameters.Add(component => component.Item, empty));
 
-        Assert.Equal(2, filled.FindAll("img.media-tile-quadrant").Count);
-        Assert.Contains("book-1.jpg", filled.FindAll("img.media-tile-quadrant")[0].GetAttribute("src"), StringComparison.Ordinal);
+        Assert.Equal(2, filled.FindAll(".group-collage__cover img").Count);
+        Assert.Contains("book-1.jpg", filled.FindAll(".group-collage__cover img")[0].GetAttribute("src"), StringComparison.Ordinal);
         Assert.Empty(filled.FindAll("img.media-tile-image"));
-        Assert.Empty(plain.FindAll("img.media-tile-quadrant"));
+        Assert.Empty(plain.FindAll(".group-collage"));
         Assert.Single(plain.FindAll(".media-tile-fallback"));
     }
 
@@ -429,7 +428,10 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, collection));
 
-        Assert.Equal("6 titles", cut.Find(".media-tile-label--bottom").TextContent.Trim());
+        // The count sits on the collage's solid band under the name, not in a label over the covers.
+        Assert.Equal("6 titles", cut.Find(".group-collage__count").TextContent.Trim());
+        Assert.Equal("Cross-Media Archive", cut.Find(".group-collage__name").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".media-tile-label--bottom"));
         Assert.Equal("Collection", cut.Find(".media-tile-label--status").TextContent.Trim());
         Assert.Empty(cut.FindAll("[data-group-source], [data-unmatched-badge]"));
         Assert.Empty(cut.FindAll(".media-tile-fallback__title"));
@@ -533,7 +535,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     };
 
     [Fact]
-    public void MediaTile_SeriesIsAPosterOfItsCoversWithTheKindAndCount()
+    public void MediaTile_SeriesIsALandscapeCollageOfItsCoversWithTheKindAndCount()
     {
         var item = new MediaTileViewModel
         {
@@ -560,14 +562,14 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        // A Series is a group of titles: a poster of its member covers in a grid, the kind word at top left and the count at bottom left.
+        // A Series is a group of titles: a landscape collage of its member covers, the kind word at top left and the count on the name band.
         var tile = cut.Find("article.media-tile");
         Assert.Contains("is-group", tile.ClassList);
-        Assert.Contains("is-portrait", tile.ClassList);
-        Assert.Equal(2, cut.FindAll("img.media-tile-quadrant").Count);
+        Assert.Contains("is-landscape", tile.ClassList);
+        Assert.Equal(2, cut.FindAll(".group-collage__cover img").Count);
         Assert.Empty(cut.FindAll("img.media-tile-image"));
         Assert.Equal("Book series", cut.Find(".media-tile-label--status").TextContent.Trim());
-        Assert.Equal("6 books", cut.Find(".media-tile-label--bottom").TextContent.Trim());
+        Assert.Equal("6 books", cut.Find(".group-collage__count").TextContent.Trim());
         Assert.Equal("Foundation Series, Book series", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
     }
