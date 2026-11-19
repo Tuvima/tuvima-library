@@ -164,15 +164,40 @@ public static class MediaTileLabels
     }
 
     /// <summary>
-    /// The second row of a Continue tile (review mock-ups D6): the content rating, then the year ("TV-MA · 2021"); just the year when
-    /// there is no rating, just the rating when there is no year, null when there is neither. Never a star rating, never the progress.
+    /// The second row of a Continue tile (review mock-ups D6): the type in words, then the content rating, then the year ("Film · R · 2023", "Book · 2017"); parts that are not known are left out,
+    /// null when there is none. Never a star rating, never the progress.
     /// </summary>
     public static string? ContinueSecondLine(MediaTileViewModel item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        var parts = new[] { item.ContentRating?.Trim(), YearText(item) }.Where(part => !string.IsNullOrWhiteSpace(part));
+        var parts = new[] { TypeWord(item), item.ContentRating?.Trim(), YearText(item) }.Where(part => !string.IsNullOrWhiteSpace(part));
         var line = string.Join(" · ", parts);
         return line.Length == 0 ? null : line;
+    }
+
+    /// <summary>
+    /// What a title is, in words, for the description line under a tile ("Film", "Episode", "Book", "Audiobook"): one rule for every kind,
+    /// so no tile carries a type label on its picture and no page uses icons for it (issue 1193). Null when the kind is not known.
+    /// </summary>
+    public static string? TypeWord(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item.EpisodeContext is not null)
+        {
+            return VideoFolderWording.IsVideoItemMediaType(item.MediaKind) ? "Video" : "Episode";
+        }
+
+        return (item.MediaKind ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "movie" or "movies" => "Film",
+            "tv" => "Show",
+            "book" or "books" => "Book",
+            "audiobook" or "audiobooks" => "Audiobook",
+            "comic" or "comics" => "Comic",
+            "music" => item.Presentation == MediaTilePresentation.Album ? "Album" : "Song",
+            "video" or "videos" => "Video",
+            _ => null,
+        };
     }
 
     /// <summary>The percent complete a Continue tile wears as a small badge ("42%"), or null when nothing real has been done yet.</summary>

@@ -48,10 +48,6 @@
                 }
             </div>
             <span class="continue-tile__play" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></span>
-            @if (KindWord is { } kind)
-            {
-                <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
-            }
             @if (MediaTileLabels.ContinuePercent(Item) is { } percent)
             {
                 @* The percent complete sits on the tile, top right beside the "..." menu, never in the text rows (D6). *@
@@ -139,15 +135,7 @@
     private bool UsesCoverLayout => string.IsNullOrWhiteSpace(LandscapeUrl);
     private bool UsesSquareCover => Item.MediaKind is "Music" or "Audiobook" || Item.Shape == MediaTileShape.Square;
     private bool ShowsCollage => Item.MediaKind == "Music" && string.IsNullOrWhiteSpace(CoverUrl) && string.IsNullOrWhiteSpace(LandscapeUrl) && Item.PreviewImages.Count >= 4;
-    private string TileClass => $"continue-tile{(UsesCoverLayout ? " continue-tile--cover" : " continue-tile--backdrop")}{(ShowsCollage ? " continue-tile--collage" : string.Empty)}{(KindWord is not null ? " continue-tile--kind" : string.Empty)}";
-
-    // A book or audiobook says what it is in the top-left label slot (details-and-tile-fixes D3), as a group says Series or Universe.
-    private string? KindWord => Item.MediaKind switch
-    {
-        "Book" => L["ContinueTile_KindBook"].Value,
-        "Audiobook" => L["ContinueTile_KindAudiobook"].Value,
-        _ => null,
-    };
+    private string TileClass => $"continue-tile{(UsesCoverLayout ? " continue-tile--cover" : " continue-tile--backdrop")}{(ShowsCollage ? " continue-tile--collage" : string.Empty)}";
 
     // One text format for every kind (review mock-ups D6). First row: the title, an episode as "S1 E1: Title". Second row: the content rating
     // then the year, or just the year; no stars, and never the progress, which is the badge and the bar on the picture.
