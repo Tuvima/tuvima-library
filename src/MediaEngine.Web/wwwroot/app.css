@@ -2982,6 +2982,8 @@ button.app-menu-item {
     font-weight: 500; line-height: 1.3; max-width: min(var(--tl-tooltip-max-width), calc(100vw - 16px)); box-shadow: var(--tl-shadow-md);
     animation: tl-tooltip-in 100ms ease-out;
 }
+/* A tooltip's optional caution line (the folder picker's Managed tooltip): amber, on its own line. */
+.playback-tooltip__warning { display: block; margin-top: 4px; color: var(--tl-status-warning); }
 /* A rated title shows its state at rest on every surface (Look pass v2 A7). */
 @keyframes tl-tooltip-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .playback-tooltip { animation: none; } }
@@ -4057,6 +4059,18 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 /* AppRowMenu: the trigger takes its 44px size from the shared tap-target contract; phone rows open as 48px items in a bottom sheet. */
 .app-row-menu__trigger.app-overflow-menu__trigger--icon {
     border-radius: var(--tl-radius-md);
+}
+
+/* A song row's "..." is a plain icon button: no border, only a hover highlight, at the right end of the row (issue 1163). */
+.song-table__cell--actions .app-row-menu__trigger {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+.song-table__cell--actions .app-row-menu__trigger:hover,
+.song-table__cell--actions .app-row-menu__trigger:focus-visible {
+    background: var(--tl-accent-primary-soft);
 }
 
 .app-row-menu__sheet,
@@ -5570,7 +5584,9 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-editor-field__box{position:relative;min-width:0}
 .tl-editor-field__box[data-lock-box="true"] :is(.tl-input,input,select,textarea){padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
 .tl-editor-field__box[data-lock-box="true"] .tl-editor-field__chips{padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
-.tl-editor-field__box>.tl-editor-field__lockstate{position:absolute;top:0;right:var(--tl-space-1);z-index:1}
+.tl-editor-field__box>.tl-editor-field__lockstate{position:absolute;top:0;bottom:0;right:var(--tl-space-1);z-index:1}
+/* A tall box (a description) keeps the lock at its top right; every one-line box centers it (issue 1159). */
+.tl-editor-field__box:has(textarea)>.tl-editor-field__lockstate{bottom:auto}
 .tl-editor-field__box>.tl-editor-field__lockstate .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
 .tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"] .tl-editor-field__lock-toggle,.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"]{color:var(--tl-status-warning)}
 .tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="locked"] .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
@@ -5888,17 +5904,49 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 /* Dragging songs onto a playlist (Listen music spec D10): song-table.js adds .is-song-drop-over to the [data-song-drop] target under the pointer, and the picture a ticked row drags with. */
 [data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;border-radius:var(--tl-radius-sm,6px);background:color-mix(in srgb,var(--tl-accent-primary) 22%,transparent)}
 .song-table__drag-picture{padding:6px 12px;border-radius:var(--tl-radius-sm,6px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-family:var(--font-ui,sans-serif);font-size:var(--tl-type-control-size);font-weight:600}
+/* The folder picker on a phone (issue 1155): the drives are a row of chips across the top instead of a column on the left, so the folder list has the whole width,
+   and the access choice and buttons stay pinned under the list. Global because the sidebar belongs to the shared browser frame, not to the picker. */
+@media (max-width: 840px) {
+    :root .server-folder-picker .app-browser__side { flex-direction: row; flex-wrap: nowrap; gap: var(--tl-space-2); max-height: none; overflow-x: auto; overflow-y: hidden; padding-bottom: var(--tl-space-1); }
+    :root .server-folder-picker .app-browser__side > * { display: contents; }
+    :root .server-folder-picker .app-browser__side hr, .server-folder-picker .app-browser__side h3 { display: none; }
+    :root .server-folder-picker .app-browser__side ul { display: flex; flex-direction: row; flex: none; gap: var(--tl-space-2); margin: 0; padding: 0; list-style: none; }
+    :root .server-folder-picker .app-browser-side-item { width: auto; min-height: var(--tl-tap-target-min); padding-inline: var(--tl-space-3); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); white-space: nowrap; }
+    :root .server-folder-picker .app-browser-side-item[aria-current="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+    :root .server-folder-picker .app-browser-side-item__detail { display: none; }
+    :root .server-folder-picker__handling { flex-basis: 100%; }
+    :root .server-folder-picker__footer .app-action-bar { width: 100%; }
+    :root .server-folder-picker__footer .app-action-bar .app-button { flex: 1 1 0; min-height: var(--tl-tap-target-min); }
+}
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
 /* Hero: sized to its content, with room under the floating top bar, instead of one full screen of backdrop. */
 html[data-form-factor="phone"] .tl-detail-page {
-    --cinematic-hero-phone-min-height: 22rem;
+    /* A short hero (issue 1182): the menu bar's own height plus the logo, facts and buttons, so the first row of content shows without scrolling. */
+    --cinematic-hero-phone-min-height: 0px;
+    /* The same 40 px buttons as the phone Home hero (issue 1180). */
+    --tl-hero-action-height: 40px;
+    --tl-hero-action-label-size: 15px;
+    --tl-hero-action-icon-size: 20px;
+}
+
+/* Only the hero's round buttons shrink to 40 px; other large controls on the page keep the shared tap-target size. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions {
+    --tl-control-height-lg: 40px;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__inner {
-    padding: calc(var(--app-topbar-height, 65px) + 2.5rem) 16px 1.25rem;
+    padding: calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 0.5rem) 16px 1rem;
     align-items: flex-end;
+}
+
+/* The title logo is about half the width of the screen, not the full width (issue 1182). */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo {
+    width: min(50%, 14rem);
+    max-height: 5rem;
+    margin-bottom: 0.25rem;
+    object-fit: contain;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__copy {
@@ -6235,3 +6283,4 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
+

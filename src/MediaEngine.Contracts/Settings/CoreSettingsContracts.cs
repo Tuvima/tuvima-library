@@ -545,6 +545,10 @@ public sealed class ServerFolderEntryDto
 
     [JsonPropertyName("modified_at")]
     public DateTimeOffset? ModifiedAt { get; init; }
+
+    /// <summary>How many things (folders and files) sit directly inside, counted up to a cap of 1000 (so 1000 means "1000 or more"); null when the folder could not be counted.</summary>
+    [JsonPropertyName("item_count")]
+    public int? ItemCount { get; init; }
 }
 
 public sealed class BrowseServerFoldersResultDto

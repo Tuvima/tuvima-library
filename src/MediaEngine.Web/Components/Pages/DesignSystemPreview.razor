@@ -803,7 +803,7 @@
             Position = (index + 1).ToString(),
         }).ToList();
         var noun = shapes.Count > 0 && shapes.All(shape => shape == ArtworkShape.Square) ? "albums" : "titles";
-        var tileShape = GroupTileShape.For(items);
+        var tileShape = personRole is null ? GroupTileShape.For(items) : GroupTileShape.ForPerson(items);
         var person = personRole is null
             ? null
             : new MediaTilePersonViewModel

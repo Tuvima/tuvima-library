@@ -47,6 +47,9 @@ public sealed class PersonalStatusRepository(IDatabaseConnection db) : IPersonal
             WITH RECURSIVE scope(id) AS (
                 SELECT id FROM works WHERE id=@Id
                 UNION SELECT work_id FROM collection_items WHERE collection_id=@Id
+                -- A Series page, its tile and this scope list the same works: also every work placed on the Series shelf itself
+                -- (works.collection_id), novellas and short stories included (issue 1191).
+                UNION SELECT id FROM works WHERE collection_id=@Id
                 UNION SELECT w.id FROM works w JOIN scope s ON w.parent_work_id=s.id
             )
             SELECT DISTINCT ma.id AssetId, w.id WorkId, ma.content_hash ContentHash,

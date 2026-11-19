@@ -76,6 +76,19 @@ public static class LearnedPlaybackLimits
         return match is null ? null : PlaybackLadder.NextRung(match.FailedRung);
     }
 
+    /// <summary>
+    /// True when a player already failed on the heaviest rung (the picture encode) for this kind of file. Nothing lighter exists, so the next
+    /// start makes the picture smaller (<see cref="FallbackEncodeHeight"/>) instead of repeating the same stream.
+    /// </summary>
+    public static bool EncodeFailedBefore(IReadOnlyList<LearnedPlaybackLimitDto> limits, string extension, MediaProbeResult? probe) =>
+        limits.Count > 0
+        && KindOf(extension, probe) is { } kind
+        && limits.FirstOrDefault(limit => Matches(limit, kind.VideoCodec, kind.Container, kind.TenBit)) is { } match
+        && match.FailedRung == PlaybackRungs.EncodePicture;
+
+    /// <summary>The picture height a start falls back to after the picture encode failed on a player: every phone decodes this.</summary>
+    public const int FallbackEncodeHeight = 720;
+
     public static string SummaryFor(string failedRung, string videoCodec, string container, bool tenBit)
     {
         var kind = $"{DisplayCodec(videoCodec)}{(tenBit ? " 10-bit" : string.Empty)}";

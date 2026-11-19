@@ -163,7 +163,7 @@ public sealed class ActivityRunRecorder(
             return;
         }
 
-        var (groupKey, groupName) = Stack(mediaType, workId, assetId, title, groupTitle, filePath);
+        var (groupKey, groupName) = Stack(mediaType, workId, assetId, title, groupTitle, filePath, groupWorkId);
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -239,11 +239,18 @@ public sealed class ActivityRunRecorder(
     }
 
     /// <summary>
-    /// The stacking rule (D12): episodes into one tile per show, tracks into one per album, other videos into one per root folder;
+    /// The stacking rule (D12): episodes into one tile per show, tracks into one per album, other videos into one per root folder (the folder's own record, however deep the sub-folder);
     /// movies, books, audiobooks and comics are one tile each.
     /// </summary>
-    internal static (string Key, string Title) Stack(string mediaType, Guid? workId, Guid? assetId, string title, string? groupTitle, string? filePath)
+    internal static (string Key, string Title) Stack(
+        string mediaType, Guid? workId, Guid? assetId, string title, string? groupTitle, string? filePath, Guid? groupWorkId = null)
     {
+        // A folder of videos stacks by its root, however deep the sub-folder a video sits in, so a course with sections is one row (issue 1157).
+        if (mediaType == "Videos" && groupWorkId is { } root && root != Guid.Empty && !string.IsNullOrWhiteSpace(groupTitle))
+        {
+            return ($"Videos|{root:N}", groupTitle.Trim());
+        }
+
         if (mediaType is "TV" or "Music" && !string.IsNullOrWhiteSpace(groupTitle))
         {
             return ($"{mediaType}|{groupTitle.Trim().ToLowerInvariant()}", groupTitle.Trim());

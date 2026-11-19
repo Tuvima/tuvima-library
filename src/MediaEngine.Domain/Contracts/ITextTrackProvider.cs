@@ -60,6 +60,10 @@ public sealed record TextTrackProviderAvailability(string Status, string? Messag
 /// Free text a person typed to search by, in place of the title, artist and identities. When set, a source that supports it searches by this
 /// text alone (keeping only the language and, for episodes, the season and episode).
 /// </param>
+/// <param name="Interactive">
+/// True when a person pressed Search or opened Find another: such a search always asks the source, and is never skipped because an earlier,
+/// different search came back empty.
+/// </param>
 public sealed record TextTrackLookup(
     MediaAsset Asset,
     MediaType MediaType,
@@ -71,7 +75,8 @@ public sealed record TextTrackLookup(
     double? DurationSeconds,
     IReadOnlyDictionary<string, string> BridgeIds,
     SubtitleLookupContext? SubtitleContext = null,
-    string? SearchText = null);
+    string? SearchText = null,
+    bool Interactive = false);
 
 public sealed record TextTrackCandidate(
     string Provider,

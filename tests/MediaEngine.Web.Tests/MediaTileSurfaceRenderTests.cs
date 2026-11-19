@@ -79,12 +79,13 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         // Every kind is the same landscape tile (details-and-tile-fixes D3); a book or audiobook says its kind in the top-left label.
         var cards = cut.FindAll("article.continue-tile");
         Assert.Equal(3, cards.Count);
-        Assert.Equal("Book", cards.Single(c => c.TextContent.Contains("Continue Book")).QuerySelector(".media-tile-label--kind")!.TextContent);
-        Assert.Equal("Audiobook", cards.Single(c => c.TextContent.Contains("Continue Audiobook")).QuerySelector(".media-tile-label--kind")!.TextContent);
-        Assert.Null(cards.Single(c => c.TextContent.Contains("Continue TV")).QuerySelector(".media-tile-label--kind"));
+        // The type is said in words on the description line, never as a label on the picture (issue 1193).
+        Assert.All(cards, card => Assert.Null(card.QuerySelector(".media-tile-label--kind")));
+        Assert.Equal("Book", cards.Single(c => c.TextContent.Contains("Continue Book")).QuerySelector(".continue-tile__line")!.TextContent.Trim());
+        Assert.Equal("Audiobook", cards.Single(c => c.TextContent.Contains("Continue Audiobook")).QuerySelector(".continue-tile__line")!.TextContent.Trim());
+        Assert.Equal("Show", cards.Single(c => c.TextContent.Contains("Continue TV")).QuerySelector(".continue-tile__line")!.TextContent.Trim());
         var book = cards.Single(c => c.TextContent.Contains("Continue Book"));
-        // No content rating or year known: no second row, and the percent is a badge, not a text row (review mock-ups D6).
-        Assert.Null(book.QuerySelector(".continue-tile__line"));
+        // No content rating or year known: the second row is just the type, and the percent is a badge, not a text row (review mock-ups D6).
         Assert.Null(book.QuerySelector(".continue-tile__progress-text"));
         Assert.Equal("42%", book.QuerySelector(".continue-tile__percent")!.TextContent.Trim());
         Assert.All(cut.FindAll("[role=progressbar]"), bar => Assert.Equal("42", bar.GetAttribute("aria-valuenow")));
@@ -218,7 +219,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaTileGrid_DrawsAGroupAsAPosterBesideASingleTitle()
+    public void MediaTileGrid_DrawsAGroupAsALandscapeCollageBesideASingleTitlesPoster()
     {
         var group = CreateGroupTile();
         var ordinary = CreateShelfItem("Ordinary title");
@@ -230,8 +231,8 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var tiles = cut.FindAll("article.media-tile");
         Assert.Equal(2, tiles.Count);
         Assert.Single(cut.FindAll("article.media-tile.is-group"));
-        Assert.All(tiles, tile => Assert.Contains("is-portrait", tile.ClassList));
-        Assert.Empty(cut.FindAll("article.media-tile.is-landscape"));
+        Assert.Contains("is-landscape", cut.Find("article.media-tile.is-group").ClassList);
+        Assert.Contains("is-portrait", tiles.Single(tile => !tile.ClassList.Contains("is-group")).ClassList);
     }
 
     [Fact]
@@ -289,7 +290,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AGroupTile_DrawsItsMemberCoversInAGrid_NotASingleCoverOrAFannedStack()
+    public void AGroupTile_DrawsItsMemberCoversInTheCollage_NotASingleCoverOrAFannedStack()
     {
         var group = new MediaTileViewModel
         {
@@ -307,14 +308,13 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll("img.media-tile-image"));
         Assert.Empty(cut.FindAll(".media-tile-stack"));
-        Assert.Single(cut.FindAll("img.media-tile-quadrant"));
-        Assert.Contains("film.jpg", cut.Find("img.media-tile-quadrant").GetAttribute("src"), StringComparison.Ordinal);
-        // One title is one cover filling the tile: no empty squares (review mock-ups D4).
-        Assert.Empty(cut.FindAll(".media-tile-quadrant.is-empty"));
+        Assert.Empty(cut.FindAll("img.media-tile-quadrant"));
+        Assert.Single(cut.FindAll(".group-collage__cover img"));
+        Assert.Contains("film.jpg", cut.Find(".group-collage__cover img").GetAttribute("src"), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AGroupTileWithMemberCovers_DrawsThemInTheGrid_AndThePlainTileWhenItHoldsNone()
+    public void AGroupTileWithMemberCovers_DrawsThemInTheCollage_AndThePlainTileWhenItHoldsNone()
     {
         var withMembers = new MediaTileViewModel
         {
@@ -334,10 +334,10 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var filled = Render<MediaTile>(parameters => parameters.Add(component => component.Item, withMembers));
         var plain = Render<MediaTile>(parameters => parameters.Add(component => component.Item, empty));
 
-        Assert.Equal(2, filled.FindAll("img.media-tile-quadrant").Count);
-        Assert.Contains("book-1.jpg", filled.FindAll("img.media-tile-quadrant")[0].GetAttribute("src"), StringComparison.Ordinal);
+        Assert.Equal(2, filled.FindAll(".group-collage__cover img").Count);
+        Assert.Contains("book-1.jpg", filled.FindAll(".group-collage__cover img")[0].GetAttribute("src"), StringComparison.Ordinal);
         Assert.Empty(filled.FindAll("img.media-tile-image"));
-        Assert.Empty(plain.FindAll("img.media-tile-quadrant"));
+        Assert.Empty(plain.FindAll(".group-collage"));
         Assert.Single(plain.FindAll(".media-tile-fallback"));
     }
 
@@ -428,7 +428,10 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, collection));
 
-        Assert.Equal("6 titles", cut.Find(".media-tile-label--bottom").TextContent.Trim());
+        // The count sits on the collage's solid band under the name, not in a label over the covers.
+        Assert.Equal("6 titles", cut.Find(".group-collage__count").TextContent.Trim());
+        Assert.Equal("Cross-Media Archive", cut.Find(".group-collage__name").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".media-tile-label--bottom"));
         Assert.Equal("Collection", cut.Find(".media-tile-label--status").TextContent.Trim());
         Assert.Empty(cut.FindAll("[data-group-source], [data-unmatched-badge]"));
         Assert.Empty(cut.FindAll(".media-tile-fallback__title"));
@@ -532,7 +535,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     };
 
     [Fact]
-    public void MediaTile_SeriesIsAPosterOfItsCoversWithTheKindAndCount()
+    public void MediaTile_SeriesIsALandscapeCollageOfItsCoversWithTheKindAndCount()
     {
         var item = new MediaTileViewModel
         {
@@ -559,14 +562,14 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        // A Series is a group of titles: a poster of its member covers in a grid, the kind word at top left and the count at bottom left.
+        // A Series is a group of titles: a landscape collage of its member covers, the kind word at top left and the count on the name band.
         var tile = cut.Find("article.media-tile");
         Assert.Contains("is-group", tile.ClassList);
-        Assert.Contains("is-portrait", tile.ClassList);
-        Assert.Equal(2, cut.FindAll("img.media-tile-quadrant").Count);
+        Assert.Contains("is-landscape", tile.ClassList);
+        Assert.Equal(2, cut.FindAll(".group-collage__cover img").Count);
         Assert.Empty(cut.FindAll("img.media-tile-image"));
         Assert.Equal("Book series", cut.Find(".media-tile-label--status").TextContent.Trim());
-        Assert.Equal("6 books", cut.Find(".media-tile-label--bottom").TextContent.Trim());
+        Assert.Equal("6 books", cut.Find(".group-collage__count").TextContent.Trim());
         Assert.Equal("Foundation Series, Book series", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
     }
@@ -834,7 +837,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
         Assert.Equal("/watch/player/continue", cut.Find(".continue-tile__link").GetAttribute("href"));
         Assert.Equal("Resume Continue title", cut.Find(".continue-tile__link").GetAttribute("aria-label"));
-        Assert.Equal("TV-MA \u00b7 2021", cut.Find(".continue-tile__line").TextContent.Trim());
+        Assert.EndsWith("TV-MA \u00b7 2021", cut.Find(".continue-tile__line").TextContent.Trim());
         Assert.DoesNotContain("\u2605", cut.Find(".continue-tile__text").TextContent);
         Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "registerMediaTileHover");
     }
@@ -857,7 +860,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         };
         var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
         Assert.Equal("S3 E8: Night 1", cut.Find(".continue-tile__title").TextContent.Trim());
-        Assert.Equal("TV-14 · 2019", cut.Find(".continue-tile__line").TextContent.Trim());
+        Assert.Equal("Episode · TV-14 · 2019", cut.Find(".continue-tile__line").TextContent.Trim());
         Assert.NotEmpty(cut.FindAll(".continue-tile__progress [role=progressbar]"));
         // The percent is a small badge on the picture, never in the text rows, and there is no separate code on the picture.
         Assert.Equal("3%", cut.Find(".continue-tile__frame .continue-tile__percent").TextContent.Trim());
@@ -888,7 +891,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
             var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
 
-            Assert.Equal(expected, cut.Find(".continue-tile__line").TextContent.Trim());
+            Assert.EndsWith(expected, cut.Find(".continue-tile__line").TextContent.Trim());
             Assert.DoesNotContain("★", cut.Find(".continue-tile__text").TextContent);
             Assert.DoesNotContain("%", cut.Find(".continue-tile__text").TextContent);
         }
@@ -962,7 +965,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             PrimaryNavigationUrl = "/read/continue",
         };
         var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, Book("Frank Herbert", "\u2605 4.3")));
-        Assert.Equal("1965", cut.Find(".continue-tile__line").TextContent.Trim());
+        Assert.Equal("Book · 1965", cut.Find(".continue-tile__line").TextContent.Trim());
         Assert.Equal("60%", cut.Find(".continue-tile__percent").TextContent.Trim());
         Assert.Empty(cut.FindAll(".continue-tile__progress-text"));
         // With no landscape picture the whole cover shows centered on the soft wash (never cropped, never pushed left).

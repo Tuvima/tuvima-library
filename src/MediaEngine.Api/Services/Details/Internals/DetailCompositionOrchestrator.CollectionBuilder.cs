@@ -1091,7 +1091,8 @@ internal sealed partial class DetailCompositionOrchestrator
             AddPlain(pills, ownedEpisodeCount > 0 && !videoFolder
                 ? CombinedEpisodeFiles.CountText(ownedEpisodeCount, ownedFileCount)
                 : null, "episode_count");
-            AddPlain(pills, StringHelpers.FirstNonBlankOr(string.Empty,
+            // A folder of videos shows no length of its own: the next video's length would read as the whole folder's (#1192).
+            AddPlain(pills, videoFolder ? null : StringHelpers.FirstNonBlankOr(string.Empty,
                 FormatTrackDuration(StringHelpers.FirstNonBlankOr(string.Empty,
                     tvPlaybackEpisode?.Duration,
                     GetValue(tvPlaybackValues, MetadataFieldConstants.Runtime),

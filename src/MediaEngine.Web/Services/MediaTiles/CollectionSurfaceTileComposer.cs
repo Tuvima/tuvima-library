@@ -23,7 +23,7 @@ public static class CollectionSurfaceTileComposer
         var navigationUrl = SeriesNavigationUrl(group, mediaType);
         var artworkItems = group.PreviewItems
             .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
-            .Take(4)
+            .Take(GroupCollageLayout.MaxCovers)
             .Select(item => new ArtworkStackItem
             {
                 Id = item.WorkId.ToString("D"),
@@ -200,10 +200,10 @@ public static class CollectionSurfaceTileComposer
         var artworkStackItems = collection.ArtworkItems
             .Select(ToArtworkStackItem)
             .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
-            .Take(4)
+            .Take(GroupCollageLayout.MaxCovers)
             .ToList();
         var primaryArtwork = PrimaryArtwork(collection);
-        var tileShape = GroupTileShape.For(artworkStackItems);
+        var tileShape = collection.Person is null ? GroupTileShape.For(artworkStackItems) : GroupTileShape.ForPerson(artworkStackItems);
         var primarySmall = MediaTileArtworkUrl.Sized(primaryArtwork, "s");
         var primaryMedium = MediaTileArtworkUrl.Sized(primaryArtwork, "m");
         var surface = MediaTileArtworkResolver.Resolve(

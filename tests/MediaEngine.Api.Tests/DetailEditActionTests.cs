@@ -29,6 +29,15 @@ public sealed class DetailEditActionTests
     };
 
     [Theory]
+    [InlineData(DetailEntityType.TvShow, "Edit this folder")]
+    [InlineData(DetailEntityType.TvSeason, "Edit this section")]
+    [InlineData(DetailEntityType.Collection, "Edit this collection")]
+    public void Build_ForAFolderOfVideos_NeverSaysShowOrSeason(DetailEntityType entityType, string expected)
+    {
+        Assert.Equal(expected, DetailEditAction.Build(entityType, updatingDetails: false, isVideoFolder: true).Label);
+    }
+
+    [Theory]
     [MemberData(nameof(ExpectedLabels))]
     public void Build_LabelsTheEditEntryByTheTypeBeingEdited(DetailEntityType entityType, string expected)
     {

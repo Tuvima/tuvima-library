@@ -2,7 +2,7 @@
 
 @* The art of one tile: the picture fills it, one flush label sits in the top-left corner. A title with no picture
    names itself on the stand-in (One tile design spec); a title with art shows no caption, because the art carries it. *@
-<span class="lact-tile__face @(Compact ? "lact-tile__face--compact" : null)">
+<span class="lact-tile__face @(Compact ? "lact-tile__face--compact" : null) @(Square ? "lact-tile__face--square" : null)">
     <LibraryActivityPicture Url="@CoverUrl" DrawnPx="@(Compact ? 160 : 321)" Icon="@Icon" IconSize="AppIconSize.Tile32" FallbackText="@Title" />
     @if (!string.IsNullOrWhiteSpace(StatusLabel))
     {
@@ -16,6 +16,9 @@
     [Parameter] public string MediaType { get; set; } = string.Empty;
     [Parameter] public string? StatusLabel { get; set; }
     [Parameter] public bool Compact { get; set; }
+
+    /// <summary>Album and audiobook covers are square: shown whole and centered in the tile, never cropped to a portrait (issue 1158).</summary>
+    [Parameter] public bool Square { get; set; }
 
     private string Icon => MediaType switch
     {

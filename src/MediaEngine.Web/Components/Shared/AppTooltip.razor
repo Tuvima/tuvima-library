@@ -2,7 +2,7 @@
 
 @* Markup only. The one tooltip controller in wwwroot/js/playback-tooltip.js listens on the whole document and reads these data
    attributes, so a tooltip costs no script import, no attach call and no listener of its own. *@
-<span class="@($"playback-tooltip-owner {Class}".Trim())" data-playback-tooltip="@Text" data-playback-tooltip-placement="@Placement.ToString().ToLowerInvariant()" data-playback-tooltip-suppressed="@(Suppressed ? "true" : "false")" @attributes="AdditionalAttributes">
+<span class="@($"playback-tooltip-owner {Class}".Trim())" data-playback-tooltip="@Text" data-playback-tooltip-placement="@Placement.ToString().ToLowerInvariant()" data-playback-tooltip-suppressed="@(Suppressed ? "true" : "false")" data-playback-tooltip-warning="@Warning" @attributes="AdditionalAttributes">
     @ChildContent
 </span>
 
@@ -12,6 +12,8 @@
     [Parameter] public bool Arrow { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     [Parameter] public string? Class { get; set; }
+    /// <summary>A second line drawn in amber under the text (a caution such as "not undone automatically"); null for none.</summary>
+    [Parameter] public string? Warning { get; set; }
     [Parameter] public bool Suppressed { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }
