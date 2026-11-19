@@ -6,8 +6,8 @@ using MediaEngine.Domain.Contracts;
 namespace MediaEngine.Api.Services.Security;
 
 /// <summary>
-/// Who may start without a password: only a visitor on the computer that runs Tuvima. Anyone on the home network, and
-/// anyone outside it, signs in with a password or passkey (home network spec D8).
+/// Who may start without a password: a visitor on the computer that runs Tuvima. A no-password profile also works from
+/// the home network (issue 1152); anyone outside it signs in with a password or passkey.
 /// </summary>
 public static class ThisComputerAccess
 {
@@ -16,8 +16,8 @@ public static class ThisComputerAccess
 
 /// <summary>
 /// The old "secure your account first" refusal (409 <c>secure_account_first</c>). It no longer refuses anything: the
-/// server is open from the start. A no-password account works only on the computer that runs Tuvima (home network
-/// spec D8). Kept only for its remaining callers.
+/// server is open from the start. A no-password account works on the computer that runs Tuvima and on the home network,
+/// never from outside it (issue 1152). Kept only for its remaining callers.
 /// </summary>
 public sealed class SecureAccountGate
 {

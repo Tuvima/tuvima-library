@@ -103,7 +103,7 @@ public sealed class HomeNetworkSignInTests : IDisposable
     }
 
     [Fact]
-    public async Task TheNoPasswordAdministrator_WorksOnThisComputer_ButAPhoneOnTheHomeNetworkCannotUseItsSession()
+    public async Task TheNoPasswordAdministrator_WorksOnThisComputerAndTheHomeNetwork_ButNeverFromOutsideIt()
     {
         await using var app = await StartAsync();
         var identity = app.Services.GetRequiredService<IFirstPartyIdentityService>();
@@ -115,20 +115,28 @@ public sealed class HomeNetworkSignInTests : IDisposable
             "/probe/admin", LanAddress, serviceKey: true, session: issued.PlaintextToken, ingress: ClientIngressValues.HomeNetwork);
         using var saysNothing = await app.SendAsync(
             "/probe/admin", LanAddress, serviceKey: true, session: issued.PlaintextToken);
+        using var fromOutside = await app.SendAsync(
+            "/probe/admin", LanAddress, serviceKey: true, session: issued.PlaintextToken, ingress: ClientIngressValues.Remote);
+        using var saysSomethingOdd = await app.SendAsync(
+            "/probe/admin", LanAddress, serviceKey: true, session: issued.PlaintextToken, ingress: "somewhere-else");
 
         Assert.Equal(HttpStatusCode.OK, onThisComputer.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, onTheHomeNetwork.StatusCode);
+        // A phone or TV on the home network goes straight in; anything outside it, unknown or unsaid never does (fail closed).
+        Assert.Equal(HttpStatusCode.OK, onTheHomeNetwork.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, saysNothing.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, fromOutside.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, saysSomethingOdd.StatusCode);
     }
 
     [Fact]
-    public async Task NoPasswordSignIn_IsNotOfferedToAPhoneOnTheHomeNetwork_ThroughTheIdentityService()
+    public async Task NoPasswordSignIn_IsOfferedOnTheHomeNetworkButNotOutsideIt_ThroughTheIdentityService()
     {
         await using var app = await StartAsync();
         var identity = app.Services.GetRequiredService<IFirstPartyIdentityService>();
         await identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "laptop", "Laptop", "Dashboard");
 
-        Assert.Null(await identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.HomeNetwork));
+        Assert.NotNull(await identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.HomeNetwork));
+        Assert.Null(await identity.SignInThisComputerAccountAsync("outside", "Browser", "Dashboard", ClientIngress.Remote));
         Assert.NotNull(await identity.SignInThisComputerAccountAsync("laptop2", "Laptop", "Dashboard", ClientIngress.ThisComputer));
     }
 
