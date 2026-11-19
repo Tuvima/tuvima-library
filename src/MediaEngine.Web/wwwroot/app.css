@@ -4059,6 +4059,18 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     border-radius: var(--tl-radius-md);
 }
 
+/* A song row's "..." is a plain icon button: no border, only a hover highlight, at the right end of the row (issue 1163). */
+.song-table__cell--actions .app-row-menu__trigger {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+.song-table__cell--actions .app-row-menu__trigger:hover,
+.song-table__cell--actions .app-row-menu__trigger:focus-visible {
+    background: var(--tl-accent-primary-soft);
+}
+
 .app-row-menu__sheet,
 .app-menu-sheet {
     --tl-menu-item-height: var(--tl-menu-sheet-row-height);
