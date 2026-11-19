@@ -1,9 +1,11 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Progress
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
+@inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 @if (_status is { OwnedCount: > 0 } status)
 {
@@ -65,7 +67,10 @@
             await Dialogs.ShowAsync<PersonalHistoryDialog>("Listening history",new AppDialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
         } catch (Exception ex) { await OnFailed.InvokeAsync(ex.Message); }
     }
-    private Task PlaylistAsync() => !Current ? Task.CompletedTask : Dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist",new AppDialogParameters<MediaMembershipDialog> {
-        { d => d.Playlist, true }, { d => d.WorkIds, new[] { WorkId } },
-    });
+    // The same Add to playlist flow every place uses (picker, add, one sentence); the sentence is shown in place by the host because this menu closes.
+    private async Task PlaylistAsync() {
+        if (!Current) return;
+        var notice = await PlaylistMembershipFlow.RunForSongsAsync(Services, new[] { WorkId }, L["Common_AddToPlaylist"].Value);
+        if (notice is not null) await OnChanged.InvokeAsync(notice.ToOffer());
+    }
 }
