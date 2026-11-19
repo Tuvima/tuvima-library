@@ -931,7 +931,7 @@
 @media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: flex-end;
-        min-height: clamp(30rem, 68svh, 36rem);
+        min-height: var(--cinematic-hero-phone-min-height, clamp(30rem, 68svh, 36rem));
         padding:
             calc(var(--app-topbar-height, 65px) + 2.25rem)
             1.1rem

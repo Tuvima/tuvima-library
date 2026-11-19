@@ -13412,7 +13412,8 @@
   Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RelativePath: System.String | json=relative_path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ModifiedAt: System.DateTimeOffset? | json=modified_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","relative_path":"sample","modified_at":"2025-01-02T03:04:05+00:00"}
+  ItemCount: System.Int32? | json=item_count | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","relative_path":"sample","modified_at":"2025-01-02T03:04:05+00:00","item_count":7}
 
 [contracts] MediaEngine.Contracts.Settings.ServerFolderValidationIssueDto
   kind=class | converter=default | number-handling=default | unmapped=default

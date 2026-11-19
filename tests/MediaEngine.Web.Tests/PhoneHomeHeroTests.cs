@@ -362,11 +362,11 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
         Assert.Contains("overflow: hidden", zone);
         // A very wide logo is held by the width cap and a very tall one by the height cap; both keep their shape.
         var logo = Rule(css, ".phone-hero__logo");
-        Assert.Contains("max-width: 70%", logo);
+        Assert.Contains("max-width: 50%", logo);
         Assert.Contains("max-height: 100%", logo);
         Assert.Contains("object-fit: contain", logo);
         // The card keeps one height formula and its content is positioned inside it, so nothing the text does can resize it.
-        Assert.Contains("--phone-hero-card-height: calc(var(--phone-hero-visible) * 0.55)", css);
+        Assert.Contains("--phone-hero-card-height: calc(var(--phone-hero-top) + 12rem)", css);
         Assert.Contains("height: var(--phone-hero-card-height)", Rule(css, ".phone-hero__card"));
         Assert.Contains("position: absolute", Rule(css, ".phone-hero__content"));
         var appCss = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "wwwroot", "app.css"));
@@ -399,15 +399,15 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task RateAndThumbsMoveIntoMoreAndTheMetaLineIsReadable()
+    public async Task TheHeroKeepsOnlyTheMainButtonAndMyListAndTheMetaLineIsReadable()
     {
         await UseAsync("phone");
         var cut = RenderPhone(Book());
+        // Like and More live on the details page (issue 1180); the Home hero is a wide main button and the My List icon.
         Assert.Empty(cut.FindAll("[aria-label='Rate']"));
         Assert.Empty(cut.FindAll("[aria-label='I like this']"));
-        cut.Find("[aria-label='More actions']").Click();
-        Assert.Contains("I like this", cut.Markup);
-        Assert.Contains("Not for me", cut.Markup);
+        Assert.Empty(cut.FindAll("[aria-label='More actions']"));
+        Assert.Single(cut.FindAll(".tl-detail-action--primary"));
         Assert.Equal("James S. A. Corey · 2011 · 592 pages", cut.Find(".phone-hero__meta").TextContent.Trim());
     }
 

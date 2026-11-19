@@ -588,9 +588,9 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         // The grey footer line is dropped while the handling choice is shown: the Read-only choice says it, and nothing else does.
         Assert.Empty(_dialogs.FindAll("[data-picker-safety]"));
-        Assert.Contains("Read-only never changes your files.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
-        var outsideTheChoice = Text(_dialogs.Find(".create-library")).Replace(Text(_dialogs.Find("[data-folder-handling]")), string.Empty, StringComparison.Ordinal);
-        Assert.DoesNotContain("Read-only never changes your files", outsideTheChoice, StringComparison.Ordinal);
+        // The help is a tooltip beside "Folder access", never a line under the choice, so the window keeps one size (issue 1155).
+        Assert.Equal("Files stay exactly as they are. Library only reads them. Uploads need a Managed folder.", _dialogs.Find("[data-folder-handling] [data-playback-tooltip]").GetAttribute("data-playback-tooltip"));
+        Assert.DoesNotContain("never changes your files", Text(_dialogs.Find(".create-library")).Replace(Text(_dialogs.Find("[data-folder-handling]")), string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.DoesNotContain("never changed", Text(_dialogs.Find("[data-scan-line]")), StringComparison.Ordinal);
         // The scan line is the one message line, directly under the handling choice.
         Assert.True(_dialogs.Find("[data-folder-handling]").NextElementSibling!.HasAttribute("data-picker-message"));
