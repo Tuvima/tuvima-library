@@ -12,9 +12,12 @@
     }
     else if (_offer is not null)
     {
-        <AppAlert Severity="AppSeverity.Success" Dense="true" data-undo-note-line>
+        <AppAlert Severity="@_offer.Severity" Dense="true" data-undo-note-line>
             <span class="app-undo-note__text">@_offer.Message</span>
-            <AppButton ButtonStyle="AppButtonStyle.Text" Label="@L["Common_Undo"].Value" OnClick="UndoAsync" data-undo-note-action />
+            @if (_offer.UndoAsync is not null)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Label="@L["Common_Undo"].Value" OnClick="UndoAsync" data-undo-note-action />
+            }
         </AppAlert>
     }
 </div>
@@ -57,7 +60,7 @@
     private async Task UndoAsync()
     {
         var offer = _offer;
-        if (offer is null)
+        if (offer?.UndoAsync is null)
         {
             return;
         }

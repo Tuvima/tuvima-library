@@ -43,11 +43,8 @@ public sealed class PhoneSongSelectionTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ =>
                 Task.FromResult(_alreadyThere.Select(id => new CollectionItemDto { Id = Guid.NewGuid(), WorkId = id, Title = "Held" }).ToList()));
-            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemAsync), args =>
-            {
-                _added.Add(((Guid)args![0]!, (Guid)args[1]!));
-                return Task.FromResult(true);
-            });
+            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), args =>
+                PlaylistAddSpy.Answer(args, _alreadyThere, (playlist, work) => _added.Add((playlist, work))));
         }));
     }
 
@@ -75,7 +72,7 @@ public sealed class PhoneSongSelectionTests : AsyncBunitContext
         Assert.Equal(rows.Select(row => (Playlist, row.WorkId!.Value)).ToHashSet(), _added.ToHashSet());
         Assert.Equal("Add to playlist", Assert.Single(_dialogs.Titles));
         Assert.Equal(AppDialogSheetMode.Phone, _dialogs.LastOptions?.Sheet);
-        Assert.True((bool)_dialogs.LastParameters!.ToDictionary()["Playlist"]);
+        Assert.Equal(3, ((IReadOnlyList<Guid>)_dialogs.LastParameters!.ToDictionary()["WorkIds"]!).Count);
         // Still in select mode, so the person can do something else with the same songs.
         Assert.Equal("3 selected", cut.Find("[data-song-selection-bar] [role='status']").TextContent.Trim());
     }

@@ -96,9 +96,6 @@ public partial class ListenPage
         return BuildAlbumDetailRoute(work.Album, StringHelpers.FirstNonBlank(work.Artist, work.Author), work.Id);
     }
 
-    private async Task AddToPlaylistAsync(WorkViewModel work, ManagedCollectionViewModel collection)
-        => await AddTracksToPlaylistAsync([work], collection);
-
     private async Task ToggleFavoriteAsync(WorkViewModel work)
     {
         if (!_activeProfileId.HasValue)

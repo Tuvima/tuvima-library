@@ -117,11 +117,8 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ =>
                 Task.FromResult(_alreadyInPlaylist.Select(id => new CollectionItemDto { Id = Guid.NewGuid(), WorkId = id, Title = "Held" }).ToList()));
-            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemAsync), args =>
-            {
-                _added.Add((Guid)args![1]!);
-                return Task.FromResult(true);
-            });
+            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), args =>
+                PlaylistAddSpy.Answer(args, _alreadyInPlaylist, (_, work) => _added.Add(work)));
             stub.SetHandler(nameof(IEngineApiClient.GetManagedCollectionsAsync), _ => Task.FromResult(new List<ManagedCollectionViewModel>
             {
                 new() { Id = RoadTrip, Name = "Road trip", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Manual", CanEdit = true, IsEnabled = true },
@@ -608,12 +605,11 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
             }));
         }));
 
-        var ids = await PlaylistMembership.ResolveSongIdsAsync(
+        var resolved = await PlaylistMembership.ResolveAsync(
             api, [new BulkEditRow(AlbumOne, "One", DetailEntityType.MusicAlbum, null, "Music", null, "Band", FromAlbumsList: true)]);
 
         Assert.Equal(("One", "Band"), asked);
-        Assert.Equal([SongA, SongB], ids);
-        await Task.CompletedTask;
+        Assert.Equal([SongA, SongB], resolved.SongIds);
     }
 
     // -- Helpers -------------------------------------------------------------------------------------
