@@ -239,8 +239,15 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
     // ("NBA champion" and "American basketball player"), so the short name is read as the longer word.
     private static readonly Dictionary<string, string> HintAliases = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["nba"] = "basketball", ["wnba"] = "basketball", ["nfl"] = "football", ["mlb"] = "baseball",
-        ["nhl"] = "hockey", ["fifa"] = "footballer", ["pga"] = "golfer", ["atp"] = "tennis", ["wta"] = "tennis",
+        ["nba"] = "basketball",
+        ["wnba"] = "basketball",
+        ["nfl"] = "football",
+        ["mlb"] = "baseball",
+        ["nhl"] = "hockey",
+        ["fifa"] = "footballer",
+        ["pga"] = "golfer",
+        ["atp"] = "tennis",
+        ["wta"] = "tennis",
     };
 
     // Words that describe nearly everyone with a job, so they never tell two people apart.
