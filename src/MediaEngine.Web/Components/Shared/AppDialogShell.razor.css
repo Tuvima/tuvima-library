@@ -32,6 +32,18 @@
     background: var(--tl-bg-surface);
 }
 
+/* Every provider pop-up is one Medium window (640 px) however much its content holds; the framed width of 100% would otherwise follow the
+   content inside the shrink-to-fit host (issue 1156). Phones keep the full-width sheet. */
+.app-dialog-shell--provider.app-dialog-shell--framed {
+    width: min(calc(100vw - 32px), var(--tl-window-m, 640px));
+}
+
+@media (max-width: 600px) {
+    .app-dialog-shell--provider.app-dialog-shell--framed {
+        width: 100%;
+    }
+}
+
 .app-dialog-shell--provider .app-dialog-shell__header {
     padding: 30px 36px 24px;
 }
