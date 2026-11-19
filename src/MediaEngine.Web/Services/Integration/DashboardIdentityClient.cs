@@ -886,7 +886,7 @@ public sealed partial class DashboardIdentityClient(
 
     // No classifier or no request means the caller cannot be placed, so it is treated as remote (fail closed).
     private string CurrentIngress(HttpContext? context) =>
-        context is not null && ingress is not null
+        context is not null && ingress is not null && !context.WasForwarded()
             ? ingress.Classify(context).ToWireValue()
             : ClientIngressValues.Remote;
 

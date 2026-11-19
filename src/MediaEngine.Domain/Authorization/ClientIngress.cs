@@ -2,7 +2,7 @@ namespace MediaEngine.Domain.Authorization;
 
 /// <summary>
 /// Where a request physically came from, as one shared vocabulary for the Dashboard, the Engine and stored
-/// sessions. Network location is no longer restricted, so anything other than this computer counts as the home network.
+/// sessions. Parse folds unknown values into the home network; a no-password account uses IsOnLocalNetwork/ParseCurrent, which fail closed.
 /// </summary>
 public static class ClientIngress
 {

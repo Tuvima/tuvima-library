@@ -195,7 +195,10 @@ public static class IngressClassifierExtensions
 
     /// <summary>Where this request came from, as the Engine's wire value.</summary>
     public static string ClientIngress(this HttpContext context) =>
-        context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context).ToWireValue();
+        // A forwarded request came through a tunnel or proxy, so it is never trusted as this computer or the home network.
+        context.WasForwarded()
+            ? ClientIngressValues.Remote
+            : context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context).ToWireValue();
 
     /// <summary>
     /// True when the visitor's own request carried forwarding headers. A tunnel or proxy running on this computer looks

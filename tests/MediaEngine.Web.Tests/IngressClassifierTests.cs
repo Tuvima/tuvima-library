@@ -67,6 +67,21 @@ public sealed class IngressClassifierTests
     }
 
     [Fact]
+    public void ForwardedRequest_IsRemoteEvenFromLoopback()
+    {
+        var services = new ServiceCollection().AddSingleton(new IngressClassifier(null, [])).BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Connection.LocalPort = MainPort;
+
+        Assert.Equal("this_computer", context.ClientIngress());
+
+        context.Request.Headers["X-Forwarded-For"] = "203.0.113.9";
+
+        Assert.Equal("remote", context.ClientIngress());
+    }
+
+    [Fact]
     public void ContainerGateway_IsRemoteUnlessTrusted()
     {
         var gateway = IPAddress.Parse("172.17.0.1");
