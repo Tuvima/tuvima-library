@@ -1342,6 +1342,16 @@ public sealed class EditorHeaderReadService(
 
     // The work's best stored cover: kept under the work or its edition, with the row's type naming that owner (the access check resolves a "Work"
     // row by its work and an "Edition" row by its edition, and nothing else); a picture the user chose first, then the preferred one.
+    /// <summary>The address of a work's own stored cover, the picture the header shows; null when it has none (the Match tab's fallback when the provider's picture cannot be shown).</summary>
+    internal static string? StoredCoverUrl(IDatabaseConnection db, Guid workId)
+    {
+        using var connection = db.CreateConnection();
+        var picked = FindStoredCover(connection, workId);
+        return picked is null
+            ? null
+            : ArtworkCanonicalHelper.StoredArtworkUrl(new EntityAsset { Id = picked.AssetId, LocalImagePath = picked.LocalImagePath ?? string.Empty });
+    }
+
     private static CoverRow? FindStoredCover(System.Data.IDbConnection connection, Guid workId) => connection.QueryFirstOrDefault<CoverRow>("""
         SELECT ea.id AS AssetId, ea.primary_hex AS PrimaryHex, ea.secondary_hex AS SecondaryHex, ea.accent_hex AS AccentHex,
                ea.local_image_path AS LocalImagePath

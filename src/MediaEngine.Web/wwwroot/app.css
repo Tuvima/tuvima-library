@@ -5570,7 +5570,9 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-editor-field__box{position:relative;min-width:0}
 .tl-editor-field__box[data-lock-box="true"] :is(.tl-input,input,select,textarea){padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
 .tl-editor-field__box[data-lock-box="true"] .tl-editor-field__chips{padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
-.tl-editor-field__box>.tl-editor-field__lockstate{position:absolute;top:0;right:var(--tl-space-1);z-index:1}
+.tl-editor-field__box>.tl-editor-field__lockstate{position:absolute;top:0;bottom:0;right:var(--tl-space-1);z-index:1}
+/* A tall box (a description) keeps the lock at its top right; every one-line box centers it (issue 1159). */
+.tl-editor-field__box:has(textarea)>.tl-editor-field__lockstate{bottom:auto}
 .tl-editor-field__box>.tl-editor-field__lockstate .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
 .tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"] .tl-editor-field__lock-toggle,.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"]{color:var(--tl-status-warning)}
 .tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="locked"] .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
