@@ -1,0 +1,156 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+
+@* The small window of a playlist's own page (spec listen-playlists WP4): Rename asks for the name, Edit description and cover asks for the
+   description and the cover (the person's own picture, or the automatic mosaic of the songs' covers). Nothing is saved until Save; a refusal
+   is told in the window and what was kept. A bottom sheet on a phone and a touch tablet. *@
+<AppDialogShell Title="@Heading" Size="Medium" OnClose="@(() => Dialog.CancelAsync())">
+    <ChildContent>
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error">@_failure</AppAlert>
+        }
+        @if (Mode == PlaylistEditMode.Rename)
+        {
+            <AppTextField Label="@L["PlaylistEdit_Name"].Value" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                          MaxLength="120" AutoFocus="true" OnKeyDown="OnNameKeyDownAsync" />
+        }
+        else
+        {
+            <AppTextField Label="@L["PlaylistEdit_Description"].Value" Value="@_description" ValueChanged="@(value => _description = value ?? string.Empty)"
+                          MaxLength="500" Lines="3" AutoFocus="true" />
+            <div class="playlist-edit__cover">
+                <span class="playlist-edit__label">@L["PlaylistEdit_Cover"]</span>
+                <p class="playlist-edit__status" data-playlist-cover-status>@CoverStatus</p>
+                <div class="playlist-edit__cover-actions">
+                    <label class="playlist-edit__pick">
+                        <InputFile class="app-artwork-picker__input" OnChange="PictureChosen" accept=".jpg,.jpeg,.png" aria-label="@L["PlaylistEdit_ChoosePicture"].Value" />
+                        <span>@L["PlaylistEdit_ChoosePicture"]</span>
+                    </label>
+                    @if (UsesPicture)
+                    {
+                        <AppButton Label="@L["PlaylistEdit_UseMosaic"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="_busy" OnClick="ChooseMosaic" data-playlist-use-mosaic="true" />
+                    }
+                </div>
+                <p class="playlist-edit__hint">@L["PlaylistEdit_CoverHelp"]</p>
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="_busy" OnClick="@(() => Dialog.CancelAsync())" />
+        <AppButton Label="@L["Common_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="_busy"
+                   Disabled="@(_busy || !CanSave)" OnClick="SaveAsync" data-playlist-edit-save="true" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    private const long MaxPictureBytes = 5 * 1024 * 1024;
+    private const string CoverSlot = "poster";
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired] public ManagedCollectionViewModel Playlist { get; set; } = default!;
+    [Parameter] public Guid? ProfileId { get; set; }
+    [Parameter] public PlaylistEditMode Mode { get; set; } = PlaylistEditMode.Rename;
+
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private IBrowserFile? _picture;
+    private bool _useMosaic;
+    private bool _busy;
+    private string? _failure;
+
+    private string Heading => Mode == PlaylistEditMode.Rename ? L["PlaylistEdit_RenameTitle"].Value : L["PlaylistMenu_EditDetails"].Value;
+
+    // The cover the playlist has now, unless a choice in this window changed it.
+    private bool UsesPicture => _picture is null && !_useMosaic
+        && string.Equals(Playlist.CoverMode, "picture", StringComparison.OrdinalIgnoreCase);
+
+    private string CoverStatus => _picture is not null
+        ? L["PlaylistEdit_PictureChosen", _picture.Name].Value
+        : _useMosaic || !UsesPicture
+            ? L["PlaylistEdit_MosaicInUse"].Value
+            : L["PlaylistEdit_PictureInUse"].Value;
+
+    private bool CanSave => Mode == PlaylistEditMode.Rename ? !string.IsNullOrWhiteSpace(_name) : true;
+
+    protected override void OnInitialized()
+    {
+        _name = Playlist.Name;
+        _description = Playlist.Description ?? string.Empty;
+    }
+
+    private void PictureChosen(InputFileChangeEventArgs args)
+    {
+        _failure = null;
+        var file = args.File;
+        if (file.Size > MaxPictureBytes)
+        {
+            _failure = L["PlaylistEdit_PictureTooLarge"].Value;
+            return;
+        }
+
+        _picture = file;
+        _useMosaic = false;
+    }
+
+    private void ChooseMosaic()
+    {
+        _picture = null;
+        _useMosaic = true;
+    }
+
+    private Task OnNameKeyDownAsync(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args)
+        => string.Equals(args.Key, "Enter", StringComparison.Ordinal) && !_busy && CanSave ? SaveAsync() : Task.CompletedTask;
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _failure = null;
+        try
+        {
+            var saved = Mode == PlaylistEditMode.Rename
+                ? await ApiClient.UpdateCollectionAsync(Playlist.Id, _name.Trim(), null, null, null, null, null, null, null, null, ProfileId)
+                : await ApiClient.UpdateCollectionAsync(Playlist.Id, null, _description.Trim(), null, null, null, null, null, null, null, ProfileId);
+            if (!saved)
+            {
+                _failure = L["PlaylistEdit_SaveFailed"].Value;
+                return;
+            }
+
+            if (Mode == PlaylistEditMode.Details && !await SaveCoverAsync())
+            {
+                _failure = L["PlaylistEdit_CoverFailed"].Value;
+                return;
+            }
+
+            await Dialog.CloseAsync(AppDialogResult.Ok(true));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task<bool> SaveCoverAsync()
+    {
+        if (_picture is { } file)
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: MaxPictureBytes);
+            if (!await ApiClient.UploadCollectionArtworkAsync(Playlist.Id, CoverSlot, stream, file.Name, ProfileId))
+            {
+                return false;
+            }
+
+            _picture = null;
+            return true;
+        }
+
+        return !_useMosaic || await ApiClient.DeleteCollectionArtworkAsync(Playlist.Id, CoverSlot, ProfileId);
+    }
+}

@@ -480,14 +480,40 @@ else
                         }
                     </div>
                     <div class="listen-detail__copy">
-                        <h2>@ActivePlaylistTitle</h2>
-                        @if (IsFavoritesPlaylist)
+                        @if (ActivePlaylistKindLine is { } kindLine)
                         {
-                            <p class="listen-detail__meta">@(ActivePlaylistTracks.Count == 1 ? L["ListenPage_FavoritesOneSong"].Value : L["ListenPage_FavoritesSongCount", ActivePlaylistTracks.Count].Value)</p>
+                            <p class="listen-detail__kind" data-playlist-kind>@kindLine</p>
+                        }
+                        <h2>@ActivePlaylistTitle</h2>
+                        @if (ActivePlaylistMetaLine is { } metaLine)
+                        {
+                            <p class="listen-detail__meta" data-playlist-meta>@metaLine</p>
+                        }
+                        @if (IsCollectionPlaylistPage && !string.IsNullOrWhiteSpace(ActivePlaylistCollection?.Description))
+                        {
+                            <p class="listen-detail__description" data-playlist-description>@ActivePlaylistCollection!.Description</p>
+                        }
+                        @if (ActivePlaylistUnavailableCount > 0)
+                        {
+                            <p class="listen-detail__unavailable" data-playlist-unavailable>@ActivePlaylistUnavailableText</p>
                         }
                         <div class="listen-actions">
                             <AppButton ButtonStyle="AppButtonStyle.Filled" StartIcon="@AppMaterialIcons.Filled.PlayArrow" Label="@L["Common_Play"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
                             <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Filled.Shuffle" Label="@L["Common_Shuffle"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle, true))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
+                            @if (CanSortActivePlaylist)
+                            {
+                                @* Sort previews an order on the page; "Keep this order" in the bar below saves it as the playlist's own order. *@
+                                <AppOverflowMenu Label="@L["Common_Sort"].Value" ShowIcon="false" EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+                                                 AriaLabel="@L["Common_Sort"].Value" Size="AppControlSize.Normal"
+                                                 Class="listen-playlist-sort" TriggerClass="listen-playlist-sort__button"
+                                                 AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
+                                    @foreach (var sortKey in PlaylistSortRules.All)
+                                    {
+                                        var chosenKey = sortKey;
+                                        <AppMenuItem Label="@PlaylistSortLabel(chosenKey)" Checked="@IsPlaylistSortApplied(chosenKey)" OnClick="@(() => ChoosePlaylistSortAsync(chosenKey))" />
+                                    }
+                                </AppOverflowMenu>
+                            }
                             @if (CanReorderActivePlaylist && !IsFavoritesPlaylist && !TrackReorderActive && ActivePlaylistTracks.Count > 1)
                             {
                                 <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.SwapVert" Label="@L["AppReorderBar_MenuReorder"].Value" OnClick="BeginTrackReorder" />
@@ -499,6 +525,17 @@ else
                                            Label="@ActivePlaylistSavedLabel"
                                            aria-pressed="@(_activePlaylistSaved ? "true" : "false")"
                                            OnClick="ToggleActivePlaylistSavedAsync" />
+                            }
+                            @if (ShowActivePlaylistMenu && ActivePlaylistCollection is { } menuPlaylist)
+                            {
+                                <PlaylistActionsMenu Playlist="@menuPlaylist"
+                                                     OnEditRules="EditPlaylistRulesAsync"
+                                                     OnRename="RenameActivePlaylistAsync"
+                                                     OnEditDetails="EditActivePlaylistDetailsAsync"
+                                                     OnDuplicate="DuplicatePlaylistAsync"
+                                                     OnTogglePin="TogglePlaylistPinAsync"
+                                                     OnDelete="BeginPlaylistDeleteAsync"
+                                                     Class="listen-playlist-menu" />
                             }
                         </div>
                     </div>
@@ -539,7 +576,7 @@ else
                                    OnEdit="@EditPlaylistRowAsync"
                                    OnRemoveFromPlaylist="@RemovePlaylistRowAsync"
                                    OnReorder="@ReorderPlaylistRowAsync" />
-                        <AppReorderBar Active="@TrackReorderActive" Dirty="@TrackReorderDirty" Busy="@_trackOrderSaving" OnSave="SaveTrackReorderAsync" OnCancel="CancelTrackReorder" />
+                        <AppReorderBar Active="@TrackReorderActive" Dirty="@TrackReorderDirty" Busy="@_trackOrderSaving" Message="@PlaylistSortMessage" SaveLabel="@PlaylistSortSaveLabel" OnSave="SaveTrackReorderAsync" OnCancel="CancelTrackReorder" />
                     }
                 </section>
             }

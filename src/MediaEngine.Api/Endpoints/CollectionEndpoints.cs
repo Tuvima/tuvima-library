@@ -1537,7 +1537,8 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-            var page = PagedRequest.From(null, limit, defaultLimit: 20);
+            // A playlist page asks for the whole list (a long playlist is thousands of songs), so this read may go up to the most one list holds.
+            var page = PagedRequest.From(null, limit, defaultLimit: 20, maxLimit: CollectionCatalogReadService.MaxPagedItems);
             var take = page.Limit;
             var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var result = await catalogReadService.GetItemsAsync(id, activeProfile, take, ct, allowedWorkIds);

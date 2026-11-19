@@ -559,6 +559,53 @@
     padding: 20px 22px;
 }
 
+/* A playlist's own page header (spec listen-playlists, mockup B): a 140 px cover, the kind line, the name, "42 songs · 2h 55m", the
+   description, the unavailable-songs line, then the actions in a row of 44 px controls ending with the "..." menu. */
+.listen-detail--collection .listen-detail__collage {
+    width: 140px;
+}
+
+.listen-detail--collection .listen-detail__copy {
+    flex: 1 1 auto;
+    gap: 4px;
+}
+
+.listen-detail__kind {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.listen-detail--collection .listen-detail__copy h2 {
+    font-size: var(--tl-type-page-title-size);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.listen-detail__description {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--tl-text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.listen-detail__unavailable {
+    margin: 0;
+    color: var(--tl-status-warning);
+    font-size: var(--tl-font-size-sm);
+}
+
+.listen-detail--collection .listen-actions {
+    align-items: center;
+    margin-top: 10px;
+    gap: 8px;
+}
+
+::deep .listen-playlist-sort__button {
+    min-height: var(--tl-tap-target-min, 44px);
+    padding-inline: 16px;
+}
+
 .listen-artists {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
@@ -1176,6 +1223,16 @@
         max-width: 320px;
     }
 
+    /* A playlist's header keeps its cover beside the text down to a tablet; only a phone stacks it (see the 600 px block). */
+    .listen-detail--collection {
+        flex-direction: row;
+    }
+
+    .listen-detail--collection .listen-detail__collage {
+        width: 140px;
+        max-width: 140px;
+    }
+
     .audiobooks-toolbar,
     .audiobooks-segmented,
     .audiobooks-filters,
@@ -1321,5 +1378,29 @@
     ::deep .listen-rail__add {
         width: var(--tl-touch-target-min, 48px);
         min-width: var(--tl-touch-target-min, 48px);
+    }
+}
+
+/* On a phone a playlist's header is centered: a 150 px cover, then the lines and the actions in the middle (mockup D). */
+@media (max-width: 600px) {
+    .listen-detail--collection {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .listen-detail--collection .listen-detail__collage {
+        width: 150px;
+        max-width: 150px;
+    }
+
+    .listen-detail--collection .listen-detail__copy {
+        align-items: center;
+        width: 100%;
+    }
+
+    .listen-detail--collection .listen-detail__meta,
+    .listen-detail--collection .listen-actions {
+        justify-content: center;
     }
 }

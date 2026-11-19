@@ -15080,4 +15080,91 @@
   <data name="ViewSmartSearch_Count" xml:space="preserve">
     <value>{0} photos</value>
   </data>
+  <data name="PlaylistMenu_Options" xml:space="preserve">
+    <value>{0} options</value>
+  </data>
+  <data name="PlaylistMenu_EditRules" xml:space="preserve">
+    <value>Edit rules</value>
+  </data>
+  <data name="PlaylistMenu_EditDetails" xml:space="preserve">
+    <value>Edit description and cover</value>
+  </data>
+  <data name="PlaylistMenu_Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="PlaylistMenu_PinToTop" xml:space="preserve">
+    <value>Pin to top</value>
+  </data>
+  <data name="PlaylistMenu_Unpin" xml:space="preserve">
+    <value>Unpin</value>
+  </data>
+  <data name="PlaylistEdit_RenameTitle" xml:space="preserve">
+    <value>Rename playlist</value>
+  </data>
+  <data name="PlaylistEdit_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistEdit_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="PlaylistEdit_Cover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="PlaylistEdit_ChoosePicture" xml:space="preserve">
+    <value>Choose a picture</value>
+  </data>
+  <data name="PlaylistEdit_UseMosaic" xml:space="preserve">
+    <value>Use the automatic cover</value>
+  </data>
+  <data name="PlaylistEdit_CoverHelp" xml:space="preserve">
+    <value>JPG or PNG, up to 5 MB. The automatic cover is a mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureChosen" xml:space="preserve">
+    <value>{0} will be the cover.</value>
+  </data>
+  <data name="PlaylistEdit_MosaicInUse" xml:space="preserve">
+    <value>The cover is an automatic mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureInUse" xml:space="preserve">
+    <value>The cover is your own picture.</value>
+  </data>
+  <data name="PlaylistEdit_PictureTooLarge" xml:space="preserve">
+    <value>That picture is larger than 5 MB. Choose a smaller one.</value>
+  </data>
+  <data name="PlaylistEdit_SaveFailed" xml:space="preserve">
+    <value>Could not save. The playlist was not changed.</value>
+  </data>
+  <data name="PlaylistEdit_CoverFailed" xml:space="preserve">
+    <value>The changes were saved, but the cover was not changed.</value>
+  </data>
+  <data name="PlaylistPage_Kind" xml:space="preserve">
+    <value>Playlist</value>
+  </data>
+  <data name="PlaylistPage_KindSmart" xml:space="preserve">
+    <value>Smart playlist</value>
+  </data>
+  <data name="PlaylistPage_KindYours" xml:space="preserve">
+    <value>{0} · yours</value>
+  </data>
+  <data name="PlaylistPage_KindOwner" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PlaylistPage_Unavailable" xml:space="preserve">
+    <value>{0} unavailable songs</value>
+  </data>
+  <data name="PlaylistPage_UnavailableOne" xml:space="preserve">
+    <value>1 unavailable song</value>
+  </data>
+  <data name="PlaylistPage_SortedBy" xml:space="preserve">
+    <value>Sorted by {0}. Keep this order to save it.</value>
+  </data>
+  <data name="PlaylistPage_KeepThisOrder" xml:space="preserve">
+    <value>Keep this order</value>
+  </data>
+  <data name="PlaylistPage_DuplicateFailed" xml:space="preserve">
+    <value>Could not duplicate the playlist. Nothing was changed.</value>
+  </data>
+  <data name="PlaylistPage_PinFailed" xml:space="preserve">
+    <value>Could not change the pin. Nothing was changed.</value>
+  </data>
 </root>

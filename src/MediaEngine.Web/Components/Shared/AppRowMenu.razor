@@ -6,7 +6,7 @@
 
 @* Row actions without hover or drag: a "more" button that opens a bottom sheet on phones and the shared
    overflow popover everywhere else. Supply Items, ChildContent (AppMenuItem), or both. *@
-@if (DeviceContext.IsPhone)
+@if (UsesSheet)
 {
     <button type="button"
             class="@PhoneTriggerClass"
@@ -73,10 +73,18 @@ else
     /// <summary>True draws the phone button with no box of its own, so the caller's Class gives it the look of its own icon buttons (the page reader's bar). Phone only.</summary>
     [Parameter] public bool Plain { get; set; }
 
-    // Only rendered inside the DeviceContext.IsPhone branch, so Sheet = Phone always matches the frame's own check.
+    /// <summary>True makes the menu a bottom sheet on a tablet too (a touch tablet has no hover), not only on a phone.</summary>
+    [Parameter] public bool SheetOnTablet { get; set; }
+
+    // Only rendered inside the UsesSheet branch, so the sheet mode always matches the frame's own check.
     private static readonly AppDialogOptions NoTitleSheet = new() { Sheet = AppDialogSheetMode.Phone, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
     private static readonly AppDialogOptions TitledSheet = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
-    private AppDialogOptions SheetOptions => string.IsNullOrWhiteSpace(Title) ? NoTitleSheet : TitledSheet;
+    private static readonly AppDialogOptions NoTitleSheetWithTablet = new() { Sheet = AppDialogSheetMode.PhoneAndTablet, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
+    private static readonly AppDialogOptions TitledSheetWithTablet = new() { Sheet = AppDialogSheetMode.PhoneAndTablet, BackdropClick = true, CloseOnEscapeKey = true };
+    private bool UsesSheet => DeviceContext.IsPhone || (SheetOnTablet && DeviceContext.IsTablet);
+    private AppDialogOptions SheetOptions => string.IsNullOrWhiteSpace(Title)
+        ? SheetOnTablet ? NoTitleSheetWithTablet : NoTitleSheet
+        : SheetOnTablet ? TitledSheetWithTablet : TitledSheet;
     private string TriggerClass => "app-row-menu__trigger";
     private string PhoneTriggerClass => Plain
         ? $"app-row-menu__trigger {Class}".Trim()

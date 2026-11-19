@@ -285,6 +285,20 @@ public sealed class PlaylistActionEndpointTests : IDisposable
         Assert.Null(without.TotalDurationSeconds);
     }
 
+    [Fact]
+    public async Task ReadingAPlaylistOfMoreThan250Songs_ReturnsEverySongTheCallerAsksFor()
+    {
+        // The playlist page asks for the whole list; the read used to stop at 250 songs, which hid the rest and broke Move to bottom.
+        var songs = Enumerable.Range(1, 1100).Select(number => SeedSong($"Song {number}")).ToArray();
+        var playlist = SeedPlaylist("Long drive", songs);
+        await using var app = await StartAsync();
+
+        var items = await app.Client.GetFromJsonAsync<List<CollectionItemDto>>($"/collections/{playlist:D}/items?limit=5000");
+
+        Assert.Equal(1100, items!.Count);
+        Assert.Equal(songs.Select(id => id), items.OrderBy(item => item.SortOrder).Select(item => item.WorkId));
+    }
+
     private static async Task<ManagedCollectionDto> ReadPlaylistAsync(TestApplication app, Guid playlist)
     {
         var all = await app.Client.GetFromJsonAsync<List<ManagedCollectionDto>>("/collections/managed");
