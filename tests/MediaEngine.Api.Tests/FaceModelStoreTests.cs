@@ -67,6 +67,45 @@ public sealed class FaceModelStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task TheRuntimeLibraryForThisMachineIsFetchedIntoItsOwnFolderAndCountsTowardsReady()
+    {
+        var platform = FaceModelProvider.CurrentPlatform();
+        if (platform is null)
+        {
+            return;
+        }
+
+        var library = new byte[] { 7, 7, 7 };
+        var settings = new ToolDownloadSettings
+        {
+            FaceModels = [],
+            FaceRuntime =
+            [
+                new FaceRuntimeBuild
+                {
+                    Platform = platform,
+                    Name = "libonnxruntime-test.bin",
+                    Url = "https://github.com/Tuvima/tuvima-library/releases/download/onnxruntime-1.24.4/runtime-test.bin",
+                    Sha256 = Convert.ToHexString(SHA256.HashData(library)),
+                },
+            ],
+        };
+        var config = Path.Combine(_root, "config");
+        Directory.CreateDirectory(config);
+        File.WriteAllText(Path.Combine(config, "tool_downloads.json"), System.Text.Json.JsonSerializer.Serialize(settings));
+        var source = new FakeSource(new Dictionary<string, byte[]> { ["runtime-test.bin"] = library });
+        var store = new FaceModelProvider(new ConfigurationDirectoryLoader(config), new AssetPathService(_root, null, _root), source, NullLogger<FaceModelProvider>.Instance);
+
+        Assert.False(store.AreReady);
+        await store.EnsureAsync(CancellationToken.None);
+
+        Assert.True(store.AreReady);
+        Assert.True(File.Exists(store.RuntimePath));
+        Assert.EndsWith("libonnxruntime-test.bin", store.RuntimePath, StringComparison.Ordinal);
+        Assert.True(store.Statuses().Single().IsRuntime);
+    }
+
+    [Fact]
     public void ThePinnedListNamesBothModelsOnGithubWithChecksums()
     {
         var settings = new ToolDownloadSettings();
@@ -80,6 +119,7 @@ public sealed class FaceModelStoreTests : IDisposable
     {
         var settings = new ToolDownloadSettings
         {
+            FaceRuntime = [],
             FaceModels = pinned.Select(pair => new DownloadFile
             {
                 Name = pair.Key,
