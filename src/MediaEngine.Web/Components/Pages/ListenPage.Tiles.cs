@@ -188,7 +188,7 @@ public partial class ListenPage
                 Description = item.Description,
                 Facts = item.Facts ?? [],
             })
-            .Take(4)
+            .Take(GroupCollageLayout.MaxCovers)
             .ToList();
 
         if (artworkItems.Count == 0 && !string.IsNullOrWhiteSpace(group.CoverUrl))

@@ -2,7 +2,7 @@
     position: absolute;
     top: 50%;
     right: clamp(1rem, 2vw, 3rem);
-    z-index: 4;
+    z-index: 3;
     width: clamp(44rem, 56vw, 64rem);
     height: clamp(30rem, 60svh, 42rem);
     transform: translateY(-50%);
@@ -54,6 +54,8 @@
     color: var(--tl-text-secondary);
     font-size: var(--tl-icon-size-xs);
 }
+
+/* The fanned covers sit behind the text (z-index 3, under the hero copy); the title column leaves their room: DetailHeroContent.razor.css (issue 1190). */
 
 @media (max-width: 1180px) {
     .tl-detail-collection-artwork {

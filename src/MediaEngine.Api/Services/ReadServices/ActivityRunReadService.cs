@@ -138,7 +138,7 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
 
     // A show or album tile shows the show's or album's own art; any other tile shows its title's art. A removed file has none.
     private static string? CoverUrl(ActivityRunGroup group)
-        => (group.MediaType is "TV" or "Music" ? group.GroupWorkId ?? group.FirstWorkId : group.FirstWorkId) is { } id && id != Guid.Empty
+        => (group.MediaType is "TV" or "Music" or "Videos" ? group.GroupWorkId ?? group.FirstWorkId : group.FirstWorkId) is { } id && id != Guid.Empty
             ? $"/stream/entity/work/{id:D}/cover?size=s"
             : null;
 
@@ -155,6 +155,12 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
             return group.GroupWorkId is { } showId && showId != Guid.Empty
                 ? IngestionPresentationReadService.DetailRoute(group.MediaType, showId)
                 : null;
+        }
+
+        // A folder of videos opens its own page, like a show (issue 1157).
+        if (group.MediaType == "Videos" && group.GroupWorkId is { } folderId && folderId != Guid.Empty)
+        {
+            return $"/details/tvshow/{folderId:D}?context=watch";
         }
 
         return group.ItemCount == 1 && group.FirstWorkId is { } workId && workId != Guid.Empty

@@ -1,0 +1,10 @@
+/* "N episodes owned" under the list, with the collection tile icon: one line for every details page. */
+.tl-detail-owned-line {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+    font-variant-numeric: tabular-nums;
+}

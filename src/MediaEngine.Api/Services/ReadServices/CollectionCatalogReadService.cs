@@ -1958,7 +1958,7 @@ public sealed class CollectionCatalogReadService(
             })
             .ToList();
 
-        return SelectCollectionArtworkItems(artworkItems, maximum: 4);
+        return SelectCollectionArtworkItems(artworkItems, maximum: DisplayCardBuilder.GroupPreviewItemLimit);
     }
 
     private static bool IsWatchMediaType(string? mediaType) =>

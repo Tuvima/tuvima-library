@@ -37,9 +37,9 @@ public sealed class DisplayCardBuilderSeriesPreviewTests
         Assert.Equal("5 owned titles", card.Subtitle);
         Assert.Equal(["5 owned titles"], card.Facts);
         Assert.Equal(5, card.PreviewTotalCount);
-        Assert.Equal(["Book One", "Book Two", "Book Three", "Book Four"], card.PreviewItems.Select(item => item.Title));
-        Assert.Equal(["1", "2", "3", "4"], card.PreviewItems.Select(item => item.Position));
-        Assert.Equal(["/covers/1-s.jpg", "/covers/2-s.jpg", "/covers/3-s.jpg", "/covers/4-s.jpg"], card.PreviewItems.Select(item => item.ImageUrl));
+        Assert.Equal(["Book One", "Book Two", "Book Three", "Book Four", "Book Five"], card.PreviewItems.Select(item => item.Title));
+        Assert.Equal(["1", "2", "3", "4", "5"], card.PreviewItems.Select(item => item.Position));
+        Assert.Equal(["/covers/1-s.jpg", "/covers/2-s.jpg", "/covers/3-s.jpg", "/covers/4-s.jpg", "/covers/5-s.jpg"], card.PreviewItems.Select(item => item.ImageUrl));
         Assert.All(card.PreviewItems, item => Assert.Equal("Book", item.MediaType));
         Assert.All(card.PreviewItems, item => Assert.StartsWith("/details/work/", item.WebUrl, StringComparison.Ordinal));
         Assert.Equal("The first book in the sequence.", card.PreviewItems[0].Description);
@@ -53,11 +53,32 @@ public sealed class DisplayCardBuilderSeriesPreviewTests
     }
 
     [Fact]
+    public void BuildCollectionCards_CarriesAtMostSixOrderedPreviewItems_ForTheGroupTilesCollage()
+    {
+        var collectionId = Guid.Parse("14111111-2222-3333-4444-555555555555");
+        var createdAt = DateTimeOffset.Parse("2026-06-01T12:00:00Z");
+        var works = Enumerable.Range(1, 9)
+            .Select(position => CreateWork(
+                collectionId,
+                "Book",
+                $"Book {position}",
+                position.ToString(),
+                $"/covers/{position}-s.jpg",
+                createdAt.AddMinutes(position)))
+            .ToArray();
+
+        var card = new DisplayCardBuilder().BuildCollectionCards(works, "read").Single();
+
+        Assert.Equal(9, card.PreviewTotalCount);
+        Assert.Equal(["Book 1", "Book 2", "Book 3", "Book 4", "Book 5", "Book 6"], card.PreviewItems.Select(item => item.Title));
+    }
+
+    [Fact]
     public void BuildCollectionCards_PrioritizesCurrentNextAndRecentlyCompletedMembers()
     {
         var collectionId = Guid.Parse("12111111-2222-3333-4444-555555555555");
         var createdAt = DateTimeOffset.Parse("2026-06-01T12:00:00Z");
-        var works = Enumerable.Range(1, 6)
+        var works = Enumerable.Range(1, 8)
             .Select(position => CreateWork(
                 collectionId,
                 "Book",
@@ -76,10 +97,11 @@ public sealed class DisplayCardBuilderSeriesPreviewTests
             .BuildCollectionCards(works, "read", progressByWork: progressByWork)
             .Single();
 
-        Assert.Equal(["Book 3", "Book 4", "Book 1", "Book 2"], card.PreviewItems.Select(item => item.Title));
+        // The group tile draws up to six covers (issue 1175): the current, next, first and last-finished members lead, then the newest.
+        Assert.Equal(["Book 3", "Book 4", "Book 1", "Book 2", "Book 8", "Book 7"], card.PreviewItems.Select(item => item.Title));
         Assert.Equal(1, card.GroupSummary?.CompletedCount);
         Assert.Equal(1, card.GroupSummary?.InProgressCount);
-        Assert.Equal("Books 1\u20136 owned", card.GroupSummary?.SequenceRange);
+        Assert.Equal("Books 1\u20138 owned", card.GroupSummary?.SequenceRange);
     }
 
     [Fact]

@@ -29,6 +29,35 @@ internal static class EmbeddedSubtitleCache
             return target;
         }
 
+        // The work runs on its own, shared by everyone asking for the same stream, and a player that gives up waiting does not stop it:
+        // reading one subtitle out of a large film can take minutes, and a request cancelled part-way used to throw that work away so the
+        // next request started over and never finished (issue 1166). The next request finds the saved copy, or joins the work still running.
+        var work = InFlight.GetOrAdd(target, _ => Task.Run(async () =>
+        {
+            try
+            {
+                using var limit = new CancellationTokenSource(ExtractionLimit);
+                return await ExtractAsync(ffmpeg, logger, assetId, filePath, streamIndex, target, limit.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation("Embedded subtitle stream {StreamIndex} of asset {AssetId} took longer than {Minutes} minutes to read and was stopped", streamIndex, assetId, ExtractionLimit.TotalMinutes);
+                return null;
+            }
+            finally
+            {
+                InFlight.TryRemove(target, out Task<string?>? _);
+            }
+        }));
+        return await work.WaitAsync(ct).ConfigureAwait(false);
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<string?>> InFlight = new(StringComparer.Ordinal);
+    private static readonly TimeSpan ExtractionLimit = TimeSpan.FromMinutes(15);
+
+    private static async Task<string?> ExtractAsync(
+        IFFmpegService ffmpeg, ILogger logger, Guid assetId, string filePath, int streamIndex, string target, CancellationToken ct)
+    {
         await Gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {

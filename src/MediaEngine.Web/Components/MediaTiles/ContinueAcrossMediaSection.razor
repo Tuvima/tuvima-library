@@ -6,7 +6,10 @@
 @if (items.Count > 0)
 {
     <section class="continue-across-media" aria-label="@Heading">
-        <h2>@Heading</h2>
+        @if (ShowHeading)
+        {
+            <h2>@Heading</h2>
+        }
         <MediaShelfScroller ItemCount="@items.Count" AriaLabel="@Heading" Class="pickup-row">
             @foreach (var item in items)
             {
@@ -18,5 +21,7 @@
 @code {
     [Parameter, EditorRequired] public MediaTileShelfViewModel Shelf { get; set; } = default!;
     /// <summary>The section heading. Home says "Pick up where you left off"; My Library calls it "Continue".</summary>
+    /// <summary>False when the host already shows the heading (the profile Overview panel), so it is never said twice.</summary>
+    [Parameter] public bool ShowHeading { get; set; } = true;
     [Parameter] public string Heading { get; set; } = "Pick up where you left off";
 }

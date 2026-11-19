@@ -44,14 +44,10 @@
                 {
                     @* No landscape picture yet (review mock-ups D6): the whole cover, centered, on a soft blurred copy of itself. It swaps to the landscape picture when one arrives. *@
                     <img class="continue-tile__soft" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 320)" alt="" loading="lazy" decoding="async" aria-hidden="true" />
-                    <img class="@($"continue-tile__cover{(UsesSquareCover ? " is-square" : string.Empty)}")" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 200)" alt="" loading="lazy" decoding="async" />
+                    <img class="@($"continue-tile__cover{(UsesSquareCover ? " is-square" : IsWatch ? " is-fill" : string.Empty)}")" src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 200)" alt="" loading="lazy" decoding="async" />
                 }
             </div>
             <span class="continue-tile__play" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></span>
-            @if (KindWord is { } kind)
-            {
-                <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
-            }
             @if (MediaTileLabels.ContinuePercent(Item) is { } percent)
             {
                 @* The percent complete sits on the tile, top right beside the "..." menu, never in the text rows (D6). *@
@@ -133,19 +129,13 @@
     // background or banner, since its hover and hero pictures can be the cover itself.
     private string? LandscapeUrl => IsWatch ? BackdropUrl : (!string.IsNullOrWhiteSpace(Item.BackgroundUrl) ? Item.BackgroundUrl : Item.BannerUrl);
 
+    // A movie or episode with no wide picture at all fills the tile with its poster, cropped to cover and never inset (issue 1169);
+    // an album's (or audiobook's) square cover takes about half the tile width; a book shows whole, centered.
     // With no landscape picture the whole cover shows, centered; an album's (or audiobook's) square cover takes about half the tile width.
     private bool UsesCoverLayout => string.IsNullOrWhiteSpace(LandscapeUrl);
     private bool UsesSquareCover => Item.MediaKind is "Music" or "Audiobook" || Item.Shape == MediaTileShape.Square;
     private bool ShowsCollage => Item.MediaKind == "Music" && string.IsNullOrWhiteSpace(CoverUrl) && string.IsNullOrWhiteSpace(LandscapeUrl) && Item.PreviewImages.Count >= 4;
-    private string TileClass => $"continue-tile{(UsesCoverLayout ? " continue-tile--cover" : " continue-tile--backdrop")}{(ShowsCollage ? " continue-tile--collage" : string.Empty)}{(KindWord is not null ? " continue-tile--kind" : string.Empty)}";
-
-    // A book or audiobook says what it is in the top-left label slot (details-and-tile-fixes D3), as a group says Series or Universe.
-    private string? KindWord => Item.MediaKind switch
-    {
-        "Book" => L["ContinueTile_KindBook"].Value,
-        "Audiobook" => L["ContinueTile_KindAudiobook"].Value,
-        _ => null,
-    };
+    private string TileClass => $"continue-tile{(UsesCoverLayout ? " continue-tile--cover" : " continue-tile--backdrop")}{(ShowsCollage ? " continue-tile--collage" : string.Empty)}";
 
     // One text format for every kind (review mock-ups D6). First row: the title, an episode as "S1 E1: Title". Second row: the content rating
     // then the year, or just the year; no stars, and never the progress, which is the badge and the bar on the picture.

@@ -74,6 +74,17 @@ public sealed class TextTrackTextSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task EveryFindAnotherSearch_IsMarkedInteractive_SoANegativeAnswerForOtherWordsNeverSkipsIt()
+    {
+        var source = new Spy(TextTrackKind.Lyrics, supportsText: true);
+
+        await Worker(source).FindAlternativesAsync(_songAsset, TextTrackKind.Lyrics, null, query: "other words");
+        await Worker(source).FindAlternativesAsync(_songAsset, TextTrackKind.Lyrics, null);
+
+        Assert.All(source.Lookups, lookup => Assert.True(lookup.Interactive));
+    }
+
+    [Fact]
     public async Task NoTypedWords_LeaveTheSearchTextEmpty_SoTheItemsOwnDetailsAreUsed()
     {
         var source = new Spy(TextTrackKind.Lyrics, supportsText: true);

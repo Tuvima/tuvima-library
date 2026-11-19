@@ -212,6 +212,19 @@ public sealed class ActivityRunRecorderTests : IDisposable
     }
 
     [Fact]
+    public void Stack_AFolderOfVideosWithSubFolders_IsOneRowKeyedByItsRoot()
+    {
+        var root = Guid.NewGuid();
+        var inSection = ActivityRunRecorder.Stack("Videos", Guid.NewGuid(), null, "Lesson 1", "Course", "/learn/course/part 1/lesson1.mp4", root);
+        var inOtherSection = ActivityRunRecorder.Stack("Videos", Guid.NewGuid(), null, "Lesson 2", "Course", "/learn/course/part 2/lesson2.mp4", root);
+        var loose = ActivityRunRecorder.Stack("Videos", Guid.NewGuid(), null, "Intro", "Course", "/learn/course/intro.mp4", root);
+
+        Assert.Equal(inSection.Key, inOtherSection.Key);
+        Assert.Equal(inSection.Key, loose.Key);
+        Assert.Equal("Course", inSection.Title);
+    }
+
+    [Fact]
     public async Task RecordAdded_TwoTitlesTwelveMinutesApartWhileTheEngineIsBusy_JoinOneBatchThatStaysOpen()
     {
         var queue = new QueueStub(_clock.GetUtcNow()) { State = "working" };
