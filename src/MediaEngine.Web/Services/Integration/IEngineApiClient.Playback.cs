@@ -25,7 +25,8 @@ public partial interface IEngineApiClient
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false,
-        int? burnSubtitleStream = null);
+        int? burnSubtitleStream = null,
+        double? startSeconds = null);
 
     /// <summary>
     /// PUT /api/v1/playback/browser-capabilities  -  tells the Engine what this browser measured about the video it can play (playback-path spec D12).

@@ -32,6 +32,8 @@ public sealed class AdaptiveHlsService
     private long _lastServedTicks;
     private readonly EncodeSlotGate _encodeSlots;
     private readonly ConcurrentDictionary<Guid, AdaptiveHlsRunInfo> _runs = new();
+    /// <summary>Starts that are running now, so a jump to another point can drop the one the same viewer had (seek-past-prepared-stream D3).</summary>
+    private readonly ConcurrentDictionary<Guid, RunningStart> _running = new();
     private readonly PlaybackStateRepository? _inspection;
     private readonly PlaybackActivityRegistry? _activity;
 
@@ -100,6 +102,7 @@ public sealed class AdaptiveHlsService
             ct).ConfigureAwait(false);
         await _packages.MarkPreparingAsync(package.Id, ct).ConfigureAwait(false);
 
+        await DropOtherStartsAsync(package.Id, assetId, plan.Owner).ConfigureAwait(false);
         var task = _preparations.GetOrAdd(
             package.Id,
             _ => new Lazy<Task>(() => PreparePackageAsync(package, audioTracks, plan, _lifetime.ApplicationStopping))).Value;
@@ -132,6 +135,27 @@ public sealed class AdaptiveHlsService
             refreshed?.Status ?? "failed",
             refreshed?.LastError,
             RunFor(package.Id, package.RootPath, settings.AdaptiveHls.SegmentSeconds));
+    }
+
+    /// <summary>
+    /// One conversion per viewer and film (seek-past-prepared-stream D3): a jump that starts a new one stops the viewer's earlier one for the same
+    /// film at once, the same way Stop in Playing now does. Starts that belong to nobody (a cast session) are left alone.
+    /// </summary>
+    private async Task DropOtherStartsAsync(Guid keepPackageId, Guid assetId, string? owner)
+    {
+        if (string.IsNullOrEmpty(owner))
+        {
+            return;
+        }
+
+        foreach (var (packageId, running) in _running)
+        {
+            if (packageId != keepPackageId && running.AssetId == assetId && string.Equals(running.Owner, owner, StringComparison.Ordinal))
+            {
+                _logger.LogInformation("Jump: stopping the earlier conversion {PackageId} of asset {AssetId} that started at {Start}s", packageId, assetId, running.StartSeconds);
+                await running.Cancel().ConfigureAwait(false);
+            }
+        }
     }
 
     private static readonly TimeSpan FailureRetryAfter = TimeSpan.FromMinutes(1);
@@ -250,6 +274,7 @@ public sealed class AdaptiveHlsService
         // Every encode owns its own cancel handle, so Stop in Playing now ends this one alone (playing-now spec WP1).
         using var preparationCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         ct = preparationCancellation.Token;
+        _running[package.Id] = new RunningStart(package.AssetId, plan.Owner, plan.StartSeconds, () => preparationCancellation.CancelAsync());
         var tracked = _activity?.BeginEncode(
             package.Id, PlayingNowKinds.PlaybackEncode, package.AssetId, () => preparationCancellation.CancelAsync());
         if (tracked is not null)
@@ -294,13 +319,15 @@ public sealed class AdaptiveHlsService
             }
 
             var copyVideo = plan.Decision.CopyVideo;
-            run.DurationSeconds = probe.Duration.TotalSeconds;
+            var startSeconds = plan.StartSeconds;
+            // A start at a point converts only what is left of the film, so the percent counts that.
+            run.DurationSeconds = Math.Max(1, probe.Duration.TotalSeconds - startSeconds);
             var renditions = (copyVideo
                     ? [SourceRendition(probe)]
                     : PickRenditions(settings.AdaptiveHls, probe.Height.Value, plan))
                 .OrderBy(r => r.Height).ToArray();
             // Captions can require reading the entire source. Publish video independently.
-            captionTask = PrepareCaptionsAsync(package.AssetId, asset.FilePathRoot, staging, probe, ct);
+            captionTask = PrepareCaptionsAsync(package.AssetId, asset.FilePathRoot, staging, probe, startSeconds, ct);
             var choice = copyVideo
                 ? new HlsEncoderChoice("copy", PlaybackEncodePlaces.None, null)
                 : ChooseEncoder(settings.HardwareAcceleration, _ffmpeg.HardwareCapabilities);
@@ -323,7 +350,7 @@ public sealed class AdaptiveHlsService
             if (audioTracks.Count > 0)
             {
                 Directory.CreateDirectory(Path.Combine(staging, "a0"));
-                firstAudio = EncodeAudioAsync(asset.FilePathRoot, Path.Combine(staging, "a0"), 0, settings.AdaptiveHls.SegmentSeconds, plan.Decision.CopyAudioCodecs, audioTracks[0].Codec, ct);
+                firstAudio = EncodeAudioAsync(asset.FilePathRoot, Path.Combine(staging, "a0"), 0, settings.AdaptiveHls.SegmentSeconds, plan.Decision.CopyAudioCodecs, audioTracks[0].Codec, startSeconds, ct);
             }
             for (var index = 0; index < renditions.Length; index++)
             {
@@ -337,8 +364,8 @@ public sealed class AdaptiveHlsService
 
                 var result = await RunVideoAsync(
                     token => copyVideo
-                        ? CopyVideoAsync(asset.FilePathRoot, directory, settings.AdaptiveHls.SegmentSeconds, token)
-                        : EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, plan.BurnSubtitleRelativeIndex, token),
+                        ? CopyVideoAsync(asset.FilePathRoot, directory, settings.AdaptiveHls.SegmentSeconds, startSeconds, token)
+                        : EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, plan.BurnSubtitleRelativeIndex, startSeconds, token),
                     directory, watchStart: !copyVideo && encoder != "libx264",
                     firstRendition ? AudioReady : null, firstRendition ? Publish : null, ct).ConfigureAwait(false);
                 if (result.ExitCode != 0 && !copyVideo && !string.Equals(encoder, "libx264", StringComparison.Ordinal))
@@ -358,7 +385,7 @@ public sealed class AdaptiveHlsService
                     DeleteDirectory(directory);
                     Directory.CreateDirectory(directory);
                     result = await RunVideoAsync(
-                        token => EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, plan.BurnSubtitleRelativeIndex, token),
+                        token => EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, plan.BurnSubtitleRelativeIndex, startSeconds, token),
                         directory, watchStart: false,
                         firstRendition ? AudioReady : null, firstRendition ? Publish : null, ct).ConfigureAwait(false);
                 }
@@ -377,7 +404,7 @@ public sealed class AdaptiveHlsService
                 Directory.CreateDirectory(directory);
                 var result = await (index == 0 && firstAudio is not null
                         ? firstAudio
-                        : EncodeAudioAsync(asset.FilePathRoot, directory, index, settings.AdaptiveHls.SegmentSeconds, plan.Decision.CopyAudioCodecs, audioTracks[index].Codec, ct))
+                        : EncodeAudioAsync(asset.FilePathRoot, directory, index, settings.AdaptiveHls.SegmentSeconds, plan.Decision.CopyAudioCodecs, audioTracks[index].Codec, startSeconds, ct))
                     .ConfigureAwait(false);
                 if (result.ExitCode != 0)
                 {
@@ -425,6 +452,7 @@ public sealed class AdaptiveHlsService
         finally
         {
             _preparations.TryRemove(package.Id, out _);
+            _running.TryRemove(package.Id, out _);
             _activity?.EndEncode(package.Id);
             if (slotHeld)
             {
@@ -477,9 +505,10 @@ public sealed class AdaptiveHlsService
         string input,
         string directory,
         int segmentSeconds,
+        double startSeconds,
         CancellationToken ct) => _ffmpeg.RunAsync(
         [
-            "-y", "-hide_banner", "-loglevel", "warning", "-i", input,
+            "-y", "-hide_banner", "-loglevel", "warning", ..StartArguments(startSeconds), "-i", input,
             "-map", "0:v:0", "-an", "-sn", "-c:v", "copy",
             "-f", "hls", "-hls_time", segmentSeconds.ToString(CultureInfo.InvariantCulture),
             "-hls_playlist_type", "event", "-hls_flags", "independent_segments+temp_file",
@@ -510,6 +539,7 @@ public sealed class AdaptiveHlsService
         int segmentSeconds,
         MediaEngine.Domain.Models.MediaProbeResult probe,
         int? burnSubtitleRelativeIndex,
+        double startSeconds,
         CancellationToken ct)
     {
         var playlist = Path.Combine(directory, "index.m3u8");
@@ -525,6 +555,7 @@ public sealed class AdaptiveHlsService
             "-hls_playlist_type", "event", "-hls_flags", "independent_segments+temp_file",
             "-hls_segment_filename", segmentPattern, playlist,
         };
+        arguments.InsertRange(arguments.IndexOf("-i"), StartArguments(startSeconds));
         if (burnSubtitleRelativeIndex is { } burn)
         {
             // The chosen picture subtitle is drawn over the video before it is scaled, so it keeps its place at every size.
@@ -550,6 +581,13 @@ public sealed class AdaptiveHlsService
         return await _ffmpeg.RunAsync(arguments, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// "-ss" before the input: FFmpeg jumps to the point first, so only the rest of the film is converted and every new file's clock starts at
+    /// zero (the Dashboard adds the start back; seek-past-prepared-stream D1). Nothing for a start at the beginning.
+    /// </summary>
+    internal static string[] StartArguments(double startSeconds) =>
+        startSeconds > 0 ? ["-ss", startSeconds.ToString("0.###", CultureInfo.InvariantCulture)] : [];
+
     internal static string BuildVideoFilter(int height, string? transfer) =>
         transfer is "smpte2084" or "arib-std-b67"
             ? $"zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,scale=-2:{height},format=yuv420p"
@@ -562,9 +600,10 @@ public sealed class AdaptiveHlsService
         int segmentSeconds,
         IReadOnlyList<string> copyCodecs,
         string? sourceCodec,
+        double startSeconds,
         CancellationToken ct) => _ffmpeg.RunAsync(
         [
-            "-y", "-hide_banner", "-loglevel", "warning", "-i", input,
+            "-y", "-hide_banner", "-loglevel", "warning", ..StartArguments(startSeconds), "-i", input,
             "-map", $"0:a:{streamIndex}", "-vn", "-sn",
             ..(copyCodecs.Contains(PlaybackCapabilitiesService.NormalizeCodecName(sourceCodec), StringComparer.OrdinalIgnoreCase)
                 ? new[] { "-c:a", "copy" }
@@ -579,8 +618,10 @@ public sealed class AdaptiveHlsService
         string sourcePath,
         string root,
         MediaEngine.Domain.Models.MediaProbeResult probe,
+        double startSeconds,
         CancellationToken ct)
     {
+        var captionSeconds = Math.Max(1, probe.Duration.TotalSeconds - startSeconds);
         var tracks = await _textTracks.GetByAssetAsync(assetId, TextTrackKind.Subtitles, ct).ConfigureAwait(false);
         var captions = new List<HlsCaption>();
         foreach (var track in tracks.Where(track => File.Exists(track.LocalPath)))
@@ -589,13 +630,13 @@ public sealed class AdaptiveHlsService
             var directory = Path.Combine(root, $"s{index}");
             Directory.CreateDirectory(directory);
             var target = Path.Combine(directory, "caption.vtt");
-            if (string.Equals(Path.GetExtension(track.LocalPath), ".vtt", StringComparison.OrdinalIgnoreCase))
+            if (startSeconds <= 0 && string.Equals(Path.GetExtension(track.LocalPath), ".vtt", StringComparison.OrdinalIgnoreCase))
             {
                 File.Copy(track.LocalPath, target, overwrite: true);
             }
             else
             {
-                var conversion = await ConvertCaptionAsync(track.LocalPath, "0:s:0", target, ct).ConfigureAwait(false);
+                var conversion = await ConvertCaptionAsync(track.LocalPath, "0:s:0", target, startSeconds, ct).ConfigureAwait(false);
                 if (conversion.ExitCode != 0)
                 {
                     _logger.LogWarning("Managed caption conversion failed for asset {AssetId}: {Error}", assetId, Tail(conversion.Error));
@@ -603,7 +644,7 @@ public sealed class AdaptiveHlsService
                     continue;
                 }
             }
-            await WriteCaptionPlaylistAsync(directory, probe.Duration.TotalSeconds, ct).ConfigureAwait(false);
+            await WriteCaptionPlaylistAsync(directory, captionSeconds, ct).ConfigureAwait(false);
             captions.Add(new HlsCaption(track.Language, track.IsPreferred));
         }
 
@@ -623,14 +664,14 @@ public sealed class AdaptiveHlsService
             var directory = Path.Combine(root, $"s{captions.Count}");
             Directory.CreateDirectory(directory);
             var target = Path.Combine(directory, "caption.vtt");
-            var conversion = await ConvertCaptionAsync(sourcePath, $"0:s:{streamIndex}", target, ct).ConfigureAwait(false);
+            var conversion = await ConvertCaptionAsync(sourcePath, $"0:s:{streamIndex}", target, startSeconds, ct).ConfigureAwait(false);
             if (conversion.ExitCode != 0)
             {
                 _logger.LogWarning("Embedded caption conversion failed for asset {AssetId} stream {StreamIndex}: {Error}", assetId, stream.StreamIndex, Tail(conversion.Error));
                 DeleteDirectory(directory);
                 continue;
             }
-            await WriteCaptionPlaylistAsync(directory, probe.Duration.TotalSeconds, ct).ConfigureAwait(false);
+            await WriteCaptionPlaylistAsync(directory, captionSeconds, ct).ConfigureAwait(false);
             var language = string.IsNullOrWhiteSpace(stream.Language) ? "und" : stream.Language;
             captions.Add(new HlsCaption(language, captions.Count == 0, embedded[streamIndex].DisplayName, stream.IsForced));
         }
@@ -649,9 +690,10 @@ public sealed class AdaptiveHlsService
         string input,
         string map,
         string output,
+        double startSeconds,
         CancellationToken ct) => _ffmpeg.RunAsync(
         [
-            "-y", "-hide_banner", "-loglevel", "warning", "-i", input,
+            "-y", "-hide_banner", "-loglevel", "warning", ..StartArguments(startSeconds), "-i", input,
             "-map", map, "-c:s", "webvtt", output,
         ], ct);
 
@@ -826,7 +868,7 @@ public sealed class AdaptiveHlsService
         var json = JsonSerializer.Serialize(settings);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))[..16];
         var audio = string.Join('+', plan.Decision.CopyAudioCodecs.Order(StringComparer.Ordinal));
-        return $"progressive-v3:{settings.ProfileName}:{plan.Decision.Rung}:h{plan.MaxHeight?.ToString() ?? "-"}:b{plan.MaxBitrateKbps?.ToString() ?? "-"}:{(plan.OfferLowerQuality ? "ladder" : "single")}:a{audio}:burn{plan.BurnSubtitleStreamIndex?.ToString() ?? "-"}:{fingerprint}";
+        return $"progressive-v3:{settings.ProfileName}:{plan.Decision.Rung}:h{plan.MaxHeight?.ToString() ?? "-"}:b{plan.MaxBitrateKbps?.ToString() ?? "-"}:{(plan.OfferLowerQuality ? "ladder" : "single")}:a{audio}:burn{plan.BurnSubtitleStreamIndex?.ToString() ?? "-"}:start{(long)plan.StartSeconds}:{fingerprint}";
     }
 
     private static bool HasPublishedSegment(string directory)
@@ -966,11 +1008,16 @@ public sealed record AdaptiveHlsPreparation(Guid PackageId, string Status, strin
 /// <param name="OfferLowerQuality">True when a remote or slow connection needs a second, lower quality beside the first.</param>
 /// <param name="BurnSubtitleRelativeIndex">The picture subtitle to burn into the video, as its position among the file's subtitle streams (0:s:N); null for none.</param>
 /// <param name="BurnSubtitleStreamIndex">The same stream by its number in the file; part of the package's identity so each choice keeps its own package.</param>
-public sealed record HlsStartPlan(PlaybackDecision Decision, int? MaxHeight = null, int? MaxBitrateKbps = null, bool OfferLowerQuality = false, int? BurnSubtitleRelativeIndex = null, int? BurnSubtitleStreamIndex = null)
+/// <param name="StartSeconds">Where in the film the conversion starts (a whole number of segments); 0 converts from the beginning. Part of the package's identity.</param>
+/// <param name="Owner">Who is watching (profile and device), so a jump drops that viewer's earlier conversion and nobody else's; null for none.</param>
+public sealed record HlsStartPlan(PlaybackDecision Decision, int? MaxHeight = null, int? MaxBitrateKbps = null, bool OfferLowerQuality = false, int? BurnSubtitleRelativeIndex = null, int? BurnSubtitleStreamIndex = null, double StartSeconds = 0, string? Owner = null)
 {
     /// <summary>What a caller with no ladder (an older cast path) gets: encode the picture, copy nothing.</summary>
     public static HlsStartPlan EncodeDefault { get; } = new(new PlaybackDecision(PlaybackRungs.EncodePicture, "The player needs a prepared stream", false, []));
 }
+
+/// <summary>One conversion that is running now: whose it is, where it started and how to stop it.</summary>
+internal sealed record RunningStart(Guid AssetId, string? Owner, double StartSeconds, Func<Task> Cancel);
 
 /// <summary>The encoder one start uses, where it runs, and why the graphics card was not used when it was expected.</summary>
 public sealed record HlsEncoderChoice(string Encoder, string RanOn, string? FallbackReason);

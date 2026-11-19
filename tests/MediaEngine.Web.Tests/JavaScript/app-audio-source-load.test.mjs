@@ -55,6 +55,7 @@ function harness() {
         },
     };
     runInNewContext([
+        block("    function streamOffsetOf(", "    // Seconds of the stream the Engine has ready"),
         block("    function samePlaybackUrl(", "    function audioAssetId"),
         block("    function audioAssetId(", "    function audioRequestVersionMatches"),
         block("    function audioRequestVersionMatches(", "    function audioSourceMatches"),

@@ -65,7 +65,8 @@ public sealed partial class EngineApiClient
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false,
-        int? burnSubtitleStream = null)
+        int? burnSubtitleStream = null,
+        double? startSeconds = null)
     {
         var endpoint = $"GET /playback/{assetId}/manifest";
         try
@@ -88,6 +89,11 @@ public sealed partial class EngineApiClient
             if (burnSubtitleStream is >= 0)
             {
                 query.Add($"burnSubtitle={burnSubtitleStream.Value}");
+            }
+
+            if (startSeconds is { } start && double.IsFinite(start) && start >= 0)
+            {
+                query.Add($"start={start.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
             }
 
             if (connection is not null)

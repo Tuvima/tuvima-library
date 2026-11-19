@@ -20,6 +20,8 @@ public sealed record PlaybackManifestDto
     public string? HlsUrl { get; init; }
     public string? HlsStatus { get; init; }
     public double? DurationSeconds { get; init; }
+    /// <summary>The second of the film a converted stream starts at (a whole number of segments), or null when it starts at the beginning. Times inside that stream are this much earlier than the film's.</summary>
+    public double? StreamStartSeconds { get; init; }
     public DateTimeOffset? HlsExpiresAt { get; init; }
     public PlaybackProfileDto Profile { get; init; } = new();
     public IReadOnlyList<PlaybackTrackDto> AudioTracks { get; init; } = [];

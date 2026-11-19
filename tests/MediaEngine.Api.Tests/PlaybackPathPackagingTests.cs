@@ -57,6 +57,38 @@ public sealed class PlaybackPathPackagingTests
         Assert.Equal(["h264_nvenc", "libx264"], encoders);
     }
 
+    [Fact]
+    public async Task AStartAtAPoint_ConvertsOnlyTheRestOfTheFilm_FromThatSecond_ForPictureSoundAndCaptions()
+    {
+        using var world = await World.CreateAsync("cpu", new HardwareCapabilities(), audioCodec: "dts");
+        var decision = new PlaybackDecision(PlaybackRungs.EncodePicture, "HEVC cannot be played", false, ["aac"]);
+
+        var result = await world.RunAsync(new HlsStartPlan(decision, 720, StartSeconds: 8));
+
+        Assert.Equal("ready", result.Status);
+        foreach (var map in new[] { "0:v:0", "0:a:0" })
+        {
+            var call = Assert.Single(world.Ffmpeg.Calls, call => call.Contains(map));
+            var seek = Array.IndexOf(call, "-ss");
+            Assert.True(seek >= 0, "the conversion must jump to the point first");
+            Assert.Equal("8", call[seek + 1]);
+            Assert.True(seek < Array.IndexOf(call, "-i"), "the jump must come before the input so only the rest is read");
+        }
+    }
+
+    [Fact]
+    public async Task AStartAtTheBeginning_HasNoJump_AndEachStartPointKeepsItsOwnCopy()
+    {
+        using var world = await World.CreateAsync("cpu", new HardwareCapabilities(), audioCodec: "aac");
+        var decision = new PlaybackDecision(PlaybackRungs.EncodePicture, "HEVC cannot be played", false, ["aac"]);
+
+        var beginning = await world.RunAsync(new HlsStartPlan(decision, 720));
+        var later = await world.RunAsync(new HlsStartPlan(decision, 720, StartSeconds: 8));
+
+        Assert.Equal(2, world.Ffmpeg.Calls.Count(call => call.Contains("-ss"))); // the picture and the sound of the later start only
+        Assert.NotEqual(beginning.PackageId, later.PackageId);
+    }
+
     private sealed class World : IDisposable
     {
         private readonly string _root;
