@@ -1295,6 +1295,7 @@
             {
                 streamUrl,
                 positionSeconds = position,
+                streamOffsetSeconds = Playback.CurrentItem?.Manifest?.StreamStartSeconds ?? 0,
                 playbackRate = command.PlaybackRate ?? Playback.PlaybackRate,
                 volume = Playback.Volume,
                 muted = Playback.IsMuted,
@@ -1345,8 +1346,14 @@
         var identity = VideoPlaybackIdentity.Capture(Playback);
         var max = Playback.DurationSeconds > 0 ? Playback.DurationSeconds : double.MaxValue;
         var next = Math.Clamp(seconds, 0, max);
-        await JS.InvokeVoidAsync("listenPlayback.seekAudio", _videoRef, next);
+        var held = await JS.InvokeAsync<bool>("listenPlayback.seekAudio", _videoRef, next);
         if (identity is not null && !identity.IsCurrent(Playback)) return;
+        if (!held)
+        {
+            // The converted stream does not hold that second yet (before where it started, or past what is ready): the Engine starts it there.
+            await Playback.RestartVideoAtAsync(next, _lifetimeCancellation.Token);
+            return;
+        }
         Playback.UpdateTransportState(currentTimeSeconds: next);
         ObserveEndCard();
         await Playback.ReportHeartbeatAsync(force: true);
