@@ -243,6 +243,21 @@
       "condition": null
     },
     {
+      "claim_key": "title",
+      "json_path": "collectionName",
+      "confidence": 0.8,
+      "transform": null,
+      "transform_args": null,
+      "media_types": [
+        "Music"
+      ],
+      "source": null,
+      "condition": {
+        "path": "wrapperType",
+        "equals": "collection"
+      }
+    },
+    {
       "claim_key": "author",
       "json_path": "artistName",
       "confidence": 0.7,
@@ -260,7 +275,8 @@
       "transform_args": "\\d\u002Bx\\d\u002Bbb\\.jpg|9999x9999bb.jpg",
       "media_types": [
         "Books",
-        "Audiobooks"
+        "Audiobooks",
+        "Music"
       ],
       "source": null,
       "condition": null

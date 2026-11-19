@@ -817,10 +817,11 @@ internal sealed partial class DetailCompositionOrchestrator
         DetailActionAuthorizationContext authorization,
         bool updatingDetails = false,
         bool isVideo = false,
-        bool videoMatched = false)
+        bool videoMatched = false,
+        bool isVideoFolder = false)
     {
         _ = id;
-        var candidates = new List<DetailAction> { DetailEditAction.Build(entityType, updatingDetails) };
+        var candidates = new List<DetailAction> { DetailEditAction.Build(entityType, updatingDetails, isVideoFolder) };
         if (isVideo)
         {
             candidates.AddRange(DetailEditAction.BuildVideoShortcuts(videoMatched, updatingDetails));
