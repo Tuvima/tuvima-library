@@ -107,6 +107,7 @@ public static class CollectionPlaylistEndpoints
         .WithName("SetCollectionPinned")
         .WithSummary("Pins or unpins a playlist for the active profile only.")
         .Produces(StatusCodes.Status200OK)
+        .RequireAuthorization(AuthPolicies.Authenticated)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.LibraryRead, "Collection", "id");
 
         group.MapPost("/{id:guid}/duplicate", async (
