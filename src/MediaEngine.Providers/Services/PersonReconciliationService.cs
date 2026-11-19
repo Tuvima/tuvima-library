@@ -119,25 +119,32 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         }
 
         // Several people can share one name (a comedian and a basketball player both called Stephen Curry). Unless one of the
-        // person's known works is this title, the work's own description gets a say: when it clearly points to a different
-        // person with the same name, the match is dropped (retried later) rather than trusted on the name and job alone.
-        // When the description says nothing either way, the match the search made stands, as before.
-        if (!NotableWorkMatches(ResolveLabels(libResult.NotableWorks, evidenceLabels), workTitle)
-            && !string.IsNullOrWhiteSpace($"{workTitle} {contextText}"))
-        {
-            var namesakes = await FindNamesakesAsync(name, language, ct).ConfigureAwait(false);
-            if (ContextFavoursAnotherNamesake(namesakes, libResult.Qid!, $"{workTitle} {contextText}"))
-            {
-                _logger.LogWarning(
-                    "Person reconciliation left unmatched: '{Name}' ({Role}) shares its name with another person that the work's description fits better",
-                    name, expectedRole);
-                return null;
-            }
-        }
-
+        // person's known works is this title, the work's own description decides: it picks the one namesake it fits, and when it
+        // fits none of them (or several) the person is left unmatched and retried later rather than guessed from name and job alone.
         var chosenQid = libResult.Qid!;
         var chosenName = libResult.CanonicalName ?? name;
         var chosenScore = libResult.Score;
+        if (!NotableWorkMatches(ResolveLabels(libResult.NotableWorks, evidenceLabels), workTitle))
+        {
+            var namesakes = await FindNamesakesAsync(name, language, ct).ConfigureAwait(false);
+            var fit = ChooseNamesakeFromContext(namesakes, $"{workTitle} {contextText}", chosenQid);
+            if (fit.Outcome == NamesakeOutcome.Unmatched)
+            {
+                _logger.LogWarning(
+                    "Person reconciliation left unmatched: '{Name}' ({Role}) shares its name with other people and the work's text does not tell which one",
+                    name, expectedRole);
+                return null;
+            }
+
+            if (fit.Outcome == NamesakeOutcome.Switch && fit.Person is { } other)
+            {
+                _logger.LogInformation(
+                    "Person reconciliation chose the namesake the work's description fits: '{Name}' ({Role}) -> {Qid}",
+                    name, expectedRole, other.Id);
+                chosenQid = other.Id;
+                chosenName = other.Name;
+            }
+        }
 
         _logger.LogInformation(
             "Person reconciliation auto-accepted: '{Name}' ({Role}) -> {QID} '{WikiName}' (score={Score:F2})",
@@ -193,6 +200,56 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         return fits.Count == 1 && !string.Equals(fits[0].Id, chosenQid, StringComparison.OrdinalIgnoreCase);
     }
 
+    internal enum NamesakeOutcome { Keep, Switch, Unmatched }
+
+    internal readonly record struct NamesakeChoice(NamesakeOutcome Outcome, ReconciliationResult? Person);
+
+    /// <summary>
+    /// Decides between people sharing one exact name. One person (or none, when nobody else shares the name) means keep the
+    /// search's pick. Several people: the one whose Wikidata description the work's text fits wins (Switch when that is not the
+    /// search's pick, Keep when it is); a text that fits none or several of them leaves the person Unmatched.
+    /// </summary>
+    internal static NamesakeChoice ChooseNamesakeFromContext(
+        IReadOnlyList<ReconciliationResult> namesakes, string? contextText, string? chosenQid = null)
+    {
+        if (namesakes.Count < 2)
+        {
+            return new NamesakeChoice(NamesakeOutcome.Keep, null);
+        }
+
+        var contextWords = SignificantWords(contextText);
+        var fits = namesakes
+            .Where(candidate => SignificantWords(candidate.Description).Any(word =>
+                contextWords.Any(other => word.StartsWith(other, StringComparison.OrdinalIgnoreCase)
+                    || other.StartsWith(word, StringComparison.OrdinalIgnoreCase))))
+            .ToList();
+        if (fits.Count != 1)
+        {
+            return new NamesakeChoice(NamesakeOutcome.Unmatched, null);
+        }
+
+        return new NamesakeChoice(
+            chosenQid is not null && string.Equals(fits[0].Id, chosenQid, StringComparison.OrdinalIgnoreCase)
+                ? NamesakeOutcome.Keep
+                : NamesakeOutcome.Switch,
+            fits[0]);
+    }
+
+    // A league or sport named in the work's text points at the same people as the sport's own word on Wikidata
+    // ("NBA champion" and "American basketball player"), so the short name is read as the longer word.
+    private static readonly Dictionary<string, string> HintAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["nba"] = "basketball",
+        ["wnba"] = "basketball",
+        ["nfl"] = "football",
+        ["mlb"] = "baseball",
+        ["nhl"] = "hockey",
+        ["fifa"] = "footballer",
+        ["pga"] = "golfer",
+        ["atp"] = "tennis",
+        ["wta"] = "tennis",
+    };
+
     // Words that describe nearly everyone with a job, so they never tell two people apart.
     private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -213,7 +270,11 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
                      [' ', ',', '.', ';', ':', '(', ')', '-', '/', '"', '\'', '!', '?', '\n', '\r', '\t'],
                      StringSplitOptions.RemoveEmptyEntries))
         {
-            if (raw.Length >= 5 && !StopWords.Contains(raw) && !raw.All(char.IsDigit))
+            if (HintAliases.TryGetValue(raw, out var alias))
+            {
+                words.Add(alias);
+            }
+            else if (raw.Length >= 5 && !StopWords.Contains(raw) && !raw.All(char.IsDigit))
             {
                 words.Add(raw);
             }

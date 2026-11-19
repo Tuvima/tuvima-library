@@ -530,10 +530,15 @@ internal sealed class CatalogueResourceAuthorizationService(
                 """,
             "person" =>
                 """
+                -- A band member no file credits has no files of their own: their picture is shown on the band's page, so it
+                -- follows the band's files (the same people the band's own page shows).
                 SELECT DISTINCT ma.id
                 FROM primary_person_media_credits pml
                 JOIN media_assets ma ON ma.id=pml.media_asset_id
-                WHERE pml.person_id=@entityId AND ma.status='Normal' AND ma.is_orphaned=0
+                WHERE (pml.person_id=@entityId
+                       OR (NOT EXISTS (SELECT 1 FROM primary_person_media_credits own WHERE own.person_id=@entityId)
+                           AND pml.person_id IN (SELECT group_id FROM person_group_members WHERE member_id=@entityId)))
+                  AND ma.status='Normal' AND ma.is_orphaned=0
                 ORDER BY ma.id;
                 """,
             "character" or "fictionalentity" =>
