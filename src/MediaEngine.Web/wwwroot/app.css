@@ -3196,6 +3196,15 @@ button.app-menu-item {
     border-color: var(--tl-menu-divider) !important;
 }
 
+/* The grips a finger drags a playlist row by in the Listen sidebar and the section rail's reorder mode (touch-reorder.js): only the grip stops the
+   page scrolling under a finger, and a long press on it selects nothing. The queue handle and the song table's grip say the same in their own sheets. */
+.listen-rail__drag,
+.media-section-shell__drag-handle {
+    touch-action: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
 /* Shared 44px tap-target contract. Touch devices and any window narrower than the desktop form factor
    (a mouse-driven narrow window complies too). The 48px dock/button token above is unchanged. Text links
    inside running prose are deliberately left alone. */
@@ -3218,6 +3227,8 @@ button.app-menu-item {
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
     :root:root .listen-rail__more,
+    :root:root .listen-rail__drag,
+    :root:root .media-section-shell__drag-handle,
     :root:root .listen-rail__item,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
@@ -3251,6 +3262,13 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
         align-items: center;
         justify-content: center;
+    }
+
+    /* The queue's drag handle keeps its 24 px drawing in its column; its touchable area grows to the 44 px target around it. */
+    :root:root .qp__handle::after {
+        content: "";
+        position: absolute;
+        inset: calc((var(--tl-tap-target-min) - 100%) / -2);
     }
 
     /* The Settings banner's X (32px on desktop). */
@@ -5962,6 +5980,55 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     :root .server-folder-picker__footer .app-action-bar { width: 100%; }
     :root .server-folder-picker__footer .app-action-bar .app-button { flex: 1 1 0; min-height: var(--tl-tap-target-min); }
 }
+
+/* The Add to playlist picker's rows (PlaylistPickerDialog): AppNativeButton draws them, so these rules cannot be scoped to the dialog. */
+.playlist-picker__list .playlist-picker__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--tl-space-3);
+    width: 100%;
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-root);
+}
+
+.playlist-picker__list .playlist-picker__row:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 72%, var(--tl-border-subtle));
+}
+
+.playlist-picker__list .playlist-picker__row:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.playlist-picker__list .playlist-picker__row.is-selected {
+    border-color: var(--tl-accent-primary);
+    box-shadow: inset 0 0 0 1px var(--tl-accent-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 11%, var(--tl-bg-root));
+}
+
+.playlist-picker__list .playlist-picker__row:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.playlist-picker__list .playlist-picker__row--new {
+    background: var(--tl-bg-surface-raised);
+}
+
+@media (max-width: 600px) {
+    .playlist-picker__list .playlist-picker__row {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

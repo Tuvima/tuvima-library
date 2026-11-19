@@ -227,4 +227,7 @@
   <data name="ViewPage_EmptyFavorites" xml:space="preserve">
     <value>No favourites yet</value>
   </data>
+  <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
+    <value>Create a playlist or smart playlist to organise music for later.</value>
+  </data>
 </root>

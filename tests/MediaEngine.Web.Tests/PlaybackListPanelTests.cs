@@ -116,6 +116,7 @@ public sealed class PlaybackListPanelTests : AsyncBunitContext
     [Theory]
     [InlineData(1, "move-up", 0)]
     [InlineData(1, "move-down", 2)]
+    [InlineData(0, "move-bottom", 2)]
     [InlineData(2, "play-next", 0)]
     public async Task Queue_TheRowMenuMovesASongThroughTheSameReorderCommand(int row, string action, int expectedIndex)
     {
@@ -151,7 +152,7 @@ public sealed class PlaybackListPanelTests : AsyncBunitContext
         var cut = RenderQueue(snapshot, sink);
 
         await cut.InvokeAsync(() => cut.FindComponents<PlaybackRowMenu>()[0].Instance.OpenAsync());
-        Assert.Equal(new[] { "Play next", "Move up", "Move down", "Remove", "Go to album", "Go to artist" }, cut.FindAll(".prm__row").Select(row => row.TextContent.Trim()));
+        Assert.Equal(new[] { "Play next", "Move up", "Move down", "Move to bottom", "Remove", "Go to album", "Go to artist" }, cut.FindAll(".prm__row").Select(row => row.TextContent.Trim()));
         await cut.Find("button[data-playback-row-action='remove']").ClickAsync();
 
         var sent = Assert.Single(sink.Commands);
@@ -204,6 +205,71 @@ public sealed class PlaybackListPanelTests : AsyncBunitContext
         Assert.Equal(third, sent.Command.QueueEntryId);
         Assert.Equal(0, sent.Command.Index);
         Assert.Equal(7, sent.Command.ExpectedQueueRevision);
+    }
+
+    [Fact]
+    public void Queue_EveryUpcomingRowNamesItsPlaceForAFingersDrop()
+    {
+        var cut = RenderQueue(Queue(3), new RecordingPlaybackSink());
+
+        Assert.Equal(new[] { "0", "1", "2" }, cut.FindAll(".qp__drop").Select(row => row.GetAttribute("data-queue-index")));
+    }
+
+    [Fact]
+    public async Task Queue_TheLastRowCannotMoveToTheBottom()
+    {
+        var cut = RenderQueue(Queue(3), new RecordingPlaybackSink());
+
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackRowMenu>()[2].Instance.OpenAsync());
+
+        Assert.True(cut.Find("button[data-playback-row-action='move-bottom']").HasAttribute("disabled"));
+    }
+
+    [Theory]
+    [InlineData(2, 0, false, 0)]
+    [InlineData(2, 0, true, 1)]
+    [InlineData(0, 2, true, 2)]
+    [InlineData(0, 2, false, 1)]
+    public async Task Queue_AFingerDroppingARowBeforeOrAfterAnotherSendsTheSameGuardedReorderCommand(int from, int target, bool after, int expectedIndex)
+    {
+        var snapshot = Queue(3);
+        var sink = new RecordingPlaybackSink();
+        var cut = RenderQueue(snapshot, sink);
+
+        await cut.InvokeAsync(() => cut.Instance.TouchDragStarted(from.ToString()));
+        await cut.InvokeAsync(() => cut.Instance.TouchDropped(from.ToString(), target.ToString(), after));
+
+        var sent = Assert.Single(sink.Commands);
+        Assert.Equal(ListenPlaybackCommandActions.ReorderUpcoming, sent.Command.Action);
+        Assert.Equal(snapshot.Queue[from + 1].QueueEntryId, sent.Command.QueueEntryId);
+        Assert.Equal(expectedIndex, sent.Command.Index);
+        Assert.Equal(7, sent.Command.ExpectedQueueRevision);
+    }
+
+    [Fact]
+    public async Task Queue_AFingerDropOnTheRowItHeldOrAfterACancelSendsNothing()
+    {
+        var sink = new RecordingPlaybackSink();
+        var cut = RenderQueue(Queue(3), sink);
+
+        await cut.InvokeAsync(() => cut.Instance.TouchDragStarted("1"));
+        await cut.InvokeAsync(() => cut.Instance.TouchDropped("1", "1", true));
+        await cut.InvokeAsync(() => cut.Instance.TouchDragStarted("1"));
+        await cut.InvokeAsync(() => cut.Instance.TouchDragCancelled());
+        await cut.InvokeAsync(() => cut.Instance.TouchDropped("1", "0", false));
+
+        Assert.Empty(sink.Commands);
+    }
+
+    [Fact]
+    public void Queue_TheQueuePanelHandsItselfToTheScriptSoAFingerCanDragByTheHandle()
+    {
+        var module = JSInterop.SetupModule("./js/playback-queue-drag.js");
+        module.Mode = JSRuntimeMode.Loose;
+
+        var cut = RenderQueue(Queue(2), new RecordingPlaybackSink());
+
+        cut.WaitForAssertion(() => Assert.Equal(2, Assert.Single(module.Invocations["attach"]).Arguments.Count));
     }
 
     [Fact]

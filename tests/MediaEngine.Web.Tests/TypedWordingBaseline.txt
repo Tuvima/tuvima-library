@@ -2,10 +2,9 @@
 # What is left: sentences built around a plural or date format (need plural keys), a few lists that are static fields, and one script tag the scanner mistakes for words.
 src/MediaEngine.Web/Components/Companion/CompanionScreen.razor|1
 src/MediaEngine.Web/Components/Details/DescriptionAttribution.razor|1
-src/MediaEngine.Web/Components/Details/MediaMembershipDialog.razor|1
 src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor|1
 src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor|2
-src/MediaEngine.Web/Components/Pages/ListenPage.razor|16
+src/MediaEngine.Web/Components/Pages/ListenPage.razor|14
 src/MediaEngine.Web/Components/Pages/ReadPage.razor|2
 src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor|1
 src/MediaEngine.Web/Components/Pages/WatchPage.razor|3

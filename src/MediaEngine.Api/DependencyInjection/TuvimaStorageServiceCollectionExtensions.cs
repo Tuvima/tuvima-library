@@ -118,6 +118,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAssetExportService, AssetExportService>();
         services.AddSingleton<ITextTrackExportService, TextTrackExportService>();
         services.AddSingleton<ICollectionRepository, CollectionRepository>();
+        services.AddSingleton<IPlaylistRepository, PlaylistRepository>();
         services.AddSingleton<ICollectionPlacementRepository, CollectionPlacementRepository>();
         services.AddSingleton<ICollectionListRepository, CollectionListRepository>();
         services.AddSingleton<IListImportCandidateRepository, ListImportCandidateRepository>();

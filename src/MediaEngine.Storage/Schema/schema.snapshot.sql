@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0091 view_people_faces).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0092 profile_pinned_playlists).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2314,6 +2314,13 @@ CREATE TABLE profile_person_preferences (
     PRIMARY KEY (profile_id, person_id)
 );
 
+CREATE TABLE profile_pinned_playlists (
+    profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    pinned_at     TEXT NOT NULL,
+    PRIMARY KEY (profile_id, collection_id)
+);
+
 CREATE TABLE "profile_reactions" (
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     entity_kind  TEXT NOT NULL CHECK(entity_kind IN ('Movie','TvShow','Book','Comic','Audiobook','Album','Song','Collection','Playlist')),
@@ -3792,6 +3799,8 @@ CREATE INDEX idx_prc_provider ON provider_response_cache (provider_id);
 
 CREATE INDEX idx_profile_person_preferences_person
     ON profile_person_preferences(person_id, profile_id);
+
+CREATE INDEX idx_profile_pinned_playlists_collection ON profile_pinned_playlists(collection_id);
 
 CREATE INDEX idx_profile_reactions_recent
     ON profile_reactions(profile_id, reaction, updated_at DESC);

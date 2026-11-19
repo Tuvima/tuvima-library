@@ -43,3 +43,6 @@ public sealed record CollectionPlacementSummary(
 public sealed record CollectionArtworkUploadResponse(string artwork_url, string slot);
 
 public sealed record CollectionCreatedResponse(Guid id, string? name);
+
+/// <summary>What an add to a saved/manual collection did: how many works joined it and how many were already in it.</summary>
+public sealed record CollectionItemsAddedResponse(int added, int already_there);

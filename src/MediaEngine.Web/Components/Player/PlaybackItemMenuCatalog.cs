@@ -37,6 +37,7 @@ public sealed record PlaybackItemAction(
 /// <param name="ShowWorkId">A TV episode's show, once the presentation context has loaded; the show, season and episode rows need it.</param>
 /// <param name="SeasonId">The episode's season, when the presentation context names one.</param>
 /// <param name="CanOpenPlaybackSettings">False leaves the Playback settings row out (a host with nowhere to open it).</param>
+/// <param name="AddToPlaylistLabel">The words of the Add to playlist row, read from the string table by the host (the catalog types no playlist words).</param>
 public sealed record PlaybackItemMenuContext(
     PlaybackBarMedia Media,
     ListenQueueItem Item,
@@ -44,7 +45,8 @@ public sealed record PlaybackItemMenuContext(
     bool CanMark = true,
     Guid? ShowWorkId = null,
     Guid? SeasonId = null,
-    bool CanOpenPlaybackSettings = true);
+    bool CanOpenPlaybackSettings = true,
+    string? AddToPlaylistLabel = null);
 
 /// <summary>
 /// The item actions menu of unified player v2 D23: Music: Add to playlist, Mark as listened or unlistened, Listening history, Go to album, Go to
@@ -59,6 +61,7 @@ public static class PlaybackItemMenuCatalog
         var rows = new List<PlaybackItemAction>();
         var item = context.Item;
         var done = context.IsDone == true;
+        var addToPlaylist = context.AddToPlaylistLabel ?? string.Empty;
 
         void Add(PlaybackItemActionKey key, string label, PlaybackUtilityGlyphKind glyph, bool divider = false, string? route = null) =>
             rows.Add(new(key, label, glyph, divider && rows.Count > 0, route));
@@ -79,7 +82,7 @@ public static class PlaybackItemMenuCatalog
         switch (context.Media)
         {
             case PlaybackBarMedia.Music:
-                Add(PlaybackItemActionKey.AddToPlaylist, "Add to playlist…", PlaybackUtilityGlyphKind.Playlist);
+                Add(PlaybackItemActionKey.AddToPlaylist, addToPlaylist, PlaybackUtilityGlyphKind.Playlist);
                 AddMarkAndHistory(true, "Mark as listened", "Mark as unlistened", "Listening history");
                 var album = ListenPlaybackIdentityRoutes.Album(item);
                 var artist = ListenPlaybackIdentityRoutes.Artist(item);
@@ -94,7 +97,7 @@ public static class PlaybackItemMenuCatalog
                 break;
 
             case PlaybackBarMedia.Audiobook:
-                Add(PlaybackItemActionKey.AddToPlaylist, "Add to playlist…", PlaybackUtilityGlyphKind.Playlist);
+                Add(PlaybackItemActionKey.AddToPlaylist, addToPlaylist, PlaybackUtilityGlyphKind.Playlist);
                 AddMarkAndHistory(true, "Mark as finished", "Mark as unfinished", "Listening history");
                 var book = ListenPlaybackIdentityRoutes.Audiobook(item);
                 var author = PlaybackItemRoutes.Author(item);

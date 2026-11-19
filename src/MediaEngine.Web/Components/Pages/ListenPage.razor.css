@@ -131,35 +131,30 @@
 .listen-rail__playlist-row {
     position: relative;
     display: grid;
-    grid-template-columns: 22px minmax(0, 1fr) 28px;
+    grid-template-columns: 22px minmax(0, 1fr) var(--tl-tap-target-min, 44px);
     align-items: center;
     gap: 4px;
 }
 
-.listen-rail__playlist-row.is-dragging {
+.listen-rail__playlist-row.is-dragging,
+.listen-rail__playlist-row.is-touch-dragging {
     opacity: 0.55;
 }
 
-.listen-rail__inline-create {
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr);
-    align-items: center;
-    gap: 7px;
-    padding: 5px 6px 5px 24px;
-    color: var(--tl-accent-primary);
+/* A finger's drag by the grip (touch-reorder.js adds these): a line on the top or bottom edge shows where the playlist would land. */
+.listen-rail__playlist-row.is-touch-drop-before {
+    box-shadow: inset 0 2px 0 var(--tl-accent-primary);
 }
 
-.listen-rail__inline-create ::deep input,
-::deep .listen-rail__rename-input {
-    width: 100%;
-    min-width: 0;
-    padding: 5px 7px;
-    color: var(--tl-text-primary);
-    border: 1px solid var(--tl-accent-primary);
-    border-radius: 5px;
-    outline: 0;
-    background: color-mix(in srgb, var(--tl-bg-surface) 94%, transparent);
-    font: inherit;
+.listen-rail__playlist-row.is-touch-drop-after {
+    box-shadow: inset 0 -2px 0 var(--tl-accent-primary);
+}
+
+/* On a touch device the grip is a 44 px target (its size is set below, after the grip's own rule). */
+@media (hover: none), (pointer: coarse) {
+    .listen-rail__playlist-row {
+        grid-template-columns: var(--tl-tap-target-min, 44px) minmax(0, 1fr) var(--tl-tap-target-min, 44px);
+    }
 }
 
 .listen-rail__drag,
@@ -219,6 +214,25 @@
     object-fit: cover;
 }
 
+.listen-rail__see-all {
+    color: var(--tl-accent-primary);
+}
+
+/* A phone's playlist page leads back to the Playlists page (mockup D). */
+.listen-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: var(--tl-tap-target-min, 44px);
+    color: var(--tl-text-secondary);
+    text-decoration: none;
+}
+
+.listen-back-link:hover,
+.listen-back-link:focus-visible {
+    color: var(--tl-text-primary);
+}
+
 .listen-rail__item.is-child {
     padding-left: 22px;
     color: var(--tl-text-muted);
@@ -273,6 +287,9 @@
     background: var(--tl-border-default);
     color: var(--tl-text-primary);
 }
+
+/* The grip's own look (only the grip stops the page scrolling under a finger, and on touch it is a 44 px target) is in app.css with the
+   other grips a finger drags. */
 
 ::deep .listen-rail__more {
     opacity: 0;
@@ -557,6 +574,53 @@
 .listen-detail--album,
 .listen-detail--collection {
     padding: 20px 22px;
+}
+
+/* A playlist's own page header (spec listen-playlists, mockup B): a 140 px cover, the kind line, the name, "42 songs · 2h 55m", the
+   description, the unavailable-songs line, then the actions in a row of 44 px controls ending with the "..." menu. */
+.listen-detail--collection .listen-detail__collage {
+    width: 140px;
+}
+
+.listen-detail--collection .listen-detail__copy {
+    flex: 1 1 auto;
+    gap: 4px;
+}
+
+.listen-detail__kind {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.listen-detail--collection .listen-detail__copy h2 {
+    font-size: var(--tl-type-page-title-size);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.listen-detail__description {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--tl-text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.listen-detail__unavailable {
+    margin: 0;
+    color: var(--tl-status-warning);
+    font-size: var(--tl-font-size-sm);
+}
+
+.listen-detail--collection .listen-actions {
+    align-items: center;
+    margin-top: 10px;
+    gap: 8px;
+}
+
+::deep .listen-playlist-sort__button {
+    min-height: var(--tl-tap-target-min, 44px);
+    padding-inline: 16px;
 }
 
 .listen-artists {
@@ -1176,6 +1240,16 @@
         max-width: 320px;
     }
 
+    /* A playlist's header keeps its cover beside the text down to a tablet; only a phone stacks it (see the 600 px block). */
+    .listen-detail--collection {
+        flex-direction: row;
+    }
+
+    .listen-detail--collection .listen-detail__collage {
+        width: 140px;
+        max-width: 140px;
+    }
+
     .audiobooks-toolbar,
     .audiobooks-segmented,
     .audiobooks-filters,
@@ -1216,13 +1290,6 @@
 @media (max-width: 640px) {
     .listen-page {
         grid-template-columns: 1fr;
-    }
-
-    .listen-rail-shell {
-        position: static;
-        height: auto;
-        border-right: 0;
-        border-bottom: 1px solid var(--tl-border-subtle);
     }
 
     .listen-filter-field,
@@ -1321,5 +1388,47 @@
     ::deep .listen-rail__add {
         width: var(--tl-touch-target-min, 48px);
         min-width: var(--tl-touch-target-min, 48px);
+    }
+}
+
+/* A phone has no rail (spec listen-playlists D1): the Playlists page is reached from the Listen menu, and the stacked rail used up a third of the
+   screen. The page draws no rail on a phone form factor (listen-page--no-rail); a window as narrow as a phone gets the same here. */
+.listen-page--no-rail {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr);
+}
+
+@media (max-width: 600px) {
+    .listen-page,
+    .listen-page--detail {
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    .listen-rail-shell {
+        display: none;
+    }
+}
+
+/* On a phone a playlist's header is centered: a 150 px cover, then the lines and the actions in the middle (mockup D). */
+@media (max-width: 600px) {
+    .listen-detail--collection {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .listen-detail--collection .listen-detail__collage {
+        width: 150px;
+        max-width: 150px;
+    }
+
+    .listen-detail--collection .listen-detail__copy {
+        align-items: center;
+        width: 100%;
+    }
+
+    .listen-detail--collection .listen-detail__meta,
+    .listen-detail--collection .listen-actions {
+        justify-content: center;
     }
 }

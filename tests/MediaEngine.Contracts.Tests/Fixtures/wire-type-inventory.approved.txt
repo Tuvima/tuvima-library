@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1598; api=0; web-client=56
+# scopes: contracts=1601; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1880,6 +1880,11 @@
   Works: System.Collections.Generic.List<MediaEngine.Contracts.Collections.WorkDto> | json=works | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","universe_id":"11111111-2222-3333-4444-555555555555","display_name":"sample","parent_collection_id":"11111111-2222-3333-4444-555555555555","universe_status":"sample","created_at":"2025-01-02T03:04:05+00:00","works":[]}
 
+[contracts] MediaEngine.Contracts.Collections.CollectionDuplicateRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample"}
+
 [contracts] MediaEngine.Contracts.Collections.CollectionEnabledRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -1974,7 +1979,8 @@
 [contracts] MediaEngine.Contracts.Collections.CollectionItemAddRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   WorkId: System.Guid | json=work_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"work_id":"11111111-2222-3333-4444-555555555555"}
+  WorkIds: System.Collections.Generic.List<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"work_id":"11111111-2222-3333-4444-555555555555","work_ids":[]}
 
 [contracts] MediaEngine.Contracts.Collections.CollectionItemDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1990,10 +1996,17 @@
   PositionLabel: System.String | json=position_label | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","work_id":"11111111-2222-3333-4444-555555555555","title":"sample","creator":"sample","media_type":"sample","cover_url":"sample","sort_order":7,"detail_route":"sample","membership_scope":"sample","position_label":"sample"}
 
-[contracts] MediaEngine.Contracts.Collections.CollectionItemReorderRequest
+[contracts] MediaEngine.Contracts.Collections.CollectionItemMoveRequest
   kind=class | converter=default | number-handling=default | unmapped=default
-  ItemIds: System.Collections.Generic.List<System.Guid> | json=item_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"item_ids":[]}
+  Position: System.Int32? | json=position | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToTop: System.Boolean | json=to_top | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToBottom: System.Boolean | json=to_bottom | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"position":7,"to_top":true,"to_bottom":true}
+
+[contracts] MediaEngine.Contracts.Collections.CollectionItemsAddedResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  added: System.Int32 | json=added | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  already_there: System.Int32 | json=already_there | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Collections.CollectionListEntryDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -2078,6 +2091,9 @@
   SecondarySortDirection: System.String | json=secondary_sort_direction | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RefreshSchedule: System.String | json=refresh_schedule | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ItemCount: System.Int32 | json=item_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverMode: System.String | json=cover_mode | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  IsPinned: System.Boolean? | json=is_pinned | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  TotalDurationSeconds: System.Double? | json=total_duration_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ModifiedAt: System.DateTimeOffset? | json=modified_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -2114,7 +2130,7 @@
   ArtworkItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.CollectionArtworkItemDto> | json=artwork_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ArtworkPalette: MediaEngine.Domain.Models.ArtworkPalette | json=artwork_palette | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Person: MediaEngine.Contracts.Collections.CollectionCatalogPersonDto | json=person | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"family":"sample","system_key":"sample","group_type":"sample","universe_qid":"sample","fill_kind":"sample","list_source":null,"set_id":"11111111-2222-3333-4444-555555555555","set_name":"sample","child_collection_count":7,"primary_lane":"sample","is_global":true,"is_system":true,"is_cross_media":true,"watch_count":7,"listen_count":7,"read_count":7,"other_count":7,"movie_count":7,"tv_count":7,"book_count":7,"comic_count":7,"music_count":7,"audiobook_count":7,"earliest_year":7,"latest_year":7,"can_delete":true,"can_rename":true,"can_toggle_global":true,"artwork_items":[],"artwork_palette":null,"person":null,"id":"11111111-2222-3333-4444-555555555555","name":"sample","description":"sample","icon_name":"sample","cover_artwork_url":"sample","background_artwork_url":"sample","banner_artwork_url":"sample","logo_artwork_url":"sample","collection_type":"sample","scope":"sample","profile_id":"11111111-2222-3333-4444-555555555555","visibility":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"is_enabled":true,"is_featured":true,"min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","hidden_until":"sample","rule_json":"sample","resolution":"sample","rule_hash":"sample","match_mode":"sample","sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","refresh_schedule":"sample","item_count":7,"status":"sample","created_at":"2025-01-02T03:04:05+00:00","modified_at":"2025-01-02T03:04:05+00:00","can_edit":true,"can_share":true}
+  sample={"family":"sample","system_key":"sample","group_type":"sample","universe_qid":"sample","fill_kind":"sample","list_source":null,"set_id":"11111111-2222-3333-4444-555555555555","set_name":"sample","child_collection_count":7,"primary_lane":"sample","is_global":true,"is_system":true,"is_cross_media":true,"watch_count":7,"listen_count":7,"read_count":7,"other_count":7,"movie_count":7,"tv_count":7,"book_count":7,"comic_count":7,"music_count":7,"audiobook_count":7,"earliest_year":7,"latest_year":7,"can_delete":true,"can_rename":true,"can_toggle_global":true,"artwork_items":[],"artwork_palette":null,"person":null,"id":"11111111-2222-3333-4444-555555555555","name":"sample","description":"sample","icon_name":"sample","cover_artwork_url":"sample","background_artwork_url":"sample","banner_artwork_url":"sample","logo_artwork_url":"sample","collection_type":"sample","scope":"sample","profile_id":"11111111-2222-3333-4444-555555555555","visibility":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"is_enabled":true,"is_featured":true,"min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","hidden_until":"sample","rule_json":"sample","resolution":"sample","rule_hash":"sample","match_mode":"sample","sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","refresh_schedule":"sample","item_count":7,"cover_mode":"sample","is_pinned":true,"total_duration_seconds":7,"status":"sample","created_at":"2025-01-02T03:04:05+00:00","modified_at":"2025-01-02T03:04:05+00:00","can_edit":true,"can_share":true}
 
 [contracts] MediaEngine.Contracts.Collections.CollectionMediaCounts
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -2269,6 +2285,10 @@
   Position: System.Int32 | json=position | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AdditionalMembers: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | json=additionalMembers | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=yes
   sample={"kind":"sample","gallery_id":"11111111-2222-3333-4444-555555555555","rule_version":7,"rule_definition":null,"position":7}
+
+[contracts] MediaEngine.Contracts.Collections.CollectionPinRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Pinned: System.Boolean | json=pinned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Collections.CollectionPlacementRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -2642,12 +2662,15 @@
   SecondarySortDirection: System.String | json=secondary_sort_direction | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RefreshSchedule: System.String | json=refresh_schedule | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ItemCount: System.Int32 | json=item_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverMode: System.String | json=cover_mode | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  IsPinned: System.Boolean? | json=is_pinned | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  TotalDurationSeconds: System.Double? | json=total_duration_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ModifiedAt: System.DateTimeOffset? | json=modified_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanEdit: System.Boolean | json=can_edit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanShare: System.Boolean | json=can_share | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","name":"sample","description":"sample","icon_name":"sample","cover_artwork_url":"sample","background_artwork_url":"sample","banner_artwork_url":"sample","logo_artwork_url":"sample","collection_type":"sample","scope":"sample","profile_id":"11111111-2222-3333-4444-555555555555","visibility":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"is_enabled":true,"is_featured":true,"min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","hidden_until":"sample","rule_json":"sample","resolution":"sample","rule_hash":"sample","match_mode":"sample","sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","refresh_schedule":"sample","item_count":7,"status":"sample","created_at":"2025-01-02T03:04:05+00:00","modified_at":"2025-01-02T03:04:05+00:00","can_edit":true,"can_share":true}
+  sample={"id":"11111111-2222-3333-4444-555555555555","name":"sample","description":"sample","icon_name":"sample","cover_artwork_url":"sample","background_artwork_url":"sample","banner_artwork_url":"sample","logo_artwork_url":"sample","collection_type":"sample","scope":"sample","profile_id":"11111111-2222-3333-4444-555555555555","visibility":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"is_enabled":true,"is_featured":true,"min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","hidden_until":"sample","rule_json":"sample","resolution":"sample","rule_hash":"sample","match_mode":"sample","sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","refresh_schedule":"sample","item_count":7,"cover_mode":"sample","is_pinned":true,"total_duration_seconds":7,"status":"sample","created_at":"2025-01-02T03:04:05+00:00","modified_at":"2025-01-02T03:04:05+00:00","can_edit":true,"can_share":true}
 
 [contracts] MediaEngine.Contracts.Collections.ParentCollectionDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -15504,6 +15527,9 @@
   SecondarySortDirection: System.String | json=secondary_sort_direction | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RefreshSchedule: System.String | json=refresh_schedule | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ItemCount: System.Int32 | json=item_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverMode: System.String | json=cover_mode | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  IsPinned: System.Boolean? | json=is_pinned | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  TotalDurationSeconds: System.Double? | json=total_duration_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ModifiedAt: System.DateTimeOffset? | json=modified_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -15910,6 +15936,9 @@
   SecondarySortDirection: System.String | json=secondary_sort_direction | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RefreshSchedule: System.String | json=refresh_schedule | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ItemCount: System.Int32 | json=item_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverMode: System.String | json=cover_mode | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  IsPinned: System.Boolean? | json=is_pinned | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  TotalDurationSeconds: System.Double? | json=total_duration_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ModifiedAt: System.DateTimeOffset? | json=modified_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no

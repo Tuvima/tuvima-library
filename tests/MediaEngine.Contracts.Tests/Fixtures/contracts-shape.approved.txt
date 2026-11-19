@@ -1590,6 +1590,9 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionDt
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   Works: System.Collections.Generic.List<MediaEngine.Contracts.Collections.WorkDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionDuplicateRequest
+  Name: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionEnabledRequest
   Enabled: System.Boolean | nullability=not-null | accessors=get,init
 
@@ -1678,6 +1681,7 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionGr
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemAddRequest
   WorkId: System.Guid | nullability=not-null | accessors=get,init
+  WorkIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemDto
   Id: System.Guid | nullability=not-null | accessors=get,set
@@ -1691,8 +1695,14 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionIt
   MembershipScope: System.String | nullability=not-null | accessors=get,set
   PositionLabel: System.String | nullability=nullable | accessors=get,set
 
-MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemReorderRequest
-  ItemIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemMoveRequest
+  Position: System.Int32? | nullability=nullable | accessors=get,init
+  ToTop: System.Boolean | nullability=not-null | accessors=get,init
+  ToBottom: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemsAddedResponse
+  added: System.Int32 | nullability=not-null | accessors=get,init
+  already_there: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionListEntryDto
   Id: System.Guid? | nullability=nullable | accessors=get,init
@@ -1771,6 +1781,9 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionMa
   SecondarySortDirection: System.String | nullability=nullable | accessors=get,init
   RefreshSchedule: System.String | nullability=nullable | accessors=get,init
   ItemCount: System.Int32 | nullability=not-null | accessors=get,set
+  CoverMode: System.String | nullability=nullable | accessors=get,init
+  IsPinned: System.Boolean? | nullability=nullable | accessors=get,init
+  TotalDurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   Status: System.String | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   ModifiedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
@@ -1934,6 +1947,9 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPe
   RuleDefinition: MediaEngine.Contracts.Collections.CollectionRuleDefinitionDto | nullability=nullable | accessors=get,init
   Position: System.Int32 | nullability=not-null | accessors=get,init
   AdditionalMembers: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPinRequest
+  Pinned: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPlacementRequest
   Location: System.String | nullability=not-null | accessors=get,init
@@ -2256,6 +2272,9 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ManagedColle
   SecondarySortDirection: System.String | nullability=nullable | accessors=get,init
   RefreshSchedule: System.String | nullability=nullable | accessors=get,init
   ItemCount: System.Int32 | nullability=not-null | accessors=get,set
+  CoverMode: System.String | nullability=nullable | accessors=get,init
+  IsPinned: System.Boolean? | nullability=nullable | accessors=get,init
+  TotalDurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   Status: System.String | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   ModifiedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init

@@ -1,6 +1,9 @@
 @page "/listen"
 @page "/listen/{Tab}"
 @using MediaEngine.Web.Components.Browse
+@using MediaEngine.Domain.Constants
+@using MediaEngine.Domain.Enums
+@using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
@@ -13,6 +16,8 @@
 @inject MediaTileComposerService MediaTiles
 @inject SongDragDropService SongDrop
 @inject CollectionEditorLauncherService CollectionEditorLauncher
+@inject SavedItemService SavedItems
+@inject IAppDialogService Dialogs
 @inject NavigationManager Nav
 @inject ILogger<ListenBrowsePage> Logger
 
@@ -40,7 +45,7 @@
                EmptyMessage="@L["ListenBrowsePage_AddMusicOrAudiobooksTo"].Value"
                IsSupportedBrowseTab="@IsSupportedBrowseTab"
                UnsupportedTitle="Listen page not found"
-               UnsupportedMessage="Choose Music, Audiobooks, or Playlists to browse your library."
+               UnsupportedMessage="@L["ListenBrowsePage_UnsupportedPage"].Value"
                Retry="LoadLandingAsync"
                OnNavigationItemDrop="AddDraggedSongsToPlaylistAsync"
                OnNavigationCreateDrop="StageDraggedSongsForPlaylistAsync"
@@ -53,7 +58,38 @@
                OnNavigationSmartCreate="OpenSmartPlaylistAsync"
                OnNavigationItemRename="RenamePlaylistAsync"
                OnNavigationItemDelete="DeletePlaylistAsync"
-               OnNavigationItemReorder="ReorderPlaylistAsync" />
+               OnNavigationItemReorder="ReorderPlaylistAsync"
+               CustomTabId="@ListenBrowseConfiguration.PlaylistsTabId">
+    <CustomTabContent>
+        @* The Playlists page: a tile for every playlist, Sort and New playlist (spec listen-playlists WP3). *@
+        <PlaylistTilesView Playlists="@_playlists"
+                           Loading="@(!_playlistsLoaded)"
+                           ShowFavorites="@(_activeProfileId.HasValue)"
+                           FavoritesCount="@_favoritesCount"
+                           OnCreateHandPicked="CreateHandPickedAsync"
+                           OnCreateSmart="CreateSmartAsync"
+                           OnSongsDropped="@(_ => ReloadPlaylistsAsync())"
+                           OnEditRules="EditPlaylistRulesAsync"
+                           OnRename="RenamePlaylistWindowAsync"
+                           OnEditDetails="EditPlaylistDetailsAsync"
+                           OnDuplicate="DuplicatePlaylistAsync"
+                           OnTogglePin="TogglePlaylistPinAsync"
+                           OnDelete="DeletePlaylistWithAskAsync"
+                           OnMoveUp="MovePlaylistUpAsync"
+                           OnMoveDown="MovePlaylistDownAsync" />
+    </CustomTabContent>
+    <PlaylistMenu Context="railMenu">
+        <PlaylistActionsMenu Playlist="@railMenu.Playlist"
+                             OnEditRules="EditPlaylistRulesAsync"
+                             OnRename="RenamePlaylistWindowAsync"
+                             OnEditDetails="EditPlaylistDetailsAsync"
+                             OnDuplicate="DuplicatePlaylistAsync"
+                             OnTogglePin="TogglePlaylistPinAsync"
+                             OnDelete="DeletePlaylistWithAskAsync"
+                             OnReorder="@ReorderCallback(railMenu)"
+                             Class="media-section-shell__manage-menu" />
+    </PlaylistMenu>
+</MediaLanePage>
 
 @code {
     /// <summary>The details overlay state, cascaded by the route view; null where this is shown on its own.</summary>
@@ -71,10 +107,11 @@
     private bool _loading = true;
     private bool _loadFailed;
     private bool _playlistsLoaded;
+    private int? _favoritesCount;
 
     // The tabs follow the Engine's library list (one per library with folders, then Playlists); the fixed tabs stand in when it cannot be read.
-    private LibraryBrowsePreset Preset = ListenBrowseConfiguration.Preset;
-    private IReadOnlyList<MediaHubModeViewModel> Modes = ListenBrowseConfiguration.LaneModes;
+    private LibraryBrowsePreset Preset = null!;
+    private IReadOnlyList<MediaHubModeViewModel> Modes = [];
     private bool _tabsLoaded;
     private bool _landingAttempted;
 
@@ -98,8 +135,7 @@
         {
             var playlistItems = new List<MediaSectionNavigationItem>
             {
-                new("Favorites", "/listen/music/playlists/system/favorite-songs", AppMaterialIcons.Outlined.FavoriteBorder),
-                new("All Playlists", "/listen/playlists", AppMaterialIcons.Outlined.QueueMusic, Exact: true),
+                new(L["Glossary_Favorites"].Value, "/listen/music/playlists/system/favorite-songs", AppMaterialIcons.Outlined.FavoriteBorder),
             };
             playlistItems.AddRange(_playlists
                 .Take(12)
@@ -112,7 +148,10 @@
                     Management: new MediaSectionNavigationItemManagement(
                         playlist.Id,
                         "playlist",
-                        IsSmart: IsSmartPlaylist(playlist)))));
+                        IsSmart: IsSmartPlaylist(playlist),
+                        Playlist: playlist))));
+            // The sidebar lists the first twelve (pinned ones first); See all opens the Playlists page with every playlist (spec listen-playlists WP3).
+            playlistItems.Add(new(L["PlaylistTiles_SeeAll"].Value, ListenNavigation.PlaylistsRoute, AppMaterialIcons.Outlined.QueueMusic, Exact: true));
 
             var musicTab = MusicTab;
             var navigationGroups = new List<MediaSectionNavigationGroup>
@@ -145,11 +184,11 @@
                     new HashSet<string>(StringComparer.OrdinalIgnoreCase) { musicTab.Id }));
             }
 
-            navigationGroups.Add(new("Playlists", playlistItems,
+            navigationGroups.Add(new(L["Glossary_Playlists"].Value, playlistItems,
                 new MediaSectionNavigationCreateOptions(
-                    "New Playlist",
-                    "New Smart Playlist",
-                    "Playlist name",
+                    L["ListenPage_NewPlaylist"].Value,
+                    L["ListenPage_NewSmartPlaylist"].Value,
+                    L["ListenPage_PlaylistName"].Value,
                     new ManualPlaylistCreateTarget(),
                     new SmartPlaylistCreateTarget(),
                     new NewPlaylistNavigationDropTarget())));
@@ -197,6 +236,8 @@
     // The page draws its header and a tab-strip skeleton at once; the library list is read while the playlists and the landing load.
     protected override async Task OnInitializedAsync()
     {
+        Preset = ListenBrowseConfiguration.Create(L);
+        Modes = MediaLaneConfigurationBuilder.BuildModes(Preset);
         var tabs = LoadTabsAsync();
         await EnsurePlaylistNavigationAsync();
         var landing = string.IsNullOrWhiteSpace(Tab) ? LoadLandingAsync() : Task.CompletedTask;
@@ -206,7 +247,7 @@
     private async Task LoadTabsAsync()
     {
         Preset = BrowseLibraryTabs.Build(
-            ListenBrowseConfiguration.Preset, "listen", await LibraryList.GetAsync(), ListenBrowseConfiguration.FixedTabIds);
+            ListenBrowseConfiguration.Create(L), "listen", await LibraryList.GetAsync(), ListenBrowseConfiguration.FixedTabIds);
         Modes = MediaLaneConfigurationBuilder.BuildModes(Preset);
         _tabsLoaded = true;
     }
@@ -240,12 +281,10 @@
             _activeProfileId = _activeProfile?.Id;
             _playlistNavigationConfig = _activeProfile?.NavigationConfig;
             _playlistOrder = ListenPlaylistOrderState.Read(_playlistNavigationConfig);
-            _playlists = (await ApiClient.GetManagedCollectionsAsync(_activeProfileId))
-                .Where(MediaTileComposerService.IsUserVisiblePlaylist)
-                .OrderBy(GetPlaylistOrderIndex)
-                .ThenByDescending(playlist => playlist.ModifiedAt ?? playlist.CreatedAt)
-                .ThenBy(playlist => playlist.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            // Pinned playlists first, then the profile's own order (spec listen-playlists D3).
+            _playlists = ListenPlaylistOrderState.Order(
+                (await ApiClient.GetManagedCollectionsAsync(_activeProfileId)).Where(MediaTileComposerService.IsUserVisiblePlaylist),
+                _playlistOrder);
         }
         catch (Exception ex)
         {
@@ -255,6 +294,24 @@
         finally
         {
             _playlistsLoaded = true;
+        }
+
+        await LoadFavoritesCountAsync();
+    }
+
+    // The Favorites tile on the Playlists page shows how many songs are hearted; when that cannot be read the tile shows the word alone.
+    private async Task LoadFavoritesCountAsync()
+    {
+        try
+        {
+            _favoritesCount = _activeProfileId.HasValue
+                ? (await SavedItems.GetListAsync()).Count(item => item.EntityKind == ProfileEntityKind.Song)
+                : null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read the Favorites count for the Playlists page.");
+            _favoritesCount = null;
         }
     }
 
@@ -335,7 +392,7 @@
             createEvent.Name,
             null,
             AppMaterialIcons.Outlined.QueueMusic,
-            "Playlist",
+            CollectionTypeNames.Playlist,
             new CollectionRuleDefinitionViewModel(),
             "title",
             "asc",
@@ -352,26 +409,8 @@
         return true;
     }
 
-    private async Task OpenSmartPlaylistAsync(MediaSectionNavigationCreateTarget target)
-    {
-        if (target is not SmartPlaylistCreateTarget || _activeProfileId is null)
-            return;
-        // What the editor saved is told by one quiet line; there is no toast.
-        _savedCollectionCount = 0;
-        var request = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId);
-        var launch = await CollectionEditorLauncher.TryOpenAsync(request);
-        if (launch == EditorLaunchResult.NotAvailableOnThisDevice)
-        {
-            // A device that may not edit items (a TV) is told in place rather than the button doing nothing.
-            ShowNotice(EditorDeviceRule.ItemMessage, AppUiTone.Info);
-            return;
-        }
-
-        var changed = launch == EditorLaunchResult.Applied;
-        _savedCollectionCount = request.SavedCollectionIds.Count;
-        if (changed || _savedCollectionCount > 0)
-            await ReloadPlaylistsAsync();
-    }
+    private Task OpenSmartPlaylistAsync(MediaSectionNavigationCreateTarget target) =>
+        target is SmartPlaylistCreateTarget ? OpenSmartEditorAsync(string.Empty) : Task.CompletedTask;
 
     private int _savedCollectionCount;
 
@@ -433,7 +472,29 @@
         var moved = reorderEvent.BeforeContainerId is { } targetId
             ? ListenPlaylistOrderState.TryMoveBefore(orderedIds, reorderEvent.Management.ContainerId, targetId, out updatedOrder!)
             : ListenPlaylistOrderState.TryMoveByOffset(orderedIds, reorderEvent.Management.ContainerId, reorderEvent.Direction, out updatedOrder!);
-        if (!moved || _activeProfile is null)
+        return moved && await SavePlaylistOrderAsync(updatedOrder);
+    }
+
+    // The tile's "..." menu (the Playlists page in Manual order): one place earlier or later in the order this profile keeps (spec listen-playlists D3).
+    private Task MovePlaylistUpAsync(ManagedCollectionViewModel playlist) => MovePlaylistTileAsync(playlist, -1);
+
+    private Task MovePlaylistDownAsync(ManagedCollectionViewModel playlist) => MovePlaylistTileAsync(playlist, 1);
+
+    private async Task MovePlaylistTileAsync(ManagedCollectionViewModel playlist, int direction)
+    {
+        _notice = null;
+        var orderedIds = _playlists.Select(item => item.Id).ToList();
+        if (ListenPlaylistOrderState.CanMoveWithinGroup(_playlists, playlist.Id, direction)
+            && ListenPlaylistOrderState.TryMoveByOffset(orderedIds, playlist.Id, direction, out var updatedOrder))
+        {
+            await SavePlaylistOrderAsync(updatedOrder);
+        }
+    }
+
+    // Writes the order onto the profile and draws the playlists in it; a refusal says so and keeps the order as it was.
+    private async Task<bool> SavePlaylistOrderAsync(List<Guid> updatedOrder)
+    {
+        if (_activeProfile is null)
             return false;
         var updatedConfig = ListenPlaylistOrderState.Write(_playlistNavigationConfig, updatedOrder);
         if (!await Orchestrator.UpdateProfileAsync(
@@ -447,7 +508,7 @@
         }
         _playlistOrder = updatedOrder;
         _playlistNavigationConfig = updatedConfig;
-        _playlists = _playlists.OrderBy(GetPlaylistOrderIndex).ToList();
+        _playlists = ListenPlaylistOrderState.Order(_playlists, _playlistOrder);
         return true;
     }
 
@@ -456,12 +517,6 @@
         _playlistsLoaded = false;
         await EnsurePlaylistNavigationAsync();
         await InvokeAsync(StateHasChanged);
-    }
-
-    private int GetPlaylistOrderIndex(ManagedCollectionViewModel playlist)
-    {
-        var index = _playlistOrder.IndexOf(playlist.Id);
-        return index < 0 ? int.MaxValue : index;
     }
 
     private static bool IsSmartPlaylist(ManagedCollectionViewModel playlist) =>

@@ -1,3 +1,5 @@
+import { wireToDotnet } from './touch-reorder.js';
+
 // Press and hold on a phone song row: opens the row's "..." bottom sheet by pressing its menu button, so the sheet and its items stay
 // the shared menu component's. Returns false when the row or its button is not on the page.
 
@@ -39,6 +41,37 @@ export function scrollToIndex(list, index, itemSize, topOffset) {
     }
 
     return true;
+}
+
+// ---- Reordering a playlist by finger ----------------------------------------------------------------------------------------
+// A finger cannot start the browser's drag, so a playlist's rows carry a grip (data-song-grip) that is dragged by pointer events
+// (touch-reorder.js; the page keeps scrolling because only the grip stops it). Rows carry data-song-row-key. A drop tells .NET which row moved
+// and which row it was dropped before or after, and the table works the new place out exactly as it does for the mouse drag and Alt+Arrow.
+// A mouse still uses the browser's drag and drop. `root` is the .song-table element (the desktop table on a touch tablet, or the phone list).
+
+export const TOUCH_REORDER = Object.freeze({
+    handle: '[data-song-grip]',
+    row: '[data-song-row-key]',
+    keyAttribute: 'data-song-row-key',
+    dropMethod: 'TouchReorder',
+});
+
+export function wireTouchReorder(root, dotnetRef) {
+    return wireToDotnet(root, dotnetRef, TOUCH_REORDER);
+}
+
+const touchWirings = new WeakMap();
+
+export function wireReorder(root, dotnetRef) {
+    unwireReorder(root);
+    if (root) touchWirings.set(root, wireTouchReorder(root, dotnetRef));
+}
+
+export function unwireReorder(root) {
+    if (root && touchWirings.has(root)) {
+        touchWirings.get(root)();
+        touchWirings.delete(root);
+    }
 }
 
 // ---- Dragging songs out to a playlist ---------------------------------------------------------------------------------------

@@ -1,8 +1,10 @@
 using MediaEngine.Web.Components.Collections;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Resources;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
+using Microsoft.Extensions.Localization;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -12,17 +14,20 @@ public sealed class CollectionEditorLauncherService
     private readonly AdministratorSurfaceAccessService? _administratorAccess;
     private readonly DeviceContextService? _device;
     private readonly DashboardSessionAccessor? _session;
+    private readonly IStringLocalizer<SharedStrings>? _strings;
 
     public CollectionEditorLauncherService(
         IAppDialogService dialogService,
         AdministratorSurfaceAccessService? administratorAccess = null,
         DeviceContextService? device = null,
-        DashboardSessionAccessor? session = null)
+        DashboardSessionAccessor? session = null,
+        IStringLocalizer<SharedStrings>? strings = null)
     {
         _dialogService = dialogService;
         _administratorAccess = administratorAccess;
         _device = device;
         _session = session;
+        _strings = strings;
     }
 
     public CollectionEditorInlineSession BeginInline(CollectionEditorLaunchRequest request)
@@ -62,7 +67,7 @@ public sealed class CollectionEditorLauncherService
 
         var isCollectionEditor = !isPlaylist;
         var dialog = await _dialogService.ShowAsync<CollectionEditorShell>(
-            EditDialogTitleFor(request),
+            EditDialogTitleFor(request, _strings),
             new AppDialogParameters
             {
                 { nameof(CollectionEditorShell.Request), request },
@@ -88,18 +93,11 @@ public sealed class CollectionEditorLauncherService
         return result is not null && !result.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
     }
 
-    private static string DialogTitleFor(CollectionEditorLaunchRequest request) =>
+    // The window's name; the editor draws its own header. The playlist words come from the string table.
+    private static string EditDialogTitleFor(CollectionEditorLaunchRequest request, IStringLocalizer<SharedStrings>? strings) =>
         request.Kind switch
         {
-            ContainerEditorKind.Playlist => "New Playlist",
-            ContainerEditorKind.Gallery => "New Gallery",
-            _ => "New Collection",
-        };
-
-    private static string EditDialogTitleFor(CollectionEditorLaunchRequest request) =>
-        request.Kind switch
-        {
-            ContainerEditorKind.Playlist => "Edit Playlist",
+            ContainerEditorKind.Playlist => strings?["CollectionEditorShell_EditPlaylist"].Value ?? request.Kind.ToString(),
             ContainerEditorKind.Gallery => "Edit Gallery",
             _ => "Edit Collection",
         };

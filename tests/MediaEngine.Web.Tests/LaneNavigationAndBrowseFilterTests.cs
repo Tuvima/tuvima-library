@@ -160,13 +160,13 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.DoesNotContain("<CinematicHeroCarousel", collections, StringComparison.Ordinal);
         Assert.Contains("Nav.NavigateTo(target.Route)", hub, StringComparison.Ordinal);
 
-        Assert.Contains("ListenBrowseConfiguration.Preset", listen, StringComparison.Ordinal);
+        Assert.Contains("ListenBrowseConfiguration.Create(L)", listen, StringComparison.Ordinal);
         Assert.Contains("MediaBrowseNavigationBuilder.BuildBrowseGroup", listen, StringComparison.Ordinal);
-        Assert.Contains("MediaLaneConfigurationBuilder.BuildModes(Preset)", listenPreset, StringComparison.Ordinal);
+        Assert.Contains("MediaLaneConfigurationBuilder.BuildModes(Preset)", listen, StringComparison.Ordinal);
         Assert.Contains("new(\"albums\", \"Albums\"", listenPreset, StringComparison.Ordinal);
         Assert.Contains("new(\"artists\", \"Artists\"", listenPreset, StringComparison.Ordinal);
         Assert.Contains("new(\"songs\", \"Songs\"", listenPreset, StringComparison.Ordinal);
-        Assert.Contains("new(\"playlists\", \"Playlists\"", listenPreset, StringComparison.Ordinal);
+        Assert.Contains("new(\"playlists\", strings[\"Glossary_Playlists\"].Value", listenPreset, StringComparison.Ordinal);
         Assert.Contains("new(\"narrators\", \"Narrators\"", listenPreset, StringComparison.Ordinal);
         var musicTab = listenPreset[
             listenPreset.IndexOf("Id = \"music\"", StringComparison.Ordinal)..listenPreset.IndexOf("Id = \"audiobooks\"", StringComparison.Ordinal)];

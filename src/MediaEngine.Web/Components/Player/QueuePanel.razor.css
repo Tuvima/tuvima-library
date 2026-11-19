@@ -55,7 +55,27 @@
     height: 24px;
     justify-content: center;
     padding: 0;
+    position: relative;
+    /* A finger drags the row by this handle alone (playback-queue-drag.js), so the handle and nothing else stops the list scrolling. */
+    touch-action: none;
+    user-select: none;
+    -webkit-touch-callout: none;
     width: 24px;
+}
+
+/* The handle's drawn size stays in its 24 px column; on a touch device its touchable area grows to the 44 px target around it (app.css, in the
+   shared tap-target contract). */
+.qp__drop.is-touch-dragging {
+    background: var(--playback-state-pressed);
+}
+
+/* The line a finger's drag shows where the row would land: on the row's top edge (before) or its bottom edge (after). */
+.qp__drop.is-touch-drop-before {
+    box-shadow: inset 0 2px 0 var(--playback-accent);
+}
+
+.qp__drop.is-touch-drop-after {
+    box-shadow: inset 0 -2px 0 var(--playback-accent);
 }
 
 .qp__drop ::deep .qp__handle:hover {

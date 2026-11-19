@@ -15,6 +15,7 @@ public sealed class ListenNavigationTests
     [InlineData("/listen/music?browse=timeline", ListenNavigation.TimelineRoute)]
     [InlineData("/listen/music/playlists/system/all-music", ListenNavigation.PlaylistsRoute)]
     [InlineData("http://localhost:5016/listen/music/playlists/11111111-1111-1111-1111-111111111111", ListenNavigation.PlaylistsRoute)]
+    [InlineData("/listen/playlists", ListenNavigation.PlaylistsRoute)]
     [InlineData("/listen/audiobooks", ListenNavigation.MusicHomeRoute)]
     public void NormalizeMusicSurfaceRoute_MapsRoutesBackToMusicSurfaces(string? route, string expected)
     {

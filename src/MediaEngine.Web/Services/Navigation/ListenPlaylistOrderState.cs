@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Navigation;
 
@@ -35,6 +36,53 @@ public static class ListenPlaylistOrderState
         root[PropertyName] = new JsonArray(
             orderedIds.Distinct().Select(id => JsonValue.Create(id.ToString("D"))).ToArray<JsonNode?>());
         return root.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+    }
+
+    /// <summary>
+    /// The order playlists are listed in, in the sidebar and on the Playlists page (spec listen-playlists D3): the ones this profile pinned
+    /// come first, then every playlist in the order the profile keeps (it follows the person across devices); a playlist the saved order
+    /// does not know yet follows the rest, newest first.
+    /// </summary>
+    public static List<ManagedCollectionViewModel> Order(IEnumerable<ManagedCollectionViewModel> playlists, IReadOnlyList<Guid> savedOrder)
+    {
+        ArgumentNullException.ThrowIfNull(playlists);
+        ArgumentNullException.ThrowIfNull(savedOrder);
+        var positions = new Dictionary<Guid, int>();
+        for (var index = 0; index < savedOrder.Count; index++)
+        {
+            positions.TryAdd(savedOrder[index], index);
+        }
+
+        return [.. playlists
+            .OrderByDescending(playlist => playlist.IsPinned == true)
+            .ThenBy(playlist => positions.GetValueOrDefault(playlist.Id, int.MaxValue))
+            .ThenByDescending(playlist => playlist.ModifiedAt ?? playlist.CreatedAt)
+            .ThenBy(playlist => playlist.Name, StringComparer.OrdinalIgnoreCase)];
+    }
+
+    /// <summary>
+    /// Whether Move up (<paramref name="direction"/> -1) or Move down (1) does anything visible for a playlist: there is a neighbour that way and
+    /// it is in the same group (pinned lists always come first, so swapping a pinned list with an unpinned one would change nothing on screen).
+    /// <paramref name="ordered"/> is the list as drawn.
+    /// </summary>
+    public static bool CanMoveWithinGroup(IReadOnlyList<ManagedCollectionViewModel> ordered, Guid playlistId, int direction)
+    {
+        ArgumentNullException.ThrowIfNull(ordered);
+        var index = -1;
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            if (ordered[i].Id == playlistId)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        var neighbour = index + direction;
+        return index >= 0
+            && neighbour >= 0
+            && neighbour < ordered.Count
+            && (ordered[neighbour].IsPinned == true) == (ordered[index].IsPinned == true);
     }
 
     public static bool TryMoveByOffset(
@@ -88,6 +136,33 @@ public static class ListenPlaylistOrderState
 
         updatedOrder.Insert(targetIndex, playlistId);
         return true;
+    }
+
+    /// <summary>
+    /// Puts <paramref name="playlistId"/> right after <paramref name="targetPlaylistId"/>: what a finger's drop on the lower half of a playlist
+    /// row means (the finger reports before or after; the mouse's drag only ever drops before).
+    /// </summary>
+    public static bool TryMoveAfter(
+        IReadOnlyList<Guid> orderedIds,
+        Guid playlistId,
+        Guid targetPlaylistId,
+        out List<Guid> updatedOrder)
+    {
+        updatedOrder = orderedIds.ToList();
+        if (playlistId == targetPlaylistId)
+        {
+            return false;
+        }
+
+        var sourceIndex = updatedOrder.IndexOf(playlistId);
+        if (sourceIndex < 0 || !updatedOrder.Contains(targetPlaylistId))
+        {
+            return false;
+        }
+
+        updatedOrder.RemoveAt(sourceIndex);
+        updatedOrder.Insert(updatedOrder.IndexOf(targetPlaylistId) + 1, playlistId);
+        return updatedOrder.SequenceEqual(orderedIds) is false;
     }
 
     private static JsonObject Parse(string? navigationConfig)

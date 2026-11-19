@@ -57,6 +57,10 @@ public partial class SongTable
     private DotNetObjectReference<SongTable>? _self;
     private string? _wiredRootId;
 
+    // A finger's drag by a row's grip runs in the same script; it listens on whichever element holds the rows (the table, or the phone list).
+    private string? _touchWiredRootId;
+    private ElementReference _touchWiredRoot;
+
     private IReadOnlyList<SongRow>? _draggingOut;
     private AppSeverity _noticeSeverity = AppSeverity.Warning;
     private SongDragDropService? _dropService;
@@ -214,6 +218,10 @@ public partial class SongTable
     // Drag is a mouse affordance; touch screens and phones move rows from the "..." menu or the keyboard.
     private bool CanDrag => ReorderEnabled && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
 
+    // A finger cannot start the browser's drag, so a phone or touch tablet drags a playlist's row by a grip instead (spec listen-playlists WP5).
+    // Off while a phone ticks songs (a tap there ticks the row) and while there are no rows to move.
+    private bool TouchGripShown => ReorderEnabled && !ShowEmpty && (IsPhoneList ? !SelectModeOn : DeviceContext.IsTouch);
+
     // Dragging songs out to somewhere else (a playlist in the rail or a playlist tile) is also a mouse affordance. A playlist's rows reorder
     // inside the table and are carried out when the drag leaves it: a drop on a row or the end zone reorders, a drop on a playlist adds.
     private bool CanDragOut => (OnDragOutStarted.HasDelegate || _dropService is not null) && !DeviceContext.IsTouch && !DeviceContext.IsPhone;
@@ -311,6 +319,7 @@ public partial class SongTable
         await LoadChoiceAsync();
         await FocusMovedRowAsync();
         await WireResizeAsync();
+        await WireTouchReorderAsync();
     }
 
     public async ValueTask DisposeAsync()
@@ -322,6 +331,7 @@ public partial class SongTable
             _dropService.End(this);
         }
 
+        await UnwireTouchReorderAsync();
         await UnwireResizeAsync();
         if (_resizeModule is not null)
         {
@@ -745,6 +755,67 @@ public partial class SongTable
         _wiredRootId = null;
         await ReleaseAsync(() => _resizeModule.InvokeVoidAsync("unwireResize", _tableRoot).AsTask());
     }
+
+    // ---- Reorder by finger -------------------------------------------------------------------------------------
+
+    // Hands the element that holds the rows to the script while grips are shown, and takes it back when they are not or the element changes.
+    private async Task WireTouchReorderAsync()
+    {
+        var root = IsPhoneList ? _phoneList : _tableRoot;
+        var rootId = TouchGripShown && root.Id is not null ? root.Id : null;
+        if (rootId == _touchWiredRootId)
+        {
+            return;
+        }
+
+        await UnwireTouchReorderAsync();
+        if (rootId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _resizeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/song-table.js");
+            _self ??= DotNetObjectReference.Create(this);
+            await _resizeModule.InvokeVoidAsync("wireReorder", root, _self);
+            _touchWiredRoot = root;
+            _touchWiredRootId = rootId;
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException)
+        {
+            // Dragging with the mouse, Alt+Arrow and the row menu still reorder the playlist, so the table stays usable.
+            Logger.LogWarning(exception, "Dragging a song row by finger could not start for the song table.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away before the song table could start dragging rows by finger.");
+        }
+    }
+
+    private async Task UnwireTouchReorderAsync()
+    {
+        if (_touchWiredRootId is null || _resizeModule is null)
+        {
+            _touchWiredRootId = null;
+            return;
+        }
+
+        _touchWiredRootId = null;
+        await ReleaseAsync(() => _resizeModule.InvokeVoidAsync("unwireReorder", _touchWiredRoot).AsTask());
+    }
+
+    /// <summary>A finger let go of a row's grip over another row: the script says which row moved and which it was dropped before or after.</summary>
+    [JSInvokable]
+    public Task TouchReorder(string from, string to, bool after) => InvokeAsync(async () =>
+    {
+        var fromIndex = _shown.FindIndex(candidate => RowKey(candidate) == from);
+        var targetIndex = _shown.FindIndex(candidate => RowKey(candidate) == to);
+        if (TouchReorderRules.FinalIndex(fromIndex, targetIndex, after, _shown.Count) is { } place)
+        {
+            await MoveAsync(_shown[fromIndex], fromIndex, place);
+        }
+    });
 
     private async Task ReleaseAsync(Func<Task> step)
     {
@@ -1191,6 +1262,19 @@ public partial class SongTable
         var from = RowIndex(row);
         var to = from + delta;
         if (from < 0 || to < 0 || to >= _shown.Count)
+        {
+            return;
+        }
+
+        await MoveAsync(row, from, to);
+    }
+
+    // Move to top and Move to bottom: one move to the first or last place, however long the playlist is (the host sends it as to_top or to_bottom).
+    private async Task MoveToEdgeAsync(SongRow row, bool top)
+    {
+        var from = RowIndex(row);
+        var to = top ? 0 : _shown.Count - 1;
+        if (from < 0 || to < 0 || from == to)
         {
             return;
         }

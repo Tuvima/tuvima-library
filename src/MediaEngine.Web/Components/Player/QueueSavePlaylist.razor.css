@@ -1,0 +1,17 @@
+/* Save queue as playlist (Listen playlists spec WP6): a full-width button under the queue heading, then the name step in place. The controls are the shared 44 px App buttons and field. */
+.qsp {
+    display: grid;
+    gap: 8px;
+    padding: 4px 8px 8px;
+}
+
+.qsp__name {
+    display: grid;
+    gap: 8px;
+}
+
+.qsp__actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}

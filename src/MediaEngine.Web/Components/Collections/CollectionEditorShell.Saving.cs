@@ -161,7 +161,17 @@ public partial class CollectionEditorShell
                 RememberSaved(savedCollectionId.Value);
                 if (_stagedItemOrder is { } stagedOrder && EditingCollection is not null && !_storedRuleDriven)
                 {
-                    if (!await ApiClient.ReorderCollectionItemsAsync(EditingCollection.Id, stagedOrder, Request.ActiveProfileId))
+                    // The Engine takes position moves: read the saved order now, put the staged items in their staged order first
+                    // (anything the editor did not load follows in its saved order) and send only the moves that differ.
+                    var savedOrder = (await ApiClient.GetCollectionItemsAsync(EditingCollection.Id, 200, Request.ActiveProfileId))
+                        .OrderBy(item => item.SortOrder)
+                        .Select(item => item.Id)
+                        .ToList();
+                    var savedIds = savedOrder.ToHashSet();
+                    var targetOrder = stagedOrder.Where(savedIds.Contains).Distinct()
+                        .Concat(savedOrder.Where(id => !stagedOrder.Contains(id)))
+                        .ToList();
+                    if (!await ApiClient.ApplyCollectionItemOrderAsync(EditingCollection.Id, savedOrder, targetOrder, Request.ActiveProfileId))
                     {
                         ShowNotice(L["CollectionEditorShell_FailedToReorderTheCollection"].Value, AppUiTone.Error);
                         return;

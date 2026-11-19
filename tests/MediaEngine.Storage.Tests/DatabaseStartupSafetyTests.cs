@@ -653,6 +653,8 @@ public sealed class DatabaseStartupSafetyTests
             ("profile_hero_settings", "profile_id"),
             ("profile_person_preferences", "person_id"),
             ("profile_person_preferences", "profile_id"),
+            ("profile_pinned_playlists", "collection_id"),
+            ("profile_pinned_playlists", "profile_id"),
             ("profile_reactions", "entity_id"),
             ("profile_reactions", "profile_id"),
             ("profile_saved_items", "entity_id"),

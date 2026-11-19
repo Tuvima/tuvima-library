@@ -119,6 +119,58 @@ public sealed class ReorderModeTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AFingerDroppingARowBeforeOrAfterAnotherStagesTheOrderAndWritesNothingUntilSaveOrder()
+    {
+        var events = new List<MediaSectionNavigationReorderEvent>();
+        var cut = RenderShell(events);
+        await Call(cut, "BeginReorderMode", Row(cut, A));
+
+        await cut.InvokeAsync(() => cut.Instance.TouchReorderManagedAsync(A.ToString("D"), C.ToString("D"), true));
+        Assert.Equal(["Two", "Three", "One"], cut.FindAll(".media-section-shell__rail-item--managed span").Select(span => span.TextContent.Trim()).Where(text => text.Length > 0).Take(3));
+        await cut.InvokeAsync(() => cut.Instance.TouchReorderManagedAsync(C.ToString("D"), B.ToString("D"), false));
+
+        Assert.Equal(["Three", "Two", "One"], cut.FindAll(".media-section-shell__rail-item--managed span").Select(span => span.TextContent.Trim()).Where(text => text.Length > 0).Take(3));
+        Assert.Empty(events);
+        Assert.NotEmpty(cut.FindAll("[data-reorder-bar]"));
+    }
+
+    [Fact]
+    public async Task AFingerDropOutsideReorderModeOrNamingAnUnknownRowChangesNothing()
+    {
+        var events = new List<MediaSectionNavigationReorderEvent>();
+        var cut = RenderShell(events);
+
+        await cut.InvokeAsync(() => cut.Instance.TouchReorderManagedAsync(A.ToString("D"), C.ToString("D"), true));
+        await Call(cut, "BeginReorderMode", Row(cut, A));
+        await cut.InvokeAsync(() => cut.Instance.TouchReorderManagedAsync(A.ToString("D"), Guid.NewGuid().ToString("D"), true));
+        await cut.InvokeAsync(() => cut.Instance.TouchReorderManagedAsync("nope", C.ToString("D"), true));
+
+        Assert.Equal(["One", "Two", "Three"], cut.FindAll(".media-section-shell__rail-item--managed span").Select(span => span.TextContent.Trim()).Where(text => text.Length > 0).Take(3));
+    }
+
+    [Fact]
+    public async Task OnlyReorderModeDrawsGripsAndHandsTheRailToTheScriptForFingerDrags()
+    {
+        var module = JSInterop.SetupModule("./js/playlist-reorder.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var cut = RenderShell([]);
+        Assert.Empty(cut.FindAll("[data-playlist-reorder-handle]"));
+        Assert.Empty(cut.FindAll("[data-playlist-reorder-row]"));
+
+        await Call(cut, "BeginReorderMode", Row(cut, A));
+
+        Assert.Equal(3, cut.FindAll("[data-playlist-reorder-handle]").Count);
+        Assert.Equal([A, B, C], cut.FindAll("[data-playlist-reorder-row]").Select(row => Guid.Parse(row.GetAttribute("data-playlist-reorder-row")!)));
+        var attach = Assert.Single(module.Invocations["attach"]);
+        Assert.Equal("TouchReorderManagedAsync", attach.Arguments[2]);
+
+        await Call(cut, "CancelReorder");
+
+        Assert.Empty(cut.FindAll("[data-playlist-reorder-handle]"));
+        cut.WaitForAssertion(() => Assert.Single(module.Invocations["detach"]));
+    }
+
+    [Fact]
     public async Task Cancel_ThrowsTheStagedOrderAway()
     {
         var events = new List<MediaSectionNavigationReorderEvent>();

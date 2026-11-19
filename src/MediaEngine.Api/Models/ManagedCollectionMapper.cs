@@ -13,7 +13,9 @@ internal static class ManagedCollectionMapper
         int itemCount,
         Profile? activeProfile,
         bool isAdministrator = false,
-        DateOnly? today = null) => new()
+        DateOnly? today = null,
+        bool? isPinned = null,
+        double? totalDurationSeconds = null) => new()
         {
             Id = collection.Id,
             Name = collection.DisplayName ?? $"Collection {collection.Id.ToString("N")[..8]}",
@@ -57,6 +59,9 @@ internal static class ManagedCollectionMapper
             SecondarySortDirection = collection.SecondarySortDirection?.ToStorageValue(),
             RefreshSchedule = collection.RefreshSchedule,
             ItemCount = itemCount,
+            CoverMode = string.IsNullOrWhiteSpace(collection.CoverArtworkPath) ? "mosaic" : "picture",
+            IsPinned = isPinned,
+            TotalDurationSeconds = totalDurationSeconds,
             Status = !collection.IsEnabled ? "Disabled" : itemCount == 0 ? "Empty" : "Active",
             CreatedAt = collection.CreatedAt,
             ModifiedAt = collection.ModifiedAt,

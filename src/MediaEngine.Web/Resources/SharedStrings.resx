@@ -13451,9 +13451,6 @@
   <data name="ListenPage_PlaylistCreateFailed" xml:space="preserve">
     <value>The Playlist could not be created.</value>
   </data>
-  <data name="ListenPage_PlaylistRenameFailed" xml:space="preserve">
-    <value>The Playlist could not be renamed.</value>
-  </data>
   <data name="ListenPage_PlaylistDeleteFailed" xml:space="preserve">
     <value>The Playlist could not be deleted.</value>
   </data>
@@ -13465,21 +13462,6 @@
   </data>
   <data name="ListenPage_SongsSavedListNotRefreshed" xml:space="preserve">
     <value>The songs were saved, but the list could not be refreshed. Reload the page to see them.</value>
-  </data>
-  <data name="ListenPage_ProfileRequiredToSaveToPlaylists" xml:space="preserve">
-    <value>Choose an active profile before saving to playlists.</value>
-  </data>
-  <data name="ListenPage_AddSongsFailed" xml:space="preserve">
-    <value>Could not add songs to {0}.</value>
-  </data>
-  <data name="ListenPage_ChooseProfileBeforeCreatingPlaylists" xml:space="preserve">
-    <value>Choose an active profile before creating playlists.</value>
-  </data>
-  <data name="ListenPage_DroppedSongsPlaylistFailed" xml:space="preserve">
-    <value>Could not create a playlist for the dropped songs.</value>
-  </data>
-  <data name="ListenPage_PlaylistCreatedNotLoaded" xml:space="preserve">
-    <value>Playlist was created, but it could not be loaded yet.</value>
   </data>
   <data name="ListenPage_SongRemoveFailed" xml:space="preserve">
     <value>Song could not be removed from the playlist.</value>
@@ -13940,9 +13922,6 @@
   <data name="PlaylistMembership_NewPlaylist" xml:space="preserve">
     <value>New playlist</value>
   </data>
-  <data name="PlaylistMembership_ChooseExisting" xml:space="preserve">
-    <value>Choose an existing playlist</value>
-  </data>
   <data name="PlaylistMembership_TooManyAlbums" xml:space="preserve">
     <value>Pick up to {0} albums at a time</value>
   </data>
@@ -13965,13 +13944,52 @@
     <value>{0} added, {1} already there</value>
   </data>
   <data name="PlaylistMembership_AllAlreadyThere" xml:space="preserve">
-    <value>Those songs are already in {0}.</value>
+    <value>Already in {0}</value>
   </data>
   <data name="PlaylistMembership_SomeFailed" xml:space="preserve">
     <value>{0} added, {1} could not be added</value>
   </data>
   <data name="PlaylistMembership_AddFailed" xml:space="preserve">
     <value>The songs could not be added to {0}.</value>
+  </data>
+  <data name="PlaylistMembership_AlreadyThereSomeFailed" xml:space="preserve">
+    <value>{0} already there, {1} could not be added</value>
+  </data>
+  <data name="PlaylistMembership_SomeAlreadyThereSomeFailed" xml:space="preserve">
+    <value>{0} added, {1} already there, {2} could not be added</value>
+  </data>
+  <data name="PlaylistPicker_TitleOne" xml:space="preserve">
+    <value>Add 1 song to…</value>
+  </data>
+  <data name="PlaylistPicker_TitleMany" xml:space="preserve">
+    <value>Add {0} songs to…</value>
+  </data>
+  <data name="PlaylistPicker_Search" xml:space="preserve">
+    <value>Search playlists</value>
+  </data>
+  <data name="PlaylistPicker_Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="PlaylistPicker_SongsOne" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="PlaylistPicker_SongsMany" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistPicker_AlreadyIn" xml:space="preserve">
+    <value>Already in</value>
+  </data>
+  <data name="PlaylistPicker_NoPlaylists" xml:space="preserve">
+    <value>You have no hand-made playlists yet.</value>
+  </data>
+  <data name="PlaylistPicker_NoMatches" xml:space="preserve">
+    <value>No playlist matches that.</value>
+  </data>
+  <data name="PlaylistPicker_Loading" xml:space="preserve">
+    <value>Loading your playlists…</value>
+  </data>
+  <data name="MediaMembershipDialog_NoCollections" xml:space="preserve">
+    <value>No editable manual collections are available.</value>
   </data>
   <data name="PlaylistMembership_CreateFailed" xml:space="preserve">
     <value>The playlist could not be created.</value>
@@ -15079,5 +15097,230 @@
   </data>
   <data name="ViewSmartSearch_Count" xml:space="preserve">
     <value>{0} photos</value>
+  </data>
+  <data name="PlaylistMenu_Options" xml:space="preserve">
+    <value>{0} options</value>
+  </data>
+  <data name="PlaylistMenu_EditRules" xml:space="preserve">
+    <value>Edit rules</value>
+  </data>
+  <data name="PlaylistMenu_EditDetails" xml:space="preserve">
+    <value>Edit description and cover</value>
+  </data>
+  <data name="PlaylistMenu_Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="PlaylistMenu_PinToTop" xml:space="preserve">
+    <value>Pin to top</value>
+  </data>
+  <data name="PlaylistMenu_Unpin" xml:space="preserve">
+    <value>Unpin</value>
+  </data>
+  <data name="PlaylistEdit_RenameTitle" xml:space="preserve">
+    <value>Rename playlist</value>
+  </data>
+  <data name="PlaylistEdit_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistEdit_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="PlaylistEdit_Cover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="PlaylistEdit_ChoosePicture" xml:space="preserve">
+    <value>Choose a picture</value>
+  </data>
+  <data name="PlaylistEdit_UseMosaic" xml:space="preserve">
+    <value>Use the automatic cover</value>
+  </data>
+  <data name="PlaylistEdit_CoverHelp" xml:space="preserve">
+    <value>JPG or PNG, up to 5 MB. The automatic cover is a mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureChosen" xml:space="preserve">
+    <value>{0} will be the cover.</value>
+  </data>
+  <data name="PlaylistEdit_MosaicInUse" xml:space="preserve">
+    <value>The cover is an automatic mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureInUse" xml:space="preserve">
+    <value>The cover is your own picture.</value>
+  </data>
+  <data name="PlaylistEdit_PictureTooLarge" xml:space="preserve">
+    <value>That picture is larger than 5 MB. Choose a smaller one.</value>
+  </data>
+  <data name="PlaylistEdit_SaveFailed" xml:space="preserve">
+    <value>Could not save. The playlist was not changed.</value>
+  </data>
+  <data name="PlaylistEdit_CoverFailed" xml:space="preserve">
+    <value>The changes were saved, but the cover was not changed.</value>
+  </data>
+  <data name="PlaylistPage_Kind" xml:space="preserve">
+    <value>Playlist</value>
+  </data>
+  <data name="PlaylistPage_KindSmart" xml:space="preserve">
+    <value>Smart playlist</value>
+  </data>
+  <data name="PlaylistPage_KindYours" xml:space="preserve">
+    <value>{0} · yours</value>
+  </data>
+  <data name="PlaylistPage_KindOwner" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PlaylistPage_Unavailable" xml:space="preserve">
+    <value>{0} unavailable songs</value>
+  </data>
+  <data name="PlaylistPage_UnavailableOne" xml:space="preserve">
+    <value>1 unavailable song</value>
+  </data>
+  <data name="PlaylistPage_SortedBy" xml:space="preserve">
+    <value>Sorted by {0}. Keep this order to save it.</value>
+  </data>
+  <data name="PlaylistPage_KeepThisOrder" xml:space="preserve">
+    <value>Keep this order</value>
+  </data>
+  <data name="PlaylistPage_DuplicateFailed" xml:space="preserve">
+    <value>Could not duplicate the playlist. Nothing was changed.</value>
+  </data>
+  <data name="PlaylistPage_PinFailed" xml:space="preserve">
+    <value>Could not change the pin. Nothing was changed.</value>
+  </data>
+  <data name="QueueSave_Button" xml:space="preserve">
+    <value>Save queue as playlist</value>
+  </data>
+  <data name="QueueSave_NothingToSave" xml:space="preserve">
+    <value>There are no songs in the queue to save.</value>
+  </data>
+  <data name="QueueSave_NameLabel" xml:space="preserve">
+    <value>Playlist name</value>
+  </data>
+  <data name="QueueSave_DefaultName" xml:space="preserve">
+    <value>Queue, {0}</value>
+  </data>
+  <data name="QueueSave_OneSaved" xml:space="preserve">
+    <value>Saved 1 song as {0}</value>
+  </data>
+  <data name="QueueSave_ManySaved" xml:space="preserve">
+    <value>Saved {0} songs as {1}</value>
+  </data>
+  <data name="QueueSave_SkippedOne" xml:space="preserve">
+    <value>1 item was skipped because it is not a song in your library.</value>
+  </data>
+  <data name="QueueSave_SkippedMany" xml:space="preserve">
+    <value>{0} items were skipped because they are not songs in your library.</value>
+  </data>
+  <data name="QueueSave_Failed" xml:space="preserve">
+    <value>The queue could not be saved as a playlist. Your queue was not changed.</value>
+  </data>
+  <data name="PlaylistTiles_NewTitle" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="PlaylistTiles_HandPickedHint" xml:space="preserve">
+    <value>You choose the songs.</value>
+  </data>
+  <data name="PlaylistTiles_SmartHint" xml:space="preserve">
+    <value>Fills itself from rules you set.</value>
+  </data>
+  <data name="PlaylistTiles_NewShort" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="PlaylistTiles_SortBy" xml:space="preserve">
+    <value>Sort: {0}</value>
+  </data>
+  <data name="PlaylistTiles_SortManual" xml:space="preserve">
+    <value>Manual</value>
+  </data>
+  <data name="PlaylistTiles_SortName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistTiles_SortRecentlyAdded" xml:space="preserve">
+    <value>Recently added</value>
+  </data>
+  <data name="PlaylistTiles_MetaSongs" xml:space="preserve">
+    <value>Songs · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSongsLength" xml:space="preserve">
+    <value>Songs · {0} · {1}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSmart" xml:space="preserve">
+    <value>Smart · Songs · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSmartShort" xml:space="preserve">
+    <value>Smart · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortOne" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortMany" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistTiles_EmptyTitle" xml:space="preserve">
+    <value>No playlists yet</value>
+  </data>
+  <data name="PlaylistTiles_EmptyMessage" xml:space="preserve">
+    <value>Make one with New playlist, or add songs from any song's menu.</value>
+  </data>
+  <data name="PlaylistTiles_SeeAll" xml:space="preserve">
+    <value>See all</value>
+  </data>
+  <data name="PlaylistTiles_Back" xml:space="preserve">
+    <value>Playlists</value>
+  </data>
+  <data name="Common_MoveToTop" xml:space="preserve">
+    <value>Move to top</value>
+  </data>
+  <data name="Common_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="QueuePanel_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="PlaylistTiles_Moved" xml:space="preserve">
+    <value>Moved {0} to place {1} of {2}</value>
+  </data>
+  <data name="PlaylistPage_AllMusic" xml:space="preserve">
+    <value>All Music</value>
+  </data>
+  <data name="PlaylistPage_SongsTableLabel" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="ListenPage_DragToReorderPlaylist" xml:space="preserve">
+    <value>Drag to reorder {0}</value>
+  </data>
+  <data name="ListenPage_PlaylistsShelfSubtitle" xml:space="preserve">
+    <value>Saved playlists and mixes from your library</value>
+  </data>
+  <data name="ListenBrowsePage_UnsupportedPage" xml:space="preserve">
+    <value>Choose Music, Audiobooks, or Playlists to browse your library.</value>
+  </data>
+  <data name="ListenBrowsePage_PlaylistsYearSemantic" xml:space="preserve">
+    <value>Playlist update year</value>
+  </data>
+  <data name="PlaybackItemMenu_AddToPlaylist" xml:space="preserve">
+    <value>Add to playlist…</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistEditor" xml:space="preserve">
+    <value>Playlist editor</value>
+  </data>
+  <data name="CollectionEditorShell_EditPlaylist" xml:space="preserve">
+    <value>Edit Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistSubtitle" xml:space="preserve">
+    <value>Create a playlist, then choose manual or smart membership.</value>
+  </data>
+  <data name="CollectionEditorShell_CreatePlaylist" xml:space="preserve">
+    <value>Create Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_SelectedPlaylistArtwork" xml:space="preserve">
+    <value>Selected playlist artwork</value>
+  </data>
+  <data name="CollectionEditorShell_CurrentPlaylistArtwork" xml:space="preserve">
+    <value>Current playlist artwork</value>
+  </data>
+  <data name="MediaBrowseShell_SearchPlaylists" xml:space="preserve">
+    <value>Search playlists...</value>
+  </data>
+  <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
+    <value>Create a playlist or smart playlist to organize music for later.</value>
   </data>
 </root>

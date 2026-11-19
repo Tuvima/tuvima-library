@@ -103,6 +103,7 @@ public static partial class BackupTableClassification
         Personal("profile_taste_overrides", "profile_id", "Genres and tastes a person switched on or off.", refs: []),
         Personal("profile_work_preferences", "profile_id", "A person's own tags and preferences for a title.", refs: [Work("work_id")]),
         Personal("profile_person_preferences", "profile_id", "A person's own tags and preferences for a creator or performer.", refs: [Person("person_id")]),
+        Personal("profile_pinned_playlists", "profile_id", "The playlists a person pinned to the top of their own list.", refs: [Coll("collection_id")]),
 
         // ---------------------------------------------------------------------------------------------------------
         // Catalogue: anything a rescan rebuilds. Not kept, except a person's own choices and corrections on its rows.

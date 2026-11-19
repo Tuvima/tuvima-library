@@ -66,7 +66,9 @@ public sealed record MediaSectionNavigationItemManagement(
     bool IsSmart = false,
     bool CanRename = true,
     bool CanDelete = true,
-    bool CanReorder = true);
+    bool CanReorder = true,
+    /// <summary>The playlist the row stands for, so the rail can draw the shared playlist menu for it; null for any other row.</summary>
+    ManagedCollectionViewModel? Playlist = null);
 
 public sealed record MediaSectionNavigationCreateOptions(
     string ManualLabel,
@@ -138,3 +140,9 @@ public sealed record MediaSectionNavigationReorderEvent(
     MediaSectionNavigationItemManagement Management,
     Guid? BeforeContainerId = null,
     int Direction = 0);
+
+/// <summary>
+/// What the rail hands the host to draw a playlist row's "..." menu (spec listen-playlists D7): the playlist, and a way to put the rail into its
+/// reorder mode for that row (null when that row cannot be reordered).
+/// </summary>
+public sealed record PlaylistRailMenu(ManagedCollectionViewModel Playlist, Action? Reorder);

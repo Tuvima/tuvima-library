@@ -46,11 +46,8 @@ public sealed class SongDragToPlaylistTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ =>
                 Task.FromResult(_alreadyInPlaylist.Select(id => new CollectionItemDto { Id = Guid.NewGuid(), WorkId = id, Title = "Held" }).ToList()));
-            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemAsync), args =>
-            {
-                _added.Add(((Guid)args![0]!, (Guid)args[1]!));
-                return Task.FromResult(true);
-            });
+            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), args =>
+                PlaylistAddSpy.Answer(args, _alreadyInPlaylist, (playlist, work) => _added.Add((playlist, work))));
             stub.SetHandler(nameof(IEngineApiClient.CreateCollectionWithItemsAsync), args =>
             {
                 _created.Add(((string)args![0]!, (IReadOnlyList<Guid>)args[8]!));
