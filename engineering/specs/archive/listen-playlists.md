@@ -1,6 +1,6 @@
 # Spec: Listen playlists (v1)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-19 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Music player and queue](archive/music-player-and-listen-fixes.md) · mockups at `engineering/design/mockups/listen-playlists/mockups.html` · issues 1200 to 1205
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-19 (locked by Shy) · **Related docs:** [Product overview](../../product/overview.md) · [Music player and queue](music-player-and-listen-fixes.md) · mockups at `engineering/design/mockups/listen-playlists/mockups.html` · issues 1200 to 1205
 
 ## 1. Goal
 
@@ -110,3 +110,15 @@ Playlists work the same on every device and feel finished: one place to see them
 
 - **Risks:** touch drag can fight page scrolling (use a grip, not the whole row); moving the sidebar's order logic could lose a profile's saved order (keep reading the old setting); changing the reorder action touches the native clients if they use it.
 - **Open questions:** none; all answered 2026-11-19 (Q140 to Q143, all recommended).
+
+## 9. Build notes (2026-11-19)
+
+Built in one cloud thread; Local checks L1 to L5 are rows in `engineering/validation/batch.md`. Differences and choices:
+- Pin storage is a new table `profile_pinned_playlists` (upgrade step 0092), not the profile's navigation JSON, so a Dashboard rewrite cannot wipe pins.
+- Cover and description reuse the existing collection columns; no new columns.
+- The reorder action is replaced by a move action (`position`, `to_top`, `to_bottom`); "Keep this order" after a full re-sort sends one move per out-of-place song (no bulk set-order action).
+- Duplicate is hidden for Smart playlists the Engine cannot copy.
+- The Playlists page keeps the existing route `/listen/playlists`. Tiles reorder through Move up/down in the "..." menu; the sidebar has a touch grip.
+- The "Already in" tick is only probed for playlists up to 250 songs; larger ones say "Already in X" after the add.
+- Save queue as playlist uses an in-place name step instead of a window.
+- Nothing was checked visually (cloud build), so L5 covers all widths.
