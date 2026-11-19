@@ -116,25 +116,13 @@
 
     private async Task<bool> RememberAnswerAsync()
     {
-        // Read the settings again just before saving, so a change made elsewhere since this page opened is not overwritten;
-        // only the answered flag is changed.
-        var latest = await ApiClient.GetNetworkSettingsAsync();
-        if (latest is null)
+        // Only the answered flag changes, through its own Engine action, so no second "Confirm it's you" is asked for.
+        if (!await ApiClient.MarkFirewallPromptAnsweredAsync())
         {
             _failure = L["FirewallPrompt_SaveFailed"].Value;
             return false;
         }
 
-        latest.Local.FirewallPromptAnswered = true;
-        var saved = await ApiClient.UpdateNetworkSettingsAsync(latest);
-        if (saved is null)
-        {
-            latest.Local.FirewallPromptAnswered = false;
-            _failure = L["FirewallPrompt_SaveFailed"].Value;
-            return false;
-        }
-
-        _settings = saved;
         return true;
     }
 }
