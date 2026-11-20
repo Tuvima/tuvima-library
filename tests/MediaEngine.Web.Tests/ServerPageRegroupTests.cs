@@ -29,7 +29,7 @@ public sealed class ServerPageRegroupTests
     public static TheoryData<MovedPanel> MovedPanels =>
     [
         new("Remote Streaming Quality", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
-            "StreamingLimitsPanel.razor", "Remote Streaming Quality", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
+            "StreamingLimitsPanel.razor", "Remote streaming quality", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
         new("Upload Capacity and the bandwidth test", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
             "StreamingLimitsPanel.razor", "TestNetworkBandwidthAsync", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
         new("Remote streams share the connection automatically", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,

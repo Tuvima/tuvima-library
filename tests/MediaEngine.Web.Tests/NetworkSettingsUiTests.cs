@@ -58,7 +58,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("TestRemoteNetworkAsync", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("secure-provider", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Automatic Router Configuration", remote, StringComparison.Ordinal);
-        Assert.Contains("Port Forwarding &amp; Router Mapping", advanced, StringComparison.Ordinal);
+        Assert.Contains("Port forwarding &amp; router mapping", advanced, StringComparison.Ordinal);
         Assert.Contains("PCP, NAT-PMP, and UPnP", advanced, StringComparison.Ordinal);
         Assert.Contains("ManualPortForwardingDialog", advanced, StringComparison.Ordinal);
     }
@@ -214,8 +214,8 @@ public sealed class NetworkSettingsUiTests
         Assert.DoesNotContain("Settings.Remote.PublicHostname", advanced, StringComparison.Ordinal);
         var host = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor");
 
-        Assert.Contains("Test Connection", overview, StringComparison.Ordinal);
-        Assert.Contains("Connection Status", overview, StringComparison.Ordinal);
+        Assert.Contains("Test connection", overview, StringComparison.Ordinal);
+        Assert.Contains("Connection status", overview, StringComparison.Ordinal);
         // The server addresses and uptime moved off the Network overview (the System summary shows them), and the
         // streaming limits moved to Streaming; Network has no Streaming page.
         Assert.DoesNotContain("Server information", overview, StringComparison.Ordinal);

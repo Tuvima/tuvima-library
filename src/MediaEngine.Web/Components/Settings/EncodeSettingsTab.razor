@@ -72,14 +72,16 @@
         <SettingsSectionPanel Title="@L["EncodeSettingsTab_HardwareAcceleration"].Value"
                               Description="@L["EncodeSettingsTab_ChooseWhatTheServerUses"].Value">
             <div class="encode-settings__form">
-                <AppSelect T="string" @bind-Value="_hardwarePreference" Label="@L["EncodeSettingsTab_HardwareAcceleration"].Value" Options="@HardwareOptions" />
+                <AppSelect T="string" Value="@_hardwarePreference" ValueChanged="ChangeHardwareAsync" Disabled="@_saving"
+                           Label="@L["EncodeSettingsTab_HardwareAcceleration"].Value" Options="@HardwareOptions" />
                 <div class="encode-settings__current">
                     <strong>@DisplayHardware(_settings.HardwareAcceleration)</strong>
                     <span>@L["EncodeSettingsTab_CurrentStreamingPreference"]</span>
                 </div>
             </div>
         </SettingsSectionPanel>
-        @SaveButton("Save hardware settings")
+        @FailureAlert()
+        <AppSavedNote @ref="_instantNote" />
     }
     else
     {
@@ -96,7 +98,7 @@
         <SettingsSectionPanel Title="@L["EncodeSettingsTab_Scheduling"].Value"
                               Description="@L["EncodeSettingsTab_LimitOptimizedCopyWorkTo"].Value">
             <div class="encode-settings__form">
-                <AppSwitchRow @bind-Value="_scheduledEncodesEnabled"
+                <AppSwitchRow Value="@_scheduledEncodesEnabled" ValueChanged="ChangeScheduledEncodesAsync" Disabled="@_saving"
                               Label="@L["EncodeSettingsTab_SchedulePreparedEncodes"].Value"
                               Description="@L["EncodeSettingsTab_QueueNonUrgentOptimizedCopy"].Value" />
                 <div class="encode-settings__window" role="group" aria-label="@L["EncodeSettingsTab_MaintenanceWindow"].Value">
@@ -123,12 +125,14 @@
                                  HelpText="Number of days before unused optimized copies become eligible for cleanup."
                                  Min="1"
                                  Max="3650" />
-                <AppSwitchRow @bind-Value="_cleanupLru"
+                <AppSwitchRow Value="@_cleanupLru" ValueChanged="ChangeCleanupLruAsync" Disabled="@_saving"
                               Label="@L["EncodeSettingsTab_RemoveLeastUsedOptimizedCopies"].Value"
                               Description="@L["EncodeSettingsTab_FreeSpaceByRemovingThe"].Value" />
             </div>
         </SettingsSectionPanel>
-        @SaveButton("Save optimized copy settings")
+        @FailureAlert()
+        <AppSavedNote @ref="_instantNote" />
+        <SettingsSaveBar @ref="_saveBar" Saving="@_saving" OnSave="SaveAsync" />
 
         <OfflineDownloadsTab />
     }
@@ -221,23 +225,58 @@
             ? string.IsNullOrWhiteSpace(version) ? "Available" : version
             : "Unavailable";
 
-    // Only one section is drawn at a time, so one Saved line and one failure alert serve both Save buttons.
-    private RenderFragment SaveButton(string label) => @<div class="encode-settings__save-row">
+    // Only one section is drawn at a time, so one failure alert serves the instant changes and the Save changes button.
+    private RenderFragment FailureAlert() => @<text>
         @if (_failure is not null)
         {
             <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-encode-failure>@_failure</AppAlert>
         }
-        <AppButton Label="@(_saving ? "Saving..." : label)"
-                   StartIcon="@AppMaterialIcons.Outlined.Save"
-                   ButtonStyle="AppButtonStyle.Filled"
-                   Tone="AppUiTone.Primary"
-                   Disabled="@_saving"
-                   OnClick="@SaveAsync" />
-        <AppSavedNote @ref="_savedNote" />
-    </div>;
+    </text>;
 
     private string? _failure;
-    private AppSavedNote? _savedNote;
+    private SettingsSaveBar? _saveBar;
+    private AppSavedNote? _instantNote;
+
+    // Switches and choices save the moment they change: only that one value is sent on top of what was last saved, so typed
+    // fields that wait for Save changes are never swept along. A failed save puts the form back to what was saved.
+    private Task ChangeHardwareAsync(string? value) =>
+        SaveInstantAsync(settings => settings.HardwareAcceleration = value ?? settings.HardwareAcceleration,
+            () => _hardwarePreference = value ?? _hardwarePreference,
+            () => _hardwarePreference = _settings.HardwareAcceleration);
+
+    private Task ChangeScheduledEncodesAsync(bool value) =>
+        SaveInstantAsync(settings => settings.ScheduledEncodesEnabled = value,
+            () => _scheduledEncodesEnabled = value,
+            () => _scheduledEncodesEnabled = _settings.ScheduledEncodesEnabled);
+
+    private Task ChangeCleanupLruAsync(bool value) =>
+        SaveInstantAsync(settings => settings.CleanupLruEnabled = value,
+            () => _cleanupLru = value,
+            () => _cleanupLru = _settings.CleanupLruEnabled);
+
+    private async Task SaveInstantAsync(Action<TranscodingSettings> change, Action showNew, Action revert)
+    {
+        if (!_settingsAvailable || _saving)
+            return;
+
+        showNew();
+        _saving = true;
+        _failure = null;
+        var candidate = Copy(_settings);
+        change(candidate);
+        var saved = await ApiClient.SaveTranscodingSettingsAsync(candidate);
+        _saving = false;
+
+        if (saved is null)
+        {
+            revert();
+            _failure = L["EncodeSettingsTab_OptimizedCopySettingsCouldNot"].Value;
+            return;
+        }
+
+        _settings = saved;
+        _instantNote?.Show();
+    }
 
     private async Task SaveAsync()
     {
@@ -246,20 +285,25 @@
 
         _saving = true;
         _failure = null;
-        ApplyForm(_settings);
-        var saved = await ApiClient.SaveTranscodingSettingsAsync(_settings);
+        var candidate = Copy(_settings);
+        ApplyForm(candidate);
+        var saved = await ApiClient.SaveTranscodingSettingsAsync(candidate);
         _saving = false;
 
         if (saved is null)
         {
+            // The form keeps what was typed so it can be tried again; nothing was saved.
             _failure = L["EncodeSettingsTab_OptimizedCopySettingsCouldNot"].Value;
             return;
         }
 
         _settings = saved;
         HydrateForm(_settings);
-        _savedNote?.Show();
+        _saveBar?.ShowSaved();
     }
+
+    private static TranscodingSettings Copy(TranscodingSettings settings) =>
+        System.Text.Json.JsonSerializer.Deserialize<TranscodingSettings>(System.Text.Json.JsonSerializer.Serialize(settings)) ?? new TranscodingSettings();
 
     private void HydrateForm(TranscodingSettings settings)
     {

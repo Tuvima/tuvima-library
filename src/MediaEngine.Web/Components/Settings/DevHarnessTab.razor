@@ -7,7 +7,7 @@
 
 <div class="tl-page dev-harness-page" data-temporary-page="development-tools">
     <header class="dev-harness-header">
-        <h2>Development Tools</h2>
+        <h2>Development tools</h2>
         <p>Use protected real media or generated fixtures to exercise the normal library experience.</p>
     </header>
 
@@ -25,7 +25,7 @@
         </div>
     </AppSettingsGroup>
 
-    <AppSettingsGroup Heading="Test Media"
+    <AppSettingsGroup Heading="Test media"
              Helper="Choose the media you want to recreate as new library input."
              Class="dev-harness-card">
         <div class="dev-harness-form">
@@ -81,7 +81,7 @@
 
     <section class="dev-harness-secondary-section">
         <div>
-            <h3>Existing Development Media</h3>
+            <h3>Existing development media</h3>
             <p>Forces configured library folders to be rediscovered using the normal ingestion pipeline.</p>
         </div>
         <AppButton Label="@(_runningAction == "rescan" ? "Rescanning" : "Rescan All Libraries")"
@@ -93,7 +93,7 @@
 
     <section class="dev-harness-secondary-section">
         <div>
-            <h3>View Sample Memories</h3>
+            <h3>View sample memories</h3>
             <p>Adds ten attributed photos plus 360 labeled synthetic images across Seattle and nearby cities, Tokyo and nearby cities, France, and Chicago/Naperville. Neighborhood offsets and regional groups exercise map clustering and zoom, with dense dates spanning 2004–2026. Re-running updates existing fixture locations and adds only new images.</p>
         </div>
         <AppButton Label="@(_runningAction == "view-photos" ? "Seeding View Photos" : "Seed View Photos")"
@@ -116,7 +116,7 @@
                 <span>@_statusMessage</span>
                 @if (_showIngestionLink)
                 {
-                    <AppButton Label="View Ingestion"
+                    <AppButton Label="View ingestion"
                                Href="/settings/libraries"
                                StartIcon="@AppMaterialIcons.Outlined.PendingActions"
                                Size="AppControlSize.Compact" />
@@ -130,7 +130,7 @@
             <div class="dev-harness-danger-zone">
                 <div class="dev-harness-danger-row">
                     <div>
-                        <strong>Reset Library Data</strong>
+                        <strong>Reset library data</strong>
                         <p>Clears catalogued media, relationships, enrichment, generated artwork, and ingestion history. Configuration and source files remain.</p>
                     </div>
                     <AppButton Label="@(_runningAction == "reset" ? "Resetting" : "Reset Library Data")"
@@ -142,7 +142,7 @@
                 </div>
                 <div class="dev-harness-danger-row is-factory">
                     <div>
-                        <strong>Factory Reset Development Instance</strong>
+                        <strong>Factory reset development instance</strong>
                         <p>Clears the development database, users, profiles, activity, and generated state. Configured source media is never deleted.</p>
                     </div>
                     <AppButton Label="@(_runningAction == "factory" ? "Factory Resetting" : "Factory Reset")"

@@ -18,8 +18,7 @@
                 <AppNumericField T="int" @bind-Value="_config.PluginBudget.BusySecondsPerHour" Label="@L["LocalAiBudgetPanel_BusySecondsPerHour"].Value" Min="1" HelpText="Most running time one plugin may use in an hour." />
                 <AppNumericField T="int" @bind-Value="_config.PluginBudget.MaxWaitSeconds" Label="@L["LocalAiBudgetPanel_LongestWaitSeconds"].Value" Min="1" HelpText="How long a plugin request may wait for its turn before giving up." />
             </div>
-            <AppButton Label="@L["LocalAiBudgetPanel_SaveAllowance"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                       Class="tl-sp-mt-3" Disabled="@(_saving || !IsValid)" OnClick="@SaveAsync" />
+            <SettingsSaveBar @ref="_saveBar" Saving="@_saving" Disabled="@(!IsValid)" Error="@_saveError" OnSave="SaveAsync" />
             @if (_overrideCount > 0)
             {
                 <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="tl-sp-mt-2">@OverrideNote()</AppText>
@@ -31,6 +30,8 @@
 @code {
     private AiConfigDto? _config;
     private bool _saving;
+    private string? _saveError;
+    private SettingsSaveBar? _saveBar;
     private int _overrideCount;
 
     private bool IsValid => _config is { PluginBudget: { RequestsPerHour: > 0, BusySecondsPerHour: > 0, MaxWaitSeconds: > 0 } };
@@ -52,7 +53,16 @@
         }
 
         _saving = true;
-        await Orchestrator.SaveAiConfigAsync(_config);
+        _saveError = null;
+        var saved = await Orchestrator.SaveAiConfigAsync(_config);
         _saving = false;
+        if (saved)
+        {
+            _saveBar?.ShowSaved();
+        }
+        else
+        {
+            _saveError = L["LocalAiBudgetPanel_AllowanceCouldNotBeSaved"].Value;
+        }
     }
 }
