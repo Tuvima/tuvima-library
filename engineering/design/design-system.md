@@ -208,7 +208,7 @@ Buttons and other controls are Medium (`--tl-control-font-weight` is 500); text 
 | Medium | `--tl-radius-md` | `8px` | Cards, panels |
 | Extra large | `--tl-radius-xl` | `12px` | Windows and large cards |
 | Control | `--tl-control-radius` | `10px` | Buttons and fields |
-| Label and chip | `--tl-radius-pill` | `3px` | Chips and labels (square, not round) |
+| Label and chip | `--tl-radius-pill` | `3px` | Every chip, pill, badge, tag and count label (square, never round; enforced by `PillShapeGuardrailTests`) |
 | Round | `--tl-radius-round` | `999px` | Avatars, switches, progress and seek bars, the player dock only |
 
 Tiles never grow or change shape on hover: the cover gets one 2 px purple outline. Focus is a 3 px ring (`--tl-focus-ring`, `--tl-focus-ring-width`) with a 2 px offset on every interactive element. Motion is 140 / 220 / 360 ms (`--tl-motion-duration-fast`, `-medium`, `-slow`); no bounces, springs or parallax; reduced motion is respected. Shadows appear on floating things only (menus, windows, the hero), not on resting cards.

@@ -1048,7 +1048,7 @@
 }
 
 .audiobooks-book-card__badges span {
-    border-radius: 5px;
+    border-radius: var(--tl-radius-pill);
     padding: 4px 8px;
     background: var(--tl-border-default);
     color: var(--tl-text-secondary);

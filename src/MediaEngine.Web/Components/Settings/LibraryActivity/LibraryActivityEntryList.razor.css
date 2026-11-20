@@ -26,7 +26,7 @@
 .lact-batch__link, .lact-batch__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; font-weight: var(--tl-type-label-weight); text-decoration: none; }
 .lact-batch__row.is-file .lact-batch__text { font-weight: var(--tl-font-weight-regular); }
 .lact-batch__link:hover { text-decoration: underline; }
-.lact-batch__tag { flex: none; padding: 1px var(--tl-space-2); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); white-space: nowrap; }
+.lact-batch__tag { flex: none; padding: 1px var(--tl-space-2); border: 1px solid var(--tl-border-default); border-radius:var(--tl-radius-pill); color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); white-space: nowrap; }
 .lact-batch__type, .lact-batch__size { color: var(--tl-text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .lact-batch__row.is-file .lact-batch__type, .lact-batch__row.is-file .lact-batch__size { color: var(--tl-text-muted); }
 @media (max-width: 600px) {

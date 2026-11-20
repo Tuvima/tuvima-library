@@ -217,7 +217,7 @@ button.playback-lyrics__line:focus-visible, .playback-lyrics ::deep button.playb
     align-items: center;
     background: var(--playback-state-selected);
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-accent-primary-hover);
     cursor: pointer;
     display: inline-flex;

@@ -356,7 +356,7 @@
     padding: 0 6px;
     place-items: center;
     border: 1px solid color-mix(in srgb, var(--tl-accent-primary) 48%, transparent);
-    border-radius: var(--tl-radius-round, 999px);
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-primary);
     background: color-mix(in srgb, var(--tl-accent-primary) 28%, var(--tl-bg-surface-raised));
     font-size: var(--tl-type-overline-size);
@@ -483,7 +483,7 @@
     height: 22px;
     padding: 0 7px;
     border-color: transparent;
-    border-radius: 3px;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-status-warning-soft);
     color: var(--tl-status-warning);
     font-variant-numeric: tabular-nums;

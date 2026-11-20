@@ -74,7 +74,7 @@
 
 .universe-thing__chip {
     padding: 0.1rem 0.5rem;
-    border-radius: var(--tl-radius-sm, 0.25rem);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-bg-surface-raised);
     font-size: var(--tl-type-caption-size);
     text-transform: none;

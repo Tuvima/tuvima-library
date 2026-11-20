@@ -4870,7 +4870,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .lib-area--view { --lib-area-colour: var(--tl-area-view); }
 .lib-area--vault { --lib-area-colour: var(--tl-area-vault); }
 /* Library area chips (LibraryAreaChips). Global on purpose: the chip is the root of the shared native button, so a scoped sheet never reached it. */
-.lib-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); font: inherit; font-weight: 600; cursor: pointer; }
+.lib-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--tl-border-subtle); border-radius:var(--tl-radius-pill); background: transparent; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); font: inherit; font-weight: 600; cursor: pointer; }
 .lib-chip:hover { background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 10%, transparent); }
 .lib-chip:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .lib-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
@@ -4879,7 +4879,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 /* Activity page (LibraryActivity*, spec library-activity): the roots of shared buttons, links and the filter row are not reached by the pieces' scoped sheets,
    so their layout sits here. The chips are the shared toggle chip (button.app-toggle-chip, whose own sheet is scoped, hence the element in the selectors): the area chips are
    outlined in their area colour (lib-area--*; All libraries in the accent) and a pressed one adds a soft fill of that colour. */
-button.app-toggle-chip.lact-chip { gap: 4px; min-height: 34px; padding: 0 14px; border-radius: var(--tl-radius-sm); border-color: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 75%, transparent); background: transparent; color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-regular); }
+button.app-toggle-chip.lact-chip { gap: 4px; min-height: 34px; padding: 0 14px; border-radius:var(--tl-radius-pill); border-color: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 75%, transparent); background: transparent; color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-regular); }
 button.app-toggle-chip.lact-chip--all { --lib-area-colour: var(--tl-accent-primary); }
 button.app-toggle-chip.lact-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); color: var(--tl-text-primary); }
 .lact-controls { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
@@ -5584,7 +5584,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .view-edit-contents__tile.is-removed{opacity:.5}
 .view-edit-contents__tile.is-selected{outline:2px solid var(--tl-accent-primary);outline-offset:2px}
 .view-edit-contents__name{overflow:hidden;color:var(--tl-text-secondary);font-size:var(--tl-font-size-xs,.75rem);text-overflow:ellipsis;white-space:nowrap}
-.view-edit-contents__badge{position:absolute;left:var(--tl-space-1);bottom:var(--tl-space-1);display:inline-flex;align-items:center;gap:2px;padding:0 var(--tl-space-1);border-radius:var(--tl-radius-sm,4px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-size:var(--tl-font-size-xs,.75rem)}
+.view-edit-contents__badge{position:absolute;left:var(--tl-space-1);bottom:var(--tl-space-1);display:inline-flex;align-items:center;gap:2px;padding:0 var(--tl-space-1);border-radius:var(--tl-radius-pill);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-size:var(--tl-font-size-xs,.75rem)}
 .tl-editor-panel__header{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:var(--tl-space-3);padding:var(--tl-space-2) var(--tl-space-4);border-bottom:1px solid var(--tl-divider)}
 .tl-editor-panel__title{margin:0;font-size:var(--tl-font-size-lg);font-weight:var(--tl-font-weight-semibold)}
 .tl-editor-panel__title:focus-visible{outline:var(--tl-focus-ring-width) solid var(--tl-focus-ring);outline-offset:var(--tl-focus-ring-offset)}

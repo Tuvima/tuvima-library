@@ -7,7 +7,7 @@
     height: 1.875rem;
     padding: 0 0.625rem;
     border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-md);
+    border-radius: var(--tl-radius-pill);
     background: color-mix(in srgb, var(--tl-bg-root) 55%, transparent);
     color: var(--tl-text-secondary);
     font-size: var(--tl-type-caption-size);
