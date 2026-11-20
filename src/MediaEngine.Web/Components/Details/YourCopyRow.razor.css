@@ -60,7 +60,7 @@
 :where(.tl-detail-page) .tl-your-copy__chip {
     padding: 0.3rem 0.75rem;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--tl-radius-sm);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-bg-surface-hover);
     color: var(--tl-text-primary);
     font-size: var(--tl-type-secondary-size);

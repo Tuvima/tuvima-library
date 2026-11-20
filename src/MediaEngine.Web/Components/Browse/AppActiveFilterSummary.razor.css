@@ -14,7 +14,7 @@
     gap: 7px;
     padding: 0 10px;
     border: 1px solid color-mix(in srgb, var(--tl-accent-primary) 48%, transparent);
-    border-radius: 8px;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-accent-primary-soft);
     color: var(--tl-text-primary);
     font: inherit;

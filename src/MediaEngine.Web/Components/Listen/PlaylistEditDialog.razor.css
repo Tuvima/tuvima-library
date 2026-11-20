@@ -40,7 +40,7 @@
     padding: 0 1rem;
     color: var(--tl-text-primary);
     border: 1px solid var(--tl-border-strong, var(--tl-border-subtle));
-    border-radius: 22px;
+    border-radius: var(--tl-control-radius);
     cursor: pointer;
 }
 

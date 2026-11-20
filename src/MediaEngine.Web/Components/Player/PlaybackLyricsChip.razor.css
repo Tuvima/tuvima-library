@@ -3,7 +3,7 @@
 .playback-lyrics-chip {
     align-items: center;
     background: var(--playback-state-hover);
-    border-radius: 6px;
+    border-radius: var(--tl-radius-pill);
     color: var(--playback-text-secondary);
     display: inline-flex;
     flex: none;

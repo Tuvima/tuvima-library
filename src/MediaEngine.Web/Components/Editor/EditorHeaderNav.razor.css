@@ -213,7 +213,7 @@
     justify-content: center;
     width: 2rem;
     height: 1.75rem;
-    border-radius: var(--tl-radius-sm);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-bg-surface-hover);
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-xs);

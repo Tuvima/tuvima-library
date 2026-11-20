@@ -167,7 +167,7 @@
     justify-content: center;
     width: 2rem;
     height: 1.75rem;
-    border-radius: var(--tl-radius-sm);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-accent-primary-soft);
     color: var(--tl-accent-primary-hover);
 }
