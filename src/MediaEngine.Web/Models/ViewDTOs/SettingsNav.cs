@@ -342,9 +342,9 @@ public static class SettingsNav
         // Developer Tools opens on the Provider Tester, so that page owns the "developer" address.
         // Enrichment Tester and Development data are its other tabs; they are offered only when the running Engine is a development
         // build (see DevelopmentToolsState). The Enrichment Tester is temporary: it is removed at beta.
-        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Provider Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Provider Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.Full),
     ];
 
     /// <summary>

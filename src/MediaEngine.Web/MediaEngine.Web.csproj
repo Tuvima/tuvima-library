@@ -36,6 +36,9 @@
     <Content Remove="Components\Settings\EnrichmentTesterToolTab.razor" />
     <None Remove="Components\Settings\ProviderTesterToolTab.razor.css" />
     <ScopedCssInput Remove="Components\Settings\ProviderTesterToolTab.razor.css" />
+    <Content Remove="Components\Settings\EnrichmentTesterToolTab.razor.css" />
+    <None Remove="Components\Settings\EnrichmentTesterToolTab.razor.css" />
+    <ScopedCssInput Remove="Components\Settings\EnrichmentTesterToolTab.razor.css" />
   </ItemGroup>
 
   <!--

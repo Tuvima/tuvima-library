@@ -19,9 +19,9 @@
                 <p>Ingestion progress is shown in Operations. Source verification does not certify playback or subtitle support.</p>
             </div>
             <AppButton Label="Refresh protection status" ButtonStyle="AppButtonStyle.Outlined"
-                       Disabled="@(_runningAction is not null)" OnClick="RefreshRealMediaStatusAsync" />
+                       Disabled="@(_runningAction is not null)" OnClick="RefreshRealMediaStatusAsync" Class="dev-harness-action" />
             <AppButton Label="Verify original files" ButtonStyle="AppButtonStyle.Outlined"
-                       Disabled="@(!_realMediaActive || _runningAction is not null)" OnClick="VerifyRealMediaAsync" />
+                       Disabled="@(!_realMediaActive || _runningAction is not null)" OnClick="VerifyRealMediaAsync" Class="dev-harness-action" />
         </div>
     </AppSettingsGroup>
 
@@ -73,7 +73,7 @@
                            Tone="AppUiTone.Primary"
                            ButtonStyle="AppButtonStyle.Filled"
                            Disabled="@(IsBusy || _selectedTypes.Count == 0)"
-                           OnClick="ResetAndSeedAsync" />
+                           OnClick="ResetAndSeedAsync" Class="dev-harness-action" />
                 <p>Clears generated library state, creates the selected test media fixtures, and sends them through the normal ingestion pipeline.</p>
             </div>
         </div>
@@ -88,7 +88,7 @@
                    StartIcon="@AppMaterialIcons.Outlined.Refresh"
                    ButtonStyle="AppButtonStyle.Outlined"
                    Disabled="@IsBusy"
-                   OnClick="RescanLibrariesAsync" />
+                   OnClick="RescanLibrariesAsync" Class="dev-harness-action" />
     </section>
 
     <section class="dev-harness-secondary-section">
@@ -100,7 +100,7 @@
                    StartIcon="@AppMaterialIcons.Outlined.AddPhotoAlternate"
                    ButtonStyle="AppButtonStyle.Outlined"
                    Disabled="@IsBusy"
-                   OnClick="SeedViewPhotosAsync" />
+                   OnClick="SeedViewPhotosAsync" Class="dev-harness-action" />
     </section>
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -119,7 +119,7 @@
                     <AppButton Label="View ingestion"
                                Href="/settings/libraries"
                                StartIcon="@AppMaterialIcons.Outlined.PendingActions"
-                               Size="AppControlSize.Compact" />
+                               Size="AppControlSize.Compact" Class="dev-harness-action" />
                 }
             </div>
         </AppAlert>
@@ -138,7 +138,7 @@
                                Tone="AppUiTone.Warning"
                                ButtonStyle="AppButtonStyle.Outlined"
                                Disabled="@IsBusy"
-                               OnClick="ResetLibraryDataAsync" />
+                               OnClick="ResetLibraryDataAsync" Class="dev-harness-action" />
                 </div>
                 <div class="dev-harness-danger-row is-factory">
                     <div>
@@ -150,7 +150,7 @@
                                Tone="AppUiTone.Error"
                                ButtonStyle="AppButtonStyle.Filled"
                                Disabled="@IsBusy"
-                               OnClick="FactoryResetAsync" />
+                               OnClick="FactoryResetAsync" Class="dev-harness-action" />
                 </div>
             </div>
         </AppExpansionPanel>

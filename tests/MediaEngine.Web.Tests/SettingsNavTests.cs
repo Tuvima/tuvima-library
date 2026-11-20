@@ -224,7 +224,7 @@ public sealed class SettingsNavTests
     {
         Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Profiles));
         Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.AdminOverview));
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "home"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "advanced"));
@@ -252,7 +252,7 @@ public sealed class SettingsNavTests
 
         foreach (var section in developer)
         {
-            Assert.False(SettingsNav.IsMobileRouteAvailable(section), section.ToString());
+            Assert.True(SettingsNav.IsMobileRouteAvailable(section), section.ToString());
         }
     }
 
@@ -695,11 +695,11 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ProviderTesterAndDevelopmentData_KeepTheirDesktopOnlyAvailability()
+    public void DeveloperTools_AreFullyAvailableOnAPhone()
     {
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.ProviderTester));
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.EnrichmentTester));
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.ProviderTester));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.EnrichmentTester));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
     }
 
     [Fact]
