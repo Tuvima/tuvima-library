@@ -130,6 +130,25 @@ public static class NetworkEndpoints
             .Produces<RemoteCheckResultDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
 
+        // The one-click fix for "Library does not trust your proxy yet" (spec remote-access D12). Administrators only; the role check
+        // is the only gate, and it only ever closes a gap (outside visitors on the proxy port count as outside). Safe to repeat.
+        network.MapPost("/remote-fix/trust-proxy", (IRemoteFixService fixes) =>
+        {
+            try
+            {
+                return Results.Ok(fixes.TrustProxy());
+            }
+            catch (ConfigValidationException ex)
+            {
+                return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
+            }
+        })
+        .WithName("TrustRemoteProxy")
+        .WithSummary("Let Library trust the proxy or tunnel on this computer by turning on the Dashboard's proxy port. Safe to repeat.")
+        .Produces<RemoteFixResultDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
+
         // Who has tried to sign in from outside the home network lately (newest first), so the person setting this up can
         // see that the way in works and who was turned away. Addresses are never kept, only the kind of place.
         network.MapGet("/outside-sign-ins", async (IOutsideSignInHistory history, CancellationToken ct) =>

@@ -1,0 +1,27 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* A command, address or file the person copies (mock-ups: code plus a Copy button). It says what is copied and, when the browser refuses
+   the copy, tells so right beside it. Nothing here runs anything: the person pastes it where it belongs. *@
+<div class="ra-command" data-remote-command="@Key">
+    <code>@Text</code>
+    <AppCopyButton Label="@L["Common_Copy"].Value" Text="@Text" What="@What" Size="AppControlSize.Compact" CopyFailed="ShowFailure" />
+</div>
+@if (_failure is not null)
+{
+    <p class="ra-command__failure" role="alert" data-copy-failure>@_failure</p>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>What is copied, in words ("the command"), used in the sentence when a copy is refused.</summary>
+    [Parameter] public string What { get; set; } = "the command";
+
+    /// <summary>Tells the lines of one screen apart for tests and the browser checks.</summary>
+    [Parameter] public string? Key { get; set; }
+
+    private string? _failure;
+
+    private void ShowFailure(string message) => _failure = message;
+}

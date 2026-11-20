@@ -11473,6 +11473,12 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckStatuse
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckSuggestions
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteFixResultDto
+  Action: System.String | nullability=not-null | accessors=get,set
+  Changed: System.Boolean | nullability=not-null | accessors=get,set
+  ProxyPort: System.Int32? | nullability=nullable | accessors=get,set
+  RestartRequired: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto
   ConnectionMode: System.String | nullability=not-null | accessors=get,set
   AutomaticRouterConfiguration: System.Boolean | nullability=not-null | accessors=get,set

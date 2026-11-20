@@ -49,18 +49,19 @@
                                             BackRequested="@(() => Flow.Go(RemoteAccessScreen.Passwords))" />
                 break;
             case RemoteAccessScreen.Connect:
-                <RemoteAccessOwnAddressStep Settings="Settings" ShowRoutes="true" Result="Flow.Result"
-                                            SaveRequested="SaveRequested" StatusRefreshRequested="StatusRefreshRequested"
-                                            ContinueRequested="@(() => Flow.Go(RemoteAccessScreen.Test))"
-                                            BackRequested="@(() => Flow.Go(RemoteAccessScreen.Passwords))" />
+                <RemoteAccessDomainWizard Settings="Settings" Result="Flow.Result"
+                                          SaveRequested="SaveRequested" StatusRefreshRequested="StatusRefreshRequested"
+                                          CheckAgainRequested="RefreshQuietlyAsync"
+                                          ContinueRequested="@(() => Flow.Go(RemoteAccessScreen.Test))"
+                                          BackRequested="@(() => Flow.Go(RemoteAccessScreen.Passwords))" />
                 break;
             case RemoteAccessScreen.Test:
-                <RemoteAccessTestStep StatusRefreshRequested="StatusRefreshRequested"
+                <RemoteAccessTestStep StatusRefreshRequested="StatusRefreshRequested" TurnedOff="TurnedOffAsync"
                                       DoneRequested="@(() => Flow.Close())"
                                       BackRequested="@(() => Flow.Go(RemoteAccessScreen.Connect))" />
                 break;
             case RemoteAccessScreen.OwnAddress:
-                <RemoteAccessOwnAddressStep Settings="Settings" ShowRoutes="false" Result="Flow.Result"
+                <RemoteAccessOwnAddressStep Settings="Settings"
                                             SaveRequested="SaveRequested" StatusRefreshRequested="StatusRefreshRequested"
                                             BackRequested="@(() => Flow.Close())" />
                 break;
@@ -69,7 +70,7 @@
                                        SetUpRequested="@(() => Flow.BeginAsync())"
                                        OwnAddressRequested="@(() => Flow.Go(RemoteAccessScreen.OwnAddress))"
                                        TestRequested="@(() => Flow.Go(RemoteAccessScreen.Test))"
-                                       TurnOffRequested="TurnOffAsync" />
+                                       TurnedOff="TurnedOffAsync" />
                 break;
         }
     </div>
@@ -102,6 +103,14 @@
         Settings.Remote.ConnectionMode = Flow.Method == RemoteCheckSuggestions.Tailscale
             ? "tailscale"
             : current is "custom" or "direct-only" ? current : "custom";
+        if (Flow.Method == RemoteCheckSuggestions.Tailscale)
+        {
+            // Tailscale Serve hands traffic to the Dashboard's proxy port, so choosing Tailscale also saves that port (remote.proxy_port).
+            // The Dashboard reads it when it starts, so the Connect step tells the person to restart once.
+            Settings.Remote.ProxyPort ??= ProxyPortConfiguration.TailscalePresetPort != Settings.Local.Port
+                ? ProxyPortConfiguration.TailscalePresetPort
+                : ProxyPortConfiguration.TailscalePresetPort + 1;
+        }
         if (Settings.Remote.ConnectionMode != "direct-only")
         {
             Settings.Remote.AutomaticRouterConfiguration = false;
@@ -118,7 +127,17 @@
         Flow.Close();
     }
 
-    // Not now and Turn off are the same thing: no way in from outside, and home keeps working.
+    // The off switch already told the Engine (which saved local-only and closed any router door); the page only follows, so what it
+    // holds matches and the next save does not turn outside access back on.
+    private async Task TurnedOffAsync()
+    {
+        Settings.Remote.ConnectionMode = "local-only";
+        Settings.Remote.AutomaticRouterConfiguration = false;
+        await StatusRefreshRequested.InvokeAsync();
+        Flow.Close();
+    }
+
+    // Not now: no way in from outside, and home keeps working.
     private async Task TurnOffAsync()
     {
         Settings.Remote.ConnectionMode = "local-only";

@@ -113,6 +113,29 @@ public sealed class OutsideSignInGateTests : IDisposable
     }
 
     [Fact]
+    public async Task Invitation_ForAnAdministrator_IsRefusedFromOutside_AndStaysUsableAtHome()
+    {
+        var owner = await _service.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard");
+        var invited = await InsertInvitedAccountAsync("second-admin@example.com", administrator: true, householdId: (await new ProfileRepository(_database).GetByIdAsync(owner.Profile.Id))!.HouseholdId);
+        const string code = "XK4M7RB3CJ";
+        await _accounts.InsertInvitationAsync(new AccountInvitation
+        {
+            Id = Guid.NewGuid(),
+            AccountId = invited.Id,
+            TokenHash = InvitationCode.Hash(code),
+            CreatedAt = _now,
+            ExpiresAt = _now.AddDays(7),
+        });
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.AcceptInvitationAsync(code, "family password", "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote));
+        Assert.False(await _accounts.IsUserSecuredAsync(invited.Id));
+
+        var atHome = await _service.AcceptInvitationAsync(code, "family password", "laptop", "Laptop", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        Assert.Equal(invited.Id, atHome.Account.Id);
+    }
+
+    [Fact]
     public async Task PasswordSignIn_FromOutside_WorksForASecuredPerson_AndIsRecordedWithNoAddress()
     {
         await _service.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard");
@@ -175,7 +198,7 @@ public sealed class OutsideSignInGateTests : IDisposable
         Assert.Equal(20, (await _identities.GetRecentOutsideSignInsAsync(20)).Count);
     }
 
-    private async Task<Account> InsertInvitedAccountAsync(string email)
+    private async Task<Account> InsertInvitedAccountAsync(string email, bool administrator = false, Guid? householdId = null)
     {
         var invited = new Account
         {
@@ -188,7 +211,7 @@ public sealed class OutsideSignInGateTests : IDisposable
             UpdatedAt = _now,
         };
         var person = new Profile { Id = Guid.NewGuid(), DisplayName = "Invited", AvatarColor = "#7C4DFF", Role = ProfileRole.StandardUser, CreatedAt = _now };
-        await _accounts.CreateAccountAsync(invited, new TestGrant(invited.Id, person.Id, IsDefault: true), newProfile: person);
+        await _accounts.CreateAccountAsync(invited, new TestGrant(invited.Id, person.Id, IsDefault: true, AdminEnabled: administrator), newProfile: person, householdId: householdId);
         return invited;
     }
 

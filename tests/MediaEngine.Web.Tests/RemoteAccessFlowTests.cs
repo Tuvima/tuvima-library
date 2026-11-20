@@ -1,6 +1,7 @@
 using AngleSharp.Dom;
 using Bunit;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
@@ -33,6 +34,9 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
         Checks = [new NetworkTestCheckDto { Key = "reach", Label = "Library answered from outside", Status = "passed", Detail = "Reached in 120 ms." }],
     };
     private TaskCompletionSource<RemoteCheckResultDto?>? _pending;
+    private IReadOnlyList<OutsideSignInDto>? _signIns = [];
+    private string? _awayAddress;
+    private RemoteOffResultDto? _remoteOff = new() { WasOn = true };
 
     public RemoteAccessFlowTests()
     {
@@ -57,6 +61,18 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
                 _lastCheck = _checks.Count > 0 ? _checks.Dequeue() : _lastCheck;
                 return Task.FromResult(_lastCheck);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetOutsideSignInsAsync), _ =>
+            {
+                _calls.Add(nameof(IEngineApiClient.GetOutsideSignInsAsync));
+                return Task.FromResult(_signIns);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetNetworkAppAddressesAsync), _ =>
+                Task.FromResult<NetworkAppAddressesDto?>(new NetworkAppAddressesDto { AwayFromHome = _awayAddress }));
+            stub.SetHandler(nameof(IEngineApiClient.TurnRemoteOffAsync), _ =>
+            {
+                _calls.Add(nameof(IEngineApiClient.TurnRemoteOffAsync));
+                return Task.FromResult(_remoteOff);
+            });
             stub.SetHandler(nameof(IEngineApiClient.TestRemoteNetworkAsync), _ =>
             {
                 _calls.Add(nameof(IEngineApiClient.TestRemoteNetworkAsync));
@@ -65,6 +81,7 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
         });
         Services.AddSingleton(api);
         Services.AddScoped<RemoteAccessFlowState>();
+        Services.AddSingleton<IFriendInviteService>(new FriendInviteServiceSpy());
         if (deviceClass is not null)
         {
             var device = new DeviceContextService(api);
@@ -98,6 +115,15 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
 
     private static string CurrentStep(IRenderedComponent<RemoteAccessSettingsPanel> cut) =>
         cut.Find("[data-remote-stepper] [aria-current='step']").GetAttribute("data-remote-step")!;
+
+    // The own-address way opens on the wizard's Address screen; the three ways in are listed on its second screen, Point it here.
+    private static void ToThePointItHereScreen(IRenderedComponent<RemoteAccessSettingsPanel> cut)
+    {
+        Click(cut, "use-my-domain");
+        cut.Find("input[placeholder='yourname.com']").Input("example.com");
+        Click(cut, "continue");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-screen='domain-point']")));
+    }
 
     [Fact]
     public void AFreshInstall_ShowsTheStartPage_WithTwoStatusCards_OneSetUpButtonAndTheProxyLink()
@@ -264,12 +290,13 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
         Click(cut, "choose-own-address");
         Click(cut, "continue");
         cut.WaitForAssertion(() => Assert.Equal("connect", CurrentStep(cut)));
+        ToThePointItHereScreen(cut);
 
         var routes = cut.FindAll("[data-remote-card='routes'] [data-remote-row]");
         Assert.Equal(["route-tunnel", "route-proxy", "route-router"], routes.Select(row => row.GetAttribute("data-remote-row")!).ToArray());
         Assert.Equal("attention", routes[^1].GetAttribute("data-remote-status"));
         Assert.Contains("probably not work", routes[^1].TextContent, StringComparison.Ordinal);
-        Assert.Equal(["custom"], _savedModes);
+        Assert.All(_savedModes, mode => Assert.Equal("custom", mode));
     }
 
     [Fact]
@@ -284,6 +311,7 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
         Click(cut, "choose-own-address");
         Click(cut, "continue");
         cut.WaitForAssertion(() => Assert.Equal("connect", CurrentStep(cut)));
+        ToThePointItHereScreen(cut);
 
         var routes = cut.FindAll("[data-remote-card='routes'] [data-remote-row]");
 
@@ -415,19 +443,272 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WhenAWayInIsOn_TheStartPageSaysWhichOne_AndTurnOffGoesBackToHomeOnly()
+    public void WhenAWayInIsOn_TheStartPageSaysWhichOne_AndShowsTheOnPanelWithTheOneOffSwitch()
     {
+        _awayAddress = "https://tuvima.tail1234.ts.net";
+        _signIns =
+        [
+            new OutsideSignInDto { At = DateTimeOffset.Now, ProfileName = "Shy", Succeeded = true, Method = OutsideSignInMethods.Password },
+        ];
         var cut = RenderPanel(mode: "tailscale");
 
         var away = cut.Find("[data-remote-card='away']");
         Assert.Contains("Away from home: on", away.TextContent, StringComparison.Ordinal);
         Assert.Contains("Tailscale is the way in", away.TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-remote-action='set-up']"));
+        Assert.Empty(cut.FindAll("[data-remote-action='turn-off']"));
 
-        Click(cut, "turn-off");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-row='sign-in']")));
+        Assert.NotEmpty(cut.FindAll("[data-remote-qr='address']"));
+        Assert.Equal("https://tuvima.tail1234.ts.net", cut.Find("[data-remote-address]").TextContent.Trim());
+        Assert.Single(cut.FindAll("[data-remote-switch='allow-outside']"));
+    }
 
-        cut.WaitForAssertion(() => Assert.Equal(["local-only"], _savedModes));
+    [Fact]
+    public void TheOffSwitch_AsksOnce_AndKeepingItOnChangesNothing()
+    {
+        var cut = RenderPanel(mode: "tailscale");
+        var host = Render<AppDialogHost>();
+
+        cut.Find("[data-remote-switch='allow-outside'] input[type='checkbox']").Change(false);
+
+        host.WaitForElement(".app-confirm");
+        Assert.Contains("Turn off away-from-home access?", host.Markup, StringComparison.Ordinal);
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Keep it on").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
+        Assert.DoesNotContain(nameof(IEngineApiClient.TurnRemoteOffAsync), _calls);
+        Assert.Equal("tailscale", _settings.Remote.ConnectionMode);
+        Assert.Equal("start", Screen(cut));
+    }
+
+    [Fact]
+    public void TheOffSwitch_OnceConfirmed_TurnsOutsideAccessOffAtOnce_AndTheStartPageGoesBackToHomeOnly()
+    {
+        var cut = RenderPanel(mode: "tailscale");
+        var host = Render<AppDialogHost>();
+
+        cut.Find("[data-remote-switch='allow-outside'] input[type='checkbox']").Change(false);
+        host.WaitForElement(".app-confirm");
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Turn off").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(nameof(IEngineApiClient.TurnRemoteOffAsync), _calls));
+        cut.WaitForAssertion(() => Assert.Contains("Away from home: not set up", cut.Find("[data-remote-card='away']").TextContent, StringComparison.Ordinal));
         Assert.Equal("local-only", _settings.Remote.ConnectionMode);
+        // The Engine did the saving; the page does not save the mode a second time.
+        Assert.Empty(_savedModes);
+        Assert.Empty(cut.FindAll("[data-remote-on]"));
+    }
+
+    [Fact]
+    public void WhenTheEngineCannotTurnItOff_TheSwitchSaysSoAndOutsideAccessStaysOn()
+    {
+        _remoteOff = null;
+        var cut = RenderPanel(mode: "tailscale");
+        var host = Render<AppDialogHost>();
+
+        cut.Find("[data-remote-switch='allow-outside'] input[type='checkbox']").Change(false);
+        host.WaitForElement(".app-confirm");
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Turn off").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-off-failure]")));
+        Assert.Equal("tailscale", _settings.Remote.ConnectionMode);
+        Assert.Equal("start", Screen(cut));
+    }
+
+    [Fact]
+    public void TheTestStep_ShowsAQrForThePhone_TheRecentOutsideSignInsWithRefusalsMarked_AndTheOffSwitch()
+    {
+        _awayAddress = "https://tuvima.tail1234.ts.net";
+        _signIns =
+        [
+            new OutsideSignInDto { At = DateTimeOffset.Now, ProfileName = "Shy", Succeeded = true, Method = OutsideSignInMethods.Passkey },
+            new OutsideSignInDto
+            {
+                At = DateTimeOffset.Now.AddDays(-1), ProfileName = "Alex", Succeeded = false, Method = OutsideSignInMethods.NoPassword,
+                RefusalReason = "Alex has no password or passkey, so Library only lets them in at home.",
+            },
+            new OutsideSignInDto { At = DateTimeOffset.Now.AddDays(-5), ProfileName = null, Succeeded = false, Method = OutsideSignInMethods.Password },
+        ];
+        var cut = RenderPanel(mode: "tailscale");
+
+        Click(cut, "test");
+
+        Assert.Equal("test", CurrentStep(cut));
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-remote-card='sign-ins'] [data-remote-row]").Count));
+        Assert.Equal("https://tuvima.tail1234.ts.net", cut.Find("[data-remote-address]").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll("[data-remote-qr='address'] svg"));
+        Assert.NotEmpty(cut.FindAll("[data-remote-action='copy-address']"));
+
+        var rows = cut.FindAll("[data-remote-card='sign-ins'] [data-remote-row]");
+        Assert.Equal("sign-in", rows[0].GetAttribute("data-remote-row"));
+        Assert.Contains("Shy · Passkey", rows[0].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Today", rows[0].TextContent, StringComparison.Ordinal);
+        Assert.Equal("sign-in-refused", rows[1].GetAttribute("data-remote-row"));
+        Assert.Equal("broken", rows[1].GetAttribute("data-remote-status"));
+        Assert.Contains("Alex · No password", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Yesterday", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Refused. Alex has no password or passkey", rows[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("A person who is no longer in Library · Password", rows[2].TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("[data-remote-switch='allow-outside']"));
+    }
+
+    [Fact]
+    public void TheTestStep_WithNoOutsideSignInsYet_SaysSo_AndWithoutAnAddressDrawsNoQr()
+    {
+        var cut = RenderPanel(mode: "tailscale");
+
+        Click(cut, "test");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-sign-ins-empty]")));
+        Assert.NotEmpty(cut.FindAll("[data-remote-no-address]"));
+        Assert.Empty(cut.FindAll("[data-remote-qr]"));
+    }
+
+    [Fact]
+    public void TheTestStep_WhenTheSignInsCannotBeRead_SaysSo_AndCheckAgainReadsThemAgain()
+    {
+        _signIns = null;
+        var cut = RenderPanel(mode: "tailscale");
+        Click(cut, "test");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-sign-ins-unavailable]")));
+
+        _signIns = [new OutsideSignInDto { At = DateTimeOffset.Now, ProfileName = "Shy", Succeeded = true }];
+        Click(cut, "refresh-sign-ins");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-row='sign-in']")));
+    }
+
+    [Fact]
+    public void RunningTheTest_ReadsTheRecentSignInsAgain_SoAPhoneAttemptShowsUp()
+    {
+        var cut = RenderPanel(mode: "tailscale");
+        Click(cut, "test");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-sign-ins-empty]")));
+        _signIns = [new OutsideSignInDto { At = DateTimeOffset.Now, ProfileName = "Shy", Succeeded = true }];
+
+        Click(cut, "run-test");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-row='sign-in']")));
+    }
+
+    [Fact]
+    public void Passwords_WhenTheCheckCouldNotBeRead_ContinueStaysOff_AndCheckAgainIsOffered()
+    {
+        var cut = RenderStandalonePasswords(null);
+
+        Assert.True(cut.Find("[data-remote-action='continue']").HasAttribute("disabled"));
+        Assert.Contains("could not read who has a password", cut.Find("[data-remote-blocked]").TextContent, StringComparison.Ordinal);
+        Assert.NotEmpty(cut.FindAll("[data-remote-action='check-again']"));
+    }
+
+    [Fact]
+    public void Passwords_SaysTheSingleNextStepTheEngineNamedUnderEachFinding_AndOffersNoFixButton()
+    {
+        var cut = RenderStandalonePasswords(Check(RemoteCheckSuggestions.Tailscale,
+            new RemoteCheckFindingDto
+            {
+                Key = RemoteCheckFindingKeys.AdminWithoutPassword, Status = RemoteCheckStatuses.Fail, Title = "The server administrator has no password",
+                Detail = "Nobody who looks after Library has one yet.", NextStep = "Add a password or passkey to the server administrator's sign-in.",
+            }));
+
+        Assert.Contains("Add a password or passkey to the server administrator's sign-in.", cut.Find("[data-remote-next-step]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-remote-action='fix']"));
+        Assert.True(cut.Find("[data-remote-action='continue']").HasAttribute("disabled"));
+    }
+
+    private IRenderedComponent<RemoteAccessPasswordsStep> RenderStandalonePasswords(RemoteCheckResultDto? result) =>
+        Render<RemoteAccessPasswordsStep>(parameters => parameters.Add(p => p.Result, result));
+
+    [Fact]
+    public void ChoosingTailscale_AlsoSavesTheDashboardProxyPort_AndTheConnectStepSaysToRestartOnce()
+    {
+        _checks.Enqueue(Check(RemoteCheckSuggestions.Tailscale, TailscaleReady()));
+        var cut = RenderPanel();
+        Services.GetRequiredService<RemoteAccessFlowState>().PollInterval = TimeSpan.Zero;
+        Click(cut, "set-up");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-card='findings']")));
+        Click(cut, "see-options");
+        Click(cut, "choose-tailscale");
+        Assert.Null(_settings.Remote.ProxyPort);
+
+        Click(cut, "continue");
+
+        cut.WaitForAssertion(() => Assert.Equal("connect", CurrentStep(cut)));
+        Assert.Equal(5017, _settings.Remote.ProxyPort);
+        Assert.Equal(["tailscale"], _savedModes);
+        var note = cut.Find("[data-remote-proxy-port-note]").TextContent;
+        Assert.Contains("port 5017", note, StringComparison.Ordinal);
+        Assert.Contains("restart Library", note, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChoosingTailscale_KeepsAProxyPortThatWasAlreadySet_AndNeverUsesTheMainPort()
+    {
+        _checks.Enqueue(Check(RemoteCheckSuggestions.Tailscale, TailscaleReady()));
+        _settings.Remote.ProxyPort = 5099;
+        var cut = RenderPanel();
+        Services.GetRequiredService<RemoteAccessFlowState>().PollInterval = TimeSpan.Zero;
+        Click(cut, "set-up");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-card='findings']")));
+        Click(cut, "see-options");
+        Click(cut, "choose-tailscale");
+        Click(cut, "continue");
+        cut.WaitForAssertion(() => Assert.Equal("connect", CurrentStep(cut)));
+        Assert.Equal(5099, _settings.Remote.ProxyPort);
+    }
+
+    [Fact]
+    public void ChoosingTheOwnAddress_DoesNotTouchTheProxyPort()
+    {
+        _checks.Enqueue(Check(RemoteCheckSuggestions.OwnAddress, Finding(RemoteCheckFindingKeys.TailscaleNotInstalled, RemoteCheckStatuses.Info, "Tailscale is not installed")));
+        var cut = RenderPanel();
+        Click(cut, "set-up");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-card='findings']")));
+        Click(cut, "see-options");
+        Click(cut, "choose-own-address");
+        Click(cut, "continue");
+        cut.WaitForAssertion(() => Assert.Equal("connect", CurrentStep(cut)));
+        Assert.Null(_settings.Remote.ProxyPort);
+    }
+
+    [Fact]
+    public void OnAPhone_EveryStepOpensOnItsOwn_ShowsTheSameContentAsDesktop_AndKeepsTheServerStepsTagged()
+    {
+        _awayAddress = "https://tuvima.tail1234.ts.net";
+        _checks.Enqueue(Check(RemoteCheckSuggestions.Tailscale, TailscaleReady()));
+        var cut = RenderPanel(deviceClass: "mobile", formFactor: "phone");
+        Services.GetRequiredService<RemoteAccessFlowState>().PollInterval = TimeSpan.Zero;
+        var seen = new List<string>();
+
+        Click(cut, "set-up");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-card='findings']")));
+        seen.Add(Screen(cut));
+        Assert.Single(cut.FindAll("[data-remote-screen]"));
+        Click(cut, "see-options");
+        seen.Add(Screen(cut));
+        Assert.Single(cut.FindAll("[data-remote-screen]"));
+        Assert.Equal(3, cut.FindAll("[data-remote-method]").Count);
+        Click(cut, "choose-tailscale");
+        seen.Add(Screen(cut));
+        Assert.Single(cut.FindAll("[data-remote-screen]"));
+        Click(cut, "continue");
+        cut.WaitForAssertion(() => Assert.Equal("connect", CurrentStep(cut)));
+        seen.Add(Screen(cut));
+        Assert.Single(cut.FindAll("[data-remote-screen]"));
+        // The phone step keeps its QR for another device and gains a tappable link, so nothing is left out.
+        Assert.NotEmpty(cut.FindAll("[data-remote-qr='phone']"));
+        Assert.NotEmpty(cut.FindAll("[data-remote-link='phone-download']"));
+        Assert.Single(cut.FindAll("[data-remote-action='send-steps']"));
+        Click(cut, "continue");
+        seen.Add(Screen(cut));
+        Assert.Single(cut.FindAll("[data-remote-screen]"));
+        // The Test step on a phone has the QR, the sign-ins, the off switch and the actions, all stacked in one column.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-remote-qr='address']")));
+        Assert.NotEmpty(cut.FindAll("[data-remote-action='run-test']"));
+        Assert.NotEmpty(cut.FindAll("[data-remote-card='sign-ins']"));
+        Assert.Single(cut.FindAll("[data-remote-switch='allow-outside']"));
+        Assert.Equal(["check", "choose", "passwords", "connect", "test"], seen);
     }
 
     [Fact]

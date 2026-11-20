@@ -1,0 +1,64 @@
+.ra-invite__form {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--tl-space-3, 12px);
+}
+
+.ra-invite__libraries {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ra-invite__area {
+    margin: var(--tl-space-2, 8px) 0 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: 600;
+}
+
+.ra-invite__existing,
+.ra-invite__note {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+}
+
+.ra-invite__problem {
+    margin: 0;
+    color: var(--tl-text-danger);
+    font-size: var(--tl-type-secondary-size);
+}
+
+.ra-invite__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
+    margin-top: var(--tl-space-2, 8px);
+}
+
+.ra-invite__mail {
+    display: inline-flex;
+    min-height: var(--tl-tap-target-min, 44px);
+    align-items: center;
+    padding: 0 18px;
+    border: 1px solid var(--tl-border-default);
+    border-radius: 3px;
+    color: var(--tl-text-primary);
+    text-decoration: none;
+}
+
+@media (max-width: 600px) {
+    .ra-invite__buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ra-invite__buttons .app-button,
+    .ra-invite__mail {
+        width: 100%;
+        justify-content: center;
+    }
+}

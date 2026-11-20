@@ -69,4 +69,17 @@ public sealed class RemoteCheckContractTests
         Assert.Equal(["ok", "info", "warn", "fail"],
             new[] { RemoteCheckStatuses.Ok, RemoteCheckStatuses.Info, RemoteCheckStatuses.Warn, RemoteCheckStatuses.Fail });
     }
+
+    [Fact]
+    public void TheOneClickFixResult_UsesSnakeCaseNamesOnTheWire()
+    {
+        var result = new RemoteFixResultDto { Action = RemoteCheckFixActions.TrustProxy, Changed = true, ProxyPort = 5017, RestartRequired = true };
+
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(result));
+
+        Assert.Equal(["action", "changed", "proxy_port", "restart_required"],
+            json.RootElement.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal("trust-proxy", json.RootElement.GetProperty("action").GetString());
+        Assert.Equal(5017, json.RootElement.GetProperty("proxy_port").GetInt32());
+    }
 }

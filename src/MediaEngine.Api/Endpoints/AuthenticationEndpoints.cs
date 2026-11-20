@@ -295,7 +295,8 @@ public static class AuthenticationEndpoints
         {
             var policy = configuration.LoadCore().Auth;
             if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
-                policy.PasswordSignInEnabled))
+                policy.PasswordSignInEnabled)
+                || !AllowsInvitationFrom(configuration.LoadNetwork(), request.OriginalClientIngress))
             {
                 return Results.Unauthorized();
             }
@@ -974,7 +975,15 @@ public static class AuthenticationEndpoints
     private static bool IsOutsideRefusal(string? error) => string.Equals(error, OutsideSignInRefusedException.PlainMessage, StringComparison.Ordinal);
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, PreviewAccountInvitationRequest request) =>
-        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
+        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps)
+        && AllowsInvitationFrom(services.GetRequiredService<IConfigurationLoader>().LoadNetwork(), request.OriginalClientIngress);
+
+    /// <summary>
+    /// An invitation opened from outside the home network works only while away-from-home access is on (spec remote-access WP5b):
+    /// switching it off refuses outside invitations at once, whatever way in is still running. At home it is never refused here.
+    /// </summary>
+    internal static bool AllowsInvitationFrom(NetworkSettings network, string? originalClientIngress) =>
+        ClientIngress.ParseCurrent(originalClientIngress) != ClientIngress.Remote || network.Remote.HasOutsidePath;
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, CompleteTwoStepSignInRequest request) =>
         IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);

@@ -1,0 +1,22 @@
+.ra-secure {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.ra-secure__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-3, 12px);
+}
+
+@media (max-width: 600px) {
+    .ra-secure__actions {
+        flex-direction: column;
+    }
+
+    .ra-secure__actions .app-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

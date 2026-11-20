@@ -1,0 +1,53 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* One line of the own-domain wizard's Secure it and Check screens (mock-ups 6b C): a tick, what was looked at, the plain reason when
+   it is not fine, the single next step, a link to that finding's entry in the troubleshooting guide and, where the Engine has a safe
+   fix, one "Fix it for me" button. *@
+<RemoteAccessRow Key="@Row.Key" Tone="@Row.Tone" StatusText="@StatusText" Title="@Row.Title" Detail="@Row.Detail">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(Row.NextStep))
+        {
+            <span class="ra-line__next" data-remote-next-step>@Row.NextStep</span>
+        }
+        @if (Row.HelpKey is not null && Row.Tone != AppStatusDotTone.Working)
+        {
+            <a class="ra-line__help" href="@RemoteAccessGuideLinks.Troubleshooting(Row.HelpKey)" target="_blank" rel="noopener noreferrer"
+               data-remote-link="help-@Row.HelpKey">@L["RemoteAccessDomain_WhatThisMeans"]</a>
+        }
+        @if (!string.IsNullOrWhiteSpace(FixNote))
+        {
+            <span class="ra-line__note" role="status" data-remote-fix-note>@FixNote</span>
+        }
+    </ChildContent>
+    <Actions>
+        @if (Row.FixAction == RemoteCheckFixActions.TrustProxy)
+        {
+            <AppButton Label="@L["RemoteAccessDomain_FixItForMe"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@Busy"
+                       OnClick="@(() => FixRequested.InvokeAsync(Row.FixAction))" data-remote-action="@("fix-" + Row.FixAction)" />
+        }
+    </Actions>
+</RemoteAccessRow>
+
+@code {
+    [Parameter, EditorRequired] public OwnDomainCheckRow Row { get; set; } = default!;
+
+    /// <summary>Raised with the fix action (<see cref="RemoteCheckFixActions"/>) when the person asks for the one-click fix.</summary>
+    [Parameter] public EventCallback<string> FixRequested { get; set; }
+
+    /// <summary>True while a fix or a check is running, so the button cannot be pressed twice.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>What the last fix said, shown under this line.</summary>
+    [Parameter] public string? FixNote { get; set; }
+
+    private string StatusText => Row.Tone switch
+    {
+        AppStatusDotTone.Working => L["RemoteAccessTailscaleSteps_Done"].Value,
+        AppStatusDotTone.Broken => L["RemoteAccessDomain_StatusBroken"].Value,
+        AppStatusDotTone.Attention => L["RemoteAccessDomain_StatusAttention"].Value,
+        _ => L["RemoteAccessDomain_StatusUnknown"].Value,
+    };
+}

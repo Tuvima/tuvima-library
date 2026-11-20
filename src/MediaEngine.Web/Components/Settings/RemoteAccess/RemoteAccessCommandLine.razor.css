@@ -1,0 +1,25 @@
+.ra-command {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+    margin-top: 4px;
+}
+
+.ra-command code {
+    padding: 2px 6px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 6px;
+    background: var(--tl-bg-shell);
+    color: var(--tl-text-primary);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: var(--tl-type-secondary-size);
+    overflow-wrap: anywhere;
+}
+
+.ra-command__failure {
+    margin: var(--tl-space-2, 8px) 0 0;
+    color: var(--tl-text-danger);
+    font-size: var(--tl-type-secondary-size);
+}

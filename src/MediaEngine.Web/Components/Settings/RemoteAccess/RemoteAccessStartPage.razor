@@ -4,7 +4,7 @@
 
 @* The start page of Remote access (mock-ups, picture 1): two status cards (home works, away from home), one Set up button and one
    link for someone who already runs a proxy or tunnel, then the safety rule said up front. Once a way in is on, the away card says
-   which one and offers Test, Change and Turn off. *@
+   which one, offers Test and Change, and shows the On panel (a QR for the phone, recent outside sign-ins and the one off switch). *@
 <div class="ra-start" data-remote-screen="start">
     <RemoteAccessCard Key="home" Title="@L["RemoteAccessStartPage_AtHomeWorking"].Value">
         <p class="ra-start__text">@L["RemoteAccessStartPage_HomeText"]</p>
@@ -18,9 +18,9 @@
                 <AppButton Label="@L["RemoteAccessStartPage_TestAccess"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            OnClick="TestRequested" data-remote-action="test" />
                 <AppButton Label="@L["RemoteAccessStartPage_ChangeHow"].Value" OnClick="SetUpRequested" data-remote-action="change" />
-                <AppButton Label="@L["RemoteAccessStartPage_TurnOff"].Value" Tone="AppUiTone.Error" OnClick="TurnOffRequested" data-remote-action="turn-off" />
             </div>
         </RemoteAccessCard>
+        <RemoteAccessOnPanel TurnedOff="TurnedOff" />
     }
     else
     {
@@ -44,7 +44,8 @@
     [Parameter] public EventCallback SetUpRequested { get; set; }
     [Parameter] public EventCallback OwnAddressRequested { get; set; }
     [Parameter] public EventCallback TestRequested { get; set; }
-    [Parameter] public EventCallback TurnOffRequested { get; set; }
+    /// <summary>Raised once the off switch has turned outside access off.</summary>
+    [Parameter] public EventCallback TurnedOff { get; set; }
 
     private string Mode => Settings.Remote.ConnectionMode?.Trim().ToLowerInvariant() ?? "local-only";
 

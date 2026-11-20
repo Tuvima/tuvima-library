@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1605; api=0; web-client=56
+# scopes: contracts=1606; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13471,6 +13471,14 @@
   SuggestionReason: System.String | json=suggestion_reason | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Findings: System.Collections.Generic.List<MediaEngine.Contracts.Settings.RemoteCheckFindingDto> | json=findings | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"checked_at":"2025-01-02T03:04:05+00:00","suggestion":"sample","suggestion_reason":"sample","findings":[]}
+
+[contracts] MediaEngine.Contracts.Settings.RemoteFixResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Action: System.String | json=action | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Changed: System.Boolean | json=changed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProxyPort: System.Int32? | json=proxy_port | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"action":"sample","changed":true,"proxy_port":7,"restart_required":true}
 
 [contracts] MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -11,6 +11,10 @@
    line has a QR code that opens Tailscale's download page on the phone. Nothing here contacts Tailscale: the links are only
    opened by the person. *@
 <div class="ra-tailscale" data-remote-screen="connect-tailscale" data-tailscale-progress="@Progress.ToString().ToLowerInvariant()">
+    <RemoteAccessCard Key="proxy-port" Tone="AppUiTone.Info">
+        <span data-remote-proxy-port-note>@string.Format(L["RemoteAccessTailscaleSteps_ProxyPortNote"].Value, ProxyPort)</span>
+    </RemoteAccessCard>
+
     <RemoteAccessCard Key="tailscale-steps">
         <RemoteAccessRow Key="install" Tag="@L["RemoteAccessTailscaleSteps_ServerTag"].Value" Title="@L["RemoteAccessTailscaleSteps_Install"].Value"
                          Tone="@ToneFor(TailscaleProgress.NotSignedIn)" StatusText="@StatusFor(TailscaleProgress.NotSignedIn)" Number="1" Current="@IsCurrent(TailscaleProgress.Unknown, TailscaleProgress.NotInstalled)"
@@ -49,6 +53,9 @@
         </RemoteAccessRow>
 
         <RemoteAccessRow Key="phone" Title="@L["RemoteAccessTailscaleSteps_Phone"].Value" Number="4" Detail="@L["RemoteAccessTailscaleSteps_PhoneText"].Value">
+            <ChildContent>
+                <a class="ra-tailscale__link" href="@DownloadAddress" target="_blank" rel="noopener noreferrer" data-remote-link="phone-download">@L["RemoteAccessTailscaleSteps_PhoneLink"]</a>
+            </ChildContent>
             <Actions><div class="ra-tailscale__qr" data-remote-qr="phone">@((MarkupString)_qr)</div></Actions>
         </RemoteAccessRow>
 

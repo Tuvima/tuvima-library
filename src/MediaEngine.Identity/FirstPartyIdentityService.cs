@@ -297,6 +297,14 @@ public sealed class FirstPartyIdentityService(
             throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         }
 
+        // An invitation never hands out server administration from outside the home network: that sign-in is set up at home.
+        // Refused before the code is used up, with the same words as any other bad code.
+        if (ClientIngress.ParseCurrent(ingress) == ClientIngress.Remote
+            && await OwnProfileAsync(account.Id, ct).ConfigureAwait(false) is { IsServerAdministrator: true })
+        {
+            throw new UnauthorizedAccessException("The invitation is invalid or expired.");
+        }
+
         await RejectPasswordMatchingAccountAsync(account.Id, password, ct).ConfigureAwait(false);
         if (!await accounts.ConsumeInvitationAsync(invitation.Id, UtcNow, ct).ConfigureAwait(false))
         {

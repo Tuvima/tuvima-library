@@ -63,6 +63,24 @@ public static class RemoteCheckFixActions
 }
 
 /// <summary>
+/// What a one-click fix did (<c>POST /network/remote-fix/trust-proxy</c>). Safe to repeat: a second call changes nothing and says so.
+/// </summary>
+public sealed class RemoteFixResultDto
+{
+    /// <summary>One of <see cref="RemoteCheckFixActions"/>.</summary>
+    [JsonPropertyName("action")] public string Action { get; set; } = string.Empty;
+
+    /// <summary>True when this call changed a setting; false when it was already in place.</summary>
+    [JsonPropertyName("changed")] public bool Changed { get; set; }
+
+    /// <summary>The port a same-machine proxy or tunnel should send visitors to (the Dashboard's proxy port).</summary>
+    [JsonPropertyName("proxy_port")] public int? ProxyPort { get; set; }
+
+    /// <summary>True when Library has to be restarted before the change takes effect.</summary>
+    [JsonPropertyName("restart_required")] public bool RestartRequired { get; set; }
+}
+
+/// <summary>
 /// Every finding key the check can return. The public troubleshooting page has one entry per key, and a test compares the two,
 /// so add a key here and in the documentation together.
 /// </summary>

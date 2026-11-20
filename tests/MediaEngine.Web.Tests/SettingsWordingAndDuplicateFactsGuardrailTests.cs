@@ -58,8 +58,10 @@ public sealed partial class SettingsWordingAndDuplicateFactsGuardrailTests
         var offenders = SettingsSources()
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}General{Path.DirectorySeparatorChar}"))
             // Three QR codes that are not the server address: an invitation link, the authenticator-app set-up code, and the
-            // Tailscale download page that the away-from-home flow shows so a phone can get the app (spec remote-access WP4).
-            .Where(path => Path.GetFileName(path) is not ("InvitationShare.razor" or "SecuritySettingsPage.TwoStep.cs" or "RemoteAccessTailscaleSteps.razor"))
+            // Tailscale download page that the away-from-home flow shows so a phone can get the app (spec remote-access WP4), and the On
+            // panel's QR of the away-from-home address (not the home address, which stays on General) so a phone off the home network can
+            // try it (spec remote-access D6 and WP6).
+            .Where(path => Path.GetFileName(path) is not ("InvitationShare.razor" or "SecuritySettingsPage.TwoStep.cs" or "RemoteAccessTailscaleSteps.razor" or "RemoteAccessOnPanel.razor"))
             .Where(path =>
             {
                 var text = File.ReadAllText(path);

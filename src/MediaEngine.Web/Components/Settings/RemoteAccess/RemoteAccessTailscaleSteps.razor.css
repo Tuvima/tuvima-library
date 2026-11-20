@@ -9,6 +9,15 @@
     font-size: var(--tl-type-secondary-size);
 }
 
+@media (max-width: 1023px), (pointer: coarse) {
+    /* A link that is a step of its own is a tap target, so it keeps the 44 px contract even though prose links do not. */
+    .ra-tailscale__link {
+        display: inline-flex;
+        min-height: var(--tl-tap-target-min, 44px);
+        align-items: center;
+    }
+}
+
 .ra-tailscale__command {
     display: flex;
     min-width: 0;

@@ -15407,9 +15407,6 @@
   <data name="RemoteAccessOwnAddressStep_Proxy" xml:space="preserve">
     <value>A proxy I run (Caddy, nginx, Traefik)</value>
   </data>
-  <data name="RemoteAccessOwnAddressStep_ProxyText" xml:space="preserve">
-    <value>You keep full control. Use a trusted HTTPS name that Caddy, nginx, Traefik or another reverse proxy serves.</value>
-  </data>
   <data name="RemoteAccessOwnAddressStep_PublicAddress" xml:space="preserve">
     <value>Your public web address</value>
   </data>
@@ -15509,9 +15506,6 @@
   <data name="RemoteAccessStartPage_TestAccess" xml:space="preserve">
     <value>Test away-from-home access</value>
   </data>
-  <data name="RemoteAccessStartPage_TurnOff" xml:space="preserve">
-    <value>Turn off away-from-home access</value>
-  </data>
   <data name="RemoteAccessStepper_Check" xml:space="preserve">
     <value>Check</value>
   </data>
@@ -15581,6 +15575,105 @@
   <data name="RemoteAccessTailscaleSteps_SignInTodo" xml:space="preserve">
     <value>Run this once on the server computer, then sign in in the window that opens.</value>
   </data>
+  <data name="RemoteAccessOnPanel_CopyAddress" xml:space="preserve">
+    <value>Copy address</value>
+  </data>
+  <data name="RemoteAccessOnPanel_CopyAddressWhat" xml:space="preserve">
+    <value>the address</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmKeep" xml:space="preserve">
+    <value>Keep it on</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmMessage" xml:space="preserve">
+    <value>No one will be able to reach Library from outside until you set it up again. Home keeps working, and nothing is deleted.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmTitle" xml:space="preserve">
+    <value>Turn off away-from-home access?</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmTurnOff" xml:space="preserve">
+    <value>Turn off</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodLinkedAccount" xml:space="preserve">
+    <value>Linked account</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodNoPassword" xml:space="preserve">
+    <value>No password</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodPasskey" xml:space="preserve">
+    <value>Passkey</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodPassword" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="RemoteAccessOnPanel_NoAddress" xml:space="preserve">
+    <value>Library does not know your away-from-home address yet. Finish the connection step first, then the code to try from your phone appears here.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OffFailed" xml:space="preserve">
+    <value>Library could not turn it off. Make sure the Engine is running, then try again.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OffText" xml:space="preserve">
+    <value>Turn off any time. Home keeps working.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OffTitle" xml:space="preserve">
+    <value>Allow connections from outside</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OpenAddress" xml:space="preserve">
+    <value>Open it here</value>
+  </data>
+  <data name="RemoteAccessOnPanel_PhoneIntro" xml:space="preserve">
+    <value>Scan this on your phone, away from your home Wi-Fi, to open your Library the way anyone outside would.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_PhoneTitle" xml:space="preserve">
+    <value>Try it from your phone</value>
+  </data>
+  <data name="RemoteAccessOnPanel_Refused" xml:space="preserve">
+    <value>Refused</value>
+  </data>
+  <data name="RemoteAccessOnPanel_RefusedPlain" xml:space="preserve">
+    <value>Refused.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignedIn" xml:space="preserve">
+    <value>Signed in</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsEmpty" xml:space="preserve">
+    <value>No one has signed in from outside yet. Try it from your phone and it appears here.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsLoading" xml:space="preserve">
+    <value>Reading the recent sign-ins.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsTitle" xml:space="preserve">
+    <value>Recent sign-ins from outside</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsUnavailable" xml:space="preserve">
+    <value>Library could not read the recent sign-ins. Make sure the Engine is running, then check again.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_Today" xml:space="preserve">
+    <value>Today {0}</value>
+  </data>
+  <data name="RemoteAccessOnPanel_UnknownPerson" xml:space="preserve">
+    <value>A person who is no longer in Library</value>
+  </data>
+  <data name="RemoteAccessOnPanel_Yesterday" xml:space="preserve">
+    <value>Yesterday {0}</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_BlockedUnknown" xml:space="preserve">
+    <value>Library could not read who has a password, so Continue stays off. Make sure the Engine is running, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Unknown" xml:space="preserve">
+    <value>Not known</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_UnknownDetail" xml:space="preserve">
+    <value>Library needs to know who can sign in from outside before it lets you go on.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_UnknownTitle" xml:space="preserve">
+    <value>Passwords could not be checked</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_PhoneLink" xml:space="preserve">
+    <value>Open the Tailscale download page</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_ProxyPortNote" xml:space="preserve">
+    <value>Library now listens for Tailscale on port {0}. If this is the first time, restart Library once on the server computer so it starts listening there, then run the command below.</value>
+  </data>
   <data name="RemoteAccessTestStep_Done" xml:space="preserve">
     <value>Done</value>
   </data>
@@ -15616,5 +15709,254 @@
   </data>
   <data name="RemoteAccessTestStep_Title" xml:space="preserve">
     <value>Test from outside</value>
+  </data>
+  <data name="RemoteAccessDomain_WhatThisMeans" xml:space="preserve">
+    <value>What this means</value>
+  </data>
+  <data name="RemoteAccessDomain_FixItForMe" xml:space="preserve">
+    <value>Fix it for me</value>
+  </data>
+  <data name="RemoteAccessDomain_StatusBroken" xml:space="preserve">
+    <value>Not working</value>
+  </data>
+  <data name="RemoteAccessDomain_StatusAttention" xml:space="preserve">
+    <value>Needs a look</value>
+  </data>
+  <data name="RemoteAccessDomain_StatusUnknown" xml:space="preserve">
+    <value>Not checked yet</value>
+  </data>
+  <data name="RemoteAccessDomain_FixFailed" xml:space="preserve">
+    <value>Library could not do that for you. Follow the step above instead.</value>
+  </data>
+  <data name="RemoteAccessDomain_FixDoneRestart" xml:space="preserve">
+    <value>Done. Restart Library once so it takes effect, then check again.</value>
+  </data>
+  <data name="RemoteAccessDomain_FixDone" xml:space="preserve">
+    <value>Done. Check again.</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Question" xml:space="preserve">
+    <value>Do you own a web address?</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Yes" xml:space="preserve">
+    <value>Yes, I own a domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_YesText" xml:space="preserve">
+    <value>Something like yourname.com. You will pick a front name for Library, such as library.yourname.com.</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_UseMine" xml:space="preserve">
+    <value>Use my domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_No" xml:space="preserve">
+    <value>No, I do not own one</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_NoText" xml:space="preserve">
+    <value>Library never buys a domain for you and never asks for your registrar login. Buy one from a registrar you trust, then come back.</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_HowToGetOne" xml:space="preserve">
+    <value>How to get a domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_PickName" xml:space="preserve">
+    <value>Pick the address for your Library</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_FrontName" xml:space="preserve">
+    <value>Front name</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Domain" xml:space="preserve">
+    <value>Your domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_YourAddress" xml:space="preserve">
+    <value>Your Library will be at</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Problem" xml:space="preserve">
+    <value>That is not a web address Library can use. Use letters, numbers and dashes, and a domain such as yourname.com.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_ProxyText" xml:space="preserve">
+    <value>Caddy, nginx or Traefik on your server or another computer at home. Library makes the Caddy file for you.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TellTheInternet" xml:space="preserve">
+    <value>Tell the internet where your Library is</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelAccount" xml:space="preserve">
+    <value>Add {0} to your Cloudflare account</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelAccountText" xml:space="preserve">
+    <value>Sign in to Cloudflare and make a tunnel. Your domain's name servers must already be with Cloudflare.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelConnector" xml:space="preserve">
+    <value>Install the tunnel connector on the server computer</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelConnectorText" xml:space="preserve">
+    <value>Cloudflare shows you a command with your own token. Run it on the computer that runs Library.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CommandWhat" xml:space="preserve">
+    <value>the command</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelHostname" xml:space="preserve">
+    <value>Send {0} to Library</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelHostnameText" xml:space="preserve">
+    <value>In the tunnel, add a public hostname and point it at this address on the server computer.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_AddressWhat" xml:space="preserve">
+    <value>the address</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelWarning" xml:space="preserve">
+    <value>Cloudflare can see this traffic, and its free plan limits video. Many people prefer Tailscale for family.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyInstall" xml:space="preserve">
+    <value>Install Caddy</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyInstallText" xml:space="preserve">
+    <value>Get Caddy from caddyserver.com and install it. Library installs nothing for you.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyFile" xml:space="preserve">
+    <value>Name this file Caddyfile</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyFileText" xml:space="preserve">
+    <value>Your address is already filled in. Put the file in the folder Caddy starts from.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_Download" xml:space="preserve">
+    <value>Download the file</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CopyFile" xml:space="preserve">
+    <value>Copy the file</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_FileWhat" xml:space="preserve">
+    <value>the Caddy file</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyRun" xml:space="preserve">
+    <value>Start Caddy</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyRunText" xml:space="preserve">
+    <value>Caddy hands visitors to Library on port {0} of this computer.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyPorts" xml:space="preserve">
+    <value>Let ports 80 and 443 reach Caddy</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyPortsText" xml:space="preserve">
+    <value>In your router, forward ports 80 and 443 to the computer that runs Caddy. Caddy gets the secure certificate by itself.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterTry" xml:space="preserve">
+    <value>Ask your router to open the door</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterTryButton" xml:space="preserve">
+    <value>Try it for me</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterTryText" xml:space="preserve">
+    <value>Library asks the router to forward port 443 to this computer. Most home routers allow it; some do not.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterManual" xml:space="preserve">
+    <value>Or open it yourself</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterManualText" xml:space="preserve">
+    <value>In your router's settings, forward port 443 to this computer.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterProxy" xml:space="preserve">
+    <value>Point your name at your home address</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterProxyText" xml:space="preserve">
+    <value>At the place you manage your domain, add a record that sends your Library's name to your home's public address.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_Live" xml:space="preserve">
+    <value>Your name reaches Library</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_LiveText" xml:space="preserve">
+    <value>Library checks that your name points here and answers.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_ShowSteps" xml:space="preserve">
+    <value>Show the steps</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_Title" xml:space="preserve">
+    <value>Secure it</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_Intro" xml:space="preserve">
+    <value>Visitors need a secure connection. Library checks that the certificate for your name is valid and renews.</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_RouterNote" xml:space="preserve">
+    <value>With a router door, Library asks for the certificate itself and renews it by itself.</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_TunnelNote" xml:space="preserve">
+    <value>Cloudflare provides and renews the certificate for you.</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_CaddyNote" xml:space="preserve">
+    <value>Caddy gets and renews the certificate by itself while it runs.</value>
+  </data>
+  <data name="RemoteAccessDomainCheck_Title" xml:space="preserve">
+    <value>Check {0}</value>
+  </data>
+  <data name="RemoteAccessDomainCheck_AllGood" xml:space="preserve">
+    <value>All good. Your Library can be reached from outside.</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Steps" xml:space="preserve">
+    <value>Own address steps</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Point" xml:space="preserve">
+    <value>Point it here</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Secure" xml:space="preserve">
+    <value>Secure it</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Check" xml:space="preserve">
+    <value>Check</value>
+  </data>
+  <data name="RemoteAccessInvite_Title" xml:space="preserve">
+    <value>Share with friends</value>
+  </data>
+  <data name="RemoteAccessInvite_Intro" xml:space="preserve">
+    <value>Make a one-time invitation for a friend. They open it on their phone or computer and choose their own password. They see only the household and libraries you pick, and never get administration.</value>
+  </data>
+  <data name="RemoteAccessInvite_NotYet" xml:space="preserve">
+    <value>Set up a way in from outside first. Then you can invite a friend here.</value>
+  </data>
+  <data name="RemoteAccessInvite_Open" xml:space="preserve">
+    <value>Invite a friend</value>
+  </data>
+  <data name="RemoteAccessInvite_Name" xml:space="preserve">
+    <value>Their name</value>
+  </data>
+  <data name="RemoteAccessInvite_Email" xml:space="preserve">
+    <value>Their email</value>
+  </data>
+  <data name="RemoteAccessInvite_EmailHelp" xml:space="preserve">
+    <value>Identifies the invitation. Library does not send email by itself.</value>
+  </data>
+  <data name="RemoteAccessInvite_NewHousehold" xml:space="preserve">
+    <value>A new household for friends</value>
+  </data>
+  <data name="RemoteAccessInvite_Household" xml:space="preserve">
+    <value>Household</value>
+  </data>
+  <data name="RemoteAccessInvite_Libraries" xml:space="preserve">
+    <value>Libraries</value>
+  </data>
+  <data name="RemoteAccessInvite_NoLibraries" xml:space="preserve">
+    <value>No libraries</value>
+  </data>
+  <data name="RemoteAccessInvite_Lifetime" xml:space="preserve">
+    <value>The invitation works once and expires in 7 days.</value>
+  </data>
+  <data name="RemoteAccessInvite_Create" xml:space="preserve">
+    <value>Create invitation</value>
+  </data>
+  <data name="RemoteAccessInvite_Failed" xml:space="preserve">
+    <value>Library could not make the invitation. Try again.</value>
+  </data>
+  <data name="RemoteAccessInvite_SendByEmail" xml:space="preserve">
+    <value>Send by email</value>
+  </data>
+  <data name="RemoteAccessInvite_MailSubject" xml:space="preserve">
+    <value>Your invitation to my Library</value>
+  </data>
+  <data name="RemoteAccessInvite_MailBody" xml:space="preserve">
+    <value>I invited you to my Library. Open this link to get started: {0}</value>
+  </data>
+  <data name="RemoteAccessInvite_Cancel" xml:space="preserve">
+    <value>To cancel it before it is used, remove the sign-in under Users.</value>
+  </data>
+  <data name="RemoteAccessInvite_Another" xml:space="preserve">
+    <value>Invite another friend</value>
   </data>
 </root>

@@ -1,0 +1,41 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* Own-domain wizard, screen 3: Secure it (mock-ups 6b C). A secure certificate keeps passwords private on the way. Library does not make
+   one: a tunnel or a proxy such as Caddy gets and renews it by itself, and this screen only reads what the check found (valid, expiring
+   soon, not valid). The router door route is told plainly that it still needs a proxy for the certificate. *@
+<div class="ra-secure" data-remote-screen="domain-secure">
+    <RemoteAccessCard Key="certificate" Title="@L["RemoteAccessDomainSecure_Title"].Value" Intro="@L["RemoteAccessDomainSecure_Intro"].Value">
+        <RemoteAccessDomainCheckLine Row="@OwnDomainChecks.CertificateRow(Result, Checking)" />
+    </RemoteAccessCard>
+    @if (Route == OwnDomainRoute.RouterDoor)
+    {
+        <RemoteAccessCard Key="router-certificate" Tone="AppUiTone.Info" Intro="@L["RemoteAccessDomainSecure_RouterNote"].Value" />
+    }
+    else if (Route == OwnDomainRoute.Tunnel)
+    {
+        <RemoteAccessCard Key="tunnel-certificate" Tone="AppUiTone.Info" Intro="@L["RemoteAccessDomainSecure_TunnelNote"].Value" />
+    }
+    else
+    {
+        <RemoteAccessCard Key="caddy-certificate" Tone="AppUiTone.Info" Intro="@L["RemoteAccessDomainSecure_CaddyNote"].Value" />
+    }
+
+    <div class="ra-secure__actions">
+        <AppButton Label="@L["Common_Continue"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@Checking"
+                   OnClick="ContinueRequested" data-remote-action="continue" />
+        <AppButton Label="@L["RemoteAccessCheckStep_CheckAgain"].Value" Disabled="@Checking" OnClick="CheckAgainRequested" data-remote-action="check-again" />
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public RemoteCheckResultDto? Result { get; set; }
+    [Parameter] public OwnDomainRoute? Route { get; set; }
+    [Parameter] public bool Checking { get; set; }
+    [Parameter] public EventCallback CheckAgainRequested { get; set; }
+    [Parameter] public EventCallback ContinueRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+}
