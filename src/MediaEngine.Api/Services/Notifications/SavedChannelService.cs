@@ -28,7 +28,7 @@ internal sealed class StoredChannelInstances
 }
 
 /// <summary>Reads and writes the channels people added, in the notification settings of the data store.</summary>
-internal sealed class NotificationChannelStore(INotificationRepository repository, ISecretStore secrets, TimeProvider clock)
+internal sealed class SavedChannelService(INotificationRepository repository, ISecretStore secrets, TimeProvider clock)
 {
     private const string Key = "channels";
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -120,14 +120,9 @@ internal sealed class NotificationChannelStore(INotificationRepository repositor
         repository.SetSettingAsync(Key, JsonSerializer.Serialize(document, MediaEngineJson.Web), clock.GetUtcNow(), ct);
 }
 
-/// <summary>Offers the channels people added, built fresh from the store so adding or removing one needs no restart.</summary>
-internal interface IAsyncNotificationChannelSource
-{
-    Task<IReadOnlyList<INotificationChannel>> GetChannelsAsync(CancellationToken ct);
-}
 
 internal sealed class AddedChannelSource(
-    NotificationChannelStore store,
+    SavedChannelService store,
     ChannelTypeCatalogue types,
     IHttpClientFactory httpClients,
     ILogger<AddedChannelSource> logger) : IAsyncNotificationChannelSource

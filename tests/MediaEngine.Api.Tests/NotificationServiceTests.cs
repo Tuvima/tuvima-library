@@ -40,7 +40,7 @@ public sealed class NotificationServiceTests : IDisposable
         _repository = new NotificationRepository(_db);
         _accounts = new AccountRepository(_db);
         _settings = new NotificationSettingsAccessor(_repository, _clock);
-        _service = new NotificationService(_repository, _settings, [_email, _phone], [], [], new ChannelTypeCatalogue(), _accounts, _events, new NotificationSummaryStore(_repository, _clock), _clock, NullLogger<NotificationService>.Instance);
+        _service = new NotificationService(_repository, _settings, [_email, _phone], [], [], new ChannelTypeCatalogue(), _accounts, _events, new NotificationSummaryService(_repository, _clock), _clock, NullLogger<NotificationService>.Instance);
     }
 
     public void Dispose()

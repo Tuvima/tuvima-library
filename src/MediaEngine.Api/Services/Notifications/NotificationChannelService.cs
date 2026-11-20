@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.Notifications;
 /// of the types in <see cref="ChannelTypeCatalogue"/>; links and tokens go to the secrets store and never come back out.
 /// </summary>
 internal sealed class NotificationChannelService(
-    NotificationChannelStore store,
+    SavedChannelService store,
     ChannelTypeCatalogue types,
     NotificationService notifications)
 {

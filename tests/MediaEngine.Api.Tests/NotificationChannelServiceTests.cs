@@ -15,7 +15,7 @@ public sealed class NotificationChannelServiceTests : IDisposable
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima_notification_channels_{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _db;
     private readonly NotificationRepository _repository;
-    private readonly NotificationChannelStore _store;
+    private readonly SavedChannelService _store;
     private readonly NotificationChannelService _channels;
     private readonly NotificationService _notifications;
     private readonly ChannelTypeCatalogue _types = new();
@@ -29,10 +29,10 @@ public sealed class NotificationChannelServiceTests : IDisposable
         _db.RunStartupChecks();
         _repository = new NotificationRepository(_db);
         var clock = new FixedClock(Start);
-        _store = new NotificationChannelStore(_repository, new ReversibleSecrets(), clock);
+        _store = new SavedChannelService(_repository, new ReversibleSecrets(), clock);
         var settings = new NotificationSettingsAccessor(_repository, clock);
         var source = new AddedChannelSource(_store, _types, new HandlerFactory(_http), NullLogger<AddedChannelSource>.Instance);
-        _notifications = new NotificationService(_repository, settings, [], [], [source], _types, new AccountRepository(_db), new NoEvents(), new NotificationSummaryStore(_repository, clock), clock, NullLogger<NotificationService>.Instance);
+        _notifications = new NotificationService(_repository, settings, [], [], [source], _types, new AccountRepository(_db), new NoEvents(), new NotificationSummaryService(_repository, clock), clock, NullLogger<NotificationService>.Instance);
         _channels = new NotificationChannelService(_store, _types, _notifications);
     }
 

@@ -11,7 +11,7 @@ internal sealed record PendingSummaryItem(string ChannelId, string Title, string
 /// Holds the calm updates that wait for the daily summary, and remembers which day it last went out so it goes once a day.
 /// Kept in the data store so a restart does not lose what is waiting.
 /// </summary>
-internal sealed class NotificationSummaryStore(INotificationRepository repository, TimeProvider clock)
+internal sealed class NotificationSummaryService(INotificationRepository repository, TimeProvider clock)
 {
     private const string Key = "summary_pending";
     public const int MaxWaiting = 100;

@@ -34,3 +34,9 @@ internal interface INotificationChannel
 
     Task<ChannelSendResult> SendAsync(OutgoingNotification message, IReadOnlyList<NotificationRecipient> recipients, CancellationToken ct);
 }
+
+/// <summary>Offers the channels people added, built fresh from the store so adding or removing one needs no restart.</summary>
+internal interface IAsyncNotificationChannelSource
+{
+    Task<IReadOnlyList<INotificationChannel>> GetChannelsAsync(CancellationToken ct);
+}

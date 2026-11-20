@@ -24,7 +24,7 @@ internal sealed class NotificationService(
     ChannelTypeCatalogue channelTypes,
     IAccountRepository accounts,
     IApplicationEventProducer events,
-    NotificationSummaryStore summary,
+    NotificationSummaryService summary,
     TimeProvider clock,
     ILogger<NotificationService> logger)
 {

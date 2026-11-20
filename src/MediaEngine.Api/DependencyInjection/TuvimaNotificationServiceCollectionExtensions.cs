@@ -1,6 +1,6 @@
 using MediaEngine.Api.Services.Notifications;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using MediaEngine.Domain.Contracts;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MediaEngine.Api.DependencyInjection;
 
@@ -13,12 +13,12 @@ public static class TuvimaNotificationServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<SignInWatcher>();
         services.AddSingleton<NotificationSettingsAccessor>();
-        services.AddSingleton<NotificationSummaryStore>();
+        services.AddSingleton<NotificationSummaryService>();
         services.AddSingleton<MailServerSettingsService>();
         services.AddSingleton<INotificationChannel, EmailNotificationChannel>();
         services.AddSingleton<INotificationChannelSource, PluginNotificationChannelSource>();
         services.AddSingleton<ChannelTypeCatalogue>();
-        services.AddSingleton<NotificationChannelStore>();
+        services.AddSingleton<SavedChannelService>();
         services.AddSingleton<IAsyncNotificationChannelSource, AddedChannelSource>();
         services.AddSingleton<NotificationService>();
         services.AddSingleton<NotificationChannelService>();
