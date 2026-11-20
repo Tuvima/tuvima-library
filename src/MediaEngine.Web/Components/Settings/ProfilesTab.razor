@@ -27,11 +27,7 @@ else
 {
     <div class="profiles-tab" data-profile-section="overview">
         <section class="profiles-tab__people" aria-label="@L["Wikidata_PeopleGroupTitle"].Value">
-            @if (DeviceContext.IsPhone)
-            {
-                <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
-            }
-            @if (IsServerAdministrator && !DeviceContext.IsPhone)
+            @if (IsServerAdministrator)
             {
                 <div class="profiles-tab__toolbar">
                     <AppButton Label="@L["Common_AddHousehold"].Value" StartIcon="@AppMaterialIcons.Outlined.Home" OnClick="OpenAddHousehold" />
@@ -109,11 +105,22 @@ else
                                                 <AppChip Text="@L["Common_PIN"].Value" />
                                             }
                                         </span>
-                                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profiles-tab__edit" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))" Label="@L["Common_Edit"].Value" />
+                                        <span class="profiles-tab__edit-cell">
+                                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profiles-tab__edit" FullWidth="@DeviceContext.IsPhone" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))" Label="@L["Common_Edit"].Value" />
+                                        </span>
                                     </div>
                                 </li>
                             }
-                            @if (ProfileManageRules.CanAdd(CanManage, group.People.Count))
+                            @if (ProfileManageRules.CanAdd(CanManage, group.People.Count) && DeviceContext.IsPhone)
+                            {
+                                @* On a phone the add row is a full-width button (Look v3.2 D3): the same action as the row on a larger screen. *@
+                                <li class="profiles-tab__item profiles-tab__item--add">
+                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profiles-tab__add" FullWidth="true" data-testid="@($"add-person-{group.Id}")"
+                                               aria-label="@AddLabel(group)" StartIcon="@AppMaterialIcons.Outlined.Add" Label="@L["ProfilesTab_AddPerson"].Value"
+                                               OnClick="@(() => OpenAdd(group.Id))" />
+                                </li>
+                            }
+                            else if (ProfileManageRules.CanAdd(CanManage, group.People.Count))
                             {
                                 <li class="profiles-tab__item">
                                     <AppNativeButton Type="button" Class="profiles-tab__row profiles-tab__row--add" aria-label="@AddLabel(group)" OnClick="@(() => OpenAdd(group.Id))">
@@ -125,7 +132,7 @@ else
                         </ul>
                         @if (group.Id != Guid.Empty)
                         {
-                            <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" ReadOnly="@DeviceContext.IsPhone" OnSave="SaveKidSettingsAsync" />
+                            <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" OnSave="SaveKidSettingsAsync" />
                         }
                             </ChildContent>
                         </SettingsSectionPanel>
@@ -173,8 +180,7 @@ else
     private bool IsAdministrator => Session.HasAction("household.manage") || IsServerAdministrator;
 
     // Add profile is for administrators, and never from inside a Kids (restricted) profile.
-    // A phone only reads the list; adding people is done on a computer or tablet.
-    private bool CanManage => ProfileManageRules.CanManage(_active?.IsRestricted == true, IsAdministrator) && !DeviceContext.IsPhone;
+    private bool CanManage => ProfileManageRules.CanManage(_active?.IsRestricted == true, IsAdministrator);
 
     private Guid? OwnHouseholdId => _managed.FirstOrDefault(person => person.Id == _active?.Id)?.HouseholdId;
 
@@ -283,9 +289,9 @@ else
             AvatarIcon: person.AvatarIcon);
     }
 
-    // The order is shared by the whole household, so only an administrator changes it, never on a phone, and only when there is
-    // more than one person to put in order.
-    private bool CanReorder(Household group) => CanManage && group.Id != Guid.Empty && group.People.Count > 1 && !_reordering;
+    // The order is shared by the whole household, so only an administrator changes it, and only when there is more than one person
+    // to put in order. Dragging is for a mouse, so a phone does not offer it.
+    private bool CanReorder(Household group) => CanManage && !DeviceContext.IsPhone && group.Id != Guid.Empty && group.People.Count > 1 && !_reordering;
 
     private Task DropAsync(Household group, Guid targetId)
     {
@@ -369,7 +375,7 @@ else
     // Adding a household is a server-administrator action; the Households page takes the name.
     private void OpenAddHousehold()
     {
-        if (!IsServerAdministrator || DeviceContext.IsPhone)
+        if (!IsServerAdministrator)
         {
             return;
         }

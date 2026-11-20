@@ -839,10 +839,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsPanelHasTheShortPhoneNote()
+    public void SettingsPanelHasNoPhoneNote_BecauseFoldersCanBeChangedOnAPhone()
     {
         var cut = Open("Movies");
-        Assert.Equal("Add or change folders on a computer or tablet.", Text(cut.Find(".library-folders__phone-note")));
+        Assert.Empty(cut.FindAll(".library-folders__phone-note"));
+        Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
     }
 
     // The table is announced properly: a named actions column, one labelled radio group per New media cell, one live region.
@@ -1196,24 +1197,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Keep going" or "Remove the folder");
     }
 
-    // D23: under the one card breakpoint (840px of viewport width, so portrait tablets too) folders are read-only. With no browser to measure, the stylesheets are read: every control that adds, converts or merges is hidden
-    // (display:none) and the note is shown. The gate follows the viewport, not the device class.
+    // Look v3.2 D3: folders can be added, converted and merged on a phone, so no stylesheet hides those controls at the card breakpoint and
+    // there is no phone note. With no browser to measure, the stylesheets are read.
     [Fact]
-    public void EveryControlThatAddsConvertsOrMergesIsHiddenUnderTheCardBreakpoint()
+    public void NoStylesheetHidesTheFolderControlsUnderTheCardBreakpoint()
     {
         var src = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web");
         var panel = File.ReadAllText(Path.Combine(src, "Components", "Settings", "LibraryFoldersPanel.razor.css"));
         var app = File.ReadAllText(Path.Combine(src, "wwwroot", "app.css"));
-        Assert.DoesNotContain("max-width: 600px", panel);
-        // The last 840px block of the panel stylesheet is the read-only one.
-        var phone = panel[panel.LastIndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
-        Assert.Contains(".library-folders__phone-note", phone);
-        foreach (var hidden in new[] { ".library-folders__detail-actions", ".library-folders__row-actions", ".library-folders__choose", ".library-folders__empty-action", ".library-folders__hint--merge" })
-        {
-            Assert.Contains(hidden, phone);
-        }
-
-        Assert.Contains(".folder-table__menu { display: none; }", app);
+        Assert.DoesNotContain(".library-folders__phone-note", panel);
+        Assert.DoesNotContain(".folder-table__menu { display: none; }", app);
         Assert.DoesNotContain(".folder-table__chip", app);
     }
 

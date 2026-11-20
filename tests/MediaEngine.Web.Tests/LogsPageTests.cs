@@ -99,9 +99,9 @@ public sealed class LogsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Logs_IsAnAdministratorPage_NotOfferedOnAPhone()
+    public void Logs_IsAnAdministratorPage_AndWorksOnAPhone()
     {
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.AdminOverview, "logs"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.AdminOverview, "logs"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.AdminOverview));
         Assert.DoesNotContain(
             SettingsNav.FilteredMenuGroups(administrationAllowed: false).SelectMany(group => group.Nodes).SelectMany(node => node.Tabs),

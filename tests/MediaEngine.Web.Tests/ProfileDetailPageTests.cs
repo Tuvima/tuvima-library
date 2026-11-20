@@ -639,7 +639,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     // ---- phones read the profile; roles, access and Delete profile are changed on a computer or tablet
 
     [Fact]
-    public void OnAPhone_RolesAccessAndDeleteAreHidden_WithTheManageOnAComputerNote()
+    public void OnAPhone_RolesAccessAndDeleteAreOffered_LikeOnADesktop()
     {
         UsePhone();
         Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
@@ -649,17 +649,12 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
-        Assert.Empty(cut.FindAll("[data-profile-section='roles']"));
-        Assert.Empty(cut.FindAll("[data-profile-section='access']"));
-        Assert.Empty(cut.FindAll("[data-kid-switch]"));
-        Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
-        Assert.Contains("Manage on a computer or tablet.", cut.Find("p[role='note']").TextContent);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='roles']")));
+        Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
 
         var access = RenderFor(SamId, "access");
-        access.WaitForAssertion(() => Assert.Contains("Manage on a computer or tablet.", access.Find("p[role='note']").TextContent));
-        Assert.Empty(access.FindAll("[data-profile-section='access']"));
-        Assert.Empty(access.FindAll("[data-nav-row='delete']"));
+        access.WaitForAssertion(() => Assert.NotEmpty(access.FindAll("[data-profile-section='access']")));
+        Assert.NotEmpty(access.FindAll("[data-nav-row='delete']"));
     }
 
     [Fact]

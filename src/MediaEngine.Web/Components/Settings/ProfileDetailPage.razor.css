@@ -30,9 +30,3 @@
     .profile-detail__name { font-size: var(--tl-type-hero-size); }
     .profile-detail__role { font-size: var(--tl-type-heading-size); }
 }
-
-.access-phone-note {
-    margin: 0 0 1rem;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-secondary-size);
-}

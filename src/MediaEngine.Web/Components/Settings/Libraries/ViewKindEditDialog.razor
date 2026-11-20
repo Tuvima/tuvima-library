@@ -124,7 +124,7 @@
     /// <summary>First-run setup: only the Shared Library's folders exist, and nothing is scanned.</summary>
     [Parameter] public string? SetupSession { get; set; }
 
-    /// <summary>A centred window on a computer, a sheet on a phone (Look v3 D14).</summary>
+    /// <summary>A centred window on a larger screen, a sheet on a phone (Look v3 D14).</summary>
     public static AppDialogOptions DialogOptions { get; } = new() { Size = AppWindowSize.Medium, MaxWidth = AppMaxWidth.Medium, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true, Sheet = AppDialogSheetMode.Phone };
 
     // Friendly names edited here (source id to name), folders marked for removal, and folders collected by Add folder; nothing is sent until Save changes.

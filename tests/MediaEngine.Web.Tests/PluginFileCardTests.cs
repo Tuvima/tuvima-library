@@ -127,7 +127,7 @@ public sealed class PluginFileCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnThePage_TheFileCardIsLast_AndFollowsTheDeviceRule()
+    public async Task OnThePage_TheFileCardIsLast_OnADesktopAndOnAPhone()
     {
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", Touch: false, FinePointer: true, Hover: true));
@@ -140,7 +140,8 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         await device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", Touch: true));
         var phone = RenderPage();
         phone.WaitForAssertion(() => Assert.NotEmpty(phone.FindAll("[data-card=file]")));
-        Assert.NotEmpty(phone.FindAll("[data-testid=plugin-file-computer-only]"));
+        Assert.Empty(phone.FindAll("[data-testid=plugin-file-computer-only]"));
+        Assert.NotEmpty(phone.FindAll("[data-testid=plugin-file-card]"));
     }
 
     // ------------------------------------------------------------------------------------------------ The tokenizer

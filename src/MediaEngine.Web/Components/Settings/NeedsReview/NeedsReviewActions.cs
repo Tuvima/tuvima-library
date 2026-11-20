@@ -67,7 +67,7 @@ public sealed class NeedsReviewActions
     public required Action<IEnumerable<NeedsReviewRowDto>, bool> SetSelected { get; init; }
 
     /// <summary>
-    /// Whether tick boxes are drawn: always on a computer or tablet; on a phone only once something is ticked (Select in a row's menu ticks
+    /// Whether tick boxes are drawn: always except on a phone; on a phone only once something is ticked (Select in a row's menu ticks
     /// the first row), and they go again when nothing is.
     /// </summary>
     public bool TickBoxesShown => !IsPhone() || Selection.Count > 0;

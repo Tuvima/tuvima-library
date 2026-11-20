@@ -240,19 +240,15 @@ public sealed class EditorDeviceRuleTests
         Assert.Equal(0, spy.ShowCount);
     }
 
-    // The desktop-only rule survives only for the owners the spec names (Settings tools, the Vault, document auto-filing rules). Every other caller
-    // asks the item-editing rule, so a new editing surface cannot quietly bring the desktop-only rule back, and the Settings and Vault tools cannot
-    // quietly lose it. A phone reaches these tools' "Edit on a computer" line because they call EditorDeviceRule.CanEdit / TryRefuse.
+    // The desktop-only rule survives only for the owners the spec names (the Vault, document auto-filing rules on the View page). Every Settings page
+    // works on a phone (Look v3.2 D3), so none of them calls it any more; every other caller asks the item-editing rule, so a new editing surface
+    // cannot quietly bring the desktop-only rule back, and the Vault tools cannot quietly lose it.
     [Fact]
-    public void OnlySettingsVaultAndDocumentRulesKeepTheDesktopOnlyRule_EveryOtherCallerUsesTheItemRule()
+    public void OnlyVaultAndDocumentRulesKeepTheDesktopOnlyRule_SettingsAndEveryOtherCallerUseTheItemRule()
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
         string[] desktopOnly =
         [
-            "Components/Settings/PluginSettingsTab.razor",
-            "Components/Settings/Plugins/PluginSetupPage.razor",
-            "Components/Settings/Overview/OverviewImportPage.razor",
-            "Components/Settings/IngestionFlowEditor.razor",
             "Components/Vault/VaultUnmatchedList.razor",
             "Components/Vault/VaultIdentifyPanel.razor",
             "Components/Vault/VaultGalleryTools.razor",
@@ -288,9 +284,6 @@ public sealed class EditorDeviceRuleTests
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
         foreach (var file in new[]
         {
-            "Components/Settings/Plugins/PluginSetupPage.razor",
-            "Components/Settings/Overview/OverviewImportPage.razor",
-            "Components/Settings/IngestionFlowEditor.razor",
             "Components/Vault/VaultGalleryTools.razor",
         })
         {

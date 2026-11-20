@@ -7,8 +7,6 @@
 .access-permission-row.is-unavailable { opacity: .72; }
 .access-permission-row > div { display: flex; gap: .35rem; }
 
-.access-phone-note { margin: 0 0 1rem; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
-
 .access-cards { margin-bottom: 1rem; }
 .access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 .access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--tl-status-danger); font-size: var(--tl-type-secondary-size); }

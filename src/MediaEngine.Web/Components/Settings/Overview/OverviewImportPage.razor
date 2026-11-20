@@ -50,12 +50,12 @@
     private bool _packAdded;
     private string? _packMessage;
 
-    // A pack makes collections the person owns (audience Only me), so any adult profile on a desktop may add one; the Engine checks again.
-    private bool CanAddPack => EditorDeviceRule.CanEdit(Device) && CollectionAuthoringRule.CanCreate(Session);
+    // A pack makes collections the person owns (audience Only me), so any adult profile may add one on any screen; the Engine checks again.
+    private bool CanAddPack => CollectionAuthoringRule.CanCreate(Session);
 
     private async Task AddPackAsync(ImportRecognition recognition)
     {
-        if (_addingPack || EditorDeviceRule.TryRefuse(Device) || !CollectionAuthoringRule.CanCreate(Session))
+        if (_addingPack || !CollectionAuthoringRule.CanCreate(Session))
         {
             return;
         }
@@ -108,8 +108,8 @@
         _deviceNotice = null;
         if (await CollectionEditorLauncher.TryOpenAsync(request) == EditorLaunchResult.NotAvailableOnThisDevice)
         {
-            // Editing is desktop-only; the refusal is told in place rather than the button doing nothing.
-            _deviceNotice = EditorDeviceRule.Message;
+            // A TV or an unknown device cannot edit; the refusal is told in place rather than the button doing nothing.
+            _deviceNotice = EditorDeviceRule.ItemMessage;
             return;
         }
 

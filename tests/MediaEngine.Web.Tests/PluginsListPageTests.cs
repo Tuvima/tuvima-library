@@ -671,7 +671,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         cut.Find($"#{PluginSettingsTab.CardElementId(pluginId)} [data-state-card=plugin]");
 
     [Fact]
-    public async Task OnAPhone_TheListIsReadOnly_WithNoSearchOrFilters()
+    public async Task OnAPhone_TheListHasTheSearchFiltersAndSwitchesOfADesktop()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
         _plugins = [Plugin("a", "Alpha", enabled: true)];
@@ -679,8 +679,8 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         var cut = Render<PluginSettingsTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
-        Assert.Empty(cut.FindAll(".app-search-filter-row"));
-        Assert.Empty(cut.FindAll("input[role=switch]"));
+        Assert.NotEmpty(cut.FindAll(".app-search-filter-row"));
+        Assert.NotEmpty(cut.FindAll("input[role=switch]"));
     }
 
     private static int CardCount(IRenderedComponent<PluginSettingsTab> cut) => cut.FindAll("[data-state-card=plugin]").Count;

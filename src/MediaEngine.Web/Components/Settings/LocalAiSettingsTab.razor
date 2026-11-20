@@ -3,26 +3,18 @@
 @using MediaEngine.Web.Services.Settings
 @implements IDisposable
 @inject UIOrchestratorService Orchestrator
-@inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
 
 <div class="tl-page local-ai-settings">
     @switch (NormalizedSubsection)
     {
         case "models":
-            @* Desktop and tablet only, like the other runtime controls. *@
-            @if (!DeviceContext.IsMobile)
-            {
-                <ModelsTab />
-            }
+            <ModelsTab />
             break;
         case "advanced":
             @* Runtime settings, invalidate benchmark and diagnostics, then the plugin allowance, then the detailed usage table. *@
-            @if (!DeviceContext.IsMobile)
-            {
-                <LocalAiRuntimePanel />
-                <LocalAiBudgetPanel />
-            }
+            <LocalAiRuntimePanel />
+            <LocalAiBudgetPanel />
             <LocalAiUsagePanel View="LocalAiUsagePanel.LocalAiUsageView.Table" />
             break;
         default:
@@ -100,10 +92,7 @@
                               Action="@ModelsAction()" />;
     }
 
-    // The model and hardware page is desktop and tablet only, like the other runtime controls.
-    private RenderFragment? ModelsAction() => DeviceContext.IsMobile
-        ? null
-        : @<AppButton Label="Model and hardware" Href="/settings/ai/models" Size="AppControlSize.Compact" />;
+    private RenderFragment? ModelsAction() => @<AppButton Label="Model and hardware" Href="/settings/ai/models" Size="AppControlSize.Compact" />;
 
     private string ActiveModelName()
     {

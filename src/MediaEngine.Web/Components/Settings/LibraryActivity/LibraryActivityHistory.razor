@@ -119,7 +119,7 @@
     }
     else if (_runs.Count == 0 && NoLibraries)
     {
-        @* No libraries at all: nothing has been added yet, and the way forward is Add library (administrators on a computer only). *@
+        @* No libraries at all: nothing has been added yet, and the way forward is Add library (administrators only). *@
         <AppPageState Kind="AppPageStateKind.Empty"
                       Icon="@AppMaterialIcons.Outlined.History"
                       Title="@L["LibraryActivity_Empty"].Value"
@@ -223,7 +223,7 @@
     /// <summary>True when the Library has no libraries at all, so an empty History offers Add library.</summary>
     [Parameter] public bool NoLibraries { get; set; }
 
-    /// <summary>Opens the Add library window. Left unset when the person cannot add one (a phone), which hides the button.</summary>
+    /// <summary>Opens the Add library window. Left unset to hide the button.</summary>
     [Parameter] public EventCallback OnAddLibrary { get; set; }
 
     private readonly List<ActivityRunDto> _runs = [];

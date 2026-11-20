@@ -463,25 +463,16 @@ else
     private bool IsMobileRouteUnavailable =>
         DeviceContext.IsMobile
         && !SettingsNav.IsMobileRouteAvailable(_activeSection, _activeSubsection, Detail);
-    private string PageCanvasClass => string.Join(" ", new[]
-    {
-        "settings-page-canvas",
-        "settings-admin-panel",
-        DeviceContext.IsMobile && SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.SummaryOnly
-            ? "settings-mobile-summary"
-            : null,
-    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string PageCanvasClass => "settings-page-canvas settings-admin-panel";
     // Always the page this person is on (a page the phone menu leaves out is added to the list), never a fallback page.
     private string MobileNavigationValue => SettingsMenuBuilder.PhoneSelectorRoute(SettingsNavigationGroups, _activeSection);
     private bool IsMobileNavigationOptionSelected(string route) =>
         string.Equals(route, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
 
-    private string MobileUnavailableMessage => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
-        ? $"{GetHeroTitle()} is intentionally withheld from mobile because it contains complex configuration or diagnostic tools. Use a desktop or tablet for this workflow."
-        : $"This part of {GetHeroTitle()} contains configuration or diagnostic tools that are safer and easier to use on a desktop or tablet. The mobile overview remains available.";
-    private string MobileFallbackRoute => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
-        ? SettingsNav.RouteFor(SettingsSection.AdminOverview)
-        : SettingsNav.RouteFor(_activeSection);
+    // Only Developer Tools is withheld on a phone; every other Settings page works there (look-pass-v3-2 D3).
+    private string MobileUnavailableMessage =>
+        $"{GetHeroTitle()} is a developer page. Use a desktop or tablet for it.";
+    private string MobileFallbackRoute => SettingsNav.RouteFor(SettingsSection.AdminOverview);
 
     // The administrator banner sits above the breadcrumb on every Settings page; it draws nothing for anyone else or on a phone.
     private bool ShowAttentionBanner => Attention.IsServerAdministrator && !DeviceContext.IsMobile;

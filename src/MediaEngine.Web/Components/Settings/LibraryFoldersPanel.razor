@@ -29,8 +29,6 @@
     }
     else
     {
-        @* Shown on phones only (see the stylesheet): folders are read-only there, so every control that adds, converts or merges is hidden. *@
-        <p class="library-folders__phone-note">@PhoneNote</p>
         @if (_unknownType)
         {
             <div class="library-folders__detail">
@@ -244,7 +242,6 @@
 
     private LibraryTypeOption Selected => _selected;
 
-    private const string PhoneNote = "Add or change folders on a computer or tablet.";
     private LibraryFolderDto? SelectedLibrary => LibraryFor(_selected);
 
     protected override async Task OnInitializedAsync()

@@ -11,7 +11,6 @@
 @inject IJSRuntime JS
 @inject ILogger<ManagedAccessApplications> Logger
 @inject NavigationManager Navigation
-@implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="access-page">
@@ -29,44 +28,31 @@
     }
     else
     {
-        @if (!DeviceContext.IsPhone)
-        {
-            <AppListPageHeader>
-                <Actions>
-                    <span @ref="_returnFocus" tabindex="-1"><AppButton Label="@L["Common_NewIntegration"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></span>
-                </Actions>
-            </AppListPageHeader>
-        }
-        @if (DeviceContext.IsPhone)
-        {
-            <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
-        }
+        <AppListPageHeader>
+            <Actions>
+                <span @ref="_returnFocus" tabindex="-1"><AppButton Label="@L["Common_NewIntegration"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></span>
+            </Actions>
+        </AppListPageHeader>
         @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
         @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="@L["ManagedAccessApplications_LoadingApplications"].Value" /> }
         else if (_applications.Count == 0)
         {
             <AppEmptyState Title="@L["ManagedAccessApplications_NoIntegrations"].Value" Message="@L["ManagedAccessApplications_ConnectAnotherApplicationSecurelyTo"].Value">
                 <Action>
-                    @if (!DeviceContext.IsPhone)
-                    {
-                        <AppButton Label="@L["Common_NewIntegration"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" />
-                    }
+                    <AppButton Label="@L["Common_NewIntegration"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" />
                 </Action>
             </AppEmptyState>
         }
         else
         {
-            @if (!DeviceContext.IsPhone)
-            {
-                <AppSearchFilterRow Search="@_search" SearchChanged="@(value => Narrow(() => _search = value))" Placeholder="@L["ManagedAccessApplications_SearchIntegrationsByName"].Value"
-                                    Narrowed="@Narrowed" OnClear="@ClearFilters">
-                    <AppSelect Label="@L["Models_Status"].Value" HideLabel="true" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
-                               ValueChanged="@(value => Narrow(() => _statusFilter = value ?? "all"))" />
-                    <AppSelect Label="@L["Common_Access"].Value" HideLabel="true" Value="@_accessFilter" Options="@AccessOptions()" Native="true" FullWidth="false"
-                               ValueChanged="@(value => Narrow(() => _accessFilter = value ?? "all"))" />
-                    <AppLayoutSwitch StorageKey="tuvima.integrations.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["ManagedAccessApplications_IntegrationsLayout"].Value" />
-                </AppSearchFilterRow>
-            }
+            <AppSearchFilterRow Search="@_search" SearchChanged="@(value => Narrow(() => _search = value))" Placeholder="@L["ManagedAccessApplications_SearchIntegrationsByName"].Value"
+                                Narrowed="@Narrowed" OnClear="@ClearFilters">
+                <AppSelect Label="@L["Models_Status"].Value" HideLabel="true" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
+                           ValueChanged="@(value => Narrow(() => _statusFilter = value ?? "all"))" />
+                <AppSelect Label="@L["Common_Access"].Value" HideLabel="true" Value="@_accessFilter" Options="@AccessOptions()" Native="true" FullWidth="false"
+                           ValueChanged="@(value => Narrow(() => _accessFilter = value ?? "all"))" />
+                <AppLayoutSwitch StorageKey="tuvima.integrations.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["ManagedAccessApplications_IntegrationsLayout"].Value" />
+            </AppSearchFilterRow>
             <AppCountTabs Tabs="@KindTabs()" Selected="@_kindTab" AriaLabel="@L["ManagedAccessApplications_IntegrationKinds"].Value" SelectedChanged="@(key => Narrow(() => _kindTab = key))" />
             var visible = VisibleApplications();
             _page = Math.Clamp(_page, 1, Math.Max(1, (int)Math.Ceiling(visible.Count / (double)PageSize)));
@@ -123,7 +109,6 @@
     private ApplicationResponse? _editing;
         private ApplicationTypeDto _type = ApplicationTypeDto.UserClient;
     private bool _loading = true;
-    private bool _open;
     private bool _saving;
     private bool _enabled = true;
     private bool _administrator;
@@ -158,10 +143,7 @@
                                                                        data-integration-card="@app.Id" data-health="@DotWord(app)">
         <Logo>@IntegrationLogo(app)</Logo>
         <Aside>
-            @if (!DeviceContext.IsPhone)
-            {
-                <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" StopClickPropagation="true" />
-            }
+            <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" StopClickPropagation="true" />
         </Aside>
         <ChildContent>
             <div class="access-card__chips" data-testid="integration-access-chips">
@@ -182,15 +164,12 @@
                     <span class="access-foot__pill" role="status" data-testid="integration-failing-pill">Deliveries failing</span>
                 }
             </span>
-            @if (!DeviceContext.IsPhone)
-            {
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Settings"
-                               Tooltip="@($"{ButtonLabel(app)} {app.Name}")"
-                               AriaLabel="@($"{ButtonLabel(app)} for {app.Name}")"
-                               Href="@PageHref(app.Id, "overview")"
-                               Tone="@(DotTone(app) is AppStatusDotTone.Attention or AppStatusDotTone.Broken ? AppUiTone.Warning : AppUiTone.Neutral)"
-                               data-testid="integration-gear" />
-            }
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Settings"
+                           Tooltip="@($"{ButtonLabel(app)} {app.Name}")"
+                           AriaLabel="@($"{ButtonLabel(app)} for {app.Name}")"
+                           Href="@PageHref(app.Id, "overview")"
+                           Tone="@(DotTone(app) is AppStatusDotTone.Attention or AppStatusDotTone.Broken ? AppUiTone.Warning : AppUiTone.Neutral)"
+                           data-testid="integration-gear" />
         </Footer>
     </AppListCard>;
 
@@ -248,10 +227,7 @@
                                     RootTestId="integration-page"
                                     StatusTestId="integration-status-sentence">
             <Actions>
-                @if (!DeviceContext.IsPhone)
-                {
-                    <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" />
-                }
+                <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" />
             </Actions>
             <ChildContent>
                 @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
@@ -312,7 +288,7 @@
             <dd>@KindLabel(app)</dd>
             <dt>Keys</dt>
             <dd>@app.Credentials.Count(credential => credential.RevokedAt is null) active@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</dd>
-            @if (!DeviceContext.IsPhone && !IsProtected(app))
+            @if (!IsProtected(app))
             {
                 <dt>Delete</dt>
                 <dd>
@@ -394,10 +370,7 @@
     private RenderFragment KeysTab(ApplicationResponse app) => @<AppSettingsGroup Heading="Keys" Class="plugin-page__card">
         <div class="access-keys-head">
             <small>A key lets an app or service use this integration. A new key is shown once.</small>
-            @if (!DeviceContext.IsPhone)
-            {
-                <AppButton Label="Generate key" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="GenerateKeyAsync" data-testid="integration-generate-key" />
-            }
+            <AppButton Label="Generate key" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="GenerateKeyAsync" data-testid="integration-generate-key" />
         </div>
         @if (app.Credentials.Count == 0)
         {
@@ -405,22 +378,22 @@
         }
         else
         {
-            <AppTable Class="access-keys" data-testid="integration-keys-table">
+            <AppTable Class="access-keys" CardsOn="AppTableCardsMode.Phone" data-testid="integration-keys-table">
                 <thead>
-                    <tr><th scope="col" class="access-keys__narrow"><span class="access-rows__sr">Status</span></th><th scope="col">Name</th><th scope="col">Created</th><th scope="col">Last used</th><th scope="col">Expires</th><th scope="col"><span class="access-rows__sr">Actions</span></th></tr>
+                    <tr><th scope="col" class="access-keys__narrow" data-card-role="value"><span class="access-rows__sr">Status</span></th><th scope="col" data-card-role="title">Name</th><th scope="col" data-card-role="subtitle">Created</th><th scope="col">Last used</th><th scope="col">Expires</th><th scope="col" data-card-role="actions"><span class="access-rows__sr">Actions</span></th></tr>
                 </thead>
                 <tbody>
                     @foreach (var credential in app.Credentials)
                     {
                         var live = credential.RevokedAt is null;
                         <tr @key="credential.Id" class="access-key-row" data-credential-row="@credential.Id">
-                            <td><AppStatusDot Tick="true" Tone="@(live ? AppStatusDotTone.Working : AppStatusDotTone.Off)" Sentence="@(live ? "Active" : "Revoked")" /></td>
-                            <td><strong>@credential.Name</strong></td>
-                            <td>@credential.CreatedAt.ToLocalTime().ToString("g")</td>
-                            <td>@(credential.LastUsedAt is { } used ? used.ToLocalTime().ToString("g") : "Never")</td>
-                            <td>@ExpiryText(credential)</td>
-                            <td>
-                                @if (live && !DeviceContext.IsPhone)
+                            <td data-card-role="value"><AppStatusDot Tick="true" Tone="@(live ? AppStatusDotTone.Working : AppStatusDotTone.Off)" Sentence="@(live ? "Active" : "Revoked")" /></td>
+                            <td data-card-role="title"><strong>@credential.Name</strong></td>
+                            <td data-card-role="subtitle">@credential.CreatedAt.ToLocalTime().ToString("g")</td>
+                            <td data-label="Last used">@(credential.LastUsedAt is { } used ? used.ToLocalTime().ToString("g") : "Never")</td>
+                            <td data-label="Expires">@ExpiryText(credential)</td>
+                            <td data-card-role="actions">
+                                @if (live)
                                 {
                                     <AppRowMenu AriaLabel="@($"Actions for {credential.Name}")" Items="@KeyActions(credential)" />
                                 }
@@ -626,17 +599,6 @@
     private bool CanManage => Session.HasAction("applications.manage");
         private IEnumerable<ApplicationPermissionDefinitionDto> CompatiblePermissions => _permissions.Where(permission => permission.ApplicationTypes.Contains(_type)).OrderBy(permission => permission.Category).ThenBy(permission => permission.SortOrder);
 
-    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
-
-    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
-
-    private void DeviceChanged() => InvokeAsync(() =>
-    {
-        // Editing drawers never open on phones, so a switch to the phone form factor closes one that is already open.
-        if (DeviceContext.IsPhone && _open) Close();
-        StateHasChanged();
-    });
-
     protected override async Task OnInitializedAsync()
     {
         if (CanManage)
@@ -670,7 +632,6 @@
         if (!Guid.TryParse(IntegrationId, out var id) || _applications.FirstOrDefault(app => app.Id == id) is not { } app)
         {
             ResetDrawer();
-            _open = false;
             return;
         }
 
@@ -713,7 +674,6 @@
         var excluded = app.PermissionIds.Count(id => !IsCompatible(id, app.ApplicationType));
         if (excluded > 0)
             _message = $"{excluded} unavailable permission(s) are retained by the Engine but cannot be submitted from this editor.";
-        _open = true;
     }
 
     private Guid? _deleteRequestedFor;
@@ -1029,7 +989,6 @@
     {
         _drawerGeneration++;
         _saving = false;
-        _open = false;
         _plaintext = null;
         _restoreFocus = true;
         if (!string.IsNullOrWhiteSpace(IntegrationId))

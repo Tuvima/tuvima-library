@@ -96,7 +96,7 @@ public static class SettingsMenuBuilder
             .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(current), StringComparer.OrdinalIgnoreCase) == true)?.Route
         ?? SettingsNav.RouteFor(current);
 
-    /// <summary>The phone selector's line: the name, and the amber review count in brackets beside Libraries for administrators, as on a computer (issue 930).</summary>
+    /// <summary>The phone selector's line: the name, and the amber review count in brackets beside Libraries for administrators, as on a larger screen (issue 930).</summary>
     private static string PhoneLabel(MediaSectionNavigationItem item) =>
         item.MetaIsNotification && !string.IsNullOrWhiteSpace(item.Meta) ? $"{item.Label} ({item.Meta})" : item.Label;
 

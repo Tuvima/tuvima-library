@@ -519,7 +519,7 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
     [Theory]
     [InlineData("phone")]
     [InlineData("tablet")]
-    public async Task APackFileDroppedOnImport_CannotBeAddedOnAPhoneOrTablet(string formFactor)
+    public async Task APackFileDroppedOnImport_CanBeAddedOnAPhoneOrTabletLikeOnADesktop(string formFactor)
     {
         await UseDeviceAsync(formFactor, fine: formFactor == "tablet", hover: formFactor == "tablet");
         SignIn();
@@ -527,7 +527,7 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
 
         cut.WaitForElement("[data-import-frame]");
 
-        Assert.Empty(cut.FindAll("[data-import-add-pack]"));
+        Assert.NotEmpty(cut.FindAll("[data-import-add-pack]"));
     }
 
     [Fact]

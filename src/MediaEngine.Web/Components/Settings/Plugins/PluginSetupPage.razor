@@ -35,7 +35,7 @@ else
             @* The Plugin file is its own tab, full width (v6 D65). *@
             var fileCard = _page.Cards.FirstOrDefault(card => card.Key == "file") ?? new PluginSetupCardDto { Key = "file", Title = "Plugin file" };
             <div id="@CardId("file")" class="plugin-card" data-card="file">
-                <PluginFileCard PluginId="@Plugin.Id" Card="@fileCard" CanView="@CanViewFile" CanEdit="@CanViewFile" Changed="@ChangedAsync" />
+                <PluginFileCard PluginId="@Plugin.Id" Card="@fileCard" CanView="true" CanEdit="true" Changed="@ChangedAsync" />
             </div>
         }
         else
@@ -80,9 +80,6 @@ else
     private readonly CancellationTokenSource _disposed = new();
     private readonly HashSet<string> _glowing = new(StringComparer.Ordinal);
     private PluginSetupPageResponse? _page;
-
-    // Reading a plugin's file follows the same device rule as editing an item: a desktop with a fine, hovering pointer. Unknown means no.
-    private bool CanViewFile => EditorDeviceRule.CanEdit(Services.GetService<DeviceContextService>());
 
     private PluginSetupContext _context = new(false, false, false);
     private PluginCheckNowResponse? _testResult;
@@ -726,11 +723,8 @@ else
         {
             <p class="plugin-card__line" data-testid="plugin-about-text">@about.Text</p>
         }
-        @if (CanViewFile)
-        {
-            <AppButton Label="Plugin file" StartIcon="@AppMaterialIcons.Outlined.Description" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact"
-                       Href="@($"/settings/plugins/{Uri.EscapeDataString(Plugin.Id)}/file")" data-testid="plugin-file-link" />
-        }
+        <AppButton Label="Plugin file" StartIcon="@AppMaterialIcons.Outlined.Description" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact"
+                   Href="@($"/settings/plugins/{Uri.EscapeDataString(Plugin.Id)}/file")" data-testid="plugin-file-link" />
     </text>;
 
     private static string WeightWords(string weight) => weight switch
