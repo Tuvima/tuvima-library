@@ -61,7 +61,7 @@ public sealed class GeneralPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void General_ShowsRightNow_ThenNameAndAddress_ThenLanguageAndRegion_AndNoNotifications()
+    public void General_ShowsNameAndAddress_ThenLanguageAndRegion_WithNoStatusTilesAndNoNotifications()
     {
         var cut = Render<GeneralPage>();
 
@@ -72,6 +72,9 @@ public sealed class GeneralPageTests : AsyncBunitContext
         Assert.True(name >= 0 && name < language, "Name and address, then Language and region.");
         Assert.Empty(cut.FindAll("[data-testid='general-notifications']"));
         Assert.Contains("Name and address", cut.Markup, StringComparison.Ordinal);
+        // The two status tiles ("Adding to your library", "Playing now") are gone: the tabs already show that status.
+        Assert.Empty(cut.FindAll("[data-testid='general-right-now']"));
+        Assert.DoesNotContain("Adding to your library", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

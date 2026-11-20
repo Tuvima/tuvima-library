@@ -259,12 +259,13 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void StoreSlots_AreHiddenWhileNoLinkIsConfigured()
+    public void StoreSlots_AreHiddenWhileNoLinkIsConfigured_WithNoWillBeLinkedPlaceholder()
     {
         var cut = RenderPage();
 
         Assert.Empty(cut.FindAll("[data-apps-stores]"));
-        Assert.NotEmpty(cut.FindAll("[data-apps-stores-empty]"));
+        Assert.Empty(cut.FindAll("[data-apps-stores-empty]"));
+        Assert.DoesNotContain("once they are published", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

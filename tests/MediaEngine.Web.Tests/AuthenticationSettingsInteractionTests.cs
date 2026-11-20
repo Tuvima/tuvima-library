@@ -23,6 +23,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     private CancellationToken _saveToken;
     private bool _throwOnSave;
     private bool _saveSucceeds;
+    private UpdateAuthSettingsRequest? _lastRequest;
 
     public AuthenticationSettingsInteractionTests()
     {
@@ -38,10 +39,11 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
             {
                 _saveCalls++;
                 _saveToken = (CancellationToken)args![1]!;
+                _lastRequest = args[0] as UpdateAuthSettingsRequest;
                 _saveStarted.TrySetResult();
                 return _throwOnSave
                     ? Task.FromException<AuthSettingsDto?>(new InvalidOperationException("simulated failure"))
-                    : _saveSucceeds ? Task.FromResult<AuthSettingsDto?>(_settings) : WaitForCancellationAsync(_saveToken);
+                    : _saveSucceeds ? Task.FromResult<AuthSettingsDto?>(_settings = Echo(_settings, _lastRequest)) : WaitForCancellationAsync(_saveToken);
             });
         }));
         Services.AddSingleton(_ => _registered);
@@ -69,26 +71,32 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AdvancedTab_HoldsEverySignInControlUnderOneOfThreeHeadings()
+    public void AdvancedTab_HoldsEverySignInControlWithoutTheDoubledAuthenticationHeadings()
     {
         var cut = Render<SecurityTab>();
         cut.WaitForElement(".security-settings__facts");
 
-        Assert.Equal(["How people sign in", "Sessions and invitations", "Status"], cut.FindAll("h3").Select(h => h.TextContent.Trim()));
+        // The page and its Advanced tab already say where this is: no "Authentication" and no "How people sign in" heading.
+        Assert.Equal(["Sessions and invitations", "Status"], cut.FindAll("h3").Select(h => h.TextContent.Trim()));
+        Assert.DoesNotContain("Authentication", string.Concat(cut.FindAll("h2, h3").Select(h => h.TextContent)), StringComparison.Ordinal);
 
-        string[] InGroup(string id) => cut.Find($"#{id}").NextElementSibling is { } group ? [group.TextContent] : [];
-        var signIn = string.Concat(InGroup("security-group-sign-in")) + cut.Find("h4").TextContent;
-        Assert.Contains("Password sign-in", signIn, StringComparison.Ordinal);
+        var signIn = cut.Find("[data-testid='sign-in-switches']").TextContent + cut.Find("h4").TextContent;
+        Assert.Contains("Allow passwords", signIn, StringComparison.Ordinal);
+        Assert.Contains("Require sign-in for everyone", signIn, StringComparison.Ordinal);
         Assert.Contains("Passkey sign-in", signIn, StringComparison.Ordinal);
         Assert.Contains("External provider sign-in", signIn, StringComparison.Ordinal);
         Assert.Contains("External providers", signIn, StringComparison.Ordinal);
-        Assert.Single(cut.FindAll("select"), select => select.InnerHtml.Contains("Optional", StringComparison.Ordinal));
+        // The Authentication mode dropdown is gone; its three values live behind two switches.
+        Assert.Empty(cut.FindAll("select"));
+        Assert.DoesNotContain("Authentication mode", cut.Markup, StringComparison.Ordinal);
 
+        string[] InGroup(string id) => cut.Find($"#{id}").NextElementSibling is { } group ? [group.TextContent] : [];
         var sessions = string.Concat(InGroup("security-group-sessions"));
         Assert.Contains("Session lifetime (hours)", sessions, StringComparison.Ordinal);
         Assert.Contains("Maximum active sessions per account", sessions, StringComparison.Ordinal);
         Assert.Contains("Invitation lifetime (hours)", sessions, StringComparison.Ordinal);
-        Assert.Contains("Trusted local networks", sessions, StringComparison.Ordinal);
+        Assert.Contains("Extra home network ranges", sessions, StringComparison.Ordinal);
+        Assert.DoesNotContain("CIDR", sessions, StringComparison.Ordinal);
 
         var status = cut.Find("dl.security-settings__facts").TextContent;
         Assert.Contains("Public address", status, StringComparison.Ordinal);
@@ -216,6 +224,112 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
 
         Assert.Equal(0, _saveCalls);
         Assert.NotEmpty(cut.Find("[data-security-failure]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void TurningOffRequireSignIn_SavesAtOnce_AndShowsTheSavedNote()
+    {
+        _saveSucceeds = true;
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='Require sign-in for everyone']").Change(false);
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
+        Assert.Equal("Local", _lastRequest!.Mode);
+        Assert.True(_lastRequest.PasswordSignInEnabled);
+        cut.WaitForAssertion(() =>
+            Assert.Contains("Saved", cut.Find("[data-testid='sign-in-saved']").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-security-failure]"));
+    }
+
+    [Fact]
+    public void TurningOnRequireSignIn_SavesTheRequiredMode()
+    {
+        _saveSucceeds = true;
+        _settings = WithMode(ReadySettings(), "Local");
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='Require sign-in for everyone']").Change(true);
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
+        Assert.Equal("Required", _lastRequest!.Mode);
+    }
+
+    [Fact]
+    public void TurningOffAllowPasswords_SavesAtOnce_AndKeepsTheSignInMode()
+    {
+        _saveSucceeds = true;
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='Allow passwords']").Change(false);
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
+        Assert.False(_lastRequest!.PasswordSignInEnabled);
+        Assert.True(_lastRequest.PasskeySignInEnabled);
+        Assert.Equal("Required", _lastRequest.Mode);
+    }
+
+    [Fact]
+    public void TurningOnLinkedSignIn_MovesTheLocalModeToOptional_AndOffMovesItBack()
+    {
+        _saveSucceeds = true;
+        _settings = WithMode(ReadySettings(), "Local");
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='External provider sign-in']").Change(true);
+        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
+        Assert.True(_lastRequest!.ExternalSignInEnabled);
+        Assert.Equal("Optional", _lastRequest.Mode);
+
+        cut.Find("input[aria-label='External provider sign-in']").Change(false);
+        cut.WaitForAssertion(() => Assert.Equal(2, _saveCalls));
+        Assert.False(_lastRequest.ExternalSignInEnabled);
+        Assert.Equal("Local", _lastRequest.Mode);
+    }
+
+    [Fact]
+    public void TurningOffTheLastSignInMethod_ShowsAnInlineMessage_AndNeverCallsTheServer()
+    {
+        _settings = new AuthSettingsDto
+        {
+            Mode = "Required",
+            PasswordSignInEnabled = true,
+            PasskeySignInEnabled = false,
+            InvitationLifetimeHours = 168,
+            SessionLifetimeHours = 336,
+            MaximumActiveSessions = 20,
+        };
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='Allow passwords']").Change(false);
+
+        Assert.Equal(0, _saveCalls);
+        Assert.NotEmpty(cut.Find("[data-security-failure]").TextContent.Trim());
+        Assert.True(cut.Find("input[aria-label='Allow passwords']").HasAttribute("checked"));
+    }
+
+    // What the server keeps after a save: the stored settings with the request's sign-in switches applied.
+    private static AuthSettingsDto Echo(AuthSettingsDto stored, UpdateAuthSettingsRequest? request)
+    {
+        if (request is null) return stored;
+        var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(stored))!.AsObject();
+        json["mode"] = request.Mode;
+        json["password_sign_in_enabled"] = request.PasswordSignInEnabled;
+        json["passkey_sign_in_enabled"] = request.PasskeySignInEnabled;
+        json["external_sign_in_enabled"] = request.ExternalSignInEnabled;
+        return System.Text.Json.JsonSerializer.Deserialize<AuthSettingsDto>(json.ToJsonString())!;
+    }
+
+    private static AuthSettingsDto WithMode(AuthSettingsDto source, string mode)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(source))!.AsObject();
+        json["mode"] = mode;
+        return System.Text.Json.JsonSerializer.Deserialize<AuthSettingsDto>(json.ToJsonString())!;
     }
 
     private static async Task<AuthSettingsDto?> WaitForCancellationAsync(CancellationToken ct)

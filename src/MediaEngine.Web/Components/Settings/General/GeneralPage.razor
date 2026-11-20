@@ -3,7 +3,7 @@
 @using MediaEngine.Web.Components.Settings.PlayingNow
 @inject IStringLocalizer<SharedStrings> L
 
-@* Server > General, four tabs (spec playing-now-and-general-tabs D16): General (Right now, name and address, language and region), Notifications
+@* Server > General, four tabs (spec playing-now-and-general-tabs D16): General (name and address, language and region), Notifications
    (the whole notifications panel and its email test), Library activity (what is being added) and Playing now (what is being watched and prepared). *@
 <div class="general-page" data-testid="general-page" data-tab="@Tab">
     @if (Tab == SettingsNav.NotificationsSubsection)
@@ -25,8 +25,6 @@
     }
     else
     {
-        <GeneralRightNow />
-
         <GeneralNameAddressPanel />
 
         <LanguageRegionPanel />

@@ -66,7 +66,7 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
         var cut = RenderGate();
         await cut.InvokeAsync(() => cut.Find("input[aria-label='Administrator PIN']").Input("1234"));
         await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Contains("Unlock settings")).Click());
-        cut.WaitForAssertion(() => Assert.Contains("Engine is unavailable", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("server is unavailable", cut.Markup));
         Assert.DoesNotContain("protected-settings", cut.Markup);
         // Generated element ids are hex, so only an isolated "1234" would be the PIN leaking.
         Assert.DoesNotMatch(@"(?<![0-9a-fA-F])1234(?![0-9a-fA-F])", cut.Markup);
