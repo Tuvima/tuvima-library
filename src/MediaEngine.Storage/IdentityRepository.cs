@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
@@ -257,6 +258,27 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         return changed;
     }, ct);
 
+    public Task<int> RevokeSessionsIssuedFromOutsideAsync(DateTimeOffset revokedAt, string reason, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
+    {
+        token.ThrowIfCancellationRequested();
+        var affected = connection.Query<Guid>("""
+            SELECT id FROM auth_sessions WHERE issued_ingress=@remote AND revoked_at IS NULL;
+            """, new { remote = ClientIngress.Remote }, transaction).ToArray();
+        if (affected.Length == 0)
+        {
+            return 0;
+        }
+
+        var changed = connection.Execute("""
+            UPDATE auth_sessions SET revoked_at=@revokedAt, revoked_reason=@reason
+            WHERE issued_ingress=@remote AND revoked_at IS NULL;
+            """, new { remote = ClientIngress.Remote, revokedAt = revokedAt.ToString("O"), reason }, transaction);
+        connection.Execute("DELETE FROM profile_admin_unlocks WHERE session_id IN @affected;",
+            new { affected = affected.Select(GuidSql.ToBlob).ToArray() }, transaction);
+        return changed;
+    }, ct);
+
     public Task InsertRecoveryCodesAsync(IReadOnlyList<PasswordRecoveryCode> codes, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); if (codes.Count == 0)
@@ -437,8 +459,8 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
             INSERT INTO identity_audit_events(account_id,profile_id,session_id,event_type,succeeded,detail,occurred_at)
             VALUES(@accountId,@profileId,@sessionId,@eventType,@succeeded,@detail,@occurredAt);
             DELETE FROM identity_audit_events
-            WHERE event_type IN (@signedIn,@refused)
-              AND id NOT IN (SELECT id FROM identity_audit_events WHERE event_type IN (@signedIn,@refused) ORDER BY id DESC LIMIT @retained);
+            WHERE event_type = @eventType
+              AND id NOT IN (SELECT id FROM identity_audit_events WHERE event_type = @eventType ORDER BY id DESC LIMIT @retained);
             """,
             new
             {
@@ -449,9 +471,8 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
                 succeeded = succeeded ? 1 : 0,
                 detail = $"{ingressKind}|{method}",
                 occurredAt = occurredAt.ToString("O"),
-                signedIn = OutsideSignInEventTypes.SignedIn,
-                refused = OutsideSignInEventTypes.Refused,
-                retained = OutsideSignInEventTypes.RetainedRows,
+                // Sign-ins and refusals are trimmed separately, so refusals can never push sign-ins out of the history.
+                retained = succeeded ? OutsideSignInEventTypes.RetainedSignIns : OutsideSignInEventTypes.RetainedRefusals,
             });
         return Task.CompletedTask;
     }

@@ -35,6 +35,19 @@ public interface INetworkDiagnosticsService
     Task<NetworkBandwidthStatusDto> TestBandwidthAsync(CancellationToken ct);
 }
 
+/// <summary>
+/// The safe one-click fixes the guided away-from-home flow offers for a failed check (spec remote-access D12). Each one changes
+/// a single setting, only ever makes outside visitors easier to tell apart from people at home, and can be repeated.
+/// </summary>
+public interface IRemoteFixService
+{
+    /// <summary>
+    /// Lets Library trust the proxy or tunnel running on this computer: the Dashboard listens on its dedicated proxy port, where
+    /// every visitor counts as outside and forwarded visitor details are believed (from this computer only).
+    /// </summary>
+    RemoteFixResultDto TrustProxy();
+}
+
 public interface IRemoteCheckService
 {
     /// <param name="skipRequested">The person chose "Not now" in the guided flow.</param>

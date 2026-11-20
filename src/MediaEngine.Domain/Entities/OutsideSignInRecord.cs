@@ -22,6 +22,15 @@ public static class OutsideSignInEventTypes
     public const string SignedIn = "outside_sign_in";
     public const string Refused = "outside_sign_in_refused";
 
-    /// <summary>How many of these rows are kept; older ones are dropped as new ones arrive, so the history cannot grow without limit.</summary>
-    public const int RetainedRows = 200;
+    /// <summary>How many sign-ins are kept; older ones are dropped as new ones arrive, so the history cannot grow without limit.</summary>
+    public const int RetainedSignIns = 200;
+
+    /// <summary>
+    /// How many refusals are kept. Refusals are counted apart from sign-ins, so a flood of turned-away attempts can never push
+    /// out the record of who really got in.
+    /// </summary>
+    public const int RetainedRefusals = 100;
+
+    /// <summary>The most rows the history can hold (and the most a list can ask for).</summary>
+    public const int RetainedRows = RetainedSignIns + RetainedRefusals;
 }

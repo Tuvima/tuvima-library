@@ -25,6 +25,8 @@ public sealed class OutsideSignInGateTests : IDisposable
     private readonly IdentityRepository _identities;
     private readonly AccountRepository _accounts;
     private readonly FirstPartyIdentityService _service;
+    private readonly FirstPartyIdentityService _switched;
+    private readonly OutsideAccessSwitch _outsideAccess = new();
     private readonly DateTimeOffset _now = new(2026, 11, 20, 12, 0, 0, TimeSpan.Zero);
 
     public OutsideSignInGateTests()
@@ -38,6 +40,11 @@ public sealed class OutsideSignInGateTests : IDisposable
             _identities, _accounts, new ProfileRepository(_database),
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
             new FixedTime(_now), new FixedPolicy());
+        // The same data, but holding the away-from-home switch (on until a test turns it off).
+        _switched = new FirstPartyIdentityService(
+            _identities, _accounts, new ProfileRepository(_database),
+            new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
+            new FixedTime(_now), new FixedPolicy(), outsideAccess: _outsideAccess);
     }
 
     [Theory]
@@ -184,18 +191,144 @@ public sealed class OutsideSignInGateTests : IDisposable
     }
 
     [Fact]
-    public async Task TheOutsideHistory_IsNewestFirst_AndKeepsOnlyTheLatestTwoHundred()
+    public async Task TheOutsideHistory_IsNewestFirst_AndKeepsOnlyTheLatestHundredRefusals()
     {
         await _service.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
 
-        for (var attempt = 0; attempt < OutsideSignInEventTypes.RetainedRows + 5; attempt++)
+        for (var attempt = 0; attempt < OutsideSignInEventTypes.RetainedRefusals + 5; attempt++)
         {
             await _service.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.Remote);
         }
 
         var kept = await _identities.GetRecentOutsideSignInsAsync(1000);
-        Assert.Equal(OutsideSignInEventTypes.RetainedRows, kept.Count);
+        Assert.Equal(OutsideSignInEventTypes.RetainedRefusals, kept.Count);
         Assert.Equal(20, (await _identities.GetRecentOutsideSignInsAsync(20)).Count);
+    }
+
+    [Fact]
+    public async Task AFloodOfRefusals_NeverPushesOutTheRecordOfWhoGotIn()
+    {
+        var owner = await _service.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard");
+        await _service.AuthenticatePasswordAsync("owner@example.com", Password, "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote);
+        var thisComputerOnly = await InsertInvitedAccountAsync("family@example.com");
+
+        for (var attempt = 0; attempt < OutsideSignInEventTypes.RetainedRefusals * 3; attempt++)
+        {
+            await Assert.ThrowsAsync<OutsideSignInRefusedException>(() =>
+                _service.CreatePasskeySessionAsync(thisComputerOnly.Id, "p", "Phone", "Dashboard", ingress: ClientIngress.Remote));
+        }
+
+        var history = await _identities.GetRecentOutsideSignInsAsync(1000);
+        Assert.Equal(OutsideSignInEventTypes.RetainedRefusals, history.Count(record => !record.Succeeded));
+        Assert.Contains(history, record => record.Succeeded && record.ProfileName == "Owner");
+        _ = owner;
+    }
+
+    // ---- The away-from-home switch is real (spec remote-access D6) ----
+
+    [Fact]
+    public async Task SignInFromOutside_IsRefusedWithTheOffReason_ByEveryWayIn_WhileOutsideAccessIsOff()
+    {
+        var owner = await _switched.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        _outsideAccess.On = false;
+
+        var password = await _switched.AuthenticatePasswordAsync("owner@example.com", Password, "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote);
+        var wrongPassword = await _switched.AuthenticatePasswordAsync("owner@example.com", "not the password at all", "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote);
+        var linked = await Assert.ThrowsAsync<OutsideSignInRefusedException>(() =>
+            _switched.CreateExternalSessionAsync(owner.Account.Id, "google", "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote));
+        var passkey = await Assert.ThrowsAsync<OutsideSignInRefusedException>(() =>
+            _switched.CreatePasskeySessionAsync(owner.Account.Id, "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote));
+
+        Assert.False(password.Succeeded);
+        Assert.Equal(OutsideSignInRefusedException.AccessOffMessage, password.Error);
+        Assert.Equal("outside_access_off", OutsideSignInRefusedException.CodeForMessage(password.Error));
+        Assert.Equal(password.Error, wrongPassword.Error); // a wrong password learns nothing either
+        Assert.Equal("outside_access_off", linked.ReasonCode);
+        Assert.Equal("outside_access_off", passkey.ReasonCode);
+        Assert.Single(await _switched.GetSessionsAsync(owner.Account.Id)); // only the setup session
+    }
+
+    [Fact]
+    public async Task SignInFromOutside_WorksWithAPassword_WhileOutsideAccessIsOn()
+    {
+        await _switched.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
+
+        var attempt = await _switched.AuthenticatePasswordAsync("owner@example.com", Password, "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote);
+
+        Assert.True(attempt.Succeeded);
+        Assert.Equal(ClientIngress.Remote, attempt.IssuedSession!.Session.IssuedIngress);
+    }
+
+    [Fact]
+    public async Task SignInFromTheHomeNetworkAndThisComputer_IsUnchanged_WhileOutsideAccessIsOff()
+    {
+        var owner = await _switched.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        _outsideAccess.On = false;
+
+        var home = await _switched.SignInThisComputerAccountAsync("tv", "TV", "Dashboard", ClientIngress.HomeNetwork);
+        var local = await _switched.SignInThisComputerAccountAsync("pc", "PC", "Dashboard", ClientIngress.ThisComputer);
+
+        Assert.Equal(ClientIngress.HomeNetwork, home!.Session.IssuedIngress);
+        Assert.NotNull(local);
+        Assert.NotNull(await _switched.CreatePasskeySessionAsync(owner.Account.Id, "tv", "TV", "Dashboard", ingress: ClientIngress.HomeNetwork));
+        Assert.Empty(await _identities.GetRecentOutsideSignInsAsync(20)); // a refusal because of the switch is not an outside sign-in record
+    }
+
+    [Fact]
+    public async Task AnInvitationFromOutside_IsRefusedWhileOff_WithoutUsingUpItsCode()
+    {
+        await _switched.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var invited = await InsertInvitedAccountAsync("family@example.com");
+        const string code = "WD5N8RB3CJ";
+        await _accounts.InsertInvitationAsync(new AccountInvitation
+        {
+            Id = Guid.NewGuid(),
+            AccountId = invited.Id,
+            TokenHash = InvitationCode.Hash(code),
+            CreatedAt = _now,
+            ExpiresAt = _now.AddDays(7),
+        });
+        _outsideAccess.On = false;
+
+        var refusal = await Assert.ThrowsAsync<OutsideSignInRefusedException>(() =>
+            _switched.AcceptInvitationAsync(code, "family password", "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote));
+
+        Assert.Equal("outside_access_off", refusal.ReasonCode);
+        Assert.NotNull(await _switched.PreviewInvitationAsync(code)); // still usable
+        Assert.NotNull(await _switched.AcceptInvitationAsync(code, "family password", "laptop", "Laptop", "Dashboard", ingress: ClientIngress.HomeNetwork));
+    }
+
+    [Fact]
+    public async Task RequestsFromOutside_AreNotServed_WhileOff_ButTheSameSessionStillWorksAtHome()
+    {
+        var owner = await _switched.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var homeSession = await _switched.AuthenticatePasswordAsync("owner@example.com", Password, "tv", "TV", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var token = homeSession.IssuedSession!.PlaintextToken;
+        _outsideAccess.On = false;
+
+        Assert.Null(await _switched.ValidateSessionAsync(token, false, currentIngress: ClientIngress.Remote));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _switched.SwitchActiveProfileAsync(token, owner.Profile.Id, null, currentIngress: ClientIngress.Remote));
+        Assert.NotNull(await _switched.ValidateSessionAsync(token, false, currentIngress: ClientIngress.HomeNetwork));
+        Assert.NotNull(await _switched.ValidateSessionAsync(token, false, currentIngress: null));
+    }
+
+    [Fact]
+    public async Task EndingOutsideSessions_EndsOnlyThoseSignedInFromOutside()
+    {
+        var owner = await _switched.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var home = (await _switched.AuthenticatePasswordAsync("owner@example.com", Password, "tv", "TV", "Dashboard", ingress: ClientIngress.HomeNetwork)).IssuedSession!;
+        var outside = (await _switched.AuthenticatePasswordAsync("owner@example.com", Password, "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote)).IssuedSession!;
+        _outsideAccess.On = false;
+
+        var ended = await _switched.EndOutsideSessionsAsync("outside_access_off");
+
+        Assert.Equal(1, ended);
+        var sessions = await _switched.GetSessionsAsync(owner.Account.Id);
+        Assert.Equal("outside_access_off", sessions.Single(session => session.Id == outside.Session.Id).RevokedReason);
+        Assert.All(sessions.Where(session => session.Id != outside.Session.Id), session => Assert.Null(session.RevokedAt));
+        Assert.NotNull(await _switched.ValidateSessionAsync(home.PlaintextToken, false, currentIngress: ClientIngress.HomeNetwork));
+        Assert.Equal(0, await _switched.EndOutsideSessionsAsync("outside_access_off")); // safe to repeat
     }
 
     private async Task<Account> InsertInvitedAccountAsync(string email, bool administrator = false, Guid? householdId = null)
@@ -229,5 +362,12 @@ public sealed class OutsideSignInGateTests : IDisposable
     private sealed class FixedPolicy : IAuthenticationPolicyProvider
     {
         public AuthSettings GetCurrent() => new();
+    }
+
+    private sealed class OutsideAccessSwitch : IOutsideAccessPolicy
+    {
+        public bool On { get; set; } = true;
+
+        public bool IsOutsideAccessOn() => On;
     }
 }

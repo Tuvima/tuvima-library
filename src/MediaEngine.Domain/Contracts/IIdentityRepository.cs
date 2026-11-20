@@ -44,6 +44,8 @@ public interface IIdentityRepository
     Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default);
     Task<bool> RevokeSessionAsync(Guid sessionId, DateTimeOffset revokedAt, string reason, CancellationToken ct = default);
     Task<int> RevokeAccountSessionsAsync(Guid accountId, DateTimeOffset revokedAt, string reason, Guid? exceptSessionId = null, CancellationToken ct = default);
+    /// <summary>Ends every active session that was signed in from outside the home network (<see cref="Authorization.ClientIngress.Remote"/> as its issued place). Returns how many ended.</summary>
+    Task<int> RevokeSessionsIssuedFromOutsideAsync(DateTimeOffset revokedAt, string reason, CancellationToken ct = default);
 
     Task InsertRecoveryCodesAsync(IReadOnlyList<PasswordRecoveryCode> codes, CancellationToken ct = default);
     Task<PasswordRecoveryCode?> GetActiveRecoveryCodeAsync(Guid accountId, string codeHash, DateTimeOffset now, CancellationToken ct = default);
@@ -83,7 +85,7 @@ public interface IIdentityRepository
     /// <summary>
     /// Records one attempt to sign in from outside the home network in the sign-in audit log (success or refusal), keeping
     /// only the person's profile, the method and the coarse kind of place, never an address. The log keeps the newest
-    /// <see cref="OutsideSignInEventTypes.RetainedRows"/> of these and drops older ones.
+    /// <see cref="OutsideSignInEventTypes.RetainedSignIns"/> sign-ins and the newest <see cref="OutsideSignInEventTypes.RetainedRefusals"/> refusals, and drops older ones.
     /// </summary>
     Task WriteOutsideSignInAsync(Guid? accountId, Guid? profileId, Guid? sessionId, bool succeeded, string ingressKind, string method, DateTimeOffset occurredAt, CancellationToken ct = default);
 

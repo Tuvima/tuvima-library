@@ -76,6 +76,7 @@ public static class AuthenticationEndpoints
         .WithName("SignInThisComputer")
         .Produces<AuthSessionResponse>()
         .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireRateLimiting("authentication")
         .RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/login", async (LocalLoginRequest request, IFirstPartyIdentityService identity,
@@ -84,9 +85,9 @@ public static class AuthenticationEndpoints
             var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
                 request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
 
-            if (IsOutsideRefusal(result.Error))
+            if (OutsideSignInRefusedException.CodeForMessage(result.Error) is { } refusalCode)
             {
-                return OutsideRefusal();
+                return OutsideRefusal(refusalCode, result.Error!);
             }
 
             // A right password for an account with two-step codes on is only the first step.
@@ -120,9 +121,9 @@ public static class AuthenticationEndpoints
             var result = await identity.CompleteTwoStepSignInAsync(request.PendingToken, request.Code, ct,
                 ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
 
-            if (IsOutsideRefusal(result.Error))
+            if (OutsideSignInRefusedException.CodeForMessage(result.Error) is { } refusalCode)
             {
-                return OutsideRefusal();
+                return OutsideRefusal(refusalCode, result.Error!);
             }
 
             return result.Succeeded && result.IssuedSession is not null
@@ -215,7 +216,7 @@ public static class AuthenticationEndpoints
                 return Results.Ok(await ToResponseAsync(await identity.CreateExternalSessionAsync(
                     linked.AccountId, verified.Provider, request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
             }
-            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
+            catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
         }).WithName("CreateExternalSession")
           .Produces<AuthSessionResponse>()
@@ -302,7 +303,7 @@ public static class AuthenticationEndpoints
             }
 
             try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
-            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
+            catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).WithName("AcceptAccountInvitation").Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
@@ -397,7 +398,7 @@ public static class AuthenticationEndpoints
                     ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
                 return Results.Ok(await ToResponseAsync(issued, projector, ct));
             }
-            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
+            catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
             catch (UnauthorizedAccessException ex)
@@ -585,7 +586,7 @@ public static class AuthenticationEndpoints
             {
                 return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
             }
-            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
+            catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
         }).Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/passkeys/registration/options", async (BeginPasskeyRegistrationRequest request,
@@ -970,9 +971,11 @@ public static class AuthenticationEndpoints
     private static bool WasForwarded(HttpRequest request) => RequestIngress.WasForwarded(request);
 
     /// <summary>The refusal the Engine sends when a person with no password or passkey tries to sign in from outside the home network.</summary>
-    private static IResult OutsideRefusal() => ApiErrors.Forbidden(OutsideSignInRefusedException.Code, OutsideSignInRefusedException.PlainMessage);
-
-    private static bool IsOutsideRefusal(string? error) => string.Equals(error, OutsideSignInRefusedException.PlainMessage, StringComparison.Ordinal);
+    /// <summary>
+    /// The refusal the Engine sends when someone tries to sign in from outside the home network and may not: the person has no
+    /// password or passkey (<c>outside_needs_password</c>) or away-from-home access is switched off (<c>outside_access_off</c>).
+    /// </summary>
+    private static IResult OutsideRefusal(string code, string message) => ApiErrors.Forbidden(code, message);
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, PreviewAccountInvitationRequest request) =>
         IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps)

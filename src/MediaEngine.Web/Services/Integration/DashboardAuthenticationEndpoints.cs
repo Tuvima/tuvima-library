@@ -324,6 +324,8 @@ public static class DashboardAuthenticationEndpoints
 
         app.MapGet("/auth/invite", async (HttpContext context, IAntiforgery antiforgery, DashboardIdentityClient identity, DashboardConfigurationReader configuration, string? code) =>
         {
+            // The invitation code is in this address, so no link on the page may carry it to another site as a referrer.
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
             if (string.IsNullOrWhiteSpace(code))
             {
                 // Someone who was handed a code rather than a link: ask for it, then continue with the same page.

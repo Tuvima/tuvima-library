@@ -43,7 +43,7 @@ public static class InviteAppHandoff
         html.Append($"<p><a class=\"button\" href=\"{WebUtility.HtmlEncode(AppLink(awayAddress, code))}\" data-invite-open-app>Open in the Library app</a></p>");
         if (StoreFor(userAgent, links) is { } store)
         {
-            html.Append($"<p class=\"supporting\"><a href=\"{WebUtility.HtmlEncode(store.Address)}\" data-invite-store>Get the Library app from {WebUtility.HtmlEncode(store.Name)}</a>, then open this link again.</p>");
+            html.Append($"<p class=\"supporting\"><a href=\"{WebUtility.HtmlEncode(store.Address)}\" rel=\"noreferrer\" data-invite-store>Get the Library app from {WebUtility.HtmlEncode(store.Name)}</a>, then open this link again.</p>");
         }
 
         html.Append("</div>");

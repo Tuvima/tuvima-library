@@ -23,7 +23,8 @@ public sealed class FirstPartyIdentityService(
     IAuthenticationPolicyProvider authenticationPolicy,
     ITwoStepSecretProtector? twoStepSecrets = null,
     INsfwAccessRepository? nsfwAccess = null,
-    IFirstRunSetupState? firstRunSetup = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService, IProfilePinVerifier
+    IFirstRunSetupState? firstRunSetup = null,
+    IOutsideAccessPolicy? outsideAccess = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService, IProfilePinVerifier, IOutsideSessionEnder
 {
     /// <summary>The name an authenticator app shows for this server.</summary>
     public const string TwoStepIssuer = "Tuvima Library";
@@ -161,7 +162,8 @@ public sealed class FirstPartyIdentityService(
             var credential = NewAccountCredential(account.Id, password!);
             await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
             var codes = await ReplaceRecoveryCodesAsync(account.Id, ct).ConfigureAwait(false);
-            var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+            // First-run setup happens before anyone could have switched outside access on, so it is not held to that switch.
+            var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct, duringSetup: true).ConfigureAwait(false);
             await AuditAsync(account.Id, profile.Id, issued.Session.Id, "administrator_bootstrap", true, null, ct).ConfigureAwait(false);
             return issued with { RecoveryCodes = codes };
         }
@@ -297,6 +299,9 @@ public sealed class FirstPartyIdentityService(
             throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         }
 
+        // With away-from-home access off, an invitation opened from outside is turned away before its code is used up.
+        RefuseOutsideWhileOff(ingress);
+
         // An invitation never hands out server administration from outside the home network: that sign-in is set up at home.
         // Refused before the code is used up, with the same words as any other bad code.
         if (ClientIngress.ParseCurrent(ingress) == ClientIngress.Remote
@@ -334,6 +339,19 @@ public sealed class FirstPartyIdentityService(
         // A null currentIngress means an internal, already-admitted caller that does not carry a request origin.
         if (currentIngress is not null && !ClientIngress.SessionMayContinue(session.IssuedIngress, currentIngress))
         {
+            return null;
+        }
+
+        // While away-from-home access is off, nothing is served to a visitor from outside, and a session that was signed in
+        // from outside is ended the moment it is seen (the config is only read for those two cases, never on a home request).
+        var fromOutside = currentIngress is not null && ClientIngress.ParseCurrent(currentIngress) == ClientIngress.Remote;
+        if ((fromOutside || session.IssuedIngress == ClientIngress.Remote) && !IsOutsideAccessOn())
+        {
+            if (session.IssuedIngress == ClientIngress.Remote)
+            {
+                await RevokeSessionAsync(session.Id, OutsideAccessOffReason, ct).ConfigureAwait(false);
+            }
+
             return null;
         }
 
@@ -805,6 +823,11 @@ public sealed class FirstPartyIdentityService(
             return invalid;
         }
 
+        if (OutsideAccessIsOffFor(ingress))
+        {
+            return new AuthenticationAttemptResult(false, false, OutsideSignInRefusedException.AccessOffMessage, null);
+        }
+
         var currentIngress = ClientIngress.Parse(ingress);
         if (!string.Equals(challenge.Ingress, currentIngress, StringComparison.Ordinal))
         {
@@ -955,6 +978,8 @@ public sealed class FirstPartyIdentityService(
     private async Task<AuthenticationAttemptResult> AuthenticateAccountAsync(Account? account, AccountCredential? credential, string secret, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {
         var now = UtcNow;
+        // With away-from-home access off, an outside attempt is turned away before the password is looked at, so it tells a guesser nothing.
+        if (OutsideAccessIsOffFor(ingress)) { return new(false, false, OutsideSignInRefusedException.AccessOffMessage, null); }
         if (account is null || !account.IsEnabled || credential is null) { await AuditAsync(account?.Id, null, null, "login_failed", false, "unknown_credential", ct).ConfigureAwait(false); return new(false, false, "Invalid credentials.", null); }
         // Only internet attempts count toward, or are blocked by, the lockout; home and
         // this-computer attempts are throttled per client address by the Dashboard instead.
@@ -1141,19 +1166,27 @@ public sealed class FirstPartyIdentityService(
     /// picks one of their household's profiles, with its PIN when set (users, profiles and households spec D3). A session that must first
     /// replace a temporary password is not marked: it can do nothing but change the password, and the session that follows is.
     /// </summary>
-    private async Task<SessionIssueResult> IssueSignInSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
+    private async Task<SessionIssueResult> IssueSignInSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct, bool duringSetup = false)
     {
         // The one door every interactive sign-in goes through (password, two-step, passkey, linked sign-in, invitation, this
         // computer): from anywhere that is not this computer or the home network (a forwarded, proxied or tunnelled visitor
         // included), a person with no password or passkey is refused, whatever the way in. Missing or unknown places count as outside.
         var outside = !ClientIngress.IsOnLocalNetwork(ingress);
+
+        // Away-from-home access switched off (remote-access spec D6): nobody signs in from outside, whatever the way in. It is
+        // not written to the outside history, so turned-away attempts cannot crowd out the record of who got in.
+        if (outside && !duringSetup && !IsOutsideAccessOn())
+        {
+            throw OutsideSignInRefusedException.AccessOff();
+        }
+
         if (outside && (account.IsThisComputerOnly || !await accounts.IsUserSecuredAsync(account.Id, ct).ConfigureAwait(false)))
         {
             await identities.WriteOutsideSignInAsync(account.Id, profile.Id, null, false, ClientIngress.ParseCurrent(ingress), method, UtcNow, ct).ConfigureAwait(false);
             throw new OutsideSignInRefusedException();
         }
 
-        var issued = await IssueSessionAsync(account, profile, stamp, method, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile, stamp, method, deviceId, deviceName, client, ingress, ct, fromOutside: outside && !duringSetup).ConfigureAwait(false);
         if (outside)
         {
             await identities.WriteOutsideSignInAsync(account.Id, profile.Id, issued.Session.Id, true, ClientIngress.ParseCurrent(ingress), method, UtcNow, ct).ConfigureAwait(false);
@@ -1184,7 +1217,7 @@ public sealed class FirstPartyIdentityService(
         return issued with { ChooseProfile = true };
     }
 
-    private async Task<SessionIssueResult> IssueSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
+    private async Task<SessionIssueResult> IssueSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct, bool fromOutside = false)
     {
         var gate = sessionIssueLocks.GetOrAdd(account.Id, static _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct).ConfigureAwait(false);
@@ -1216,7 +1249,8 @@ public sealed class FirstPartyIdentityService(
                 DeviceName = Sanitize(deviceName, 100, "Unknown device"),
                 Client = Sanitize(client, 200, "Dashboard"),
                 AuthenticationMethod = method,
-                IssuedIngress = ClientIngress.Parse(ingress),
+                // A session signed in from outside carries that place, so switching outside access off can end exactly those.
+                IssuedIngress = fromOutside ? ClientIngress.Remote : ClientIngress.Parse(ingress),
                 SecurityStamp = stamp,
                 CreatedAt = now,
                 LastSeenAt = now,
@@ -1230,6 +1264,35 @@ public sealed class FirstPartyIdentityService(
         {
             gate.Release();
         }
+    }
+
+    /// <summary>The reason recorded on a session that ended because away-from-home access was switched off.</summary>
+    public const string OutsideAccessOffReason = "outside_access_off";
+
+    // No policy wired (a host that never configures remote access) means outside access is on: the rules that always apply
+    // (a password or passkey is needed) still hold. The Engine always wires the configuration-backed policy.
+    private bool IsOutsideAccessOn() => outsideAccess?.IsOutsideAccessOn() ?? true;
+
+    private bool OutsideAccessIsOffFor(string ingress) => !ClientIngress.IsOnLocalNetwork(ingress) && !IsOutsideAccessOn();
+
+    private void RefuseOutsideWhileOff(string ingress)
+    {
+        if (OutsideAccessIsOffFor(ingress))
+        {
+            throw OutsideSignInRefusedException.AccessOff();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<int> EndOutsideSessionsAsync(string reason, CancellationToken ct = default)
+    {
+        var ended = await identities.RevokeSessionsIssuedFromOutsideAsync(UtcNow, SanitizeReason(reason), ct).ConfigureAwait(false);
+        if (ended > 0)
+        {
+            await AuditAsync(null, null, null, "outside_sessions_ended", true, ended.ToString(System.Globalization.CultureInfo.InvariantCulture), ct).ConfigureAwait(false);
+        }
+
+        return ended;
     }
 
     private async Task SetProfileSecretAsync(Guid profileId, ProfileCredentialKind kind, string? secret, CancellationToken ct)

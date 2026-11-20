@@ -7,6 +7,8 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Identity;
+using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage.Configuration;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,6 +42,7 @@ public static class NetworkEndpoints
             ClaimsPrincipal user,
             [FromServices] RecentSignInGuard recentSignIn,
             IOutsideAccessGate outsideAccess,
+            [FromServices] IOutsideSessionEnder outsideSessions,
             CancellationToken ct) =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
@@ -74,6 +77,12 @@ public static class NetworkEndpoints
             try
             {
                 configuration.SaveNetwork(proposed);
+                if (!proposed.Remote.HasOutsidePath)
+                {
+                    // Outside access is off: anyone still signed in from outside is signed out now, and home is not touched.
+                    await outsideSessions.EndOutsideSessionsAsync(OutsideSignInRefusedException.AccessOffCode, ct).ConfigureAwait(false);
+                }
+
                 return Results.Ok(NetworkContractMapper.ToContract(proposed));
             }
             catch (ConfigValidationException ex)
@@ -164,6 +173,7 @@ public static class NetworkEndpoints
         network.MapPost("/remote-off", async (
             IConfigurationLoader configuration,
             RouterPortMappingCoordinator routerMappings,
+            [FromServices] IOutsideSessionEnder outsideSessions,
             CancellationToken ct) =>
         {
             var current = configuration.LoadNetwork();
@@ -181,6 +191,10 @@ public static class NetworkEndpoints
                     return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
                 }
             }
+
+            // The Engine refuses outside sign-ins and outside requests from now on; everyone already signed in from outside is
+            // signed out. Home sessions are not touched. Safe to repeat.
+            await outsideSessions.EndOutsideSessionsAsync(OutsideSignInRefusedException.AccessOffCode, ct).ConfigureAwait(false);
 
             // With the mode back at local-only the coordinator removes the door it opened (and does nothing when there is none).
             await routerMappings.EnsureMappingAsync(ct).ConfigureAwait(false);

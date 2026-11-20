@@ -309,6 +309,7 @@ public sealed class RemoteAccessOwnDomainTests : AsyncBunitContext
 
         Assert.Contains("tuvima://invite?address=https%3A%2F%2Flibrary.example.com&amp;code=ABCDE-FGHIJ", iphone, StringComparison.Ordinal);
         Assert.Contains("apps.apple.com", iphone, StringComparison.Ordinal);
+        Assert.Contains("rel=\"noreferrer\" data-invite-store", iphone, StringComparison.Ordinal); // the invitation code is in this page's address
         Assert.DoesNotContain("data-invite-store", android, StringComparison.Ordinal);
         Assert.DoesNotContain("data-invite-store", desktop, StringComparison.Ordinal);
         Assert.Contains("data-invite-open-app", desktop, StringComparison.Ordinal);

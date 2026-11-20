@@ -172,12 +172,14 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<IPasskeyHandler<Account>, PasskeyHandler<Account>>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IAuthenticationPolicyProvider, ConfigurationAuthenticationPolicyProvider>();
+        services.AddSingleton<IOutsideAccessPolicy, ConfigurationOutsideAccessPolicy>();
         services.AddSingleton<AuthenticationProviderConfigurationService>();
         services.AddSingleton<AuthenticationPolicyMutationGate>();
         services.AddSingleton<ExternalIdentityTransactionService>();
         services.AddSingleton<IFirstRunSetupState, MediaEngine.Api.Services.FirstRunSetupState>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
         services.AddSingleton<IProfilePinVerifier>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
+        services.AddSingleton<IOutsideSessionEnder>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultAdministrationService>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultOperationGate>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultFolderAttachmentService>();
