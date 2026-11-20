@@ -574,6 +574,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton<NetworkStatusService>(_ => null!);
         builder.Services.AddSingleton<INetworkDiagnosticsService>(_ => null!);
         builder.Services.AddSingleton<RouterPortMappingCoordinator>(_ => null!);
+        builder.Services.AddSingleton<IRemoteCheckService>(_ => null!);
         var app = builder.Build();
         app.MapNetworkEndpoints();
         return app;

@@ -11442,6 +11442,28 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProviderTestResult
   Message: System.String | nullability=not-null | accessors=get,init
   Status: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckFindingDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Status: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Detail: System.String | nullability=not-null | accessors=get,set
+  NextStep: System.String | nullability=nullable | accessors=get,set
+  FixAction: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckFindingKeys
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckFixActions
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckResultDto
+  CheckedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  Suggestion: System.String | nullability=not-null | accessors=get,set
+  SuggestionReason: System.String | nullability=not-null | accessors=get,set
+  Findings: System.Collections.Generic.List<MediaEngine.Contracts.Settings.RemoteCheckFindingDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckStatuses
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteCheckSuggestions
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto
   ConnectionMode: System.String | nullability=not-null | accessors=get,set
   AutomaticRouterConfiguration: System.Boolean | nullability=not-null | accessors=get,set

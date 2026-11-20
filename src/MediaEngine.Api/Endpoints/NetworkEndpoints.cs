@@ -100,6 +100,18 @@ public static class NetworkEndpoints
             .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
 
+        // The guided "away from home" flow reads this once per step. It reads only: nothing is saved. ?intent=skip is a wish the flow
+        // passes along ("Not now"); it never changes what the Engine allows, so the role check below is the only gate.
+        network.MapGet("/remote-check", async (
+            IRemoteCheckService check,
+            [FromQuery] string? intent,
+            CancellationToken ct) =>
+            Results.Ok(await check.CheckAsync(string.Equals(intent?.Trim(), "skip", StringComparison.OrdinalIgnoreCase), ct)))
+            .WithName("GetNetworkRemoteCheck")
+            .WithSummary("Check what is needed to reach Library away from home and suggest the easiest way, in plain findings.")
+            .Produces<RemoteCheckResultDto>()
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
+
         // The Apps page shows these two addresses to every signed-in person; the address is not a secret, and nothing else
         // from the network settings or status is returned.
         network.MapGet("/app-addresses", (NetworkStatusService status) => Results.Ok(status.GetAppAddresses()))
