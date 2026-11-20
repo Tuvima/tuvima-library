@@ -48,7 +48,7 @@
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            FullWidth="true"
-                           OnClick="@Search"
+                           OnClick="@Search" Class="enr-search-action"
                            Disabled="@(_loading || string.IsNullOrWhiteSpace(_title))"
                            StartIcon="@AppMaterialIcons.Outlined.Bolt">
                     Search
@@ -230,14 +230,14 @@
                 @* Claims grouped by field key *@
                 @if (_result.ClaimGroups.Count > 0)
                 {
-                    <AppTable Dense="true" Striped="true" Hover="true"
+                    <AppTable Dense="true" Striped="true" Hover="true" CardsOn="AppTableCardsMode.Phone"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
                         <thead>
                             <tr>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-180px">Field</th>
+                                <th data-card-role="title" class="tl-u-color-tl-text-secondary tl-u-width-180px">Field</th>
                                 <th class="tl-u-color-tl-text-secondary">Value</th>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-90px">Confidence</th>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-300px">Provider</th>
+                                <th data-card-role="value" class="tl-u-color-tl-text-secondary tl-u-width-90px">Confidence</th>
+                                <th data-card-role="subtitle" class="tl-u-color-tl-text-secondary tl-u-width-300px">Provider</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -248,13 +248,14 @@
                                     <tr>
                                         @if (idx == 0)
                                         {
-                                            <td class="tl-u-color-tl-accent-primary tl-u-vertical-align-top tl-u-font-weight-600">
+                                            <td data-card-role="title" class="tl-u-color-tl-accent-primary tl-u-vertical-align-top tl-u-font-weight-600">
                                                 @group.FieldKey
                                             </td>
                                         }
                                         else
                                         {
-                                            <td></td>
+                                            @* Blank under its group on a wide screen; a phone card shows the field on every row. *@
+                                            <td data-card-role="title" class="tl-u-color-tl-accent-primary tl-u-font-weight-600"><span class="enr-card-field">@group.FieldKey</span></td>
                                         }
                                         <td class="tl-u-color-tl-text-primary tl-u-word-break-break-all">
                                             @if (group.FieldKey == "cover" && IsUrl(claim.Value))
@@ -269,10 +270,10 @@
                                                 @claim.Value
                                             }
                                         </td>
-                                        <AppCssElement Tag="td" Css="@($"color: {ConfidenceColor(claim.Confidence)};")">
+                                        <AppCssElement Tag="td" data-card-role="value" Css="@($"color: {ConfidenceColor(claim.Confidence)};")">
                                             @claim.Confidence.ToString("P0")
                                         </AppCssElement>
-                                        <td class="tl-u-color-tl-text-muted tl-u-font-size-xs tl-u-font-family-monospace">
+                                        <td data-card-role="subtitle" class="tl-u-color-tl-text-muted tl-u-font-size-xs tl-u-font-family-monospace">
                                             @claim.ProviderId
                                         </td>
                                     </tr>
@@ -328,14 +329,14 @@
                              >
                         These bridge IDs would flow to Stage 2 retail providers for precise lookups (cover art, ratings).
                     </AppText>
-                    <AppTable Dense="true" Striped="true" Hover="true"
+                    <AppTable Dense="true" Striped="true" Hover="true" CardsOn="AppTableCardsMode.Phone"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
                         <thead>
                             <tr>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-130px">Hint Key</th>
+                                <th data-card-role="title" class="tl-u-color-tl-text-secondary tl-u-width-130px">Hint Key</th>
                                 <th class="tl-u-color-tl-text-secondary tl-u-width-160px">Raw Value</th>
                                 <th class="tl-u-color-tl-text-secondary tl-u-width-160px">Normalized</th>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-130px">Source Claim</th>
+                                <th data-card-role="subtitle" class="tl-u-color-tl-text-secondary tl-u-width-130px">Source Claim</th>
                                 <th class="tl-u-color-tl-text-secondary">Target Providers</th>
                             </tr>
                         </thead>
@@ -343,15 +344,15 @@
                             @foreach (var hint in _result.BridgeHintPreview)
                             {
                                 <tr>
-                                    <td class="tl-u-color-tl-accent-primary tl-u-font-weight-600">@hint.Key</td>
-                                    <td class="tl-u-color-tl-text-muted tl-u-font-family-monospace tl-u-font-size-0-75rem tl-u-word-break-break-all">
+                                    <td data-card-role="title" class="tl-u-color-tl-accent-primary tl-u-font-weight-600">@hint.Key</td>
+                                    <td data-label="Raw value" class="tl-u-color-tl-text-muted tl-u-font-family-monospace tl-u-font-size-0-75rem tl-u-word-break-break-all">
                                         @hint.RawValue
                                     </td>
-                                    <td class="tl-u-color-tl-text-primary tl-u-font-family-monospace tl-u-font-size-0-75rem tl-u-word-break-break-all">
+                                    <td data-label="Normalized" class="tl-u-color-tl-text-primary tl-u-font-family-monospace tl-u-font-size-0-75rem tl-u-word-break-break-all">
                                         @hint.NormalizedValue
                                     </td>
-                                    <td class="tl-u-color-tl-text-secondary tl-u-font-size-0-75rem">@hint.SourceClaimKey</td>
-                                    <td>
+                                    <td data-card-role="subtitle" class="tl-u-color-tl-text-secondary tl-u-font-size-0-75rem">@hint.SourceClaimKey</td>
+                                    <td data-label="Target providers">
                                         @foreach (var provider in hint.TargetProviders)
                                         {
                                             <AppChip T="string" Size="AppSize.Small" Color="AppColor.Primary"
@@ -481,13 +482,13 @@
             {
                 <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
-                    <AppTable Dense="true" Striped="true" Hover="true"
+                    <AppTable Dense="true" Striped="true" Hover="true" CardsOn="AppTableCardsMode.Phone"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
                         <thead>
                             <tr>
-                                <th class="tl-u-color-tl-text-secondary">Label</th>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-110px">QID</th>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-110px">Type</th>
+                                <th data-card-role="title" class="tl-u-color-tl-text-secondary">Label</th>
+                                <th data-card-role="subtitle" class="tl-u-color-tl-text-secondary tl-u-width-110px">QID</th>
+                                <th data-card-role="value" class="tl-u-color-tl-text-secondary tl-u-width-110px">Type</th>
                                 <th class="tl-u-color-tl-text-secondary">Description</th>
                             </tr>
                         </thead>
@@ -495,11 +496,11 @@
                             @foreach (var entity in _result.FictionalEntities)
                             {
                                 <tr>
-                                    <td class="tl-u-color-tl-text-primary tl-u-font-weight-600">@entity.Label</td>
-                                    <td class="tl-u-color-tl-text-secondary tl-u-font-family-monospace tl-u-font-size-0-75rem">
+                                    <td data-card-role="title" class="tl-u-color-tl-text-primary tl-u-font-weight-600">@entity.Label</td>
+                                    <td data-card-role="subtitle" class="tl-u-color-tl-text-secondary tl-u-font-family-monospace tl-u-font-size-0-75rem">
                                         @(entity.Qid ?? "-")
                                     </td>
-                                    <td>
+                                    <td data-card-role="value">
                                         <AppChip T="string" Size="AppSize.Small" Color="AppColor.Secondary"
                                                  Class="tl-u-height-18px tl-u-font-size-xs">
                                             @entity.EntityType
@@ -528,12 +529,12 @@
             {
                 <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
-                    <AppTable Dense="true" Striped="true" Hover="true"
+                    <AppTable Dense="true" Striped="true" Hover="true" CardsOn="AppTableCardsMode.Phone"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
                         <thead>
                             <tr>
-                                <th class="tl-u-color-tl-text-secondary">Subject</th>
-                                <th class="tl-u-color-tl-text-secondary tl-u-width-140px">Relationship</th>
+                                <th data-card-role="title" class="tl-u-color-tl-text-secondary">Subject</th>
+                                <th data-card-role="value" class="tl-u-color-tl-text-secondary tl-u-width-140px">Relationship</th>
                                 <th class="tl-u-color-tl-text-secondary">Object</th>
                                 <th class="tl-u-color-tl-text-secondary tl-u-width-100px">Start</th>
                                 <th class="tl-u-color-tl-text-secondary tl-u-width-100px">End</th>
@@ -543,7 +544,7 @@
                             @foreach (var rel in _result.Relationships)
                             {
                                 <tr>
-                                    <td class="tl-u-color-tl-text-primary">
+                                    <td data-card-role="title" class="tl-u-color-tl-text-primary">
                                         @rel.SubjectLabel
                                         @if (!string.IsNullOrEmpty(rel.SubjectQid))
                                         {
@@ -552,13 +553,13 @@
                                             </span>
                                         }
                                     </td>
-                                    <td>
+                                    <td data-card-role="value">
                                         <AppChip T="string" Size="AppSize.Small" Color="AppColor.Info"
                                                  Class="tl-u-height-18px tl-u-font-size-xs">
                                             @rel.RelationshipType
                                         </AppChip>
                                     </td>
-                                    <td class="tl-u-color-tl-text-primary">
+                                    <td data-label="Object" class="tl-u-color-tl-text-primary">
                                         @rel.ObjectLabel
                                         @if (!string.IsNullOrEmpty(rel.ObjectQid))
                                         {
@@ -567,10 +568,10 @@
                                             </span>
                                         }
                                     </td>
-                                    <td class="tl-u-color-tl-text-secondary tl-u-font-size-0-75rem">
+                                    <td data-label="Start" class="tl-u-color-tl-text-secondary tl-u-font-size-0-75rem">
                                         @(rel.StartTime ?? "-")
                                     </td>
-                                    <td class="tl-u-color-tl-text-secondary tl-u-font-size-0-75rem">
+                                    <td data-label="End" class="tl-u-color-tl-text-secondary tl-u-font-size-0-75rem">
                                         @(rel.EndTime ?? "-")
                                     </td>
                                 </tr>
@@ -596,14 +597,14 @@
                         </AppText>
                     </TitleContent>
                     <ChildContent>
-                        <AppTable Dense="true" Striped="true" Hover="true"
+                        <AppTable Dense="true" Striped="true" Hover="true" CardsOn="AppTableCardsMode.Phone"
                                         Class="tl-u-background-transparent tl-u-font-size-0-78rem">
                             <thead>
                                 <tr>
-                                    <th class="tl-u-color-tl-text-secondary tl-u-width-160px">Field Key</th>
+                                    <th data-card-role="title" class="tl-u-color-tl-text-secondary tl-u-width-160px">Field Key</th>
                                     <th class="tl-u-color-tl-text-secondary">Value</th>
-                                    <th class="tl-u-color-tl-text-secondary tl-u-width-90px">Confidence</th>
-                                    <th class="tl-u-color-tl-text-secondary tl-u-width-300px">Provider ID</th>
+                                    <th data-card-role="value" class="tl-u-color-tl-text-secondary tl-u-width-90px">Confidence</th>
+                                    <th data-card-role="subtitle" class="tl-u-color-tl-text-secondary tl-u-width-300px">Provider ID</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -612,12 +613,12 @@
                                     @foreach (var claim in group.Claims)
                                     {
                                         <tr>
-                                            <td class="tl-u-color-tl-accent-primary tl-u-font-weight-600">@group.FieldKey</td>
+                                            <td data-card-role="title" class="tl-u-color-tl-accent-primary tl-u-font-weight-600">@group.FieldKey</td>
                                             <td class="tl-u-color-tl-text-primary tl-u-word-break-break-all">@claim.Value</td>
-                                            <AppCssElement Tag="td" Css="@($"color: {ConfidenceColor(claim.Confidence)};")">
+                                            <AppCssElement Tag="td" data-card-role="value" Css="@($"color: {ConfidenceColor(claim.Confidence)};")">
                                                 @claim.Confidence.ToString("P0")
                                             </AppCssElement>
-                                            <td class="tl-u-color-rgba-248-248-248-0-40 tl-u-font-family-monospace tl-u-font-size-xs">
+                                            <td data-card-role="subtitle" class="tl-u-color-rgba-248-248-248-0-40 tl-u-font-family-monospace tl-u-font-size-xs">
                                                 @claim.ProviderId
                                             </td>
                                         </tr>
