@@ -248,7 +248,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("grid-row: 3;", dockRule);
         var global = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
         var audioHideRule = global[..global.IndexOf(".playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar", StringComparison.Ordinal)];
-        Assert.Matches(@"@media\s*\(max-width:\s*720px\)\s*\{\s*$", audioHideRule);
+        Assert.Matches(@"@media\s*\(max-width:\s*600px\)\s*\{\s*$", audioHideRule);
         Assert.Contains("@media (max-width: 840px)", frame); // Global navigation retains its own breakpoint.
         // Every transport and tool target of the dock is 48 px (one token, video player follow-ups D1), the phone's tool row never gives a tool less, and the phone's expanded transport is 48 px (unified player v2 A12, D26).
         var tokens = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/tuvima.tokens.css"));
@@ -359,7 +359,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains(".playback-shell--compact .playback-shell__row", shellStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto;", shellStyles, StringComparison.Ordinal);
         Assert.Contains(".playback-shell--compact .playback-shell__timeline", shellStyles, StringComparison.Ordinal);
-        Assert.Contains("@media(max-width:720px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }", styles, StringComparison.Ordinal);
+        Assert.Contains("@media(max-width:600px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }", styles, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -382,7 +382,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("Role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("PlaybackUtilityGlyph Glyph=\"glyph\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("Modal=\"Modal\"", toolSheet, StringComparison.Ordinal);
-        Assert.Contains("@media (max-width: 720px)", toolSheetCss, StringComparison.Ordinal);
+        Assert.Contains("@media (max-width: 600px)", toolSheetCss, StringComparison.Ordinal);
         // The sheet surface is drawn by AppPopout, so its rules sit behind the panel's own element (issue 941).
         Assert.Contains("max-height: 85svh;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackPanel.razor.css")), StringComparison.Ordinal);
         Assert.DoesNotContain("BottomPanelTitle", listenBar, StringComparison.Ordinal);

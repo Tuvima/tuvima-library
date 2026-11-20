@@ -730,12 +730,12 @@ public sealed class NowPlayingPageTests : AsyncBunitContext
 
     [Theory]
     [InlineData("phone", 844, true)]
-    [InlineData("desktop", 600, true)]
-    [InlineData("desktop", 720, true)]
-    [InlineData("desktop", 721, false)]
+    [InlineData("desktop", 599, true)]
+    [InlineData("desktop", 600, false)]
+    [InlineData("desktop", 720, false)]
     [InlineData("tablet", 800, false)]
     [InlineData("desktop", 1280, false)]
-    public async Task TheBarIsCollapsedForAPhoneFormFactorOrAWindowOf720PixelsOrLess(string formFactor, int width, bool collapsed)
+    public async Task TheBarIsCollapsedForAPhoneFormFactorOrAWindowOf599PixelsOrLess(string formFactor, int width, bool collapsed)
     {
         AddServices(Song("Current", "Artist"), Song("Next", "Artist"));
         await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));

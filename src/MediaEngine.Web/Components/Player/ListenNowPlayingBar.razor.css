@@ -4,4 +4,4 @@
 .listen-player__undo { position:absolute; left:0; right:0; bottom:100%; padding:0 var(--tl-space-3); pointer-events:auto; }
 .listen-player__audio-native { display:none; }
 .listen-player__error,.listen-player__restore-status { color:var(--tl-status-danger); }
-@media(max-width:720px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }
+@media(max-width:600px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }

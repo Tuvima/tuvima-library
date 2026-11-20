@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Theming;
 
 namespace MediaEngine.Web.Tests;
 
@@ -35,6 +37,43 @@ public sealed partial class ResponsiveBreakpointGuardrailTests
             "New CSS breakpoints must use 600px, 840px or 1180px (or the existing 640px / 960px tokens). Off-scale values: "
             + string.Join("; ", offenders.Distinct())
             + ". See the supported-devices page on docs.tuvima.com.");
+    }
+
+    [Fact]
+    public void GeneralTouchRuleCoversEveryButtonWithoutAHandList()
+    {
+        var css = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "wwwroot", "app.css"));
+
+        Assert.Contains(":where(button, summary, select, [role=\"button\"]", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeviceSizesMatchTheTokensFile()
+    {
+        var json = File.ReadAllText(Path.Combine(RepoRoot, "design", "tokens", "tuvima.tokens.json"));
+
+        Assert.Matches("\"deviceMediumMin\"[^}]*\"value\": " + (int)DeviceSizes.MediumMin + "\\b", json);
+        Assert.Matches("\"deviceExpandedMin\"[^}]*\"value\": " + (int)DeviceSizes.ExpandedMin + "\\b", json);
+        Assert.Matches("\"deviceWideMin\"[^}]*\"value\": " + (int)DeviceSizes.WideMin + "\\b", json);
+    }
+
+    [Theory]
+    [InlineData(390, DeviceSize.Compact)]
+    [InlineData(599, DeviceSize.Compact)]
+    [InlineData(600, DeviceSize.Medium)]
+    [InlineData(839, DeviceSize.Medium)]
+    [InlineData(840, DeviceSize.Expanded)]
+    public void DeviceSizeIsReadFromWidth(double width, DeviceSize expected)
+    {
+        Assert.Equal(expected, DeviceSizes.Of(width));
+    }
+
+    [Fact]
+    public void AWindowOf650PixelsGetsATabletPlayerAndAPhoneGetsThePhonePlayer()
+    {
+        Assert.False(PlaybackFormFactor.IsPhoneWidth(650));
+        Assert.False(PlaybackFormFactor.IsPhoneWidth(720));
+        Assert.True(PlaybackFormFactor.IsPhoneWidth(599));
     }
 
     [Fact]

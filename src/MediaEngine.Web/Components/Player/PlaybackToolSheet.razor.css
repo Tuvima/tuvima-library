@@ -36,7 +36,7 @@
     overflow: hidden;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 600px) {
     .playback-tool-sheet__header {
         padding-top: 4px;
     }

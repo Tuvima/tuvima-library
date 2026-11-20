@@ -3052,7 +3052,7 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__bottom { bottom: max(6px, var(--tl-safe-area-bottom)); gap: 0; }
     .video-playback-host.is-expanded .playback-seek-rail--video { gap: 4px; }
 }
-@media (max-width: 720px){
+@media (max-width: 600px){
     .playback-panel .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
     .playback-panel .playback-context-tabs [role="tab"] { flex: 1; border: 0; border-radius: 6px; }
     .playback-panel .playback-context-tabs [role="tab"][aria-selected="true"] { background: var(--playback-accent-soft); color: var(--playback-text); }
@@ -3250,6 +3250,13 @@ button.app-menu-item {
     :root:root .system-activity-indicator,
     :root:root .app-segmented-control__item,
     :root:root .chronicle-node-list .tl-list-item-button {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
+    /* The general rule (Look v3.2 D2): every pressable thing gets the minimum touch box, so a new button needs no entry in the list above.
+       The list above stays for anchors and widgets that are not buttons. Hidden-from-view helpers are skipped. */
+    :root:root :where(button, summary, select, [role="button"], [role="switch"], [role="checkbox"], [role="radio"]):not(.sr-only, .visually-hidden) {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
@@ -4231,7 +4238,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 @media (prefers-reduced-motion: reduce){
     .tl-enrichment-pending { animation: none; }
 }
-@media (max-width: 720px){
+@media (max-width: 600px){
     .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar,
     .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__intent-dock {
         display: none !important;
