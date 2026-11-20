@@ -228,9 +228,7 @@ public sealed class DevicesPageTests : AsyncBunitContext
         Services.AddNativeUiServices();
         Services.AddSingleton<IHttpClientFactory>(new DevicesClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
-        // The Devices tab also draws this browser's Video quality and devices rows (playback-path spec D15).
         Services.AddSingleton(EngineApiClientStub.CreateDefault());
-        Services.AddScoped<MediaEngine.Web.Services.Playback.BrowserPlaybackCapabilityReporter>();
         Services.AddSingleton(_session);
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
@@ -294,6 +292,35 @@ public sealed class DevicesPageTests : AsyncBunitContext
         Assert.Equal(2, owner.QuerySelectorAll("[data-session-row]").Length);
         Assert.Single(owner.QuerySelectorAll("[data-session-tag='this-device']"));
         Assert.Contains("No email", cut.Find($"[data-session-person='{_handler.MaryAccount}']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheHouseholdAndProfileFilters_SitDirectlyOverTheSignedInSessionsList()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForElement("[data-devices-filters]");
+        cut.WaitForElement("[data-session-person]");
+
+        var next = cut.Find("[data-devices-filters]").NextElementSibling;
+        Assert.NotNull(next);
+        Assert.Contains("Signed-in browsers", next!.TextContent, StringComparison.Ordinal);
+        Assert.NotNull(next.QuerySelector("[data-session-person]"));
+    }
+
+    [Fact]
+    public void ThePlaybackChoicesForThisBrowser_AreNotOnDevices_TheyLiveInProfilePreferences()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForElement("[data-session-person]");
+
+        Assert.Empty(cut.FindAll("[data-video-options]"));
+        Assert.DoesNotContain("On this device", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Maximum resolution", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("What this device can play", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
