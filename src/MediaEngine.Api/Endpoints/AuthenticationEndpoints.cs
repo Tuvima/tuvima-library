@@ -77,7 +77,7 @@ public static class AuthenticationEndpoints
         .RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/login", async (LocalLoginRequest request, IFirstPartyIdentityService identity,
-            DashboardAuthorityProjector projector, SignInWatcher watcher, CancellationToken ct) =>
+            DashboardAuthorityProjector projector, [FromServices] SignInWatcher? watcher, CancellationToken ct) =>
         {
             var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
                 request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
@@ -90,11 +90,15 @@ public static class AuthenticationEndpoints
 
             if (result.Succeeded && result.IssuedSession is not null)
             {
-                await watcher.SucceededAsync(result.IssuedSession, ct);
+                if (watcher is not null)
+                {
+                    await watcher.SucceededAsync(result.IssuedSession, ct);
+                }
+
                 return Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct));
             }
 
-            watcher.Failed(request.Email);
+            watcher?.Failed(request.Email);
             return ApiErrors.Problem(
                 StatusCodes.Status401Unauthorized,
                 "Authentication failed.",
@@ -113,14 +117,18 @@ public static class AuthenticationEndpoints
         // plus a code from the authenticator app (or a recovery code). The token works once, for five minutes, and only
         // from the kind of connection (home or outside) that entered the password.
         group.MapPost("/two-step/verify", async (CompleteTwoStepSignInRequest request, IFirstPartyIdentityService identity,
-            DashboardAuthorityProjector projector, SignInWatcher watcher, CancellationToken ct) =>
+            DashboardAuthorityProjector projector, [FromServices] SignInWatcher? watcher, CancellationToken ct) =>
         {
             var result = await identity.CompleteTwoStepSignInAsync(request.PendingToken, request.Code, ct,
                 ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
 
             if (result.Succeeded && result.IssuedSession is not null)
             {
-                await watcher.SucceededAsync(result.IssuedSession, ct);
+                if (watcher is not null)
+                {
+                    await watcher.SucceededAsync(result.IssuedSession, ct);
+                }
+
                 return Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct));
             }
 
