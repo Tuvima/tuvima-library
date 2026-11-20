@@ -101,7 +101,30 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         var status = cut.Find("dl.security-settings__facts").TextContent;
         Assert.Contains("Public address", status, StringComparison.Ordinal);
         Assert.Contains("Passkeys", status, StringComparison.Ordinal);
-        Assert.Contains("Recovery delivery", status, StringComparison.Ordinal);
+        // The mail server is set up in one place only; here it is a status line with a link to it.
+        Assert.Contains("Password recovery email", status, StringComparison.Ordinal);
+        Assert.DoesNotContain("Recovery delivery", status, StringComparison.Ordinal);
+        Assert.DoesNotContain("SMTP", cut.Markup, StringComparison.Ordinal);
+        var recovery = cut.Find("[data-recovery-email-status]");
+        Assert.Contains("Configured", recovery.TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/general/notifications", recovery.QuerySelector("a")!.GetAttribute("href"));
+    }
+
+    [Fact]
+    public void AdvancedTab_EmailBlock_IsAStatusLineWithALinkToNotifications_WhenTheMailServerIsNotSetUp()
+    {
+        _settings = new AuthSettingsDto { Mode = "Local", PasswordReset = new PasswordResetDeliveryDto { Configured = false } };
+
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-recovery-email-status]");
+
+        var line = cut.Find("[data-recovery-email-status]");
+        Assert.Contains("Not configured", line.TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/general/notifications", line.QuerySelector("a")!.GetAttribute("href"));
+        Assert.Contains("Notifications", line.QuerySelector("a")!.TextContent, StringComparison.Ordinal);
+        // The mail server is never set up here: no fields for it.
+        Assert.DoesNotContain("SMTP", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("input[type='email']"));
     }
 
     [Fact]

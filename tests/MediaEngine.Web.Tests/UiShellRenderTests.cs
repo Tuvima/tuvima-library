@@ -62,6 +62,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<MediaTileComposerService>();
         Services.AddScoped<MediaEngine.Web.Services.MediaTiles.BrowseLibrariesState>();
         Services.AddSingleton(new ListenPlaybackClientSettings());
+        Services.AddScoped<MediaEngine.Web.Services.Playback.BrowserPlaybackCapabilityReporter>();
         Services.AddScoped<PlaybackSessionController>();
         Services.AddScoped<PlaybackTransientToolCoordinator>();
         Services.AddScoped<VideoPresentationResolver>();
@@ -887,8 +888,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11) and Video quality and devices (playback-path D15); skips and subtitle look moved to the player.
-            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
+            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11), Video quality and devices (playback-path D15) and On this device (settings-alignment D5); skips and subtitle look moved to the player.
+            Assert.Equal(6, cut.FindAll(".app-settings-group").Count);
             Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-settings-group__heading"));
             Assert.NotEmpty(cut.FindAll(".app-setting-row"));
