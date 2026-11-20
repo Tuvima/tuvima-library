@@ -52,7 +52,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         var cut = Render<SecuritySettingsPage>();
 
         cut.WaitForAssertion(() => Assert.Equal(["add-password", "password", "email", "sign-out-others", "photo-views"], RowKeys(cut)));
-        Assert.Contains("Works only on this computer until you do", cut.Find("[data-nav-row='add-password']").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Needed to sign in away from home", cut.Find("[data-nav-row='add-password']").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         var cut = Render<SecuritySettingsPage>();
 
         cut.WaitForAssertion(() => Assert.Equal(
-            "Your account has no password, so it only works on this computer. Add one any time below.",
+            "Your account has no password, so it works on your home network only. Add one any time below to use Library away from home.",
             cut.Find(".security-settings__note").TextContent.Trim()));
         // A calm line, not an alert, and the Add a password row stays.
         Assert.DoesNotContain("role=\"alert\"", cut.Markup, StringComparison.Ordinal);
@@ -96,7 +96,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddAPasswordSheet_SaysThePasswordLetsOtherDevicesOnTheHomeNetworkSignIn()
+    public async Task AddAPasswordSheet_SaysNoPasswordWorksOnTheWholeHomeNetwork_AndThePasswordIsForSigningInFromOutside()
     {
         _handler.HasPassword = false;
         _accountState.ThisComputerOnly = true;
@@ -106,8 +106,9 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Find("[data-nav-row='add-password']").Click());
 
         var sheet = cut.Find("[role='dialog']");
-        Assert.Contains("other devices on your home network can sign in as you", sheet.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Until then this account works only on this computer", sheet.TextContent, StringComparison.Ordinal);
+        Assert.Contains("sign in from outside your home network", sheet.TextContent, StringComparison.Ordinal);
+        Assert.Contains("this account works on your home network only", sheet.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("only on this computer", sheet.TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain("your phone, TV and other devices at home", sheet.TextContent, StringComparison.Ordinal);
     }
 

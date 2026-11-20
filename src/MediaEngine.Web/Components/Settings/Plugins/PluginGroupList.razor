@@ -212,7 +212,7 @@
             async values =>
             {
                 var result = await ApiClient.SavePluginSetupItemSecretAsync(PluginId, Control.Key, item.Id, keyField.Key, values.GetValueOrDefault(keyField.Key, string.Empty), _disposed.Token);
-                return new PluginConnectResult(result?.Ok == true, result?.Ok == true ? "Connection verified." : result?.Message ?? "The Engine could not be reached.");
+                return new PluginConnectResult(result?.Ok == true, result?.Ok == true ? "Connection verified." : result?.Message ?? "The server could not be reached.");
             },
             discard: null);
         if (shown)
@@ -253,7 +253,7 @@
                 var added = await ApiClient.AddPluginSetupItemAsync(PluginId, Control.Key, json, _disposed.Token);
                 if (added is not { ItemId.Length: > 0 })
                 {
-                    return new PluginConnectResult(false, added?.Message ?? "The Engine could not be reached.");
+                    return new PluginConnectResult(false, added?.Message ?? "The server could not be reached.");
                 }
 
                 trialId = added.ItemId;
@@ -321,7 +321,7 @@
         try
         {
             var result = await action();
-            _messages[id] = result?.Message ?? "The Engine could not be reached.";
+            _messages[id] = result?.Message ?? "The server could not be reached.";
             if (reload || result?.Ok == true)
             {
                 await Changed.InvokeAsync();

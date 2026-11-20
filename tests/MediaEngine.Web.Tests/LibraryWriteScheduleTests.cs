@@ -244,7 +244,7 @@ public sealed class LibraryWriteScheduleTests : AsyncBunitContext
         _schedule = null;
         var cut = Open();
 
-        Assert.Contains("The Engine is unavailable", cut.Find(".write-schedule").TextContent);
+        Assert.Contains("The server is unavailable", cut.Find(".write-schedule").TextContent);
         Assert.Empty(cut.FindAll("input"));
         Assert.Null(WriteNow(cut));
     }

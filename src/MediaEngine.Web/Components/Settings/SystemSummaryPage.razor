@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.System
 @using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
@@ -41,7 +42,9 @@
                 @Fact("Running for", FormatUptime(_resources.UptimeSeconds))
                 @Fact("Address at home", _network?.PreferredLocalAddress ?? "Unavailable")
                 @Fact("Address outside your home", _network?.ExternalAddress ?? "Not set up")
+                @Fact("Data store version", DataStoreVersionText)
             </dl>
+            <p class="system-summary__note" data-testid="system-summary-address-link">@L["SystemSummaryPage_AddressIsSetOn"] <a href="/settings/general">@L["LocalNetworkSettingsPanel_General"]</a>.</p>
         </SettingsSectionPanel>
 
         <SettingsSectionPanel Title="@L["SystemSummaryPage_ProcessorAndMemory"].Value">
@@ -86,6 +89,8 @@
     private readonly CancellationTokenSource _lifetime = new();
     private SystemResourcesDto? _resources;
     private NetworkRuntimeStatusDto? _network;
+    // Null until the Engine answers; the line then reads "Unavailable" instead of hiding a fact people look for here.
+    private DataStoreVersionDto? _dataStoreVersion;
     private bool _loaded;
     private bool _refreshFailed;
     private bool _disposed;
@@ -129,9 +134,10 @@
         var ct = _lifetime.Token;
         var resourcesTask = ApiClient.GetSystemResourcesAsync(ct);
         var networkTask = ApiClient.GetNetworkRuntimeStatusAsync(ct);
+        var versionTask = ApiClient.GetDataStoreVersionAsync(ct);
         try
         {
-            await Task.WhenAll(resourcesTask, networkTask);
+            await Task.WhenAll(resourcesTask, networkTask, versionTask);
         }
         catch (OperationCanceledException)
         {
@@ -147,6 +153,7 @@
         _refreshFailed = resources is null && _resources is not null;
         _resources = resources ?? _resources;
         _network = await networkTask ?? _network;
+        _dataStoreVersion = await versionTask ?? _dataStoreVersion;
         _loaded = true;
     }
 
@@ -200,6 +207,14 @@
             ? $"{(int)duration.TotalMinutes} {Plural((int)duration.TotalMinutes, "minute")}"
             : "less than a minute";
     }
+
+    private string DataStoreVersionText => _dataStoreVersion switch
+    {
+        null => "Unavailable",
+        { StepNumber: > 0, AppliedAt: { } appliedAt } version =>
+            $"Step {version.StepNumber}, upgraded on {DisplayFormat.FormatPlainDate(appliedAt)}",
+        _ => "Setting up",
+    };
 
     private static string Plural(int count, string unit) => count == 1 ? unit : unit + "s";
 
