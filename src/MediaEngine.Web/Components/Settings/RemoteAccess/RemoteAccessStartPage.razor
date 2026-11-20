@@ -1,0 +1,61 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* The start page of Remote access (mock-ups, picture 1): two status cards (home works, away from home), one Set up button and one
+   link for someone who already runs a proxy or tunnel, then the safety rule said up front. Once a way in is on, the away card says
+   which one and offers Test, Change and Turn off. *@
+<div class="ra-start" data-remote-screen="start">
+    <RemoteAccessCard Key="home" Title="@L["RemoteAccessStartPage_AtHomeWorking"].Value">
+        <p class="ra-start__text">@L["RemoteAccessStartPage_HomeText"]</p>
+    </RemoteAccessCard>
+
+    @if (IsOn)
+    {
+        <RemoteAccessCard Key="away" Title="@L["RemoteAccessStartPage_AwayOn"].Value">
+            <p class="ra-start__text">@OnSentence</p>
+            <div class="ra-start__actions">
+                <AppButton Label="@L["RemoteAccessStartPage_TestAccess"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           OnClick="TestRequested" data-remote-action="test" />
+                <AppButton Label="@L["RemoteAccessStartPage_ChangeHow"].Value" OnClick="SetUpRequested" data-remote-action="change" />
+                <AppButton Label="@L["RemoteAccessStartPage_TurnOff"].Value" Tone="AppUiTone.Error" OnClick="TurnOffRequested" data-remote-action="turn-off" />
+            </div>
+        </RemoteAccessCard>
+    }
+    else
+    {
+        <RemoteAccessCard Key="away" Title="@L["RemoteAccessStartPage_AwayNotSetUp"].Value">
+            <p class="ra-start__text">@L["RemoteAccessStartPage_AwayNotSetUpText"]</p>
+            <div class="ra-start__actions">
+                <AppButton Label="@L["RemoteAccessStartPage_SetUp"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           OnClick="SetUpRequested" data-remote-action="set-up" />
+                <AppButton Label="@L["RemoteAccessStartPage_AlreadyHaveProxy"].Value" OnClick="OwnAddressRequested" data-remote-action="own-address" />
+            </div>
+        </RemoteAccessCard>
+    }
+
+    <RemoteAccessCard Key="safety" Title="@L["RemoteAccessStartPage_SafetyTitle"].Value">
+        <p class="ra-start__text">@L["RemoteAccessStartPage_SafetyText"]</p>
+    </RemoteAccessCard>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+    [Parameter] public EventCallback SetUpRequested { get; set; }
+    [Parameter] public EventCallback OwnAddressRequested { get; set; }
+    [Parameter] public EventCallback TestRequested { get; set; }
+    [Parameter] public EventCallback TurnOffRequested { get; set; }
+
+    private string Mode => Settings.Remote.ConnectionMode?.Trim().ToLowerInvariant() ?? "local-only";
+
+    private bool IsOn => Mode is "tailscale" or "custom" or "direct-only";
+
+    private string OnSentence => Mode switch
+    {
+        "tailscale" => L["RemoteAccessStartPage_OnTailscale"].Value,
+        "direct-only" => L["RemoteAccessStartPage_OnRouterDoor"].Value,
+        _ when !string.IsNullOrWhiteSpace(Settings.Remote.PublicHostname) =>
+            string.Format(L["RemoteAccessStartPage_OnOwnAddress"].Value, Settings.Remote.PublicHostname.Trim()),
+        _ => L["RemoteAccessStartPage_OnOwnAddressNoName"].Value,
+    };
+}

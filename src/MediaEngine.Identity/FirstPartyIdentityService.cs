@@ -70,14 +70,16 @@ public sealed class FirstPartyIdentityService(
         // Signing in without a password works on the computer that runs Tuvima and on the home network (phones, TVs),
         // and never from outside it: anything not clearly local is refused.
         var requested = clientIngress ?? ClientIngress.ThisComputer;
+        var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
         if (!ClientIngress.IsOnLocalNetwork(requested))
         {
+            // Refused, and kept in the outside sign-in history so the administrator can see someone tried.
+            await identities.WriteOutsideSignInAsync(account.Id, profile.Id, null, false, ClientIngress.ParseCurrent(requested), ThisComputerMethod, UtcNow, ct).ConfigureAwait(false);
             return null;
         }
 
         var ingress = ClientIngress.Parse(requested);
 
-        var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
         var issued = await IssueSignInSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_this_computer", true, null, ct).ConfigureAwait(false);
         return issued;
@@ -840,7 +842,9 @@ public sealed class FirstPartyIdentityService(
 
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
         var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
-        var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", challenge.DeviceId, challenge.DeviceName, challenge.Client, currentIngress, ct).ConfigureAwait(false);
+        SessionIssueResult issued;
+        try { issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", challenge.DeviceId, challenge.DeviceName, challenge.Client, ClientIngress.ParseCurrent(ingress), ct).ConfigureAwait(false); }
+        catch (OutsideSignInRefusedException refused) { return new AuthenticationAttemptResult(false, false, refused.Message, null); }
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password+TwoStep", ct).ConfigureAwait(false);
         return new AuthenticationAttemptResult(true, false, null, issued);
     }
@@ -980,7 +984,9 @@ public sealed class FirstPartyIdentityService(
 
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
         var profile = await OwnProfileAsync(account.Id, ct).ConfigureAwait(false);
-        var issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+        SessionIssueResult issued;
+        try { issued = await IssueSignInSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false); }
+        catch (OutsideSignInRefusedException refused) { return new(false, false, refused.Message, null); }
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
     }
 
@@ -1129,7 +1135,22 @@ public sealed class FirstPartyIdentityService(
     /// </summary>
     private async Task<SessionIssueResult> IssueSignInSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {
+        // The one door every interactive sign-in goes through (password, two-step, passkey, linked sign-in, invitation, this
+        // computer): from anywhere that is not this computer or the home network (a forwarded, proxied or tunnelled visitor
+        // included), a person with no password or passkey is refused, whatever the way in. Missing or unknown places count as outside.
+        var outside = !ClientIngress.IsOnLocalNetwork(ingress);
+        if (outside && (account.IsThisComputerOnly || !await accounts.IsUserSecuredAsync(account.Id, ct).ConfigureAwait(false)))
+        {
+            await identities.WriteOutsideSignInAsync(account.Id, profile.Id, null, false, ClientIngress.ParseCurrent(ingress), method, UtcNow, ct).ConfigureAwait(false);
+            throw new OutsideSignInRefusedException();
+        }
+
         var issued = await IssueSessionAsync(account, profile, stamp, method, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+        if (outside)
+        {
+            await identities.WriteOutsideSignInAsync(account.Id, profile.Id, issued.Session.Id, true, ClientIngress.ParseCurrent(ingress), method, UtcNow, ct).ConfigureAwait(false);
+        }
+
         if (account.MustChangePassword)
         {
             return issued;

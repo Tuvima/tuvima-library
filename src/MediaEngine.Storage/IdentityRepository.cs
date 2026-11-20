@@ -428,6 +428,68 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
     public Task WriteAuditEventAsync(Guid? accountId, Guid? profileId, Guid? sessionId, string eventType, bool succeeded, string? detail, DateTimeOffset occurredAt, CancellationToken ct = default)
     { ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection(); conn.Execute("INSERT INTO identity_audit_events(account_id,profile_id,session_id,event_type,succeeded,detail,occurred_at) VALUES(@accountId,@profileId,@sessionId,@eventType,@succeeded,@detail,@occurredAt);", new { accountId, profileId, sessionId, eventType, succeeded = succeeded ? 1 : 0, detail, occurredAt = occurredAt.ToString("O") }); return Task.CompletedTask; }
 
+    public Task WriteOutsideSignInAsync(Guid? accountId, Guid? profileId, Guid? sessionId, bool succeeded, string ingressKind, string method, DateTimeOffset occurredAt, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        // The place is only ever its coarse kind, never an address; the method follows it ("remote|Password").
+        conn.Execute("""
+            INSERT INTO identity_audit_events(account_id,profile_id,session_id,event_type,succeeded,detail,occurred_at)
+            VALUES(@accountId,@profileId,@sessionId,@eventType,@succeeded,@detail,@occurredAt);
+            DELETE FROM identity_audit_events
+            WHERE event_type IN (@signedIn,@refused)
+              AND id NOT IN (SELECT id FROM identity_audit_events WHERE event_type IN (@signedIn,@refused) ORDER BY id DESC LIMIT @retained);
+            """,
+            new
+            {
+                accountId,
+                profileId,
+                sessionId,
+                eventType = succeeded ? OutsideSignInEventTypes.SignedIn : OutsideSignInEventTypes.Refused,
+                succeeded = succeeded ? 1 : 0,
+                detail = $"{ingressKind}|{method}",
+                occurredAt = occurredAt.ToString("O"),
+                signedIn = OutsideSignInEventTypes.SignedIn,
+                refused = OutsideSignInEventTypes.Refused,
+                retained = OutsideSignInEventTypes.RetainedRows,
+            });
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<OutsideSignInRecord>> GetRecentOutsideSignInsAsync(int limit, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        var rows = conn.Query<OutsideSignInRow>("""
+            SELECT e.occurred_at AS OccurredAt, e.succeeded AS Succeeded, e.detail AS Detail, p.display_name AS ProfileName
+            FROM identity_audit_events e
+            LEFT JOIN profiles p ON p.id = e.profile_id
+            WHERE e.event_type IN (@signedIn,@refused)
+            ORDER BY e.id DESC
+            LIMIT @limit;
+            """,
+            new { signedIn = OutsideSignInEventTypes.SignedIn, refused = OutsideSignInEventTypes.Refused, limit = Math.Clamp(limit, 1, OutsideSignInEventTypes.RetainedRows) }).ToList();
+        IReadOnlyList<OutsideSignInRecord> records = rows.Select(row =>
+        {
+            var parts = (row.Detail ?? string.Empty).Split('|', 2);
+            return new OutsideSignInRecord(
+                DateTimeOffset.Parse(row.OccurredAt, System.Globalization.CultureInfo.InvariantCulture),
+                row.ProfileName,
+                row.Succeeded == 1,
+                parts[0],
+                parts.Length > 1 ? parts[1] : string.Empty);
+        }).ToList();
+        return Task.FromResult(records);
+    }
+
+    private sealed class OutsideSignInRow
+    {
+        public string OccurredAt { get; set; } = string.Empty;
+        public int Succeeded { get; set; }
+        public string? Detail { get; set; }
+        public string? ProfileName { get; set; }
+    }
+
     private Task UpdateAttemptAsync(string table, Guid id, int count, DateTimeOffset? locked, DateTimeOffset? used, CancellationToken ct)
     { ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection(); conn.Execute($"UPDATE {table} SET failed_attempt_count=@count, locked_until=@locked, last_used_at=COALESCE(@used,last_used_at), updated_at=@updated WHERE id=@id;", new { id, count, locked = locked?.ToString("O"), used = used?.ToString("O"), updated = DateTimeOffset.UtcNow.ToString("O") }); return Task.CompletedTask; }
     private Task<AuthSession?> GetSessionAsync(string predicate, object value, CancellationToken ct)

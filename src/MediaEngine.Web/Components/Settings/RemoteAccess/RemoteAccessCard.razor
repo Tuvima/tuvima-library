@@ -1,0 +1,38 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* One card of the away-from-home flow (mock-ups: .card, .note and .info). A plain card holds a heading and rows; the Warning tone
+   is the amber note and the Info tone the purple one, each a single sentence or two. *@
+<section class="@RootClass" data-remote-card="@Key">
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <h4 class="ra-box__title">@Title</h4>
+    }
+    @if (!string.IsNullOrWhiteSpace(Intro))
+    {
+        <p class="ra-box__intro">@Intro</p>
+    }
+    @ChildContent
+</section>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>One plain line under the heading.</summary>
+    [Parameter] public string? Intro { get; set; }
+
+    /// <summary>Neutral is the card, Warning the amber note, Info the purple note.</summary>
+    [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Neutral;
+
+    /// <summary>Tells the cards of one screen apart for tests and the browser checks.</summary>
+    [Parameter] public string? Key { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string RootClass => Tone switch
+    {
+        AppUiTone.Warning => "ra-box ra-box--warning",
+        AppUiTone.Info => "ra-box ra-box--info",
+        AppUiTone.Primary => "ra-box ra-box--suggested",
+        _ => "ra-box",
+    };
+}

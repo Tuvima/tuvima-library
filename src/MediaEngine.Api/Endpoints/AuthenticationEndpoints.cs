@@ -63,8 +63,11 @@ public static class AuthenticationEndpoints
         group.MapPost("/this-computer", async (ThisComputerSignInRequest body, HttpRequest request,
             IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
-            var issued = ComesFromLocalNetwork(request)
-                ? await identity.SignInThisComputerAccountAsync(body.DeviceId, body.DeviceName, body.Client, request.Headers[ClientIngressValues.ValidateHeader].ToString(), ct).ConfigureAwait(false)
+            // The service decides, and keeps a refused attempt from outside in the outside sign-in history; a forwarded
+            // request is never local. The answer to the caller stays the same plain 404 either way.
+            var issued = request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
+                ? await identity.SignInThisComputerAccountAsync(body.DeviceId, body.DeviceName, body.Client,
+                    WasForwarded(request) ? ClientIngress.Remote : request.Headers[ClientIngressValues.ValidateHeader].ToString(), ct).ConfigureAwait(false)
                 : null;
             return issued is null
                 ? ApiErrors.NotFound("Not found.")
@@ -79,7 +82,12 @@ public static class AuthenticationEndpoints
             DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
-                request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
+                request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
+
+            if (IsOutsideRefusal(result.Error))
+            {
+                return OutsideRefusal();
+            }
 
             // A right password for an account with two-step codes on is only the first step.
             if (result.TwoStepRequired)
@@ -110,7 +118,12 @@ public static class AuthenticationEndpoints
             DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var result = await identity.CompleteTwoStepSignInAsync(request.PendingToken, request.Code, ct,
-                ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
+                ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
+
+            if (IsOutsideRefusal(result.Error))
+            {
+                return OutsideRefusal();
+            }
 
             return result.Succeeded && result.IssuedSession is not null
                 ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
@@ -200,8 +213,9 @@ public static class AuthenticationEndpoints
 
                 await externalLogins.RecordLoginAsync(linked.Id, ct).ConfigureAwait(false);
                 return Results.Ok(await ToResponseAsync(await identity.CreateExternalSessionAsync(
-                    linked.AccountId, verified.Provider, request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
+                    linked.AccountId, verified.Provider, request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
             }
+            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
         }).WithName("CreateExternalSession")
           .Produces<AuthSessionResponse>()
@@ -286,7 +300,8 @@ public static class AuthenticationEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
+            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
+            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).WithName("AcceptAccountInvitation").Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
@@ -306,7 +321,7 @@ public static class AuthenticationEndpoints
             // Only the Dashboard (the service credential) may say where the browser is; it is recorded but not enforced.
             var isDashboard = request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true");
             var currentIngress = isDashboard
-                ? ClientIngress.ParseCurrent(request.Headers[ClientIngressValues.ValidateHeader].ToString())
+                ? RequestIngress.Current(request)
                 : ClientIngress.Remote;
             var session = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), true, ct, currentIngress).ConfigureAwait(false);
             if (session is not null)
@@ -378,9 +393,10 @@ public static class AuthenticationEndpoints
                 var issued = await identity.ChangeTemporaryPasswordAsync(
                     RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.CurrentPassword, request.NewPassword,
                     request.DeviceId, request.DeviceName, "Library Dashboard", ct,
-                    ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
+                    ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
                 return Results.Ok(await ToResponseAsync(issued, projector, ct));
             }
+            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
             catch (UnauthorizedAccessException ex)
@@ -564,7 +580,11 @@ public static class AuthenticationEndpoints
             }
 
             await users.AddOrUpdatePasskeyAsync(result.User, result.Passkey).ConfigureAwait(false);
-            return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
+            try
+            {
+                return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
+            }
+            catch (OutsideSignInRefusedException) { return OutsideRefusal(); }
         }).Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/passkeys/registration/options", async (BeginPasskeyRegistrationRequest request,
@@ -692,9 +712,7 @@ public static class AuthenticationEndpoints
                 // Where the Dashboard says the visitor is, as the sign-in handler read it for this same request. Only the Dashboard
                 // (service credential) may say so; from any other caller the header is ignored, like for the this-computer sign-in.
                 var currentIngress = httpRequest.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
-                    && httpRequest.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
-                    && !string.IsNullOrWhiteSpace(ingressValues.ToString())
-                    ? ClientIngress.ParseCurrent(ingressValues.ToString())
+                    ? RequestIngress.CurrentOrNull(httpRequest)
                     : null;
                 var result = await identity.SwitchActiveProfileAsync(
                     httpRequest.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), request.ProfileId, request.Secret, ct, currentIngress).ConfigureAwait(false);
@@ -948,14 +966,12 @@ public static class AuthenticationEndpoints
         && ClientIngress.IsThisComputer(request.Headers[ClientIngressValues.ValidateHeader].ToString())
         && !WasForwarded(request);
 
-    /// <summary>
-    /// A tunnel such as cloudflared or ngrok on this computer looks like loopback, so a visitor whose request carried
-    /// forwarding headers (seen by the Dashboard, which says so in a header, or by the Engine itself) is not trusted.
-    /// </summary>
-    private static bool WasForwarded(HttpRequest request) =>
-        string.Equals(request.Headers[ClientIngressValues.ForwardedHeader].ToString(), "true", StringComparison.OrdinalIgnoreCase)
-        || request.Headers.ContainsKey("X-Forwarded-For")
-        || request.Headers.ContainsKey("Forwarded");
+    private static bool WasForwarded(HttpRequest request) => RequestIngress.WasForwarded(request);
+
+    /// <summary>The refusal the Engine sends when a person with no password or passkey tries to sign in from outside the home network.</summary>
+    private static IResult OutsideRefusal() => ApiErrors.Forbidden(OutsideSignInRefusedException.Code, OutsideSignInRefusedException.PlainMessage);
+
+    private static bool IsOutsideRefusal(string? error) => string.Equals(error, OutsideSignInRefusedException.PlainMessage, StringComparison.Ordinal);
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, PreviewAccountInvitationRequest request) =>
         IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);

@@ -70,3 +70,18 @@ public interface IRemoteSignInReadinessReader
 {
     Task<RemoteSignInReadiness> ReadAsync(CancellationToken ct);
 }
+
+/// <summary>The recent outside sign-in history: who tried to sign in from outside the home network, how, and whether they got in.</summary>
+public interface IOutsideSignInHistory
+{
+    Task<IReadOnlyList<OutsideSignInDto>> GetRecentAsync(int limit, CancellationToken ct);
+}
+
+/// <summary>
+/// The rule that outside access needs somebody to look after it: it may only be switched on while an enabled server
+/// administrator has a password or passkey.
+/// </summary>
+public interface IOutsideAccessGate
+{
+    Task<bool> HasSecuredAdministratorAsync(CancellationToken ct);
+}

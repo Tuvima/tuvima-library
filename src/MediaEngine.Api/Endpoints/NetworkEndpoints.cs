@@ -14,6 +14,14 @@ namespace MediaEngine.Api.Endpoints;
 
 public static class NetworkEndpoints
 {
+    /// <summary>409 code and plain message when outside access is switched on before a server administrator has a password or passkey.</summary>
+    public const string AdministratorNeedsPasswordCode = "administrator_needs_password";
+
+    public const string AdministratorNeedsPasswordMessage =
+        "Add a password or passkey to the server administrator's sign-in before turning on access away from home.";
+
+    private const int OutsideSignInListLimit = 20;
+
     public static IEndpointRouteBuilder MapNetworkEndpoints(this IEndpointRouteBuilder app)
     {
         var settings = app.MapGroup("/settings/network")
@@ -31,6 +39,7 @@ public static class NetworkEndpoints
             IConfigurationLoader configuration,
             ClaimsPrincipal user,
             [FromServices] RecentSignInGuard recentSignIn,
+            IOutsideAccessGate outsideAccess,
             CancellationToken ct) =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
@@ -51,6 +60,15 @@ public static class NetworkEndpoints
             if (proposed.Local.Port != current.Local.Port)
             {
                 return ApiErrors.Conflict("Use the Change Port action so Library can check the new port before saving it.");
+            }
+
+            // Outside access needs somebody to look after it: switching it on (or to another way in) waits until an
+            // enabled server administrator has a password or passkey. Switching it off, or saving other settings, never waits.
+            if (!string.Equals(proposed.Remote.ConnectionMode, NetworkConnectionModes.LocalOnly, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(proposed.Remote.ConnectionMode, current.Remote.ConnectionMode, StringComparison.OrdinalIgnoreCase)
+                && !await outsideAccess.HasSecuredAdministratorAsync(ct).ConfigureAwait(false))
+            {
+                return ApiErrors.Conflict(AdministratorNeedsPasswordCode, AdministratorNeedsPasswordMessage);
             }
 
             try
@@ -111,6 +129,49 @@ public static class NetworkEndpoints
             .WithSummary("Check what is needed to reach Library away from home and suggest the easiest way, in plain findings.")
             .Produces<RemoteCheckResultDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
+
+        // Who has tried to sign in from outside the home network lately (newest first), so the person setting this up can
+        // see that the way in works and who was turned away. Addresses are never kept, only the kind of place.
+        network.MapGet("/outside-sign-ins", async (IOutsideSignInHistory history, CancellationToken ct) =>
+            Results.Ok(await history.GetRecentAsync(OutsideSignInListLimit, ct).ConfigureAwait(false)))
+            .WithName("GetNetworkOutsideSignIns")
+            .WithSummary("Return the last 20 attempts to sign in from outside the home network, with who, when, how and whether they got in.")
+            .Produces<IReadOnlyList<OutsideSignInDto>>()
+        .RequireAdmin();
+
+        // One switch for "turn away-from-home access off now". It puts the connection mode back to local-only and removes
+        // the router door Library opened; the address, ports and trusted proxies stay as they were, and home access is not
+        // touched. Safe to repeat. It needs no fresh "Confirm it's you": it only ever closes a door.
+        network.MapPost("/remote-off", async (
+            IConfigurationLoader configuration,
+            RouterPortMappingCoordinator routerMappings,
+            CancellationToken ct) =>
+        {
+            var current = configuration.LoadNetwork();
+            var wasOn = current.Remote.HasOutsidePath || current.Remote.AutomaticRouterConfiguration;
+            if (wasOn)
+            {
+                current.Remote.ConnectionMode = NetworkConnectionModes.LocalOnly;
+                current.Remote.AutomaticRouterConfiguration = false;
+                try
+                {
+                    configuration.SaveNetwork(current);
+                }
+                catch (ConfigValidationException ex)
+                {
+                    return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
+                }
+            }
+
+            // With the mode back at local-only the coordinator removes the door it opened (and does nothing when there is none).
+            await routerMappings.EnsureMappingAsync(ct).ConfigureAwait(false);
+            return Results.Ok(new RemoteOffResultDto { WasOn = wasOn, ConnectionMode = NetworkConnectionModes.LocalOnly });
+        })
+        .WithName("TurnOffRemoteAccess")
+        .WithSummary("Switch away-from-home access off at once without touching home access.")
+        .Produces<RemoteOffResultDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
         // The Apps page shows these two addresses to every signed-in person; the address is not a secret, and nothing else
         // from the network settings or status is returned.

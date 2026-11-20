@@ -1,103 +1,14 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
-@using MediaEngine.Web.Services.Integration
-@inject IEngineApiClient ApiClient
-@inject IStringLocalizer<SharedStrings> L
 
+@* Settings > Network > Remote access. The plain list of three radio buttons is gone: this page is the guided "away from home" flow
+   (start page, then Check, Choose, Passwords, Connect and Test) that lives in Components/Settings/RemoteAccess. *@
 <div class="network-panel">
-    <header class="network-panel__heading">
-        <div><h3>@L["Common_RemoteAccess"]</h3><p>@L["RemoteAccessSettingsPanel_OptionalAddASecureOutside"]</p></div>
-    </header>
-
-    <div id="remote-connection-mode">
-    <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HowTheInternetReachesLibrary"].Value"
-                          Description="@L["RemoteAccessSettingsPanel_LocalAccessWorksWithoutRouter"].Value">
-        <div class="network-mode-list" role="radiogroup" aria-label="@L["RemoteAccessSettingsPanel_HowTheInternetReachesLibrary"].Value">
-            @Mode("local-only", "Not set up — Default", "No public router mapping or remote tunnel is attempted.")
-            @Mode("tailscale", "Tailscale", "Private HTTPS access through an independently installed Tailscale client and Tailscale Serve.")
-            @Mode("custom", "HTTPS reverse proxy", "Use a trusted HTTPS hostname served by Caddy, nginx, Traefik, or another reverse proxy.")
-        </div>
-        <div class="network-card-actions">
-            <AppButton Label="@L["RemoteAccessSettingsPanel_TestRemoteAccess"].Value" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" />
-        </div>
-    </SettingsSectionPanel>
-    </div>
-
-    @if (Settings.Remote.ConnectionMode == "tailscale")
-    {
-        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_TailscaleServe"].Value">
-            <dl class="network-facts">
-                @Fact("Status", Display(Status?.TailscaleState))
-                @Fact("Private HTTPS address", Status?.TailnetAddress ?? "Not detected")
-                @Fact("Serve HTTPS", Status?.TailscaleServeHttps == true ? "Active" : "Not verified")
-                @Fact("Router mapping", "Not used")
-            </dl>
-            <AppAlert Tone="AppUiTone.Info">@L["RemoteAccessSettingsPanel_TailscaleIsASupportedDeployment"]</AppAlert>
-        </SettingsSectionPanel>
-    }
-
-    @if (Settings.Remote.ConnectionMode is "custom" or "direct-only")
-    {
-        <div id="remote-public-address">
-        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HTTPSReverseProxy"].Value"
-                              Description="@L["RemoteAccessSettingsPanel_TheAddressMustHaveA"].Value">
-            <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname"
-                          Label="@L["RemoteAccessSettingsPanel_PublicHTTPSAddress"].Value" Placeholder="https://tuvima.example.com"
-                          HelpText="Used for passkeys, linked sign-in and reset links" />
-            <div class="network-card-actions"><AppButton Label="@L["RemoteAccessSettingsPanel_SaveAndVerify"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveAddressAsync" /></div>
-        </SettingsSectionPanel>
-        </div>
-    }
-
+    <RemoteAccessFlow Settings="Settings" SaveRequested="SaveRequested" StatusRefreshRequested="StatusRefreshRequested" />
 </div>
-
-<NetworkTestDialog @bind-Visible="_testDialogOpen" Busy="@_testing" Result="@_testResult" />
 
 @code {
     [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
-    [Parameter] public NetworkRuntimeStatusDto? Status { get; set; }
     [Parameter] public EventCallback SaveRequested { get; set; }
     [Parameter] public EventCallback StatusRefreshRequested { get; set; }
-
-    private bool _testDialogOpen;
-    private bool _testing;
-    private NetworkTestResultDto? _testResult;
-
-    private RenderFragment Mode(string value, string title, string description) => @<label class="network-mode-option">
-        <AppNativeInput Type="radio" Name="network-mode" Value="@value"
-                        Checked="@(Settings.Remote.ConnectionMode == value)"
-                        OnChange="@(_ => ChangeModeAsync(value))" />
-        <span><strong>@title</strong><small>@description</small></span>
-    </label>;
-
-    private async Task ChangeModeAsync(string value)
-    {
-        Settings.Remote.ConnectionMode = value;
-        if (value != "direct-only")
-            Settings.Remote.AutomaticRouterConfiguration = false;
-        await SaveRequested.InvokeAsync();
-        await StatusRefreshRequested.InvokeAsync();
-    }
-
-    private async Task SaveAddressAsync()
-    {
-        await SaveRequested.InvokeAsync();
-        await StatusRefreshRequested.InvokeAsync();
-    }
-
-    private async Task TestRemoteAsync()
-    {
-        _testDialogOpen = true;
-        _testing = true;
-        _testResult = await ApiClient.TestRemoteNetworkAsync();
-        _testing = false;
-        await StatusRefreshRequested.InvokeAsync();
-    }
-
-    private static string Display(string? value) => string.IsNullOrWhiteSpace(value)
-        ? "Unavailable"
-        : string.Join(' ', value.Split('-', StringSplitOptions.RemoveEmptyEntries)
-            .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
-
-    private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
 }

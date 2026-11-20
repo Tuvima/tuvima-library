@@ -234,7 +234,7 @@ else
                                 <GeneralPage Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Network:
-                                <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
+                                <NetworkRemoteAccessSettings Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Access:
                                 @if (_activeSubsection == SettingsNav.HouseholdsSubsection)
@@ -484,31 +484,14 @@ else
     private bool ShowAttentionBanner => Attention.IsServerAdministrator && !DeviceContext.IsMobile;
     private RenderFragment AttentionBanner => @<SettingsAttentionBanner />;
 
-    // Permanent page notices cannot be dismissed. Local AI shows its notice on every sub-page while it is blocked; Network
-    // shows its notice while remote access is not set up (reported by the Network page, which already reads that setting).
-    // Like the banner, neither is drawn on a phone.
+    // The permanent page notice cannot be dismissed: Local AI shows it on every sub-page while it is blocked. Like the banner, it
+    // is not drawn on a phone. Network has none: home working is the normal state, and Remote access says where it stands itself.
     private RenderFragment LocalAiNotice => @<LocalAiBlockedNotice />;
-    private RenderFragment RemoteAccessNotice => @<RemoteAccessOffNotice />;
-    private bool _remoteAccessOff;
-    // The "Remote access is off" notice belongs to Home network only; Remote access and Advanced do not repeat it.
-    private bool IsHomeNetworkTab => !string.Equals(_activeSubsection, "remote", StringComparison.OrdinalIgnoreCase)
-        && !string.Equals(_activeSubsection, "advanced", StringComparison.OrdinalIgnoreCase);
     private RenderFragment? PageNoticeFragment => DeviceContext.IsMobile ? null : _activeSection switch
     {
         SettingsSection.LocalAi => LocalAiNotice,
-        SettingsSection.Network when _remoteAccessOff && IsHomeNetworkTab => RemoteAccessNotice,
         _ => null,
     };
-
-    private void OnRemoteAccessOffChanged(bool off)
-    {
-        if (_remoteAccessOff != off)
-        {
-            _remoteAccessOff = off;
-            _outsideAccessOn = !off;
-            StateHasChanged();
-        }
-    }
 
     protected override async Task OnInitializedAsync()
     {

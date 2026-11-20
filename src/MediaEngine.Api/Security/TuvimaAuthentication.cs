@@ -135,10 +135,7 @@ public sealed class TuvimaAuthenticationHandler(
                 && !string.IsNullOrWhiteSpace(sessionValues.ToString()))
             {
                 // The Dashboard says where the visitor is; a no-password account is only valid on this computer or the home network.
-                var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
-                    && !string.IsNullOrWhiteSpace(ingressValues.ToString())
-                    ? ClientIngress.ParseCurrent(ingressValues.ToString())
-                    : null;
+                var claimedIngress = RequestIngress.CurrentOrNull(Request);
                 session = await identity.ValidateSessionAsync(sessionValues.ToString(), true, Context.RequestAborted, claimedIngress).ConfigureAwait(false);
                 if (session is null)
                 {

@@ -33,6 +33,9 @@ public sealed partial class EngineApiClient
     public Task<NetworkTestResultDto?> TestRemoteNetworkAsync(CancellationToken ct = default) =>
         PostNetworkAsync<NetworkTestResultDto>("POST /network/tests/remote", "/network/tests/remote", new { }, ct);
 
+    public Task<RemoteCheckResultDto?> GetRemoteCheckAsync(CancellationToken ct = default) =>
+        GetAsync<RemoteCheckResultDto>("GET /network/remote-check", "/network/remote-check", ct: ct);
+
     public Task<NetworkBandwidthStatusDto?> TestNetworkBandwidthAsync(CancellationToken ct = default) =>
         PostNetworkAsync<NetworkBandwidthStatusDto>("POST /network/bandwidth-test", "/network/bandwidth-test", new { }, ct);
 

@@ -20,6 +20,8 @@ public static class TuvimaNetworkServiceCollectionExtensions
         services.AddSingleton<NetworkStatusService>();
         services.AddSingleton<IRemoteAddressProbe, RemoteAddressProbe>();
         services.AddSingleton<IRemoteSignInReadinessReader, RemoteSignInReadinessReader>();
+        services.AddSingleton<IOutsideSignInHistory, OutsideSignInHistory>();
+        services.AddSingleton<IOutsideAccessGate, OutsideAccessGate>();
         services.AddSingleton<IRemoteCheckService, RemoteCheckService>();
         services.AddSingleton<IRouterPortMapper, PcpRouterPortMapper>();
         services.AddSingleton<IRouterPortMapper, NatPmpRouterPortMapper>();

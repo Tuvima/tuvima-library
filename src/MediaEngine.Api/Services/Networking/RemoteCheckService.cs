@@ -17,6 +17,7 @@ public sealed class RemoteCheckService(
     IEnumerable<IRemoteConnectivityProvider> providers,
     IRemoteAddressProbe addressProbe,
     IRemoteSignInReadinessReader signIn,
+    IOutsideSignInHistory outsideSignIns,
     TimeProvider time) : IRemoteCheckService
 {
     private static readonly TimeSpan CertificateWarningWindow = TimeSpan.FromDays(14);
@@ -43,6 +44,7 @@ public sealed class RemoteCheckService(
         // The router door comes last of the ways in: it is the hardest to get right and the first to fail.
         AddRouterDoor(findings, networkStatus, routerSnapshot, sharedAddress);
         await AddPasswordsAsync(findings, ct).ConfigureAwait(false);
+        await AddOutsideVisitorsAsync(findings, settings, ct).ConfigureAwait(false);
 
         var (suggestion, reason) = Suggest(settings, tailscale, sharedAddress, skipRequested);
         return new RemoteCheckResultDto
@@ -241,6 +243,20 @@ public sealed class RemoteCheckService(
                 $"{NameList(readiness.HomeOnlyProfileNames)} no password or passkey, so Library will not let them in from outside.",
                 "Set a password for each of them if they should be able to sign in away from home."));
         }
+    }
+
+    // Said only once away-from-home access is on and nobody has yet signed in from outside: a way to tell "set up" from "proven".
+    private async Task AddOutsideVisitorsAsync(List<RemoteCheckFindingDto> findings, NetworkSettings settings, CancellationToken ct)
+    {
+        if (!settings.Remote.HasOutsidePath || (await outsideSignIns.GetRecentAsync(1, ct).ConfigureAwait(false)).Count > 0)
+        {
+            return;
+        }
+
+        findings.Add(Finding(RemoteCheckFindingKeys.NoOutsideVisitorsSeen, RemoteCheckStatuses.Info,
+            "Nobody has signed in from outside yet",
+            "Library has not seen anyone sign in from outside your home network, so it cannot tell yet whether the way in works.",
+            "Open Library on a phone that is off your home Wi-Fi and sign in, then check again."));
     }
 
     private static string NameList(IReadOnlyList<string> names)

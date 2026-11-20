@@ -1,0 +1,84 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* Step 1, Check my network (mock-ups, picture 2). While Library looks it lists what it is looking at, with a Cancel; then it says what
+   it found in plain sentences with a tick each, gives its suggestion and offers Check again. The password findings are the next
+   step's, so they are not repeated here. *@
+<div class="ra-check" data-remote-screen="check">
+    @if (Checking)
+    {
+        <RemoteAccessCard Key="checking" Title="@L["RemoteAccessCheckStep_Checking"].Value">
+            <div role="status">
+                <RemoteAccessRow Key="looking-network" Tone="AppStatusDotTone.Off" StatusText="@L["RemoteAccessCheckStep_Looking"].Value" Title="@L["RemoteAccessCheckStep_LookNetwork"].Value" />
+                <RemoteAccessRow Key="looking-tailscale" Tone="AppStatusDotTone.Off" StatusText="@L["RemoteAccessCheckStep_Looking"].Value" Title="@L["RemoteAccessCheckStep_LookTailscale"].Value" />
+                <RemoteAccessRow Key="looking-router" Tone="AppStatusDotTone.Off" StatusText="@L["RemoteAccessCheckStep_Looking"].Value" Title="@L["RemoteAccessCheckStep_LookRouter"].Value" />
+                <RemoteAccessRow Key="looking-address" Tone="AppStatusDotTone.Off" StatusText="@L["RemoteAccessCheckStep_Looking"].Value" Title="@L["RemoteAccessCheckStep_LookAddress"].Value" />
+            </div>
+            <div class="ra-check__actions">
+                <AppButton Label="@L["RemoteAccessCheckStep_Cancel"].Value" OnClick="CancelRequested" data-remote-action="cancel" />
+            </div>
+        </RemoteAccessCard>
+    }
+    else if (Result is null)
+    {
+        <RemoteAccessCard Key="unavailable" Title="@L["RemoteAccessCheckStep_Unavailable"].Value" Tone="AppUiTone.Warning">
+            <p class="ra-check__text">@L["RemoteAccessCheckStep_UnavailableText"]</p>
+        </RemoteAccessCard>
+        <div class="ra-check__actions">
+            <AppButton Label="@L["RemoteAccessCheckStep_CheckAgain"].Value" OnClick="CheckAgainRequested" data-remote-action="check-again" />
+            <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+        </div>
+    }
+    else
+    {
+        <RemoteAccessCard Key="findings" Title="@L["RemoteAccessCheckStep_WhatWeFound"].Value">
+            @foreach (var finding in NetworkFindings)
+            {
+                <RemoteAccessRow Key="@finding.Key" Tone="RemoteAccessFindings.ToneFor(finding.Status)"
+                                 StatusText="@StatusWords(finding.Status)" Title="@finding.Title"
+                                 Detail="@Detail(finding)" />
+            }
+        </RemoteAccessCard>
+        <RemoteAccessCard Key="suggestion" Tone="AppUiTone.Primary" Title="@SuggestionTitle" Intro="@Result.SuggestionReason">
+            <div class="ra-check__actions">
+                <AppButton Label="@L["RemoteAccessCheckStep_SeeOptions"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           OnClick="ContinueRequested" data-remote-action="see-options" />
+                <AppButton Label="@L["RemoteAccessCheckStep_CheckAgain"].Value" OnClick="CheckAgainRequested" data-remote-action="check-again" />
+                <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+            </div>
+        </RemoteAccessCard>
+    }
+</div>
+
+@code {
+    [Parameter] public bool Checking { get; set; }
+    [Parameter] public RemoteCheckResultDto? Result { get; set; }
+    [Parameter] public EventCallback CancelRequested { get; set; }
+    [Parameter] public EventCallback CheckAgainRequested { get; set; }
+    [Parameter] public EventCallback ContinueRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private IEnumerable<RemoteCheckFindingDto> NetworkFindings =>
+        Result?.Findings.Where(finding => !RemoteAccessFindings.IsPasswordFinding(finding.Key)) ?? [];
+
+    private string SuggestionTitle => string.Format(L["RemoteAccessCheckStep_OurSuggestion"].Value, Result?.Suggestion switch
+    {
+        RemoteCheckSuggestions.OwnAddress => L["RemoteAccessChooseStep_OwnAddress"].Value,
+        RemoteCheckSuggestions.NotNow => L["RemoteAccessChooseStep_NotNow"].Value,
+        _ => L["RemoteAccessChooseStep_Tailscale"].Value,
+    });
+
+    // The smaller line under a finding: what it means, then the one next step when there is one.
+    private static string Detail(RemoteCheckFindingDto finding) =>
+        string.IsNullOrWhiteSpace(finding.NextStep) ? finding.Detail : $"{finding.Detail} {finding.NextStep}";
+
+    private string StatusWords(string status) => status switch
+    {
+        RemoteCheckStatuses.Ok => L["RemoteAccessCheckStep_StatusOk"].Value,
+        RemoteCheckStatuses.Warn => L["RemoteAccessCheckStep_StatusWarn"].Value,
+        RemoteCheckStatuses.Fail => L["RemoteAccessCheckStep_StatusFail"].Value,
+        _ => L["RemoteAccessCheckStep_StatusInfo"].Value,
+    };
+}

@@ -8,11 +8,14 @@ using MediaEngine.Api.Services.Networking;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Identity;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Ingestion.Contracts;
@@ -44,6 +47,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     private readonly FirstPartyIdentityService _identity;
     private readonly SetupSessionService _setupSessions;
     private readonly FakeContainerProbe _container = new();
+    private readonly SpyRouterMapper _routerMapper = new();
 
     public ThisComputerAccessTests()
     {
@@ -477,6 +481,296 @@ public sealed class ThisComputerAccessTests : IDisposable
         Assert.Equal(StatusCodes.Status401Unauthorized, claimsToBeThisComputer.Status);
     }
 
+    // ---- Away from home: the passwords gate (spec remote-access WP3) ----
+
+    private const string StrongPassword = "correct horse battery staple";
+
+    [Fact]
+    public async Task TurningOnOutsideAccess_IsRefused_WhileNoAdministratorHasAPassword()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildNetworkApplication();
+
+        var response = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.Tailscale));
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.Status);
+        Assert.Equal(NetworkEndpoints.AdministratorNeedsPasswordCode, response.Json.GetProperty("code").GetString());
+        Assert.Contains("password or passkey", response.Json.GetProperty("detail").GetString(), StringComparison.Ordinal);
+        Assert.Equal(NetworkConnectionModes.LocalOnly, _configuration.LoadNetwork().Remote.ConnectionMode);
+    }
+
+    [Fact]
+    public async Task TurningOnOutsideAccess_Works_OnceTheAdministratorHasAPassword()
+    {
+        await _identity.BootstrapAdministratorAsync("owner@example.com", StrongPassword, "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildNetworkApplication();
+
+        var response = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.Tailscale));
+
+        Assert.Equal(StatusCodes.Status200OK, response.Status);
+        Assert.Equal(NetworkConnectionModes.Tailscale, _configuration.LoadNetwork().Remote.ConnectionMode);
+    }
+
+    [Fact]
+    public async Task TurningOnOutsideAccess_IsRefused_WhenTheOnlyPasswordBelongsToAnAdministratorWhoIsOff()
+    {
+        var owner = await _identity.BootstrapAdministratorAsync("owner@example.com", StrongPassword, "Owner", "d", "Browser", "Dashboard");
+        var account = (await _accounts.GetByIdAsync(owner.Account.Id))!;
+        account.IsEnabled = false;
+        await _accounts.UpdateAsync(account);
+        await using var app = BuildNetworkApplication();
+
+        var response = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.Tailscale));
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.Status);
+    }
+
+    [Fact]
+    public async Task SwitchingOutsideAccessOffOrSavingOtherSettings_NeverWaitsForAPassword()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        await using var app = BuildNetworkApplication();
+
+        var unchangedWay = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.Tailscale, serverName: "renamed"));
+        var off = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.LocalOnly));
+
+        Assert.Equal(StatusCodes.Status200OK, unchangedWay.Status);
+        Assert.Equal(StatusCodes.Status200OK, off.Status);
+        Assert.Equal(NetworkConnectionModes.LocalOnly, _configuration.LoadNetwork().Remote.ConnectionMode);
+    }
+
+    [Fact]
+    public async Task ProfileEntry_ForAPersonWithoutAPassword_IsRefusedFromOutsideAndRecordedForTheAdministrator()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+        var body = new ThisComputerSignInRequest { DeviceId = "phone", DeviceName = "Phone", Client = "Dashboard" };
+
+        var fromOutside = await SendAsync(app, "POST", "/auth/this-computer", body, ingress: ClientIngress.Remote);
+        var viaProxy = await SendAsync(app, "POST", "/auth/this-computer", body, ingress: ClientIngress.HomeNetwork,
+            extraHeaders: new() { ["X-Forwarded-For"] = "203.0.113.9" });
+        var viaTunnel = await SendAsync(app, "POST", "/auth/this-computer", body, ingress: ClientIngress.ThisComputer,
+            extraHeaders: new() { [ClientIngressValues.ForwardedHeader] = "true" });
+        var atHome = await SendAsync(app, "POST", "/auth/this-computer", body, ingress: ClientIngress.HomeNetwork);
+
+        Assert.Equal(StatusCodes.Status404NotFound, fromOutside.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, viaProxy.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, viaTunnel.Status);
+        Assert.Equal(StatusCodes.Status200OK, atHome.Status);
+        var history = await _identities.GetRecentOutsideSignInsAsync(20);
+        Assert.Equal(3, history.Count);
+        Assert.All(history, record =>
+        {
+            Assert.False(record.Succeeded);
+            Assert.Equal("Owner", record.ProfileName);
+            Assert.Equal(ClientIngress.Remote, record.IngressKind);
+        });
+    }
+
+    [Fact]
+    public async Task PasswordForm_FromOutside_CannotLetInAPersonWhoHasNoPassword()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var response = await SendAsync(app, "POST", "/auth/login", new LocalLoginRequest
+        {
+            Email = "owner@example.com",
+            Password = StrongPassword,
+            DeviceId = "phone",
+            DeviceName = "Phone",
+            OriginalClientIngress = ClientIngress.Remote,
+        });
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, response.Status);
+        Assert.DoesNotContain("session_token", response.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SessionOfAPersonWithoutAPassword_IsNotValidFromOutside_ForwardedOrWhenThePlaceIsNotSaid()
+    {
+        var issued = await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var atHome = await SendAsync(app, "POST", "/auth/session/validate", ingress: ClientIngress.HomeNetwork, sessionToken: issued.PlaintextToken);
+        var outside = await SendAsync(app, "POST", "/auth/session/validate", ingress: ClientIngress.Remote, sessionToken: issued.PlaintextToken);
+        var homeButForwarded = await SendAsync(app, "POST", "/auth/session/validate", ingress: ClientIngress.HomeNetwork,
+            sessionToken: issued.PlaintextToken, extraHeaders: new() { [ClientIngressValues.ForwardedHeader] = "true" });
+        var homeButProxied = await SendAsync(app, "POST", "/auth/session/validate", ingress: ClientIngress.ThisComputer,
+            sessionToken: issued.PlaintextToken, extraHeaders: new() { ["Forwarded"] = "for=203.0.113.9" });
+        var placeNotSaid = await SendAsync(app, "POST", "/auth/session/validate", ingress: null, sessionToken: issued.PlaintextToken);
+
+        Assert.Equal(StatusCodes.Status200OK, atHome.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, outside.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, homeButForwarded.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, homeButProxied.Status);
+        Assert.Equal(StatusCodes.Status401Unauthorized, placeNotSaid.Status);
+    }
+
+    [Fact]
+    public async Task SwitchingProfile_FromAForwardedRequest_IsRefusedForAPersonWithoutAPassword()
+    {
+        var owner = await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var response = await SendAsync(app, "POST", "/auth/session/switch-profile", new SwitchProfileRequest { ProfileId = owner.Profile.Id },
+            ingress: ClientIngress.HomeNetwork, sessionToken: owner.PlaintextToken,
+            extraHeaders: new() { ["X-Forwarded-For"] = "203.0.113.9" });
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, response.Status);
+    }
+
+    [Fact]
+    public async Task InvitationRedeemedFromOutside_MakesAPasswordProtectedAccountThatCanSignInThere()
+    {
+        var owner = await _identity.BootstrapAdministratorAsync("owner@example.com", StrongPassword, "Owner", "d", "Browser", "Dashboard");
+        var invited = await InsertInvitedAccountAsync("guest@example.com");
+        const string code = "WD5N8RB3CJ";
+        await _accounts.InsertInvitationAsync(new AccountInvitation
+        {
+            Id = Guid.NewGuid(),
+            AccountId = invited.Id,
+            TokenHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(code))),
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(7),
+        });
+        await using var app = BuildAuthenticationApplication();
+
+        var response = await SendAsync(app, "POST", "/auth/invitations/accept",
+            new AcceptAccountInvitationRequest(code, "guest password 1", "phone", "Phone", ClientIngress.Remote));
+
+        Assert.Equal(StatusCodes.Status200OK, response.Status);
+        Assert.True(await _accounts.IsUserSecuredAsync(invited.Id));
+        Assert.Contains(await _identities.GetRecentOutsideSignInsAsync(20), record => record.Succeeded && record.ProfileName == "Guest");
+        _ = owner;
+    }
+
+    // ---- Away from home: sign-in history and the off switch (spec remote-access WP6) ----
+
+    [Fact]
+    public async Task OutsideSignIns_ListsTheLastTwenty_NewestFirst_WithNoAddress()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        for (var attempt = 0; attempt < 25; attempt++)
+        {
+            await _identity.SignInThisComputerAccountAsync("phone", "Phone", "Dashboard", ClientIngress.Remote);
+        }
+
+        await using var app = BuildNetworkApplication();
+        var response = await SendAsync(app, "GET", "/network/outside-sign-ins");
+
+        Assert.Equal(StatusCodes.Status200OK, response.Status);
+        using var document = JsonDocument.Parse(response.Text);
+        var items = document.RootElement.EnumerateArray().ToArray();
+        Assert.Equal(20, items.Length);
+        Assert.Equal(["at", "profile_name", "succeeded", "method", "refusal_reason"],
+            items[0].EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.False(items[0].GetProperty("succeeded").GetBoolean());
+        Assert.Equal("Owner", items[0].GetProperty("profile_name").GetString());
+        Assert.Equal("no_password", items[0].GetProperty("method").GetString());
+        Assert.Contains("password", items[0].GetProperty("refusal_reason").GetString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("203.0", response.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OutsideSignInsAndRemoteOff_AreAdministratorOnly_ByRouteMetadata()
+    {
+        await using var app = BuildNetworkApplication();
+        var routes = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>().ToArray();
+
+        var list = Assert.Single(routes, route => route.RoutePattern.RawText == "/network/outside-sign-ins");
+        var off = Assert.Single(routes, route => route.RoutePattern.RawText == "/network/remote-off");
+
+        Assert.Contains(list.Metadata.OfType<MediaEngine.Api.Security.AuthorityRequirementMetadata>(),
+            metadata => metadata.Requirement == "effective_administrator_surface");
+        Assert.Contains(off.Metadata.OfType<Microsoft.AspNetCore.Authorization.AuthorizationPolicy>().SelectMany(policy => policy.Requirements),
+            requirement => requirement is AdministratorOrApplicationRequirement { Permission: var permission }
+                && permission == ApplicationPermissionIds.NetworkConfigWrite);
+    }
+
+    [Fact]
+    public async Task RemoteOff_PutsOutsideAccessBackToLocalOnlyAndClosesTheRouterDoor_ButClearsNothingElse()
+    {
+        _configuration.SaveNetwork(new NetworkSettings
+        {
+            Local = { Port = 5016, DiscoveryEnabled = true, ReachOtherDevices = true, PreferredServerName = "home-server" },
+            Remote =
+            {
+                ConnectionMode = NetworkConnectionModes.DirectOnly,
+                AutomaticRouterConfiguration = true,
+                TlsTerminationPort = 8443,
+                PublicHostname = "https://library.example.com",
+                ProxyPort = 8444,
+                TrustedProxies = ["127.0.0.1"],
+            },
+        });
+        await using var app = BuildNetworkApplication();
+        var coordinator = app.Services.GetRequiredService<RouterPortMappingCoordinator>();
+        await coordinator.EnsureMappingAsync(CancellationToken.None);
+        Assert.Equal(1, _routerMapper.Created);
+
+        var response = await SendAsync(app, "POST", "/network/remote-off");
+
+        Assert.Equal(StatusCodes.Status200OK, response.Status);
+        Assert.True(response.Json.GetProperty("was_on").GetBoolean());
+        Assert.Equal("local-only", response.Json.GetProperty("connection_mode").GetString());
+        var saved = _configuration.LoadNetwork();
+        Assert.Equal(NetworkConnectionModes.LocalOnly, saved.Remote.ConnectionMode);
+        Assert.False(saved.Remote.AutomaticRouterConfiguration);
+        Assert.Equal(1, _routerMapper.Removed);
+        // Nothing else is cleared and home access is untouched.
+        Assert.Equal("https://library.example.com", saved.Remote.PublicHostname);
+        Assert.Equal(8443, saved.Remote.TlsTerminationPort);
+        Assert.Equal(8444, saved.Remote.ProxyPort);
+        Assert.Equal(["127.0.0.1"], saved.Remote.TrustedProxies);
+        Assert.Equal(5016, saved.Local.Port);
+        Assert.True(saved.Local.DiscoveryEnabled);
+        Assert.True(saved.Local.ReachOtherDevices);
+        Assert.Equal("home-server", saved.Local.PreferredServerName);
+    }
+
+    [Fact]
+    public async Task RemoteOff_IsSafeToRepeat_AndSaysItWasAlreadyOff()
+    {
+        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        await using var app = BuildNetworkApplication();
+
+        var first = await SendAsync(app, "POST", "/network/remote-off");
+        var second = await SendAsync(app, "POST", "/network/remote-off");
+
+        Assert.True(first.Json.GetProperty("was_on").GetBoolean());
+        Assert.Equal(StatusCodes.Status200OK, second.Status);
+        Assert.False(second.Json.GetProperty("was_on").GetBoolean());
+        Assert.Equal("local-only", second.Json.GetProperty("connection_mode").GetString());
+        Assert.Equal(NetworkConnectionModes.LocalOnly, _configuration.LoadNetwork().Remote.ConnectionMode);
+    }
+
+    private static NetworkSettingsDto NetworkWith(string mode, string serverName = "tuvima")
+    {
+        var settings = new NetworkSettings { Remote = { ConnectionMode = mode } };
+        settings.Local.PreferredServerName = serverName;
+        return NetworkContractMapper.ToContract(settings);
+    }
+
+    private async Task<Account> InsertInvitedAccountAsync(string email)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var invited = new Account
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            IsEnabled = true,
+            AuthorizationVersion = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        var person = new Profile { Id = Guid.NewGuid(), DisplayName = "Guest", AvatarColor = "#7C4DFF", Role = ProfileRole.StandardUser, CreatedAt = now };
+        await _accounts.CreateAccountAsync(invited, new TestGrant(invited.Id, person.Id, IsDefault: true), newProfile: person);
+        return invited;
+    }
+
     // ---- Harness ----
 
     private SecureAccountGate CreateGate() => new();
@@ -573,8 +867,12 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton(CreateGate());
         builder.Services.AddSingleton<NetworkStatusService>(_ => null!);
         builder.Services.AddSingleton<INetworkDiagnosticsService>(_ => null!);
-        builder.Services.AddSingleton<RouterPortMappingCoordinator>(_ => null!);
+        builder.Services.AddSingleton(new RouterPortMappingCoordinator(
+            _configuration, new FixedEnvironment(), new FixedTopology(), [_routerMapper], new NetworkRuntimeState(),
+            NullLogger<RouterPortMappingCoordinator>.Instance));
         builder.Services.AddSingleton<IRemoteCheckService>(_ => null!);
+        builder.Services.AddSingleton<IOutsideAccessGate>(new OutsideAccessGate(_accounts));
+        builder.Services.AddSingleton<IOutsideSignInHistory>(new OutsideSignInHistory(_identities));
         var app = builder.Build();
         app.MapNetworkEndpoints();
         return app;
@@ -741,6 +1039,39 @@ public sealed class ThisComputerAccessTests : IDisposable
     private sealed class RequestBodyDetectionFeature : IHttpRequestBodyDetectionFeature
     {
         public bool CanHaveBody => true;
+    }
+
+    private sealed class SpyRouterMapper : IRouterPortMapper
+    {
+        public int Created { get; private set; }
+        public int Removed { get; private set; }
+        public string Method => "Spy";
+        public int Priority => 0;
+
+        public Task<RouterMappingResult> TryCreateAsync(RouterMappingRequest request, CancellationToken ct)
+        {
+            Created++;
+            return Task.FromResult(new RouterMappingResult(RouterMappingState.Active, Method, "Mapped.", request.ExternalPort, DateTimeOffset.UtcNow.AddHours(1), "203.0.113.7"));
+        }
+
+        public Task<RouterMappingResult> TryRenewAsync(RouterMappingRequest request, CancellationToken ct) => TryCreateAsync(request, ct);
+
+        public Task RemoveOwnedAsync(RouterMappingRequest request, CancellationToken ct)
+        {
+            Removed++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FixedTopology : INetworkTopologyService
+    {
+        public NetworkTopologySnapshot GetSnapshot() => new("native", true, "Router discovery can use the host's LAN gateway.", "192.168.1.1", "eth0");
+    }
+
+    private sealed class FixedEnvironment : INetworkEnvironmentService
+    {
+        public IReadOnlyList<NetworkAddressDto> GetUsableAddresses(bool includeIpv6) =>
+            [new() { InterfaceId = "eth0", InterfaceName = "eth0", Address = "192.168.1.20", AddressFamily = "ipv4" }];
     }
 
     private sealed class FakeContainerProbe : IContainerProbe

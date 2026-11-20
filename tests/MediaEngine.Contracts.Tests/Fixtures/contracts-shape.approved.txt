@@ -11178,6 +11178,15 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OrganizationTempla
   Preview: System.String | nullability=nullable | accessors=get,init
   Templates: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OutsideSignInDto
+  At: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  ProfileName: System.String | nullability=nullable | accessors=get,set
+  Succeeded: System.Boolean | nullability=not-null | accessors=get,set
+  Method: System.String | nullability=not-null | accessors=get,set
+  RefusalReason: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OutsideSignInMethods
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PasswordResetDeliveryDto
   Mode: System.String | nullability=not-null | accessors=get,init
   SmtpHost: System.String | nullability=not-null | accessors=get,init
@@ -11473,6 +11482,10 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteNetworkSetti
   ProxyPort: System.Int32? | nullability=nullable | accessors=get,set
   TrustedProxies: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   TrustedProxyNetworks: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteOffResultDto
+  WasOn: System.Boolean | nullability=not-null | accessors=get,set
+  ConnectionMode: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ResolvedUISettingsDto
   DeviceClass: System.String | nullability=not-null | accessors=get,set

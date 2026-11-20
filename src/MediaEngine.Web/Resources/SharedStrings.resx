@@ -4178,12 +4178,6 @@
   <data name="LocalAiBlockedNotice_SeeTools" xml:space="preserve">
     <value>See tools</value>
   </data>
-  <data name="RemoteAccessOffNotice_RemoteAccessIsOffSo" xml:space="preserve">
-    <value>Remote access is off, so the Library only works at home.</value>
-  </data>
-  <data name="RemoteAccessOffNotice_SetUp" xml:space="preserve">
-    <value>Set up</value>
-  </data>
   <data name="HomeSettingsPage_Slides" xml:space="preserve">
     <value>Slides</value>
   </data>
@@ -6169,36 +6163,6 @@
   </data>
   <data name="RecycleBinSection_OtherMedia" xml:space="preserve">
     <value>Other media: {0}, {1}</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_OptionalAddASecureOutside" xml:space="preserve">
-    <value>Optional. Add a secure outside address so apps and other devices can reach Library away from home. Library sign-in is always required.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TailscaleIsASupportedDeployment" xml:space="preserve">
-    <value>Tailscale is a supported deployment preset, not an embedded VPN. Install it on the host or use the official sidecar preset.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_HowTheInternetReachesLibrary" xml:space="preserve">
-    <value>How the internet reaches Library</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_LocalAccessWorksWithoutRouter" xml:space="preserve">
-    <value>Local access works without router, DNS, or certificate setup. Pick a secure path only if you want to reach Library from outside your home.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TestRemoteAccess" xml:space="preserve">
-    <value>Test remote access</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TailscaleServe" xml:space="preserve">
-    <value>Tailscale Serve</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_HTTPSReverseProxy" xml:space="preserve">
-    <value>HTTPS reverse proxy</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TheAddressMustHaveA" xml:space="preserve">
-    <value>The address must have a trusted certificate and route to this Dashboard.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_PublicHTTPSAddress" xml:space="preserve">
-    <value>Public HTTPS address</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_SaveAndVerify" xml:space="preserve">
-    <value>Save and verify</value>
   </data>
   <data name="ScheduledTasksCard_ChangeItIn" xml:space="preserve">
     <value>Change it in {0}</value>
@@ -15283,5 +15247,374 @@
   </data>
   <data name="SecurityTab_EmailConfiguredNeedsAddress" xml:space="preserve">
     <value>Configured. Reset links also need the public address above.</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="RemoteAccessCheckStep_CheckAgain" xml:space="preserve">
+    <value>Check again</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Checking" xml:space="preserve">
+    <value>Checking your network</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookAddress" xml:space="preserve">
+    <value>Looking at the address your internet provider gives you</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookNetwork" xml:space="preserve">
+    <value>Looking at this server's network</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookRouter" xml:space="preserve">
+    <value>Looking at your router</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookTailscale" xml:space="preserve">
+    <value>Looking for Tailscale</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Looking" xml:space="preserve">
+    <value>Looking now</value>
+  </data>
+  <data name="RemoteAccessCheckStep_OurSuggestion" xml:space="preserve">
+    <value>Our suggestion: {0}</value>
+  </data>
+  <data name="RemoteAccessCheckStep_SeeOptions" xml:space="preserve">
+    <value>See my options</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusFail" xml:space="preserve">
+    <value>Not working</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusInfo" xml:space="preserve">
+    <value>For your information</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusOk" xml:space="preserve">
+    <value>All good</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusWarn" xml:space="preserve">
+    <value>Needs a look</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Unavailable" xml:space="preserve">
+    <value>The check could not run</value>
+  </data>
+  <data name="RemoteAccessCheckStep_UnavailableText" xml:space="preserve">
+    <value>Library could not read your network just now. Make sure the Engine is running, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessCheckStep_WhatWeFound" xml:space="preserve">
+    <value>What we found</value>
+  </data>
+  <data name="RemoteAccessChooseStep_AwayFromHome" xml:space="preserve">
+    <value>Away from home</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Best" xml:space="preserve">
+    <value>Best</value>
+  </data>
+  <data name="RemoteAccessChooseStep_ChooseOwnAddress" xml:space="preserve">
+    <value>Choose own address</value>
+  </data>
+  <data name="RemoteAccessChooseStep_ChooseTailscale" xml:space="preserve">
+    <value>Choose Tailscale</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Cost" xml:space="preserve">
+    <value>Cost</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Effort" xml:space="preserve">
+    <value>Effort</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Nobody" xml:space="preserve">
+    <value>Nobody</value>
+  </data>
+  <data name="RemoteAccessChooseStep_None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="RemoteAccessChooseStep_NotAvailable" xml:space="preserve">
+    <value>Not available</value>
+  </data>
+  <data name="RemoteAccessChooseStep_NotNow" xml:space="preserve">
+    <value>Not now</value>
+  </data>
+  <data name="RemoteAccessChooseStep_NotNowTag" xml:space="preserve">
+    <value>Keep Library at home only. You can come back any time.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddress" xml:space="preserve">
+    <value>My own address</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressCost" xml:space="preserve">
+    <value>Free, a name costs about $10 a year</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressEffort" xml:space="preserve">
+    <value>Harder, 20+ min</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressPrivacy" xml:space="preserve">
+    <value>Public, password protected</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressRouter" xml:space="preserve">
+    <value>Yes, or a tunnel</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressTag" xml:space="preserve">
+    <value>A web address anyone you share it with can open, like Plex.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Privacy" xml:space="preserve">
+    <value>Privacy</value>
+  </data>
+  <data name="RemoteAccessChooseStep_RouterChanges" xml:space="preserve">
+    <value>Router changes</value>
+  </data>
+  <data name="RemoteAccessChooseStep_SharedAddressWarning" xml:space="preserve">
+    <value>Your internet provider shares one public address between homes, so opening a door in your router will probably not work. A tunnel or proxy avoids that.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_SmartTvs" xml:space="preserve">
+    <value>Works on smart TVs</value>
+  </data>
+  <data name="RemoteAccessChooseStep_StayAtHome" xml:space="preserve">
+    <value>Stay at home only</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Suggested" xml:space="preserve">
+    <value>Suggested for you</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Tailscale" xml:space="preserve">
+    <value>Tailscale</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleApp" xml:space="preserve">
+    <value>Everyone who connects</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleCost" xml:space="preserve">
+    <value>Free for home use</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleEffort" xml:space="preserve">
+    <value>Easy, about 5 min</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscalePrivacy" xml:space="preserve">
+    <value>Private, end to end</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleTag" xml:space="preserve">
+    <value>A private link between your devices. Nobody else can see your Library.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleTvs" xml:space="preserve">
+    <value>Some (needs app)</value>
+  </data>
+  <data name="RemoteAccessChooseStep_WhoNeedsApp" xml:space="preserve">
+    <value>Who needs an app</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_AddressHelp" xml:space="preserve">
+    <value>Used for passkeys, linked sign-in and reset links.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_HowReach" xml:space="preserve">
+    <value>How will the internet reach this server?</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_MayNotWork" xml:space="preserve">
+    <value>May not work</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_Proxy" xml:space="preserve">
+    <value>A proxy I run (Caddy, nginx, Traefik)</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_ProxyText" xml:space="preserve">
+    <value>You keep full control. Use a trusted HTTPS name that Caddy, nginx, Traefik or another reverse proxy serves.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_PublicAddress" xml:space="preserve">
+    <value>Your public web address</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_PublicAddressText" xml:space="preserve">
+    <value>Passkeys and reset links need it. It must start with https and have a trusted certificate that reaches this Dashboard.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_PublicHttpsAddress" xml:space="preserve">
+    <value>Public HTTPS address</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_RouterDoor" xml:space="preserve">
+    <value>Open a door in my router</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_RouterDoorShared" xml:space="preserve">
+    <value>Your internet provider shares one public address between homes, so this will probably not work. Use a tunnel or a proxy instead.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_RouterDoorText" xml:space="preserve">
+    <value>Library tries the automatic way first, then shows manual steps under Advanced. Does not work if your provider shares your address.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_SaveAndVerify" xml:space="preserve">
+    <value>Save and verify</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_TestRemoteAccess" xml:space="preserve">
+    <value>Test remote access</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_Tunnel" xml:space="preserve">
+    <value>A tunnel (Cloudflare Tunnel)</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_TunnelText" xml:space="preserve">
+    <value>No router changes, hides your home address. The tunnel's company sees the traffic, and a free plan may limit video: read their terms first.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Blocked" xml:space="preserve">
+    <value>Continue stays off until the person who looks after Library has a password or passkey, so nobody gets locked out away from home. Set one, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_EveryoneReady" xml:space="preserve">
+    <value>Everyone can sign in away from home</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_EveryoneReadyDetail" xml:space="preserve">
+    <value>Every profile has a password or passkey.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_HomeOnly" xml:space="preserve">
+    <value>Home only</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_NoPassword" xml:space="preserve">
+    <value>No password</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Rule" xml:space="preserve">
+    <value>Away from home, every sign-in needs a password or passkey. Profiles without one will keep working at home but cannot sign in from outside.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_SetPassword" xml:space="preserve">
+    <value>Set a password</value>
+  </data>
+  <data name="RemoteAccessStartPage_AlreadyHaveProxy" xml:space="preserve">
+    <value>I already have a proxy or tunnel</value>
+  </data>
+  <data name="RemoteAccessStartPage_AtHomeWorking" xml:space="preserve">
+    <value>At home: working, no password needed</value>
+  </data>
+  <data name="RemoteAccessStartPage_AwayNotSetUp" xml:space="preserve">
+    <value>Away from home: not set up</value>
+  </data>
+  <data name="RemoteAccessStartPage_AwayNotSetUpText" xml:space="preserve">
+    <value>Want to watch or listen when you are not on your home network? We will check your network, suggest the easiest way, and walk you through it. It takes about 5 minutes.</value>
+  </data>
+  <data name="RemoteAccessStartPage_AwayOn" xml:space="preserve">
+    <value>Away from home: on</value>
+  </data>
+  <data name="RemoteAccessStartPage_ChangeHow" xml:space="preserve">
+    <value>Change how</value>
+  </data>
+  <data name="RemoteAccessStartPage_HomeText" xml:space="preserve">
+    <value>Phones, TVs and computers on your home network can open your Library right now. Nothing more to do.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnOwnAddress" xml:space="preserve">
+    <value>Library can be reached away from home at your own address, {0}. Outside sign-in always needs a password.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnOwnAddressNoName" xml:space="preserve">
+    <value>Your own address is the way in, but no web address is saved yet. Add it to finish.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnRouterDoor" xml:space="preserve">
+    <value>A door in your router is the way in. You can change it under Advanced. Outside sign-in always needs a password.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnTailscale" xml:space="preserve">
+    <value>Tailscale is the way in away from home. Outside sign-in always needs a password.</value>
+  </data>
+  <data name="RemoteAccessStartPage_SafetyText" xml:space="preserve">
+    <value>Outside access always needs a password. People without one can still use your Library at home. You will be asked about this in step 3.</value>
+  </data>
+  <data name="RemoteAccessStartPage_SafetyTitle" xml:space="preserve">
+    <value>Safety, before anything is switched on</value>
+  </data>
+  <data name="RemoteAccessStartPage_SetUp" xml:space="preserve">
+    <value>Set up away-from-home access</value>
+  </data>
+  <data name="RemoteAccessStartPage_TestAccess" xml:space="preserve">
+    <value>Test away-from-home access</value>
+  </data>
+  <data name="RemoteAccessStartPage_TurnOff" xml:space="preserve">
+    <value>Turn off away-from-home access</value>
+  </data>
+  <data name="RemoteAccessStepper_Check" xml:space="preserve">
+    <value>Check</value>
+  </data>
+  <data name="RemoteAccessStepper_Choose" xml:space="preserve">
+    <value>Choose</value>
+  </data>
+  <data name="RemoteAccessStepper_Connect" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="RemoteAccessStepper_Passwords" xml:space="preserve">
+    <value>Passwords</value>
+  </data>
+  <data name="RemoteAccessStepper_Steps" xml:space="preserve">
+    <value>Steps to set up away-from-home access</value>
+  </data>
+  <data name="RemoteAccessStepper_Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_CommandWhat" xml:space="preserve">
+    <value>the command</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_DownloadLink" xml:space="preserve">
+    <value>Open the Tailscale download page</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_Install" xml:space="preserve">
+    <value>Install Tailscale on this server</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_InstallDone" xml:space="preserve">
+    <value>Tailscale is installed on this server.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_InstallTodo" xml:space="preserve">
+    <value>Tailscale is not on this server yet. Install it, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_Phone" xml:space="preserve">
+    <value>Install Tailscale on your phone or tablet</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_PhoneText" xml:space="preserve">
+    <value>Sign in with the same account. Scan this on your phone to get the app.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SecureAddress" xml:space="preserve">
+    <value>Turn on a private secure address</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SecureAddressDone" xml:space="preserve">
+    <value>Your private secure address is on.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SecureAddressTodo" xml:space="preserve">
+    <value>One command, run once on this computer. Turn on HTTPS for your Tailscale network first if it asks.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SendSteps" xml:space="preserve">
+    <value>Send me these steps</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SendStepsWhat" xml:space="preserve">
+    <value>the link to these steps</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_ServerTag" xml:space="preserve">
+    <value>On the server computer</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SignIn" xml:space="preserve">
+    <value>Sign in to Tailscale</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SignInDone" xml:space="preserve">
+    <value>Signed in to Tailscale.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SignInTodo" xml:space="preserve">
+    <value>Run this once on the server computer, then sign in in the window that opens.</value>
+  </data>
+  <data name="RemoteAccessTestStep_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="RemoteAccessTestStep_Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="RemoteAccessTestStep_Intro" xml:space="preserve">
+    <value>Library will ask the internet to reach it once, at the address you set up, and tell you what happened. It sends nothing else.</value>
+  </data>
+  <data name="RemoteAccessTestStep_NoAnswer" xml:space="preserve">
+    <value>The test could not run</value>
+  </data>
+  <data name="RemoteAccessTestStep_NoAnswerText" xml:space="preserve">
+    <value>Library could not ask the Engine to run the test. Make sure the Engine is running, then test again.</value>
+  </data>
+  <data name="RemoteAccessTestStep_Passed" xml:space="preserve">
+    <value>Passed</value>
+  </data>
+  <data name="RemoteAccessTestStep_Run" xml:space="preserve">
+    <value>Test from outside</value>
+  </data>
+  <data name="RemoteAccessTestStep_Skipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="RemoteAccessTestStep_TestAgain" xml:space="preserve">
+    <value>Test again</value>
+  </data>
+  <data name="RemoteAccessTestStep_Testing" xml:space="preserve">
+    <value>Testing from outside</value>
+  </data>
+  <data name="RemoteAccessTestStep_TestingText" xml:space="preserve">
+    <value>Library is asking the internet to reach it.</value>
+  </data>
+  <data name="RemoteAccessTestStep_Title" xml:space="preserve">
+    <value>Test from outside</value>
   </data>
 </root>

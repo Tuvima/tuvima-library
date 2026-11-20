@@ -57,8 +57,9 @@ public sealed partial class SettingsWordingAndDuplicateFactsGuardrailTests
     {
         var offenders = SettingsSources()
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}General{Path.DirectorySeparatorChar}"))
-            // Two QR codes that are not the server address: an invitation link, and the authenticator-app set-up code.
-            .Where(path => Path.GetFileName(path) is not ("InvitationShare.razor" or "SecuritySettingsPage.TwoStep.cs"))
+            // Three QR codes that are not the server address: an invitation link, the authenticator-app set-up code, and the
+            // Tailscale download page that the away-from-home flow shows so a phone can get the app (spec remote-access WP4).
+            .Where(path => Path.GetFileName(path) is not ("InvitationShare.razor" or "SecuritySettingsPage.TwoStep.cs" or "RemoteAccessTailscaleSteps.razor"))
             .Where(path =>
             {
                 var text = File.ReadAllText(path);
@@ -86,20 +87,17 @@ public sealed partial class SettingsWordingAndDuplicateFactsGuardrailTests
     }
 
     [Fact]
-    public void TheRemoteAccessOffNotice_IsDrawnOnHomeNetworkOnly()
+    public void TheRemoteAccessOffNotice_IsGone_AndNoPageDrawsIt()
     {
-        var settings = Read("Components", "Pages", "Settings.razor");
-
-        Assert.Contains("SettingsSection.Network when _remoteAccessOff && IsHomeNetworkTab => RemoteAccessNotice", settings, StringComparison.Ordinal);
-        Assert.Contains("\"remote\"", settings, StringComparison.Ordinal);
-        Assert.Contains("\"advanced\"", settings, StringComparison.Ordinal);
-        // Only the Settings page draws it, so no other page or tab can repeat it.
+        // Spec remote-access D7: home working is the normal state, so no permanent "Remote access is off" bubble; the Remote access
+        // page's start page says where away-from-home access stands.
         var drawn = Directory.EnumerateFiles(Path.Combine(WebRoot, "Components"), "*.razor", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
-            .Where(path => File.ReadAllText(path).Contains("<RemoteAccessOffNotice", StringComparison.Ordinal))
+            .Where(path => File.ReadAllText(path).Contains("RemoteAccessOffNotice", StringComparison.Ordinal))
             .Select(path => Path.GetFileName(path))
             .ToList();
-        Assert.Equal(["Settings.razor"], drawn);
+        Assert.Empty(drawn);
+        Assert.False(File.Exists(Path.Combine(WebRoot, "Components", "Settings", "Frame", "RemoteAccessOffNotice.razor")));
     }
 
     [Fact]

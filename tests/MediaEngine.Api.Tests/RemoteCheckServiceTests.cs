@@ -27,6 +27,7 @@ public sealed class RemoteCheckServiceTests : IDisposable
     private readonly SpyTailscale _tailscale = new(NotInstalledSnapshot());
     private readonly SpyProbe _probe = new();
     private readonly SpyReadiness _readiness = new(new RemoteSignInReadiness([], false));
+    private readonly SpyOutsideSignIns _outsideSignIns = new();
     private readonly SpyTopology _topology = new(new NetworkTopologySnapshot("native", true, "Router discovery can use the host's LAN gateway.", "192.168.1.1", "eth0"));
     private readonly DateTimeOffset _now = DateTimeOffset.Parse("2026-11-20T12:00:00Z");
 
@@ -46,7 +47,7 @@ public sealed class RemoteCheckServiceTests : IDisposable
     {
         var environment = new FixedEnvironment();
         var status = new NetworkStatusService(_configuration, environment, _topology, _runtime, TimeProvider.System);
-        return new RemoteCheckService(_configuration, status, _topology, _runtime, [_tailscale], _probe, _readiness, new FixedTime(_now))
+        return new RemoteCheckService(_configuration, status, _topology, _runtime, [_tailscale], _probe, _readiness, _outsideSignIns, new FixedTime(_now))
             .CheckAsync(skip, CancellationToken.None);
     }
 
@@ -280,6 +281,39 @@ public sealed class RemoteCheckServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task OutsideAccessOnWithNobodyHavingSignedInFromOutside_SaysNoOutsideVisitorsSeen()
+    {
+        SaveOwnAddress(NetworkConnectionModes.Custom, proxyPort: 8443);
+        _probe.Result = Reachable(trusted: true, expires: _now.AddDays(60));
+
+        var result = await Check();
+
+        var finding = Assert.Single(result.Findings, f => f.Key == RemoteCheckFindingKeys.NoOutsideVisitorsSeen);
+        Assert.Equal(RemoteCheckStatuses.Info, finding.Status);
+        Assert.NotNull(finding.NextStep);
+    }
+
+    [Fact]
+    public async Task OutsideAccessOnAndSomeoneHasSignedInFromOutside_DoesNotSayNoOutsideVisitorsSeen()
+    {
+        SaveOwnAddress(NetworkConnectionModes.Custom, proxyPort: 8443);
+        _probe.Result = Reachable(trusted: true, expires: _now.AddDays(60));
+        _outsideSignIns.Items = [new OutsideSignInDto { At = _now, ProfileName = "Sam", Succeeded = true, Method = OutsideSignInMethods.Password }];
+
+        var result = await Check();
+
+        Assert.DoesNotContain(result.Findings, f => f.Key == RemoteCheckFindingKeys.NoOutsideVisitorsSeen);
+    }
+
+    [Fact]
+    public async Task OutsideAccessOff_NeverSaysNoOutsideVisitorsSeen()
+    {
+        var result = await Check();
+
+        Assert.DoesNotContain(result.Findings, f => f.Key == RemoteCheckFindingKeys.NoOutsideVisitorsSeen);
+    }
+
+    [Fact]
     public async Task CheckingWithNothingConfigured_NeverCallsTheAddressProbe()
     {
         await Check();
@@ -384,6 +418,13 @@ public sealed class RemoteCheckServiceTests : IDisposable
             Calls++;
             return Task.FromResult(Result);
         }
+    }
+
+    private sealed class SpyOutsideSignIns : IOutsideSignInHistory
+    {
+        public IReadOnlyList<OutsideSignInDto> Items { get; set; } = [];
+        public Task<IReadOnlyList<OutsideSignInDto>> GetRecentAsync(int limit, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<OutsideSignInDto>>(Items.Take(limit).ToList());
     }
 
     private sealed class SpyReadiness(RemoteSignInReadiness readiness) : IRemoteSignInReadinessReader

@@ -79,4 +79,14 @@ public interface IIdentityRepository
     Task RevokeServiceCredentialsAsync(string purpose, DateTimeOffset revokedAt, CancellationToken ct = default);
 
     Task WriteAuditEventAsync(Guid? accountId, Guid? profileId, Guid? sessionId, string eventType, bool succeeded, string? detail, DateTimeOffset occurredAt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Records one attempt to sign in from outside the home network in the sign-in audit log (success or refusal), keeping
+    /// only the person's profile, the method and the coarse kind of place, never an address. The log keeps the newest
+    /// <see cref="OutsideSignInEventTypes.RetainedRows"/> of these and drops older ones.
+    /// </summary>
+    Task WriteOutsideSignInAsync(Guid? accountId, Guid? profileId, Guid? sessionId, bool succeeded, string ingressKind, string method, DateTimeOffset occurredAt, CancellationToken ct = default);
+
+    /// <summary>The newest outside sign-in attempts, newest first.</summary>
+    Task<IReadOnlyList<OutsideSignInRecord>> GetRecentOutsideSignInsAsync(int limit, CancellationToken ct = default);
 }

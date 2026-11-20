@@ -14,6 +14,9 @@ public partial interface IEngineApiClient
     Task<NetworkAppAddressesDto?> GetNetworkAppAddressesAsync(CancellationToken ct = default);
     Task<NetworkTestResultDto?> TestLocalNetworkAsync(CancellationToken ct = default);
     Task<NetworkTestResultDto?> TestRemoteNetworkAsync(CancellationToken ct = default);
+
+    /// <summary>GET /network/remote-check - what the away-from-home check found, in plain findings, and the way in Library suggests. Reads only.</summary>
+    Task<RemoteCheckResultDto?> GetRemoteCheckAsync(CancellationToken ct = default);
     Task<NetworkBandwidthStatusDto?> TestNetworkBandwidthAsync(CancellationToken ct = default);
     Task<PortAvailabilityResultDto?> CheckNetworkPortAsync(int port, CancellationToken ct = default);
     Task<PortAvailabilityResultDto?> ApplyNetworkPortAsync(int port, CancellationToken ct = default);

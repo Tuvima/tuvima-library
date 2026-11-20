@@ -1,0 +1,131 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Configuration
+@using MediaEngine.Web.Services.Settings
+@using MediaEngine.Web.Services.Theming
+@implements IDisposable
+@inject RemoteAccessFlowState Flow
+@inject DeviceContextService DeviceContext
+@inject NavigationManager Navigation
+
+@* Settings > Network > Remote access: the guided way to reach Library away from home (spec remote-access, WP2 and WP4). It draws the
+   start page or one of the five steps (Check, Choose, Passwords, Connect, Test), one screen at a time, which is also how it reads on a
+   phone. A TV never shows it. Where it stands is kept in RemoteAccessFlowState; the connection mode itself is saved only through the
+   Network page's own save. *@
+@if (!DeviceContext.IsTv)
+{
+    <div class="ra-flow" data-remote-flow data-remote-screen-name="@Flow.Screen.ToString().ToLowerInvariant()">
+        @if (Flow.Screen is not (RemoteAccessScreen.Start or RemoteAccessScreen.OwnAddress))
+        {
+            <RemoteAccessStepper Current="Flow.Screen" />
+        }
+
+        @switch (Flow.Screen)
+        {
+            case RemoteAccessScreen.Check:
+                <RemoteAccessCheckStep Checking="Flow.Checking" Result="Flow.Result"
+                                       CancelRequested="@(() => Flow.CancelCheck())"
+                                       CheckAgainRequested="@(() => Flow.CheckAsync())"
+                                       ContinueRequested="@(() => Flow.Go(RemoteAccessScreen.Choose))"
+                                       BackRequested="@(() => Flow.Close())" />
+                break;
+            case RemoteAccessScreen.Choose:
+                <RemoteAccessChooseStep Result="Flow.Result"
+                                        MethodChosen="@(method => Flow.ChooseMethod(method))"
+                                        NotNowChosen="StayAtHomeAsync"
+                                        BackRequested="@(() => Flow.Go(RemoteAccessScreen.Check))" />
+                break;
+            case RemoteAccessScreen.Passwords:
+                <RemoteAccessPasswordsStep Result="Flow.Result"
+                                           ContinueRequested="ApplyMethodAsync"
+                                           CheckAgainRequested="RefreshQuietlyAsync"
+                                           BackRequested="@(() => Flow.Go(RemoteAccessScreen.Choose))" />
+                break;
+            case RemoteAccessScreen.Connect when IsTailscale:
+                <RemoteAccessTailscaleSteps Result="Flow.Result" ProxyPort="@(Settings.Remote.ProxyPort ?? ProxyPortConfiguration.TailscalePresetPort)"
+                                            PollInterval="Flow.PollInterval" SendLink="@SendLink"
+                                            CheckAgainRequested="RefreshQuietlyAsync" PollRequested="RefreshQuietlyAsync"
+                                            ContinueRequested="@(() => Flow.Go(RemoteAccessScreen.Test))"
+                                            BackRequested="@(() => Flow.Go(RemoteAccessScreen.Passwords))" />
+                break;
+            case RemoteAccessScreen.Connect:
+                <RemoteAccessOwnAddressStep Settings="Settings" ShowRoutes="true" Result="Flow.Result"
+                                            SaveRequested="SaveRequested" StatusRefreshRequested="StatusRefreshRequested"
+                                            ContinueRequested="@(() => Flow.Go(RemoteAccessScreen.Test))"
+                                            BackRequested="@(() => Flow.Go(RemoteAccessScreen.Passwords))" />
+                break;
+            case RemoteAccessScreen.Test:
+                <RemoteAccessTestStep StatusRefreshRequested="StatusRefreshRequested"
+                                      DoneRequested="@(() => Flow.Close())"
+                                      BackRequested="@(() => Flow.Go(RemoteAccessScreen.Connect))" />
+                break;
+            case RemoteAccessScreen.OwnAddress:
+                <RemoteAccessOwnAddressStep Settings="Settings" ShowRoutes="false" Result="Flow.Result"
+                                            SaveRequested="SaveRequested" StatusRefreshRequested="StatusRefreshRequested"
+                                            BackRequested="@(() => Flow.Close())" />
+                break;
+            default:
+                <RemoteAccessStartPage Settings="Settings"
+                                       SetUpRequested="@(() => Flow.BeginAsync())"
+                                       OwnAddressRequested="@(() => Flow.Go(RemoteAccessScreen.OwnAddress))"
+                                       TestRequested="@(() => Flow.Go(RemoteAccessScreen.Test))"
+                                       TurnOffRequested="TurnOffAsync" />
+                break;
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+    [Parameter] public EventCallback SaveRequested { get; set; }
+    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
+
+    // Connect follows the way the person chose; with none chosen (a fresh circuit) it follows what is saved.
+    private bool IsTailscale => Flow.Method is { } method
+        ? method == RemoteCheckSuggestions.Tailscale
+        : string.Equals(Settings.Remote.ConnectionMode?.Trim(), "tailscale", StringComparison.OrdinalIgnoreCase);
+
+    // On a phone the person may need to open these steps on the server computer, so the page address is offered to copy.
+    private string? SendLink => DeviceContext.IsPhone ? Navigation.Uri : null;
+
+    protected override void OnInitialized() => Flow.Changed += OnFlowChanged;
+
+    private void OnFlowChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // A quiet look again: the screen keeps what it shows until the new answer arrives.
+    private Task RefreshQuietlyAsync() => Flow.RefreshAsync(CancellationToken.None);
+
+    // The way chosen is saved only once the Passwords step lets the person go on, so choosing and then stepping back changes nothing.
+    private async Task ApplyMethodAsync()
+    {
+        var current = Settings.Remote.ConnectionMode?.Trim().ToLowerInvariant();
+        Settings.Remote.ConnectionMode = Flow.Method == RemoteCheckSuggestions.Tailscale
+            ? "tailscale"
+            : current is "custom" or "direct-only" ? current : "custom";
+        if (Settings.Remote.ConnectionMode != "direct-only")
+        {
+            Settings.Remote.AutomaticRouterConfiguration = false;
+        }
+
+        await SaveRequested.InvokeAsync();
+        await StatusRefreshRequested.InvokeAsync();
+        Flow.Go(RemoteAccessScreen.Connect);
+    }
+
+    private async Task StayAtHomeAsync()
+    {
+        await TurnOffAsync();
+        Flow.Close();
+    }
+
+    // Not now and Turn off are the same thing: no way in from outside, and home keeps working.
+    private async Task TurnOffAsync()
+    {
+        Settings.Remote.ConnectionMode = "local-only";
+        Settings.Remote.AutomaticRouterConfiguration = false;
+        await SaveRequested.InvokeAsync();
+        await StatusRefreshRequested.InvokeAsync();
+    }
+
+    public void Dispose() => Flow.Changed -= OnFlowChanged;
+}

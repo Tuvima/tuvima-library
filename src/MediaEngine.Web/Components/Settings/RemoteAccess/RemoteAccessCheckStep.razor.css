@@ -1,0 +1,28 @@
+.ra-check {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.ra-check__text {
+    margin: 0;
+    color: var(--tl-text-secondary);
+}
+
+.ra-check__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-3, 12px);
+    margin-top: var(--tl-space-3, 12px);
+}
+
+@media (max-width: 600px) {
+    .ra-check__actions {
+        flex-direction: column;
+    }
+
+    .ra-check__actions .app-button {
+        width: 100%;
+        justify-content: center;
+    }
+}
