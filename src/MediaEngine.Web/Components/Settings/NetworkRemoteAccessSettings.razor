@@ -59,6 +59,8 @@
     [Parameter] public EventCallback<bool> RemoteAccessOffChanged { get; set; }
 
     private NetworkSettingsDto? _settings;
+    // What was last saved, so a failed save puts the old values back on the page instead of leaving the typed ones.
+    private NetworkSettingsDto? _lastSaved;
     private NetworkRuntimeStatusDto? _status;
     private bool _loading = true;
     private string? _failure;
@@ -78,6 +80,7 @@
         var statusTask = ApiClient.GetNetworkRuntimeStatusAsync();
         await Task.WhenAll(settingsTask, statusTask);
         _settings = await settingsTask;
+        _lastSaved = Copy(_settings);
         _status = await statusTask;
         _loading = false;
         await ReportRemoteAccessAsync();
@@ -95,10 +98,12 @@
         var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
         if (saved is null)
         {
+            _settings = Copy(_lastSaved) ?? _settings;
             _failure = L["NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe"].Value;
             return;
         }
         _settings = saved;
+        _lastSaved = Copy(saved);
         _savedNote?.Show();
         await ReportRemoteAccessAsync();
         await RefreshStatusAsync();
@@ -107,9 +112,14 @@
     private async Task ReplaceSettingsAsync(NetworkSettingsDto replacement)
     {
         _settings = replacement;
+        _lastSaved = Copy(replacement);
         await ReportRemoteAccessAsync();
         await RefreshStatusAsync();
     }
+
+    private static NetworkSettingsDto? Copy(NetworkSettingsDto? settings) => settings is null
+        ? null
+        : System.Text.Json.JsonSerializer.Deserialize<NetworkSettingsDto>(System.Text.Json.JsonSerializer.Serialize(settings));
 
     private async Task RefreshStatusAsync()
     {

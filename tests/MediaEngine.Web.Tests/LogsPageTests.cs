@@ -296,9 +296,9 @@ public sealed class LogsPageTests : AsyncBunitContext
         cut.Find("[data-testid=retention-log-days]").Input("14");
         cut.Find("[data-testid=retention-log-mb]").Input("512");
 
-        cut.Find("[data-testid=retention-save]").Click();
+        cut.Find("[data-testid=retention-save] button").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("next nightly clean-up", cut.Find("[data-testid=retention-saved]").TextContent, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("Saved", cut.Find("[data-testid=retention-save] .app-saved-note__line").TextContent, StringComparison.Ordinal));
         var saved = Assert.Single(_saves);
         Assert.Equal((30, 250_000, 14, 512), (saved.ActivityRetentionDays, saved.ActivityMaxEvents, saved.LogRetentionDays, saved.LogMaxTotalMegabytes));
     }
@@ -314,11 +314,11 @@ public sealed class LogsPageTests : AsyncBunitContext
         var cut = Render<LogRetentionPanel>();
         cut.Find($"[data-testid={field}]").Input(value);
 
-        cut.Find("[data-testid=retention-save]").Click();
+        cut.Find("[data-testid=retention-save] button").Click();
 
-        Assert.False(string.IsNullOrWhiteSpace(cut.Find("[data-testid=retention-error]").TextContent));
+        Assert.False(string.IsNullOrWhiteSpace(cut.Find("[data-testid=retention-save] [data-settings-save-error]").TextContent));
         Assert.Empty(_saves);
-        Assert.Empty(cut.FindAll("[data-testid=retention-saved]"));
+        Assert.Empty(cut.FindAll("[data-testid=retention-save] .app-saved-note__line"));
     }
 
     [Fact]
@@ -327,9 +327,9 @@ public sealed class LogsPageTests : AsyncBunitContext
         var cut = Render<LogRetentionPanel>();
         cut.Find("[data-testid=retention-log-days]").Input("soon");
 
-        cut.Find("[data-testid=retention-save]").Click();
+        cut.Find("[data-testid=retention-save] button").Click();
 
-        Assert.Contains("whole number", cut.Find("[data-testid=retention-error]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("whole number", cut.Find("[data-testid=retention-save] [data-settings-save-error]").TextContent, StringComparison.Ordinal);
         Assert.Empty(_saves);
     }
 
@@ -338,12 +338,12 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var cut = Render<LogRetentionPanel>();
         cut.Find("[data-testid=retention-log-days]").Input("0");
-        cut.Find("[data-testid=retention-save]").Click();
-        Assert.NotEmpty(cut.FindAll("[data-testid=retention-error]"));
+        cut.Find("[data-testid=retention-save] button").Click();
+        Assert.NotEmpty(cut.FindAll("[data-testid=retention-save] [data-settings-save-error]"));
 
         cut.Find("[data-testid=retention-log-days]").Input("30");
 
-        Assert.Empty(cut.FindAll("[data-testid=retention-error]"));
+        Assert.Empty(cut.FindAll("[data-testid=retention-save] [data-settings-save-error]"));
     }
 
     [Fact]
@@ -352,10 +352,10 @@ public sealed class LogsPageTests : AsyncBunitContext
         _onSave = _ => null;
         var cut = Render<LogRetentionPanel>();
 
-        cut.Find("[data-testid=retention-save]").Click();
+        cut.Find("[data-testid=retention-save] button").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("could not be saved", cut.Find("[data-testid=retention-error]").TextContent, StringComparison.Ordinal));
-        Assert.Empty(cut.FindAll("[data-testid=retention-saved]"));
+        cut.WaitForAssertion(() => Assert.Contains("could not be saved", cut.Find("[data-testid=retention-save] [data-settings-save-error]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-testid=retention-save] .app-saved-note__line"));
     }
 
     [Fact]
