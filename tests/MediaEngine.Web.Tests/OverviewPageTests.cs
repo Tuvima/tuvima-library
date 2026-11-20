@@ -136,6 +136,16 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Header_HasAnImportButton_ThatOpensTheExistingImportPage()
+    {
+        var cut = RenderPage();
+
+        var import = cut.Find("[data-overview-import]");
+        Assert.Contains("Import", import.TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/overview/import", import.GetAttribute("href"));
+    }
+
+    [Fact]
     public void ThereIsNoManageProfilesButton_NoStarRatings_AndNoSeparateMyListRow()
     {
         _recent = new([Tile(PersonalActivityKindValues.MyList, workId: WorkA)]);

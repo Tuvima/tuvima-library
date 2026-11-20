@@ -387,7 +387,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         Assert.Equal("Ready", cut.Find("[data-tool-id=image_engine] .app-chip").TextContent.Trim());
         // The model files are listed once, on Local AI > Models & Hardware; Tools and requirements only links there.
         Assert.Empty(cut.FindAll("[data-testid=models-list]"));
-        Assert.Equal("/settings/ai/models", cut.Find("[data-testid=models-link]").GetAttribute("href"));
+        Assert.Equal("/settings/ai/status", cut.Find("[data-testid=models-link]").GetAttribute("href"));
 
         var models = Render<LocalAiModelFilesPanel>();
         Assert.Contains("Local AI text model", models.Find("[data-testid=models-list]").TextContent, StringComparison.Ordinal);
@@ -521,7 +521,8 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         var cut = Render<LocalAiSettingsTab>();
 
         cut.WaitForAssertion(() => Assert.Contains("AI features are plugins", cut.Markup, StringComparison.Ordinal));
-        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/ai/models");
+        // The models and hardware section is on this same tab now: no second address to link to.
+        Assert.DoesNotContain(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/ai/models");
         // The runtime is its own Local AI page and the per-model cards (and their Download, Cancel, Load and Unload buttons) are on the tools page.
         Assert.DoesNotContain("Runtime settings", cut.Markup, StringComparison.Ordinal);
         foreach (var label in new[] { "Download", "Cancel", "Load", "Unload" })
@@ -550,7 +551,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     [Fact]
     public void LocalAiRuntimePage_HoldsTheResourceProfileRuntimeSettingsAndDiagnostics()
     {
-        var models = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "models"));
+        var models = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "status"));
         models.WaitForAssertion(() => Assert.Contains("Resource profile", models.Markup, StringComparison.Ordinal));
         Assert.Empty(models.FindAll("[data-testid=local-ai-runtime]"));
 

@@ -45,7 +45,7 @@
     else if (_view is null)
     {
         <AppErrorState Title="@L["OverviewTastePage_TasteCouldnTBeLoaded"].Value"
-                       Message="@(_scope == MeScope ? "Start the Engine or try again." : "That view isn't available. Pick another scope, or unlock administrator access and try again.")"
+                       Message="@(_scope == MeScope ? "Start the server or try again." : "That view isn't available. Pick another scope, or unlock administrator access and try again.")"
                        Retry="@(() => LoadAsync())" />
     }
     else if (_view.People.Count == 0)

@@ -9,7 +9,7 @@ public sealed class SettingsServerAdministrationTests
         var jobs = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor");
 
         Assert.Contains("data-delivery-section", source, StringComparison.Ordinal);
-        Assert.Contains("Streaming limits and quality", source, StringComparison.Ordinal);
+        Assert.Contains("Playback limits and quality", source, StringComparison.Ordinal);
         Assert.DoesNotContain("private RenderFragment LandingPage", source, StringComparison.Ordinal);
         // Playback opens on Quality; hardware acceleration, optimized copies and diagnostics sit under its Advanced tab.
         Assert.Contains("<StreamingLimitsSettingsTab />", source, StringComparison.Ordinal);
@@ -57,9 +57,9 @@ public sealed class SettingsServerAdministrationTests
         var security = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/SecurityTab.razor");
         Assert.DoesNotContain("Who can connect", security, StringComparison.Ordinal);
         Assert.Contains(">Sessions and invitations</h3>", security, StringComparison.Ordinal);
-        Assert.Contains("Trusted local networks", security, StringComparison.Ordinal);
+        Assert.Contains("Extra home network ranges", security, StringComparison.Ordinal);
         Assert.Contains("UpdateExternalAuthProviderAsync", security, StringComparison.Ordinal);
-        Assert.Contains("Disabled=\"@(!ExternalCapableMode)\"", security, StringComparison.Ordinal);
+        Assert.Contains("SaveSwitchAsync", security, StringComparison.Ordinal);
     }
 
     [Fact]

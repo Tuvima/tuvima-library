@@ -17,8 +17,9 @@
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject DashboardIdentityClient Identity
-@inject AccountNoticeState Notices
+@inject IEngineApiClient EngineApi
 @inject SettingsAttentionState Attention
+@inject MediaEngine.Web.Services.Integration.IEngineApiClient EngineApi
 @inject DevelopmentToolsState DevelopmentTools
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
@@ -356,10 +357,14 @@ else
     private ElementReference _contentElement;
     private bool _scrollToTopPending;
     private bool _wasAdministrationRoute;
-    // A this-computer-only account has no password yet: its Security entry carries the attention dot until the person
-    // chooses Not now on the Secure your account card (remembered with the account); Security then shows a quiet note instead.
+    // An account without a password works on the whole home network, so having none is a normal setup and never raises the dot.
+    // The Security entry carries it only while something really needs doing: outside access is on and there is no password
+    // (SecureAccountPrompt.SecurityNeedsAttention). Outside access is read once and followed when the Network page changes it.
     private bool _thisComputerOnly;
-    private bool ShowSecurityAttentionDot => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
+    // Profile's Linked accounts tab is listed only while an installed plugin asks this profile to link an account.
+    private bool _accountsOffered;
+    private bool _outsideAccessOn;
+    private bool ShowSecurityAttentionDot => SecureAccountPrompt.SecurityNeedsAttention(_thisComputerOnly, _outsideAccessOn);
     private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private SettingsMenuContext MenuContext => new(
         CanManageAdministration,
@@ -372,7 +377,8 @@ else
         Attention.AiFeaturesOn,
         Attention.IntegrationsBroken,
         ToolsMissingReason,
-        _restricted);
+        _restricted,
+        _accountsOffered);
 
     // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
     private string? ToolsMissingReason => Attention.MissingTools switch
@@ -493,10 +499,13 @@ else
     private RenderFragment LocalAiNotice => @<LocalAiBlockedNotice />;
     private RenderFragment RemoteAccessNotice => @<RemoteAccessOffNotice />;
     private bool _remoteAccessOff;
+    // The "Remote access is off" notice belongs to Home network only; Remote access and Advanced do not repeat it.
+    private bool IsHomeNetworkTab => !string.Equals(_activeSubsection, "remote", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(_activeSubsection, "advanced", StringComparison.OrdinalIgnoreCase);
     private RenderFragment? PageNoticeFragment => DeviceContext.IsMobile ? null : _activeSection switch
     {
         SettingsSection.LocalAi => LocalAiNotice,
-        SettingsSection.Network when _remoteAccessOff => RemoteAccessNotice,
+        SettingsSection.Network when _remoteAccessOff && IsHomeNetworkTab => RemoteAccessNotice,
         _ => null,
     };
 
@@ -505,6 +514,7 @@ else
         if (_remoteAccessOff != off)
         {
             _remoteAccessOff = off;
+            _outsideAccessOn = !off;
             StateHasChanged();
         }
     }
@@ -527,13 +537,14 @@ else
         }
 
         var developmentTools = LoadDevelopmentToolsAsync();
+        var accounts = LoadAccountsOfferedAsync();
         await LoadShellStateAsync();
         await developmentTools;
+        await accounts;
 
         Attention.Changed += OnAttentionChanged;
         LibraryKinds.Changed += OnAttentionChanged;
         Nsfw.Changed += OnAttentionChanged;
-        Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
 
@@ -596,7 +607,6 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        Notices.Changed -= OnNoticesChanged;
         Attention.Changed -= OnAttentionChanged;
         LibraryKinds.Changed -= OnAttentionChanged;
         Nsfw.Changed -= OnAttentionChanged;
@@ -643,6 +653,21 @@ else
         _shellStateLoading = false;
     }
 
+    // Any profile may link accounts, so the Engine's list of plugin connections is read for everyone; a list that cannot be read offers none.
+    private async Task LoadAccountsOfferedAsync()
+    {
+        try
+        {
+            var connections = await EngineApi.GetPluginConnectionsAsync();
+            _accountsOffered = connections?.Plugins.Any(plugin => plugin.Connections.Count > 0) == true;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not read which plugins offer a linked account");
+            _accountsOffered = false;
+        }
+    }
+
     // Only a server administrator is shown the Developer group, so only then is the Engine asked what it offers there.
     // It is asked beside the slower system status read, so the menu and the two development pages never wait for it.
     private async Task LoadDevelopmentToolsAsync()
@@ -667,7 +692,11 @@ else
         {
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(principal);
-            if (_thisComputerOnly) await Notices.EnsureLoadedAsync();
+            if (_thisComputerOnly)
+            {
+                var network = await EngineApi.GetNetworkSettingsAsync();
+                _outsideAccessOn = network is not null && SecureAccountPrompt.OutsideAccessIsOn(network.Remote.ConnectionMode);
+            }
             Session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(Session);
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -947,9 +976,8 @@ else
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
         {
-            "models" => "Choose the resource profile, check this machine and manage the model files.",
             SettingsNav.AdvancedSubsection => "Runtime limits, the plugin allowance and what Local AI has done lately.",
-            _ => "Manage local intelligence features while keeping technical details out of the way.",
+            _ => "How Local AI is doing, which resource profile it uses and its model files.",
         },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
         SettingsSection.Playback => _activeSubsection switch

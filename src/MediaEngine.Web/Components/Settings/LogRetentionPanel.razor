@@ -42,7 +42,7 @@ else
             </p>
         </AppSettingsGroup>
 
-        <AppSettingsGroup Heading="@L["LogRetentionPanel_TechnicalLogFiles"].Value" Helper="The Engine's own log files, used for bug reports. The oldest files go first once a limit is passed; the file being written is never removed.">
+        <AppSettingsGroup Heading="@L["LogRetentionPanel_TechnicalLogFiles"].Value" Helper="The server's own log files, used for bug reports. The oldest files go first once a limit is passed; the file being written is never removed.">
             <div class="log-retention__fields">
                 <AppTextField Label="@L["LogRetentionPanel_KeepFilesForDays"].Value" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
                               Value="@_logDays" ValueChanged="@(v => Edit(ref _logDays, v))"

@@ -130,6 +130,29 @@ public sealed class IngestionFlowEditorTests : AsyncBunitContext
         Assert.DoesNotContain("/settings/metadata/providers", plugins.ActiveRoutes!);
     }
 
+    [Fact]
+    public async Task ANeedsSetupRow_LinksStraightToItsPlaceOnPlugins_AndAConnectedRowHasNoSetupLink()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var snapshot = new MetadataSettingsSnapshot(
+            [Inventory("alpha", "Alpha", needsSetup: true), Inventory("beta", "Beta", needsSetup: false)],
+            [],
+            new Dictionary<string, ProviderStatusDto>(),
+            null);
+
+        var cut = Render<IngestionFlowEditor>(parameters => parameters.Add(p => p.Snapshot, snapshot));
+
+        var setup = cut.Find("[data-provider=alpha] a[data-needs-setup-link]");
+        Assert.Equal("/settings/plugins/alpha", setup.GetAttribute("href"));
+        Assert.Contains("Needs setup", setup.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-provider=beta] a[data-needs-setup-link]"));
+    }
+
+    private static MetadataProviderInventoryItem Inventory(string key, string name, bool needsSetup) => new(
+        key, name, string.Empty, "retail", string.Empty, null, string.Empty, string.Empty,
+        [], [], [], [], null, false, true, needsSetup, !needsSetup, needsSetup,
+        needsSetup ? "Needs setup" : "Ready", MediaEngine.Web.Components.Shared.AppUiTone.Neutral, [], new ProviderCatalogueDto(), null);
+
     private static PipelineConfiguration SamplePipelines()
     {
         var pipelines = new PipelineConfiguration();

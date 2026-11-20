@@ -426,7 +426,7 @@
     <value>Everyone sharing this Library sees the same language and spelling.</value>
   </data>
   <data name="Settings_LanguageSaveFailed" xml:space="preserve">
-    <value>The language could not be saved. Check the Engine connection.</value>
+    <value>The language could not be saved. Check the server connection.</value>
   </data>
   <data name="ArtworkAssetBrowser_RelatedTo" xml:space="preserve">
     <value>Related to</value>
@@ -2436,7 +2436,7 @@
     <value>Settings page</value>
   </data>
   <data name="Settings_EngineStateCouldNotBe" xml:space="preserve">
-    <value>Engine state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.</value>
+    <value>Server state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.</value>
   </data>
   <data name="Settings_LoadingSettings" xml:space="preserve">
     <value>Loading settings</value>
@@ -2454,7 +2454,7 @@
     <value>Back to mobile settings</value>
   </data>
   <data name="Settings_CheckingWhatThisEngineOffers" xml:space="preserve">
-    <value>Checking what this Engine offers</value>
+    <value>Checking what this server offers</value>
   </data>
   <data name="Settings_NotAvailableInThisBuild" xml:space="preserve">
     <value>Not available in this build</value>
@@ -3567,7 +3567,7 @@
     <value>The Library's engine isn't responding</value>
   </data>
   <data name="ActivityLogPanel_CheckThatTheEngineIs" xml:space="preserve">
-    <value>Check that the Engine is running, then try again.</value>
+    <value>Check that the server is running, then try again.</value>
   </data>
   <data name="ActivityLogPanel_EventsNewestFirst" xml:space="preserve">
     <value>Events, newest first</value>
@@ -3603,7 +3603,7 @@
     <value>Inspect the local Dashboard listener and address binding.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_AdvancedDirectAccessThroughYour" xml:space="preserve">
-    <value>Advanced direct access through your own local TLS reverse proxy.</value>
+    <value>For people who already run their own secure web server in front of Library.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_PCPNATPMPAndUPnP" xml:space="preserve">
     <value>PCP, NAT-PMP, and UPnP are never enabled by default. Library maps only the HTTPS reverse-proxy port below and never maps its Dashboard HTTP listener directly.</value>
@@ -3615,13 +3615,13 @@
     <value>Remote access</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ReverseProxyTrust" xml:space="preserve">
-    <value>Reverse proxy trust</value>
+    <value>Servers you trust to pass visitors in</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_AcceptForwardedClientAndHTTPS" xml:space="preserve">
-    <value>Accept forwarded client and HTTPS information only from known proxy peers.</value>
+    <value>Only the servers listed here may tell Library where a visitor really comes from.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ForwardedHeadersFromEveryOther" xml:space="preserve">
-    <value>Forwarded headers from every other peer are ignored. A Dashboard restart applies proxy trust changes.</value>
+    <value>Anything that arrives through other servers is ignored. Changes apply after Library restarts.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_Diagnostics" xml:space="preserve">
     <value>Diagnostics</value>
@@ -3780,7 +3780,7 @@
     <value>Total archive size</value>
   </data>
   <data name="BackupRecoveryPanel_BackupLocationAndRetentionAre" xml:space="preserve">
-    <value>Backup location and retention are controlled by the Engine's server configuration.</value>
+    <value>Backup location and retention are controlled by the server's configuration.</value>
   </data>
   <data name="BackupRecoveryPanel_RecoveryPoint" xml:space="preserve">
     <value>Recovery point</value>
@@ -4059,19 +4059,19 @@
     <value>Playback delivery needs attention</value>
   </data>
   <data name="EncodeSettingsTab_EngineWarnings" xml:space="preserve">
-    <value>Engine warnings</value>
+    <value>Server warnings</value>
   </data>
   <data name="EncodeSettingsTab_TheEngineReportedNoPlayback" xml:space="preserve">
-    <value>The Engine reported no playback delivery warnings.</value>
+    <value>The server reported no playback delivery warnings.</value>
   </data>
   <data name="EncodeSettingsTab_CurrentStreamingPreference" xml:space="preserve">
-    <value>Current Streaming preference</value>
+    <value>Current playback preference</value>
   </data>
   <data name="EncodeSettingsTab_PlaybackChecks" xml:space="preserve">
     <value>Playback checks</value>
   </data>
   <data name="EncodeSettingsTab_TechnicalChecksReportedDirectlyBy" xml:space="preserve">
-    <value>Technical checks reported directly by the Engine.</value>
+    <value>Technical checks reported directly by the server.</value>
   </data>
   <data name="EncodeSettingsTab_DiagnosticsAreUnavailable" xml:space="preserve">
     <value>Diagnostics are unavailable</value>
@@ -4086,7 +4086,7 @@
     <value>Playback delivery settings are unavailable</value>
   </data>
   <data name="EncodeSettingsTab_StartTheEngineOrRetry" xml:space="preserve">
-    <value>Start the Engine or retry before changing hardware acceleration and optimized copies.</value>
+    <value>Start the server or retry before changing hardware acceleration and optimized copies.</value>
   </data>
   <data name="EncodeSettingsTab_HardwareAcceleration" xml:space="preserve">
     <value>Hardware acceleration</value>
@@ -4266,7 +4266,7 @@
     <value>The Ingestion Flow is unavailable</value>
   </data>
   <data name="IngestionFlowEditor_StartTheEngineAndRetry" xml:space="preserve">
-    <value>Start the Engine and retry. No sample flow is being shown.</value>
+    <value>Start the server and retry. No sample flow is being shown.</value>
   </data>
   <data name="IngestionFlowEditor_Changed" xml:space="preserve">
     <value>Changed</value>
@@ -4878,7 +4878,7 @@
     <value>Library storage and intake are read-only on mobile. Use a desktop or tablet to change library configuration.</value>
   </data>
   <data name="LibrariesTab_TheEngineIsUnavailableExisting" xml:space="preserve">
-    <value>The Engine is unavailable. Existing library values remain visible and are not replaced with sample data.</value>
+    <value>The server is unavailable. Existing library values remain visible and are not replaced with sample data.</value>
   </data>
   <data name="LibrariesTab_LibrarySettingsAreUnavailable" xml:space="preserve">
     <value>Library settings are unavailable</value>
@@ -4989,7 +4989,7 @@
     <value>Checking the file write schedule…</value>
   </data>
   <data name="LibraryWriteSchedulePanel_TheEngineIsUnavailableSo" xml:space="preserve">
-    <value>The Engine is unavailable, so the file write schedule can't be shown.</value>
+    <value>The server is unavailable, so the file write schedule can't be shown.</value>
   </data>
   <data name="LibraryWriteSchedulePanel_WriteChangesIntoFilesEvery" xml:space="preserve">
     <value>Write changes into files every</value>
@@ -5058,7 +5058,7 @@
     <value>AI configuration unavailable</value>
   </data>
   <data name="LocalAiBudgetPanel_TheAllowanceIsHiddenUntil" xml:space="preserve">
-    <value>The allowance is hidden until the Engine returns the saved configuration.</value>
+    <value>The allowance is hidden until the server returns the saved configuration.</value>
   </data>
   <data name="LocalAiBudgetPanel_RequestsPerHour" xml:space="preserve">
     <value>Requests per hour</value>
@@ -5082,7 +5082,7 @@
     <value>Benchmark</value>
   </data>
   <data name="LocalAiRuntimePanel_EngineMemory" xml:space="preserve">
-    <value>Engine memory</value>
+    <value>Server memory</value>
   </data>
   <data name="LocalAiRuntimePanel_CPUPressure" xml:space="preserve">
     <value>CPU pressure</value>
@@ -5094,7 +5094,7 @@
     <value>Runtime settings</value>
   </data>
   <data name="LocalAiRuntimePanel_RuntimeControlsAreHiddenUntil" xml:space="preserve">
-    <value>Runtime controls are hidden until the Engine returns saved configuration.</value>
+    <value>Runtime controls are hidden until the server returns saved configuration.</value>
   </data>
   <data name="LocalAiRuntimePanel_ModelsDirectory" xml:space="preserve">
     <value>Models directory</value>
@@ -5133,13 +5133,13 @@
     <value>Usage unavailable</value>
   </data>
   <data name="LocalAiUsagePanel_TheEngineCouldNotBe" xml:space="preserve">
-    <value>The Engine could not be asked for Local AI usage.</value>
+    <value>The server could not be asked for Local AI usage.</value>
   </data>
   <data name="LocalAiUsagePanel_PluginsUsingLocalAI" xml:space="preserve">
     <value>Plugins using Local AI</value>
   </data>
   <data name="LocalAiUsagePanel_EachAIFeatureIsA" xml:space="preserve">
-    <value>Each AI feature is a plugin. Open one to switch it on or off or change when it runs.</value>
+    <value>Each AI feature is a plugin. This is how much of its hourly allowance each one has used.</value>
   </data>
   <data name="LocalAiUsagePanel_NoPluginUsesLocalAI" xml:space="preserve">
     <value>No plugin uses Local AI</value>
@@ -5646,7 +5646,7 @@
     <value>Network settings are unavailable</value>
   </data>
   <data name="NetworkRemoteAccessSettings_StartTheEngineOrRetry" xml:space="preserve">
-    <value>Start the Engine or retry before changing connectivity settings.</value>
+    <value>Start the server or retry before changing connectivity settings.</value>
   </data>
   <data name="NetworkTestDialog_RunningConnectionChecks" xml:space="preserve">
     <value>Running connection checks…</value>
@@ -5803,9 +5803,6 @@
   </data>
   <data name="OfflineDownloadsTab_OptimizedCopiesWillAppearHere" xml:space="preserve">
     <value>Optimized copies will appear here when an encode is queued from a supported media item.</value>
-  </data>
-  <data name="GeneralNameAddress_TheLibraryAppsWillBe" xml:space="preserve">
-    <value>The Library apps will be linked here once they are published.</value>
   </data>
   <data name="GeneralNameAddress_AtHome" xml:space="preserve">
     <value>Numeric address</value>
@@ -6240,10 +6237,10 @@
     <value>No scheduled tasks yet</value>
   </data>
   <data name="ScheduledTasksCard_TheEngineIsStillStarting" xml:space="preserve">
-    <value>The Engine is still starting. Check again in a moment.</value>
+    <value>The server is still starting. Check again in a moment.</value>
   </data>
   <data name="SecuritySettingsPage_YourAccountHasNoPassword" xml:space="preserve">
-    <value>Your account has no password, so it only works on this computer. Add one any time below.</value>
+    <value>Your account has no password, so it works on your home network only. Add one any time below to use Library away from home.</value>
   </data>
   <data name="SecuritySettingsPage_LoadingAccountSecurity" xml:space="preserve">
     <value>Loading account security</value>
@@ -6268,18 +6265,6 @@
   </data>
   <data name="SecuritySettingsPage_WhoViewedYourPhotos" xml:space="preserve">
     <value>Who viewed your photos</value>
-  </data>
-  <data name="SecurityTab_AuthenticationMode" xml:space="preserve">
-    <value>Authentication mode</value>
-  </data>
-  <data name="SecurityTab_LocalAccountSignIn" xml:space="preserve">
-    <value>Local account sign-in</value>
-  </data>
-  <data name="SecurityTab_OptionalSignIn" xml:space="preserve">
-    <value>Optional sign-in</value>
-  </data>
-  <data name="SecurityTab_SignInRequired" xml:space="preserve">
-    <value>Sign-in required</value>
   </data>
   <data name="SecurityTab_HowPeopleSignIn" xml:space="preserve">
     <value>How people sign in</value>
@@ -6338,9 +6323,6 @@
   <data name="SecurityTab_AuthenticationConfigurationIsUnavailable" xml:space="preserve">
     <value>Authentication configuration is unavailable</value>
   </data>
-  <data name="SecurityTab_PasswordSignIn" xml:space="preserve">
-    <value>Password sign-in</value>
-  </data>
   <data name="SecurityTab_AllowAccountPasswordsAndPassword" xml:space="preserve">
     <value>Allow account passwords and password recovery.</value>
   </data>
@@ -6348,13 +6330,13 @@
     <value>Passkey sign-in</value>
   </data>
   <data name="SecurityTab_AllowPasskeysAndPlatformCredentials" xml:space="preserve">
-    <value>Allow passkeys and platform credentials when the canonical origin is ready.</value>
+    <value>Let people sign in with a passkey. This needs the public address to be set.</value>
   </data>
   <data name="SecurityTab_ExternalProviderSignIn" xml:space="preserve">
     <value>External provider sign-in</value>
   </data>
   <data name="SecurityTab_TrustedLocalNetworks" xml:space="preserve">
-    <value>Trusted local networks</value>
+    <value>Extra home network ranges</value>
   </data>
   <data name="SecurityTab_InvitationLifetimeHours" xml:space="preserve">
     <value>Invitation lifetime (hours)</value>
@@ -6441,7 +6423,7 @@
     <value>Library shares your internet connection between remote streams automatically.</value>
   </data>
   <data name="StreamingLimitsPanel_RemoteStreamingQuality" xml:space="preserve">
-    <value>Remote streaming quality</value>
+    <value>Remote playback quality</value>
   </data>
   <data name="StreamingLimitsPanel_Quality" xml:space="preserve">
     <value>Quality</value>
@@ -6462,10 +6444,10 @@
     <value>Test bandwidth</value>
   </data>
   <data name="StreamingLimitsSettingsTab_StreamingLimitsAreUnavailable" xml:space="preserve">
-    <value>Streaming limits are unavailable</value>
+    <value>Playback limits are unavailable</value>
   </data>
   <data name="StreamingLimitsSettingsTab_StartTheEngineOrRetry" xml:space="preserve">
-    <value>Start the Engine or retry before changing streaming limits.</value>
+    <value>Start the server or retry before changing playback limits.</value>
   </data>
   <data name="SystemSummaryPage_TheLatestReadingCouldNot" xml:space="preserve">
     <value>The latest reading could not be taken, so the previous one is shown.</value>
@@ -6504,7 +6486,7 @@
     <value>Technical log</value>
   </data>
   <data name="TechnicalLogPanel_WhatTheEngineWroteTo" xml:space="preserve">
-    <value>What the Engine wrote to its log files, newest first. It can include file names and other private details, so share it with care.</value>
+    <value>What the server wrote to its log files, newest first. It can include file names and other private details, so share it with care.</value>
   </data>
   <data name="TechnicalLogPanel_SearchTheLogText" xml:space="preserve">
     <value>Search the log text…</value>
@@ -7020,7 +7002,7 @@
     <value>Video and audio processing</value>
   </data>
   <data name="ToolRequirementRow_Describes_adaptive_streaming" xml:space="preserve">
-    <value>Smooth streaming to phones and TVs</value>
+    <value>Smooth playback to phones and TVs</value>
   </data>
   <data name="ToolRequirementRow_Describes_tesseract" xml:space="preserve">
     <value>Reads text in scanned documents</value>
@@ -7794,13 +7776,13 @@
     <value>The PIN could not be verified. Check the PIN and try again.</value>
   </data>
   <data name="AdministratorSurfaceGate_TheEngineIsUnavailableYour" xml:space="preserve">
-    <value>The Engine is unavailable. Your settings remain locked; try again.</value>
+    <value>The server is unavailable. Your settings remain locked; try again.</value>
   </data>
   <data name="AdministratorSurfaceGate_TheEngineCouldNotConfirm" xml:space="preserve">
-    <value>The Engine could not confirm the lock. Keep this page closed and retry when it is available.</value>
+    <value>The server could not confirm the lock. Keep this page closed and retry when it is available.</value>
   </data>
   <data name="AdministratorSurfaceGate_TheEngineCouldNotConfirm2" xml:space="preserve">
-    <value>The Engine could not confirm the lock. Retry when it is available.</value>
+    <value>The server could not confirm the lock. Retry when it is available.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust" xml:space="preserve">
     <value>TLS and external ports must be between 1 and 65535.</value>
@@ -7908,7 +7890,7 @@
     <value>The webhook could not be deleted. Try again.</value>
   </data>
   <data name="MetadataSettingsPage_StartTheEngineAndRetry" xml:space="preserve">
-    <value>Start the Engine and retry. No sample provider state is being shown.</value>
+    <value>Start the server and retry. No sample provider state is being shown.</value>
   </data>
   <data name="NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe" xml:space="preserve">
     <value>Network settings could not be saved.</value>
@@ -8007,7 +7989,7 @@
     <value>Test email could not be sent.</value>
   </data>
   <data name="StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe" xml:space="preserve">
-    <value>Streaming settings could not be saved.</value>
+    <value>Playback settings could not be saved.</value>
   </data>
   <data name="SetupCodeStage_TuvimaAdminSetupCode" xml:space="preserve">
     <value>tuvima-admin setup code</value>
@@ -10467,7 +10449,7 @@
     <value>Scrub preview settings are unavailable</value>
   </data>
   <data name="ScrubPreviewSettingsCard_EngineDidNotAnswer" xml:space="preserve">
-    <value>The Engine did not answer. Start the Engine or retry.</value>
+    <value>The server did not answer. Start the server or retry.</value>
   </data>
   <data name="ScrubPreviewSettingsCard_GenerateScrubPreviews" xml:space="preserve">
     <value>Generate scrub previews</value>
@@ -14690,12 +14672,6 @@
   <data name="PlayingNow_GraphicsCard" xml:space="preserve">
     <value>Graphics card</value>
   </data>
-  <data name="PlayingNow_OnProcessor" xml:space="preserve">
-    <value>on the processor</value>
-  </data>
-  <data name="PlayingNow_OnGraphicsCard" xml:space="preserve">
-    <value>on the graphics card</value>
-  </data>
   <data name="PlayingNow_NobodyWatching" xml:space="preserve">
     <value>Nobody watching · stops in {0}</value>
   </data>
@@ -14727,31 +14703,7 @@
     <value>Limits and automatic stopping:</value>
   </data>
   <data name="PlayingNow_StreamingLimits" xml:space="preserve">
-    <value>Streaming limits</value>
-  </data>
-  <data name="GeneralRightNow_AddingTitle" xml:space="preserve">
-    <value>Adding to your library</value>
-  </data>
-  <data name="GeneralRightNow_PlayingTitle" xml:space="preserve">
-    <value>Playing now</value>
-  </data>
-  <data name="GeneralRightNow_Idle" xml:space="preserve">
-    <value>Idle</value>
-  </data>
-  <data name="GeneralRightNow_Updating" xml:space="preserve">
-    <value>Updating your library · {0}%</value>
-  </data>
-  <data name="GeneralRightNow_Review" xml:space="preserve">
-    <value>Review {0} items</value>
-  </data>
-  <data name="GeneralRightNow_NothingPlaying" xml:space="preserve">
-    <value>Nothing playing</value>
-  </data>
-  <data name="GeneralRightNow_Watching" xml:space="preserve">
-    <value>{0} watching</value>
-  </data>
-  <data name="GeneralRightNow_Preparing" xml:space="preserve">
-    <value>{0} preparing</value>
+    <value>Playback limits</value>
   </data>
   <data name="EncodeSettingsTab_StopAfterLastViewer" xml:space="preserve">
     <value>Stop an unwatched encode after (seconds)</value>
@@ -14808,7 +14760,7 @@
     <value>Testing this computer. This takes about a minute and uses the graphics card or processor heavily while it runs.</value>
   </data>
   <data name="CapacityPanel_CouldNotRun" xml:space="preserve">
-    <value>The test could not run. Check that the Engine is running, then try again.</value>
+    <value>The test could not run. Check that the server is running, then try again.</value>
   </data>
   <data name="ReachDevices_Title" xml:space="preserve">
     <value>Reach from other devices</value>
@@ -14820,7 +14772,7 @@
     <value>Add a password</value>
   </data>
   <data name="ReachDevices_AddPasswordHint" xml:space="preserve">
-    <value>Until your account has a password it works only on this computer, so other devices cannot sign in as you.</value>
+    <value>Until your account has a password it works on your home network only, so you cannot sign in from outside it.</value>
   </data>
   <data name="ReachDevices_OutsideOff" xml:space="preserve">
     <value>Outside access: Off</value>
@@ -15307,5 +15259,23 @@
   </data>
   <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
     <value>Create a playlist or smart playlist to organize music for later.</value>
+  </data>
+  <data name="SystemSummaryPage_AddressIsSetOn" xml:space="preserve">
+    <value>The server name and addresses are set on</value>
+  </data>
+  <data name="SecurityTab_AllowPasswords" xml:space="preserve">
+    <value>Allow passwords</value>
+  </data>
+  <data name="SecurityTab_RequireSignInForEveryone" xml:space="preserve">
+    <value>Require sign-in for everyone</value>
+  </data>
+  <data name="SecurityTab_RequireSignInForEveryoneHelp" xml:space="preserve">
+    <value>Everyone has to sign in to use Library.</value>
+  </data>
+  <data name="SecurityTab_ExternalSignInHelp" xml:space="preserve">
+    <value>Let people sign in with the linked sign-in providers set up below.</value>
+  </data>
+  <data name="SecurityTab_TrustedLocalNetworksHelp" xml:space="preserve">
+    <value>Optional. Extra address ranges to treat as your home network, separated by commas, such as 192.168.1.0/24. Library already knows the usual home network addresses.</value>
   </data>
 </root>

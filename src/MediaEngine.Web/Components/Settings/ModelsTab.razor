@@ -96,7 +96,7 @@
         var saved = await Orchestrator.SaveAiConfigAsync(_config);
         _messageSeverity = saved ? AppSeverity.Success : AppSeverity.Error;
         _message = saved
-            ? $"{profile} selected. Restart the Engine to activate a different physical text artifact."
+            ? $"{profile} selected. Restart the server to activate a different physical text artifact."
             : "The resource profile could not be saved.";
         await RefreshAsync();
     }

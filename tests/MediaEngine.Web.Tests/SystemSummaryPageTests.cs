@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.System;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
@@ -21,6 +22,7 @@ public sealed class SystemSummaryPageTests : AsyncBunitContext
         PreferredLocalAddress = "192.168.1.20",
         ExternalAddress = "https://tuvima.example.com",
     };
+    private DataStoreVersionDto? _version = new(3, "add_note", new DateTimeOffset(2026, 10, 18, 9, 30, 0, TimeSpan.Zero));
     private int _resourceCalls;
     private int _networkCalls;
 
@@ -39,6 +41,7 @@ public sealed class SystemSummaryPageTests : AsyncBunitContext
                 Interlocked.Increment(ref _networkCalls);
                 return Task.FromResult(_network);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetDataStoreVersionAsync), _ => Task.FromResult(_version));
         });
         Services.AddSingleton(api);
     }
@@ -89,6 +92,51 @@ public sealed class SystemSummaryPageTests : AsyncBunitContext
             Assert.Contains("Holds the data store", drives[1].TextContent, StringComparison.Ordinal);
             Assert.Equal("75", drives[0].QuerySelector("[role='progressbar']")!.GetAttribute("aria-valuenow"));
             Assert.Contains("Data store size1.5 GB", cut.Find("[data-testid='system-summary-data-store']").TextContent, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void TheDataStoreVersion_IsShownHere_AsAStepAndTheUpgradeDate()
+    {
+        var cut = Render<SystemSummaryPage>();
+
+        cut.WaitForAssertion(() =>
+            Assert.Contains("Data store versionStep 3, upgraded on 2026-10-18", cut.Find("[data-testid='system-summary-server']").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheDataStoreVersion_OnABrandNewInstall_SaysItIsSettingUp()
+    {
+        _version = new DataStoreVersionDto(0, string.Empty, null);
+
+        var cut = Render<SystemSummaryPage>();
+
+        cut.WaitForAssertion(() =>
+            Assert.Contains("Data store versionSetting up", cut.Find("[data-testid='system-summary-server']").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheDataStoreVersion_WhenTheServerCannotBeAsked_SaysUnavailable_AndTheRestStillRenders()
+    {
+        _version = null;
+
+        var cut = Render<SystemSummaryPage>();
+
+        cut.WaitForAssertion(() =>
+            Assert.Contains("Data store versionUnavailable", cut.Find("[data-testid='system-summary-server']").TextContent, StringComparison.Ordinal));
+        Assert.Contains("Processor and memory", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheAddresses_AreReadOnlyText_WithALinkToGeneralWhereTheyAreEdited()
+    {
+        var cut = Render<SystemSummaryPage>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("/settings/general", cut.Find("[data-testid='system-summary-address-link'] a").GetAttribute("href"));
+            Assert.Empty(cut.FindAll("input"));
+            Assert.Empty(cut.FindAll("[data-qr-payload]"));
         });
     }
 

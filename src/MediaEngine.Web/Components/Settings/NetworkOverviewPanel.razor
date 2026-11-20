@@ -5,17 +5,13 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel network-overview">
-    <div class="network-panel__actions">
-        <AppButton Label="@L["NetworkOverviewPanel_TestConnection"].Value" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
-                   Tone="AppUiTone.Primary" OnClick="TestAsync" />
-    </div>
-
     <SettingsSectionPanel Title="@L["NetworkOverviewPanel_ConnectionStatus"].Value"
                           Description="@L["NetworkOverviewPanel_ALiveSummaryOfHow"].Value">
-        <div class="network-status-grid">
-            @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Library.", AppMaterialIcons.Outlined.Home)
-            @StatusCard("Connection", Display(Status?.ConnectionType), "The active route to your server.", AppMaterialIcons.Outlined.Cable)
-            @StatusCard("Secure Connection", Display(Status?.SecureConnection), "Remote connections must use a trusted secure path.", AppMaterialIcons.Outlined.VerifiedUser)
+        @* One status line with Test connection beside it (settings alignment D12), instead of three tiles. *@
+        <div class="network-status-line" data-testid="network-status-line">
+            <p class="network-status-line__text">@StatusLine</p>
+            <AppButton Label="@L["NetworkOverviewPanel_TestConnection"].Value" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
+                       Tone="AppUiTone.Primary" OnClick="TestAsync" />
         </div>
     </SettingsSectionPanel>
 
@@ -23,7 +19,7 @@
     {
         <AppAlert Tone="AppUiTone.Warning" Class="network-summary-alert">
             <strong>@(Status?.Headline ?? "Network status is unavailable")</strong>
-            <span>@(Status?.Guidance ?? "Start the Engine to inspect network access.")</span>
+            <span>@(Status?.Guidance ?? "Start the server to inspect network access.")</span>
         </AppAlert>
     }
 </div>
@@ -63,9 +59,7 @@
         : string.Join(' ', value.Split('-', StringSplitOptions.RemoveEmptyEntries)
             .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 
-    private RenderFragment StatusCard(string label, string value, string description, string icon) => @<article class="network-status-card">
-        <div class="network-status-card__label"><AppMaterialIcon Icon="@icon" /><span>@label</span></div>
-        <strong class="network-status-card__value is-@value.ToLowerInvariant()">@Display(value)</strong>
-        <p>@description</p>
-    </article>;
+    // Home access, the active route and whether it is secure, as one sentence-like line.
+    private string StatusLine =>
+        $"Home access: {Display(Status?.LocalAccess)} · Route: {Display(Status?.ConnectionType)} · Secure connection: {Display(Status?.SecureConnection)}";
 }

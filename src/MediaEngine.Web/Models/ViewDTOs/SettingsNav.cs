@@ -363,7 +363,6 @@ public static class SettingsNav
                 Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
                 Tab("Linked accounts", AppMaterialIcons.Outlined.Link, SettingsSection.Overview, AccountsSubsection),
-                Tab("Import", AppMaterialIcons.Outlined.UploadFile, SettingsSection.Overview, ImportSubsection),
             ]),
             Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
@@ -411,8 +410,7 @@ public static class SettingsNav
             Page("Tools", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
             Page("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi,
             [
-                Tab("Status", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
-                Tab("Models", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
+                Tab("Status and models", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
                 AdvancedTab(SettingsSection.LocalAi),
             ]),
             Page("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
@@ -484,8 +482,7 @@ public static class SettingsNav
             [SettingsSection.LibraryRules] = [],
             [SettingsSection.LocalAi] =
             [
-                new("status", "Status", AppMaterialIcons.Outlined.Memory),
-                new("models", "Models", AppMaterialIcons.Outlined.Storage),
+                new("status", "Status and models", AppMaterialIcons.Outlined.Memory),
                 new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Plugins] = [],
@@ -650,10 +647,10 @@ public static class SettingsNav
 
     /// <summary>
     /// Sub-pages that have their own route but no tab, because a link on their page's main tab opens them. They sit beneath
-    /// that tab in the breadcrumb. None today. Slugs are in their normalised form.
+    /// that tab in the breadcrumb. Import opens from the Import button on Profile &gt; Overview. Slugs are in their normalised form.
     /// </summary>
     public static readonly IReadOnlySet<(SettingsSection Section, string Subsection)> OffMenuSubsections =
-        new HashSet<(SettingsSection, string)>();
+        new HashSet<(SettingsSection, string)> { (SettingsSection.Overview, ImportSubsection) };
 
     public static IReadOnlyList<SettingsItemDef> FilteredItems(SettingsGroupDef group, bool administrationAllowed)
     {
