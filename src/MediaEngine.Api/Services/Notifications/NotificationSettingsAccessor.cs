@@ -20,6 +20,14 @@ internal sealed class NotificationSettingsDocument
     /// <summary>False by default: only a short generic title leaves the computer.</summary>
     public bool IncludeDetails { get; set; }
 
+    /// <summary>
+    /// Channel id to whether that channel carries details. Missing means off, so a new channel starts with only the generic title.
+    /// <see cref="IncludeDetails"/> now only governs what webhooks and plugin subscribers are told about an event.
+    /// </summary>
+    public Dictionary<string, bool> ChannelDetails { get; set; } = new(StringComparer.Ordinal);
+
+    public bool DetailsFor(string channelId) => ChannelDetails.TryGetValue(channelId, out var include) && include;
+
     public IReadOnlyList<string> RouteFor(NotificationEventDefinition definition) =>
         Routes.TryGetValue(definition.Id, out var channels) ? channels : definition.DefaultChannels;
 

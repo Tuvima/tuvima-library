@@ -29,14 +29,29 @@
                         <div class="notifications-page__channel-copy">
                             <strong>@channel.Name</strong>
                             <span>@channel.StateLabel</span>
+                            @if (channel.IsExternal && !string.IsNullOrWhiteSpace(channel.WhatLeaves))
+                            {
+                                <small class="notifications-page__leaves" data-testid="channel-what-leaves">@L["NotificationChannelForm_WhatLeavesYourComputer"] @channel.WhatLeaves</small>
+                            }
                         </div>
                         <div class="notifications-page__channel-actions">
                             @if (channel.State == NotificationChannelStates.Off)
                             {
                                 <AppButton Label="@L["NotificationsPanel_TurnBackOn"].Value" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => EnableAsync(channel))" />
                             }
+                            @if (channel.CanEdit)
+                            {
+                                <AppButton Label="@L["Common_Edit"].Value" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => EditAsync(channel))" data-testid="channel-edit" />
+                            }
                             <AppButton Label="@L["Common_SendTest"].Value" Size="AppControlSize.Compact" Disabled="@(_busy || !channel.IsConfigured)" OnClick="@(() => TestAsync(channel))" />
                         </div>
+                        @if (channel.IsExternal)
+                        {
+                            <div class="notifications-page__channel-details">
+                                <AppSwitchRow Label="@L["NotificationsPanel_IncludeDetails"].Value" Description="@L["NotificationsPanel_IncludeDetailsHelp"].Value"
+                                              Value="channel.IncludeDetails" Disabled="@_busy" ValueChanged="@(on => SetChannelDetailsAsync(channel, on))" />
+                            </div>
+                        }
                         @if (_testResults.TryGetValue(channel.Id, out var test))
                         {
                             <AppAlert Tone="@(test.Success ? AppUiTone.Success : AppUiTone.Error)" Dense="true" data-channel-test>@test.Message</AppAlert>
@@ -44,6 +59,21 @@
                     </div>
                 }
             </div>
+            @if (_form is not null)
+            {
+                <NotificationChannelForm @key="_form.Key" Type="_form.Type" Existing="_form.Existing" Busy="_busy" Problem="@_formProblem"
+                                         OnSave="SaveChannelAsync" OnCancel="CloseForm" OnRemove="RemoveChannelAsync" />
+            }
+            else if (_picking)
+            {
+                <NotificationChannelPicker Types="_types" OnPick="PickType" OnCancel="@(() => { _picking = false; })" />
+            }
+            else
+            {
+                <div class="notifications-page__add">
+                    <AppButton Label="@L["NotificationChannelPicker_AddAChannel"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Disabled="@_busy" OnClick="OpenPickerAsync" data-testid="channel-add" />
+                </div>
+            }
         </AppSettingsGroup>
 
         <AppSettingsGroup Heading="@L["NotificationsPanel_WhatGoesWhere"].Value" Helper="@L["NotificationsPanel_ChooseWhichChannelsHearAbout"].Value">
@@ -88,8 +118,8 @@
         </AppSettingsGroup>
 
         <AppSettingsGroup Heading="@L["NotificationsPanel_Privacy"].Value" Helper="@L["NotificationsPanel_ByDefaultOnlyAShort"].Value">
-            <AppSwitchRow Label="@L["NotificationsPanel_IncludeDetailsInMessagesThat"].Value"
-                          Description="@L["NotificationsPanel_AddsWhatHappenedSuchAs"].Value"
+            <AppSwitchRow Label="@L["NotificationsPanel_IncludeDetailsInEventsSent"].Value"
+                          Description="@L["NotificationsPanel_IncludeDetailsInEventsSentHelp"].Value"
                           Value="_settings.IncludeDetails" Disabled="@_busy" ValueChanged="SetIncludeDetailsAsync" />
         </AppSettingsGroup>
 
@@ -133,6 +163,15 @@
     private int _unread;
     private List<NotificationItemDto> _items = [];
     private NotificationSettingsResponse? _settings;
+    private IReadOnlyList<NotificationChannelTypeDto> _types = [];
+    private bool _picking;
+    private string? _formProblem;
+    private ChannelForm? _form;
+
+    private sealed record ChannelForm(NotificationChannelTypeDto Type, NotificationChannelDetailDto? Existing)
+    {
+        public string Key { get; } = Existing?.Id ?? $"new-{Type.Id}";
+    }
 
     private string UnreadLine => _unread == 0 ? "All caught up" : _unread == 1 ? "1 unread message" : $"{_unread} unread messages";
 
@@ -204,6 +243,104 @@
 
     private Task SetQuietTimeAsync(string? start, string? end) =>
         SaveAsync(new UpdateNotificationSettingsRequest { QuietHours = Quiet(true, start, end) });
+
+    private Task SetChannelDetailsAsync(NotificationChannelDto channel, bool include) =>
+        SaveAsync(new UpdateNotificationSettingsRequest { ChannelDetails = { [channel.Id] = include } });
+
+    private async Task OpenPickerAsync()
+    {
+        _failure = null;
+        if (_types.Count == 0)
+        {
+            _types = (await ApiClient.GetNotificationChannelTypesAsync())?.Types ?? [];
+        }
+
+        if (_types.Count == 0)
+        {
+            _failure = L["NotificationChannelPicker_TheKindsOfChannelCouldNotBeLoaded"].Value;
+            return;
+        }
+
+        _picking = true;
+    }
+
+    private void PickType(NotificationChannelTypeDto type)
+    {
+        _formProblem = null;
+        _picking = false;
+        _form = new ChannelForm(type, null);
+    }
+
+    private async Task EditAsync(NotificationChannelDto channel)
+    {
+        _failure = null;
+        if (_types.Count == 0)
+        {
+            _types = (await ApiClient.GetNotificationChannelTypesAsync())?.Types ?? [];
+        }
+
+        var detail = await ApiClient.GetNotificationChannelAsync(channel.Id);
+        var type = detail is null ? null : _types.FirstOrDefault(candidate => candidate.Id == detail.Type);
+        if (detail is null || type is null)
+        {
+            _failure = L["NotificationChannelPicker_TheChannelCouldNotBeOpened"].Value;
+            return;
+        }
+
+        _formProblem = null;
+        _picking = false;
+        _form = new ChannelForm(type, detail);
+    }
+
+    private void CloseForm()
+    {
+        _form = null;
+        _formProblem = null;
+    }
+
+    private async Task SaveChannelAsync(SaveNotificationChannelRequest request)
+    {
+        if (_form is null) return;
+        _busy = true;
+        _formProblem = null;
+        var existing = _form.Existing;
+        var result = existing is null
+            ? await ApiClient.AddNotificationChannelAsync(request)
+            : await ApiClient.UpdateNotificationChannelAsync(existing.Id, request);
+        if (result.Channel is null)
+        {
+            _formProblem = result.Problem ?? L["NotificationChannelForm_TheChannelCouldNotBeSaved"].Value;
+            _busy = false;
+            return;
+        }
+
+        _form = null;
+        await LoadAsync();
+        _busy = false;
+        // A new channel is tried at once, so the person sees it work (or why not) without hunting for the button.
+        if (existing is null && _settings?.Channels.FirstOrDefault(channel => channel.Id == result.Channel.Id) is { } added)
+        {
+            await TestAsync(added);
+        }
+    }
+
+    private async Task RemoveChannelAsync()
+    {
+        if (_form?.Existing is not { } existing) return;
+        _busy = true;
+        if (await ApiClient.RemoveNotificationChannelAsync(existing.Id))
+        {
+            _form = null;
+            _testResults.Remove(existing.Id);
+            await LoadAsync();
+        }
+        else
+        {
+            _formProblem = L["NotificationChannelForm_TheChannelCouldNotBeRemoved"].Value;
+        }
+
+        _busy = false;
+    }
 
     private Task SetIncludeDetailsAsync(bool include) =>
         SaveAsync(new UpdateNotificationSettingsRequest { IncludeDetails = include });

@@ -101,6 +101,22 @@ public sealed class NotificationChannelDto
 
     [JsonPropertyName("last_success_at")]
     public DateTimeOffset? LastSuccessAt { get; set; }
+
+    /// <summary>The channel type: <c>dashboard</c>, <c>email</c>, <c>plugin</c> or the id of a type added from Settings (<c>discord</c>, <c>ntfy</c>).</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "";
+
+    /// <summary>One plain line on what leaves the computer through this channel and who can read it.</summary>
+    [JsonPropertyName("what_leaves")]
+    public string WhatLeaves { get; set; } = "";
+
+    /// <summary>Whether messages through this channel carry details. Off by default; a short generic title leaves otherwise.</summary>
+    [JsonPropertyName("include_details")]
+    public bool IncludeDetails { get; set; }
+
+    /// <summary>True for a channel added from Settings, which can be edited and removed there.</summary>
+    [JsonPropertyName("can_edit")]
+    public bool CanEdit { get; set; }
 }
 
 public sealed class NotificationQuietHoursDto
@@ -143,6 +159,10 @@ public sealed class UpdateNotificationSettingsRequest
 
     [JsonPropertyName("include_details")]
     public bool? IncludeDetails { get; set; }
+
+    /// <summary>Channel id to whether that channel carries details. Channels left out keep their choice.</summary>
+    [JsonPropertyName("channel_details")]
+    public Dictionary<string, bool> ChannelDetails { get; set; } = new(StringComparer.Ordinal);
 }
 
 public sealed class NotificationTestResponse
@@ -152,4 +172,112 @@ public sealed class NotificationTestResponse
 
     [JsonPropertyName("message")]
     public string Message { get; set; } = "";
+}
+
+/// <summary>One input in a channel type's setup form.</summary>
+public sealed class NotificationChannelFieldDto
+{
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = "";
+
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = "";
+
+    [JsonPropertyName("help")]
+    public string Help { get; set; } = "";
+
+    /// <summary><c>text</c>, <c>url</c> or <c>token</c>.</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "text";
+
+    /// <summary>Written once and never shown again.</summary>
+    [JsonPropertyName("secret")]
+    public bool Secret { get; set; }
+
+    [JsonPropertyName("required")]
+    public bool Required { get; set; }
+
+    [JsonPropertyName("placeholder")]
+    public string Placeholder { get; set; } = "";
+
+    [JsonPropertyName("default")]
+    public string Default { get; set; } = "";
+
+    /// <summary>The form offers a long random value (a private topic).</summary>
+    [JsonPropertyName("suggest_random")]
+    public bool SuggestRandom { get; set; }
+}
+
+/// <summary>A kind of channel a person can add, with the plain words the "Add a channel" tile and form show.</summary>
+public sealed class NotificationChannelTypeDto
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    /// <summary>Shown under Advanced rather than as a main tile.</summary>
+    [JsonPropertyName("advanced")]
+    public bool Advanced { get; set; }
+
+    [JsonPropertyName("cost")]
+    public string Cost { get; set; } = "";
+
+    [JsonPropertyName("effort")]
+    public string Effort { get; set; } = "";
+
+    /// <summary>The tile's one line: what it costs and what it needs.</summary>
+    [JsonPropertyName("summary")]
+    public string Summary { get; set; } = "";
+
+    [JsonPropertyName("help")]
+    public string Help { get; set; } = "";
+
+    [JsonPropertyName("what_leaves")]
+    public string WhatLeaves { get; set; } = "";
+
+    [JsonPropertyName("fields")]
+    public List<NotificationChannelFieldDto> Fields { get; set; } = [];
+}
+
+public sealed class NotificationChannelTypesResponse
+{
+    [JsonPropertyName("types")]
+    public List<NotificationChannelTypeDto> Types { get; set; } = [];
+}
+
+/// <summary>
+/// Creates or changes a channel. <see cref="Values"/> holds each form field by key; on a change, a secret field left out or null
+/// keeps its saved value.
+/// </summary>
+public sealed class SaveNotificationChannelRequest
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("values")]
+    public Dictionary<string, string?> Values { get; set; } = new(StringComparer.Ordinal);
+}
+
+/// <summary>A channel added from Settings, for the edit form. Secret values are never returned, only which are set.</summary>
+public sealed class NotificationChannelDetailDto
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("values")]
+    public Dictionary<string, string> Values { get; set; } = new(StringComparer.Ordinal);
+
+    [JsonPropertyName("secrets_set")]
+    public List<string> SecretsSet { get; set; } = [];
 }

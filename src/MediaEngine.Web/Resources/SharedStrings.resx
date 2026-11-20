@@ -5771,12 +5771,6 @@
   <data name="NotificationsPanel_ByDefaultOnlyAShort" xml:space="preserve">
     <value>By default only a short title like “A backup did not finish” leaves this computer.</value>
   </data>
-  <data name="NotificationsPanel_IncludeDetailsInMessagesThat" xml:space="preserve">
-    <value>Include details in messages that leave this computer</value>
-  </data>
-  <data name="NotificationsPanel_AddsWhatHappenedSuchAs" xml:space="preserve">
-    <value>Adds what happened, such as the plugin or tool involved. Leave this off if your email is not private to you.</value>
-  </data>
   <data name="OfflineDownloadsTab_Asset" xml:space="preserve">
     <value>Asset</value>
   </data>
@@ -15334,5 +15328,68 @@
   </data>
   <data name="NotificationsMailServer_CouldNotBeSaved" xml:space="preserve">
     <value>The email settings could not be saved.</value>
+  </data>
+  <data name="NotificationChannelPicker_AddAChannel" xml:space="preserve">
+    <value>Add a channel</value>
+  </data>
+  <data name="NotificationChannelPicker_PickWhereMessagesShouldGo" xml:space="preserve">
+    <value>Pick where messages should go. You can add as many as you like.</value>
+  </data>
+  <data name="NotificationChannelPicker_Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="NotificationChannelPicker_EmailSummary" xml:space="preserve">
+    <value>Free · any mail account · password reset uses it too</value>
+  </data>
+  <data name="NotificationChannelPicker_EmailIsSetUpUnderEmail" xml:space="preserve">
+    <value>Email is set up under Email server on this page. Alerts and password reset share it.</value>
+  </data>
+  <data name="NotificationChannelPicker_More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="NotificationChannelPicker_Fewer" xml:space="preserve">
+    <value>Fewer</value>
+  </data>
+  <data name="NotificationChannelPicker_TheKindsOfChannelCouldNotBeLoaded" xml:space="preserve">
+    <value>The kinds of channel could not be loaded. Try again.</value>
+  </data>
+  <data name="NotificationChannelPicker_TheChannelCouldNotBeOpened" xml:space="preserve">
+    <value>That channel could not be opened. Try again.</value>
+  </data>
+  <data name="NotificationChannelForm_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="NotificationChannelForm_Optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <data name="NotificationChannelForm_SavedLeaveBlankToKeep" xml:space="preserve">
+    <value>Saved. Leave blank to keep it.</value>
+  </data>
+  <data name="NotificationChannelForm_SuggestANewOne" xml:space="preserve">
+    <value>Suggest a new one</value>
+  </data>
+  <data name="NotificationChannelForm_WhatLeavesYourComputer" xml:space="preserve">
+    <value>What leaves your computer:</value>
+  </data>
+  <data name="NotificationChannelForm_Remove" xml:space="preserve">
+    <value>Remove this channel</value>
+  </data>
+  <data name="NotificationChannelForm_TheChannelCouldNotBeSaved" xml:space="preserve">
+    <value>The channel could not be saved. Try again.</value>
+  </data>
+  <data name="NotificationChannelForm_TheChannelCouldNotBeRemoved" xml:space="preserve">
+    <value>The channel could not be removed. Try again.</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetails" xml:space="preserve">
+    <value>Include details</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsHelp" xml:space="preserve">
+    <value>Adds what happened, such as the plugin or tool involved. Off means only a short title is sent.</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsInEventsSent" xml:space="preserve">
+    <value>Include details in events sent to webhooks and plugins</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsInEventsSentHelp" xml:space="preserve">
+    <value>Plugins and webhooks you set up under Developer tools get only a short title unless this is on.</value>
   </data>
 </root>

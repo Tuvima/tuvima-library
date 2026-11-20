@@ -1,0 +1,33 @@
+{
+  "id": "discord",
+  "name": "Discord",
+  "order": 30,
+  "cost": "Free",
+  "effort": "Just paste a link",
+  "summary": "Free · a channel in your own server · just paste a link",
+  "help": "In Discord: channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL. Paste it here.",
+  "what_leaves": "The alert text goes to Discord's servers, and everyone who can read that Discord channel sees it.",
+  "fields": [
+    {
+      "key": "url",
+      "label": "Webhook link",
+      "kind": "url",
+      "secret": true,
+      "required": true,
+      "placeholder": "https://discord.com/api/webhooks/…",
+      "host_suffixes": [ "discord.com", "discordapp.com" ]
+    },
+    {
+      "key": "username",
+      "label": "Name shown in Discord",
+      "kind": "text",
+      "default": "Library"
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{url}",
+    "content_type": "application/json",
+    "body": "{\"username\":\"{username}\",\"content\":\"**{title}**\\n{body}\"}"
+  }
+}

@@ -27,6 +27,7 @@ public sealed class NotificationServiceTests : IDisposable
     private readonly MutableClock _clock = new(Start);
     private readonly SpyEvents _events = new();
     private readonly SpyChannel _email = new(NotificationChannelIds.Email, "Email");
+    private readonly SpyChannel _phone = new("channel:phone", "Phone alerts") { NeedsRecipientsValue = false };
     private readonly NotificationService _service;
     private readonly NotificationSettingsAccessor _settings;
 
@@ -39,7 +40,7 @@ public sealed class NotificationServiceTests : IDisposable
         _repository = new NotificationRepository(_db);
         _accounts = new AccountRepository(_db);
         _settings = new NotificationSettingsAccessor(_repository, _clock);
-        _service = new NotificationService(_repository, _settings, [_email], [], _accounts, _events, _clock, NullLogger<NotificationService>.Instance);
+        _service = new NotificationService(_repository, _settings, [_email, _phone], [], [], new ChannelTypeCatalogue(), _accounts, _events, _clock, NullLogger<NotificationService>.Instance);
     }
 
     public void Dispose()
@@ -91,10 +92,50 @@ public sealed class NotificationServiceTests : IDisposable
         Assert.DoesNotContain("Fandom Lore", generic.Message.Body, StringComparison.Ordinal);
 
         _clock.Advance(TimeSpan.FromMinutes(5));
-        Assert.Null(await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest { IncludeDetails = true }, CancellationToken.None));
+        Assert.Null(await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest { ChannelDetails = { [NotificationChannelIds.Email] = true } }, CancellationToken.None));
         await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.PluginBroken, "p1", "Fandom Lore stopped working: it crashed."), CancellationToken.None);
 
         Assert.Contains("Fandom Lore", _email.Sent[1].Message.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task APhoneChannel_StillSends_WhenNoAdministratorHasAnEmailAddress()
+    {
+        await AddAccountAsync(null, administrator: true);
+        await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest
+        {
+            Routes = { [NotificationEventIds.BackupFailed] = [NotificationChannelIds.Dashboard, NotificationChannelIds.Email, "channel:phone"] },
+        }, CancellationToken.None);
+
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupFailed, "manual", "The drive is full."), CancellationToken.None);
+
+        Assert.Empty(_email.Sent);
+        var sent = Assert.Single(_phone.Sent);
+        Assert.Equal("A backup did not finish", sent.Message.Title);
+    }
+
+    [Fact]
+    public async Task DetailsAreChosenPerChannel_ADetailedEmailLeavesAGenericPhoneAlert()
+    {
+        await AddAccountAsync("admin@example.com", administrator: true);
+        await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest
+        {
+            Routes = { [NotificationEventIds.BackupFailed] = [NotificationChannelIds.Email, "channel:phone"] },
+            ChannelDetails = { [NotificationChannelIds.Email] = true },
+        }, CancellationToken.None);
+
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupFailed, "manual", "The drive at D: is full."), CancellationToken.None);
+
+        Assert.Contains("D:", Assert.Single(_email.Sent).Message.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("D:", Assert.Single(_phone.Sent).Message.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ARouteOrDetailsChoiceForAChannelThatDoesNotExist_IsRefused()
+    {
+        var problem = await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest { ChannelDetails = { ["channel:missing"] = true } }, CancellationToken.None);
+
+        Assert.NotNull(problem);
     }
 
     [Fact]
@@ -365,6 +406,10 @@ public sealed class NotificationServiceTests : IDisposable
         public string Name { get; } = name;
 
         public bool IsConfigured => Configured;
+
+        public bool NeedsRecipientsValue { get; set; } = true;
+
+        public bool NeedsRecipients => NeedsRecipientsValue;
 
         public Task<ChannelSendResult> SendAsync(OutgoingNotification message, IReadOnlyList<NotificationRecipient> recipients, CancellationToken ct)
         {

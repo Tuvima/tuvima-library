@@ -1,0 +1,26 @@
+{
+  "id": "webhook",
+  "name": "Web address (webhook)",
+  "order": 80,
+  "cost": "Free",
+  "effort": "For other tools",
+  "summary": "Send to Home Assistant, n8n and other tools",
+  "help": "Paste the address your tool gave you. Library sends one small JSON message to it with the event, a title and the text.",
+  "what_leaves": "The alert text goes to the address you enter. If that is outside your home network, whoever runs it can read it.",
+  "fields": [
+    {
+      "key": "url",
+      "label": "Web address",
+      "kind": "url",
+      "secret": true,
+      "required": true,
+      "placeholder": "https://example.com/hooks/library"
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{url}",
+    "content_type": "application/json",
+    "body": "{\"event\":\"{event}\",\"title\":\"{title}\",\"message\":\"{body}\"}"
+  }
+}

@@ -50,6 +50,8 @@ internal sealed partial class PluginNotificationChannelSource(
 
         public bool IsConfigured => true;
 
+        public bool NeedsRecipients => false;
+
         public async Task<ChannelSendResult> SendAsync(OutgoingNotification message, IReadOnlyList<NotificationRecipient> recipients, CancellationToken ct)
         {
             try

@@ -20,6 +20,8 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
     private bool _markedRead;
     private bool _saveFails;
     private bool _testSucceeds = true;
+    private string? _addProblem;
+    private readonly List<SaveNotificationChannelRequest> _added = [];
     private NotificationListResponse _list = new();
     private NotificationSettingsResponse _settings = Settings();
 
@@ -61,6 +63,11 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
                     _settings.IncludeDetails = include;
                 }
 
+                foreach (var (channelId, carries) in request.ChannelDetails)
+                {
+                    _settings.Channels.Single(channel => channel.Id == channelId).IncludeDetails = carries;
+                }
+
                 return Task.FromResult<NotificationSettingsResponse?>(_settings);
             });
             stub.SetHandler(nameof(IEngineApiClient.SendNotificationTestAsync), args =>
@@ -69,6 +76,29 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
                 return Task.FromResult<NotificationTestResponse?>(_testSucceeds
                     ? new NotificationTestResponse { Success = true, Message = "A test message was sent to me@example.com." }
                     : new NotificationTestResponse { Success = false, Message = "The mail server refused the message." });
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetNotificationChannelTypesAsync), _ => Task.FromResult<NotificationChannelTypesResponse?>(new NotificationChannelTypesResponse
+            {
+                Types =
+                [
+                    new NotificationChannelTypeDto
+                    {
+                        Id = "discord", Name = "Discord", Summary = "Free · paste a link", Help = "Paste the Discord webhook link.", WhatLeaves = "The alert text goes to Discord.",
+                        Fields = [new NotificationChannelFieldDto { Key = "url", Label = "Webhook link", Kind = "url", Secret = true, Required = true }],
+                    },
+                ],
+            }));
+            stub.SetHandler(nameof(IEngineApiClient.AddNotificationChannelAsync), args =>
+            {
+                var request = (SaveNotificationChannelRequest)args![0]!;
+                if (_addProblem is not null)
+                {
+                    return Task.FromResult(new NotificationChannelSaveResult(null, _addProblem));
+                }
+
+                _added.Add(request);
+                _settings.Channels.Add(new NotificationChannelDto { Id = "channel:new", Name = "Discord", Type = "discord", IsExternal = true, IsConfigured = true, CanEdit = true, StateLabel = "Working" });
+                return Task.FromResult(new NotificationChannelSaveResult(new NotificationChannelDetailDto { Id = "channel:new", Type = "discord", Name = "Discord" }, null));
             });
             stub.SetHandler(nameof(IEngineApiClient.EnableNotificationChannelAsync), args =>
             {
@@ -208,12 +238,59 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
         var cut = Render<NotificationsPanel>();
         cut.WaitForAssertion(() => cut.Find("[data-testid='notifications-page']"));
 
+        // Switches in order: the email channel's details, then quiet hours, then the events-to-webhooks switch.
         var switches = cut.FindAll("input[role='switch']");
-        switches[0].Change(true);
+        switches[1].Change(true);
         cut.WaitForAssertion(() => Assert.True(_saved.Last().QuietHours!.Enabled));
 
-        cut.FindAll("input[role='switch']")[1].Change(true);
+        cut.FindAll("input[role='switch']")[2].Change(true);
         cut.WaitForAssertion(() => Assert.True(_saved.Last().IncludeDetails));
+    }
+
+    [Fact]
+    public void IncludeDetails_IsPerChannel_AndSavesJustThatChannel()
+    {
+        var cut = Render<NotificationsPanel>();
+        cut.WaitForAssertion(() => cut.Find("[data-channel='email']"));
+
+        cut.Find("[data-channel='email'] input[role='switch']").Change(true);
+
+        cut.WaitForAssertion(() => Assert.True(_saved.Last().ChannelDetails["email"]));
+    }
+
+    [Fact]
+    public void AddAChannel_ShowsTheKindsAsTiles_ThenTheFormForTheOnePicked_AndTestsTheNewChannel()
+    {
+        var cut = Render<NotificationsPanel>();
+        cut.WaitForElement("[data-testid='channel-add']").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='notification-channel-picker']")));
+        cut.Find("[data-channel-type='discord']").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='notification-channel-form']")));
+        Assert.Contains("What leaves your computer", cut.Find("[data-testid='notification-form-what-leaves']").TextContent, StringComparison.Ordinal);
+        cut.Find("[data-testid='notification-form-url']").Input("https://discord.com/api/webhooks/1/abc");
+        cut.Find("[data-testid='notification-form-save']").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_added));
+        Assert.Equal("https://discord.com/api/webhooks/1/abc", _added.Single().Values["url"]);
+        cut.WaitForAssertion(() => Assert.Equal(["channel:new"], _tested));
+        Assert.Empty(cut.FindAll("[data-testid='notification-channel-form']"));
+    }
+
+    [Fact]
+    public void AFormTheEngineRefuses_StaysOpenWithItsPlainSentence()
+    {
+        _addProblem = "Webhook link should be the link discord.com gave you.";
+        var cut = Render<NotificationsPanel>();
+        cut.WaitForElement("[data-testid='channel-add']").Click();
+        cut.WaitForElement("[data-channel-type='discord']").Click();
+        cut.WaitForElement("[data-testid='notification-form-url']").Input("https://example.com/x");
+
+        cut.Find("[data-testid='notification-form-save']").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("should be the link", cut.Find("[data-testid='notification-form-problem']").TextContent, StringComparison.Ordinal));
+        Assert.NotEmpty(cut.FindAll("[data-testid='notification-channel-form']"));
     }
 
     private static NotificationSettingsResponse Settings() => new()

@@ -85,7 +85,7 @@ public static class NotificationEndpoints
                 ? await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
                 : null;
             var recipient = new NotificationRecipient(account?.Id ?? Guid.Empty, account?.Email ?? string.Empty);
-            if (channelId != NotificationChannelIds.Dashboard && string.IsNullOrWhiteSpace(recipient.Email))
+            if (channelId == NotificationChannelIds.Email && string.IsNullOrWhiteSpace(recipient.Email))
             {
                 return Results.Ok(new NotificationTestResponse { Success = false, Message = "Your account has no email address to send the test to." });
             }
@@ -137,6 +137,48 @@ public static class NotificationEndpoints
         .WithName("TestMailServer")
         .WithSummary("Sends one test email to the signed-in administrator with the values in the form, without saving them.")
         .Produces<NotificationTestResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/channel-types", ([FromServices] NotificationChannelService channels) => Results.Ok(channels.GetTypes()))
+        .WithName("ListNotificationChannelTypes")
+        .WithSummary("The kinds of channel that can be added (Discord, a phone topic, a web address), with their setup fields and what leaves the computer.")
+        .Produces<NotificationChannelTypesResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/channels/{channelId}", async (string channelId, [FromServices] NotificationChannelService channels, CancellationToken ct) =>
+        {
+            var detail = await channels.GetAsync(channelId, ct).ConfigureAwait(false);
+            return detail is null ? ApiErrors.NotFound("That channel was not found.") : Results.Ok(detail);
+        })
+        .WithName("GetNotificationChannel")
+        .WithSummary("A channel added from Settings, for its edit form. Links and tokens are never returned, only which are set.")
+        .Produces<NotificationChannelDetailDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/channels", async (SaveNotificationChannelRequest request, [FromServices] NotificationChannelService channels, CancellationToken ct) =>
+        {
+            var (id, problem) = await channels.CreateAsync(request, ct).ConfigureAwait(false);
+            return problem is null ? Results.Ok(await channels.GetAsync(id!, ct).ConfigureAwait(false)) : ApiErrors.BadRequest(problem);
+        })
+        .WithName("AddNotificationChannel")
+        .WithSummary("Adds a channel of one of the available types. Its links and tokens go to the secrets store.")
+        .Produces<NotificationChannelDetailDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPut("/channels/{channelId}", async (string channelId, SaveNotificationChannelRequest request, [FromServices] NotificationChannelService channels, CancellationToken ct) =>
+        {
+            var problem = await channels.UpdateAsync(channelId, request, ct).ConfigureAwait(false);
+            return problem is null ? Results.Ok(await channels.GetAsync(channelId, ct).ConfigureAwait(false)) : ApiErrors.BadRequest(problem);
+        })
+        .WithName("UpdateNotificationChannel")
+        .WithSummary("Changes a channel added from Settings. A secret left out keeps its saved value.")
+        .Produces<NotificationChannelDetailDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapDelete("/channels/{channelId}", async (string channelId, [FromServices] NotificationChannelService channels, CancellationToken ct) =>
+            await channels.DeleteAsync(channelId, ct).ConfigureAwait(false) ? Results.NoContent() : ApiErrors.NotFound("That channel was not found."))
+        .WithName("RemoveNotificationChannel")
+        .WithSummary("Removes a channel added from Settings, and every route that pointed at it.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         return routes;
     }
