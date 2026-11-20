@@ -1,6 +1,6 @@
 # Spec: Settings alignment (one home for every option, one form style)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Settings and setup simplified](archive/settings-and-setup-simplified.md) · [Look v3.2 phone and tablet standards](look-pass-v3-2-phone-and-tablet-standards.md) · [Presentation rules](../../docs/product/presentation-rules.md)
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Settings and setup simplified](settings-and-setup-simplified.md) · [Look v3.2 phone and tablet standards](../look-pass-v3-2-phone-and-tablet-standards.md) · [Presentation rules](../../../docs/product/presentation-rules.md)
 
 Locked by Shy on 2026-11-20 after answering A on questions 160 to 169. Comes from a live page-by-page review of all 38 Settings addresses.
 

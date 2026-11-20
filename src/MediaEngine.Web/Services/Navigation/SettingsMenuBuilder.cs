@@ -109,9 +109,9 @@ public static class SettingsMenuBuilder
             return false;
         }
 
-        // Phones and tablets are for consuming media: Local AI, Plugins, Integrations and Developer Tools are not listed there at
-        // all. Their pages stay reachable by address from a mobile browser.
-        if (context.IsMobile && IsDeveloperArea(node))
+        // Phones and tablets are for consuming media: Local AI, Plugins and Integrations are not listed there at
+        // all (their pages stay reachable by address from a mobile browser). Developer Tools are listed for administrators (Settings alignment D13).
+        if (context.IsMobile && IsHiddenOnMobileServerPage(node))
         {
             return false;
         }
@@ -130,9 +130,8 @@ public static class SettingsMenuBuilder
     private static bool IsOfferedOnMobile(SettingsSection section, string? subsection) =>
         SettingsNav.IsVisibleOnMobile(section) && SettingsNav.IsMobileRouteAvailable(section, subsection);
 
-    private static bool IsDeveloperArea(SettingsMenuNode node) =>
-        node.Section is SettingsSection.LocalAi or SettingsSection.Plugins or SettingsSection.Integrations
-        || SettingsNav.GetGroup(node.Section).Key is "developer";
+    private static bool IsHiddenOnMobileServerPage(SettingsMenuNode node) =>
+        node.Section is SettingsSection.LocalAi or SettingsSection.Plugins or SettingsSection.Integrations;
 
     /// <summary>The count drawn in the pill: the number, or "99+" above 99.</summary>
     public static string ReviewPillText(int reviewCount) =>
