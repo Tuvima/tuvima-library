@@ -40,7 +40,7 @@ public sealed class NotificationServiceTests : IDisposable
         _repository = new NotificationRepository(_db);
         _accounts = new AccountRepository(_db);
         _settings = new NotificationSettingsAccessor(_repository, _clock);
-        _service = new NotificationService(_repository, _settings, [_email, _phone], [], [], new ChannelTypeCatalogue(), _accounts, _events, _clock, NullLogger<NotificationService>.Instance);
+        _service = new NotificationService(_repository, _settings, [_email, _phone], [], [], new ChannelTypeCatalogue(), _accounts, _events, new NotificationSummaryStore(_repository, _clock), _clock, NullLogger<NotificationService>.Instance);
     }
 
     public void Dispose()
@@ -136,6 +136,91 @@ public sealed class NotificationServiceTests : IDisposable
         var problem = await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest { ChannelDetails = { ["channel:missing"] = true } }, CancellationToken.None);
 
         Assert.NotNull(problem);
+    }
+
+    [Theory]
+    [InlineData(NotificationEventIds.AccountNewDevice)]
+    [InlineData(NotificationEventIds.SecurityFailedSignIns)]
+    [InlineData(NotificationEventIds.LibraryDriveOffline)]
+    [InlineData(NotificationEventIds.LibraryUpdateAvailable)]
+    [InlineData(NotificationEventIds.EncodeFailedRepeatedly)]
+    public async Task EachNewEvent_IsInTheTable_AndLandsInTheInboxOnce(string eventId)
+    {
+        var definition = NotificationEventCatalogue.Find(eventId);
+        Assert.NotNull(definition);
+
+        await _service.DispatchAsync(new NotificationRequest(eventId, "x", "Something happened."), CancellationToken.None);
+
+        var inbox = await _repository.ListAsync(10);
+        Assert.Single(inbox);
+        Assert.Empty(_phone.Sent);
+        Assert.Equal(definition!.Title, inbox[0].Title);
+    }
+
+    [Fact]
+    public async Task TheDailySummary_HoldsCalmEventsAndSendsOneMessageOnceADay()
+    {
+        await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest
+        {
+            Routes = { [NotificationEventIds.BackupCompleted] = ["channel:phone"], [NotificationEventIds.BackupFailed] = ["channel:phone"] },
+            DailySummary = new NotificationDailySummaryDto { Enabled = true, Time = "11:00" },
+        }, CancellationToken.None);
+
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupCompleted, "a", "Backup one."), CancellationToken.None);
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupCompleted, "b", "Backup two."), CancellationToken.None);
+        Assert.Empty(_phone.Sent);
+
+        // Something wrong is never held for the summary.
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupFailed, "c", "Failed."), CancellationToken.None);
+        Assert.Single(_phone.Sent);
+
+        await _service.SendDueSummaryAsync(CancellationToken.None);
+        await _service.SendDueSummaryAsync(CancellationToken.None);
+
+        Assert.Equal(2, _phone.Sent.Count);
+        Assert.Equal("Your Library today", _phone.Sent[1].Message.Title);
+        Assert.DoesNotContain("Backup one", _phone.Sent[1].Message.Body, StringComparison.Ordinal);
+        Assert.Contains("2 quiet update", _phone.Sent[1].Message.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheDailySummary_WaitsUntilItsTime()
+    {
+        await _service.UpdateSettingsAsync(new UpdateNotificationSettingsRequest
+        {
+            Routes = { [NotificationEventIds.BackupCompleted] = ["channel:phone"] },
+            DailySummary = new NotificationDailySummaryDto { Enabled = true, Time = "18:00" },
+        }, CancellationToken.None);
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupCompleted, "a", "Backup one."), CancellationToken.None);
+
+        await _service.SendDueSummaryAsync(CancellationToken.None);
+        Assert.Empty(_phone.Sent);
+
+        _clock.Advance(TimeSpan.FromHours(7));
+        await _service.SendDueSummaryAsync(CancellationToken.None);
+        Assert.Single(_phone.Sent);
+    }
+
+    [Fact]
+    public void FiveFailedSignInsInARow_AreReportedOnce()
+    {
+        var published = new List<NotificationRequest>();
+        var watcher = new SignInWatcher(null!, new CapturingPublisher(published), _clock, NullLogger<SignInWatcher>.Instance);
+
+        for (var i = 0; i < SignInWatcher.FailuresBeforeAlert - 1; i++)
+        {
+            watcher.Failed("someone@example.com");
+        }
+
+        Assert.Empty(published);
+        watcher.Failed("someone@example.com");
+        Assert.Single(published);
+        Assert.Equal(NotificationEventIds.SecurityFailedSignIns, published[0].EventId);
+    }
+
+    private sealed class CapturingPublisher(List<NotificationRequest> sink) : INotificationPublisher
+    {
+        public void Publish(NotificationRequest request) => sink.Add(request);
     }
 
     [Fact]

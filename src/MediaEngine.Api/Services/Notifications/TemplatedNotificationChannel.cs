@@ -17,6 +17,12 @@ internal static partial class ChannelRequestRenderer
         var request = new HttpRequestMessage(new HttpMethod(template.Method), url);
         foreach (var (name, headerTemplate) in template.Headers)
         {
+            // A header that needs an optional value the person left blank (an access token) is simply not sent.
+            if (Token().Matches(headerTemplate).Any(match => !IsKnown(values, match.Groups["token"].Value)))
+            {
+                continue;
+            }
+
             var value = Token().Replace(headerTemplate, match => Value(values, message, match.Groups["token"].Value, "text/plain") ?? match.Value);
             if (value.Any(char.IsControl))
             {
@@ -40,8 +46,12 @@ internal static partial class ChannelRequestRenderer
         }
 
         var input = type.Fields.FirstOrDefault(candidate => candidate.Key == token);
-        return input?.Kind == "url" ? value.Trim().TrimEnd('/') : Uri.EscapeDataString(value.Trim());
+        // Addresses go in whole, and so do access tokens (their characters were checked when saved: a bot token holds a colon).
+        return input?.Kind == "url" ? value.Trim().TrimEnd('/') : input?.Kind == "token" ? value.Trim() : Uri.EscapeDataString(value.Trim());
     }
+
+    private static bool IsKnown(IReadOnlyDictionary<string, string> values, string token) =>
+        token is "title" or "body" or "event" || (values.TryGetValue(token, out var value) && !string.IsNullOrEmpty(value));
 
     private static string? Value(IReadOnlyDictionary<string, string> values, OutgoingNotification message, string token, string contentType) => token switch
     {

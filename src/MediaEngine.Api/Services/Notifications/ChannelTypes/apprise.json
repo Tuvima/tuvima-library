@@ -1,0 +1,27 @@
+{
+  "id": "apprise",
+  "name": "Other services (Apprise)",
+  "order": 90,
+  "advanced": true,
+  "cost": "Free",
+  "effort": "Needs an Apprise server you run",
+  "summary": "Advanced · 100+ services through a gateway you run",
+  "help": "Apprise is a free helper program that reaches SMS, Matrix, Signal bridges and many more. Enter the notify address of your Apprise server.",
+  "what_leaves": "The alert text goes to your Apprise server, then wherever you set it to forward it.",
+  "fields": [
+    {
+      "key": "url",
+      "label": "Apprise address",
+      "kind": "url",
+      "secret": true,
+      "required": true,
+      "placeholder": "http://192.168.1.10:8000/notify/library"
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{url}",
+    "content_type": "application/json",
+    "body": "{\"title\":\"{title}\",\"body\":\"{body}\"}"
+  }
+}

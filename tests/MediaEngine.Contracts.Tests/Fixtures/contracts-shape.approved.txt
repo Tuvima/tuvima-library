@@ -7518,11 +7518,16 @@ MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.Notifica
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelTypesResponse
   Types: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelTypeDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationDailySummaryDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  Time: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationEventDto
   Id: System.String | nullability=not-null | accessors=get,set
   Title: System.String | nullability=not-null | accessors=get,set
   Description: System.String | nullability=not-null | accessors=get,set
   Channels: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Quiet: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationItemDto
   Id: System.Guid | nullability=not-null | accessors=get,set
@@ -7547,6 +7552,7 @@ MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.Notifica
   Channels: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelDto> | nullability=not-null | accessors=get,set
   QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | nullability=not-null | accessors=get,set
   IncludeDetails: System.Boolean | nullability=not-null | accessors=get,set
+  DailySummary: MediaEngine.Contracts.Notifications.NotificationDailySummaryDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationTestResponse
   Success: System.Boolean | nullability=not-null | accessors=get,set
@@ -7561,6 +7567,7 @@ MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.UpdateNo
   Routes: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
   QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | nullability=nullable | accessors=get,set
   IncludeDetails: System.Boolean? | nullability=nullable | accessors=get,set
+  DailySummary: MediaEngine.Contracts.Notifications.NotificationDailySummaryDto | nullability=nullable | accessors=get,set
   ChannelDetails: System.Collections.Generic.Dictionary<System.String, System.Boolean> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Operations.MediaEngine.Contracts.Operations.AssetStoreSweepResponse

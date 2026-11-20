@@ -238,12 +238,15 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
         var cut = Render<NotificationsPanel>();
         cut.WaitForAssertion(() => cut.Find("[data-testid='notifications-page']"));
 
-        // Switches in order: the email channel's details, then quiet hours, then the events-to-webhooks switch.
+        // Switches in order: the email channel's details, quiet hours, the daily summary, then the events-to-webhooks switch.
         var switches = cut.FindAll("input[role='switch']");
         switches[1].Change(true);
         cut.WaitForAssertion(() => Assert.True(_saved.Last().QuietHours!.Enabled));
 
         cut.FindAll("input[role='switch']")[2].Change(true);
+        cut.WaitForAssertion(() => Assert.True(_saved.Last().DailySummary!.Enabled));
+
+        cut.FindAll("input[role='switch']")[3].Change(true);
         cut.WaitForAssertion(() => Assert.True(_saved.Last().IncludeDetails));
     }
 

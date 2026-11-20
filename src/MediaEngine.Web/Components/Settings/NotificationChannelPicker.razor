@@ -9,16 +9,20 @@
         <span>@L["NotificationChannelPicker_PickWhereMessagesShouldGo"]</span>
     </div>
     <div class="notification-picker__tiles">
-        <AppNativeButton Type="button" Class="notification-picker__tile" OnClick="@(() => { _emailNote = !_emailNote; })" data-channel-type="email">
-            <strong>@L["NotificationChannelPicker_Email"]</strong>
-            <span>@L["NotificationChannelPicker_EmailSummary"]</span>
-        </AppNativeButton>
+        <div class="notification-picker__tile">
+            <AppNativeButton Type="button" InlineStyle="@TileButton" OnClick="@(() => { _emailNote = !_emailNote; })" data-channel-type="email">
+                <strong>@L["NotificationChannelPicker_Email"]</strong>
+                <span>@L["NotificationChannelPicker_EmailSummary"]</span>
+            </AppNativeButton>
+        </div>
         @foreach (var type in Visible)
         {
-            <AppNativeButton Type="button" Class="notification-picker__tile" OnClick="@(() => OnPick.InvokeAsync(type))" data-channel-type="@type.Id">
-                <strong>@type.Name</strong>
-                <span>@type.Summary</span>
-            </AppNativeButton>
+            <div class="notification-picker__tile">
+                <AppNativeButton Type="button" InlineStyle="@TileButton" OnClick="@(() => OnPick.InvokeAsync(type))" data-channel-type="@type.Id">
+                    <strong>@type.Name</strong>
+                    <span>@type.Summary</span>
+                </AppNativeButton>
+            </div>
         }
     </div>
     @if (_emailNote)
@@ -37,6 +41,9 @@
 
 @code {
     private const int FirstTiles = 4;
+
+    // The tile's look (border, fill, padding) is on the wrapper this component owns; the button inside only fills it and shows no chrome of its own.
+    private const string TileButton = "display:grid;gap:4px;width:100%;min-height:44px;padding:0;text-align:left;background:none;border:0;color:inherit;font:inherit;cursor:pointer;";
 
     private bool _showMore;
     private bool _emailNote;

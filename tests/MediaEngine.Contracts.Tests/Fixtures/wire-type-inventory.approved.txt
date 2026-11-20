@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1608; api=0; web-client=56
+# scopes: contracts=1609; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8832,13 +8832,20 @@
   Types: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelTypeDto> | json=types | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"types":[]}
 
+[contracts] MediaEngine.Contracts.Notifications.NotificationDailySummaryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Time: System.String | json=time | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"enabled":true,"time":"sample"}
+
 [contracts] MediaEngine.Contracts.Notifications.NotificationEventDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.String | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Title: System.String | json=title | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Description: System.String | json=description | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Channels: System.Collections.Generic.List<System.String> | json=channels | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","title":"sample","description":"sample","channels":[]}
+  Quiet: System.Boolean | json=quiet | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","title":"sample","description":"sample","channels":[],"quiet":true}
 
 [contracts] MediaEngine.Contracts.Notifications.NotificationItemDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8870,7 +8877,8 @@
   Channels: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelDto> | json=channels | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | json=quiet_hours | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IncludeDetails: System.Boolean | json=include_details | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"events":[],"channels":[],"quiet_hours":null,"include_details":true}
+  DailySummary: MediaEngine.Contracts.Notifications.NotificationDailySummaryDto | json=daily_summary | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"events":[],"channels":[],"quiet_hours":null,"include_details":true,"daily_summary":null}
 
 [contracts] MediaEngine.Contracts.Notifications.NotificationTestResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8890,8 +8898,9 @@
   Routes: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | json=routes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | json=quiet_hours | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IncludeDetails: System.Boolean? | json=include_details | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DailySummary: MediaEngine.Contracts.Notifications.NotificationDailySummaryDto | json=daily_summary | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ChannelDetails: System.Collections.Generic.Dictionary<System.String, System.Boolean> | json=channel_details | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"routes":{},"quiet_hours":null,"include_details":true,"channel_details":{}}
+  sample={"routes":{},"quiet_hours":null,"include_details":true,"daily_summary":null,"channel_details":{}}
 
 [contracts] MediaEngine.Contracts.Operations.AssetStoreSweepResponse
   kind=class | converter=default | number-handling=default | unmapped=default

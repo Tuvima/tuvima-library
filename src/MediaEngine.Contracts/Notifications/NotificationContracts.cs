@@ -74,6 +74,10 @@ public sealed class NotificationEventDto
     /// <summary>The channel ids this event goes to (<c>dashboard</c>, <c>email</c>, a channel plugin id).</summary>
     [JsonPropertyName("channels")]
     public List<string> Channels { get; set; } = [];
+
+    /// <summary>A calm kind of event the daily summary may batch into one message.</summary>
+    [JsonPropertyName("quiet")]
+    public bool Quiet { get; set; }
 }
 
 /// <summary>A way a message can leave the Library, and how it is doing: <c>healthy</c>, <c>needs_attention</c> or <c>off</c>.</summary>
@@ -132,6 +136,17 @@ public sealed class NotificationQuietHoursDto
     public string End { get; set; } = "07:00";
 }
 
+/// <summary>The optional daily summary: quiet events batched into one message at a time the person picks.</summary>
+public sealed class NotificationDailySummaryDto
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    /// <summary>Local time as HH:mm.</summary>
+    [JsonPropertyName("time")]
+    public string Time { get; set; } = "08:00";
+}
+
 public sealed class NotificationSettingsResponse
 {
     [JsonPropertyName("events")]
@@ -143,9 +158,12 @@ public sealed class NotificationSettingsResponse
     [JsonPropertyName("quiet_hours")]
     public NotificationQuietHoursDto QuietHours { get; set; } = new();
 
-    /// <summary>When off (the default), messages that leave this computer carry only a short generic title.</summary>
+    /// <summary>When off (the default), events offered to webhooks and plugins carry only a short generic title. Each channel has its own switch.</summary>
     [JsonPropertyName("include_details")]
     public bool IncludeDetails { get; set; }
+
+    [JsonPropertyName("daily_summary")]
+    public NotificationDailySummaryDto DailySummary { get; set; } = new();
 }
 
 public sealed class UpdateNotificationSettingsRequest
@@ -159,6 +177,9 @@ public sealed class UpdateNotificationSettingsRequest
 
     [JsonPropertyName("include_details")]
     public bool? IncludeDetails { get; set; }
+
+    [JsonPropertyName("daily_summary")]
+    public NotificationDailySummaryDto? DailySummary { get; set; }
 
     /// <summary>Channel id to whether that channel carries details. Channels left out keep their choice.</summary>
     [JsonPropertyName("channel_details")]

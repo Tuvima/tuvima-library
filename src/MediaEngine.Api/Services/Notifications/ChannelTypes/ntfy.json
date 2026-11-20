@@ -1,0 +1,45 @@
+{
+  "id": "ntfy",
+  "name": "Phone alerts (ntfy)",
+  "order": 10,
+  "cost": "Free",
+  "effort": "Install the ntfy app",
+  "summary": "Free · app for iPhone and Android · can run on your own server",
+  "help": "Install the free ntfy app, subscribe to the topic below, and Library sends alerts to it.",
+  "what_leaves": "The alert text. With ntfy.sh it passes through their servers (and Apple or Google to reach an iPhone or Android). Anyone who knows the topic can read the alerts, so keep it private.",
+  "fields": [
+    {
+      "key": "server",
+      "label": "Server",
+      "kind": "url",
+      "required": true,
+      "default": "https://ntfy.sh",
+      "placeholder": "https://ntfy.sh",
+      "help": "Leave it as ntfy.sh, or enter the address of your own server."
+    },
+    {
+      "key": "topic",
+      "label": "Topic",
+      "kind": "token",
+      "required": true,
+      "suggest_random": true,
+      "help": "Keep it private: anyone who knows it can read the alerts."
+    },
+    {
+      "key": "access_token",
+      "label": "Access token",
+      "kind": "token",
+      "secret": true,
+      "help": "Only if your server needs a sign-in."
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{server}",
+    "headers": {
+      "Authorization": "Bearer {access_token}"
+    },
+    "content_type": "application/json",
+    "body": "{\"topic\":\"{topic}\",\"title\":\"{title}\",\"message\":\"{body}\"}"
+  }
+}

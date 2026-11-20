@@ -16,6 +16,11 @@ public sealed class EncodeQueueService : BackgroundService
     private readonly PlaybackActivityRegistry? _activity;
     private readonly EncodeSlotGate? _slots;
     private readonly IProfileRepository? _profiles;
+    private readonly INotificationPublisher _notifications;
+    private int _failuresInARow;
+
+    /// <summary>How many prepared copies must fail one after another before an administrator is told.</summary>
+    internal const int FailuresBeforeAlert = 3;
 
     public EncodeQueueService(
         PlaybackStateRepository state,
@@ -25,8 +30,10 @@ public sealed class EncodeQueueService : BackgroundService
         ILogger<EncodeQueueService> logger,
         PlaybackActivityRegistry? activity = null,
         EncodeSlotGate? slots = null,
-        IProfileRepository? profiles = null)
+        IProfileRepository? profiles = null,
+        INotificationPublisher? notifications = null)
     {
+        _notifications = notifications ?? NullNotificationPublisher.Instance;
         _activity = activity;
         _slots = slots;
         _profiles = profiles;
@@ -54,6 +61,18 @@ public sealed class EncodeQueueService : BackgroundService
             {
                 _logger.LogWarning(ex, "Encode queue monitor failed");
             }
+        }
+    }
+
+    // One bad file is not news; a run of them usually means the tool or the drive is the problem.
+    private void NoteFailure()
+    {
+        if (Interlocked.Increment(ref _failuresInARow) == FailuresBeforeAlert)
+        {
+            _notifications.Publish(new NotificationRequest(
+                NotificationEventIds.EncodeFailedRepeatedly,
+                "encode",
+                "Several videos in a row could not be prepared for playback. Check that FFmpeg and the drive are healthy."));
         }
     }
 
@@ -117,8 +136,11 @@ public sealed class EncodeQueueService : BackgroundService
             {
                 await _state.FailEncodeJobAsync(job.Id, string.IsNullOrWhiteSpace(result.Error) ? "FFmpeg failed." : result.Error, ct);
                 DeleteJobFolder(job, outputPath);
+                NoteFailure();
                 return;
             }
+
+            Interlocked.Exchange(ref _failuresInARow, 0);
 
             var metadata = MetadataFor(job.ProfileKey, outputPath);
             await _state.CompleteEncodeJobAsync(

@@ -117,6 +117,16 @@
             }
         </AppSettingsGroup>
 
+        <AppSettingsGroup Heading="@L["NotificationsPanel_DailySummary"].Value" Helper="@L["NotificationsPanel_DailySummaryHelp"].Value">
+            <AppSwitchRow Label="@L["NotificationsPanel_SendADailySummary"].Value" Value="_settings.DailySummary.Enabled" Disabled="@_busy" ValueChanged="SetSummaryEnabledAsync" />
+            @if (_settings.DailySummary.Enabled)
+            {
+                <div class="notifications-page__times">
+                    <AppTextField Label="@L["NotificationsPanel_SendAt"].Value" InputType="AppInputType.Time" Value="@_settings.DailySummary.Time" Immediate="false" ValueChanged="SetSummaryTimeAsync" />
+                </div>
+            }
+        </AppSettingsGroup>
+
         <AppSettingsGroup Heading="@L["NotificationsPanel_Privacy"].Value" Helper="@L["NotificationsPanel_ByDefaultOnlyAShort"].Value">
             <AppSwitchRow Label="@L["NotificationsPanel_IncludeDetailsInEventsSent"].Value"
                           Description="@L["NotificationsPanel_IncludeDetailsInEventsSentHelp"].Value"
@@ -341,6 +351,12 @@
 
         _busy = false;
     }
+
+    private Task SetSummaryEnabledAsync(bool enabled) =>
+        SaveAsync(new UpdateNotificationSettingsRequest { DailySummary = new NotificationDailySummaryDto { Enabled = enabled, Time = _settings!.DailySummary.Time } });
+
+    private Task SetSummaryTimeAsync(string? time) =>
+        SaveAsync(new UpdateNotificationSettingsRequest { DailySummary = new NotificationDailySummaryDto { Enabled = true, Time = string.IsNullOrWhiteSpace(time) ? _settings!.DailySummary.Time : time } });
 
     private Task SetIncludeDetailsAsync(bool include) =>
         SaveAsync(new UpdateNotificationSettingsRequest { IncludeDetails = include });

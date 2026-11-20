@@ -32,7 +32,7 @@ public sealed class NotificationChannelServiceTests : IDisposable
         _store = new NotificationChannelStore(_repository, new ReversibleSecrets(), clock);
         var settings = new NotificationSettingsAccessor(_repository, clock);
         var source = new AddedChannelSource(_store, _types, new HandlerFactory(_http), NullLogger<AddedChannelSource>.Instance);
-        _notifications = new NotificationService(_repository, settings, [], [], [source], _types, new AccountRepository(_db), new NoEvents(), clock, NullLogger<NotificationService>.Instance);
+        _notifications = new NotificationService(_repository, settings, [], [], [source], _types, new AccountRepository(_db), new NoEvents(), new NotificationSummaryStore(_repository, clock), clock, NullLogger<NotificationService>.Instance);
         _channels = new NotificationChannelService(_store, _types, _notifications);
     }
 

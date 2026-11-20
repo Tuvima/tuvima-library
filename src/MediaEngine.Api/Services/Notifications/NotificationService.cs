@@ -24,6 +24,7 @@ internal sealed class NotificationService(
     ChannelTypeCatalogue channelTypes,
     IAccountRepository accounts,
     IApplicationEventProducer events,
+    NotificationSummaryStore summary,
     TimeProvider clock,
     ILogger<NotificationService> logger)
 {
@@ -92,6 +93,13 @@ internal sealed class NotificationService(
         var channels = await ChannelsAsync(ct).ConfigureAwait(false);
         foreach (var channelId in external)
         {
+            // With the daily summary on, calm events wait for it instead of going out one by one.
+            if (settings.DailySummaryEnabled && definition.Quiet)
+            {
+                await summary.AddAsync(channelId, definition.Title, body, now, ct).ConfigureAwait(false);
+                continue;
+            }
+
             var channel = channels.FirstOrDefault(candidate => string.Equals(candidate.Id, channelId, StringComparison.Ordinal));
             if (channel is null || !channel.IsConfigured || (channel.NeedsRecipients && recipients.Count == 0))
             {
@@ -116,6 +124,55 @@ internal sealed class NotificationService(
             {
                 await repository.ConfirmSendAsync(channel.Id, definition.Id, ct).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// Sends the daily summary once its time has passed: one message per channel listing what waited. Held back while quiet hours
+    /// are on. Called every minute by the summary worker; it does nothing on all but one of those calls a day.
+    /// </summary>
+    public async Task SendDueSummaryAsync(CancellationToken ct)
+    {
+        var settings = await settingsStore.LoadAsync(ct).ConfigureAwait(false);
+        if (!settings.DailySummaryEnabled || !TimeOnly.TryParseExact(settings.DailySummaryTime, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
+        {
+            return;
+        }
+
+        var local = clock.GetLocalNow();
+        var today = local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (TimeOnly.FromTimeSpan(local.TimeOfDay) < at || settings.IsQuiet(local) || !await summary.IsDueAsync(today, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        var pending = await summary.TakeAsync(today, ct).ConfigureAwait(false);
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        var channels = await ChannelsAsync(ct).ConfigureAwait(false);
+        var recipients = await AdministratorRecipientsAsync(ct).ConfigureAwait(false);
+        foreach (var group in pending.GroupBy(item => item.ChannelId, StringComparer.Ordinal))
+        {
+            var channel = channels.FirstOrDefault(candidate => string.Equals(candidate.Id, group.Key, StringComparison.Ordinal));
+            if (channel is null || !channel.IsConfigured || (channel.NeedsRecipients && recipients.Count == 0))
+            {
+                continue;
+            }
+
+            var state = await repository.GetChannelStateAsync(channel.Id, ct).ConfigureAwait(false);
+            if (state?.State == NotificationChannelStates.Off)
+            {
+                continue;
+            }
+
+            var lines = group.Select(item => item.Detail).ToList();
+            var text = settings.DetailsFor(channel.Id)
+                ? string.Join("\n", lines.Select(line => "- " + line))
+                : string.Create(CultureInfo.InvariantCulture, $"{lines.Count} quiet update(s) are waiting. Open your Library to see them.");
+            await SendAndRecordAsync(channel, new OutgoingNotification("summary.daily", "Your Library today", text), channel.NeedsRecipients ? recipients : [], ct).ConfigureAwait(false);
         }
     }
 
@@ -184,6 +241,7 @@ internal sealed class NotificationService(
         {
             IncludeDetails = settings.IncludeDetails,
             QuietHours = new NotificationQuietHoursDto { Enabled = settings.QuietHoursEnabled, Start = settings.QuietStart, End = settings.QuietEnd },
+            DailySummary = new NotificationDailySummaryDto { Enabled = settings.DailySummaryEnabled, Time = settings.DailySummaryTime },
         };
         foreach (var definition in NotificationEventCatalogue.All)
         {
@@ -193,6 +251,7 @@ internal sealed class NotificationService(
                 Title = definition.Title,
                 Description = definition.Description,
                 Channels = [.. settings.RouteFor(definition)],
+                Quiet = definition.Quiet,
             });
         }
 
@@ -257,7 +316,18 @@ internal sealed class NotificationService(
             return "Quiet hours need times like 22:00 and 07:00.";
         }
 
+        if (request.DailySummary is { } daily && !IsClockTime(daily.Time))
+        {
+            return "The daily summary needs a time like 08:00.";
+        }
+
         var settings = await settingsStore.LoadAsync(ct).ConfigureAwait(false);
+        if (request.DailySummary is { } summaryChoice)
+        {
+            settings.DailySummaryEnabled = summaryChoice.Enabled;
+            settings.DailySummaryTime = summaryChoice.Time;
+        }
+
         foreach (var (eventId, routed) in request.Routes)
         {
             settings.Routes[eventId] = [.. routed.Distinct(StringComparer.Ordinal)];

@@ -15392,4 +15392,16 @@
   <data name="NotificationsPanel_IncludeDetailsInEventsSentHelp" xml:space="preserve">
     <value>Plugins and webhooks you set up under Developer tools get only a short title unless this is on.</value>
   </data>
+  <data name="NotificationsPanel_DailySummary" xml:space="preserve">
+    <value>Daily summary</value>
+  </data>
+  <data name="NotificationsPanel_DailySummaryHelp" xml:space="preserve">
+    <value>Calm updates, such as a finished backup or items waiting in Needs Review, are sent as one message a day instead of one by one. Anything that needs you still arrives at once.</value>
+  </data>
+  <data name="NotificationsPanel_SendADailySummary" xml:space="preserve">
+    <value>Send a daily summary</value>
+  </data>
+  <data name="NotificationsPanel_SendAt" xml:space="preserve">
+    <value>Send at</value>
+  </data>
 </root>

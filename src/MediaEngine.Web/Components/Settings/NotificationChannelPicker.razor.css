@@ -23,10 +23,8 @@
 
 .notification-picker__tile {
     display: grid;
-    gap: 4px;
     min-height: 44px;
     padding: 10px 12px;
-    text-align: left;
     border-radius: 10px;
     border: 1px solid var(--tl-border-subtle, transparent);
     background: var(--tl-bg-surface-raised);

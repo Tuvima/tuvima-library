@@ -26,6 +26,12 @@ internal sealed class NotificationSettingsDocument
     /// </summary>
     public Dictionary<string, bool> ChannelDetails { get; set; } = new(StringComparer.Ordinal);
 
+    /// <summary>When on, calm events (a backup finished, items waiting) wait and go out as one message a day instead of one by one.</summary>
+    public bool DailySummaryEnabled { get; set; }
+
+    /// <summary>Local time as HH:mm.</summary>
+    public string DailySummaryTime { get; set; } = "08:00";
+
     public bool DetailsFor(string channelId) => ChannelDetails.TryGetValue(channelId, out var include) && include;
 
     public IReadOnlyList<string> RouteFor(NotificationEventDefinition definition) =>

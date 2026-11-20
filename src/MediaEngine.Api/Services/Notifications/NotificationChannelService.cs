@@ -184,6 +184,13 @@ internal sealed class NotificationChannelService(
             return $"{field.Label} is not valid.";
         }
 
+        if (field.Kind == "token")
+        {
+            return value.All(character => char.IsAsciiLetterOrDigit(character) || character is ':' or '_' or '-' or '.')
+                ? null
+                : $"{field.Label} should be letters, numbers and dashes only.";
+        }
+
         if (field.Kind != "url")
         {
             return null;
