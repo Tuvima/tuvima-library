@@ -1,6 +1,6 @@
 # Spec: Away-from-home access (guided Remote access)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Mock-ups](../design/mockups/remote-access/mockups.html) · [Access, identity and remote access review (2026-10-08)](../plans/access-identity-remote-access-review-2026-10-08.md) · Settings alignment (draft) · issue 1152
+> **Status:** Built, awaiting Local checks · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Mock-ups](../design/mockups/remote-access/mockups.html) · [Access, identity and remote access review (2026-10-08)](../plans/access-identity-remote-access-review-2026-10-08.md) · Settings alignment (draft) · issue 1152
 
 Locked by Shy on 2026-11-20 ("good to lock it and build it"). Built in the cloud, validated locally as one batch. Questions use range 170 to 176. Answered 2026-11-20: 170B, 171A, 172A, 173A, 174A, 175A, 176A (Shy: "agree on all", "agree on both").
 
