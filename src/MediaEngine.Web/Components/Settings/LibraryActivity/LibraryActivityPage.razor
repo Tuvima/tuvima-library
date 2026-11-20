@@ -5,7 +5,6 @@
 @inject IStringLocalizer<SharedStrings> L
 @inject IngestionLiveDashboardState Dashboard
 @inject ShellActivityState Shell
-@inject DeviceContextService DeviceContext
 @inject MediaEngine.Web.Services.Ui.IAppDialogService Dialogs
 @inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @implements IAsyncDisposable
@@ -49,7 +48,7 @@
                             WorkingIds="WorkingIds"
                             RefreshToken="_refresh"
                             NoLibraries="NoLibraries"
-                            OnAddLibrary="@(CanAddLibrary ? EventCallback.Factory.Create(this, AddLibraryAsync) : default)"
+                            OnAddLibrary="@(EventCallback.Factory.Create(this, AddLibraryAsync))"
                             LastCompletedChanged="OnLastCompleted" />
 </div>
 
@@ -79,9 +78,6 @@
 
     // History's empty state offers Add library when there is nothing to show because there are no libraries at all.
     private bool NoLibraries => LibraryId is null && _configuration is not null && _libraries.Count == 0;
-
-    // The same rule as the Libraries page's Add library button: not on a phone (the page itself is for administrators only).
-    private bool CanAddLibrary => !DeviceContext.IsMobile;
 
     private async Task AddLibraryAsync()
     {

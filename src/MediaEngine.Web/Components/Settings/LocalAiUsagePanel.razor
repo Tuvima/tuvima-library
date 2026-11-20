@@ -50,11 +50,11 @@
             }
             else
             {
-                <AppTable Dense="true" Striped="true" Hover="true">
+                <AppTable Dense="true" Striped="true" Hover="true" CardsOn="AppTableCardsMode.Phone">
                     <thead>
                         <tr>
-                            <th>@L["Common_UsedBy"]</th>
-                            <th>@L["LocalAiUsagePanel_Ability"]</th>
+                            <th data-card-role="title">@L["Common_UsedBy"]</th>
+                            <th data-card-role="subtitle">@L["LocalAiUsagePanel_Ability"]</th>
                             <th class="app-table__num">@L["LocalAiUsagePanel_Requests"]</th>
                             <th class="app-table__num">@L["LocalAiUsagePanel_BusyTime"]</th>
                             <th>@L["LocalAiUsagePanel_LastUsed"]</th>
@@ -64,11 +64,11 @@
                         @foreach (var row in _usage.Rows)
                         {
                             <tr @key="@($"{row.CallerKind}/{row.CallerId}/{row.Ability}")">
-                                <td>@CallerLabel(row)</td>
-                                <td>@row.Ability</td>
-                                <td class="app-table__num">@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
-                                <td class="app-table__num">@row.BusySeconds.ToString("0.#") s</td>
-                                <td>@row.LastUsedAt.ToLocalTime().ToString("g")</td>
+                                <td data-card-role="title">@CallerLabel(row)</td>
+                                <td data-card-role="subtitle">@row.Ability</td>
+                                <td class="app-table__num" data-label="@L["LocalAiUsagePanel_Requests"].Value">@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
+                                <td class="app-table__num" data-label="@L["LocalAiUsagePanel_BusyTime"].Value">@row.BusySeconds.ToString("0.#") s</td>
+                                <td data-label="@L["LocalAiUsagePanel_LastUsed"].Value">@row.LastUsedAt.ToLocalTime().ToString("g")</td>
                             </tr>
                         }
                     </tbody>

@@ -168,15 +168,16 @@ public sealed class ComputerCapacityPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Panel_OnAPhone_DrawsNothing_AndAsksTheEngineForNothing()
+    public async Task Panel_OnAPhone_DrawsTheSamePanelAsADesktop()
     {
         _stored = Measured();
         await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", Touch: true));
 
         var cut = Render<ComputerCapacityPanel>();
 
-        Assert.Empty(cut.FindAll("[data-testid=computer-capacity]"));
-        Assert.Empty(cut.Markup.Trim());
+        cut.WaitForAssertion(() => Assert.Equal("87", cut.Find("[data-testid=capacity-score]").TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll("[data-testid=computer-capacity]"));
+        Assert.NotEmpty(cut.FindAll("[data-testid=capacity-run]"));
     }
 
     [Fact]

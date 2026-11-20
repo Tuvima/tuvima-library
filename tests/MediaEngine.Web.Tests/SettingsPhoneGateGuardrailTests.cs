@@ -18,32 +18,6 @@ public sealed partial class SettingsPhoneGateGuardrailTests
         SettingsSection.DevHarness,
     ];
 
-    /// <summary>
-    /// Sections that still carry a phone gate while the phone standards work (Look v3.2 WP6) removes them. The list only shrinks:
-    /// a section outside it that becomes gated turns the test red.
-    /// </summary>
-    private static readonly SettingsSection[] StillGatedSections =
-    [
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.AdminOverview,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.Libraries,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.Providers,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.LibraryRules,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.Playback,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.Network,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.LocalAi,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.Plugins,
-        // removed by Look v3.2 phone standards WP6; remove from this list when that lands
-        SettingsSection.Backups,
-    ];
-
     private static readonly string[] DeveloperTabFiles =
     [
         "ProviderTesterToolTab.razor",
@@ -67,10 +41,10 @@ public sealed partial class SettingsPhoneGateGuardrailTests
     }
 
     [Fact]
-    public void NoSettingsPageOutsideTheStillGatedList_OffersALargerScreenMessage()
+    public void NoSettingsPage_OffersALargerScreenMessage()
     {
         var offenders = new List<string>();
-        foreach (var section in Enum.GetValues<SettingsSection>().Where(section => !StillGatedSections.Contains(section)))
+        foreach (var section in Enum.GetValues<SettingsSection>())
         {
             if (SettingsNav.GetMobileAvailability(section) != SettingsMobileAvailability.Full || !SettingsNav.IsMobileRouteAvailable(section))
             {
@@ -81,18 +55,6 @@ public sealed partial class SettingsPhoneGateGuardrailTests
         Assert.True(
             offenders.Count == 0,
             "A phone is not told to use a larger screen for Settings (Settings alignment D13). New phone gate on: " + string.Join(", ", offenders));
-    }
-
-    [Fact]
-    public void TheStillGatedList_OnlyHoldsSectionsThatAreStillGated()
-    {
-        // Keeps the allowlist honest: once a section is open on a phone it must leave the list.
-        var stale = StillGatedSections
-            .Where(section => SettingsNav.GetMobileAvailability(section) == SettingsMobileAvailability.Full)
-            .Select(section => section.ToString())
-            .ToList();
-
-        Assert.True(stale.Count == 0, "No longer gated, remove from the allowlist: " + string.Join(", ", stale));
     }
 
     [Theory]

@@ -208,7 +208,7 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheBackupsTab_OffersNoCreateOrRestoreList_OnAPhone()
+    public async Task TheBackupsTab_OffersTheSameCreateAndRestoreControls_OnAPhone()
     {
         var api = EngineApiClientStub.Create(stub =>
         {
@@ -222,10 +222,10 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
 
         var cut = Render<BackupRecoveryPanel>();
 
-        cut.WaitForAssertion(() => Assert.Contains("Backup status", cut.Markup, StringComparison.Ordinal));
-        Assert.Empty(cut.FindAll("[data-testid='waiting-period']"));
-        Assert.Empty(cut.FindAll("[data-testid='backup-note']"));
-        Assert.Empty(cut.FindAll("[data-testid='restore-list']"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='backup-note']")));
+        Assert.Contains("Backup status", cut.Markup, StringComparison.Ordinal);
+        Assert.NotEmpty(cut.FindAll("[data-testid='restore-list']"));
+        Assert.DoesNotContain("desktop and tablet", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -186,9 +186,3 @@
         padding-inline: 1rem;
     }
 }
-
-.access-phone-note {
-    margin: 0 0 1rem;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-secondary-size);
-}

@@ -8,7 +8,6 @@
 @inject ConfirmedActionRunner Confirmed
 @inject IAppDialogService Dialogs
 @inject DeviceContextService DeviceContext
-@implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
 <SettingsSectionPanel Title="@L["ManagedAccessUsers_UsersAndSignIn"].Value" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles.">
@@ -18,10 +17,6 @@
     }
     else
     {
-        @if (DeviceContext.IsPhone)
-        {
-            <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
-        }
         @if (!string.IsNullOrWhiteSpace(_notice))
         {
             <AppAlert Severity="AppSeverity.Success" Class="access-notice" data-testid="access-notice">@_notice</AppAlert>
@@ -31,10 +26,7 @@
             <AppAlert Severity="AppSeverity.Error" Class="access-notice" data-testid="access-export-error">@_exportError</AppAlert>
         }
         <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
-            @if (!DeviceContext.IsPhone)
-            {
-                <AppButton Label="@L["ManagedAccessUsers_AddASignIn"].Value" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="OpenInvite" data-testid="access-add-sign-in" />
-            }
+            <AppButton Label="@L["ManagedAccessUsers_AddASignIn"].Value" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="OpenInvite" data-testid="access-add-sign-in" />
         </div>
         @if (_loading)
         {
@@ -53,6 +45,7 @@
                         <th data-card-role="title">@L["Common_SignIn"]</th>
                         <th data-card-role="subtitle">@L["ManagedAccessUsers_OpensProfileAndHousehold"]</th>
                         <th data-card-role="value">@L["Models_Status"]</th>
+                        <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -62,6 +55,7 @@
                             <td data-card-role="title">@UserLabel(user)</td>
                             <td data-card-role="subtitle">@($"{user.ProfileName ?? "No profile"} · {user.HouseholdName ?? "No household"}")</td>
                             <td data-card-role="@(HasBadges(user) ? "value" : "hidden")">@if (HasBadges(user)) {<div class="access-users__badges">@UserBadges(user)</div>}</td>
+                            <td data-card-role="actions"><AppRowMenu AriaLabel="@($"Actions for {UserLabel(user)}")" Items="@ActionItems(user)" /></td>
                         </tr>
                     }
                 </tbody>
@@ -216,8 +210,8 @@
 
     private bool CanManage => Session.HasAction("access.manage");
 
-    // Management is for the server administrator on a computer or tablet; every handler asks, not only the buttons.
-    private bool CanAct => CanManage && !DeviceContext.IsPhone;
+    // Management is for the server administrator, on any screen; every handler asks, not only the buttons.
+    private bool CanAct => CanManage;
 
     private bool CanSaveEmail => _editing is not null
         && !string.IsNullOrWhiteSpace(_email)
@@ -235,17 +229,6 @@
         UserDrawerMode.Delete when _editing is not null => $"Delete sign-in · {UserLabel(_editing)}",
         _ => "Users and Sign-in",
     };
-
-    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
-
-    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
-
-    private void DeviceChanged() => InvokeAsync(() =>
-    {
-        // Editing drawers never open on phones, so a switch to the phone form factor closes one that is already open.
-        if (DeviceContext.IsPhone && _open) Close();
-        StateHasChanged();
-    });
 
     protected override async Task OnInitializedAsync()
     {
@@ -483,7 +466,7 @@
         if (!user.IsEnabled) Chip("Disabled", AppUiTone.Neutral);
     };
 
-    // A mutation starts only for the server administrator on a computer or tablet, and only one at a time.
+    // A mutation starts only for the server administrator, and only one at a time.
     private bool TryBeginMutation(out long generation)
     {
         generation = _drawerGeneration;

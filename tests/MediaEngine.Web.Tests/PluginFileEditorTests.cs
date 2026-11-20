@@ -81,7 +81,7 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_ThePagesFileCardShowsNoEditor()
+    public async Task OnAPhone_ThePagesFileCardOffersTheEditorLikeADesktop()
     {
         _file = File(Original, State());
         Services.AddSingleton(EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetPluginSetupPageAsync), _ => Task.FromResult<PluginSetupPageResponse?>(new PluginSetupPageResponse
@@ -98,8 +98,8 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
             .Add(component => component.Section, "file"));
 
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("[data-card=file]")));
-        Assert.Empty(page.FindAll("[data-testid=plugin-file-edit]"));
-        Assert.Empty(page.FindAll("[data-testid=plugin-file-editor]"));
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("[data-testid=plugin-file-edit]")));
+        Assert.Empty(page.FindAll("[data-testid=plugin-file-computer-only]"));
     }
 
     [Fact]

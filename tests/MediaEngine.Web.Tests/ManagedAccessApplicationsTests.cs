@@ -784,7 +784,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_ApplicationsReadAsCardsWithoutManageControls()
+    public async Task OnAPhone_ApplicationsAreCardsWithTheSameManageControlsAsADesktop()
     {
         await UsePhoneAsync();
 
@@ -793,9 +793,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var card = cut.WaitForElement("article[aria-label='Living room']");
         Assert.DoesNotContain("User Client", card.TextContent);
         Assert.Equal("Status: Disabled", card.QuerySelector(".app-status-dot")!.GetAttribute("aria-label"));
-        Assert.Contains("Manage on a computer or tablet", cut.WaitForElement("p[role='note']").TextContent);
-        Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Manage") || button.TextContent.Contains("New integration"));
+        Assert.NotEmpty(cut.FindAll("[aria-label='Manage for Living room']"));
+        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("New integration"));
+        Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

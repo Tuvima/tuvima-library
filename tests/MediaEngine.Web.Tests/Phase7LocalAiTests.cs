@@ -97,7 +97,7 @@ public sealed class Phase7LocalAiTests
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
-        Assert.Contains("DeviceContext.IsMobile", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("DeviceContext.IsMobile", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
         // Every AI feature is a plugin: Status points at the Plugins page and holds no feature list or switches.
         Assert.Contains("AI features are plugins", source, StringComparison.Ordinal);

@@ -11,7 +11,7 @@ public sealed class SettingsNavTests
     public void CanonicalAccessSections_AreAvailableOnMobile(string subsection)
     {
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, subsection));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, subsection, "unknown-detail"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, subsection, "unknown-detail"));
     }
 
     [Fact]
@@ -211,26 +211,49 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void APersonsPreferencesTab_IsAvailableOnAPhone_ButTheirAccessTabIsNot()
+    public void APersonsPreferencesAndAccessTabs_AreBothAvailableOnAPhone()
     {
         var id = Guid.NewGuid().ToString("D");
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "preferences"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "access"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "access"));
     }
 
     [Fact]
-    public void MobileAvailability_WithholdsComplexAdministrationButKeepsMonitoringSummaries()
+    public void MobileAvailability_IsFullForEverySettingsPageExceptDeveloperTools()
     {
         Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Profiles));
-        Assert.Equal(SettingsMobileAvailability.SummaryOnly, SettingsNav.GetMobileAvailability(SettingsSection.AdminOverview));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.AdminOverview));
         Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "home"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "advanced"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "advanced"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, null, "tmdb"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Playback, "advanced"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, null, "tmdb"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Playback, "advanced"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.AdminOverview, SettingsNav.LogsSubsection));
+    }
+
+    [Fact]
+    public void EveryNonDeveloperSettingsRoute_IsAvailableOnAPhone()
+    {
+        var developer = new[] { SettingsSection.ProviderTester, SettingsSection.EnrichmentTester, SettingsSection.DevHarness };
+
+        foreach (var item in SettingsNav.AllItems.Where(item => !developer.Contains(item.Value)))
+        {
+            Assert.Equal(SettingsMobileAvailability.Full, item.MobileAvailability);
+            Assert.True(SettingsNav.IsVisibleOnMobile(item.Value), item.Value.ToString());
+            Assert.True(SettingsNav.IsMobileRouteAvailable(item.Value), item.Value.ToString());
+            foreach (var subsection in SettingsNav.GetSubsections(item.Value))
+            {
+                Assert.True(SettingsNav.IsMobileRouteAvailable(item.Value, subsection.Slug), $"{item.Value}/{subsection.Slug}");
+            }
+        }
+
+        foreach (var section in developer)
+        {
+            Assert.True(SettingsNav.IsMobileRouteAvailable(section), section.ToString());
+        }
     }
 
     [Theory]
@@ -667,8 +690,8 @@ public sealed class SettingsNavTests
         Assert.False(SettingsNav.IsVisible(SettingsSection.Review, administrationAllowed: false));
 
         // Only Needs Review changed: its neighbours keep the availability they had.
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.LibraryRules));
-        Assert.Equal(SettingsMobileAvailability.SummaryOnly, SettingsNav.GetMobileAvailability(SettingsSection.Providers));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.LibraryRules));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Providers));
     }
 
     [Fact]
@@ -726,15 +749,12 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ProfilesRoute_AcceptsAPersonId_AndRejectsOtherSubsections()
+    public void ProfilesRoute_AcceptsAPersonId_AndOtherSubsectionsHaveNoSettingsAddress()
     {
         var id = Guid.NewGuid().ToString("D");
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "household"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "households"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "extra"));
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Profiles, "household"));
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Profiles, "households"));
         Assert.Equal("households", SettingsNav.ResolveSubsection(SettingsSection.Access, "households")?.Slug);
@@ -817,7 +837,6 @@ public sealed class SettingsNavTests
         Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "household");
         Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "households" && subsection.Label == "Households");
         Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "users" && subsection.Label == "Users");
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, "household"));
         // Retired addresses are not forwarded (settings-and-setup-simplified D19).
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Access, "household"));
         Assert.Throws<ArgumentOutOfRangeException>(() => SettingsNav.RouteFor(SettingsSection.Access, "household"));

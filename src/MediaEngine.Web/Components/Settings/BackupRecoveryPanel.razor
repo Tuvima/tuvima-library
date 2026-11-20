@@ -4,7 +4,6 @@
 @using Microsoft.JSInterop
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
-@inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="backup-page">
@@ -45,10 +44,6 @@
                 {
                     <p class="backup-status__mobile-note" data-testid="restore-summary">@restoreSummary</p>
                 }
-                @if (DeviceContext.IsMobile)
-                {
-                    <p class="backup-status__mobile-note">@L["BackupRecoveryPanel_CreatingDownloadingTestingAndRestoring"]</p>
-                }
             }
         </AppSettingsGroup>
 
@@ -74,8 +69,6 @@
             </AppAlert>
         }
 
-        @if (!DeviceContext.IsMobile)
-        {
         <div class="backup-actions-grid">
             <AppSettingsGroup Heading="@L["BackupRecoveryPanel_CreateBackup"].Value" Class="backup-action-card">
                 <AppSwitchRow Label="@L["BackupRecoveryPanel_IncludeKeys"].Value" Description="@L["BackupRecoveryPanel_IncludeKeysHelp"].Value" Value="_includeKeys" ValueChanged="@(on => _includeKeys = on)" Disabled="@_busy" />
@@ -130,7 +123,6 @@
         </div>
 
         <BackupSchedulePanel />
-        }
     }
 
     @if (!string.IsNullOrWhiteSpace(_notice))

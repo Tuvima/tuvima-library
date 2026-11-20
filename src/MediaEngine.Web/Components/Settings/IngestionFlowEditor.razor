@@ -10,7 +10,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Ingestion Flow (Provider settings spec P2): one card per media type listing the providers that run for it, in order,
-   with a role. Reading is for everyone who can open Settings; editing is administrators on a computer only. Nothing applies
+   with a role. Reading is for everyone who can open Settings; editing is for administrators, on a desktop, tablet or phone. Nothing applies
    until Save changes, which shows Review changes first. A saved change affects new ingestion only. *@
 <div class="ingestion-flow" data-testid="ingestion-flow">
     @if (_loading)
@@ -34,7 +34,7 @@
             }
             else if (!CanEdit)
             {
-                <AppInfoTip Text="@EditorDeviceRule.Message" />
+                <AppInfoTip Text="@EditorDeviceRule.ItemMessage" />
             }
         </div>
 
@@ -136,7 +136,7 @@
     private bool _saving;
     private string? _saveError;
 
-    private bool CanEdit => EditorDeviceRule.CanEdit(DeviceContext);
+    private bool CanEdit => EditorDeviceRule.CanEditItems(DeviceContext);
 
     protected override async Task OnInitializedAsync()
     {

@@ -185,7 +185,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OnAPhone_ThePeopleAreReadOnly_WithNoAddHouseholdOrAddProfile_AndTheManageOnAComputerNote()
+    public void OnAPhone_ThePeopleCanBeAddedAndEdited_LikeOnADesktop()
     {
         UsePhone();
         Setup(serverAdministrator: true, householdAdministrator: false);
@@ -195,10 +195,20 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
-        Assert.Contains("Manage on a computer or tablet.", cut.Find("p[role='note']").TextContent);
-        Assert.Empty(cut.FindAll(".profiles-tab__row--add"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Add household", StringComparison.Ordinal));
+        Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Add household");
+        Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Add person");
         Assert.Equal(2, cut.FindAll(".profiles-tab__edit").Count);
+        Assert.All(cut.FindAll(".profiles-tab__edit"), edit =>
+        {
+            Assert.Equal("Edit", edit.TextContent.Trim());
+            Assert.Contains("tl-full-width", edit.ClassName, StringComparison.Ordinal);
+        });
+        Assert.Empty(cut.FindAll(".profiles-tab__drag"));
+
+        // The add button is the same action as the row on a larger screen: it opens the profile editor sheet.
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add person").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='dialog']")));
     }
 
     [Fact]
@@ -492,7 +502,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void KidSettings_SitUnderEachHousehold_AndAreReadOnlyOnAPhone()
+    public void KidSettings_SitUnderEachHousehold_AndAreEditableOnAPhone()
     {
         UsePhone();
         Setup(serverAdministrator: true, householdAdministrator: false);
@@ -506,7 +516,20 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.Find($"[data-kid-settings='{HouseholdId}'] .kid-settings__toggle").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select")));
 
-        Assert.All(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select, [data-kid-settings='{HouseholdId}'] input"), control => Assert.True(control.HasAttribute("disabled")));
+        Assert.All(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select, [data-kid-settings='{HouseholdId}'] input"), control => Assert.False(control.HasAttribute("disabled")));
+    }
+
+    // Look v3.2 D3: at 390 px each person is a card (avatar and name on top, role chips under them, a full-width Edit button of at least
+    // 44 px), so the name is never squeezed to a letter and Edit is never cut to "E...". With no browser to measure, the stylesheet is read.
+    [Fact]
+    public void OnAPhone_EachPersonIsACard_WithAFullWidthEditButton()
+    {
+        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ProfilesTab.razor.css"));
+        var phone = css[css.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
+
+        Assert.Contains("grid-template-areas: \"avatar who\" \"badges badges\" \"edit edit\"", phone, StringComparison.Ordinal);
+        Assert.Contains(".profiles-tab__edit-cell { grid-area: edit; display: block; }", phone, StringComparison.Ordinal);
+        Assert.Contains(".profiles-tab__badges { grid-area: badges; justify-content: flex-start; }", phone, StringComparison.Ordinal);
     }
 
     [Fact]

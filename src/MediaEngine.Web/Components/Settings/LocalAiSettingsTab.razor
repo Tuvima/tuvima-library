@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Services.Settings
 @implements IDisposable
 @inject UIOrchestratorService Orchestrator
-@inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
 
 <div class="tl-page local-ai-settings">
@@ -11,11 +10,8 @@
     {
         case "advanced":
             @* Runtime settings, invalidate benchmark and diagnostics, then the plugin allowance, then the detailed usage table. *@
-            @if (!DeviceContext.IsMobile)
-            {
-                <LocalAiRuntimePanel />
-                <LocalAiBudgetPanel />
-            }
+            <LocalAiRuntimePanel />
+            <LocalAiBudgetPanel />
             <LocalAiUsagePanel View="LocalAiUsagePanel.LocalAiUsageView.Table" />
             break;
         default:
@@ -74,11 +70,8 @@
 
             <SettingsAdvancedLinkRow Title="AI features are plugins" Description="Smart labelling, vibe tags and the other AI features are switched on, approved and changed on the Plugins page. Turning one on for the first time may download an AI model." Href="/settings/plugins" ActionLabel="Open Plugins" />
 
-            @* The resource profile, benchmark and model files sit on this same tab (desktop and tablet only, like the other runtime controls). *@
-            @if (!DeviceContext.IsMobile)
-            {
-                <ModelsTab />
-            }
+            @* The resource profile, benchmark and model files sit on this same tab, on every device. *@
+            <ModelsTab />
         }
     </text>;
 

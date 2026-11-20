@@ -3,25 +3,21 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="streaming-limits">
     <header class="streaming-limits__heading"><div><h3>@L["Common_LimitsAndQuality"]</h3><p>@L["StreamingLimitsPanel_ProtectYourUploadConnectionWhile"]</p></div></header>
 
-    @if (!DeviceContext.IsMobile)
-    {
-        <SettingsSectionPanel Title="@L["StreamingLimitsPanel_RemoteStreamingQuality"].Value">
-            <AppSelect T="string" Value="@Settings.Streaming.RemoteQuality" ValueChanged="ChangeQualityAsync"
-                       Label="@L["StreamingLimitsPanel_Quality"].Value" Options="@QualityOptions" />
-            <AppSwitchRow Label="@L["StreamingLimitsPanel_AutomaticUploadProtection"].Value"
-                          Description="@L["StreamingLimitsPanel_KeepBandwidthAvailableForThe"].Value"
-                          Value="@Settings.Streaming.UploadProtectionEnabled"
-                          ValueChanged="ChangeUploadProtectionAsync" />
-            <AppNumericField Value="@Settings.Streaming.ReservedUploadMbps" ValueChanged="ChangeReservedMbpsAsync"
-                             Label="@L["StreamingLimitsPanel_BandwidthReservedForOtherTraffic"].Value" Min="0" Max="10000" />
-        </SettingsSectionPanel>
-    }
+    <SettingsSectionPanel Title="@L["StreamingLimitsPanel_RemoteStreamingQuality"].Value">
+        <AppSelect T="string" Value="@Settings.Streaming.RemoteQuality" ValueChanged="ChangeQualityAsync"
+                   Label="@L["StreamingLimitsPanel_Quality"].Value" Options="@QualityOptions" />
+        <AppSwitchRow Label="@L["StreamingLimitsPanel_AutomaticUploadProtection"].Value"
+                      Description="@L["StreamingLimitsPanel_KeepBandwidthAvailableForThe"].Value"
+                      Value="@Settings.Streaming.UploadProtectionEnabled"
+                      ValueChanged="ChangeUploadProtectionAsync" />
+        <AppNumericField Value="@Settings.Streaming.ReservedUploadMbps" ValueChanged="ChangeReservedMbpsAsync"
+                         Label="@L["StreamingLimitsPanel_BandwidthReservedForOtherTraffic"].Value" Min="0" Max="10000" />
+    </SettingsSectionPanel>
 
     <SettingsSectionPanel Title="@L["StreamingLimitsPanel_UploadCapacity"].Value">
         <dl class="streaming-limits__bandwidth-grid">

@@ -12,8 +12,8 @@ public sealed partial class PhoneStandardsGuardrailTests
     /// <summary>Hover-only reveals that predate Look v3.2. Fix them (show on touch, or wrap the rule in @media (hover: hover)); never raise this.</summary>
     private const int HoverOnlyRevealCeiling = 23;
 
-    /// <summary>"On a computer" wording outside setup that predates Look v3.2. WP6 (Settings on a phone) takes it to 0; never raise this.</summary>
-    private const int OnAComputerWordingCeiling = 39;
+    /// <summary>"On a computer" wording outside setup that predates Look v3.2. WP6 (Settings on a phone) took the Settings ones out; what is left is the editor, View, Vault and other non-Settings code. Never raise this.</summary>
+    private const int OnAComputerWordingCeiling = 23;
 
     private static readonly string RepoRoot = FindRepoRoot();
 

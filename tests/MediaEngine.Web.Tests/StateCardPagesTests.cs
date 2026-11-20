@@ -270,7 +270,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task PluginsPage_OnAPhone_ShowsTheCardsReadOnly()
+    public async Task PluginsPage_OnAPhone_ShowsTheSameCardsAndSwitchesAsADesktop()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
         _plugins = [Plugin("a.ok", "Fine plugin", enabled: true)];
@@ -278,7 +278,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         var cut = Render<PluginSettingsTab>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
-        Assert.Empty(cut.FindAll("input[role=switch]"));
+        Assert.NotEmpty(cut.FindAll("input[role=switch]"));
         Assert.NotNull(cut.Find("[data-testid=plugin-gear]"));
     }
 

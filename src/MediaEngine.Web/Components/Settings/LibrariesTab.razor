@@ -14,7 +14,6 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @{
-    var readOnly = DeviceContext.IsMobile;
     var unavailable = DeviceContext.IsTelevision;
 }
 
@@ -59,7 +58,6 @@
                                    ViewFolderLists="@_viewFolderLists"
                                    PathIssues="@_pathIssues"
                                    ShowVault="@VaultVisible"
-                                   ReadOnly="@readOnly"
                                    Area="@AreaQuery"
                                    ImportWaiting="@_importWaiting"
                                    FolderAdded="FolderAddedAsync" />
@@ -71,7 +69,6 @@
                              Kinds="@Kinds"
                              Overview="@_overview"
                              PathIssues="@_pathIssues"
-                             ReadOnly="@readOnly"
                              Tab="@TabQuery"
                              HighlightAddFolder="@HighlightAdd"
                              VaultVisible="@VaultVisible"
@@ -82,7 +79,6 @@
                                  Kind="@(level.TypeKey!)"
                                  Kinds="@Kinds"
                                  Configuration="@_configuration"
-                                 ReadOnly="@readOnly"
                                  Tab="@TabQuery"
                                  RootChanged="LoadAsync" />
                 break;
@@ -98,12 +94,6 @@
         }
         </text>;
 
-        @* The folders panel carries its own phone note; this one covers the View settings, which are read-only on a phone too. *@
-        @if (readOnly && level.Kind == LevelKind.ViewKind)
-        {
-            <p class="libraries__mobile-note">@L["LibrariesTab_LibraryStorageAndIntakeAre"]</p>
-        }
-
         @if (_engineUnavailable)
         {
             <AppAlert Tone="AppUiTone.Error">
@@ -118,7 +108,7 @@
         @* No rail on a Libraries page (Libraries v3 D22): the table uses the full width, the chips filter, and a library's page has its breadcrumb back. *@
         @if (level.Kind != LevelKind.NotFound)
         {
-            <LibraryStatusLine ReadOnly="@readOnly" />
+            <LibraryStatusLine />
         }
         @content
     }

@@ -468,7 +468,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     // ----- who sees it, and where -----
 
     [Fact]
-    public async Task OnAPhone_SignInsReadAsCardsWithoutManageControls()
+    public async Task OnAPhone_SignInsAreCardsWithTheSameActionsAsADesktop()
     {
         await UsePhoneAsync();
 
@@ -478,9 +478,9 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         Assert.Equal("owner@example.test", cut.Find("td[data-card-role='title']").TextContent.Trim());
         Assert.Equal("Owner · Household 1", cut.Find("td[data-card-role='subtitle']").TextContent.Trim());
         Assert.Empty(cut.FindAll("td[data-card-role='value']"));
-        Assert.Contains("Manage on a computer or tablet", cut.Find("p[role='note']").TextContent);
-        Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("sign-in", StringComparison.OrdinalIgnoreCase) || button.TextContent.Contains("Import"));
+        Assert.NotEmpty(cut.FindAll("td[data-card-role='actions'] button[aria-label='Actions for owner@example.test']"));
+        Assert.NotEmpty(cut.FindAll("[data-testid='access-add-sign-in']"));
+        Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

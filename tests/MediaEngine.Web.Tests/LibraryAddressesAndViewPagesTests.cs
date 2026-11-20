@@ -273,7 +273,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
         Assert.False(SettingsNav.IsLibraryRouteSegment("providers"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, "watch", "movies"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, "nowhere"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, "nowhere"));
     }
 
     // The Settings frame shows each level's title and breadcrumb; this is the one rule for both. The older group, type and

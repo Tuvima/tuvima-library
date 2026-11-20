@@ -960,14 +960,13 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
     // 10. Phone: counts and status, nothing that changes anything.
     [Fact]
-    public async Task OnAPhoneTheOverviewShowsRowsWithTheNoteAndNoControlToChangeAnything()
+    public async Task OnAPhoneTheOverviewShowsRowsWithNoNoteAndTheSameControlsAsADesktop()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
         var cut = OpenAndSettle();
 
-        Assert.Contains("Use a desktop or tablet to change folders.", cut.Markup);
+        Assert.DoesNotContain("Use a desktop or tablet to change folders.", cut.Markup);
         Assert.NotEmpty(cut.FindAll($"tr[data-library='{MoviesId}']"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
     }
 
     // Libraries v3 D22: Add library sits at the top right of the page header, on the title row, never in the page content.
@@ -1121,14 +1120,14 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhoneALibrarysPageKeepsTheCountsAndStatusWithoutAnyControlThatChangesFolders()
+    public async Task OnAPhoneALibrarysPageOffersTheSameFolderControlsAsADesktop()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
         var cut = Open(MoviesId);
         cut.WaitForElement(".libpage");
 
-        Assert.Contains("Use a desktop or tablet to change folders.", cut.Markup);
-        Assert.Empty(cut.FindAll(".libpage__actions"));
+        Assert.DoesNotContain("Use a desktop or tablet to change folders.", cut.Markup);
+        Assert.Equal(["Scan now", "Add folder", "Add files"], cut.FindAll(".libpage__actions button").Select(Text).ToArray());
     }
 
     [Fact]
