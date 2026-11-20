@@ -109,7 +109,9 @@ public sealed class Phase7LocalAiTests
         Assert.Contains("LocalAiUsagePanel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/ai/vocabulary", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/ai/automation", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ai/models", source, StringComparison.Ordinal);
+        // Status and Models are one tab: the models section is drawn on this tab, with no address of its own.
+        Assert.Contains("<ModelsTab />", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/ai/models", source, StringComparison.Ordinal);
         Assert.Contains("OnParametersSetAsync", source, StringComparison.Ordinal);
     }
 

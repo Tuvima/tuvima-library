@@ -120,11 +120,11 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void Profile_HasOverviewActivityTasteLinkedAccountsAndImportAsTabs_AndNoAppsPage()
+    public void Profile_HasOverviewActivityTasteAndLinkedAccountsAsTabs_ImportIsAButtonNotATab_AndNoAppsPage()
     {
         var profile = SettingsNav.MenuGroups[0].Nodes[0];
         Assert.Equal("Profile", profile.Label);
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts", "Import"], profile.Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], profile.Tabs.Select(tab => tab.Label));
         var activity = profile.Tabs[1];
         Assert.Equal(SettingsSection.Overview, activity.Section);
         Assert.Equal(SettingsNav.ActivitySubsection, activity.Subsection);
@@ -140,6 +140,14 @@ public sealed class SettingsNavTests
         Assert.DoesNotContain(SettingsNav.MenuGroups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs), tab => tab.Label == "Apps");
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Overview, "apps"));
         Assert.Equal("Overview", SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Tab!.Label);
+
+        // Import is a button on Profile > Overview that opens the same page at the same address; it sits beneath Profile in the breadcrumb.
+        Assert.DoesNotContain(profile.Tabs, tab => tab.Label == "Import");
+        Assert.Equal("/settings/overview/import", SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.ImportSubsection));
+        var import = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.ImportSubsection)!;
+        Assert.Equal("Profile", import.Page.Label);
+        Assert.Null(import.Tab);
+        Assert.Equal("Import", import.Leaf);
     }
 
     [Fact]
@@ -152,7 +160,6 @@ public sealed class SettingsNavTests
     }
 
     [Theory]
-    [InlineData(SettingsSection.LocalAi, "models", "/settings/ai/models")]
     [InlineData(SettingsSection.LocalAi, "advanced", "/settings/ai/advanced")]
     [InlineData(SettingsSection.Playback, "advanced", "/settings/playback/advanced")]
     [InlineData(SettingsSection.Network, "home", "/settings/network/home")]
@@ -175,8 +182,8 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
-        // Which AI features run is decided on the Plugins page, so Local AI keeps Status, Models and Advanced.
-        Assert.Equal(["Status", "Models", "Advanced"], labels);
+        // Which AI features run is decided on the Plugins page, so Local AI keeps one Status and models tab and Advanced.
+        Assert.Equal(["Status and models", "Advanced"], labels);
         Assert.Equal("status", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.LocalAi, "unknown"));
     }
@@ -383,7 +390,7 @@ public sealed class SettingsNavTests
             Labels(groups, "server"));
         Assert.Equal(["Developer Tools"], Labels(groups, "developer"));
 
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts", "Import"], TabLabels(groups, "Profile"));
+        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], TabLabels(groups, "Profile"));
         Assert.Empty(TabLabels(groups, "Manage Profiles"));
         Assert.Equal(["Sign-in", "Devices"], TabLabels(groups, "Security & Devices"));
         Assert.Equal(["Libraries", "Needs Review", "Matching", "Rules"], TabLabels(groups, "Libraries"));
@@ -392,7 +399,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["Users", "Households", "Advanced"], TabLabels(groups, "Users & Households"));
         Assert.Equal(["Home network", "Remote access", "Advanced"], TabLabels(groups, "Network & Remote Access"));
         Assert.Empty(TabLabels(groups, "Tools"));
-        Assert.Equal(["Status", "Models", "Advanced"], TabLabels(groups, "Local AI"));
+        Assert.Equal(["Status and models", "Advanced"], TabLabels(groups, "Local AI"));
         Assert.Empty(TabLabels(groups, "Plugins"));
         Assert.Empty(TabLabels(groups, "Integrations"));
         Assert.Equal(["Back up and restore", "Destinations", "Advanced"], TabLabels(groups, "Backups"));
@@ -541,7 +548,6 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Access, "households")]
     [InlineData(SettingsSection.Access, "advanced")]
     [InlineData(SettingsSection.LocalAi, "status")]
-    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.LocalAi, "advanced")]
     [InlineData(SettingsSection.Playback, "advanced")]
     [InlineData(SettingsSection.Backups, "destinations")]
@@ -558,6 +564,7 @@ public sealed class SettingsNavTests
     [Theory]
     [InlineData(SettingsSection.Network, "streaming")]
     [InlineData(SettingsSection.LocalAi, "runtime")]
+    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.Plugins, "jobs-health")]
     [InlineData(SettingsSection.Plugins, "catalog")]
     [InlineData(SettingsSection.Plugins, "capabilities")]

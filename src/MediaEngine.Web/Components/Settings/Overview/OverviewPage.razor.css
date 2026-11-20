@@ -141,7 +141,7 @@
         width: 100%;
     }
 
-    .overview-header__actions > :first-child {
+    .overview-header__actions > * {
         flex: 1 1 auto;
     }
 }

@@ -5139,7 +5139,7 @@
     <value>Plugins using Local AI</value>
   </data>
   <data name="LocalAiUsagePanel_EachAIFeatureIsA" xml:space="preserve">
-    <value>Each AI feature is a plugin. Open one to switch it on or off or change when it runs.</value>
+    <value>Each AI feature is a plugin. This is how much of its hourly allowance each one has used.</value>
   </data>
   <data name="LocalAiUsagePanel_NoPluginUsesLocalAI" xml:space="preserve">
     <value>No plugin uses Local AI</value>
